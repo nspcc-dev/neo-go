@@ -10,6 +10,7 @@ import (
 var (
 	port = flag.String("port", ":3000", "port the TCP listener will listen on.")
 	seed = flag.String("seed", "", "initial seed servers.")
+	net  = flag.Int("net", 56753, "the mode the server will operate in.")
 )
 
 // Simple dirty and quick bootstrapping for the sake of development.
@@ -19,7 +20,7 @@ var (
 func main() {
 	flag.Parse()
 
-	s := network.NewServer(network.ModeTestNet)
+	s := network.NewServer(network.NetMode(*net))
 	seeds := strings.Split(*seed, ",")
 	if len(seeds) == 0 {
 		seeds = []string{*seed}

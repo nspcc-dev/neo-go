@@ -6,15 +6,20 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 )
 
 const (
-	version     = "0.0.1"
+	// node version
+	version = "2.6.0"
+	// official ports according to the protocol.
 	portMainNet = 10333
 	portTestNet = 20333
-	// make sure we can run a server without consuming
-	// docker privnet ports.
-	portDevNet = 3000
+)
+
+var (
+	// rpcLogger used for debugging RPC messages between nodes.
+	rpcLogger = log.New(os.Stdout, "RPC :: ", 0)
 )
 
 type messageTuple struct {
@@ -26,11 +31,15 @@ type messageTuple struct {
 type Server struct {
 	logger *log.Logger
 
+	// the port the TCP listener is listening on.
+	port uint16
+
 	// userAgent of the server.
 	userAgent string
 	// The "magic" mode the server is currently running on.
 	// This can either be 0x00746e41 or 0x74746e41 for main or test net.
-	netMode uint32
+	// Or 56753 to work with the docker privnet.
+	net NetMode
 	// map that holds all connected peers to this server.
 	peers map[*Peer]bool
 
@@ -48,16 +57,14 @@ type Server struct {
 
 	// TCP listener of the server
 	listener net.Listener
-
-	dev bool
 }
 
 // NewServer returns a pointer to a new server.
-func NewServer(mode uint32) *Server {
+func NewServer(net NetMode) *Server {
 	logger := log.New(os.Stdout, "NEO SERVER :: ", 0)
 
-	if mode != ModeTestNet && mode != ModeMainNet {
-		logger.Fatalf("invalid network mode %d", mode)
+	if net != ModeTestNet && net != ModeMainNet && net != ModeDevNet {
+		logger.Fatalf("invalid network mode %d", net)
 	}
 
 	s := &Server{
@@ -68,7 +75,7 @@ func NewServer(mode uint32) *Server {
 		unregister: make(chan *Peer),
 		message:    make(chan messageTuple),
 		relay:      true,
-		netMode:    mode,
+		net:        net,
 		quit:       make(chan struct{}),
 	}
 
@@ -77,8 +84,15 @@ func NewServer(mode uint32) *Server {
 
 // Start run's the server.
 func (s *Server) Start(port string, seeds []string) {
+	p, err := strconv.Atoi(port[1:len(port)])
+	if err != nil {
+		s.logger.Fatalf("could not convert port to integer: %s", err)
+	}
+	s.port = uint16(p)
+
 	fmt.Println(logo())
-	s.logger.Printf("running %s on %s - relay: %v", s.userAgent, "testnet", s.relay)
+	s.logger.Printf("running %s on %s - TCP %d - relay: %v",
+		s.userAgent, s.net, int(s.port), s.relay)
 
 	go listenTCP(s, port)
 
@@ -109,15 +123,18 @@ func (s *Server) loop() {
 		select {
 		case peer := <-s.register:
 			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
-			resp, err := s.handlePeerConnected()
-			if err != nil {
-				s.logger.Fatalf("handling initial peer connection failed: %s", err)
+
+			// only respond with the version mesage if the peer initiated the connection.
+			if peer.initiater {
+				resp, err := s.handlePeerConnected()
+				if err != nil {
+					s.logger.Fatalf("handling initial peer connection failed: %s", err)
+				}
+				peer.send <- resp
 			}
-			peer.send <- resp
 		case peer := <-s.unregister:
 			s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
 		case tuple := <-s.message:
-			s.logger.Printf("new incomming message %s", string(tuple.msg.Command))
 			if err := s.processMessage(tuple.msg, tuple.peer); err != nil {
 				s.logger.Fatalf("failed to process message: %s", err)
 			}
@@ -130,6 +147,8 @@ func (s *Server) loop() {
 // TODO: unregister peers on error.
 // processMessage processes the received message from a remote node.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
+	rpcLogger.Printf("IN :: %+v", msg)
+
 	switch msg.commandType() {
 	case cmdVersion:
 		v, _ := msg.decodePayload()
@@ -159,12 +178,12 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 // No further communication should been made before both sides has received
 // the version of eachother.
 func (s *Server) handlePeerConnected() (*Message, error) {
-	payload := newVersionPayload(s.port(), s.userAgent, 0, s.relay)
+	payload := newVersionPayload(s.port, s.userAgent, 0, s.relay)
 	b, err := payload.encode()
 	if err != nil {
 		return nil, err
 	}
-	msg := newMessage(ModeTestNet, cmdVersion, b)
+	msg := newMessage(s.net, cmdVersion, b)
 	return msg, nil
 }
 
@@ -174,25 +193,8 @@ func (s *Server) handleVersionCmd(v *Version) (*Message, error) {
 	// TODO: check version and verify to trust that node.
 
 	// Empty payload for the verack message.
-	fmt.Printf("%+v\n", v)
-
-	msg := newMessage(s.netMode, cmdVerack, nil)
+	msg := newMessage(s.net, cmdVerack, nil)
 	return msg, nil
-}
-
-func (s *Server) port() uint16 {
-	if s.dev {
-		return portDevNet
-	}
-	if s.netMode == ModeMainNet {
-		return portMainNet
-	}
-	if s.netMode == ModeTestNet {
-		return portTestNet
-	}
-
-	s.logger.Fatalf("the server dont know what ports it running, yikes.")
-	return 0
 }
 
 func logo() string {

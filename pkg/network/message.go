@@ -8,11 +8,33 @@ import (
 	"io"
 )
 
+const (
+	// The minimum size of a valid message.
+	minMessageSize = 24
+)
+
+// NetMode type that is compatible with netModes below.
+type NetMode uint32
+
+// String implements the stringer interface.
+func (n NetMode) String() string {
+	switch n {
+	case ModeDevNet:
+		return "devnet"
+	case ModeTestNet:
+		return "testnet"
+	case ModeMainNet:
+		return "mainnet"
+	default:
+		return ""
+	}
+}
+
 // Values used for the magic field, according to the docs.
 const (
-	ModeMainNet = 0x00746e41 // 7630401
-	ModeTestNet = 0x74746e41 // 1953787457
-	// ModeDevNet  = 0xDEADBEAF
+	ModeMainNet NetMode = 0x00746e41 // 7630401
+	ModeTestNet         = 0x74746e41 // 1953787457
+	ModeDevNet          = 56753      // docker privnet
 )
 
 // Message is the complete message send between nodes.
@@ -25,7 +47,7 @@ const (
 //	4		Checksum	uint32			Checksum
 //	length	Payload		uint8[length]	Content of message
 type Message struct {
-	Magic uint32
+	Magic NetMode
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
 	Command []byte
@@ -55,7 +77,7 @@ const (
 	cmdTX                     = "tx"
 )
 
-func newMessage(magic uint32, cmd commandType, payload []byte) *Message {
+func newMessage(magic NetMode, cmd commandType, payload []byte) *Message {
 	sum := sumSHA256(sumSHA256(payload))[:4]
 	sumuint32 := binary.LittleEndian.Uint32(sum)
 
@@ -100,12 +122,12 @@ func (m *Message) commandType() commandType {
 // decode a Message from the given reader.
 func (m *Message) decode(r io.Reader) error {
 	// 24 bytes for the fixed sized fields.
-	buf := make([]byte, 24)
+	buf := make([]byte, minMessageSize)
 	if _, err := r.Read(buf); err != nil {
 		return err
 	}
 
-	m.Magic = binary.LittleEndian.Uint32(buf[0:4])
+	m.Magic = NetMode(binary.LittleEndian.Uint32(buf[0:4]))
 	m.Command = buf[4:16]
 	m.Length = binary.LittleEndian.Uint32(buf[16:20])
 	m.Checksum = binary.LittleEndian.Uint32(buf[20:24])
@@ -128,9 +150,9 @@ func (m *Message) decode(r io.Reader) error {
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
 	// 24 bytes for the fixed sized fields + the length of the payload.
-	buf := make([]byte, 24+m.Length)
+	buf := make([]byte, minMessageSize+m.Length)
 
-	binary.LittleEndian.PutUint32(buf[0:4], m.Magic)
+	binary.LittleEndian.PutUint32(buf[0:4], uint32(m.Magic))
 	copy(buf[4:16], m.Command)
 	binary.LittleEndian.PutUint32(buf[16:20], m.Length)
 	binary.LittleEndian.PutUint32(buf[20:24], m.Checksum)
