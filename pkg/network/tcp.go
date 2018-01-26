@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -18,12 +17,11 @@ func listenTCP(s *Server, port string) error {
 		if err != nil {
 			return err
 		}
-		go handleConnection(s, conn)
+		go handleConnection(s, conn, true)
 	}
 }
 
 func connectToSeeds(s *Server, addrs []string) {
-	fmt.Println(len(addrs))
 	for _, addr := range addrs {
 		go func(addr string) {
 			conn, err := net.Dial("tcp", addr)
@@ -34,13 +32,13 @@ func connectToSeeds(s *Server, addrs []string) {
 				}
 				return
 			}
-			go handleConnection(s, conn)
+			go handleConnection(s, conn, false)
 		}(addr)
 	}
 }
 
-func handleConnection(s *Server, conn net.Conn) {
-	peer := NewPeer(conn)
+func handleConnection(s *Server, conn net.Conn, initiated bool) {
+	peer := NewPeer(conn, initiated)
 	s.register <- peer
 
 	// remove the peer from connected peers and cleanup the connection.

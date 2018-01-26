@@ -125,7 +125,7 @@ func (s *Server) loop() {
 			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
 
 			// only respond with the version mesage if the peer initiated the connection.
-			if peer.initiater {
+			if peer.initiator {
 				resp, err := s.handlePeerConnected()
 				if err != nil {
 					s.logger.Fatalf("handling initial peer connection failed: %s", err)

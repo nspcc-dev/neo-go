@@ -13,13 +13,16 @@ type Peer struct {
 	send chan *Message
 	// verack is true if this node has sended it's version.
 	verack bool
+	// whether we or him made the initial connection.
+	initiator bool
 }
 
 // NewPeer returns a (TCP) Peer.
-func NewPeer(conn net.Conn) *Peer {
+func NewPeer(conn net.Conn, init bool) *Peer {
 	return &Peer{
-		conn: conn,
-		send: make(chan *Message),
+		conn:      conn,
+		send:      make(chan *Message),
+		initiator: init,
 	}
 }
 
@@ -35,6 +38,7 @@ func (p *Peer) writeLoop() {
 
 	for {
 		msg := <-p.send
+		rpcLogger.Printf("OUT :: %+v", msg)
 		if err := msg.encode(p.conn); err != nil {
 			log.Printf("encode error: %s", err)
 		}
