@@ -9,7 +9,7 @@ import (
 
 func TestNewMessage(t *testing.T) {
 	payload := []byte{}
-	m := newMessage(ModeTestNet, "version", payload)
+	m := newMessage(ModeTestNet, cmdVersion, payload)
 
 	if have, want := m.Length, uint32(0); want != have {
 		t.Errorf("want %d have %d", want, have)
@@ -25,11 +25,18 @@ func TestNewMessage(t *testing.T) {
 	}
 }
 func TestMessageEncodeDecode(t *testing.T) {
-	m := newMessage(ModeTestNet, "version", []byte{})
+	m := newMessage(ModeTestNet, cmdVersion, []byte{})
 
 	buf := &bytes.Buffer{}
 	if err := m.encode(buf); err != nil {
 		t.Error(err)
+	}
+
+	if n := len(buf.Bytes()); n < minMessageSize {
+		t.Fatalf("message should be at least %d bytes got %d", minMessageSize, n)
+	}
+	if n := len(buf.Bytes()); n > minMessageSize {
+		t.Fatalf("message without a payload should be exact %d bytes got %d", minMessageSize, n)
 	}
 
 	md := &Message{}
@@ -42,7 +49,7 @@ func TestMessageEncodeDecode(t *testing.T) {
 }
 
 func TestMessageInvalidChecksum(t *testing.T) {
-	m := newMessage(ModeTestNet, "version", []byte{})
+	m := newMessage(ModeTestNet, cmdVersion, []byte{})
 	m.Checksum = 1337
 
 	buf := &bytes.Buffer{}
@@ -57,7 +64,8 @@ func TestMessageInvalidChecksum(t *testing.T) {
 }
 
 func TestNewVersionPayload(t *testing.T) {
-	p := newVersionPayload(3000, "/neo/", 0, true)
+	ua := "/neo/0.0.1/"
+	p := newVersionPayload(3000, ua, 0, true)
 	b, err := p.encode()
 	if err != nil {
 		t.Fatal(err)
