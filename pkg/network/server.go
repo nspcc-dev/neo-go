@@ -132,6 +132,8 @@ func (s *Server) loop() {
 		case peer := <-s.register:
 			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
 
+			s.peers[peer] = true
+
 			// only respond with the version mesage if the peer initiated the connection.
 			if peer.initiator {
 				resp, err := s.handlePeerConnected()
@@ -148,6 +150,7 @@ func (s *Server) loop() {
 		case tuple := <-s.message:
 			if err := s.processMessage(tuple.msg, tuple.peer); err != nil {
 				s.logger.Fatalf("failed to process message: %s", err)
+				s.disconnect(tuple.peer)
 			}
 		case <-s.quit:
 			s.shutdown()
@@ -166,9 +169,10 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 		if err != nil {
 			return err
 		}
-		s.handleVersionCmd(v.(*Version), peer)
+		return s.handleVersionCmd(v.(*Version), peer)
 	case cmdVerack:
 	case cmdGetAddr:
+		return s.handleGetAddrCmd(msg, peer)
 	case cmdAddr:
 	case cmdGetHeaders:
 	case cmdHeaders:
@@ -198,21 +202,43 @@ func (s *Server) handlePeerConnected() (*Message, error) {
 }
 
 // Version declares the server's version.
-func (s *Server) handleVersionCmd(v *Version, peer *Peer) {
+func (s *Server) handleVersionCmd(v *Version, peer *Peer) error {
 	// TODO: check version and verify to trust that node.
 
 	payload := newVersionPayload(s.port, s.userAgent, 0, s.relay)
 	b, err := payload.encode()
 	if err != nil {
-		s.disconnect(peer)
-		return
+		return err
 	}
+
+	// we respond with our version.
 	versionMsg := newMessage(s.net, cmdVersion, b)
 	peer.send <- versionMsg
 
+	// we respond with a verack, we successfully received peer's version
+	// at this point.
 	peer.verack = true
 	verackMsg := newMessage(s.net, cmdVerack, nil)
 	peer.send <- verackMsg
+
+	return nil
+}
+
+// After receiving the "getaddr" the server needs to respond with an "addr" message.
+// providing information about the other nodes in the network.
+// e.g. this server's connected peers.
+func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
+	// payload := NewAddrPayload()
+	// b, err := payload.encode()
+	// if err != nil {
+	// 	return err
+	// }
+	var addrList []AddrWithTimestamp
+	for peer := range s.peers {
+		addrList = append(addrList, newAddrWithTimestampFromPeer(peer))
+	}
+
+	return nil
 }
 
 func logo() string {
