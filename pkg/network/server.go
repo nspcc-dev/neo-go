@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"strconv"
+
+	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
 const (
@@ -165,11 +167,11 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 
 	switch msg.commandType() {
 	case cmdVersion:
-		v, err := msg.decodePayload()
-		if err != nil {
-			return err
-		}
-		return s.handleVersionCmd(v.(*Version), peer)
+		// v, err := msg.decodePayload()
+		// if err != nil {
+		// 	return err
+		// }
+		// return s.handleVersionCmd(v.(*Version), peer)
 	case cmdVerack:
 	case cmdGetAddr:
 		return s.handleGetAddrCmd(msg, peer)
@@ -192,27 +194,18 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 // No further communication should been made before both sides has received
 // the version of eachother.
 func (s *Server) handlePeerConnected() (*Message, error) {
-	payload := newVersionPayload(s.port, s.userAgent, 0, s.relay)
-	b, err := payload.encode()
-	if err != nil {
-		return nil, err
-	}
-	msg := newMessage(s.net, cmdVersion, b)
+	payload := payload.NewVersion(s.port, s.userAgent, 0, s.relay)
+	msg := newMessage(s.net, cmdVersion, payload)
 	return msg, nil
 }
 
 // Version declares the server's version.
-func (s *Server) handleVersionCmd(v *Version, peer *Peer) error {
+func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	// TODO: check version and verify to trust that node.
 
-	payload := newVersionPayload(s.port, s.userAgent, 0, s.relay)
-	b, err := payload.encode()
-	if err != nil {
-		return err
-	}
-
+	payload := payload.NewVersion(s.port, s.userAgent, 0, s.relay)
 	// we respond with our version.
-	versionMsg := newMessage(s.net, cmdVersion, b)
+	versionMsg := newMessage(s.net, cmdVersion, payload)
 	peer.send <- versionMsg
 
 	// we respond with a verack, we successfully received peer's version

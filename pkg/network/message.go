@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+
+	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
 const (
@@ -57,7 +59,7 @@ type Message struct {
 	// hash of the payload
 	Checksum uint32
 	// Payload send with the message.
-	Payload []byte
+	Payload payload.Payloader
 }
 
 type commandType string
@@ -77,17 +79,34 @@ const (
 	cmdTX                     = "tx"
 )
 
-func newMessage(magic NetMode, cmd commandType, payload []byte) *Message {
-	sum := sumSHA256(sumSHA256(payload))[:4]
-	sumuint32 := binary.LittleEndian.Uint32(sum)
-
-	return &Message{
-		Magic:    magic,
-		Command:  cmdToByteSlice(cmd),
-		Length:   uint32(len(payload)),
-		Checksum: sumuint32,
-		Payload:  payload,
+func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
+	var size uint32
+	if p != nil {
+		size = p.Size()
 	}
+	return &Message{
+		Magic:   magic,
+		Command: cmdToByteSlice(cmd),
+		Length:  size,
+		Payload: p,
+	}
+}
+
+func TeeWriter(w io.Writer, r io.Reader) io.Writer {
+	return &teeWriter{w, r}
+}
+
+type teeWriter struct {
+	w io.Writer
+	r io.Reader
+}
+
+func (w *teeWriter) Write(b []byte) (n int, err error) {
+	n, err = w.w.Write(b)
+	if n > 0 {
+		n, err = w.r.Read(b[:n])
+	}
+	return
 }
 
 // Converts the 12 byte command slice to a commandType.
@@ -134,138 +153,77 @@ func (m *Message) decode(r io.Reader) error {
 	m.Length = binary.LittleEndian.Uint32(buf[16:20])
 	m.Checksum = binary.LittleEndian.Uint32(buf[20:24])
 
-	payload := make([]byte, m.Length)
-	if _, err := r.Read(payload); err != nil {
-		return err
+	// payload is 0, so dont decode it.
+	if m.Length == 0 {
+		return nil
+	}
+
+	buffer := new(bytes.Buffer)
+	tr := io.TeeReader(r, buffer)
+	var p payload.Payloader
+
+	switch m.commandType() {
+	case cmdVersion:
+		p = &payload.Version{}
+		if err := p.Decode(tr); err != nil {
+			return err
+		}
 	}
 
 	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, payload) {
+	if !compareChecksum(m.Checksum, buffer.Bytes()) {
 		return errors.New("checksum mismatch error")
 	}
 
-	m.Payload = payload
+	m.Payload = p
 
 	return nil
 }
 
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
-	// 24 bytes for the fixed sized fields + the length of the payload.
-	buf := make([]byte, minMessageSize+m.Length)
+	buf := make([]byte, minMessageSize)
+	pbuf := new(bytes.Buffer)
 
+	// if there is a payload fill its allocated buffer.
+	if m.Payload != nil {
+		if err := m.Payload.Encode(pbuf); err != nil {
+			return err
+		}
+		checksum := sumSHA256(sumSHA256(pbuf.Bytes()))[:4]
+		m.Checksum = binary.LittleEndian.Uint32(checksum)
+	}
+
+	// fill the message buffer
 	binary.LittleEndian.PutUint32(buf[0:4], uint32(m.Magic))
 	copy(buf[4:16], m.Command)
 	binary.LittleEndian.PutUint32(buf[16:20], m.Length)
 	binary.LittleEndian.PutUint32(buf[20:24], m.Checksum)
-	copy(buf[24:len(buf)], m.Payload)
 
-	_, err := w.Write(buf)
-	return err
-}
+	// write the message
+	n, err := w.Write(buf)
+	if err != nil {
+		return err
+	}
 
-func (m *Message) decodePayload() (interface{}, error) {
-	switch m.commandType() {
-	case cmdVersion:
-		v := &Version{}
-		if err := v.decode(m.Payload); err != nil {
-			return nil, err
+	// we need to have at least writen exactly minMessageSize bytes.
+	if n != minMessageSize {
+		return errors.New("long/short read error when encoding message")
+	}
+
+	// write the payload if there was any
+	if pbuf.Len() > 0 {
+		n, err = w.Write(pbuf.Bytes())
+		if err != nil {
+			return err
 		}
-		return v, nil
+
+		if uint32(n) != m.Payload.Size() {
+			return errors.New("long/short read error when encoding payload")
+		}
 	}
-	return nil, nil
-}
-
-// Version payload description.
-//
-//	Size	Field		  DataType		Description
-// 	---------------------------------------------------------------------------------------------
-// 	4		Version		  uint32		Version of protocol, 0 for now
-// 	8		Services	  uint64		The service provided by the node is currently 1
-// 	4		Timestamp	  uint32		Current time
-// 	2		Port		  uint16		Port that the server is listening on, it's 0 if not used.
-// 	4		Nonce		  uint32		It's used to distinguish the node from public IP
-// 	?		UserAgent	  varstr		Client ID
-// 	4		StartHeight	  uint32		Height of block chain
-// 	1		Relay		  bool			Whether to receive and forward
-type Version struct {
-	// currently the version of the protocol is 0
-	Version uint32
-	// currently 1
-	Services uint64
-	// timestamp
-	Timestamp uint32
-	// port this server is listening on
-	Port uint16
-	// it's used to distinguish the node from public IP
-	Nonce uint32
-	// client id
-	UserAgent []byte // ?
-	// Height of the block chain
-	StartHeight uint32
-	// Whether to receive and forward
-	Relay bool
-}
-
-func newVersionPayload(p uint16, ua string, h uint32, r bool) *Version {
-	return &Version{
-		Version:     0,
-		Services:    1,
-		Timestamp:   12345,
-		Port:        p,
-		Nonce:       19110,
-		UserAgent:   []byte(ua),
-		StartHeight: 0,
-		Relay:       r,
-	}
-}
-
-func (p *Version) decode(b []byte) error {
-	// Fixed fields have a total of 27 bytes. We substract this size
-	// with the total buffer length to know the length of the user agent.
-	lenUA := len(b) - 27
-
-	p.Version = binary.LittleEndian.Uint32(b[0:4])
-	p.Services = binary.LittleEndian.Uint64(b[4:12])
-	p.Timestamp = binary.LittleEndian.Uint32(b[12:16])
-	// FIXME: port's byteorder should be big endian according to the docs.
-	// but when connecting to the privnet docker image it's little endian.
-	p.Port = binary.LittleEndian.Uint16(b[16:18])
-	p.Nonce = binary.LittleEndian.Uint32(b[18:22])
-	p.UserAgent = b[22 : 22+lenUA]
-	curlen := 22 + lenUA
-	p.StartHeight = binary.LittleEndian.Uint32(b[curlen : curlen+4])
-	p.Relay = b[len(b)-1 : len(b)][0] == 1
 
 	return nil
-}
-
-func (p *Version) encode() ([]byte, error) {
-	// 27 bytes for the fixed size fields + the length of the user agent
-	// which is kinda variable, according to the docs.
-	buf := make([]byte, 27+len(p.UserAgent))
-
-	binary.LittleEndian.PutUint32(buf[0:4], p.Version)
-	binary.LittleEndian.PutUint64(buf[4:12], p.Services)
-	binary.LittleEndian.PutUint32(buf[12:16], p.Timestamp)
-	// FIXME: byte order (little / big)?
-	binary.LittleEndian.PutUint16(buf[16:18], p.Port)
-	binary.LittleEndian.PutUint32(buf[18:22], p.Nonce)
-	copy(buf[22:22+len(p.UserAgent)], p.UserAgent) //
-	curLen := 22 + len(p.UserAgent)
-	binary.LittleEndian.PutUint32(buf[curLen:curLen+4], p.StartHeight)
-
-	// yikes
-	var b []byte
-	if p.Relay {
-		b = []byte{1}
-	} else {
-		b = []byte{0}
-	}
-
-	copy(buf[curLen+4:len(buf)], b)
-
-	return buf, nil
 }
 
 // convert a command (string) to a byte slice filled with 0 bytes till
