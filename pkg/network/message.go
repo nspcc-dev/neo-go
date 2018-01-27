@@ -98,6 +98,8 @@ func (m *Message) commandType() commandType {
 		return cmdVersion
 	case "verack":
 		return cmdVerack
+	case "getaddr":
+		return cmdGetAddr
 	case "addr":
 		return cmdAddr
 	case "getheaders":
@@ -211,7 +213,7 @@ func newVersionPayload(p uint16, ua string, h uint32, r bool) *Version {
 		Services:    1,
 		Timestamp:   12345,
 		Port:        p,
-		Nonce:       1911099534,
+		Nonce:       19110,
 		UserAgent:   []byte(ua),
 		StartHeight: 0,
 		Relay:       r,

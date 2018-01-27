@@ -68,7 +68,9 @@ func NewServer(net NetMode) *Server {
 	}
 
 	s := &Server{
-		userAgent:  fmt.Sprintf("/NEO:%s/", version),
+		// It is important to have this user agent correct. Otherwise we will get
+		// disconnected.
+		userAgent:  fmt.Sprintf("\v/NEO:%s/", version),
 		logger:     logger,
 		peers:      make(map[*Peer]bool),
 		register:   make(chan *Peer),
@@ -118,6 +120,12 @@ func (s *Server) shutdown() {
 	}
 }
 
+func (s *Server) disconnect(p *Peer) {
+	p.conn.Close()
+	close(p.send)
+	s.unregister <- p
+}
+
 func (s *Server) loop() {
 	for {
 		select {
@@ -133,7 +141,10 @@ func (s *Server) loop() {
 				peer.send <- resp
 			}
 		case peer := <-s.unregister:
-			s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
+			if _, ok := s.peers[peer]; ok {
+				delete(s.peers, peer)
+				s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
+			}
 		case tuple := <-s.message:
 			if err := s.processMessage(tuple.msg, tuple.peer); err != nil {
 				s.logger.Fatalf("failed to process message: %s", err)
@@ -147,16 +158,15 @@ func (s *Server) loop() {
 // TODO: unregister peers on error.
 // processMessage processes the received message from a remote node.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
-	rpcLogger.Printf("IN :: %+v", msg)
+	rpcLogger.Printf("IN :: %+v", string(msg.Command))
 
 	switch msg.commandType() {
 	case cmdVersion:
-		v, _ := msg.decodePayload()
-		resp, err := s.handleVersionCmd(v.(*Version))
+		v, err := msg.decodePayload()
 		if err != nil {
 			return err
 		}
-		peer.send <- resp
+		s.handleVersionCmd(v.(*Version), peer)
 	case cmdVerack:
 	case cmdGetAddr:
 	case cmdAddr:
@@ -187,14 +197,22 @@ func (s *Server) handlePeerConnected() (*Message, error) {
 	return msg, nil
 }
 
-// Version declares the server's version when a new connection is been made.
-// We respond with a instant "verack" message.
-func (s *Server) handleVersionCmd(v *Version) (*Message, error) {
+// Version declares the server's version.
+func (s *Server) handleVersionCmd(v *Version, peer *Peer) {
 	// TODO: check version and verify to trust that node.
 
-	// Empty payload for the verack message.
-	msg := newMessage(s.net, cmdVerack, nil)
-	return msg, nil
+	payload := newVersionPayload(s.port, s.userAgent, 0, s.relay)
+	b, err := payload.encode()
+	if err != nil {
+		s.disconnect(peer)
+		return
+	}
+	versionMsg := newMessage(s.net, cmdVersion, b)
+	peer.send <- versionMsg
+
+	peer.verack = true
+	verackMsg := newMessage(s.net, cmdVerack, nil)
+	peer.send <- verackMsg
 }
 
 func logo() string {
