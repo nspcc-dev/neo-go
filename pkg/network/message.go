@@ -157,6 +157,11 @@ func (m *Message) decodePayload(r io.Reader) error {
 		if err := p.Decode(tr); err != nil {
 			return err
 		}
+	case cmdInv:
+		p = payload.Inventories{}
+		if err := p.Decode(tr); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown command to decode: %s", m.commandType())
 	}
