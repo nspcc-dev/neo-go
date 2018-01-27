@@ -68,20 +68,20 @@ func TestMessageEncodeDecodeWithVersion(t *testing.T) {
 	t.Log(p1)
 }
 
-// func TestMessageInvalidChecksum(t *testing.T) {
-// 	m := newMessage(ModeTestNet, cmdVersion, []byte{})
-// 	m.Checksum = 1337
+func TestMessageInvalidChecksum(t *testing.T) {
+	m := newMessage(ModeTestNet, cmdVersion, nil)
+	m.Checksum = 1337
 
-// 	buf := &bytes.Buffer{}
-// 	if err := m.encode(buf); err != nil {
-// 		t.Error(err)
-// 	}
+	buf := &bytes.Buffer{}
+	if err := m.encode(buf); err != nil {
+		t.Error(err)
+	}
 
-// 	md := &Message{}
-// 	if err := md.decode(buf); err == nil {
-// 		t.Error("decode should failed with checkum mismatch error")
-// 	}
-// }
+	md := &Message{}
+	if err := md.decode(buf); err == nil {
+		t.Error("decode should failed with checkum mismatch error")
+	}
+}
 
 // func TestNewVersionPayload(t *testing.T) {
 // 	ua := "/neo/0.0.1/"

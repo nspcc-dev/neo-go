@@ -167,11 +167,7 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 
 	switch msg.commandType() {
 	case cmdVersion:
-		// v, err := msg.decodePayload()
-		// if err != nil {
-		// 	return err
-		// }
-		// return s.handleVersionCmd(v.(*Version), peer)
+		return s.handleVersionCmd(msg.Payload.(*payload.Version), peer)
 	case cmdVerack:
 	case cmdGetAddr:
 		return s.handleGetAddrCmd(msg, peer)
@@ -226,10 +222,10 @@ func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
 	// if err != nil {
 	// 	return err
 	// }
-	var addrList []AddrWithTimestamp
-	for peer := range s.peers {
-		addrList = append(addrList, newAddrWithTimestampFromPeer(peer))
-	}
+	// var addrList []AddrWithTimestamp
+	// for peer := range s.peers {
+	// 	addrList = append(addrList, newAddrWithTimestampFromPeer(peer))
+	// }
 
 	return nil
 }

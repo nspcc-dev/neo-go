@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -92,23 +93,6 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
 	}
 }
 
-func TeeWriter(w io.Writer, r io.Reader) io.Writer {
-	return &teeWriter{w, r}
-}
-
-type teeWriter struct {
-	w io.Writer
-	r io.Reader
-}
-
-func (w *teeWriter) Write(b []byte) (n int, err error) {
-	n, err = w.w.Write(b)
-	if n > 0 {
-		n, err = w.r.Read(b[:n])
-	}
-	return
-}
-
 // Converts the 12 byte command slice to a commandType.
 func (m *Message) commandType() commandType {
 	cmd := string(bytes.TrimRight(m.Command, "\x00"))
@@ -153,11 +137,16 @@ func (m *Message) decode(r io.Reader) error {
 	m.Length = binary.LittleEndian.Uint32(buf[16:20])
 	m.Checksum = binary.LittleEndian.Uint32(buf[20:24])
 
-	// payload is 0, so dont decode it.
-	if m.Length == 0 {
+	// if their is no payload.
+	if m.Length == 0 || !needPayloadDecode(m.commandType()) {
 		return nil
 	}
 
+	return m.decodePayload(r)
+}
+
+func (m *Message) decodePayload(r io.Reader) error {
+	// write to a buffer what we read to calculate the checksum.
 	buffer := new(bytes.Buffer)
 	tr := io.TeeReader(r, buffer)
 	var p payload.Payloader
@@ -168,6 +157,8 @@ func (m *Message) decode(r io.Reader) error {
 		if err := p.Decode(tr); err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown command to decode: %s", m.commandType())
 	}
 
 	// Compare the checksum of the payload.
@@ -186,13 +177,17 @@ func (m *Message) encode(w io.Writer) error {
 	pbuf := new(bytes.Buffer)
 
 	// if there is a payload fill its allocated buffer.
+	var checksum []byte
 	if m.Payload != nil {
 		if err := m.Payload.Encode(pbuf); err != nil {
 			return err
 		}
-		checksum := sumSHA256(sumSHA256(pbuf.Bytes()))[:4]
-		m.Checksum = binary.LittleEndian.Uint32(checksum)
+		checksum = sumSHA256(sumSHA256(pbuf.Bytes()))[:4]
+	} else {
+		checksum = sumSHA256(sumSHA256([]byte{}))[:4]
 	}
+
+	m.Checksum = binary.LittleEndian.Uint32(checksum)
 
 	// fill the message buffer
 	binary.LittleEndian.PutUint32(buf[0:4], uint32(m.Magic))
@@ -241,6 +236,10 @@ func cmdToByteSlice(cmd commandType) []byte {
 	}
 
 	return b
+}
+
+func needPayloadDecode(cmd commandType) bool {
+	return cmd != cmdVerack && cmd != cmdGetAddr
 }
 
 func sumSHA256(b []byte) []byte {

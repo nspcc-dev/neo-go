@@ -1,12 +1,14 @@
 package payload
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
 )
 
-const minVersionSize = 27
+const (
+	lenUA          = 12
+	minVersionSize = 27 + lenUA
+)
 
 // Version payload.
 type Version struct {
@@ -20,7 +22,7 @@ type Version struct {
 	Port uint16
 	// it's used to distinguish the node from public IP
 	Nonce uint32
-	// client id currently 6 bytes \v/NEO:2.6.0/
+	// client id currently 12 bytes \v/NEO:2.6.0/
 	UserAgent []byte
 	// Height of the block chain
 	StartHeight uint32
@@ -42,20 +44,19 @@ func NewVersion(p uint16, ua string, h uint32, r bool) *Version {
 	}
 }
 
-// Size ..
+// Size implements the Payloader interface.
 func (p *Version) Size() uint32 {
-	n := minVersionSize + len(p.UserAgent)
+	n := minVersionSize
 	return uint32(n)
 }
 
-// Decode ..
+// Decode implements the Payloader interface.
 func (p *Version) Decode(r io.Reader) error {
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(r); err != nil {
+	b := make([]byte, minVersionSize)
+	if _, err := r.Read(b); err != nil {
 		return err
 	}
 
-	b := buf.Bytes()
 	// 27 bytes for the fixed size fields + the length of the user agent
 	// which is kinda variable, according to the docs.
 	lenUA := len(b) - minVersionSize
@@ -75,7 +76,7 @@ func (p *Version) Decode(r io.Reader) error {
 	return nil
 }
 
-// Encode ..
+// Encode implements the Payloader interface.
 func (p *Version) Encode(w io.Writer) error {
 	buf := make([]byte, p.Size())
 

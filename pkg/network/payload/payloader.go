@@ -2,18 +2,10 @@ package payload
 
 import "io"
 
-// Nothing is a safe non payload.
-var Nothing = nothing{}
-
-// Payloader ..
+// Payloader is anything that can be binary encoded and decoded.
+// Every payload used in messages need to satisfy the Payloader interface.
 type Payloader interface {
 	Encode(io.Writer) error
 	Decode(io.Reader) error
 	Size() uint32
 }
-
-type nothing struct{}
-
-func (p nothing) Encode(w io.Writer) error { return nil }
-func (p nothing) Decode(R io.Reader) error { return nil }
-func (p nothing) Size() uint32             { return 0 }

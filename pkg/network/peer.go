@@ -38,7 +38,7 @@ func (p *Peer) writeLoop() {
 
 	for {
 		msg := <-p.send
-		rpcLogger.Printf("OUT :: %+v", msg)
+		rpcLogger.Printf("OUT :: %s", msg.commandType())
 		if err := msg.encode(p.conn); err != nil {
 			log.Printf("encode error: %s", err)
 		}
