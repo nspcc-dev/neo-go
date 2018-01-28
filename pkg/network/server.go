@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
 	"github.com/anthdm/neo-go/pkg/util"
@@ -182,6 +183,7 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 	case cmdGetAddr:
 		return s.handleGetAddrCmd(msg, peer)
 	case cmdAddr:
+		return s.handleAddrCmd(msg.Payload.(*payload.AddressList), peer)
 	case cmdGetHeaders:
 	case cmdHeaders:
 	case cmdGetBlocks:
@@ -220,6 +222,12 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	verackMsg := newMessage(s.net, cmdVerack, nil)
 	peer.send <- verackMsg
 
+	go s.startProtocol(peer)
+
+	return nil
+}
+
+func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
 	return nil
 }
 
@@ -238,6 +246,15 @@ func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
 	// }
 
 	return nil
+}
+
+func (s *Server) startProtocol(peer *Peer) {
+	for {
+		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
+		peer.send <- getaddrMsg
+
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func logo() string {

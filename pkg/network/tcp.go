@@ -52,8 +52,8 @@ func handleConnection(s *Server, conn net.Conn, initiated bool) {
 
 	// Read from the connection and decode it into an RPCMessage and
 	// tell the server there is message available for proccesing.
+	msg := &Message{}
 	for {
-		msg := &Message{}
 		if err := msg.decode(conn); err != nil {
 			// remote connection probably closed.
 			if err == io.EOF {

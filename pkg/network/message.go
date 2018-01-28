@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -137,8 +138,13 @@ func (m *Message) commandType() commandType {
 func (m *Message) decode(r io.Reader) error {
 	// 24 bytes for the fixed sized fields.
 	buf := make([]byte, minMessageSize)
-	if _, err := r.Read(buf); err != nil {
+	n, err := r.Read(buf)
+	if err != nil {
 		return err
+	}
+
+	if n != minMessageSize {
+		return fmt.Errorf("Expected to read exactly %d bytes got %d", minMessageSize, n)
 	}
 
 	m.Magic = NetMode(binary.LittleEndian.Uint32(buf[0:4]))
@@ -156,8 +162,16 @@ func (m *Message) decode(r io.Reader) error {
 
 func (m *Message) unmarshalPayload(r io.Reader) error {
 	pbuf := make([]byte, m.Length)
-	if _, err := r.Read(pbuf); err != nil {
+	n, err := r.Read(pbuf)
+	if err != nil {
 		return err
+	}
+
+	fmt.Printf("incomming payload: %d bytes\n", len(pbuf))
+	fmt.Println(pbuf)
+
+	if uint32(n) != m.Length {
+		return fmt.Errorf("expected to have read exactly %d bytes got %d", m.Length, n)
 	}
 
 	// Compare the checksum of the payload.
@@ -174,6 +188,11 @@ func (m *Message) unmarshalPayload(r io.Reader) error {
 		}
 	case cmdInv:
 		p = &payload.Inventory{}
+		if err := p.UnmarshalBinary(pbuf); err != nil {
+			return err
+		}
+	case cmdAddr:
+		p = &payload.AddressList{}
 		if err := p.UnmarshalBinary(pbuf); err != nil {
 			return err
 		}
@@ -201,8 +220,22 @@ func (m *Message) encode(w io.Writer) error {
 		copy(buf[minMessageSize:minMessageSize+m.Length], payload)
 	}
 
-	if _, err := w.Write(buf); err != nil {
+	n, err := w.Write(buf)
+	if err != nil {
 		return err
+	}
+
+	// safety check to if we have written enough bytes.
+	if m.Length > 0 {
+		expectWritten := minMessageSize + m.Length
+		if uint32(n) != expectWritten {
+			return fmt.Errorf("expected to written exactly %d did %d", expectWritten, n)
+		}
+	} else {
+		expectWritten := minMessageSize
+		if n != expectWritten {
+			return fmt.Errorf("expected to written exactly %d did %d", expectWritten, n)
+		}
 	}
 
 	return nil

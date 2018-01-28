@@ -5,8 +5,7 @@ import (
 )
 
 const (
-	lenUA          = 12
-	minVersionSize = 27 + lenUA
+	minVersionSize = 27
 )
 
 // Version payload.
@@ -21,7 +20,7 @@ type Version struct {
 	Port uint16
 	// it's used to distinguish the node from public IP
 	Nonce uint32
-	// client id currently 12 bytes \v/NEO:2.6.0/
+	// client id
 	UserAgent []byte
 	// Height of the block chain
 	StartHeight uint32
@@ -45,6 +44,12 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // UnmarshalBinary implements the Payloader interface.
 func (p *Version) UnmarshalBinary(b []byte) error {
+	// Length of the user agent should be calculated dynamicaly.
+	// There is no information about the size or format of this.
+	// the only thing we know is by looking at the #c source code.
+	// /NEO:{0}/ => /NEO:2.6.0/
+	lenUA := len(b) - minVersionSize
+
 	p.Version = binary.LittleEndian.Uint32(b[0:4])
 	p.Services = binary.LittleEndian.Uint64(b[4:12])
 	p.Timestamp = binary.LittleEndian.Uint32(b[12:16])
@@ -87,6 +92,7 @@ func (p *Version) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
+// Size implements the payloader interface.
 func (p *Version) Size() uint32 {
 	return uint32(minVersionSize + len(p.UserAgent))
 }
