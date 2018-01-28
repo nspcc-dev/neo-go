@@ -7,7 +7,8 @@ import (
 
 // Peer represents a remote node, backed by TCP transport.
 type Peer struct {
-	// underlaying TCP connection
+	id uint32
+	// underlying TCP connection
 	conn net.Conn
 	// channel to coordinate message writes back to the connection.
 	send chan *Message

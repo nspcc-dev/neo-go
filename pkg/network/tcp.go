@@ -2,7 +2,6 @@ package network
 
 import (
 	"io"
-	"log"
 	"net"
 )
 
@@ -21,19 +20,22 @@ func listenTCP(s *Server, port string) error {
 	}
 }
 
+func connectToRemoteNode(s *Server, address string) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		s.logger.Printf("failed to connects to remote node %s", address)
+		if conn != nil {
+			conn.Close()
+		}
+		return
+	}
+	s.logger.Printf("connected to %s", conn.RemoteAddr())
+	go handleConnection(s, conn, false)
+}
+
 func connectToSeeds(s *Server, addrs []string) {
 	for _, addr := range addrs {
-		go func(addr string) {
-			conn, err := net.Dial("tcp", addr)
-			if err != nil {
-				log.Printf("failed to connect to remote node %s: %s", addr, err)
-				if conn != nil {
-					conn.Close()
-				}
-				return
-			}
-			go handleConnection(s, conn, false)
-		}(addr)
+		go connectToRemoteNode(s, addr)
 	}
 }
 

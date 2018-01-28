@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -23,7 +24,7 @@ const (
 
 var (
 	// rpcLogger used for debugging RPC messages between nodes.
-	rpcLogger = log.New(os.Stdout, "RPC :: ", 0)
+	rpcLogger = log.New(os.Stdout, "", 0)
 )
 
 type messageTuple struct {
@@ -34,6 +35,8 @@ type messageTuple struct {
 // Server is the representation of a full working NEO TCP node.
 type Server struct {
 	logger *log.Logger
+
+	mtx sync.RWMutex
 
 	// id of the server
 	id uint32
@@ -171,7 +174,7 @@ func (s *Server) loop() {
 // TODO: unregister peers on error.
 // processMessage processes the received message from a remote node.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
-	rpcLogger.Printf("IN :: %s :: %+v", msg.commandType(), msg.Payload)
+	rpcLogger.Printf("[NODE %d] :: IN :: %s :: %+v", peer.id, msg.commandType(), msg.Payload)
 
 	switch msg.commandType() {
 	case cmdVersion:
@@ -216,6 +219,7 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	// we respond with a verack, we successfully received peer's version
 	// at this point.
 	peer.verack = true
+	peer.id = v.Nonce
 	verackMsg := newMessage(s.net, cmdVerack, nil)
 	peer.send <- verackMsg
 
@@ -224,11 +228,27 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	return nil
 }
 
+// When the remote node reveals its known peers we try to connect to all of them.
 func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
 	for _, addr := range addrList.Addrs {
-		fmt.Println(addr)
+		if !s.addrAlreadyConnected(addr.Addr) {
+			go connectToRemoteNode(s, addr.Addr.String())
+		}
 	}
 	return nil
+}
+
+func (s *Server) addrAlreadyConnected(addr net.Addr) bool {
+	// TODO: check for race conditions
+	//s.mtx.RLock()
+	//defer s.mtx.RUnlock()
+
+	for peer := range s.peers {
+		if peer.conn.RemoteAddr().String() == addr.String() {
+			return true
+		}
+	}
+	return false
 }
 
 // After receiving the "getaddr" the server needs to respond with an "addr" message.
