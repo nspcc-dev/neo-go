@@ -1,8 +1,8 @@
 package payload
 
 import (
-	"bytes"
 	"encoding/binary"
+	"io"
 
 	. "github.com/anthdm/neo-go/pkg/util"
 )
@@ -42,19 +42,23 @@ type Inventory struct {
 	Hash Uint256
 }
 
-// UnmarshalBinary implements the Payloader interface.
-func (p *Inventory) UnmarshalBinary(b []byte) error {
-	// TODO: what byte is [1:2] ?
-	// We have 1 byte for the type which is uint8 and 32 for the hash.
-	// There is 1 byte left over.
-	binary.Read(bytes.NewReader(b), binary.LittleEndian, &p.Type)
-	p.Hash.UnmarshalBinary(b[2:len(b)])
-	return nil
+// DecodeBinary implements the Payload interface.
+func (p *Inventory) DecodeBinary(r io.Reader) error {
+	// TODO: is there a list len?
+	// The first byte is the type the second byte seems to be
+	// always one on docker privnet.
+	var listLen uint8
+	err := binary.Read(r, binary.LittleEndian, &p.Type)
+	err = binary.Read(r, binary.LittleEndian, &listLen)
+	err = binary.Read(r, binary.LittleEndian, &p.Hash)
+
+	return err
 }
 
-// MarshalBinary implements the Payloader interface.
-func (p *Inventory) MarshalBinary() ([]byte, error) {
-	return nil, nil
+// EncodeBinary implements the Payload interface.
+func (p *Inventory) EncodeBinary(w io.Writer) error {
+	// TODO
+	return nil
 }
 
 // Size implements the Payloader interface.

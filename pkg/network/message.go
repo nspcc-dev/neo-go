@@ -165,27 +165,26 @@ func (m *Message) decodePayload(r io.Reader) error {
 	}
 
 	// Compare the checksum of the payload.
-	fmt.Println(len(pbuf))
 	if !compareChecksum(m.Checksum, pbuf) {
 		return errors.New("checksum mismatch error")
 	}
 
-	rr := bytes.NewReader(pbuf)
+	r = bytes.NewReader(pbuf)
 	var p payload.Payload
 	switch m.commandType() {
 	case cmdVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(rr); err != nil {
+		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	// case cmdInv:
-	// 	p = &payload.Inventory{}
-	// 	if err := p.UnmarshalBinary(pbuf); err != nil {
-	// 		return err
-	// 	}
+	case cmdInv:
+		p = &payload.Inventory{}
+		if err := p.DecodeBinary(r); err != nil {
+			return err
+		}
 	case cmdAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(rr); err != nil {
+		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
 	}

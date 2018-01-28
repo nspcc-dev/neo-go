@@ -23,7 +23,7 @@ func listenTCP(s *Server, port string) error {
 func connectToRemoteNode(s *Server, address string) {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		s.logger.Printf("failed to connects to remote node %s", address)
+		s.logger.Printf("failed to connect to remote node %s", address)
 		if conn != nil {
 			conn.Close()
 		}
@@ -45,8 +45,8 @@ func handleConnection(s *Server, conn net.Conn, initiated bool) {
 
 	// remove the peer from connected peers and cleanup the connection.
 	defer func() {
+		// all cleanup will happen in the server's loop when unregister is received.
 		s.unregister <- peer
-		conn.Close()
 	}()
 
 	// Start a goroutine that will handle all writes to the registered peer.

@@ -128,14 +128,11 @@ func (s *Server) shutdown() {
 
 	// disconnect and remove all connected peers.
 	for peer := range s.peers {
-		peer.conn.Close()
 		s.unregister <- peer
 	}
 }
 
 func (s *Server) disconnect(p *Peer) {
-	p.conn.Close()
-	close(p.send)
 	s.unregister <- p
 }
 
@@ -156,7 +153,10 @@ func (s *Server) loop() {
 				peer.send <- resp
 			}
 		case peer := <-s.unregister:
+			// unregister should take care of all the cleanup that has to be made.
 			if _, ok := s.peers[peer]; ok {
+				peer.conn.Close()
+				close(peer.send)
 				delete(s.peers, peer)
 				s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
 			}
@@ -231,18 +231,19 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 // When the remote node reveals its known peers we try to connect to all of them.
 func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
 	for _, addr := range addrList.Addrs {
-		fmt.Println(addr)
-		// if !s.addrAlreadyConnected(addr.Addr) {
-		// 	go connectToRemoteNode(s, addr.Addr.String())
-		// }
+		if !s.peerAlreadyConnected(addr.Addr) {
+			go connectToRemoteNode(s, addr.Addr.String())
+		}
 	}
 	return nil
 }
 
-func (s *Server) addrAlreadyConnected(addr net.Addr) bool {
+func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
 	// TODO: check for race conditions
 	//s.mtx.RLock()
 	//defer s.mtx.RUnlock()
+
+	// What about ourself ^^
 
 	for peer := range s.peers {
 		if peer.conn.RemoteAddr().String() == addr.String() {
@@ -256,16 +257,7 @@ func (s *Server) addrAlreadyConnected(addr net.Addr) bool {
 // providing information about the other nodes in the network.
 // e.g. this server's connected peers.
 func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
-	// payload := NewAddrPayload()
-	// b, err := payload.encode()
-	// if err != nil {
-	// 	return err
-	// }
-	// var addrList []AddrWithTimestamp
-	// for peer := range s.peers {
-	// 	addrList = append(addrList, newAddrWithTimestampFromPeer(peer))
-	// }
-
+	// TODO
 	return nil
 }
 
