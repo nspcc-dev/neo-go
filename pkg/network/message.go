@@ -167,9 +167,6 @@ func (m *Message) unmarshalPayload(r io.Reader) error {
 		return err
 	}
 
-	fmt.Printf("incomming payload: %d bytes\n", len(pbuf))
-	fmt.Println(pbuf)
-
 	if uint32(n) != m.Length {
 		return fmt.Errorf("expected to have read exactly %d bytes got %d", m.Length, n)
 	}

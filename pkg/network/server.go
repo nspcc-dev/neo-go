@@ -171,10 +171,7 @@ func (s *Server) loop() {
 // TODO: unregister peers on error.
 // processMessage processes the received message from a remote node.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
-	rpcLogger.Printf("IN :: %s", msg.commandType())
-	if msg.Length > 0 {
-		rpcLogger.Printf("IN :: %+v", msg.Payload)
-	}
+	rpcLogger.Printf("IN :: %s :: %+v", msg.commandType(), msg.Payload)
 
 	switch msg.commandType() {
 	case cmdVersion:
@@ -228,6 +225,9 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 }
 
 func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
+	for _, addr := range addrList.Addrs {
+		fmt.Println(addr)
+	}
 	return nil
 }
 

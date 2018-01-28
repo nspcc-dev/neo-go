@@ -28,7 +28,7 @@ func (p *AddrWithTime) UnmarshalBinary(b []byte) error {
 	p.Timestamp = binary.LittleEndian.Uint32(b[0:4])
 	p.Services = binary.LittleEndian.Uint64(b[4:12])
 	binary.Read(bytes.NewReader(b[12:28]), binary.BigEndian, &p.Addr.IP)
-	p.Addr.Port = binary.LittleEndian.Uint16(b[28:30])
+	p.Addr.Port = binary.BigEndian.Uint16(b[28:30])
 	return nil
 }
 

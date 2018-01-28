@@ -3,7 +3,6 @@ package payload
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 
 	. "github.com/anthdm/neo-go/pkg/util"
 )
@@ -48,8 +47,6 @@ func (p *Inventory) UnmarshalBinary(b []byte) error {
 	// TODO: what byte is [1:2] ?
 	// We have 1 byte for the type which is uint8 and 32 for the hash.
 	// There is 1 byte left over.
-	fmt.Println(b[0:1])
-	fmt.Println(b[1:2])
 	binary.Read(bytes.NewReader(b), binary.LittleEndian, &p.Type)
 	p.Hash.UnmarshalBinary(b[2:len(b)])
 	return nil
