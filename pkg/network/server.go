@@ -183,7 +183,7 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 	case cmdGetAddr:
 		// return s.handleGetAddrCmd(msg, peer)
 	case cmdAddr:
-		// return s.handleAddrCmd(msg.Payload.(*payload.AddressList), peer)
+		return s.handleAddrCmd(msg.Payload.(*payload.AddressList), peer)
 	case cmdGetHeaders:
 	case cmdHeaders:
 	case cmdGetBlocks:
@@ -231,9 +231,10 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 // When the remote node reveals its known peers we try to connect to all of them.
 func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
 	for _, addr := range addrList.Addrs {
-		if !s.addrAlreadyConnected(addr.Addr) {
-			go connectToRemoteNode(s, addr.Addr.String())
-		}
+		fmt.Println(addr)
+		// if !s.addrAlreadyConnected(addr.Addr) {
+		// 	go connectToRemoteNode(s, addr.Addr.String())
+		// }
 	}
 	return nil
 }
@@ -269,6 +270,7 @@ func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
 }
 
 func (s *Server) startProtocol(peer *Peer) {
+	// TODO: check if this peer is still connected.
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
 		peer.send <- getaddrMsg

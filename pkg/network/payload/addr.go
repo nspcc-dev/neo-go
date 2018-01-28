@@ -1,15 +1,44 @@
 package payload
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 )
 
 // Endpoint host + port of a node, compatible with net.Addr.
 type Endpoint struct {
 	IP   [16]byte // TODO: make a uint128 type
 	Port uint16
+}
+
+// EndpointFromString returns an Endpoint from the given string.
+// For now this only handles the most simple hostport form.
+// e.g. 127.0.0.1:3000
+// This should be enough to work with for now.
+func EndpointFromString(s string) (Endpoint, error) {
+	hostPort := strings.Split(s, ":")
+	if len(hostPort) != 2 {
+		return Endpoint{}, fmt.Errorf("invalid address string: %s", s)
+	}
+	host := hostPort[0]
+	port := hostPort[1]
+
+	ch := strings.Split(host, ".")
+
+	buf := [16]byte{}
+	var n int
+	for i := 0; i < len(ch); i++ {
+		n = 12 + i
+		nn, _ := strconv.Atoi(ch[i])
+		buf[n] = byte(nn)
+	}
+
+	p, _ := strconv.Atoi(port)
+
+	return Endpoint{buf, uint16(p)}, nil
 }
 
 // Network implements the net.Addr interface.
@@ -32,50 +61,72 @@ type AddrWithTime struct {
 	Addr      Endpoint
 }
 
-// Size implements the payloader interface.
+func NewAddrWithTime(addr Endpoint) *AddrWithTime {
+	return &AddrWithTime{
+		Timestamp: 1337,
+		Services:  1,
+		Addr:      addr,
+	}
+}
+
+// Size implements the payload interface.
 func (p *AddrWithTime) Size() uint32 {
 	return 30
 }
 
-// UnmarshalBinary implements the Payloader interface.
-func (p *AddrWithTime) UnmarshalBinary(b []byte) error {
-	p.Timestamp = binary.LittleEndian.Uint32(b[0:4])
-	p.Services = binary.LittleEndian.Uint64(b[4:12])
-	binary.Read(bytes.NewReader(b[12:28]), binary.BigEndian, &p.Addr.IP)
-	p.Addr.Port = binary.BigEndian.Uint16(b[28:30])
-	return nil
+// DecodeBinary implements the Payload interface.
+func (p *AddrWithTime) DecodeBinary(r io.Reader) error {
+	err := binary.Read(r, binary.LittleEndian, &p.Timestamp)
+	err = binary.Read(r, binary.LittleEndian, &p.Services)
+	err = binary.Read(r, binary.BigEndian, &p.Addr.IP)
+	err = binary.Read(r, binary.BigEndian, &p.Addr.Port)
+
+	return err
 }
 
-// MarshalBinary implements the Payloader interface.
-func (p *AddrWithTime) MarshalBinary() ([]byte, error) {
-	return nil, nil
+// EncodeBinary implements the Payload interface.
+func (p *AddrWithTime) EncodeBinary(w io.Writer) error {
+	err := binary.Write(w, binary.LittleEndian, p.Timestamp)
+	err = binary.Write(w, binary.LittleEndian, p.Services)
+	err = binary.Write(w, binary.BigEndian, p.Addr.IP)
+	err = binary.Write(w, binary.BigEndian, p.Addr.Port)
+
+	return err
 }
 
-// AddressList contains a slice of AddrWithTime.
+// AddressList holds a slice of AddrWithTime.
 type AddressList struct {
 	Addrs []*AddrWithTime
 }
 
-// UnmarshalBinary implements the Payloader interface.
-func (p *AddressList) UnmarshalBinary(b []byte) error {
+// DecodeBinary implements the Payload interface.
+func (p *AddressList) DecodeBinary(r io.Reader) error {
 	var lenList uint8
-	binary.Read(bytes.NewReader(b[0:1]), binary.LittleEndian, &lenList)
+	binary.Read(r, binary.LittleEndian, &lenList)
 
-	offset := 1 // skip the uint8 length byte.
-	size := 30  // size of AddrWithTime
-	for i := 0; i < int(lenList); i++ {
+	for i := 0; i < int(4); i++ {
 		address := &AddrWithTime{}
-		address.UnmarshalBinary(b[offset : offset+size])
+		if err := address.DecodeBinary(r); err != nil {
+			return err
+		}
 		p.Addrs = append(p.Addrs, address)
-		offset += size
 	}
 
 	return nil
 }
 
-// MarshalBinary implements the Payloader interface.
-func (p *AddressList) MarshalBinary() ([]byte, error) {
-	return nil, nil
+// EncodeBinary implements the Payload interface.
+func (p *AddressList) EncodeBinary(w io.Writer) error {
+	// Write the length of the slice
+	binary.Write(w, binary.LittleEndian, uint8(len(p.Addrs)))
+
+	for _, addr := range p.Addrs {
+		if err := addr.EncodeBinary(w); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Size implements the Payloader interface.
