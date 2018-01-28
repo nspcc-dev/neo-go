@@ -181,9 +181,9 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 		return s.handleVersionCmd(msg.Payload.(*payload.Version), peer)
 	case cmdVerack:
 	case cmdGetAddr:
-		return s.handleGetAddrCmd(msg, peer)
+		// return s.handleGetAddrCmd(msg, peer)
 	case cmdAddr:
-		return s.handleAddrCmd(msg.Payload.(*payload.AddressList), peer)
+		// return s.handleAddrCmd(msg.Payload.(*payload.AddressList), peer)
 	case cmdGetHeaders:
 	case cmdHeaders:
 	case cmdGetBlocks:

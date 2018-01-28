@@ -14,6 +14,7 @@ import (
 const (
 	// The minimum size of a valid message.
 	minMessageSize = 24
+	cmdSize        = 12
 )
 
 // NetMode type that is compatible with netModes below.
@@ -53,14 +54,14 @@ type Message struct {
 	Magic NetMode
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
-	Command []byte
+	Command [cmdSize]byte
 	// Length of the payload
 	Length uint32
 	// Checksum is the first 4 bytes of the value that two times SHA256
 	// hash of the payload
 	Checksum uint32
 	// Payload send with the message.
-	Payload payload.Payloader
+	Payload payload.Payload
 }
 
 type commandType string
@@ -80,7 +81,7 @@ const (
 	cmdTX                     = "tx"
 )
 
-func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
+func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
 	var (
 		size     uint32
 		checksum []byte
@@ -88,15 +89,18 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
 
 	if p != nil {
 		size = p.Size()
-		b, _ := p.MarshalBinary()
-		checksum = sumSHA256(sumSHA256(b))
+		buf := new(bytes.Buffer)
+		if err := p.EncodeBinary(buf); err != nil {
+			panic(err)
+		}
+		checksum = sumSHA256(sumSHA256(buf.Bytes()))
 	} else {
 		checksum = sumSHA256(sumSHA256([]byte{}))
 	}
 
 	return &Message{
 		Magic:    magic,
-		Command:  cmdToByteSlice(cmd),
+		Command:  cmdToByteArray(cmd),
 		Length:   size,
 		Payload:  p,
 		Checksum: binary.LittleEndian.Uint32(checksum[:4]),
@@ -105,7 +109,7 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
 
 // Converts the 12 byte command slice to a commandType.
 func (m *Message) commandType() commandType {
-	cmd := string(bytes.TrimRight(m.Command, "\x00"))
+	cmd := cmdByteArrayToString(m.Command)
 	switch cmd {
 	case "version":
 		return cmdVersion
@@ -136,31 +140,20 @@ func (m *Message) commandType() commandType {
 
 // decode a Message from the given reader.
 func (m *Message) decode(r io.Reader) error {
-	// 24 bytes for the fixed sized fields.
-	buf := make([]byte, minMessageSize)
-	n, err := r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	if n != minMessageSize {
-		return fmt.Errorf("Expected to read exactly %d bytes got %d", minMessageSize, n)
-	}
-
-	m.Magic = NetMode(binary.LittleEndian.Uint32(buf[0:4]))
-	m.Command = buf[4:16]
-	m.Length = binary.LittleEndian.Uint32(buf[16:20])
-	m.Checksum = binary.LittleEndian.Uint32(buf[20:24])
+	binary.Read(r, binary.LittleEndian, &m.Magic)
+	binary.Read(r, binary.LittleEndian, &m.Command)
+	binary.Read(r, binary.LittleEndian, &m.Length)
+	binary.Read(r, binary.LittleEndian, &m.Checksum)
 
 	// return if their is no payload.
 	if m.Length == 0 {
 		return nil
 	}
 
-	return m.unmarshalPayload(r)
+	return m.decodePayload(r)
 }
 
-func (m *Message) unmarshalPayload(r io.Reader) error {
+func (m *Message) decodePayload(r io.Reader) error {
 	pbuf := make([]byte, m.Length)
 	n, err := r.Read(pbuf)
 	if err != nil {
@@ -176,23 +169,24 @@ func (m *Message) unmarshalPayload(r io.Reader) error {
 		return errors.New("checksum mismatch error")
 	}
 
-	var p payload.Payloader
+	rr := bytes.NewReader(pbuf)
+	var p payload.Payload
 	switch m.commandType() {
 	case cmdVersion:
 		p = &payload.Version{}
-		if err := p.UnmarshalBinary(pbuf); err != nil {
+		if err := p.DecodeBinary(rr); err != nil {
 			return err
 		}
-	case cmdInv:
-		p = &payload.Inventory{}
-		if err := p.UnmarshalBinary(pbuf); err != nil {
-			return err
-		}
-	case cmdAddr:
-		p = &payload.AddressList{}
-		if err := p.UnmarshalBinary(pbuf); err != nil {
-			return err
-		}
+		// case cmdInv:
+		// 	p = &payload.Inventory{}
+		// 	if err := p.UnmarshalBinary(pbuf); err != nil {
+		// 		return err
+		// 	}
+		// case cmdAddr:
+		// 	p = &payload.AddressList{}
+		// 	if err := p.UnmarshalBinary(pbuf); err != nil {
+		// 		return err
+		// 	}
 	}
 
 	m.Payload = p
@@ -202,37 +196,13 @@ func (m *Message) unmarshalPayload(r io.Reader) error {
 
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
-	buf := make([]byte, minMessageSize+m.Length)
-
-	binary.LittleEndian.PutUint32(buf[0:4], uint32(m.Magic))
-	copy(buf[4:16], m.Command)
-	binary.LittleEndian.PutUint32(buf[16:20], m.Length)
-	binary.LittleEndian.PutUint32(buf[20:24], m.Checksum)
+	binary.Write(w, binary.LittleEndian, m.Magic)
+	binary.Write(w, binary.LittleEndian, m.Command)
+	binary.Write(w, binary.LittleEndian, m.Length)
+	binary.Write(w, binary.LittleEndian, m.Checksum)
 
 	if m.Payload != nil {
-		payload, err := m.Payload.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		copy(buf[minMessageSize:minMessageSize+m.Length], payload)
-	}
-
-	n, err := w.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	// safety check to if we have written enough bytes.
-	if m.Length > 0 {
-		expectWritten := minMessageSize + m.Length
-		if uint32(n) != expectWritten {
-			return fmt.Errorf("expected to written exactly %d did %d", expectWritten, n)
-		}
-	} else {
-		expectWritten := minMessageSize
-		if n != expectWritten {
-			return fmt.Errorf("expected to written exactly %d did %d", expectWritten, n)
-		}
+		return m.Payload.EncodeBinary(w)
 	}
 
 	return nil
@@ -240,19 +210,29 @@ func (m *Message) encode(w io.Writer) error {
 
 // convert a command (string) to a byte slice filled with 0 bytes till
 // size 12.
-func cmdToByteSlice(cmd commandType) []byte {
+func cmdToByteArray(cmd commandType) [cmdSize]byte {
 	cmdLen := len(cmd)
-	if cmdLen > 12 {
+	if cmdLen > cmdSize {
 		panic("exceeded command max length of size 12")
 	}
 
 	// The command can have max 12 bytes, rest is filled with 0.
-	b := []byte(cmd)
-	for i := 0; i < 12-cmdLen; i++ {
-		b = append(b, byte('\x00'))
+	b := [cmdSize]byte{}
+	for i := 0; i < cmdLen; i++ {
+		b[i] = cmd[i]
 	}
 
 	return b
+}
+
+func cmdByteArrayToString(cmd [cmdSize]byte) string {
+	buf := []byte{}
+	for i := 0; i < cmdSize; i++ {
+		if cmd[i] != 0 {
+			buf = append(buf, cmd[i])
+		}
+	}
+	return string(buf)
 }
 
 func sumSHA256(b []byte) []byte {

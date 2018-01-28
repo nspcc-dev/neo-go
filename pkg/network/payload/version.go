@@ -2,9 +2,11 @@ package payload
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 const (
+	lenUA          = 12
 	minVersionSize = 27
 )
 
@@ -21,7 +23,7 @@ type Version struct {
 	// it's used to distinguish the node from public IP
 	Nonce uint32
 	// client id
-	UserAgent []byte
+	UserAgent [lenUA]byte
 	// Height of the block chain
 	StartHeight uint32
 	// Whether to receive and forward
@@ -36,63 +38,53 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 		Timestamp:   12345,
 		Port:        p,
 		Nonce:       id,
-		UserAgent:   []byte(ua),
+		UserAgent:   uaToByteArray(ua),
 		StartHeight: 0,
 		Relay:       r,
 	}
 }
 
-// UnmarshalBinary implements the Payloader interface.
-func (p *Version) UnmarshalBinary(b []byte) error {
-	// Length of the user agent should be calculated dynamicaly.
+// DecodeBinary implements the Payload interface.
+func (p *Version) DecodeBinary(r io.Reader) error {
+	// TODO: Length of the user agent should be calculated dynamicaly.
 	// There is no information about the size or format of this.
 	// the only thing we know is by looking at the #c source code.
 	// /NEO:{0}/ => /NEO:2.6.0/
-	lenUA := len(b) - minVersionSize
+	err := binary.Read(r, binary.LittleEndian, &p.Version)
+	err = binary.Read(r, binary.LittleEndian, &p.Services)
+	err = binary.Read(r, binary.LittleEndian, &p.Timestamp)
+	err = binary.Read(r, binary.LittleEndian, &p.Port)
+	err = binary.Read(r, binary.LittleEndian, &p.Nonce)
+	err = binary.Read(r, binary.LittleEndian, &p.UserAgent)
+	err = binary.Read(r, binary.LittleEndian, &p.StartHeight)
+	err = binary.Read(r, binary.LittleEndian, &p.Relay)
 
-	p.Version = binary.LittleEndian.Uint32(b[0:4])
-	p.Services = binary.LittleEndian.Uint64(b[4:12])
-	p.Timestamp = binary.LittleEndian.Uint32(b[12:16])
-	// FIXME: port's byteorder should be big endian according to the docs.
-	// but when connecting to the privnet docker image it's little endian.
-	p.Port = binary.LittleEndian.Uint16(b[16:18])
-	p.Nonce = binary.LittleEndian.Uint32(b[18:22])
-	p.UserAgent = b[22 : 22+lenUA]
-	curlen := 22 + lenUA
-	p.StartHeight = binary.LittleEndian.Uint32(b[curlen : curlen+4])
-	p.Relay = b[len(b)-1 : len(b)][0] == 1
-
-	return nil
+	return err
 }
 
-// MarshalBinary implements the Payloader interface.
-func (p *Version) MarshalBinary() ([]byte, error) {
-	b := make([]byte, p.Size())
+// EncodeBinary implements the Payload interface.
+func (p *Version) EncodeBinary(w io.Writer) error {
+	err := binary.Write(w, binary.LittleEndian, p.Version)
+	err = binary.Write(w, binary.LittleEndian, p.Services)
+	err = binary.Write(w, binary.LittleEndian, p.Timestamp)
+	err = binary.Write(w, binary.LittleEndian, p.Port)
+	err = binary.Write(w, binary.LittleEndian, p.Nonce)
+	err = binary.Write(w, binary.LittleEndian, p.UserAgent)
+	err = binary.Write(w, binary.LittleEndian, p.StartHeight)
+	err = binary.Write(w, binary.LittleEndian, p.Relay)
 
-	binary.LittleEndian.PutUint32(b[0:4], p.Version)
-	binary.LittleEndian.PutUint64(b[4:12], p.Services)
-	binary.LittleEndian.PutUint32(b[12:16], p.Timestamp)
-	// FIXME: byte order (little / big)?
-	binary.LittleEndian.PutUint16(b[16:18], p.Port)
-	binary.LittleEndian.PutUint32(b[18:22], p.Nonce)
-	copy(b[22:22+len(p.UserAgent)], p.UserAgent) //
-	curLen := 22 + len(p.UserAgent)
-	binary.LittleEndian.PutUint32(b[curLen:curLen+4], p.StartHeight)
-
-	// yikes
-	var bln []byte
-	if p.Relay {
-		bln = []byte{1}
-	} else {
-		bln = []byte{0}
-	}
-
-	copy(b[curLen+4:len(b)], bln)
-
-	return b, nil
+	return err
 }
 
 // Size implements the payloader interface.
 func (p *Version) Size() uint32 {
 	return uint32(minVersionSize + len(p.UserAgent))
+}
+
+func uaToByteArray(ua string) [lenUA]byte {
+	buf := [lenUA]byte{}
+	for i := 0; i < lenUA; i++ {
+		buf[i] = ua[i]
+	}
+	return buf
 }
