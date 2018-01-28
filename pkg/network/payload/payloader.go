@@ -1,11 +1,13 @@
 package payload
 
-import "io"
+import (
+	"encoding"
+)
 
-// Payloader is anything that can be binary encoded and decoded.
-// Every payload used in messages need to satisfy the Payloader interface.
+// Payloader is anything that can be binary marshaled and unmarshaled.
+// Every payload embbedded in messages need to satisfy the Payloader interface.
 type Payloader interface {
-	Encode(io.Writer) error
-	Decode(io.Reader) error
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
 	Size() uint32
 }

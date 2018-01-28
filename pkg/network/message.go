@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -81,15 +80,25 @@ const (
 )
 
 func newMessage(magic NetMode, cmd commandType, p payload.Payloader) *Message {
-	var size uint32
+	var (
+		size     uint32
+		checksum []byte
+	)
+
 	if p != nil {
 		size = p.Size()
+		b, _ := p.MarshalBinary()
+		checksum = sumSHA256(sumSHA256(b))
+	} else {
+		checksum = sumSHA256(sumSHA256([]byte{}))
 	}
+
 	return &Message{
-		Magic:   magic,
-		Command: cmdToByteSlice(cmd),
-		Length:  size,
-		Payload: p,
+		Magic:    magic,
+		Command:  cmdToByteSlice(cmd),
+		Length:   size,
+		Payload:  p,
+		Checksum: binary.LittleEndian.Uint32(checksum[:4]),
 	}
 }
 
@@ -137,38 +146,37 @@ func (m *Message) decode(r io.Reader) error {
 	m.Length = binary.LittleEndian.Uint32(buf[16:20])
 	m.Checksum = binary.LittleEndian.Uint32(buf[20:24])
 
-	// if their is no payload.
-	if m.Length == 0 || !needPayloadDecode(m.commandType()) {
+	// return if their is no payload.
+	if m.Length == 0 {
 		return nil
 	}
 
-	return m.decodePayload(r)
+	return m.unmarshalPayload(r)
 }
 
-func (m *Message) decodePayload(r io.Reader) error {
-	// write to a buffer what we read to calculate the checksum.
-	buffer := new(bytes.Buffer)
-	tr := io.TeeReader(r, buffer)
-	var p payload.Payloader
-
-	switch m.commandType() {
-	case cmdVersion:
-		p = &payload.Version{}
-		if err := p.Decode(tr); err != nil {
-			return err
-		}
-	case cmdInv:
-		p = payload.Inventories{}
-		if err := p.Decode(tr); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown command to decode: %s", m.commandType())
+func (m *Message) unmarshalPayload(r io.Reader) error {
+	pbuf := make([]byte, m.Length)
+	if _, err := r.Read(pbuf); err != nil {
+		return err
 	}
 
 	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, buffer.Bytes()) {
+	if !compareChecksum(m.Checksum, pbuf) {
 		return errors.New("checksum mismatch error")
+	}
+
+	var p payload.Payloader
+	switch m.commandType() {
+	case cmdVersion:
+		p = &payload.Version{}
+		if err := p.UnmarshalBinary(pbuf); err != nil {
+			return err
+		}
+	case cmdInv:
+		p = &payload.Inventory{}
+		if err := p.UnmarshalBinary(pbuf); err != nil {
+			return err
+		}
 	}
 
 	m.Payload = p
@@ -178,49 +186,23 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
-	buf := make([]byte, minMessageSize)
-	pbuf := new(bytes.Buffer)
+	buf := make([]byte, minMessageSize+m.Length)
 
-	// if there is a payload fill its allocated buffer.
-	var checksum []byte
-	if m.Payload != nil {
-		if err := m.Payload.Encode(pbuf); err != nil {
-			return err
-		}
-		checksum = sumSHA256(sumSHA256(pbuf.Bytes()))[:4]
-	} else {
-		checksum = sumSHA256(sumSHA256([]byte{}))[:4]
-	}
-
-	m.Checksum = binary.LittleEndian.Uint32(checksum)
-
-	// fill the message buffer
 	binary.LittleEndian.PutUint32(buf[0:4], uint32(m.Magic))
 	copy(buf[4:16], m.Command)
 	binary.LittleEndian.PutUint32(buf[16:20], m.Length)
 	binary.LittleEndian.PutUint32(buf[20:24], m.Checksum)
 
-	// write the message
-	n, err := w.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	// we need to have at least writen exactly minMessageSize bytes.
-	if n != minMessageSize {
-		return errors.New("long/short read error when encoding message")
-	}
-
-	// write the payload if there was any
-	if pbuf.Len() > 0 {
-		n, err = w.Write(pbuf.Bytes())
+	if m.Payload != nil {
+		payload, err := m.Payload.MarshalBinary()
 		if err != nil {
 			return err
 		}
+		copy(buf[minMessageSize:minMessageSize+m.Length], payload)
+	}
 
-		if uint32(n) != m.Payload.Size() {
-			return errors.New("long/short read error when encoding payload")
-		}
+	if _, err := w.Write(buf); err != nil {
+		return err
 	}
 
 	return nil
@@ -241,10 +223,6 @@ func cmdToByteSlice(cmd commandType) []byte {
 	}
 
 	return b
-}
-
-func needPayloadDecode(cmd commandType) bool {
-	return cmd != cmdVerack && cmd != cmdGetAddr
 }
 
 func sumSHA256(b []byte) []byte {

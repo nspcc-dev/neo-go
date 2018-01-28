@@ -2,7 +2,6 @@ package payload
 
 import (
 	"encoding/binary"
-	"io"
 )
 
 const (
@@ -31,36 +30,21 @@ type Version struct {
 }
 
 // NewVersion returns a pointer to a Version payload.
-func NewVersion(p uint16, ua string, h uint32, r bool) *Version {
+func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	return &Version{
 		Version:     0,
 		Services:    1,
 		Timestamp:   12345,
 		Port:        p,
-		Nonce:       19110,
+		Nonce:       id,
 		UserAgent:   []byte(ua),
 		StartHeight: 0,
 		Relay:       r,
 	}
 }
 
-// Size implements the Payloader interface.
-func (p *Version) Size() uint32 {
-	n := minVersionSize
-	return uint32(n)
-}
-
-// Decode implements the Payloader interface.
-func (p *Version) Decode(r io.Reader) error {
-	b := make([]byte, minVersionSize)
-	if _, err := r.Read(b); err != nil {
-		return err
-	}
-
-	// 27 bytes for the fixed size fields + the length of the user agent
-	// which is kinda variable, according to the docs.
-	lenUA := len(b) - minVersionSize
-
+// UnmarshalBinary implements the Payloader interface.
+func (p *Version) UnmarshalBinary(b []byte) error {
 	p.Version = binary.LittleEndian.Uint32(b[0:4])
 	p.Services = binary.LittleEndian.Uint64(b[4:12])
 	p.Timestamp = binary.LittleEndian.Uint32(b[12:16])
@@ -76,30 +60,33 @@ func (p *Version) Decode(r io.Reader) error {
 	return nil
 }
 
-// Encode implements the Payloader interface.
-func (p *Version) Encode(w io.Writer) error {
-	buf := make([]byte, p.Size())
+// MarshalBinary implements the Payloader interface.
+func (p *Version) MarshalBinary() ([]byte, error) {
+	b := make([]byte, p.Size())
 
-	binary.LittleEndian.PutUint32(buf[0:4], p.Version)
-	binary.LittleEndian.PutUint64(buf[4:12], p.Services)
-	binary.LittleEndian.PutUint32(buf[12:16], p.Timestamp)
+	binary.LittleEndian.PutUint32(b[0:4], p.Version)
+	binary.LittleEndian.PutUint64(b[4:12], p.Services)
+	binary.LittleEndian.PutUint32(b[12:16], p.Timestamp)
 	// FIXME: byte order (little / big)?
-	binary.LittleEndian.PutUint16(buf[16:18], p.Port)
-	binary.LittleEndian.PutUint32(buf[18:22], p.Nonce)
-	copy(buf[22:22+len(p.UserAgent)], p.UserAgent) //
+	binary.LittleEndian.PutUint16(b[16:18], p.Port)
+	binary.LittleEndian.PutUint32(b[18:22], p.Nonce)
+	copy(b[22:22+len(p.UserAgent)], p.UserAgent) //
 	curLen := 22 + len(p.UserAgent)
-	binary.LittleEndian.PutUint32(buf[curLen:curLen+4], p.StartHeight)
+	binary.LittleEndian.PutUint32(b[curLen:curLen+4], p.StartHeight)
 
 	// yikes
-	var b []byte
+	var bln []byte
 	if p.Relay {
-		b = []byte{1}
+		bln = []byte{1}
 	} else {
-		b = []byte{0}
+		bln = []byte{0}
 	}
 
-	copy(buf[curLen+4:len(buf)], b)
+	copy(b[curLen+4:len(b)], bln)
 
-	_, err := w.Write(buf)
-	return err
+	return b, nil
+}
+
+func (p *Version) Size() uint32 {
+	return uint32(minVersionSize + len(p.UserAgent))
 }

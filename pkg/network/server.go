@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
+	"github.com/anthdm/neo-go/pkg/util"
 )
 
 const (
@@ -32,6 +33,9 @@ type messageTuple struct {
 // Server is the representation of a full working NEO TCP node.
 type Server struct {
 	logger *log.Logger
+
+	// id of the server
+	id uint32
 
 	// the port the TCP listener is listening on.
 	port uint16
@@ -72,6 +76,7 @@ func NewServer(net NetMode) *Server {
 	s := &Server{
 		// It is important to have this user agent correct. Otherwise we will get
 		// disconnected.
+		id:         util.RandUint32(1111111, 9999999),
 		userAgent:  fmt.Sprintf("\v/NEO:%s/", version),
 		logger:     logger,
 		peers:      make(map[*Peer]bool),
@@ -95,8 +100,10 @@ func (s *Server) Start(port string, seeds []string) {
 	s.port = uint16(p)
 
 	fmt.Println(logo())
-	s.logger.Printf("running %s on %s - TCP %d - relay: %v",
-		s.userAgent, s.net, int(s.port), s.relay)
+	fmt.Println(string(s.userAgent))
+	fmt.Println("")
+	s.logger.Printf("NET: %s - TCP: %d - RELAY: %v - ID: %d",
+		s.net, int(s.port), s.relay, s.id)
 
 	go listenTCP(s, port)
 
@@ -163,7 +170,10 @@ func (s *Server) loop() {
 // TODO: unregister peers on error.
 // processMessage processes the received message from a remote node.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
-	rpcLogger.Printf("IN :: %+v", string(msg.Command))
+	rpcLogger.Printf("IN :: %s", msg.commandType())
+	if msg.Length > 0 {
+		rpcLogger.Printf("IN :: %+v", msg.Payload)
+	}
 
 	switch msg.commandType() {
 	case cmdVersion:
@@ -190,7 +200,7 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 // No further communication should been made before both sides has received
 // the version of eachother.
 func (s *Server) handlePeerConnected() (*Message, error) {
-	payload := payload.NewVersion(s.port, s.userAgent, 0, s.relay)
+	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
 	return msg, nil
 }
@@ -199,7 +209,7 @@ func (s *Server) handlePeerConnected() (*Message, error) {
 func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	// TODO: check version and verify to trust that node.
 
-	payload := payload.NewVersion(s.port, s.userAgent, 0, s.relay)
+	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	// we respond with our version.
 	versionMsg := newMessage(s.net, cmdVersion, payload)
 	peer.send <- versionMsg
