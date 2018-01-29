@@ -1,0 +1,9 @@
+language: go
+sudo: false
+go:
+  - 1.x
+  - tip
+install:
+  - go build ./{cmd,pkg}/...
+script:
+  - go vet ./{cmd,pkg}/...
