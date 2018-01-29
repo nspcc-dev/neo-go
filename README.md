@@ -32,3 +32,6 @@ Make sure you have a private net running. If you dont, take a look at [docker-pr
 
 The only thing the server currently will do is asking for peers and connect to the responded peers. All other messages are in development.
 
+# Contributing
+todo.
+

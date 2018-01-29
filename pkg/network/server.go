@@ -140,17 +140,21 @@ func (s *Server) loop() {
 	for {
 		select {
 		case peer := <-s.register:
+			// When a new connection is been established, (by this server or remote node)
+			// its peer will be received on this channel.
+			// Any peer registration must happen via this channel.
 			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
 
 			s.peers[peer] = true
 
-			// only respond with the version mesage if the peer initiated the connection.
+			// Only respond with a version message if the peer initiated the connection.
 			if peer.initiator {
 				resp, err := s.handlePeerConnected()
 				if err != nil {
 					s.logger.Fatalf("handling initial peer connection failed: %s", err)
+				} else {
+					peer.send <- resp
 				}
-				peer.send <- resp
 			}
 		case peer := <-s.unregister:
 			// unregister should take care of all the cleanup that has to be made.
@@ -161,6 +165,8 @@ func (s *Server) loop() {
 				s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
 			}
 		case tuple := <-s.message:
+			// When a remote node sends data over its connection it will be received
+			// on this channel.
 			if err := s.processMessage(tuple.msg, tuple.peer); err != nil {
 				s.logger.Fatalf("failed to process message: %s", err)
 				s.disconnect(tuple.peer)
