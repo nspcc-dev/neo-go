@@ -8,23 +8,6 @@ import (
 	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
-// func TestNewMessage(t *testing.T) {
-// 	payload := []byte{}
-// 	m := newMessage(ModeTestNet, cmdVersion, payload)
-
-// 	if have, want := m.Length, uint32(0); want != have {
-// 		t.Errorf("want %d have %d", want, have)
-// 	}
-// 	if have, want := len(m.Command), 12; want != have {
-// 		t.Errorf("want %d have %d", want, have)
-// 	}
-
-// 	sum := sumSHA256(sumSHA256(payload))[:4]
-// 	sumuint32 := binary.LittleEndian.Uint32(sum)
-// 	if have, want := m.Checksum, sumuint32; want != have {
-// 		t.Errorf("want %d have %d", want, have)
-// 	}
-// }
 func TestMessageEncodeDecode(t *testing.T) {
 	m := newMessage(ModeTestNet, cmdVersion, nil)
 
@@ -50,52 +33,36 @@ func TestMessageEncodeDecode(t *testing.T) {
 }
 
 func TestMessageEncodeDecodeWithVersion(t *testing.T) {
-	p := payload.NewVersion(2000, "/neo/", 0, true)
+	p := payload.NewVersion(12227, 2000, "./neo:2.6.0/", 0, true)
 	m := newMessage(ModeTestNet, cmdVersion, p)
 
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	if err := m.encode(buf); err != nil {
 		t.Error(err)
 	}
-	t.Log(buf.Len())
 
-	m1 := &Message{}
-	if err := m1.decode(buf); err != nil {
+	mDecode := &Message{}
+	if err := mDecode.decode(buf); err != nil {
 		t.Fatal(err)
 	}
-	p1 := m1.Payload.(*payload.Version)
 
-	t.Log(p1)
+	if !reflect.DeepEqual(m, mDecode) {
+		t.Fatalf("expected both messages to be equal %v and %v", m, mDecode)
+	}
 }
 
 func TestMessageInvalidChecksum(t *testing.T) {
-	m := newMessage(ModeTestNet, cmdVersion, nil)
+	p := payload.NewVersion(1111, 3000, "./NEO:2.6.0/", 0, true)
+	m := newMessage(ModeTestNet, cmdVersion, p)
 	m.Checksum = 1337
 
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	if err := m.encode(buf); err != nil {
 		t.Error(err)
 	}
 
 	md := &Message{}
-	if err := md.decode(buf); err == nil {
-		t.Error("decode should failed with checkum mismatch error")
+	if err := md.decode(buf); err == nil && err != errChecksumMismatch {
+		t.Fatalf("decode should fail with %s", errChecksumMismatch)
 	}
 }
-
-// func TestNewVersionPayload(t *testing.T) {
-// 	ua := "/neo/0.0.1/"
-// 	p := newVersionPayload(3000, ua, 0, true)
-// 	b, err := p.encode()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	pd := &Version{}
-// 	if err := pd.decode(b); err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	if !reflect.DeepEqual(p, pd) {
-// 		t.Errorf("both payloads should be equal: %v != %v", p, pd)
-// 	}
-// }

@@ -17,6 +17,10 @@ const (
 	cmdSize        = 12
 )
 
+var (
+	errChecksumMismatch = errors.New("checksum mismatch")
+)
+
 // NetMode type that is compatible with netModes below.
 type NetMode uint32
 
@@ -166,7 +170,7 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 	// Compare the checksum of the payload.
 	if !compareChecksum(m.Checksum, pbuf) {
-		return errors.New("checksum mismatch error")
+		return errChecksumMismatch
 	}
 
 	r = bytes.NewReader(pbuf)

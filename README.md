@@ -10,6 +10,12 @@
     Node and SDK for the <b>NEO</b> blockchain written in the <b>Go</b> language.
 </p>
 
+<p align="center">
+  <a href="https://travis-ci.org/anthdm/neo-go">
+    <img src="https://travis-ci.org/anthdm/neo-go.svg?branch=master">
+  </a>
+</p>
+
 # Overview
 ### Long term project goals
 Full port of the original C# [NEO project](https://github.com/neo-project). A complete toolkit for the NEO blockchain.
