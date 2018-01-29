@@ -24,7 +24,7 @@ Full port of the original C# [NEO project](https://github.com/neo-project). A co
 - RPC client
 - build, compile and deploy smart contracts with the Go vm
 
-# Current state
+### Current state
 This project is still under heavy development. Still working on internal API's and project layout. This should not take longer than 2 weeks. 
 
 # Getting started 
