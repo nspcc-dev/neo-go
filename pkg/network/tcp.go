@@ -16,7 +16,7 @@ func listenTCP(s *Server, port string) error {
 		if err != nil {
 			return err
 		}
-		go handleConnection(s, conn, true)
+		go handleConnection(s, conn)
 	}
 }
 
@@ -30,7 +30,7 @@ func connectToRemoteNode(s *Server, address string) {
 		return
 	}
 	s.logger.Printf("connected to %s", conn.RemoteAddr())
-	go handleConnection(s, conn, false)
+	go handleConnection(s, conn)
 }
 
 func connectToSeeds(s *Server, addrs []string) {
@@ -39,8 +39,8 @@ func connectToSeeds(s *Server, addrs []string) {
 	}
 }
 
-func handleConnection(s *Server, conn net.Conn, initiated bool) {
-	peer := NewPeer(conn, initiated)
+func handleConnection(s *Server, conn net.Conn) {
+	peer := NewPeer(conn)
 	s.register <- peer
 
 	// remove the peer from connected peers and cleanup the connection.

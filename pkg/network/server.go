@@ -78,8 +78,6 @@ func NewServer(net NetMode) *Server {
 	}
 
 	s := &Server{
-		// It is important to have this user agent correct. Otherwise we will get
-		// disconnected.
 		id:         util.RandUint32(1111111, 9999999),
 		userAgent:  fmt.Sprintf("\v/NEO:%s/", version),
 		logger:     logger,
@@ -132,10 +130,6 @@ func (s *Server) shutdown() {
 	}
 }
 
-func (s *Server) disconnect(p *Peer) {
-	s.unregister <- p
-}
-
 func (s *Server) loop() {
 	for {
 		select {
@@ -144,18 +138,9 @@ func (s *Server) loop() {
 			// its peer will be received on this channel.
 			// Any peer registration must happen via this channel.
 			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
-
 			s.peers[peer] = true
+			s.handlePeerConnected(peer)
 
-			// Only respond with a version message if the peer initiated the connection.
-			if peer.initiator {
-				resp, err := s.handlePeerConnected()
-				if err != nil {
-					s.logger.Fatalf("handling initial peer connection failed: %s", err)
-				} else {
-					peer.send <- resp
-				}
-			}
 		case peer := <-s.unregister:
 			// unregister should take care of all the cleanup that has to be made.
 			if _, ok := s.peers[peer]; ok {
@@ -164,25 +149,35 @@ func (s *Server) loop() {
 				delete(s.peers, peer)
 				s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
 			}
+
 		case tuple := <-s.message:
 			// When a remote node sends data over its connection it will be received
 			// on this channel.
+			// All errors encountered should be return and handled here.
 			if err := s.processMessage(tuple.msg, tuple.peer); err != nil {
 				s.logger.Fatalf("failed to process message: %s", err)
-				s.disconnect(tuple.peer)
+				s.unregister <- tuple.peer
 			}
+
 		case <-s.quit:
 			s.shutdown()
 		}
 	}
 }
 
-// TODO: unregister peers on error.
-// processMessage processes the received message from a remote node.
+// processMessage processes the message received from the peer.
 func (s *Server) processMessage(msg *Message, peer *Peer) error {
-	rpcLogger.Printf("[NODE %d] :: IN :: %s :: %+v", peer.id, msg.commandType(), msg.Payload)
+	command := msg.commandType()
 
-	switch msg.commandType() {
+	rpcLogger.Printf("[NODE %d] :: IN :: %s :: %+v", peer.id, command, msg.Payload)
+
+	// Disconnect if the remote is sending messages other then version
+	// if we didn't verack this peer.
+	if !peer.verack && command != cmdVersion {
+		return errors.New("version noack")
+	}
+
+	switch command {
 	case cmdVersion:
 		return s.handleVersionCmd(msg.Payload.(*payload.Version), peer)
 	case cmdVerack:
@@ -198,29 +193,31 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 	case cmdBlock:
 	case cmdTX:
 	default:
-		return errors.New("invalid RPC command received: " + string(msg.commandType()))
+		return fmt.Errorf("invalid RPC command received: %s", command)
 	}
 
 	return nil
 }
 
-// When a new peer is connected we respond with the version command.
-// No further communication should been made before both sides has received
-// the version of eachother.
-func (s *Server) handlePeerConnected() (*Message, error) {
+// When a new peer is connected we send our version.
+// No further communication should be made before both sides has received
+// the versions of eachother.
+func (s *Server) handlePeerConnected(peer *Peer) {
+	// TODO get heigth of block when thats implemented.
 	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
-	return msg, nil
+
+	peer.send <- msg
 }
 
 // Version declares the server's version.
 func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
-	// TODO: check version and verify to trust that node.
-
-	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
-	// we respond with our version.
-	versionMsg := newMessage(s.net, cmdVersion, payload)
-	peer.send <- versionMsg
+	if s.id == v.Nonce {
+		return errors.New("remote nonce equal to server id")
+	}
+	if peer.endpoint.Port != v.Port {
+		return errors.New("port mismatch")
+	}
 
 	// we respond with a verack, we successfully received peer's version
 	// at this point.
@@ -229,7 +226,7 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 	verackMsg := newMessage(s.net, cmdVerack, nil)
 	peer.send <- verackMsg
 
-	go s.startProtocol(peer)
+	go s.sendLoop(peer)
 
 	return nil
 }
@@ -267,7 +264,7 @@ func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
 	return nil
 }
 
-func (s *Server) startProtocol(peer *Peer) {
+func (s *Server) sendLoop(peer *Peer) {
 	// TODO: check if this peer is still connected.
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)

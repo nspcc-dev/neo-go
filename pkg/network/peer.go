@@ -3,6 +3,8 @@ package network
 import (
 	"log"
 	"net"
+
+	"github.com/anthdm/neo-go/pkg/util"
 )
 
 // Peer represents a remote node, backed by TCP transport.
@@ -10,20 +12,22 @@ type Peer struct {
 	id uint32
 	// underlying TCP connection
 	conn net.Conn
-	// channel to coordinate message writes back to the connection.
+	// host and port information about this peer.
+	endpoint util.Endpoint
+	// channel to coordinate messages writen back to the connection.
 	send chan *Message
-	// verack is true if this node has sended it's version.
+	// whether this peers version was acknowledged.
 	verack bool
-	// whether we or him made the initial connection.
-	initiator bool
 }
 
 // NewPeer returns a (TCP) Peer.
-func NewPeer(conn net.Conn, init bool) *Peer {
+func NewPeer(conn net.Conn) *Peer {
+	e, _ := util.EndpointFromString(conn.RemoteAddr().String())
+
 	return &Peer{
-		conn:      conn,
-		send:      make(chan *Message),
-		initiator: init,
+		conn:     conn,
+		send:     make(chan *Message),
+		endpoint: e,
 	}
 }
 

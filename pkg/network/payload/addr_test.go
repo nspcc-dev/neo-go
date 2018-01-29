@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/anthdm/neo-go/pkg/util"
 )
 
 func TestEncodeDecodeAddr(t *testing.T) {
-	e, err := EndpointFromString("127.0.0.1:2000")
+	e, err := util.EndpointFromString("127.0.0.1:2000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +35,7 @@ func TestEncodeDecodeAddressList(t *testing.T) {
 	var lenList uint8 = 4
 	addrs := make([]*AddrWithTime, lenList)
 	for i := 0; i < int(lenList); i++ {
-		e, _ := EndpointFromString(fmt.Sprintf("127.0.0.1:200%d", i))
+		e, _ := util.EndpointFromString(fmt.Sprintf("127.0.0.1:200%d", i))
 		addrs[i] = NewAddrWithTime(e)
 	}
 
