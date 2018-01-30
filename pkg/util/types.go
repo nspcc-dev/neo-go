@@ -7,7 +7,8 @@ import (
 	"fmt"
 )
 
-// Uint256 ...
+// Uint256 is a 32 byte long unsigned integer.
+// Commonly used to store hashes.
 type Uint256 [32]uint8
 
 // Uint256FromBytes return an Uint256 from a byte slice.
@@ -44,3 +45,6 @@ func (u Uint256) ToSlice() []byte {
 func (u Uint256) String() string {
 	return hex.EncodeToString(u.ToSlice())
 }
+
+// Uint160 is a 20 byte long unsigned integer
+type Uint160 [20]uint8

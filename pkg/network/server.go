@@ -189,9 +189,11 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 	case cmdHeaders:
 	case cmdGetBlocks:
 	case cmdInv:
+		return s.handleInvCmd(msg.Payload.(*payload.Inventory), peer)
 	case cmdGetData:
 	case cmdBlock:
 	case cmdTX:
+	case cmdConsensus:
 	default:
 		return fmt.Errorf("invalid RPC command received: %s", command)
 	}
@@ -238,6 +240,22 @@ func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error 
 			go connectToRemoteNode(s, addr.Addr.String())
 		}
 	}
+	return nil
+}
+
+func (s *Server) handleInvCmd(inv *payload.Inventory, peer *Peer) error {
+	if !inv.Type.Valid() {
+		return fmt.Errorf("invalid inventory type: %s", inv.Type)
+	}
+	if len(inv.Hashes) == 0 {
+		return nil
+	}
+
+	payload := payload.NewInventory(inv.Type, inv.Hashes)
+	msg := newMessage(s.net, cmdGetData, payload)
+
+	peer.send <- msg
+
 	return nil
 }
 

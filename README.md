@@ -7,7 +7,7 @@
 <h1 align="center">NEO-GO</h1>
 
 <p align="center">
-    Node and SDK for the <b>NEO</b> blockchain written in the <b>Go</b> language.
+  Node and SDK for the <b>NEO</b> blockchain written in the <b>Go</b> language.
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 ### Long term project goals
 Full port of the original C# [NEO project](https://github.com/neo-project). A complete toolkit for the NEO blockchain.
 
-- Full server (consensus, RPC and bookkeeping) nodes.
+- Full server (consensus and RPC) nodes.
 - RPC client
 - build, compile and deploy smart contracts with the Go vm
 

@@ -83,6 +83,7 @@ const (
 	cmdGetData                = "getdata"
 	cmdBlock                  = "block"
 	cmdTX                     = "tx"
+	cmdConsensus              = "consensus"
 )
 
 func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
@@ -137,6 +138,8 @@ func (m *Message) commandType() commandType {
 		return cmdBlock
 	case "tx":
 		return cmdTX
+	case "consensus":
+		return cmdConsensus
 	default:
 		return ""
 	}
@@ -148,6 +151,8 @@ func (m *Message) decode(r io.Reader) error {
 	binary.Read(r, binary.LittleEndian, &m.Command)
 	binary.Read(r, binary.LittleEndian, &m.Length)
 	binary.Read(r, binary.LittleEndian, &m.Checksum)
+
+	fmt.Println(cmdByteArrayToString(m.Command))
 
 	// return if their is no payload.
 	if m.Length == 0 {
@@ -163,6 +168,8 @@ func (m *Message) decodePayload(r io.Reader) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("The length of the payload is %d\n", n)
 
 	if uint32(n) != m.Length {
 		return fmt.Errorf("expected to have read exactly %d bytes got %d", m.Length, n)

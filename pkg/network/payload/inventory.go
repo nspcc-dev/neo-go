@@ -27,6 +27,11 @@ func (i InventoryType) String() string {
 	}
 }
 
+// Valid returns true if the inventory (type) is known.
+func (i InventoryType) Valid() bool {
+	return i == BlockType || i == TXType || i == ConsensusType
+}
+
 // List of valid InventoryTypes.
 const (
 	BlockType     InventoryType = 0x01 // 1
@@ -39,7 +44,15 @@ type Inventory struct {
 	// Type if the object hash.
 	Type InventoryType
 	// The hash of the object (uint256).
-	Hash Uint256
+	Hashes []Uint256
+}
+
+// NewInventory return a pointer to an Inventory.
+func NewInventory(typ InventoryType, hashes []Uint256) *Inventory {
+	return &Inventory{
+		Type:   typ,
+		Hashes: hashes,
+	}
 }
 
 // DecodeBinary implements the Payload interface.
@@ -50,15 +63,30 @@ func (p *Inventory) DecodeBinary(r io.Reader) error {
 	var listLen uint8
 	err := binary.Read(r, binary.LittleEndian, &p.Type)
 	err = binary.Read(r, binary.LittleEndian, &listLen)
-	err = binary.Read(r, binary.LittleEndian, &p.Hash)
+
+	p.Hashes = make([]Uint256, listLen)
+	for i := 0; i < int(listLen); i++ {
+		if err := binary.Read(r, binary.LittleEndian, &p.Hashes[i]); err != nil {
+			return err
+		}
+	}
 
 	return err
 }
 
 // EncodeBinary implements the Payload interface.
 func (p *Inventory) EncodeBinary(w io.Writer) error {
-	// TODO
-	return nil
+	listLen := uint8(len(p.Hashes))
+	err := binary.Write(w, binary.LittleEndian, p.Type)
+	err = binary.Write(w, binary.LittleEndian, listLen)
+
+	for i := 0; i < len(p.Hashes); i++ {
+		if err := binary.Write(w, binary.LittleEndian, p.Hashes[i]); err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 // Size implements the Payloader interface.
