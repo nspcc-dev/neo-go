@@ -11,6 +11,8 @@ func listenTCP(s *Server, port string) error {
 		return err
 	}
 
+	s.listener = ln
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
