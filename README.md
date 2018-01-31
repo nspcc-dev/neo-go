@@ -1,7 +1,8 @@
 <p align="center">
-  <img
-  src="http://files.coinmarketcap.com.s3-website-us-east-1.amazonaws.com/static/img/coins/200x200/neo.png"
-    width="125px;">
+<img 
+    src="http://res.cloudinary.com/vidsy/image/upload/v1503160820/CoZ_Icon_DARKBLUE_200x178px_oq0gxm.png" 
+    width="125px"
+  >
 </p>
 
 <h1 align="center">NEO-GO</h1>
@@ -17,6 +18,8 @@
 </p>
 
 # Overview
+> This project is currently in alpha and under active development.
+
 ### Long term project goals
 Full port of the original C# [NEO project](https://github.com/neo-project). A complete toolkit for the NEO blockchain.
 
@@ -67,4 +70,7 @@ Before starting to work on a certain topic, create an new issue first, describin
 # Contact
 - [@anthdm](https://github.com/anthdm) on Github
 - [@anthdm](https://twitter.com/anthdm) on Twitter
-- Send me an email anthony@academiclabs.co
+- Send me an email anthony@cityofzion.io
+
+# License
+- Open-source [MIT](https://github.com/anthdm/neo-go/blob/master/LICENCE.md)
