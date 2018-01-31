@@ -33,7 +33,7 @@ func TestMessageEncodeDecode(t *testing.T) {
 }
 
 func TestMessageEncodeDecodeWithVersion(t *testing.T) {
-	p := payload.NewVersion(12227, 2000, "./neo:2.6.0/", 0, true)
+	p := payload.NewVersion(12227, 2000, "/neo:2.6.0/", 0, true)
 	m := newMessage(ModeTestNet, cmdVersion, p)
 
 	buf := new(bytes.Buffer)
@@ -52,7 +52,7 @@ func TestMessageEncodeDecodeWithVersion(t *testing.T) {
 }
 
 func TestMessageInvalidChecksum(t *testing.T) {
-	p := payload.NewVersion(1111, 3000, "./NEO:2.6.0/", 0, true)
+	p := payload.NewVersion(1111, 3000, "/NEO:2.6.0/", 0, true)
 	m := newMessage(ModeTestNet, cmdVersion, p)
 	m.Checksum = 1337
 

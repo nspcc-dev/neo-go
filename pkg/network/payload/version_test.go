@@ -7,7 +7,7 @@ import (
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
-	version := NewVersion(13337, 3000, "./NEO:0.0.1/", 0, true)
+	version := NewVersion(13337, 3000, "/NEO:0.0.1/", 0, true)
 
 	buf := new(bytes.Buffer)
 	if err := version.EncodeBinary(buf); err != nil {
@@ -24,6 +24,6 @@ func TestVersionEncodeDecode(t *testing.T) {
 	}
 
 	if version.Size() != uint32(minVersionSize+len(version.UserAgent)) {
-		t.Fatalf("Expected version size of %d", minVersionSize+lenUA)
+		t.Fatalf("Expected version size of %d", minVersionSize+len(version.UserAgent))
 	}
 }

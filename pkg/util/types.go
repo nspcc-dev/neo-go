@@ -33,10 +33,10 @@ func (u *Uint256) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-// ToSlice return a byte slice of u.
+// ToSlice returns a byte slice of u.
 func (u Uint256) ToSlice() []byte {
 	b := make([]byte, 32)
-	for i := 0; i < 32; i++ {
+	for i := 0; i < len(b); i++ {
 		b[i] = byte(u[i])
 	}
 	return b
@@ -48,3 +48,17 @@ func (u Uint256) String() string {
 
 // Uint160 is a 20 byte long unsigned integer
 type Uint160 [20]uint8
+
+// ToSlice returns a byte slice of u.
+func (u Uint160) ToSlice() []byte {
+	b := make([]byte, 20)
+	for i := 0; i < len(b); i++ {
+		b[i] = byte(u[i])
+	}
+	return b
+}
+
+// String implements the stringer interface.
+func (u Uint160) String() string {
+	return hex.EncodeToString(u.ToSlice())
+}

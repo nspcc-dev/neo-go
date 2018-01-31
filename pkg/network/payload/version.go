@@ -5,10 +5,7 @@ import (
 	"io"
 )
 
-const (
-	lenUA          = 12
-	minVersionSize = 27
-)
+const minVersionSize = 27
 
 // Version payload.
 type Version struct {
@@ -23,7 +20,7 @@ type Version struct {
 	// it's used to distinguish the node from public IP
 	Nonce uint32
 	// client id
-	UserAgent [lenUA]byte
+	UserAgent []byte
 	// Height of the block chain
 	StartHeight uint32
 	// Whether to receive and forward
@@ -38,7 +35,7 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 		Timestamp:   12345,
 		Port:        p,
 		Nonce:       id,
-		UserAgent:   uaToByteArray(ua),
+		UserAgent:   []byte(ua),
 		StartHeight: 0,
 		Relay:       r,
 	}
@@ -46,16 +43,17 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements the Payload interface.
 func (p *Version) DecodeBinary(r io.Reader) error {
-	// TODO: Length of the user agent should be calculated dynamicaly.
-	// There is no information about the size or format of this.
-	// the only thing we know is by looking at the #c source code.
-	// /NEO:{0}/ => /NEO:2.6.0/
 	err := binary.Read(r, binary.LittleEndian, &p.Version)
 	err = binary.Read(r, binary.LittleEndian, &p.Services)
 	err = binary.Read(r, binary.LittleEndian, &p.Timestamp)
 	err = binary.Read(r, binary.LittleEndian, &p.Port)
 	err = binary.Read(r, binary.LittleEndian, &p.Nonce)
+
+	var lenUA uint8
+	err = binary.Read(r, binary.LittleEndian, &lenUA)
+	p.UserAgent = make([]byte, lenUA)
 	err = binary.Read(r, binary.LittleEndian, &p.UserAgent)
+
 	err = binary.Read(r, binary.LittleEndian, &p.StartHeight)
 	err = binary.Read(r, binary.LittleEndian, &p.Relay)
 
@@ -69,6 +67,7 @@ func (p *Version) EncodeBinary(w io.Writer) error {
 	err = binary.Write(w, binary.LittleEndian, p.Timestamp)
 	err = binary.Write(w, binary.LittleEndian, p.Port)
 	err = binary.Write(w, binary.LittleEndian, p.Nonce)
+	err = binary.Write(w, binary.LittleEndian, uint8(len(p.UserAgent)))
 	err = binary.Write(w, binary.LittleEndian, p.UserAgent)
 	err = binary.Write(w, binary.LittleEndian, p.StartHeight)
 	err = binary.Write(w, binary.LittleEndian, p.Relay)
@@ -79,12 +78,4 @@ func (p *Version) EncodeBinary(w io.Writer) error {
 // Size implements the payloader interface.
 func (p *Version) Size() uint32 {
 	return uint32(minVersionSize + len(p.UserAgent))
-}
-
-func uaToByteArray(ua string) [lenUA]byte {
-	buf := [lenUA]byte{}
-	for i := 0; i < lenUA; i++ {
-		buf[i] = ua[i]
-	}
-	return buf
 }

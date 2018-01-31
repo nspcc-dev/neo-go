@@ -7,9 +7,9 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
+	"github.com/anthdm/neo-go/pkg/core"
 	"github.com/anthdm/neo-go/pkg/network/payload"
 	"github.com/anthdm/neo-go/pkg/util"
 )
@@ -28,15 +28,13 @@ var (
 )
 
 type messageTuple struct {
-	peer *Peer
+	peer Peer
 	msg  *Message
 }
 
 // Server is the representation of a full working NEO TCP node.
 type Server struct {
 	logger *log.Logger
-
-	mtx sync.RWMutex
 
 	// id of the server
 	id uint32
@@ -51,10 +49,10 @@ type Server struct {
 	// Or 56753 to work with the docker privnet.
 	net NetMode
 	// map that holds all connected peers to this server.
-	peers map[*Peer]bool
+	peers map[Peer]bool
 
-	register   chan *Peer
-	unregister chan *Peer
+	register   chan Peer
+	unregister chan Peer
 
 	// channel for coordinating messages.
 	message chan messageTuple
@@ -79,11 +77,11 @@ func NewServer(net NetMode) *Server {
 
 	s := &Server{
 		id:         util.RandUint32(1111111, 9999999),
-		userAgent:  fmt.Sprintf("\v/NEO:%s/", version),
+		userAgent:  fmt.Sprintf("/NEO:%s/", version),
 		logger:     logger,
-		peers:      make(map[*Peer]bool),
-		register:   make(chan *Peer),
-		unregister: make(chan *Peer),
+		peers:      make(map[Peer]bool),
+		register:   make(chan Peer),
+		unregister: make(chan Peer),
 		message:    make(chan messageTuple),
 		relay:      true,
 		net:        net,
@@ -137,17 +135,16 @@ func (s *Server) loop() {
 			// When a new connection is been established, (by this server or remote node)
 			// its peer will be received on this channel.
 			// Any peer registration must happen via this channel.
-			s.logger.Printf("peer registered from address %s", peer.conn.RemoteAddr())
+			s.logger.Printf("peer registered from address %s", peer.endpoint())
 			s.peers[peer] = true
 			s.handlePeerConnected(peer)
 
 		case peer := <-s.unregister:
 			// unregister should take care of all the cleanup that has to be made.
 			if _, ok := s.peers[peer]; ok {
-				peer.conn.Close()
-				close(peer.send)
+				peer.disconnect()
 				delete(s.peers, peer)
-				s.logger.Printf("peer %s disconnected", peer.conn.RemoteAddr())
+				s.logger.Printf("peer %s disconnected", peer.endpoint())
 			}
 
 		case tuple := <-s.message:
@@ -166,14 +163,14 @@ func (s *Server) loop() {
 }
 
 // processMessage processes the message received from the peer.
-func (s *Server) processMessage(msg *Message, peer *Peer) error {
+func (s *Server) processMessage(msg *Message, peer Peer) error {
 	command := msg.commandType()
 
-	rpcLogger.Printf("[NODE %d] :: IN :: %s :: %+v", peer.id, command, msg.Payload)
+	rpcLogger.Printf("[NODE %d] :: IN :: %s :: %+v", peer.id(), command, msg.Payload)
 
 	// Disconnect if the remote is sending messages other then version
 	// if we didn't verack this peer.
-	if !peer.verack && command != cmdVersion {
+	if !peer.verack() && command != cmdVersion {
 		return errors.New("version noack")
 	}
 
@@ -192,6 +189,7 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 		return s.handleInvCmd(msg.Payload.(*payload.Inventory), peer)
 	case cmdGetData:
 	case cmdBlock:
+		return s.handleBlockCmd(msg.Payload.(*core.Block), peer)
 	case cmdTX:
 	case cmdConsensus:
 	default:
@@ -204,29 +202,29 @@ func (s *Server) processMessage(msg *Message, peer *Peer) error {
 // When a new peer is connected we send our version.
 // No further communication should be made before both sides has received
 // the versions of eachother.
-func (s *Server) handlePeerConnected(peer *Peer) {
+func (s *Server) handlePeerConnected(peer Peer) {
 	// TODO get heigth of block when thats implemented.
 	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
 
-	peer.send <- msg
+	peer.send(msg)
 }
 
 // Version declares the server's version.
-func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
+func (s *Server) handleVersionCmd(v *payload.Version, peer Peer) error {
 	if s.id == v.Nonce {
 		return errors.New("remote nonce equal to server id")
 	}
-	if peer.endpoint.Port != v.Port {
+
+	if peer.endpoint().Port != v.Port {
 		return errors.New("port mismatch")
 	}
 
 	// we respond with a verack, we successfully received peer's version
 	// at this point.
-	peer.verack = true
-	peer.id = v.Nonce
+	peer.verify(v.Nonce)
 	verackMsg := newMessage(s.net, cmdVerack, nil)
-	peer.send <- verackMsg
+	peer.send(verackMsg)
 
 	go s.sendLoop(peer)
 
@@ -234,7 +232,7 @@ func (s *Server) handleVersionCmd(v *payload.Version, peer *Peer) error {
 }
 
 // When the remote node reveals its known peers we try to connect to all of them.
-func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error {
+func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer Peer) error {
 	for _, addr := range addrList.Addrs {
 		if !s.peerAlreadyConnected(addr.Addr) {
 			go connectToRemoteNode(s, addr.Addr.String())
@@ -243,7 +241,7 @@ func (s *Server) handleAddrCmd(addrList *payload.AddressList, peer *Peer) error 
 	return nil
 }
 
-func (s *Server) handleInvCmd(inv *payload.Inventory, peer *Peer) error {
+func (s *Server) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 	if !inv.Type.Valid() {
 		return fmt.Errorf("invalid inventory type: %s", inv.Type)
 	}
@@ -254,8 +252,13 @@ func (s *Server) handleInvCmd(inv *payload.Inventory, peer *Peer) error {
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	msg := newMessage(s.net, cmdGetData, payload)
 
-	peer.send <- msg
+	peer.send(msg)
 
+	return nil
+}
+
+func (s *Server) handleBlockCmd(block *core.Block, peer Peer) error {
+	fmt.Println("received a block yyyyyyeeeeeehhhhh!")
 	return nil
 }
 
@@ -267,7 +270,7 @@ func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
 	// What about ourself ^^
 
 	for peer := range s.peers {
-		if peer.conn.RemoteAddr().String() == addr.String() {
+		if peer.endpoint().String() == addr.String() {
 			return true
 		}
 	}
@@ -282,13 +285,13 @@ func (s *Server) handleGetAddrCmd(msg *Message, peer *Peer) error {
 	return nil
 }
 
-func (s *Server) sendLoop(peer *Peer) {
+func (s *Server) sendLoop(peer Peer) {
 	// TODO: check if this peer is still connected.
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
-		peer.send <- getaddrMsg
+		peer.send(getaddrMsg)
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(120 * time.Second)
 	}
 }
 

@@ -40,7 +40,7 @@ func connectToSeeds(s *Server, addrs []string) {
 }
 
 func handleConnection(s *Server, conn net.Conn) {
-	peer := NewPeer(conn)
+	peer := NewTCPPeer(conn)
 	s.register <- peer
 
 	// remove the peer from connected peers and cleanup the connection.

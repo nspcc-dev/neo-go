@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/anthdm/neo-go/pkg/core"
 	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
@@ -46,14 +47,6 @@ const (
 )
 
 // Message is the complete message send between nodes.
-//
-//	Size	Field		DataType		Description
-// 	------------------------------------------------------
-//	4		Magic		uint32			Protocol ID
-//	12		Command		char[12]		Command
-//	4		length		uint32			Length of payload
-//	4		Checksum	uint32			Checksum
-//	length	Payload		uint8[length]	Content of message
 type Message struct {
 	Magic NetMode
 	// Command is utf8 code, of which the length is 12 bytes,
@@ -93,11 +86,11 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
 	)
 
 	if p != nil {
-		size = p.Size()
 		buf := new(bytes.Buffer)
 		if err := p.EncodeBinary(buf); err != nil {
 			panic(err)
 		}
+		size = uint32(buf.Len())
 		checksum = sumSHA256(sumSHA256(buf.Bytes()))
 	} else {
 		checksum = sumSHA256(sumSHA256([]byte{}))
@@ -152,8 +145,6 @@ func (m *Message) decode(r io.Reader) error {
 	binary.Read(r, binary.LittleEndian, &m.Length)
 	binary.Read(r, binary.LittleEndian, &m.Checksum)
 
-	fmt.Println(cmdByteArrayToString(m.Command))
-
 	// return if their is no payload.
 	if m.Length == 0 {
 		return nil
@@ -163,24 +154,22 @@ func (m *Message) decode(r io.Reader) error {
 }
 
 func (m *Message) decodePayload(r io.Reader) error {
-	pbuf := make([]byte, m.Length)
-	n, err := r.Read(pbuf)
+	buf := make([]byte, m.Length)
+	n, err := r.Read(buf)
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("The length of the payload is %d\n", n)
 
 	if uint32(n) != m.Length {
 		return fmt.Errorf("expected to have read exactly %d bytes got %d", m.Length, n)
 	}
 
 	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, pbuf) {
+	if !compareChecksum(m.Checksum, buf) {
 		return errChecksumMismatch
 	}
 
-	r = bytes.NewReader(pbuf)
+	r = bytes.NewReader(buf)
 	var p payload.Payload
 	switch m.commandType() {
 	case cmdVersion:
@@ -195,6 +184,11 @@ func (m *Message) decodePayload(r io.Reader) error {
 		}
 	case cmdAddr:
 		p = &payload.AddressList{}
+		if err := p.DecodeBinary(r); err != nil {
+			return err
+		}
+	case cmdBlock:
+		p = &core.Block{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
