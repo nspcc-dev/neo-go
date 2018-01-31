@@ -27,19 +27,42 @@ Full port of the original C# [NEO project](https://github.com/neo-project). A co
 ### Current state
 This project is still under heavy development. Still working on internal API's and project layout. This should not take longer than 2 weeks. 
 
+The project will exist out of the following topics/packages:
+
+1. network (started) 
+2. core (started)
+3. vm (open)
+4. smartcontract (open)
+5. api (RPC server) (open)
+
 # Getting started 
-If you can't wait to experiment with the current state of the project. clone the project, cd into it and run:
+### Server
 
-`go install ./cmd/neoserver`
+Install the neoserver cli `go install ./cmd/neoserver`
 
-Make sure you have a private net running. If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/metachris/neo-privnet-with-gas/).
+Currently, there is a minimal subset of the NEO protocol implemented. To start experimenting make sure you a have a private net running on your machine. If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/metachris/neo-privnet-with-gas/). 
+
+Start the server:
 
 `neoserver -seed 127.0.0.1:20333`
 
-The only thing the server currently will do is asking for peers and connect to the responded peers. All other messages are in development.
+You can add multiple seeds if you want:
+
+`neoserver -seed 127.0.0.1:20333,127.0.01:20334`
+
+### RPC
+To be implemented..
+
+### vm
+To be implemented..
+
+### smart contracts
+To be implemented..
 
 # Contributing
-todo.
+Feel free to contribute to this project after reading the [contributing guidelines](https://github.com/anthdm/neo-go/blob/master/CONTRIBUTING.md).
+
+Before starting to work on a certain topic, create an new issue first, describing the feauture/topic you are going to implement.
 
 # Contact
 - [@anthdm](https://github.com/anthdm) on Github
