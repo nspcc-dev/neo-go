@@ -59,12 +59,13 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 	var lenList uint8
 	binary.Read(r, binary.LittleEndian, &lenList)
 
+	p.Addrs = make([]*AddrWithTime, lenList)
 	for i := 0; i < int(4); i++ {
-		address := &AddrWithTime{}
-		if err := address.DecodeBinary(r); err != nil {
+		addr := &AddrWithTime{}
+		if err := addr.DecodeBinary(r); err != nil {
 			return err
 		}
-		p.Addrs = append(p.Addrs, address)
+		p.Addrs[i] = addr
 	}
 
 	return nil

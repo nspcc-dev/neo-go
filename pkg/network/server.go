@@ -258,7 +258,8 @@ func (s *Server) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 }
 
 func (s *Server) handleBlockCmd(block *core.Block, peer Peer) error {
-	fmt.Println("received a block yyyyyyeeeeeehhhhh!")
+	fmt.Println("Block received")
+	fmt.Printf("%+v\n", block)
 	return nil
 }
 

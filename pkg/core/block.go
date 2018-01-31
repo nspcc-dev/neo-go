@@ -25,7 +25,7 @@ type Block struct {
 	// seperator ? fixed to 1
 	_sep uint8
 	// Script used to validate the block
-	Script []byte
+	Script *Witness
 	// transaction list
 	Transactions []*Transaction
 }
@@ -45,14 +45,23 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 	err = binary.Read(r, binary.LittleEndian, &b.Nonce)
 	err = binary.Read(r, binary.LittleEndian, &b.NextMiner)
 	err = binary.Read(r, binary.LittleEndian, &b._sep)
-	var n uint8
-	err = binary.Read(r, binary.LittleEndian, &n)
-	err = binary.Read(r, binary.LittleEndian, &n)
 
-	// txs := make([]byte, n)
-	// err = binary.Read(r, binary.LittleEndian, &txs)
-	// err = binary.Read(r, binary.LittleEndian, &n)
-	// fmt.Println(n)
+	b.Script = &Witness{}
+	if err := b.Script.DecodeBinary(r); err != nil {
+		return err
+	}
+
+	var lentx uint8
+	err = binary.Read(r, binary.LittleEndian, &lentx)
+
+	b.Transactions = make([]*Transaction, lentx)
+	for i := 0; i < int(lentx); i++ {
+		tx := &Transaction{}
+		if err := tx.DecodeBinary(r); err != nil {
+			return err
+		}
+		b.Transactions[i] = tx
+	}
 
 	return err
 }
