@@ -1,8 +1,10 @@
 package network
 
 import (
-	"io"
+	"bytes"
 	"net"
+
+	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
 func listenTCP(s *Server, port string) error {
@@ -31,7 +33,6 @@ func connectToRemoteNode(s *Server, address string) {
 		}
 		return
 	}
-	s.logger.Printf("connected to %s", conn.RemoteAddr())
 	go handleConnection(s, conn)
 }
 
@@ -42,7 +43,7 @@ func connectToSeeds(s *Server, addrs []string) {
 }
 
 func handleConnection(s *Server, conn net.Conn) {
-	peer := NewTCPPeer(conn)
+	peer := NewTCPPeer(conn, s)
 	s.register <- peer
 
 	// remove the peer from connected peers and cleanup the connection.
@@ -54,20 +55,51 @@ func handleConnection(s *Server, conn net.Conn) {
 	// Start a goroutine that will handle all writes to the registered peer.
 	go peer.writeLoop()
 
-	// Read from the connection and decode it into an RPCMessage and
-	// tell the server there is message available for proccesing.
+	// Read from the connection and decode it into a Message ready for processing.
+	buf := make([]byte, 1024)
 	for {
-		msg := &Message{}
-		if err := msg.decode(conn); err != nil {
-			// remote connection probably closed.
-			if err == io.EOF {
-				s.logger.Printf("conn read error: %s", err)
-				break
-			}
-			// remove this node on any decode errors.
-			s.logger.Printf("RPC :: decode error %s", err)
+		_, err := conn.Read(buf)
+		if err != nil {
+			s.logger.Printf("conn read error: %s", err)
 			break
 		}
-		s.message <- messageTuple{peer, msg}
+
+		msg := &Message{}
+		if err := msg.decode(bytes.NewReader(buf)); err != nil {
+			s.logger.Printf("decode error %s", err)
+			break
+		}
+		handleMessage(msg, s, peer)
+	}
+}
+
+func handleMessage(msg *Message, s *Server, p *TCPPeer) {
+	command := msg.commandType()
+
+	s.logger.Printf("%d :: IN :: %s :: %v", p.id(), command, msg)
+
+	switch command {
+	case cmdVersion:
+		resp := s.handleVersionCmd(msg, p)
+		p.isVerack = true
+		p.nonce = msg.Payload.(*payload.Version).Nonce
+		p.send <- resp
+	case cmdAddr:
+		s.handleAddrCmd(msg, p)
+	case cmdGetAddr:
+		s.handleGetaddrCmd(msg, p)
+	case cmdInv:
+		resp := s.handleInvCmd(msg, p)
+		p.send <- resp
+	case cmdBlock:
+	case cmdConsensus:
+	case cmdTX:
+	case cmdVerack:
+		go s.sendLoop(p)
+	case cmdGetHeaders:
+	case cmdGetBlocks:
+	case cmdGetData:
+	case cmdHeaders:
+	default:
 	}
 }

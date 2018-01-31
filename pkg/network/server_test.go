@@ -2,25 +2,39 @@ package network
 
 import (
 	"testing"
+
+	"github.com/anthdm/neo-go/pkg/network/payload"
 )
 
 func TestHandleVersion(t *testing.T) {
-	// s := NewServer(ModeDevNet)
-	// go s.Start(":3000", nil)
+	s := NewServer(ModeDevNet)
+	go s.loop()
 
-	// p := NewLocalPeer()
-	// s.register <- p
+	p := NewLocalPeer(s)
 
-	// version := payload.NewVersion(1337, p.endpoint().Port, "/NEO:0.0.0/.", 0, true)
-	// s.handleVersionCmd(version, p)
+	version := payload.NewVersion(1337, p.addr().Port, "/NEO:0.0.0/", 0, true)
+	msg := newMessage(ModeDevNet, cmdVersion, version)
 
-	// if len(s.peers) != 1 {
-	// 	t.Fatalf("expecting the server to have %d peers got %d", 1, len(s.peers))
-	// }
-	// if p.id() != 1337 {
-	// 	t.Fatalf("expecting peer's id to be %d got %d", 1337, p._id)
-	// }
-	// if !p.verack() {
-	// 	t.Fatal("expecting peer to be verified")
-	// }
+	resp := s.handleVersionCmd(msg, p)
+	if resp.commandType() != cmdVerack {
+		t.Fatalf("expected response message to be verack got %s", resp.commandType())
+	}
+	if resp.Payload != nil {
+		t.Fatal("verack payload should be nil")
+	}
+}
+
+func TestHandleAddrCmd(t *testing.T) {
+	// todo
+}
+
+func TestHandleGetAddrCmd(t *testing.T) {
+	// todo
+}
+
+func TestHandleInv(t *testing.T) {
+	// todo
+}
+func TestHandleBlockCmd(t *testing.T) {
+	// todo
 }

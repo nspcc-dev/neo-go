@@ -1,8 +1,6 @@
 package network
 
 import (
-	"fmt"
-	"log"
 	"net"
 
 	"github.com/anthdm/neo-go/pkg/util"
@@ -12,94 +10,94 @@ import (
 // be backed by any concrete transport: local, HTTP, tcp.
 type Peer interface {
 	id() uint32
-	endpoint() util.Endpoint
-	send(*Message)
+	addr() util.Endpoint
 	verack() bool
-	verify(uint32)
 	disconnect()
+	callVersion(*Message)
+	callGetaddr(*Message)
 }
 
-// LocalPeer is a peer without any transport, mainly used for testing.
+// LocalPeer is the simplest kind of peer, mapped to a server in the
+// same process-space.
 type LocalPeer struct {
-	_id       uint32
-	_verack   bool
-	_endpoint util.Endpoint
-	_send     chan *Message
+	s        *Server
+	nonce    uint32
+	isVerack bool
+	endpoint util.Endpoint
 }
 
 // NewLocalPeer return a LocalPeer.
-func NewLocalPeer() *LocalPeer {
+func NewLocalPeer(s *Server) *LocalPeer {
 	e, _ := util.EndpointFromString("1.1.1.1:1111")
-	return &LocalPeer{_endpoint: e}
+	return &LocalPeer{endpoint: e, s: s}
 }
 
-func (p *LocalPeer) id() uint32              { return p._id }
-func (p *LocalPeer) verack() bool            { return p._verack }
-func (p *LocalPeer) endpoint() util.Endpoint { return p._endpoint }
-func (p *LocalPeer) disconnect()             {}
-
-func (p *LocalPeer) send(msg *Message) {
-	p._send <- msg
+func (p *LocalPeer) callVersion(msg *Message) {
+	p.s.handleVersionCmd(msg, p)
 }
 
-func (p *LocalPeer) verify(id uint32) {
-	fmt.Println(id)
-	p._verack = true
-	p._id = id
+func (p *LocalPeer) callGetaddr(msg *Message) {
+	p.s.handleGetaddrCmd(msg, p)
 }
+
+func (p *LocalPeer) id() uint32          { return p.nonce }
+func (p *LocalPeer) verack() bool        { return p.isVerack }
+func (p *LocalPeer) addr() util.Endpoint { return p.endpoint }
+func (p *LocalPeer) disconnect()         {}
 
 // TCPPeer represents a remote node, backed by TCP transport.
 type TCPPeer struct {
-	_id uint32
+	s *Server
+	// nonce (id) of the peer.
+	nonce uint32
 	// underlying TCP connection
 	conn net.Conn
 	// host and port information about this peer.
-	_endpoint util.Endpoint
+	endpoint util.Endpoint
 	// channel to coordinate messages writen back to the connection.
-	_send chan *Message
+	send chan *Message
 	// whether this peers version was acknowledged.
-	_verack bool
+	isVerack bool
 }
 
 // NewTCPPeer returns a pointer to a TCP Peer.
-func NewTCPPeer(conn net.Conn) *TCPPeer {
+func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	e, _ := util.EndpointFromString(conn.RemoteAddr().String())
 
 	return &TCPPeer{
-		conn:      conn,
-		_send:     make(chan *Message),
-		_endpoint: e,
+		conn:     conn,
+		send:     make(chan *Message),
+		endpoint: e,
+		s:        s,
 	}
+}
+
+func (p *TCPPeer) callVersion(msg *Message) {
+	p.send <- msg
 }
 
 // id implements the peer interface
 func (p *TCPPeer) id() uint32 {
-	return p._id
+	return p.nonce
 }
 
 // endpoint implements the peer interface
-func (p *TCPPeer) endpoint() util.Endpoint {
-	return p._endpoint
+func (p *TCPPeer) addr() util.Endpoint {
+	return p.endpoint
 }
 
 // verack implements the peer interface
 func (p *TCPPeer) verack() bool {
-	return p._verack
+	return p.isVerack
 }
 
-// verify implements the peer interface
-func (p *TCPPeer) verify(id uint32) {
-	p._id = id
-	p._verack = true
-}
-
-// send implements the peer interface
-func (p *TCPPeer) send(msg *Message) {
-	p._send <- msg
+// callGetaddr will send the "getaddr" command to the remote.
+func (p *TCPPeer) callGetaddr(msg *Message) {
+	p.send <- msg
 }
 
 func (p *TCPPeer) disconnect() {
-	close(p._send)
+	close(p.send)
 	p.conn.Close()
 }
 
@@ -114,12 +112,13 @@ func (p *TCPPeer) writeLoop() {
 	}()
 
 	for {
-		msg := <-p._send
+		msg := <-p.send
 
-		rpcLogger.Printf("[SERVER] :: OUT :: %s :: %+v", msg.commandType(), msg.Payload)
+		p.s.logger.Printf("OUT :: %s :: %+v", msg.commandType(), msg.Payload)
 
+		// should we disconnect here?
 		if err := msg.encode(p.conn); err != nil {
-			log.Printf("encode error: %s", err)
+			p.s.logger.Printf("encode error: %s", err)
 		}
 	}
 }
