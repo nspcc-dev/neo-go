@@ -41,3 +41,7 @@ The only thing the server currently will do is asking for peers and connect to t
 # Contributing
 todo.
 
+# Contact
+- [@anthdm](https://github.com/anthdm) on Github
+- [@anthdm](https://twitter.com/anthdm) on Twitter
+- Send me an email anthony@academiclabs.co
