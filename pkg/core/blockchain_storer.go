@@ -3,7 +3,7 @@ package core
 import (
 	"sync"
 
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // BlockchainStorer is anything that can persist and retrieve the blockchain.

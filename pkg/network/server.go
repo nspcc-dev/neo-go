@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anthdm/neo-go/pkg/core"
-	"github.com/anthdm/neo-go/pkg/network/payload"
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (

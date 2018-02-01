@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/anthdm/neo-go/pkg/core"
-	"github.com/anthdm/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	. "github.com/anthdm/neo-go/pkg/util"
+	. "github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // BlockBase holds the base info of a block

@@ -1,0 +1,86 @@
+version: 2
+jobs:
+  install_deps:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ .Revision }}
+      - run: BUILD=false /scripts/build.sh
+      - save_cache:
+          key: dependency-cache-{{ .Revision }}
+          paths:
+            - vendor
+  test:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ .Revision }}
+      - run: make test
+  vet:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ .Revision }}
+      - run: make vet
+  check_version:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - run: make check-version
+  build_cli:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - run: make build
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - install_deps:
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+            branches:
+              ignore: master
+      - test:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+            branches:
+              ignore: master
+      - vet:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+            branches:
+              ignore: master
+      - check_version:
+          filters:
+            branches:
+              ignore: master
+      - build_cli:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+            branches:
+              ignore: master
