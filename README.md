@@ -19,9 +19,9 @@
 
 # Overview
 
-> This project is currently in alpha and under active development.
+> This project is currently in **alpha** and under active development.
 
-### Long term project goals
+## Project Goals
 
 Full port of the original C# [NEO project](https://github.com/neo-project). 
 A complete toolkit for the NEO blockchain, including:
@@ -32,7 +32,7 @@ A complete toolkit for the NEO blockchain, including:
 - ClI tool
 - Smart contract compiler
 
-### Current state
+## Current State
 
 This project is still under heavy development. Still working on internal API's and project layout. T
 his should not take longer than 2 weeks. 
@@ -47,9 +47,9 @@ The project will exist out of the following packages:
 | smartcontract | started | [@revett](https://github.com/revett) |
 | vm            | started | [@revett](https://github.com/revett) |
 
-# Getting started 
+# Getting Started 
 
-### Server
+## Server
 
 Install the neoserver cli:
 
@@ -80,7 +80,7 @@ You can change that by setting the tcp flag:
 neoserver -seed 127.0.0.1:20333 -tcp 1337
 ```
 
-### RPC
+## RPC
 
 If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
 
@@ -92,16 +92,15 @@ In this case server will accept and respond JSON-RPC on port 4000.
 Keep in mind that currently there is only a small subset of the JSON-RPC implemented. 
 Feel free to make a PR with more functionality.
 
-### VM
+## VM
 
 ```
 TODO
 ```
 
-### Smart Contracts
+## Smart Contracts
 
 ```
-
 TODO
 ```
 
