@@ -23,6 +23,7 @@ func TestHandleVersion(t *testing.T) {
 		t.Fatal("verack payload should be nil")
 	}
 }
+
 func TestPeerCount(t *testing.T) {
 	s := NewServer(ModeDevNet)
 	go s.loop()
