@@ -70,20 +70,20 @@ If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/m
 Start the server:
 
 ```
-./neo-go -seed 127.0.0.1:20333
+./bin/neo-go -seed 127.0.0.1:20333
 ```
 
 You can add multiple seeds if you want:
 
 ```
-./neo-go -seed 127.0.0.1:20333,127.0.01:20334
+./bin/neo-go -seed 127.0.0.1:20333,127.0.01:20334
 ```
 
 By default the server will currently run on port 3000, for testing purposes. 
 You can change that by setting the tcp flag:
 
 ```
-./neo-go -seed 127.0.0.1:20333 -tcp 1337
+./bin/neo-go -seed 127.0.0.1:20333 -tcp 1337
 ```
 
 ## RPC
@@ -91,7 +91,7 @@ You can change that by setting the tcp flag:
 If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
 
 ```
-./neo-go -rpc 4000
+./bin/neo-go -rpc 4000
 ```
 
 In this case server will accept and respond JSON-RPC on port 4000. 

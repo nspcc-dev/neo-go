@@ -1,5 +1,5 @@
 build:
-	@go build -o neo-go cli/main.go
+	@go build -o ./bin/neo-go ./cli/main.go
 
 deps:
 	@glide install
