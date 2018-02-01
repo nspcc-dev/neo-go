@@ -176,6 +176,7 @@ func (p *TCPPeer) callGetaddr(msg *Message) {
 // disconnect closes the send channel and the underlying connection.
 func (p *TCPPeer) disconnect() {
 	close(p.send)
+	close(p.receive)
 	p.conn.Close()
 }
 
