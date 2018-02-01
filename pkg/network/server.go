@@ -5,8 +5,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -54,6 +56,46 @@ type Server struct {
 	listener net.Listener
 	// channel for safely responding the number of current connected peers.
 	peerCountCh chan peerCount
+	// a list of hashes that
+	knownHashes protectedHashmap
+	// The blockchain.
+	bc *core.Blockchain
+}
+
+type protectedHashmap struct {
+	*sync.RWMutex
+	hashes map[util.Uint256]bool
+}
+
+func (m protectedHashmap) add(h util.Uint256) bool {
+	m.Lock()
+	defer m.Unlock()
+
+	if _, ok := m.hashes[h]; !ok {
+		m.hashes[h] = true
+		return true
+	}
+	return false
+}
+
+func (m protectedHashmap) remove(h util.Uint256) bool {
+	m.Lock()
+	defer m.Unlock()
+
+	if _, ok := m.hashes[h]; ok {
+		delete(m.hashes, h)
+		return true
+	}
+	return false
+}
+
+func (m protectedHashmap) has(h util.Uint256) bool {
+	m.RLock()
+	defer m.RUnlock()
+
+	_, ok := m.hashes[h]
+
+	return ok
 }
 
 // NewServer returns a pointer to a new server.
@@ -76,6 +118,8 @@ func NewServer(net NetMode) *Server {
 		net:         net,
 		quit:        make(chan struct{}),
 		peerCountCh: make(chan peerCount),
+		// knownHashes: protectedHashmap{},
+		bc: core.NewBlockchain(core.NewMemoryStore()),
 	}
 
 	return s
@@ -162,11 +206,11 @@ func (s *Server) handlePeerConnected(p Peer) {
 func (s *Server) handleVersionCmd(msg *Message, p Peer) *Message {
 	version := msg.Payload.(*payload.Version)
 	if s.id == version.Nonce {
-		p.disconnect()
+		// s.unregister <- p
 		return nil
 	}
 	if p.addr().Port != version.Port {
-		p.disconnect()
+		// s.unregister <- p
 		return nil
 	}
 	return newMessage(ModeDevNet, cmdVerack, nil)
@@ -176,22 +220,46 @@ func (s *Server) handleGetaddrCmd(msg *Message, p Peer) *Message {
 	return nil
 }
 
+// The node can broadcast the object information it owns by this message.
+// The message can be sent automatically or can be used to answer getbloks messages.
 func (s *Server) handleInvCmd(msg *Message, p Peer) *Message {
 	inv := msg.Payload.(*payload.Inventory)
 	if !inv.Type.Valid() {
-		p.disconnect()
+		s.unregister <- p
 		return nil
 	}
 	if len(inv.Hashes) == 0 {
-		p.disconnect()
+		s.unregister <- p
 		return nil
 	}
+
+	// todo: only grab the hashes that we dont know.
 
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	resp := newMessage(s.net, cmdGetData, payload)
 	return resp
 }
 
+// handleBlockCmd processes the received block.
+func (s *Server) handleBlockCmd(msg *Message, p Peer) {
+	block := msg.Payload.(*core.Block)
+	hash, err := block.Hash()
+	if err != nil {
+		// not quite sure what to do here.
+		// should we disconnect the client or just silently log and move on?
+		s.logger.Printf("failed to generate block hash: %s", err)
+		return
+	}
+
+	fmt.Println(hash)
+
+	if s.bc.HasBlock(hash) {
+		return
+	}
+}
+
+// After receiving the getaddr message, the node returns an addr message as response
+// and provides information about the known nodes on the network.
 func (s *Server) handleAddrCmd(msg *Message, p Peer) {
 	addrList := msg.Payload.(*payload.AddressList)
 	for _, addr := range addrList.Addrs {
@@ -200,6 +268,9 @@ func (s *Server) handleAddrCmd(msg *Message, p Peer) {
 			go connectToRemoteNode(s, addr.Addr.String())
 		}
 	}
+}
+
+func (s *Server) relayInventory(inv *payload.Inventory) {
 }
 
 // check if the addr is already connected to the server.
