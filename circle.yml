@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  install_deps:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     docker:
       - image: vidsyhq/go-builder:latest
@@ -38,10 +38,17 @@ jobs:
     steps:
       - checkout
       - run: make check-version
+  build_cli:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - run: make build
 
 workflows:
   version: 2
-  build_test:
+  ci:
     jobs:
       - build:
           filters:
@@ -67,5 +74,13 @@ workflows:
               ignore: master
       - check_version:
           filters:
+            branches:
+              ignore: master
+      - build_cli:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
             branches:
               ignore: master
