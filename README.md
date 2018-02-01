@@ -34,9 +34,9 @@ The project will exist out of the following topics/packages:
 
 1. network (started) 
 2. core (started)
-3. vm (open)
-4. smartcontract (open)
-5. api (RPC server) (open)
+3. api (JSON-RPC server) (started)
+4. vm (open)
+5. smartcontract (open)
 
 # Getting started 
 ### Server
@@ -53,8 +53,16 @@ You can add multiple seeds if you want:
 
 `neoserver -seed 127.0.0.1:20333,127.0.01:20334`
 
+By default the server will currently run on port 3000, for testing purposes. You can change that by setting the tcp flag:
+
+`neoserver -seed 127.0.0.1:20333 -tcp 1337`
+
 ### RPC
-To be implemented..
+If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
+
+`neoserver -rpc 4000`
+
+In this case server will accept and respond JSON-RPC on port 4000. Keep in mind that currently there is only a small subset of the JSON-RPC implemented. Feel free to make a PR with more functionality.
 
 ### vm
 To be implemented..
