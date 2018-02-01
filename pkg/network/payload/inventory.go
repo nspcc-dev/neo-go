@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	. "github.com/anthdm/neo-go/pkg/util"
+	. "github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // The node can broadcast the object information it owns by this message.

@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Peer is the local representation of a remote node. It's an interface that may

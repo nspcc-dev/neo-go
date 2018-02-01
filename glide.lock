@@ -1,11 +1,4 @@
-hash: 054e4119c1d6deac9c76a3f6ecc319c80d2099d6dd4fd804b03ce47a9b1ccc86
-updated: 2018-02-01T17:18:00.958758Z
-imports:
-- name: github.com/anthdm/neo-go
-  version: 3b91a4808e67c54687a4ba90ac4caf584398cea4
-  subpackages:
-  - pkg/core
-  - pkg/network
-  - pkg/network/payload
-  - pkg/util
+hash: b1152abdd9a1fa1e70773cddcf54247d3fe3332602604f9f2233165ced02eeaf
+updated: 2018-02-01T18:34:22.684905Z
+imports: []
 testImports: []
