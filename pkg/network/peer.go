@@ -9,7 +9,6 @@ import (
 type Peer interface {
 	id() uint32
 	addr() util.Endpoint
-	verack() bool
 	disconnect()
 	callVersion(*Message)
 	callGetaddr(*Message)
@@ -20,7 +19,6 @@ type Peer interface {
 type LocalPeer struct {
 	s        *Server
 	nonce    uint32
-	isVerack bool
 	endpoint util.Endpoint
 }
 
@@ -39,6 +37,5 @@ func (p *LocalPeer) callGetaddr(msg *Message) {
 }
 
 func (p *LocalPeer) id() uint32          { return p.nonce }
-func (p *LocalPeer) verack() bool        { return p.isVerack }
 func (p *LocalPeer) addr() util.Endpoint { return p.endpoint }
 func (p *LocalPeer) disconnect()         {}
