@@ -3,10 +3,11 @@ package network
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 
-	"github.com/anthdm/neo-go/pkg/network/payload"
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func listenTCP(s *Server, port int) error {
@@ -22,6 +23,7 @@ func listenTCP(s *Server, port int) error {
 		if err != nil {
 			return err
 		}
+
 		go handleConnection(s, conn)
 	}
 }
@@ -54,13 +56,18 @@ func handleConnection(s *Server, conn net.Conn) {
 		s.unregister <- peer
 	}()
 
-	// Start a goroutine that will handle all writes to the registered peer.
+	// Start a goroutine that will handle all outgoing messages.
 	go peer.writeLoop()
+	// Start a goroutine that will handle all incomming messages.
+	go handleMessage(s, peer)
 
 	// Read from the connection and decode it into a Message ready for processing.
 	buf := make([]byte, 1024)
 	for {
 		_, err := conn.Read(buf)
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			s.logger.Printf("conn read error: %s", err)
 			break
@@ -71,39 +78,47 @@ func handleConnection(s *Server, conn net.Conn) {
 			s.logger.Printf("decode error %s", err)
 			break
 		}
-		handleMessage(msg, s, peer)
+
+		peer.receive <- msg
 	}
 }
 
 // handleMessage hands the message received from a TCP connection over to the server.
-func handleMessage(msg *Message, s *Server, p *TCPPeer) {
-	command := msg.commandType()
+func handleMessage(s *Server, p *TCPPeer) {
+	// Disconnect the peer when we break out of the loop.
+	defer func() {
+		s.unregister <- p
+	}()
 
-	s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
+	for {
+		msg := <-p.receive
+		command := msg.commandType()
 
-	switch command {
-	case cmdVersion:
-		resp := s.handleVersionCmd(msg, p)
-		p.isVerack = true
-		p.nonce = msg.Payload.(*payload.Version).Nonce
-		p.send <- resp
-	case cmdAddr:
-		s.handleAddrCmd(msg, p)
-	case cmdGetAddr:
-		s.handleGetaddrCmd(msg, p)
-	case cmdInv:
-		resp := s.handleInvCmd(msg, p)
-		p.send <- resp
-	case cmdBlock:
-	case cmdConsensus:
-	case cmdTX:
-	case cmdVerack:
-		go s.sendLoop(p)
-	case cmdGetHeaders:
-	case cmdGetBlocks:
-	case cmdGetData:
-	case cmdHeaders:
-	default:
+		s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
+
+		switch command {
+		case cmdVersion:
+			resp := s.handleVersionCmd(msg, p)
+			p.nonce = msg.Payload.(*payload.Version).Nonce
+			p.send <- resp
+		case cmdAddr:
+			s.handleAddrCmd(msg, p)
+		case cmdGetAddr:
+			s.handleGetaddrCmd(msg, p)
+		case cmdInv:
+			resp := s.handleInvCmd(msg, p)
+			p.send <- resp
+		case cmdBlock:
+			s.handleBlockCmd(msg, p)
+		case cmdConsensus:
+		case cmdTX:
+		case cmdVerack:
+			go s.sendLoop(p)
+		case cmdGetHeaders:
+		case cmdGetBlocks:
+		case cmdGetData:
+		case cmdHeaders:
+		}
 	}
 }
 
@@ -118,8 +133,8 @@ type TCPPeer struct {
 	endpoint util.Endpoint
 	// channel to coordinate messages writen back to the connection.
 	send chan *Message
-	// whether this peers version was acknowledged.
-	isVerack bool
+	// channel to receive from underlying connection.
+	receive chan *Message
 }
 
 // NewTCPPeer returns a pointer to a TCP Peer.
@@ -129,6 +144,7 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	return &TCPPeer{
 		conn:     conn,
 		send:     make(chan *Message),
+		receive:  make(chan *Message),
 		endpoint: e,
 		s:        s,
 	}
@@ -148,20 +164,17 @@ func (p *TCPPeer) addr() util.Endpoint {
 	return p.endpoint
 }
 
-// verack implements the peer interface
-func (p *TCPPeer) verack() bool {
-	return p.isVerack
-}
-
 // callGetaddr will send the "getaddr" command to the remote.
 func (p *TCPPeer) callGetaddr(msg *Message) {
 	p.send <- msg
 }
 
 // disconnect closes the send channel and the underlying connection.
+// TODO: this needs some love. We will get send on closed channel.
 func (p *TCPPeer) disconnect() {
-	close(p.send)
 	p.conn.Close()
+	close(p.send)
+	close(p.receive)
 }
 
 // writeLoop writes messages to the underlying TCP connection.

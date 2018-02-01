@@ -5,10 +5,10 @@
   >
 </p>
 
-<h1 align="center">NEO-GO</h1>
+<h1 align="center">neo-go</h1>
 
 <p align="center">
-  Node and SDK for the <b>NEO</b> blockchain written in the <b>Go</b> language.
+  <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
 </p>
 
 <p align="center">
@@ -18,67 +18,112 @@
 </p>
 
 # Overview
-> This project is currently in alpha and under active development.
 
-### Long term project goals
-Full port of the original C# [NEO project](https://github.com/neo-project). A complete toolkit for the NEO blockchain.
+> This project is currently in **alpha** and under active development.
 
-- Full server (consensus and RPC) nodes.
+## Project Goals
+
+Full port of the original C# [NEO project](https://github.com/neo-project). 
+A complete toolkit for the NEO blockchain, including:
+
+- Full consensus node
+- Full RPC node
 - RPC client
-- build, compile and deploy smart contracts with the Go vm
+- CLI tool
+- Smart contract compiler
 
-### Current state
-This project is still under heavy development. Still working on internal API's and project layout. This should not take longer than 2 weeks. 
+## Current State
 
-The project will exist out of the following topics/packages:
+This project is still under heavy development. Still working on internal API's and project layout. T
+his should not take longer than 2 weeks. 
 
-1. network (started) 
-2. core (started)
-3. api (JSON-RPC server) (started)
-4. vm (open)
-5. smartcontract (open)
+The project will exist out of the following packages:
 
-# Getting started 
-### Server
+| Package       | State   | Developer                            |
+|---------------|---------|--------------------------------------|
+| api           | started | [@anthdm](https://github.com/anthdm) |
+| core          | started | [@anthdm](https://github.com/anthdm) |
+| network       | started | [@anthdm](https://github.com/anthdm) |
+| smartcontract | started | [@revett](https://github.com/revett) |
+| vm            | started | [@revett](https://github.com/revett) |
 
-Install the neoserver cli `go install ./cmd/neoserver`
+# Getting Started 
 
-Currently, there is a minimal subset of the NEO protocol implemented. To start experimenting make sure you a have a private net running on your machine. If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/metachris/neo-privnet-with-gas/). 
+## Server
+
+Install dependencies, this requires [Glide](https://github.com/Masterminds/glide#install):
+
+```
+make deps
+```
+
+Build the **neo-go** CLI:
+
+```
+make build
+```
+
+Currently, there is a minimal subset of the NEO protocol implemented. 
+To start experimenting make sure you a have a private net running on your machine. 
+If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/metachris/neo-privnet-with-gas/). 
 
 Start the server:
 
-`neoserver -seed 127.0.0.1:20333`
+```
+./bin/neo-go -seed 127.0.0.1:20333
+```
 
 You can add multiple seeds if you want:
 
-`neoserver -seed 127.0.0.1:20333,127.0.01:20334`
+```
+./bin/neo-go -seed 127.0.0.1:20333,127.0.01:20334
+```
 
-By default the server will currently run on port 3000, for testing purposes. You can change that by setting the tcp flag:
+By default the server will currently run on port 3000, for testing purposes. 
+You can change that by setting the tcp flag:
 
-`neoserver -seed 127.0.0.1:20333 -tcp 1337`
+```
+./bin/neo-go -seed 127.0.0.1:20333 -tcp 1337
+```
 
-### RPC
+## RPC
+
 If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
 
-`neoserver -rpc 4000`
+```
+./bin/neo-go -rpc 4000
+```
 
-In this case server will accept and respond JSON-RPC on port 4000. Keep in mind that currently there is only a small subset of the JSON-RPC implemented. Feel free to make a PR with more functionality.
+In this case server will accept and respond JSON-RPC on port 4000. 
+Keep in mind that currently there is only a small subset of the JSON-RPC implemented. 
+Feel free to make a PR with more functionality.
 
-### vm
-To be implemented..
+## VM
 
-### smart contracts
-To be implemented..
+```
+TODO
+```
+
+## Smart Contracts
+
+```
+TODO
+```
 
 # Contributing
-Feel free to contribute to this project after reading the [contributing guidelines](https://github.com/anthdm/neo-go/blob/master/CONTRIBUTING.md).
 
-Before starting to work on a certain topic, create an new issue first, describing the feauture/topic you are going to implement.
+Feel free to contribute to this project after reading the 
+[contributing guidelines](https://github.com/anthdm/neo-go/blob/master/CONTRIBUTING.md).
+
+Before starting to work on a certain topic, create an new issue first, 
+describing the feauture/topic you are going to implement.
 
 # Contact
+
 - [@anthdm](https://github.com/anthdm) on Github
 - [@anthdm](https://twitter.com/anthdm) on Twitter
 - Send me an email anthony@cityofzion.io
 
 # License
+
 - Open-source [MIT](https://github.com/anthdm/neo-go/blob/master/LICENCE.md)

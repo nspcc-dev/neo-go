@@ -3,7 +3,7 @@ package network
 import (
 	"testing"
 
-	"github.com/anthdm/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
 func TestHandleVersion(t *testing.T) {
