@@ -29,7 +29,7 @@ A complete toolkit for the NEO blockchain, including:
 - Full consensus node
 - Full RPC node
 - RPC client
-- ClI tool
+- CLI tool
 - Smart contract compiler
 
 ## Current State
