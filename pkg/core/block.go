@@ -1,6 +1,8 @@
 package core
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"io"
 
@@ -28,6 +30,20 @@ type Block struct {
 	Script *Witness
 	// transaction list
 	Transactions []*Transaction
+}
+
+// encodeHashableFields will only encode the fields used for hashing.
+// see Hash() for more information about the fields.
+func (b *Block) encodeHashableFields(w io.Writer) error {
+	err := binary.Write(w, binary.LittleEndian, &b.Version)
+	err = binary.Write(w, binary.LittleEndian, &b.PrevBlock)
+	err = binary.Write(w, binary.LittleEndian, &b.MerkleRoot)
+	err = binary.Write(w, binary.LittleEndian, &b.Timestamp)
+	err = binary.Write(w, binary.LittleEndian, &b.Height)
+	err = binary.Write(w, binary.LittleEndian, &b.Nonce)
+	err = binary.Write(w, binary.LittleEndian, &b.NextMiner)
+
+	return err
 }
 
 // EncodeBinary encodes the block to the given writer.
@@ -64,6 +80,21 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 	}
 
 	return err
+}
+
+// Hash return the hash of the block.
+// When calculating the hash value of the block, instead of calculating the entire block,
+// only first seven fields in the block head will be calculated, which are
+// version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
+// Since MerkleRoot already contains the hash value of all transactions,
+// the modification of transaction will influence the hash value of the block.
+func (b *Block) Hash() (hash Uint256, err error) {
+	buf := new(bytes.Buffer)
+	if err = b.encodeHashableFields(buf); err != nil {
+		return
+	}
+	hash = sha256.Sum256(buf.Bytes())
+	return
 }
 
 // Size implements the payload interface.

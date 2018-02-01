@@ -95,10 +95,11 @@ func handleMessage(msg *Message, s *Server, p *TCPPeer) {
 		resp := s.handleInvCmd(msg, p)
 		p.send <- resp
 	case cmdBlock:
+		s.handleBlockCmd(msg, p)
 	case cmdConsensus:
 	case cmdTX:
 	case cmdVerack:
-		go s.sendLoop(p)
+		go s.sendLoop(p) // for now
 	case cmdGetHeaders:
 	case cmdGetBlocks:
 	case cmdGetData:
