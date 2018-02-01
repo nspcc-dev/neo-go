@@ -3,6 +3,7 @@ package network
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -64,6 +65,9 @@ func handleConnection(s *Server, conn net.Conn) {
 	buf := make([]byte, 1024)
 	for {
 		_, err := conn.Read(buf)
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			s.logger.Printf("conn read error: %s", err)
 			break
@@ -83,7 +87,7 @@ func handleConnection(s *Server, conn net.Conn) {
 func handleMessage(s *Server, p *TCPPeer) {
 	// Disconnect the peer when we break out of the loop.
 	defer func() {
-		p.disconnect()
+		s.unregister <- p
 	}()
 
 	for {
@@ -97,14 +101,6 @@ func handleMessage(s *Server, p *TCPPeer) {
 			resp := s.handleVersionCmd(msg, p)
 			p.nonce = msg.Payload.(*payload.Version).Nonce
 			p.send <- resp
-
-			// after sending our version we want a "verack" and nothing else.
-			msg := <-p.receive
-			if msg.commandType() != cmdVerack {
-				break
-			}
-			// we can start the protocol now.
-			go s.sendLoop(p)
 		case cmdAddr:
 			s.handleAddrCmd(msg, p)
 		case cmdGetAddr:
@@ -113,11 +109,11 @@ func handleMessage(s *Server, p *TCPPeer) {
 			resp := s.handleInvCmd(msg, p)
 			p.send <- resp
 		case cmdBlock:
+			s.handleBlockCmd(msg, p)
 		case cmdConsensus:
 		case cmdTX:
 		case cmdVerack:
-			// disconnect the peer, verack should already be handled.
-			break
+			go s.sendLoop(p)
 		case cmdGetHeaders:
 		case cmdGetBlocks:
 		case cmdGetData:
@@ -174,10 +170,11 @@ func (p *TCPPeer) callGetaddr(msg *Message) {
 }
 
 // disconnect closes the send channel and the underlying connection.
+// TODO: this needs some love. We will get send on closed channel.
 func (p *TCPPeer) disconnect() {
+	p.conn.Close()
 	close(p.send)
 	close(p.receive)
-	p.conn.Close()
 }
 
 // writeLoop writes messages to the underlying TCP connection.
