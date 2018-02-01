@@ -2,14 +2,15 @@ package network
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
 	"github.com/anthdm/neo-go/pkg/util"
 )
 
-func listenTCP(s *Server, port string) error {
-	ln, err := net.Listen("tcp", port)
+func listenTCP(s *Server, port int) error {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err
 	}
@@ -74,6 +75,7 @@ func handleConnection(s *Server, conn net.Conn) {
 	}
 }
 
+// handleMessage hands the message received from a TCP connection over to the server.
 func handleMessage(msg *Message, s *Server, p *TCPPeer) {
 	command := msg.commandType()
 
