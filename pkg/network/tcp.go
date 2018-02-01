@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/anthdm/neo-go/pkg/network/payload"
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func listenTCP(s *Server, port int) error {

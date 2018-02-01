@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	. "github.com/anthdm/neo-go/pkg/util"
+	. "github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func TestInventoryEncodeDecode(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"strings"
 
-	"github.com/anthdm/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/network"
 )
 
 var (

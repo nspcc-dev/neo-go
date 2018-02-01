@@ -1,8 +1,2 @@
 package: github.com/CityOfZion/neo-go
-import:
-- package: github.com/anthdm/neo-go
-  subpackages:
-  - pkg/core
-  - pkg/network
-  - pkg/network/payload
-  - pkg/util
+import: []

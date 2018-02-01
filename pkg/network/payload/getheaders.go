@@ -1,6 +1,6 @@
 package payload
 
-import "github.com/anthdm/neo-go/pkg/util"
+import "github.com/CityOfZion/neo-go/pkg/util"
 
 // GetHeaders payload is the same as the "GetBlocks" payload.
 type GetHeaders struct {
