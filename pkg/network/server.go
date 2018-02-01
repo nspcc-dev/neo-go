@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/anthdm/neo-go/pkg/network/payload"
@@ -53,6 +52,8 @@ type Server struct {
 	relay bool
 	// TCP listener of the server
 	listener net.Listener
+	// channel for safely responding the number of current connected peers.
+	peerCountCh chan peerCount
 }
 
 // NewServer returns a pointer to a new server.
@@ -64,28 +65,26 @@ func NewServer(net NetMode) *Server {
 	}
 
 	s := &Server{
-		id:         util.RandUint32(1111111, 9999999),
-		userAgent:  fmt.Sprintf("/NEO:%s/", version),
-		logger:     logger,
-		peers:      make(map[Peer]bool),
-		register:   make(chan Peer),
-		unregister: make(chan Peer),
-		message:    make(chan messageTuple),
-		relay:      true, // currently relay is not handled.
-		net:        net,
-		quit:       make(chan struct{}),
+		id:          util.RandUint32(1111111, 9999999),
+		userAgent:   fmt.Sprintf("/NEO:%s/", version),
+		logger:      logger,
+		peers:       make(map[Peer]bool),
+		register:    make(chan Peer),
+		unregister:  make(chan Peer),
+		message:     make(chan messageTuple),
+		relay:       true, // currently relay is not handled.
+		net:         net,
+		quit:        make(chan struct{}),
+		peerCountCh: make(chan peerCount),
 	}
 
 	return s
 }
 
 // Start run's the server.
-func (s *Server) Start(port string, seeds []string) {
-	p, err := strconv.Atoi(port[1:len(port)])
-	if err != nil {
-		s.logger.Fatalf("could not convert port to integer: %s", err)
-	}
-	s.port = uint16(p)
+// TODO: server should be initialized with a config.
+func (s *Server) Start(opts StartOpts) {
+	s.port = uint16(opts.TCP)
 
 	fmt.Println(logo())
 	fmt.Println(string(s.userAgent))
@@ -93,10 +92,14 @@ func (s *Server) Start(port string, seeds []string) {
 	s.logger.Printf("NET: %s - TCP: %d - RELAY: %v - ID: %d",
 		s.net, int(s.port), s.relay, s.id)
 
-	go listenTCP(s, port)
+	go listenTCP(s, opts.TCP)
 
-	if len(seeds) > 0 {
-		connectToSeeds(s, seeds)
+	if opts.RPC > 0 {
+		go listenHTTP(s, opts.RPC)
+	}
+
+	if len(opts.Seeds) > 0 {
+		connectToSeeds(s, opts.Seeds)
 	}
 
 	s.loop()
@@ -136,6 +139,9 @@ func (s *Server) loop() {
 				delete(s.peers, peer)
 				s.logger.Printf("peer %s disconnected", peer.addr())
 			}
+
+		case t := <-s.peerCountCh:
+			t.count <- len(s.peers)
 
 		case <-s.quit:
 			s.shutdown()
@@ -208,12 +214,38 @@ func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
 
 func (s *Server) sendLoop(peer Peer) {
 	// TODO: check if this peer is still connected.
+	// dont keep asking (maxPeers and no new nodes)
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
 		peer.callGetaddr(getaddrMsg)
 
 		time.Sleep(120 * time.Second)
 	}
+}
+
+type peerCount struct {
+	count chan int
+}
+
+// peerCount returns the number of connected peers to this server.
+func (s *Server) peerCount() int {
+	ch := peerCount{
+		count: make(chan int),
+	}
+
+	s.peerCountCh <- ch
+
+	return <-ch.count
+}
+
+// StartOpts holds the server configuration.
+type StartOpts struct {
+	// tcp port
+	TCP int
+	// slice of peer addresses the server will connect to
+	Seeds []string
+	// JSON-RPC port. If 0 no RPC handler will be attached.
+	RPC int
 }
 
 func logo() string {

@@ -23,6 +23,19 @@ func TestHandleVersion(t *testing.T) {
 		t.Fatal("verack payload should be nil")
 	}
 }
+func TestPeerCount(t *testing.T) {
+	s := NewServer(ModeDevNet)
+	go s.loop()
+
+	lenPeers := 10
+	for i := 0; i < lenPeers; i++ {
+		s.register <- NewLocalPeer(s)
+	}
+
+	if have, want := s.peerCount(), lenPeers; want != have {
+		t.Fatalf("expected %d connected peers got %d", want, have)
+	}
+}
 
 func TestHandleAddrCmd(t *testing.T) {
 	// todo
