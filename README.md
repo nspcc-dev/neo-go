@@ -51,11 +51,17 @@ The project will exist out of the following packages:
 
 ## Server
 
-Install the neoserver cli:
+Install dependencies, this requires [Glide](https://github.com/Masterminds/glide#install):
 
- ```
- go install ./cmd/neoserver
- ```
+```
+make deps
+```
+
+Build the **neo-go** CLI:
+
+```
+make build
+```
 
 Currently, there is a minimal subset of the NEO protocol implemented. 
 To start experimenting make sure you a have a private net running on your machine. 
@@ -64,20 +70,20 @@ If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/m
 Start the server:
 
 ```
-neoserver -seed 127.0.0.1:20333
+./neo-go -seed 127.0.0.1:20333
 ```
 
 You can add multiple seeds if you want:
 
 ```
-neoserver -seed 127.0.0.1:20333,127.0.01:20334
+./neo-go -seed 127.0.0.1:20333,127.0.01:20334
 ```
 
 By default the server will currently run on port 3000, for testing purposes. 
 You can change that by setting the tcp flag:
 
 ```
-neoserver -seed 127.0.0.1:20333 -tcp 1337
+./neo-go -seed 127.0.0.1:20333 -tcp 1337
 ```
 
 ## RPC
@@ -85,7 +91,7 @@ neoserver -seed 127.0.0.1:20333 -tcp 1337
 If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
 
 ```
-neoserver -rpc 4000
+./neo-go -rpc 4000
 ```
 
 In this case server will accept and respond JSON-RPC on port 4000. 
