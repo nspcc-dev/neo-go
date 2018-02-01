@@ -17,4 +17,7 @@ push-tag:
 	git push origin ${BRANCH} --tags
 
 test:
-	@go test $(glide nv) -cover
+	@go test $(shell glide nv) -cover
+
+vet:
+	@go vet $(shell glide nv)
