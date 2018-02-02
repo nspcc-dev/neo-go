@@ -56,11 +56,10 @@ type AddressList struct {
 
 // DecodeBinary implements the Payload interface.
 func (p *AddressList) DecodeBinary(r io.Reader) error {
-	var lenList uint8
-	binary.Read(r, binary.LittleEndian, &lenList)
+	listLen := util.ReadVarUint(r)
 
-	p.Addrs = make([]*AddrWithTime, lenList)
-	for i := 0; i < int(4); i++ {
+	p.Addrs = make([]*AddrWithTime, listLen)
+	for i := 0; i < int(listLen); i++ {
 		addr := &AddrWithTime{}
 		if err := addr.DecodeBinary(r); err != nil {
 			return err
@@ -74,7 +73,7 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 // EncodeBinary implements the Payload interface.
 func (p *AddressList) EncodeBinary(w io.Writer) error {
 	// Write the length of the slice
-	binary.Write(w, binary.LittleEndian, uint8(len(p.Addrs)))
+	util.WriteVarUint(w, uint64(len(p.Addrs)))
 
 	for _, addr := range p.Addrs {
 		if err := addr.EncodeBinary(w); err != nil {

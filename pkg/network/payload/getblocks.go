@@ -2,53 +2,52 @@ package payload
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
-	. "github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// HashStartStop contains fields and methods to be shared with the
-// "GetBlocks" and "GetHeaders" payload.
-type HashStartStop struct {
-	// hash of latest block that node requests
-	HashStart []Uint256
-	// hash of last block that node requests
-	HashStop Uint256
-}
-
-// DecodeBinary implements the payload interface.
-func (p *HashStartStop) DecodeBinary(r io.Reader) error {
-	var lenStart uint8
-
-	err := binary.Read(r, binary.LittleEndian, &lenStart)
-	p.HashStart = make([]Uint256, lenStart)
-	err = binary.Read(r, binary.LittleEndian, &p.HashStart)
-	err = binary.Read(r, binary.LittleEndian, &p.HashStop)
-
-	return err
-}
-
-// EncodeBinary implements the payload interface.
-func (p *HashStartStop) EncodeBinary(w io.Writer) error {
-	err := binary.Write(w, binary.LittleEndian, uint8(len(p.HashStart)))
-	err = binary.Write(w, binary.LittleEndian, p.HashStart)
-	err = binary.Write(w, binary.LittleEndian, p.HashStop)
-
-	return err
-}
-
-// Size implements the payload interface.
-func (p *HashStartStop) Size() uint32 { return 0 }
-
-// GetBlocks payload
+// GetBlocks contains fields and methods to be shared with the
 type GetBlocks struct {
-	HashStartStop
+	// hash of latest block that node requests
+	HashStart []util.Uint256
+	// hash of last block that node requests
+	HashStop util.Uint256
 }
 
 // NewGetBlocks return a pointer to a GetBlocks object.
-func NewGetBlocks(start []Uint256, stop Uint256) *GetBlocks {
+func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
 	p := &GetBlocks{}
 	p.HashStart = start
 	p.HashStop = stop
 	return p
 }
+
+// DecodeBinary implements the payload interface.
+func (p *GetBlocks) DecodeBinary(r io.Reader) error {
+	lenStart := util.ReadVarUint(r)
+	fmt.Println(lenStart)
+	p.HashStart = make([]util.Uint256, lenStart)
+	err := binary.Read(r, binary.LittleEndian, &p.HashStart)
+	err = binary.Read(r, binary.LittleEndian, &p.HashStop)
+
+	fmt.Println(p)
+	if err == io.EOF {
+		return nil
+	}
+
+	return err
+}
+
+// EncodeBinary implements the payload interface.
+func (p *GetBlocks) EncodeBinary(w io.Writer) error {
+	err := util.WriteVarUint(w, uint64(len(p.HashStart)))
+	err = binary.Write(w, binary.LittleEndian, p.HashStart)
+	//err = binary.Write(w, binary.LittleEndian, p.HashStop)
+
+	return err
+}
+
+// Size implements the payload interface.
+func (p *GetBlocks) Size() uint32 { return 0 }

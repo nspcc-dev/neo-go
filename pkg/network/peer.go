@@ -14,6 +14,8 @@ type Peer interface {
 	callGetaddr(*Message) error
 	callVerack(*Message) error
 	callGetdata(*Message) error
+	callGetblocks(*Message) error
+	callGetheaders(*Message) error
 }
 
 // LocalPeer is the simplest kind of peer, mapped to a server in the
@@ -40,6 +42,14 @@ func (p *LocalPeer) callVerack(msg *Message) error {
 
 func (p *LocalPeer) callGetaddr(msg *Message) error {
 	return p.s.handleGetaddrCmd(msg, p)
+}
+
+func (p *LocalPeer) callGetblocks(msg *Message) error {
+	return nil
+}
+
+func (p *LocalPeer) callGetheaders(msg *Message) error {
+	return nil
 }
 
 func (p *LocalPeer) callGetdata(msg *Message) error {
