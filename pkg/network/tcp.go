@@ -113,7 +113,8 @@ func handleMessage(s *Server, p *TCPPeer) {
 			// is this a bug? - anthdm 02/02/2018
 			msgVerack := <-p.receive
 			if msgVerack.commandType() != cmdVerack {
-				err = errors.New("expected verack message after version")
+				s.logger.Printf("expected verack after sended out version")
+				return
 			}
 
 			// start the protocol
@@ -146,6 +147,11 @@ func handleMessage(s *Server, p *TCPPeer) {
 	}
 }
 
+type sendTuple struct {
+	msg *Message
+	err chan error
+}
+
 // TCPPeer represents a remote node, backed by TCP transport.
 type TCPPeer struct {
 	s *Server
@@ -156,10 +162,9 @@ type TCPPeer struct {
 	// host and port information about this peer.
 	endpoint util.Endpoint
 	// channel to coordinate messages writen back to the connection.
-	send chan *Message
+	send chan sendTuple
 	// channel to receive from underlying connection.
 	receive chan *Message
-	quit    chan bool
 }
 
 // NewTCPPeer returns a pointer to a TCP Peer.
@@ -168,16 +173,22 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 
 	return &TCPPeer{
 		conn:     conn,
-		send:     make(chan *Message),
+		send:     make(chan sendTuple),
 		receive:  make(chan *Message),
 		endpoint: e,
 		s:        s,
-		quit:     make(chan bool),
 	}
 }
 
-func (p *TCPPeer) callVersion(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callVersion(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
 // id implements the peer interface
@@ -191,16 +202,37 @@ func (p *TCPPeer) addr() util.Endpoint {
 }
 
 // callGetaddr will send the "getaddr" command to the remote.
-func (p *TCPPeer) callGetaddr(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callGetaddr(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
-func (p *TCPPeer) callVerack(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callVerack(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
-func (p *TCPPeer) callGetdata(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callGetdata(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
 // disconnect disconnects the peer, cleaning up all its resources.
@@ -228,16 +260,18 @@ func (p *TCPPeer) writeLoop() {
 	}()
 
 	for {
-		msg := <-p.send
-		if msg == nil {
+		t := <-p.send
+		if t.msg == nil {
 			return
 		}
 
-		p.s.logger.Printf("OUT :: %s :: %+v", msg.commandType(), msg.Payload)
+		p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
 
 		// should we disconnect here?
-		if err := msg.encode(p.conn); err != nil {
-			p.s.logger.Printf("encode error: %s", err)
+		if err := t.msg.encode(p.conn); err != nil {
+			t.err <- err
+		} else {
+			t.err <- nil
 		}
 	}
 }
