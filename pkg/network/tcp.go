@@ -267,11 +267,6 @@ func (p *TCPPeer) writeLoop() {
 
 		p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
 
-		// should we disconnect here?
-		if err := t.msg.encode(p.conn); err != nil {
-			t.err <- err
-		} else {
-			t.err <- nil
-		}
+		t.err <- t.msg.encode(p.conn)
 	}
 }
