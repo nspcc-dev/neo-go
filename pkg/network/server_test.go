@@ -6,6 +6,32 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
+func TestHandleVersionFailWrongPort(t *testing.T) {
+	s := NewServer(ModeDevNet)
+	go s.loop()
+
+	p := NewLocalPeer(s)
+
+	version := payload.NewVersion(1337, 1, "/NEO:0.0.0/", 0, true)
+	msg := newMessage(ModeDevNet, cmdVersion, version)
+	if err := s.handleVersionCmd(msg, p); err == nil {
+		t.Fatal("expected error got nil")
+	}
+}
+
+func TestHandleVersionFailIdenticalNonce(t *testing.T) {
+	s := NewServer(ModeDevNet)
+	go s.loop()
+
+	p := NewLocalPeer(s)
+
+	version := payload.NewVersion(s.id, 1, "/NEO:0.0.0/", 0, true)
+	msg := newMessage(ModeDevNet, cmdVersion, version)
+	if err := s.handleVersionCmd(msg, p); err == nil {
+		t.Fatal("expected error got nil")
+	}
+}
+
 func TestHandleVersion(t *testing.T) {
 	s := NewServer(ModeDevNet)
 	go s.loop()
@@ -15,12 +41,8 @@ func TestHandleVersion(t *testing.T) {
 	version := payload.NewVersion(1337, p.addr().Port, "/NEO:0.0.0/", 0, true)
 	msg := newMessage(ModeDevNet, cmdVersion, version)
 
-	resp := s.handleVersionCmd(msg, p)
-	if resp.commandType() != cmdVerack {
-		t.Fatalf("expected response message to be verack got %s", resp.commandType())
-	}
-	if resp.Payload != nil {
-		t.Fatal("verack payload should be nil")
+	if err := s.handleVersionCmd(msg, p); err != nil {
+		t.Fatal(err)
 	}
 }
 
