@@ -174,7 +174,11 @@ func (s *Server) loop() {
 			if len(s.peers) < maxPeers {
 				s.logger.Printf("peer registered from address %s", peer.addr())
 				s.peers[peer] = true
-				s.handlePeerConnected(peer)
+
+				if err := s.handlePeerConnected(peer); err != nil {
+					s.logger.Printf("failed handling peer connection: %s", err)
+					peer.disconnect()
+				}
 			}
 
 		// unregister safely deletes a peer. For disconnecting peers use the
@@ -197,11 +201,11 @@ func (s *Server) loop() {
 // When a new peer is connected we send our version.
 // No further communication should be made before both sides has received
 // the versions of eachother.
-func (s *Server) handlePeerConnected(p Peer) {
+func (s *Server) handlePeerConnected(p Peer) error {
 	// TODO: get the blockheight of this server once core implemented this.
 	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
-	p.callVersion(msg)
+	return p.callVersion(msg)
 }
 
 func (s *Server) handleVersionCmd(msg *Message, p Peer) error {
@@ -213,9 +217,7 @@ func (s *Server) handleVersionCmd(msg *Message, p Peer) error {
 		return fmt.Errorf("port mismatch: %d", version.Port)
 	}
 
-	p.callVerack(newMessage(s.net, cmdVerack, nil))
-
-	return nil
+	return p.callVerack(newMessage(s.net, cmdVerack, nil))
 }
 
 func (s *Server) handleGetaddrCmd(msg *Message, p Peer) error {
@@ -238,9 +240,7 @@ func (s *Server) handleInvCmd(msg *Message, p Peer) error {
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	resp := newMessage(s.net, cmdGetData, payload)
 
-	p.callGetdata(resp)
-
-	return nil
+	return p.callGetdata(resp)
 }
 
 // handleBlockCmd processes the received block.
@@ -270,7 +270,6 @@ func (s *Server) handleAddrCmd(msg *Message, p Peer) error {
 			go connectToRemoteNode(s, addr.Addr.String())
 		}
 	}
-
 	return nil
 }
 
