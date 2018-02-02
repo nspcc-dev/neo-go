@@ -10,8 +10,10 @@ type Peer interface {
 	id() uint32
 	addr() util.Endpoint
 	disconnect()
-	callVersion(*Message)
-	callGetaddr(*Message)
+	callVersion(*Message) error
+	callGetaddr(*Message) error
+	callVerack(*Message) error
+	callGetdata(*Message) error
 }
 
 // LocalPeer is the simplest kind of peer, mapped to a server in the
@@ -28,12 +30,20 @@ func NewLocalPeer(s *Server) *LocalPeer {
 	return &LocalPeer{endpoint: e, s: s}
 }
 
-func (p *LocalPeer) callVersion(msg *Message) {
-	p.s.handleVersionCmd(msg, p)
+func (p *LocalPeer) callVersion(msg *Message) error {
+	return p.s.handleVersionCmd(msg, p)
 }
 
-func (p *LocalPeer) callGetaddr(msg *Message) {
-	p.s.handleGetaddrCmd(msg, p)
+func (p *LocalPeer) callVerack(msg *Message) error {
+	return nil
+}
+
+func (p *LocalPeer) callGetaddr(msg *Message) error {
+	return p.s.handleGetaddrCmd(msg, p)
+}
+
+func (p *LocalPeer) callGetdata(msg *Message) error {
+	return nil
 }
 
 func (p *LocalPeer) id() uint32          { return p.nonce }

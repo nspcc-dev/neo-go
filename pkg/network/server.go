@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -159,7 +160,7 @@ func (s *Server) shutdown() {
 
 	// disconnect and remove all connected peers.
 	for peer := range s.peers {
-		s.unregister <- peer
+		peer.disconnect()
 	}
 }
 
@@ -173,13 +174,17 @@ func (s *Server) loop() {
 			if len(s.peers) < maxPeers {
 				s.logger.Printf("peer registered from address %s", peer.addr())
 				s.peers[peer] = true
-				s.handlePeerConnected(peer)
+
+				if err := s.handlePeerConnected(peer); err != nil {
+					s.logger.Printf("failed handling peer connection: %s", err)
+					peer.disconnect()
+				}
 			}
 
-		// Unregister should take care of all the cleanup that has to be made.
+		// unregister safely deletes a peer. For disconnecting peers use the
+		// disconnect() method on the peer, it will call unregister and terminates its routines.
 		case peer := <-s.unregister:
 			if _, ok := s.peers[peer]; ok {
-				peer.disconnect()
 				delete(s.peers, peer)
 				s.logger.Printf("peer %s disconnected", peer.addr())
 			}
@@ -196,71 +201,68 @@ func (s *Server) loop() {
 // When a new peer is connected we send our version.
 // No further communication should be made before both sides has received
 // the versions of eachother.
-func (s *Server) handlePeerConnected(p Peer) {
+func (s *Server) handlePeerConnected(p Peer) error {
 	// TODO: get the blockheight of this server once core implemented this.
 	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
-	p.callVersion(msg)
+	return p.callVersion(msg)
 }
 
-func (s *Server) handleVersionCmd(msg *Message, p Peer) *Message {
+func (s *Server) handleVersionCmd(msg *Message, p Peer) error {
 	version := msg.Payload.(*payload.Version)
 	if s.id == version.Nonce {
-		// s.unregister <- p
-		return nil
+		return errors.New("identical nonce")
 	}
 	if p.addr().Port != version.Port {
-		// s.unregister <- p
-		return nil
+		return fmt.Errorf("port mismatch: %d", version.Port)
 	}
-	return newMessage(ModeDevNet, cmdVerack, nil)
+
+	return p.callVerack(newMessage(s.net, cmdVerack, nil))
 }
 
-func (s *Server) handleGetaddrCmd(msg *Message, p Peer) *Message {
+func (s *Server) handleGetaddrCmd(msg *Message, p Peer) error {
 	return nil
 }
 
 // The node can broadcast the object information it owns by this message.
 // The message can be sent automatically or can be used to answer getbloks messages.
-func (s *Server) handleInvCmd(msg *Message, p Peer) *Message {
+func (s *Server) handleInvCmd(msg *Message, p Peer) error {
 	inv := msg.Payload.(*payload.Inventory)
 	if !inv.Type.Valid() {
-		s.unregister <- p
-		return nil
+		return fmt.Errorf("invalid inventory type %s", inv.Type)
 	}
 	if len(inv.Hashes) == 0 {
-		s.unregister <- p
-		return nil
+		return errors.New("inventory should have at least 1 hash got 0")
 	}
 
 	// todo: only grab the hashes that we dont know.
 
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	resp := newMessage(s.net, cmdGetData, payload)
-	return resp
+
+	return p.callGetdata(resp)
 }
 
 // handleBlockCmd processes the received block.
-func (s *Server) handleBlockCmd(msg *Message, p Peer) {
+func (s *Server) handleBlockCmd(msg *Message, p Peer) error {
 	block := msg.Payload.(*core.Block)
 	hash, err := block.Hash()
 	if err != nil {
-		// not quite sure what to do here.
-		// should we disconnect the client or just silently log and move on?
-		s.logger.Printf("failed to generate block hash: %s", err)
-		return
+		return err
 	}
 
 	fmt.Println(hash)
 
 	if s.bc.HasBlock(hash) {
-		return
+		return nil
 	}
+
+	return nil
 }
 
 // After receiving the getaddr message, the node returns an addr message as response
 // and provides information about the known nodes on the network.
-func (s *Server) handleAddrCmd(msg *Message, p Peer) {
+func (s *Server) handleAddrCmd(msg *Message, p Peer) error {
 	addrList := msg.Payload.(*payload.AddressList)
 	for _, addr := range addrList.Addrs {
 		if !s.peerAlreadyConnected(addr.Addr) {
@@ -268,6 +270,7 @@ func (s *Server) handleAddrCmd(msg *Message, p Peer) {
 			go connectToRemoteNode(s, addr.Addr.String())
 		}
 	}
+	return nil
 }
 
 func (s *Server) relayInventory(inv *payload.Inventory) {

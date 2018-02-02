@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -52,8 +53,7 @@ func handleConnection(s *Server, conn net.Conn) {
 
 	// remove the peer from connected peers and cleanup the connection.
 	defer func() {
-		// all cleanup will happen in the server's loop when unregister is received.
-		s.unregister <- peer
+		peer.disconnect()
 	}()
 
 	// Start a goroutine that will handle all outgoing messages.
@@ -66,17 +66,17 @@ func handleConnection(s *Server, conn net.Conn) {
 	for {
 		_, err := conn.Read(buf)
 		if err == io.EOF {
-			break
+			return
 		}
 		if err != nil {
 			s.logger.Printf("conn read error: %s", err)
-			break
+			return
 		}
 
 		msg := &Message{}
 		if err := msg.decode(bytes.NewReader(buf)); err != nil {
 			s.logger.Printf("decode error %s", err)
-			break
+			return
 		}
 
 		peer.receive <- msg
@@ -85,9 +85,11 @@ func handleConnection(s *Server, conn net.Conn) {
 
 // handleMessage hands the message received from a TCP connection over to the server.
 func handleMessage(s *Server, p *TCPPeer) {
+	var err error
+
 	// Disconnect the peer when we break out of the loop.
 	defer func() {
-		s.unregister <- p
+		p.disconnect()
 	}()
 
 	for {
@@ -98,28 +100,56 @@ func handleMessage(s *Server, p *TCPPeer) {
 
 		switch command {
 		case cmdVersion:
-			resp := s.handleVersionCmd(msg, p)
+			if err = s.handleVersionCmd(msg, p); err != nil {
+				return
+			}
 			p.nonce = msg.Payload.(*payload.Version).Nonce
-			p.send <- resp
+
+			// When a node receives a connection request, it declares its version immediately.
+			// There will be no other communication until both sides are getting versions of each other.
+			// When a node receives the version message, it replies to a verack as a response immediately.
+			// NOTE: The current official NEO nodes dont mimic this behaviour. There is small chance that the
+			// official nodes will not respond directly with a verack after we sended our version.
+			// is this a bug? - anthdm 02/02/2018
+			msgVerack := <-p.receive
+			if msgVerack.commandType() != cmdVerack {
+				s.logger.Printf("expected verack after sended out version")
+				return
+			}
+
+			// start the protocol
+			go s.sendLoop(p)
 		case cmdAddr:
-			s.handleAddrCmd(msg, p)
+			err = s.handleAddrCmd(msg, p)
 		case cmdGetAddr:
-			s.handleGetaddrCmd(msg, p)
+			err = s.handleGetaddrCmd(msg, p)
 		case cmdInv:
-			resp := s.handleInvCmd(msg, p)
-			p.send <- resp
+			err = s.handleInvCmd(msg, p)
 		case cmdBlock:
-			s.handleBlockCmd(msg, p)
+			err = s.handleBlockCmd(msg, p)
 		case cmdConsensus:
 		case cmdTX:
 		case cmdVerack:
-			go s.sendLoop(p)
+			// If we receive a verack here we disconnect. We already handled the verack
+			// when we sended our version.
+			err = errors.New("received verack twice")
 		case cmdGetHeaders:
 		case cmdGetBlocks:
 		case cmdGetData:
 		case cmdHeaders:
 		}
+
+		// catch all errors here and disconnect.
+		if err != nil {
+			s.logger.Printf("processing message failed: %s", err)
+			return
+		}
 	}
+}
+
+type sendTuple struct {
+	msg *Message
+	err chan error
 }
 
 // TCPPeer represents a remote node, backed by TCP transport.
@@ -132,7 +162,7 @@ type TCPPeer struct {
 	// host and port information about this peer.
 	endpoint util.Endpoint
 	// channel to coordinate messages writen back to the connection.
-	send chan *Message
+	send chan sendTuple
 	// channel to receive from underlying connection.
 	receive chan *Message
 }
@@ -143,15 +173,22 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 
 	return &TCPPeer{
 		conn:     conn,
-		send:     make(chan *Message),
+		send:     make(chan sendTuple),
 		receive:  make(chan *Message),
 		endpoint: e,
 		s:        s,
 	}
 }
 
-func (p *TCPPeer) callVersion(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callVersion(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
 // id implements the peer interface
@@ -165,16 +202,51 @@ func (p *TCPPeer) addr() util.Endpoint {
 }
 
 // callGetaddr will send the "getaddr" command to the remote.
-func (p *TCPPeer) callGetaddr(msg *Message) {
-	p.send <- msg
+func (p *TCPPeer) callGetaddr(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
 }
 
-// disconnect closes the send channel and the underlying connection.
-// TODO: this needs some love. We will get send on closed channel.
+func (p *TCPPeer) callVerack(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
+}
+
+func (p *TCPPeer) callGetdata(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
+}
+
+// disconnect disconnects the peer, cleaning up all its resources.
+// 3 goroutines needs to be cleanup (writeLoop, handleConnection and handleMessage)
 func (p *TCPPeer) disconnect() {
-	p.conn.Close()
-	close(p.send)
-	close(p.receive)
+	select {
+	case <-p.send:
+	case <-p.receive:
+	default:
+		close(p.send)
+		close(p.receive)
+		p.s.unregister <- p
+		p.conn.Close()
+	}
 }
 
 // writeLoop writes messages to the underlying TCP connection.
@@ -184,17 +256,17 @@ func (p *TCPPeer) disconnect() {
 func (p *TCPPeer) writeLoop() {
 	// clean up the connection.
 	defer func() {
-		p.conn.Close()
+		p.disconnect()
 	}()
 
 	for {
-		msg := <-p.send
-
-		p.s.logger.Printf("OUT :: %s :: %+v", msg.commandType(), msg.Payload)
-
-		// should we disconnect here?
-		if err := msg.encode(p.conn); err != nil {
-			p.s.logger.Printf("encode error: %s", err)
+		t := <-p.send
+		if t.msg == nil {
+			return
 		}
+
+		p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
+
+		t.err <- t.msg.encode(p.conn)
 	}
 }
