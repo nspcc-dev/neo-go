@@ -12,8 +12,14 @@
 </p>
 
 <p align="center">
-  <a href="https://travis-ci.org/anthdm/neo-go">
-    <img src="https://travis-ci.org/anthdm/neo-go.svg?branch=master">
+  <a href="https://github.com/CityOfZion/neo-go/releases">
+    <img src="https://img.shields.io/github/tag/CityOfZion/neo-go.svg?style=flat">
+  </a>
+  <a href="https://circleci.com/gh/CityOfZion/neo-go/tree/master">
+    <img src="https://circleci.com/gh/CityOfZion/neo-go/tree/master.svg?style=shield">
+  </a>
+  <a href="https://goreportcard.com/report/github.com/CityOfZion/neo-go">
+    <img src="https://goreportcard.com/badge/github.com/CityOfZion/neo-go">
   </a>
 </p>
 
