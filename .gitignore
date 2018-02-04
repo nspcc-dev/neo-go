@@ -18,6 +18,7 @@ vendor/
 bin/
 
 # text editors
+
 # vscode
 .vscode/*
 !.vscode/settings.json
