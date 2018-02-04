@@ -16,3 +16,6 @@
 # Added by CoZ developers
 vendor/
 bin/
+
+# IDE
+.vscode
