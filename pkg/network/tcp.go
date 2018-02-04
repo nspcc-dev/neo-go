@@ -282,7 +282,7 @@ func (p *TCPPeer) writeLoop() {
 			break // send probably closed.
 		}
 
-		//p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
+		// p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
 
 		if err := t.msg.encode(buf); err != nil {
 			t.err <- err

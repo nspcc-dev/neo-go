@@ -64,6 +64,7 @@ type Server struct {
 	bc *core.Blockchain
 }
 
+// TODO: Maybe util is a better place for such data types.
 type protectedHashmap struct {
 	*sync.RWMutex
 	hashes map[util.Uint256]bool
@@ -296,6 +297,7 @@ func (s *Server) askMoreHeaders(p Peer) error {
 
 // check if the addr is already connected to the server.
 func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
+	// TODO: Dont try to connect with ourselfs.
 	for peer := range s.peers {
 		if peer.addr().String() == addr.String() {
 			return true

@@ -31,7 +31,7 @@ type Blockchain struct {
 
 // NewBlockchain returns a pointer to a Blockchain.
 func NewBlockchain(store BlockchainStorer) *Blockchain {
-	hash, _ := util.Uint256DecodeFromString("b3181718ef6167105b70920e4a8fbbd0a0a56aacf460d70e10ba6fa1668f1fef")
+	hash, _ := util.Uint256DecodeFromString("0f654eb45164f08ddf296f7315d781f8b5a669c4d4b68f7265ffa79eeb455ed7")
 	return &Blockchain{
 		BlockchainStorer: store,
 		headerIndex:      []util.Uint256{hash},
