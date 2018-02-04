@@ -6,6 +6,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
+// TODO this should be moved to localPeer test.
+
 func TestHandleVersionFailWrongPort(t *testing.T) {
 	s := NewServer(ModeDevNet)
 	go s.loop()
@@ -43,20 +45,6 @@ func TestHandleVersion(t *testing.T) {
 
 	if err := s.handleVersionCmd(msg, p); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestPeerCount(t *testing.T) {
-	s := NewServer(ModeDevNet)
-	go s.loop()
-
-	lenPeers := 10
-	for i := 0; i < lenPeers; i++ {
-		s.register <- NewLocalPeer(s)
-	}
-
-	if have, want := s.peerCount(), lenPeers; want != have {
-		t.Fatalf("expected %d connected peers got %d", want, have)
 	}
 }
 

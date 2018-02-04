@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	. "github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // The node can broadcast the object information it owns by this message.
@@ -44,11 +44,11 @@ type Inventory struct {
 	// Type if the object hash.
 	Type InventoryType
 	// The hash of the object (uint256).
-	Hashes []Uint256
+	Hashes []util.Uint256
 }
 
 // NewInventory return a pointer to an Inventory.
-func NewInventory(typ InventoryType, hashes []Uint256) *Inventory {
+func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 	return &Inventory{
 		Type:   typ,
 		Hashes: hashes,
@@ -57,14 +57,10 @@ func NewInventory(typ InventoryType, hashes []Uint256) *Inventory {
 
 // DecodeBinary implements the Payload interface.
 func (p *Inventory) DecodeBinary(r io.Reader) error {
-	// TODO: is there a list len?
-	// The first byte is the type the second byte seems to be
-	// always one on docker privnet.
-	var listLen uint8
 	err := binary.Read(r, binary.LittleEndian, &p.Type)
-	err = binary.Read(r, binary.LittleEndian, &listLen)
+	listLen := util.ReadVarUint(r)
 
-	p.Hashes = make([]Uint256, listLen)
+	p.Hashes = make([]util.Uint256, listLen)
 	for i := 0; i < int(listLen); i++ {
 		if err := binary.Read(r, binary.LittleEndian, &p.Hashes[i]); err != nil {
 			return err
@@ -76,9 +72,9 @@ func (p *Inventory) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *Inventory) EncodeBinary(w io.Writer) error {
-	listLen := uint8(len(p.Hashes))
+	listLen := len(p.Hashes)
 	err := binary.Write(w, binary.LittleEndian, p.Type)
-	err = binary.Write(w, binary.LittleEndian, listLen)
+	err = util.WriteVarUint(w, uint64(listLen))
 
 	for i := 0; i < len(p.Hashes); i++ {
 		if err := binary.Write(w, binary.LittleEndian, p.Hashes[i]); err != nil {

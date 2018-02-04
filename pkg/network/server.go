@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -63,6 +64,7 @@ type Server struct {
 	bc *core.Blockchain
 }
 
+// TODO: Maybe util is a better place for such data types.
 type protectedHashmap struct {
 	*sync.RWMutex
 	hashes map[util.Uint256]bool
@@ -214,7 +216,7 @@ func (s *Server) handleVersionCmd(msg *Message, p Peer) error {
 		return errors.New("identical nonce")
 	}
 	if p.addr().Port != version.Port {
-		return fmt.Errorf("port mismatch: %d", version.Port)
+		return fmt.Errorf("port mismatch: %d and %d", version.Port, p.addr().Port)
 	}
 
 	return p.callVerack(newMessage(s.net, cmdVerack, nil))
@@ -251,13 +253,13 @@ func (s *Server) handleBlockCmd(msg *Message, p Peer) error {
 		return err
 	}
 
-	fmt.Println(hash)
+	s.logger.Printf("new block: index %d hash %s", block.Index, hash)
 
 	if s.bc.HasBlock(hash) {
 		return nil
 	}
 
-	return nil
+	return s.bc.AddBlock(block)
 }
 
 // After receiving the getaddr message, the node returns an addr message as response
@@ -273,11 +275,29 @@ func (s *Server) handleAddrCmd(msg *Message, p Peer) error {
 	return nil
 }
 
-func (s *Server) relayInventory(inv *payload.Inventory) {
+func (s *Server) handleHeadersCmd(msg *Message, p Peer) error {
+	headers := msg.Payload.(*payload.Headers)
+
+	// Set a deadline for adding headers?
+	go func(ctx context.Context, headers []*core.Header) {
+		s.bc.AddHeaders(headers...)
+	}(context.TODO(), headers.Hdrs)
+
+	return nil
+}
+
+// Ask the peer for more headers We use the current block hash as start.
+func (s *Server) askMoreHeaders(p Peer) error {
+	start := []util.Uint256{s.bc.CurrentBlockHash()}
+	payload := payload.NewGetBlocks(start, util.Uint256{})
+	msg := newMessage(s.net, cmdGetHeaders, payload)
+
+	return p.callGetheaders(msg)
 }
 
 // check if the addr is already connected to the server.
 func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
+	// TODO: Dont try to connect with ourselfs.
 	for peer := range s.peers {
 		if peer.addr().String() == addr.String() {
 			return true
@@ -286,14 +306,15 @@ func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
 	return false
 }
 
-func (s *Server) sendLoop(peer Peer) {
+func (s *Server) startProtocol(p Peer) {
 	// TODO: check if this peer is still connected.
 	// dont keep asking (maxPeers and no new nodes)
+	s.askMoreHeaders(p)
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
-		peer.callGetaddr(getaddrMsg)
+		p.callGetaddr(getaddrMsg)
 
-		time.Sleep(120 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
 

@@ -77,6 +77,7 @@ const (
 	cmdBlock                  = "block"
 	cmdTX                     = "tx"
 	cmdConsensus              = "consensus"
+	cmdUnknown                = "unknown"
 )
 
 func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
@@ -119,7 +120,7 @@ func (m *Message) commandType() commandType {
 		return cmdAddr
 	case "getheaders":
 		return cmdGetHeaders
-	case "header":
+	case "headers":
 		return cmdHeaders
 	case "getblocks":
 		return cmdGetBlocks
@@ -134,7 +135,7 @@ func (m *Message) commandType() commandType {
 	case "consensus":
 		return cmdConsensus
 	default:
-		return ""
+		return cmdUnknown
 	}
 }
 
@@ -154,8 +155,8 @@ func (m *Message) decode(r io.Reader) error {
 }
 
 func (m *Message) decodePayload(r io.Reader) error {
-	buf := make([]byte, m.Length)
-	n, err := r.Read(buf)
+	buf := new(bytes.Buffer)
+	n, err := io.CopyN(buf, r, int64(m.Length))
 	if err != nil {
 		return err
 	}
@@ -165,11 +166,12 @@ func (m *Message) decodePayload(r io.Reader) error {
 	}
 
 	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, buf) {
+	if !compareChecksum(m.Checksum, buf.Bytes()) {
 		return errChecksumMismatch
 	}
 
-	r = bytes.NewReader(buf)
+	//r = bytes.NewReader(buf)
+	r = buf
 	var p payload.Payload
 	switch m.commandType() {
 	case cmdVersion:
@@ -189,6 +191,16 @@ func (m *Message) decodePayload(r io.Reader) error {
 		}
 	case cmdBlock:
 		p = &core.Block{}
+		if err := p.DecodeBinary(r); err != nil {
+			return err
+		}
+	case cmdGetHeaders:
+		p = &payload.GetBlocks{}
+		if err := p.DecodeBinary(r); err != nil {
+			return err
+		}
+	case cmdHeaders:
+		p = &payload.Headers{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}

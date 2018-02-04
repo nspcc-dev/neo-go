@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -62,21 +61,11 @@ func handleConnection(s *Server, conn net.Conn) {
 	go handleMessage(s, peer)
 
 	// Read from the connection and decode it into a Message ready for processing.
-	buf := make([]byte, 1024)
 	for {
-		_, err := conn.Read(buf)
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			s.logger.Printf("conn read error: %s", err)
-			return
-		}
-
 		msg := &Message{}
-		if err := msg.decode(bytes.NewReader(buf)); err != nil {
-			s.logger.Printf("decode error %s", err)
-			return
+		if err := msg.decode(conn); err != nil {
+			s.logger.Printf("decode error: %s", err)
+			break
 		}
 
 		peer.receive <- msg
@@ -87,21 +76,16 @@ func handleConnection(s *Server, conn net.Conn) {
 func handleMessage(s *Server, p *TCPPeer) {
 	var err error
 
-	// Disconnect the peer when we break out of the loop.
-	defer func() {
-		p.disconnect()
-	}()
-
 	for {
 		msg := <-p.receive
 		command := msg.commandType()
 
-		s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
+		// s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
 
 		switch command {
 		case cmdVersion:
 			if err = s.handleVersionCmd(msg, p); err != nil {
-				return
+				break
 			}
 			p.nonce = msg.Payload.(*payload.Version).Nonce
 
@@ -113,12 +97,12 @@ func handleMessage(s *Server, p *TCPPeer) {
 			// is this a bug? - anthdm 02/02/2018
 			msgVerack := <-p.receive
 			if msgVerack.commandType() != cmdVerack {
-				s.logger.Printf("expected verack after sended out version")
-				return
+				err = errors.New("expected verack after sended out version")
+				break
 			}
 
 			// start the protocol
-			go s.sendLoop(p)
+			go s.startProtocol(p)
 		case cmdAddr:
 			err = s.handleAddrCmd(msg, p)
 		case cmdGetAddr:
@@ -137,14 +121,22 @@ func handleMessage(s *Server, p *TCPPeer) {
 		case cmdGetBlocks:
 		case cmdGetData:
 		case cmdHeaders:
+			err = s.handleHeadersCmd(msg, p)
+		default:
+			// This command is unknown by the server.
+			err = fmt.Errorf("unknown command received %v", msg.Command)
+			break
 		}
 
 		// catch all errors here and disconnect.
 		if err != nil {
 			s.logger.Printf("processing message failed: %s", err)
-			return
+			break
 		}
 	}
+
+	// Disconnect the peer when breaked out of the loop.
+	p.disconnect()
 }
 
 type sendTuple struct {
@@ -213,6 +205,30 @@ func (p *TCPPeer) callGetaddr(msg *Message) error {
 	return <-t.err
 }
 
+// callGetblocks will send the "getblocks" command to the remote.
+func (p *TCPPeer) callGetblocks(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
+}
+
+// callGetheaders will send the "getheaders" command to the remote.
+func (p *TCPPeer) callGetheaders(msg *Message) error {
+	t := sendTuple{
+		msg: msg,
+		err: make(chan error),
+	}
+
+	p.send <- t
+
+	return <-t.err
+}
+
 func (p *TCPPeer) callVerack(msg *Message) error {
 	t := sendTuple{
 		msg: msg,
@@ -259,14 +275,21 @@ func (p *TCPPeer) writeLoop() {
 		p.disconnect()
 	}()
 
+	buf := new(bytes.Buffer)
 	for {
 		t := <-p.send
 		if t.msg == nil {
-			return
+			break // send probably closed.
 		}
 
-		p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
+		// p.s.logger.Printf("OUT :: %s :: %+v", t.msg.commandType(), t.msg.Payload)
 
-		t.err <- t.msg.encode(p.conn)
+		if err := t.msg.encode(buf); err != nil {
+			t.err <- err
+		}
+		_, err := p.conn.Write(buf.Bytes())
+		t.err <- err
+
+		buf.Reset()
 	}
 }
