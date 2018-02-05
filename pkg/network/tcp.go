@@ -72,7 +72,7 @@ func handleConnection(s *Server, conn net.Conn) {
 	}
 }
 
-// handleMessage hands the message received from a TCP connection over to the server.
+// handleMessage multiplexes the message received from a TCP connection to a server command.
 func handleMessage(s *Server, p *TCPPeer) {
 	var err error
 
@@ -87,7 +87,9 @@ func handleMessage(s *Server, p *TCPPeer) {
 			if err = s.handleVersionCmd(msg, p); err != nil {
 				break
 			}
-			p.nonce = msg.Payload.(*payload.Version).Nonce
+			version := msg.Payload.(*payload.Version)
+			p.nonce = version.Nonce
+			p.pVersion = version
 
 			// When a node receives a connection request, it declares its version immediately.
 			// There will be no other communication until both sides are getting versions of each other.
@@ -121,7 +123,8 @@ func handleMessage(s *Server, p *TCPPeer) {
 		case cmdGetBlocks:
 		case cmdGetData:
 		case cmdHeaders:
-			err = s.handleHeadersCmd(msg, p)
+			headers := msg.Payload.(*payload.Headers)
+			err = s.handleHeadersCmd(headers, p)
 		default:
 			// This command is unknown by the server.
 			err = fmt.Errorf("unknown command received %v", msg.Command)
@@ -157,6 +160,8 @@ type TCPPeer struct {
 	send chan sendTuple
 	// channel to receive from underlying connection.
 	receive chan *Message
+	// the version sended out by the peer when connected.
+	pVersion *payload.Version
 }
 
 // NewTCPPeer returns a pointer to a TCP Peer.
@@ -181,6 +186,10 @@ func (p *TCPPeer) callVersion(msg *Message) error {
 	p.send <- t
 
 	return <-t.err
+}
+
+func (p *TCPPeer) version() *payload.Version {
+	return p.pVersion
 }
 
 // id implements the peer interface

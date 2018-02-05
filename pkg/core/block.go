@@ -93,6 +93,11 @@ type Header struct {
 	_ uint8 // padding
 }
 
+// Verify the integrity of the header
+func (h *Header) Verify() bool {
+	return true
+}
+
 // DecodeBinary impelements the Payload interface.
 func (h *Header) DecodeBinary(r io.Reader) error {
 	if err := h.BlockBase.DecodeBinary(r); err != nil {

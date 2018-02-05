@@ -109,6 +109,9 @@ func NewServer(net NetMode) *Server {
 		logger.Fatalf("invalid network mode %d", net)
 	}
 
+	// For now I will hard code a genesis block of the docker privnet container.
+	startHash, _ := util.Uint256DecodeFromString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
+
 	s := &Server{
 		id:          util.RandUint32(1111111, 9999999),
 		userAgent:   fmt.Sprintf("/NEO:%s/", version),
@@ -121,8 +124,7 @@ func NewServer(net NetMode) *Server {
 		net:         net,
 		quit:        make(chan struct{}),
 		peerCountCh: make(chan peerCount),
-		// knownHashes: protectedHashmap{},
-		bc: core.NewBlockchain(core.NewMemoryStore()),
+		bc:          core.NewBlockchain(core.NewMemoryStore(), logger, startHash),
 	}
 
 	return s
@@ -205,7 +207,7 @@ func (s *Server) loop() {
 // the versions of eachother.
 func (s *Server) handlePeerConnected(p Peer) error {
 	// TODO: get the blockheight of this server once core implemented this.
-	payload := payload.NewVersion(s.id, s.port, s.userAgent, 0, s.relay)
+	payload := payload.NewVersion(s.id, s.port, s.userAgent, s.bc.HeaderHeight(), s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
 	return p.callVersion(msg)
 }
@@ -255,11 +257,7 @@ func (s *Server) handleBlockCmd(msg *Message, p Peer) error {
 
 	s.logger.Printf("new block: index %d hash %s", block.Index, hash)
 
-	if s.bc.HasBlock(hash) {
-		return nil
-	}
-
-	return s.bc.AddBlock(block)
+	return nil
 }
 
 // After receiving the getaddr message, the node returns an addr message as response
@@ -275,12 +273,25 @@ func (s *Server) handleAddrCmd(msg *Message, p Peer) error {
 	return nil
 }
 
-func (s *Server) handleHeadersCmd(msg *Message, p Peer) error {
-	headers := msg.Payload.(*payload.Headers)
-
+// Handle the headers received from the remote after we asked for headers with the
+// "getheaders" message.
+func (s *Server) handleHeadersCmd(headers *payload.Headers, p Peer) error {
 	// Set a deadline for adding headers?
 	go func(ctx context.Context, headers []*core.Header) {
-		s.bc.AddHeaders(headers...)
+		if err := s.bc.AddHeaders(headers...); err != nil {
+			s.logger.Printf("failed to add headers: %s", err)
+			return
+		}
+
+		// Ask more headers if we are not in sync with the peer.
+		if s.bc.HeaderHeight() < p.version().StartHeight {
+			s.logger.Printf("header height %d peer height %d", s.bc.HeaderHeight(), p.version().StartHeight)
+			if err := s.askMoreHeaders(p); err != nil {
+				s.logger.Printf("getheaders RPC failed: %s", err)
+				return
+			}
+		}
+
 	}(context.TODO(), headers.Hdrs)
 
 	return nil
@@ -306,10 +317,11 @@ func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
 	return false
 }
 
+// TODO: Quit this routine if the peer is disconnected.
 func (s *Server) startProtocol(p Peer) {
-	// TODO: check if this peer is still connected.
-	// dont keep asking (maxPeers and no new nodes)
-	s.askMoreHeaders(p)
+	if s.bc.HeaderHeight() < p.version().StartHeight {
+		s.askMoreHeaders(p)
+	}
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
 		p.callGetaddr(getaddrMsg)
