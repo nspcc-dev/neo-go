@@ -1,2 +1,5 @@
 package: github.com/CityOfZion/neo-go
-import: []
+import:
+  - package: github.com/syndtr/goleveldb/leveldb
+
+

@@ -3,6 +3,7 @@ package payload
 import (
 	"encoding/binary"
 	"io"
+	"time"
 )
 
 const minVersionSize = 27
@@ -32,11 +33,11 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	return &Version{
 		Version:     0,
 		Services:    1,
-		Timestamp:   12345,
+		Timestamp:   uint32(time.Now().UTC().Unix()),
 		Port:        p,
 		Nonce:       id,
 		UserAgent:   []byte(ua),
-		StartHeight: 0,
+		StartHeight: h,
 		Relay:       r,
 	}
 }

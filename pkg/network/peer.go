@@ -1,6 +1,7 @@
 package network
 
 import (
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -10,6 +11,7 @@ type Peer interface {
 	id() uint32
 	addr() util.Endpoint
 	disconnect()
+	version() *payload.Version
 	callVersion(*Message) error
 	callGetaddr(*Message) error
 	callVerack(*Message) error
@@ -24,12 +26,18 @@ type LocalPeer struct {
 	s        *Server
 	nonce    uint32
 	endpoint util.Endpoint
+	pVersion *payload.Version
 }
 
 // NewLocalPeer return a LocalPeer.
 func NewLocalPeer(s *Server) *LocalPeer {
 	e, _ := util.EndpointFromString("1.1.1.1:1111")
 	return &LocalPeer{endpoint: e, s: s}
+}
+
+// Version implements the Peer interface.
+func (p *LocalPeer) version() *payload.Version {
+	return p.pVersion
 }
 
 func (p *LocalPeer) callVersion(msg *Message) error {
