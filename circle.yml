@@ -14,6 +14,9 @@ jobs:
           key: dependency-cache-{{ .Revision }}
           paths:
             - vendor
+  dependencies:
+    pre:
+      - go get -u -v github.com/Masterminds/glide
   test:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     docker:
