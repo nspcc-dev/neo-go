@@ -5,6 +5,7 @@ jobs:
     docker:
       - image: vidsyhq/go-builder:latest
     steps:
+      - run: go get -u -v github.com/Masterminds/glide
       - checkout
       - restore_cache:
           key: dependency-cache-{{ .Revision }}
