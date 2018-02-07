@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -84,10 +85,10 @@ func handleMessage(s *Server, p *TCPPeer) {
 
 		switch command {
 		case cmdVersion:
-			if err = s.handleVersionCmd(msg, p); err != nil {
+			version := msg.Payload.(*payload.Version)
+			if err = s.handleVersionCmd(version, p); err != nil {
 				break
 			}
-			version := msg.Payload.(*payload.Version)
 			p.nonce = version.Nonce
 			p.pVersion = version
 
@@ -106,13 +107,16 @@ func handleMessage(s *Server, p *TCPPeer) {
 			// start the protocol
 			go s.startProtocol(p)
 		case cmdAddr:
-			err = s.handleAddrCmd(msg, p)
+			addrList := msg.Payload.(*payload.AddressList)
+			err = s.handleAddrCmd(addrList, p)
 		case cmdGetAddr:
 			err = s.handleGetaddrCmd(msg, p)
 		case cmdInv:
-			err = s.handleInvCmd(msg, p)
+			inv := msg.Payload.(*payload.Inventory)
+			err = s.handleInvCmd(inv, p)
 		case cmdBlock:
-			err = s.handleBlockCmd(msg, p)
+			block := msg.Payload.(*core.Block)
+			err = s.handleBlockCmd(block, p)
 		case cmdConsensus:
 		case cmdTX:
 		case cmdVerack:

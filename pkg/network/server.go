@@ -212,8 +212,7 @@ func (s *Server) handlePeerConnected(p Peer) error {
 	return p.callVersion(msg)
 }
 
-func (s *Server) handleVersionCmd(msg *Message, p Peer) error {
-	version := msg.Payload.(*payload.Version)
+func (s *Server) handleVersionCmd(version *payload.Version, p Peer) error {
 	if s.id == version.Nonce {
 		return errors.New("identical nonce")
 	}
@@ -230,8 +229,7 @@ func (s *Server) handleGetaddrCmd(msg *Message, p Peer) error {
 
 // The node can broadcast the object information it owns by this message.
 // The message can be sent automatically or can be used to answer getbloks messages.
-func (s *Server) handleInvCmd(msg *Message, p Peer) error {
-	inv := msg.Payload.(*payload.Inventory)
+func (s *Server) handleInvCmd(inv *payload.Inventory, p Peer) error {
 	if !inv.Type.Valid() {
 		return fmt.Errorf("invalid inventory type %s", inv.Type)
 	}
@@ -248,8 +246,7 @@ func (s *Server) handleInvCmd(msg *Message, p Peer) error {
 }
 
 // handleBlockCmd processes the received block.
-func (s *Server) handleBlockCmd(msg *Message, p Peer) error {
-	block := msg.Payload.(*core.Block)
+func (s *Server) handleBlockCmd(block *core.Block, p Peer) error {
 	hash, err := block.Hash()
 	if err != nil {
 		return err
@@ -262,8 +259,7 @@ func (s *Server) handleBlockCmd(msg *Message, p Peer) error {
 
 // After receiving the getaddr message, the node returns an addr message as response
 // and provides information about the known nodes on the network.
-func (s *Server) handleAddrCmd(msg *Message, p Peer) error {
-	addrList := msg.Payload.(*payload.AddressList)
+func (s *Server) handleAddrCmd(addrList *payload.AddressList, p Peer) error {
 	for _, addr := range addrList.Addrs {
 		if !s.peerAlreadyConnected(addr.Addr) {
 			// TODO: this is not transport abstracted.
@@ -285,7 +281,6 @@ func (s *Server) handleHeadersCmd(headers *payload.Headers, p Peer) error {
 
 		// Ask more headers if we are not in sync with the peer.
 		if s.bc.HeaderHeight() < p.version().StartHeight {
-			s.logger.Printf("header height %d peer height %d", s.bc.HeaderHeight(), p.version().StartHeight)
 			if err := s.askMoreHeaders(p); err != nil {
 				s.logger.Printf("getheaders RPC failed: %s", err)
 				return
@@ -299,7 +294,7 @@ func (s *Server) handleHeadersCmd(headers *payload.Headers, p Peer) error {
 
 // Ask the peer for more headers We use the current block hash as start.
 func (s *Server) askMoreHeaders(p Peer) error {
-	start := []util.Uint256{s.bc.CurrentBlockHash()}
+	start := []util.Uint256{s.bc.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
 	msg := newMessage(s.net, cmdGetHeaders, payload)
 

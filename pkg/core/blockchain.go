@@ -191,6 +191,11 @@ func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
 	return bc.headerIndex[bc.currentBlockHeight]
 }
 
+// CurrentHeaderHash returns the hash of the latest known header.
+func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
+	return bc.headerIndex[len(bc.headerIndex)-1]
+}
+
 // BlockHeight return the height/index of the latest block this node has.
 func (bc *Blockchain) BlockHeight() uint32 {
 	return bc.currentBlockHeight

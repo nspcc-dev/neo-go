@@ -15,8 +15,7 @@ func TestHandleVersionFailWrongPort(t *testing.T) {
 	p := NewLocalPeer(s)
 
 	version := payload.NewVersion(1337, 1, "/NEO:0.0.0/", 0, true)
-	msg := newMessage(ModeDevNet, cmdVersion, version)
-	if err := s.handleVersionCmd(msg, p); err == nil {
+	if err := s.handleVersionCmd(version, p); err == nil {
 		t.Fatal("expected error got nil")
 	}
 }
@@ -28,8 +27,7 @@ func TestHandleVersionFailIdenticalNonce(t *testing.T) {
 	p := NewLocalPeer(s)
 
 	version := payload.NewVersion(s.id, 1, "/NEO:0.0.0/", 0, true)
-	msg := newMessage(ModeDevNet, cmdVersion, version)
-	if err := s.handleVersionCmd(msg, p); err == nil {
+	if err := s.handleVersionCmd(version, p); err == nil {
 		t.Fatal("expected error got nil")
 	}
 }
@@ -41,9 +39,7 @@ func TestHandleVersion(t *testing.T) {
 	p := NewLocalPeer(s)
 
 	version := payload.NewVersion(1337, p.addr().Port, "/NEO:0.0.0/", 0, true)
-	msg := newMessage(ModeDevNet, cmdVersion, version)
-
-	if err := s.handleVersionCmd(msg, p); err != nil {
+	if err := s.handleVersionCmd(version, p); err != nil {
 		t.Fatal(err)
 	}
 }
