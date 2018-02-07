@@ -22,3 +22,8 @@ func (u Uint160) ToSlice() []byte {
 func (u Uint160) String() string {
 	return hex.EncodeToString(u.ToSlice())
 }
+
+// Equals returns true if both Uint256 values are the same.
+func (u Uint160) Equals(other Uint160) bool {
+	return u.String() == other.String()
+}

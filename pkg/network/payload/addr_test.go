@@ -33,14 +33,13 @@ func TestEncodeDecodeAddr(t *testing.T) {
 
 func TestEncodeDecodeAddressList(t *testing.T) {
 	var lenList uint8 = 4
-	addrs := make([]*AddrWithTime, lenList)
+	addrList := &AddressList{make([]*AddrWithTime, lenList)}
 	for i := 0; i < int(lenList); i++ {
 		e, _ := util.EndpointFromString(fmt.Sprintf("127.0.0.1:200%d", i))
-		addrs[i] = NewAddrWithTime(e)
+		addrList.Addrs[i] = NewAddrWithTime(e)
 	}
 
 	buf := new(bytes.Buffer)
-	addrList := &AddressList{addrs}
 	if err := addrList.EncodeBinary(buf); err != nil {
 		t.Fatal(err)
 	}

@@ -36,16 +36,32 @@ type BlockBase struct {
 
 // DecodeBinary implements the payload interface.
 func (b *BlockBase) DecodeBinary(r io.Reader) error {
-	binary.Read(r, binary.LittleEndian, &b.Version)
-	binary.Read(r, binary.LittleEndian, &b.PrevHash)
-	binary.Read(r, binary.LittleEndian, &b.MerkleRoot)
-	binary.Read(r, binary.LittleEndian, &b.Timestamp)
-	binary.Read(r, binary.LittleEndian, &b.Index)
-	binary.Read(r, binary.LittleEndian, &b.ConsensusData)
-	binary.Read(r, binary.LittleEndian, &b.NextConsensus)
+	if err := binary.Read(r, binary.LittleEndian, &b.Version); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.PrevHash); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.MerkleRoot); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.Index); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.ConsensusData); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.NextConsensus); err != nil {
+		return err
+	}
 
 	var padding uint8
-	binary.Read(r, binary.LittleEndian, &padding)
+	if err := binary.Read(r, binary.LittleEndian, &padding); err != nil {
+		return err
+	}
 	if padding != 1 {
 		return fmt.Errorf("format error: padding must equal 1 got %d", padding)
 	}
@@ -86,6 +102,21 @@ func (b *BlockBase) encodeHashableFields(w io.Writer) error {
 	return err
 }
 
+// EncodeBinary implements the Payload interface
+func (b *BlockBase) EncodeBinary(w io.Writer) error {
+	if err := b.encodeHashableFields(w); err != nil {
+		return err
+	}
+
+	// padding
+	if err := binary.Write(w, binary.LittleEndian, uint8(1)); err != nil {
+		return err
+	}
+
+	// script
+	return b.Script.EncodeBinary(w)
+}
+
 // Header holds the head info of a block
 type Header struct {
 	BlockBase
@@ -115,7 +146,12 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary  impelements the Payload interface.
 func (h *Header) EncodeBinary(w io.Writer) error {
-	return nil
+	if err := h.BlockBase.EncodeBinary(w); err != nil {
+		return err
+	}
+
+	// padding
+	return binary.Write(w, binary.LittleEndian, uint8(0))
 }
 
 // Block represents one block in the chain.
