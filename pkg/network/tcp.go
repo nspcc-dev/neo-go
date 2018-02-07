@@ -122,7 +122,7 @@ func handleMessage(s *Server, p *TCPPeer) {
 		case cmdVerack:
 			// If we receive a verack here we disconnect. We already handled the verack
 			// when we sended our version.
-			err = errors.New("received verack twice")
+			err = errors.New("verack already received")
 		case cmdGetHeaders:
 		case cmdGetBlocks:
 		case cmdGetData:
@@ -288,6 +288,7 @@ func (p *TCPPeer) writeLoop() {
 		p.disconnect()
 	}()
 
+	// resuse this buffer
 	buf := new(bytes.Buffer)
 	for {
 		t := <-p.send
