@@ -286,7 +286,6 @@ func (s *Server) handleHeadersCmd(headers *payload.Headers, p Peer) error {
 				return
 			}
 		}
-
 	}(context.TODO(), headers.Hdrs)
 
 	return nil
