@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 var (
@@ -20,6 +23,18 @@ var (
 // neoserver -tcp :3000 -seed 127.0.0.1:4000
 func main() {
 	flag.Parse()
+
+	command := os.Args[1]
+	file := os.Args[2]
+
+	if command == "contract" {
+		if err := compileContract(file); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+	}
+
+	return
 
 	opts := network.StartOpts{
 		Seeds: parseSeeds(*seed),
@@ -40,4 +55,8 @@ func parseSeeds(s string) []string {
 		return nil
 	}
 	return seeds
+}
+
+func compileContract(src string) error {
+	return vm.CompileSource(src)
 }
