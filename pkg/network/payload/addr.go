@@ -49,7 +49,7 @@ func (p *AddrWithTime) EncodeBinary(w io.Writer) error {
 	return err
 }
 
-// AddressList holds a slice of AddrWithTime.
+// AddressList is a list with AddrWithTime.
 type AddressList struct {
 	Addrs []*AddrWithTime
 }

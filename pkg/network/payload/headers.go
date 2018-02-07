@@ -30,6 +30,13 @@ func (p *Headers) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (h *Headers) EncodeBinary(w io.Writer) error {
+func (p *Headers) EncodeBinary(w io.Writer) error {
+	util.WriteVarUint(w, uint64(len(p.Hdrs)))
+	for _, header := range p.Hdrs {
+		if err := header.EncodeBinary(w); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

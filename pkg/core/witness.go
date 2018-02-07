@@ -32,5 +32,10 @@ func (wit *Witness) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the payload interface.
 func (wit *Witness) EncodeBinary(w io.Writer) error {
-	return nil
+	util.WriteVarUint(w, uint64(len(wit.InvocationScript)))
+	if err := binary.Write(w, binary.LittleEndian, wit.InvocationScript); err != nil {
+		return err
+	}
+	util.WriteVarUint(w, uint64(len(wit.VerificationScript)))
+	return binary.Write(w, binary.LittleEndian, wit.VerificationScript)
 }
