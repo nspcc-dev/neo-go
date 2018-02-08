@@ -1,7 +1,7 @@
 package vm
 
 // OpCode is an single operational instruction for the GO NEO virtual machine.
-type OpCode uint8
+type OpCode byte
 
 // List of supported opcodes.
 const (
@@ -37,11 +37,11 @@ const (
 	OpJMP      OpCode = 0x62
 	OpJMPIF    OpCode = 0x63
 	OpJMPIFNOT OpCode = 0x64
-	OpCALL     OpCode = 0x65
+	OpCall     OpCode = 0x65
 	OpRET      OpCode = 0x66
-	OpAPPCALL  OpCode = 0x67
-	OpSYSCALL  OpCode = 0x68
-	OpTAILCALL OpCode = 0x69
+	OpAppCall  OpCode = 0x67
+	OpSysCall  OpCode = 0x68
+	OpTailCall OpCode = 0x69
 
 	// The stack
 	OpDupFromAltStack OpCode = 0x6A
