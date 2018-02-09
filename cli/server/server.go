@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"strings"
@@ -6,6 +6,23 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/urfave/cli"
 )
+
+// NewCommand creates a new Node command
+func NewCommand() cli.Command {
+	return cli.Command{
+		Name:   "node",
+		Usage:  "start a NEO node",
+		Action: startServer,
+		Flags: []cli.Flag{
+			cli.IntFlag{Name: "tcp"},
+			cli.IntFlag{Name: "rpc"},
+			cli.StringFlag{Name: "seed"},
+			cli.BoolFlag{Name: "privnet, p"},
+			cli.BoolFlag{Name: "mainnet, m"},
+			cli.BoolFlag{Name: "testnet, t"},
+		},
+	}
+}
 
 func startServer(ctx *cli.Context) error {
 	opts := network.StartOpts{
