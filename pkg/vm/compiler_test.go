@@ -64,7 +64,7 @@ func TestSimpleAssign(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c.DumpOpcode()
+	// c.DumpOpcode()
 }
 
 func TestAssignLoadLocal(t *testing.T) {
@@ -82,5 +82,5 @@ func TestAssignLoadLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c.DumpOpcode()
+	// c.DumpOpcode()
 }

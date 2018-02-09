@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"math/big"
 	"testing"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func TestEmitPush(t *testing.T) {
@@ -49,7 +51,7 @@ func TestEmitPushInt(t *testing.T) {
 	if want, have := byte(len(bInt.Bytes())), byte(sb.buf.Bytes()[3]); want != have {
 		t.Fatalf("expected %v got %v", want, have)
 	}
-	want := bInt.Bytes()
+	want := util.ToArrayReverse(bInt.Bytes()) // reverse
 	have := sb.buf.Bytes()[4:]
 	if bytes.Compare(want, have) != 0 {
 		t.Fatalf("expected %v got %v", want, have)

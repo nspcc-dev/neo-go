@@ -48,10 +48,6 @@ func (sb *ScriptBuilder) emitPushInt(i int64) error {
 	}
 
 	bInt := big.NewInt(i)
-	// buf := new(bytes.Buffer)
-	// if err := binary.Write(buf, binary.LittleEndian, i); err != nil {
-	// 	return err
-	// }
 	val := util.ToArrayReverse(bInt.Bytes())
 	return sb.emitPushArray(val)
 }
