@@ -105,7 +105,7 @@ func (m protectedHashmap) has(h util.Uint256) bool {
 func NewServer(net NetMode) *Server {
 	logger := log.New(os.Stdout, "[NEO SERVER] :: ", 0)
 
-	if net != ModeTestNet && net != ModeMainNet && net != ModeDevNet {
+	if net != ModeTestNet && net != ModeMainNet && net != ModePrivNet {
 		logger.Fatalf("invalid network mode %d", net)
 	}
 

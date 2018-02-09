@@ -122,3 +122,10 @@ func (sb *ScriptBuilder) emitJump(op OpCode, offset int16) error {
 	}
 	return sb.emit(op, []byte{}) // convert to bits?
 }
+
+func (sb *ScriptBuilder) dumpOpcode() {
+	buf := sb.buf.Bytes()
+	for i := 0; i < len(buf); i++ {
+		fmt.Printf("OPCODE AT INDEX \t %d \t 0x%2x \t %s \n", i, buf[i], OpCode(buf[i]))
+	}
+}

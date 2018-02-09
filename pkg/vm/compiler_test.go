@@ -1,19 +1,10 @@
 package vm
 
 import (
-	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 )
-
-var src = `
-package NEP5 
-
-func Main() int {
-	x := 10
-	z := x
-}
-`
 
 // opener
 //
@@ -59,14 +50,42 @@ func Main() int {
 
 //
 
-func TestCompilerDebug(t *testing.T) {
+func TestSimpleAssign(t *testing.T) {
+	src := `
+		package NEP5	
+
+		func Main() {
+			x := 1
+		}
+	`
+
 	c := NewCompiler()
-	script := []byte(src)
-	if err := c.Compile(bytes.NewReader(script)); err != nil {
+	if err := c.Compile(strings.NewReader(src)); err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(c.sb.buf.Bytes())
-	str := hex.EncodeToString(c.sb.buf.Bytes())
-	t.Log(str)
+	hx := hex.EncodeToString(c.sb.buf.Bytes())
+	t.Log(hx)
+}
+
+func TestAssignLoadLocal(t *testing.T) {
+	src := `
+		package NEP5	
+
+		func Main() {
+			x := 1
+			y := x
+		}
+	`
+
+	c := NewCompiler()
+	if err := c.Compile(strings.NewReader(src)); err != nil {
+		t.Fatal(err)
+	}
+
+	hx := hex.EncodeToString(c.sb.buf.Bytes())
+	t.Log(hx)
+
+	c.sb.dumpFromHex("52c56b5a6c766b00527ac46203006c766b00c36c766b51527ac400616c7566")
+
 }

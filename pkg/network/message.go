@@ -28,8 +28,8 @@ type NetMode uint32
 // String implements the stringer interface.
 func (n NetMode) String() string {
 	switch n {
-	case ModeDevNet:
-		return "devnet"
+	case ModePrivNet:
+		return "privnet"
 	case ModeTestNet:
 		return "testnet"
 	case ModeMainNet:
@@ -42,8 +42,8 @@ func (n NetMode) String() string {
 // Values used for the magic field, according to the docs.
 const (
 	ModeMainNet NetMode = 0x00746e41 // 7630401
-	ModeTestNet         = 0x74746e41 // 1953787457
-	ModeDevNet          = 56753      // docker privnet
+	ModeTestNet NetMode = 0x74746e41 // 1953787457
+	ModePrivNet NetMode = 56753      // docker privnet
 )
 
 // Message is the complete message send between nodes.

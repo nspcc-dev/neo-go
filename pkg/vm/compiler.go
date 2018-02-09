@@ -175,6 +175,10 @@ func (c *Compiler) reportError(msg string) {
 	os.Exit(1)
 }
 
+func (c *Compiler) DumpOpcode() {
+	c.sb.dumpOpcode()
+}
+
 // A Variable can represent any variable in the program.
 type Variable struct {
 	ident string
