@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"encoding/hex"
 	"strings"
 	"testing"
 )
@@ -55,7 +54,8 @@ func TestSimpleAssign(t *testing.T) {
 		package NEP5	
 
 		func Main() {
-			x := 1
+			x := 10
+			y := 8
 		}
 	`
 
@@ -64,8 +64,7 @@ func TestSimpleAssign(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hx := hex.EncodeToString(c.sb.buf.Bytes())
-	t.Log(hx)
+	c.DumpOpcode()
 }
 
 func TestAssignLoadLocal(t *testing.T) {
@@ -83,9 +82,5 @@ func TestAssignLoadLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hx := hex.EncodeToString(c.sb.buf.Bytes())
-	t.Log(hx)
-
-	c.sb.dumpFromHex("52c56b5a6c766b00527ac46203006c766b00c36c766b51527ac400616c7566")
-
+	c.DumpOpcode()
 }

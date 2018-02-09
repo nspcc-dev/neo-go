@@ -17,6 +17,12 @@ const (
 	outputExt = ".avm"
 )
 
+// Syscalls that have no return value.
+var nonReturnSysCalls = []string{
+	"Notify", "print", "Log", "Put", "Register",
+	"append", "Delete", "SetVotes", "ContractDestroy",
+	"MerkleRoot", "Hash", "PrevHash", "GetHeader"}
+
 // Compiler holds the output buffer of the compiled source.
 type Compiler struct {
 	// Output extension of the file. Default .avm.
@@ -164,8 +170,6 @@ func (c *Compiler) Compile(r io.Reader) error {
 	ast.Walk(c, f)        // walk through and process the AST
 	c.teardown()          // done compiling
 
-	fmt.Println(c.vars)
-
 	return nil
 }
 
@@ -175,6 +179,8 @@ func (c *Compiler) reportError(msg string) {
 	os.Exit(1)
 }
 
+// DumpOpcode dumps the current buffer, formatted with index, hex and opcode.
+// Usefull for debugging smartcontracts.
 func (c *Compiler) DumpOpcode() {
 	c.sb.dumpOpcode()
 }
