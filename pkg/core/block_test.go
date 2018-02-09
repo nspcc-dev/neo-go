@@ -82,7 +82,10 @@ func newBlockBase() BlockBase {
 		Index:         1,
 		ConsensusData: 1111,
 		NextConsensus: util.Uint160{},
-		Script:        &Witness{},
+		Script: &Witness{
+			VerificationScript: []byte{0x0},
+			InvocationScript:   []byte{0x1},
+		},
 	}
 }
 

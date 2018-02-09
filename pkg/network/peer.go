@@ -41,7 +41,8 @@ func (p *LocalPeer) version() *payload.Version {
 }
 
 func (p *LocalPeer) callVersion(msg *Message) error {
-	return p.s.handleVersionCmd(msg, p)
+	version := msg.Payload.(*payload.Version)
+	return p.s.handleVersionCmd(version, p)
 }
 
 func (p *LocalPeer) callVerack(msg *Message) error {
