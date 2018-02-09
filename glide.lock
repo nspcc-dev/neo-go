@@ -1,5 +1,5 @@
-hash: 2b8debf7936e789545da367433ddbf5f0e3bb54658340d6a412970bca25e6335
-updated: 2018-02-05T16:11:44.616743+01:00
+hash: 5cb2fb077aa0e57c788a99f9ded4bf2d421a04f12f6b8436234d12e93f418f36
+updated: 2018-02-09T16:49:32.538502496+01:00
 imports:
 - name: github.com/golang/snappy
   version: 553a641470496b2327abcac10b36396bd98e45c9
@@ -18,4 +18,6 @@ imports:
   - leveldb/storage
   - leveldb/table
   - leveldb/util
+- name: github.com/urfave/cli
+  version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 testImports: []
