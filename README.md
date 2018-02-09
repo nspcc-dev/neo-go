@@ -50,8 +50,9 @@ The project will exist out of the following packages:
 | api           | started | [@anthdm](https://github.com/anthdm) |
 | core          | started | [@anthdm](https://github.com/anthdm) |
 | network       | started | [@anthdm](https://github.com/anthdm) |
+| vm            | started | [@anthdm](https://github.com/anthdm) |
 | smartcontract | started | [@revett](https://github.com/revett) |
-| vm            | started | [@revett](https://github.com/revett) |
+| cli           | started | [@revett](https://github.com/revett) |
 
 # Getting Started 
 

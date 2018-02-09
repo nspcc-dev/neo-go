@@ -9,7 +9,7 @@ import (
 // TODO this should be moved to localPeer test.
 
 func TestHandleVersionFailWrongPort(t *testing.T) {
-	s := NewServer(ModeDevNet)
+	s := NewServer(ModePrivNet)
 	go s.loop()
 
 	p := NewLocalPeer(s)
@@ -21,7 +21,7 @@ func TestHandleVersionFailWrongPort(t *testing.T) {
 }
 
 func TestHandleVersionFailIdenticalNonce(t *testing.T) {
-	s := NewServer(ModeDevNet)
+	s := NewServer(ModePrivNet)
 	go s.loop()
 
 	p := NewLocalPeer(s)
@@ -33,7 +33,7 @@ func TestHandleVersionFailIdenticalNonce(t *testing.T) {
 }
 
 func TestHandleVersion(t *testing.T) {
-	s := NewServer(ModeDevNet)
+	s := NewServer(ModePrivNet)
 	go s.loop()
 
 	p := NewLocalPeer(s)

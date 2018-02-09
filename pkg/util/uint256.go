@@ -23,7 +23,7 @@ func Uint256DecodeFromString(s string) (Uint256, error) {
 		return val, err
 	}
 
-	b = ReverseByteSlice(b)
+	b = ToArrayReverse(b)
 
 	return Uint256DecodeFromBytes(b)
 }
@@ -43,7 +43,8 @@ func Uint256DecodeFromBytes(b []byte) (Uint256, error) {
 	return val, nil
 }
 
-func ReverseByteSlice(b []byte) []byte {
+// ToArrayReverse return a reversed version of the given byte slice.
+func ToArrayReverse(b []byte) []byte {
 	dest := make([]byte, len(b))
 
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
