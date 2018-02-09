@@ -117,7 +117,7 @@ const (
 	OpUnpack    OpCode = 0xC2
 	OpPickItem  OpCode = 0xC3
 	OpSetItem   OpCode = 0xC4
-	OpNewArray  OpCode = 0xC5
+	OpNewArray  OpCode = 0xC5 // Pops size from stack and creates a new array with that size, and pushes the array into the stack
 	OpNewStruct OpCode = 0xC6
 	OpAppend    OpCode = 0xC8
 	OpReverse   OpCode = 0xC9

@@ -5,6 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // ScriptBuilder generates bytecode and will write all
@@ -44,14 +47,13 @@ func (sb *ScriptBuilder) emitPushInt(i int64) error {
 		return sb.emitPush(val)
 	}
 
-	// We could save us some bytes if we use big.Int.
-	// One can take the length of the big.Int.Bytes().
-	// TODO: - @anthdm 8/2/2018
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, i); err != nil {
-		return err
-	}
-	return sb.emitPushArray(buf.Bytes())
+	bInt := big.NewInt(i)
+	// buf := new(bytes.Buffer)
+	// if err := binary.Write(buf, binary.LittleEndian, i); err != nil {
+	// 	return err
+	// }
+	val := util.ToArrayReverse(bInt.Bytes())
+	return sb.emitPushArray(val)
 }
 
 func (sb *ScriptBuilder) emitPushArray(b []byte) error {
