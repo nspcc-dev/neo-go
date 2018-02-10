@@ -17,12 +17,6 @@ const (
 	outputExt = ".avm"
 )
 
-// Syscalls that have no return value.
-var nonReturnSysCalls = []string{
-	"Notify", "print", "Log", "Put", "Register",
-	"append", "Delete", "SetVotes", "ContractDestroy",
-	"MerkleRoot", "Hash", "PrevHash", "GetHeader"}
-
 // Compiler holds the output buffer of the compiled source.
 type Compiler struct {
 	// Output extension of the file. Default .avm.
@@ -30,9 +24,8 @@ type Compiler struct {
 	sb         *ScriptBuilder
 	curLineNum int
 
-	i       int
-	varList []Variable
-	vars    map[string]Variable
+	i    int
+	vars map[string]*Variable
 }
 
 // NewCompiler returns a new compiler ready to compile smartcontracts.
@@ -40,8 +33,7 @@ func NewCompiler() *Compiler {
 	return &Compiler{
 		OutputExt: outputExt,
 		sb:        &ScriptBuilder{new(bytes.Buffer)},
-		vars:      map[string]Variable{},
-		varList:   []Variable{},
+		vars:      map[string]*Variable{},
 	}
 }
 
@@ -65,16 +57,17 @@ func (c *Compiler) Visit(node ast.Node) ast.Visitor {
 	return c
 }
 
-func (c *Compiler) newVariable(k token.Token, i, val string) Variable {
-	v := Variable{
-		kind:  k,
-		ident: i,
-		value: val,
-		pos:   c.i,
-	}
+func (c *Compiler) registerVar(v *Variable) {
+	// if oldVar, ok := c.vars[v.ident]; ok {
+	// 	if oldVar.kind != v.kind {
+	// 		c.reportError(fmt.Sprintf("types mismatch %s and %s", oldVar.kind, v.kind))
+	// 	}
+	// 	oldVar.value = v.value
+	// 	return
+	// }
 	c.vars[v.ident] = v
+	v.pos = c.i
 	c.i++
-	return v
 }
 
 func (c *Compiler) initialize(n OpCode) {
@@ -92,14 +85,15 @@ func (c *Compiler) teardown() {
 	c.sb.emitPush(OpRET)
 }
 
-// Push a variable on to the stack.
-func (c *Compiler) storeLocal(v Variable) {
+// Push a variable on the stack.
+func (c *Compiler) storeLocal(v *Variable) {
+	c.registerVar(v)
+
 	if v.kind == token.INT {
-		val, _ := strconv.Atoi(v.value)
-		c.sb.emitPushInt(int64(val))
+		c.sb.emitPushInt(int64(v.value.(int)))
 	}
 	if v.kind == token.STRING {
-		val := strings.Replace(v.value, `"`, "", 2)
+		val := strings.Replace(v.value.(string), `"`, "", 2)
 		c.sb.emitPushString(val)
 	}
 
@@ -132,27 +126,109 @@ func (c *Compiler) loadLocal(ident string) {
 	c.sb.emitPush(OpPickItem)
 }
 
-// TODO: instead of passing the stmt in to this, put the lhs and rhs in.
-// so we can reuse this.
 func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 	lhs := stmt.Lhs[0].(*ast.Ident)
+
 	switch t := stmt.Rhs[0].(type) {
+	// basic literals (1, "some string")
 	case *ast.BasicLit:
-		c.storeLocal(c.newVariable(t.Kind, lhs.Name, t.Value))
+		c.storeLocal(newVariable(lhs.Name, t.Kind, t.Value))
+	// compose literals ([]int{1, 2, 3}, inline structs, ..)
 	case *ast.CompositeLit:
-		switch t.Type.(type) {
-		case *ast.StructType:
-			c.reportError("assigning struct literals not yet implemented")
-		case *ast.ArrayType:
-			// for _, expr := range t.Elts {
-			// 	v := expr.(*ast.BasicLit)
-			// 	c.storeLocal(c.newVariable(v.Kind, lhs.Name, v.Value))
-			// }
-		}
+		c.processComposeLit(t)
+	// identifiers (x, y, foo, bar)
 	case *ast.Ident:
 		c.loadLocal(t.Name)
+	// binary expressions (x + 2, 10 - 1)
+	case *ast.BinaryExpr:
+		// first resolve the bin expr.
+		val := c.resolveBinaryExpr(t)
+		// fmt.Println(lhs.Name)
+		// fmt.Println(val.ident)
+		// val.ident = lhs.Name
+		// store the resuls as a local var.
+		c.storeLocal(val)
+	// inline function literals (x := func() {})
 	case *ast.FuncLit:
 		c.reportError("assigning function literals not yet implemented")
+	default:
+		fmt.Println(reflect.TypeOf(t))
+	}
+}
+
+func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
+	var (
+		lhs    = expr.X
+		rhs    = expr.Y
+		lhsVar *Variable
+		rhsVar *Variable
+	)
+
+	switch t := lhs.(type) {
+	case *ast.Ident:
+		val, ok := c.vars[t.Name]
+		if !ok {
+			c.reportError(fmt.Sprintf("could not resolve %s", t.Name))
+		}
+		lhsVar = newVariable("", val.kind, val.value)
+	case *ast.BasicLit:
+		lhsVar = newVariable("", t.Kind, t.Value)
+	// package ast will handle presedence for us :)
+	// if the lhs is binary expr it needs to be resolved first.
+	case *ast.BinaryExpr:
+		lhsVar = c.resolveBinaryExpr(t)
+	}
+
+	switch t := rhs.(type) {
+	case *ast.BinaryExpr:
+		rhsVar = c.resolveBinaryExpr(t)
+	case *ast.BasicLit:
+		rhsVar = newVariable("", t.Kind, t.Value)
+	}
+
+	if rhsVar.kind != lhsVar.kind {
+		c.reportError(fmt.Sprintf("types mismatch %s and %s", rhsVar.kind, lhsVar.kind))
+	}
+
+	// When we resolved just handle the operator.
+	if expr.Op == token.ADD {
+		lhsVar.add(rhsVar)
+	}
+	if expr.Op == token.MUL {
+		lhsVar.mul(rhsVar)
+	}
+	if expr.Op == token.SUB {
+		lhsVar.sub(rhsVar)
+	}
+	if expr.Op == token.QUO {
+		lhsVar.div(rhsVar)
+	}
+
+	return lhsVar
+}
+
+func (c *Compiler) processRHS(node ast.Node) {
+	switch t := node.(type) {
+	case *ast.CompositeLit:
+		fmt.Println("compose lit")
+	case *ast.BasicLit:
+		fmt.Println("just assign this")
+	case *ast.Ident:
+		fmt.Println("an identifier maybe not known")
+	case *ast.BinaryExpr:
+		fmt.Println("binary expression")
+	case *ast.FuncLit:
+	default:
+		fmt.Println(reflect.TypeOf(t))
+	}
+}
+
+func (c *Compiler) processComposeLit(node *ast.CompositeLit) {
+	switch t := node.Type.(type) {
+	case *ast.StructType:
+		fmt.Println("composing a struct inline")
+	case *ast.ArrayType:
+		fmt.Println("composing an array")
 	default:
 		fmt.Println(reflect.TypeOf(t))
 	}
@@ -189,6 +265,48 @@ func (c *Compiler) DumpOpcode() {
 type Variable struct {
 	ident string
 	kind  token.Token
-	value string
+	value interface{}
 	pos   int
+}
+
+func newVariable(ident string, kind token.Token, val string) *Variable {
+	// The AST will always give us strings as the value type. Therefor we will convert
+	// it here assign it to the underlying interface.
+	v := &Variable{
+		ident: ident,
+		kind:  kind,
+	}
+
+	if kind == token.STRING {
+		v.value = val
+	}
+	if kind == token.INT {
+		v.value, _ = strconv.Atoi(val)
+	}
+
+	return v
+}
+
+func (v *Variable) add(other *Variable) {
+	if v.kind == token.INT {
+		v.value = v.value.(int) + other.value.(int)
+	}
+}
+
+func (v *Variable) mul(other *Variable) {
+	if v.kind == token.INT {
+		v.value = v.value.(int) * other.value.(int)
+	}
+}
+
+func (v *Variable) sub(other *Variable) {
+	if v.kind == token.INT {
+		v.value = v.value.(int) - other.value.(int)
+	}
+}
+
+func (v *Variable) div(other *Variable) {
+	if v.kind == token.INT {
+		v.value = v.value.(int) / other.value.(int)
+	}
 }
