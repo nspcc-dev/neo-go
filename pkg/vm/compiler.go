@@ -17,6 +17,31 @@ const (
 	outputExt = ".avm"
 )
 
+// A VarType represents an arbitrary variable type.
+type VarType int
+
+// Enum with supported types.
+const (
+	ILLEGAL VarType = iota
+	STRING
+	INT
+	INTARRAY
+	STRINGARRAY
+	STRUCT
+	FUNC
+)
+
+func varTypeFromString(s string) VarType {
+	switch strings.ToLower(s) {
+	case "int":
+		return INT
+	case "string":
+		return STRING
+	default:
+		return ILLEGAL
+	}
+}
+
 // Compiler holds the output buffer of the compiled source.
 type Compiler struct {
 	// Output extension of the file. Default .avm.
@@ -57,19 +82,6 @@ func (c *Compiler) Visit(node ast.Node) ast.Visitor {
 	return c
 }
 
-func (c *Compiler) registerVar(v *Variable) {
-	// if oldVar, ok := c.vars[v.ident]; ok {
-	// 	if oldVar.kind != v.kind {
-	// 		c.reportError(fmt.Sprintf("types mismatch %s and %s", oldVar.kind, v.kind))
-	// 	}
-	// 	oldVar.value = v.value
-	// 	return
-	// }
-	c.vars[v.ident] = v
-	v.pos = c.i
-	c.i++
-}
-
 func (c *Compiler) initialize(n OpCode) {
 	// Get the (n) localVars which is basicly the number of args passed in Main
 	// and the number of local Vars in the function body.
@@ -85,23 +97,39 @@ func (c *Compiler) teardown() {
 	c.sb.emitPush(OpRET)
 }
 
+// Register a new variable. Compiler will keep track of its position
+// and type.
+func (c *Compiler) registerVar(v *Variable) {
+	c.vars[v.name] = v
+	v.pos = c.i
+	c.i++
+}
+
 // Push a variable on the stack.
-func (c *Compiler) storeLocal(v *Variable) {
+func (c *Compiler) pushVar(v *Variable) {
 	c.registerVar(v)
 
-	if v.kind == token.INT {
+	switch v.kind {
+	case INT:
 		c.sb.emitPushInt(int64(v.value.(int)))
-	}
-	if v.kind == token.STRING {
+	case STRING:
 		val := strings.Replace(v.value.(string), `"`, "", 2)
 		c.sb.emitPushString(val)
+	case INTARRAY:
+	case STRINGARRAY:
 	}
+}
 
+// Store as local variable
+func (c *Compiler) storeLocal(v *Variable) {
 	c.sb.emitPush(OpFromAltStack)
 	c.sb.emitPush(OpDup)
 	c.sb.emitPush(OpToAltStack)
 
 	pos := int64(v.pos)
+	if pos < 0 {
+		c.reportError(fmt.Sprintf("invalid position %d to store local variable", pos))
+	}
 
 	c.sb.emitPushInt(pos)
 	c.sb.emitPushInt(2)
@@ -116,6 +144,9 @@ func (c *Compiler) loadLocal(ident string) {
 	}
 
 	pos := int64(val.pos)
+	if pos < 0 {
+		c.reportError(fmt.Sprintf("invalid position %d to store local variable", pos))
+	}
 
 	c.sb.emitPush(OpFromAltStack)
 	c.sb.emitPush(OpDup)
@@ -132,21 +163,23 @@ func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 	switch t := stmt.Rhs[0].(type) {
 	// basic literals (1, "some string")
 	case *ast.BasicLit:
-		c.storeLocal(newVariable(lhs.Name, t.Kind, t.Value))
+		kind := varTypeFromString(t.Kind.String())
+		val := newVariable(kind, lhs.Name, t.Value)
+		c.pushVar(val)
+		c.storeLocal(val)
 	// compose literals ([]int{1, 2, 3}, inline structs, ..)
 	case *ast.CompositeLit:
-		c.processComposeLit(t)
+		val := c.processComposeLit(t)
+		val.name = lhs.Name
+		c.pushVar(val)
 	// identifiers (x, y, foo, bar)
 	case *ast.Ident:
-		c.loadLocal(t.Name)
+		// c.loadLocal(t.Name)
 	// binary expressions (x + 2, 10 - 1)
 	case *ast.BinaryExpr:
-		// first resolve the bin expr.
 		val := c.resolveBinaryExpr(t)
-		// fmt.Println(lhs.Name)
-		// fmt.Println(val.ident)
-		// val.ident = lhs.Name
-		// store the resuls as a local var.
+		val.name = lhs.Name
+		c.pushVar(val)
 		c.storeLocal(val)
 	// inline function literals (x := func() {})
 	case *ast.FuncLit:
@@ -170,11 +203,12 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 		if !ok {
 			c.reportError(fmt.Sprintf("could not resolve %s", t.Name))
 		}
-		lhsVar = newVariable("", val.kind, val.value)
+		lhsVar = &Variable{kind: val.kind, value: val.value}
 	case *ast.BasicLit:
-		lhsVar = newVariable("", t.Kind, t.Value)
-	// package ast will handle presedence for us :)
-	// if the lhs is binary expr it needs to be resolved first.
+		kind := varTypeFromString(t.Kind.String())
+		lhsVar = newVariable(kind, "", t.Value)
+	// package AST will handle presedence for us. If the LHS is a binary expr
+	// it needs to be resolved first.
 	case *ast.BinaryExpr:
 		lhsVar = c.resolveBinaryExpr(t)
 	}
@@ -183,14 +217,15 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 	case *ast.BinaryExpr:
 		rhsVar = c.resolveBinaryExpr(t)
 	case *ast.BasicLit:
-		rhsVar = newVariable("", t.Kind, t.Value)
+		kind := varTypeFromString(t.Kind.String())
+		rhsVar = newVariable(kind, "", t.Value)
 	}
 
 	if rhsVar.kind != lhsVar.kind {
 		c.reportError(fmt.Sprintf("types mismatch %s and %s", rhsVar.kind, lhsVar.kind))
 	}
 
-	// When we resolved just handle the operator.
+	// When done resolving, process the binary operator.
 	if expr.Op == token.ADD {
 		lhsVar.add(rhsVar)
 	}
@@ -207,31 +242,26 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 	return lhsVar
 }
 
-func (c *Compiler) processRHS(node ast.Node) {
-	switch t := node.(type) {
-	case *ast.CompositeLit:
-		fmt.Println("compose lit")
-	case *ast.BasicLit:
-		fmt.Println("just assign this")
-	case *ast.Ident:
-		fmt.Println("an identifier maybe not known")
-	case *ast.BinaryExpr:
-		fmt.Println("binary expression")
-	case *ast.FuncLit:
-	default:
-		fmt.Println(reflect.TypeOf(t))
-	}
+func (c *Compiler) processComposeLit(node *ast.CompositeLit) *Variable {
+	// switch t := node.Type.(type) {
+	// case *ast.StructType:
+	// 	fmt.Println("composing a struct inline")
+	// case *ast.ArrayType:
+	// 	kind := varTypeFromString(t.Elt.(*ast.Ident).Name)
+	// 	return &Variable{kind: kind, value: node.Elts}
+	// }
+	return nil
 }
 
-func (c *Compiler) processComposeLit(node *ast.CompositeLit) {
-	switch t := node.Type.(type) {
-	case *ast.StructType:
-		fmt.Println("composing a struct inline")
-	case *ast.ArrayType:
-		fmt.Println("composing an array")
-	default:
-		fmt.Println(reflect.TypeOf(t))
+func arrayTypeToken(t *ast.ArrayType) token.Token {
+	kind := t.Elt.(*ast.Ident).Name
+	switch kind {
+	case "int":
+		return token.INT
+	case "string":
+		return token.STRING
 	}
+	return token.ILLEGAL
 }
 
 // Compile will compile from r into an avm format.
@@ -263,24 +293,30 @@ func (c *Compiler) DumpOpcode() {
 
 // A Variable can represent any variable in the program.
 type Variable struct {
-	ident string
-	kind  token.Token
+	// name of the variable (x, y, ..)
+	name string
+	// type of the variable
+	kind VarType
+	// actual value
 	value interface{}
-	pos   int
+	// position saved in the program. This is used for storing and retrieving local
+	// variables on the VM.
+	pos int
 }
 
-func newVariable(ident string, kind token.Token, val string) *Variable {
-	// The AST will always give us strings as the value type. Therefor we will convert
-	// it here assign it to the underlying interface.
+func newVariable(kind VarType, name, val string) *Variable {
+	// The AST package will always give us strings as the value type.
+	// hence we will convert it to a VarType and assign it to the underlying interface.
 	v := &Variable{
-		ident: ident,
-		kind:  kind,
+		name: name,
+		kind: kind,
+		pos:  -1,
 	}
 
-	if kind == token.STRING {
+	if kind == STRING {
 		v.value = val
 	}
-	if kind == token.INT {
+	if kind == INT {
 		v.value, _ = strconv.Atoi(val)
 	}
 
@@ -288,25 +324,25 @@ func newVariable(ident string, kind token.Token, val string) *Variable {
 }
 
 func (v *Variable) add(other *Variable) {
-	if v.kind == token.INT {
+	if v.kind == INT {
 		v.value = v.value.(int) + other.value.(int)
 	}
 }
 
 func (v *Variable) mul(other *Variable) {
-	if v.kind == token.INT {
+	if v.kind == INT {
 		v.value = v.value.(int) * other.value.(int)
 	}
 }
 
 func (v *Variable) sub(other *Variable) {
-	if v.kind == token.INT {
+	if v.kind == INT {
 		v.value = v.value.(int) - other.value.(int)
 	}
 }
 
 func (v *Variable) div(other *Variable) {
-	if v.kind == token.INT {
+	if v.kind == INT {
 		v.value = v.value.(int) / other.value.(int)
 	}
 }

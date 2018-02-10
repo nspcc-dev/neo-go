@@ -10,10 +10,9 @@ func TestSimpleAssign(t *testing.T) {
 		package NEP5	
 
 		func Main() {
-			x := 10
-			y := x + 10 
-
-			name := "some string"
+			x := 4 + 2
+			name := "anthony"
+			y := x + 2
 		}
 	`
 
@@ -25,8 +24,9 @@ func TestSimpleAssign(t *testing.T) {
 	for _, v := range c.vars {
 		t.Log(v)
 	}
+	t.Log(c.vars)
 
-	// c.DumpOpcode()
+	c.DumpOpcode()
 }
 
 func TestAssignLoadLocal(t *testing.T) {
