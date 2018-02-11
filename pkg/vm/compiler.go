@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"io"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -26,6 +25,7 @@ const (
 	ILLEGAL VarType = iota
 	STRING
 	INT
+	BOOL
 	INTARRAY
 	STRINGARRAY
 	STRUCT
@@ -80,15 +80,21 @@ func (c *Compiler) CompileSource(src string) error {
 	return c.Compile(file)
 }
 
-// Visit implements the ast.Visitor interface.
-func (c *Compiler) Visit(node ast.Node) ast.Visitor {
+func (c *Compiler) processNode(node ast.Node) bool {
 	switch t := node.(type) {
 	case *ast.AssignStmt:
-		c.processAssignStmt(t)
+		return c.processAssignStmt(t)
+	case *ast.IfStmt:
+		return c.processIfStmt(t)
+	case *ast.BlockStmt:
+		for _, expr := range t.List {
+			c.processNode(expr)
+		}
+		return false
 	case *ast.FuncDecl:
 	case *ast.ReturnStmt:
 	}
-	return c
+	return true
 }
 
 func (c *Compiler) initialize(n OpCode) {
@@ -108,15 +114,27 @@ func (c *Compiler) teardown() {
 
 // Register a new variable. Compiler will keep track of its position
 // and type.
-func (c *Compiler) registerVar(v *Variable) {
+func (c *Compiler) registerVar(v *Variable) bool {
+	// If the variable already exist in the scope, check types and update it.
+	if oldVar, ok := c.vars[v.name]; ok {
+		if v.kind != oldVar.kind {
+			c.reportError(errTypeMismatch, "type mismatch %s and %s", v.kind, oldVar.kind)
+		}
+		oldVar.value = v.value
+		return true
+	}
+
 	c.vars[v.name] = v
 	v.pos = c.i
 	c.i++
+	return false
 }
 
 // Push a variable on the stack.
 func (c *Compiler) pushVar(v *Variable) {
-	c.registerVar(v)
+	if c.registerVar(v) {
+		v = c.vars[v.name]
+	}
 
 	switch v.kind {
 	case INT:
@@ -139,6 +157,8 @@ func (c *Compiler) pushVar(v *Variable) {
 		c.sb.emitPushInt(int64(len(arr)))
 		c.sb.emitPush(OpPack)
 	}
+
+	c.storeLocal(v)
 }
 
 // Store as local variable
@@ -178,7 +198,25 @@ func (c *Compiler) loadLocal(ident string) {
 	c.sb.emitPush(OpPickItem)
 }
 
-func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
+func (c *Compiler) processIfStmt(stmt *ast.IfStmt) bool {
+	var cond bool
+
+	switch t := stmt.Cond.(type) {
+	case *ast.BinaryExpr:
+		cond = c.resolveBinaryExpr(t).value.(bool)
+		// TODO: if assing stmts if err := ..
+	}
+
+	// if the condition is true parse its block, otherwise parse the else stmt (if one).
+	if cond {
+		c.processNode(stmt.Body)
+	} else if stmt.Else != nil {
+		c.processNode(stmt.Else)
+	}
+	return true
+}
+
+func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) bool {
 	lhs := stmt.Lhs[0].(*ast.Ident)
 
 	switch t := stmt.Rhs[0].(type) {
@@ -187,13 +225,11 @@ func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 		kind := varTypeFromString(t.Kind.String())
 		val := newVariable(kind, lhs.Name, t.Value)
 		c.pushVar(val)
-		c.storeLocal(val)
 	// compose literals ([]int{1, 2, 3}, inline structs, ..)
 	case *ast.CompositeLit:
 		val := c.processComposeLit(t)
 		val.name = lhs.Name
 		c.pushVar(val)
-		c.storeLocal(val)
 	// identifiers (x, y, foo, bar)
 	case *ast.Ident:
 		c.loadLocal(t.Name)
@@ -202,13 +238,13 @@ func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 		val := c.resolveBinaryExpr(t)
 		val.name = lhs.Name
 		c.pushVar(val)
-		c.storeLocal(val)
 	// inline function literals (x := func() {})
 	case *ast.FuncLit:
 		c.reportError(errNotSupported, "assigning function literals")
 	default:
-		fmt.Println(reflect.TypeOf(t))
+		// fmt.Println(reflect.TypeOf(t))
 	}
+	return true
 }
 
 func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
@@ -260,6 +296,14 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 	if expr.Op == token.QUO {
 		lhsVar.div(rhsVar)
 	}
+	if expr.Op == token.LSS {
+		b := lhsVar.less(rhsVar)
+		return newVariable(BOOL, "", fmt.Sprintf("%t", b))
+	}
+	if expr.Op == token.GTR {
+		b := lhsVar.gt(rhsVar)
+		return newVariable(BOOL, "", fmt.Sprintf("%t", b))
+	}
 
 	return lhsVar
 }
@@ -310,8 +354,14 @@ func (c *Compiler) Compile(r io.Reader) error {
 	}
 
 	c.initialize(OpPush2) // initialize the compiler with n local stack vars.
-	ast.Walk(c, f)        // walk through and process the AST
-	c.teardown()          // done compiling
+	ast.Inspect(f, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+		return c.processNode(n)
+	})
+	// ast.Walk(c, f)        // walk through and process the AST
+	c.teardown() // done compiling
 
 	return nil
 }
@@ -343,9 +393,9 @@ type Variable struct {
 	pos int
 }
 
+// The AST package will always give us strings as the value type.
+// hence we will convert it to a VarType and assign it to the underlying interface.
 func newVariable(kind VarType, name, val string) *Variable {
-	// The AST package will always give us strings as the value type.
-	// hence we will convert it to a VarType and assign it to the underlying interface.
 	v := &Variable{
 		name: name,
 		kind: kind,
@@ -357,6 +407,9 @@ func newVariable(kind VarType, name, val string) *Variable {
 	}
 	if kind == INT {
 		v.value, _ = strconv.Atoi(val)
+	}
+	if kind == BOOL {
+		v.value, _ = strconv.ParseBool(val)
 	}
 
 	return v
@@ -384,4 +437,18 @@ func (v *Variable) div(other *Variable) {
 	if v.kind == INT {
 		v.value = v.value.(int) / other.value.(int)
 	}
+}
+
+func (v *Variable) less(other *Variable) bool {
+	if v.kind == INT {
+		return v.value.(int) < other.value.(int)
+	}
+	return false
+}
+
+func (v *Variable) gt(other *Variable) bool {
+	if v.kind == INT {
+		return v.value.(int) > other.value.(int)
+	}
+	return false
 }

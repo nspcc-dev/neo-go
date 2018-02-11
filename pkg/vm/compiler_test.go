@@ -9,9 +9,19 @@ func TestSimpleAssign(t *testing.T) {
 	src := `
 		package NEP5	
 
-		func Main() {
-			x := 1
-			y := u
+		func Main() int {
+			x := 19000
+			y := 0
+
+			if x < 10 {
+				y = 1
+			} else if x > 15 + 90 {
+				y = 2
+				name := "anthony"
+			}
+
+
+			return x
 		}
 	`
 
