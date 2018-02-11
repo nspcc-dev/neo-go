@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -29,6 +30,14 @@ const (
 	STRINGARRAY
 	STRUCT
 	FUNC
+)
+
+// compiler errors
+var (
+	errResolveVar   = errors.New("failed to resolve variable")
+	errTypeMismatch = errors.New("type mismatch")
+	errNotSupported = errors.New("not supported yet")
+	errInvalidPos   = errors.New("invalid position for local variable")
 )
 
 func varTypeFromString(s string) VarType {
@@ -116,7 +125,19 @@ func (c *Compiler) pushVar(v *Variable) {
 		val := strings.Replace(v.value.(string), `"`, "", 2)
 		c.sb.emitPushString(val)
 	case INTARRAY:
+		arr := v.value.([]int)
+		for i := len(arr) - 1; i > 0; i-- {
+			c.sb.emitPushInt(int64(arr[i]))
+		}
+		c.sb.emitPushInt(int64(len(arr)))
+		c.sb.emitPush(OpPack)
 	case STRINGARRAY:
+		arr := v.value.([]string)
+		for i := len(arr) - 1; i > 0; i-- {
+			c.sb.emitPushString(arr[i])
+		}
+		c.sb.emitPushInt(int64(len(arr)))
+		c.sb.emitPush(OpPack)
 	}
 }
 
@@ -128,7 +149,7 @@ func (c *Compiler) storeLocal(v *Variable) {
 
 	pos := int64(v.pos)
 	if pos < 0 {
-		c.reportError(fmt.Sprintf("invalid position %d to store local variable", pos))
+		c.reportError(errInvalidPos, "%d is invalid to store variable", pos)
 	}
 
 	c.sb.emitPushInt(pos)
@@ -140,12 +161,12 @@ func (c *Compiler) storeLocal(v *Variable) {
 func (c *Compiler) loadLocal(ident string) {
 	val, ok := c.vars[ident]
 	if !ok {
-		c.reportError(fmt.Sprintf("local variable %s not found", ident))
+		c.reportError(errResolveVar, "variable <%s> was not found in the scope", ident)
 	}
 
 	pos := int64(val.pos)
 	if pos < 0 {
-		c.reportError(fmt.Sprintf("invalid position %d to store local variable", pos))
+		c.reportError(errInvalidPos, "%d is invalid to store variable", pos)
 	}
 
 	c.sb.emitPush(OpFromAltStack)
@@ -172,9 +193,10 @@ func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 		val := c.processComposeLit(t)
 		val.name = lhs.Name
 		c.pushVar(val)
+		c.storeLocal(val)
 	// identifiers (x, y, foo, bar)
 	case *ast.Ident:
-		// c.loadLocal(t.Name)
+		c.loadLocal(t.Name)
 	// binary expressions (x + 2, 10 - 1)
 	case *ast.BinaryExpr:
 		val := c.resolveBinaryExpr(t)
@@ -183,7 +205,7 @@ func (c *Compiler) processAssignStmt(stmt *ast.AssignStmt) {
 		c.storeLocal(val)
 	// inline function literals (x := func() {})
 	case *ast.FuncLit:
-		c.reportError("assigning function literals not yet implemented")
+		c.reportError(errNotSupported, "assigning function literals")
 	default:
 		fmt.Println(reflect.TypeOf(t))
 	}
@@ -201,7 +223,7 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 	case *ast.Ident:
 		val, ok := c.vars[t.Name]
 		if !ok {
-			c.reportError(fmt.Sprintf("could not resolve %s", t.Name))
+			c.reportError(errResolveVar, "%s not found in scope", t.Name)
 		}
 		lhsVar = &Variable{kind: val.kind, value: val.value}
 	case *ast.BasicLit:
@@ -222,7 +244,7 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 	}
 
 	if rhsVar.kind != lhsVar.kind {
-		c.reportError(fmt.Sprintf("types mismatch %s and %s", rhsVar.kind, lhsVar.kind))
+		c.reportError(errTypeMismatch, "mismatch %s and %s", rhsVar.kind, lhsVar.kind)
 	}
 
 	// When done resolving, process the binary operator.
@@ -243,25 +265,40 @@ func (c *Compiler) resolveBinaryExpr(expr *ast.BinaryExpr) *Variable {
 }
 
 func (c *Compiler) processComposeLit(node *ast.CompositeLit) *Variable {
-	// switch t := node.Type.(type) {
-	// case *ast.StructType:
-	// 	fmt.Println("composing a struct inline")
-	// case *ast.ArrayType:
-	// 	kind := varTypeFromString(t.Elt.(*ast.Ident).Name)
-	// 	return &Variable{kind: kind, value: node.Elts}
-	// }
-	return nil
-}
-
-func arrayTypeToken(t *ast.ArrayType) token.Token {
-	kind := t.Elt.(*ast.Ident).Name
-	switch kind {
-	case "int":
-		return token.INT
-	case "string":
-		return token.STRING
+	switch t := node.Type.(type) {
+	case *ast.StructType:
+		fmt.Println("composing a struct inline")
+	case *ast.ArrayType:
+		kind := varTypeFromString(t.Elt.(*ast.Ident).Name)
+		if kind == INT {
+			arr := make([]int, len(node.Elts))
+			for i, elt := range node.Elts {
+				valStr := elt.(*ast.BasicLit).Value
+				val, _ := strconv.Atoi(valStr)
+				arr[i] = val
+			}
+			return &Variable{
+				kind:  INTARRAY,
+				value: arr,
+				pos:   -1,
+			}
+		}
+		if kind == STRING {
+			arr := make([]string, len(node.Elts))
+			for i, elt := range node.Elts {
+				lit := elt.(*ast.BasicLit)
+				val := strings.Replace(lit.Value, `"`, "", 2)
+				arr[i] = val
+			}
+			return &Variable{
+				kind:  STRINGARRAY,
+				value: arr,
+				pos:   -1,
+			}
+		}
+		return nil
 	}
-	return token.ILLEGAL
+	return nil
 }
 
 // Compile will compile from r into an avm format.
@@ -280,8 +317,10 @@ func (c *Compiler) Compile(r io.Reader) error {
 }
 
 // TODO: More detailed report (lineno, ...)
-func (c *Compiler) reportError(msg string) {
-	fmt.Printf("COMPILER ERROR :: %s\n", msg)
+func (c *Compiler) reportError(err error, msg string, args ...interface{}) {
+	fmt.Printf("COMPILE ERROR :: %s\n", err)
+	fmt.Printf(msg, args...)
+	fmt.Println("")
 	os.Exit(1)
 }
 

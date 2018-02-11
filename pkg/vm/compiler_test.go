@@ -10,9 +10,8 @@ func TestSimpleAssign(t *testing.T) {
 		package NEP5	
 
 		func Main() {
-			x := 4 + 2
-			name := "anthony"
-			y := x + 2
+			x := 1
+			y := u
 		}
 	`
 
