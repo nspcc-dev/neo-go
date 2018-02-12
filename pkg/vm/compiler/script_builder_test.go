@@ -1,4 +1,4 @@
-package vm
+package compiler
 
 import (
 	"bytes"
@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 func TestEmitPush(t *testing.T) {
 	sb := &ScriptBuilder{new(bytes.Buffer)}
 
-	if err := sb.emitPush(OpPush1); err != nil {
+	if err := sb.emitPush(vm.OpPush1); err != nil {
 		t.Fatal(err)
 	}
 	if sb.buf.Len() != 1 {
@@ -26,21 +27,21 @@ func TestEmitPushInt(t *testing.T) {
 	if err := sb.emitPushInt(int64(val)); err != nil {
 		t.Fatal(err)
 	}
-	if want, have := OpPushM1, OpCode(sb.buf.Bytes()[0]); want != have {
+	if want, have := vm.OpPushM1, vm.OpCode(sb.buf.Bytes()[0]); want != have {
 		t.Fatalf("expected %v got %v", want, have)
 	}
 	val = 0
 	if err := sb.emitPushInt(int64(val)); err != nil {
 		t.Fatal(err)
 	}
-	if want, have := OpPushF, OpCode(sb.buf.Bytes()[1]); want != have {
+	if want, have := vm.OpPushF, vm.OpCode(sb.buf.Bytes()[1]); want != have {
 		t.Fatalf("expected %v got %v", want, have)
 	}
 	val = 1
 	if err := sb.emitPushInt(int64(val)); err != nil {
 		t.Fatal(err)
 	}
-	if want, have := OpPush1, OpCode(sb.buf.Bytes()[2]); want != have {
+	if want, have := vm.OpPush1, vm.OpCode(sb.buf.Bytes()[2]); want != have {
 		t.Fatalf("expected %v got %v", want, have)
 	}
 	val = 1000

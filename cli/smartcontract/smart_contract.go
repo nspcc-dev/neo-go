@@ -3,7 +3,7 @@ package smartcontract
 import (
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/urfave/cli"
 )
 
@@ -35,7 +35,7 @@ func contractCompile(ctx *cli.Context) error {
 func contractDumpOpcode(ctx *cli.Context) error {
 	src := ctx.Args()[0]
 
-	c := vm.NewCompiler()
+	c := compiler.New()
 	if err := c.CompileSource(src); err != nil {
 		return err
 	}

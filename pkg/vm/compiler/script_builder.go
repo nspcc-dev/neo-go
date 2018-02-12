@@ -1,4 +1,4 @@
-package vm
+package compiler
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 // ScriptBuilder generates bytecode and will write all
@@ -16,7 +17,7 @@ type ScriptBuilder struct {
 	buf *bytes.Buffer
 }
 
-func (sb *ScriptBuilder) emit(op OpCode, b []byte) error {
+func (sb *ScriptBuilder) emit(op vm.OpCode, b []byte) error {
 	if err := sb.buf.WriteByte(byte(op)); err != nil {
 		return err
 	}
@@ -24,26 +25,26 @@ func (sb *ScriptBuilder) emit(op OpCode, b []byte) error {
 	return err
 }
 
-func (sb *ScriptBuilder) emitPush(op OpCode) error {
+func (sb *ScriptBuilder) emitPush(op vm.OpCode) error {
 	return sb.buf.WriteByte(byte(op))
 }
 
 func (sb *ScriptBuilder) emitPushBool(b bool) error {
 	if b {
-		return sb.emitPush(OpPushT)
+		return sb.emitPush(vm.OpPushT)
 	}
-	return sb.emitPush(OpPushF)
+	return sb.emitPush(vm.OpPushF)
 }
 
 func (sb *ScriptBuilder) emitPushInt(i int64) error {
 	if i == -1 {
-		return sb.emitPush(OpPushM1)
+		return sb.emitPush(vm.OpPushM1)
 	}
 	if i == 0 {
-		return sb.emitPush(OpPushF)
+		return sb.emitPush(vm.OpPushF)
 	}
 	if i > 0 && i < 16 {
-		val := OpCode((int(OpPush1) - 1 + int(i)))
+		val := vm.OpCode((int(vm.OpPush1) - 1 + int(i)))
 		return sb.emitPush(val)
 	}
 
@@ -61,18 +62,18 @@ func (sb *ScriptBuilder) emitPushArray(b []byte) error {
 	if n == 0 {
 		return errors.New("0 bytes given in pushArray")
 	}
-	if n <= int(OpPushBytes75) {
-		return sb.emit(OpCode(n), b)
+	if n <= int(vm.OpPushBytes75) {
+		return sb.emit(vm.OpCode(n), b)
 	} else if n < 0x100 {
-		err = sb.emit(OpPushData1, []byte{byte(n)})
+		err = sb.emit(vm.OpPushData1, []byte{byte(n)})
 	} else if n < 0x10000 {
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
-		err = sb.emit(OpPushData2, buf)
+		err = sb.emit(vm.OpPushData2, buf)
 	} else {
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
-		err = sb.emit(OpPushData4, buf)
+		err = sb.emit(vm.OpPushData4, buf)
 	}
 	if err != nil {
 		return err
@@ -98,22 +99,22 @@ func (sb *ScriptBuilder) emitSysCall(api string) error {
 	args := make([]byte, lenAPI+1)
 	args[0] = byte(lenAPI)
 	copy(args, bapi[1:])
-	return sb.emit(OpSysCall, args)
+	return sb.emit(vm.OpSysCall, args)
 }
 
 func (sb *ScriptBuilder) emitPushCall(scriptHash []byte, tailCall bool) error {
 	if len(scriptHash) != 20 {
 		return errors.New("expected a 20 byte long scriptHash (uint160) for pushCall")
 	}
-	op := OpAppCall
+	op := vm.OpAppCall
 	if tailCall {
-		op = OpTailCall
+		op = vm.OpTailCall
 	}
 	return sb.emit(op, scriptHash)
 }
 
-func (sb *ScriptBuilder) emitJump(op OpCode, offset int16) error {
-	if op != OpJMP && op != OpJMPIF && op != OpJMPIFNOT && op != OpCall {
+func (sb *ScriptBuilder) emitJump(op vm.OpCode, offset int16) error {
+	if op != vm.OpJMP && op != vm.OpJMPIF && op != vm.OpJMPIFNOT && op != vm.OpCall {
 		return fmt.Errorf("invalid jump opcode: %v", op)
 	}
 	return sb.emit(op, []byte{}) // convert to bits?
@@ -122,6 +123,6 @@ func (sb *ScriptBuilder) emitJump(op OpCode, offset int16) error {
 func (sb *ScriptBuilder) dumpOpcode() {
 	buf := sb.buf.Bytes()
 	for i := 0; i < len(buf); i++ {
-		fmt.Printf("OPCODE AT INDEX \t %d \t 0x%2x \t %s \n", i, buf[i], OpCode(buf[i]))
+		fmt.Printf("OPCODE AT INDEX \t %d \t 0x%2x \t %s \n", i, buf[i], vm.OpCode(buf[i]))
 	}
 }
