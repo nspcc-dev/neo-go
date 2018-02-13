@@ -10,6 +10,9 @@ func TestSimpleAssign(t *testing.T) {
 	src := `
 		package NEP5	
 
+		func Main() {
+		}
+
 		func binaryOp() int {
 			x := 5
 			y := x
@@ -24,13 +27,14 @@ func TestSimpleAssign(t *testing.T) {
 		t.Fatal(err)
 	}
 	if want, have := 1, len(c.funcs); want != have {
-		t.Fatalf("expected %d got %d", want, have)
+		t.Fatalf("expected exacly %d function got %d", want, have)
 	}
-	if fun, ok := c.funcs["binaryOp"]; !ok {
-		if fun.label != 0 {
-			t.Fatalf("expected label of the function to be %d got %d", 0, fun.label)
-		}
+	fun, ok := c.funcs["binaryOp"]
+	if !ok {
 		t.Fatal("compiler should have func (binaryOp) in its scope")
+	}
+	if fun.label != 0 {
+		t.Fatalf("expected label of the function to be %d got %d", 0, fun.label)
 	}
 	if want, have := 4, len(c.funcs["binaryOp"].scope); want != have {
 		t.Fatalf("expected %d got %d", want, have)
@@ -41,14 +45,15 @@ func TestSimpleAssign34(t *testing.T) {
 	src := `
 		package NEP5	
 
-		func binaryOp() int {
-			x := 10
-			if x < 10 {
-				return 5
-			}
+		func Main() int {
+			x := callFunc()
 			return x
 		}
 
+		func callFunc() int {
+			x := 10
+			return x
+		}
 	`
 
 	c := New()
@@ -56,7 +61,12 @@ func TestSimpleAssign34(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	for _, c := range c.funcCalls {
+		fmt.Println(c)
+	}
+
 	for _, fctx := range c.funcs {
+		fmt.Println(fctx.label)
 		for _, v := range fctx.scope {
 			fmt.Println(v)
 		}

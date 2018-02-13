@@ -102,15 +102,10 @@ func (sb *ScriptBuilder) emitSysCall(api string) error {
 	return sb.emit(vm.OpSysCall, args)
 }
 
-func (sb *ScriptBuilder) emitPushCall(scriptHash []byte, tailCall bool) error {
-	if len(scriptHash) != 20 {
-		return errors.New("expected a 20 byte long scriptHash (uint160) for pushCall")
-	}
-	op := vm.OpAppCall
-	if tailCall {
-		op = vm.OpTailCall
-	}
-	return sb.emit(op, scriptHash)
+func (sb *ScriptBuilder) emitPushCall(offset int16) error {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, offset)
+	return sb.emit(vm.OpCall, buf.Bytes())
 }
 
 func (sb *ScriptBuilder) emitJump(op vm.OpCode, offset int16) error {
@@ -133,6 +128,14 @@ func (sb *ScriptBuilder) updateJmpLabel(label int16, offset int) error {
 	buf := sb.buf.Bytes()
 	copy(buf[offset:offset+sizeOfInt16], b)
 	return nil
+}
+
+func (sb *ScriptBuilder) updatePushCall(offset int, label int16) {
+	b := new(bytes.Buffer)
+	binary.Write(b, binary.LittleEndian, label)
+
+	buf := sb.buf.Bytes()
+	copy(buf[offset:offset+2], b.Bytes())
 }
 
 func (sb *ScriptBuilder) dumpOpcode() {

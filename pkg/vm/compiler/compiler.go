@@ -17,6 +17,8 @@ import (
 
 const (
 	outputExt = ".avm"
+	// Identifier off the entry point function.
+	mainIdent = "Main"
 )
 
 // A VarContext holds the info about the context of a variable in the program.
@@ -37,12 +39,17 @@ func newVarContext(name string, tinfo types.TypeAndValue) *VarContext {
 // Compiler holds the output buffer of the compiled source.
 type Compiler struct {
 	// Output extension of the file. Default .avm.
-	OutputExt  string
-	sb         *ScriptBuilder
-	curLineNum int
+	OutputExt string
 
-	funcs    map[string]*FuncContext
-	typeInfo *types.Info
+	mainBuilder *ScriptBuilder
+	altBuilder  *ScriptBuilder
+
+	// current active builder.
+	cb *ScriptBuilder
+
+	funcs     map[string]*FuncContext
+	funcCalls []CallContext
+	typeInfo  *types.Info
 
 	i int
 }
@@ -50,10 +57,17 @@ type Compiler struct {
 // New returns a new compiler ready to compile smartcontracts.
 func New() *Compiler {
 	return &Compiler{
-		OutputExt: outputExt,
-		sb:        &ScriptBuilder{buf: new(bytes.Buffer)},
-		funcs:     map[string]*FuncContext{},
+		OutputExt:   outputExt,
+		mainBuilder: &ScriptBuilder{buf: new(bytes.Buffer)},
+		altBuilder:  &ScriptBuilder{buf: new(bytes.Buffer)},
+		funcs:       map[string]*FuncContext{},
+		funcCalls:   []CallContext{},
 	}
+}
+
+type CallContext struct {
+	pos      int
+	funcName string
 }
 
 // CompileSource will compile the source file into an avm format.
@@ -71,10 +85,10 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 	switch ctx.tinfo.Type.(*types.Basic).Kind() {
 	case types.Int:
 		val, _ := constant.Int64Val(ctx.tinfo.Value)
-		c.sb.emitPushInt(val)
+		c.cb.emitPushInt(val)
 	case types.String:
 		val := constant.StringVal(ctx.tinfo.Value)
-		c.sb.emitPushString(val)
+		c.cb.emitPushString(val)
 	}
 
 	if storeLocal {
@@ -90,31 +104,31 @@ func (c *Compiler) loadLocal(ctx *VarContext) {
 		log.Fatalf("invalid position to load local %d", pos)
 	}
 
-	c.sb.emitPush(vm.OpFromAltStack)
-	c.sb.emitPush(vm.OpDup)
-	c.sb.emitPush(vm.OpToAltStack)
+	c.cb.emitPush(vm.OpFromAltStack)
+	c.cb.emitPush(vm.OpDup)
+	c.cb.emitPush(vm.OpToAltStack)
 
 	// push it's index on the stack
-	c.sb.emitPushInt(pos)
-	c.sb.emitPush(vm.OpPickItem)
+	c.cb.emitPushInt(pos)
+	c.cb.emitPush(vm.OpPickItem)
 }
 
 // Store a local variable on the stack. The position of the VarContext is used
 // to store at that position.
 func (c *Compiler) storeLocal(vctx *VarContext) {
-	c.sb.emitPush(vm.OpFromAltStack)
-	c.sb.emitPush(vm.OpDup)
-	c.sb.emitPush(vm.OpToAltStack)
+	c.cb.emitPush(vm.OpFromAltStack)
+	c.cb.emitPush(vm.OpDup)
+	c.cb.emitPush(vm.OpToAltStack)
 
 	pos := int64(vctx.pos)
 	if pos < 0 {
 		log.Fatalf("invalid position to store local: %d", pos)
 	}
 
-	c.sb.emitPushInt(pos)
-	c.sb.emitPushInt(2)
-	c.sb.emitPush(vm.OpRoll)
-	c.sb.emitPush(vm.OpSetItem)
+	c.cb.emitPushInt(pos)
+	c.cb.emitPushInt(2)
+	c.cb.emitPush(vm.OpRoll)
+	c.cb.emitPush(vm.OpSetItem)
 }
 
 // Compile will compile from r into an avm format.
@@ -142,24 +156,84 @@ func (c *Compiler) Compile(r io.Reader) error {
 		log.Fatal(err)
 	}
 
+	var main *ast.FuncDecl
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch t := n.(type) {
+		case *ast.FuncDecl:
+			if t.Name.Name == mainIdent {
+				main = t
+				return false
+			}
+		}
+		return true
+	})
+	if main == nil {
+		log.Fatal("could not find func main. did you forgot to it?")
+	}
+
+	// Do a first pass for the main to know its end position.
+	// We use the altBuilder, reset its buffer later, so we can reuse it.
+	c.resolveFuncDecls(f)
+	c.cb = c.altBuilder
+	c.convertFuncDecl(main)
+	//startLabel := c.cb.buf.Len()
+	//return nil
+
+	// Start building all declarartions except main into the alt builder.
+	//c.cb = c.altBuilder
 	for _, decl := range f.Decls {
 		switch t := decl.(type) {
 		case *ast.GenDecl:
 		case *ast.FuncDecl:
-			c.convertFuncDecl(t)
+			if t.Name.Name != mainIdent {
+				c.convertFuncDecl(t)
+			}
 		}
 	}
+
+	c.updateFuncCall()
+
+	// Start building the main function into main builder.
+	//c.cb = c.mainBuilder
+	//c.convertFuncDecl(main)
 
 	return nil
 }
 
+func (c *Compiler) updateFuncCall() {
+	for _, ctx := range c.funcCalls {
+		fun, ok := c.funcs[ctx.funcName]
+		if !ok {
+			log.Fatalf("could not resolve function %s", ctx.funcName)
+		}
+		// pos is the position of the call op, we need to add 1 to get the
+		// start of the label.
+		// for calculating the correct offset we need to subtract the target label
+		// with the position the call occured.
+		offset := fun.label - int16(ctx.pos)
+		c.cb.updatePushCall(ctx.pos+1, offset)
+	}
+}
+
+func (c *Compiler) resolveFuncDecls(f *ast.File) {
+	for _, decl := range f.Decls {
+		switch t := decl.(type) {
+		case *ast.GenDecl:
+		case *ast.FuncDecl:
+			if t.Name.Name != mainIdent {
+				c.funcs[t.Name.Name] = newFuncContext(t.Name.Name, 0)
+			}
+		}
+	}
+}
+
 func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
-	ctx := newFuncContext(decl.Name.Name, c.i)
+	ctx := newFuncContext(decl.Name.Name, c.currentPos())
 	c.funcs[ctx.name] = ctx
 
-	c.sb.emitPush(vm.OpPush2)
-	c.sb.emitPush(vm.OpNewArray)
-	c.sb.emitPush(vm.OpToAltStack)
+	c.cb.emitPush(vm.OpPush2)
+	c.cb.emitPush(vm.OpNewArray)
+	c.cb.emitPush(vm.OpToAltStack)
 
 	for _, stmt := range decl.Body.List {
 		c.convertStmt(ctx, stmt)
@@ -202,22 +276,22 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		c.sb.emitPush(vm.OpJMP)
-		c.sb.emitPush(vm.OpCode(0x03))
-		c.sb.emitPush(vm.OpPush0)
+		c.cb.emitPush(vm.OpJMP)
+		c.cb.emitPush(vm.OpCode(0x03))
+		c.cb.emitPush(vm.OpPush0)
 
 		c.convertExpr(fctx, t.Results[0])
 
-		c.sb.emitPush(vm.OpNOP)
-		c.sb.emitPush(vm.OpFromAltStack)
-		c.sb.emitPush(vm.OpDrop)
-		c.sb.emitPush(vm.OpRET)
+		c.cb.emitPush(vm.OpNOP)
+		c.cb.emitPush(vm.OpFromAltStack)
+		c.cb.emitPush(vm.OpDrop)
+		c.cb.emitPush(vm.OpRET)
 
 	case *ast.IfStmt:
 		c.convertExpr(fctx, t.Cond)
 
 		// use a placeholder for the label.
-		c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
+		c.cb.emitJump(vm.OpJMPIFNOT, int16(0))
 		// track our offset to update later subtract sizeOf int16.
 		jumpOffset := int(c.currentPos()) - 2
 
@@ -227,7 +301,7 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 		}
 
 		jumpTo := c.currentPos() + 1 - int16(jumpOffset)
-		c.sb.updateJmpLabel(jumpTo, jumpOffset)
+		c.cb.updateJmpLabel(jumpTo, jumpOffset)
 	}
 }
 
@@ -240,6 +314,15 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 	case *ast.Ident:
 		vctx := fctx.getContext(t.Name)
 		c.loadLocal(vctx)
+
+	case *ast.CallExpr:
+		fun := t.Fun.(*ast.Ident)
+		_, ok := c.funcs[fun.Name]
+		if !ok {
+			log.Fatalf("could not resolve func %s", fun.Name)
+		}
+		c.funcCalls = append(c.funcCalls, CallContext{int(c.currentPos()), fun.Name})
+		c.cb.emitPushCall(0) // placeholder, update later.
 
 	case *ast.BinaryExpr:
 		if tinfo := c.getTypeInfo(t); tinfo.Value != nil {
@@ -257,21 +340,25 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 func (c *Compiler) convertToken(tok token.Token) {
 	switch tok {
 	case token.ADD:
-		c.sb.emitPush(vm.OpAdd)
+		c.cb.emitPush(vm.OpAdd)
 	case token.SUB:
-		c.sb.emitPush(vm.OpSub)
+		c.cb.emitPush(vm.OpSub)
 	case token.MUL:
-		c.sb.emitPush(vm.OpMul)
+		c.cb.emitPush(vm.OpMul)
 	case token.QUO:
-		c.sb.emitPush(vm.OpDiv)
+		c.cb.emitPush(vm.OpDiv)
 	case token.LSS:
-		c.sb.emitPush(vm.OpLT)
+		c.cb.emitPush(vm.OpLT)
 	case token.LEQ:
-		c.sb.emitPush(vm.OpLTE)
+		c.cb.emitPush(vm.OpLTE)
 	case token.GTR:
-		c.sb.emitPush(vm.OpGT)
+		c.cb.emitPush(vm.OpGT)
 	case token.GEQ:
-		c.sb.emitPush(vm.OpGTE)
+		c.cb.emitPush(vm.OpGTE)
+	case token.LAND:
+		c.cb.emitPush(vm.OpBoolAnd)
+	case token.LOR:
+		c.cb.emitPush(vm.OpBoolOr)
 	}
 }
 
@@ -283,10 +370,10 @@ func (c *Compiler) getTypeInfo(expr ast.Expr) types.TypeAndValue {
 
 // currentPos return the current position (address) of the latest opcode.
 func (c *Compiler) currentPos() int16 {
-	return int16(c.sb.buf.Len())
+	return int16(c.cb.buf.Len())
 }
 
 // DumpOpcode dumps the current buffer, formatted with index, hex and opcode.
 func (c *Compiler) DumpOpcode() {
-	c.sb.dumpOpcode()
+	c.cb.dumpOpcode()
 }

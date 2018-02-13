@@ -17,7 +17,7 @@ type FuncContext struct {
 	i int
 }
 
-func newFuncContext(name string, label int) *FuncContext {
+func newFuncContext(name string, label int16) *FuncContext {
 	return &FuncContext{
 		label: int16(label),
 		name:  name,
