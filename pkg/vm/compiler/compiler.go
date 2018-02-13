@@ -21,6 +21,15 @@ const (
 	mainIdent = "Main"
 )
 
+// CallContext represents more details on function calls in the program.
+// It stores the position off where the call happend along with the
+// function it called. The compiler will store all function calls, so
+// it can update them later.
+type CallContext struct {
+	pos      int
+	funcName string
+}
+
 // A VarContext holds the info about the context of a variable in the program.
 type VarContext struct {
 	name  string
@@ -41,11 +50,8 @@ type Compiler struct {
 	// Output extension of the file. Default .avm.
 	OutputExt string
 
-	mainBuilder *ScriptBuilder
-	altBuilder  *ScriptBuilder
-
-	// current active builder.
-	cb *ScriptBuilder
+	// scriptBuilder is responsible for all opcode writes.
+	sb *ScriptBuilder
 
 	funcs     map[string]*FuncContext
 	funcCalls []CallContext
@@ -57,17 +63,11 @@ type Compiler struct {
 // New returns a new compiler ready to compile smartcontracts.
 func New() *Compiler {
 	return &Compiler{
-		OutputExt:   outputExt,
-		mainBuilder: &ScriptBuilder{buf: new(bytes.Buffer)},
-		altBuilder:  &ScriptBuilder{buf: new(bytes.Buffer)},
-		funcs:       map[string]*FuncContext{},
-		funcCalls:   []CallContext{},
+		OutputExt: outputExt,
+		sb:        &ScriptBuilder{buf: new(bytes.Buffer)},
+		funcs:     map[string]*FuncContext{},
+		funcCalls: []CallContext{},
 	}
-}
-
-type CallContext struct {
-	pos      int
-	funcName string
 }
 
 // CompileSource will compile the source file into an avm format.
@@ -85,10 +85,10 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 	switch ctx.tinfo.Type.(*types.Basic).Kind() {
 	case types.Int:
 		val, _ := constant.Int64Val(ctx.tinfo.Value)
-		c.cb.emitPushInt(val)
+		c.sb.emitPushInt(val)
 	case types.String:
 		val := constant.StringVal(ctx.tinfo.Value)
-		c.cb.emitPushString(val)
+		c.sb.emitPushString(val)
 	}
 
 	if storeLocal {
@@ -104,31 +104,31 @@ func (c *Compiler) loadLocal(ctx *VarContext) {
 		log.Fatalf("invalid position to load local %d", pos)
 	}
 
-	c.cb.emitPush(vm.OpFromAltStack)
-	c.cb.emitPush(vm.OpDup)
-	c.cb.emitPush(vm.OpToAltStack)
+	c.sb.emitPush(vm.OpFromAltStack)
+	c.sb.emitPush(vm.OpDup)
+	c.sb.emitPush(vm.OpToAltStack)
 
 	// push it's index on the stack
-	c.cb.emitPushInt(pos)
-	c.cb.emitPush(vm.OpPickItem)
+	c.sb.emitPushInt(pos)
+	c.sb.emitPush(vm.OpPickItem)
 }
 
 // Store a local variable on the stack. The position of the VarContext is used
 // to store at that position.
 func (c *Compiler) storeLocal(vctx *VarContext) {
-	c.cb.emitPush(vm.OpFromAltStack)
-	c.cb.emitPush(vm.OpDup)
-	c.cb.emitPush(vm.OpToAltStack)
+	c.sb.emitPush(vm.OpFromAltStack)
+	c.sb.emitPush(vm.OpDup)
+	c.sb.emitPush(vm.OpToAltStack)
 
 	pos := int64(vctx.pos)
 	if pos < 0 {
 		log.Fatalf("invalid position to store local: %d", pos)
 	}
 
-	c.cb.emitPushInt(pos)
-	c.cb.emitPushInt(2)
-	c.cb.emitPush(vm.OpRoll)
-	c.cb.emitPush(vm.OpSetItem)
+	c.sb.emitPushInt(pos)
+	c.sb.emitPushInt(2)
+	c.sb.emitPush(vm.OpRoll)
+	c.sb.emitPush(vm.OpSetItem)
 }
 
 // Compile will compile from r into an avm format.
@@ -151,6 +151,7 @@ func (c *Compiler) Compile(r io.Reader) error {
 
 	c.typeInfo = typeInfo
 
+	// Typechecker
 	_, err = conf.Check("", fset, []*ast.File{f}, typeInfo)
 	if err != nil {
 		log.Fatal(err)
@@ -168,19 +169,13 @@ func (c *Compiler) Compile(r io.Reader) error {
 		return true
 	})
 	if main == nil {
-		log.Fatal("could not find func main. did you forgot to it?")
+		log.Fatal("could not find func main. did you forgot to declare it?")
 	}
 
-	// Do a first pass for the main to know its end position.
-	// We use the altBuilder, reset its buffer later, so we can reuse it.
 	c.resolveFuncDecls(f)
-	c.cb = c.altBuilder
 	c.convertFuncDecl(main)
-	//startLabel := c.cb.buf.Len()
-	//return nil
 
-	// Start building all declarartions except main into the alt builder.
-	//c.cb = c.altBuilder
+	// Start building all declarations
 	for _, decl := range f.Decls {
 		switch t := decl.(type) {
 		case *ast.GenDecl:
@@ -191,16 +186,14 @@ func (c *Compiler) Compile(r io.Reader) error {
 		}
 	}
 
-	c.updateFuncCall()
-
-	// Start building the main function into main builder.
-	//c.cb = c.mainBuilder
-	//c.convertFuncDecl(main)
+	// update all local function calls.
+	c.updateFuncCalls()
 
 	return nil
 }
 
-func (c *Compiler) updateFuncCall() {
+// updateFuncCalls will update all local function calls that occured the program.
+func (c *Compiler) updateFuncCalls() {
 	for _, ctx := range c.funcCalls {
 		fun, ok := c.funcs[ctx.funcName]
 		if !ok {
@@ -211,7 +204,7 @@ func (c *Compiler) updateFuncCall() {
 		// for calculating the correct offset we need to subtract the target label
 		// with the position the call occured.
 		offset := fun.label - int16(ctx.pos)
-		c.cb.updatePushCall(ctx.pos+1, offset)
+		c.sb.updatePushCall(ctx.pos+1, offset)
 	}
 }
 
@@ -231,9 +224,9 @@ func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
 	ctx := newFuncContext(decl.Name.Name, c.currentPos())
 	c.funcs[ctx.name] = ctx
 
-	c.cb.emitPush(vm.OpPush2)
-	c.cb.emitPush(vm.OpNewArray)
-	c.cb.emitPush(vm.OpToAltStack)
+	c.sb.emitPush(vm.OpPush2)
+	c.sb.emitPush(vm.OpNewArray)
+	c.sb.emitPush(vm.OpToAltStack)
 
 	for _, stmt := range decl.Body.List {
 		c.convertStmt(ctx, stmt)
@@ -276,22 +269,22 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		c.cb.emitPush(vm.OpJMP)
-		c.cb.emitPush(vm.OpCode(0x03))
-		c.cb.emitPush(vm.OpPush0)
+		c.sb.emitPush(vm.OpJMP)
+		c.sb.emitPush(vm.OpCode(0x03))
+		c.sb.emitPush(vm.OpPush0)
 
 		c.convertExpr(fctx, t.Results[0])
 
-		c.cb.emitPush(vm.OpNOP)
-		c.cb.emitPush(vm.OpFromAltStack)
-		c.cb.emitPush(vm.OpDrop)
-		c.cb.emitPush(vm.OpRET)
+		c.sb.emitPush(vm.OpNOP)
+		c.sb.emitPush(vm.OpFromAltStack)
+		c.sb.emitPush(vm.OpDrop)
+		c.sb.emitPush(vm.OpRET)
 
 	case *ast.IfStmt:
 		c.convertExpr(fctx, t.Cond)
 
 		// use a placeholder for the label.
-		c.cb.emitJump(vm.OpJMPIFNOT, int16(0))
+		c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
 		// track our offset to update later subtract sizeOf int16.
 		jumpOffset := int(c.currentPos()) - 2
 
@@ -301,7 +294,7 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 		}
 
 		jumpTo := c.currentPos() + 1 - int16(jumpOffset)
-		c.cb.updateJmpLabel(jumpTo, jumpOffset)
+		c.sb.updateJmpLabel(jumpTo, jumpOffset)
 	}
 }
 
@@ -322,7 +315,7 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 			log.Fatalf("could not resolve func %s", fun.Name)
 		}
 		c.funcCalls = append(c.funcCalls, CallContext{int(c.currentPos()), fun.Name})
-		c.cb.emitPushCall(0) // placeholder, update later.
+		c.sb.emitPushCall(0) // placeholder, update later.
 
 	case *ast.BinaryExpr:
 		if tinfo := c.getTypeInfo(t); tinfo.Value != nil {
@@ -340,25 +333,25 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 func (c *Compiler) convertToken(tok token.Token) {
 	switch tok {
 	case token.ADD:
-		c.cb.emitPush(vm.OpAdd)
+		c.sb.emitPush(vm.OpAdd)
 	case token.SUB:
-		c.cb.emitPush(vm.OpSub)
+		c.sb.emitPush(vm.OpSub)
 	case token.MUL:
-		c.cb.emitPush(vm.OpMul)
+		c.sb.emitPush(vm.OpMul)
 	case token.QUO:
-		c.cb.emitPush(vm.OpDiv)
+		c.sb.emitPush(vm.OpDiv)
 	case token.LSS:
-		c.cb.emitPush(vm.OpLT)
+		c.sb.emitPush(vm.OpLT)
 	case token.LEQ:
-		c.cb.emitPush(vm.OpLTE)
+		c.sb.emitPush(vm.OpLTE)
 	case token.GTR:
-		c.cb.emitPush(vm.OpGT)
+		c.sb.emitPush(vm.OpGT)
 	case token.GEQ:
-		c.cb.emitPush(vm.OpGTE)
+		c.sb.emitPush(vm.OpGTE)
 	case token.LAND:
-		c.cb.emitPush(vm.OpBoolAnd)
+		c.sb.emitPush(vm.OpBoolAnd)
 	case token.LOR:
-		c.cb.emitPush(vm.OpBoolOr)
+		c.sb.emitPush(vm.OpBoolOr)
 	}
 }
 
@@ -370,10 +363,15 @@ func (c *Compiler) getTypeInfo(expr ast.Expr) types.TypeAndValue {
 
 // currentPos return the current position (address) of the latest opcode.
 func (c *Compiler) currentPos() int16 {
-	return int16(c.cb.buf.Len())
+	return int16(c.sb.buf.Len())
+}
+
+// Buffer returns the buffer of the builder as a io.Reader.
+func (c *Compiler) Buffer() *bytes.Buffer {
+	return c.sb.buf
 }
 
 // DumpOpcode dumps the current buffer, formatted with index, hex and opcode.
 func (c *Compiler) DumpOpcode() {
-	c.cb.dumpOpcode()
+	c.sb.dumpOpcode()
 }

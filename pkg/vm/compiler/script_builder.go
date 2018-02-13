@@ -114,7 +114,7 @@ func (sb *ScriptBuilder) emitJump(op vm.OpCode, offset int16) error {
 	}
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, uint16(offset))
-	return sb.emit(op, buf) // convert to bits?
+	return sb.emit(op, buf)
 }
 
 func (sb *ScriptBuilder) updateJmpLabel(label int16, offset int) error {
