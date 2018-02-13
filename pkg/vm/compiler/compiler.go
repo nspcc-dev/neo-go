@@ -167,7 +167,7 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 		for i := 0; i < len(t.Lhs); i++ {
 			lhs := t.Lhs[i].(*ast.Ident)
 
-			switch t.Rhs[i].(type) {
+			switch rhs := t.Rhs[i].(type) {
 			case *ast.BasicLit:
 				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
 				fctx.registerContext(vctx, true)
@@ -175,13 +175,18 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 				continue
 
 			case *ast.Ident:
-				vctx := fctx.getContext(lhs.Name)
-				c.loadLocal(vctx)
+				knownCtx := fctx.getContext(rhs.Name)
+				c.loadLocal(knownCtx)
+				newCtx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
+				fctx.registerContext(newCtx, true)
+				c.storeLocal(newCtx)
 				continue
 			}
 
-			fctx.registerContext(newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i])), true)
+			vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
+			fctx.registerContext(vctx, true)
 			c.convertExpr(fctx, t.Rhs[i])
+			c.storeLocal(vctx)
 		}
 
 	//Due to the design of the orginal VM, multiple return are not supported.
