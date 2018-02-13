@@ -89,6 +89,9 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 	case types.String:
 		val := constant.StringVal(ctx.tinfo.Value)
 		c.sb.emitPushString(val)
+	case types.Bool, types.UntypedBool:
+		val := constant.BoolVal(ctx.tinfo.Value)
+		c.sb.emitPushBool(val)
 	}
 
 	if storeLocal {
@@ -101,7 +104,7 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 func (c *Compiler) loadLocal(ctx *VarContext) {
 	pos := int64(ctx.pos)
 	if pos < 0 {
-		log.Fatalf("invalid position to load local %d", pos)
+		log.Fatalf("want to load local %v but got invalid position => %d", ctx, pos)
 	}
 
 	c.sb.emitPush(vm.OpFromAltStack)
@@ -122,7 +125,7 @@ func (c *Compiler) storeLocal(vctx *VarContext) {
 
 	pos := int64(vctx.pos)
 	if pos < 0 {
-		log.Fatalf("invalid position to store local: %d", pos)
+		log.Fatalf("want to store local %v but got invalid positionl => %d", vctx, pos)
 	}
 
 	c.sb.emitPushInt(pos)
@@ -228,6 +231,16 @@ func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
 	c.sb.emitPush(vm.OpNewArray)
 	c.sb.emitPush(vm.OpToAltStack)
 
+	// Load the arguments into scope.
+	for _, arg := range decl.Type.Params.List {
+		name := arg.Names[0].Name
+		typeInfo := c.getTypeInfo(arg.Type)
+		vctx := newVarContext(name, typeInfo)
+		ctx.registerContext(vctx, true)
+		ctx.args[name] = true
+		c.storeLocal(vctx)
+	}
+
 	for _, stmt := range decl.Body.List {
 		c.convertStmt(ctx, stmt)
 	}
@@ -249,6 +262,13 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 				continue
 
 			case *ast.Ident:
+				if isIdentBool(rhs) {
+					vctx := newVarContext(lhs.Name, makeBoolFromIdent(rhs, c.typeInfo))
+					fctx.registerContext(vctx, true)
+					c.loadConst(vctx, true)
+					continue
+				}
+
 				knownCtx := fctx.getContext(rhs.Name)
 				c.loadLocal(knownCtx)
 				newCtx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
@@ -305,15 +325,31 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 		c.loadConst(vctx, false)
 
 	case *ast.Ident:
+		if isIdentBool(t) {
+			vctx := newVarContext(t.Name, makeBoolFromIdent(t, c.typeInfo))
+			c.loadConst(vctx, false)
+			return
+		}
+
+		if fctx.isArgument(t.Name) {
+			vctx := fctx.getContext(t.Name)
+			c.loadLocal(vctx)
+			return
+		}
 		vctx := fctx.getContext(t.Name)
 		c.loadLocal(vctx)
 
 	case *ast.CallExpr:
 		fun := t.Fun.(*ast.Ident)
-		_, ok := c.funcs[fun.Name]
-		if !ok {
+		if _, ok := c.funcs[fun.Name]; !ok {
 			log.Fatalf("could not resolve func %s", fun.Name)
 		}
+		// handle the passed arguments.
+		for _, arg := range t.Args {
+			vctx := newVarContext("", c.getTypeInfo(arg))
+			c.loadConst(vctx, false)
+		}
+
 		c.funcCalls = append(c.funcCalls, CallContext{int(c.currentPos()), fun.Name})
 		c.sb.emitPushCall(0) // placeholder, update later.
 
@@ -374,4 +410,24 @@ func (c *Compiler) Buffer() *bytes.Buffer {
 // DumpOpcode dumps the current buffer, formatted with index, hex and opcode.
 func (c *Compiler) DumpOpcode() {
 	c.sb.dumpOpcode()
+}
+
+func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
+	var b bool
+	if ident.Name == "true" {
+		b = true
+	} else if ident.Name == "false" {
+		b = false
+	} else {
+		log.Fatalf("givent identifier cannot be converted to a boolean => %s", ident.Name)
+	}
+
+	return types.TypeAndValue{
+		Type:  tinfo.ObjectOf(ident).Type(),
+		Value: constant.MakeBool(b),
+	}
+}
+
+func isIdentBool(ident *ast.Ident) bool {
+	return ident.Name == "true" || ident.Name == "false"
 }

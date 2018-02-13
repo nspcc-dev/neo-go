@@ -10,8 +10,9 @@ type FuncContext struct {
 	name string
 	// The scope of the function.
 	scope map[string]*VarContext
-	// Address (label) where the compiler can find this function
-	// when someone calls it.
+	// Arguments of the function.
+	args map[string]bool
+	// Address (label) where the compiler can find this function when someone calls it.
 	label int16
 	// Counter for local variables.
 	i int
@@ -22,6 +23,7 @@ func newFuncContext(name string, label int16) *FuncContext {
 		label: int16(label),
 		name:  name,
 		scope: map[string]*VarContext{},
+		args:  map[string]bool{},
 	}
 }
 
@@ -43,5 +45,10 @@ func (f *FuncContext) getContext(name string) *VarContext {
 
 func (f *FuncContext) isRegistered(ctx *VarContext) bool {
 	_, ok := f.scope[ctx.name]
+	return ok
+}
+
+func (f *FuncContext) isArgument(name string) bool {
+	_, ok := f.args[name]
 	return ok
 }
