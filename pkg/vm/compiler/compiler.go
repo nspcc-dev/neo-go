@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/importer"
@@ -66,6 +65,8 @@ func (c *Compiler) CompileSource(src string) error {
 	return c.Compile(file)
 }
 
+// LoadConst load a constant, if storeLocal is true it will store it on the position
+// of the VarContext.
 func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 	switch ctx.tinfo.Type.(*types.Basic).Kind() {
 	case types.Int:
@@ -81,6 +82,8 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 	}
 }
 
+// Load a local variable. The position of the VarContext is used to retrieve from
+// that position.
 func (c *Compiler) loadLocal(ctx *VarContext) {
 	pos := int64(ctx.pos)
 	if pos < 0 {
@@ -96,6 +99,8 @@ func (c *Compiler) loadLocal(ctx *VarContext) {
 	c.sb.emitPush(vm.OpPickItem)
 }
 
+// Store a local variable on the stack. The position of the VarContext is used
+// to store at that position.
 func (c *Compiler) storeLocal(vctx *VarContext) {
 	c.sb.emitPush(vm.OpFromAltStack)
 	c.sb.emitPush(vm.OpDup)
@@ -149,7 +154,7 @@ func (c *Compiler) Compile(r io.Reader) error {
 }
 
 func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
-	ctx := newFuncContext(decl.Name.Name)
+	ctx := newFuncContext(decl.Name.Name, c.i)
 	c.funcs[ctx.name] = ctx
 
 	c.sb.emitPush(vm.OpPush2)
@@ -159,6 +164,8 @@ func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
 	for _, stmt := range decl.Body.List {
 		c.convertStmt(ctx, stmt)
 	}
+
+	c.i++
 }
 
 func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
@@ -205,6 +212,22 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 		c.sb.emitPush(vm.OpFromAltStack)
 		c.sb.emitPush(vm.OpDrop)
 		c.sb.emitPush(vm.OpRET)
+
+	case *ast.IfStmt:
+		c.convertExpr(fctx, t.Cond)
+
+		// use a placeholder for the label.
+		c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
+		// track our offset to update later subtract sizeOf int16.
+		jumpOffset := int(c.currentPos()) - 2
+
+		// Process the block.
+		for _, stmt := range t.Body.List {
+			c.convertStmt(fctx, stmt)
+		}
+
+		jumpTo := c.currentPos() + 1 - int16(jumpOffset)
+		c.sb.updateJmpLabel(jumpTo, jumpOffset)
 	}
 }
 
@@ -241,158 +264,24 @@ func (c *Compiler) convertToken(tok token.Token) {
 		c.sb.emitPush(vm.OpMul)
 	case token.QUO:
 		c.sb.emitPush(vm.OpDiv)
+	case token.LSS:
+		c.sb.emitPush(vm.OpLT)
+	case token.LEQ:
+		c.sb.emitPush(vm.OpLTE)
+	case token.GTR:
+		c.sb.emitPush(vm.OpGT)
+	case token.GEQ:
+		c.sb.emitPush(vm.OpGTE)
 	}
 }
 
-// func (c *Compiler) convertStmt(fun *FuncContext, stmt ast.Stmt) {
-// 	switch t := stmt.(type) {
-// 	case *ast.AssignStmt:
-// 		for i := 0; i < len(t.Lhs); i++ {
-// 			lhs := t.Lhs[i].(*ast.Ident)
-// 			c.convertExpr(fun, t.Rhs[i], lhs)
-// 		}
-// 	case *ast.IfStmt:
-// 		switch t.Cond.(type) {
-// 		case *ast.BinaryExpr:
-// 			fmt.Println("binexpr")
-// 			// 	lhs := funcCtx.varContextFromExpr(t.X, c.typeInfo)
-// 			// 	rhs := funcCtx.varContextFromExpr(t.Y, c.typeInfo)
-
-// 			// 	// lhs
-// 			// 	if funcCtx.isRegistered(lhs) {
-// 			// 		c.loadLocal(lhs)
-// 			// 	} else {
-// 			// 		c.sb.emitPushInt(lhs.value.(int64))
-// 			// 	}
-
-// 			// 	// rhs
-// 			// 	if funcCtx.isRegistered(rhs) {
-// 			// 		c.loadLocal(rhs)
-// 			// 	} else {
-// 			// 		c.sb.emitPushInt(rhs.value.(int64))
-// 			// 	}
-
-// 			// 	switch t.Op {
-// 			// 	case token.LSS:
-// 			// 		c.sb.emitPush(vm.OpLT)
-// 			// 	case token.LEQ:
-// 			// 		c.sb.emitPush(vm.OpLTE)
-// 			// 	case token.GTR:
-// 			// 		c.sb.emitPush(vm.OpGT)
-// 			// 	case token.GEQ:
-// 			// 		c.sb.emitPush(vm.OpGTE)
-// 			// 	}
-// 			// }
-
-// 			// // We need to know where to jump if this stmt is false.
-// 			// // We write the jump with a label placeholder and update it
-// 			// // after we converted the block of the statement.
-// 			// c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
-// 			// jumpOffset := int(c.currentPos()) - 2
-
-// 			// // convert the if block
-// 			// for _, stmt := range t.Body.List {
-// 			// 	c.convertStmt(funcCtx, stmt)
-// 			// }
-
-// 			// // now update the jump label
-// 			// jumpTo := c.currentPos() + 1 - int16(jumpOffset)
-// 			// c.sb.updateJmpLabel(jumpTo, jumpOffset)
-// 		}
-// 	case *ast.ReturnStmt:
-// 		// Due to the design of the orginal VM, multiple return are not supported.
-// 		if len(t.Results) > 1 {
-// 			log.Fatal("multiple returns not supported.")
-// 		}
-
-// 		c.sb.emitPush(vm.OpJMP)
-// 		c.sb.emitPush(vm.OpCode(0x03))
-// 		c.sb.emitPush(vm.OpPush0)
-
-// 		c.convertExpr(fun, t.Results[0], nil)
-
-// 		c.sb.emitPush(vm.OpNOP)
-// 		c.sb.emitPush(vm.OpFromAltStack)
-// 		c.sb.emitPush(vm.OpDrop)
-// 		c.sb.emitPush(vm.OpRET)
-// 	}
-// }
-
-// func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr, lhs *ast.Ident) {
-// 	switch t := expr.(type) {
-// 	case *ast.BasicLit:
-// 		vctx := newVarContext(c.getTypeInfo(expr))
-// 		if lhs != nil {
-// 			vctx.name = lhs.Name
-// 			fctx.registerContext(vctx, true)
-// 			c.convertVar(vctx, true)
-// 			return
-// 		}
-// 		c.convertVar(vctx, false)
-// 	case *ast.Ident:
-// 		knownCtx := fctx.getContext(t.Name)
-// 		c.loadLocal(knownCtx)
-// 		if lhs != nil {
-// 			vctx := newVarContext(c.getTypeInfo(t))
-// 			vctx.name = lhs.Name
-// 			fctx.registerContext(vctx, true)
-// 			c.storeLocal(vctx)
-// 		}
-// 	case *ast.BinaryExpr:
-// 		ast.Inspect(t, func(n ast.Node) bool {
-// 			if n == nil {
-// 				return false
-// 			}
-// 			fmt.Println(reflect.TypeOf(n))
-// 			return true
-// 		})
-// 		// if tinfo := c.getTypeInfo(t); tinfo.Value != nil {
-// 		// 	vctx := newVarContext(tinfo)
-// 		// 	if lhs != nil {
-// 		// 		vctx.name = lhs.Name
-// 		// 		fctx.registerContext(vctx, true)
-// 		// 		c.convertVar(vctx, true)
-// 		// 		return
-// 		// 	}
-// 		// 	c.convertVar(vctx, false)
-// 		// 	return
-// 		// }
-
-// 		// vctx := newVarContext(c.getTypeInfo(t.X))
-// 		// if lhs != nil {
-// 		// 	vctx.name = lhs.Name
-// 		// 	fctx.registerContext(vctx, true)
-// 		// }
-
-// 		// // Lets do this all in one pass lads.
-// 		// var pushOP = false
-// 		// switch t.X.(type) {
-// 		// case *ast.BasicLit, *ast.Ident, *ast.BinaryExpr:
-// 		// 	switch t.Y.(type) {
-// 		// 	case *ast.BasicLit, *ast.Ident, *ast.BinaryExpr:
-// 		// 		pushOP = true
-// 		// 	}
-// 		// }
-
-// 		// c.convertExpr(fctx, t.X, nil)
-// 		// c.convertExpr(fctx, t.Y, nil)
-
-// 		// if pushOP {
-// 		// 	c.convertToken(t.Op)
-// 		// 	c.storeLocal(vctx)
-// 		// }
-// 	}
-// }
-
-func (c *Compiler) convertBinExpr(expr *ast.BinaryExpr) {
-	fmt.Println(c.getTypeInfo(expr.X))
-	fmt.Println(c.getTypeInfo(expr.Y))
-}
-
+// getTypeInfo return TypeAndValue for the given expression. If it could not resolve
+// the type value and type will be NIL.
 func (c *Compiler) getTypeInfo(expr ast.Expr) types.TypeAndValue {
 	return c.typeInfo.Types[expr]
 }
 
+// currentPos return the current position (address) of the latest opcode.
 func (c *Compiler) currentPos() int16 {
 	return int16(c.sb.buf.Len())
 }

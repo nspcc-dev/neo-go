@@ -17,8 +17,9 @@ type FuncContext struct {
 	i int
 }
 
-func newFuncContext(name string) *FuncContext {
+func newFuncContext(name string, label int) *FuncContext {
 	return &FuncContext{
+		label: int16(label),
 		name:  name,
 		scope: map[string]*VarContext{},
 	}
