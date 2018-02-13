@@ -15,8 +15,6 @@ type FuncContext struct {
 	label int16
 	// Counter for local variables.
 	i int
-
-	currentCtx *VarContext
 }
 
 func newFuncContext(name string) *FuncContext {
@@ -26,12 +24,11 @@ func newFuncContext(name string) *FuncContext {
 	}
 }
 
-func (f *FuncContext) registerContext(name string) {
-	if f.currentCtx == nil {
-		log.Fatalf("The is no current context to register with name %s", name)
+func (f *FuncContext) registerContext(ctx *VarContext, setPos bool) {
+	if setPos {
+		ctx.pos = f.i
 	}
-	f.currentCtx.pos = f.i
-	f.scope[f.currentCtx.name] = f.currentCtx
+	f.scope[ctx.name] = ctx
 	f.i++
 }
 

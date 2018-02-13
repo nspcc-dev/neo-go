@@ -166,37 +166,76 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 	case *ast.AssignStmt:
 		for i := 0; i < len(t.Lhs); i++ {
 			lhs := t.Lhs[i].(*ast.Ident)
-			c.convertExpr(fctx, t.Rhs[i], lhs.Name)
-			fctx.registerContext(lhs.Name)
-			c.storeLocal(fctx.currentCtx)
+
+			switch t.Rhs[i].(type) {
+			case *ast.BasicLit:
+				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
+				fctx.registerContext(vctx, true)
+				c.loadConst(vctx, true)
+				continue
+
+			case *ast.Ident:
+				vctx := fctx.getContext(lhs.Name)
+				c.loadLocal(vctx)
+				continue
+			}
+
+			fctx.registerContext(newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i])), true)
+			c.convertExpr(fctx, t.Rhs[i])
 		}
 
+	//Due to the design of the orginal VM, multiple return are not supported.
 	case *ast.ReturnStmt:
+		if len(t.Results) > 1 {
+			log.Fatal("multiple returns not supported.")
+		}
 
+		c.sb.emitPush(vm.OpJMP)
+		c.sb.emitPush(vm.OpCode(0x03))
+		c.sb.emitPush(vm.OpPush0)
+
+		c.convertExpr(fctx, t.Results[0])
+
+		c.sb.emitPush(vm.OpNOP)
+		c.sb.emitPush(vm.OpFromAltStack)
+		c.sb.emitPush(vm.OpDrop)
+		c.sb.emitPush(vm.OpRET)
 	}
 }
 
-func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr, ident string) {
+func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 	switch t := expr.(type) {
 	case *ast.BasicLit:
-		fctx.currentCtx = newVarContext("", c.getTypeInfo(expr))
-		c.loadConst(fctx.currentCtx, false)
+		vctx := newVarContext("", c.getTypeInfo(t))
+		c.loadConst(vctx, false)
 
 	case *ast.Ident:
-		fctx.getContext(ident)
-		fmt.Println("load local")
+		vctx := fctx.getContext(t.Name)
+		c.loadLocal(vctx)
 
 	case *ast.BinaryExpr:
 		if tinfo := c.getTypeInfo(t); tinfo.Value != nil {
-			fmt.Printf("load const bin %v\n", tinfo)
-			//fmt.Println(t.Y)
+			vctx := newVarContext("", tinfo)
+			c.loadConst(vctx, false)
 			return
 		}
 
-		//fmt.Printf("converting %v\n", reflect.TypeOf(t))
 		c.convertExpr(fctx, t.X)
 		c.convertExpr(fctx, t.Y)
-		fmt.Printf("op %v\n", t.Op)
+		c.convertToken(t.Op)
+	}
+}
+
+func (c *Compiler) convertToken(tok token.Token) {
+	switch tok {
+	case token.ADD:
+		c.sb.emitPush(vm.OpAdd)
+	case token.SUB:
+		c.sb.emitPush(vm.OpSub)
+	case token.MUL:
+		c.sb.emitPush(vm.OpMul)
+	case token.QUO:
+		c.sb.emitPush(vm.OpDiv)
 	}
 }
 
@@ -339,19 +378,6 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr, ident string) {
 // 		// }
 // 	}
 // }
-
-func (c *Compiler) convertToken(tok token.Token) {
-	switch tok {
-	case token.ADD:
-		c.sb.emitPush(vm.OpAdd)
-	case token.SUB:
-		c.sb.emitPush(vm.OpSub)
-	case token.MUL:
-		c.sb.emitPush(vm.OpMul)
-	case token.QUO:
-		c.sb.emitPush(vm.OpDiv)
-	}
-}
 
 func (c *Compiler) convertBinExpr(expr *ast.BinaryExpr) {
 	fmt.Println(c.getTypeInfo(expr.X))
