@@ -117,7 +117,22 @@ func (sb *ScriptBuilder) emitJump(op vm.OpCode, offset int16) error {
 	if op != vm.OpJMP && op != vm.OpJMPIF && op != vm.OpJMPIFNOT && op != vm.OpCall {
 		return fmt.Errorf("invalid jump opcode: %v", op)
 	}
-	return sb.emit(op, []byte{}) // convert to bits?
+	buf := make([]byte, 2)
+	binary.LittleEndian.PutUint16(buf, uint16(offset))
+	return sb.emit(op, buf) // convert to bits?
+}
+
+func (sb *ScriptBuilder) updateJmpLabel(label int16, offset int) error {
+	sizeOfInt16 := 2
+	if sizeOfInt16+offset >= sb.buf.Len() {
+		return fmt.Errorf("cannot update label at offset %d", offset)
+	}
+
+	b := make([]byte, sizeOfInt16)
+	binary.LittleEndian.PutUint16(b, uint16(label))
+	buf := sb.buf.Bytes()
+	copy(buf[offset:offset+sizeOfInt16], b)
+	return nil
 }
 
 func (sb *ScriptBuilder) dumpOpcode() {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestEmitPush(t *testing.T) {
-	sb := &ScriptBuilder{new(bytes.Buffer)}
+	sb := &ScriptBuilder{buf: new(bytes.Buffer)}
 
 	if err := sb.emitPush(vm.OpPush1); err != nil {
 		t.Fatal(err)
@@ -21,7 +21,7 @@ func TestEmitPush(t *testing.T) {
 }
 
 func TestEmitPushInt(t *testing.T) {
-	sb := &ScriptBuilder{new(bytes.Buffer)}
+	sb := &ScriptBuilder{buf: new(bytes.Buffer)}
 
 	val := -1
 	if err := sb.emitPushInt(int64(val)); err != nil {
@@ -60,7 +60,7 @@ func TestEmitPushInt(t *testing.T) {
 }
 
 func TestEmitPushString(t *testing.T) {
-	sb := &ScriptBuilder{new(bytes.Buffer)}
+	sb := &ScriptBuilder{buf: new(bytes.Buffer)}
 	str := "anthdm"
 	if err := sb.emitPushString(str); err != nil {
 		t.Fatal(err)

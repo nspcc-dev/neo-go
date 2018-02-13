@@ -1,57 +1,49 @@
 package compiler
 
 import (
-	"go/ast"
-	"go/types"
 	"log"
 )
 
-// A FuncContext represents details about a function in the program, along withs its variables.
+// A FuncContext represents details about a function in the program along withs its variables.
 type FuncContext struct {
+	// Identifier.
 	name string
-	vars map[string]*VarContext
-	i    int
+	// The scope of the function.
+	scope map[string]*VarContext
+	// Address (label) where the compiler can find this function
+	// when someone calls it.
+	label int16
+	// Counter for local variables.
+	i int
+
+	currentCtx *VarContext
 }
 
 func newFuncContext(name string) *FuncContext {
 	return &FuncContext{
-		name: name,
-		vars: map[string]*VarContext{},
+		name:  name,
+		scope: map[string]*VarContext{},
 	}
 }
 
-func (f *FuncContext) putContext(ctx *VarContext, setPos bool) {
-	if setPos {
-		ctx.pos = f.i
+func (f *FuncContext) registerContext(name string) {
+	if f.currentCtx == nil {
+		log.Fatalf("The is no current context to register with name %s", name)
 	}
-	f.vars[ctx.name] = ctx
+	f.currentCtx.pos = f.i
+	f.scope[f.currentCtx.name] = f.currentCtx
 	f.i++
 }
 
 func (f *FuncContext) getContext(name string) *VarContext {
-	ctx, ok := f.vars[name]
+	ctx, ok := f.scope[name]
 	if !ok {
 		log.Fatalf("could not resolve variable %s", name)
 	}
 	return ctx
 }
 
-func (f *FuncContext) varContextFromExpr(expr ast.Expr, tinfo *types.Info) *VarContext {
-	var ctx *VarContext
-
-	switch t := expr.(type) {
-	case *ast.Ident:
-		ctx = f.getContext(t.Name)
-	case *ast.BasicLit:
-		ctx = newVarContext(tinfo.Types[t])
-	case *ast.BinaryExpr:
-		ctx = resolveBinaryExpr(f, t, tinfo)
-	}
-
-	return ctx
-}
-
 func (f *FuncContext) isRegistered(ctx *VarContext) bool {
-	_, ok := f.vars[ctx.name]
+	_, ok := f.scope[ctx.name]
 	return ok
 }
