@@ -82,16 +82,21 @@ func (c *Compiler) CompileSource(src string) error {
 // LoadConst load a constant, if storeLocal is true it will store it on the position
 // of the VarContext.
 func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
-	switch ctx.tinfo.Type.(*types.Basic).Kind() {
-	case types.Int:
-		val, _ := constant.Int64Val(ctx.tinfo.Value)
-		c.sb.emitPushInt(val)
-	case types.String:
-		val := constant.StringVal(ctx.tinfo.Value)
-		c.sb.emitPushString(val)
-	case types.Bool, types.UntypedBool:
-		val := constant.BoolVal(ctx.tinfo.Value)
-		c.sb.emitPushBool(val)
+	switch t := ctx.tinfo.Type.(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.Int:
+			val, _ := constant.Int64Val(ctx.tinfo.Value)
+			c.sb.emitPushInt(val)
+		case types.String:
+			val := constant.StringVal(ctx.tinfo.Value)
+			c.sb.emitPushString(val)
+		case types.Bool, types.UntypedBool:
+			val := constant.BoolVal(ctx.tinfo.Value)
+			c.sb.emitPushBool(val)
+		}
+	default:
+		log.Fatalf("compiler don't know how to handle this => %v", ctx)
 	}
 
 	if storeLocal {
@@ -104,7 +109,7 @@ func (c *Compiler) loadConst(ctx *VarContext, storeLocal bool) {
 func (c *Compiler) loadLocal(ctx *VarContext) {
 	pos := int64(ctx.pos)
 	if pos < 0 {
-		log.Fatalf("want to load local %v but got invalid position => %d", ctx, pos)
+		log.Fatalf("want to load local %v but got invalid position => %d <=", ctx, pos)
 	}
 
 	c.sb.emitPush(vm.OpFromAltStack)
@@ -227,7 +232,11 @@ func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
 	ctx := newFuncContext(decl.Name.Name, c.currentPos())
 	c.funcs[ctx.name] = ctx
 
-	c.sb.emitPush(vm.OpPush2)
+	// We need to write the the total stack size of the function first.
+	// That size is the number of arguments + all body variables that will be
+	// pushed on the stack. We know that size after we converted the function,
+	// hence we update that length after processing.
+	c.sb.emitPush(vm.OpPush0)
 	c.sb.emitPush(vm.OpNewArray)
 	c.sb.emitPush(vm.OpToAltStack)
 
@@ -245,6 +254,8 @@ func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
 		c.convertStmt(ctx, stmt)
 	}
 
+	c.sb.updateStackSize(int(ctx.label), int64(4))
+
 	c.i++
 }
 
@@ -259,7 +270,19 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
 				fctx.registerContext(vctx, true)
 				c.loadConst(vctx, true)
-				continue
+
+			case *ast.CompositeLit:
+				// Write constants in reverse order on the stack.
+				n := len(rhs.Elts)
+				for i := n - 1; i >= 0; i-- {
+					vctx := newVarContext("", c.getTypeInfo(rhs.Elts[i]))
+					c.loadConst(vctx, false)
+				}
+				c.sb.emitPushInt(int64(n))
+				c.sb.emitPush(vm.OpPack)
+				ctx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
+				fctx.registerContext(ctx, true)
+				c.storeLocal(ctx)
 
 			case *ast.Ident:
 				if isIdentBool(rhs) {
@@ -274,13 +297,13 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 				newCtx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
 				fctx.registerContext(newCtx, true)
 				c.storeLocal(newCtx)
-				continue
-			}
 
-			vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
-			fctx.registerContext(vctx, true)
-			c.convertExpr(fctx, t.Rhs[i])
-			c.storeLocal(vctx)
+			default:
+				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
+				fctx.registerContext(vctx, true)
+				c.convertExpr(fctx, t.Rhs[i])
+				c.storeLocal(vctx)
+			}
 		}
 
 	//Due to the design of the orginal VM, multiple return are not supported.
