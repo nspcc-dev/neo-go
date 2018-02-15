@@ -138,12 +138,6 @@ func (sb *ScriptBuilder) updatePushCall(offset int, label int16) {
 	copy(buf[offset:offset+2], b.Bytes())
 }
 
-func (sb *ScriptBuilder) updateStackSize(offset int, i int64) {
-	buf := sb.buf.Bytes()
-	val := vm.OpCode((int(vm.OpPush1) - 1 + int(i)))
-	buf[offset] = byte(val)
-}
-
 func (sb *ScriptBuilder) dumpOpcode() {
 	buf := sb.buf.Bytes()
 	for i := 0; i < len(buf); i++ {

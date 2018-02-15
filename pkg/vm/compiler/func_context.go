@@ -1,12 +1,22 @@
 package compiler
 
 import (
+	"go/ast"
 	"go/types"
 	"log"
+
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
+
+type jumpLabel struct {
+	offset int
+	op     vm.OpCode
+}
 
 // A FuncContext represents details about a function in the program along withs its variables.
 type FuncContext struct {
+	// The declaration tree of this function.
+	decl *ast.FuncDecl
 	// Identifier (name of the function in the program).
 	name string
 	// The scope of the function.
@@ -15,43 +25,54 @@ type FuncContext struct {
 	args map[string]bool
 	// Address (label) where the compiler can find this function when someone calls it.
 	label int16
-
-	// Total size of the stack this function will need.
-	// arguments + stored locals + all consts
-	stackSize int
 	// Counter for stored local variables.
 	i int
+
+	jumpLabels []jumpLabel
 }
 
-func newFuncContext(name string, label int16) *FuncContext {
+func (f *FuncContext) addJump(op vm.OpCode, offset int) {
+	f.jumpLabels = append(f.jumpLabels, jumpLabel{offset, op})
+}
+
+func newFuncContext(decl *ast.FuncDecl, label int16) *FuncContext {
 	return &FuncContext{
-		label: int16(label),
-		name:  name,
-		scope: map[string]*VarContext{},
-		args:  map[string]bool{},
+		decl:       decl,
+		label:      int16(label),
+		name:       decl.Name.Name,
+		scope:      map[string]*VarContext{},
+		args:       map[string]bool{},
+		jumpLabels: []jumpLabel{},
 	}
 }
 
-func (f *FuncContext) newConst(name string, t types.TypeAndValue, register, setPos bool) *VarContext {
-	f.stackSize++
-
+func (f *FuncContext) newConst(name string, t types.TypeAndValue, needStore bool) *VarContext {
 	ctx := &VarContext{
 		name:  name,
 		tinfo: t,
 	}
-	if register {
-		f.registerContext(ctx, setPos)
+	if needStore {
+		f.storeContext(ctx)
 	}
-
 	return ctx
 }
 
-func (f *FuncContext) registerContext(ctx *VarContext, setPos bool) {
-	if setPos {
-		ctx.pos = f.i
-		f.i++
-	}
+func (f *FuncContext) numStackOps() int64 {
+	ops := 0
+	ast.Inspect(f.decl, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.AssignStmt, *ast.ReturnStmt, *ast.IfStmt:
+			ops++
+		}
+		return true
+	})
+	return int64(ops)
+}
+
+func (f *FuncContext) storeContext(ctx *VarContext) {
+	ctx.pos = f.i
 	f.scope[ctx.name] = ctx
+	f.i++
 }
 
 func (f *FuncContext) getContext(name string) *VarContext {

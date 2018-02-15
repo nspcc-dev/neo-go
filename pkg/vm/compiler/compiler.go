@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"reflect"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
@@ -53,11 +54,14 @@ type Compiler struct {
 	// scriptBuilder is responsible for all opcode writes.
 	sb *ScriptBuilder
 
-	funcs     map[string]*FuncContext
-	funcCalls []CallContext
-	typeInfo  *types.Info
+	// map with all function contexts across the program.
+	funcs map[string]*FuncContext
 
-	i int
+	// list of function calls
+	funcCalls []CallContext
+
+	// struct with info about decls, types, uses, ..
+	typeInfo *types.Info
 }
 
 // New returns a new compiler ready to compile smartcontracts.
@@ -222,41 +226,34 @@ func (c *Compiler) resolveFuncDecls(f *ast.File) {
 		case *ast.GenDecl:
 		case *ast.FuncDecl:
 			if t.Name.Name != mainIdent {
-				c.funcs[t.Name.Name] = newFuncContext(t.Name.Name, 0)
+				c.funcs[t.Name.Name] = newFuncContext(t, 0)
 			}
 		}
 	}
 }
 
 func (c *Compiler) convertFuncDecl(decl *ast.FuncDecl) {
-	ctx := newFuncContext(decl.Name.Name, c.currentPos())
+	ctx := newFuncContext(decl, c.currentPos())
 	c.funcs[ctx.name] = ctx
 
 	// We need to write the the total stack size of the function first.
-	// That size is the number of arguments + all body variables that will be
-	// pushed on the stack. We know that size after we converted the function,
-	// hence we update that length after processing.
-	c.sb.emitPush(vm.OpPush0)
+	// That size is the number of arguments + body operations  that will be
+	// pushed on the stack
+	c.sb.emitPushInt(ctx.numStackOps())
 	c.sb.emitPush(vm.OpNewArray)
 	c.sb.emitPush(vm.OpToAltStack)
 
 	// Load the arguments into scope.
 	for _, arg := range decl.Type.Params.List {
 		name := arg.Names[0].Name
-		typeInfo := c.getTypeInfo(arg.Type)
-		vctx := newVarContext(name, typeInfo)
-		ctx.registerContext(vctx, true)
 		ctx.args[name] = true
+		vctx := ctx.newConst(name, c.getTypeInfo(arg.Type), true)
 		c.storeLocal(vctx)
 	}
 
 	for _, stmt := range decl.Body.List {
 		c.convertStmt(ctx, stmt)
 	}
-
-	c.sb.updateStackSize(int(ctx.label), int64(4))
-
-	c.i++
 }
 
 func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
@@ -267,41 +264,38 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 
 			switch rhs := t.Rhs[i].(type) {
 			case *ast.BasicLit:
-				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
-				fctx.registerContext(vctx, true)
+				vctx := fctx.newConst(lhs.Name, c.getTypeInfo(t.Rhs[i]), true)
 				c.loadConst(vctx, true)
 
 			case *ast.CompositeLit:
 				// Write constants in reverse order on the stack.
 				n := len(rhs.Elts)
 				for i := n - 1; i >= 0; i-- {
-					vctx := newVarContext("", c.getTypeInfo(rhs.Elts[i]))
+					vctx := fctx.newConst("", c.getTypeInfo(rhs.Elts[i]), false)
 					c.loadConst(vctx, false)
 				}
+
 				c.sb.emitPushInt(int64(n))
 				c.sb.emitPush(vm.OpPack)
-				ctx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
-				fctx.registerContext(ctx, true)
-				c.storeLocal(ctx)
+
+				vctx := fctx.newConst(lhs.Name, c.getTypeInfo(rhs), true)
+				c.storeLocal(vctx)
 
 			case *ast.Ident:
 				if isIdentBool(rhs) {
-					vctx := newVarContext(lhs.Name, makeBoolFromIdent(rhs, c.typeInfo))
-					fctx.registerContext(vctx, true)
+					vctx := fctx.newConst(lhs.Name, makeBoolFromIdent(rhs, c.typeInfo), true)
 					c.loadConst(vctx, true)
 					continue
 				}
 
 				knownCtx := fctx.getContext(rhs.Name)
 				c.loadLocal(knownCtx)
-				newCtx := newVarContext(lhs.Name, c.getTypeInfo(rhs))
-				fctx.registerContext(newCtx, true)
+				newCtx := fctx.newConst(lhs.Name, c.getTypeInfo(rhs), true)
 				c.storeLocal(newCtx)
 
 			default:
-				vctx := newVarContext(lhs.Name, c.getTypeInfo(t.Rhs[i]))
-				fctx.registerContext(vctx, true)
 				c.convertExpr(fctx, t.Rhs[i])
+				vctx := fctx.newConst(lhs.Name, c.getTypeInfo(t.Rhs[i]), true)
 				c.storeLocal(vctx)
 			}
 		}
@@ -326,30 +320,54 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 	case *ast.IfStmt:
 		c.convertExpr(fctx, t.Cond)
 
-		// use a placeholder for the label.
-		c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
-		// track our offset to update later subtract sizeOf int16.
-		jumpOffset := int(c.currentPos()) - 2
+		binExpr, ok := t.Cond.(*ast.BinaryExpr)
+		if ok && binExpr.Op != token.LAND && binExpr.Op != token.LOR {
+			// use a placeholder for the label.
+			c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
+			// track our offset to update later subtract sizeOf int16.
+			offset := int(c.currentPos()) - 2
 
+			defer func(offset int) {
+				jumpTo := c.currentPos() + 1 - int16(offset)
+				c.sb.updateJmpLabel(jumpTo, offset)
+			}(offset)
+		}
+
+		labelBeforeBlock := c.currentPos()
 		// Process the block.
 		for _, stmt := range t.Body.List {
 			c.convertStmt(fctx, stmt)
 		}
 
-		jumpTo := c.currentPos() + 1 - int16(jumpOffset)
-		c.sb.updateJmpLabel(jumpTo, jumpOffset)
+		// if there are any labels we need to update.
+		if len(fctx.jumpLabels) > 0 {
+			for _, label := range fctx.jumpLabels {
+				var pos int16
+				if label.op == vm.OpJMPIF {
+					pos = labelBeforeBlock + 1
+				} else {
+					pos = c.currentPos() + 1
+				}
+				jumpTo := pos - int16(label.offset)
+				c.sb.updateJmpLabel(jumpTo, label.offset)
+			}
+			fctx.jumpLabels = []jumpLabel{}
+		}
+
+	default:
+		log.Fatalf("compiler has not implemented this statement => %v", reflect.TypeOf(t))
 	}
 }
 
 func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 	switch t := expr.(type) {
 	case *ast.BasicLit:
-		vctx := newVarContext("", c.getTypeInfo(t))
+		vctx := fctx.newConst("", c.getTypeInfo(t), false)
 		c.loadConst(vctx, false)
 
 	case *ast.Ident:
 		if isIdentBool(t) {
-			vctx := newVarContext(t.Name, makeBoolFromIdent(t, c.typeInfo))
+			vctx := fctx.newConst(t.Name, makeBoolFromIdent(t, c.typeInfo), false)
 			c.loadConst(vctx, false)
 			return
 		}
@@ -364,12 +382,14 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 
 	case *ast.CallExpr:
 		fun := t.Fun.(*ast.Ident)
-		if _, ok := c.funcs[fun.Name]; !ok {
+		fctx, ok := c.funcs[fun.Name]
+		if !ok {
 			log.Fatalf("could not resolve func %s", fun.Name)
 		}
+
 		// handle the passed arguments.
 		for _, arg := range t.Args {
-			vctx := newVarContext("", c.getTypeInfo(arg))
+			vctx := fctx.newConst("", c.getTypeInfo(arg), false)
 			c.loadConst(vctx, false)
 		}
 
@@ -377,8 +397,31 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 		c.sb.emitPushCall(0) // placeholder, update later.
 
 	case *ast.BinaryExpr:
+		if t.Op == token.LAND || t.Op == token.LOR {
+			c.convertExpr(fctx, t.X)
+
+			opJMP := vm.OpJMPIFNOT
+			if t.Op == token.LOR {
+				opJMP = vm.OpJMPIF
+			}
+
+			if e, ok := t.X.(*ast.BinaryExpr); ok && e.Op != token.LAND && e.Op != token.LOR {
+				c.sb.emitJump(opJMP, int16(0))
+				fctx.addJump(opJMP, int(c.currentPos())-2)
+			}
+
+			c.convertExpr(fctx, t.Y)
+			c.sb.emitJump(vm.OpJMPIFNOT, int16(0))
+			fctx.addJump(vm.OpJMPIFNOT, int(c.currentPos())-2)
+			c.convertToken(t.Op)
+			return
+		}
+
+		// The AST package resolves all basic literals for us. If the typeinfo.Value is not nil
+		// we know that the bin expr is resolved and needs no further action.
+		// e.g. x := 2 + 2 + 2 will be resolved to 6.
 		if tinfo := c.getTypeInfo(t); tinfo.Value != nil {
-			vctx := newVarContext("", tinfo)
+			vctx := fctx.newConst("", tinfo, false)
 			c.loadConst(vctx, false)
 			return
 		}
@@ -386,6 +429,9 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 		c.convertExpr(fctx, t.X)
 		c.convertExpr(fctx, t.Y)
 		c.convertToken(t.Op)
+
+	default:
+		log.Fatalf("compiler has not implemented this expr => %v", reflect.TypeOf(t))
 	}
 }
 
@@ -407,10 +453,6 @@ func (c *Compiler) convertToken(tok token.Token) {
 		c.sb.emitPush(vm.OpGT)
 	case token.GEQ:
 		c.sb.emitPush(vm.OpGTE)
-	case token.LAND:
-		c.sb.emitPush(vm.OpBoolAnd)
-	case token.LOR:
-		c.sb.emitPush(vm.OpBoolOr)
 	}
 }
 

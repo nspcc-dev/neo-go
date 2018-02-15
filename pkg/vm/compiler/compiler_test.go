@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"text/tabwriter"
+
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 type testCase struct {
@@ -60,6 +64,30 @@ var testCases = []testCase{
 		"52c56b586c766b00527ac46203006c766b00c3616c7566",
 	},
 	{
+		"simple binary expr in return",
+		`
+		package testcase
+		func Main() int {
+			x := 2
+			return 2 + x
+		}
+		`,
+		"52c56b526c766b00527ac4620300526c766b00c393616c7566",
+	},
+	{
+		"complex binary expr",
+		`
+		package testcase
+		func Main() int {
+			x := 4
+			y := 8
+			z := x + 2 + 2 - 8
+			return y * z
+		}
+		`,
+		"54c56b546c766b00527ac4586c766b51527ac46c766b00c35293529358946c766b52527ac46203006c766b51c36c766b52c395616c7566",
+	},
+	{
 		"if statement LT",
 		`
 		package testcase
@@ -73,6 +101,62 @@ var testCases = []testCase{
 		`,
 		"54c56b5a6c766b00527ac46c766b00c301649f640b0062030051616c756662030000616c7566",
 	},
+	{
+		"if statement GT",
+		`
+		package testcase
+		func Main() int {
+			x := 10
+			if x > 100 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		"54c56b5a6c766b00527ac46c766b00c30164a0640b0062030051616c756662030000616c7566",
+	},
+	{
+		"if statement GTE",
+		`
+		package testcase
+		func Main() int {
+			x := 10
+			if x >= 100 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		"54c56b5a6c766b00527ac46c766b00c30164a2640b0062030051616c756662030000616c7566",
+	},
+	{
+		"complex if statement with LAND",
+		`
+		package testcase
+		func Main() int {
+			x := 10
+			if x >= 10 && x <= 20 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		"54c56b5a6c766b00527ac46c766b00c35aa26416006c766b00c30114a1640b0062030051616c756662030000616c7566",
+	},
+	{
+		"complex if statement with LOR",
+		`
+		package testcase
+		func Main() int {
+			x := 10
+			if x >= 10 || x <= 20 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		"54c56b5a6c766b00527ac46c766b00c35aa2630e006c766b00c30114a1640b0062030051616c756662030000616c7566",
+	},
 }
 
 func TestAllCases(t *testing.T) {
@@ -81,11 +165,16 @@ func TestAllCases(t *testing.T) {
 		if err := c.Compile(strings.NewReader(tc.src)); err != nil {
 			t.Fatal(err)
 		}
+
 		expectedResult, err := hex.DecodeString(tc.result)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if bytes.Compare(c.sb.buf.Bytes(), expectedResult) != 0 {
+			t.Log(hex.EncodeToString(c.Buffer().Bytes()))
+			want, _ := hex.DecodeString(tc.result)
+			dumpOpCodeSideBySide(c.Buffer().Bytes(), want)
 			t.Fatalf("compiling %s failed", tc.name)
 		}
 	}
@@ -97,7 +186,7 @@ func TestSimpleAssign34(t *testing.T) {
 
 		func Main() int {
 			x := 10
-			if x < 100 {
+			if x < 10 || x < 20 {
 				return 1
 			}
 			return 0
@@ -114,11 +203,25 @@ func TestSimpleAssign34(t *testing.T) {
 	}
 
 	for _, fctx := range c.funcs {
-		fmt.Println(fctx.label)
 		for _, v := range fctx.scope {
 			fmt.Println(v)
 		}
 	}
 
 	c.DumpOpcode()
+}
+
+func dumpOpCodeSideBySide(have, want []byte) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	fmt.Fprintln(w, "INDEX\tHAVE OPCODE\tDESC\tWANT OPCODE\tDESC\tDIFF")
+
+	for i := 0; i < len(want); i++ {
+		diff := ""
+		if have[i] != want[i] {
+			diff = "<<"
+		}
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\t0x%2x\t%s\t%s\n",
+			i, have[i], vm.OpCode(have[i]), want[i], vm.OpCode(want[i]), diff)
+	}
+	w.Flush()
 }
