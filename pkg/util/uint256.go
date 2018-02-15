@@ -45,8 +45,12 @@ func Uint256DecodeFromBytes(b []byte) (Uint256, error) {
 
 // ToArrayReverse return a reversed version of the given byte slice.
 func ToArrayReverse(b []byte) []byte {
-	dest := make([]byte, len(b))
+	// Protect from big.Ints that have 1 len bytes.
+	if len(b) < 2 {
+		return b
+	}
 
+	dest := make([]byte, len(b))
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
 		dest[i], dest[j] = b[j], b[i]
 	}
