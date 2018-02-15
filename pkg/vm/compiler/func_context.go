@@ -27,7 +27,7 @@ type FuncContext struct {
 	label int16
 	// Counter for stored local variables.
 	i int
-
+	// This needs refactor along with the (if stmt)
 	jumpLabels []jumpLabel
 }
 
@@ -66,7 +66,9 @@ func (f *FuncContext) numStackOps() int64 {
 		}
 		return true
 	})
-	return int64(ops)
+
+	numArgs := len(f.decl.Type.Params.List)
+	return int64(ops + numArgs)
 }
 
 func (f *FuncContext) storeContext(ctx *VarContext) {

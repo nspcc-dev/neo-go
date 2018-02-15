@@ -2,6 +2,7 @@ package smartcontract
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +23,10 @@ func NewCommand() cli.Command {
 				Usage:  "compile a smart contract to a .avm file",
 				Action: contractCompile,
 				Flags: []cli.Flag{
-					cli.StringFlag{Name: "out, o"},
+					cli.StringFlag{
+						Name:  "out, o",
+						Usage: "Output of the compiled contract",
+					},
 				},
 			},
 			{
@@ -35,6 +39,10 @@ func NewCommand() cli.Command {
 }
 
 func contractCompile(ctx *cli.Context) error {
+	if len(ctx.Args()) == 0 {
+		return errors.New("not enough arguments")
+	}
+
 	src := ctx.Args()[0]
 	c := compiler.New()
 	if err := c.CompileSource(src); err != nil {

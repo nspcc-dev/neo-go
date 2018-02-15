@@ -317,6 +317,7 @@ func (c *Compiler) convertStmt(fctx *FuncContext, stmt ast.Stmt) {
 		c.sb.emitPush(vm.OpDrop)
 		c.sb.emitPush(vm.OpRET)
 
+	// TODO: this needs a rewrite ASAP.
 	case *ast.IfStmt:
 		c.convertExpr(fctx, t.Cond)
 
@@ -371,7 +372,6 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 			c.loadConst(vctx, false)
 			return
 		}
-
 		if fctx.isArgument(t.Name) {
 			vctx := fctx.getContext(t.Name)
 			c.loadLocal(vctx)
@@ -390,8 +390,13 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 		// handle the passed arguments.
 		for _, arg := range t.Args {
 			vctx := fctx.newConst("", c.getTypeInfo(arg), false)
-			c.loadConst(vctx, false)
+			c.loadLocal(vctx)
 		}
+
+		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
+		// and we could easily removed it, but to be consistent with the original compiler I
+		// will put them in. ^^
+		c.sb.emitPush(vm.OpNOP)
 
 		c.funcCalls = append(c.funcCalls, CallContext{int(c.currentPos()), fun.Name})
 		c.sb.emitPushCall(0) // placeholder, update later.

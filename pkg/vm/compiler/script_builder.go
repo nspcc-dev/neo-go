@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
+	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -139,8 +141,12 @@ func (sb *ScriptBuilder) updatePushCall(offset int, label int16) {
 }
 
 func (sb *ScriptBuilder) dumpOpcode() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	buf := sb.buf.Bytes()
+
+	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC")
 	for i := 0; i < len(buf); i++ {
-		fmt.Printf("OPCODE AT INDEX \t %d \t 0x%2x \t %s \n", i, buf[i], vm.OpCode(buf[i]))
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\n", i, buf[i], vm.OpCode(buf[i]))
 	}
+	w.Flush()
 }
