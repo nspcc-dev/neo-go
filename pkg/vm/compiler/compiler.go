@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/importer"
@@ -402,6 +403,24 @@ func (c *Compiler) convertExpr(fctx *FuncContext, expr ast.Expr) {
 		c.sb.emitPushCall(0) // placeholder, update later.
 
 	case *ast.BinaryExpr:
+		switch t.Op {
+		case token.LAND:
+
+			fmt.Println(t.X)
+			c.convertExpr(fctx, t.X)
+			fmt.Println("jUMPIFNOT")
+			fmt.Println(t.Y)
+			c.convertExpr(fctx, t.Y)
+			fmt.Println("jUMPIFNOT")
+		case token.LOR:
+			fmt.Println(t)
+			c.convertExpr(fctx, t.X)
+			fmt.Println("jUMPIF")
+			c.convertExpr(fctx, t.Y)
+			fmt.Println("jUMPIF")
+		}
+
+		return
 		if t.Op == token.LAND || t.Op == token.LOR {
 			c.convertExpr(fctx, t.X)
 

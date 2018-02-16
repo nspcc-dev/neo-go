@@ -1,4 +1,4 @@
-package compiler_test
+package newcompiler_test
 
 var ifStatementTestCases = []testCase{
 	{

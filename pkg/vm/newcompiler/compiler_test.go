@@ -1,4 +1,4 @@
-package compiler_test
+package newcompiler
 
 import (
 	"bytes"
@@ -13,19 +13,23 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 )
 
+var src = `
+package something
+
+func Main() int {
+	x := 10
+	y := x
+	return y + x
+}
+`
+
 type testCase struct {
-	name   string
-	src    string
-	result string
+	name, src, result string
 }
 
-func TestAllCases(t *testing.T) {
-	testCases := []testCase{}
-	testCases = append(testCases, stringTestCases...)
-	testCases = append(testCases, binaryExprTestCases...)
-	testCases = append(testCases, ifStatementTestCases...)
-	testCases = append(testCases, functionCallTestCases...)
+var testCases = []testCase{}
 
+func TestAllCases(t *testing.T) {
 	for _, tc := range testCases {
 		c := compiler.New()
 		if err := c.Compile(strings.NewReader(tc.src)); err != nil {
@@ -62,4 +66,16 @@ func dumpOpCodeSideBySide(have, want []byte) {
 			i, have[i], vm.OpCode(have[i]), want[i], vm.OpCode(want[i]), diff)
 	}
 	w.Flush()
+}
+
+func TestAllTheThings(t *testing.T) {
+	c := newCodegen()
+	c.Compile(strings.NewReader(src))
+	t.Log(c)
+	for _, fun := range c.funcs {
+		t.Log(fun)
+	}
+
+	t.Log(c.funcs)
+	c.DumpOpcode()
 }
