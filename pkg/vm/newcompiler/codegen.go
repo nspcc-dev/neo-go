@@ -13,12 +13,15 @@ import (
 	"log"
 )
 
+const mainIdent = "Main"
+
 type codegen struct {
 	prog *bytes.Buffer
 
 	typeInfo *types.Info // Type information
 
-	funcs map[string]*funcScope
+	funcs map[string]int
+	fList []*funcScope
 
 	fctx *funcScope // current function being generated
 
@@ -91,38 +94,55 @@ func (c *codegen) emitStoreLocal(pos int) {
 
 func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	f := c.newFunc(decl)
+	c.fctx = f
 
 	emitInt(c.prog, f.stackSize())
 	emitOpcode(c.prog, Onewarray)
 	emitOpcode(c.prog, Otoaltstack)
 
-	for _, stmt := range decl.Body.List {
-		c.convertStmt(stmt)
+	// Load the arguments in scope.
+	for _, arg := range decl.Type.Params.List {
+		name := arg.Names[0].Name // for now.
+		l := c.newLocal(name)
+		c.emitStoreLocal(l)
 	}
+
+	ast.Walk(c, decl.Body)
 }
 
-func (c *codegen) convertStmt(stmt ast.Stmt) {
-	switch n := stmt.(type) {
-
-	case *ast.BlockStmt:
-		for _, stmt := range n.List {
-			c.convertStmt(stmt)
-		}
+func (c *codegen) Visit(node ast.Node) ast.Visitor {
+	switch n := node.(type) {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
 			lhs := n.Lhs[i].(*ast.Ident)
 			l := c.newLocal(lhs.Name)
 			switch rhs := n.Rhs[i].(type) {
+
 			case *ast.BasicLit:
 				c.emitLoadConst(c.getTypeInfo(rhs))
+
 			case *ast.Ident:
-				c.emitLoadLocal(rhs.Name)
+				if isIdentBool(rhs) {
+					c.emitLoadConst(makeBoolFromIdent(rhs, c.typeInfo))
+				} else {
+					c.emitLoadLocal(rhs.Name)
+				}
+
+			case *ast.CompositeLit:
+				n := len(rhs.Elts)
+				for i := n - 1; i >= 0; i-- {
+					c.emitLoadConst(c.getTypeInfo(rhs.Elts[i]))
+				}
+				emitInt(c.prog, int64(n))
+				emitOpcode(c.prog, Opack)
+
 			default:
-				c.convertExpr(rhs)
+				ast.Walk(c, rhs)
 			}
 			c.emitStoreLocal(l)
 		}
+		return nil
 
 	case *ast.ReturnStmt:
 		if len(n.Results) > 1 {
@@ -134,34 +154,35 @@ func (c *codegen) convertStmt(stmt ast.Stmt) {
 		emitOpcode(c.prog, Opush0)
 
 		if len(n.Results) > 0 {
-			c.convertExpr(n.Results[0])
+			ast.Walk(c, n.Results[0])
 		}
 
 		emitOpcode(c.prog, Onop)
 		emitOpcode(c.prog, Ofromaltstack)
 		emitOpcode(c.prog, Odrop)
 		emitOpcode(c.prog, Oret)
+		return nil
 
 	case *ast.IfStmt:
 		lEnd := c.newLabel()
 		lElse := c.newLabel()
 		if n.Cond != nil {
-			c.convertExpr(n.Cond)
+			ast.Walk(c, n.Cond)
 			emitJmp(c.prog, Ojmpifnot, int16(lElse))
 		}
 
-		c.convertStmt(n.Body)
+		ast.Walk(c, n.Body)
 
+		if n.Else != nil {
+			emitJmp(c.prog, Ojmp, int16(lEnd))
+		}
 		c.setLabel(lElse)
 		if n.Else != nil {
-			c.convertStmt(n.Else)
+			ast.Walk(c, n.Else)
 		}
 		c.setLabel(lEnd)
-	}
-}
+		return nil
 
-func (c *codegen) convertExpr(expr ast.Expr) {
-	switch n := expr.(type) {
 	case *ast.BasicLit:
 		c.emitLoadConst(c.getTypeInfo(n))
 
@@ -170,16 +191,19 @@ func (c *codegen) convertExpr(expr ast.Expr) {
 
 	case *ast.BinaryExpr:
 		switch n.Op {
-
 		case token.LAND:
-			c.convertExpr(n.X)
+			ast.Walk(c, n.X)
 			emitJmp(c.prog, Ojmpifnot, int16(0))
-			c.convertExpr(n.Y)
+			ast.Walk(c, n.Y)
+			return nil
 
 		case token.LOR:
-			c.convertExpr(n.X)
-			emitJmp(c.prog, Ojmpif, int16(0))
-			c.convertExpr(n.Y)
+			lTrue := c.newLabel()
+			ast.Walk(c, n.X)
+			emitJmp(c.prog, Ojmpif, int16(lTrue))
+			ast.Walk(c, n.Y)
+			c.setLabel(lTrue)
+			return nil
 
 		default:
 			// The AST package will try to resolve all basic literals for us.
@@ -187,11 +211,11 @@ func (c *codegen) convertExpr(expr ast.Expr) {
 			// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
 			if tinfo := c.getTypeInfo(n); tinfo.Value != nil {
 				c.emitLoadConst(tinfo)
-				return
+				return c
 			}
 
-			c.convertExpr(n.X)
-			c.convertExpr(n.Y)
+			ast.Walk(c, n.X)
+			ast.Walk(c, n.Y)
 
 			switch n.Op {
 			case token.ADD:
@@ -211,15 +235,43 @@ func (c *codegen) convertExpr(expr ast.Expr) {
 			case token.GEQ:
 				emitOpcode(c.prog, Ogte)
 			}
+			return nil
 		}
+
+	case *ast.CallExpr:
+		fun := n.Fun.(*ast.Ident)
+		fLoc, ok := c.funcs[fun.Name]
+		if !ok {
+			log.Fatalf("could not resolve function %s", fun.Name)
+		}
+
+		for _, arg := range n.Args {
+			c.emitLoadLocal(arg.(*ast.Ident).Name)
+		}
+
+		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
+		// and we could easily removed it, but to be consistent with the original compiler I
+		// will put them in. ^^
+		emitOpcode(c.prog, Onop)
+		emitCall(c.prog, Ocall, int16(fLoc))
+		return nil
 	}
+	return c
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
-	fctx := newFuncScope(decl, c.pc())
-	c.funcs[fctx.name] = fctx
-	c.fctx = fctx
-	return fctx
+	f := newFuncScope(decl, c.pc())
+
+	// function already resolved just swap pointers.
+	// the new funcScope has the correct label.
+	if i, ok := c.funcs[f.name]; ok {
+		c.fList[i] = f
+		return f
+	}
+
+	c.fList = append(c.fList, f)
+	c.funcs[f.name] = len(c.fList) - 1
+	return f
 }
 
 func (c *codegen) newLocal(name string) int {
@@ -255,7 +307,8 @@ func Compile(r io.Reader) (*bytes.Buffer, error) {
 	c := &codegen{
 		prog:  new(bytes.Buffer),
 		l:     []int{},
-		funcs: map[string]*funcScope{},
+		funcs: map[string]int{},
+		fList: []*funcScope{},
 	}
 
 	fset := token.NewFileSet()
@@ -282,10 +335,30 @@ func Compile(r io.Reader) (*bytes.Buffer, error) {
 		return nil, err
 	}
 
+	var main *ast.FuncDecl
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch t := n.(type) {
+		case *ast.FuncDecl:
+			if t.Name.Name == mainIdent {
+				main = t
+				return false
+			}
+		}
+		return true
+	})
+	if main == nil {
+		log.Fatal("could not find func main. did you forgot to declare it?")
+	}
+
+	c.resolveFuncDecls(f)
+	c.convertFuncDecl(main)
+
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
-			c.convertFuncDecl(n)
+			if n.Name.Name != mainIdent {
+				c.convertFuncDecl(n)
+			}
 		}
 	}
 
@@ -294,20 +367,41 @@ func Compile(r io.Reader) (*bytes.Buffer, error) {
 	return c.prog, nil
 }
 
+func (c *codegen) resolveFuncDecls(f *ast.File) {
+	for _, decl := range f.Decls {
+		switch n := decl.(type) {
+		case *ast.FuncDecl:
+			if n.Name.Name != mainIdent {
+				c.newFunc(n)
+			}
+		}
+	}
+}
+
 func (c *codegen) writeJumps() {
 	b := c.prog.Bytes()
 	for i, op := range b {
+		j := i + 1
 		switch Opcode(op) {
-		case Ojmpifnot:
-			prevOp := Opcode(b[i-1])
-			// Make sure this is a real jump by checking the previous opcode.
-			switch prevOp {
-			case Olte, Olt, Ogte, Ogt:
-				offset := i + 1
-				index := binary.LittleEndian.Uint16(b[offset : offset+2])
-				newLabel := uint16(c.l[index] - i)
-				binary.LittleEndian.PutUint16(b[offset:offset+2], newLabel)
+		case Ojmpifnot, Ojmpif:
+			index := binary.LittleEndian.Uint16(b[j : j+2])
+			if int(index) > len(c.l) {
+				continue
 			}
+			offset := uint16(c.l[index] - i)
+			if offset < 0 {
+				log.Fatalf("new offset is negative, table list %v", c.l)
+			}
+			binary.LittleEndian.PutUint16(b[j:j+2], offset)
+
+		case Ocall:
+			index := binary.LittleEndian.Uint16(b[j : j+2])
+			if int(index) > len(c.fList) {
+				continue
+			}
+			fun := c.fList[index]
+			offset := uint16(fun.label - i + 1)
+			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}
 }

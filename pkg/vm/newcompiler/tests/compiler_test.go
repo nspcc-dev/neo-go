@@ -21,10 +21,12 @@ type testCase struct {
 
 func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
+	testCases = append(testCases, functionCallTestCases...)
+	testCases = append(testCases, arrayTestCases...)
+	testCases = append(testCases, boolTestCases...)
 	testCases = append(testCases, stringTestCases...)
 	testCases = append(testCases, binaryExprTestCases...)
 	testCases = append(testCases, ifStatementTestCases...)
-	testCases = append(testCases, functionCallTestCases...)
 
 	for _, tc := range testCases {
 		prog, err := newcompiler.Compile(strings.NewReader(tc.src))
@@ -51,11 +53,11 @@ func TestInternal(t *testing.T) {
 	package something
 	func Main() int {
 		x := 10
-		if x > 3 {
-			return x
+		if x >= 10 || x <= 20 {
+			return 1
 		}
-		return x
-	}
+		return 0
+	}	
 	`
 	prog, err := newcompiler.Compile(strings.NewReader(src))
 	if err != nil {

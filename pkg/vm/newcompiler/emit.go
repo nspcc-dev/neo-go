@@ -79,9 +79,13 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	return err
 }
 
+func emitCall(w *bytes.Buffer, op Opcode, label int16) error {
+	return emitJmp(w, op, label)
+}
+
 func emitJmp(w *bytes.Buffer, op Opcode, label int16) error {
 	if !isOpcodeJmp(op) {
-		return fmt.Errorf("opcode %s is not a jump type", op)
+		return fmt.Errorf("opcode %s is not a jump or call type", op)
 	}
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, uint16(label))
@@ -89,7 +93,7 @@ func emitJmp(w *bytes.Buffer, op Opcode, label int16) error {
 }
 
 func isOpcodeJmp(op Opcode) bool {
-	if op == Ojmp || op == Ojmpifnot || op == Ojmpif {
+	if op == Ojmp || op == Ojmpifnot || op == Ojmpif || op == Ocall {
 		return true
 	}
 	return false

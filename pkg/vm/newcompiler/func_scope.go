@@ -47,7 +47,7 @@ func (c *funcScope) newVar(name string) int {
 func (c *funcScope) loadVar(name string) int {
 	i, ok := c.scope[name]
 	if !ok {
-		log.Fatalf("could not resolve local variable %s", name)
+		log.Fatalf("could not resolve local variable %s in func %s", name, c.name)
 	}
 	return i
 }
