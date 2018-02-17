@@ -21,8 +21,10 @@ type testCase struct {
 
 func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
-	testCases = append(testCases, functionCallTestCases...)
+	testCases = append(testCases, assignTestCases...)
 	testCases = append(testCases, arrayTestCases...)
+	testCases = append(testCases, structTestCases...)
+	testCases = append(testCases, functionCallTestCases...)
 	testCases = append(testCases, boolTestCases...)
 	testCases = append(testCases, stringTestCases...)
 	testCases = append(testCases, binaryExprTestCases...)

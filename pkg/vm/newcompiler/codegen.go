@@ -115,10 +115,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
-			lhs := n.Lhs[i].(*ast.Ident)
-			l := c.newLocal(lhs.Name)
-			switch rhs := n.Rhs[i].(type) {
+			var (
+				l   int
+				lhs = n.Lhs[i].(*ast.Ident)
+			)
 
+			if n.Tok == token.DEFINE {
+				l = c.newLocal(lhs.Name)
+			} else {
+				l = c.loadLocal(lhs.Name)
+			}
+
+			switch rhs := n.Rhs[i].(type) {
 			case *ast.BasicLit:
 				c.emitLoadConst(c.getTypeInfo(rhs))
 
@@ -130,12 +138,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 
 			case *ast.CompositeLit:
-				n := len(rhs.Elts)
-				for i := n - 1; i >= 0; i-- {
-					c.emitLoadConst(c.getTypeInfo(rhs.Elts[i]))
-				}
-				emitInt(c.prog, int64(n))
-				emitOpcode(c.prog, Opack)
+				c.convertCompositeLit(rhs)
 
 			default:
 				ast.Walk(c, rhs)
@@ -255,6 +258,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emitOpcode(c.prog, Onop)
 		emitCall(c.prog, Ocall, int16(fLoc))
 		return nil
+
+	case *ast.SelectorExpr:
+		return nil
 	}
 	return c
 }
@@ -276,6 +282,10 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 
 func (c *codegen) newLocal(name string) int {
 	return c.fctx.newVar(name)
+}
+
+func (c *codegen) loadLocal(name string) int {
+	return c.fctx.loadVar(name)
 }
 
 func (c *codegen) getTypeInfo(expr ast.Expr) types.TypeAndValue {
