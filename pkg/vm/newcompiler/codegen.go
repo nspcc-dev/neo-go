@@ -116,34 +116,34 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
 			var (
-				l   int
-				lhs = n.Lhs[i].(*ast.Ident)
+				l          int
+				storeLocal = true
+				lhs        = n.Lhs[i].(*ast.Ident)
 			)
-
-			if n.Tok == token.DEFINE {
-				l = c.newLocal(lhs.Name)
-			} else {
-				l = c.loadLocal(lhs.Name)
-			}
 
 			switch rhs := n.Rhs[i].(type) {
 			case *ast.BasicLit:
 				c.emitLoadConst(c.getTypeInfo(rhs))
-
 			case *ast.Ident:
 				if isIdentBool(rhs) {
 					c.emitLoadConst(makeBoolFromIdent(rhs, c.typeInfo))
 				} else {
 					c.emitLoadLocal(rhs.Name)
 				}
-
 			case *ast.CompositeLit:
-				c.convertCompositeLit(rhs)
-
+				storeLocal = c.convertCompositeLit(rhs)
 			default:
 				ast.Walk(c, rhs)
 			}
-			c.emitStoreLocal(l)
+
+			if storeLocal {
+				if n.Tok == token.DEFINE {
+					l = c.newLocal(lhs.Name)
+				} else {
+					l = c.loadLocal(lhs.Name)
+				}
+				c.emitStoreLocal(l)
+			}
 		}
 		return nil
 
@@ -260,6 +260,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
+		c.emitLoadLocal(n.Sel.Name)
 		return nil
 	}
 	return c

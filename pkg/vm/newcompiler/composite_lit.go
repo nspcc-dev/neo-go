@@ -5,6 +5,8 @@ import (
 	"go/types"
 )
 
+// convertCompositeLit will return true if the LHS of the assign needs to be stored locally.
+// Some literal composites, like "struct literals", will handle those local variables in a different way.
 func (c *codegen) convertCompositeLit(clit *ast.CompositeLit) bool {
 	switch t := clit.Type.(type) {
 	case *ast.Ident:
@@ -18,9 +20,11 @@ func (c *codegen) convertCompositeLit(clit *ast.CompositeLit) bool {
 
 			for _, field := range clit.Elts {
 				f := field.(*ast.KeyValueExpr)
+				l := c.newLocal(f.Key.(*ast.Ident).Name)
 				c.emitLoadConst(c.getTypeInfo(f.Value))
+				c.emitStoreLocal(l)
 			}
-			return true
+			return false
 		}
 
 	// default converts inline composite literals like:
@@ -35,5 +39,5 @@ func (c *codegen) convertCompositeLit(clit *ast.CompositeLit) bool {
 		emitInt(c.prog, int64(n))
 		emitOpcode(c.prog, Opack)
 	}
-	return false
+	return true
 }
