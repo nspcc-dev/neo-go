@@ -43,6 +43,26 @@ var structTestCases = []testCase{
 		"52c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46203006c766b00c300c3616c7566",
 	},
 	{
+		"struct field assign",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+		}
+
+		func Main() int {
+			t := token {
+				x: 2,
+				y: 4,
+			}
+			t.x = 10
+			return t.x
+		}
+		`,
+		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac45a6c766b00c3007bc46203006c766b00c300c3616c7566",
+	},
+	{
 		"complex struct",
 		`
 		package foo

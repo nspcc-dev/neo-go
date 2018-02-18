@@ -13,6 +13,12 @@ type structScope struct {
 	fields map[string]int
 }
 
+func newStructScope() *structScope {
+	return &structScope{
+		fields: map[string]int{},
+	}
+}
+
 func (s *structScope) newField(name string) int {
 	i := len(s.fields)
 	s.fields[name] = i
@@ -84,7 +90,8 @@ func (c *funcScope) newVar(name string) int {
 func (c *funcScope) loadVar(name string) int {
 	i, ok := c.scope[name]
 	if !ok {
-		log.Fatalf("could not resolve local variable %s in func %s", name, c.name)
+		// should emit a compiler warning.
+		return c.newVar(name)
 	}
 	return i
 }

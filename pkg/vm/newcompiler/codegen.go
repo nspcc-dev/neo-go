@@ -105,6 +105,17 @@ func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, Osetitem)
 }
 
+func (c *codegen) emitStoreStructField(sName, fName string) {
+	strct, ok := c.fctx.structs[sName]
+	if !ok {
+		log.Fatalf("could not resolve struct %s", sName)
+	}
+	pos := strct.loadField(fName)
+	emitInt(c.prog, int64(pos))
+	emitOpcode(c.prog, Orot)
+	emitOpcode(c.prog, Osetitem)
+}
+
 func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	var (
 		f  *funcScope
@@ -138,13 +149,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
-			var (
-				l int
-				//storeLocal = true
-				lhs = n.Lhs[i].(*ast.Ident)
-			)
-
 			switch rhs := n.Rhs[i].(type) {
+
 			case *ast.BasicLit:
 				c.emitLoadConst(c.getTypeInfo(rhs))
 
@@ -156,24 +162,53 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 
 			case *ast.CompositeLit:
-				c.convertCompositeLit(rhs, lhs)
+				switch t := rhs.Type.(type) {
+				case *ast.Ident:
+					typ := c.typeInfo.ObjectOf(t).Type().Underlying()
+					switch typ.(type) {
+					case *types.Struct:
+						c.convertStruct(rhs, n.Lhs[i])
+						return nil
+					}
+
+				default:
+					n := len(rhs.Elts)
+					for i := n - 1; i >= 0; i-- {
+						c.emitLoadConst(c.getTypeInfo(rhs.Elts[i]))
+					}
+					emitInt(c.prog, int64(n))
+					emitOpcode(c.prog, Opack)
+				}
 
 			case *ast.SelectorExpr:
-				// for now assuming this a struct selector and its a *ast.Ident
-				strctName := rhs.X.(*ast.Ident).Name
-				c.emitLoadLocal(strctName)                     // load the struct
-				c.emitLoadStructField(strctName, rhs.Sel.Name) // load the field
+				switch t := rhs.X.(type) {
+				case *ast.Ident:
+					c.emitLoadLocal(t.Name)                     // load the struct
+					c.emitLoadStructField(t.Name, rhs.Sel.Name) // load the field
+				default:
+					log.Fatal("nested selectors not supported yet")
+				}
 
 			default:
+				// nothing matched, proceed walking the right hand side.
 				ast.Walk(c, rhs)
 			}
 
-			if n.Tok == token.DEFINE {
-				l = c.newLocal(lhs.Name)
-			} else {
-				l = c.loadLocal(lhs.Name)
+			// check if we are assigning to a struct or an identifier
+			switch t := n.Lhs[i].(type) {
+			case *ast.Ident:
+				l := c.fctx.loadVar(t.Name)
+				c.emitStoreLocal(l)
+
+			case *ast.SelectorExpr:
+				switch n := t.X.(type) {
+				case *ast.Ident:
+					c.emitLoadLocal(n.Name)                    // load the struct
+					c.emitStoreStructField(n.Name, t.Sel.Name) // store the field
+				default:
+					log.Fatal("nested selector assigns not supported yet")
+				}
 			}
-			c.emitStoreLocal(l)
 		}
 		return nil
 
