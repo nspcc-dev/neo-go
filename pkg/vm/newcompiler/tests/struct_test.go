@@ -27,7 +27,7 @@ var structTestCases = []testCase{
 		`
 		package foo
 		type token struct {
-			x int 
+			x int
 			y int
 		}
 
@@ -67,7 +67,7 @@ var structTestCases = []testCase{
 		`
 		package foo
 		type token struct {
-			x int 
+			x int
 			y int
 		}
 

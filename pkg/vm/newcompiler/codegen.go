@@ -81,10 +81,7 @@ func (c *codegen) emitLoadLocal(name string) {
 }
 
 func (c *codegen) emitLoadStructField(sName, fName string) {
-	strct, ok := c.fctx.structs[sName]
-	if !ok {
-		log.Fatalf("could not resolve struct %s", sName)
-	}
+	strct := c.fctx.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, Opickitem)
@@ -106,10 +103,7 @@ func (c *codegen) emitStoreLocal(pos int) {
 }
 
 func (c *codegen) emitStoreStructField(sName, fName string) {
-	strct, ok := c.fctx.structs[sName]
-	if !ok {
-		log.Fatalf("could not resolve struct %s", sName)
-	}
+	strct := c.fctx.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, Orot)
@@ -149,51 +143,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
-			switch rhs := n.Rhs[i].(type) {
-
-			case *ast.BasicLit:
-				c.emitLoadConst(c.getTypeInfo(rhs))
-
-			case *ast.Ident:
-				if isIdentBool(rhs) {
-					c.emitLoadConst(makeBoolFromIdent(rhs, c.typeInfo))
-				} else {
-					c.emitLoadLocal(rhs.Name)
-				}
-
-			case *ast.CompositeLit:
-				switch t := rhs.Type.(type) {
-				case *ast.Ident:
-					typ := c.typeInfo.ObjectOf(t).Type().Underlying()
-					switch typ.(type) {
-					case *types.Struct:
-						c.convertStruct(rhs, n.Lhs[i])
-						return nil
-					}
-
-				default:
-					n := len(rhs.Elts)
-					for i := n - 1; i >= 0; i-- {
-						c.emitLoadConst(c.getTypeInfo(rhs.Elts[i]))
-					}
-					emitInt(c.prog, int64(n))
-					emitOpcode(c.prog, Opack)
-				}
-
-			case *ast.SelectorExpr:
-				switch t := rhs.X.(type) {
-				case *ast.Ident:
-					c.emitLoadLocal(t.Name)                     // load the struct
-					c.emitLoadStructField(t.Name, rhs.Sel.Name) // load the field
-				default:
-					log.Fatal("nested selectors not supported yet")
-				}
-
-			default:
-				// nothing matched, proceed walking the right hand side.
-				ast.Walk(c, rhs)
-			}
-
+			// resolve the whole right hand side.
+			ast.Walk(c, n.Rhs[i])
 			// check if we are assigning to a struct or an identifier
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
@@ -253,9 +204,34 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.BasicLit:
 		c.emitLoadConst(c.getTypeInfo(n))
+		return nil
 
 	case *ast.Ident:
-		c.emitLoadLocal(n.Name)
+		if isIdentBool(n) {
+			c.emitLoadConst(makeBoolFromIdent(n, c.typeInfo))
+		} else {
+			c.emitLoadLocal(n.Name)
+		}
+		return nil
+
+	case *ast.CompositeLit:
+		switch t := n.Type.(type) {
+		case *ast.Ident:
+			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
+			switch typ.(type) {
+			case *types.Struct:
+				c.convertStruct(n)
+			}
+
+		default:
+			ln := len(n.Elts)
+			for i := ln - 1; i >= 0; i-- {
+				c.emitLoadConst(c.getTypeInfo(n.Elts[i]))
+			}
+			emitInt(c.prog, int64(ln))
+			emitOpcode(c.prog, Opack)
+		}
+		return nil
 
 	case *ast.BinaryExpr:
 		switch n.Op {
@@ -325,13 +301,35 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
-		// for now assuming this a struct selector and its a *ast.Ident
-		strctName := n.X.(*ast.Ident).Name
-		c.emitLoadLocal(strctName)                   // load the struct
-		c.emitLoadStructField(strctName, n.Sel.Name) // load the field
+		switch t := n.X.(type) {
+		case *ast.Ident:
+			c.emitLoadLocal(t.Name)                   // load the struct
+			c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
+		default:
+			log.Fatal("nested selectors not supported yet")
+		}
 		return nil
 	}
 	return c
+}
+
+func (c *codegen) convertStruct(lit *ast.CompositeLit) {
+	emitOpcode(c.prog, Onop)
+	emitInt(c.prog, int64(len(lit.Elts)))
+	emitOpcode(c.prog, Onewstruct)
+	emitOpcode(c.prog, Otoaltstack)
+
+	// Create a new struct scope to store the positions of its variables.
+	strct := c.fctx.newStruct()
+
+	for _, field := range lit.Elts {
+		f := field.(*ast.KeyValueExpr)
+		// Walk to resolve the expression of the value.
+		ast.Walk(c, f.Value)
+		l := strct.newField(f.Key.(*ast.Ident).Name)
+		c.emitStoreLocal(l)
+	}
+	emitOpcode(c.prog, Ofromaltstack)
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {

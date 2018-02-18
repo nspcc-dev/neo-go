@@ -50,36 +50,6 @@ func TestAllCases(t *testing.T) {
 	}
 }
 
-func TestInternal(t *testing.T) {
-	src := `
-	package something
-	func Main() int {
-		x := 10
-		if x >= 10 || x <= 20 {
-			return 1
-		}
-		return 0
-	}	
-	`
-	prog, err := newcompiler.Compile(strings.NewReader(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dumpOp(prog)
-}
-
-func dumpOp(prog *bytes.Buffer) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-
-	buf := prog.Bytes()
-	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC")
-	for i := 0; i < prog.Len(); i++ {
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\n", i, buf[i], vm.OpCode(buf[i]))
-	}
-	w.Flush()
-}
-
 func dumpOpCodeSideBySide(have, want []byte) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tHAVE OPCODE\tDESC\tWANT OPCODE\tDESC\tDIFF")
