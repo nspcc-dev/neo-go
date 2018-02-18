@@ -131,4 +131,27 @@ var structTestCases = []testCase{
 		`,
 		"53c56b6151c66b546c766b00527ac46c6c766b00527ac46c766b00c3616516006c766b51527ac46203006c766b51c3616c756652c56b6c766b00527ac46203006c766b00c300c3616c7566",
 	},
+	{
+		"struct methods with arguments",
+		`
+		package foo
+		type token struct {
+			x int
+		}
+
+		// Also tests if x conflicts with t.x
+		func(t token) addIntegers(x int, y int) int {
+			return t.x + x + y
+		}
+
+		func Main() int {
+			t := token {
+				x: 4, 
+			}
+			someInt := t.addIntegers(2, 4)
+			return someInt
+		}
+		`,
+		"53c56b6151c66b546c766b00527ac46c6c766b00527ac46c766b00c352545272616516006c766b51527ac46203006c766b51c3616c756654c56b6c766b00527ac46c766b51527ac46c766b52527ac46203006c766b00c300c36c766b51c3936c766b52c393616c7566",
+	},
 }

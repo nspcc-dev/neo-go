@@ -58,4 +58,19 @@ var functionCallTestCases = []testCase{
 		`,
 		"53c56b5a6c766b00527ac46c766b00c3616516006c766b51527ac46203006c766b51c3616c756653c56b6c766b00527ac4586c766b51527ac46203006c766b00c36c766b51c393616c7566",
 	},
+	{
+		"function call with multiple arguments",
+		`
+		package testcase
+		func Main() int {
+			x := addIntegers(2, 4)
+			return x
+		}
+
+		func addIntegers(x int, y int) int {
+			return x + y
+		}
+		`,
+		"52c56b52547c616516006c766b00527ac46203006c766b00c3616c756653c56b6c766b00527ac46c766b51527ac46203006c766b00c36c766b51c393616c7566",
+	},
 }

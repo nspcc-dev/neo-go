@@ -300,37 +300,44 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 	case *ast.CallExpr:
-		switch fun := n.Fun.(type) {
+		var (
+			f       *funcScope
+			ok      bool
+			numArgs = len(n.Args)
+		)
 
+		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok := c.funcs[fun.Name]
+			f, ok = c.funcs[fun.Name]
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Name)
 			}
-
-			for _, arg := range n.Args {
-				c.emitLoadLocal(arg.(*ast.Ident).Name)
-			}
-
-			// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
-			// and we could easily removed it, but to be consistent with the original compiler I
-			// will put them in. ^^
-			emitOpcode(c.prog, Onop)
-			emitCall(c.prog, Ocall, int16(f.label))
-
 		case *ast.SelectorExpr:
 			ast.Walk(c, fun.X)
-			f, ok := c.funcs[fun.Sel.Name]
+			f, ok = c.funcs[fun.Sel.Name]
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
 			}
-
-			for _, arg := range n.Args {
-				c.emitLoadLocal(arg.(*ast.Ident).Name)
-			}
-			emitOpcode(c.prog, Onop)
-			emitCall(c.prog, Ocall, int16(f.label))
+			// Dont forget to add 1 extra argument when its a method.
+			numArgs++
 		}
+
+		for _, arg := range n.Args {
+			ast.Walk(c, arg)
+		}
+		if numArgs == 2 {
+			emitOpcode(c.prog, Oswap)
+		}
+		if numArgs == 3 {
+			emitInt(c.prog, 2)
+			emitOpcode(c.prog, Oxswap)
+		}
+
+		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
+		// and we could easily removed it, but to be consistent with the original compiler I
+		// will put them in. ^^
+		emitOpcode(c.prog, Onop)
+		emitCall(c.prog, Ocall, int16(f.label))
 		return nil
 
 	case *ast.SelectorExpr:

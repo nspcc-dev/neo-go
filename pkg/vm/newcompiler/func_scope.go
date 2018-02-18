@@ -51,7 +51,7 @@ func (c *funcScope) stackSize() int64 {
 	numArgs := len(c.decl.Type.Params.List)
 	// Also take care of struct methods recv: e.g. (t Token).Foo().
 	if c.decl.Recv != nil {
-		numArgs = len(c.decl.Recv.List)
+		numArgs += len(c.decl.Recv.List)
 	}
 	return int64(size + numArgs)
 }
