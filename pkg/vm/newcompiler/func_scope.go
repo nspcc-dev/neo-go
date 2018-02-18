@@ -49,8 +49,11 @@ func (c *funcScope) stackSize() int64 {
 	})
 
 	numArgs := len(c.decl.Type.Params.List)
+	// Also take care of struct methods recv: e.g. (t Token).Foo().
+	if c.decl.Recv != nil {
+		numArgs = len(c.decl.Recv.List)
+	}
 	return int64(size + numArgs)
-
 }
 
 func (c *funcScope) newStruct() *structScope {
@@ -60,7 +63,7 @@ func (c *funcScope) newStruct() *structScope {
 }
 
 func (c *funcScope) loadStruct(name string) *structScope {
-	l := c.loadVar(name)
+	l := c.loadLocal(name)
 	strct, ok := c.structs[l]
 	if !ok {
 		log.Fatalf("could not resolve struct %s", name)
@@ -68,19 +71,19 @@ func (c *funcScope) loadStruct(name string) *structScope {
 	return strct
 }
 
-// newVar creates a new local variable into the scope of the function.
-func (c *funcScope) newVar(name string) int {
+// newLocal creates a new local variable into the scope of the function.
+func (c *funcScope) newLocal(name string) int {
 	c.i++
 	c.scope[name] = c.i
 	return c.i
 }
 
-// loadVar loads the position of a local variable inside the scope of the function.
-func (c *funcScope) loadVar(name string) int {
+// loadLocal loads the position of a local variable inside the scope of the function.
+func (c *funcScope) loadLocal(name string) int {
 	i, ok := c.scope[name]
 	if !ok {
 		// should emit a compiler warning.
-		return c.newVar(name)
+		return c.newLocal(name)
 	}
 	return i
 }

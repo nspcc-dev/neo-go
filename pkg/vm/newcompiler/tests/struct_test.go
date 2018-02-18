@@ -86,4 +86,49 @@ var structTestCases = []testCase{
 		`,
 		"54c56b5a6c766b00527ac46152c66b526c766b00527ac4546c766b51527ac46c6c766b51527ac46c766b00c36c766b51c300c3936c766b52527ac46203006c766b52c3616c7566",
 	},
+	{
+		"initialize same struct twice",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+		}
+
+		func Main() int {
+			t1 := token {
+				x: 2,
+				y: 4,
+			}
+			t2 := token {
+				x: 2,
+				y: 4,
+			}
+			return t1.x + t2.y
+		}
+		`,
+		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46152c66b526c766b00527ac4546c766b51527ac46c6c766b51527ac46203006c766b00c300c36c766b51c351c393616c7566",
+	},
+	{
+		"struct methods",
+		`
+		package foo
+		type token struct {
+			x int
+		}
+
+		func(t token) getInteger() int {
+			return t.x
+		}
+
+		func Main() int {
+			t := token {
+				x: 4, 
+			}
+			someInt := t.getInteger()
+			return someInt
+		}
+		`,
+		"53c56b6151c66b546c766b00527ac46c6c766b00527ac46c766b00c3616516006c766b51527ac46203006c766b51c3616c756652c56b6c766b00527ac46203006c766b00c300c3616c7566",
+	},
 }

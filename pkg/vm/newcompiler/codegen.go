@@ -67,7 +67,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 }
 
 func (c *codegen) emitLoadLocal(name string) {
-	pos := c.fctx.loadVar(name)
+	pos := c.fctx.loadLocal(name)
 	if pos < 0 {
 		log.Fatalf("cannot load local variable with position: %d", pos)
 	}
@@ -128,10 +128,27 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	emitOpcode(c.prog, Onewarray)
 	emitOpcode(c.prog, Otoaltstack)
 
+	// We need to handle methods, which in Go, is just syntactic sugar.
+	// The method receiver will be passed in as first argument.
+	// We check if this declaration has a receiver and load it into scope.
+	//
+	// FIXME: For now we will hard cast this to a struct. We can later finetune this
+	// to support other types.
+	if decl.Recv != nil {
+		for _, arg := range decl.Recv.List {
+			strct := c.fctx.newStruct()
+
+			ident := arg.Names[0]
+			strct.initializeFields(ident, c.typeInfo)
+			l := c.fctx.newLocal(ident.Name)
+			c.emitStoreLocal(l)
+		}
+	}
+
 	// Load the arguments in scope.
 	for _, arg := range decl.Type.Params.List {
 		name := arg.Names[0].Name // for now.
-		l := c.newLocal(name)
+		l := c.fctx.newLocal(name)
 		c.emitStoreLocal(l)
 	}
 
@@ -148,7 +165,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// check if we are assigning to a struct or an identifier
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
-				l := c.fctx.loadVar(t.Name)
+				l := c.fctx.loadLocal(t.Name)
 				c.emitStoreLocal(l)
 
 			case *ast.SelectorExpr:
@@ -283,21 +300,37 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 	case *ast.CallExpr:
-		fun := n.Fun.(*ast.Ident)
-		f, ok := c.funcs[fun.Name]
-		if !ok {
-			log.Fatalf("could not resolve function %s", fun.Name)
-		}
+		switch fun := n.Fun.(type) {
 
-		for _, arg := range n.Args {
-			c.emitLoadLocal(arg.(*ast.Ident).Name)
-		}
+		case *ast.Ident:
+			f, ok := c.funcs[fun.Name]
+			if !ok {
+				log.Fatalf("could not resolve function %s", fun.Name)
+			}
 
-		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
-		// and we could easily removed it, but to be consistent with the original compiler I
-		// will put them in. ^^
-		emitOpcode(c.prog, Onop)
-		emitCall(c.prog, Ocall, int16(f.label))
+			for _, arg := range n.Args {
+				c.emitLoadLocal(arg.(*ast.Ident).Name)
+			}
+
+			// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
+			// and we could easily removed it, but to be consistent with the original compiler I
+			// will put them in. ^^
+			emitOpcode(c.prog, Onop)
+			emitCall(c.prog, Ocall, int16(f.label))
+
+		case *ast.SelectorExpr:
+			ast.Walk(c, fun.X)
+			f, ok := c.funcs[fun.Sel.Name]
+			if !ok {
+				log.Fatalf("could not resolve function %s", fun.Sel.Name)
+			}
+
+			for _, arg := range n.Args {
+				c.emitLoadLocal(arg.(*ast.Ident).Name)
+			}
+			emitOpcode(c.prog, Onop)
+			emitCall(c.prog, Ocall, int16(f.label))
+		}
 		return nil
 
 	case *ast.SelectorExpr:
@@ -336,14 +369,6 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	f := newFuncScope(decl, c.newLabel())
 	c.funcs[f.name] = f
 	return f
-}
-
-func (c *codegen) newLocal(name string) int {
-	return c.fctx.newVar(name)
-}
-
-func (c *codegen) loadLocal(name string) int {
-	return c.fctx.loadVar(name)
 }
 
 func (c *codegen) getTypeInfo(expr ast.Expr) types.TypeAndValue {
