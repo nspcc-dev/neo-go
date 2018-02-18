@@ -18,14 +18,17 @@ const mainIdent = "Main"
 type codegen struct {
 	prog *bytes.Buffer
 
-	typeInfo *types.Info // Type information
+	// Type information
+	typeInfo *types.Info
 
-	funcs map[string]int
-	fList []*funcScope
+	// a mapping of func identifiers with its scope.
+	funcs map[string]*funcScope
 
-	fctx *funcScope // current function being generated
+	// current function being generated
+	fctx *funcScope
 
-	l []int // Label table for recording jump destinations.
+	// Label table for recording jump destinations.
+	l []int
 }
 
 // newLabel creates a new label to jump to
@@ -77,6 +80,16 @@ func (c *codegen) emitLoadLocal(name string) {
 	emitOpcode(c.prog, Opickitem)
 }
 
+func (c *codegen) emitLoadStructField(sName, fName string) {
+	strct, ok := c.fctx.structs[sName]
+	if !ok {
+		log.Fatalf("could not resolve struct %s", sName)
+	}
+	pos := strct.loadField(fName)
+	emitInt(c.prog, int64(pos))
+	emitOpcode(c.prog, Opickitem)
+}
+
 func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, Ofromaltstack)
 	emitOpcode(c.prog, Odup)
@@ -93,7 +106,17 @@ func (c *codegen) emitStoreLocal(pos int) {
 }
 
 func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
-	f := c.newFunc(decl)
+	var (
+		f  *funcScope
+		ok bool
+	)
+
+	f, ok = c.funcs[decl.Name.Name]
+	if ok {
+		c.setLabel(f.label)
+	} else {
+		f = c.newFunc(decl)
+	}
 	c.fctx = f
 
 	emitInt(c.prog, f.stackSize())
@@ -116,34 +139,41 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
 			var (
-				l          int
-				storeLocal = true
-				lhs        = n.Lhs[i].(*ast.Ident)
+				l int
+				//storeLocal = true
+				lhs = n.Lhs[i].(*ast.Ident)
 			)
 
 			switch rhs := n.Rhs[i].(type) {
 			case *ast.BasicLit:
 				c.emitLoadConst(c.getTypeInfo(rhs))
+
 			case *ast.Ident:
 				if isIdentBool(rhs) {
 					c.emitLoadConst(makeBoolFromIdent(rhs, c.typeInfo))
 				} else {
 					c.emitLoadLocal(rhs.Name)
 				}
+
 			case *ast.CompositeLit:
-				storeLocal = c.convertCompositeLit(rhs)
+				c.convertCompositeLit(rhs, lhs)
+
+			case *ast.SelectorExpr:
+				// for now assuming this a struct selector and its a *ast.Ident
+				strctName := rhs.X.(*ast.Ident).Name
+				c.emitLoadLocal(strctName)                     // load the struct
+				c.emitLoadStructField(strctName, rhs.Sel.Name) // load the field
+
 			default:
 				ast.Walk(c, rhs)
 			}
 
-			if storeLocal {
-				if n.Tok == token.DEFINE {
-					l = c.newLocal(lhs.Name)
-				} else {
-					l = c.loadLocal(lhs.Name)
-				}
-				c.emitStoreLocal(l)
+			if n.Tok == token.DEFINE {
+				l = c.newLocal(lhs.Name)
+			} else {
+				l = c.loadLocal(lhs.Name)
 			}
+			c.emitStoreLocal(l)
 		}
 		return nil
 
@@ -243,7 +273,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.CallExpr:
 		fun := n.Fun.(*ast.Ident)
-		fLoc, ok := c.funcs[fun.Name]
+		f, ok := c.funcs[fun.Name]
 		if !ok {
 			log.Fatalf("could not resolve function %s", fun.Name)
 		}
@@ -256,28 +286,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// and we could easily removed it, but to be consistent with the original compiler I
 		// will put them in. ^^
 		emitOpcode(c.prog, Onop)
-		emitCall(c.prog, Ocall, int16(fLoc))
+		emitCall(c.prog, Ocall, int16(f.label))
 		return nil
 
 	case *ast.SelectorExpr:
-		c.emitLoadLocal(n.Sel.Name)
+		// for now assuming this a struct selector and its a *ast.Ident
+		strctName := n.X.(*ast.Ident).Name
+		c.emitLoadLocal(strctName)                   // load the struct
+		c.emitLoadStructField(strctName, n.Sel.Name) // load the field
 		return nil
 	}
 	return c
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
-	f := newFuncScope(decl, c.pc())
-
-	// function already resolved just swap pointers.
-	// the new funcScope has the correct label.
-	if i, ok := c.funcs[f.name]; ok {
-		c.fList[i] = f
-		return f
-	}
-
-	c.fList = append(c.fList, f)
-	c.funcs[f.name] = len(c.fList) - 1
+	f := newFuncScope(decl, c.newLabel())
+	c.funcs[f.name] = f
 	return f
 }
 
@@ -318,8 +342,7 @@ func Compile(r io.Reader) (*bytes.Buffer, error) {
 	c := &codegen{
 		prog:  new(bytes.Buffer),
 		l:     []int{},
-		funcs: map[string]int{},
-		fList: []*funcScope{},
+		funcs: map[string]*funcScope{},
 	}
 
 	fset := token.NewFileSet()
@@ -394,7 +417,7 @@ func (c *codegen) writeJumps() {
 	for i, op := range b {
 		j := i + 1
 		switch Opcode(op) {
-		case Ojmpifnot, Ojmpif:
+		case Ojmpifnot, Ojmpif, Ocall:
 			index := binary.LittleEndian.Uint16(b[j : j+2])
 			if int(index) > len(c.l) {
 				continue
@@ -403,15 +426,6 @@ func (c *codegen) writeJumps() {
 			if offset < 0 {
 				log.Fatalf("new offset is negative, table list %v", c.l)
 			}
-			binary.LittleEndian.PutUint16(b[j:j+2], offset)
-
-		case Ocall:
-			index := binary.LittleEndian.Uint16(b[j : j+2])
-			if int(index) > len(c.fList) {
-				continue
-			}
-			fun := c.fList[index]
-			offset := uint16(fun.label - i + 1)
 			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}
