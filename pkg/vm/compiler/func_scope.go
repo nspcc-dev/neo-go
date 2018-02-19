@@ -1,4 +1,4 @@
-package newcompiler
+package compiler
 
 import (
 	"go/ast"

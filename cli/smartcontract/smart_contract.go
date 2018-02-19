@@ -1,12 +1,7 @@
 package smartcontract
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
-	"io"
-	"os"
-	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/urfave/cli"
@@ -43,39 +38,19 @@ func contractCompile(ctx *cli.Context) error {
 		return errors.New("not enough arguments")
 	}
 
+	o := &compiler.Options{
+		Outfile: ctx.String("out"),
+		Debug:   true,
+	}
+
 	src := ctx.Args()[0]
-	c := compiler.New()
-	if err := c.CompileSource(src); err != nil {
-		return err
-	}
-
-	filename := strings.Split(src, ".")[0]
-	filename = filename + ".avm"
-
-	out := ctx.String("out")
-	if len(out) > 0 {
-		filename = out
-	}
-
-	f, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-
-	hx := hex.EncodeToString(c.Buffer().Bytes())
-	fmt.Println(hx)
-
-	_, err = io.Copy(f, c.Buffer())
-	return err
+	return compiler.CompileAndSave(src, o)
 }
 
 func contractDumpOpcode(ctx *cli.Context) error {
-	src := ctx.Args()[0]
-
-	c := compiler.New()
-	if err := c.CompileSource(src); err != nil {
-		return err
+	if len(ctx.Args()) == 0 {
+		return errors.New("not enough arguments")
 	}
-	c.DumpOpcode()
-	return nil
+	src := ctx.Args()[0]
+	return compiler.DumpOpcode(src)
 }

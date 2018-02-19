@@ -1,16 +1,15 @@
-package newcompiler
+package compiler
 
 import (
 	"bytes"
 	"encoding/binary"
 	"go/ast"
 	"go/constant"
-	"go/importer"
-	"go/parser"
 	"go/token"
 	"go/types"
-	"io"
 	"log"
+
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 const mainIdent = "Main"
@@ -72,25 +71,25 @@ func (c *codegen) emitLoadLocal(name string) {
 		log.Fatalf("cannot load local variable with position: %d", pos)
 	}
 
-	emitOpcode(c.prog, Ofromaltstack)
-	emitOpcode(c.prog, Odup)
-	emitOpcode(c.prog, Otoaltstack)
+	emitOpcode(c.prog, vm.Ofromaltstack)
+	emitOpcode(c.prog, vm.Odup)
+	emitOpcode(c.prog, vm.Otoaltstack)
 
 	emitInt(c.prog, int64(pos))
-	emitOpcode(c.prog, Opickitem)
+	emitOpcode(c.prog, vm.Opickitem)
 }
 
 func (c *codegen) emitLoadStructField(sName, fName string) {
 	strct := c.fctx.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
-	emitOpcode(c.prog, Opickitem)
+	emitOpcode(c.prog, vm.Opickitem)
 }
 
 func (c *codegen) emitStoreLocal(pos int) {
-	emitOpcode(c.prog, Ofromaltstack)
-	emitOpcode(c.prog, Odup)
-	emitOpcode(c.prog, Otoaltstack)
+	emitOpcode(c.prog, vm.Ofromaltstack)
+	emitOpcode(c.prog, vm.Odup)
+	emitOpcode(c.prog, vm.Otoaltstack)
 
 	if pos < 0 {
 		log.Fatalf("invalid position to store local: %d", pos)
@@ -98,16 +97,16 @@ func (c *codegen) emitStoreLocal(pos int) {
 
 	emitInt(c.prog, int64(pos))
 	emitInt(c.prog, 2)
-	emitOpcode(c.prog, Oroll)
-	emitOpcode(c.prog, Osetitem)
+	emitOpcode(c.prog, vm.Oroll)
+	emitOpcode(c.prog, vm.Osetitem)
 }
 
 func (c *codegen) emitStoreStructField(sName, fName string) {
 	strct := c.fctx.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
-	emitOpcode(c.prog, Orot)
-	emitOpcode(c.prog, Osetitem)
+	emitOpcode(c.prog, vm.Orot)
+	emitOpcode(c.prog, vm.Osetitem)
 }
 
 func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
@@ -125,8 +124,8 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	c.fctx = f
 
 	emitInt(c.prog, f.stackSize())
-	emitOpcode(c.prog, Onewarray)
-	emitOpcode(c.prog, Otoaltstack)
+	emitOpcode(c.prog, vm.Onewarray)
+	emitOpcode(c.prog, vm.Otoaltstack)
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -185,18 +184,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		emitOpcode(c.prog, Ojmp)
-		emitOpcode(c.prog, Opcode(0x03))
-		emitOpcode(c.prog, Opush0)
+		emitOpcode(c.prog, vm.Ojmp)
+		emitOpcode(c.prog, vm.Opcode(0x03))
+		emitOpcode(c.prog, vm.Opush0)
 
 		if len(n.Results) > 0 {
 			ast.Walk(c, n.Results[0])
 		}
 
-		emitOpcode(c.prog, Onop)
-		emitOpcode(c.prog, Ofromaltstack)
-		emitOpcode(c.prog, Odrop)
-		emitOpcode(c.prog, Oret)
+		emitOpcode(c.prog, vm.Onop)
+		emitOpcode(c.prog, vm.Ofromaltstack)
+		emitOpcode(c.prog, vm.Odrop)
+		emitOpcode(c.prog, vm.Oret)
 		return nil
 
 	case *ast.IfStmt:
@@ -204,13 +203,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		lElse := c.newLabel()
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
-			emitJmp(c.prog, Ojmpifnot, int16(lElse))
+			emitJmp(c.prog, vm.Ojmpifnot, int16(lElse))
 		}
 
 		ast.Walk(c, n.Body)
 
 		if n.Else != nil {
-			emitJmp(c.prog, Ojmp, int16(lEnd))
+			emitJmp(c.prog, vm.Ojmp, int16(lEnd))
 		}
 		c.setLabel(lElse)
 		if n.Else != nil {
@@ -246,7 +245,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitLoadConst(c.getTypeInfo(n.Elts[i]))
 			}
 			emitInt(c.prog, int64(ln))
-			emitOpcode(c.prog, Opack)
+			emitOpcode(c.prog, vm.Opack)
 		}
 		return nil
 
@@ -254,14 +253,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Op {
 		case token.LAND:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, Ojmpifnot, int16(0))
+			emitJmp(c.prog, vm.Ojmpifnot, int16(0))
 			ast.Walk(c, n.Y)
 			return nil
 
 		case token.LOR:
 			lTrue := c.newLabel()
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, Ojmpif, int16(lTrue))
+			emitJmp(c.prog, vm.Ojmpif, int16(lTrue))
 			ast.Walk(c, n.Y)
 			c.setLabel(lTrue)
 			return nil
@@ -280,21 +279,21 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 			switch n.Op {
 			case token.ADD:
-				emitOpcode(c.prog, Oadd)
+				emitOpcode(c.prog, vm.Oadd)
 			case token.SUB:
-				emitOpcode(c.prog, Osub)
+				emitOpcode(c.prog, vm.Osub)
 			case token.MUL:
-				emitOpcode(c.prog, Omul)
+				emitOpcode(c.prog, vm.Omul)
 			case token.QUO:
-				emitOpcode(c.prog, Odiv)
+				emitOpcode(c.prog, vm.Odiv)
 			case token.LSS:
-				emitOpcode(c.prog, Olt)
+				emitOpcode(c.prog, vm.Olt)
 			case token.LEQ:
-				emitOpcode(c.prog, Olte)
+				emitOpcode(c.prog, vm.Olte)
 			case token.GTR:
-				emitOpcode(c.prog, Ogt)
+				emitOpcode(c.prog, vm.Ogt)
 			case token.GEQ:
-				emitOpcode(c.prog, Ogte)
+				emitOpcode(c.prog, vm.Ogte)
 			}
 			return nil
 		}
@@ -326,18 +325,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, arg)
 		}
 		if numArgs == 2 {
-			emitOpcode(c.prog, Oswap)
+			emitOpcode(c.prog, vm.Oswap)
 		}
 		if numArgs == 3 {
 			emitInt(c.prog, 2)
-			emitOpcode(c.prog, Oxswap)
+			emitOpcode(c.prog, vm.Oxswap)
 		}
 
 		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
 		// and we could easily removed it, but to be consistent with the original compiler I
 		// will put them in. ^^
-		emitOpcode(c.prog, Onop)
-		emitCall(c.prog, Ocall, int16(f.label))
+		emitOpcode(c.prog, vm.Onop)
+		emitCall(c.prog, vm.Ocall, int16(f.label))
 		return nil
 
 	case *ast.SelectorExpr:
@@ -354,10 +353,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 }
 
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
-	emitOpcode(c.prog, Onop)
+	emitOpcode(c.prog, vm.Onop)
 	emitInt(c.prog, int64(len(lit.Elts)))
-	emitOpcode(c.prog, Onewstruct)
-	emitOpcode(c.prog, Otoaltstack)
+	emitOpcode(c.prog, vm.Onewstruct)
+	emitOpcode(c.prog, vm.Otoaltstack)
 
 	// Create a new struct scope to store the positions of its variables.
 	strct := c.fctx.newStruct()
@@ -369,7 +368,7 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		l := strct.newField(f.Key.(*ast.Ident).Name)
 		c.emitStoreLocal(l)
 	}
-	emitOpcode(c.prog, Ofromaltstack)
+	emitOpcode(c.prog, vm.Ofromaltstack)
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
@@ -402,36 +401,13 @@ func isIdentBool(ident *ast.Ident) bool {
 	return ident.Name == "true" || ident.Name == "false"
 }
 
-// Compile is the function that compiles the program to bytecode.
-func Compile(r io.Reader) (*bytes.Buffer, error) {
+// CodeGen is the function that compiles the program to bytecode.
+func CodeGen(f *ast.File, tInfo *types.Info) (*bytes.Buffer, error) {
 	c := &codegen{
-		prog:  new(bytes.Buffer),
-		l:     []int{},
-		funcs: map[string]*funcScope{},
-	}
-
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", r, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	conf := types.Config{Importer: importer.Default()}
-	typeInfo := &types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Implicits:  make(map[ast.Node]types.Object),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
-		Scopes:     make(map[ast.Node]*types.Scope),
-	}
-
-	c.typeInfo = typeInfo
-
-	// Typechecker
-	_, err = conf.Check("", fset, []*ast.File{f}, typeInfo)
-	if err != nil {
-		return nil, err
+		prog:     new(bytes.Buffer),
+		l:        []int{},
+		funcs:    map[string]*funcScope{},
+		typeInfo: tInfo,
 	}
 
 	var main *ast.FuncDecl
@@ -481,8 +457,8 @@ func (c *codegen) writeJumps() {
 	b := c.prog.Bytes()
 	for i, op := range b {
 		j := i + 1
-		switch Opcode(op) {
-		case Ojmpifnot, Ojmpif, Ocall:
+		switch vm.Opcode(op) {
+		case vm.Ojmpifnot, vm.Ojmpif, vm.Ocall:
 			index := binary.LittleEndian.Uint16(b[j : j+2])
 			if int(index) > len(c.l) {
 				continue

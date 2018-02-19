@@ -1,4 +1,4 @@
-package newcompiler_test
+package compiler_test
 
 var boolTestCases = []testCase{
 	{
