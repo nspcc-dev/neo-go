@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"go/ast"
+	"go/types"
 	"log"
 )
 
@@ -56,8 +57,8 @@ func (c *funcScope) stackSize() int64 {
 	return int64(size + numArgs)
 }
 
-func (c *funcScope) newStruct() *structScope {
-	strct := newStructScope()
+func (c *funcScope) newStruct(t *types.Struct) *structScope {
+	strct := newStructScope(t)
 	c.structs[len(c.scope)] = strct
 	return strct
 }

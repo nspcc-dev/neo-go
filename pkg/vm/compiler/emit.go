@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -58,7 +57,9 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	)
 
 	if n == 0 {
-		return errors.New("cannot emit 0 bytes")
+		// The VM expects a pushf (0x00).
+		// Empty strings on the stack for example.
+		return emitOpcode(w, vm.Opushf)
 	}
 	if n <= int(vm.Opushbytes75) {
 		return emit(w, vm.Opcode(n), b)

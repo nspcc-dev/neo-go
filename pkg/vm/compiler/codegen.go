@@ -135,10 +135,12 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
-			strct := c.fctx.newStruct()
-
 			ident := arg.Names[0]
-			strct.initializeFields(ident, c.typeInfo)
+			t, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
+			if !ok {
+				log.Fatal("method receiver is not a struct type")
+			}
+			c.fctx.newStruct(t)
 			l := c.fctx.newLocal(ident.Name)
 			c.emitStoreLocal(l)
 		}
@@ -343,20 +345,43 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 }
 
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
+	// Create a new structScope to initialize and store
+	// the positions of its variables.
+	t, ok := c.typeInfo.TypeOf(lit).Underlying().(*types.Struct)
+	if !ok {
+		log.Fatalf("the given literal is not of type struct: %v", lit)
+	}
+	strct := c.fctx.newStruct(t)
+
 	emitOpcode(c.prog, vm.Onop)
-	emitInt(c.prog, int64(len(lit.Elts)))
+	emitInt(c.prog, int64(strct.t.NumFields()))
 	emitOpcode(c.prog, vm.Onewstruct)
 	emitOpcode(c.prog, vm.Otoaltstack)
 
-	// Create a new struct scope to store the positions of its variables.
-	strct := c.fctx.newStruct()
+	// We need to locally store all the fields, even if they are not initialized.
+	// We will initialize all fields to their "zero" value.
+	for i := 0; i < strct.t.NumFields(); i++ {
+		sField := strct.t.Field(i)
+		fieldAdded := false
 
-	for _, field := range lit.Elts {
-		f := field.(*ast.KeyValueExpr)
-		// Walk to resolve the expression of the value.
-		ast.Walk(c, f.Value)
-		l := strct.newField(f.Key.(*ast.Ident).Name)
-		c.emitStoreLocal(l)
+		// Fields initialized by the program.
+		for _, field := range lit.Elts {
+			f := field.(*ast.KeyValueExpr)
+			fieldName := f.Key.(*ast.Ident).Name
+
+			if sField.Name() == fieldName {
+				ast.Walk(c, f.Value)
+				pos := strct.loadField(fieldName)
+				c.emitStoreLocal(pos)
+				fieldAdded = true
+				break
+			}
+		}
+		if fieldAdded {
+			continue
+		}
+		c.emitLoadConst(strct.typeAndValues[sField.Name()])
+		c.emitStoreLocal(i)
 	}
 	emitOpcode(c.prog, vm.Ofromaltstack)
 }
