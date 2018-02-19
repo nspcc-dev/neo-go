@@ -14,13 +14,13 @@ type funcScope struct {
 	// The declaration of the function in the AST
 	decl *ast.FuncDecl
 
-	// program label of the function
+	// Program label of the function
 	label int
 
-	// local scope of the function
+	// Local scope of the function
 	scope map[string]int
 
-	// mapping of structs positions with their scope
+	// A mapping of structs positions with their scope
 	structs map[int]*structScope
 
 	// local variable counter

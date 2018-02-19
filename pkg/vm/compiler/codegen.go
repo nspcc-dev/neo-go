@@ -159,19 +159,28 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
-			// resolve the whole right hand side.
-			ast.Walk(c, n.Rhs[i])
 			// check if we are assigning to a struct or an identifier
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
-				l := c.fctx.loadLocal(t.Name)
-				c.emitStoreLocal(l)
+				switch n.Tok {
+				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN:
+					c.emitLoadLocal(t.Name)
+					ast.Walk(c, n.Rhs[0])
+					c.convertToken(n.Tok)
+					l := c.fctx.loadLocal(t.Name)
+					c.emitStoreLocal(l)
+				default:
+					ast.Walk(c, n.Rhs[0])
+					l := c.fctx.loadLocal(t.Name)
+					c.emitStoreLocal(l)
+				}
 
 			case *ast.SelectorExpr:
-				switch n := t.X.(type) {
+				switch expr := t.X.(type) {
 				case *ast.Ident:
-					c.emitLoadLocal(n.Name)                    // load the struct
-					c.emitStoreStructField(n.Name, t.Sel.Name) // store the field
+					ast.Walk(c, n.Rhs[i])
+					c.emitLoadLocal(expr.Name)                    // load the struct
+					c.emitStoreStructField(expr.Name, t.Sel.Name) // store the field
 				default:
 					log.Fatal("nested selector assigns not supported yet")
 				}
@@ -275,25 +284,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 			ast.Walk(c, n.X)
 			ast.Walk(c, n.Y)
-
-			switch n.Op {
-			case token.ADD:
-				emitOpcode(c.prog, vm.Oadd)
-			case token.SUB:
-				emitOpcode(c.prog, vm.Osub)
-			case token.MUL:
-				emitOpcode(c.prog, vm.Omul)
-			case token.QUO:
-				emitOpcode(c.prog, vm.Odiv)
-			case token.LSS:
-				emitOpcode(c.prog, vm.Olt)
-			case token.LEQ:
-				emitOpcode(c.prog, vm.Olte)
-			case token.GTR:
-				emitOpcode(c.prog, vm.Ogt)
-			case token.GEQ:
-				emitOpcode(c.prog, vm.Ogte)
-			}
+			c.convertToken(n.Op)
 			return nil
 		}
 
@@ -368,6 +359,37 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		c.emitStoreLocal(l)
 	}
 	emitOpcode(c.prog, vm.Ofromaltstack)
+}
+
+func (c *codegen) convertToken(tok token.Token) {
+	switch tok {
+	case token.ADD_ASSIGN:
+		emitOpcode(c.prog, vm.Oadd)
+	case token.SUB_ASSIGN:
+		emitOpcode(c.prog, vm.Osub)
+	case token.MUL_ASSIGN:
+		emitOpcode(c.prog, vm.Omul)
+	case token.QUO_ASSIGN:
+		emitOpcode(c.prog, vm.Odiv)
+	case token.ADD:
+		emitOpcode(c.prog, vm.Oadd)
+	case token.SUB:
+		emitOpcode(c.prog, vm.Osub)
+	case token.MUL:
+		emitOpcode(c.prog, vm.Omul)
+	case token.QUO:
+		emitOpcode(c.prog, vm.Odiv)
+	case token.LSS:
+		emitOpcode(c.prog, vm.Olt)
+	case token.LEQ:
+		emitOpcode(c.prog, vm.Olte)
+	case token.GTR:
+		emitOpcode(c.prog, vm.Ogt)
+	case token.GEQ:
+		emitOpcode(c.prog, vm.Ogte)
+	default:
+		log.Fatalf("compiler could not convert token: %s", tok)
+	}
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
