@@ -199,23 +199,24 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.IfStmt:
-		lEnd := c.newLabel()
+		lIf := c.newLabel()
 		lElse := c.newLabel()
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
 			emitJmp(c.prog, vm.Ojmpifnot, int16(lElse))
 		}
 
+		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
 
 		if n.Else != nil {
-			emitJmp(c.prog, vm.Ojmp, int16(lEnd))
+			// TODO: handle else statements.
+			// emitJmp(c.prog, vm.Ojmp, int16(lEnd))
 		}
 		c.setLabel(lElse)
 		if n.Else != nil {
 			ast.Walk(c, n.Else)
 		}
-		c.setLabel(lEnd)
 		return nil
 
 	case *ast.BasicLit:
@@ -253,16 +254,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Op {
 		case token.LAND:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, vm.Ojmpifnot, int16(0))
+			emitJmp(c.prog, vm.Ojmpifnot, int16(len(c.l)-1))
 			ast.Walk(c, n.Y)
 			return nil
 
 		case token.LOR:
-			lTrue := c.newLabel()
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, vm.Ojmpif, int16(lTrue))
+			emitJmp(c.prog, vm.Ojmpif, int16(len(c.l)-2))
 			ast.Walk(c, n.Y)
-			c.setLabel(lTrue)
 			return nil
 
 		default:
