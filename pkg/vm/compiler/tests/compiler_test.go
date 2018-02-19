@@ -21,14 +21,18 @@ type testCase struct {
 
 func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
+	testCases = append(testCases, assignTestCases...)
+	testCases = append(testCases, arrayTestCases...)
+	testCases = append(testCases, functionCallTestCases...)
+	testCases = append(testCases, boolTestCases...)
 	testCases = append(testCases, stringTestCases...)
 	testCases = append(testCases, binaryExprTestCases...)
+	testCases = append(testCases, structTestCases...)
 	testCases = append(testCases, ifStatementTestCases...)
-	testCases = append(testCases, functionCallTestCases...)
 
 	for _, tc := range testCases {
-		c := compiler.New()
-		if err := c.Compile(strings.NewReader(tc.src)); err != nil {
+		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -37,10 +41,10 @@ func TestAllCases(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if bytes.Compare(c.Buffer().Bytes(), expectedResult) != 0 {
-			t.Log(hex.EncodeToString(c.Buffer().Bytes()))
+		if bytes.Compare(b, expectedResult) != 0 {
+			t.Log(hex.EncodeToString(b))
 			want, _ := hex.DecodeString(tc.result)
-			dumpOpCodeSideBySide(c.Buffer().Bytes(), want)
+			dumpOpCodeSideBySide(b, want)
 			t.Fatalf("compiling %s failed", tc.name)
 		}
 	}
@@ -59,7 +63,7 @@ func dumpOpCodeSideBySide(have, want []byte) {
 			diff = "<<"
 		}
 		fmt.Fprintf(w, "%d\t0x%2x\t%s\t0x%2x\t%s\t%s\n",
-			i, have[i], vm.OpCode(have[i]), want[i], vm.OpCode(want[i]), diff)
+			i, have[i], vm.Opcode(have[i]), want[i], vm.Opcode(want[i]), diff)
 	}
 	w.Flush()
 }
