@@ -243,14 +243,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CompositeLit:
+		var typ types.Type
+
 		switch t := n.Type.(type) {
 		case *ast.Ident:
-			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
-			switch typ.(type) {
-			case *types.Struct:
-				c.convertStruct(n)
-			}
-
+			typ = c.typeInfo.ObjectOf(t).Type().Underlying()
+		case *ast.SelectorExpr:
+			typ = c.typeInfo.ObjectOf(t.Sel).Type().Underlying()
 		default:
 			ln := len(n.Elts)
 			for i := ln - 1; i >= 0; i-- {
@@ -258,7 +257,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			emitInt(c.prog, int64(ln))
 			emitOpcode(c.prog, vm.Opack)
+			return nil
 		}
+
+		switch typ.(type) {
+		case *types.Struct:
+			c.convertStruct(n)
+		}
+
 		return nil
 
 	case *ast.BinaryExpr:
@@ -304,7 +310,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				log.Fatalf("could not resolve function %s", fun.Name)
 			}
 		case *ast.SelectorExpr:
-			ast.Walk(c, fun.X)
+			// If this is a method call we need to walk the AST to load the struct locally.
+			// Otherwise this is a function call from a imported package and we can call it
+			// directly.
+			if c.typeInfo.Selections[fun] != nil {
+				ast.Walk(c, fun.X)
+			}
 			f, ok = c.funcs[fun.Sel.Name]
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
@@ -448,7 +459,7 @@ func isIdentBool(ident *ast.Ident) bool {
 }
 
 // CodeGen is the function that compiles the program to bytecode.
-func CodeGen(f *ast.File, tInfo *types.Info) (*bytes.Buffer, error) {
+func CodeGen(f *ast.File, tInfo *types.Info, imports map[string]*archive) (*bytes.Buffer, error) {
 	c := &codegen{
 		prog:     new(bytes.Buffer),
 		l:        []int{},
@@ -471,6 +482,11 @@ func CodeGen(f *ast.File, tInfo *types.Info) (*bytes.Buffer, error) {
 		log.Fatal("could not find func main. did you forgot to declare it?")
 	}
 
+	// Bring all imported functions into scope
+	for _, arch := range imports {
+		c.resolveFuncDecls(arch.f)
+	}
+
 	c.resolveFuncDecls(f)
 	c.convertFuncDecl(main)
 
@@ -479,6 +495,19 @@ func CodeGen(f *ast.File, tInfo *types.Info) (*bytes.Buffer, error) {
 		case *ast.FuncDecl:
 			if n.Name.Name != mainIdent {
 				c.convertFuncDecl(n)
+			}
+		}
+	}
+
+	// Generate code for the imported packages.
+	for _, arch := range imports {
+		c.typeInfo = arch.typeInfo
+		for _, decl := range arch.f.Decls {
+			switch n := decl.(type) {
+			case *ast.FuncDecl:
+				if n.Name.Name != mainIdent {
+					c.convertFuncDecl(n)
+				}
 			}
 		}
 	}

@@ -5,11 +5,6 @@ var structTestCases = []testCase{
 		"struct field assign",
 		`
 		package foo
-		type token struct {
-			x int 
-			y int
-		}
-
 		func Main() int {
 			t := token {
 				x: 2,
@@ -18,6 +13,11 @@ var structTestCases = []testCase{
 
 			age := t.x
 			return age
+		}
+
+		type token struct {
+			x int 
+			y int
 		}
 		`,
 		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46c766b00c300c36c766b51527ac46203006c766b51c3616c7566",

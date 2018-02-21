@@ -21,6 +21,7 @@ type testCase struct {
 
 func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
+	// The Go language
 	testCases = append(testCases, assignTestCases...)
 	testCases = append(testCases, arrayTestCases...)
 	testCases = append(testCases, functionCallTestCases...)
@@ -29,6 +30,9 @@ func TestAllCases(t *testing.T) {
 	testCases = append(testCases, binaryExprTestCases...)
 	testCases = append(testCases, structTestCases...)
 	testCases = append(testCases, ifStatementTestCases...)
+	testCases = append(testCases, importTestCases...)
+
+	// Blockchain specific
 
 	for _, tc := range testCases {
 		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
