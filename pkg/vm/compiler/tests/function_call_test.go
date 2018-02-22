@@ -19,6 +19,22 @@ var functionCallTestCases = []testCase{
 		"53c56b5a6c766b00527ac461651c006c766b51527ac46203006c766b00c36c766b51c393616c756652c56b5a6c766b00527ac46203006c766b00c3616c7566",
 	},
 	{
+		"test function call with no assign",
+		`
+		package testcase
+		func Main() int {
+			getSomeInteger()
+			getSomeInteger()
+			return 0
+		}
+
+		func getSomeInteger() int {
+			return 0
+		}
+		`,
+		"53c56b616511007561650c007562030000616c756651c56b62030000616c7566",
+	},
+	{
 		"multiple function calls",
 		`
 		package testcase
@@ -57,6 +73,21 @@ var functionCallTestCases = []testCase{
 		}
 		`,
 		"53c56b5a6c766b00527ac46c766b00c3616516006c766b51527ac46203006c766b51c3616c756653c56b6c766b00527ac4586c766b51527ac46203006c766b00c36c766b51c393616c7566",
+	},
+	{
+		"function call with arguments of interface type",
+		`
+		package testcase
+		func Main() interface{} {
+			x := getSomeInteger(10)
+			return x
+		}
+
+		func getSomeInteger(x interface{}) interface{} {
+			return x
+		}
+		`,
+		"52c56b5a616516006c766b00527ac46203006c766b00c3616c756652c56b6c766b00527ac46203006c766b00c3616c7566",
 	},
 	{
 		"function call with multiple arguments",

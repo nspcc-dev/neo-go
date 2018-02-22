@@ -21,6 +21,7 @@ type testCase struct {
 
 func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
+
 	// The Go language
 	testCases = append(testCases, assignTestCases...)
 	testCases = append(testCases, arrayTestCases...)
@@ -33,6 +34,7 @@ func TestAllCases(t *testing.T) {
 	testCases = append(testCases, importTestCases...)
 
 	// Blockchain specific
+	testCases = append(testCases, storageTestCases...)
 
 	for _, tc := range testCases {
 		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
@@ -58,16 +60,19 @@ func dumpOpCodeSideBySide(have, want []byte) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tHAVE OPCODE\tDESC\tWANT OPCODE\tDESC\tDIFF")
 
+	var b byte
 	for i := 0; i < len(have); i++ {
 		if len(want) <= i {
-			break
+			b = 0x00
+		} else {
+			b = want[i]
 		}
 		diff := ""
-		if have[i] != want[i] {
+		if have[i] != b {
 			diff = "<<"
 		}
 		fmt.Fprintf(w, "%d\t0x%2x\t%s\t0x%2x\t%s\t%s\n",
-			i, have[i], vm.Opcode(have[i]), want[i], vm.Opcode(want[i]), diff)
+			i, have[i], vm.Opcode(have[i]), b, vm.Opcode(b), diff)
 	}
 	w.Flush()
 }

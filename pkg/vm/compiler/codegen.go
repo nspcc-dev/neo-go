@@ -121,7 +121,9 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	} else {
 		f = c.newFunc(decl)
 	}
+
 	c.fctx = f
+	ast.Inspect(decl, c.fctx.analyzeVoidCalls)
 
 	emitInt(c.prog, f.stackSize())
 	emitOpcode(c.prog, vm.Onewarray)
@@ -161,7 +163,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {
-			// check if we are assigning to a struct or an identifier
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				switch n.Tok {
@@ -315,15 +316,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// directly.
 			if c.typeInfo.Selections[fun] != nil {
 				ast.Walk(c, fun.X)
+				// Dont forget to add 1 extra argument when its a method.
+				numArgs++
 			}
 			f, ok = c.funcs[fun.Sel.Name]
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
 			}
-			// Dont forget to add 1 extra argument when its a method.
-			numArgs++
 		}
 
+		// Handle the arguments
 		for _, arg := range n.Args {
 			ast.Walk(c, arg)
 		}
@@ -339,7 +341,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// and we could easily removed it, but to be consistent with the original compiler I
 		// will put them in. ^^
 		emitOpcode(c.prog, vm.Onop)
-		emitCall(c.prog, vm.Ocall, int16(f.label))
+
+		if isSyscall(f.name) {
+			c.convertSyscall(f.name)
+		} else {
+			emitCall(c.prog, vm.Ocall, int16(f.label))
+		}
+
+		// If we are not assigning this function to a variable we need to drop
+		// the top stack item. It's not a void but you get the point \o/.
+		if _, ok := c.fctx.voidCalls[n]; ok && !isNoRetSyscall(f.name) {
+			emitOpcode(c.prog, vm.Odrop)
+		}
 		return nil
 
 	case *ast.SelectorExpr:
@@ -353,6 +366,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+func (c *codegen) convertSyscall(name string) {
+	api, ok := vm.Syscalls[name]
+	if !ok {
+		log.Fatalf("unknown VM syscall api: %s", name)
+	}
+	emitSyscall(c.prog, api)
+	emitOpcode(c.prog, vm.Onop)
 }
 
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
@@ -423,6 +445,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Ogt)
 	case token.GEQ:
 		emitOpcode(c.prog, vm.Ogte)
+	case token.EQL:
+		emitOpcode(c.prog, vm.Oequal)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
@@ -434,6 +458,9 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
+// TODO: Don't know if we really use this. Check if it can be deleted.
+// If it's used once or twice, also remove this functions and
+// call .Types direcly. e.g. c.typeInfo.Types[expr]
 func (c *codegen) getTypeInfo(expr ast.Expr) types.TypeAndValue {
 	return c.typeInfo.Types[expr]
 }
@@ -545,4 +572,25 @@ func (c *codegen) writeJumps() {
 			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}
+}
+
+func isSyscall(name string) bool {
+	_, ok := vm.Syscalls[name]
+	return ok
+}
+
+var noRetSyscalls = []string{
+	"Notify", "Log", "Put", "Register", "Delete",
+	"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
+	"PrevHash", "GetHeader",
+}
+
+// isNoRetSyscall checks if the syscall has a return value.
+func isNoRetSyscall(name string) bool {
+	for _, s := range noRetSyscalls {
+		if s == name {
+			return true
+		}
+	}
+	return false
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
@@ -81,7 +82,8 @@ func resolveImports(f *ast.File) (map[string]*archive, error) {
 	packages := map[string]*archive{}
 	for _, imp := range f.Imports {
 		path := strings.Replace(imp.Path.Value, `"`, "", 2)
-		path = filepath.Join(os.Getenv("GOPATH"), "src", path)
+		gopath := build.Default.GOPATH
+		path = filepath.Join(gopath, "src", path)
 		fset := token.NewFileSet()
 		pkgs, err := parser.ParseDir(fset, path, nil, 0)
 		if err != nil {

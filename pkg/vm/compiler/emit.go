@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -79,6 +80,16 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	}
 	_, err = w.Write(b)
 	return err
+}
+
+func emitSyscall(w *bytes.Buffer, api string) error {
+	if len(api) == 0 {
+		return errors.New("syscall api cannot be of length 0")
+	}
+	buf := make([]byte, len(api)+1)
+	buf[0] = byte(len(api))
+	copy(buf[1:len(buf)], []byte(api))
+	return emit(w, vm.Osyscall, buf)
 }
 
 func emitCall(w *bytes.Buffer, op vm.Opcode, label int16) error {
