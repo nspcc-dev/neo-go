@@ -22,7 +22,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-const fileExt = ".avm"
+const fileExt = "avm"
 
 // Options contains all the parameters that affect the behaviour of the compiler.
 type Options struct {
