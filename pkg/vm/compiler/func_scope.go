@@ -59,6 +59,11 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 				return false
 			}
 		}
+	case *ast.ReturnStmt:
+		switch n.Results[0].(type) {
+		case *ast.CallExpr:
+			return false
+		}
 	case *ast.CallExpr:
 		c.voidCalls[n] = true
 	}

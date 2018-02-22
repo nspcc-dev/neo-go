@@ -174,4 +174,30 @@ var structTestCases = []testCase{
 		`,
 		"52c56b6154c66b546c766b00527ac4006c766b51527ac4006c766b52527ac4006c766b53527ac46c6c766b00527ac46203006c766b00c351c3616c7566",
 	},
+	{
+		"test return struct from func",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+			z string
+			b bool
+		}
+
+		func newToken() token {
+			return token{
+				x: 1,
+				y: 2, 
+				z: "hello",
+				b: false,
+			}
+		}
+
+		func Main() token {
+			return newToken()
+		}
+		`,
+		"51c56b62030061650700616c756651c56b6203006154c66b516c766b00527ac4526c766b51527ac40568656c6c6f6c766b52527ac4006c766b53527ac46c616c7566",
+	},
 }
