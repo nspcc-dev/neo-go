@@ -73,9 +73,17 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 func (c *funcScope) stackSize() int64 {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
-		switch n.(type) {
+		switch n := n.(type) {
 		case *ast.AssignStmt, *ast.ReturnStmt, *ast.IfStmt:
 			size++
+		// This handles the inline GenDecl like "var x = 2"
+		case *ast.GenDecl:
+			switch t := n.Specs[0].(type) {
+			case *ast.ValueSpec:
+				if len(t.Values) > 0 {
+					size++
+				}
+			}
 		}
 		return true
 	})

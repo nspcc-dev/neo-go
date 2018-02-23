@@ -31,6 +31,7 @@ func TestAllCases(t *testing.T) {
 	testCases = append(testCases, stringTestCases...)
 	testCases = append(testCases, structTestCases...)
 	testCases = append(testCases, ifStatementTestCases...)
+	testCases = append(testCases, customTypeTestCases...)
 	testCases = append(testCases, importTestCases...)
 
 	// Blockchain specific

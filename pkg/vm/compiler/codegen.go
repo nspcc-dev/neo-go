@@ -47,7 +47,7 @@ func (c *codegen) pc() int {
 }
 
 func (c *codegen) emitLoadConst(t types.TypeAndValue) {
-	switch typ := t.Type.(type) {
+	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
 		switch typ.Kind() {
 		case types.Int:
@@ -160,6 +160,20 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
+
+	// General declarations.
+	// With value:		var x int = 2
+	// Without value: 	var x int
+	case *ast.GenDecl:
+		switch t := n.Specs[0].(type) {
+		case *ast.ValueSpec:
+			if len(t.Values) > 0 {
+				ast.Walk(c, t.Values[0])
+				l := c.fctx.newLocal(t.Names[0].Name)
+				c.emitStoreLocal(l)
+			}
+		}
+		return nil
 
 	case *ast.AssignStmt:
 		for i := 0; i < len(n.Lhs); i++ {

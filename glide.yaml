@@ -1,9 +1,5 @@
 package: github.com/CityOfZion/neo-go
 import:
-- package: github.com/CityOfZion/neo-go/pkg/vm/compiler/tests
-  subpackages:
-  - foo
-  - bar
 - package: github.com/syndtr/goleveldb
   subpackages:
   - leveldb

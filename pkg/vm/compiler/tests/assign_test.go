@@ -101,4 +101,15 @@ var assignTestCases = []testCase{
 		`,
 		"54c56b546c766b00527ac4556c766b51527ac46c766b00c3566c766b51c393936c766b00527ac46203006c766b00c3616c7566",
 	},
+	{
+		"decl assign",
+		`
+		package foo
+		func Main() int {
+			var x int = 4
+			return x
+		}
+		`,
+		"52c56b546c766b00527ac46203006c766b00c3616c7566",
+	},
 }
