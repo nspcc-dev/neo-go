@@ -11,8 +11,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
-	_ "github.com/CityOfZion/neo-go/pkg/vm/compiler/tests/bar"
-	_ "github.com/CityOfZion/neo-go/pkg/vm/compiler/tests/foo"
 )
 
 type testCase struct {
