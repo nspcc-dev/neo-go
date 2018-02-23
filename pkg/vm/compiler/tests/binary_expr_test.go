@@ -1,4 +1,4 @@
-package compiler_test
+package compiler
 
 var binaryExprTestCases = []testCase{
 	{
