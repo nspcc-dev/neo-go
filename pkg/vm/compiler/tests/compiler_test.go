@@ -25,10 +25,10 @@ func TestAllCases(t *testing.T) {
 	// The Go language
 	testCases = append(testCases, assignTestCases...)
 	testCases = append(testCases, arrayTestCases...)
+	testCases = append(testCases, binaryExprTestCases...)
 	testCases = append(testCases, functionCallTestCases...)
 	testCases = append(testCases, boolTestCases...)
 	testCases = append(testCases, stringTestCases...)
-	testCases = append(testCases, binaryExprTestCases...)
 	testCases = append(testCases, structTestCases...)
 	testCases = append(testCases, ifStatementTestCases...)
 	testCases = append(testCases, importTestCases...)

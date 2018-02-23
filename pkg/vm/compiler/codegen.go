@@ -445,8 +445,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Ogt)
 	case token.GEQ:
 		emitOpcode(c.prog, vm.Ogte)
-	case token.EQL:
-		emitOpcode(c.prog, vm.Oequal)
+	case token.EQL, token.NEQ:
+		emitOpcode(c.prog, vm.Onumequal)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}

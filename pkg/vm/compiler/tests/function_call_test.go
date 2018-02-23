@@ -104,4 +104,17 @@ var functionCallTestCases = []testCase{
 		`,
 		"52c56b52547c616516006c766b00527ac46203006c766b00c3616c756653c56b6c766b00527ac46c766b51527ac46203006c766b00c36c766b51c393616c7566",
 	},
+	{
+		"test Main arguments",
+		`
+		package foo
+		func Main(operation string, args []interface{}) int {
+			if operation == "mintTokens" {
+				return 1
+			} 
+			return 0
+		}
+		`,
+		"55c56b6c766b00527ac46c766b51527ac46c766b00c30a6d696e74546f6b656e739c640b0062030051616c756662030000616c7566",
+	},
 }
