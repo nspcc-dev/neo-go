@@ -56,8 +56,7 @@ func contractCompile(ctx *cli.Context) error {
 		Debug:   true,
 	}
 
-	err := compiler.CompileAndSave(src, o)
-	if err != nil {
+	if err := compiler.CompileAndSave(src, o); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil
@@ -68,8 +67,7 @@ func contractDumpOpcode(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(ErrNoInput, 1)
 	}
-	err := compiler.DumpOpcode(src)
-	if err != nil {
+	if err := compiler.DumpOpcode(src); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil
