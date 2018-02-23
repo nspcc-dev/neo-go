@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	ErrNoArgument = "Not enough arguments. Expected the location of the file to be compiled as an argument."
+	ErrNoInput = "Input file is mandatory and should be passed using -i flag."
 )
 
 // NewCommand returns a new contract command.
@@ -21,6 +21,10 @@ func NewCommand() cli.Command {
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "Input file for the smart contract to be compiled",
+					},
+					cli.StringFlag{
 						Name:  "out, o",
 						Usage: "Output of the compiled contract",
 					},
@@ -30,14 +34,21 @@ func NewCommand() cli.Command {
 				Name:   "opdump",
 				Usage:  "dump the opcode of a .go file",
 				Action: contractDumpOpcode,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "Input file for the smart contract",
+					},
+				},
 			},
 		},
 	}
 }
 
 func contractCompile(ctx *cli.Context) error {
-	if ctx.NArg() == 0 {
-		return cli.NewExitError(ErrNoArgument, 1)
+	src := ctx.String("in")
+	if len(src) == 0 {
+		return cli.NewExitError(ErrNoInput, 1)
 	}
 
 	o := &compiler.Options{
@@ -45,7 +56,6 @@ func contractCompile(ctx *cli.Context) error {
 		Debug:   true,
 	}
 
-	src := ctx.Args()[0]
 	err := compiler.CompileAndSave(src, o)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -54,10 +64,10 @@ func contractCompile(ctx *cli.Context) error {
 }
 
 func contractDumpOpcode(ctx *cli.Context) error {
-	if ctx.NArg() == 0 {
-		return cli.NewExitError(ErrNoArgument, 1)
+	src := ctx.String("in")
+	if len(src) == 0 {
+		return cli.NewExitError(ErrNoInput, 1)
 	}
-	src := ctx.Args()[0]
 	err := compiler.DumpOpcode(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
