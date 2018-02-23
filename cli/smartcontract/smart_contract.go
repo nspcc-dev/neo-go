@@ -1,10 +1,12 @@
 package smartcontract
 
 import (
-	"errors"
-
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/urfave/cli"
+)
+
+const (
+	ErrNoArgument = "Not enough arguments. Expected the location of the file to be compiled as an argument."
 )
 
 // NewCommand returns a new contract command.
@@ -34,8 +36,8 @@ func NewCommand() cli.Command {
 }
 
 func contractCompile(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("not enough arguments")
+	if ctx.NArg() == 0 {
+		return cli.NewExitError(ErrNoArgument, 1)
 	}
 
 	o := &compiler.Options{
@@ -44,13 +46,21 @@ func contractCompile(ctx *cli.Context) error {
 	}
 
 	src := ctx.Args()[0]
-	return compiler.CompileAndSave(src, o)
+	err := compiler.CompileAndSave(src, o)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
 }
 
 func contractDumpOpcode(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("not enough arguments")
+	if ctx.NArg() == 0 {
+		return cli.NewExitError(ErrNoArgument, 1)
 	}
 	src := ctx.Args()[0]
-	return compiler.DumpOpcode(src)
+	err := compiler.DumpOpcode(src)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
 }

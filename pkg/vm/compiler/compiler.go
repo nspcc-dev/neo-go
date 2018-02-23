@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -68,10 +67,10 @@ func Compile(input io.Reader, o *Options) ([]byte, error) {
 
 // CompileAndSave will compile and save the file to disk.
 func CompileAndSave(src string, o *Options) error {
+	if !strings.HasSuffix(src, ".go") {
+		return fmt.Errorf("%s is not a Go file", src)
+	}
 	if len(o.Outfile) == 0 {
-		if !strings.HasSuffix(src, ".go") {
-			return errors.New("not a Go file")
-		}
 		o.Outfile = strings.TrimSuffix(src, ".go")
 	}
 	if len(o.Ext) == 0 {
@@ -83,7 +82,7 @@ func CompileAndSave(src string, o *Options) error {
 	}
 	b, err = Compile(bytes.NewReader(b), o)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error while trying to compile smart contract file: %v", err)
 	}
 	if o.Debug {
 		log.Println(hex.EncodeToString(b))
