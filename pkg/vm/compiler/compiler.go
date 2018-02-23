@@ -82,8 +82,7 @@ func resolveImports(f *ast.File) (map[string]*archive, error) {
 	packages := map[string]*archive{}
 	for _, imp := range f.Imports {
 		path := strings.Replace(imp.Path.Value, `"`, "", 2)
-		gopath := build.Default.GOPATH
-		path = filepath.Join(gopath, "src", path)
+		path = filepath.Join(gopath(), "src", path)
 		fset := token.NewFileSet()
 		pkgs, err := parser.ParseDir(fset, path, nil, 0)
 		if err != nil {
@@ -158,6 +157,14 @@ func DumpOpcode(src string) error {
 	}
 	w.Flush()
 	return nil
+}
+
+func gopath() string {
+	gopath := os.Getenv("GOPATH")
+	if len(gopath) == 0 {
+		gopath = build.Default.GOPATH
+	}
+	return gopath
 }
 
 func init() {
