@@ -6,8 +6,8 @@ jobs:
       - image: vidsyhq/go-builder:latest
     steps:
       - checkout
-      - run: go get github.com/Masterminds/glide
-      - run: glide install 
+      - run: go get -u github.com/golang/dep/cmd/dep
+      - run: dep ensure
       - restore_cache:
           key: dependency-cache-{{ .Revision }}
       - run: BUILD=false /scripts/build.sh
@@ -46,8 +46,8 @@ jobs:
       - image: vidsyhq/go-builder:latest
     steps:
       - checkout
-      - run: go get github.com/Masterminds/glide
-      - run: glide install
+      - run: go get -u github.com/golang/dep/cmd/dep
+      - run: dep ensure
       - run: make build
 
 workflows:
