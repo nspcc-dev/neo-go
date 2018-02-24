@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
@@ -14,13 +15,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-const fileExt = ".avm"
+const fileExt = "avm"
 
 // Options contains all the parameters that affect the behaviour of the compiler.
 type Options struct {
@@ -58,12 +60,56 @@ func Compile(input io.Reader, o *Options) ([]byte, error) {
 		return nil, err
 	}
 
-	buf, err := CodeGen(f, typeInfo)
+	imports, err := resolveImports(f)
+	if err != nil {
+		return nil, err
+	}
+
+	buf, err := CodeGen(f, typeInfo, imports)
 	if err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
+}
+
+type archive struct {
+	f        *ast.File
+	typeInfo *types.Info
+}
+
+func resolveImports(f *ast.File) (map[string]*archive, error) {
+	packages := map[string]*archive{}
+	for _, imp := range f.Imports {
+		path := strings.Replace(imp.Path.Value, `"`, "", 2)
+		path = filepath.Join(gopath(), "src", path)
+		fset := token.NewFileSet()
+		pkgs, err := parser.ParseDir(fset, path, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		for name, pkg := range pkgs {
+			file := ast.MergePackageFiles(pkg, 0)
+			conf := types.Config{Importer: importer.Default()}
+			typeInfo := &types.Info{
+				Types:      make(map[ast.Expr]types.TypeAndValue),
+				Defs:       make(map[*ast.Ident]types.Object),
+				Uses:       make(map[*ast.Ident]types.Object),
+				Implicits:  make(map[ast.Node]types.Object),
+				Selections: make(map[*ast.SelectorExpr]*types.Selection),
+				Scopes:     make(map[ast.Node]*types.Scope),
+			}
+
+			// Typechecker
+			_, err = conf.Check("", fset, []*ast.File{file}, typeInfo)
+			if err != nil {
+				return nil, err
+			}
+			packages[name] = &archive{file, typeInfo}
+		}
+	}
+	return packages, nil
 }
 
 // CompileAndSave will compile and save the file to disk.
@@ -111,6 +157,14 @@ func DumpOpcode(src string) error {
 	}
 	w.Flush()
 	return nil
+}
+
+func gopath() string {
+	gopath := os.Getenv("GOPATH")
+	if len(gopath) == 0 {
+		gopath = build.Default.GOPATH
+	}
+	return gopath
 }
 
 func init() {

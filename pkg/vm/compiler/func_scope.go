@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"go/ast"
+	"go/types"
 	"log"
 )
 
@@ -14,14 +15,22 @@ type funcScope struct {
 	// The declaration of the function in the AST
 	decl *ast.FuncDecl
 
-	// program label of the function
+	// Program label of the function
 	label int
 
-	// local scope of the function
+	// Local scope of the function
 	scope map[string]int
 
-	// mapping of structs positions with their scope
+	// A mapping of structs positions with their scope
 	structs map[int]*structScope
+
+	// voidCalls are basically functions that return their value
+	// into nothing. The stack has their return value but there
+	// is nothing that consumes it. We need to keep track of
+	// these functions so we can cleanup (drop) the returned
+	// value from the stack. We also need to add every voidCall
+	// return value to the stack size.
+	voidCalls map[*ast.CallExpr]bool
 
 	// local variable counter
 	i int
@@ -29,21 +38,52 @@ type funcScope struct {
 
 func newFuncScope(decl *ast.FuncDecl, label int) *funcScope {
 	return &funcScope{
-		name:    decl.Name.Name,
-		decl:    decl,
-		label:   label,
-		scope:   map[string]int{},
-		structs: map[int]*structScope{},
-		i:       -1,
+		name:      decl.Name.Name,
+		decl:      decl,
+		label:     label,
+		scope:     map[string]int{},
+		structs:   map[int]*structScope{},
+		voidCalls: map[*ast.CallExpr]bool{},
+		i:         -1,
 	}
+}
+
+// analyzeVoidCalls will check for functions that are not assigned
+// and therefore we need to cleanup the return value from the stack.
+func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.AssignStmt:
+		for i := 0; i < len(n.Rhs); i++ {
+			switch n.Rhs[i].(type) {
+			case *ast.CallExpr:
+				return false
+			}
+		}
+	case *ast.ReturnStmt:
+		switch n.Results[0].(type) {
+		case *ast.CallExpr:
+			return false
+		}
+	case *ast.CallExpr:
+		c.voidCalls[n] = true
+	}
+	return true
 }
 
 func (c *funcScope) stackSize() int64 {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
-		switch n.(type) {
+		switch n := n.(type) {
 		case *ast.AssignStmt, *ast.ReturnStmt, *ast.IfStmt:
 			size++
+		// This handles the inline GenDecl like "var x = 2"
+		case *ast.GenDecl:
+			switch t := n.Specs[0].(type) {
+			case *ast.ValueSpec:
+				if len(t.Values) > 0 {
+					size++
+				}
+			}
 		}
 		return true
 	})
@@ -53,11 +93,11 @@ func (c *funcScope) stackSize() int64 {
 	if c.decl.Recv != nil {
 		numArgs += len(c.decl.Recv.List)
 	}
-	return int64(size + numArgs)
+	return int64(size + numArgs + len(c.voidCalls))
 }
 
-func (c *funcScope) newStruct() *structScope {
-	strct := newStructScope()
+func (c *funcScope) newStruct(t *types.Struct) *structScope {
+	strct := newStructScope(t)
 	c.structs[len(c.scope)] = strct
 	return strct
 }

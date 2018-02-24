@@ -58,7 +58,9 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	)
 
 	if n == 0 {
-		return errors.New("cannot emit 0 bytes")
+		// The VM expects a pushf (0x00).
+		// Empty strings on the stack for example.
+		return emitOpcode(w, vm.Opushf)
 	}
 	if n <= int(vm.Opushbytes75) {
 		return emit(w, vm.Opcode(n), b)
@@ -78,6 +80,16 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	}
 	_, err = w.Write(b)
 	return err
+}
+
+func emitSyscall(w *bytes.Buffer, api string) error {
+	if len(api) == 0 {
+		return errors.New("syscall api cannot be of length 0")
+	}
+	buf := make([]byte, len(api)+1)
+	buf[0] = byte(len(api))
+	copy(buf[1:len(buf)], []byte(api))
+	return emit(w, vm.Osyscall, buf)
 }
 
 func emitCall(w *bytes.Buffer, op vm.Opcode, label int16) error {
