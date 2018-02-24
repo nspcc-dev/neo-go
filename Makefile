@@ -8,7 +8,7 @@ check-version:
 	git fetch && (! git rev-list ${VERSION})
 
 deps:
-	@glide install
+	@dep ensure
 
 push-tag:
 	git checkout ${BRANCH}
@@ -17,7 +17,7 @@ push-tag:
 	git push origin ${BRANCH} --tags
 
 test:
-	@go test $(shell glide nv) -cover
+	@go test ./... -cover
 
 vet:
-	@go vet $(shell glide nv)
+	@go vet ./...
