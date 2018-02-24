@@ -4,6 +4,12 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 
 > The neo-go compiler is under very active development and will be updated on a weekly basis.
 
+## Usage
+
+```
+./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.avm
+```
+
 ## Currently supported
 
 ### Go internals 

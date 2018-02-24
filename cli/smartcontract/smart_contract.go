@@ -1,10 +1,12 @@
 package smartcontract
 
 import (
-	"errors"
-
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/urfave/cli"
+)
+
+const (
+	ErrNoInput = "Input file is mandatory and should be passed using -i flag."
 )
 
 // NewCommand returns a new contract command.
@@ -19,6 +21,10 @@ func NewCommand() cli.Command {
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "Input file for the smart contract to be compiled",
+					},
+					cli.StringFlag{
 						Name:  "out, o",
 						Usage: "Output of the compiled contract",
 					},
@@ -28,14 +34,21 @@ func NewCommand() cli.Command {
 				Name:   "opdump",
 				Usage:  "dump the opcode of a .go file",
 				Action: contractDumpOpcode,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "Input file for the smart contract",
+					},
+				},
 			},
 		},
 	}
 }
 
 func contractCompile(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("not enough arguments")
+	src := ctx.String("in")
+	if len(src) == 0 {
+		return cli.NewExitError(ErrNoInput, 1)
 	}
 
 	o := &compiler.Options{
@@ -43,14 +56,19 @@ func contractCompile(ctx *cli.Context) error {
 		Debug:   true,
 	}
 
-	src := ctx.Args()[0]
-	return compiler.CompileAndSave(src, o)
+	if err := compiler.CompileAndSave(src, o); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
 }
 
 func contractDumpOpcode(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
-		return errors.New("not enough arguments")
+	src := ctx.String("in")
+	if len(src) == 0 {
+		return cli.NewExitError(ErrNoInput, 1)
 	}
-	src := ctx.Args()[0]
-	return compiler.DumpOpcode(src)
+	if err := compiler.DumpOpcode(src); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
 }
