@@ -15,6 +15,7 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 ### Go internals 
 - type checker
 - multiple assigns
+- global variables
 - types int, string and booleans
 - struct types + method receives
 - functions
