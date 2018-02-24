@@ -39,7 +39,7 @@ func TestAllCases(t *testing.T) {
 	// testCases = append(testCases, importTestCases...)
 
 	// Blockchain specific
-	testCases = append(testCases, storageTestCases...)
+	// testCases = append(testCases, storageTestCases...)
 
 	for _, tc := range testCases {
 		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
