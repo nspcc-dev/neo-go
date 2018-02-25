@@ -5,6 +5,8 @@ import (
 	"go/constant"
 	"go/types"
 	"log"
+
+	"golang.org/x/tools/go/loader"
 )
 
 // countGlobals counts the global variables in the program to add
@@ -44,4 +46,26 @@ func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
 		Type:  tinfo.ObjectOf(ident).Type(),
 		Value: constant.MakeBool(b),
 	}
+}
+
+// resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.
+func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *ast.File) {
+	var (
+		main *ast.FuncDecl
+		file *ast.File
+	)
+	for _, f := range pkg.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch t := n.(type) {
+			case *ast.FuncDecl:
+				if t.Name.Name == entry {
+					main = t
+					file = f
+					return false
+				}
+			}
+			return true
+		})
+	}
+	return main, file
 }

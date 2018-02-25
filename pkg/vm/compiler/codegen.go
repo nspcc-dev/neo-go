@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -16,6 +15,9 @@ import (
 const mainIdent = "Main"
 
 type codegen struct {
+	// Information about the program with all its dependencies.
+	buildInfo *buildInfo
+
 	// prog holds the output buffer
 	prog *bytes.Buffer
 
@@ -61,6 +63,10 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 		case types.Bool, types.UntypedBool:
 			val := constant.BoolVal(t.Value)
 			emitBool(c.prog, val)
+		case types.Byte:
+			val, _ := constant.Int64Val(t.Value)
+			b := byte(val)
+			emitBytes(c.prog, []byte{b})
 		default:
 			log.Fatalf("compiler don't know how to convert this basic type: %v", t)
 		}
@@ -111,6 +117,19 @@ func (c *codegen) emitStoreStructField(sName, fName string) {
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, vm.Orot)
 	emitOpcode(c.prog, vm.Osetitem)
+}
+
+func (c *codegen) emitSyscallReturn() {
+	emitOpcode(c.prog, vm.Ojmp)
+	emitOpcode(c.prog, vm.Opcode(0x03))
+	emitOpcode(c.prog, vm.Opush0)
+
+	emitInt(c.prog, int64(0))
+
+	emitOpcode(c.prog, vm.Onop)
+	emitOpcode(c.prog, vm.Ofromaltstack)
+	emitOpcode(c.prog, vm.Odrop)
+	emitOpcode(c.prog, vm.Oret)
 }
 
 // convertGlobals will traverse the AST and only convert global declarations.
@@ -176,10 +195,17 @@ func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 		c.emitStoreLocal(l)
 	}
 
-	// After loading the arguments we can convert the globals into the scope of the function.
-	c.convertGlobals(file)
-
-	ast.Walk(c, decl.Body)
+	// If this function is a syscall we will manipulate the return value to 0.
+	// All the syscalls are just signatures functions and bring no real return value.
+	// The return values you will find in the smartcontract package is just for
+	// satisfying the typechecker and the user experience.
+	if isSyscall(f.name) {
+		c.emitSyscallReturn()
+	} else {
+		// After loading the arguments we can convert the globals into the scope of the function.
+		c.convertGlobals(file)
+		ast.Walk(c, decl.Body)
+	}
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
@@ -332,7 +358,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// const x = 10
 			// x + 2 will results into 12
 			if tinfo := c.typeInfo.Types[n]; tinfo.Value != nil {
-				fmt.Println(tinfo)
 				c.emitLoadConst(tinfo)
 				return nil
 			}
@@ -404,8 +429,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.SelectorExpr:
 		switch t := n.X.(type) {
 		case *ast.Ident:
-			c.emitLoadLocal(t.Name)                   // load the struct
-			c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
+			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
+			switch typ.(type) {
+			case *types.Struct:
+				c.emitLoadLocal(t.Name)                   // load the struct
+				c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
+			default:
+				log.Fatal("non struct import selections not yet implemented, please use functions instead")
+			}
 		default:
 			log.Fatal("nested selectors not supported yet")
 		}
@@ -505,54 +536,42 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 }
 
 // CodeGen is the function that compiles the program to bytecode.
-func CodeGen(f *ast.File, tInfo *types.Info, imports map[string]*archive) (*bytes.Buffer, error) {
+func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
+	pkg := info.program.Package(info.initialPackage)
 	c := &codegen{
-		prog:     new(bytes.Buffer),
-		l:        []int{},
-		funcs:    map[string]*funcScope{},
-		typeInfo: tInfo,
+		buildInfo: info,
+		prog:      new(bytes.Buffer),
+		l:         []int{},
+		funcs:     map[string]*funcScope{},
+		typeInfo:  &pkg.Info,
 	}
 
-	var main *ast.FuncDecl
-	ast.Inspect(f, func(n ast.Node) bool {
-		switch t := n.(type) {
-		case *ast.FuncDecl:
-			if t.Name.Name == mainIdent {
-				main = t
-				return false
-			}
-		}
-		return true
-	})
+	// Resolve the entrypoint of the program
+	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
 		log.Fatal("could not find func main. did you forgot to declare it?")
 	}
 
 	// Bring all imported functions into scope
-	for _, arch := range imports {
-		c.resolveFuncDecls(arch.f)
-	}
-
-	c.resolveFuncDecls(f)
-	c.convertFuncDecl(f, main)
-
-	for _, decl := range f.Decls {
-		switch n := decl.(type) {
-		case *ast.FuncDecl:
-			if n.Name.Name != mainIdent {
-				c.convertFuncDecl(f, n)
-			}
+	for _, pkg := range info.program.AllPackages {
+		for _, f := range pkg.Files {
+			c.resolveFuncDecls(f)
 		}
 	}
 
-	// Generate code for the imported packages.
-	for _, arch := range imports {
-		c.typeInfo = arch.typeInfo
-		for _, decl := range arch.f.Decls {
-			switch n := decl.(type) {
-			case *ast.FuncDecl:
-				if n.Name.Name != mainIdent {
-					c.convertFuncDecl(f, n)
+	// convert the entry point first
+	c.convertFuncDecl(mainFile, main)
+
+	// Generate the code for the program
+	for _, pkg := range info.program.AllPackages {
+		c.typeInfo = &pkg.Info
+		for _, f := range pkg.Files {
+			for _, decl := range f.Decls {
+				switch n := decl.(type) {
+				case *ast.FuncDecl:
+					if n.Name.Name != mainIdent {
+						c.convertFuncDecl(f, n)
+					}
 				}
 			}
 		}

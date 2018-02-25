@@ -19,6 +19,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"golang.org/x/tools/go/loader"
 )
 
 const fileExt = "avm"
@@ -35,36 +36,31 @@ type Options struct {
 	Debug bool
 }
 
+type buildInfo struct {
+	initialPackage string
+	program        *loader.Program
+}
+
 // Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
-func Compile(input io.Reader, o *Options) ([]byte, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", input, 0)
+func Compile(r io.Reader, o *Options) ([]byte, error) {
+	conf := loader.Config{ParserMode: parser.ParseComments}
+	f, err := conf.ParseFile("", r)
+	if err != nil {
+		return nil, err
+	}
+	conf.CreateFromFiles("", f)
+
+	prog, err := conf.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	conf := types.Config{Importer: importer.Default()}
-	typeInfo := &types.Info{
-		Types:      make(map[ast.Expr]types.TypeAndValue),
-		Defs:       make(map[*ast.Ident]types.Object),
-		Uses:       make(map[*ast.Ident]types.Object),
-		Implicits:  make(map[ast.Node]types.Object),
-		Selections: make(map[*ast.SelectorExpr]*types.Selection),
-		Scopes:     make(map[ast.Node]*types.Scope),
+	ctx := &buildInfo{
+		initialPackage: f.Name.Name,
+		program:        prog,
 	}
 
-	// Typechecker
-	_, err = conf.Check("", fset, []*ast.File{f}, typeInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	imports, err := resolveImports(f)
-	if err != nil {
-		return nil, err
-	}
-
-	buf, err := CodeGen(f, typeInfo, imports)
+	buf, err := CodeGen(ctx)
 	if err != nil {
 		return nil, err
 	}

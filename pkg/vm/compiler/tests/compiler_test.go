@@ -33,10 +33,6 @@ func TestAllCases(t *testing.T) {
 	testCases = append(testCases, ifStatementTestCases...)
 	testCases = append(testCases, customTypeTestCases...)
 	testCases = append(testCases, constantTestCases...)
-
-	// TODO: issue #28
-	// These tests are passing locally, but circleci is failing to resolve the dependency.
-	// https://github.com/CityOfZion/neo-go/issues/28
 	testCases = append(testCases, importTestCases...)
 
 	// Blockchain specific
@@ -55,8 +51,7 @@ func TestAllCases(t *testing.T) {
 
 		if bytes.Compare(b, expectedResult) != 0 {
 			t.Log(hex.EncodeToString(b))
-			want, _ := hex.DecodeString(tc.result)
-			dumpOpCodeSideBySide(b, want)
+			dumpOpCodeSideBySide(b, expectedResult)
 			t.Fatalf("compiling %s failed", tc.name)
 		}
 	}

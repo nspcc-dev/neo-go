@@ -6,7 +6,7 @@ var storageTestCases = []testCase{
 		`
 		package foo
 
-		import "github.com/CityOfZion/neo-go/pkg/vm/smartcontract/storage"
+		import "github.com/CityOfZion/neo-go/pkg/smartcontract/storage"
 
 		func Main() int {
 			ctx := storage.GetContext()
