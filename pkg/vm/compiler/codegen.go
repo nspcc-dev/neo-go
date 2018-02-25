@@ -15,16 +15,20 @@ import (
 const mainIdent = "Main"
 
 type codegen struct {
+	// Information about the program with all its dependencies.
+	buildInfo *buildInfo
+
+	// prog holds the output buffer
 	prog *bytes.Buffer
 
 	// Type information
 	typeInfo *types.Info
 
-	// a mapping of func identifiers with its scope.
+	// A mapping of func identifiers with their scope.
 	funcs map[string]*funcScope
 
-	// current function being generated
-	fctx *funcScope
+	// Current funcScope being converted.
+	scope *funcScope
 
 	// Label table for recording jump destinations.
 	l []int
@@ -50,15 +54,21 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
 		switch typ.Kind() {
-		case types.Int:
+		case types.Int, types.UntypedInt:
 			val, _ := constant.Int64Val(t.Value)
 			emitInt(c.prog, val)
-		case types.String:
+		case types.String, types.UntypedString:
 			val := constant.StringVal(t.Value)
 			emitString(c.prog, val)
 		case types.Bool, types.UntypedBool:
 			val := constant.BoolVal(t.Value)
 			emitBool(c.prog, val)
+		case types.Byte:
+			val, _ := constant.Int64Val(t.Value)
+			b := byte(val)
+			emitBytes(c.prog, []byte{b})
+		default:
+			log.Fatalf("compiler don't know how to convert this basic type: %v", t)
 		}
 	default:
 		log.Fatalf("compiler don't know how to convert this constant: %v", t)
@@ -66,7 +76,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 }
 
 func (c *codegen) emitLoadLocal(name string) {
-	pos := c.fctx.loadLocal(name)
+	pos := c.scope.loadLocal(name)
 	if pos < 0 {
 		log.Fatalf("cannot load local variable with position: %d", pos)
 	}
@@ -80,7 +90,7 @@ func (c *codegen) emitLoadLocal(name string) {
 }
 
 func (c *codegen) emitLoadStructField(sName, fName string) {
-	strct := c.fctx.loadStruct(sName)
+	strct := c.scope.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, vm.Opickitem)
@@ -102,14 +112,42 @@ func (c *codegen) emitStoreLocal(pos int) {
 }
 
 func (c *codegen) emitStoreStructField(sName, fName string) {
-	strct := c.fctx.loadStruct(sName)
+	strct := c.scope.loadStruct(sName)
 	pos := strct.loadField(fName)
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, vm.Orot)
 	emitOpcode(c.prog, vm.Osetitem)
 }
 
-func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
+func (c *codegen) emitSyscallReturn() {
+	emitOpcode(c.prog, vm.Ojmp)
+	emitOpcode(c.prog, vm.Opcode(0x03))
+	emitOpcode(c.prog, vm.Opush0)
+
+	emitInt(c.prog, int64(0))
+
+	emitOpcode(c.prog, vm.Onop)
+	emitOpcode(c.prog, vm.Ofromaltstack)
+	emitOpcode(c.prog, vm.Odrop)
+	emitOpcode(c.prog, vm.Oret)
+}
+
+// convertGlobals will traverse the AST and only convert global declarations.
+// If we call this in convertFuncDecl then it will load all global variables
+// into the scope of the function.
+func (c *codegen) convertGlobals(f *ast.File) {
+	ast.Inspect(f, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.FuncDecl:
+			return false
+		case *ast.GenDecl:
+			ast.Walk(c, n)
+		}
+		return true
+	})
+}
+
+func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 	var (
 		f  *funcScope
 		ok bool
@@ -122,10 +160,12 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 		f = c.newFunc(decl)
 	}
 
-	c.fctx = f
-	ast.Inspect(decl, c.fctx.analyzeVoidCalls)
+	c.scope = f
+	ast.Inspect(decl, c.scope.analyzeVoidCalls)
 
-	emitInt(c.prog, f.stackSize())
+	// All globals copied into the scope of the function need to be added
+	// to the stack size of the function.
+	emitInt(c.prog, f.stackSize()+countGlobals(file))
 	emitOpcode(c.prog, vm.Onewarray)
 	emitOpcode(c.prog, vm.Otoaltstack)
 
@@ -142,8 +182,8 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 			if !ok {
 				log.Fatal("method receiver is not a struct type")
 			}
-			c.fctx.newStruct(t)
-			l := c.fctx.newLocal(ident.Name)
+			c.scope.newStruct(t)
+			l := c.scope.newLocal(ident.Name)
 			c.emitStoreLocal(l)
 		}
 	}
@@ -151,26 +191,39 @@ func (c *codegen) convertFuncDecl(decl *ast.FuncDecl) {
 	// Load the arguments in scope.
 	for _, arg := range decl.Type.Params.List {
 		name := arg.Names[0].Name // for now.
-		l := c.fctx.newLocal(name)
+		l := c.scope.newLocal(name)
 		c.emitStoreLocal(l)
 	}
 
-	ast.Walk(c, decl.Body)
+	// If this function is a syscall we will manipulate the return value to 0.
+	// All the syscalls are just signatures functions and bring no real return value.
+	// The return values you will find in the smartcontract package is just for
+	// satisfying the typechecker and the user experience.
+	if isSyscall(f.name) {
+		c.emitSyscallReturn()
+	} else {
+		// After loading the arguments we can convert the globals into the scope of the function.
+		c.convertGlobals(file)
+		ast.Walk(c, decl.Body)
+	}
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 
 	// General declarations.
-	// With value:		var x int = 2
-	// Without value: 	var x int
+	// var (
+	//     x = 2
+	// )
 	case *ast.GenDecl:
-		switch t := n.Specs[0].(type) {
-		case *ast.ValueSpec:
-			if len(t.Values) > 0 {
-				ast.Walk(c, t.Values[0])
-				l := c.fctx.newLocal(t.Names[0].Name)
-				c.emitStoreLocal(l)
+		for _, spec := range n.Specs {
+			switch t := spec.(type) {
+			case *ast.ValueSpec:
+				for i, val := range t.Values {
+					ast.Walk(c, val)
+					l := c.scope.newLocal(t.Names[i].Name)
+					c.emitStoreLocal(l)
+				}
 			}
 		}
 		return nil
@@ -184,11 +237,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emitLoadLocal(t.Name)
 					ast.Walk(c, n.Rhs[0])
 					c.convertToken(n.Tok)
-					l := c.fctx.loadLocal(t.Name)
+					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				default:
 					ast.Walk(c, n.Rhs[0])
-					l := c.fctx.loadLocal(t.Name)
+					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				}
 
@@ -246,7 +299,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BasicLit:
-		c.emitLoadConst(c.getTypeInfo(n))
+		c.emitLoadConst(c.typeInfo.Types[n])
 		return nil
 
 	case *ast.Ident:
@@ -268,7 +321,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		default:
 			ln := len(n.Elts)
 			for i := ln - 1; i >= 0; i-- {
-				c.emitLoadConst(c.getTypeInfo(n.Elts[i]))
+				c.emitLoadConst(c.typeInfo.Types[n.Elts[i]])
 			}
 			emitInt(c.prog, int64(ln))
 			emitOpcode(c.prog, vm.Opack)
@@ -300,9 +353,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// The AST package will try to resolve all basic literals for us.
 			// If the typeinfo.Value is not nil we know that the expr is resolved
 			// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
-			if tinfo := c.getTypeInfo(n); tinfo.Value != nil {
+			// NOTE: Constants will also be automagically resolved be the AST parser.
+			// example:
+			// const x = 10
+			// x + 2 will results into 12
+			if tinfo := c.typeInfo.Types[n]; tinfo.Value != nil {
 				c.emitLoadConst(tinfo)
-				return c
+				return nil
 			}
 
 			ast.Walk(c, n.X)
@@ -364,7 +421,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		// If we are not assigning this function to a variable we need to drop
 		// the top stack item. It's not a void but you get the point \o/.
-		if _, ok := c.fctx.voidCalls[n]; ok && !isNoRetSyscall(f.name) {
+		if _, ok := c.scope.voidCalls[n]; ok && !isNoRetSyscall(f.name) {
 			emitOpcode(c.prog, vm.Odrop)
 		}
 		return nil
@@ -372,8 +429,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.SelectorExpr:
 		switch t := n.X.(type) {
 		case *ast.Ident:
-			c.emitLoadLocal(t.Name)                   // load the struct
-			c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
+			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
+			switch typ.(type) {
+			case *types.Struct:
+				c.emitLoadLocal(t.Name)                   // load the struct
+				c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
+			default:
+				log.Fatal("non struct import selections not yet implemented, please use functions instead")
+			}
 		default:
 			log.Fatal("nested selectors not supported yet")
 		}
@@ -398,7 +461,7 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	if !ok {
 		log.Fatalf("the given literal is not of type struct: %v", lit)
 	}
-	strct := c.fctx.newStruct(t)
+	strct := c.scope.newStruct(t)
 
 	emitOpcode(c.prog, vm.Onop)
 	emitInt(c.prog, int64(strct.t.NumFields()))
@@ -472,82 +535,43 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
-// TODO: Don't know if we really use this. Check if it can be deleted.
-// If it's used once or twice, also remove this functions and
-// call .Types direcly. e.g. c.typeInfo.Types[expr]
-func (c *codegen) getTypeInfo(expr ast.Expr) types.TypeAndValue {
-	return c.typeInfo.Types[expr]
-}
-
-func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
-	var b bool
-	if ident.Name == "true" {
-		b = true
-	} else if ident.Name == "false" {
-		b = false
-	} else {
-		log.Fatalf("givent identifier cannot be converted to a boolean => %s", ident.Name)
-	}
-
-	return types.TypeAndValue{
-		Type:  tinfo.ObjectOf(ident).Type(),
-		Value: constant.MakeBool(b),
-	}
-}
-
-func isIdentBool(ident *ast.Ident) bool {
-	return ident.Name == "true" || ident.Name == "false"
-}
-
 // CodeGen is the function that compiles the program to bytecode.
-func CodeGen(f *ast.File, tInfo *types.Info, imports map[string]*archive) (*bytes.Buffer, error) {
+func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
+	pkg := info.program.Package(info.initialPackage)
 	c := &codegen{
-		prog:     new(bytes.Buffer),
-		l:        []int{},
-		funcs:    map[string]*funcScope{},
-		typeInfo: tInfo,
+		buildInfo: info,
+		prog:      new(bytes.Buffer),
+		l:         []int{},
+		funcs:     map[string]*funcScope{},
+		typeInfo:  &pkg.Info,
 	}
 
-	var main *ast.FuncDecl
-	ast.Inspect(f, func(n ast.Node) bool {
-		switch t := n.(type) {
-		case *ast.FuncDecl:
-			if t.Name.Name == mainIdent {
-				main = t
-				return false
-			}
-		}
-		return true
-	})
+	// Resolve the entrypoint of the program
+	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
 		log.Fatal("could not find func main. did you forgot to declare it?")
 	}
 
 	// Bring all imported functions into scope
-	for _, arch := range imports {
-		c.resolveFuncDecls(arch.f)
-	}
-
-	c.resolveFuncDecls(f)
-	c.convertFuncDecl(main)
-
-	for _, decl := range f.Decls {
-		switch n := decl.(type) {
-		case *ast.FuncDecl:
-			if n.Name.Name != mainIdent {
-				c.convertFuncDecl(n)
-			}
+	for _, pkg := range info.program.AllPackages {
+		for _, f := range pkg.Files {
+			c.resolveFuncDecls(f)
 		}
 	}
 
-	// Generate code for the imported packages.
-	for _, arch := range imports {
-		c.typeInfo = arch.typeInfo
-		for _, decl := range arch.f.Decls {
-			switch n := decl.(type) {
-			case *ast.FuncDecl:
-				if n.Name.Name != mainIdent {
-					c.convertFuncDecl(n)
+	// convert the entry point first
+	c.convertFuncDecl(mainFile, main)
+
+	// Generate the code for the program
+	for _, pkg := range info.program.AllPackages {
+		c.typeInfo = &pkg.Info
+		for _, f := range pkg.Files {
+			for _, decl := range f.Decls {
+				switch n := decl.(type) {
+				case *ast.FuncDecl:
+					if n.Name.Name != mainIdent {
+						c.convertFuncDecl(f, n)
+					}
 				}
 			}
 		}

@@ -6,20 +6,20 @@ import (
 	"log"
 )
 
-// A funcScope represents a scope within the function context.
+// A funcScope represents the scope within the function context.
 // It holds al the local variables along with the initialized struct positions.
 type funcScope struct {
-	// function identifier
+	// identifier of the function.
 	name string
 
-	// The declaration of the function in the AST
+	// The declaration of the function in the AST. Nil if this scope is not a function.
 	decl *ast.FuncDecl
 
-	// Program label of the function
+	// Program label of the scope
 	label int
 
-	// Local scope of the function
-	scope map[string]int
+	// Local variables
+	locals map[string]int
 
 	// A mapping of structs positions with their scope
 	structs map[int]*structScope
@@ -41,7 +41,7 @@ func newFuncScope(decl *ast.FuncDecl, label int) *funcScope {
 		name:      decl.Name.Name,
 		decl:      decl,
 		label:     label,
-		scope:     map[string]int{},
+		locals:    map[string]int{},
 		structs:   map[int]*structScope{},
 		voidCalls: map[*ast.CallExpr]bool{},
 		i:         -1,
@@ -64,8 +64,11 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 		case *ast.CallExpr:
 			return false
 		}
+	case *ast.BinaryExpr:
+		return false
 	case *ast.CallExpr:
 		c.voidCalls[n] = true
+		return false
 	}
 	return true
 }
@@ -98,7 +101,7 @@ func (c *funcScope) stackSize() int64 {
 
 func (c *funcScope) newStruct(t *types.Struct) *structScope {
 	strct := newStructScope(t)
-	c.structs[len(c.scope)] = strct
+	c.structs[len(c.locals)] = strct
 	return strct
 }
 
@@ -114,13 +117,13 @@ func (c *funcScope) loadStruct(name string) *structScope {
 // newLocal creates a new local variable into the scope of the function.
 func (c *funcScope) newLocal(name string) int {
 	c.i++
-	c.scope[name] = c.i
+	c.locals[name] = c.i
 	return c.i
 }
 
 // loadLocal loads the position of a local variable inside the scope of the function.
 func (c *funcScope) loadLocal(name string) int {
-	i, ok := c.scope[name]
+	i, ok := c.locals[name]
 	if !ok {
 		// should emit a compiler warning.
 		return c.newLocal(name)

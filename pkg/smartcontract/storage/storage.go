@@ -1,7 +1,7 @@
 package storage
 
 // GetContext ..
-func GetContext() int { return 0 }
+func GetContext() interface{} { return 0 }
 
 // Put stores a value in to the storage.
 func Put(ctx interface{}, key interface{}, value interface{}) int { return 0 }

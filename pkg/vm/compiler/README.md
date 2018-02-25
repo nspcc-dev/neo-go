@@ -15,7 +15,8 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 ### Go internals 
 - type checker
 - multiple assigns
-- types int, string and booleans
+- global variables
+- types int, string, byte and booleans
 - struct types + method receives
 - functions
 - composite literals `[]int, []string`
@@ -26,12 +27,13 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 
 ### VM API (interop layer)
 - storage
+- runtime
 
 ## Not yet implemented
 - for loops
 - ranges
 - builtins (append, len, ..)
-- large part of the interop layer (VM API)
+- some parts of the interop layer (VM API)
 
 ## Not supported
 Due to the limitations of the NEO virtual machine, features listed below will not be supported.

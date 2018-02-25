@@ -9,4 +9,12 @@ var Syscalls = map[string]string{
 	"GetInt":     "Neo.Storage.Get",
 	"GetString":  "Neo.Storage.Get",
 	"Delete":     "Neo.Storage.Delete",
+
+	// Runtime
+	"GetTrigger":      "Neo.Runtime.GetTrigger",
+	"CheckWitness":    "Neo.Runtime.CheckWitness",
+	"GetCurrentBlock": "Neo.Runtime.GetCurrentBlock",
+	"GetTime":         "Neo.Runtime.GetTime",
+	"Notify":          "Neo.runtime.Notify",
+	"Log":             "Neo.Runtime.Log",
 }
