@@ -89,13 +89,6 @@ func (c *codegen) emitLoadLocal(name string) {
 	emitOpcode(c.prog, vm.Opickitem)
 }
 
-func (c *codegen) emitLoadStructField(sName, fName string) {
-	strct := c.scope.loadStruct(sName)
-	pos := strct.loadField(fName)
-	emitInt(c.prog, int64(pos))
-	emitOpcode(c.prog, vm.Opickitem)
-}
-
 func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, vm.Ofromaltstack)
 	emitOpcode(c.prog, vm.Odup)
@@ -111,10 +104,13 @@ func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, vm.Osetitem)
 }
 
-func (c *codegen) emitStoreStructField(sName, fName string) {
-	strct := c.scope.loadStruct(sName)
-	pos := strct.loadField(fName)
-	emitInt(c.prog, int64(pos))
+func (c *codegen) emitLoadStructField(i int) {
+	emitInt(c.prog, int64(i))
+	emitOpcode(c.prog, vm.Opickitem)
+}
+
+func (c *codegen) emitStoreStructField(i int) {
+	emitInt(c.prog, int64(i))
 	emitOpcode(c.prog, vm.Orot)
 	emitOpcode(c.prog, vm.Osetitem)
 }
@@ -178,11 +174,11 @@ func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
 			ident := arg.Names[0]
-			t, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
+			// Currently only method receives for struct types is supported.
+			_, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
 			if !ok {
-				log.Fatal("method receiver is not a struct type")
+				log.Fatal("method receives for non-struct types is not yet supported")
 			}
-			c.scope.newStruct(t)
 			l := c.scope.newLocal(ident.Name)
 			c.emitStoreLocal(l)
 		}
@@ -249,8 +245,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				switch expr := t.X.(type) {
 				case *ast.Ident:
 					ast.Walk(c, n.Rhs[i])
-					c.emitLoadLocal(expr.Name)                    // load the struct
-					c.emitStoreStructField(expr.Name, t.Sel.Name) // store the field
+					typ := c.typeInfo.ObjectOf(expr).Type().Underlying()
+					if strct, ok := typ.(*types.Struct); ok {
+						c.emitLoadLocal(expr.Name)            // load the struct
+						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
+						c.emitStoreStructField(i)             // store the field
+					}
 				default:
 					log.Fatal("nested selector assigns not supported yet")
 				}
@@ -430,12 +430,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch t := n.X.(type) {
 		case *ast.Ident:
 			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
-			switch typ.(type) {
-			case *types.Struct:
-				c.emitLoadLocal(t.Name)                   // load the struct
-				c.emitLoadStructField(t.Name, n.Sel.Name) // load the field
-			default:
-				log.Fatal("non struct import selections not yet implemented, please use functions instead")
+			if strct, ok := typ.(*types.Struct); ok {
+				c.emitLoadLocal(t.Name) // load the struct
+				i := indexOfStruct(strct, n.Sel.Name)
+				c.emitLoadStructField(i) // load the field
 			}
 		default:
 			log.Fatal("nested selectors not supported yet")
@@ -457,21 +455,20 @@ func (c *codegen) convertSyscall(name string) {
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
-	t, ok := c.typeInfo.TypeOf(lit).Underlying().(*types.Struct)
+	strct, ok := c.typeInfo.TypeOf(lit).Underlying().(*types.Struct)
 	if !ok {
 		log.Fatalf("the given literal is not of type struct: %v", lit)
 	}
-	strct := c.scope.newStruct(t)
 
 	emitOpcode(c.prog, vm.Onop)
-	emitInt(c.prog, int64(strct.t.NumFields()))
+	emitInt(c.prog, int64(strct.NumFields()))
 	emitOpcode(c.prog, vm.Onewstruct)
 	emitOpcode(c.prog, vm.Otoaltstack)
 
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
-	for i := 0; i < strct.t.NumFields(); i++ {
-		sField := strct.t.Field(i)
+	for i := 0; i < strct.NumFields(); i++ {
+		sField := strct.Field(i)
 		fieldAdded := false
 
 		// Fields initialized by the program.
@@ -481,7 +478,7 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 
 			if sField.Name() == fieldName {
 				ast.Walk(c, f.Value)
-				pos := strct.loadField(fieldName)
+				pos := indexOfStruct(strct, fieldName)
 				c.emitStoreLocal(pos)
 				fieldAdded = true
 				break
@@ -490,7 +487,9 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		if fieldAdded {
 			continue
 		}
-		c.emitLoadConst(strct.typeAndValues[sField.Name()])
+
+		typeAndVal := typeAndValueForField(sField)
+		c.emitLoadConst(typeAndVal)
 		c.emitStoreLocal(i)
 	}
 	emitOpcode(c.prog, vm.Ofromaltstack)

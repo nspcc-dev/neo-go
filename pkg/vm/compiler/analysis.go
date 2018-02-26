@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
@@ -8,6 +9,33 @@ import (
 
 	"golang.org/x/tools/go/loader"
 )
+
+// typeAndValueForField returns a zero initializd typeAndValue or the given type.Var.
+func typeAndValueForField(fld *types.Var) types.TypeAndValue {
+	switch t := fld.Type().(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.Int:
+			return types.TypeAndValue{
+				Type:  t,
+				Value: constant.MakeInt64(0),
+			}
+		case types.String:
+			return types.TypeAndValue{
+				Type:  t,
+				Value: constant.MakeString(""),
+			}
+		case types.Bool, types.UntypedBool:
+			return types.TypeAndValue{
+				Type:  t,
+				Value: constant.MakeBool(false),
+			}
+		default:
+			log.Fatalf("could not initialize struct field %s to zero, type: %s", fld.Name(), t)
+		}
+	}
+	return types.TypeAndValue{}
+}
 
 // countGlobals counts the global variables in the program to add
 // them with the stacksize of the function.
@@ -68,4 +96,16 @@ func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *a
 		})
 	}
 	return main, file
+}
+
+// indexOfStruct will return the index of the given field inside that struct.
+// If the struct does not contain that field it will return -1.
+func indexOfStruct(strct *types.Struct, fldName string) int {
+	for i := 0; i < strct.NumFields(); i++ {
+		fmt.Println(strct.Field(i).Name())
+		if strct.Field(i).Name() == fldName {
+			return i
+		}
+	}
+	return -1
 }
