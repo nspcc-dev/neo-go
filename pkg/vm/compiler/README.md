@@ -2,7 +2,7 @@
 
 The neo-go compiler compiles Go programs to bytecode that the NEO virtual machine can understand.
 
-***NOTE:*** The neo-go compiler is under very active development and will be updated on a weekly basis. The API is likely going to chance, ***hence do not use this in production environments (mainnet)*** yet.
+***NOTE:*** The neo-go compiler is under very active development and will be updated on a weekly basis. The API is likely going to change, ***hence do not use this in production environments (mainnet)*** yet.
 
 For help, questions and discussion feel free to join the [City Of Zion discord](https://discordapp.com/invite/R8v48YA) and hop in the #golang channel. Or reach out to me on twitter [@anthdm](https://twitter.com/anthdm)
 
