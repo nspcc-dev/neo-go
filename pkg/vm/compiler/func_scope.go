@@ -2,8 +2,6 @@ package compiler
 
 import (
 	"go/ast"
-	"go/types"
-	"log"
 )
 
 // A funcScope represents the scope within the function context.
@@ -20,9 +18,6 @@ type funcScope struct {
 
 	// Local variables
 	locals map[string]int
-
-	// A mapping of structs positions with their scope
-	structs map[int]*structScope
 
 	// voidCalls are basically functions that return their value
 	// into nothing. The stack has their return value but there
@@ -42,7 +37,6 @@ func newFuncScope(decl *ast.FuncDecl, label int) *funcScope {
 		decl:      decl,
 		label:     label,
 		locals:    map[string]int{},
-		structs:   map[int]*structScope{},
 		voidCalls: map[*ast.CallExpr]bool{},
 		i:         -1,
 	}
@@ -77,7 +71,9 @@ func (c *funcScope) stackSize() int64 {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
-		case *ast.AssignStmt, *ast.ReturnStmt, *ast.IfStmt:
+		case *ast.AssignStmt:
+			size += len(n.Rhs)
+		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
 		case *ast.GenDecl:
@@ -97,21 +93,6 @@ func (c *funcScope) stackSize() int64 {
 		numArgs += len(c.decl.Recv.List)
 	}
 	return int64(size + numArgs + len(c.voidCalls))
-}
-
-func (c *funcScope) newStruct(t *types.Struct) *structScope {
-	strct := newStructScope(t)
-	c.structs[len(c.locals)] = strct
-	return strct
-}
-
-func (c *funcScope) loadStruct(name string) *structScope {
-	l := c.loadLocal(name)
-	strct, ok := c.structs[l]
-	if !ok {
-		log.Fatalf("could not resolve struct %s", name)
-	}
-	return strct
 }
 
 // newLocal creates a new local variable into the scope of the function.

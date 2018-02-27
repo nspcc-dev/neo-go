@@ -40,23 +40,21 @@ A complete toolkit for the NEO blockchain, including:
 
 ## Current State
 
-This project is still under heavy development. Still working on internal API's and project layout. T
-his should not take longer than 2 weeks.
-
 The project will exist out of the following packages:
 
 | Package       | State   | Developer                            |
 |---------------|---------|--------------------------------------|
-| api           | started | [@anthdm](https://github.com/anthdm) |
 | core          | started | [@anthdm](https://github.com/anthdm) |
 | network       | started | [@anthdm](https://github.com/anthdm) |
 | vm            | started | [@anthdm](https://github.com/anthdm) |
-| smartcontract | started | [@revett](https://github.com/revett) |
+| compiler      | started | [@anthdm](https://github.com/anthdm) |
+| client        | started | [@revett](https://github.com/revett) |
 | cli           | started | [@revett](https://github.com/revett) |
+| wallet        | started | [@pawanrawal](https://github.com/pawanrawal) |
 
 # Getting Started
 
-## Server
+## Node
 
 Install dependencies, this requires [dep](https://github.com/golang/dep):
 
@@ -112,7 +110,7 @@ TODO
 ```
 
 ## Smart Contracts
-> NOTE: At this moment there is only a small subset of the Go language implemented.
+> In depth documentation about the neo-go compiler and smart contract examples can be found inside the [compiler package](https://github.com/CityOfZion/neo-go/tree/master/pkg/vm/compiler).
 
 ### Compile a smart contract
 

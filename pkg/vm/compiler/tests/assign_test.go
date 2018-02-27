@@ -112,4 +112,15 @@ var assignTestCases = []testCase{
 		`,
 		"52c56b546c766b00527ac46203006c766b00c3616c7566",
 	},
+	{
+		"multi assign",
+		`
+		package foo
+		func Main() int {
+			x, y := 1, 2
+			return x + y
+		}
+		`,
+		"53c56b516c766b00527ac4526c766b51527ac46203006c766b00c36c766b51c393616c7566",
+	},
 }

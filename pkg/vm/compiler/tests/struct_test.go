@@ -200,4 +200,29 @@ var structTestCases = []testCase{
 		`,
 		"51c56b62030061650700616c756651c56b6203006154c66b516c766b00527ac4526c766b51527ac40568656c6c6f6c766b52527ac4006c766b53527ac46c616c7566",
 	},
+	{
+		"pass struct as argument",
+		`
+		package foo
+
+		type Bar struct {
+			amount int
+		}
+
+		func addToAmount(x int, bar Bar) int {
+			bar.amount = bar.amount + x
+			return bar.amount
+		}
+
+		func Main() int {
+			b := Bar{
+				amount: 10,
+			}
+
+			x := addToAmount(4, b)
+			return x 
+		}
+		`,
+		"53c56b6151c66b5a6c766b00527ac46c6c766b00527ac4546c766b00c37c616516006c766b51527ac46203006c766b51c3616c756654c56b6c766b00527ac46c766b51527ac46c766b51c300c36c766b00c3936c766b51c3007bc46203006c766b51c300c3616c7566",
+	},
 }

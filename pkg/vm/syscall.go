@@ -15,6 +15,6 @@ var Syscalls = map[string]string{
 	"CheckWitness":    "Neo.Runtime.CheckWitness",
 	"GetCurrentBlock": "Neo.Runtime.GetCurrentBlock",
 	"GetTime":         "Neo.Runtime.GetTime",
-	"Notify":          "Neo.runtime.Notify",
+	"Notify":          "Neo.Runtime.Notify",
 	"Log":             "Neo.Runtime.Log",
 }

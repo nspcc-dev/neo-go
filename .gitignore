@@ -22,3 +22,6 @@ bin/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# anthdm todolists
+/pkg/vm/compiler/todo.md
