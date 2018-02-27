@@ -37,6 +37,7 @@ func TestAllCases(t *testing.T) {
 
 	// Blockchain specific
 	testCases = append(testCases, storageTestCases...)
+	testCases = append(testCases, runtimeTestCases...)
 
 	for _, tc := range testCases {
 		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
@@ -50,6 +51,7 @@ func TestAllCases(t *testing.T) {
 		}
 
 		if bytes.Compare(b, expectedResult) != 0 {
+			fmt.Println(tc.src)
 			t.Log(hex.EncodeToString(b))
 			dumpOpCodeSideBySide(b, expectedResult)
 			t.Fatalf("compiling %s failed", tc.name)

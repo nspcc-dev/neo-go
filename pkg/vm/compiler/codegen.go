@@ -231,12 +231,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				switch n.Tok {
 				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN:
 					c.emitLoadLocal(t.Name)
-					ast.Walk(c, n.Rhs[0])
+					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
 					c.convertToken(n.Tok)
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				default:
-					ast.Walk(c, n.Rhs[0])
+					ast.Walk(c, n.Rhs[i])
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				}
@@ -320,6 +320,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ = c.typeInfo.ObjectOf(t.Sel).Type().Underlying()
 		default:
 			ln := len(n.Elts)
+			// ByteArrays need a different approach then normal arrays.
+			if isByteArray(n, c.typeInfo) {
+				c.convertByteArray(n)
+				return nil
+			}
 			for i := ln - 1; i >= 0; i-- {
 				c.emitLoadConst(c.typeInfo.Types[n.Elts[i]])
 			}
@@ -439,6 +444,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			log.Fatal("nested selectors not supported yet")
 		}
 		return nil
+
+	case *ast.UnaryExpr:
+		// fmt.Println(n)
 	}
 	return c
 }
@@ -450,6 +458,16 @@ func (c *codegen) convertSyscall(name string) {
 	}
 	emitSyscall(c.prog, api)
 	emitOpcode(c.prog, vm.Onop)
+}
+
+func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
+	buf := make([]byte, len(lit.Elts))
+	for i := 0; i < len(lit.Elts); i++ {
+		t := c.typeInfo.Types[lit.Elts[i]]
+		val, _ := constant.Int64Val(t.Value)
+		buf[i] = byte(val)
+	}
+	emitBytes(c.prog, buf)
 }
 
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
@@ -551,6 +569,8 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 		log.Fatal("could not find func main. did you forgot to declare it?")
 	}
 
+	funUsage := analyzeFuncUsage(info.program.AllPackages)
+
 	// Bring all imported functions into scope
 	for _, pkg := range info.program.AllPackages {
 		for _, f := range pkg.Files {
@@ -564,11 +584,14 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 	// Generate the code for the program
 	for _, pkg := range info.program.AllPackages {
 		c.typeInfo = &pkg.Info
+
 		for _, f := range pkg.Files {
 			for _, decl := range f.Decls {
 				switch n := decl.(type) {
 				case *ast.FuncDecl:
-					if n.Name.Name != mainIdent {
+					// Dont convert the function if its not used. This will save alot
+					// of bytecode space.
+					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
 						c.convertFuncDecl(f, n)
 					}
 				}

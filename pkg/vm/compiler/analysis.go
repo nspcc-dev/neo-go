@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
@@ -102,10 +101,54 @@ func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *a
 // If the struct does not contain that field it will return -1.
 func indexOfStruct(strct *types.Struct, fldName string) int {
 	for i := 0; i < strct.NumFields(); i++ {
-		fmt.Println(strct.Field(i).Name())
 		if strct.Field(i).Name() == fldName {
 			return i
 		}
 	}
 	return -1
+}
+
+type funcUsage map[string]bool
+
+func (f funcUsage) funcUsed(name string) bool {
+	_, ok := f[name]
+	return ok
+}
+
+func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
+	usage := funcUsage{}
+
+	for _, pkg := range pkgs {
+		for _, f := range pkg.Files {
+			ast.Inspect(f, func(node ast.Node) bool {
+				switch n := node.(type) {
+				case *ast.CallExpr:
+					switch t := n.Fun.(type) {
+					case *ast.Ident:
+						usage[t.Name] = true
+					case *ast.SelectorExpr:
+						usage[t.Sel.Name] = true
+					}
+				}
+				return true
+			})
+		}
+	}
+	return usage
+}
+
+func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
+	if len(lit.Elts) == 0 {
+		return false
+	}
+
+	typ := tInfo.Types[lit.Elts[0]].Type.Underlying()
+	switch t := typ.(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.Byte:
+			return true
+		}
+	}
+	return false
 }

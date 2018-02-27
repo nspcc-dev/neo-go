@@ -71,7 +71,9 @@ func (c *funcScope) stackSize() int64 {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
-		case *ast.AssignStmt, *ast.ReturnStmt, *ast.IfStmt:
+		case *ast.AssignStmt:
+			size += len(n.Rhs)
+		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
 		case *ast.GenDecl:
