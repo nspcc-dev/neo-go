@@ -2,13 +2,9 @@
 
 The neo-go compiler compiles Go programs to bytecode that the NEO virtual machine can understand.
 
-> The neo-go compiler is under very active development and will be updated on a weekly basis.
+***NOTE:*** The neo-go compiler is under very active development and will be updated on a weekly basis. The API is likely going to chance, ***hence do not use this in production environments (mainnet)*** yet.
 
-## Usage
-
-```
-./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.avm
-```
+For help, questions and discussion feel free to join the [City Of Zion discord](https://discordapp.com/invite/R8v48YA) and hop in the #golang channel. Or reach out to me on twitter [@anthdm](https://twitter.com/anthdm)
 
 ## Currently supported
 
@@ -19,7 +15,7 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 - types int, string, byte and booleans
 - struct types + method receives
 - functions
-- composite literals `[]int, []string`
+- composite literals `[]int, []string, []byte`
 - basic if statements
 - binary expressions.
 - return statements
@@ -40,6 +36,87 @@ Due to the limitations of the NEO virtual machine, features listed below will no
 - channels 
 - goroutines
 - multiple returns 
+
+## Smart contract examples
+
+### Check if the invoker of the contract is the owning address
+
+```Golang
+package mycontract
+
+import "github.com/CityOfZion/neo-go/pkg/vm/smartcontract/runtime"
+
+var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
+
+func Main() bool {
+    isOwner := runtime.CheckWitness(owner)
+
+    if isOwner {
+        runtime.Log("invoker is the owner")
+        return true
+    }
+
+    return false
+}
+```
+
+### Simple token
+
+```Golang
+package mytoken
+
+import (
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/runtime"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/storage"
+)
+
+var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
+
+type Token struct {
+	Name        string
+	Symbol      string
+	TotalSupply int
+	Owner       []byte
+}
+
+func (t Token) AddToCirculation(amount int) bool {
+	ctx := storage.GetContext()
+	inCirc := storage.GetInt(ctx, "in_circ")
+	inCirc += amount
+	storage.Put(ctx, "in_circ", inCirc)
+	return true
+}
+
+func newToken() Token {
+	return Token{
+		Name:        "your awesome NEO token",
+		Symbol:      "YANT",
+		TotalSupply: 1000,
+		Owner:       owner,
+	}
+}
+
+func Main(operation string, args []interface{}) bool {
+	token := newToken()
+	trigger := runtime.GetTrigger()
+
+	if trigger == runtime.Verification() {
+		isOwner := runtime.CheckWitness(token.Owner)
+		if isOwner {
+			return true
+		}
+		return false
+	}
+
+	if trigger == runtime.Application() {
+		if operation == "mintTokens" {
+			token.AddToCirculation(100)
+		}
+	}
+
+	return true
+}
+```
 
 ## How to report compiler bugs 
 1. Make a proper testcase (example testcases can be found in the tests folder)
