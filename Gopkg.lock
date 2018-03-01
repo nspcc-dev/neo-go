@@ -2,6 +2,21 @@
 
 
 [[projects]]
+  name = "github.com/CityOfZion/neo-go"
+  packages = [
+    "cli/server",
+    "cli/smartcontract",
+    "pkg/core",
+    "pkg/network",
+    "pkg/network/payload",
+    "pkg/util",
+    "pkg/vm",
+    "pkg/vm/compiler"
+  ]
+  revision = "8fe079ec8ebb83ce53d6f1535bfe513271231958"
+  version = "0.11.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/golang/snappy"
   packages = ["."]
@@ -32,19 +47,9 @@
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
   version = "v1.20.0"
 
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/tools"
-  packages = [
-    "go/ast/astutil",
-    "go/buildutil",
-    "go/loader"
-  ]
-  revision = "73e16cff9e0d4a802937444bebb562458548241d"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "702fe8b053bfc5df5cc2a62ec2f3906801f7455cfc4fe22bf100e1150641ed76"
+  inputs-digest = "ac1d2cc7e9e2cb3985a84af2b75ad9fd78a3b8278abb6d5f7b6dd2210df7c6a2"
   solver-name = "gps-cdcl"
   solver-version = 1
