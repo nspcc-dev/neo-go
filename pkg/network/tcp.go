@@ -67,6 +67,7 @@ func handleConnection(s *Server, conn net.Conn) {
 			break
 		}
 	}
+
 }
 
 // pollPeerForMessage polls for messages on the TCP connection and sends them
@@ -79,7 +80,7 @@ func pollPeerForMessage(s *Server, conn net.Conn, p *TCPPeer) {
 			break
 		}
 
-		if msg.Payload != nil {
+		if msg.commandType() != cmdUnknown {
 			p.receive <- msg
 		}
 	}
@@ -97,7 +98,7 @@ func handleMessage(s *Server, p *TCPPeer) {
 		msg := <-p.receive
 		command := msg.commandType()
 
-		// s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
+		//s.logger.Printf("IN :: %d :: %s :: %+v", p.id(), command, msg)
 
 		switch command {
 		case cmdVersion:
