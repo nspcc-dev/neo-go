@@ -11,7 +11,7 @@ import (
 func main() {
 	ctl := cli.NewApp()
 	ctl.Name = "neo-go"
-	ctl.Usage = "zOfficial Go client for Neo"
+	ctl.Usage = "Official Go client for Neo"
 
 	ctl.Commands = []cli.Command{
 		server.NewCommand(),
