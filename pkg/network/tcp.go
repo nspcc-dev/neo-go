@@ -51,27 +51,17 @@ func handleConnection(s *Server, conn net.Conn) {
 	peer := NewTCPPeer(conn, s)
 	s.register <- peer
 
+	// remove the peer from connected peers and cleanup the connection.
+	defer func() {
+		peer.disconnect()
+	}()
+
 	// Start a goroutine that will handle all outgoing messages.
 	go peer.writeLoop()
 	// Start a goroutine that will handle all incomming messages.
 	go handleMessage(s, peer)
-	// Start a goroutine that will handle polling for incoming message.
-	go pollPeerForMessage(s, conn, peer)
 
-	// Handle disconnct channel and proceed to disconnect the peer.
-	for {
-		select {
-		case <-peer.shouldDisconnect:
-			peer.disconnect()
-			break
-		}
-	}
-
-}
-
-// pollPeerForMessage polls for messages on the TCP connection and sends them
-// down p.receive for processing.
-func pollPeerForMessage(s *Server, conn net.Conn, p *TCPPeer) {
+	// Read from the connection and decode it into a Message ready for processing.
 	for {
 		msg := &Message{}
 		if err := msg.decode(conn); err != nil {
@@ -79,24 +69,19 @@ func pollPeerForMessage(s *Server, conn net.Conn, p *TCPPeer) {
 			break
 		}
 
-		s.logger.Printf("Cmd: %+v %s", msg, msg.commandType())
-		p.receive <- msg
+		peer.receive <- msg
 	}
 }
 
 // handleMessage multiplexes the message received from a TCP connection to a server command.
 func handleMessage(s *Server, p *TCPPeer) {
-	defer func() {
-		p.shouldDisconnect <- true
-	}()
-
 	var err error
 
 	for {
 		msg := <-p.receive
 		command := msg.commandType()
 
-		// s.logger.Printf("IN :: %d :: %s :: %+v", p.id(), command, msg)
+		// s.logger.Printf("IN :: %d :: %s :: %v", p.id(), command, msg)
 
 		switch command {
 		case cmdVersion:
@@ -156,6 +141,9 @@ func handleMessage(s *Server, p *TCPPeer) {
 			break
 		}
 	}
+
+	// Disconnect the peer when breaked out of the loop.
+	p.disconnect()
 }
 
 type sendTuple struct {
@@ -176,8 +164,6 @@ type TCPPeer struct {
 	send chan sendTuple
 	// channel to receive from underlying connection.
 	receive chan *Message
-	// channel to listen on for when to disconnect the connection.
-	shouldDisconnect chan bool
 	// the version sended out by the peer when connected.
 	pVersion *payload.Version
 }
@@ -187,12 +173,11 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	e, _ := util.EndpointFromString(conn.RemoteAddr().String())
 
 	return &TCPPeer{
-		conn:             conn,
-		send:             make(chan sendTuple),
-		receive:          make(chan *Message),
-		shouldDisconnect: make(chan bool),
-		endpoint:         e,
-		s:                s,
+		conn:     conn,
+		send:     make(chan sendTuple),
+		receive:  make(chan *Message),
+		endpoint: e,
+		s:        s,
 	}
 }
 
@@ -279,16 +264,17 @@ func (p *TCPPeer) callGetdata(msg *Message) error {
 	return <-t.err
 }
 
+// disconnect disconnects the peer, cleaning up all its resources.
 // 3 goroutines needs to be cleanup (writeLoop, handleConnection and handleMessage)
 func (p *TCPPeer) disconnect() {
 	select {
 	case <-p.send:
 	case <-p.receive:
 	default:
-		p.conn.Close()
 		close(p.send)
 		close(p.receive)
 		p.s.unregister <- p
+		p.conn.Close()
 	}
 }
 
@@ -297,8 +283,9 @@ func (p *TCPPeer) disconnect() {
 // There should be at most one writer to a connection executing
 // all writes from this goroutine.
 func (p *TCPPeer) writeLoop() {
+	// clean up the connection.
 	defer func() {
-		p.shouldDisconnect <- true
+		p.disconnect()
 	}()
 
 	// resuse this buffer
