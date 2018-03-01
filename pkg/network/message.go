@@ -141,10 +141,14 @@ func (m *Message) commandType() commandType {
 
 // decode a Message from the given reader.
 func (m *Message) decode(r io.Reader) error {
-	binary.Read(r, binary.LittleEndian, &m.Magic)
-	binary.Read(r, binary.LittleEndian, &m.Command)
-	binary.Read(r, binary.LittleEndian, &m.Length)
-	binary.Read(r, binary.LittleEndian, &m.Checksum)
+	err := binary.Read(r, binary.LittleEndian, &m.Magic)
+	err = binary.Read(r, binary.LittleEndian, &m.Command)
+	err = binary.Read(r, binary.LittleEndian, &m.Length)
+	err = binary.Read(r, binary.LittleEndian, &m.Checksum)
+
+	if err != nil {
+		return err
+	}
 
 	// return if their is no payload.
 	if m.Length == 0 {
