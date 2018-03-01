@@ -58,8 +58,7 @@ func handleConnection(s *Server, conn net.Conn) {
 	// Start a goroutine that will handle polling for incoming message.
 	go pollPeerForMessage(s, conn, peer)
 
-	// Read from the connection and decode it into a Message ready for processing.
-	// Wait until
+	// Handle disconnct channel and proceed to disconnect the peer.
 	for {
 		select {
 		case <-peer.shouldDisconnect:
