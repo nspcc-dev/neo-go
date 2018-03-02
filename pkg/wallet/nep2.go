@@ -11,6 +11,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+// NEP-2 standard implementation for encrypting and decrypting wallets.
+
 // NEP-2 specified parameters used for cryptography.
 const (
 	n       = 16384

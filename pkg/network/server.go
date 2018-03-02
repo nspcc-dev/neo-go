@@ -110,7 +110,7 @@ func NewServer(net NetMode) *Server {
 	}
 
 	// For now I will hard code a genesis block of the docker privnet container.
-	startHash, _ := util.Uint256DecodeFromString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
+	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
 
 	s := &Server{
 		id:          util.RandUint32(1111111, 9999999),

@@ -67,7 +67,7 @@ func (bc *Blockchain) genesisBlock() *Block {
 	// togheter much faster.
 	// For more information about the genesis block:
 	// https://neotracker.io/block/height/0
-	mr, _ := util.Uint256DecodeFromString("803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4")
+	mr, _ := util.Uint256DecodeString("803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4")
 
 	return &Block{
 		BlockBase: BlockBase{
@@ -171,7 +171,7 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch) error {
 		return err
 	}
 
-	preBlock := preDataBlock.add(hash.ToSliceReverse())
+	preBlock := preDataBlock.add(hash.BytesReverse())
 	batch[&preBlock] = buf.Bytes()
 	preHeader := preSYSCurrentHeader.toSlice()
 	batch[&preHeader] = hashAndIndexToBytes(hash, h.Index)
@@ -209,5 +209,5 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, index)
-	return append(h.ToSliceReverse(), buf...)
+	return append(h.BytesReverse(), buf...)
 }

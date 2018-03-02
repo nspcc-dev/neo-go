@@ -32,7 +32,17 @@ func New() (*Wallet, error) {
 	return newFromPrivateKey(priv)
 }
 
-// Encrypt encrypts the wallet's WIF key with the given passphrase
+// Decrypt decrypt the encryptedWIF with the given passphrase and
+// return the decrypted Wallet.
+func Decrypt(encryptedWIF, passphrase string) (*Wallet, error) {
+	wif, err := NEP2Decrypt(encryptedWIF, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	return NewFromWIF(wif)
+}
+
+// Encrypt encrypts the wallet's PrivateKey with the given passphrase
 // under the NEP-2 standard.
 func (w *Wallet) Encrypt(passphrase string) error {
 	wif, err := NEP2Encrypt(w.PrivateKey, passphrase)
@@ -52,6 +62,7 @@ func NewFromWIF(wif string) (*Wallet, error) {
 	return newFromPrivateKey(privKey)
 }
 
+// newFromPrivateKey created a wallet from the given PrivateKey.
 func newFromPrivateKey(p *PrivateKey) (*Wallet, error) {
 	pubKey, err := p.PublicKey()
 	if err != nil {

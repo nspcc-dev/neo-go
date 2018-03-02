@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewBlockchain(t *testing.T) {
-	startHash, _ := util.Uint256DecodeFromString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
+	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
 	bc := NewBlockchain(nil, nil, startHash)
 
 	want := uint32(0)
@@ -28,7 +28,7 @@ func TestNewBlockchain(t *testing.T) {
 }
 
 func TestAddHeaders(t *testing.T) {
-	startHash, _ := util.Uint256DecodeFromString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
+	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
 	bc := NewBlockchain(NewMemoryStore(), log.New(os.Stdout, "", 0), startHash)
 
 	h1 := &Header{BlockBase: BlockBase{Version: 0, Index: 1, Script: &Witness{}}}
