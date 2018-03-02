@@ -1,5 +1,7 @@
 package wallet
 
+import "github.com/anthdm/neo-go/pkg/util"
+
 // Account represents a NEO account. It holds the private and public key
 // along with some metadata.
 type Account struct {
@@ -9,11 +11,11 @@ type Account struct {
 	// NEO public key.
 	publicKey []byte
 
-	// NEO public addresss.
-	Address string `json:"address"`
-
 	// Account import file.
 	wif string
+
+	// NEO public addresss.
+	Address string `json:"address"`
 
 	// Encrypted WIF of the account also known as the key.
 	EncryptedWIF string `json:"key"`
@@ -33,7 +35,18 @@ type Account struct {
 	Default bool `json:"isDefault"`
 }
 
-type Contract struct{}
+// Contract represents a subset of the smartcontract to embedd in the
+// Account so it's NEP-6 compliant.
+type Contract struct {
+	// Script hash of the contract deployed on the blockchain.
+	Script util.Uint160 `json:"script"`
+
+	// A list of parameters used deploying this contract.
+	Parameters []interface{} `json:"parameters"`
+
+	// Indicates whether the contract has been deployed to the blockchain.
+	Deployed bool `json:"deployed"`
+}
 
 // NewAccount creates a new Account with a random generated PrivateKey.
 func NewAccount() (*Account, error) {
@@ -41,7 +54,6 @@ func NewAccount() (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return newAccountFromPrivateKey(priv)
 }
 
