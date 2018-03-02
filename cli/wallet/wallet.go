@@ -39,7 +39,7 @@ func NewCommand() cli.Command {
 			},
 			{
 				Name:   "open",
-				Usage:  "opens a existing wallet",
+				Usage:  "open a existing NEO wallet",
 				Action: openWallet,
 				Flags: []cli.Flag{
 					cli.StringFlag{
