@@ -43,7 +43,7 @@ func emitInt(w *bytes.Buffer, i int64) error {
 	}
 
 	bInt := big.NewInt(i)
-	val := util.ToArrayReverse(bInt.Bytes())
+	val := util.ArrayReverse(bInt.Bytes())
 	return emitBytes(w, val)
 }
 

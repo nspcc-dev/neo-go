@@ -84,7 +84,7 @@ func (b *BlockBase) Hash() (hash util.Uint256, err error) {
 
 	// Double hash the encoded fields.
 	hash = sha256.Sum256(buf.Bytes())
-	hash = sha256.Sum256(hash.ToSlice())
+	hash = sha256.Sum256(hash.Bytes())
 	return hash, nil
 }
 

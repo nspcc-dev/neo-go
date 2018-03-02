@@ -2,19 +2,10 @@
 
 
 [[projects]]
-  name = "github.com/CityOfZion/neo-go"
-  packages = [
-    "cli/server",
-    "cli/smartcontract",
-    "pkg/core",
-    "pkg/network",
-    "pkg/network/payload",
-    "pkg/util",
-    "pkg/vm",
-    "pkg/vm/compiler"
-  ]
-  revision = "8fe079ec8ebb83ce53d6f1535bfe513271231958"
-  version = "0.11.0"
+  branch = "master"
+  name = "github.com/anthdm/rfc6979"
+  packages = ["."]
+  revision = "6a90f24967ebb1aa57b22f74a13dbb3faad8cf3d"
 
 [[projects]]
   branch = "master"
@@ -47,9 +38,42 @@
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
   version = "v1.20.0"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = [
+    "pbkdf2",
+    "ripemd160",
+    "scrypt"
+  ]
+  revision = "8c653846df49742c4c85ec37e5d9f8d3ba657895"
+
+[[projects]]
+  name = "golang.org/x/text"
+  packages = [
+    "internal/gen",
+    "internal/triegen",
+    "internal/ucd",
+    "transform",
+    "unicode/cldr",
+    "unicode/norm"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "go/buildutil",
+    "go/loader"
+  ]
+  revision = "73e16cff9e0d4a802937444bebb562458548241d"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ac1d2cc7e9e2cb3985a84af2b75ad9fd78a3b8278abb6d5f7b6dd2210df7c6a2"
+  inputs-digest = "74c6b0a11057b8c0fd68342f85e010e323cda6407bec2a889f161b5890928aaf"
   solver-name = "gps-cdcl"
   solver-version = 1
