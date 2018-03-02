@@ -1,25 +1,50 @@
 package util
 
 import (
-	"bytes"
+	"encoding/hex"
 	"testing"
 )
 
-func TestToArrayReverse(t *testing.T) {
-	arr := []byte{0x01, 0x02, 0x03, 0x04}
-	have := ToArrayReverse(arr)
-	want := []byte{0x04, 0x03, 0x02, 0x01}
-	if bytes.Compare(have, want) != 0 {
-		t.Fatalf("expected %v got %v", want, have)
+func TestUint256DecodeString(t *testing.T) {
+	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	val, err := Uint256DecodeString(hexStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(val)
+}
+
+func TestUint256DecodeBytes(t *testing.T) {
+	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	b, err := hex.DecodeString(hexStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	val, err := Uint256DecodeBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if val.String() != hexStr {
+		t.Fatalf("expected %s and %s to be equal", val, hexStr)
 	}
 }
 
-// This tests a bug that occured with arrays of size 1
-func TestToArrayReverseLen2(t *testing.T) {
-	arr := []byte{0x01}
-	have := ToArrayReverse(arr)
-	want := []byte{0x01}
-	if bytes.Compare(have, want) != 0 {
-		t.Fatalf("expected %v got %v", want, have)
+func TestUInt256Equals(t *testing.T) {
+	a := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	b := "e287c5b29a1b66092be6803c59c765308ac20287e1b4977fd399da5fc8f66ab5"
+
+	ua, err := Uint256DecodeString(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ub, err := Uint256DecodeString(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ua.Equals(ub) {
+		t.Fatalf("%s and %s cannot be equal", ua, ub)
+	}
+	if !ua.Equals(ua) {
+		t.Fatalf("%s and %s must be equal", ua, ua)
 	}
 }

@@ -35,3 +35,15 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/anthdm/rfc6979"
+
+[[constraint]]
+  name = "golang.org/x/text"
+  version = "0.3.0"
