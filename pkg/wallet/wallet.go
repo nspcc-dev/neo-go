@@ -1,93 +1,95 @@
 package wallet
 
-// Wallet is a NEP-2 compatible NEO wallet.
-// It holds the public and private keys along with some metadata.
+import (
+	"encoding/json"
+	"io"
+	"os"
+)
+
+const (
+	// The current version of neo-go wallet implementations.
+	walletVersion = "1.0"
+)
+
+// Wallet respresents a NEO (NEP-2, NEP-6) compliant wallet.
 type Wallet struct {
-	// NEO private key.
-	PrivateKey *PrivateKey
+	// Version of the wallet, used for later upgrades.
+	Version string `json:"version"`
 
-	// NEO public key.
-	PublicKey []byte
+	// A list of accounts which decribes the details of each account
+	// in the wallet.
+	Accounts []*Account `json:"accounts"`
 
-	// Signature used with the private key.
-	Signature []byte
+	Scrypt scryptParams `json:"scrypt"`
 
-	// NEO public addresss.
-	Address string
+	// Extra metadata can be used for storing abritrary data.
+	// This field can be empty.
+	Extra interface{} `json:"extra"`
 
-	// Wallet import file.
-	WIF string
-
-	// Encrypted wallet import file.
-	EncryptedWIF string
+	// ReadWriter for reading and writing wallet data.
+	rw io.ReadWriter
 }
 
-// New creates a new Wallet with a random generated PrivateKey.
-func New() (*Wallet, error) {
-	priv, err := NewPrivateKey()
+// NewWallet creates a new NEO wallet at the given location.
+func NewWallet(location string) (*Wallet, error) {
+	file, err := os.Create(location)
 	if err != nil {
 		return nil, err
 	}
-
-	return newFromPrivateKey(priv)
+	return newWallet(file), nil
 }
 
-// Decrypt decrypt the encryptedWIF with the given passphrase and
-// return the decrypted Wallet.
-func Decrypt(encryptedWIF, passphrase string) (*Wallet, error) {
-	wif, err := NEP2Decrypt(encryptedWIF, passphrase)
+// NewWalletFromFile creates a Wallet from the given wallet file path
+func NewWalletFromFile(path string) (*Wallet, error) {
+	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
 	if err != nil {
 		return nil, err
 	}
-	return NewFromWIF(wif)
+	wall := &Wallet{rw: file}
+	if err := json.NewDecoder(file).Decode(wall); err != nil {
+		return nil, err
+	}
+	return wall, nil
 }
 
-// Encrypt encrypts the wallet's PrivateKey with the given passphrase
-// under the NEP-2 standard.
-func (w *Wallet) Encrypt(passphrase string) error {
-	wif, err := NEP2Encrypt(w.PrivateKey, passphrase)
+func newWallet(rw io.ReadWriter) *Wallet {
+	return &Wallet{
+		Version:  walletVersion,
+		Accounts: []*Account{},
+		Scrypt:   newScryptParams(),
+		rw:       rw,
+	}
+}
+
+// CreatAccount generates a new account for the end user and ecrypts
+// the private key with the given passphrase.
+func (w *Wallet) CreateAccount(passphrase string) error {
+	acc, err := NewAccount()
 	if err != nil {
 		return err
 	}
-	w.EncryptedWIF = wif
-	return nil
+	if err := acc.Encrypt(passphrase); err != nil {
+		return err
+	}
+	w.AddAccount(acc)
+	return w.Save()
 }
 
-// NewFromWIF creates a new Wallet from the given WIF.
-func NewFromWIF(wif string) (*Wallet, error) {
-	privKey, err := NewPrivateKeyFromWIF(wif)
-	if err != nil {
-		return nil, err
-	}
-	return newFromPrivateKey(privKey)
+// AddAccount adds an existing Account to the wallet.
+func (w *Wallet) AddAccount(acc *Account) {
+	w.Accounts = append(w.Accounts, acc)
 }
 
-// newFromPrivateKey created a wallet from the given PrivateKey.
-func newFromPrivateKey(p *PrivateKey) (*Wallet, error) {
-	pubKey, err := p.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	pubAddr, err := p.Address()
-	if err != nil {
-		return nil, err
-	}
-	sig, err := p.Signature()
-	if err != nil {
-		return nil, err
-	}
-	wif, err := p.WIF()
-	if err != nil {
-		return nil, err
-	}
+// Save saves the wallet data. It's the internal io.ReadWriter
+// that is responsible for saving the data. This can
+// be a buffer, file, etc..
+func (w *Wallet) Save() error {
+	return json.NewEncoder(w.rw).Encode(w)
+}
 
-	w := &Wallet{
-		PublicKey:  pubKey,
-		PrivateKey: p,
-		Address:    pubAddr,
-		Signature:  sig,
-		WIF:        wif,
+// Close closes the internal rw if its an io.ReadCloser.
+func (w *Wallet) Close() {
+	if rc, ok := w.rw.(io.ReadCloser); ok {
+		rc.Close()
 	}
-
-	return w, nil
 }

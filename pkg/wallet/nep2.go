@@ -24,6 +24,20 @@ const (
 
 var nepHeader = []byte{0x01, 0x42}
 
+type scryptParams struct {
+	N int `json:"n"`
+	R int `json:"r"`
+	P int `json:"p"`
+}
+
+func newScryptParams() scryptParams {
+	return scryptParams{
+		N: n,
+		R: r,
+		P: p,
+	}
+}
+
 // NEP2Encrypt encrypts a the PrivateKey using a given passphrase
 // under the NEP-2 standard.
 func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
