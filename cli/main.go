@@ -5,6 +5,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/cli/server"
 	"github.com/CityOfZion/neo-go/cli/smartcontract"
+	"github.com/CityOfZion/neo-go/cli/wallet"
 	"github.com/urfave/cli"
 )
 
@@ -16,6 +17,7 @@ func main() {
 	ctl.Commands = []cli.Command{
 		server.NewCommand(),
 		smartcontract.NewCommand(),
+		wallet.NewCommand(),
 	}
 
 	ctl.Run(os.Args)

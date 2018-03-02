@@ -7,7 +7,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// NewCommand creates a new Node command
+// NewCommand creates a new Node command.
 func NewCommand() cli.Command {
 	return cli.Command{
 		Name:   "node",

@@ -39,13 +39,13 @@ func compareFields(t *testing.T, tk testKey, acc *Account) {
 	if want, have := tk.address, acc.Address; want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.wif, acc.WIF; want != have {
+	if want, have := tk.wif, acc.wif; want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.publicKey, hex.EncodeToString(acc.PublicKey); want != have {
+	if want, have := tk.publicKey, hex.EncodeToString(acc.publicKey); want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.privateKey, acc.PrivateKey.String(); want != have {
+	if want, have := tk.privateKey, acc.privateKey.String(); want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
 }

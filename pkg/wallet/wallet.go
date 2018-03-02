@@ -26,6 +26,9 @@ type Wallet struct {
 	// This field can be empty.
 	Extra interface{} `json:"extra"`
 
+	// Path where the wallet file is located..
+	path string
+
 	// ReadWriter for reading and writing wallet data.
 	rw io.ReadWriter
 }
@@ -45,7 +48,10 @@ func NewWalletFromFile(path string) (*Wallet, error) {
 	if err != nil {
 		return nil, err
 	}
-	wall := &Wallet{rw: file}
+	wall := &Wallet{
+		rw:   file,
+		path: file.Name(),
+	}
 	if err := json.NewDecoder(file).Decode(wall); err != nil {
 		return nil, err
 	}
@@ -53,21 +59,27 @@ func NewWalletFromFile(path string) (*Wallet, error) {
 }
 
 func newWallet(rw io.ReadWriter) *Wallet {
+	var path string
+	if f, ok := rw.(*os.File); ok {
+		path = f.Name()
+	}
 	return &Wallet{
 		Version:  walletVersion,
 		Accounts: []*Account{},
 		Scrypt:   newScryptParams(),
 		rw:       rw,
+		path:     path,
 	}
 }
 
 // CreatAccount generates a new account for the end user and ecrypts
 // the private key with the given passphrase.
-func (w *Wallet) CreateAccount(passphrase string) error {
+func (w *Wallet) CreateAccount(name, passphrase string) error {
 	acc, err := NewAccount()
 	if err != nil {
 		return err
 	}
+	acc.Label = name
 	if err := acc.Encrypt(passphrase); err != nil {
 		return err
 	}
@@ -80,11 +92,21 @@ func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
 }
 
+// Path returns the location of the wallet on the filesystem.
+func (w *Wallet) Path() string {
+	return w.path
+}
+
 // Save saves the wallet data. It's the internal io.ReadWriter
 // that is responsible for saving the data. This can
 // be a buffer, file, etc..
 func (w *Wallet) Save() error {
 	return json.NewEncoder(w.rw).Encode(w)
+}
+
+// JSON outputs a pretty JSON representation of the wallet.
+func (w *Wallet) JSON() ([]byte, error) {
+	return json.MarshalIndent(w, " ", "	")
 }
 
 // Close closes the internal rw if its an io.ReadCloser.

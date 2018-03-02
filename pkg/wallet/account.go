@@ -4,16 +4,16 @@ package wallet
 // along with some metadata.
 type Account struct {
 	// NEO private key.
-	PrivateKey *PrivateKey
+	privateKey *PrivateKey
 
 	// NEO public key.
-	PublicKey []byte
+	publicKey []byte
 
 	// NEO public addresss.
 	Address string `json:"address"`
 
 	// Account import file.
-	WIF string
+	wif string
 
 	// Encrypted WIF of the account also known as the key.
 	EncryptedWIF string `json:"key"`
@@ -23,7 +23,7 @@ type Account struct {
 
 	// contract is a Contract object which describes the details of the contract.
 	// This field can be null (for watch-only address).
-	contract *Contract `json:"contract"`
+	Contract *Contract `json:"contract"`
 
 	// Indicates whether the account is locked by the user.
 	// the client shouldn't spend the funds in a locked account.
@@ -58,7 +58,7 @@ func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
 // under the NEP-2 standard.
 func (a *Account) Encrypt(passphrase string) error {
-	wif, err := NEP2Encrypt(a.PrivateKey, passphrase)
+	wif, err := NEP2Encrypt(a.privateKey, passphrase)
 	if err != nil {
 		return err
 	}
@@ -91,10 +91,10 @@ func newAccountFromPrivateKey(p *PrivateKey) (*Account, error) {
 	}
 
 	a := &Account{
-		PublicKey:  pubKey,
-		PrivateKey: p,
+		publicKey:  pubKey,
+		privateKey: p,
 		Address:    pubAddr,
-		WIF:        wif,
+		wif:        wif,
 	}
 
 	return a, nil
