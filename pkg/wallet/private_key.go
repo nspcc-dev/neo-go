@@ -18,6 +18,10 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+const (
+	addressVersion = byte(23)
+)
+
 // PrivateKey represents a NEO private key.
 type PrivateKey struct {
 	b []byte
@@ -115,9 +119,7 @@ func (p *PrivateKey) Address() (string, error) {
 		return "", err
 	}
 
-	// TODO(pawan) - Make this byte a const after finding out what it is.
-	// It is probably the address version.
-	b = append([]byte{0x17}, b...)
+	b = append([]byte{addressVersion}, b...)
 
 	sha := sha256.New()
 	sha.Write(b)

@@ -1,9 +1,15 @@
 package wallet
 
-// TODO (pawan) - Maybe move this file to smart contract package.
-
 const (
-	// TODO(pawan) - Add other types.
-	//	https://github.com/neo-project/neo/blob/9e904051b17c130f85e539b40712788bf9e08f5d/neo/SmartContract/ContractParameterType.cs
-	Signature = byte(0x00)
+	Signature        = byte(0x00)
+	Boolean          = byte(0x01)
+	Int              = byte(0x02)
+	Hash160          = byte(0x03)
+	Hash256          = byte(0x04)
+	ByteArray        = byte(0x05)
+	PublicKey        = byte(0x06)
+	String           = byte(0x07)
+	Array            = byte(0x10)
+	InteropInterface = byte(0xf0)
+	Void             = byte(0xff)
 )

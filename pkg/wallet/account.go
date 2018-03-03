@@ -62,8 +62,8 @@ func NewAccount() (*Account, error) {
 	return newAccountFromPrivateKey(priv)
 }
 
-// Decrypt tries to decrypt the encryptedWIF with the given passphrase and
-// returns whether the operation was successfull.
+// Decrypt tries to decrypt the account with the given passphrase and returns
+// whether the operation was successfull.
 func (a *Account) Decrypt(passphrase string) bool {
 	wif, err := NEP2Decrypt(a.EncryptedWIF, passphrase)
 	if err != nil {
@@ -108,7 +108,8 @@ func newAccountFromPrivateKey(p *PrivateKey) (*Account, error) {
 		return nil, err
 	}
 
-	// TODO(pawan) - Cache intermediate step.
+	// TODO(pawan) - We can store public key in KeyPair struct instead of private key,
+	// so that we don't recalculate it.
 	sh, err := p.ScriptHashUint160()
 	if err != nil {
 		return nil, err
