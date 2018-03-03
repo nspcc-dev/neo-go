@@ -3,7 +3,7 @@ package wallet
 import (
 	"math/big"
 
-	"github.com/anthdm/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // TransferOutput respresents the output of a transaction.
