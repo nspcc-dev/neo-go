@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -31,7 +32,7 @@ type BlockBase struct {
 	// fixed to 1
 	_ uint8 // padding
 	// Script used to validate the block
-	Script *Witness
+	Script *transaction.Witness
 }
 
 // DecodeBinary implements the payload interface.
@@ -66,7 +67,7 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 		return fmt.Errorf("format error: padding must equal 1 got %d", padding)
 	}
 
-	b.Script = &Witness{}
+	b.Script = &transaction.Witness{}
 	return b.Script.DecodeBinary(r)
 }
 
@@ -158,7 +159,7 @@ func (h *Header) EncodeBinary(w io.Writer) error {
 type Block struct {
 	BlockBase
 	// transaction list
-	Transactions []*Transaction
+	Transactions []*transaction.Transaction
 }
 
 // Header returns a pointer to the head of the block (BlockHead).
@@ -171,13 +172,13 @@ func (b *Block) Header() *Header {
 // Verify the integrity of the block.
 func (b *Block) Verify(full bool) bool {
 	// The first TX has to be a miner transaction.
-	if b.Transactions[0].Type != MinerTX {
+	if b.Transactions[0].Type != transaction.MinerTX {
 		return false
 	}
 
 	// If the first TX is a minerTX then all others cant.
 	for _, tx := range b.Transactions[1:] {
-		if tx.Type == MinerTX {
+		if tx.Type == transaction.MinerTX {
 			return false
 		}
 	}
@@ -202,9 +203,9 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 	}
 
 	lentx := util.ReadVarUint(r)
-	b.Transactions = make([]*Transaction, lentx)
+	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
-		tx := &Transaction{}
+		tx := &transaction.Transaction{}
 		if err := tx.DecodeBinary(r); err != nil {
 			return err
 		}

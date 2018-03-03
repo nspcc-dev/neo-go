@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -31,9 +32,9 @@ func TestAddHeaders(t *testing.T) {
 	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
 	bc := NewBlockchain(NewMemoryStore(), log.New(os.Stdout, "", 0), startHash)
 
-	h1 := &Header{BlockBase: BlockBase{Version: 0, Index: 1, Script: &Witness{}}}
-	h2 := &Header{BlockBase: BlockBase{Version: 0, Index: 2, Script: &Witness{}}}
-	h3 := &Header{BlockBase: BlockBase{Version: 0, Index: 3, Script: &Witness{}}}
+	h1 := &Header{BlockBase: BlockBase{Version: 0, Index: 1, Script: &transaction.Witness{}}}
+	h2 := &Header{BlockBase: BlockBase{Version: 0, Index: 2, Script: &transaction.Witness{}}}
+	h3 := &Header{BlockBase: BlockBase{Version: 0, Index: 3, Script: &transaction.Witness{}}}
 
 	if err := bc.AddHeaders(h1, h2, h3); err != nil {
 		t.Fatal(err)

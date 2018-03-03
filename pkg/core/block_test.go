@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -82,7 +83,7 @@ func newBlockBase() BlockBase {
 		Index:         1,
 		ConsensusData: 1111,
 		NextConsensus: util.Uint160{},
-		Script: &Witness{
+		Script: &transaction.Witness{
 			VerificationScript: []byte{0x0},
 			InvocationScript:   []byte{0x1},
 		},
@@ -104,9 +105,9 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := &Block{
 		BlockBase: newBlockBase(),
-		Transactions: []*Transaction{
-			{Type: MinerTX},
-			{Type: IssueTX},
+		Transactions: []*transaction.Transaction{
+			{Type: transaction.MinerTX},
+			{Type: transaction.IssueTX},
 		},
 	}
 
@@ -114,18 +115,18 @@ func TestBlockVerify(t *testing.T) {
 		t.Fatal("block should be verified")
 	}
 
-	block.Transactions = []*Transaction{
-		{Type: IssueTX},
-		{Type: MinerTX},
+	block.Transactions = []*transaction.Transaction{
+		{Type: transaction.IssueTX},
+		{Type: transaction.MinerTX},
 	}
 
 	if block.Verify(false) {
 		t.Fatal("block should not by verified")
 	}
 
-	block.Transactions = []*Transaction{
-		{Type: MinerTX},
-		{Type: MinerTX},
+	block.Transactions = []*transaction.Transaction{
+		{Type: transaction.MinerTX},
+		{Type: transaction.MinerTX},
 	}
 
 	if block.Verify(false) {
