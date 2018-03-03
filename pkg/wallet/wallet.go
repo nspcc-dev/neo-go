@@ -3,7 +3,6 @@ package wallet
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 )

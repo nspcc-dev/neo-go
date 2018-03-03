@@ -3,6 +3,8 @@ package wallet
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAccount(t *testing.T) {
@@ -17,11 +19,9 @@ func TestNewAccount(t *testing.T) {
 
 func TestDecryptAccount(t *testing.T) {
 	for _, testCase := range testKeyCases {
-		acc, err := DecryptAccount(testCase.encryptedWif, testCase.passphrase)
-		if err != nil {
-			t.Fatal(err)
-		}
-		compareFields(t, testCase, acc)
+		a, err := NewAccountFromWIF(testCase.wif)
+		require.NoError(t, err)
+		require.True(t, a.Decrypt(testCase.passphrase))
 	}
 }
 

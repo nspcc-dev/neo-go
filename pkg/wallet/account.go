@@ -66,7 +66,6 @@ func NewAccount() (*Account, error) {
 // returns whether the operation was successfull.
 func (a *Account) Decrypt(passphrase string) bool {
 	wif, err := NEP2Decrypt(a.EncryptedWIF, passphrase)
-	fmt.Println("err", err)
 	if err != nil {
 		return false
 	}
