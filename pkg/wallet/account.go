@@ -1,6 +1,6 @@
 package wallet
 
-import "github.com/anthdm/neo-go/pkg/util"
+import "github.com/CityOfZeon/neo-go/pkg/util"
 
 // Account represents a NEO account. It holds the private and public key
 // along with some metadata.
