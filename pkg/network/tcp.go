@@ -181,7 +181,10 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	}
 }
 
-func (p *TCPPeer) callVersion(msg *Message) error {
+// Send needed to implement the network.Peer interface
+// and provide the functionality to send a message to
+// the current peer.
+func (p *TCPPeer) Send(msg *Message) error {
 	t := sendTuple{
 		msg: msg,
 		err: make(chan error),
@@ -204,64 +207,6 @@ func (p *TCPPeer) id() uint32 {
 // endpoint implements the peer interface
 func (p *TCPPeer) addr() util.Endpoint {
 	return p.endpoint
-}
-
-// callGetaddr will send the "getaddr" command to the remote.
-func (p *TCPPeer) callGetaddr(msg *Message) error {
-	t := sendTuple{
-		msg: msg,
-		err: make(chan error),
-	}
-
-	p.send <- t
-
-	return <-t.err
-}
-
-// callGetblocks will send the "getblocks" command to the remote.
-func (p *TCPPeer) callGetblocks(msg *Message) error {
-	t := sendTuple{
-		msg: msg,
-		err: make(chan error),
-	}
-
-	p.send <- t
-
-	return <-t.err
-}
-
-// callGetheaders will send the "getheaders" command to the remote.
-func (p *TCPPeer) callGetheaders(msg *Message) error {
-	t := sendTuple{
-		msg: msg,
-		err: make(chan error),
-	}
-
-	p.send <- t
-
-	return <-t.err
-}
-
-func (p *TCPPeer) callVerack(msg *Message) error {
-	t := sendTuple{
-		msg: msg,
-		err: make(chan error),
-	}
-
-	p.send <- t
-
-	return <-t.err
-}
-
-func (p *TCPPeer) callGetdata(msg *Message) error {
-	t := sendTuple{
-		msg: msg,
-		err: make(chan error),
-	}
-
-	p.send <- t
-
-	return <-t.err
 }
 
 // disconnect disconnects the peer, cleaning up all its resources.
