@@ -75,17 +75,23 @@ If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/m
 Start a NEO node:
 
 ```
-./bin/neo-go node -seed 127.0.0.1:20333
+make run
 ```
 
 You can add multiple seeds if you want:
 
 ```
-./bin/neo-go node -seed 127.0.0.1:20333,127.0.01:20334
+make run -e SEEDS="127.0.0.1:20333,127.0.01:20334"
 ```
 
 By default the server will currently run on port 3000, for testing purposes.
 You can change that by setting the tcp flag:
+
+```
+make run -e PORT="1337"
+```
+
+To run the binary directly:
 
 ```
 ./bin/neo-go node -seed 127.0.0.1:20333 -tcp 1337
