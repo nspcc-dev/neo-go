@@ -3,6 +3,8 @@ package util
 import (
 	"encoding/hex"
 	"fmt"
+
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 )
 
 const uint160Size = 20
@@ -40,6 +42,13 @@ func (u Uint160) Bytes() []byte {
 		b[i] = byte(u[i])
 	}
 	return b
+}
+
+// NEOAddress returns the NEO address representation of u.
+func (u Uint160) NEOAddress() string {
+	// Dont forget to prepend the Address version 0x17 (23) A
+	b := append([]byte{0x17}, u.Bytes()...)
+	return crypto.Base58CheckEncode(b)
 }
 
 // String implements the stringer interface.
