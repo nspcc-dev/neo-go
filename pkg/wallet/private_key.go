@@ -13,6 +13,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/anthdm/rfc6979"
 	"golang.org/x/crypto/ripemd160"
 )
@@ -106,12 +107,16 @@ func (p *PrivateKey) WIF() (string, error) {
 
 // Address derives the public NEO address that is coupled with the private key, and
 // returns it as a string.
+// Process is similar to that for bitcoin:
+// https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 func (p *PrivateKey) Address() (string, error) {
-	b, err := p.Signature()
+	b, err := p.ScriptHash()
 	if err != nil {
 		return "", err
 	}
 
+	// TODO(pawan) - Make this byte a const after finding out what it is.
+	// It is probably the address version.
 	b = append([]byte{0x17}, b...)
 
 	sha := sha256.New()
@@ -129,26 +134,38 @@ func (p *PrivateKey) Address() (string, error) {
 	return address, nil
 }
 
-// Signature creates the signature using the private key.
-func (p *PrivateKey) Signature() ([]byte, error) {
+// ScriptHash creates a 20 byte hash by hashing the public key through sha256 and ripemd160 hash
+// functions. It is an intermediate step in generating the public NEO address.
+func (p *PrivateKey) ScriptHash() ([]byte, error) {
 	b, err := p.PublicKey()
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO(pawan) - Make this byte a const after finding out what it is.
 	b = append([]byte{0x21}, b...)
-	b = append(b, 0xAC)
+	redeem := append(b, 0xAC)
 
 	sha := sha256.New()
-	sha.Write(b)
+	sha.Write(redeem)
 	hash := sha.Sum(nil)
 
 	ripemd := ripemd160.New()
-	ripemd.Reset()
 	ripemd.Write(hash)
 	hash = ripemd.Sum(nil)
 
 	return hash, nil
+}
+
+func (p *PrivateKey) ScriptHashUint160() (util.Uint160, error) {
+	var sh util.Uint160
+	hash, err := p.ScriptHash()
+	if err != nil {
+		return sh, err
+	}
+
+	copy(sh[:], hash[:20])
+	return sh, nil
 }
 
 // Sign signs arbitrary length data using the private key.

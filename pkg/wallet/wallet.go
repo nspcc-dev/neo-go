@@ -2,6 +2,8 @@ package wallet
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 )
@@ -9,6 +11,10 @@ import (
 const (
 	// The current version of neo-go wallet implementations.
 	walletVersion = "1.0"
+)
+
+var (
+	errWrongPassphrase = errors.New("Couldn't decrypt any account with the given passphrase.")
 )
 
 // Wallet respresents a NEO (NEP-2, NEP-6) compliant wallet.

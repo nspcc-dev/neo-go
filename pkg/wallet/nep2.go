@@ -77,7 +77,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 }
 
 // NEP2Decrypt decrypts an encrypted key using a given passphrase
-// under the NEP-2 standard.
+// under the NEP-2 standard and returns it in WIF format.
 func NEP2Decrypt(key, passphrase string) (s string, err error) {
 	b, err := crypto.Base58CheckDecode(key)
 	if err != nil {
