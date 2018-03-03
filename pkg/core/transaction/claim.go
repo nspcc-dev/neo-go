@@ -6,13 +6,13 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// ClaimTransaction represents a tx of type Claim.
-type ClaimTransaction struct {
+// ClaimTX represents a claim transaction.
+type ClaimTX struct {
 	Claims []*Input
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *ClaimTransaction) DecodeBinary(r io.Reader) error {
+func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
 	lenClaims := util.ReadVarUint(r)
 	tx.Claims = make([]*Input, lenClaims)
 	for i := 0; i < int(lenClaims); i++ {
@@ -25,7 +25,7 @@ func (tx *ClaimTransaction) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *ClaimTransaction) EncodeBinary(w io.Writer) error {
+func (tx *ClaimTX) EncodeBinary(w io.Writer) error {
 	if err := util.WriteVarUint(w, uint64(len(tx.Claims))); err != nil {
 		return err
 	}

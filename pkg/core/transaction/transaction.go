@@ -87,10 +87,15 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 
 func (t *Transaction) decodeData(r io.Reader) error {
 	switch t.Type {
-	case MinerTX:
-	case ClaimTX:
-		t.Data = &ClaimTransaction{}
-		return t.Data.(*ClaimTransaction).DecodeBinary(r)
+	case InvocationType:
+		t.Data = &InvocationTX{}
+		return t.Data.(*InvocationTX).DecodeBinary(r)
+	case MinerType:
+		t.Data = &MinerTX{}
+		return t.Data.(*MinerTX).DecodeBinary(r)
+	case ClaimType:
+		t.Data = &ClaimTX{}
+		return t.Data.(*ClaimTX).DecodeBinary(r)
 	}
 	return nil
 }
@@ -152,9 +157,12 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 
 func (t *Transaction) encodeData(w io.Writer) error {
 	switch t.Type {
-	case MinerTX:
-	case ClaimTX:
-		return t.Data.(*ClaimTransaction).EncodeBinary(w)
+	case InvocationType:
+		return t.Data.(*InvocationTX).EncodeBinary(w)
+	case MinerType:
+		return t.Data.(*MinerTX).EncodeBinary(w)
+	case ClaimType:
+		return t.Data.(*ClaimTX).EncodeBinary(w)
 	}
 	return nil
 }

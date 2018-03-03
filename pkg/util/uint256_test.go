@@ -3,6 +3,8 @@ package util
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUint256DecodeString(t *testing.T) {
@@ -11,7 +13,7 @@ func TestUint256DecodeString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(val)
+	assert.Equal(t, hexStr, val.String())
 }
 
 func TestUint256DecodeBytes(t *testing.T) {
@@ -24,9 +26,7 @@ func TestUint256DecodeBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if val.String() != hexStr {
-		t.Fatalf("expected %s and %s to be equal", val, hexStr)
-	}
+	assert.Equal(t, hexStr, val.String())
 }
 
 func TestUInt256Equals(t *testing.T) {

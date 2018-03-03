@@ -24,6 +24,16 @@ func Uint160DecodeString(s string) (u Uint160, err error) {
 	return Uint160DecodeBytes(b)
 }
 
+// Uint160DecodeAddress attempts to decode the given NEO address string
+// into an Uint160.
+func Uint160DecodeAddress(s string) (u Uint160, err error) {
+	b, err := crypto.Base58CheckDecode(s)
+	if err != nil {
+		return u, err
+	}
+	return Uint160DecodeBytes(b[1:21])
+}
+
 // Uint160DecodeBytes attempts to decode the given bytes into an Uint160.
 func Uint160DecodeBytes(b []byte) (u Uint160, err error) {
 	if len(b) != uint160Size {
@@ -44,8 +54,8 @@ func (u Uint160) Bytes() []byte {
 	return b
 }
 
-// NEOAddress returns the NEO address representation of u.
-func (u Uint160) NEOAddress() string {
+// Address returns the NEO address representation of u.
+func (u Uint160) Address() string {
 	// Dont forget to prepend the Address version 0x17 (23) A
 	b := append([]byte{0x17}, u.Bytes()...)
 	return crypto.Base58CheckEncode(b)

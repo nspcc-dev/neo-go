@@ -19,41 +19,61 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &attr.Usage); err != nil {
 		return err
 	}
-
 	if attr.Usage == ContractHash ||
 		attr.Usage == Vote ||
 		(attr.Usage >= Hash1 && attr.Usage <= Hash15) {
 		attr.Data = make([]byte, 32)
-		if err := binary.Read(r, binary.LittleEndian, attr.Data); err != nil {
-			return err
-		}
-	} else if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
+		return binary.Read(r, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
 		attr.Data = make([]byte, 33)
 		attr.Data[0] = byte(attr.Usage)
-		if err := binary.Read(r, binary.LittleEndian, attr.Data[1:]); err != nil {
-			return err
-		}
-	} else if attr.Usage == Script {
+		return binary.Read(r, binary.LittleEndian, attr.Data[1:])
+	}
+	if attr.Usage == Script {
 		attr.Data = make([]byte, 20)
-		if err := binary.Read(r, binary.LittleEndian, attr.Data); err != nil {
-			return err
-		}
-	} else if attr.Usage == DescriptionUrl {
+		return binary.Read(r, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == DescriptionUrl {
 		attr.Data = make([]byte, 1)
-		if err := binary.Read(r, binary.LittleEndian, attr.Data); err != nil {
-			return err
-		}
-	} else if attr.Usage == Description || attr.Usage >= Remark {
+		return binary.Read(r, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == Description || attr.Usage >= Remark {
 		lenData := util.ReadVarUint(r)
 		attr.Data = make([]byte, lenData)
-		if err := binary.Read(r, binary.LittleEndian, attr.Data); err != nil {
-			return err
-		}
-	} else {
-		return errors.New("format error in decoding transaction attribute")
+		return binary.Read(r, binary.LittleEndian, attr.Data)
 	}
-	return nil
+	return errors.New("format error in decoding transaction attribute")
 }
 
 // EncodeBinary implements the Payload interface.
-func (attr *Attribute) EncodeBinary(w io.Writer) error { return nil }
+func (attr *Attribute) EncodeBinary(w io.Writer) error {
+	if err := binary.Write(w, binary.LittleEndian, &attr.Usage); err != nil {
+		return err
+	}
+	if attr.Usage == ContractHash ||
+		attr.Usage == Vote ||
+		(attr.Usage >= Hash1 && attr.Usage <= Hash15) {
+		return binary.Write(w, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
+		attr.Data[0] = byte(attr.Usage)
+		return binary.Write(w, binary.LittleEndian, attr.Data[1:33])
+	}
+	if attr.Usage == Script {
+		return binary.Write(w, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == DescriptionUrl {
+		if err := util.WriteVarUint(w, uint64(len(attr.Data))); err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, attr.Data)
+	}
+	if attr.Usage == Description || attr.Usage >= Remark {
+		if err := util.WriteVarUint(w, uint64(len(attr.Data))); err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, attr.Data)
+	}
+	return errors.New("format error in encoding transaction attribute")
+}

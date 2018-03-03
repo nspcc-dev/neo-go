@@ -27,7 +27,7 @@ type BlockBase struct {
 	Index uint32
 	// Random number also called nonce
 	ConsensusData uint64
-	// contract addresss of the next miner
+	// Contract addresss of the next miner
 	NextConsensus util.Uint160
 	// fixed to 1
 	_ uint8 // padding
@@ -71,7 +71,7 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 	return b.Script.DecodeBinary(r)
 }
 
-// Hash return the hash of the block.
+// Hash returns the hash of the block.
 // When calculating the hash value of the block, instead of calculating the entire block,
 // only first seven fields in the block head will be calculated, which are
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
@@ -172,13 +172,13 @@ func (b *Block) Header() *Header {
 // Verify the integrity of the block.
 func (b *Block) Verify(full bool) bool {
 	// The first TX has to be a miner transaction.
-	if b.Transactions[0].Type != transaction.MinerTX {
+	if b.Transactions[0].Type != transaction.MinerType {
 		return false
 	}
 
 	// If the first TX is a minerTX then all others cant.
 	for _, tx := range b.Transactions[1:] {
-		if tx.Type == transaction.MinerTX {
+		if tx.Type == transaction.MinerType {
 			return false
 		}
 	}
