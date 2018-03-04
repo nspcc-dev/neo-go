@@ -1,5 +1,24 @@
 package rpc
 
+type InvokeScriptResponse struct {
+	responseHeader
+	Result *InvokeResult
+}
+
+// InvokeResult represents the outcome of a script that is
+// executed by the NEO VM.
+type InvokeResult struct {
+	State       string `json:"state"`
+	GasConsumed string `json:"gas_consumed"`
+	Stack       []*StackParam
+}
+
+// StackParam respresent a stack parameter.
+type StackParam struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
 // AccountStateResponse holds the getaccountstate response.
 type AccountStateResponse struct {
 	responseHeader
