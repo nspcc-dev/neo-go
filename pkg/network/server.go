@@ -209,7 +209,7 @@ func (s *Server) handlePeerConnected(p Peer) error {
 	// TODO: get the blockheight of this server once core implemented this.
 	payload := payload.NewVersion(s.id, s.port, s.userAgent, s.bc.HeaderHeight(), s.relay)
 	msg := newMessage(s.net, cmdVersion, payload)
-	return p.callVersion(msg)
+	return p.Send(msg)
 }
 
 func (s *Server) handleVersionCmd(version *payload.Version, p Peer) error {
@@ -220,7 +220,9 @@ func (s *Server) handleVersionCmd(version *payload.Version, p Peer) error {
 		return fmt.Errorf("port mismatch: %d and %d", version.Port, p.addr().Port)
 	}
 
-	return p.callVerack(newMessage(s.net, cmdVerack, nil))
+	return p.Send(
+		newMessage(s.net, cmdVerack, nil),
+	)
 }
 
 func (s *Server) handleGetaddrCmd(msg *Message, p Peer) error {
@@ -242,7 +244,7 @@ func (s *Server) handleInvCmd(inv *payload.Inventory, p Peer) error {
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	resp := newMessage(s.net, cmdGetData, payload)
 
-	return p.callGetdata(resp)
+	return p.Send(resp)
 }
 
 // handleBlockCmd processes the received block.
@@ -297,7 +299,7 @@ func (s *Server) askMoreHeaders(p Peer) error {
 	payload := payload.NewGetBlocks(start, util.Uint256{})
 	msg := newMessage(s.net, cmdGetHeaders, payload)
 
-	return p.callGetheaders(msg)
+	return p.Send(msg)
 }
 
 // check if the addr is already connected to the server.
@@ -318,7 +320,7 @@ func (s *Server) startProtocol(p Peer) {
 	}
 	for {
 		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
-		p.callGetaddr(getaddrMsg)
+		p.Send(getaddrMsg)
 
 		time.Sleep(30 * time.Second)
 	}
@@ -351,10 +353,10 @@ type StartOpts struct {
 
 func logo() string {
 	return `
-    _   ____________        __________ 
+    _   ____________        __________
    / | / / ____/ __ \      / ____/ __ \
   /  |/ / __/ / / / /_____/ / __/ / / /
- / /|  / /___/ /_/ /_____/ /_/ / /_/ / 
-/_/ |_/_____/\____/      \____/\____/  
+ / /|  / /___/ /_/ /_____/ /_/ / /_/ /
+/_/ |_/_____/\____/      \____/\____/
 `
 }

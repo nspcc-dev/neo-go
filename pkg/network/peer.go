@@ -11,13 +11,8 @@ type Peer interface {
 	id() uint32
 	addr() util.Endpoint
 	disconnect()
+	Send(*Message) error
 	version() *payload.Version
-	callVersion(*Message) error
-	callGetaddr(*Message) error
-	callVerack(*Message) error
-	callGetdata(*Message) error
-	callGetblocks(*Message) error
-	callGetheaders(*Message) error
 }
 
 // LocalPeer is the simplest kind of peer, mapped to a server in the
@@ -35,34 +30,21 @@ func NewLocalPeer(s *Server) *LocalPeer {
 	return &LocalPeer{endpoint: e, s: s}
 }
 
+func (p *LocalPeer) Send(msg *Message) error {
+	switch msg.commandType() {
+	case cmdVersion:
+		version := msg.Payload.(*payload.Version)
+		return p.s.handleVersionCmd(version, p)
+	case cmdGetAddr:
+		return p.s.handleGetaddrCmd(msg, p)
+	default:
+		return nil
+	}
+}
+
 // Version implements the Peer interface.
 func (p *LocalPeer) version() *payload.Version {
 	return p.pVersion
-}
-
-func (p *LocalPeer) callVersion(msg *Message) error {
-	version := msg.Payload.(*payload.Version)
-	return p.s.handleVersionCmd(version, p)
-}
-
-func (p *LocalPeer) callVerack(msg *Message) error {
-	return nil
-}
-
-func (p *LocalPeer) callGetaddr(msg *Message) error {
-	return p.s.handleGetaddrCmd(msg, p)
-}
-
-func (p *LocalPeer) callGetblocks(msg *Message) error {
-	return nil
-}
-
-func (p *LocalPeer) callGetheaders(msg *Message) error {
-	return nil
-}
-
-func (p *LocalPeer) callGetdata(msg *Message) error {
-	return nil
 }
 
 func (p *LocalPeer) id() uint32          { return p.nonce }
