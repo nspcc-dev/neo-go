@@ -22,6 +22,7 @@ func NewCommand() cli.Command {
 			cli.BoolFlag{Name: "relay, r"},
 			cli.StringFlag{Name: "seed"},
 			cli.StringFlag{Name: "dbfile"},
+			cli.String{Name: "config-path"},
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},

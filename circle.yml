@@ -4,17 +4,18 @@ jobs:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     docker:
       - image: vidsyhq/go-builder:latest
+        environment:
+          BUILD: false
     steps:
       - checkout
-      - run: go get -u github.com/golang/dep/cmd/dep
-      - run: dep ensure
       - restore_cache:
-          key: dependency-cache-{{ .Revision }}
-      - run: BUILD=false /scripts/build.sh
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - run: /scripts/build.sh
       - save_cache:
-          key: dependency-cache-{{ .Revision }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
           paths:
             - vendor
+            - /go/pkg
   test:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     docker:
@@ -22,7 +23,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ .Revision }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
       - run: make test
   vet:
     working_directory: /go/src/github.com/CityOfZion/neo-go
@@ -31,7 +32,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ .Revision }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
       - run: make vet
   check_version:
     working_directory: /go/src/github.com/CityOfZion/neo-go
@@ -46,8 +47,8 @@ jobs:
       - image: vidsyhq/go-builder:latest
     steps:
       - checkout
-      - run: go get -u github.com/golang/dep/cmd/dep
-      - run: dep ensure
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
       - run: make build
 
 workflows:
