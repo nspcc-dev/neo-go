@@ -34,6 +34,16 @@ type Transaction struct {
 	Scripts []*Witness
 }
 
+// AddOutput adds the given output to the transaction outputs.
+func (t *Transaction) AddOutput(out *Output) {
+	t.Outputs = append(t.Outputs, out)
+}
+
+// AddInput adds the given input to the transaction inputs.
+func (t *Transaction) AddInput(in *Input) {
+	t.Inputs = append(t.Inputs, in)
+}
+
 // DecodeBinary implements the payload interface.
 func (t *Transaction) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &t.Type); err != nil {

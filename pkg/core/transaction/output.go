@@ -19,6 +19,15 @@ type Output struct {
 	ScriptHash util.Uint160
 }
 
+// NewOutput returns a new transaction output.
+func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160) *Output {
+	return &Output{
+		AssetID:    assetID,
+		Amount:     amount,
+		ScriptHash: scriptHash,
+	}
+}
+
 // DecodeBinary implements the Payload interface.
 func (out *Output) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &out.AssetID); err != nil {

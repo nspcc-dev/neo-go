@@ -109,6 +109,38 @@ func EmitJmp(w *bytes.Buffer, op Opcode, label int16) error {
 	return Emit(w, op, buf)
 }
 
+// EmitAppCall emits an appcall, if tailCall is true, tailCall opcode will be
+// emitted instead.
+func EmitAppCall(w *bytes.Buffer, scriptHash util.Uint160, tailCall bool) error {
+	op := Oappcall
+	if tailCall {
+		op = Otailcall
+	}
+	return Emit(w, op, scriptHash.Bytes())
+}
+
+// EmitAppCallWithOperationAndData emits an appcall with the given operation and data.
+func EmitAppCallWithOperationAndData(w *bytes.Buffer, scriptHash util.Uint160, operation string, data []byte) error {
+	if err := EmitBytes(w, data); err != nil {
+		return err
+	}
+	if err := EmitString(w, operation); err != nil {
+		return err
+	}
+	return EmitAppCall(w, scriptHash, false)
+}
+
+// EmitAppCallWithOperation emits an appcall with the given operation.
+func EmitAppCallWithOperation(w *bytes.Buffer, scriptHash util.Uint160, operation string) error {
+	if err := EmitBool(w, false); err != nil {
+		return err
+	}
+	if err := EmitString(w, operation); err != nil {
+		return err
+	}
+	return EmitAppCall(w, scriptHash, false)
+}
+
 func isOpcodeJmp(op Opcode) bool {
 	if op == Ojmp || op == Ojmpifnot || op == Ojmpif || op == Ocall {
 		return true

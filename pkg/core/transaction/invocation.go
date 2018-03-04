@@ -17,6 +17,21 @@ type InvocationTX struct {
 	Gas util.Fixed8
 }
 
+// NewInvocationTX returns a new invocation transaction.
+func NewInvocationTX(script []byte) *Transaction {
+	return &Transaction{
+		Type:    InvocationType,
+		Version: 1,
+		Data: &InvocationTX{
+			Script: script,
+		},
+		Attributes: []*Attribute{},
+		Inputs:     []*Input{},
+		Outputs:    []*Output{},
+		Scripts:    []*Witness{},
+	}
+}
+
 // DecodeBinary implements the Payload interface.
 func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 	lenScript := util.ReadVarUint(r)
