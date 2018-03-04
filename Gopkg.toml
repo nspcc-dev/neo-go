@@ -47,3 +47,7 @@
 [[constraint]]
   name = "golang.org/x/text"
   version = "0.3.0"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.2.1"

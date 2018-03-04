@@ -39,7 +39,7 @@ const (
 	Ojmpifnot Opcode = 0x64
 	Ocall     Opcode = 0x65
 	Oret      Opcode = 0x66
-	Opcall    Opcode = 0x67
+	Oappcall  Opcode = 0x67
 	Osyscall  Opcode = 0x68
 	Otailcall Opcode = 0x69
 

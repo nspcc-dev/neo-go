@@ -1,4 +1,4 @@
-package core
+package transaction
 
 import (
 	"encoding/binary"
@@ -7,7 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// Witness ...
+// Witness contains 2 scripts.
 type Witness struct {
 	InvocationScript   []byte
 	VerificationScript []byte
@@ -17,17 +17,12 @@ type Witness struct {
 func (wit *Witness) DecodeBinary(r io.Reader) error {
 	lenb := util.ReadVarUint(r)
 	wit.InvocationScript = make([]byte, lenb)
-	if err := binary.Read(r, binary.LittleEndian, &wit.InvocationScript); err != nil {
-		panic(err)
+	if err := binary.Read(r, binary.LittleEndian, wit.InvocationScript); err != nil {
+		return err
 	}
-
 	lenb = util.ReadVarUint(r)
 	wit.VerificationScript = make([]byte, lenb)
-	if err := binary.Read(r, binary.LittleEndian, &wit.VerificationScript); err != nil {
-		panic(err)
-	}
-
-	return nil
+	return binary.Read(r, binary.LittleEndian, wit.VerificationScript)
 }
 
 // EncodeBinary implements the payload interface.

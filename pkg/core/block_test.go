@@ -6,32 +6,9 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
-
-func TestGenisis(t *testing.T) {
-	var (
-		rawBlock = "000000000000000000000000000000000000000000000000000000000000000000000000845c34e7c1aed302b1718e914da0c42bf47c476ac4d89671f278d8ab6d27aa3d65fc8857000000001dac2b7c00000000be48d3a3f5d10013ab9ffee489706078714f1ea2010001510400001dac2b7c00000000400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000400001445b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e5b881227d2c7b226c616e67223a22656e222c226e616d65223a22416e74436f696e227d5d0000c16ff286230008009f7fd096d37ed2c0e3f7f0cfc924beef4ffceb680000000001000000019b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50000c16ff2862300be48d3a3f5d10013ab9ffee489706078714f1ea201000151"
-		//rawBlockHash = "996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099"
-	)
-
-	rawBlockBytes, err := hex.DecodeString(rawBlock)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	block := &Block{}
-	if err := block.DecodeBinary(bytes.NewReader(rawBlockBytes)); err != nil {
-		t.Fatal(err)
-	}
-
-	hash, err := block.Hash()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(hash)
-}
 
 func TestDecodeBlock(t *testing.T) {
 	var (
@@ -82,7 +59,7 @@ func newBlockBase() BlockBase {
 		Index:         1,
 		ConsensusData: 1111,
 		NextConsensus: util.Uint160{},
-		Script: &Witness{
+		Script: &transaction.Witness{
 			VerificationScript: []byte{0x0},
 			InvocationScript:   []byte{0x1},
 		},
@@ -104,9 +81,9 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := &Block{
 		BlockBase: newBlockBase(),
-		Transactions: []*Transaction{
-			{Type: MinerTX},
-			{Type: IssueTX},
+		Transactions: []*transaction.Transaction{
+			{Type: transaction.MinerType},
+			{Type: transaction.IssueType},
 		},
 	}
 
@@ -114,18 +91,18 @@ func TestBlockVerify(t *testing.T) {
 		t.Fatal("block should be verified")
 	}
 
-	block.Transactions = []*Transaction{
-		{Type: IssueTX},
-		{Type: MinerTX},
+	block.Transactions = []*transaction.Transaction{
+		{Type: transaction.IssueType},
+		{Type: transaction.MinerType},
 	}
 
 	if block.Verify(false) {
 		t.Fatal("block should not by verified")
 	}
 
-	block.Transactions = []*Transaction{
-		{Type: MinerTX},
-		{Type: MinerTX},
+	block.Transactions = []*transaction.Transaction{
+		{Type: transaction.MinerType},
+		{Type: transaction.MinerType},
 	}
 
 	if block.Verify(false) {

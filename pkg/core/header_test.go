@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -18,7 +19,7 @@ func TestHeaderEncodeDecode(t *testing.T) {
 		Index:         3445,
 		ConsensusData: 394949,
 		NextConsensus: util.Uint160{},
-		Script: &Witness{
+		Script: &transaction.Witness{
 			InvocationScript:   []byte{0x10},
 			VerificationScript: []byte{0x11},
 		},
@@ -51,7 +52,6 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	if !header.NextConsensus.Equals(headerDecode.NextConsensus) {
 		t.Fatalf("expected both next consensus fields to be equal")
 	}
-
 	if bytes.Compare(header.Script.InvocationScript, headerDecode.Script.InvocationScript) != 0 {
 		t.Fatalf("expected equal invocation scripts %v and %v", header.Script.InvocationScript, headerDecode.Script.InvocationScript)
 	}
