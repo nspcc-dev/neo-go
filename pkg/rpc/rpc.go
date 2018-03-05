@@ -40,3 +40,18 @@ func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
 	}
 	return resp, nil
 }
+
+// SendRawTransaction broadcasts a transaction over the NEO network.
+// The given hex string needs to be signed with a keypair.
+// When the result of the response object is true, the TX has successfully
+// been broadcasted to the network.
+func (c *Client) SendRawTransaction(rawTX string) (*response, error) {
+	var (
+		params = newParams(rawTX)
+		resp   = &response{}
+	)
+	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
