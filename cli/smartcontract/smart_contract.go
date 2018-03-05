@@ -4,14 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"strconv"
-	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/rpc"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/urfave/cli"
 )
@@ -26,8 +22,6 @@ func NewCommand() cli.Command {
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
 		Subcommands: []cli.Command{
-
-			// Compile a smart contract.
 			{
 				Name:   "compile",
 				Usage:  "compile a smart contract to a .avm file",
@@ -41,10 +35,12 @@ func NewCommand() cli.Command {
 						Name:  "out, o",
 						Usage: "Output of the compiled contract",
 					},
+					cli.BoolFlag{
+						Name:  "debug, d",
+						Usage: "Debug mode will print out additional information after a compiling",
+					},
 				},
 			},
-
-			// Testinvoke a smart contract.
 			{
 				Name:   "invoke",
 				Usage:  "Test an invocation of a smart contract on the blockchain",
@@ -54,18 +50,8 @@ func NewCommand() cli.Command {
 						Name:  "in, i",
 						Usage: "Input location of the avm file that needs to be invoked",
 					},
-					cli.StringFlag{
-						Name:  "operation, o",
-						Usage: "Operation (method) that needs to be invoked",
-					},
-					cli.StringSliceFlag{
-						Name:  "param, p",
-						Usage: "Parameter used when invoking the contract",
-					},
 				},
 			},
-
-			// Dump opcode of a smart contract.
 			{
 				Name:   "opdump",
 				Usage:  "dump the opcode of a .go file",
@@ -89,25 +75,22 @@ func contractCompile(ctx *cli.Context) error {
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
-		Debug:   true,
+		Debug:   ctx.Bool("debug"),
 	}
 
 	if err := compiler.CompileAndSave(src, o); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+
 	return nil
 }
 
 func testInvoke(ctx *cli.Context) error {
-	var (
-		src       = ctx.String("in")
-		operation = ctx.String("operation")
-		params    = ctx.StringSlice("param")
-	)
-
+	src := ctx.String("in")
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
+
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -123,32 +106,13 @@ func testInvoke(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	var (
-		scriptHex = hex.EncodeToString(b)
-		result    interface{}
-	)
-
-	if len(operation) == 0 {
-		resp, err := client.InvokeScript(scriptHex)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		result = resp.Result
-	} else if len(operation) > 0 && len(params) > 0 {
-		parameters, err := parseParamsToParameters(params)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		resp, err := client.InvokeFunction(scriptHex, operation, parameters)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		if resp.Result == nil {
-			return cli.NewExitError(errors.New("invoke failed, thats all we know :("), 1)
-		}
+	scriptHex := hex.EncodeToString(b)
+	resp, err := client.InvokeScript(scriptHex)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
-	b, err = json.MarshalIndent(result, "", "  ")
+	b, err = json.MarshalIndent(resp.Result, "", "  ")
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -156,37 +120,6 @@ func testInvoke(ctx *cli.Context) error {
 	fmt.Println(string(b))
 
 	return nil
-}
-
-func parseParamsToParameters(params []string) ([]smartcontract.Parameter, error) {
-	parameters := make([]smartcontract.Parameter, len(params))
-	for i, param := range params {
-		parts := strings.Split(param, ":")
-		if len(parts) != 2 {
-			return nil, errors.New("failed to parse parameter")
-		}
-
-		var (
-			t   = parts[0]
-			v   = parts[1]
-			p   smartcontract.Parameter
-			err error
-		)
-
-		switch t {
-		case "string":
-			p.Type = smartcontract.StringType
-			p.Value = v
-		case "int":
-			p.Type = smartcontract.IntegerType
-			p.Value, err = strconv.Atoi(v)
-			if err != nil {
-				return nil, err
-			}
-		}
-		parameters[i] = p
-	}
-	return parameters, nil
 }
 
 func contractDumpOpcode(ctx *cli.Context) error {
