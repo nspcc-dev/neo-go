@@ -61,26 +61,27 @@ type Message struct {
 	Payload payload.Payload
 }
 
-type commandType string
+type CommandType string
 
 // valid commands used to send between nodes.
 const (
-	cmdVersion    commandType = "version"
-	cmdVerack                 = "verack"
-	cmdGetAddr                = "getaddr"
-	cmdAddr                   = "addr"
-	cmdGetHeaders             = "getheaders"
-	cmdHeaders                = "headers"
-	cmdGetBlocks              = "getblocks"
-	cmdInv                    = "inv"
-	cmdGetData                = "getdata"
-	cmdBlock                  = "block"
-	cmdTX                     = "tx"
-	cmdConsensus              = "consensus"
-	cmdUnknown                = "unknown"
+	CMDVersion    CommandType = "version"
+	CMDVerack     CommandType = "verack"
+	CMDGetAddr    CommandType = "getaddr"
+	CMDAddr       CommandType = "addr"
+	CMDGetHeaders CommandType = "getheaders"
+	CMDHeaders    CommandType = "headers"
+	CMDGetBlocks  CommandType = "getblocks"
+	CMDInv        CommandType = "inv"
+	CMDGetData    CommandType = "getdata"
+	CMDBlock      CommandType = "block"
+	CMDTX         CommandType = "tx"
+	CMDConsensus  CommandType = "consensus"
+	CMDUnknown    CommandType = "unknown"
 )
 
-func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
+// NewMessage returns a new message with the given payload.
+func NewMessage(magic NetMode, cmd CommandType, p payload.Payload) *Message {
 	var (
 		size     uint32
 		checksum []byte
@@ -106,36 +107,36 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
 	}
 }
 
-// Converts the 12 byte command slice to a commandType.
-func (m *Message) commandType() commandType {
+// CommandType converts the 12 byte command slice to a CommandType.
+func (m *Message) CommandType() CommandType {
 	cmd := cmdByteArrayToString(m.Command)
 	switch cmd {
 	case "version":
-		return cmdVersion
+		return CMDVersion
 	case "verack":
-		return cmdVerack
+		return CMDVerack
 	case "getaddr":
-		return cmdGetAddr
+		return CMDGetAddr
 	case "addr":
-		return cmdAddr
+		return CMDAddr
 	case "getheaders":
-		return cmdGetHeaders
+		return CMDGetHeaders
 	case "headers":
-		return cmdHeaders
+		return CMDHeaders
 	case "getblocks":
-		return cmdGetBlocks
+		return CMDGetBlocks
 	case "inv":
-		return cmdInv
+		return CMDInv
 	case "getdata":
-		return cmdGetData
+		return CMDGetData
 	case "block":
-		return cmdBlock
+		return CMDBlock
 	case "tx":
-		return cmdTX
+		return CMDTX
 	case "consensus":
-		return cmdConsensus
+		return CMDConsensus
 	default:
-		return cmdUnknown
+		return CMDUnknown
 	}
 }
 
@@ -185,36 +186,35 @@ func (m *Message) decodePayload(r io.Reader) error {
 		return errChecksumMismatch
 	}
 
-	//r = bytes.NewReader(buf)
 	r = buf
 	var p payload.Payload
-	switch m.commandType() {
-	case cmdVersion:
+	switch m.CommandType() {
+	case CMDVersion:
 		p = &payload.Version{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	case cmdInv:
+	case CMDInv:
 		p = &payload.Inventory{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	case cmdAddr:
+	case CMDAddr:
 		p = &payload.AddressList{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	case cmdBlock:
+	case CMDBlock:
 		p = &core.Block{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	case cmdGetHeaders:
+	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
-	case cmdHeaders:
+	case CMDHeaders:
 		p = &payload.Headers{}
 		if err := p.DecodeBinary(r); err != nil {
 			return err
@@ -242,7 +242,7 @@ func (m *Message) encode(w io.Writer) error {
 
 // convert a command (string) to a byte slice filled with 0 bytes till
 // size 12.
-func cmdToByteArray(cmd commandType) [cmdSize]byte {
+func cmdToByteArray(cmd CommandType) [cmdSize]byte {
 	cmdLen := len(cmd)
 	if cmdLen > cmdSize {
 		panic("exceeded command max length of size 12")

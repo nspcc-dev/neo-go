@@ -35,8 +35,8 @@ func (i InventoryType) Valid() bool {
 // List of valid InventoryTypes.
 const (
 	BlockType     InventoryType = 0x01 // 1
-	TXType                      = 0x02 // 2
-	ConsensusType               = 0xe0 // 224
+	TXType        InventoryType = 0x02 // 2
+	ConsensusType InventoryType = 0xe0 // 224
 )
 
 // Inventory payload

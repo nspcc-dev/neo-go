@@ -108,13 +108,9 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 	if err := b.encodeHashableFields(w); err != nil {
 		return err
 	}
-
-	// padding
 	if err := binary.Write(w, binary.LittleEndian, uint8(1)); err != nil {
 		return err
 	}
-
-	// script
 	return b.Script.EncodeBinary(w)
 }
 
@@ -150,8 +146,6 @@ func (h *Header) EncodeBinary(w io.Writer) error {
 	if err := h.BlockBase.EncodeBinary(w); err != nil {
 		return err
 	}
-
-	// padding
 	return binary.Write(w, binary.LittleEndian, uint8(0))
 }
 
@@ -205,11 +199,10 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 	lentx := util.ReadVarUint(r)
 	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
-		tx := &transaction.Transaction{}
-		if err := tx.DecodeBinary(r); err != nil {
+		b.Transactions[i] = &transaction.Transaction{}
+		if err := b.Transactions[i].DecodeBinary(r); err != nil {
 			return err
 		}
-		b.Transactions[i] = tx
 	}
 
 	return nil

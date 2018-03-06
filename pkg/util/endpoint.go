@@ -12,14 +12,11 @@ type Endpoint struct {
 	Port uint16
 }
 
-// EndpointFromString returns an Endpoint from the given string.
-// For now this only handles the most simple hostport form.
-// e.g. 127.0.0.1:3000
-// This should be enough to work with for now.
-func EndpointFromString(s string) (Endpoint, error) {
+// NewEndpoint creates an Endpoint from the given string.
+func NewEndpoint(s string) (e Endpoint) {
 	hostPort := strings.Split(s, ":")
 	if len(hostPort) != 2 {
-		return Endpoint{}, fmt.Errorf("invalid address string: %s", s)
+		return e
 	}
 	host := hostPort[0]
 	port := hostPort[1]
@@ -36,7 +33,7 @@ func EndpointFromString(s string) (Endpoint, error) {
 
 	p, _ := strconv.Atoi(port)
 
-	return Endpoint{buf, uint16(p)}, nil
+	return Endpoint{buf, uint16(p)}
 }
 
 // Network implements the net.Addr interface.

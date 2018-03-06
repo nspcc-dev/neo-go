@@ -27,19 +27,19 @@ type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
 	Store
 
-	// current index of the heighest block
-	currentBlockHeight uint32
-
-	// number of headers stored
-	storedHeaderCount uint32
-
 	mtx sync.RWMutex
 
-	// index of headers hashes
+	// Current index/height of the heighest block
+	currentBlockHeight uint32
+
+	// Number of headers stored
+	storedHeaderCount uint32
+
+	// List of known headers
 	headerIndex []util.Uint256
 }
 
-// NewBlockchain returns a pointer to a Blockchain.
+// NewBlockchain creates a new Blockchain object.
 func NewBlockchain(s Store, l *log.Logger, startHash util.Uint256) *Blockchain {
 	bc := &Blockchain{
 		logger: l,
