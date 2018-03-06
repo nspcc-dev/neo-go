@@ -80,7 +80,10 @@ func (c *codegen) emitLoadLocal(name string) {
 	if pos < 0 {
 		log.Fatalf("cannot load local variable with position: %d", pos)
 	}
+	c.emitLoadLocalPos(pos)
+}
 
+func (c *codegen) emitLoadLocalPos(pos int) {
 	emitOpcode(c.prog, vm.Ofromaltstack)
 	emitOpcode(c.prog, vm.Odup)
 	emitOpcode(c.prog, vm.Otoaltstack)
@@ -104,7 +107,7 @@ func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, vm.Osetitem)
 }
 
-func (c *codegen) emitLoadStructField(i int) {
+func (c *codegen) emitLoadField(i int) {
 	emitInt(c.prog, int64(i))
 	emitOpcode(c.prog, vm.Opickitem)
 }
@@ -438,7 +441,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if strct, ok := typ.(*types.Struct); ok {
 				c.emitLoadLocal(t.Name) // load the struct
 				i := indexOfStruct(strct, n.Sel.Name)
-				c.emitLoadStructField(i) // load the field
+				c.emitLoadField(i) // load the field
 			}
 		default:
 			log.Fatal("nested selectors not supported yet")
@@ -446,7 +449,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
-		// fmt.Println(n)
+		// TODO(@anthdm)
+
+	case *ast.IndexExpr:
+		// Walk the expression, this could be either an Ident or SelectorExpr.
+		// This will load local whatever X is.
+		ast.Walk(c, n.X)
+
+		switch n.Index.(type) {
+		case *ast.BasicLit:
+			t := c.typeInfo.Types[n.Index]
+			val, _ := constant.Int64Val(t.Value)
+			c.emitLoadField(int(val))
+		default:
+			ast.Walk(c, n.Index)
+			emitOpcode(c.prog, vm.Opickitem) // just pickitem here
+		}
+		return nil
 	}
 	return c
 }

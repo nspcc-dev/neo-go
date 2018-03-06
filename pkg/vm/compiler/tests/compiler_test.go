@@ -23,6 +23,7 @@ func TestAllCases(t *testing.T) {
 	testCases := []testCase{}
 
 	// The Go language
+	testCases = append(testCases, builtinTestCases...)
 	testCases = append(testCases, assignTestCases...)
 	testCases = append(testCases, arrayTestCases...)
 	testCases = append(testCases, binaryExprTestCases...)
