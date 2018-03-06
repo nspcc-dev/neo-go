@@ -10,7 +10,7 @@ import (
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type TransactionType
+	Type Type
 
 	// The trading version which is currently 0.
 	Version uint8

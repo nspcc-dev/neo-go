@@ -1,26 +1,26 @@
 package transaction
 
-// TransactionType is the type of a transaction.
-type TransactionType uint8
+// Type is the type of a transaction.
+type Type uint8
 
 // All processes in NEO system are recorded in transactions.
 // There are several types of transactions.
 const (
-	MinerType      TransactionType = 0x00
-	IssueType      TransactionType = 0x01
-	ClaimType      TransactionType = 0x02
-	EnrollmentType TransactionType = 0x20
-	VotingType     TransactionType = 0x24
-	RegisterType   TransactionType = 0x40
-	ContractType   TransactionType = 0x80
-	StateType      TransactionType = 0x90
-	AgencyType     TransactionType = 0xb0
-	PublishType    TransactionType = 0xd0
-	InvocationType TransactionType = 0xd1
+	MinerType      Type = 0x00
+	IssueType      Type = 0x01
+	ClaimType      Type = 0x02
+	EnrollmentType Type = 0x20
+	VotingType     Type = 0x24
+	RegisterType   Type = 0x40
+	ContractType   Type = 0x80
+	StateType      Type = 0x90
+	AgencyType     Type = 0xb0
+	PublishType    Type = 0xd0
+	InvocationType Type = 0xd1
 )
 
 // String implements the stringer interface.
-func (t TransactionType) String() string {
+func (t Type) String() string {
 	switch t {
 	case MinerType:
 		return "miner transaction"
