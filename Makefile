@@ -18,7 +18,7 @@ push-tag:
 	git checkout ${BRANCH}
 	git pull origin ${BRANCH}
 	git tag ${VERSION}
-	git push origin ${BRANCH} --tags
+	git push origin ${VERSION}
 
 run: build
 	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT} -dbfile ${DBFILE} --relay true -config-path ./config
