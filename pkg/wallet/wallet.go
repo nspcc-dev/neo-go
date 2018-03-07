@@ -92,6 +92,21 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 	return w.Save()
 }
 
+// Unlock tries to unlock the wallet given a passphrase.
+func (w *Wallet) Unlock(passphrase string) error {
+	if len(w.Accounts) == 0 {
+		return nil
+	}
+
+	for _, a := range w.Accounts {
+		if ok := a.Decrypt(passphrase); ok {
+			return nil
+		}
+	}
+
+	return errWrongPassphrase
+}
+
 // AddAccount adds an existing Account to the wallet.
 func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
