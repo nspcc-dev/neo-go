@@ -85,7 +85,7 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 	return nil
 }
 
-// handleBlockCmd processes the received block from its peer.
+// handleBlockCmd processes the received block received from its peer.
 func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
 	hash, err := block.Hash()
 	if err != nil {

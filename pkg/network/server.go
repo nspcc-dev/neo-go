@@ -269,6 +269,7 @@ func (s *Server) dumpConfiguration() {
 	fmt.Fprintf(w, "listen RPC:\t%d\n", s.ListenRPC)
 	fmt.Fprintf(w, "relay:\t%v\n", s.Relay)
 	fmt.Fprintf(w, "max peers:\t%d\n", s.MaxPeers)
+	fmt.Fprintln(w, "")
 	w.Flush()
 }
 
