@@ -51,7 +51,7 @@ func (n *Node) startProtocol(peer Peer) {
 		select {
 		case <-ticker:
 			// Only ask for more peers if the server has the capasity for it.
-			if n.server.hasCapasity() {
+			if n.server.hasCapacity() {
 				msg := NewMessage(n.Net, CMDGetAddr, nil)
 				peer.Send(msg)
 			}
