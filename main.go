@@ -11,11 +11,8 @@ func main() {
 		UserAgent: "/neo-go/",
 		Seeds: []string{
 			"127.0.0.1:20333",
-			"127.0.0.1:20334",
-			"127.0.0.1:20335",
-			"127.0.0.1:20336",
 		},
-		ListenTCP: 20333,
+		ListenTCP: 5000,
 		Net:       network.ModePrivNet,
 		Relay:     true,
 	}

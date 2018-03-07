@@ -153,7 +153,6 @@ func (s *Server) connectToPeers(addrs ...string) {
 			go func(addr string) {
 				conn, err := net.DialTimeout("tcp", addr, s.DialTimeout)
 				if err != nil {
-					s.logger.Printf("could not establish connection to %s: %s", addr, err)
 					s.badAddrOp <- func(badAddrs map[string]bool) {
 						badAddrs[addr] = true
 					}
@@ -226,7 +225,7 @@ func (s *Server) loop() {
 			s.logger.Printf("peer disconnected: %s", p.Endpoint())
 
 		case <-ticker:
-			s.logger.Printf("current connected peers: %d", len(s.peers))
+			s.printState()
 		}
 	}
 }
@@ -243,7 +242,7 @@ func (s *Server) PeerCount() (n int) {
 func (s *Server) Start() error {
 	fmt.Println(logo())
 	fmt.Println("")
-	s.dumpConfiguration()
+	s.printConfiguration()
 
 	if err := s.createListener(); err != nil {
 		return err
@@ -252,15 +251,20 @@ func (s *Server) Start() error {
 	go s.loop()
 	go s.listenTCP()
 	go s.connectToPeers(s.Seeds...)
-	for {
-	}
+	select {}
 }
 
 func (s *Server) Quit() {
 	s.quit <- struct{}{}
 }
 
-func (s *Server) dumpConfiguration() {
+func (s *Server) printState() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	fmt.Fprintf(w, "connected peers:\t%d/%d\n", s.PeerCount(), s.MaxPeers)
+	w.Flush()
+}
+
+func (s *Server) printConfiguration() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintf(w, "user agent:\t%s\n", s.UserAgent)
 	fmt.Fprintf(w, "id:\t%d\n", s.id)
@@ -269,6 +273,8 @@ func (s *Server) dumpConfiguration() {
 	fmt.Fprintf(w, "listen RPC:\t%d\n", s.ListenRPC)
 	fmt.Fprintf(w, "relay:\t%v\n", s.Relay)
 	fmt.Fprintf(w, "max peers:\t%d\n", s.MaxPeers)
+	chainer := s.proto.(Noder)
+	fmt.Fprintf(w, "current height:\t%d\n", chainer.blockchain().HeaderHeight())
 	fmt.Fprintln(w, "")
 	w.Flush()
 }

@@ -75,7 +75,7 @@ func (p *TCPPeer) Done() chan struct{} {
 }
 
 func (p *TCPPeer) run() error {
-	errCh := make(chan error, 1)
+	errCh := make(chan error)
 
 	go p.readLoop(errCh)
 	go p.writeLoop(errCh)
@@ -90,6 +90,9 @@ func (p *TCPPeer) readLoop(errCh chan error) {
 			errCh <- err
 			break
 		}
+
+		// p.server.logger.Printf("in < %s", msg.CommandType())
+
 		if err := p.handleMessage(msg); err != nil {
 			errCh <- err
 			break
@@ -103,6 +106,9 @@ func (p *TCPPeer) writeLoop(errCh chan error) {
 
 	for {
 		msg := <-p.send
+
+		// p.server.logger.Printf("out > %+v", msg.CommandType())
+
 		if err := msg.encode(buf); err != nil {
 			errCh <- err
 			break
@@ -118,6 +124,7 @@ func (p *TCPPeer) writeLoop(errCh chan error) {
 
 func (p *TCPPeer) cleanup() {
 	p.conn.Close()
+	close(p.send)
 	p.done <- struct{}{}
 }
 
@@ -138,6 +145,9 @@ func (p *TCPPeer) handleMessage(msg *Message) error {
 	case CMDBlock:
 		block := msg.Payload.(*core.Block)
 		return p.server.proto.handleBlockCmd(block, p)
+	case CMDHeaders:
+		headers := msg.Payload.(*payload.Headers)
+		return p.server.proto.handleHeadersCmd(headers, p)
 	case CMDVerack:
 		// Only start the protocol if we got the version and verack
 		// received.

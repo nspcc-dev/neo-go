@@ -7,6 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (
@@ -34,10 +35,22 @@ type MessageTuple struct {
 }
 
 func newNode(s *Server, cfg Config) *Node {
+	var startHash util.Uint256
+	if cfg.Net == ModePrivNet {
+		startHash = core.GenesisHashPrivNet()
+	}
+
+	bc := core.NewBlockchain(
+		core.NewMemoryStore(),
+		s.logger,
+		startHash,
+	)
+
 	return &Node{
 		Config: cfg,
 		msgCh:  make(chan *MessageTuple),
 		server: s,
+		bc:     bc,
 	}
 }
 
@@ -47,10 +60,15 @@ func (n *Node) version() *payload.Version {
 
 func (n *Node) startProtocol(peer Peer) {
 	ticker := time.NewTicker(protoTickInterval).C
+
 	for {
 		select {
 		case <-ticker:
-			// Only ask for more peers if the server has the capasity for it.
+			// Try to sync with the peer if his block height is higher then ours.
+			if peer.Version().StartHeight > n.bc.HeaderHeight() {
+				n.askMoreHeaders(peer)
+			}
+			// Only ask for more peers if the server has the capacity for it.
 			if n.server.hasCapacity() {
 				msg := NewMessage(n.Net, CMDGetAddr, nil)
 				peer.Send(msg)
@@ -105,3 +123,32 @@ func (n *Node) handleAddrCmd(addressList *payload.AddressList, peer Peer) error 
 	n.server.connectToPeers(addrs...)
 	return nil
 }
+
+// The handleHeadersCmd will process the received headers from its peer.
+// We call this in a routine cause we may block Peers Send() for to long.
+func (n *Node) handleHeadersCmd(headers *payload.Headers, peer Peer) error {
+	go func(headers []*core.Header) {
+		if err := n.bc.AddHeaders(headers...); err != nil {
+			n.server.logger.Printf("processing headers failed: %s", err)
+			return
+		}
+		// The peer will respond with a maximum of 2000 headers in one batch.
+		// We will ask one more batch here if needed. Eventually we will get synced
+		// due to the startProtocol routine that will ask headers every protoTick.
+		if n.bc.HeaderHeight() < peer.Version().StartHeight {
+			n.askMoreHeaders(peer)
+		}
+	}(headers.Hdrs)
+
+	return nil
+}
+
+// askMoreHeaders will send a getheaders message to the peer.
+func (n *Node) askMoreHeaders(p Peer) {
+	start := []util.Uint256{n.bc.CurrentHeaderHash()}
+	payload := payload.NewGetBlocks(start, util.Uint256{})
+	p.Send(NewMessage(n.Net, CMDGetHeaders, payload))
+}
+
+// blockhain implements the Noder interface.
+func (n *Node) blockchain() *core.Blockchain { return n.bc }
