@@ -37,6 +37,5 @@ func (p *Headers) EncodeBinary(w io.Writer) error {
 			return err
 		}
 	}
-
 	return nil
 }

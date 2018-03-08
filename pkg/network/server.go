@@ -78,9 +78,6 @@ type Server struct {
 	peerOp     chan func(map[Peer]bool)
 	peerOpDone chan struct{}
 
-	peers    map[Peer]bool
-	badAddrs map[string]bool
-
 	quit chan struct{}
 }
 
@@ -108,8 +105,6 @@ func NewServer(cfg Config) *Server {
 		badAddrOpDone: make(chan struct{}),
 		peerOp:        make(chan func(map[Peer]bool)),
 		peerOpDone:    make(chan struct{}),
-		peers:         map[Peer]bool{},
-		badAddrs:      map[string]bool{},
 	}
 
 	s.proto = newNode(s, cfg)
@@ -172,7 +167,7 @@ func (s *Server) connectToPeers(addrs ...string) {
 func (s *Server) canConnectWith(addr string) bool {
 	canConnect := true
 	s.peerOp <- func(peers map[Peer]bool) {
-		for peer := range s.peers {
+		for peer := range peers {
 			if peer.Endpoint().String() == addr {
 				canConnect = false
 				break
@@ -200,38 +195,34 @@ func (s *Server) sendVersion(peer Peer) {
 	peer.Send(NewMessage(s.Net, CMDVersion, s.proto.version()))
 }
 
-func (s *Server) loop() {
-	ticker := time.NewTicker(30 * time.Second).C
+func (s *Server) run() {
+	var (
+		ticker   = time.NewTicker(30 * time.Second).C
+		peers    = make(map[Peer]bool)
+		badAddrs = make(map[string]bool)
+	)
+
 	for {
 		select {
-
-		case fun := <-s.badAddrOp:
-			fun(s.badAddrs)
+		case op := <-s.badAddrOp:
+			op(badAddrs)
 			s.badAddrOpDone <- struct{}{}
-
-		case fun := <-s.peerOp:
-			fun(s.peers)
+		case op := <-s.peerOp:
+			op(peers)
 			s.peerOpDone <- struct{}{}
-
 		case p := <-s.register:
-			s.peers[p] = true
-
+			peers[p] = true
 			// When a new peer connection is established, we send
 			// out our version immediately.
 			s.sendVersion(p)
-
 			s.logger.Printf("new peer connected: %s", p.Endpoint())
-
 		case p := <-s.unregister:
-			delete(s.peers, p)
+			delete(peers, p)
 			s.logger.Printf("peer disconnected: %s", p.Endpoint())
-
 		case <-ticker:
 			s.printState()
-
 		case <-s.quit:
 			return
-
 		}
 	}
 }
@@ -254,7 +245,7 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	go s.loop()
+	go s.run()
 	go s.listenTCP()
 	go s.connectToPeers(s.Seeds...)
 	select {}

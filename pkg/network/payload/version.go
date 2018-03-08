@@ -44,36 +44,63 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements the Payload interface.
 func (p *Version) DecodeBinary(r io.Reader) error {
-	err := binary.Read(r, binary.LittleEndian, &p.Version)
-	err = binary.Read(r, binary.LittleEndian, &p.Services)
-	err = binary.Read(r, binary.LittleEndian, &p.Timestamp)
-	err = binary.Read(r, binary.LittleEndian, &p.Port)
-	err = binary.Read(r, binary.LittleEndian, &p.Nonce)
+	if err := binary.Read(r, binary.LittleEndian, &p.Version); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &p.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &p.Port); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &p.Nonce); err != nil {
+		return err
+	}
 
 	var lenUA uint8
-	err = binary.Read(r, binary.LittleEndian, &lenUA)
+	if err := binary.Read(r, binary.LittleEndian, &lenUA); err != nil {
+		return err
+	}
 	p.UserAgent = make([]byte, lenUA)
-	err = binary.Read(r, binary.LittleEndian, &p.UserAgent)
-
-	err = binary.Read(r, binary.LittleEndian, &p.StartHeight)
-	err = binary.Read(r, binary.LittleEndian, &p.Relay)
-
-	return err
+	if err := binary.Read(r, binary.LittleEndian, &p.UserAgent); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &p.StartHeight); err != nil {
+		return err
+	}
+	return binary.Read(r, binary.LittleEndian, &p.Relay)
 }
 
 // EncodeBinary implements the Payload interface.
 func (p *Version) EncodeBinary(w io.Writer) error {
-	err := binary.Write(w, binary.LittleEndian, p.Version)
-	err = binary.Write(w, binary.LittleEndian, p.Services)
-	err = binary.Write(w, binary.LittleEndian, p.Timestamp)
-	err = binary.Write(w, binary.LittleEndian, p.Port)
-	err = binary.Write(w, binary.LittleEndian, p.Nonce)
-	err = binary.Write(w, binary.LittleEndian, uint8(len(p.UserAgent)))
-	err = binary.Write(w, binary.LittleEndian, p.UserAgent)
-	err = binary.Write(w, binary.LittleEndian, p.StartHeight)
-	err = binary.Write(w, binary.LittleEndian, p.Relay)
-
-	return err
+	if err := binary.Write(w, binary.LittleEndian, p.Version); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Port); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.Nonce); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, uint8(len(p.UserAgent))); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.UserAgent); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, p.StartHeight); err != nil {
+		return err
+	}
+	return binary.Write(w, binary.LittleEndian, p.Relay)
 }
 
 // Size implements the payloader interface.
