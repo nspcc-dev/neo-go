@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -45,23 +44,7 @@ func (t testNode) version() *payload.Version {
 	return &payload.Version{}
 }
 
-func (t testNode) startProtocol(p Peer) {}
-
-func (t testNode) handleVersionCmd(version *payload.Version, p Peer) error {
-	return nil
-}
-
-func (t testNode) handleInvCmd(version *payload.Inventory, p Peer) error {
-	return nil
-}
-
-func (t testNode) handleBlockCmd(version *core.Block, p Peer) error {
-	return nil
-}
-
-func (t testNode) handleAddrCmd(version *payload.AddressList, p Peer) error {
-	return nil
-}
+func (t testNode) handleProto(msg *Message, p Peer) {}
 
 func newTestServer() *Server {
 	return &Server{

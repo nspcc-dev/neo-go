@@ -8,6 +8,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDecodeBlock(t *testing.T) {
@@ -29,41 +30,11 @@ func TestDecodeBlock(t *testing.T) {
 	if err := block.DecodeBinary(bytes.NewReader(rawBlockBytes)); err != nil {
 		t.Fatal(err)
 	}
-	if block.Index != uint32(rawBlockIndex) {
-		t.Fatalf("expected the index to the block to be %d got %d", rawBlockIndex, block.Index)
-	}
-	if block.Timestamp != uint32(rawBlockTimestamp) {
-		t.Fatalf("expected timestamp to be %d got %d", rawBlockTimestamp, block.Timestamp)
-	}
-	if block.ConsensusData != uint64(rawBlockConsensusData) {
-		t.Fatalf("expected consensus data to be %d got %d", rawBlockConsensusData, block.ConsensusData)
-	}
-	if block.PrevHash.String() != rawBlockPrevHash {
-		t.Fatalf("expected prev block hash to be %s got %s", rawBlockPrevHash, block.PrevHash)
-	}
-	hash, err := block.Hash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if hash.String() != rawBlockHash {
-		t.Fatalf("expected hash of the block to be %s got %s", rawBlockHash, hash)
-	}
-}
-
-func newBlockBase() BlockBase {
-	return BlockBase{
-		Version:       0,
-		PrevHash:      sha256.Sum256([]byte("a")),
-		MerkleRoot:    sha256.Sum256([]byte("b")),
-		Timestamp:     999,
-		Index:         1,
-		ConsensusData: 1111,
-		NextConsensus: util.Uint160{},
-		Script: &transaction.Witness{
-			VerificationScript: []byte{0x0},
-			InvocationScript:   []byte{0x1},
-		},
-	}
+	assert.Equal(t, uint32(rawBlockIndex), block.Index)
+	assert.Equal(t, uint32(rawBlockTimestamp), block.Timestamp)
+	assert.Equal(t, uint64(rawBlockConsensusData), block.ConsensusData)
+	assert.Equal(t, rawBlockPrevHash, block.PrevHash.String())
+	assert.Equal(t, rawBlockHash, block.Hash().String())
 }
 
 func TestHashBlockEqualsHashHeader(t *testing.T) {
@@ -71,11 +42,7 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 	b := &Block{BlockBase: base}
 	head := &Header{BlockBase: base}
 
-	bhash, _ := b.Hash()
-	headhash, _ := head.Hash()
-	if bhash != headhash {
-		t.Fatalf("expected both hashes to be equal %s and %s", bhash, headhash)
-	}
+	assert.Equal(t, b.Hash(), head.Hash())
 }
 
 func TestBlockVerify(t *testing.T) {
@@ -107,5 +74,21 @@ func TestBlockVerify(t *testing.T) {
 
 	if block.Verify(false) {
 		t.Fatal("block should not by verified")
+	}
+}
+
+func newBlockBase() BlockBase {
+	return BlockBase{
+		Version:       0,
+		PrevHash:      sha256.Sum256([]byte("a")),
+		MerkleRoot:    sha256.Sum256([]byte("b")),
+		Timestamp:     999,
+		Index:         1,
+		ConsensusData: 1111,
+		NextConsensus: util.Uint160{},
+		Script: &transaction.Witness{
+			VerificationScript: []byte{0x0},
+			InvocationScript:   []byte{0x1},
+		},
 	}
 }

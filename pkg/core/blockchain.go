@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -28,30 +27,29 @@ type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
 	Store
 
-	lock sync.RWMutex
+	// Current index/height of the heighest block.
+	blockHeight uint32
 
-	// Current index/height of the heighest block
-	currentBlockHeight uint32
-
-	// Number of headers stored
+	// Number of headers stored.
 	storedHeaderCount uint32
 
-	// List of known headers
+	// List of known headers.
 	headerList []util.Uint256
 
-	headersOp     chan headerOpFunc
-	headersOpDone chan struct{}
+	addHeadersCh chan addHeadersTuple
 }
 
-type headerOpFunc func([]util.Uint256)
+type addHeadersTuple struct {
+	headers []*Header
+	err     chan error
+}
 
 // NewBlockchain creates a new Blockchain object.
 func NewBlockchain(s Store, l *log.Logger, startHash util.Uint256) *Blockchain {
 	bc := &Blockchain{
-		logger:        l,
-		Store:         s,
-		headersOp:     make(chan headerOpFunc),
-		headersOpDone: make(chan struct{}),
+		logger:       l,
+		Store:        s,
+		addHeadersCh: make(chan addHeadersTuple),
 	}
 	go bc.run()
 
@@ -63,9 +61,8 @@ func NewBlockchain(s Store, l *log.Logger, startHash util.Uint256) *Blockchain {
 func (bc *Blockchain) run() {
 	for {
 		select {
-		case op := <-bc.headersOp:
-			op(bc.headerList)
-			bc.headersOpDone <- struct{}{}
+		case t := <-bc.addHeadersCh:
+			t.err <- bc.addHeaders(t.headers...)
 		}
 	}
 }
@@ -88,51 +85,52 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	return nil
 }
 
-func (bc *Blockchain) addHeader(header *Header) error {
-	return bc.AddHeaders(header)
+// AddHeaders processes the given headers.
+func (bc *Blockchain) AddHeaders(headers ...*Header) error {
+	t := addHeadersTuple{
+		headers: headers,
+		err:     make(chan error),
+	}
+	bc.addHeadersCh <- t
+	return <-t.err
 }
 
-// AddHeaders processes the given header in a header operation callback.
-func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
-	bc.headersOp <- func(headerList []util.Uint256) {
-		var (
-			start = time.Now()
-			batch = Batch{}
-		)
+func (bc *Blockchain) addHeaders(headers ...*Header) (err error) {
+	var (
+		start = time.Now()
+		batch = Batch{}
+	)
 
-		for _, h := range headers {
-			if int(h.Index-1) >= len(bc.headerList) {
-				err = fmt.Errorf(
-					"height of block higher then headerList %d > %d\n",
-					h.Index, len(bc.headerList),
-				)
-				break
-			}
-			if int(h.Index) < len(bc.headerList) {
-				continue
-			}
-			if !h.Verify() {
-				err = fmt.Errorf("header %v is invalid", h)
-				break
-			}
-			if err = bc.processHeader(h, batch); err != nil {
-				break
-			}
-		}
-
-		// TODO: Implement caching strategy.
-		if len(batch) > 0 {
-			if err = bc.writeBatch(batch); err != nil {
-				return
-			}
-			bc.logger.Printf(
-				"done processing headers up to index %d took %f Seconds",
-				bc.HeaderHeight(), time.Since(start).Seconds(),
+	for _, h := range headers {
+		if int(h.Index-1) >= len(bc.headerList) {
+			err = fmt.Errorf(
+				"height of block higher then headerList %d > %d\n",
+				h.Index, len(bc.headerList),
 			)
+			break
+		}
+		if int(h.Index) < len(bc.headerList) {
+			continue
+		}
+		if !h.Verify() {
+			err = fmt.Errorf("header %v is invalid", h)
+			break
+		}
+		if err = bc.processHeader(h, batch); err != nil {
+			break
 		}
 	}
 
-	<-bc.headersOpDone
+	// TODO: Implement caching strategy.
+	if len(batch) > 0 {
+		if err = bc.writeBatch(batch); err != nil {
+			return
+		}
+		bc.logger.Printf(
+			"done processing headers up to index %d took %f Seconds",
+			bc.HeaderHeight(), time.Since(start).Seconds(),
+		)
+	}
 
 	return err
 }
@@ -172,11 +170,11 @@ func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
 	if len(bc.headerList) == 0 {
 		return
 	}
-	if len(bc.headerList) < int(bc.currentBlockHeight) {
+	if len(bc.headerList) < int(bc.blockHeight) {
 		return
 	}
 
-	return bc.headerList[bc.currentBlockHeight]
+	return bc.headerList[bc.blockHeight]
 }
 
 // CurrentHeaderHash returns the hash of the latest known header.
@@ -186,10 +184,10 @@ func (bc *Blockchain) CurrentHeaderHash() util.Uint256 {
 
 // BlockHeight return the height/index of the latest block this node has.
 func (bc *Blockchain) BlockHeight() uint32 {
-	return bc.currentBlockHeight
+	return bc.blockHeight
 }
 
-// HeaderHeight returns the current index of the headers.
+// HeaderHeight returns the index/height of the heighest header.
 func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(len(bc.headerList)) - 1
 }
