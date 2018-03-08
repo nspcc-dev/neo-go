@@ -23,13 +23,13 @@ type Node struct {
 
 	server   *Server
 	services uint64
-	msgCh    chan *MessageTuple
 	bc       *core.Blockchain
+	protoIn  chan messageTuple
 }
 
-// MessageTuple respresents a tuple that holds the message being
-// send along with the peer.
-type MessageTuple struct {
+// messageTuple respresents a tuple that holds the message being
+// send along with its peer.
+type messageTuple struct {
 	peer Peer
 	msg  *Message
 }
@@ -46,12 +46,15 @@ func newNode(s *Server, cfg Config) *Node {
 		startHash,
 	)
 
-	return &Node{
-		Config: cfg,
-		msgCh:  make(chan *MessageTuple),
-		server: s,
-		bc:     bc,
+	n := &Node{
+		Config:  cfg,
+		protoIn: make(chan messageTuple),
+		server:  s,
+		bc:      bc,
 	}
+	go n.handleMessages()
+
+	return n
 }
 
 func (n *Node) version() *payload.Version {
@@ -105,11 +108,7 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 
 // handleBlockCmd processes the received block received from its peer.
 func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
-	hash, err := block.Hash()
-	if err != nil {
-		return err
-	}
-	n.server.logger.Printf("received block: %s height: %d numTX: %d", hash, block.Index, len(block.Transactions))
+	n.server.logger.Printf("received block: %s height: %d numTX: %d", block.Hash(), block.Index, len(block.Transactions))
 	return nil
 }
 
@@ -152,3 +151,48 @@ func (n *Node) askMoreHeaders(p Peer) {
 
 // blockhain implements the Noder interface.
 func (n *Node) blockchain() *core.Blockchain { return n.bc }
+
+// handleProto implements the protoHandler interface.
+func (n *Node) handleProto(msg *Message, p Peer) {
+	n.protoIn <- messageTuple{
+		msg:  msg,
+		peer: p,
+	}
+}
+
+func (n *Node) handleMessages() {
+	for {
+		t := <-n.protoIn
+
+		var (
+			msg = t.msg
+			p   = t.peer
+		)
+
+		switch msg.CommandType() {
+		case CMDVersion:
+			version := msg.Payload.(*payload.Version)
+			n.handleVersionCmd(version, p)
+		case CMDAddr:
+			addressList := msg.Payload.(*payload.AddressList)
+			n.handleAddrCmd(addressList, p)
+		case CMDInv:
+			inventory := msg.Payload.(*payload.Inventory)
+			n.handleInvCmd(inventory, p)
+		case CMDBlock:
+			block := msg.Payload.(*core.Block)
+			n.handleBlockCmd(block, p)
+		case CMDHeaders:
+			headers := msg.Payload.(*payload.Headers)
+			n.handleHeadersCmd(headers, p)
+		case CMDVerack:
+			// Only start the protocol if we got the version and verack
+			// received.
+			if p.Version() != nil {
+				go n.startProtocol(p)
+			}
+		case CMDUnknown:
+			errors.New("received non-protocol messgae")
+		}
+	}
+}

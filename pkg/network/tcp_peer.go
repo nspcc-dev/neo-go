@@ -2,14 +2,12 @@ package network
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -30,7 +28,9 @@ type TCPPeer struct {
 	// the network.
 	connectedAt time.Time
 
-	server *Server
+	// handleProto is the handler that will handle the
+	// incoming message along with its peer.
+	handleProto protoHandleFunc
 
 	// Done is used to broadcast this peer has stopped running
 	// and should be removed as reference.
@@ -40,7 +40,7 @@ type TCPPeer struct {
 }
 
 // NewTCPPeer creates a new peer from a TCP connection.
-func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
+func NewTCPPeer(conn net.Conn, fun protoHandleFunc) *TCPPeer {
 	e := util.NewEndpoint(conn.RemoteAddr().String())
 	pre := fmt.Sprintf("[%s] ", e)
 	return &TCPPeer{
@@ -48,9 +48,9 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 		conn:        conn,
 		done:        make(chan struct{}),
 		send:        make(chan *Message),
-		server:      s,
 		logger:      log.New(os.Stdout, pre, 0),
 		connectedAt: time.Now().UTC(),
+		handleProto: fun,
 	}
 }
 
@@ -75,12 +75,14 @@ func (p *TCPPeer) Done() chan struct{} {
 }
 
 func (p *TCPPeer) run() error {
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 
 	go p.readLoop(errCh)
 	go p.writeLoop(errCh)
 
-	return <-errCh
+	err := <-errCh
+	p.cleanup()
+	return err
 }
 
 func (p *TCPPeer) readLoop(errCh chan error) {
@@ -90,15 +92,9 @@ func (p *TCPPeer) readLoop(errCh chan error) {
 			errCh <- err
 			break
 		}
-
 		// p.server.logger.Printf("in < %s", msg.CommandType())
-
-		if err := p.handleMessage(msg); err != nil {
-			errCh <- err
-			break
-		}
+		p.handleMessage(msg)
 	}
-	p.cleanup()
 }
 
 func (p *TCPPeer) writeLoop(errCh chan error) {
@@ -119,7 +115,6 @@ func (p *TCPPeer) writeLoop(errCh chan error) {
 		}
 		buf.Reset()
 	}
-	p.cleanup()
 }
 
 func (p *TCPPeer) cleanup() {
@@ -128,36 +123,13 @@ func (p *TCPPeer) cleanup() {
 	p.done <- struct{}{}
 }
 
-func (p *TCPPeer) handleMessage(msg *Message) error {
-	cmd := msg.CommandType()
-
-	switch cmd {
+func (p *TCPPeer) handleMessage(msg *Message) {
+	switch msg.CommandType() {
 	case CMDVersion:
 		version := msg.Payload.(*payload.Version)
 		p.version = version
-		return p.server.proto.handleVersionCmd(version, p)
-	case CMDAddr:
-		addressList := msg.Payload.(*payload.AddressList)
-		return p.server.proto.handleAddrCmd(addressList, p)
-	case CMDInv:
-		inventory := msg.Payload.(*payload.Inventory)
-		return p.server.proto.handleInvCmd(inventory, p)
-	case CMDBlock:
-		block := msg.Payload.(*core.Block)
-		return p.server.proto.handleBlockCmd(block, p)
-	case CMDHeaders:
-		headers := msg.Payload.(*payload.Headers)
-		return p.server.proto.handleHeadersCmd(headers, p)
-	case CMDVerack:
-		// Only start the protocol if we got the version and verack
-		// received.
-		if p.version != nil {
-			go p.server.proto.startProtocol(p)
-		}
-		return nil
-	case CMDUnknown:
-		return errors.New("received non-protocol messgae")
+		p.handleProto(msg, p)
+	default:
+		p.handleProto(msg, p)
 	}
-
-	return nil
 }

@@ -33,6 +33,9 @@ type BlockBase struct {
 	_ uint8 // padding
 	// Script used to validate the block
 	Script *transaction.Witness
+
+	// hash of this block, created when binary encoded.
+	hash util.Uint256
 }
 
 // DecodeBinary implements the payload interface.
@@ -68,19 +71,35 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 	}
 
 	b.Script = &transaction.Witness{}
-	return b.Script.DecodeBinary(r)
+	if err := b.Script.DecodeBinary(r); err != nil {
+		return err
+	}
+
+	// Make the hash of the block here so we dont need to do this
+	// again.
+	hash, err := b.createHash()
+	if err != nil {
+		return err
+	}
+	b.hash = hash
+	return nil
 }
 
-// Hash returns the hash of the block.
+// Hash return the hash of the block.
+func (b *BlockBase) Hash() util.Uint256 {
+	return b.hash
+}
+
+// createHash creates the hash of the block.
 // When calculating the hash value of the block, instead of calculating the entire block,
 // only first seven fields in the block head will be calculated, which are
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
-func (b *BlockBase) Hash() (hash util.Uint256, err error) {
+func (b *BlockBase) createHash() (hash util.Uint256, err error) {
 	buf := new(bytes.Buffer)
 	if err = b.encodeHashableFields(buf); err != nil {
-		return
+		return hash, err
 	}
 
 	// Double hash the encoded fields.
@@ -92,15 +111,25 @@ func (b *BlockBase) Hash() (hash util.Uint256, err error) {
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(w io.Writer) error {
-	err := binary.Write(w, binary.LittleEndian, &b.Version)
-	err = binary.Write(w, binary.LittleEndian, &b.PrevHash)
-	err = binary.Write(w, binary.LittleEndian, &b.MerkleRoot)
-	err = binary.Write(w, binary.LittleEndian, &b.Timestamp)
-	err = binary.Write(w, binary.LittleEndian, &b.Index)
-	err = binary.Write(w, binary.LittleEndian, &b.ConsensusData)
-	err = binary.Write(w, binary.LittleEndian, &b.NextConsensus)
-
-	return err
+	if err := binary.Write(w, binary.LittleEndian, &b.Version); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, &b.PrevHash); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, &b.MerkleRoot); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, &b.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, &b.Index); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, &b.ConsensusData); err != nil {
+		return err
+	}
+	return binary.Write(w, binary.LittleEndian, &b.NextConsensus)
 }
 
 // EncodeBinary implements the Payload interface
@@ -117,8 +146,7 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 // Header holds the head info of a block
 type Header struct {
 	BlockBase
-	// fixed to 0
-	_ uint8 // padding
+	_ uint8 // padding fixed to 0
 }
 
 // Verify the integrity of the header
@@ -152,7 +180,6 @@ func (h *Header) EncodeBinary(w io.Writer) error {
 // Block represents one block in the chain.
 type Block struct {
 	BlockBase
-	// transaction list
 	Transactions []*transaction.Transaction
 }
 

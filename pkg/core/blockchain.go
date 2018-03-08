@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -77,11 +78,9 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if int(block.Index-1) >= headerLen {
 		return nil
 	}
-
 	if int(block.Index) == headerLen {
 		// todo: if (VerifyBlocks && !block.Verify()) return false;
 	}
-
 	if int(block.Index) < headerLen {
 		return nil
 	}
@@ -94,10 +93,8 @@ func (bc *Blockchain) addHeader(header *Header) error {
 }
 
 // AddHeaders processes the given header in a header operation callback.
-func (bc *Blockchain) AddHeaders(headers ...*Header) error {
-	var err error
-
-	bc.headersOp <- func([]util.Uint256) {
+func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
+	bc.headersOp <- func(headerList []util.Uint256) {
 		var (
 			start = time.Now()
 			batch = Batch{}
@@ -105,19 +102,21 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) error {
 
 		for _, h := range headers {
 			if int(h.Index-1) >= len(bc.headerList) {
-				bc.logger.Printf("height of block higher then header index %d %d\n",
-					h.Index, len(bc.headerList))
+				err = fmt.Errorf(
+					"height of block higher then headerList %d > %d\n",
+					h.Index, len(bc.headerList),
+				)
 				break
 			}
 			if int(h.Index) < len(bc.headerList) {
 				continue
 			}
 			if !h.Verify() {
-				bc.logger.Printf("header %v is invalid", h)
+				err = fmt.Errorf("header %v is invalid", h)
 				break
 			}
 			if err = bc.processHeader(h, batch); err != nil {
-				return
+				break
 			}
 		}
 
@@ -126,9 +125,10 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) error {
 			if err = bc.writeBatch(batch); err != nil {
 				return
 			}
-
-			bc.logger.Printf("done processing headers up to index %d took %f Seconds",
-				bc.HeaderHeight(), time.Since(start).Seconds())
+			bc.logger.Printf(
+				"done processing headers up to index %d took %f Seconds",
+				bc.HeaderHeight(), time.Since(start).Seconds(),
+			)
 		}
 	}
 
@@ -137,14 +137,10 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) error {
 	return err
 }
 
-// processHeader processes 1 header.
-// NOTE: This is only goroutine save if executed in a headers operation.
+// processHeader processes the given header. Note that this is only thread
+// safe if executed in headers operation.
 func (bc *Blockchain) processHeader(h *Header, batch Batch) error {
-	hash, err := h.Hash()
-	if err != nil {
-		return err
-	}
-	bc.headerList = append(bc.headerList, hash)
+	bc.headerList = append(bc.headerList, h.Hash())
 
 	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
 		// hdrsToWrite = bc.headerList[bc.storedHeaderCount : bc.storedHeaderCount+writeHdrBatchCnt]
@@ -163,10 +159,10 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch) error {
 		return err
 	}
 
-	preBlock := preDataBlock.add(hash.BytesReverse())
+	preBlock := preDataBlock.add(h.Hash().BytesReverse())
 	batch[&preBlock] = buf.Bytes()
 	preHeader := preSYSCurrentHeader.toSlice()
-	batch[&preHeader] = hashAndIndexToBytes(hash, h.Index)
+	batch[&preHeader] = hashAndIndexToBytes(h.Hash(), h.Index)
 
 	return nil
 }

@@ -69,12 +69,14 @@ type Server struct {
 	logger   *log.Logger
 	listener net.Listener
 
-	register      chan Peer
-	unregister    chan Peer
+	register   chan Peer
+	unregister chan Peer
+
 	badAddrOp     chan func(map[string]bool)
 	badAddrOpDone chan struct{}
-	peerOp        chan func(map[Peer]bool)
-	peerOpDone    chan struct{}
+
+	peerOp     chan func(map[Peer]bool)
+	peerOpDone chan struct{}
 
 	peers    map[Peer]bool
 	badAddrs map[string]bool
@@ -82,6 +84,8 @@ type Server struct {
 	quit chan struct{}
 }
 
+// NewServer returns a new Server object created from the
+// given config.
 func NewServer(cfg Config) *Server {
 	if cfg.MaxPeers == 0 {
 		cfg.MaxPeers = maxPeers
@@ -140,7 +144,7 @@ func (s *Server) setupConnection(conn net.Conn) {
 		return
 	}
 
-	p := NewTCPPeer(conn, s)
+	p := NewTCPPeer(conn, s.proto.handleProto)
 	s.register <- p
 	if err := p.run(); err != nil {
 		s.unregister <- p
@@ -168,7 +172,7 @@ func (s *Server) connectToPeers(addrs ...string) {
 func (s *Server) canConnectWith(addr string) bool {
 	canConnect := true
 	s.peerOp <- func(peers map[Peer]bool) {
-		for peer, _ := range s.peers {
+		for peer := range s.peers {
 			if peer.Endpoint().String() == addr {
 				canConnect = false
 				break
@@ -200,8 +204,6 @@ func (s *Server) loop() {
 	ticker := time.NewTicker(30 * time.Second).C
 	for {
 		select {
-		case <-s.quit:
-			return
 
 		case fun := <-s.badAddrOp:
 			fun(s.badAddrs)
@@ -226,6 +228,10 @@ func (s *Server) loop() {
 
 		case <-ticker:
 			s.printState()
+
+		case <-s.quit:
+			return
+
 		}
 	}
 }
