@@ -25,12 +25,6 @@ func NewCommand() cli.Command {
 }
 
 func startServer(ctx *cli.Context) error {
-	opts := network.StartOpts{
-		Seeds: parseSeeds(ctx.String("seed")),
-		TCP:   ctx.Int("tcp"),
-		RPC:   ctx.Int("rpc"),
-	}
-
 	net := network.ModePrivNet
 	if ctx.Bool("testnet") {
 		net = network.ModeTestNet
@@ -39,8 +33,16 @@ func startServer(ctx *cli.Context) error {
 		net = network.ModeMainNet
 	}
 
-	s := network.NewServer(net)
-	s.Start(opts)
+	cfg := network.Config{
+		UserAgent: "/NEO-GO:0.25.0/",
+		ListenTCP: uint16(ctx.Int("tcp")),
+		Seeds:     parseSeeds(ctx.String("seed")),
+		Net:       net,
+		Relay:     true,
+	}
+
+	s := network.NewServer(cfg)
+	s.Start()
 	return nil
 }
 

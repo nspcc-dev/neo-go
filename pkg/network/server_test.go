@@ -12,7 +12,7 @@ import (
 
 func TestRegisterPeer(t *testing.T) {
 	s := newTestServer()
-	go s.loop()
+	go s.run()
 
 	assert.NotZero(t, s.id)
 	assert.Zero(t, s.PeerCount())
@@ -26,7 +26,7 @@ func TestRegisterPeer(t *testing.T) {
 
 func TestUnregisterPeer(t *testing.T) {
 	s := newTestServer()
-	go s.loop()
+	go s.run()
 
 	peer := newTestPeer()
 	s.register <- peer
@@ -57,8 +57,6 @@ func newTestServer() *Server {
 		badAddrOpDone: make(chan struct{}),
 		peerOp:        make(chan func(map[Peer]bool)),
 		peerOpDone:    make(chan struct{}),
-		peers:         map[Peer]bool{},
-		badAddrs:      map[string]bool{},
 		proto:         testNode{},
 	}
 }

@@ -34,7 +34,7 @@ func Uint256DecodeBytes(b []byte) (u Uint256, err error) {
 	return u, nil
 }
 
-// ToSlice returns a byte slice representation of u.
+// Bytes returns a byte slice representation of u.
 func (u Uint256) Bytes() []byte {
 	b := make([]byte, uint256Size)
 	for i := 0; i < uint256Size; i++ {

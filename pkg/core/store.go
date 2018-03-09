@@ -1,17 +1,13 @@
 package core
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 type dataEntry uint8
 
-func (e dataEntry) add(b []byte) []byte {
-	dest := make([]byte, len(b)+1)
-	dest[0] = byte(e)
-	for i := 1; i < len(b); i++ {
-		dest[i] = b[i]
-	}
-	return dest
-}
-
-func (e dataEntry) toSlice() []byte {
+func (e dataEntry) bytes() []byte {
 	return []byte{byte(e)}
 }
 
@@ -32,6 +28,21 @@ const (
 	preSYSVersion        dataEntry = 0xf0
 )
 
+func makeEntryPrefixInt(e dataEntry, n int) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.LittleEndian, n)
+	return makeEntryPrefix(e, buf.Bytes())
+}
+
+func makeEntryPrefix(e dataEntry, b []byte) []byte {
+	dest := make([]byte, len(b)+1)
+	dest[0] = byte(e)
+	for i := 1; i < len(b); i++ {
+		dest[i] = b[i]
+	}
+	return dest
+}
+
 // Store is anything that can persist and retrieve the blockchain.
 type Store interface {
 	write(k, v []byte) error
@@ -39,5 +50,5 @@ type Store interface {
 }
 
 // Batch is a data type used to store data for later batch operations
-// by any Store.
+// that can be used by any Store interface implementation.
 type Batch map[*[]byte][]byte

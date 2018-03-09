@@ -79,6 +79,7 @@ func Base58Encode(bytes []byte) string {
 	return encoded
 }
 
+// Base58CheckDecode decodes the given string.
 func Base58CheckDecode(s string) (b []byte, err error) {
 	b, err = Base58Decode(s)
 	if err != nil {

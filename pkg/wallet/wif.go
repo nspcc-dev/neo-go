@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// The WIF network version used to decode and encode WIF keys.
+	// WIFVersion is the version used to decode and encode WIF keys.
 	WIFVersion = 0x80
 )
 

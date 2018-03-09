@@ -109,7 +109,7 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 // handleBlockCmd processes the received block received from its peer.
 func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
 	n.server.logger.Printf("received block: %s height: %d numTX: %d", block.Hash(), block.Index, len(block.Transactions))
-	return nil
+	return n.bc.AddBlock(block)
 }
 
 // After a node sends out the getaddr message its receives a list of known peers

@@ -61,6 +61,7 @@ type Message struct {
 	Payload payload.Payload
 }
 
+// CommandType represents the type of a message command.
 type CommandType string
 
 // valid commands used to send between nodes.
