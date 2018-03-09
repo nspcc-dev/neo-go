@@ -167,24 +167,25 @@ func (n *Node) handleMessages() {
 		var (
 			msg = t.msg
 			p   = t.peer
+			err error
 		)
 
 		switch msg.CommandType() {
 		case CMDVersion:
 			version := msg.Payload.(*payload.Version)
-			n.handleVersionCmd(version, p)
+			err = n.handleVersionCmd(version, p)
 		case CMDAddr:
 			addressList := msg.Payload.(*payload.AddressList)
-			n.handleAddrCmd(addressList, p)
+			err = n.handleAddrCmd(addressList, p)
 		case CMDInv:
 			inventory := msg.Payload.(*payload.Inventory)
-			n.handleInvCmd(inventory, p)
+			err = n.handleInvCmd(inventory, p)
 		case CMDBlock:
 			block := msg.Payload.(*core.Block)
-			n.handleBlockCmd(block, p)
+			err = n.handleBlockCmd(block, p)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
-			n.handleHeadersCmd(headers, p)
+			err = n.handleHeadersCmd(headers, p)
 		case CMDVerack:
 			// Only start the protocol if we got the version and verack
 			// received.
@@ -192,7 +193,11 @@ func (n *Node) handleMessages() {
 				go n.startProtocol(p)
 			}
 		case CMDUnknown:
-			errors.New("received non-protocol messgae")
+			err = errors.New("received non-protocol messgae")
+		}
+
+		if err != nil {
+			n.server.logger.Println(err)
 		}
 	}
 }
