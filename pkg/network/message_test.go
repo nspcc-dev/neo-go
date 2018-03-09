@@ -2,39 +2,33 @@ package network
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMessageEncodeDecode(t *testing.T) {
-	m := newMessage(ModeTestNet, cmdVersion, nil)
+	m := NewMessage(ModeTestNet, CMDVersion, nil)
 
 	buf := &bytes.Buffer{}
 	if err := m.encode(buf); err != nil {
 		t.Error(err)
 	}
-
-	if n := len(buf.Bytes()); n < minMessageSize {
-		t.Fatalf("message should be at least %d bytes got %d", minMessageSize, n)
-	}
-	if n := len(buf.Bytes()); n > minMessageSize {
-		t.Fatalf("message without a payload should be exact %d bytes got %d", minMessageSize, n)
-	}
+	assert.Equal(t, len(buf.Bytes()), minMessageSize)
 
 	md := &Message{}
 	if err := md.decode(buf); err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(m, md) {
-		t.Errorf("both messages should be equal: %v != %v", m, md)
-	}
+	assert.Equal(t, m, md)
 }
 
 func TestMessageEncodeDecodeWithVersion(t *testing.T) {
-	p := payload.NewVersion(12227, 2000, "/neo:2.6.0/", 0, true)
-	m := newMessage(ModeTestNet, cmdVersion, p)
+	var (
+		p = payload.NewVersion(12227, 2000, "/neo:2.6.0/", 0, true)
+		m = NewMessage(ModeTestNet, CMDVersion, p)
+	)
 
 	buf := new(bytes.Buffer)
 	if err := m.encode(buf); err != nil {
@@ -45,15 +39,14 @@ func TestMessageEncodeDecodeWithVersion(t *testing.T) {
 	if err := mDecode.decode(buf); err != nil {
 		t.Fatal(err)
 	}
-
-	if !reflect.DeepEqual(m, mDecode) {
-		t.Fatalf("expected both messages to be equal %v and %v", m, mDecode)
-	}
+	assert.Equal(t, m, mDecode)
 }
 
 func TestMessageInvalidChecksum(t *testing.T) {
-	p := payload.NewVersion(1111, 3000, "/NEO:2.6.0/", 0, true)
-	m := newMessage(ModeTestNet, cmdVersion, p)
+	var (
+		p = payload.NewVersion(1111, 3000, "/NEO:2.6.0/", 0, true)
+		m = NewMessage(ModeTestNet, CMDVersion, p)
+	)
 	m.Checksum = 1337
 
 	buf := new(bytes.Buffer)

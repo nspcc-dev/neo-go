@@ -21,6 +21,5 @@ func (s *LevelDBStore) writeBatch(batch Batch) error {
 	for k, v := range batch {
 		b.Put(*k, v)
 	}
-
 	return s.db.Write(b, nil)
 }

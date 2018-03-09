@@ -1,60 +1,86 @@
 package network
 
 import (
+	"os"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 )
 
-// TODO this should be moved to localPeer test.
+func TestRegisterPeer(t *testing.T) {
+	s := newTestServer()
+	go s.run()
 
-func TestHandleVersionFailWrongPort(t *testing.T) {
-	s := NewServer(ModePrivNet)
-	go s.loop()
+	assert.NotZero(t, s.id)
+	assert.Zero(t, s.PeerCount())
 
-	p := NewLocalPeer(s)
+	lenPeers := 10
+	for i := 0; i < lenPeers; i++ {
+		s.register <- newTestPeer()
+	}
+	assert.Equal(t, lenPeers, s.PeerCount())
+}
 
-	version := payload.NewVersion(1337, 1, "/NEO:0.0.0/", 0, true)
-	if err := s.handleVersionCmd(version, p); err == nil {
-		t.Fatal("expected error got nil")
+func TestUnregisterPeer(t *testing.T) {
+	s := newTestServer()
+	go s.run()
+
+	peer := newTestPeer()
+	s.register <- peer
+	s.register <- newTestPeer()
+	s.register <- newTestPeer()
+	assert.Equal(t, 3, s.PeerCount())
+
+	s.unregister <- peer
+	assert.Equal(t, 2, s.PeerCount())
+}
+
+type testNode struct{}
+
+func (t testNode) version() *payload.Version {
+	return &payload.Version{}
+}
+
+func (t testNode) handleProto(msg *Message, p Peer) {}
+
+func newTestServer() *Server {
+	return &Server{
+		logger:        log.NewLogfmtLogger(os.Stderr),
+		id:            util.RandUint32(1000000, 9999999),
+		quit:          make(chan struct{}, 1),
+		register:      make(chan Peer),
+		unregister:    make(chan Peer),
+		badAddrOp:     make(chan func(map[string]bool)),
+		badAddrOpDone: make(chan struct{}),
+		peerOp:        make(chan func(map[Peer]bool)),
+		peerOpDone:    make(chan struct{}),
+		proto:         testNode{},
 	}
 }
 
-func TestHandleVersionFailIdenticalNonce(t *testing.T) {
-	s := NewServer(ModePrivNet)
-	go s.loop()
+type testPeer struct {
+	done chan struct{}
+}
 
-	p := NewLocalPeer(s)
-
-	version := payload.NewVersion(s.id, 1, "/NEO:0.0.0/", 0, true)
-	if err := s.handleVersionCmd(version, p); err == nil {
-		t.Fatal("expected error got nil")
+func newTestPeer() testPeer {
+	return testPeer{
+		done: make(chan struct{}),
 	}
 }
 
-func TestHandleVersion(t *testing.T) {
-	s := NewServer(ModePrivNet)
-	go s.loop()
-
-	p := NewLocalPeer(s)
-
-	version := payload.NewVersion(1337, p.addr().Port, "/NEO:0.0.0/", 0, true)
-	if err := s.handleVersionCmd(version, p); err != nil {
-		t.Fatal(err)
-	}
+func (p testPeer) Version() *payload.Version {
+	return &payload.Version{}
 }
 
-func TestHandleAddrCmd(t *testing.T) {
-	// todo
+func (p testPeer) Endpoint() util.Endpoint {
+	return util.Endpoint{}
 }
 
-func TestHandleGetAddrCmd(t *testing.T) {
-	// todo
-}
+func (p testPeer) Send(msg *Message) {}
 
-func TestHandleInv(t *testing.T) {
-	// todo
-}
-func TestHandleBlockCmd(t *testing.T) {
-	// todo
+func (p testPeer) Done() chan struct{} {
+	return p.done
 }

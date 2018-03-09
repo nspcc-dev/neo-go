@@ -2,11 +2,11 @@ package payload
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHeadersEncodeDecode(t *testing.T) {
@@ -50,7 +50,9 @@ func TestHeadersEncodeDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(headers, headersDecode) {
-		t.Fatalf("expected both header payload to be equal %+v and %+v", headers, headersDecode)
+	for i := 0; i < len(headers.Hdrs); i++ {
+		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)
+		assert.Equal(t, headers.Hdrs[i].Index, headersDecode.Hdrs[i].Index)
+		assert.Equal(t, headers.Hdrs[i].Script, headersDecode.Hdrs[i].Script)
 	}
 }
