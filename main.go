@@ -1,23 +1,15 @@
 package main
 
 import (
-	"log"
+	"os"
 
-	"github.com/CityOfZion/neo-go/pkg/network"
+	log "github.com/go-kit/kit/log"
 )
 
 func main() {
-	config := network.Config{
-		UserAgent: "/neo-go/",
-		Seeds: []string{
-			"127.0.0.1:20333",
-		},
-		ListenTCP: 5000,
-		Net:       network.ModePrivNet,
-		Relay:     true,
-	}
-	s := network.NewServer(config)
-	if err := s.Start(); err != nil {
-		log.Fatal(err)
-	}
+	logger := log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+	logger.Log("hello", true)
+
+	logger = log.With(logger, "module", "node")
+	logger.Log("foo", true)
 }

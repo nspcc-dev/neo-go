@@ -3,11 +3,13 @@ package network
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/go-kit/kit/log"
 )
 
 const (
@@ -21,6 +23,7 @@ type Node struct {
 	// Config fields may not be modified while the server is running.
 	Config
 
+	logger   log.Logger
 	server   *Server
 	services uint64
 	bc       *core.Blockchain
@@ -42,15 +45,18 @@ func newNode(s *Server, cfg Config) *Node {
 
 	bc := core.NewBlockchain(
 		core.NewMemoryStore(),
-		s.logger,
 		startHash,
 	)
+
+	logger := log.NewLogfmtLogger(os.Stderr)
+	logger = log.With(logger, "component", "node")
 
 	n := &Node{
 		Config:  cfg,
 		protoIn: make(chan messageTuple),
 		server:  s,
 		bc:      bc,
+		logger:  logger,
 	}
 	go n.handleMessages()
 
@@ -108,7 +114,13 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 
 // handleBlockCmd processes the received block received from its peer.
 func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
-	n.server.logger.Printf("received block: %s height: %d numTX: %d", block.Hash(), block.Index, len(block.Transactions))
+	n.logger.Log(
+		"event", "block received",
+		"index", block.Index,
+		"hash", block.Hash(),
+		"tx", len(block.Transactions),
+	)
+
 	return n.bc.AddBlock(block)
 }
 
@@ -128,7 +140,7 @@ func (n *Node) handleAddrCmd(addressList *payload.AddressList, peer Peer) error 
 func (n *Node) handleHeadersCmd(headers *payload.Headers, peer Peer) error {
 	go func(headers []*core.Header) {
 		if err := n.bc.AddHeaders(headers...); err != nil {
-			n.server.logger.Printf("processing headers failed: %s", err)
+			n.logger.Log("msg", "failed processing headers", "err", err)
 			return
 		}
 		// The peer will respond with a maximum of 2000 headers in one batch.
@@ -197,7 +209,11 @@ func (n *Node) handleMessages() {
 		}
 
 		if err != nil {
-			n.server.logger.Println(err)
+			n.logger.Log(
+				"msg", "failed processing message",
+				"command", msg.CommandType,
+				"err", err,
+			)
 		}
 	}
 }

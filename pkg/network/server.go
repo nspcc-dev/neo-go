@@ -2,13 +2,13 @@ package network
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"text/tabwriter"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/go-kit/kit/log"
 )
 
 const (
@@ -66,7 +66,7 @@ type Server struct {
 	// Unique id of this server.
 	id uint32
 
-	logger   *log.Logger
+	logger   log.Logger
 	listener net.Listener
 
 	register   chan Peer
@@ -94,9 +94,12 @@ func NewServer(cfg Config) *Server {
 		cfg.DialTimeout = dialTimeout
 	}
 
+	logger := log.NewLogfmtLogger(os.Stderr)
+	logger = log.With(logger, "component", "server")
+
 	s := &Server{
 		Config:        cfg,
-		logger:        log.New(os.Stdout, "[NEO NODE] :: ", 0),
+		logger:        logger,
 		id:            util.RandUint32(1000000, 9999999),
 		quit:          make(chan struct{}, 1),
 		register:      make(chan Peer),
@@ -125,7 +128,7 @@ func (s *Server) listenTCP() {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			s.logger.Printf("conn read error: %s", err)
+			s.logger.Log("msg", "conn read error", "err", err)
 			break
 		}
 		go s.setupConnection(conn)
@@ -135,7 +138,7 @@ func (s *Server) listenTCP() {
 
 func (s *Server) setupConnection(conn net.Conn) {
 	if !s.hasCapacity() {
-		s.logger.Printf("server reached maximum capacity: %d", s.MaxPeers)
+		s.logger.Log("msg", "server reached maximum capacity")
 		return
 	}
 
@@ -215,10 +218,10 @@ func (s *Server) run() {
 			// When a new peer connection is established, we send
 			// out our version immediately.
 			s.sendVersion(p)
-			s.logger.Printf("new peer connected: %s", p.Endpoint())
+			s.logger.Log("event", "peer connected", "endpoint", p.Endpoint())
 		case p := <-s.unregister:
 			delete(peers, p)
-			s.logger.Printf("peer disconnected: %s", p.Endpoint())
+			s.logger.Log("event", "peer disconnected", "endpoint", p.Endpoint())
 		case <-ticker:
 			s.printState()
 		case <-s.quit:
