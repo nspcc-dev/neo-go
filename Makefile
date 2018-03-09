@@ -19,7 +19,7 @@ push-tag:
 	git push origin ${BRANCH} --tags
 
 run: build
-	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT}
+	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT} --relay true
 
 test:
 	@go test ./... -cover

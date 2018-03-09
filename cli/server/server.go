@@ -16,6 +16,7 @@ func NewCommand() cli.Command {
 		Flags: []cli.Flag{
 			cli.IntFlag{Name: "tcp"},
 			cli.IntFlag{Name: "rpc"},
+			cli.BoolFlag{Name: "relay, r"},
 			cli.StringFlag{Name: "seed"},
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
@@ -34,11 +35,11 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	cfg := network.Config{
-		UserAgent: "/NEO-GO:0.25.0/",
+		UserAgent: "/NEO-GO:0.26.0/",
 		ListenTCP: uint16(ctx.Int("tcp")),
 		Seeds:     parseSeeds(ctx.String("seed")),
 		Net:       net,
-		Relay:     true,
+		Relay:     ctx.Bool("relay"),
 	}
 
 	s := network.NewServer(cfg)
