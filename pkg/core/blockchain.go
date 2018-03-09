@@ -136,8 +136,8 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	return err
 }
 
-// processHeader processes the given header. Note that this is only thread
-// safe if executed in headers operation.
+// processHeader processes the given header. Note that this is only thread safe
+// if executed in headers operation.
 func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 

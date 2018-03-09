@@ -2,10 +2,12 @@ package core
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,5 +69,21 @@ func TestBlockVerify(t *testing.T) {
 
 	if block.Verify(false) {
 		t.Fatal("block should not by verified")
+	}
+}
+
+func newBlockBase() BlockBase {
+	return BlockBase{
+		Version:       0,
+		PrevHash:      sha256.Sum256([]byte("a")),
+		MerkleRoot:    sha256.Sum256([]byte("b")),
+		Timestamp:     999,
+		Index:         1,
+		ConsensusData: 1111,
+		NextConsensus: util.Uint160{},
+		Script: &transaction.Witness{
+			VerificationScript: []byte{0x0},
+			InvocationScript:   []byte{0x1},
+		},
 	}
 }
