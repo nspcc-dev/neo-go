@@ -1,12 +1,12 @@
 package network
 
 import (
-	"log"
 	"os"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +48,7 @@ func (t testNode) handleProto(msg *Message, p Peer) {}
 
 func newTestServer() *Server {
 	return &Server{
-		logger:        log.New(os.Stdout, "[NEO NODE] :: ", 0),
+		logger:        log.NewLogfmtLogger(os.Stderr),
 		id:            util.RandUint32(1000000, 9999999),
 		quit:          make(chan struct{}, 1),
 		register:      make(chan Peer),
