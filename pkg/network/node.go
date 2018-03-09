@@ -42,6 +42,12 @@ func newNode(s *Server, cfg Config) *Node {
 	if cfg.Net == ModePrivNet {
 		startHash = core.GenesisHashPrivNet()
 	}
+	if cfg.Net == ModeTestNet {
+		startHash = core.GenesisHashTestNet()
+	}
+	if cfg.Net == ModeMainNet {
+		startHash = core.GenesisHashMainNet()
+	}
 
 	bc := core.NewBlockchain(
 		core.NewMemoryStore(),
@@ -67,32 +73,37 @@ func (n *Node) version() *payload.Version {
 	return payload.NewVersion(n.server.id, n.ListenTCP, n.UserAgent, 1, n.Relay)
 }
 
-func (n *Node) startProtocol(peer Peer) {
+func (n *Node) startProtocol(p Peer) {
 	ticker := time.NewTicker(protoTickInterval).C
 
 	for {
 		select {
+		case <-p.Done():
+			n.logger.Log("event", "peer done")
+			return
 		case <-ticker:
+			select {
+			case <-p.Done():
+				return
+			}
 			// Try to sync with the peer if his block height is higher then ours.
-			if peer.Version().StartHeight > n.bc.HeaderHeight() {
-				n.askMoreHeaders(peer)
+			if p.Version().StartHeight > n.bc.HeaderHeight() {
+				n.askMoreHeaders(p)
 			}
 			// Only ask for more peers if the server has the capacity for it.
 			if n.server.hasCapacity() {
 				msg := NewMessage(n.Net, CMDGetAddr, nil)
-				peer.Send(msg)
+				n.send(msg, p)
 			}
-		case <-peer.Done():
-			return
 		}
 	}
 }
 
 // When a peer sends out his version we reply with verack after validating
 // the version.
-func (n *Node) handleVersionCmd(version *payload.Version, peer Peer) error {
+func (n *Node) handleVersionCmd(version *payload.Version, p Peer) error {
 	msg := NewMessage(n.Net, CMDVerack, nil)
-	peer.Send(msg)
+	n.send(msg, p)
 	return nil
 }
 
@@ -100,7 +111,7 @@ func (n *Node) handleVersionCmd(version *payload.Version, peer Peer) error {
 // We will use the getdata message to get more details about the received
 // inventory.
 // note: if the server has Relay on false, inventory messages are not received.
-func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
+func (n *Node) handleInvCmd(inv *payload.Inventory, p Peer) error {
 	if !inv.Type.Valid() {
 		return fmt.Errorf("invalid inventory type received: %s", inv.Type)
 	}
@@ -108,7 +119,7 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, peer Peer) error {
 		return errors.New("inventory has no hashes")
 	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	peer.Send(NewMessage(n.Net, CMDGetData, payload))
+	n.send(NewMessage(n.Net, CMDGetData, payload), p)
 	return nil
 }
 
@@ -158,7 +169,17 @@ func (n *Node) handleHeadersCmd(headers *payload.Headers, peer Peer) error {
 func (n *Node) askMoreHeaders(p Peer) {
 	start := []util.Uint256{n.bc.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	p.Send(NewMessage(n.Net, CMDGetHeaders, payload))
+	n.send(NewMessage(n.Net, CMDGetHeaders, payload), p)
+}
+
+func (n *Node) send(msg *Message, p Peer) {
+	n.logger.Log(
+		"event", "message send",
+		"to", p.Endpoint(),
+		"msg", msg.CommandType(),
+	)
+
+	p.Send(msg)
 }
 
 // blockhain implements the Noder interface.
@@ -166,6 +187,12 @@ func (n *Node) blockchain() *core.Blockchain { return n.bc }
 
 // handleProto implements the protoHandler interface.
 func (n *Node) handleProto(msg *Message, p Peer) {
+	n.logger.Log(
+		"event", "message received",
+		"from", p.Endpoint(),
+		"msg", msg.CommandType(),
+	)
+
 	n.protoIn <- messageTuple{
 		msg:  msg,
 		peer: p,
@@ -198,10 +225,14 @@ func (n *Node) handleMessages() {
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			err = n.handleHeadersCmd(headers, p)
+		case CMDTX:
+			//			tx := msg.Payload.(*transaction.Transaction)
+			//n.logger.Log("tx", fmt.Sprintf("%+v", tx))
 		case CMDVerack:
 			// Only start the protocol if we got the version and verack
 			// received.
 			if p.Version() != nil {
+				n.logger.Log("event", "start protocol")
 				go n.startProtocol(p)
 			}
 		case CMDUnknown:

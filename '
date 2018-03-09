@@ -71,16 +71,14 @@ func (p *TCPPeer) Endpoint() util.Endpoint {
 // Send implements the Peer interface.
 func (p *TCPPeer) Send(msg *Message) {
 	select {
-	case <-p.disc:
-		break
 	case p.send <- msg:
+		break
+	case <-p.disc:
 		break
 	}
 }
 
-// Done implemnets the Peer interface. It use is to
-// notify the Node that this peer is no longer available
-// for sending messages to.
+// Done implemnets the Peer interface.
 func (p *TCPPeer) Done() chan struct{} {
 	return p.done
 }
@@ -123,8 +121,6 @@ func (p *TCPPeer) writeLoop(errCh chan error) {
 				return
 			}
 			buf.Reset()
-		case <-p.disc:
-			return
 		}
 	}
 }

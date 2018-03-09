@@ -18,7 +18,7 @@ const (
 	// official ports according to the protocol.
 	portMainNet = 10333
 	portTestNet = 20333
-	maxPeers    = 50
+	maxPeers    = 10
 )
 
 var dialTimeout = 4 * time.Second
@@ -194,13 +194,12 @@ func (s *Server) hasCapacity() bool {
 	return s.PeerCount() != s.MaxPeers
 }
 
-func (s *Server) sendVersion(peer Peer) {
-	peer.Send(NewMessage(s.Net, CMDVersion, s.proto.version()))
+func (s *Server) sendVersion(p Peer) {
+	p.Send(NewMessage(s.Net, CMDVersion, s.proto.version()))
 }
 
 func (s *Server) run() {
 	var (
-		ticker   = time.NewTicker(30 * time.Second).C
 		peers    = make(map[Peer]bool)
 		badAddrs = make(map[string]bool)
 	)
@@ -222,8 +221,6 @@ func (s *Server) run() {
 		case p := <-s.unregister:
 			delete(peers, p)
 			s.logger.Log("event", "peer disconnected", "endpoint", p.Endpoint())
-		case <-ticker:
-			s.printState()
 		case <-s.quit:
 			return
 		}
