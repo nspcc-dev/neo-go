@@ -19,7 +19,8 @@ const (
 )
 
 var (
-	genAmount = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	persistInterval = 5 * time.Second
 )
 
 // Blockchain holds the chain.
@@ -63,7 +64,7 @@ func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
 		headersOpDone: make(chan struct{}),
 		startHash:     startHash,
 		blockCache:    NewCache(),
-		verifyBlocks:  true,
+		verifyBlocks:  false,
 	}
 	go bc.run()
 	bc.init()
@@ -77,12 +78,18 @@ func (bc *Blockchain) init() {
 }
 
 func (bc *Blockchain) run() {
-	headerList := NewHeaderHashList(bc.startHash)
+	var (
+		headerList   = NewHeaderHashList(bc.startHash)
+		persistTimer = time.NewTimer(persistInterval)
+	)
 	for {
 		select {
 		case op := <-bc.headersOp:
 			op(headerList)
 			bc.headersOpDone <- struct{}{}
+		case <-persistTimer.C:
+			go bc.persist()
+			persistTimer.Reset(persistInterval)
 		}
 	}
 }
@@ -92,7 +99,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		bc.blockCache.Add(block.Hash(), block)
 	}
 
-	headerLen := int(bc.HeaderHeight() + 1)
+	headerLen := bc.headerListLen()
 	if int(block.Index-1) >= headerLen {
 		return nil
 	}
@@ -140,7 +147,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			bc.logger.Log(
 				"msg", "done processing headers",
 				"index", headerList.Len()-1,
-				"took", time.Since(start).Seconds(),
+				"took", time.Since(start),
 			)
 		}
 	}
@@ -178,18 +185,19 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 }
 
 func (bc *Blockchain) persistBlock(block *Block) error {
-	bc.blockHeight = block.Index
+	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
 
 func (bc *Blockchain) persist() (err error) {
 	var (
+		start     = time.Now()
 		persisted = 0
 		lenCache  = bc.blockCache.Len()
 	)
 
 	for lenCache > persisted {
-		if bc.HeaderHeight()+1 <= bc.BlockHeight() {
+		if uint32(bc.headerListLen()) <= bc.BlockHeight() {
 			break
 		}
 		bc.headersOp <- func(headerList *HeaderHashList) {
@@ -200,16 +208,39 @@ func (bc *Blockchain) persist() (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
-			} else {
-				bc.logger.Log(
-					"msg", "block not found in cache",
-					"hash", block.Hash(),
-				)
 			}
 		}
 		<-bc.headersOpDone
 	}
+
+	bc.logger.Log(
+		"event", "persist complete",
+		"err", err,
+		"took", time.Since(start),
+		"persisted", persisted,
+	)
+
 	return
+}
+
+func (bc *Blockchain) headerListLen() (n int) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		n = headerList.Len()
+	}
+	<-bc.headersOpDone
+	return
+}
+
+// HasBlock return true if the blockchain contains he given
+// transaction hash.
+func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
+	return false
+}
+
+// HasBlock return true if the blockchain contains the given
+// block hash.
+func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	return false
 }
 
 // CurrentBlockHash returns the heighest processed block hash.
@@ -230,18 +261,24 @@ func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
 	return
 }
 
+// GetHeaderHash return the hash from the headerList by its
+// height/index.
+func (bc *Blockchain) GetHeaderHash(i int) (hash util.Uint256) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		hash = headerList.Get(i)
+	}
+	<-bc.headersOpDone
+	return
+}
+
 // BlockHeight returns the height/index of the highest block.
 func (bc *Blockchain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&bc.blockHeight)
 }
 
 // HeaderHeight returns the index/height of the highest header.
-func (bc *Blockchain) HeaderHeight() (n uint32) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		n = uint32(headerList.Len() - 1)
-	}
-	<-bc.headersOpDone
-	return
+func (bc *Blockchain) HeaderHeight() uint32 {
+	return uint32(bc.headerListLen() - 1)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

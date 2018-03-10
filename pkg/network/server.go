@@ -207,9 +207,19 @@ func (s *Server) sendVersion(p Peer) {
 
 func (s *Server) run() {
 	var (
-		peers    = make(map[Peer]bool)
-		badAddrs = make(map[string]bool)
+		peers              = make(map[Peer]bool)
+		badAddrs           = make(map[string]bool)
+		printStateInterval = 20 * time.Second
 	)
+
+	go func() {
+		timer := time.NewTimer(printStateInterval)
+		for {
+			<-timer.C
+			s.printState()
+			timer.Reset(printStateInterval)
+		}
+	}()
 
 	for {
 		select {
@@ -272,9 +282,12 @@ func (s *Server) Quit() {
 }
 
 func (s *Server) printState() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintf(w, "connected peers:\t%d/%d\n", s.PeerCount(), s.MaxPeers)
-	w.Flush()
+	bc := s.proto.(Noder).blockchain()
+	s.logger.Log(
+		"peers", s.PeerCount(),
+		"blockHeight", bc.BlockHeight(),
+		"headerHeight", bc.HeaderHeight(),
+	)
 }
 
 func (s *Server) printConfiguration() {

@@ -7,7 +7,7 @@ import (
 )
 
 // Cache is data structure with fixed type key of Uint256, but has a
-// generic value. Used for block and header cash types.
+// generic value. Used for block, tx and header cache types.
 type Cache struct {
 	lock sync.RWMutex
 	m    map[util.Uint256]interface{}

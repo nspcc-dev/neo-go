@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/go-kit/kit/log"
 )
 
 const (
-	protoVersion = 0
+	protoVersion     = 0
+	maxBlockReqCount = 200
 )
 
 var protoTickInterval = 5 * time.Second
@@ -27,6 +29,7 @@ type Node struct {
 	server   *Server
 	services uint64
 	bc       *core.Blockchain
+	mempool  *core.Cache
 }
 
 func newNode(s *Server, cfg Config) *Node {
@@ -41,8 +44,13 @@ func newNode(s *Server, cfg Config) *Node {
 		startHash = core.GenesisHashMainNet()
 	}
 
+	// Hardcoded for now.
+	store, err := core.NewLevelDBStore("chain", nil)
+	if err != nil {
+		panic(err)
+	}
 	bc := core.NewBlockchain(
-		core.NewMemoryStore(),
+		store,
 		startHash,
 	)
 
@@ -50,10 +58,11 @@ func newNode(s *Server, cfg Config) *Node {
 	logger = log.With(logger, "component", "node")
 
 	n := &Node{
-		Config: cfg,
-		server: s,
-		bc:     bc,
-		logger: logger,
+		Config:  cfg,
+		server:  s,
+		bc:      bc,
+		logger:  logger,
+		mempool: core.NewCache(),
 	}
 
 	return n
@@ -83,10 +92,12 @@ func (n *Node) startProtocol(p Peer) {
 		case <-p.Done():
 			return
 		default:
-			// Try to sync with the peer if his block height is higher then ours.
+			// Try to sync in headers with the peer if his block height is higher then ours.
 			if p.Version().StartHeight > n.bc.HeaderHeight() {
-				n.askMoreHeaders(p)
+				go n.askMoreHeaders(p)
 			}
+			go n.askMoreBlocks(p)
+
 			// Only ask for more peers if the server has the capacity for it.
 			if n.server.hasCapacity() {
 				msg := NewMessage(n.Net, CMDGetAddr, nil)
@@ -100,6 +111,12 @@ func (n *Node) startProtocol(p Peer) {
 // When a peer sends out his version we reply with verack after validating
 // the version.
 func (n *Node) handleVersionCmd(version *payload.Version, p Peer) error {
+	if p.Endpoint().Port != version.Port {
+		return errors.New("port mismatch")
+	}
+	if n.server.id == version.Nonce {
+		return errors.New("identical nonce")
+	}
 	msg := NewMessage(n.Net, CMDVerack, nil)
 	p.Send(msg)
 	return nil
@@ -116,19 +133,15 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, p Peer) error {
 	if len(inv.Hashes) == 0 {
 		return errors.New("inventory has no hashes")
 	}
-	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	p.Send(NewMessage(n.Net, CMDGetData, payload))
+	if inv.Type == payload.BlockType {
+		payload := payload.NewInventory(inv.Type, inv.Hashes)
+		p.Send(NewMessage(n.Net, CMDGetData, payload))
+	}
 	return nil
 }
 
 // handleBlockCmd processes the received block received from its peer.
 func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
-	n.logger.Log(
-		"event", "block received",
-		"index", block.Index,
-		"hash", block.Hash(),
-		"tx", len(block.Transactions),
-	)
 	return n.bc.AddBlock(block)
 }
 
@@ -169,6 +182,36 @@ func (n *Node) askMoreHeaders(p Peer) {
 	p.Send(NewMessage(n.Net, CMDGetHeaders, payload))
 }
 
+// askMoreBlocks will send a getdata message to the peer
+// to sync up in blocks.
+func (n *Node) askMoreBlocks(p Peer) {
+	var (
+		hashStart    = n.bc.BlockHeight() + 1
+		headerHeight = n.bc.HeaderHeight()
+		hashes       = []util.Uint256{}
+	)
+	for hashStart < headerHeight && len(hashes) < maxBlockReqCount {
+		hash := n.bc.GetHeaderHash(int(hashStart))
+		hashes = append(hashes, hash)
+		hashStart++
+	}
+	if len(hashes) > 0 {
+		payload := payload.NewInventory(payload.BlockType, hashes)
+		p.Send(NewMessage(n.Net, CMDGetData, payload))
+	}
+}
+
+// addTransaction will add the given TX to the mempool.
+func (n *Node) addTransaction(tx *transaction.Transaction) bool {
+	if n.mempool.Has(tx.Hash()) && n.bc.HasTransaction(tx.Hash()) {
+		return false
+	}
+	// TODO(@anthdm): verify TX
+
+	n.mempool.Add(tx.Hash(), tx)
+	return true
+}
+
 // blockhain implements the Noder interface.
 func (n *Node) blockchain() *core.Blockchain { return n.bc }
 
@@ -207,7 +250,7 @@ func (n *Node) handleProto(msg *Message, p Peer) error {
 		}
 		return nil
 	case CMDUnknown:
-		return errors.New("received non-protocol messgae")
+		return errors.New("received non-protocol message")
 	}
 	return nil
 }
