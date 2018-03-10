@@ -74,18 +74,25 @@ func (n *Node) version() *payload.Version {
 }
 
 func (n *Node) startProtocol(p Peer) {
-	ticker := time.NewTicker(protoTickInterval).C
+	n.logger.Log(
+		"event", "start protocol",
+		"peer", p.Endpoint(),
+		"userAgent", string(p.Version().UserAgent),
+	)
+	defer func() {
+		n.logger.Log(
+			"msg", "protocol stopped",
+			"peer", p.Endpoint(),
+		)
+	}()
 
+	timer := time.NewTimer(protoTickInterval)
 	for {
+		<-timer.C
 		select {
 		case <-p.Done():
-			n.logger.Log("event", "peer done")
 			return
-		case <-ticker:
-			select {
-			case <-p.Done():
-				return
-			}
+		default:
 			// Try to sync with the peer if his block height is higher then ours.
 			if p.Version().StartHeight > n.bc.HeaderHeight() {
 				n.askMoreHeaders(p)
@@ -93,8 +100,9 @@ func (n *Node) startProtocol(p Peer) {
 			// Only ask for more peers if the server has the capacity for it.
 			if n.server.hasCapacity() {
 				msg := NewMessage(n.Net, CMDGetAddr, nil)
-				n.send(msg, p)
+				p.Send(msg)
 			}
+			timer.Reset(protoTickInterval)
 		}
 	}
 }
@@ -103,7 +111,7 @@ func (n *Node) startProtocol(p Peer) {
 // the version.
 func (n *Node) handleVersionCmd(version *payload.Version, p Peer) error {
 	msg := NewMessage(n.Net, CMDVerack, nil)
-	n.send(msg, p)
+	p.Send(msg)
 	return nil
 }
 
@@ -119,7 +127,7 @@ func (n *Node) handleInvCmd(inv *payload.Inventory, p Peer) error {
 		return errors.New("inventory has no hashes")
 	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	n.send(NewMessage(n.Net, CMDGetData, payload), p)
+	p.Send(NewMessage(n.Net, CMDGetData, payload))
 	return nil
 }
 
@@ -169,17 +177,7 @@ func (n *Node) handleHeadersCmd(headers *payload.Headers, peer Peer) error {
 func (n *Node) askMoreHeaders(p Peer) {
 	start := []util.Uint256{n.bc.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	n.send(NewMessage(n.Net, CMDGetHeaders, payload), p)
-}
-
-func (n *Node) send(msg *Message, p Peer) {
-	n.logger.Log(
-		"event", "message send",
-		"to", p.Endpoint(),
-		"msg", msg.CommandType(),
-	)
-
-	p.Send(msg)
+	p.Send(NewMessage(n.Net, CMDGetHeaders, payload))
 }
 
 // blockhain implements the Noder interface.
@@ -187,12 +185,6 @@ func (n *Node) blockchain() *core.Blockchain { return n.bc }
 
 // handleProto implements the protoHandler interface.
 func (n *Node) handleProto(msg *Message, p Peer) {
-	n.logger.Log(
-		"event", "message received",
-		"from", p.Endpoint(),
-		"msg", msg.CommandType(),
-	)
-
 	n.protoIn <- messageTuple{
 		msg:  msg,
 		peer: p,
@@ -207,6 +199,12 @@ func (n *Node) handleMessages() {
 			msg = t.msg
 			p   = t.peer
 			err error
+		)
+
+		n.logger.Log(
+			"event", "message received",
+			"from", p.Endpoint(),
+			"msg", msg.CommandType(),
 		)
 
 		switch msg.CommandType() {
@@ -232,7 +230,6 @@ func (n *Node) handleMessages() {
 			// Only start the protocol if we got the version and verack
 			// received.
 			if p.Version() != nil {
-				n.logger.Log("event", "start protocol")
 				go n.startProtocol(p)
 			}
 		case CMDUnknown:

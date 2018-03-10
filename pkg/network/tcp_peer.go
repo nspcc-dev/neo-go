@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -33,9 +34,11 @@ type TCPPeer struct {
 
 	// Done is used to broadcast this peer has stopped running
 	// and should be removed as reference.
-	done chan struct{}
-	send chan *Message
-	disc chan struct{}
+	done     chan struct{}
+	disc     chan error
+	closed   chan struct{}
+	writeErr chan error
+	wg       sync.WaitGroup
 
 	logger log.Logger
 }
@@ -50,11 +53,12 @@ func NewTCPPeer(conn net.Conn, fun protoHandleFunc) *TCPPeer {
 		endpoint:    e,
 		conn:        conn,
 		done:        make(chan struct{}),
-		send:        make(chan *Message),
 		logger:      logger,
 		connectedAt: time.Now().UTC(),
 		handleProto: fun,
-		disc:        make(chan struct{}, 1),
+		disc:        make(chan error),
+		closed:      make(chan struct{}),
+		writeErr:    make(chan error, 1),
 	}
 }
 
@@ -70,11 +74,14 @@ func (p *TCPPeer) Endpoint() util.Endpoint {
 
 // Send implements the Peer interface.
 func (p *TCPPeer) Send(msg *Message) {
-	select {
-	case <-p.disc:
-		break
-	case p.send <- msg:
-		break
+	buf := new(bytes.Buffer)
+	if err := msg.encode(buf); err != nil {
+		p.writeErr <- err
+		return
+	}
+	if _, err := p.conn.Write(buf.Bytes()); err != nil {
+		p.writeErr <- err
+		return
 	}
 }
 
@@ -85,57 +92,79 @@ func (p *TCPPeer) Done() chan struct{} {
 	return p.done
 }
 
-func (p *TCPPeer) run() error {
-	errCh := make(chan error, 1)
+// Disconnect terminates the peer connection.
+func (p *TCPPeer) Disconnect(err error) {
+	select {
+	case p.disc <- err:
+	case <-p.closed:
+	}
+}
 
-	go p.readLoop(errCh)
-	go p.writeLoop(errCh)
+func (p *TCPPeer) run() (err error) {
+	readErr := make(chan error, 1)
 
-	err := <-errCh
-	p.logger.Log("err", err)
-	p.cleanup()
+	p.wg.Add(1)
+	go p.readLoop(readErr)
+
+run:
+	for {
+		select {
+		case err = <-readErr:
+			break run
+		case err = <-p.disc:
+			break run
+		case err = <-p.writeErr:
+			break run
+		}
+	}
+
+	p.conn.Close()
+	close(p.closed)
+	// Close done instead of sending empty struct.
+	// It could happen that startProtocol in Node never happens
+	// on connection errors for example.
+	close(p.done)
+	p.wg.Wait()
 	return err
 }
 
-func (p *TCPPeer) readLoop(errCh chan error) {
-	for {
-		msg := &Message{}
-		if err := msg.decode(p.conn); err != nil {
-			errCh <- err
-			break
-		}
-		p.handleMessage(msg)
-	}
-}
-
-func (p *TCPPeer) writeLoop(errCh chan error) {
-	buf := new(bytes.Buffer)
-
+func (p *TCPPeer) readLoop(readErr chan error) {
+	defer p.wg.Done()
 	for {
 		select {
-		case msg := <-p.send:
-			if err := msg.encode(buf); err != nil {
-				errCh <- err
-				return
-			}
-			if _, err := p.conn.Write(buf.Bytes()); err != nil {
-				errCh <- err
-				return
-			}
-			buf.Reset()
-		case <-p.disc:
+		case <-p.closed:
 			return
+		default:
+			msg := &Message{}
+			if err := msg.decode(p.conn); err != nil {
+				readErr <- err
+				return
+			}
+			go p.handleMessage(msg)
 		}
 	}
 }
 
-func (p *TCPPeer) cleanup() {
-	p.conn.Close()
-	p.disc <- struct{}{}
-	p.done <- struct{}{}
-	close(p.disc)
-	close(p.send)
-}
+//func (p *TCPPeer) writeLoop(errCh chan error) {
+//	defer p.wg.Done()
+//	buf := new(bytes.Buffer)
+//	for {
+//		select {
+//		case msg := <-p.send:
+//			if err := msg.encode(buf); err != nil {
+//				errCh <- err
+//				return
+//			}
+//			if _, err := p.conn.Write(buf.Bytes()); err != nil {
+//				errCh <- err
+//				return
+//			}
+//			buf.Reset()
+//		case <-p.closed:
+//			return
+//		}
+//	}
+//}
 
 func (p *TCPPeer) handleMessage(msg *Message) {
 	switch msg.CommandType() {

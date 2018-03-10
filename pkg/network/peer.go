@@ -13,4 +13,5 @@ type Peer interface {
 	Endpoint() util.Endpoint
 	Send(*Message)
 	Done() chan struct{}
+	Disconnect(err error)
 }
