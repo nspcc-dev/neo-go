@@ -9,10 +9,10 @@ import (
 // of the NEO protocol.
 type ProtoHandler interface {
 	version() *payload.Version
-	handleProto(*Message, Peer)
+	handleProto(*Message, Peer) error
 }
 
-type protoHandleFunc func(*Message, Peer)
+type protoHandleFunc func(*Message, Peer) error
 
 // Noder is anything that implements the NEO protocol
 // and can return the Blockchain object.

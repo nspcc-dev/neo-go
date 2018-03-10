@@ -32,13 +32,14 @@ type TCPPeer struct {
 	// incoming message along with its peer.
 	handleProto protoHandleFunc
 
-	// Done is used to broadcast this peer has stopped running
+	// Done is used to broadcast that this peer has stopped running
 	// and should be removed as reference.
-	done     chan struct{}
-	disc     chan error
-	closed   chan struct{}
-	writeErr chan error
-	wg       sync.WaitGroup
+	done chan struct{}
+
+	// Every send to this channel will terminate the Peer.
+	discErr chan error
+	closed  chan struct{}
+	wg      sync.WaitGroup
 
 	logger log.Logger
 }
@@ -56,9 +57,8 @@ func NewTCPPeer(conn net.Conn, fun protoHandleFunc) *TCPPeer {
 		logger:      logger,
 		connectedAt: time.Now().UTC(),
 		handleProto: fun,
-		disc:        make(chan error),
+		discErr:     make(chan error),
 		closed:      make(chan struct{}),
-		writeErr:    make(chan error, 1),
 	}
 }
 
@@ -76,11 +76,11 @@ func (p *TCPPeer) Endpoint() util.Endpoint {
 func (p *TCPPeer) Send(msg *Message) {
 	buf := new(bytes.Buffer)
 	if err := msg.encode(buf); err != nil {
-		p.writeErr <- err
+		p.discErr <- err
 		return
 	}
 	if _, err := p.conn.Write(buf.Bytes()); err != nil {
-		p.writeErr <- err
+		p.discErr <- err
 		return
 	}
 }
@@ -95,25 +95,19 @@ func (p *TCPPeer) Done() chan struct{} {
 // Disconnect terminates the peer connection.
 func (p *TCPPeer) Disconnect(err error) {
 	select {
-	case p.disc <- err:
+	case p.discErr <- err:
 	case <-p.closed:
 	}
 }
 
 func (p *TCPPeer) run() (err error) {
-	readErr := make(chan error, 1)
-
 	p.wg.Add(1)
-	go p.readLoop(readErr)
+	go p.readLoop()
 
 run:
 	for {
 		select {
-		case err = <-readErr:
-			break run
-		case err = <-p.disc:
-			break run
-		case err = <-p.writeErr:
+		case err = <-p.discErr:
 			break run
 		}
 	}
@@ -128,7 +122,7 @@ run:
 	return err
 }
 
-func (p *TCPPeer) readLoop(readErr chan error) {
+func (p *TCPPeer) readLoop() {
 	defer p.wg.Done()
 	for {
 		select {
@@ -137,42 +131,23 @@ func (p *TCPPeer) readLoop(readErr chan error) {
 		default:
 			msg := &Message{}
 			if err := msg.decode(p.conn); err != nil {
-				readErr <- err
+				p.discErr <- err
 				return
 			}
-			go p.handleMessage(msg)
+			p.handleMessage(msg)
 		}
 	}
 }
-
-//func (p *TCPPeer) writeLoop(errCh chan error) {
-//	defer p.wg.Done()
-//	buf := new(bytes.Buffer)
-//	for {
-//		select {
-//		case msg := <-p.send:
-//			if err := msg.encode(buf); err != nil {
-//				errCh <- err
-//				return
-//			}
-//			if _, err := p.conn.Write(buf.Bytes()); err != nil {
-//				errCh <- err
-//				return
-//			}
-//			buf.Reset()
-//		case <-p.closed:
-//			return
-//		}
-//	}
-//}
 
 func (p *TCPPeer) handleMessage(msg *Message) {
 	switch msg.CommandType() {
 	case CMDVersion:
 		version := msg.Payload.(*payload.Version)
 		p.version = version
-		p.handleProto(msg, p)
+		fallthrough
 	default:
-		p.handleProto(msg, p)
+		if err := p.handleProto(msg, p); err != nil {
+			p.discErr <- err
+		}
 	}
 }

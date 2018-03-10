@@ -27,14 +27,6 @@ type Node struct {
 	server   *Server
 	services uint64
 	bc       *core.Blockchain
-	protoIn  chan messageTuple
-}
-
-// messageTuple respresents a tuple that holds the message being
-// send along with its peer.
-type messageTuple struct {
-	peer Peer
-	msg  *Message
 }
 
 func newNode(s *Server, cfg Config) *Node {
@@ -58,13 +50,11 @@ func newNode(s *Server, cfg Config) *Node {
 	logger = log.With(logger, "component", "node")
 
 	n := &Node{
-		Config:  cfg,
-		protoIn: make(chan messageTuple),
-		server:  s,
-		bc:      bc,
-		logger:  logger,
+		Config: cfg,
+		server: s,
+		bc:     bc,
+		logger: logger,
 	}
-	go n.handleMessages()
 
 	return n
 }
@@ -139,7 +129,6 @@ func (n *Node) handleBlockCmd(block *core.Block, peer Peer) error {
 		"hash", block.Hash(),
 		"tx", len(block.Transactions),
 	)
-
 	return n.bc.AddBlock(block)
 }
 
@@ -183,65 +172,42 @@ func (n *Node) askMoreHeaders(p Peer) {
 // blockhain implements the Noder interface.
 func (n *Node) blockchain() *core.Blockchain { return n.bc }
 
-// handleProto implements the protoHandler interface.
-func (n *Node) handleProto(msg *Message, p Peer) {
-	n.protoIn <- messageTuple{
-		msg:  msg,
-		peer: p,
-	}
-}
+func (n *Node) handleProto(msg *Message, p Peer) error {
+	//n.logger.Log(
+	//	"event", "message received",
+	//	"from", p.Endpoint(),
+	//	"msg", msg.CommandType(),
+	//)
 
-func (n *Node) handleMessages() {
-	for {
-		t := <-n.protoIn
-
-		var (
-			msg = t.msg
-			p   = t.peer
-			err error
-		)
-
-		n.logger.Log(
-			"event", "message received",
-			"from", p.Endpoint(),
-			"msg", msg.CommandType(),
-		)
-
-		switch msg.CommandType() {
-		case CMDVersion:
-			version := msg.Payload.(*payload.Version)
-			err = n.handleVersionCmd(version, p)
-		case CMDAddr:
-			addressList := msg.Payload.(*payload.AddressList)
-			err = n.handleAddrCmd(addressList, p)
-		case CMDInv:
-			inventory := msg.Payload.(*payload.Inventory)
-			err = n.handleInvCmd(inventory, p)
-		case CMDBlock:
-			block := msg.Payload.(*core.Block)
-			err = n.handleBlockCmd(block, p)
-		case CMDHeaders:
-			headers := msg.Payload.(*payload.Headers)
-			err = n.handleHeadersCmd(headers, p)
-		case CMDTX:
-			//			tx := msg.Payload.(*transaction.Transaction)
-			//n.logger.Log("tx", fmt.Sprintf("%+v", tx))
-		case CMDVerack:
-			// Only start the protocol if we got the version and verack
-			// received.
-			if p.Version() != nil {
-				go n.startProtocol(p)
-			}
-		case CMDUnknown:
-			err = errors.New("received non-protocol messgae")
+	switch msg.CommandType() {
+	case CMDVersion:
+		version := msg.Payload.(*payload.Version)
+		return n.handleVersionCmd(version, p)
+	case CMDAddr:
+		addressList := msg.Payload.(*payload.AddressList)
+		return n.handleAddrCmd(addressList, p)
+	case CMDInv:
+		inventory := msg.Payload.(*payload.Inventory)
+		return n.handleInvCmd(inventory, p)
+	case CMDBlock:
+		block := msg.Payload.(*core.Block)
+		return n.handleBlockCmd(block, p)
+	case CMDHeaders:
+		headers := msg.Payload.(*payload.Headers)
+		return n.handleHeadersCmd(headers, p)
+	case CMDTX:
+		//			tx := msg.Payload.(*transaction.Transaction)
+		//n.logger.Log("tx", fmt.Sprintf("%+v", tx))
+		return nil
+	case CMDVerack:
+		// Only start the protocol if we got the version and verack
+		// received.
+		if p.Version() != nil {
+			go n.startProtocol(p)
 		}
-
-		if err != nil {
-			n.logger.Log(
-				"msg", "failed processing message",
-				"command", msg.CommandType,
-				"err", err,
-			)
-		}
+		return nil
+	case CMDUnknown:
+		return errors.New("received non-protocol messgae")
 	}
+	return nil
 }
