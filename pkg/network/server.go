@@ -70,7 +70,7 @@ type Server struct {
 	listener net.Listener
 
 	register   chan Peer
-	unregister chan Peer
+	unregister chan peerDrop
 
 	badAddrOp     chan func(map[string]bool)
 	badAddrOpDone chan struct{}
@@ -79,6 +79,11 @@ type Server struct {
 	peerOpDone chan struct{}
 
 	quit chan struct{}
+}
+
+type peerDrop struct {
+	p   Peer
+	err error
 }
 
 // NewServer returns a new Server object created from the
@@ -103,7 +108,7 @@ func NewServer(cfg Config) *Server {
 		id:            util.RandUint32(1000000, 9999999),
 		quit:          make(chan struct{}, 1),
 		register:      make(chan Peer),
-		unregister:    make(chan Peer),
+		unregister:    make(chan peerDrop),
 		badAddrOp:     make(chan func(map[string]bool)),
 		badAddrOpDone: make(chan struct{}),
 		peerOp:        make(chan func(map[Peer]bool)),
@@ -131,12 +136,14 @@ func (s *Server) listenTCP() {
 			s.logger.Log("msg", "conn read error", "err", err)
 			break
 		}
-		go s.setupConnection(conn)
+		go s.setupPeerConn(conn)
 	}
 	s.Quit()
 }
 
-func (s *Server) setupConnection(conn net.Conn) {
+// setupPeerConn runs in its own routine for each connected Peer.
+// and waits till the Peer.Run() returns.
+func (s *Server) setupPeerConn(conn net.Conn) {
 	if !s.hasCapacity() {
 		s.logger.Log("msg", "server reached maximum capacity")
 		return
@@ -144,9 +151,9 @@ func (s *Server) setupConnection(conn net.Conn) {
 
 	p := NewTCPPeer(conn, s.proto.handleProto)
 	s.register <- p
-	if err := p.run(); err != nil {
-		s.unregister <- p
-	}
+
+	err := p.run()
+	s.unregister <- peerDrop{p, err}
 }
 
 func (s *Server) connectToPeers(addrs ...string) {
@@ -161,7 +168,7 @@ func (s *Server) connectToPeers(addrs ...string) {
 					<-s.badAddrOpDone
 					return
 				}
-				go s.setupConnection(conn)
+				go s.setupPeerConn(conn)
 			}(addr)
 		}
 	}
@@ -194,13 +201,12 @@ func (s *Server) hasCapacity() bool {
 	return s.PeerCount() != s.MaxPeers
 }
 
-func (s *Server) sendVersion(peer Peer) {
-	peer.Send(NewMessage(s.Net, CMDVersion, s.proto.version()))
+func (s *Server) sendVersion(p Peer) {
+	p.Send(NewMessage(s.Net, CMDVersion, s.proto.version()))
 }
 
 func (s *Server) run() {
 	var (
-		ticker   = time.NewTicker(30 * time.Second).C
 		peers    = make(map[Peer]bool)
 		badAddrs = make(map[string]bool)
 	)
@@ -219,11 +225,18 @@ func (s *Server) run() {
 			// out our version immediately.
 			s.sendVersion(p)
 			s.logger.Log("event", "peer connected", "endpoint", p.Endpoint())
-		case p := <-s.unregister:
-			delete(peers, p)
-			s.logger.Log("event", "peer disconnected", "endpoint", p.Endpoint())
-		case <-ticker:
-			s.printState()
+		case drop := <-s.unregister:
+			delete(peers, drop.p)
+			s.logger.Log(
+				"event", "peer disconnected",
+				"endpoint", drop.p.Endpoint(),
+				"reason", drop.err,
+				"peerCount", len(peers),
+			)
+			if len(peers) == 0 {
+				s.logger.Log("fatal", "no more available peers")
+				return
+			}
 		case <-s.quit:
 			return
 		}

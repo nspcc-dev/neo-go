@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -32,14 +31,11 @@ type TCPPeer struct {
 	// incoming message along with its peer.
 	handleProto protoHandleFunc
 
-	// Done is used to broadcast that this peer has stopped running
+	// Done is used to broadcast this peer has stopped running
 	// and should be removed as reference.
 	done chan struct{}
-
-	// Every send to this channel will terminate the Peer.
-	discErr chan error
-	closed  chan struct{}
-	wg      sync.WaitGroup
+	send chan *Message
+	disc chan struct{}
 
 	logger log.Logger
 }
@@ -54,11 +50,11 @@ func NewTCPPeer(conn net.Conn, fun protoHandleFunc) *TCPPeer {
 		endpoint:    e,
 		conn:        conn,
 		done:        make(chan struct{}),
+		send:        make(chan *Message),
 		logger:      logger,
 		connectedAt: time.Now().UTC(),
 		handleProto: fun,
-		discErr:     make(chan error),
-		closed:      make(chan struct{}),
+		disc:        make(chan struct{}, 1),
 	}
 }
 
@@ -74,69 +70,67 @@ func (p *TCPPeer) Endpoint() util.Endpoint {
 
 // Send implements the Peer interface.
 func (p *TCPPeer) Send(msg *Message) {
-	buf := new(bytes.Buffer)
-	if err := msg.encode(buf); err != nil {
-		p.discErr <- err
-		return
-	}
-	if _, err := p.conn.Write(buf.Bytes()); err != nil {
-		p.discErr <- err
-		return
+	select {
+	case p.send <- msg:
+		break
+	case <-p.disc:
+		break
 	}
 }
 
-// Done implemnets the Peer interface. It use is to
-// notify the Node that this peer is no longer available
-// for sending messages to.
+// Done implemnets the Peer interface.
 func (p *TCPPeer) Done() chan struct{} {
 	return p.done
 }
 
-// Disconnect terminates the peer connection.
-func (p *TCPPeer) Disconnect(err error) {
-	select {
-	case p.discErr <- err:
-	case <-p.closed:
-	}
-}
+func (p *TCPPeer) run() error {
+	errCh := make(chan error, 1)
 
-func (p *TCPPeer) run() (err error) {
-	p.wg.Add(1)
-	go p.readLoop()
+	go p.readLoop(errCh)
+	go p.writeLoop(errCh)
 
-run:
-	for {
-		select {
-		case err = <-p.discErr:
-			break run
-		}
-	}
-
-	p.conn.Close()
-	close(p.closed)
-	// Close done instead of sending empty struct.
-	// It could happen that startProtocol in Node never happens
-	// on connection errors for example.
-	close(p.done)
-	p.wg.Wait()
+	err := <-errCh
+	p.logger.Log("err", err)
+	p.cleanup()
 	return err
 }
 
-func (p *TCPPeer) readLoop() {
-	defer p.wg.Done()
+func (p *TCPPeer) readLoop(errCh chan error) {
+	for {
+		msg := &Message{}
+		if err := msg.decode(p.conn); err != nil {
+			errCh <- err
+			break
+		}
+		p.handleMessage(msg)
+	}
+}
+
+func (p *TCPPeer) writeLoop(errCh chan error) {
+	buf := new(bytes.Buffer)
+
 	for {
 		select {
-		case <-p.closed:
-			return
-		default:
-			msg := &Message{}
-			if err := msg.decode(p.conn); err != nil {
-				p.discErr <- err
+		case msg := <-p.send:
+			if err := msg.encode(buf); err != nil {
+				errCh <- err
 				return
 			}
-			p.handleMessage(msg)
+			if _, err := p.conn.Write(buf.Bytes()); err != nil {
+				errCh <- err
+				return
+			}
+			buf.Reset()
 		}
 	}
+}
+
+func (p *TCPPeer) cleanup() {
+	p.conn.Close()
+	p.disc <- struct{}{}
+	p.done <- struct{}{}
+	close(p.disc)
+	close(p.send)
 }
 
 func (p *TCPPeer) handleMessage(msg *Message) {
@@ -144,10 +138,8 @@ func (p *TCPPeer) handleMessage(msg *Message) {
 	case CMDVersion:
 		version := msg.Payload.(*payload.Version)
 		p.version = version
-		fallthrough
+		p.handleProto(msg, p)
 	default:
-		if err := p.handleProto(msg, p); err != nil {
-			p.discErr <- err
-		}
+		p.handleProto(msg, p)
 	}
 }

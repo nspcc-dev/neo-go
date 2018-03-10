@@ -32,6 +32,16 @@ func TestAddHeaders(t *testing.T) {
 	assert.Equal(t, uint32(1), bc.storedHeaderCount)
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
+
+	// Add them again, they should not be added.
+	if err := bc.AddHeaders(h3, h2, h1); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, h3.Index, bc.HeaderHeight())
+	assert.Equal(t, uint32(1), bc.storedHeaderCount)
+	assert.Equal(t, uint32(0), bc.BlockHeight())
+	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 }
 
 func TestAddBlock(t *testing.T) {
@@ -66,5 +76,6 @@ func TestAddBlock(t *testing.T) {
 func newTestBC() *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
 	bc := NewBlockchain(NewMemoryStore(), startHash)
+	bc.verifyBlocks = false
 	return bc
 }

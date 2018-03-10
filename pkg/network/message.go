@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
@@ -220,6 +221,11 @@ func (m *Message) decodePayload(r io.Reader) error {
 		if err := p.DecodeBinary(r); err != nil {
 			return err
 		}
+	case CMDTX:
+		p = &transaction.Transaction{}
+		if err := p.DecodeBinary(r); err != nil {
+			return err
+		}
 	}
 
 	m.Payload = p
@@ -229,10 +235,18 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
-	binary.Write(w, binary.LittleEndian, m.Magic)
-	binary.Write(w, binary.LittleEndian, m.Command)
-	binary.Write(w, binary.LittleEndian, m.Length)
-	binary.Write(w, binary.LittleEndian, m.Checksum)
+	if err := binary.Write(w, binary.LittleEndian, m.Magic); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Command); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Length); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
+		return err
+	}
 
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)

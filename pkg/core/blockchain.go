@@ -44,6 +44,9 @@ type Blockchain struct {
 	// Only for operating on the headerList.
 	headersOp     chan headersOpFunc
 	headersOpDone chan struct{}
+
+	// Whether we will verify received blocks.
+	verifyBlocks bool
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -60,6 +63,7 @@ func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
 		headersOpDone: make(chan struct{}),
 		startHash:     startHash,
 		blockCache:    NewCache(),
+		verifyBlocks:  true,
 	}
 	go bc.run()
 	bc.init()
@@ -93,9 +97,12 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		return nil
 	}
 	if int(block.Index) == headerLen {
-		// todo: if (VerifyBlocks && !block.Verify()) return false;
+		if bc.verifyBlocks && !block.Verify(false) {
+			return fmt.Errorf("block %s is invalid", block.Hash())
+		}
+		return bc.AddHeaders(block.Header())
 	}
-	return bc.AddHeaders(block.Header())
+	return nil
 }
 
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {

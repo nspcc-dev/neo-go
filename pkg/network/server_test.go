@@ -34,7 +34,7 @@ func TestUnregisterPeer(t *testing.T) {
 	s.register <- newTestPeer()
 	assert.Equal(t, 3, s.PeerCount())
 
-	s.unregister <- peer
+	s.unregister <- peerDrop{peer, nil}
 	assert.Equal(t, 2, s.PeerCount())
 }
 
@@ -44,7 +44,9 @@ func (t testNode) version() *payload.Version {
 	return &payload.Version{}
 }
 
-func (t testNode) handleProto(msg *Message, p Peer) {}
+func (t testNode) handleProto(msg *Message, p Peer) error {
+	return nil
+}
 
 func newTestServer() *Server {
 	return &Server{
@@ -52,7 +54,7 @@ func newTestServer() *Server {
 		id:            util.RandUint32(1000000, 9999999),
 		quit:          make(chan struct{}, 1),
 		register:      make(chan Peer),
-		unregister:    make(chan Peer),
+		unregister:    make(chan peerDrop),
 		badAddrOp:     make(chan func(map[string]bool)),
 		badAddrOpDone: make(chan struct{}),
 		peerOp:        make(chan func(map[Peer]bool)),
@@ -83,4 +85,8 @@ func (p testPeer) Send(msg *Message) {}
 
 func (p testPeer) Done() chan struct{} {
 	return p.done
+}
+
+func (p testPeer) Disconnect(err error) {
+
 }
