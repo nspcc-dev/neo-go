@@ -4,7 +4,7 @@ SEEDS ?= "127.0.0.1:20333"
 PORT ?= "3000"
 
 build:
-	@go build --race -o ./bin/neo-go ./cli/main.go
+	@go build -o ./bin/neo-go ./cli/main.go
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
