@@ -73,18 +73,6 @@ func (n *Node) version() *payload.Version {
 }
 
 func (n *Node) startProtocol(p Peer) {
-	n.logger.Log(
-		"event", "start protocol",
-		"peer", p.Endpoint(),
-		"userAgent", string(p.Version().UserAgent),
-	)
-	defer func() {
-		n.logger.Log(
-			"msg", "protocol stopped",
-			"peer", p.Endpoint(),
-		)
-	}()
-
 	timer := time.NewTimer(protoTickInterval)
 	for {
 		<-timer.C

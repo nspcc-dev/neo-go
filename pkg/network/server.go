@@ -18,7 +18,7 @@ const (
 	// official ports according to the protocol.
 	portMainNet = 10333
 	portTestNet = 20333
-	maxPeers    = 50
+	maxPeers    = 200
 )
 
 var dialTimeout = 4 * time.Second
@@ -60,7 +60,7 @@ type Server struct {
 	Config
 
 	// Proto is just about anything that can handle the NEO protocol.
-	// In production enviroments the ProtoHandler is mostly the local node.
+	// In production environments the ProtoHandler is mostly the local node.
 	proto ProtoHandler
 
 	// Unique id of this server.
