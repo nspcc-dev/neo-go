@@ -36,7 +36,7 @@ func (n NetMode) String() string {
 	case ModeMainNet:
 		return "mainnet"
 	default:
-		return ""
+		return "unknownnet"
 	}
 }
 
@@ -49,15 +49,20 @@ const (
 
 // Message is the complete message send between nodes.
 type Message struct {
+	// NetMode of the node that sends this message.
 	Magic NetMode
+
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
 	Command [cmdSize]byte
+
 	// Length of the payload
 	Length uint32
+
 	// Checksum is the first 4 bytes of the value that two times SHA256
 	// hash of the payload
 	Checksum uint32
+
 	// Payload send with the message.
 	Payload payload.Payload
 }
@@ -65,7 +70,7 @@ type Message struct {
 // CommandType represents the type of a message command.
 type CommandType string
 
-// valid commands used to send between nodes.
+// Valid protocol commands used to send between nodes.
 const (
 	CMDVersion    CommandType = "version"
 	CMDVerack     CommandType = "verack"
@@ -238,11 +243,9 @@ func (m *Message) encode(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
 		return err
 	}
-
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)
 	}
-
 	return nil
 }
 

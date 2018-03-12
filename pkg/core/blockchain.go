@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
-	log "github.com/go-kit/kit/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // tuning parameters
@@ -25,8 +24,6 @@ var (
 
 // Blockchain holds the chain.
 type Blockchain struct {
-	logger log.Logger
-
 	// Any object that satisfies the BlockchainStorer interface.
 	Store
 
@@ -54,11 +51,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain creates a new Blockchain object.
 func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
-	logger := log.NewLogfmtLogger(os.Stderr)
-	logger = log.With(logger, "component", "blockchain")
-
 	bc := &Blockchain{
-		logger:        logger,
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
@@ -139,16 +132,15 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			}
 		}
 
-		// TODO: Implement caching strategy.
 		if len(batch) > 0 {
 			if err = bc.writeBatch(batch); err != nil {
 				return
 			}
-			bc.logger.Log(
-				"msg", "done processing headers",
-				"index", headerList.Len()-1,
-				"took", time.Since(start),
-			)
+			log.WithFields(log.Fields{
+				"headerIndex": headerList.Len() - 1,
+				"blockHeight": bc.BlockHeight(),
+				"took":        time.Since(start),
+			}).Debug("done processing headers")
 		}
 	}
 	<-bc.headersOpDone
@@ -213,12 +205,13 @@ func (bc *Blockchain) persist() (err error) {
 		<-bc.headersOpDone
 	}
 
-	bc.logger.Log(
-		"event", "persist complete",
-		"err", err,
-		"took", time.Since(start),
-		"persisted", persisted,
-	)
+	if persisted > 0 {
+		log.WithFields(log.Fields{
+			"persisted":   persisted,
+			"blockHeight": bc.BlockHeight(),
+			"took":        time.Since(start),
+		}).Debug("persist completed")
+	}
 
 	return
 }
