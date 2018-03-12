@@ -1,9 +1,13 @@
 package p2p
 
+import "time"
+
 // Transporter is an interface that allows us to abstract
 // the network communication between the server and its peers.
 type Transporter interface {
-	Proto() string
+	Consumer() <-chan protoTuple
+	Dial(addr string, timeout time.Duration) error
 	Accept(*Server)
+	Proto() string
 	Close()
 }

@@ -12,7 +12,7 @@ import (
 type AddressAndTime struct {
 	Timestamp uint32
 	Services  uint64
-	Endpoint  util.Endpoint
+	Address   util.Endpoint
 }
 
 // NewAddressAndTime creates a new AddressAndTime object.
@@ -20,7 +20,7 @@ func NewAddressAndTime(e util.Endpoint, t time.Time) *AddressAndTime {
 	return &AddressAndTime{
 		Timestamp: uint32(t.UTC().Unix()),
 		Services:  1,
-		Endpoint:  e,
+		Address:   e,
 	}
 }
 
@@ -32,10 +32,10 @@ func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
 		return err
 	}
-	if err := binary.Read(r, binary.BigEndian, &p.Endpoint.IP); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &p.Address.IP); err != nil {
 		return err
 	}
-	return binary.Read(r, binary.BigEndian, &p.Endpoint.Port)
+	return binary.Read(r, binary.BigEndian, &p.Address.Port)
 }
 
 // EncodeBinary implements the Payload interface.
@@ -46,10 +46,10 @@ func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.BigEndian, p.Endpoint.IP); err != nil {
+	if err := binary.Write(w, binary.BigEndian, p.Address.IP); err != nil {
 		return err
 	}
-	return binary.Write(w, binary.BigEndian, p.Endpoint.Port)
+	return binary.Write(w, binary.BigEndian, p.Address.Port)
 }
 
 // AddressList is a list with AddrAndTime.
