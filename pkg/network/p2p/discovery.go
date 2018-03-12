@@ -66,20 +66,22 @@ func (d *DefaultDiscovery) work(addrCh, badAddrCh chan string) {
 
 func (d *DefaultDiscovery) run() {
 	var (
-		maxDialBatch = 5
-		badAddrCh    = make(chan string)
-		addrCh       = make(chan string, maxDialBatch)
+		maxWorkers = 5
+		badAddrCh  = make(chan string)
+		workCh     = make(chan string)
 	)
 
-	for i := 0; i < maxDialBatch; i++ {
-		go d.work(addrCh, badAddrCh)
+	for i := 0; i < maxWorkers; i++ {
+		go d.work(workCh, badAddrCh)
 	}
 
 	go func() {
-		for d.peerCount() < d.maxPeers {
-			select {
-			case addr := <-d.pool:
-				addrCh <- addr
+		for {
+			if d.peerCount() < d.maxPeers {
+				select {
+				case addr := <-d.pool:
+					workCh <- addr
+				}
 			}
 		}
 	}()

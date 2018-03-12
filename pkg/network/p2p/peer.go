@@ -1,13 +1,12 @@
 package p2p
 
 import (
-	"net"
-
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type Peer interface {
-	Endpoint() net.Addr
+	Endpoint() util.Endpoint
 	Disconnect(error)
 	Send(msg *Message)
 	Done() chan struct{}

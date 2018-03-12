@@ -5,14 +5,15 @@ import (
 	"sync"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // TCPPeer represents a connected remote node in the
 // network over TCP.
 type TCPPeer struct {
 	// underlying TCP connection.
-	conn net.Conn
-	addr net.Addr
+	conn     net.Conn
+	endpoint util.Endpoint
 
 	// The version of the peer.
 	version *payload.Version
@@ -26,11 +27,11 @@ type TCPPeer struct {
 
 func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 	return &TCPPeer{
-		conn:   conn,
-		closed: make(chan struct{}),
-		done:   make(chan struct{}),
-		disc:   make(chan error),
-		addr:   conn.RemoteAddr(),
+		conn:     conn,
+		closed:   make(chan struct{}),
+		done:     make(chan struct{}),
+		disc:     make(chan error),
+		endpoint: util.NewEndpoint(conn.RemoteAddr().String()),
 	}
 }
 
@@ -47,8 +48,8 @@ func (p *TCPPeer) Send(msg *Message) {
 }
 
 // Endpoint implements the Peer interface.
-func (p *TCPPeer) Endpoint() net.Addr {
-	return p.addr
+func (p *TCPPeer) Endpoint() util.Endpoint {
+	return p.endpoint
 }
 
 // Done implements the Peer interface and notifies

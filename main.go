@@ -11,8 +11,9 @@ func main() {
 		Seeds: []string{
 			"seed2.neo.org:10333",
 		},
-		Relay:    true,
-		MaxPeers: 50,
+		Relay:     true,
+		MaxPeers:  10,
+		ListenTCP: 3002,
 	}
 
 	s := p2p.NewServer(cfg)
