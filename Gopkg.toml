@@ -53,9 +53,5 @@
   version = "1.2.1"
 
 [[constraint]]
-  name = "github.com/go-kit/kit"
-  version = "0.6.0"
-
-[[constraint]]
   name = "github.com/sirupsen/logrus"
   version = "1.0.5"
