@@ -36,15 +36,10 @@ func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 }
 
 // Send implements the Peer interface. This will encode the message
-// to the underlying connection. The peer will disconnect if encode
-// failed.
-func (p *TCPPeer) Send(msg *Message) {
-	if err := msg.encode(p.conn); err != nil {
-		select {
-		case p.disc <- err:
-		case <-p.closed:
-		}
-	}
+// to the underlying connection. The server will handle the error
+// returned from Send and will disconnect the peer.
+func (p *TCPPeer) Send(msg *Message) error {
+	return msg.encode(p.conn)
 }
 
 // Endpoint implements the Peer interface.
