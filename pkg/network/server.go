@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	protoTickInterval = 5 * time.Second
+	protoTickInterval = 20 * time.Second
 	dialTimeout       = 3 * time.Second
 )
 
@@ -188,6 +188,8 @@ func (s *Server) connectWithSeeds(addrs ...string) {
 // startProtocol starts a long running background loop that interacts
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
+	s.askMoreHeaders(p)
+
 	timer := time.NewTimer(s.ProtoTickInterval)
 	for {
 		select {
@@ -196,8 +198,7 @@ func (s *Server) startProtocol(p Peer) {
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.Version().StartHeight > s.chain.HeaderHeight() {
-				// s.askMoreHeaders(p)
-				// s.askMoreBlocks(p)
+				s.askMoreBlocks(p)
 			}
 
 			// If the discovery does not have a healthy address pool
@@ -286,6 +287,8 @@ func (s *Server) askMoreBlocks(p Peer) {
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
 		p.Send(NewMessage(s.Net, CMDGetData, payload))
+	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
+		s.askMoreHeaders(p)
 	}
 }
 
