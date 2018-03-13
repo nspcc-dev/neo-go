@@ -31,14 +31,7 @@ func (p *GetBlocks) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &p.HashStart); err != nil {
 		return err
 	}
-
-	// If the reader returns EOF we know the hashStop is not encoded.
-	err := binary.Read(r, binary.LittleEndian, &p.HashStop)
-	if err == io.EOF {
-		return nil
-	}
-
-	return err
+	return binary.Read(r, binary.LittleEndian, &p.HashStop)
 }
 
 // EncodeBinary implements the payload interface.
@@ -49,14 +42,7 @@ func (p *GetBlocks) EncodeBinary(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, p.HashStart); err != nil {
 		return err
 	}
-
-	// Only write hashStop if its not filled with zero bytes.
-	var emtpy util.Uint256
-	if p.HashStop != emtpy {
-		return binary.Write(w, binary.LittleEndian, p.HashStop)
-	}
-
-	return nil
+	return binary.Write(w, binary.LittleEndian, p.HashStop)
 }
 
 // Size implements the payload interface.

@@ -188,11 +188,11 @@ func (bc *Blockchain) persist() (err error) {
 		lenCache  = bc.blockCache.Len()
 	)
 
-	for lenCache > persisted {
-		if uint32(bc.headerListLen()) <= bc.BlockHeight() {
-			break
-		}
-		bc.headersOp <- func(headerList *HeaderHashList) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		for i := 0; i < lenCache; i++ {
+			if uint32(headerList.Len()) <= bc.BlockHeight() {
+				return
+			}
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
@@ -202,15 +202,15 @@ func (bc *Blockchain) persist() (err error) {
 				persisted++
 			}
 		}
-		<-bc.headersOpDone
 	}
+	<-bc.headersOpDone
 
 	if persisted > 0 {
 		log.WithFields(log.Fields{
 			"persisted":   persisted,
 			"blockHeight": bc.BlockHeight(),
 			"took":        time.Since(start),
-		}).Debug("persist completed")
+		}).Info("blockchain persist completed")
 	}
 
 	return

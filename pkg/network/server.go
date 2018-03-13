@@ -13,10 +13,9 @@ import (
 )
 
 const (
-	maxPeers           = 4
-	healthyPoolCount   = 50
+	maxPeers           = 10
 	maxBlockBatchCount = 200
-	minPoolCount       = 10
+	minPoolCount       = 30
 )
 
 var (
@@ -107,7 +106,6 @@ func NewServer(cfg Config, chain *core.Blockchain) *Server {
 	}
 	log.SetLevel(log.DebugLevel)
 
-	ts := NewTCPTransport(fmt.Sprintf(":%d", cfg.ListenTCP))
 	s := &Server{
 		Config:     cfg,
 		chain:      chain,
@@ -116,10 +114,10 @@ func NewServer(cfg Config, chain *core.Blockchain) *Server {
 		register:   make(chan Peer),
 		unregister: make(chan peerDrop),
 		peers:      make(map[Peer]bool),
-		proto:      ts.Consumer(),
-		transport:  ts,
 	}
 
+	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", cfg.ListenTCP))
+	s.proto = s.transport.Consumer()
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -130,16 +128,15 @@ func NewServer(cfg Config, chain *core.Blockchain) *Server {
 
 // Start will start the server and its underlying transport.
 func (s *Server) Start() {
-	go s.run()
-	go s.transport.Accept(s)
-	go s.connectWithSeeds(s.Seeds...)
-	select {}
+	go s.transport.Accept()
+	s.discovery.BackFill(s.Seeds...)
+	s.run()
 }
 
 func (s *Server) run() {
 	// As discovery to connect with remote nodes.
 	n := s.MaxPeers - s.PeerCount()
-	s.discovery.Request(n)
+	s.discovery.RequestRemote(n)
 
 	for {
 		select {
@@ -158,14 +155,17 @@ func (s *Server) run() {
 			s.peers[p] = true
 			// When a new peer is connected we send out our version immediately.
 			s.sendVersion(p)
-			log.Debugf("peer connected %s", p.Endpoint())
+			log.WithFields(log.Fields{
+				"endpoint": p.Endpoint(),
+			}).Info("new peer connected")
 		case drop := <-s.unregister:
+			s.discovery.RequestRemote(1)
 			delete(s.peers, drop.peer)
 			log.WithFields(log.Fields{
 				"endpoint":  drop.peer.Endpoint(),
 				"reason":    drop.reason,
 				"peerCount": s.PeerCount(),
-			}).Debug("peer disconnected")
+			}).Info("peer disconnected")
 		}
 	}
 }
@@ -188,7 +188,15 @@ func (s *Server) connectWithSeeds(addrs ...string) {
 // startProtocol starts a long running background loop that interacts
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
-	s.askMoreHeaders(p)
+	log.WithFields(log.Fields{
+		"endpoint":    p.Endpoint(),
+		"userAgent":   string(p.Version().UserAgent),
+		"startHeight": p.Version().StartHeight,
+		"id":          p.Version().Nonce,
+	}).Info("started protocol")
+
+	s.requestHeaders(p)
+	s.requestPeerInfo(p)
 
 	timer := time.NewTimer(s.ProtoTickInterval)
 	for {
@@ -197,14 +205,14 @@ func (s *Server) startProtocol(p Peer) {
 			return
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
-			if p.Version().StartHeight > s.chain.HeaderHeight() {
-				s.askMoreBlocks(p)
+			if p.Version().StartHeight > s.chain.BlockHeight() {
+				s.requestBlocks(p)
 			}
 
 			// If the discovery does not have a healthy address pool
 			// we will ask for a new batch of addresses.
 			if s.discovery.PoolCount() < minPoolCount {
-				p.Send(NewMessage(s.Net, CMDGetAddr, nil))
+				s.requestPeerInfo(p)
 			}
 
 			timer.Reset(s.ProtoTickInterval)
@@ -214,17 +222,17 @@ func (s *Server) startProtocol(p Peer) {
 
 // When a peer connects to the server, we will send our version immediately.
 func (s *Server) sendVersion(p Peer) {
-	payload := payload.NewVersion(s.id, s.ListenTCP, s.UserAgent, 0, s.Relay)
+	payload := payload.NewVersion(s.id, s.ListenTCP, s.UserAgent, s.chain.BlockHeight(), s.Relay)
 	p.Send(NewMessage(s.Net, CMDVersion, payload))
 }
 
 // When a peer sends out his version we reply with verack after validating
 // the version.
 func (s *Server) handleVersionCmd(p Peer, version *payload.Version) {
-	if p.Endpoint().Port != version.Port {
-		p.Disconnect(errors.New("port mismatch"))
-		return
-	}
+	//if p.Endpoint().Port != version.Port {
+	//	p.Disconnect(errors.New("port mismatch"))
+	//	return
+	//}
 	if s.id == version.Nonce {
 		p.Disconnect(errors.New("identical node id"))
 		return
@@ -243,7 +251,7 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 		// We will ask one more batch here if needed. Eventually we will get synced
 		// due to the startProtocol routine that will ask headers every protoTick.
 		if s.chain.HeaderHeight() < p.Version().StartHeight {
-			s.askMoreHeaders(p)
+			s.requestHeaders(p)
 		}
 	}(headers.Hdrs)
 }
@@ -255,25 +263,36 @@ func (s *Server) handleBlockCmd(p Peer, block *core.Block) {
 	}
 }
 
+// handleInvCmd will process the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) {
 	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
 		return
 	}
-	log.Debugf("received inventory %s", inv.Type)
+	// log.Debugf("received inventory %s", inv.Type)
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	p.Send(NewMessage(s.Net, CMDGetData, payload))
 }
 
-// askMoreHeaders will send a getheaders message to the peer.
-func (s *Server) askMoreHeaders(p Peer) {
+func (s *Server) handleGetHeadersCmd(p Peer, getHeaders *payload.GetBlocks) {
+	log.Info(getHeaders)
+}
+
+// requestHeaders will send a getheaders message to the peer.
+func (s *Server) requestHeaders(p Peer) {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
 	p.Send(NewMessage(s.Net, CMDGetHeaders, payload))
 }
 
-// askMoreBlocks will send a getdata message to the peer
+// requestPeerInfo will send a getaddr message to the peer
+// which will respond whit his known addresses in the network.
+func (s *Server) requestPeerInfo(p Peer) {
+	p.Send(NewMessage(s.Net, CMDGetAddr, nil))
+}
+
+// requestBlocks will send a getdata message to the peer
 // to sync up in blocks.
-func (s *Server) askMoreBlocks(p Peer) {
+func (s *Server) requestBlocks(p Peer) {
 	var (
 		hashStart    = s.chain.BlockHeight() + 1
 		headerHeight = s.chain.HeaderHeight()
@@ -288,7 +307,7 @@ func (s *Server) askMoreBlocks(p Peer) {
 		payload := payload.NewInventory(payload.BlockType, hashes)
 		p.Send(NewMessage(s.Net, CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
-		s.askMoreHeaders(p)
+		s.requestHeaders(p)
 	}
 }
 
@@ -319,6 +338,9 @@ func (s *Server) processProto(proto protoTuple) {
 	case CMDBlock:
 		block := msg.Payload.(*core.Block)
 		s.handleBlockCmd(peer, block)
+	case CMDGetHeaders:
+		getHeaders := msg.Payload.(*payload.GetBlocks)
+		s.handleGetHeadersCmd(peer, getHeaders)
 	case CMDVerack:
 		// Make sure this peer has sended his version before we start the
 		// protocol.
@@ -329,6 +351,8 @@ func (s *Server) processProto(proto protoTuple) {
 		go s.startProtocol(peer)
 	case CMDAddr:
 		addressList := msg.Payload.(*payload.AddressList)
-		go s.discovery.BackFill(addressList)
+		for _, addr := range addressList.Addrs {
+			s.discovery.BackFill(addr.Endpoint.String())
+		}
 	}
 }

@@ -2,27 +2,23 @@ package network
 
 import (
 	"net"
-	"os"
 	"time"
 
-	log "github.com/go-kit/kit/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // TCPTransport allows network communication over TCP.
 type TCPTransport struct {
 	server   *Server
 	listener net.Listener
-	logger   log.Logger
 	bindAddr string
 	proto    chan protoTuple
 }
 
 // NewTCPTransport return a new TCPTransport.
-func NewTCPTransport(bindAddr string) *TCPTransport {
-	l := log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
-	l = log.With(l, "TCP")
+func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
 	return &TCPTransport{
-		logger:   l,
+		server:   s,
 		bindAddr: bindAddr,
 		proto:    make(chan protoTuple),
 	}
@@ -44,20 +40,19 @@ func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
 }
 
 // Accept implements the Transporter interface.
-func (t *TCPTransport) Accept(s *Server) {
+func (t *TCPTransport) Accept() {
 	l, err := net.Listen("tcp", t.bindAddr)
 	if err != nil {
-		t.logger.Log("msg", "listen error", "err", err)
+		log.Fatalf("TCP listen error %s", err)
 		return
 	}
 
-	t.server = s
 	t.listener = l
 
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			t.logger.Log("msg", "accept error", "err", err)
+			log.Warnf("TCP accept error: %s", err)
 			continue
 		}
 		go t.handleConn(conn)

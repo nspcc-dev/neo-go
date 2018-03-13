@@ -36,7 +36,7 @@ func (n NetMode) String() string {
 	case ModeMainNet:
 		return "mainnet"
 	default:
-		return "unknownnet"
+		return "net unknown"
 	}
 }
 
@@ -184,42 +184,41 @@ func (m *Message) decodePayload(r io.Reader) error {
 		return errChecksumMismatch
 	}
 
-	r = buf
 	var p payload.Payload
 	switch m.CommandType() {
 	case CMDVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDInv:
 		p = &payload.Inventory{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDBlock:
 		p = &core.Block{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDHeaders:
 		p = &payload.Headers{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDTX:
 		p = &transaction.Transaction{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	}

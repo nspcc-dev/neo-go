@@ -7,7 +7,7 @@ import "time"
 type Transporter interface {
 	Consumer() <-chan protoTuple
 	Dial(addr string, timeout time.Duration) error
-	Accept(*Server)
+	Accept()
 	Proto() string
 	Close()
 }

@@ -45,5 +45,5 @@ const (
 	Remark12 AttrUsage = 0xfc
 	Remark13 AttrUsage = 0xfd
 	Remark14 AttrUsage = 0xfe
-	Remark15 AttrUsage = 0xf
+	Remark15 AttrUsage = 0xff
 )
