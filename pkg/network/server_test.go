@@ -8,20 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRegisterPeer(t *testing.T) {
-	var (
-		s        = newTestServer()
-		numPeers = 10
-	)
-	go s.run()
-
-	for i := 0; i < numPeers; i++ {
-		p := newLocalPeer(t)
-		s.register <- p
-	}
-	assert.Equal(t, numPeers, s.PeerCount())
-}
-
 func TestSendVersion(t *testing.T) {
 	var (
 		s = newTestServer()
@@ -84,13 +70,21 @@ func TestServerNotSendsVerack(t *testing.T) {
 		s = newTestServer()
 		p = newLocalPeer(t)
 	)
+	s.id = 1
 	go s.run()
 
 	p.endpoint = util.NewEndpoint("0.0.0.0:3000")
 	s.register <- p
 
+	// Port should mismatch
 	version := payload.NewVersion(1337, 2000, "/NEO-GO/", 0, true)
 	err := s.handleVersionCmd(p, version)
 	assert.NotNil(t, err)
 	assert.Equal(t, errPortMismatch, err)
+
+	// identical id's
+	version = payload.NewVersion(1, 3000, "/NEO-GO/", 0, true)
+	err = s.handleVersionCmd(p, version)
+	assert.NotNil(t, err)
+	assert.Equal(t, errIdenticalID, err)
 }

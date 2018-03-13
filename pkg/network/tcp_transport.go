@@ -15,7 +15,8 @@ type TCPTransport struct {
 	proto    chan protoTuple
 }
 
-// NewTCPTransport return a new TCPTransport.
+// NewTCPTransport return a new TCPTransport that will listen for
+// new incoming peer connections.
 func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
 	return &TCPTransport{
 		server:   s,
@@ -62,12 +63,9 @@ func (t *TCPTransport) Accept() {
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	p := NewTCPPeer(conn, t.proto)
 	t.server.register <- p
-	if err := p.run(t.proto); err != nil {
-		t.server.unregister <- peerDrop{
-			peer:   p,
-			reason: err,
-		}
-	}
+	// This will block until the peer is stopped running.
+	p.run(t.proto)
+	log.Warnf("TCP released peer: %s", p.Endpoint())
 }
 
 // Close implements the Transporter interface.

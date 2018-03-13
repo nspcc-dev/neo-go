@@ -8,7 +8,7 @@ import (
 type Peer interface {
 	Endpoint() util.Endpoint
 	Disconnect(error)
-	Send(msg *Message) error
-	Done() chan struct{}
+	Send(msg *Message)
+	Done() chan error
 	Version() *payload.Version
 }

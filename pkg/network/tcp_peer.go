@@ -18,7 +18,7 @@ type TCPPeer struct {
 	// The version of the peer.
 	version *payload.Version
 
-	done   chan struct{}
+	done   chan error
 	closed chan struct{}
 	disc   chan error
 
@@ -28,7 +28,7 @@ type TCPPeer struct {
 func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 	return &TCPPeer{
 		conn:     conn,
-		done:     make(chan struct{}),
+		done:     make(chan error),
 		closed:   make(chan struct{}),
 		disc:     make(chan error),
 		endpoint: util.NewEndpoint(conn.RemoteAddr().String()),
@@ -36,10 +36,14 @@ func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 }
 
 // Send implements the Peer interface. This will encode the message
-// to the underlying connection. The server will handle the error
-// returned from Send and will disconnect the peer.
-func (p *TCPPeer) Send(msg *Message) error {
-	return msg.encode(p.conn)
+// to the underlying connection.
+func (p *TCPPeer) Send(msg *Message) {
+	if err := msg.encode(p.conn); err != nil {
+		select {
+		case p.disc <- err:
+		case <-p.closed:
+		}
+	}
 }
 
 // Endpoint implements the Peer interface.
@@ -48,9 +52,9 @@ func (p *TCPPeer) Endpoint() util.Endpoint {
 }
 
 // Done implements the Peer interface and notifies
-// all other resources operating on it to release this
-// peer.
-func (p *TCPPeer) Done() chan struct{} {
+// all other resources operating on it that this peer
+// is no longer running.
+func (p *TCPPeer) Done() chan error {
 	return p.done
 }
 
@@ -87,8 +91,11 @@ func (p *TCPPeer) handleMessage(msg *Message, proto chan protoTuple) {
 	}
 }
 
-func (p *TCPPeer) run(proto chan protoTuple) (err error) {
-	readErr := make(chan error, 1)
+func (p *TCPPeer) run(proto chan protoTuple) {
+	var (
+		readErr = make(chan error, 1)
+		err     error
+	)
 	p.wg.Add(1)
 	go p.readLoop(proto, readErr)
 
@@ -105,7 +112,7 @@ run:
 	// If the peer has not started the protocol with the server
 	// there will be noone reading from this channel.
 	select {
-	case p.done <- struct{}{}:
+	case p.done <- err:
 	default:
 	}
 

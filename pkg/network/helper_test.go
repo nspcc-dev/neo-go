@@ -79,12 +79,11 @@ func (p *localPeer) Endpoint() util.Endpoint {
 	return p.endpoint
 }
 func (p *localPeer) Disconnect(err error) {}
-func (p *localPeer) Send(msg *Message) error {
+func (p *localPeer) Send(msg *Message) {
 	p.messageHandler(p.t, msg)
-	return nil
 }
-func (p *localPeer) Done() chan struct{} {
-	done := make(chan struct{})
+func (p *localPeer) Done() chan error {
+	done := make(chan error)
 	return done
 }
 func (p *localPeer) Version() *payload.Version {
