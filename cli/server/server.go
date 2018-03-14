@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
@@ -20,7 +21,7 @@ func NewCommand() cli.Command {
 			cli.IntFlag{Name: "rpc"},
 			cli.BoolFlag{Name: "relay, r"},
 			cli.StringFlag{Name: "seed"},
-			cli.StringFlag{Name: "chain"},
+			cli.StringFlag{Name: "dbfile"},
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},
@@ -45,9 +46,10 @@ func startServer(ctx *cli.Context) error {
 		Relay:     ctx.Bool("relay"),
 	}
 
-	chain, err := newBlockchain(net, ctx.String("chain"))
+	chain, err := newBlockchain(net, ctx.String("dbfile"))
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf("could not initialize blockhain: %s", err)
+		return cli.NewExitError(err, 1)
 	}
 
 	s := network.NewServer(cfg, chain)

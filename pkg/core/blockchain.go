@@ -9,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // tuning parameters
@@ -87,6 +88,8 @@ func (bc *Blockchain) run() {
 	}
 }
 
+// AddBlock processes the given block and will add it to the cache so it
+// can be persisted.
 func (bc *Blockchain) AddBlock(block *Block) error {
 	if !bc.blockCache.Has(block.Hash()) {
 		bc.blockCache.Add(block.Hash(), block)
@@ -105,10 +108,12 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	return nil
 }
 
+// AddHeaders will process the given headers and add them to the
+// HeaderHashList.
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = Batch{}
+		batch = new(leveldb.Batch)
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -132,7 +137,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			}
 		}
 
-		if len(batch) > 0 {
+		if batch.Len() > 0 {
 			if err = bc.writeBatch(batch); err != nil {
 				return
 			}
@@ -149,7 +154,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := new(bytes.Buffer)
@@ -158,7 +163,7 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 			return err
 		}
 		key := makeEntryPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
-		batch[&key] = buf.Bytes()
+		batch.Put(key, buf.Bytes())
 		bc.storedHeaderCount += headerBatchCount
 		buf.Reset()
 	}
@@ -169,14 +174,24 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 	}
 
 	key := makeEntryPrefix(preDataBlock, h.Hash().BytesReverse())
-	batch[&key] = buf.Bytes()
+	batch.Put(key, buf.Bytes())
 	key = preSYSCurrentHeader.bytes()
-	batch[&key] = hashAndIndexToBytes(h.Hash(), h.Index)
+	batch.Put(key, hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
 
 func (bc *Blockchain) persistBlock(block *Block) error {
+	batch := new(leveldb.Batch)
+
+	// Store the block.
+	key := preSYSCurrentBlock.bytes()
+	batch.Put(key, hashAndIndexToBytes(block.Hash(), block.Index))
+
+	if err := bc.Store.writeBatch(batch); err != nil {
+		return err
+	}
+
 	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
@@ -222,6 +237,11 @@ func (bc *Blockchain) headerListLen() (n int) {
 	}
 	<-bc.headersOpDone
 	return
+}
+
+// GetBlock returns a Block by the given hash.
+func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+	return nil, nil
 }
 
 // HasBlock return true if the blockchain contains he given

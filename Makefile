@@ -2,6 +2,7 @@ BRANCH = "master"
 VERSION = $(shell cat ./VERSION)
 SEEDS ?= "127.0.0.1:20333"
 PORT ?= "3000"
+DBFILE ?= "chain"
 
 build:
 	@go build -o ./bin/neo-go ./cli/main.go
@@ -19,7 +20,7 @@ push-tag:
 	git push origin ${BRANCH} --tags
 
 run: build
-	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT} --relay true
+	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT} -dbfile ${DBFILE} --relay true
 
 test:
 	@go test ./... -cover

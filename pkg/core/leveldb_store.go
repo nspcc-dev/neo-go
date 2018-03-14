@@ -25,16 +25,17 @@ func NewLevelDBStore(path string, opts *opt.Options) (*LevelDBStore, error) {
 	}, nil
 }
 
-// Write implements the Store interface.
+// write implements the Store interface.
 func (s *LevelDBStore) write(key, value []byte) error {
 	return s.db.Put(key, value, nil)
 }
 
-// WriteBatch implements the Store interface.
-func (s *LevelDBStore) writeBatch(batch Batch) error {
-	b := new(leveldb.Batch)
-	for k, v := range batch {
-		b.Put(*k, v)
-	}
-	return s.db.Write(b, nil)
+//get implements the Store interface.
+func (s *LevelDBStore) get(key []byte) ([]byte, error) {
+	return s.db.Get(key, nil)
+}
+
+// writeBatch implements the Store interface.
+func (s *LevelDBStore) writeBatch(batch *leveldb.Batch) error {
+	return s.db.Write(batch, nil)
 }

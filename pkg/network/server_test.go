@@ -88,3 +88,27 @@ func TestServerNotSendsVerack(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, errIdenticalID, err)
 }
+
+func TestRequestPeers(t *testing.T) {
+	var (
+		s = newTestServer()
+		p = newLocalPeer(t)
+	)
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		assert.Nil(t, msg.Payload)
+		assert.Equal(t, CMDGetAddr, msg.CommandType())
+	}
+	s.requestPeerInfo(p)
+}
+
+func TestRequestHeaders(t *testing.T) {
+	var (
+		s = newTestServer()
+		p = newLocalPeer(t)
+	)
+	p.messageHandler = func(t *testing.T, msg *Message) {
+		assert.IsType(t, &payload.GetBlocks{}, msg.Payload)
+		assert.Equal(t, CMDGetHeaders, msg.CommandType())
+	}
+	s.requestHeaders(p)
+}

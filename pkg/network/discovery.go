@@ -25,7 +25,6 @@ type DefaultDiscovery struct {
 	requestCh   chan int
 	backFill    chan string
 	pool        chan string
-	que         int
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
