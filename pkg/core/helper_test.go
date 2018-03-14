@@ -2,6 +2,9 @@ package core
 
 import (
 	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -37,4 +40,16 @@ func newTX(t transaction.TXType) *transaction.Transaction {
 	return &transaction.Transaction{
 		Type: t,
 	}
+}
+
+func getBlockData(i int) (map[string]interface{}, error) {
+	b, err := ioutil.ReadFile(fmt.Sprintf("test_data/block_%d.json", i))
+	if err != nil {
+		return nil, err
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(b, &data); err != nil {
+		return nil, err
+	}
+	return data, err
 }
