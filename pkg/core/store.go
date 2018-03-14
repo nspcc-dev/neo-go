@@ -3,6 +3,8 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type dataEntry uint8
@@ -45,10 +47,7 @@ func makeEntryPrefix(e dataEntry, b []byte) []byte {
 
 // Store is anything that can persist and retrieve the blockchain.
 type Store interface {
+	get(k []byte) ([]byte, error)
 	write(k, v []byte) error
-	writeBatch(Batch) error
+	writeBatch(batch *leveldb.Batch) error
 }
-
-// Batch is a data type used to store data for later batch operations
-// that can be used by any Store interface implementation.
-type Batch map[*[]byte][]byte

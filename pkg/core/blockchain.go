@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
-	log "github.com/go-kit/kit/log"
+	log "github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // tuning parameters
@@ -19,13 +19,12 @@ const (
 )
 
 var (
-	genAmount = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	persistInterval = 5 * time.Second
 )
 
 // Blockchain holds the chain.
 type Blockchain struct {
-	logger log.Logger
-
 	// Any object that satisfies the BlockchainStorer interface.
 	Store
 
@@ -53,17 +52,13 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain creates a new Blockchain object.
 func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
-	logger := log.NewLogfmtLogger(os.Stderr)
-	logger = log.With(logger, "component", "blockchain")
-
 	bc := &Blockchain{
-		logger:        logger,
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		startHash:     startHash,
 		blockCache:    NewCache(),
-		verifyBlocks:  true,
+		verifyBlocks:  false,
 	}
 	go bc.run()
 	bc.init()
@@ -77,22 +72,30 @@ func (bc *Blockchain) init() {
 }
 
 func (bc *Blockchain) run() {
-	headerList := NewHeaderHashList(bc.startHash)
+	var (
+		headerList   = NewHeaderHashList(bc.startHash)
+		persistTimer = time.NewTimer(persistInterval)
+	)
 	for {
 		select {
 		case op := <-bc.headersOp:
 			op(headerList)
 			bc.headersOpDone <- struct{}{}
+		case <-persistTimer.C:
+			go bc.persist()
+			persistTimer.Reset(persistInterval)
 		}
 	}
 }
 
+// AddBlock processes the given block and will add it to the cache so it
+// can be persisted.
 func (bc *Blockchain) AddBlock(block *Block) error {
 	if !bc.blockCache.Has(block.Hash()) {
 		bc.blockCache.Add(block.Hash(), block)
 	}
 
-	headerLen := int(bc.HeaderHeight() + 1)
+	headerLen := bc.headerListLen()
 	if int(block.Index-1) >= headerLen {
 		return nil
 	}
@@ -105,10 +108,12 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	return nil
 }
 
+// AddHeaders will process the given headers and add them to the
+// HeaderHashList.
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = Batch{}
+		batch = new(leveldb.Batch)
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -132,16 +137,15 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			}
 		}
 
-		// TODO: Implement caching strategy.
-		if len(batch) > 0 {
+		if batch.Len() > 0 {
 			if err = bc.writeBatch(batch); err != nil {
 				return
 			}
-			bc.logger.Log(
-				"msg", "done processing headers",
-				"index", headerList.Len()-1,
-				"took", time.Since(start).Seconds(),
-			)
+			log.WithFields(log.Fields{
+				"headerIndex": headerList.Len() - 1,
+				"blockHeight": bc.BlockHeight(),
+				"took":        time.Since(start),
+			}).Debug("done processing headers")
 		}
 	}
 	<-bc.headersOpDone
@@ -150,7 +154,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := new(bytes.Buffer)
@@ -159,7 +163,7 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 			return err
 		}
 		key := makeEntryPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
-		batch[&key] = buf.Bytes()
+		batch.Put(key, buf.Bytes())
 		bc.storedHeaderCount += headerBatchCount
 		buf.Reset()
 	}
@@ -170,29 +174,40 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 	}
 
 	key := makeEntryPrefix(preDataBlock, h.Hash().BytesReverse())
-	batch[&key] = buf.Bytes()
+	batch.Put(key, buf.Bytes())
 	key = preSYSCurrentHeader.bytes()
-	batch[&key] = hashAndIndexToBytes(h.Hash(), h.Index)
+	batch.Put(key, hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
 
 func (bc *Blockchain) persistBlock(block *Block) error {
-	bc.blockHeight = block.Index
+	batch := new(leveldb.Batch)
+
+	// Store the block.
+	key := preSYSCurrentBlock.bytes()
+	batch.Put(key, hashAndIndexToBytes(block.Hash(), block.Index))
+
+	if err := bc.Store.writeBatch(batch); err != nil {
+		return err
+	}
+
+	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
 
 func (bc *Blockchain) persist() (err error) {
 	var (
+		start     = time.Now()
 		persisted = 0
 		lenCache  = bc.blockCache.Len()
 	)
 
-	for lenCache > persisted {
-		if bc.HeaderHeight()+1 <= bc.BlockHeight() {
-			break
-		}
-		bc.headersOp <- func(headerList *HeaderHashList) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		for i := 0; i < lenCache; i++ {
+			if uint32(headerList.Len()) <= bc.BlockHeight() {
+				return
+			}
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
@@ -200,16 +215,45 @@ func (bc *Blockchain) persist() (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
-			} else {
-				bc.logger.Log(
-					"msg", "block not found in cache",
-					"hash", block.Hash(),
-				)
 			}
 		}
-		<-bc.headersOpDone
 	}
+	<-bc.headersOpDone
+
+	if persisted > 0 {
+		log.WithFields(log.Fields{
+			"persisted":   persisted,
+			"blockHeight": bc.BlockHeight(),
+			"took":        time.Since(start),
+		}).Info("blockchain persist completed")
+	}
+
 	return
+}
+
+func (bc *Blockchain) headerListLen() (n int) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		n = headerList.Len()
+	}
+	<-bc.headersOpDone
+	return
+}
+
+// GetBlock returns a Block by the given hash.
+func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+	return nil, nil
+}
+
+// HasBlock return true if the blockchain contains he given
+// transaction hash.
+func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
+	return false
+}
+
+// HasBlock return true if the blockchain contains the given
+// block hash.
+func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	return false
 }
 
 // CurrentBlockHash returns the heighest processed block hash.
@@ -230,18 +274,24 @@ func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
 	return
 }
 
+// GetHeaderHash return the hash from the headerList by its
+// height/index.
+func (bc *Blockchain) GetHeaderHash(i int) (hash util.Uint256) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		hash = headerList.Get(i)
+	}
+	<-bc.headersOpDone
+	return
+}
+
 // BlockHeight returns the height/index of the highest block.
 func (bc *Blockchain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&bc.blockHeight)
 }
 
 // HeaderHeight returns the index/height of the highest header.
-func (bc *Blockchain) HeaderHeight() (n uint32) {
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		n = uint32(headerList.Len() - 1)
-	}
-	<-bc.headersOpDone
-	return
+func (bc *Blockchain) HeaderHeight() uint32 {
+	return uint32(bc.headerListLen() - 1)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

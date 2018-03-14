@@ -76,6 +76,5 @@ func TestAddBlock(t *testing.T) {
 func newTestBC() *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
 	bc := NewBlockchain(NewMemoryStore(), startHash)
-	bc.verifyBlocks = false
 	return bc
 }

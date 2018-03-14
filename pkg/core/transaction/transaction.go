@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"io"
 
@@ -17,7 +19,7 @@ type Transaction struct {
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data interface{}
+	Data TXer
 
 	// Transaction attributes.
 	Attributes []*Attribute
@@ -32,6 +34,14 @@ type Transaction struct {
 	// Scripts exist out of the verification script
 	// and invocation script.
 	Scripts []*Witness
+
+	// hash of the transaction
+	hash util.Uint256
+}
+
+// Hash return the hash of the transaction.
+func (t *Transaction) Hash() util.Uint256 {
+	return t.hash
 }
 
 // AddOutput adds the given output to the transaction outputs.
@@ -92,6 +102,14 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 		}
 	}
 
+	// Create the hash of the transaction at decode, so we dont need
+	// to do it anymore.
+	hash, err := t.createHash()
+	if err != nil {
+		return err
+	}
+	t.hash = hash
+
 	return nil
 }
 
@@ -106,19 +124,41 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case ClaimType:
 		t.Data = &ClaimTX{}
 		return t.Data.(*ClaimTX).DecodeBinary(r)
+	case ContractType:
+		t.Data = &ContractTX{}
+		return t.Data.(*ContractTX).DecodeBinary(r)
 	}
 	return nil
 }
 
 // EncodeBinary implements the payload interface.
 func (t *Transaction) EncodeBinary(w io.Writer) error {
+	if err := t.EncodeBinaryUnsigned(w); err != nil {
+		return err
+	}
+	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
+		return err
+	}
+	for _, s := range t.Scripts {
+		if err := s.EncodeBinary(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// EncodeBinaryUnsigned will only encode the fields that are not used for
+// signing the transaction, which are all fields except the scripts.
+func (t *Transaction) EncodeBinaryUnsigned(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, t.Type); err != nil {
 		return err
 	}
 	if err := binary.Write(w, binary.LittleEndian, t.Version); err != nil {
 		return err
 	}
-	if err := t.encodeData(w); err != nil {
+
+	// Underlying TXer.
+	if err := t.Data.EncodeBinary(w); err != nil {
 		return err
 	}
 
@@ -151,28 +191,19 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 			return err
 		}
 	}
-
-	// Scripts
-	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
-		return err
-	}
-	for _, s := range t.Scripts {
-		if err := s.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (t *Transaction) encodeData(w io.Writer) error {
-	switch t.Type {
-	case InvocationType:
-		return t.Data.(*InvocationTX).EncodeBinary(w)
-	case MinerType:
-		return t.Data.(*MinerTX).EncodeBinary(w)
-	case ClaimType:
-		return t.Data.(*ClaimTX).EncodeBinary(w)
+func (t *Transaction) createHash() (hash util.Uint256, err error) {
+	buf := new(bytes.Buffer)
+	if err = t.EncodeBinaryUnsigned(buf); err != nil {
+		return
 	}
-	return nil
+	sha := sha256.New()
+	sha.Write(buf.Bytes())
+	b := sha.Sum(nil)
+	sha.Reset()
+	sha.Write(b)
+	b = sha.Sum(nil)
+	return util.Uint256DecodeBytes(util.ArrayReverse(b))
 }

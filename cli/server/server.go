@@ -1,9 +1,12 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/urfave/cli"
 )
 
@@ -18,6 +21,7 @@ func NewCommand() cli.Command {
 			cli.IntFlag{Name: "rpc"},
 			cli.BoolFlag{Name: "relay, r"},
 			cli.StringFlag{Name: "seed"},
+			cli.StringFlag{Name: "dbfile"},
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},
@@ -42,9 +46,39 @@ func startServer(ctx *cli.Context) error {
 		Relay:     ctx.Bool("relay"),
 	}
 
-	s := network.NewServer(cfg)
+	chain, err := newBlockchain(net, ctx.String("dbfile"))
+	if err != nil {
+		err = fmt.Errorf("could not initialize blockhain: %s", err)
+		return cli.NewExitError(err, 1)
+	}
+
+	s := network.NewServer(cfg, chain)
 	s.Start()
 	return nil
+}
+
+func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
+	var startHash util.Uint256
+	if net == network.ModePrivNet {
+		startHash = core.GenesisHashPrivNet()
+	}
+	if net == network.ModeTestNet {
+		startHash = core.GenesisHashTestNet()
+	}
+	if net == network.ModeMainNet {
+		startHash = core.GenesisHashMainNet()
+	}
+
+	// Hardcoded for now.
+	store, err := core.NewLevelDBStore(path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return core.NewBlockchain(
+		store,
+		startHash,
+	), nil
 }
 
 func parseSeeds(s string) []string {

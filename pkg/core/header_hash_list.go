@@ -8,6 +8,8 @@ import (
 )
 
 // A HeaderHashList represents a list of header hashes.
+// This datastructure in not routine safe and should be
+// used under some kind of protection against race conditions.
 type HeaderHashList struct {
 	hashes []util.Uint256
 }
@@ -31,7 +33,7 @@ func (l *HeaderHashList) Len() int {
 
 // Get returns the hash by the given index.
 func (l *HeaderHashList) Get(i int) util.Uint256 {
-	if l.Len() < i {
+	if l.Len() <= i {
 		return util.Uint256{}
 	}
 	return l.hashes[i]

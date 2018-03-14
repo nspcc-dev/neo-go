@@ -36,7 +36,7 @@ func (n NetMode) String() string {
 	case ModeMainNet:
 		return "mainnet"
 	default:
-		return ""
+		return "net unknown"
 	}
 }
 
@@ -49,15 +49,20 @@ const (
 
 // Message is the complete message send between nodes.
 type Message struct {
+	// NetMode of the node that sends this message.
 	Magic NetMode
+
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
 	Command [cmdSize]byte
+
 	// Length of the payload
 	Length uint32
+
 	// Checksum is the first 4 bytes of the value that two times SHA256
 	// hash of the payload
 	Checksum uint32
+
 	// Payload send with the message.
 	Payload payload.Payload
 }
@@ -65,7 +70,7 @@ type Message struct {
 // CommandType represents the type of a message command.
 type CommandType string
 
-// valid commands used to send between nodes.
+// Valid protocol commands used to send between nodes.
 const (
 	CMDVersion    CommandType = "version"
 	CMDVerack     CommandType = "verack"
@@ -144,31 +149,22 @@ func (m *Message) CommandType() CommandType {
 
 // decode a Message from the given reader.
 func (m *Message) decode(r io.Reader) error {
-	err := binary.Read(r, binary.LittleEndian, &m.Magic)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Magic); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Command)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Command); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Length)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Length); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Checksum)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Checksum); err != nil {
 		return err
 	}
-
 	// return if their is no payload.
 	if m.Length == 0 {
 		return nil
 	}
-
 	return m.decodePayload(r)
 }
 
@@ -188,42 +184,41 @@ func (m *Message) decodePayload(r io.Reader) error {
 		return errChecksumMismatch
 	}
 
-	r = buf
 	var p payload.Payload
 	switch m.CommandType() {
 	case CMDVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDInv:
 		p = &payload.Inventory{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDBlock:
 		p = &core.Block{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDHeaders:
 		p = &payload.Headers{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	case CMDTX:
 		p = &transaction.Transaction{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	}
@@ -247,11 +242,9 @@ func (m *Message) encode(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
 		return err
 	}
-
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)
 	}
-
 	return nil
 }
 

@@ -10,8 +10,8 @@ const (
 	ECDH03         AttrUsage = 0x03
 	Script         AttrUsage = 0x20
 	Vote           AttrUsage = 0x30
-	CertUrl        AttrUsage = 0x80
-	DescriptionUrl AttrUsage = 0x81
+	CertURL        AttrUsage = 0x80
+	DescriptionURL AttrUsage = 0x81
 	Description    AttrUsage = 0x90
 
 	Hash1  AttrUsage = 0xa1
@@ -45,5 +45,5 @@ const (
 	Remark12 AttrUsage = 0xfc
 	Remark13 AttrUsage = 0xfd
 	Remark14 AttrUsage = 0xfe
-	Remark15 AttrUsage = 0xf
+	Remark15 AttrUsage = 0xff
 )

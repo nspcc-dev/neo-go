@@ -15,7 +15,6 @@ vendor/
 bin/
 
 # text editors
-
 # vscode
 .vscode/*
 !.vscode/settings.json
@@ -25,3 +24,9 @@ bin/
 
 # anthdm todolists
 /pkg/vm/compiler/todo.md
+
+# leveldb 
+chains/
+chain/
+blockchain/
+blockchains/

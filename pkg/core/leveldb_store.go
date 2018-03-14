@@ -2,24 +2,40 @@ package core
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 // LevelDBStore is the official storage implementation for storing and retreiving
-// the blockchain.
+// blockchain data.
 type LevelDBStore struct {
-	db *leveldb.DB
+	db   *leveldb.DB
+	path string
 }
 
-// Write implements the Store interface.
+// NewLevelDBStore return a new LevelDBStore object that will
+// initialize the database found at the given path.
+func NewLevelDBStore(path string, opts *opt.Options) (*LevelDBStore, error) {
+	db, err := leveldb.OpenFile(path, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &LevelDBStore{
+		path: path,
+		db:   db,
+	}, nil
+}
+
+// write implements the Store interface.
 func (s *LevelDBStore) write(key, value []byte) error {
 	return s.db.Put(key, value, nil)
 }
 
-// WriteBatch implements the Store interface.
-func (s *LevelDBStore) writeBatch(batch Batch) error {
-	b := new(leveldb.Batch)
-	for k, v := range batch {
-		b.Put(*k, v)
-	}
-	return s.db.Write(b, nil)
+//get implements the Store interface.
+func (s *LevelDBStore) get(key []byte) ([]byte, error) {
+	return s.db.Get(key, nil)
+}
+
+// writeBatch implements the Store interface.
+func (s *LevelDBStore) writeBatch(batch *leveldb.Batch) error {
+	return s.db.Write(batch, nil)
 }

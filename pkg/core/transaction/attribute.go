@@ -34,7 +34,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		attr.Data = make([]byte, 20)
 		return binary.Read(r, binary.LittleEndian, attr.Data)
 	}
-	if attr.Usage == DescriptionUrl {
+	if attr.Usage == DescriptionURL {
 		attr.Data = make([]byte, 1)
 		return binary.Read(r, binary.LittleEndian, attr.Data)
 	}
@@ -63,7 +63,7 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 	if attr.Usage == Script {
 		return binary.Write(w, binary.LittleEndian, attr.Data)
 	}
-	if attr.Usage == DescriptionUrl {
+	if attr.Usage == DescriptionURL {
 		if err := util.WriteVarUint(w, uint64(len(attr.Data))); err != nil {
 			return err
 		}
