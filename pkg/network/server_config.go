@@ -6,18 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	maxPeers      = 50
-	minPeers      = 5
-	maxBlockBatch = 200
-	minPoolCount  = 30
-)
-
-var (
-	protoTickInterval = 10 * time.Second
-	dialTimeout       = 3 * time.Second
-)
-
 type (
 	// ServerConfig holds the server configuration.
 	ServerConfig struct {
@@ -58,14 +46,17 @@ type (
 // NewServerConfig creates a new ServerConfig struct
 // using the main applications config.
 func NewServerConfig(config Config) ServerConfig {
+	appConfig := config.ApplicationConfiguration
+	protoConfig := config.ProtocolConfiguration
+
 	return ServerConfig{
 		UserAgent:         config.GenerateUserAgent(),
-		ListenTCP:         uint16(config.ApplicationConfiguration.NodePort),
-		Net:               config.ProtocolConfiguration.Magic,
-		Relay:             config.ApplicationConfiguration.Relay,
-		Seeds:             config.ProtocolConfiguration.SeedList,
-		DialTimeout:       dialTimeout,
-		ProtoTickInterval: protoTickInterval,
-		MaxPeers:          maxPeers,
+		ListenTCP:         appConfig.NodePort,
+		Net:               protoConfig.Magic,
+		Relay:             appConfig.Relay,
+		Seeds:             protoConfig.SeedList,
+		DialTimeout:       (appConfig.DialTimeout * time.Second),
+		ProtoTickInterval: (appConfig.ProtoTickInterval * time.Second),
+		MaxPeers:          appConfig.MaxPeers,
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -51,9 +52,12 @@ type (
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
 		DataDirectoryPath string
-		RPCPort           int
-		NodePort          int
+		RPCPort           uint16
+		NodePort          uint16
 		Relay             bool
+		DialTimeout       time.Duration
+		ProtoTickInterval time.Duration
+		MaxPeers          int
 	}
 )
 
@@ -75,7 +79,13 @@ func LoadConfig(path string, netMode NetMode) (Config, error) {
 		return Config{}, errors.Wrap(err, "Unable to read config")
 	}
 
-	var config Config
+	config := Config{
+		ProtocolConfiguration: ProtocolConfiguration{
+			SystemFee: SystemFee{},
+		},
+		ApplicationConfiguration: ApplicationConfiguration{},
+	}
+
 	err = json.Unmarshal([]byte(configData), &config)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")

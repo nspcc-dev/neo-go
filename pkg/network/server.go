@@ -12,6 +12,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	minPeers      = 5
+	maxBlockBatch = 200
+	minPoolCount  = 30
+)
+
 var (
 	errPortMismatch     = errors.New("port mismatch")
 	errIdenticalID      = errors.New("identical node id")

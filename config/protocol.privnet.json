@@ -25,6 +25,9 @@
     "DataDirectoryPath": "./Chains/privnet",
     "RPCPort": 20332,
     "NodePort": 20333,
-    "Relay": true
+    "Relay": true,
+    "DialTimeout": 3,
+    "ProtoTickInterval": 10,
+    "MaxPeers": 50
   }
 }
