@@ -1,12 +1,12 @@
 package network
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 )
 
@@ -27,37 +27,37 @@ type (
 	// Config top level struct representing the config
 	// for the node.
 	Config struct {
-		ProtocolConfiguration    ProtocolConfiguration
-		ApplicationConfiguration ApplicationConfiguration
+		ProtocolConfiguration    ProtocolConfiguration    `yaml:"ProtocolConfiguration"`
+		ApplicationConfiguration ApplicationConfiguration `yaml:"ApplicationConfiguration"`
 	}
 
 	// ProtocolConfiguration represents the protolcol config.
 	ProtocolConfiguration struct {
-		Magic                   NetMode
-		AddressVersion          int64
-		MaxTransactionsPerBlock int64
-		StandbyValidators       []string
-		SeedList                []string
-		SystemFee               SystemFee
+		Magic                   NetMode   `yaml:"Magic"`
+		AddressVersion          int64     `yaml:"AddressVersion"`
+		MaxTransactionsPerBlock int64     `yaml:"MaxTransactionsPerBlock"`
+		StandbyValidators       []string  `yaml:"StandbyValidators"`
+		SeedList                []string  `yaml:"SeedList"`
+		SystemFee               SystemFee `yaml:"SystemFee"`
 	}
 
 	// SystemFee fees related to system.
 	SystemFee struct {
-		EnrollmentTransaction int64
-		IssueTransaction      int64
-		PublishTransaction    int64
-		RegisterTransaction   int64
+		EnrollmentTransaction int64 `yaml:"EnrollmentTransaction"`
+		IssueTransaction      int64 `yaml:"IssueTransaction"`
+		PublishTransaction    int64 `yaml:"PublishTransaction"`
+		RegisterTransaction   int64 `yaml:"RegisterTransaction"`
 	}
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
-		DataDirectoryPath string
-		RPCPort           uint16
-		NodePort          uint16
-		Relay             bool
-		DialTimeout       time.Duration
-		ProtoTickInterval time.Duration
-		MaxPeers          int
+		DataDirectoryPath string        `yaml:"DataDirectoryPath"`
+		RPCPort           uint16        `yaml:"RPCPort"`
+		NodePort          uint16        `yaml:"NodePort"`
+		Relay             bool          `yaml:"Relay"`
+		DialTimeout       time.Duration `yaml:"DialTimeout"`
+		ProtoTickInterval time.Duration `yaml:"ProtoTickInterval"`
+		MaxPeers          int           `yaml:"MaxPeers"`
 	}
 )
 
@@ -69,7 +69,7 @@ func (c Config) GenerateUserAgent() string {
 // LoadConfig attempts to load the config from the give
 // path and netMode.
 func LoadConfig(path string, netMode NetMode) (Config, error) {
-	configPath := fmt.Sprintf("%s/protocol.%s.json", path, netMode)
+	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return Config{}, errors.Wrap(err, "Unable to load config")
 	}
@@ -86,7 +86,7 @@ func LoadConfig(path string, netMode NetMode) (Config, error) {
 		ApplicationConfiguration: ApplicationConfiguration{},
 	}
 
-	err = json.Unmarshal([]byte(configData), &config)
+	err = yaml.Unmarshal([]byte(configData), &config)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}
