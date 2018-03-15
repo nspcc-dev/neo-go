@@ -1,10 +1,13 @@
 package core
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"testing"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -40,6 +43,25 @@ func newTX(t transaction.TXType) *transaction.Transaction {
 	return &transaction.Transaction{
 		Type: t,
 	}
+}
+
+func getDecodedBlock(t *testing.T, i int) *Block {
+	data, err := getBlockData(i)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := hex.DecodeString(data["raw"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block := &Block{}
+	if err := block.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+
+	return block
 }
 
 func getBlockData(i int) (map[string]interface{}, error) {

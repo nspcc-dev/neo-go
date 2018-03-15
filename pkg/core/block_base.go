@@ -15,22 +15,30 @@ import (
 type BlockBase struct {
 	// Version of the block.
 	Version uint32
+
 	// hash of the previous block.
 	PrevHash util.Uint256
+
 	// Root hash of a transaction list.
 	MerkleRoot util.Uint256
+
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
 	Timestamp uint32
+
 	// index/height of the block
 	Index uint32
+
 	// Random number also called nonce
 	ConsensusData uint64
+
 	// Contract addresss of the next miner
 	NextConsensus util.Uint160
+
 	// Padding that is fixed to 1
 	_ uint8
+
 	// Script used to validate the block
 	Script *transaction.Witness
 
@@ -44,27 +52,14 @@ func (b *BlockBase) Verify() bool {
 	return true
 }
 
+// Hash return the hash of the block.
+func (b *BlockBase) Hash() util.Uint256 {
+	return b.hash
+}
+
 // DecodeBinary implements the payload interface.
 func (b *BlockBase) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &b.Version); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.PrevHash); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.MerkleRoot); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.Index); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.ConsensusData); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.NextConsensus); err != nil {
+	if err := b.decodeHashableFields(r); err != nil {
 		return err
 	}
 
@@ -77,23 +72,18 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 	}
 
 	b.Script = &transaction.Witness{}
-	if err := b.Script.DecodeBinary(r); err != nil {
-		return err
-	}
-
-	// Make the hash of the block here so we dont need to do this
-	// again.
-	hash, err := b.createHash()
-	if err != nil {
-		return err
-	}
-	b.hash = hash
-	return nil
+	return b.Script.DecodeBinary(r)
 }
 
-// Hash return the hash of the block.
-func (b *BlockBase) Hash() util.Uint256 {
-	return b.hash
+// EncodeBinary implements the Payload interface
+func (b *BlockBase) EncodeBinary(w io.Writer) error {
+	if err := b.encodeHashableFields(w); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, uint8(1)); err != nil {
+		return err
+	}
+	return b.Script.EncodeBinary(w)
 }
 
 // createHash creates the hash of the block.
@@ -117,34 +107,58 @@ func (b *BlockBase) createHash() (hash util.Uint256, err error) {
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, &b.Version); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.Version); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, &b.PrevHash); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.PrevHash); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, &b.MerkleRoot); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.MerkleRoot); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, &b.Timestamp); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.Timestamp); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, &b.Index); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.Index); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, &b.ConsensusData); err != nil {
+	if err := binary.Write(w, binary.LittleEndian, b.ConsensusData); err != nil {
 		return err
 	}
-	return binary.Write(w, binary.LittleEndian, &b.NextConsensus)
+	return binary.Write(w, binary.LittleEndian, b.NextConsensus)
 }
 
-// EncodeBinary implements the Payload interface
-func (b *BlockBase) EncodeBinary(w io.Writer) error {
-	if err := b.encodeHashableFields(w); err != nil {
+// decodeHashableFields will only decode the fields used for hashing.
+// see Hash() for more information about the fields.
+func (b *BlockBase) decodeHashableFields(r io.Reader) error {
+	if err := binary.Read(r, binary.LittleEndian, &b.Version); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, uint8(1)); err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &b.PrevHash); err != nil {
 		return err
 	}
-	return b.Script.EncodeBinary(w)
+	if err := binary.Read(r, binary.LittleEndian, &b.MerkleRoot); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.Index); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.ConsensusData); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &b.NextConsensus); err != nil {
+		return err
+	}
+
+	// Make the hash of the block here so we dont need to do this
+	// again.
+	hash, err := b.createHash()
+	if err != nil {
+		return err
+	}
+	b.hash = hash
+	return nil
 }

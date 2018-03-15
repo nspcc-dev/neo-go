@@ -37,6 +37,19 @@ type Transaction struct {
 
 	// hash of the transaction
 	hash util.Uint256
+
+	// Trimmed indicates this is a transaction from trimmed
+	// data.
+	Trimmed bool
+}
+
+// NewTrimmedTX returns a trimmed transaction with only its hash
+// and Trimmed to true.
+func NewTrimmedTX(hash util.Uint256) *Transaction {
+	return &Transaction{
+		hash:    hash,
+		Trimmed: true,
+	}
 }
 
 // Hash return the hash of the transaction.
@@ -133,7 +146,7 @@ func (t *Transaction) decodeData(r io.Reader) error {
 
 // EncodeBinary implements the payload interface.
 func (t *Transaction) EncodeBinary(w io.Writer) error {
-	if err := t.EncodeBinaryUnsigned(w); err != nil {
+	if err := t.encodeHashableFields(w); err != nil {
 		return err
 	}
 	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
@@ -147,9 +160,9 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
-// EncodeBinaryUnsigned will only encode the fields that are not used for
+// encodeHashableFields will only encode the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
-func (t *Transaction) EncodeBinaryUnsigned(w io.Writer) error {
+func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, t.Type); err != nil {
 		return err
 	}
@@ -163,7 +176,8 @@ func (t *Transaction) EncodeBinaryUnsigned(w io.Writer) error {
 	}
 
 	// Attributes
-	if err := util.WriteVarUint(w, uint64(len(t.Attributes))); err != nil {
+	lenAttrs := uint64(len(t.Attributes))
+	if err := util.WriteVarUint(w, lenAttrs); err != nil {
 		return err
 	}
 	for _, attr := range t.Attributes {
@@ -196,7 +210,7 @@ func (t *Transaction) EncodeBinaryUnsigned(w io.Writer) error {
 
 func (t *Transaction) createHash() (hash util.Uint256, err error) {
 	buf := new(bytes.Buffer)
-	if err = t.EncodeBinaryUnsigned(buf); err != nil {
+	if err = t.encodeHashableFields(buf); err != nil {
 		return
 	}
 	sha := sha256.New()

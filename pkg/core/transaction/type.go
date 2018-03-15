@@ -4,7 +4,7 @@ package transaction
 type TXType uint8
 
 // All processes in NEO system are recorded in transactions.
-// There are several types of transactions.
+// Valid transaction types.
 const (
 	MinerType      TXType = 0x00
 	IssueType      TXType = 0x01
