@@ -20,22 +20,10 @@
   version = "v1.1.0"
 
 [[projects]]
-  name = "github.com/go-kit/kit"
-  packages = ["log"]
-  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
-  version = "v0.6.0"
-
-[[projects]]
-  name = "github.com/go-logfmt/logfmt"
+  name = "github.com/go-yaml/yaml"
   packages = ["."]
-  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
-  version = "v0.3.0"
-
-[[projects]]
-  name = "github.com/go-stack/stack"
-  packages = ["."]
-  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
-  version = "v1.7.0"
+  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
+  version = "v2.1.1"
 
 [[projects]]
   branch = "master"
@@ -44,10 +32,10 @@
   revision = "553a641470496b2327abcac10b36396bd98e45c9"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/kr/logfmt"
+  name = "github.com/pkg/errors"
   packages = ["."]
-  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -138,6 +126,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "333dfa54a358d83b266025eff7f15854652631d90e18e61fa75723c5a030778b"
+  inputs-digest = "7e6d4161196284974f07ba9655d21ee9b4fe1478ef0e054e159df73aeec1343a"
   solver-name = "gps-cdcl"
   solver-version = 1
