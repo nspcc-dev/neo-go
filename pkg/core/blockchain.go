@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -51,7 +52,7 @@ type Blockchain struct {
 type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain creates a new Blockchain object.
-func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
+func NewBlockchain(s Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
@@ -61,14 +62,33 @@ func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
 		verifyBlocks:  false,
 	}
 	go bc.run()
-	bc.init()
 
-	return bc
+	if err := bc.init(); err != nil {
+		return nil, err
+	}
+
+	return bc, nil
 }
 
-func (bc *Blockchain) init() {
-	// for the initial header, for now
-	bc.storedHeaderCount = 1
+func (bc *Blockchain) init() error {
+	currBlockBytes, err := bc.Get(preSYSCurrentBlock.bytes())
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			// for the initial header, for now
+			bc.storedHeaderCount = 1
+			return nil
+		}
+		return err
+	}
+
+	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
+
+	bc.Find(preIXHeaderHashList.bytes(), func(k, v []byte) {
+		//stored := binary.LittleEndian.Uint32(k[1:])
+		fmt.Println(k)
+	})
+
+	return nil
 }
 
 func (bc *Blockchain) run() {
@@ -138,7 +158,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if batch.Len() > 0 {
-			if err = bc.writeBatch(batch); err != nil {
+			if err = bc.PutBatch(batch); err != nil {
 				return
 			}
 			log.WithFields(log.Fields{
@@ -154,15 +174,16 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := new(bytes.Buffer)
 	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
+		fmt.Println(bc.storedHeaderCount)
 		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
-		key := makeEntryPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
+		key := appendPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
 		batch.Put(key, buf.Bytes())
 		bc.storedHeaderCount += headerBatchCount
 		buf.Reset()
@@ -173,10 +194,9 @@ func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList 
 		return err
 	}
 
-	key := makeEntryPrefix(preDataBlock, h.Hash().BytesReverse())
+	key := appendPrefix(preDataBlock, h.Hash().BytesReverse())
 	batch.Put(key, buf.Bytes())
-	key = preSYSCurrentHeader.bytes()
-	batch.Put(key, hashAndIndexToBytes(h.Hash(), h.Index))
+	batch.Put(preSYSCurrentHeader.bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
@@ -184,11 +204,10 @@ func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList 
 func (bc *Blockchain) persistBlock(block *Block) error {
 	batch := new(leveldb.Batch)
 
-	// Store the block.
-	key := preSYSCurrentBlock.bytes()
-	batch.Put(key, hashAndIndexToBytes(block.Hash(), block.Index))
+	storeAsBlock(batch, block, 0)
+	storeAsCurrentBlock(batch, block)
 
-	if err := bc.Store.writeBatch(batch); err != nil {
+	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
 

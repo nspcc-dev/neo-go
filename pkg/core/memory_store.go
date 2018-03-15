@@ -1,9 +1,7 @@
 package core
 
-import "github.com/syndtr/goleveldb/leveldb"
-
-// MemoryStore is an in memory implementation of a BlockChainStorer
-// that should only be used for testing.
+// MemoryStore is an in memory implementation of a Store.
+// MemoryStore should only be used for testing.
 type MemoryStore struct{}
 
 // NewMemoryStore returns a pointer to a MemoryStore object.
@@ -11,17 +9,21 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{}
 }
 
-// get implementes the BlockchainStorer interface.
-func (m *MemoryStore) get(key []byte) ([]byte, error) {
-	return nil, nil
+// Get implementes the Store interface.
+func (m *MemoryStore) Get(key []byte) ([]byte, error) {
+	return nil, errKeyNotFound
 }
 
-// write implementes the BlockchainStorer interface.
-func (m *MemoryStore) write(key, value []byte) error {
+// Put implementes the Store interface.
+func (m *MemoryStore) Put(key, value []byte) error {
 	return nil
 }
 
-// writeBatch implementes the BlockchainStorer interface.
-func (m *MemoryStore) writeBatch(batch *leveldb.Batch) error {
+// PutBatch implementes the Store interface.
+func (m *MemoryStore) PutBatch(batch Batch) error {
 	return nil
+}
+
+// Find implementes the Store interface.
+func (m *MemoryStore) Find(key []byte, f func(k, v []byte)) {
 }

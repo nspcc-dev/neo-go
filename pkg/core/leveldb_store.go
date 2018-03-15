@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 // LevelDBStore is the official storage implementation for storing and retreiving
@@ -25,17 +26,26 @@ func NewLevelDBStore(path string, opts *opt.Options) (*LevelDBStore, error) {
 	}, nil
 }
 
-// write implements the Store interface.
-func (s *LevelDBStore) write(key, value []byte) error {
+// Put implements the Store interface.
+func (s *LevelDBStore) Put(key, value []byte) error {
 	return s.db.Put(key, value, nil)
 }
 
-//get implements the Store interface.
-func (s *LevelDBStore) get(key []byte) ([]byte, error) {
+// Get implements the Store interface.
+func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 	return s.db.Get(key, nil)
 }
 
-// writeBatch implements the Store interface.
-func (s *LevelDBStore) writeBatch(batch *leveldb.Batch) error {
-	return s.db.Write(batch, nil)
+// PutBatch implements the Store interface.
+func (s *LevelDBStore) PutBatch(batch Batch) error {
+	lvldbBatch := batch.(*leveldb.Batch)
+	return s.db.Write(lvldbBatch, nil)
+}
+
+// Find implements the Store interface.
+func (s *LevelDBStore) Find(key []byte, f func(k, v []byte)) {
+	iter := s.db.NewIterator(util.BytesPrefix(key), nil)
+	for iter.Next() {
+		f(iter.Key(), iter.Value())
+	}
 }

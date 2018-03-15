@@ -14,6 +14,11 @@ type HeaderHashList struct {
 	hashes []util.Uint256
 }
 
+// NewHeaderHashListFromBytes return a new hash list from the given bytes.
+func NewHeaderHashListFromBytes(b []byte) (*HeaderHashList, error) {
+	return nil, nil
+}
+
 // NewHeaderHashList return a new pointer to a HeaderHashList.
 func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 	return &HeaderHashList{

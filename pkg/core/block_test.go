@@ -69,7 +69,6 @@ func TestTrimmedBlock(t *testing.T) {
 
 	assert.Equal(t, block.Script, trimmedBlock.Script)
 	assert.Equal(t, len(block.Transactions), len(trimmedBlock.Transactions))
-
 	for i := 0; i < len(block.Transactions); i++ {
 		assert.Equal(t, block.Transactions[i].Hash(), trimmedBlock.Transactions[i].Hash())
 		assert.True(t, trimmedBlock.Transactions[i].Trimmed)

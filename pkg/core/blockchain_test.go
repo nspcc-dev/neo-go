@@ -9,7 +9,10 @@ import (
 
 func TestNewBlockchain(t *testing.T) {
 	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
-	bc := NewBlockchain(nil, startHash)
+	bc, err := NewBlockchain(NewMemoryStore(), startHash)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, uint32(0), bc.HeaderHeight())
@@ -75,6 +78,6 @@ func TestAddBlock(t *testing.T) {
 
 func newTestBC() *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
-	bc := NewBlockchain(NewMemoryStore(), startHash)
+	bc, _ := NewBlockchain(NewMemoryStore(), startHash)
 	return bc
 }

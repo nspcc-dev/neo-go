@@ -75,10 +75,7 @@ func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
 		return nil, err
 	}
 
-	return core.NewBlockchain(
-		store,
-		startHash,
-	), nil
+	return core.NewBlockchain(store, startHash)
 }
 
 func parseSeeds(s string) []string {

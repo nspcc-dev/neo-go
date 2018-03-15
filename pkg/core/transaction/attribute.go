@@ -3,7 +3,6 @@ package transaction
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -20,7 +19,6 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &attr.Usage); err != nil {
 		return err
 	}
-	fmt.Printf("0x%2x", attr.Usage)
 	if attr.Usage == ContractHash ||
 		attr.Usage == Vote ||
 		(attr.Usage >= Hash1 && attr.Usage <= Hash15) {
