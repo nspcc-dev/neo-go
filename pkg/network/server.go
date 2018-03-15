@@ -12,17 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	maxPeers      = 50
-	minPeers      = 5
-	maxBlockBatch = 200
-	minPoolCount  = 30
-)
-
 var (
-	protoTickInterval = 10 * time.Second
-	dialTimeout       = 3 * time.Second
-
 	errPortMismatch     = errors.New("port mismatch")
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
@@ -31,47 +21,12 @@ var (
 	errInvalidInvType   = errors.New("invalid inventory type")
 )
 
-// Config holds the server configuration.
-type Config struct {
-	// MaxPeers it the maximum numbers of peers that can
-	// be connected to the server.
-	MaxPeers int
-
-	// The user agent of the server.
-	UserAgent string
-
-	// The listen address of the TCP server.
-	ListenTCP uint16
-
-	// The network mode the server will operate on.
-	// ModePrivNet docker private network.
-	// ModeTestNet NEO test network.
-	// ModeMainNet NEO main network.
-	Net NetMode
-
-	// Relay determins whether the server is forwarding its inventory.
-	Relay bool
-
-	// Seeds are a list of initial nodes used to establish connectivity.
-	Seeds []string
-
-	// Maximum duration a single dial may take.
-	DialTimeout time.Duration
-
-	// The duration between protocol ticks with each connected peer.
-	// When this is 0, the default interval of 5 seconds will be used.
-	ProtoTickInterval time.Duration
-
-	// Level of the internal logger.
-	LogLevel log.Level
-}
-
 type (
 	// Server represents the local Node in the network. Its transport could
 	// be of any kind.
 	Server struct {
-		// Config holds the Server configuration.
-		Config
+		// ServerConfig holds the Server configuration.
+		ServerConfig
 
 		// id also known as the nonce of te server.
 		id uint32
@@ -102,29 +57,18 @@ type (
 )
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(cfg Config, chain *core.Blockchain) *Server {
-	if cfg.ProtoTickInterval == 0 {
-		cfg.ProtoTickInterval = protoTickInterval
-	}
-	if cfg.DialTimeout == 0 {
-		cfg.DialTimeout = dialTimeout
-	}
-	if cfg.MaxPeers == 0 {
-		cfg.MaxPeers = maxPeers
-	}
-	log.SetLevel(log.DebugLevel)
-
+func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 	s := &Server{
-		Config:     cfg,
-		chain:      chain,
-		id:         util.RandUint32(1000000, 9999999),
-		quit:       make(chan struct{}),
-		register:   make(chan Peer),
-		unregister: make(chan peerDrop),
-		peers:      make(map[Peer]bool),
+		ServerConfig: config,
+		chain:        chain,
+		id:           util.RandUint32(1000000, 9999999),
+		quit:         make(chan struct{}),
+		register:     make(chan Peer),
+		unregister:   make(chan peerDrop),
+		peers:        make(map[Peer]bool),
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", cfg.ListenTCP))
+	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
 	s.proto = s.transport.Consumer()
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
@@ -163,7 +107,7 @@ func (s *Server) run() {
 			}
 		case <-s.quit:
 			s.transport.Close()
-			for p, _ := range s.peers {
+			for p := range s.peers {
 				p.Disconnect(errServerShutdown)
 			}
 			return

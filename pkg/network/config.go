@@ -9,6 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	userAgentFormat = "/NEO-GO:%s/"
+)
+
 var (
 	// Version the version of the node, set at build time.
 	Version string
@@ -24,12 +28,11 @@ type (
 	Config struct {
 		ProtocolConfiguration    ProtocolConfiguration
 		ApplicationConfiguration ApplicationConfiguration
-		NetMode                  NetMode
 	}
 
 	// ProtocolConfiguration represents the protolcol config.
 	ProtocolConfiguration struct {
-		Magic                   int64
+		Magic                   NetMode
 		AddressVersion          int64
 		MaxTransactionsPerBlock int64
 		StandbyValidators       []string
@@ -47,21 +50,16 @@ type (
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
-		RPCPort  int
-		NodePort int
+		DataDirectoryPath string
+		RPCPort           int
+		NodePort          int
+		Relay             bool
 	}
 )
 
-// HasSeeds returns true if the config contains a set of seed
-// peers to connect to.
-func (c Config) HasSeeds() bool {
-	return len(c.ProtocolConfiguration.SeedList) > 0
-}
-
-// HasValidNetMode returns true if the given netmode is
-// valid or not.
-func (c Config) HasValidNetMode() bool {
-	return c.NetMode == ModeTestNet || c.NetMode == ModeMainNet || c.NetMode == ModePrivNet
+// GenerateUserAgent creates user agent string based on build time environment.
+func (c Config) GenerateUserAgent() string {
+	return fmt.Sprintf(userAgentFormat, Version)
 }
 
 // LoadConfig attempts to load the config from the give
@@ -82,8 +80,6 @@ func LoadConfig(path string, netMode NetMode) (Config, error) {
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}
-
-	config.NetMode = netMode
 
 	return config, nil
 }

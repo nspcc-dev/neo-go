@@ -22,7 +22,9 @@
     }
   },
   "ApplicationConfiguration": {
+    "DataDirectoryPath": "./Chains/privnet",
     "RPCPort": 20332,
-    "NodePort": 3000
+    "NodePort": 20333,
+    "Relay": true
   }
 }

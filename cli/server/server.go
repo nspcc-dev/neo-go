@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -17,12 +16,7 @@ func NewCommand() cli.Command {
 		Usage:  "start a NEO node",
 		Action: startServer,
 		Flags: []cli.Flag{
-			cli.IntFlag{Name: "tcp"},
-			cli.IntFlag{Name: "rpc"},
-			cli.BoolFlag{Name: "relay, r"},
-			cli.StringFlag{Name: "seed"},
-			cli.StringFlag{Name: "dbfile"},
-			cli.String{Name: "config-path"},
+			cli.StringFlag{Name: "config-path"},
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},
@@ -39,21 +33,21 @@ func startServer(ctx *cli.Context) error {
 		net = network.ModeMainNet
 	}
 
-	cfg := network.Config{
-		UserAgent: "/NEO-GO:0.26.0/",
-		ListenTCP: uint16(ctx.Int("tcp")),
-		Seeds:     parseSeeds(ctx.String("seed")),
-		Net:       net,
-		Relay:     ctx.Bool("relay"),
+	configPath := "./config"
+	configPath = ctx.String("config-path")
+	config, err := network.LoadConfig(configPath, net)
+	if err != nil {
+		return err
 	}
 
-	chain, err := newBlockchain(net, ctx.String("dbfile"))
+	serverConfig := network.NewServerConfig(config)
+	chain, err := newBlockchain(net, config.ApplicationConfiguration.DataDirectoryPath)
 	if err != nil {
 		err = fmt.Errorf("could not initialize blockhain: %s", err)
 		return cli.NewExitError(err, 1)
 	}
 
-	s := network.NewServer(cfg, chain)
+	s := network.NewServer(serverConfig, chain)
 	s.Start()
 	return nil
 }
@@ -80,15 +74,4 @@ func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
 		store,
 		startHash,
 	), nil
-}
-
-func parseSeeds(s string) []string {
-	if len(s) == 0 {
-		return nil
-	}
-	seeds := strings.Split(s, ",")
-	if len(seeds) == 0 {
-		return nil
-	}
-	return seeds
 }

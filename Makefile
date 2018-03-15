@@ -1,9 +1,7 @@
 BRANCH = "master"
 BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
 VERSION = $(shell cat ./VERSION)
-SEEDS ?= "127.0.0.1:20333"
-PORT ?= "3000"
-DBFILE ?= "chain"
+NETMODE ?= "privnet"
 
 build:
 	@go build -ldflags "-X github.com/CityOfZion/neo-go/pkg/network.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/pkg/network.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
@@ -21,7 +19,7 @@ push-tag:
 	git push origin ${VERSION}
 
 run: build
-	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT} -dbfile ${DBFILE} --relay true -config-path ./config
+	./bin/neo-go node -config-path ./config -${NETMODE}
 
 test:
 	@go test ./... -cover
