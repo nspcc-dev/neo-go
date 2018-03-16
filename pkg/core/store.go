@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"sort"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 var errKeyNotFound = errors.New("key not found")
@@ -89,4 +92,39 @@ func storeAsBlock(batch Batch, block *Block, sysFee uint32) error {
 	buf.Write(b)
 	batch.Put(key, buf.Bytes())
 	return nil
+}
+
+// readStoredHeaderList returns a sorted list of header hashes
+// retrieved from the given Store.
+func readStoredHeaderList(store Store) ([]util.Uint256, error) {
+	hashMap := make(map[uint32][]util.Uint256)
+	store.Find(preIXHeaderHashList.bytes(), func(k, v []byte) {
+		storedCount := binary.LittleEndian.Uint32(k[1:])
+		hashes, err := util.Read2000Uint256Hashes(v)
+		if err != nil {
+			panic(err)
+		}
+		hashMap[storedCount] = hashes
+	})
+
+	var (
+		i          = 0
+		sortedKeys = make([]int, len(hashMap))
+	)
+
+	for k, _ := range hashMap {
+		sortedKeys[i] = int(k)
+		i++
+	}
+	sort.Ints(sortedKeys)
+
+	hashes := []util.Uint256{}
+	for _, key := range sortedKeys {
+		values := hashMap[uint32(key)]
+		for _, hash := range values {
+			hashes = append(hashes, hash)
+		}
+	}
+
+	return hashes, nil
 }

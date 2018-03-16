@@ -48,4 +48,5 @@ func (s *LevelDBStore) Find(key []byte, f func(k, v []byte)) {
 	for iter.Next() {
 		f(iter.Key(), iter.Value())
 	}
+	iter.Release()
 }

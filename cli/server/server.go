@@ -37,7 +37,7 @@ func startServer(ctx *cli.Context) error {
 	configPath = ctx.String("config-path")
 	config, err := network.LoadConfig(configPath, net)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	serverConfig := network.NewServerConfig(config)

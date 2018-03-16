@@ -41,6 +41,10 @@ type Blockchain struct {
 
 	startHash util.Uint256
 
+	// All operation on headerList must be called from an
+	// headersOp to be routine safe.
+	headerList *HeaderHashList
+
 	// Only for operating on the headerList.
 	headersOp     chan headersOpFunc
 	headersOpDone chan struct{}
@@ -75,6 +79,7 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			// for the initial header, for now
+			bc.headerList = NewHeaderHashList(bc.startHash)
 			bc.storedHeaderCount = 1
 			return nil
 		}
@@ -82,24 +87,22 @@ func (bc *Blockchain) init() error {
 	}
 
 	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
-
-	bc.Find(preIXHeaderHashList.bytes(), func(k, v []byte) {
-		//stored := binary.LittleEndian.Uint32(k[1:])
-		fmt.Println(k)
-	})
+	headerList, err := readStoredHeaderList(bc.Store)
+	if err != nil {
+		return err
+	}
+	bc.headerList = NewHeaderHashList(headerList...)
+	bc.storedHeaderCount = uint32(bc.headerList.Len())
 
 	return nil
 }
 
 func (bc *Blockchain) run() {
-	var (
-		headerList   = NewHeaderHashList(bc.startHash)
-		persistTimer = time.NewTimer(persistInterval)
-	)
+	persistTimer := time.NewTimer(persistInterval)
 	for {
 		select {
 		case op := <-bc.headersOp:
-			op(headerList)
+			op(bc.headerList)
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go bc.persist()
@@ -179,7 +182,6 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 
 	buf := new(bytes.Buffer)
 	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-		fmt.Println(bc.storedHeaderCount)
 		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
