@@ -1,6 +1,8 @@
 package core
 
-import "github.com/CityOfZion/neo-go/pkg/util"
+import (
+	"github.com/CityOfZion/neo-go/pkg/util"
+)
 
 // Utilities for quick bootstrapping blockchains. Normally we should
 // create the genisis block. For now (to speed up development) we will add
@@ -19,4 +21,11 @@ func GenesisHashTestNet() util.Uint256 {
 func GenesisHashMainNet() util.Uint256 {
 	hash, _ := util.Uint256DecodeString("d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf")
 	return hash
+}
+
+// headerSliceReverse reverses the given slice of *Header.
+func headerSliceReverse(dest []*Header) {
+	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
+		dest[i], dest[j] = dest[j], dest[i]
+	}
 }

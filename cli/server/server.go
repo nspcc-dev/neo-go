@@ -6,7 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -50,12 +50,11 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	if ctx.Bool("debug") {
-		logrus.SetLevel(logrus.DebugLevel)
+		log.SetLevel(log.DebugLevel)
 	}
 
-	s := network.NewServer(serverConfig, chain)
 	fmt.Println(logo())
-	s.Start()
+	network.NewServer(serverConfig, chain).Start()
 	return nil
 }
 

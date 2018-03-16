@@ -144,6 +144,9 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case RegisterType:
 		t.Data = &RegisterTX{}
 		return t.Data.(*RegisterTX).DecodeBinary(r)
+	case IssueType:
+		t.Data = &IssueTX{}
+		return t.Data.(*IssueTX).DecodeBinary(r)
 	default:
 		log.Warnf("invalid TX type %s", t.Type)
 	}

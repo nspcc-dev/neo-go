@@ -77,7 +77,7 @@ func (bc *Blockchain) init() error {
 	// TODO: This should be the persistance of the genisis block.
 	// for now we just add the genisis block start hash.
 	bc.headerList = NewHeaderHashList(bc.startHash)
-	bc.storedHeaderCount = 1
+	bc.storedHeaderCount = 1 // genisis hash
 
 	// If we get an "not found" error, the store could not find
 	// the current block, which indicates there is nothing stored
@@ -95,9 +95,44 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
-	if len(hashes) > 0 {
-		bc.headerList.Add(hashes...)
-		bc.storedHeaderCount += uint32(len(hashes))
+	for _, hash := range hashes {
+		if !bc.startHash.Equals(hash) {
+			bc.headerList.Add(hash)
+			bc.storedHeaderCount++
+		}
+	}
+
+	currHeaderBytes, err := bc.Get(preSYSCurrentHeader.bytes())
+	if err != nil {
+		return err
+	}
+	currHeaderHeight := binary.LittleEndian.Uint32(currHeaderBytes[32:36])
+	currHeaderHash, err := util.Uint256DecodeBytes(currHeaderBytes[:32])
+	if err != nil {
+		return err
+	}
+
+	// Their is a high chance that the Node is stopped before the next
+	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
+	// that with stored blocks.
+	if currHeaderHeight > bc.storedHeaderCount {
+		hash := currHeaderHash
+		targetHash := bc.headerList.Get(bc.headerList.Len() - 1)
+		headers := []*Header{}
+
+		for hash != targetHash {
+			header, err := bc.getHeader(hash)
+			if err != nil {
+				return fmt.Errorf("could not get header %s: %s", hash, err)
+			}
+			headers = append(headers, header)
+			hash = header.PrevHash
+		}
+
+		headerSliceReverse(headers)
+		if err := bc.AddHeaders(headers...); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -149,7 +184,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		for _, h := range headers {
 			if int(h.Index-1) >= headerList.Len() {
 				err = fmt.Errorf(
-					"height of block %d is higher then the current header %d",
+					"height of received header %d is higher then the current header %d",
 					h.Index, headerList.Len(),
 				)
 				return
@@ -269,6 +304,18 @@ func (bc *Blockchain) headerListLen() (n int) {
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	return nil, nil
+}
+
+func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
+	b, err := bc.Get(appendPrefix(preDataBlock, hash.BytesReverse()))
+	if err != nil {
+		return nil, err
+	}
+	header := &Header{}
+	if err := header.DecodeBinary(bytes.NewReader(b)); err != nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // HasBlock return true if the blockchain contains he given
