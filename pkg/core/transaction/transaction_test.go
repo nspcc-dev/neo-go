@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,7 +57,8 @@ func TestDecodeEncodeClaimTX(t *testing.T) {
 	assert.Equal(t, 0, len(tx.Attributes))
 	assert.Equal(t, 0, len(tx.Inputs))
 	assert.Equal(t, 1, len(tx.Outputs))
-	assert.Equal(t, "AQJseD8iBmCD4sgfHRhMahmoi9zvopG6yz", tx.Outputs[0].ScriptHash.Address())
+	address := crypto.AddressFromUint160(tx.Outputs[0].ScriptHash)
+	assert.Equal(t, "AQJseD8iBmCD4sgfHRhMahmoi9zvopG6yz", address)
 	assert.Equal(t, "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7", tx.Outputs[0].AssetID.String())
 	assert.Equal(t, tx.Outputs[0].Amount.String(), "0.06247739")
 	invoc := "40456349cec43053009accdb7781b0799c6b591c812768804ab0a0b56b5eae7a97694227fcd33e70899c075848b2cee8fae733faac6865b484d3f7df8949e2aadb"

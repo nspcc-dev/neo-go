@@ -7,21 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewBlockchain(t *testing.T) {
-	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
-	bc, err := NewBlockchain(NewMemoryStore(), startHash)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, uint32(0), bc.BlockHeight())
-	assert.Equal(t, uint32(0), bc.HeaderHeight())
-	assert.Equal(t, uint32(1), bc.storedHeaderCount)
-	assert.Equal(t, startHash, bc.startHash)
-}
-
 func TestAddHeaders(t *testing.T) {
-	bc := newTestBC()
+	bc := newTestChain(t)
 	h1 := newBlock(1).Header()
 	h2 := newBlock(2).Header()
 	h3 := newBlock(3).Header()
@@ -48,7 +35,7 @@ func TestAddHeaders(t *testing.T) {
 }
 
 func TestAddBlock(t *testing.T) {
-	bc := newTestBC()
+	bc := newTestChain(t)
 	blocks := []*Block{
 		newBlock(1),
 		newBlock(2),
@@ -76,8 +63,11 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, 0, bc.blockCache.Len())
 }
 
-func newTestBC() *Blockchain {
+func newTestChain(t *testing.T) *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
-	bc, _ := NewBlockchain(NewMemoryStore(), startHash)
-	return bc
+	chain, err := NewBlockchain(NewMemoryStore(), startHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return chain
 }

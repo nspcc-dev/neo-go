@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // Transaction is a process recorded in the NEO blockchain.
@@ -140,6 +141,11 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case ContractType:
 		t.Data = &ContractTX{}
 		return t.Data.(*ContractTX).DecodeBinary(r)
+	case RegisterType:
+		t.Data = &RegisterTX{}
+		return t.Data.(*RegisterTX).DecodeBinary(r)
+	default:
+		log.Warnf("invalid TX type %s", t.Type)
 	}
 	return nil
 }

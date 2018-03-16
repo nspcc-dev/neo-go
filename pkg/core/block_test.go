@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,7 @@ func TestDecodeBlock1(t *testing.T) {
 	assert.Equal(t, data["hash"].(string), block.Hash().String())
 	assert.Equal(t, data["previousblockhash"].(string), block.PrevHash.String())
 	assert.Equal(t, data["merkleroot"].(string), block.MerkleRoot.String())
-	assert.Equal(t, data["nextconsensus"].(string), block.NextConsensus.Address())
+	assert.Equal(t, data["nextconsensus"].(string), crypto.AddressFromUint160(block.NextConsensus))
 
 	script := data["script"].(map[string]interface{})
 	assert.Equal(t, script["invocation"].(string), hex.EncodeToString(block.Script.InvocationScript))

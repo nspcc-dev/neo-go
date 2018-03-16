@@ -6,6 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -20,6 +21,7 @@ func NewCommand() cli.Command {
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},
+			cli.BoolFlag{Name: "debug, d"},
 		},
 	}
 }
@@ -47,7 +49,12 @@ func startServer(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	if ctx.Bool("debug") {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+
 	s := network.NewServer(serverConfig, chain)
+	fmt.Println(logo())
 	s.Start()
 	return nil
 }
@@ -71,4 +78,14 @@ func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
 	}
 
 	return core.NewBlockchain(store, startHash)
+}
+
+func logo() string {
+	return `
+    _   ____________        __________
+   / | / / ____/ __ \      / ____/ __ \
+  /  |/ / __/ / / / /_____/ / __/ / / /
+ / /|  / /___/ /_/ /_____/ /_/ / /_/ /
+/_/ |_/_____/\____/      \____/\____/
+`
 }

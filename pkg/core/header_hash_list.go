@@ -27,8 +27,8 @@ func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 }
 
 // Add appends the given hash to the list of hashes.
-func (l *HeaderHashList) Add(h util.Uint256) {
-	l.hashes = append(l.hashes, h)
+func (l *HeaderHashList) Add(h ...util.Uint256) {
+	l.hashes = append(l.hashes, h...)
 }
 
 // Len return the length of the underlying hashes slice.

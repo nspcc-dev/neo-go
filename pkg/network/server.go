@@ -86,6 +86,11 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 
 // Start will start the server and its underlying transport.
 func (s *Server) Start() {
+	log.WithFields(log.Fields{
+		"blockHeight":  s.chain.BlockHeight(),
+		"headerHeight": s.chain.HeaderHeight(),
+	}).Info("node started")
+
 	go s.transport.Accept()
 	s.discovery.BackFill(s.Seeds...)
 	s.run()

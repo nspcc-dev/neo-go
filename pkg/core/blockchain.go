@@ -31,10 +31,10 @@ type Blockchain struct {
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
-	// Writes access should only happen in persist().
+	// Write access should only happen in persist().
 	blockHeight uint32
 
-	// Number of headers stored.
+	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
 	blockCache *Cache
@@ -55,7 +55,6 @@ type Blockchain struct {
 
 type headersOpFunc func(headerList *HeaderHashList)
 
-// NewBlockchain creates a new Blockchain object.
 func NewBlockchain(s Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
 		Store:         s,
@@ -75,24 +74,31 @@ func NewBlockchain(s Store, startHash util.Uint256) (*Blockchain, error) {
 }
 
 func (bc *Blockchain) init() error {
+	// TODO: This should be the persistance of the genisis block.
+	// for now we just add the genisis block start hash.
+	bc.headerList = NewHeaderHashList(bc.startHash)
+	bc.storedHeaderCount = 1
+
+	// If we get an "not found" error, the store could not find
+	// the current block, which indicates there is nothing stored
+	// in the chain file.
 	currBlockBytes, err := bc.Get(preSYSCurrentBlock.bytes())
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			// for the initial header, for now
-			bc.headerList = NewHeaderHashList(bc.startHash)
-			bc.storedHeaderCount = 1
 			return nil
 		}
 		return err
 	}
 
 	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
-	headerList, err := readStoredHeaderList(bc.Store)
+	hashes, err := readStoredHeaderHashes(bc.Store)
 	if err != nil {
 		return err
 	}
-	bc.headerList = NewHeaderHashList(headerList...)
-	bc.storedHeaderCount = uint32(bc.headerList.Len())
+	if len(hashes) > 0 {
+		bc.headerList.Add(hashes...)
+		bc.storedHeaderCount += uint32(len(hashes))
+	}
 
 	return nil
 }
@@ -143,7 +149,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		for _, h := range headers {
 			if int(h.Index-1) >= headerList.Len() {
 				err = fmt.Errorf(
-					"height of block higher then current header height %d > %d\n",
+					"height of block %d is higher then the current header %d",
 					h.Index, headerList.Len(),
 				)
 				return

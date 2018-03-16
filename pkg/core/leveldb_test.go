@@ -16,7 +16,7 @@ const (
 )
 
 func TestStoreAsCurrentBlock(t *testing.T) {
-	bc := newBlockchain()
+	bc := newTestLevelDBChain(t)
 	defer tearDown()
 
 	batch := new(leveldb.Batch)
@@ -39,14 +39,17 @@ func TestStoreAsCurrentBlock(t *testing.T) {
 	assert.Equal(t, block.Index, index)
 }
 
-func newBlockchain() *Blockchain {
+func newTestLevelDBChain(t *testing.T) *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
 	opts := &opt.Options{}
-	store, _ := NewLevelDBStore(path, opts)
-	chain, _ := NewBlockchain(
-		store,
-		startHash,
-	)
+	store, err := NewLevelDBStore(path, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain, err := NewBlockchain(store, startHash)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return chain
 }
 

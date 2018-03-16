@@ -4,10 +4,14 @@ package crypto
 // Expanded and tweaked upon here under MIT license.
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type (
@@ -28,6 +32,39 @@ type (
 		Y *big.Int
 	}
 )
+
+// NewEllipticCurvePointFromReader return a new point from the given reader.
+// f == 4, 6 or 7 are not implemented.
+func NewEllipticCurvePointFromReader(r io.Reader) (point EllipticCurvePoint, err error) {
+	var f uint8
+	if err = binary.Read(r, binary.LittleEndian, &f); err != nil {
+		return
+	}
+
+	// Infinity
+	if f == 0 {
+		return EllipticCurvePoint{
+			X: new(big.Int),
+			Y: new(big.Int),
+		}, nil
+	}
+
+	if f == 2 || f == 3 {
+		y := new(big.Int).SetBytes([]byte{f & 1})
+		data := make([]byte, 32)
+		if err = binary.Read(r, binary.LittleEndian, data); err != nil {
+			return
+		}
+		data = util.ArrayReverse(data)
+		data = append(data, byte(0x00))
+
+		return EllipticCurvePoint{
+			X: new(big.Int).SetBytes(data),
+			Y: y,
+		}, nil
+	}
+	return
+}
 
 // NewEllipticCurve returns a ready to use EllipticCurve with preconfigured
 // fields for the NEO protocol.

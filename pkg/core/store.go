@@ -94,9 +94,9 @@ func storeAsBlock(batch Batch, block *Block, sysFee uint32) error {
 	return nil
 }
 
-// readStoredHeaderList returns a sorted list of header hashes
+// readStoredHeaderHashes returns a sorted list of header hashes
 // retrieved from the given Store.
-func readStoredHeaderList(store Store) ([]util.Uint256, error) {
+func readStoredHeaderHashes(store Store) ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
 	store.Find(preIXHeaderHashList.bytes(), func(k, v []byte) {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
