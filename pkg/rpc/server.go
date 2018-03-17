@@ -1,47 +1,57 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
-	log "github.com/go-kit/kit/log"
+	log "github.com/sirupsen/logrus"
 )
 
 type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
-		port       string
-		version    string
-		blockchain *core.Blockchain
-		logger     log.Logger
+		*http.Server
+		version string
+		chain   core.Blockchainer
 	}
 )
 
 // NewServer creates a new Server struct.
-func NewServer(blockchain *core.Blockchain, port string) Server {
-	logger := log.NewLogfmtLogger(os.Stderr)
-	logger = log.With(logger, "component", "rpc-server")
-
+func NewServer(chain core.Blockchainer, port uint16) Server {
 	return Server{
-		port:       port,
-		logger:     logger,
-		blockchain: blockchain,
+		Server: &http.Server{
+			Addr: fmt.Sprintf("127.0.0.1:%d", port),
+		},
+		version: "2.0",
+		chain:   chain,
 	}
 }
 
 // Start creates a new JSON-RPC server
 // listening on the configured port.
-func (s Server) Start() error {
-	s.logger.Log("msg", "started", "endpoint", fmt.Sprintf("0.0.0.0:%s", s.port))
-	http.HandleFunc("/", s.requestHandler)
-	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), nil)
+func (s *Server) Start(errChan chan error) {
+	s.Handler = http.HandlerFunc(s.requestHandler)
+	log.WithFields(log.Fields{
+		"endpoint": s.Addr,
+	}).Info("starting rpc-server")
+
+	errChan <- s.ListenAndServe()
 }
 
-func (s Server) requestHandler(w http.ResponseWriter, req *http.Request) {
+// Shutdown overrride the http.Server Shutdown
+// method.
+func (s *Server) Shutdown() error {
+	log.WithFields(log.Fields{
+		"endpoint": s.Addr,
+	}).Info("shutting down rpc-server")
+	return s.Server.Shutdown(context.Background())
+}
+
+func (s *Server) requestHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
-		//s.writeError(w, 405)
+		// TODO return error.
 		return
 	}
 
@@ -51,11 +61,13 @@ func (s Server) requestHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	s.logger.Log("msg", "processing rpc request", "method", request.Method)
+	log.WithFields(log.Fields{
+		"method": request.Method,
+	}).Info("processing rpc request")
 
 	switch request.Method {
 	case "getbestblockhash":
-		result := s.blockchain.CurrentBlockHash().String()
+		result := s.chain.CurrentBlockHash().String()
 		request.WriteResponse(w, result)
 	}
 }

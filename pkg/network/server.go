@@ -85,7 +85,7 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 }
 
 // Start will start the server and its underlying transport.
-func (s *Server) Start() {
+func (s *Server) Start(errChan chan error) {
 	log.WithFields(log.Fields{
 		"blockHeight":  s.chain.BlockHeight(),
 		"headerHeight": s.chain.HeaderHeight(),
@@ -94,6 +94,14 @@ func (s *Server) Start() {
 	go s.transport.Accept()
 	s.discovery.BackFill(s.Seeds...)
 	s.run()
+}
+
+// Shutdown disconnects all peers and stops listening.
+func (s *Server) Shutdown() {
+	log.WithFields(log.Fields{
+		"peers": s.PeerCount(),
+	}).Info("shutting down server")
+	close(s.quit)
 }
 
 func (s *Server) run() {
