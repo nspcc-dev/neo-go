@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
@@ -71,7 +72,7 @@ func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
 	}
 
 	// Hardcoded for now.
-	store, err := core.NewLevelDBStore(path, nil)
+	store, err := storage.NewLevelDBStore(path, nil)
 	if err != nil {
 		return nil, err
 	}

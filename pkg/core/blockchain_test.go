@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,7 +66,7 @@ func TestAddBlock(t *testing.T) {
 
 func newTestChain(t *testing.T) *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
-	chain, err := NewBlockchain(NewMemoryStore(), startHash)
+	chain, err := NewBlockchain(storage.NewMemoryStore(), startHash)
 	if err != nil {
 		t.Fatal(err)
 	}

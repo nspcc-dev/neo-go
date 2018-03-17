@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // tuning parameters
@@ -27,7 +27,7 @@ var (
 // Blockchain holds the chain.
 type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
-	Store
+	storage.Store
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -55,7 +55,7 @@ type Blockchain struct {
 
 type headersOpFunc func(headerList *HeaderHashList)
 
-func NewBlockchain(s Store, startHash util.Uint256) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
@@ -82,7 +82,7 @@ func (bc *Blockchain) init() error {
 	// If we get an "not found" error, the store could not find
 	// the current block, which indicates there is nothing stored
 	// in the chain file.
-	currBlockBytes, err := bc.Get(preSYSCurrentBlock.bytes())
+	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil
@@ -102,7 +102,7 @@ func (bc *Blockchain) init() error {
 		}
 	}
 
-	currHeaderBytes, err := bc.Get(preSYSCurrentHeader.bytes())
+	currHeaderBytes, err := bc.Get(storage.SYSCurrentHeader.Bytes())
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = new(leveldb.Batch)
+		batch = bc.Batch()
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -202,9 +202,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if batch.Len() > 0 {
-			if err = bc.PutBatch(batch); err != nil {
-				return
-			}
+			bc.PutBatch(batch)
 			log.WithFields(log.Fields{
 				"headerIndex": headerList.Len() - 1,
 				"blockHeight": bc.BlockHeight(),
@@ -218,7 +216,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := new(bytes.Buffer)
@@ -226,7 +224,7 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
-		key := appendPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
+		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
 		batch.Put(key, buf.Bytes())
 		bc.storedHeaderCount += headerBatchCount
 		buf.Reset()
@@ -237,15 +235,15 @@ func (bc *Blockchain) processHeader(h *Header, batch Batch, headerList *HeaderHa
 		return err
 	}
 
-	key := appendPrefix(preDataBlock, h.Hash().BytesReverse())
+	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
 	batch.Put(key, buf.Bytes())
-	batch.Put(preSYSCurrentHeader.bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
+	batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
 
 func (bc *Blockchain) persistBlock(block *Block) error {
-	batch := new(leveldb.Batch)
+	batch := bc.Batch()
 
 	storeAsBlock(batch, block, 0)
 	storeAsCurrentBlock(batch, block)
@@ -253,7 +251,6 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
-
 	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
@@ -307,7 +304,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 }
 
 func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
-	b, err := bc.Get(appendPrefix(preDataBlock, hash.BytesReverse()))
+	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
 	if err != nil {
 		return nil, err
 	}

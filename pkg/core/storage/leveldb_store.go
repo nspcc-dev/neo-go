@@ -1,4 +1,4 @@
-package core
+package storage
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
@@ -42,11 +42,16 @@ func (s *LevelDBStore) PutBatch(batch Batch) error {
 	return s.db.Write(lvldbBatch, nil)
 }
 
-// Find implements the Store interface.
-func (s *LevelDBStore) Find(key []byte, f func(k, v []byte)) {
+// Seek implements the Store interface.
+func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 	iter := s.db.NewIterator(util.BytesPrefix(key), nil)
 	for iter.Next() {
 		f(iter.Key(), iter.Value())
 	}
 	iter.Release()
+}
+
+// Batch implements the Batch interface and returns a compatible Batch.
+func (s *LevelDBStore) Batch() Batch {
+	return new(leveldb.Batch)
 }
