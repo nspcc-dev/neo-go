@@ -55,6 +55,8 @@ type Blockchain struct {
 
 type headersOpFunc func(headerList *HeaderHashList)
 
+// NewBlockchain return a new blockchain object the will use the
+// given Store as its underlying storage.
 func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
 		Store:         s,
@@ -202,7 +204,9 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if batch.Len() > 0 {
-			bc.PutBatch(batch)
+			if err = bc.PutBatch(batch); err != nil {
+				return
+			}
 			log.WithFields(log.Fields{
 				"headerIndex": headerList.Len() - 1,
 				"blockHeight": bc.BlockHeight(),
@@ -300,7 +304,20 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
-	return nil, nil
+	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
+	b, err := bc.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: persist TX first before we can handle this logic.
+	//if len(block.Transactions) == 0 {
+	//	return nil, fmt.Errorf("block has no TX")
+	//}
+	return block, nil
 }
 
 func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
@@ -308,11 +325,11 @@ func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	header := &Header{}
-	if err := header.DecodeBinary(bytes.NewReader(b)); err != nil {
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
 		return nil, err
 	}
-	return header, nil
+	return block.Header(), nil
 }
 
 // HasBlock return true if the blockchain contains he given
@@ -324,6 +341,9 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock return true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	if header, err := bc.getHeader(hash); err == nil {
+		return header.Index <= bc.BlockHeight()
+	}
 	return false
 }
 

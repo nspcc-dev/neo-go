@@ -64,6 +64,64 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, 0, bc.blockCache.Len())
 }
 
+func TestGetHeader(t *testing.T) {
+	bc := newTestChain(t)
+	block := newBlock(1)
+	err := bc.AddBlock(block)
+	assert.Nil(t, err)
+
+	hash := block.Hash()
+	header, err := bc.getHeader(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, block.Header(), header)
+
+	block = newBlock(2)
+	hash = block.Hash()
+	_, err = bc.getHeader(block.Hash())
+	assert.NotNil(t, err)
+}
+
+func TestGetBlock(t *testing.T) {
+	bc := newTestChain(t)
+	blocks := makeBlocks(100)
+
+	for i := 0; i < len(blocks); i++ {
+		if err := bc.AddBlock(blocks[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < len(blocks); i++ {
+		block, err := bc.GetBlock(blocks[i].Hash())
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, blocks[i].Index, block.Index)
+		assert.Equal(t, blocks[i].Hash(), block.Hash())
+	}
+}
+
+func TestHasBlock(t *testing.T) {
+	bc := newTestChain(t)
+	blocks := makeBlocks(50)
+
+	for i := 0; i < len(blocks); i++ {
+		if err := bc.AddBlock(blocks[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assert.Nil(t, bc.persist())
+
+	for i := 0; i < len(blocks); i++ {
+		assert.True(t, bc.HasBlock(blocks[i].Hash()))
+	}
+
+	newBlock := newBlock(51)
+	assert.False(t, bc.HasBlock(newBlock.Hash()))
+}
+
 func newTestChain(t *testing.T) *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
 	chain, err := NewBlockchain(storage.NewMemoryStore(), startHash)
