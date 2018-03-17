@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -48,18 +49,30 @@ func WriteVarUint(w io.Writer, val uint64) error {
 		return nil
 	}
 	if val < 0xFFFF {
-		binary.Write(w, binary.LittleEndian, 0xfd)
+		binary.Write(w, binary.LittleEndian, byte(0xfd))
 		binary.Write(w, binary.LittleEndian, uint16(val))
 		return nil
 	}
 	if val < 0xFFFFFFFF {
-		binary.Write(w, binary.LittleEndian, 0xfe)
+		binary.Write(w, binary.LittleEndian, byte(0xfe))
 		binary.Write(w, binary.LittleEndian, uint32(val))
 		return nil
 	}
 
-	binary.Write(w, binary.LittleEndian, 0xff)
+	binary.Write(w, binary.LittleEndian, byte(0xff))
 	binary.Write(w, binary.LittleEndian, val)
 
 	return nil
+}
+
+// Read2000Uint256Hashes attempt to read 2000 Uint256 hashes from
+// the given byte array.
+func Read2000Uint256Hashes(b []byte) ([]Uint256, error) {
+	r := bytes.NewReader(b)
+	lenHashes := ReadVarUint(r)
+	hashes := make([]Uint256, lenHashes)
+	if err := binary.Read(r, binary.LittleEndian, hashes); err != nil {
+		return nil, err
+	}
+	return hashes, nil
 }

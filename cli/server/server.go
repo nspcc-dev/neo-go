@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -20,6 +22,7 @@ func NewCommand() cli.Command {
 			cli.BoolFlag{Name: "privnet, p"},
 			cli.BoolFlag{Name: "mainnet, m"},
 			cli.BoolFlag{Name: "testnet, t"},
+			cli.BoolFlag{Name: "debug, d"},
 		},
 	}
 }
@@ -37,7 +40,7 @@ func startServer(ctx *cli.Context) error {
 	configPath = ctx.String("config-path")
 	config, err := network.LoadConfig(configPath, net)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 
 	serverConfig := network.NewServerConfig(config)
@@ -47,8 +50,12 @@ func startServer(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	s := network.NewServer(serverConfig, chain)
-	s.Start()
+	if ctx.Bool("debug") {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	fmt.Println(logo())
+	network.NewServer(serverConfig, chain).Start()
 	return nil
 }
 
@@ -65,13 +72,20 @@ func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
 	}
 
 	// Hardcoded for now.
-	store, err := core.NewLevelDBStore(path, nil)
+	store, err := storage.NewLevelDBStore(path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return core.NewBlockchain(
-		store,
-		startHash,
-	), nil
+	return core.NewBlockchain(store, startHash)
+}
+
+func logo() string {
+	return `
+    _   ____________        __________
+   / | / / ____/ __ \      / ____/ __ \
+  /  |/ / __/ / / / /_____/ / __/ / / /
+ / /|  / /___/ /_/ /_____/ /_/ / /_/ /
+/_/ |_/_____/\____/      \____/\____/
+`
 }

@@ -86,6 +86,11 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 
 // Start will start the server and its underlying transport.
 func (s *Server) Start() {
+	log.WithFields(log.Fields{
+		"blockHeight":  s.chain.BlockHeight(),
+		"headerHeight": s.chain.HeaderHeight(),
+	}).Info("node started")
+
 	go s.transport.Accept()
 	s.discovery.BackFill(s.Seeds...)
 	s.run()
@@ -221,7 +226,10 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
-	return s.chain.AddBlock(block)
+	if !s.chain.HasBlock(block.Hash()) {
+		return s.chain.AddBlock(block)
+	}
+	return nil
 }
 
 // handleInvCmd will process the received inventory.

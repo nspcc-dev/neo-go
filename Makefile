@@ -19,7 +19,7 @@ push-tag:
 	git push origin ${VERSION}
 
 run: build
-	./bin/neo-go node -config-path ./config -${NETMODE}
+	./bin/neo-go node -config-path ./config -${NETMODE} --debug
 
 test:
 	@go test ./... -cover

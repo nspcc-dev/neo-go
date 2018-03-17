@@ -14,6 +14,11 @@ type HeaderHashList struct {
 	hashes []util.Uint256
 }
 
+// NewHeaderHashListFromBytes return a new hash list from the given bytes.
+func NewHeaderHashListFromBytes(b []byte) (*HeaderHashList, error) {
+	return nil, nil
+}
+
 // NewHeaderHashList return a new pointer to a HeaderHashList.
 func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 	return &HeaderHashList{
@@ -22,8 +27,8 @@ func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 }
 
 // Add appends the given hash to the list of hashes.
-func (l *HeaderHashList) Add(h util.Uint256) {
-	l.hashes = append(l.hashes, h)
+func (l *HeaderHashList) Add(h ...util.Uint256) {
+	l.hashes = append(l.hashes, h...)
 }
 
 // Len return the length of the underlying hashes slice.
@@ -47,7 +52,7 @@ func (l *HeaderHashList) Last() util.Uint256 {
 // Slice return a subslice of the underlying hashes.
 // Subsliced from start to end.
 // Example:
-// headers := headerList.Slice(0, 2000)
+// 	headers := headerList.Slice(0, 2000)
 func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
 	return l.hashes[start:end]
 }

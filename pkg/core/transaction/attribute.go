@@ -2,7 +2,7 @@ package transaction
 
 import (
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -14,7 +14,7 @@ type Attribute struct {
 	Data  []byte
 }
 
-// DecodeBinary implements the Payloader interface.
+// DecodeBinary implements the Payload interface.
 func (attr *Attribute) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &attr.Usage); err != nil {
 		return err
@@ -43,7 +43,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		attr.Data = make([]byte, lenData)
 		return binary.Read(r, binary.LittleEndian, attr.Data)
 	}
-	return errors.New("format error in decoding transaction attribute")
+	return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", attr.Usage)
 }
 
 // EncodeBinary implements the Payload interface.
@@ -75,5 +75,5 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 		}
 		return binary.Write(w, binary.LittleEndian, attr.Data)
 	}
-	return errors.New("format error in encoding transaction attribute")
+	return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 }

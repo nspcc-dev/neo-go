@@ -4,7 +4,7 @@ package transaction
 type TXType uint8
 
 // All processes in NEO system are recorded in transactions.
-// There are several types of transactions.
+// Valid transaction types.
 const (
 	MinerType      TXType = 0x00
 	IssueType      TXType = 0x01
@@ -23,28 +23,28 @@ const (
 func (t TXType) String() string {
 	switch t {
 	case MinerType:
-		return "miner transaction"
+		return "MinerTransaction"
 	case IssueType:
-		return "issue transaction"
+		return "IssueTransaction"
 	case ClaimType:
-		return "claim transaction"
+		return "ClaimTransaction"
 	case EnrollmentType:
-		return "enrollment transaction"
+		return "EnrollmentTransaction"
 	case VotingType:
-		return "voting transaction"
+		return "VotingTransaction"
 	case RegisterType:
-		return "register transaction"
+		return "RegisterTransaction"
 	case ContractType:
-		return "contract transaction"
+		return "ContractTransaction"
 	case StateType:
-		return "state transaction"
+		return "StateTransaction"
 	case AgencyType:
-		return "agency transaction"
+		return "AgencyTransaction"
 	case PublishType:
-		return "publish transaction"
+		return "PublishTransaction"
 	case InvocationType:
-		return "invocation transaction"
+		return "InvocationTransaction"
 	default:
-		return ""
+		return "UnkownTransaction"
 	}
 }

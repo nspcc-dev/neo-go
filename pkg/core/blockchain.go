@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // tuning parameters
@@ -26,19 +27,23 @@ var (
 // Blockchain holds the chain.
 type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
-	Store
+	storage.Store
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
-	// Writes access should only happen in persist().
+	// Write access should only happen in persist().
 	blockHeight uint32
 
-	// Number of headers stored.
+	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
 	blockCache *Cache
 
 	startHash util.Uint256
+
+	// All operation on headerList must be called from an
+	// headersOp to be routine safe.
+	headerList *HeaderHashList
 
 	// Only for operating on the headerList.
 	headersOp     chan headersOpFunc
@@ -50,8 +55,9 @@ type Blockchain struct {
 
 type headersOpFunc func(headerList *HeaderHashList)
 
-// NewBlockchain creates a new Blockchain object.
-func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
+// NewBlockchain return a new blockchain object the will use the
+// given Store as its underlying storage.
+func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
@@ -61,25 +67,85 @@ func NewBlockchain(s Store, startHash util.Uint256) *Blockchain {
 		verifyBlocks:  false,
 	}
 	go bc.run()
-	bc.init()
 
-	return bc
+	if err := bc.init(); err != nil {
+		return nil, err
+	}
+
+	return bc, nil
 }
 
-func (bc *Blockchain) init() {
-	// for the initial header, for now
-	bc.storedHeaderCount = 1
+func (bc *Blockchain) init() error {
+	// TODO: This should be the persistance of the genisis block.
+	// for now we just add the genisis block start hash.
+	bc.headerList = NewHeaderHashList(bc.startHash)
+	bc.storedHeaderCount = 1 // genisis hash
+
+	// If we get an "not found" error, the store could not find
+	// the current block, which indicates there is nothing stored
+	// in the chain file.
+	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
+		return err
+	}
+
+	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
+	hashes, err := readStoredHeaderHashes(bc.Store)
+	if err != nil {
+		return err
+	}
+	for _, hash := range hashes {
+		if !bc.startHash.Equals(hash) {
+			bc.headerList.Add(hash)
+			bc.storedHeaderCount++
+		}
+	}
+
+	currHeaderBytes, err := bc.Get(storage.SYSCurrentHeader.Bytes())
+	if err != nil {
+		return err
+	}
+	currHeaderHeight := binary.LittleEndian.Uint32(currHeaderBytes[32:36])
+	currHeaderHash, err := util.Uint256DecodeBytes(currHeaderBytes[:32])
+	if err != nil {
+		return err
+	}
+
+	// Their is a high chance that the Node is stopped before the next
+	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
+	// that with stored blocks.
+	if currHeaderHeight > bc.storedHeaderCount {
+		hash := currHeaderHash
+		targetHash := bc.headerList.Get(bc.headerList.Len() - 1)
+		headers := []*Header{}
+
+		for hash != targetHash {
+			header, err := bc.getHeader(hash)
+			if err != nil {
+				return fmt.Errorf("could not get header %s: %s", hash, err)
+			}
+			headers = append(headers, header)
+			hash = header.PrevHash
+		}
+
+		headerSliceReverse(headers)
+		if err := bc.AddHeaders(headers...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (bc *Blockchain) run() {
-	var (
-		headerList   = NewHeaderHashList(bc.startHash)
-		persistTimer = time.NewTimer(persistInterval)
-	)
+	persistTimer := time.NewTimer(persistInterval)
 	for {
 		select {
 		case op := <-bc.headersOp:
-			op(headerList)
+			op(bc.headerList)
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go bc.persist()
@@ -113,14 +179,14 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = new(leveldb.Batch)
+		batch = bc.Batch()
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
 		for _, h := range headers {
 			if int(h.Index-1) >= headerList.Len() {
 				err = fmt.Errorf(
-					"height of block higher then current header height %d > %d\n",
+					"height of received header %d is higher then the current header %d",
 					h.Index, headerList.Len(),
 				)
 				return
@@ -138,7 +204,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if batch.Len() > 0 {
-			if err = bc.writeBatch(batch); err != nil {
+			if err = bc.PutBatch(batch); err != nil {
 				return
 			}
 			log.WithFields(log.Fields{
@@ -154,7 +220,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := new(bytes.Buffer)
@@ -162,7 +228,7 @@ func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList 
 		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
-		key := makeEntryPrefixInt(preIXHeaderHashList, int(bc.storedHeaderCount))
+		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
 		batch.Put(key, buf.Bytes())
 		bc.storedHeaderCount += headerBatchCount
 		buf.Reset()
@@ -173,25 +239,22 @@ func (bc *Blockchain) processHeader(h *Header, batch *leveldb.Batch, headerList 
 		return err
 	}
 
-	key := makeEntryPrefix(preDataBlock, h.Hash().BytesReverse())
+	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
 	batch.Put(key, buf.Bytes())
-	key = preSYSCurrentHeader.bytes()
-	batch.Put(key, hashAndIndexToBytes(h.Hash(), h.Index))
+	batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
 
 func (bc *Blockchain) persistBlock(block *Block) error {
-	batch := new(leveldb.Batch)
+	batch := bc.Batch()
 
-	// Store the block.
-	key := preSYSCurrentBlock.bytes()
-	batch.Put(key, hashAndIndexToBytes(block.Hash(), block.Index))
+	storeAsBlock(batch, block, 0)
+	storeAsCurrentBlock(batch, block)
 
-	if err := bc.Store.writeBatch(batch); err != nil {
+	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
-
 	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
@@ -241,7 +304,32 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
-	return nil, nil
+	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
+	b, err := bc.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: persist TX first before we can handle this logic.
+	//if len(block.Transactions) == 0 {
+	//	return nil, fmt.Errorf("block has no TX")
+	//}
+	return block, nil
+}
+
+func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
+	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
+	if err != nil {
+		return nil, err
+	}
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	return block.Header(), nil
 }
 
 // HasBlock return true if the blockchain contains he given
@@ -253,6 +341,9 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock return true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	if header, err := bc.getHeader(hash); err == nil {
+		return header.Index <= bc.BlockHeight()
+	}
 	return false
 }
 
