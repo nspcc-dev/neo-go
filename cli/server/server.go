@@ -62,8 +62,8 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	fmt.Println(logo())
-	rpcServer := rpc.NewServer(chain, config.ApplicationConfiguration.RPCPort)
 	server := network.NewServer(serverConfig, chain)
+	rpcServer := rpc.NewServer(chain, config.ApplicationConfiguration.RPCPort, server)
 	errChan := make(chan error)
 
 	go server.Start(errChan)

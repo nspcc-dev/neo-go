@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+const (
+	jsonRPCVersion = "2.0"
+)
+
 type (
 	// Request represents a standard JSON-RPC 2.0
 	// request: http://www.jsonrpc.org/specification#request_object.
@@ -15,7 +19,6 @@ type (
 		Method    string          `json:"method"`
 		RawParams json.RawMessage `json:"params,omitempty"`
 		RawID     json.RawMessage `json:"id,omitempty"`
-		err       *Error
 	}
 
 	// Response represents a standard JSON-RPC 2.0
@@ -29,30 +32,29 @@ type (
 )
 
 // NewRequest creates a new request from the given io.ReadCloser.
-func NewRequest(data io.ReadCloser) *Request {
-	defer data.Close()
-
-	request := &Request{}
-
-	err := json.NewDecoder(data).Decode(request)
-	if err != nil {
-		request.err = NewInvalidRequestError(
-			fmt.Sprintf("Error parsing JSON payload: %s", err),
-		)
+func NewRequest() *Request {
+	return &Request{
+		JSONRPC: jsonRPCVersion,
 	}
-
-	if request.JSONRPC != "2.0" {
-		request.err = NewInvalidParmsError(
-			fmt.Sprintf("Invalid version, expected 2.0 got: '%s'", request.JSONRPC),
-		)
-	}
-
-	return request
 }
 
-// HasError indicates if the request has an erorr or not.
-func (r Request) HasError() bool {
-	return r.err != nil
+func (r *Request) DecodeData(data io.ReadCloser) error {
+	defer data.Close()
+
+	err := json.NewDecoder(data).Decode(r)
+	if err != nil {
+		return NewInvalidRequestError(
+			fmt.Errorf("Error parsing JSON payload: %s", err),
+		)
+	}
+
+	if r.JSONRPC != jsonRPCVersion {
+		return NewInvalidParmsError(
+			fmt.Errorf("Invalid version, expected 2.0 got: '%s'", r.JSONRPC),
+		)
+	}
+
+	return nil
 }
 
 // ID returns the parsed ID if we have one.
@@ -60,10 +62,9 @@ func (r *Request) ID() (int, error) {
 	var id *int
 	err := json.Unmarshal(r.RawID, &id)
 	if err != nil {
-		r.err = NewInvalidRequestError(
-			fmt.Sprintf("Error parsing JSON payload: %s", err),
+		return 0, NewInvalidRequestError(
+			fmt.Errorf("Error parsing JSON payload: %s", err),
 		)
-		return 0, err
 	}
 
 	return *id, nil
@@ -71,16 +72,33 @@ func (r *Request) ID() (int, error) {
 
 // Params takes a slice of any type and attempts to bind
 // the params to it.
-func (r *Request) Params() Params {
+func (r *Request) Params() (*Params, error) {
 	params := Params{}
+
 	err := json.Unmarshal(r.RawParams, &params)
 	if err != nil {
-		r.err = NewInvalidRequestError(
-			fmt.Sprintf("Error parsing params field in payload: %s", err),
+		return nil, NewInvalidRequestError(
+			fmt.Errorf("Error parsing params field in payload: %s", err),
 		)
 	}
 
-	return params
+	return &params, nil
+}
+
+// WriteErrorResponse writes an error response to the ResponseWriter.
+func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
+	jsonErr, ok := err.(*Error)
+	if !ok {
+		jsonErr = NewInternalErrorError(err)
+	}
+
+	response := Response{
+		JSONRPC: r.JSONRPC,
+		Error:   jsonErr,
+		ID:      r.RawID,
+	}
+
+	r.writeServerResponse(w, response)
 }
 
 // WriteResponse encodes the response and writes it to the ResponseWriter.
@@ -94,26 +112,10 @@ func (r Request) WriteResponse(w http.ResponseWriter, result interface{}) {
 	r.writeServerResponse(w, response)
 }
 
-// WriteError writes an error to the given response writer.
-func (r Request) WriteError(w http.ResponseWriter, status int, err error) {
-	jsonErr, ok := err.(*Error)
-	if !ok {
-		jsonErr = NewInternalErrorError(err.Error())
-	}
-
-	res := Response{
-		JSONRPC: r.JSONRPC,
-		Error:   jsonErr,
-		ID:      r.RawID,
-	}
-
-	r.writeServerResponse(w, res)
-}
-
-func (r Request) writeServerResponse(w http.ResponseWriter, res Response) {
+func (r Request) writeServerResponse(w http.ResponseWriter, response Response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
-	err := encoder.Encode(res)
+	err := encoder.Encode(response)
 
 	if err != nil {
 		fmt.Println(err)

@@ -34,7 +34,7 @@ type (
 		// ServerConfig holds the Server configuration.
 		ServerConfig
 
-		// id also known as the nonce of te server.
+		// id also known as the nonce of the server.
 		id uint32
 
 		transport Transporter
@@ -84,6 +84,11 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 	return s
 }
 
+// ID returns the servers ID.
+func (s *Server) ID() uint32 {
+	return s.id
+}
+
 // Start will start the server and its underlying transport.
 func (s *Server) Start(errChan chan error) {
 	log.WithFields(log.Fields{
@@ -102,6 +107,14 @@ func (s *Server) Shutdown() {
 		"peers": s.PeerCount(),
 	}).Info("shutting down server")
 	close(s.quit)
+}
+
+func (s *Server) UnconnectedNodes() []string {
+	return s.discovery.UnconnectedNodes()
+}
+
+func (s *Server) BadNodes() []string {
+	return s.discovery.BadNodes()
 }
 
 func (s *Server) run() {
@@ -147,6 +160,12 @@ func (s *Server) run() {
 			}).Warn("peer disconnected")
 		}
 	}
+}
+
+// Peers returns the current list of peers connected to
+// the server.
+func (s *Server) Peers() map[Peer]bool {
+	return s.peers
 }
 
 // PeerCount returns the number of current connected peers.

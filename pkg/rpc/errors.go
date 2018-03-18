@@ -25,41 +25,41 @@ func NewParseError() *Error {
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
-func NewInvalidRequestError(data string) *Error {
+func NewInvalidRequestError(err error) *Error {
 	return &Error{
 		Code:    -32600,
 		Message: "Invalid Request",
-		Data:    data,
+		Data:    err.Error(),
 	}
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
-func NewMethodNotFoundError(data string) *Error {
+func NewMethodNotFoundError(err error) *Error {
 	return &Error{
 		Code:    -32601,
 		Message: "Method not found",
-		Data:    data,
+		Data:    err.Error(),
 	}
 }
 
 // NewInvalidParmsError creates a new error with
 // code -32602.
-func NewInvalidParmsError(data string) *Error {
+func NewInvalidParmsError(err error) *Error {
 	return &Error{
 		Code:    -32602,
 		Message: "Invalid Params",
-		Data:    data,
+		Data:    err.Error(),
 	}
 }
 
 // NewInternalErrorError creates a new error with
 // code -32603.
-func NewInternalErrorError(data string) *Error {
+func NewInternalErrorError(err error) *Error {
 	return &Error{
 		Code:    -32603,
 		Message: "Internal error",
-		Data:    data,
+		Data:    err.Error(),
 	}
 }
 
