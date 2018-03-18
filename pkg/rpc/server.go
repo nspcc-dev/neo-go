@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -68,6 +69,29 @@ func (s *Server) requestHandler(w http.ResponseWriter, req *http.Request) {
 	switch request.Method {
 	case "getbestblockhash":
 		result := s.chain.CurrentBlockHash().String()
+		request.WriteResponse(w, result)
+
+	case "getblock":
+		blockHash := request.Params()
+		if request.HasError() {
+			request.WriteError(w, 500, nil)
+			break
+		}
+
+		hash, err := util.Uint256DecodeString(blockHash.StringValueAt(0))
+		if err != nil {
+			wrappedError := NewInvalidParmsError(err.Error())
+			request.WriteError(w, 500, wrappedError)
+			break
+		}
+
+		result, err := s.chain.GetBlock(hash)
+		if err != nil {
+			wrappedError := NewInvalidParmsError(err.Error())
+			request.WriteError(w, 500, wrappedError)
+			break
+		}
+
 		request.WriteResponse(w, result)
 	}
 }
