@@ -180,8 +180,10 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	}
 
 	// Underlying TXer.
-	if err := t.Data.EncodeBinary(w); err != nil {
-		return err
+	if t.Data != nil {
+		if err := t.Data.EncodeBinary(w); err != nil {
+			return err
+		}
 	}
 
 	// Attributes

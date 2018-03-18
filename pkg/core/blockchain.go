@@ -249,8 +249,23 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 func (bc *Blockchain) persistBlock(block *Block) error {
 	batch := bc.Batch()
 
+	var (
+		unspentCoinStates = make(UnspentCoinStates)
+		accountStates     = make(AccountStates)
+	)
+
 	storeAsBlock(batch, block, 0)
 	storeAsCurrentBlock(batch, block)
+
+	for _, tx := range block.Transactions {
+		storeAsTransaction(batch, tx, block.Index)
+		unspentCoins := make([]CoinState, len(tx.Outputs))
+		for i := 0; i < len(tx.Outputs); i++ {
+			unspentCoins[i] = CoinStateConfirmed
+		}
+		unspentCoinStates[tx.Hash()] = NewUnspentCoinState(unspentCoins)
+		accountStates.addOutputs(bc.Store, tx.Outputs)
+	}
 
 	if err := bc.PutBatch(batch); err != nil {
 		return err
