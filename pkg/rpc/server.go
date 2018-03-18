@@ -27,7 +27,7 @@ type (
 func NewServer(chain core.Blockchainer, port uint16, server *network.Server) Server {
 	return Server{
 		Server: &http.Server{
-			Addr: fmt.Sprintf("127.0.0.1:%d", port),
+			Addr: fmt.Sprintf(":%d", port),
 		},
 		version: jsonRPCVersion,
 		chain:   chain,
@@ -156,11 +156,11 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 
 	case "getpeers":
 		peers := models.NewPeers()
-		for _, addr := range s.server.UnconnectedNodes() {
+		for _, addr := range s.server.UnconnectedPeers() {
 			peers.AddPeer("unconnected", addr)
 		}
 
-		for _, addr := range s.server.BadNodes() {
+		for _, addr := range s.server.BadPeers() {
 			peers.AddPeer("bad", addr)
 		}
 

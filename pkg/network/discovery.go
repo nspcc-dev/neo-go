@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -14,8 +15,8 @@ type Discoverer interface {
 	BackFill(...string)
 	PoolCount() int
 	RequestRemote(int)
-	UnconnectedNodes() []string
-	BadNodes() []string
+	UnconnectedPeers() []string
+	BadPeers() []string
 }
 
 // DefaultDiscovery
@@ -69,28 +70,29 @@ func (d *DefaultDiscovery) RequestRemote(n int) {
 	d.requestCh <- n
 }
 
-// UnconnectedNodes returns all addresses of unconnected nodes.
-func (d *DefaultDiscovery) UnconnectedNodes() []string {
-	var nodes []string
+// UnconnectedPeers returns all addresses of unconnected addrs.
+func (d *DefaultDiscovery) UnconnectedPeers() []string {
+	var addrs []string
 	for addr := range d.unconnectedAddrs {
-		nodes = append(nodes, addr)
+		addrs = append(addrs, addr)
 	}
-	return nodes
+	return addrs
 }
 
-// BadNodes returns all addresses of bad nodes.
-func (d *DefaultDiscovery) BadNodes() []string {
-	var nodes []string
+// BadPeers returns all addresses of bad addrs.
+func (d *DefaultDiscovery) BadPeers() []string {
+	var addrs []string
 	for addr := range d.badAddrs {
-		nodes = append(nodes, addr)
+		addrs = append(addrs, addr)
 	}
-	return nodes
+	return addrs
 }
 
 func (d *DefaultDiscovery) work(addrCh, badAddrCh chan string) {
 	for {
 		addr := <-addrCh
 		if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
+			fmt.Println(err)
 			badAddrCh <- addr
 		} else {
 			d.connectedCh <- addr

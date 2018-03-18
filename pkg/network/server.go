@@ -109,12 +109,12 @@ func (s *Server) Shutdown() {
 	close(s.quit)
 }
 
-func (s *Server) UnconnectedNodes() []string {
-	return s.discovery.UnconnectedNodes()
+func (s *Server) UnconnectedPeers() []string {
+	return s.discovery.UnconnectedPeers()
 }
 
-func (s *Server) BadNodes() []string {
-	return s.discovery.BadNodes()
+func (s *Server) BadPeers() []string {
+	return s.discovery.BadPeers()
 }
 
 func (s *Server) run() {
