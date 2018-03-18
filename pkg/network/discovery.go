@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -15,11 +14,12 @@ type Discoverer interface {
 	BackFill(...string)
 	PoolCount() int
 	RequestRemote(int)
+	RegisterBadAddr(string)
 	UnconnectedPeers() []string
 	BadPeers() []string
 }
 
-// DefaultDiscovery
+// DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
 	transport        Transporter
 	dialTimeout      time.Duration
@@ -29,6 +29,7 @@ type DefaultDiscovery struct {
 	requestCh        chan int
 	connectedCh      chan string
 	backFill         chan string
+	badAddrCh        chan string
 	pool             chan string
 }
 
@@ -43,6 +44,7 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 		requestCh:        make(chan int),
 		connectedCh:      make(chan string),
 		backFill:         make(chan string),
+		badAddrCh:        make(chan string),
 		pool:             make(chan string, maxPoolSize),
 	}
 	go d.run()
@@ -65,9 +67,15 @@ func (d *DefaultDiscovery) PoolCount() int {
 	return len(d.pool)
 }
 
-// Request will try to establish a connection with n nodes.
+// RequestRemote will try to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
 	d.requestCh <- n
+}
+
+// RegisterBadAddr registers the given address as a bad address.
+func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
+	d.badAddrCh <- addr
+	d.RequestRemote(1)
 }
 
 // UnconnectedPeers returns all addresses of unconnected addrs.
@@ -88,12 +96,11 @@ func (d *DefaultDiscovery) BadPeers() []string {
 	return addrs
 }
 
-func (d *DefaultDiscovery) work(addrCh, badAddrCh chan string) {
+func (d *DefaultDiscovery) work(addrCh chan string) {
 	for {
 		addr := <-addrCh
 		if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
-			fmt.Println(err)
-			badAddrCh <- addr
+			d.badAddrCh <- addr
 		} else {
 			d.connectedCh <- addr
 		}
@@ -107,12 +114,11 @@ func (d *DefaultDiscovery) next() string {
 func (d *DefaultDiscovery) run() {
 	var (
 		maxWorkers = 5
-		badAddrCh  = make(chan string)
 		workCh     = make(chan string)
 	)
 
 	for i := 0; i < maxWorkers; i++ {
-		go d.work(workCh, badAddrCh)
+		go d.work(workCh)
 	}
 
 	for {
@@ -132,7 +138,7 @@ func (d *DefaultDiscovery) run() {
 					workCh <- d.next()
 				}
 			}()
-		case addr := <-badAddrCh:
+		case addr := <-d.badAddrCh:
 			d.badAddrs[addr] = true
 			delete(d.unconnectedAddrs, addr)
 			go func() {

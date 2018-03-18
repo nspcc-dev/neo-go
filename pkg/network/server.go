@@ -57,8 +57,9 @@ type (
 	}
 
 	peerDrop struct {
-		peer   Peer
-		reason error
+		peer    Peer
+		badPeer bool
+		reason  error
 	}
 )
 
@@ -133,7 +134,7 @@ func (s *Server) run() {
 				switch proto.msg.CommandType() {
 				case CMDVerack, CMDVersion:
 					go func() {
-						s.unregister <- peerDrop{proto.peer, err}
+						s.unregister <- peerDrop{proto.peer, true, err}
 					}()
 				}
 			}
@@ -151,7 +152,7 @@ func (s *Server) run() {
 				"endpoint": p.Endpoint(),
 			}).Info("new peer connected")
 		case drop := <-s.unregister:
-			s.discovery.RequestRemote(1)
+			s.discovery.RegisterBadAddr(drop.peer.Endpoint().String())
 			delete(s.peers, drop.peer)
 			log.WithFields(log.Fields{
 				"endpoint":  drop.peer.Endpoint(),
@@ -192,7 +193,7 @@ func (s *Server) startProtocol(p Peer) {
 	for {
 		select {
 		case err := <-p.Done():
-			s.unregister <- peerDrop{p, err}
+			s.unregister <- peerDrop{p, false, err}
 			return
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
