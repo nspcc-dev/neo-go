@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -13,19 +15,38 @@ import (
 // AccountStates is mapping between Uint160 and AccountState.
 type AccountStates map[util.Uint160]*AccountState
 
-func (s AccountStates) addOutputs(store storage.Store, outputs []*transaction.Output) {
+func (s AccountStates) processTXOutputs(store storage.Store, outputs []*transaction.Output) error {
 	for _, out := range outputs {
-		_, err := store.Get(out.ScriptHash.Bytes())
-		if err != nil {
+		if rawState, err := store.Get(out.ScriptHash.Bytes()); err != nil {
 			// If the account state is not found create a new one.
 			s[out.ScriptHash] = NewAccountState(out.ScriptHash)
 		} else {
+			fmt.Println("found this account state in the database !!")
+			state := &AccountState{}
+			if err := state.DecodeBinary(bytes.NewReader(rawState)); err != nil {
+				return err
+			}
+			state.Balances[out.AssetID] += out.Amount
+			s[state.ScriptHash] = state
 		}
 	}
+	return nil
 }
 
-// Commit writes all states to the given to Store.
-func (s AccountStates) Commit(store storage.Store) {
+// Commit writes all account states to the given to Store.
+func (s AccountStates) Commit(store storage.Store) error {
+	buf := new(bytes.Buffer)
+	for hash, state := range s {
+		if err := state.EncodeBinary(buf); err != nil {
+			return err
+		}
+		key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
+		if err := store.Put(key, buf.Bytes()); err != nil {
+			return err
+		}
+		buf.Reset()
+	}
+	return nil
 }
 
 // AccountState represents the state of a NEO account.
@@ -36,7 +57,7 @@ type AccountState struct {
 	Balances   map[util.Uint256]util.Fixed8
 }
 
-// NewAccountState return a new AccountState object.
+// NewAccountState returns a new AccountState object.
 func NewAccountState(scriptHash util.Uint160) *AccountState {
 	return &AccountState{
 		ScriptHash: scriptHash,

@@ -51,7 +51,8 @@ func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 	iter.Release()
 }
 
-// Batch implements the Batch interface and returns a compatible Batch.
+// Batch implements the Batch interface and returns a leveldb
+// compatible Batch.
 func (s *LevelDBStore) Batch() Batch {
 	return new(leveldb.Batch)
 }

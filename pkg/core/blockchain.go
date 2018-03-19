@@ -264,12 +264,18 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 			unspentCoins[i] = CoinStateConfirmed
 		}
 		unspentCoinStates[tx.Hash()] = NewUnspentCoinState(unspentCoins)
-		accountStates.addOutputs(bc.Store, tx.Outputs)
+		if err := accountStates.processTXOutputs(bc.Store, tx.Outputs); err != nil {
+			return err
+		}
 	}
 
 	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
+	if err := accountStates.Commit(bc.Store); err != nil {
+		return err
+	}
+
 	atomic.AddUint32(&bc.blockHeight, 1)
 	return nil
 }
