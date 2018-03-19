@@ -51,3 +51,15 @@
 [[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.2.1"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "1.0.5"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/go-yaml/yaml"
+  version = "2.1.1"

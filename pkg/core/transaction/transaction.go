@@ -1,23 +1,26 @@
 package transaction
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type Type
+	Type TXType
 
 	// The trading version which is currently 0.
 	Version uint8
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data interface{}
+	Data TXer
 
 	// Transaction attributes.
 	Attributes []*Attribute
@@ -32,6 +35,27 @@ type Transaction struct {
 	// Scripts exist out of the verification script
 	// and invocation script.
 	Scripts []*Witness
+
+	// hash of the transaction
+	hash util.Uint256
+
+	// Trimmed indicates this is a transaction from trimmed
+	// data.
+	Trimmed bool
+}
+
+// NewTrimmedTX returns a trimmed transaction with only its hash
+// and Trimmed to true.
+func NewTrimmedTX(hash util.Uint256) *Transaction {
+	return &Transaction{
+		hash:    hash,
+		Trimmed: true,
+	}
+}
+
+// Hash return the hash of the transaction.
+func (t *Transaction) Hash() util.Uint256 {
+	return t.hash
 }
 
 // AddOutput adds the given output to the transaction outputs.
@@ -92,6 +116,14 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 		}
 	}
 
+	// Create the hash of the transaction at decode, so we dont need
+	// to do it anymore.
+	hash, err := t.createHash()
+	if err != nil {
+		return err
+	}
+	t.hash = hash
+
 	return nil
 }
 
@@ -106,24 +138,55 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case ClaimType:
 		t.Data = &ClaimTX{}
 		return t.Data.(*ClaimTX).DecodeBinary(r)
+	case ContractType:
+		t.Data = &ContractTX{}
+		return t.Data.(*ContractTX).DecodeBinary(r)
+	case RegisterType:
+		t.Data = &RegisterTX{}
+		return t.Data.(*RegisterTX).DecodeBinary(r)
+	case IssueType:
+		t.Data = &IssueTX{}
+		return t.Data.(*IssueTX).DecodeBinary(r)
+	default:
+		log.Warnf("invalid TX type %s", t.Type)
 	}
 	return nil
 }
 
 // EncodeBinary implements the payload interface.
 func (t *Transaction) EncodeBinary(w io.Writer) error {
+	if err := t.encodeHashableFields(w); err != nil {
+		return err
+	}
+	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
+		return err
+	}
+	for _, s := range t.Scripts {
+		if err := s.EncodeBinary(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// encodeHashableFields will only encode the fields that are not used for
+// signing the transaction, which are all fields except the scripts.
+func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, t.Type); err != nil {
 		return err
 	}
 	if err := binary.Write(w, binary.LittleEndian, t.Version); err != nil {
 		return err
 	}
-	if err := t.encodeData(w); err != nil {
+
+	// Underlying TXer.
+	if err := t.Data.EncodeBinary(w); err != nil {
 		return err
 	}
 
 	// Attributes
-	if err := util.WriteVarUint(w, uint64(len(t.Attributes))); err != nil {
+	lenAttrs := uint64(len(t.Attributes))
+	if err := util.WriteVarUint(w, lenAttrs); err != nil {
 		return err
 	}
 	for _, attr := range t.Attributes {
@@ -151,28 +214,19 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 			return err
 		}
 	}
-
-	// Scripts
-	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
-		return err
-	}
-	for _, s := range t.Scripts {
-		if err := s.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (t *Transaction) encodeData(w io.Writer) error {
-	switch t.Type {
-	case InvocationType:
-		return t.Data.(*InvocationTX).EncodeBinary(w)
-	case MinerType:
-		return t.Data.(*MinerTX).EncodeBinary(w)
-	case ClaimType:
-		return t.Data.(*ClaimTX).EncodeBinary(w)
+func (t *Transaction) createHash() (hash util.Uint256, err error) {
+	buf := new(bytes.Buffer)
+	if err = t.encodeHashableFields(buf); err != nil {
+		return
 	}
-	return nil
+	sha := sha256.New()
+	sha.Write(buf.Bytes())
+	b := sha.Sum(nil)
+	sha.Reset()
+	sha.Write(b)
+	b = sha.Sum(nil)
+	return util.Uint256DecodeBytes(util.ArrayReverse(b))
 }

@@ -1,50 +1,48 @@
 package transaction
 
-// Type is the type of a transaction.
-type Type uint8
+// TXType is the type of a transaction.
+type TXType uint8
 
-// All processes in NEO system are recorded in transactions.
-// There are several types of transactions.
 const (
-	MinerType      Type = 0x00
-	IssueType      Type = 0x01
-	ClaimType      Type = 0x02
-	EnrollmentType Type = 0x20
-	VotingType     Type = 0x24
-	RegisterType   Type = 0x40
-	ContractType   Type = 0x80
-	StateType      Type = 0x90
-	AgencyType     Type = 0xb0
-	PublishType    Type = 0xd0
-	InvocationType Type = 0xd1
+	MinerType      TXType = 0x00
+	IssueType      TXType = 0x01
+	ClaimType      TXType = 0x02
+	EnrollmentType TXType = 0x20
+	VotingType     TXType = 0x24
+	RegisterType   TXType = 0x40
+	ContractType   TXType = 0x80
+	StateType      TXType = 0x90
+	AgencyType     TXType = 0xb0
+	PublishType    TXType = 0xd0
+	InvocationType TXType = 0xd1
 )
 
 // String implements the stringer interface.
-func (t Type) String() string {
+func (t TXType) String() string {
 	switch t {
 	case MinerType:
-		return "miner transaction"
+		return "MinerTransaction"
 	case IssueType:
-		return "issue transaction"
+		return "IssueTransaction"
 	case ClaimType:
-		return "claim transaction"
+		return "ClaimTransaction"
 	case EnrollmentType:
-		return "enrollment transaction"
+		return "EnrollmentTransaction"
 	case VotingType:
-		return "voting transaction"
+		return "VotingTransaction"
 	case RegisterType:
-		return "register transaction"
+		return "RegisterTransaction"
 	case ContractType:
-		return "contract transaction"
+		return "ContractTransaction"
 	case StateType:
-		return "state transaction"
+		return "StateTransaction"
 	case AgencyType:
-		return "agency transaction"
+		return "AgencyTransaction"
 	case PublishType:
-		return "publish transaction"
+		return "PublishTransaction"
 	case InvocationType:
-		return "invocation transaction"
+		return "InvocationTransaction"
 	default:
-		return ""
+		return "UnkownTransaction"
 	}
 }

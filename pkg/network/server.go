@@ -1,362 +1,329 @@
 package network
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log"
-	"net"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	// node version
-	version = "2.6.0"
-	// official ports according to the protocol.
-	portMainNet = 10333
-	portTestNet = 20333
-	maxPeers    = 50
+	minPeers      = 5
+	maxBlockBatch = 200
+	minPoolCount  = 30
 )
 
-type messageTuple struct {
-	peer Peer
-	msg  *Message
-}
+var (
+	errPortMismatch     = errors.New("port mismatch")
+	errIdenticalID      = errors.New("identical node id")
+	errInvalidHandshake = errors.New("invalid handshake")
+	errInvalidNetwork   = errors.New("invalid network")
+	errServerShutdown   = errors.New("server shutdown")
+	errInvalidInvType   = errors.New("invalid inventory type")
+)
 
-// Server is the representation of a full working NEO TCP node.
-type Server struct {
-	logger *log.Logger
-	// id of the server
-	id uint32
-	// the port the TCP listener is listening on.
-	port uint16
-	// userAgent of the server.
-	userAgent string
-	// The "magic" mode the server is currently running on.
-	// This can either be 0x00746e41 or 0x74746e41 for main or test net.
-	// Or 56753 to work with the docker privnet.
-	net NetMode
-	// map that holds all connected peers to this server.
-	peers map[Peer]bool
-	// channel for handling new registerd peers.
-	register chan Peer
-	// channel for safely removing and disconnecting peers.
-	unregister chan Peer
-	// channel for coordinating messages.
-	message chan messageTuple
-	// channel used to gracefull shutdown the server.
-	quit chan struct{}
-	// Whether this server will receive and forward messages.
-	relay bool
-	// TCP listener of the server
-	listener net.Listener
-	// channel for safely responding the number of current connected peers.
-	peerCountCh chan peerCount
-	// a list of hashes that
-	knownHashes protectedHashmap
-	// The blockchain.
-	bc *core.Blockchain
-}
+type (
+	// Server represents the local Node in the network. Its transport could
+	// be of any kind.
+	Server struct {
+		// ServerConfig holds the Server configuration.
+		ServerConfig
 
-// TODO: Maybe util is a better place for such data types.
-type protectedHashmap struct {
-	*sync.RWMutex
-	hashes map[util.Uint256]bool
-}
+		// id also known as the nonce of te server.
+		id uint32
 
-func (m protectedHashmap) add(h util.Uint256) bool {
-	m.Lock()
-	defer m.Unlock()
+		transport Transporter
+		discovery Discoverer
+		chain     core.Blockchainer
 
-	if _, ok := m.hashes[h]; !ok {
-		m.hashes[h] = true
-		return true
-	}
-	return false
-}
+		lock  sync.RWMutex
+		peers map[Peer]bool
 
-func (m protectedHashmap) remove(h util.Uint256) bool {
-	m.Lock()
-	defer m.Unlock()
+		register   chan Peer
+		unregister chan peerDrop
+		quit       chan struct{}
 
-	if _, ok := m.hashes[h]; ok {
-		delete(m.hashes, h)
-		return true
-	}
-	return false
-}
-
-func (m protectedHashmap) has(h util.Uint256) bool {
-	m.RLock()
-	defer m.RUnlock()
-
-	_, ok := m.hashes[h]
-
-	return ok
-}
-
-// NewServer returns a pointer to a new server.
-func NewServer(net NetMode) *Server {
-	logger := log.New(os.Stdout, "[NEO SERVER] :: ", 0)
-
-	if net != ModeTestNet && net != ModeMainNet && net != ModePrivNet {
-		logger.Fatalf("invalid network mode %d", net)
+		proto <-chan protoTuple
 	}
 
-	// For now I will hard code a genesis block of the docker privnet container.
-	startHash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
+	protoTuple struct {
+		msg  *Message
+		peer Peer
+	}
 
+	peerDrop struct {
+		peer   Peer
+		reason error
+	}
+)
+
+// NewServer returns a new Server, initialized with the given configuration.
+func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 	s := &Server{
-		id:          util.RandUint32(1111111, 9999999),
-		userAgent:   fmt.Sprintf("/NEO:%s/", version),
-		logger:      logger,
-		peers:       make(map[Peer]bool),
-		register:    make(chan Peer),
-		unregister:  make(chan Peer),
-		message:     make(chan messageTuple),
-		relay:       true, // currently relay is not handled.
-		net:         net,
-		quit:        make(chan struct{}),
-		peerCountCh: make(chan peerCount),
-		bc:          core.NewBlockchain(core.NewMemoryStore(), logger, startHash),
+		ServerConfig: config,
+		chain:        chain,
+		id:           util.RandUint32(1000000, 9999999),
+		quit:         make(chan struct{}),
+		register:     make(chan Peer),
+		unregister:   make(chan peerDrop),
+		peers:        make(map[Peer]bool),
 	}
+
+	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
+	s.proto = s.transport.Consumer()
+	s.discovery = NewDefaultDiscovery(
+		s.DialTimeout,
+		s.transport,
+	)
 
 	return s
 }
 
-// Start run's the server.
-// TODO: server should be initialized with a config.
-func (s *Server) Start(opts StartOpts) {
-	s.port = uint16(opts.TCP)
+// Start will start the server and its underlying transport.
+func (s *Server) Start() {
+	log.WithFields(log.Fields{
+		"blockHeight":  s.chain.BlockHeight(),
+		"headerHeight": s.chain.HeaderHeight(),
+	}).Info("node started")
 
-	fmt.Println(logo())
-	fmt.Println(string(s.userAgent))
-	fmt.Println("")
-	s.logger.Printf("NET: %s - TCP: %d - RELAY: %v - ID: %d",
-		s.net, int(s.port), s.relay, s.id)
-
-	go listenTCP(s, opts.TCP)
-
-	if opts.RPC > 0 {
-		go listenHTTP(s, opts.RPC)
-	}
-
-	if len(opts.Seeds) > 0 {
-		connectToSeeds(s, opts.Seeds)
-	}
-
-	s.loop()
+	go s.transport.Accept()
+	s.discovery.BackFill(s.Seeds...)
+	s.run()
 }
 
-// Stop the server, attemping a gracefull shutdown.
-func (s *Server) Stop() { s.quit <- struct{}{} }
+func (s *Server) run() {
+	// Ask discovery to connect with remote nodes to fill up
+	// the server minimum peer slots.
+	s.discovery.RequestRemote(minPeers - s.PeerCount())
 
-// shutdown the server, disconnecting all peers.
-func (s *Server) shutdown() {
-	s.logger.Println("attemping a quitefull shutdown.")
-	s.listener.Close()
-
-	// disconnect and remove all connected peers.
-	for peer := range s.peers {
-		peer.disconnect()
-	}
-}
-
-func (s *Server) loop() {
 	for {
 		select {
-		// When a new connection is been established, (by this server or remote node)
-		// its peer will be received on this channel.
-		// Any peer registration must happen via this channel.
-		case peer := <-s.register:
-			if len(s.peers) < maxPeers {
-				s.logger.Printf("peer registered from address %s", peer.addr())
-				s.peers[peer] = true
-
-				if err := s.handlePeerConnected(peer); err != nil {
-					s.logger.Printf("failed handling peer connection: %s", err)
-					peer.disconnect()
+		case proto := <-s.proto:
+			if err := s.processProto(proto); err != nil {
+				proto.peer.Disconnect(err)
+				// verack and version implies that the protocol is
+				// not started and the only way to disconnect them
+				// from the server is to manually call unregister.
+				switch proto.msg.CommandType() {
+				case CMDVerack, CMDVersion:
+					go func() {
+						s.unregister <- peerDrop{proto.peer, err}
+					}()
 				}
 			}
-
-		// unregister safely deletes a peer. For disconnecting peers use the
-		// disconnect() method on the peer, it will call unregister and terminates its routines.
-		case peer := <-s.unregister:
-			if _, ok := s.peers[peer]; ok {
-				delete(s.peers, peer)
-				s.logger.Printf("peer %s disconnected", peer.addr())
-			}
-
-		case t := <-s.peerCountCh:
-			t.count <- len(s.peers)
-
 		case <-s.quit:
-			s.shutdown()
-		}
-	}
-}
-
-// When a new peer is connected we send our version.
-// No further communication should be made before both sides has received
-// the versions of eachother.
-func (s *Server) handlePeerConnected(p Peer) error {
-	// TODO: get the blockheight of this server once core implemented this.
-	payload := payload.NewVersion(s.id, s.port, s.userAgent, s.bc.HeaderHeight(), s.relay)
-	msg := newMessage(s.net, cmdVersion, payload)
-	return p.Send(msg)
-}
-
-func (s *Server) handleVersionCmd(version *payload.Version, p Peer) error {
-	if s.id == version.Nonce {
-		return errors.New("identical nonce")
-	}
-	if p.addr().Port != version.Port {
-		return fmt.Errorf("port mismatch: %d and %d", version.Port, p.addr().Port)
-	}
-
-	return p.Send(
-		newMessage(s.net, cmdVerack, nil),
-	)
-}
-
-func (s *Server) handleGetaddrCmd(msg *Message, p Peer) error {
-	return nil
-}
-
-// The node can broadcast the object information it owns by this message.
-// The message can be sent automatically or can be used to answer getbloks messages.
-func (s *Server) handleInvCmd(inv *payload.Inventory, p Peer) error {
-	if !inv.Type.Valid() {
-		return fmt.Errorf("invalid inventory type %s", inv.Type)
-	}
-	if len(inv.Hashes) == 0 {
-		return errors.New("inventory should have at least 1 hash got 0")
-	}
-
-	// todo: only grab the hashes that we dont know.
-
-	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	resp := newMessage(s.net, cmdGetData, payload)
-
-	return p.Send(resp)
-}
-
-// handleBlockCmd processes the received block.
-func (s *Server) handleBlockCmd(block *core.Block, p Peer) error {
-	hash, err := block.Hash()
-	if err != nil {
-		return err
-	}
-
-	s.logger.Printf("new block: index %d hash %s", block.Index, hash)
-
-	return nil
-}
-
-// After receiving the getaddr message, the node returns an addr message as response
-// and provides information about the known nodes on the network.
-func (s *Server) handleAddrCmd(addrList *payload.AddressList, p Peer) error {
-	for _, addr := range addrList.Addrs {
-		if !s.peerAlreadyConnected(addr.Addr) {
-			// TODO: this is not transport abstracted.
-			go connectToRemoteNode(s, addr.Addr.String())
-		}
-	}
-	return nil
-}
-
-// Handle the headers received from the remote after we asked for headers with the
-// "getheaders" message.
-func (s *Server) handleHeadersCmd(headers *payload.Headers, p Peer) error {
-	// Set a deadline for adding headers?
-	go func(ctx context.Context, headers []*core.Header) {
-		if err := s.bc.AddHeaders(headers...); err != nil {
-			s.logger.Printf("failed to add headers: %s", err)
-			return
-		}
-
-		// Ask more headers if we are not in sync with the peer.
-		if s.bc.HeaderHeight() < p.version().StartHeight {
-			if err := s.askMoreHeaders(p); err != nil {
-				s.logger.Printf("getheaders RPC failed: %s", err)
-				return
+			s.transport.Close()
+			for p := range s.peers {
+				p.Disconnect(errServerShutdown)
 			}
+			return
+		case p := <-s.register:
+			// When a new peer is connected we send out our version immediately.
+			s.sendVersion(p)
+			s.peers[p] = true
+			log.WithFields(log.Fields{
+				"endpoint": p.Endpoint(),
+			}).Info("new peer connected")
+		case drop := <-s.unregister:
+			s.discovery.RequestRemote(1)
+			delete(s.peers, drop.peer)
+			log.WithFields(log.Fields{
+				"endpoint":  drop.peer.Endpoint(),
+				"reason":    drop.reason,
+				"peerCount": s.PeerCount(),
+			}).Warn("peer disconnected")
 		}
-	}(context.TODO(), headers.Hdrs)
+	}
+}
 
+// PeerCount returns the number of current connected peers.
+func (s *Server) PeerCount() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return len(s.peers)
+}
+
+// startProtocol starts a long running background loop that interacts
+// every ProtoTickInterval with the peer.
+func (s *Server) startProtocol(p Peer) {
+	log.WithFields(log.Fields{
+		"endpoint":    p.Endpoint(),
+		"userAgent":   string(p.Version().UserAgent),
+		"startHeight": p.Version().StartHeight,
+		"id":          p.Version().Nonce,
+	}).Info("started protocol")
+
+	s.requestHeaders(p)
+	s.requestPeerInfo(p)
+
+	timer := time.NewTimer(s.ProtoTickInterval)
+	for {
+		select {
+		case err := <-p.Done():
+			s.unregister <- peerDrop{p, err}
+			return
+		case <-timer.C:
+			// Try to sync in headers and block with the peer if his block height is higher then ours.
+			if p.Version().StartHeight > s.chain.BlockHeight() {
+				s.requestBlocks(p)
+			}
+			// If the discovery does not have a healthy address pool
+			// we will ask for a new batch of addresses.
+			if s.discovery.PoolCount() < minPoolCount {
+				s.requestPeerInfo(p)
+			}
+			timer.Reset(s.ProtoTickInterval)
+		}
+	}
+}
+
+// When a peer connects to the server, we will send our version immediately.
+func (s *Server) sendVersion(p Peer) {
+	payload := payload.NewVersion(
+		s.id,
+		s.ListenTCP,
+		s.UserAgent,
+		s.chain.BlockHeight(),
+		s.Relay,
+	)
+	p.Send(NewMessage(s.Net, CMDVersion, payload))
+}
+
+// When a peer sends out his version we reply with verack after validating
+// the version.
+func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
+	if p.Endpoint().Port != version.Port {
+		return errPortMismatch
+	}
+	if s.id == version.Nonce {
+		return errIdenticalID
+	}
+	p.Send(NewMessage(s.Net, CMDVerack, nil))
 	return nil
 }
 
-// Ask the peer for more headers We use the current block hash as start.
-func (s *Server) askMoreHeaders(p Peer) error {
-	start := []util.Uint256{s.bc.CurrentHeaderHash()}
-	payload := payload.NewGetBlocks(start, util.Uint256{})
-	msg := newMessage(s.net, cmdGetHeaders, payload)
-
-	return p.Send(msg)
+// handleHeadersCmd will process the headers it received from its peer.
+// if the headerHeight of the blockchain still smaller then the peer
+// the server will request more headers.
+// This method could best be called in a separate routine.
+func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
+	if err := s.chain.AddHeaders(headers.Hdrs...); err != nil {
+		log.Warnf("failed processing headers: %s", err)
+		return
+	}
+	// The peer will respond with a maximum of 2000 headers in one batch.
+	// We will ask one more batch here if needed. Eventually we will get synced
+	// due to the startProtocol routine that will ask headers every protoTick.
+	if s.chain.HeaderHeight() < p.Version().StartHeight {
+		s.requestHeaders(p)
+	}
 }
 
-// check if the addr is already connected to the server.
-func (s *Server) peerAlreadyConnected(addr net.Addr) bool {
-	// TODO: Dont try to connect with ourselfs.
-	for peer := range s.peers {
-		if peer.addr().String() == addr.String() {
-			return true
+// handleBlockCmd processes the received block received from its peer.
+func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
+	if !s.chain.HasBlock(block.Hash()) {
+		return s.chain.AddBlock(block)
+	}
+	return nil
+}
+
+// handleInvCmd will process the received inventory.
+func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
+	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
+		return errInvalidInvType
+	}
+	payload := payload.NewInventory(inv.Type, inv.Hashes)
+	p.Send(NewMessage(s.Net, CMDGetData, payload))
+	return nil
+}
+
+func (s *Server) handleGetHeadersCmd(p Peer, getHeaders *payload.GetBlocks) error {
+	log.Info(getHeaders)
+	return nil
+}
+
+// requestHeaders will send a getheaders message to the peer.
+// The peer will respond with headers op to a count of 2000.
+func (s *Server) requestHeaders(p Peer) {
+	start := []util.Uint256{s.chain.CurrentHeaderHash()}
+	payload := payload.NewGetBlocks(start, util.Uint256{})
+	p.Send(NewMessage(s.Net, CMDGetHeaders, payload))
+}
+
+// requestPeerInfo will send a getaddr message to the peer
+// which will respond with his known addresses in the network.
+func (s *Server) requestPeerInfo(p Peer) {
+	p.Send(NewMessage(s.Net, CMDGetAddr, nil))
+}
+
+// requestBlocks will send a getdata message to the peer
+// to sync up in blocks. A maximum of maxBlockBatch will
+// send at once.
+func (s *Server) requestBlocks(p Peer) {
+	var (
+		hashStart    = s.chain.BlockHeight() + 1
+		headerHeight = s.chain.HeaderHeight()
+		hashes       = []util.Uint256{}
+	)
+	for hashStart < headerHeight && len(hashes) < maxBlockBatch {
+		hash := s.chain.GetHeaderHash(int(hashStart))
+		hashes = append(hashes, hash)
+		hashStart++
+	}
+	if len(hashes) > 0 {
+		payload := payload.NewInventory(payload.BlockType, hashes)
+		p.Send(NewMessage(s.Net, CMDGetData, payload))
+	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
+		s.requestHeaders(p)
+	}
+}
+
+// process the received protocol message.
+func (s *Server) processProto(proto protoTuple) error {
+	var (
+		peer = proto.peer
+		msg  = proto.msg
+	)
+
+	// Make sure both server and peer are operating on
+	// the same network.
+	if msg.Magic != s.Net {
+		return errInvalidNetwork
+	}
+
+	switch msg.CommandType() {
+	case CMDVersion:
+		version := msg.Payload.(*payload.Version)
+		return s.handleVersionCmd(peer, version)
+	case CMDHeaders:
+		headers := msg.Payload.(*payload.Headers)
+		go s.handleHeadersCmd(peer, headers)
+	case CMDInv:
+		inventory := msg.Payload.(*payload.Inventory)
+		return s.handleInvCmd(peer, inventory)
+	case CMDBlock:
+		block := msg.Payload.(*core.Block)
+		return s.handleBlockCmd(peer, block)
+	case CMDGetHeaders:
+		getHeaders := msg.Payload.(*payload.GetBlocks)
+		s.handleGetHeadersCmd(peer, getHeaders)
+	case CMDVerack:
+		// Make sure this peer has sended his version before we start the
+		// protocol.
+		if peer.Version() == nil {
+			return errInvalidHandshake
+		}
+		go s.startProtocol(peer)
+	case CMDAddr:
+		addressList := msg.Payload.(*payload.AddressList)
+		for _, addr := range addressList.Addrs {
+			s.discovery.BackFill(addr.Endpoint.String())
 		}
 	}
-	return false
-}
-
-// TODO: Quit this routine if the peer is disconnected.
-func (s *Server) startProtocol(p Peer) {
-	if s.bc.HeaderHeight() < p.version().StartHeight {
-		s.askMoreHeaders(p)
-	}
-	for {
-		getaddrMsg := newMessage(s.net, cmdGetAddr, nil)
-		p.Send(getaddrMsg)
-
-		time.Sleep(30 * time.Second)
-	}
-}
-
-type peerCount struct {
-	count chan int
-}
-
-// peerCount returns the number of connected peers to this server.
-func (s *Server) peerCount() int {
-	ch := peerCount{
-		count: make(chan int),
-	}
-
-	s.peerCountCh <- ch
-
-	return <-ch.count
-}
-
-// StartOpts holds the server configuration.
-type StartOpts struct {
-	// tcp port
-	TCP int
-	// slice of peer addresses the server will connect to
-	Seeds []string
-	// JSON-RPC port. If 0 no RPC handler will be attached.
-	RPC int
-}
-
-func logo() string {
-	return `
-    _   ____________        __________
-   / | / / ____/ __ \      / ____/ __ \
-  /  |/ / __/ / / / /_____/ / __/ / / /
- / /|  / /___/ /_/ /_____/ /_/ / /_/ /
-/_/ |_/_____/\____/      \____/\____/
-`
+	return nil
 }

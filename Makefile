@@ -1,10 +1,10 @@
 BRANCH = "master"
+BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
 VERSION = $(shell cat ./VERSION)
-SEEDS ?= "127.0.0.1:20333"
-PORT ?= "3000"
+NETMODE ?= "privnet"
 
 build:
-	@go build -o ./bin/neo-go ./cli/main.go
+	@go build -ldflags "-X github.com/CityOfZion/neo-go/pkg/network.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/pkg/network.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
@@ -16,10 +16,10 @@ push-tag:
 	git checkout ${BRANCH}
 	git pull origin ${BRANCH}
 	git tag ${VERSION}
-	git push origin ${BRANCH} --tags
+	git push origin ${VERSION}
 
 run: build
-	./bin/neo-go node -seed ${SEEDS} -tcp ${PORT}
+	./bin/neo-go node -config-path ./config -${NETMODE} --debug
 
 test:
 	@go test ./... -cover

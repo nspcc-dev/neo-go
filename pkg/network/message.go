@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
@@ -35,7 +36,7 @@ func (n NetMode) String() string {
 	case ModeMainNet:
 		return "mainnet"
 	default:
-		return ""
+		return "net unknown"
 	}
 }
 
@@ -48,39 +49,46 @@ const (
 
 // Message is the complete message send between nodes.
 type Message struct {
+	// NetMode of the node that sends this message.
 	Magic NetMode
+
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
 	Command [cmdSize]byte
+
 	// Length of the payload
 	Length uint32
+
 	// Checksum is the first 4 bytes of the value that two times SHA256
 	// hash of the payload
 	Checksum uint32
+
 	// Payload send with the message.
 	Payload payload.Payload
 }
 
-type commandType string
+// CommandType represents the type of a message command.
+type CommandType string
 
-// valid commands used to send between nodes.
+// Valid protocol commands used to send between nodes.
 const (
-	cmdVersion    commandType = "version"
-	cmdVerack                 = "verack"
-	cmdGetAddr                = "getaddr"
-	cmdAddr                   = "addr"
-	cmdGetHeaders             = "getheaders"
-	cmdHeaders                = "headers"
-	cmdGetBlocks              = "getblocks"
-	cmdInv                    = "inv"
-	cmdGetData                = "getdata"
-	cmdBlock                  = "block"
-	cmdTX                     = "tx"
-	cmdConsensus              = "consensus"
-	cmdUnknown                = "unknown"
+	CMDVersion    CommandType = "version"
+	CMDVerack     CommandType = "verack"
+	CMDGetAddr    CommandType = "getaddr"
+	CMDAddr       CommandType = "addr"
+	CMDGetHeaders CommandType = "getheaders"
+	CMDHeaders    CommandType = "headers"
+	CMDGetBlocks  CommandType = "getblocks"
+	CMDInv        CommandType = "inv"
+	CMDGetData    CommandType = "getdata"
+	CMDBlock      CommandType = "block"
+	CMDTX         CommandType = "tx"
+	CMDConsensus  CommandType = "consensus"
+	CMDUnknown    CommandType = "unknown"
 )
 
-func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
+// NewMessage returns a new message with the given payload.
+func NewMessage(magic NetMode, cmd CommandType, p payload.Payload) *Message {
 	var (
 		size     uint32
 		checksum []byte
@@ -106,66 +114,57 @@ func newMessage(magic NetMode, cmd commandType, p payload.Payload) *Message {
 	}
 }
 
-// Converts the 12 byte command slice to a commandType.
-func (m *Message) commandType() commandType {
+// CommandType converts the 12 byte command slice to a CommandType.
+func (m *Message) CommandType() CommandType {
 	cmd := cmdByteArrayToString(m.Command)
 	switch cmd {
 	case "version":
-		return cmdVersion
+		return CMDVersion
 	case "verack":
-		return cmdVerack
+		return CMDVerack
 	case "getaddr":
-		return cmdGetAddr
+		return CMDGetAddr
 	case "addr":
-		return cmdAddr
+		return CMDAddr
 	case "getheaders":
-		return cmdGetHeaders
+		return CMDGetHeaders
 	case "headers":
-		return cmdHeaders
+		return CMDHeaders
 	case "getblocks":
-		return cmdGetBlocks
+		return CMDGetBlocks
 	case "inv":
-		return cmdInv
+		return CMDInv
 	case "getdata":
-		return cmdGetData
+		return CMDGetData
 	case "block":
-		return cmdBlock
+		return CMDBlock
 	case "tx":
-		return cmdTX
+		return CMDTX
 	case "consensus":
-		return cmdConsensus
+		return CMDConsensus
 	default:
-		return cmdUnknown
+		return CMDUnknown
 	}
 }
 
 // decode a Message from the given reader.
 func (m *Message) decode(r io.Reader) error {
-	err := binary.Read(r, binary.LittleEndian, &m.Magic)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Magic); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Command)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Command); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Length)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Length); err != nil {
 		return err
 	}
-
-	err = binary.Read(r, binary.LittleEndian, &m.Checksum)
-	if err != nil {
+	if err := binary.Read(r, binary.LittleEndian, &m.Checksum); err != nil {
 		return err
 	}
-
 	// return if their is no payload.
 	if m.Length == 0 {
 		return nil
 	}
-
 	return m.decodePayload(r)
 }
 
@@ -185,38 +184,41 @@ func (m *Message) decodePayload(r io.Reader) error {
 		return errChecksumMismatch
 	}
 
-	//r = bytes.NewReader(buf)
-	r = buf
 	var p payload.Payload
-	switch m.commandType() {
-	case cmdVersion:
+	switch m.CommandType() {
+	case CMDVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
-	case cmdInv:
+	case CMDInv:
 		p = &payload.Inventory{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
-	case cmdAddr:
+	case CMDAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
-	case cmdBlock:
+	case CMDBlock:
 		p = &core.Block{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
-	case cmdGetHeaders:
+	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
-	case cmdHeaders:
+	case CMDHeaders:
 		p = &payload.Headers{}
-		if err := p.DecodeBinary(r); err != nil {
+		if err := p.DecodeBinary(buf); err != nil {
+			return err
+		}
+	case CMDTX:
+		p = &transaction.Transaction{}
+		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
 	}
@@ -228,21 +230,27 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // encode a Message to any given io.Writer.
 func (m *Message) encode(w io.Writer) error {
-	binary.Write(w, binary.LittleEndian, m.Magic)
-	binary.Write(w, binary.LittleEndian, m.Command)
-	binary.Write(w, binary.LittleEndian, m.Length)
-	binary.Write(w, binary.LittleEndian, m.Checksum)
-
+	if err := binary.Write(w, binary.LittleEndian, m.Magic); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Command); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Length); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
+		return err
+	}
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)
 	}
-
 	return nil
 }
 
 // convert a command (string) to a byte slice filled with 0 bytes till
 // size 12.
-func cmdToByteArray(cmd commandType) [cmdSize]byte {
+func cmdToByteArray(cmd CommandType) [cmdSize]byte {
 	cmdLen := len(cmd)
 	if cmdLen > cmdSize {
 		panic("exceeded command max length of size 12")

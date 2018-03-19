@@ -9,7 +9,7 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-// typeAndValueForField returns a zero initializd typeAndValue or the given type.Var.
+// typeAndValueForField returns a zero initialized typeAndValue for the given type.Var.
 func typeAndValueForField(fld *types.Var) types.TypeAndValue {
 	switch t := fld.Type().(type) {
 	case *types.Basic:

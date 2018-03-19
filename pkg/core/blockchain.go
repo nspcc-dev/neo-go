@@ -3,207 +3,386 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
-	"sync"
+	"fmt"
+	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // tuning parameters
 const (
 	secondsPerBlock  = 15
-	writeHdrBatchCnt = 2000
+	headerBatchCount = 2000
 )
 
 var (
-	genAmount = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	persistInterval = 5 * time.Second
 )
 
 // Blockchain holds the chain.
 type Blockchain struct {
-	logger *log.Logger
-
 	// Any object that satisfies the BlockchainStorer interface.
-	Store
+	storage.Store
 
-	// current index of the heighest block
-	currentBlockHeight uint32
+	// Current index/height of the highest block.
+	// Read access should always be called by BlockHeight().
+	// Write access should only happen in persist().
+	blockHeight uint32
 
-	// number of headers stored
+	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
-	mtx sync.RWMutex
+	blockCache *Cache
 
-	// index of headers hashes
-	headerIndex []util.Uint256
+	startHash util.Uint256
+
+	// All operation on headerList must be called from an
+	// headersOp to be routine safe.
+	headerList *HeaderHashList
+
+	// Only for operating on the headerList.
+	headersOp     chan headersOpFunc
+	headersOpDone chan struct{}
+
+	// Whether we will verify received blocks.
+	verifyBlocks bool
 }
 
-// NewBlockchain returns a pointer to a Blockchain.
-func NewBlockchain(s Store, l *log.Logger, startHash util.Uint256) *Blockchain {
+type headersOpFunc func(headerList *HeaderHashList)
+
+// NewBlockchain return a new blockchain object the will use the
+// given Store as its underlying storage.
+func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
 	bc := &Blockchain{
-		logger: l,
-		Store:  s,
+		Store:         s,
+		headersOp:     make(chan headersOpFunc),
+		headersOpDone: make(chan struct{}),
+		startHash:     startHash,
+		blockCache:    NewCache(),
+		verifyBlocks:  false,
+	}
+	go bc.run()
+
+	if err := bc.init(); err != nil {
+		return nil, err
 	}
 
-	// Starthash is 0, so we will create the genesis block.
-	if startHash.Equals(util.Uint256{}) {
-		bc.logger.Fatal("genesis block not yet implemented")
-	}
-
-	bc.headerIndex = []util.Uint256{startHash}
-
-	return bc
+	return bc, nil
 }
 
-// genesisBlock creates the genesis block for the chain.
-// hash of the genesis block:
-// d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf
-func (bc *Blockchain) genesisBlock() *Block {
-	timestamp := uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix())
+func (bc *Blockchain) init() error {
+	// TODO: This should be the persistance of the genisis block.
+	// for now we just add the genisis block start hash.
+	bc.headerList = NewHeaderHashList(bc.startHash)
+	bc.storedHeaderCount = 1 // genisis hash
 
-	// TODO: for testing I will hardcode the merkleroot.
-	// This let's me focus on the bringing all the puzzle pieces
-	// togheter much faster.
-	// For more information about the genesis block:
-	// https://neotracker.io/block/height/0
-	mr, _ := util.Uint256DecodeString("803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4")
-
-	return &Block{
-		BlockBase: BlockBase{
-			Version:       0,
-			PrevHash:      util.Uint256{},
-			MerkleRoot:    mr,
-			Timestamp:     timestamp,
-			Index:         0,
-			ConsensusData: 2083236893,     // nioctib ^^
-			NextConsensus: util.Uint160{}, // todo
-		},
-	}
-}
-
-// AddBlock (to be continued after headers is finished..)
-func (bc *Blockchain) AddBlock(block *Block) error {
-	// TODO: caching
-	headerLen := len(bc.headerIndex)
-
-	if int(block.Index-1) >= headerLen {
-		return nil
-	}
-
-	if int(block.Index) == headerLen {
-		// todo: if (VerifyBlocks && !block.Verify()) return false;
-	}
-
-	if int(block.Index) < headerLen {
-		return nil
-	}
-
-	return nil
-}
-
-func (bc *Blockchain) addHeader(header *Header) error {
-	return bc.AddHeaders(header)
-}
-
-// AddHeaders processes the given headers.
-func (bc *Blockchain) AddHeaders(headers ...*Header) error {
-	start := time.Now()
-
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-
-	batch := Batch{}
-	for _, h := range headers {
-		if int(h.Index-1) >= len(bc.headerIndex) {
-			bc.logger.Printf("height of block higher then header index %d %d\n",
-				h.Index, len(bc.headerIndex))
-			break
+	// If we get an "not found" error, the store could not find
+	// the current block, which indicates there is nothing stored
+	// in the chain file.
+	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil
 		}
-		if int(h.Index) < len(bc.headerIndex) {
-			continue
-		}
-		if !h.Verify() {
-			bc.logger.Printf("header %v is invalid", h)
-			break
-		}
-		if err := bc.processHeader(h, batch); err != nil {
-			return err
-		}
+		return err
 	}
 
-	// TODO: Implement caching strategy.
-	if len(batch) > 0 {
-		// Write all batches.
-		if err := bc.writeBatch(batch); err != nil {
-			return err
-		}
-
-		bc.logger.Printf("done processing headers up to index %d took %f Seconds",
-			bc.HeaderHeight(), time.Since(start).Seconds())
-	}
-
-	return nil
-}
-
-// processHeader processes 1 header.
-func (bc *Blockchain) processHeader(h *Header, batch Batch) error {
-	hash, err := h.Hash()
+	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
+	hashes, err := readStoredHeaderHashes(bc.Store)
 	if err != nil {
 		return err
 	}
-	bc.headerIndex = append(bc.headerIndex, hash)
-
-	for int(h.Index)-writeHdrBatchCnt >= int(bc.storedHeaderCount) {
-		// hdrsToWrite = bc.headerIndex[bc.storedHeaderCount : bc.storedHeaderCount+writeHdrBatchCnt]
-
-		// NOTE: from original #c to be implemented:
-		//
-		// w.Write(header_index.Skip((int)stored_header_count).Take(2000).ToArray());
-		// w.Flush();
-		// batch.Put(SliceBuilder.Begin(DataEntryPrefix.IX_HeaderHashList).Add(stored_header_count), ms.ToArray());
-
-		bc.storedHeaderCount += writeHdrBatchCnt
+	for _, hash := range hashes {
+		if !bc.startHash.Equals(hash) {
+			bc.headerList.Add(hash)
+			bc.storedHeaderCount++
+		}
 	}
 
+	currHeaderBytes, err := bc.Get(storage.SYSCurrentHeader.Bytes())
+	if err != nil {
+		return err
+	}
+	currHeaderHeight := binary.LittleEndian.Uint32(currHeaderBytes[32:36])
+	currHeaderHash, err := util.Uint256DecodeBytes(currHeaderBytes[:32])
+	if err != nil {
+		return err
+	}
+
+	// Their is a high chance that the Node is stopped before the next
+	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
+	// that with stored blocks.
+	if currHeaderHeight > bc.storedHeaderCount {
+		hash := currHeaderHash
+		targetHash := bc.headerList.Get(bc.headerList.Len() - 1)
+		headers := []*Header{}
+
+		for hash != targetHash {
+			header, err := bc.getHeader(hash)
+			if err != nil {
+				return fmt.Errorf("could not get header %s: %s", hash, err)
+			}
+			headers = append(headers, header)
+			hash = header.PrevHash
+		}
+
+		headerSliceReverse(headers)
+		if err := bc.AddHeaders(headers...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (bc *Blockchain) run() {
+	persistTimer := time.NewTimer(persistInterval)
+	for {
+		select {
+		case op := <-bc.headersOp:
+			op(bc.headerList)
+			bc.headersOpDone <- struct{}{}
+		case <-persistTimer.C:
+			go bc.persist()
+			persistTimer.Reset(persistInterval)
+		}
+	}
+}
+
+// AddBlock processes the given block and will add it to the cache so it
+// can be persisted.
+func (bc *Blockchain) AddBlock(block *Block) error {
+	if !bc.blockCache.Has(block.Hash()) {
+		bc.blockCache.Add(block.Hash(), block)
+	}
+
+	headerLen := bc.headerListLen()
+	if int(block.Index-1) >= headerLen {
+		return nil
+	}
+	if int(block.Index) == headerLen {
+		if bc.verifyBlocks && !block.Verify(false) {
+			return fmt.Errorf("block %s is invalid", block.Hash())
+		}
+		return bc.AddHeaders(block.Header())
+	}
+	return nil
+}
+
+// AddHeaders will process the given headers and add them to the
+// HeaderHashList.
+func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
+	var (
+		start = time.Now()
+		batch = bc.Batch()
+	)
+
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		for _, h := range headers {
+			if int(h.Index-1) >= headerList.Len() {
+				err = fmt.Errorf(
+					"height of received header %d is higher then the current header %d",
+					h.Index, headerList.Len(),
+				)
+				return
+			}
+			if int(h.Index) < headerList.Len() {
+				continue
+			}
+			if !h.Verify() {
+				err = fmt.Errorf("header %v is invalid", h)
+				return
+			}
+			if err = bc.processHeader(h, batch, headerList); err != nil {
+				return
+			}
+		}
+
+		if batch.Len() > 0 {
+			if err = bc.PutBatch(batch); err != nil {
+				return
+			}
+			log.WithFields(log.Fields{
+				"headerIndex": headerList.Len() - 1,
+				"blockHeight": bc.BlockHeight(),
+				"took":        time.Since(start),
+			}).Debug("done processing headers")
+		}
+	}
+	<-bc.headersOpDone
+	return err
+}
+
+// processHeader processes the given header. Note that this is only thread safe
+// if executed in headers operation.
+func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
+	headerList.Add(h.Hash())
+
 	buf := new(bytes.Buffer)
+	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
+		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
+			return err
+		}
+		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
+		batch.Put(key, buf.Bytes())
+		bc.storedHeaderCount += headerBatchCount
+		buf.Reset()
+	}
+
+	buf.Reset()
 	if err := h.EncodeBinary(buf); err != nil {
 		return err
 	}
 
-	preBlock := preDataBlock.add(hash.BytesReverse())
-	batch[&preBlock] = buf.Bytes()
-	preHeader := preSYSCurrentHeader.toSlice()
-	batch[&preHeader] = hashAndIndexToBytes(hash, h.Index)
+	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
+	batch.Put(key, buf.Bytes())
+	batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
 
 	return nil
 }
 
-// CurrentBlockHash return the lastest hash in the header index.
-func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
-	if len(bc.headerIndex) == 0 {
-		return
+func (bc *Blockchain) persistBlock(block *Block) error {
+	batch := bc.Batch()
+
+	storeAsBlock(batch, block, 0)
+	storeAsCurrentBlock(batch, block)
+
+	if err := bc.PutBatch(batch); err != nil {
+		return err
 	}
-	if len(bc.headerIndex) < int(bc.currentBlockHeight) {
-		return
+	atomic.AddUint32(&bc.blockHeight, 1)
+	return nil
+}
+
+func (bc *Blockchain) persist() (err error) {
+	var (
+		start     = time.Now()
+		persisted = 0
+		lenCache  = bc.blockCache.Len()
+	)
+
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		for i := 0; i < lenCache; i++ {
+			if uint32(headerList.Len()) <= bc.BlockHeight() {
+				return
+			}
+			hash := headerList.Get(int(bc.BlockHeight() + 1))
+			if block, ok := bc.blockCache.GetBlock(hash); ok {
+				if err = bc.persistBlock(block); err != nil {
+					return
+				}
+				bc.blockCache.Delete(hash)
+				persisted++
+			}
+		}
+	}
+	<-bc.headersOpDone
+
+	if persisted > 0 {
+		log.WithFields(log.Fields{
+			"persisted":   persisted,
+			"blockHeight": bc.BlockHeight(),
+			"took":        time.Since(start),
+		}).Info("blockchain persist completed")
 	}
 
-	return bc.headerIndex[bc.currentBlockHeight]
+	return
+}
+
+func (bc *Blockchain) headerListLen() (n int) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		n = headerList.Len()
+	}
+	<-bc.headersOpDone
+	return
+}
+
+// GetBlock returns a Block by the given hash.
+func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
+	b, err := bc.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: persist TX first before we can handle this logic.
+	//if len(block.Transactions) == 0 {
+	//	return nil, fmt.Errorf("block has no TX")
+	//}
+	return block, nil
+}
+
+func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
+	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
+	if err != nil {
+		return nil, err
+	}
+	block, err := NewBlockFromTrimmedBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	return block.Header(), nil
+}
+
+// HasBlock return true if the blockchain contains he given
+// transaction hash.
+func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
+	return false
+}
+
+// HasBlock return true if the blockchain contains the given
+// block hash.
+func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	if header, err := bc.getHeader(hash); err == nil {
+		return header.Index <= bc.BlockHeight()
+	}
+	return false
+}
+
+// CurrentBlockHash returns the heighest processed block hash.
+func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		hash = headerList.Get(int(bc.BlockHeight()))
+	}
+	<-bc.headersOpDone
+	return
 }
 
 // CurrentHeaderHash returns the hash of the latest known header.
 func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
-	return bc.headerIndex[len(bc.headerIndex)-1]
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		hash = headerList.Last()
+	}
+	<-bc.headersOpDone
+	return
 }
 
-// BlockHeight return the height/index of the latest block this node has.
+// GetHeaderHash return the hash from the headerList by its
+// height/index.
+func (bc *Blockchain) GetHeaderHash(i int) (hash util.Uint256) {
+	bc.headersOp <- func(headerList *HeaderHashList) {
+		hash = headerList.Get(i)
+	}
+	<-bc.headersOpDone
+	return
+}
+
+// BlockHeight returns the height/index of the highest block.
 func (bc *Blockchain) BlockHeight() uint32 {
-	return bc.currentBlockHeight
+	return atomic.LoadUint32(&bc.blockHeight)
 }
 
-// HeaderHeight returns the current index of the headers.
+// HeaderHeight returns the index/height of the highest header.
 func (bc *Blockchain) HeaderHeight() uint32 {
-	return uint32(len(bc.headerIndex)) - 1
+	return uint32(bc.headerListLen() - 1)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

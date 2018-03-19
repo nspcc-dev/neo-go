@@ -3,10 +3,10 @@ package payload
 import (
 	"bytes"
 	"crypto/sha256"
-	"reflect"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetBlockEncodeDecode(t *testing.T) {
@@ -28,9 +28,7 @@ func TestGetBlockEncodeDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(p, pDecode) {
-		t.Fatalf("expected to have equal block payload %v and %v", p, pDecode)
-	}
+	assert.Equal(t, p, pDecode)
 }
 
 func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
@@ -54,7 +52,5 @@ func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(p, pDecode) {
-		t.Fatalf("expected to have equal block payload %v and %v", p, pDecode)
-	}
+	assert.Equal(t, p, pDecode)
 }
