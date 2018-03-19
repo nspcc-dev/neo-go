@@ -2,13 +2,14 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
-	"github.com/CityOfZion/neo-go/pkg/rpc/models"
+	bopResult "github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -59,103 +60,113 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 	req := NewRequest()
 
 	if httpRequest.Method != "POST" {
-		err := fmt.Errorf("Invalid method '%s', please retry with 'POST'", httpRequest.Method)
-		req.WriteErrorResponse(w, NewInvalidParmsError(err))
+		req.WriteErrorResponse(
+			w,
+			NewInvalidParmsError(
+				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), nil,
+			),
+		)
 		return
 	}
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		req.WriteErrorResponse(w, NewParseError())
+		req.WriteErrorResponse(w, NewParseError("Problem parsing JSON-RPC request body", err))
 		return
 	}
 
 	params, err := req.Params()
 	if err != nil {
-		req.WriteErrorResponse(w, NewInvalidParmsError(err))
+		req.WriteErrorResponse(w, NewInvalidParmsError("Problem parsing request parameters", err))
 		return
 	}
 
+	s.methodHandler(w, req, params)
+}
+
+func (s *Server) methodHandler(w http.ResponseWriter, req *Request, params *Params) {
 	log.WithFields(log.Fields{
 		"method": req.Method,
 		"params": fmt.Sprintf("%+v", params),
 	}).Info("processing rpc request")
 
-	switch req.Method {
-	case "getaccountstate", "getassetstate":
-		req.WriteResponse(w, "TODO")
+	var result interface{}
+	var resultErr *Error
 
+	switch req.Method {
 	case "getbestblockhash":
-		result := s.chain.CurrentBlockHash().String()
-		req.WriteResponse(w, result)
+		result = s.chain.CurrentBlockHash().String()
 
 	case "getblock":
 		var hash util.Uint256
 		var err error
 
-		if params.IsStringValueAt(0) {
+		switch params.ValueAt(0) {
+		case "string":
 			hash, err = util.Uint256DecodeString(params.StringValueAt(0))
 			if err != nil {
-				req.WriteErrorResponse(w, NewInvalidParmsError(err))
+				resultErr = NewInvalidParmsError("Problem decoding block hash", err)
 				break
 			}
-		} else {
-			hash = s.chain.GetHeaderHash(params.IntValueAt(0))
-		}
 
-		result, err := s.chain.GetBlock(hash)
-		if err != nil {
-			req.WriteErrorResponse(w, NewInvalidParmsError(err))
+		case "number":
+			hash = s.chain.GetHeaderHash(params.IntValueAt(0))
+
+		default:
+			err := errors.New("Unable to parse parameter in position 0, expected either a number or string")
+			resultErr = NewInvalidParmsError(err.Error(), err)
 			break
 		}
 
-		req.WriteResponse(w, result)
+		result, err = s.chain.GetBlock(hash)
+		if err != nil {
+			resultErr = NewInvalidParmsError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+			break
+		}
 
 	case "getblockcount":
-		result := s.chain.BlockHeight()
-		req.WriteResponse(w, result)
+		result = s.chain.BlockHeight()
 
 	case "getblockhash":
-		result := s.chain.GetHeaderHash(params.IntValueAt(0))
-		req.WriteResponse(w, result)
-
-	case "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
-		req.WriteResponse(w, "TODO")
+		result = s.chain.GetHeaderHash(params.IntValueAt(0))
 
 	case "getconnectioncount":
-		result := s.server.PeerCount()
-		req.WriteResponse(w, result)
+		result = s.server.PeerCount()
 
 	case "submitblock":
+		if !params.IsTypeOfValueAt("string", 0) {
+			err := errors.New("Unable to parse parameter in position 0, expected string")
+			resultErr = NewInvalidParmsError(err.Error(), err)
+			break
+		}
+
 		blockHex := params.StringValueAt(0)
 		block := &core.Block{}
 		err := block.DecodeBinary(
 			strings.NewReader(blockHex),
 		)
 		if err != nil {
-			req.WriteErrorResponse(w, NewInvalidParmsError(err))
+			resultErr = NewInvalidParmsError("Problem decoding raw block data", err)
 			break
 		}
 
 		err = s.chain.AddBlock(block)
 		if err != nil {
-			req.WriteErrorResponse(w, NewInternalErrorError(err))
+			resultErr = NewInternalErrorError("Problem adding block to chain", err)
 			break
 		}
 
-	case "validateaddress":
-		req.WriteResponse(w, "TODO")
+		result = true
 
 	case "getversion":
-		version := map[string]interface{}{
-			"port":      s.server.ListenTCP,
-			"nonce":     s.server.ID(),
-			"useragent": s.server.UserAgent,
+		result = bopResult.Version{
+			Port:      s.server.ListenTCP,
+			Nonce:     s.server.ID(),
+			UserAgent: s.server.UserAgent,
 		}
-		req.WriteResponse(w, version)
 
 	case "getpeers":
-		peers := models.NewPeers()
+		peers := bopResult.NewPeers()
 		for _, addr := range s.server.UnconnectedPeers() {
 			peers.AddPeer("unconnected", addr)
 		}
@@ -167,9 +178,21 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 		for addr := range s.server.Peers() {
 			peers.AddPeer("connected", addr.Endpoint().String())
 		}
-		req.WriteResponse(w, peers)
+
+		result = peers
+
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate", "getassetstate":
+		result = "TODO"
 
 	default:
-		req.WriteErrorResponse(w, fmt.Errorf("Method '%s' not supported", req.Method))
+		resultErr = NewInternalErrorError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
+	}
+
+	if resultErr != nil {
+		req.WriteErrorResponse(w, resultErr)
+	}
+
+	if result != nil {
+		req.WriteResponse(w, result)
 	}
 }

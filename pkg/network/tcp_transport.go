@@ -13,6 +13,7 @@ type TCPTransport struct {
 	listener net.Listener
 	bindAddr string
 	proto    chan protoTuple
+	closed   bool
 }
 
 // NewTCPTransport return a new TCPTransport that will listen for
@@ -22,6 +23,7 @@ func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
 		server:   s,
 		bindAddr: bindAddr,
 		proto:    make(chan protoTuple),
+		closed:   false,
 	}
 }
 
@@ -50,7 +52,7 @@ func (t *TCPTransport) Accept() {
 
 	t.listener = l
 
-	for {
+	for !t.closed {
 		conn, err := l.Accept()
 		if err != nil {
 			log.Warnf("TCP accept error: %s", err)
@@ -70,6 +72,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 
 // Close implements the Transporter interface.
 func (t *TCPTransport) Close() {
+	t.closed = true
 	t.listener.Close()
 }
 

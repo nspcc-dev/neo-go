@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -38,20 +40,18 @@ func NewRequest() *Request {
 	}
 }
 
+// DecodeData decodes the given reader into the the request
+// struct.
 func (r *Request) DecodeData(data io.ReadCloser) error {
 	defer data.Close()
 
 	err := json.NewDecoder(data).Decode(r)
 	if err != nil {
-		return NewInvalidRequestError(
-			fmt.Errorf("Error parsing JSON payload: %s", err),
-		)
+		return fmt.Errorf("Error parsing JSON payload: %s", err)
 	}
 
 	if r.JSONRPC != jsonRPCVersion {
-		return NewInvalidParmsError(
-			fmt.Errorf("Invalid version, expected 2.0 got: '%s'", r.JSONRPC),
-		)
+		return fmt.Errorf("Invalid version, expected 2.0 got: '%s'", r.JSONRPC)
 	}
 
 	return nil
@@ -62,9 +62,7 @@ func (r *Request) ID() (int, error) {
 	var id *int
 	err := json.Unmarshal(r.RawID, &id)
 	if err != nil {
-		return 0, NewInvalidRequestError(
-			fmt.Errorf("Error parsing JSON payload: %s", err),
-		)
+		return 0, fmt.Errorf("Error parsing JSON payload: %s", err)
 	}
 
 	return *id, nil
@@ -77,9 +75,7 @@ func (r *Request) Params() (*Params, error) {
 
 	err := json.Unmarshal(r.RawParams, &params)
 	if err != nil {
-		return nil, NewInvalidRequestError(
-			fmt.Errorf("Error parsing params field in payload: %s", err),
-		)
+		return nil, fmt.Errorf("Error parsing params field in payload: %s", err)
 	}
 
 	return &params, nil
@@ -89,7 +85,7 @@ func (r *Request) Params() (*Params, error) {
 func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
 	jsonErr, ok := err.(*Error)
 	if !ok {
-		jsonErr = NewInternalErrorError(err)
+		jsonErr = NewInternalErrorError("Internal server error", err)
 	}
 
 	response := Response{
@@ -97,6 +93,12 @@ func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
 		Error:   jsonErr,
 		ID:      r.RawID,
 	}
+
+	log.WithFields(log.Fields{
+		"err":    jsonErr.Cause,
+		"method": r.Method,
+		"params": r.RawParams,
+	}).Error("Error encountered with rpc request")
 
 	r.writeServerResponse(w, response)
 }

@@ -1,4 +1,4 @@
-package models
+package result
 
 import (
 	"strings"

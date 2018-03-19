@@ -9,61 +9,53 @@ type (
 	// errors.
 	Error struct {
 		Code    int64  `json:"code"`
+		Cause   error  `json:"-"`
 		Message string `json:"message"`
 		Data    string `json:"data,omitempty"`
 	}
 )
 
-// NewParseError creates a new error with code
-// -32700.
-func NewParseError() *Error {
+func newError(code int64, message string, data string, cause error) *Error {
 	return &Error{
-		Code:    -32700,
-		Message: "Parse Error",
+		Code:    code,
+		Cause:   cause,
+		Message: message,
+		Data:    data,
 	}
+
+}
+
+// NewParseError creates a new error with code
+// -32700.:%s
+func NewParseError(data string, cause error) *Error {
+	return newError(-32700, "Parse Error", data, cause)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
-func NewInvalidRequestError(err error) *Error {
-	return &Error{
-		Code:    -32600,
-		Message: "Invalid Request",
-		Data:    err.Error(),
-	}
+func NewInvalidRequestError(data string, cause error) *Error {
+	return newError(-32600, "Invalid Request", data, cause)
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
-func NewMethodNotFoundError(err error) *Error {
-	return &Error{
-		Code:    -32601,
-		Message: "Method not found",
-		Data:    err.Error(),
-	}
+func NewMethodNotFoundError(data string, cause error) *Error {
+	return newError(-32601, "Method not found", data, cause)
 }
 
 // NewInvalidParmsError creates a new error with
 // code -32602.
-func NewInvalidParmsError(err error) *Error {
-	return &Error{
-		Code:    -32602,
-		Message: "Invalid Params",
-		Data:    err.Error(),
-	}
+func NewInvalidParmsError(data string, cause error) *Error {
+	return newError(-32602, "Invalid Params", data, cause)
 }
 
 // NewInternalErrorError creates a new error with
 // code -32603.
-func NewInternalErrorError(err error) *Error {
-	return &Error{
-		Code:    -32603,
-		Message: "Internal error",
-		Data:    err.Error(),
-	}
+func NewInternalErrorError(data string, cause error) *Error {
+	return newError(-32603, "Internal error", data, cause)
 }
 
 // Error implements the error interface.
 func (e Error) Error() string {
-	return fmt.Sprintf("%s (%d) - %s", e.Message, e.Code, e.Data)
+	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
 }
