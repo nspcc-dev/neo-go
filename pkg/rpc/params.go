@@ -51,9 +51,9 @@ func (p Params) ValueAt(index int) (*Param, bool) {
 	return nil, false
 }
 
-// GetValueAt returns the param struct at the given index if it
+// ValueAtAndType returns the param struct at the given index if it
 // exists and matches the given type.
-func (p Params) GetValueAt(index int, valueType string) (*Param, bool) {
+func (p Params) ValueAtAndType(index int, valueType string) (*Param, bool) {
 	if len(p) > index && valueType == p[index].Type {
 		return &p[index], true
 	}

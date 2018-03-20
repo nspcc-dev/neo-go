@@ -133,7 +133,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 		results = s.chain.BlockHeight()
 
 	case "getblockhash":
-		if param, exists := reqParams.GetValueAt(0, "number"); exists {
+		if param, exists := reqParams.ValueAtAndType(0, "number"); exists {
 			results = s.chain.GetHeaderHash(param.IntVal)
 		} else {
 			err := errors.New("Unable to parse parameter in position 0, expected a number")
@@ -145,7 +145,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 		results = s.coreServer.PeerCount()
 
 	case "submitblock":
-		if param, exists := reqParams.GetValueAt(0, "string"); exists {
+		if param, exists := reqParams.ValueAtAndType(0, "string"); exists {
 			block := &core.Block{}
 			err := block.DecodeBinary(
 				strings.NewReader(param.StringVal),
