@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -325,6 +326,27 @@ func (bc *Blockchain) headerListLen() (n int) {
 	}
 	<-bc.headersOpDone
 	return
+}
+
+// GetTransaction returns a TX and its height by the given hash.
+func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
+	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
+	b, err := bc.Get(key)
+	if err != nil {
+		return nil, 0, err
+	}
+	r := bytes.NewReader(b)
+
+	var height uint32
+	if err := binary.Read(r, binary.LittleEndian, &height); err != nil {
+		return nil, 0, err
+	}
+
+	tx := &transaction.Transaction{}
+	if err := tx.DecodeBinary(r); err != nil {
+		return nil, 0, err
+	}
+	return tx, height, nil
 }
 
 // GetBlock returns a Block by the given hash.
