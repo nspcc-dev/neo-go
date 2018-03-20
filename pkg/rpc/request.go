@@ -33,7 +33,7 @@ type (
 	}
 )
 
-// NewRequest creates a new request from the given io.ReadCloser.
+// NewRequest creates a new Request struct.
 func NewRequest() *Request {
 	return &Request{
 		JSONRPC: jsonRPCVersion,
@@ -55,17 +55,6 @@ func (r *Request) DecodeData(data io.ReadCloser) error {
 	}
 
 	return nil
-}
-
-// ID returns the parsed ID if we have one.
-func (r *Request) ID() (int, error) {
-	var id *int
-	err := json.Unmarshal(r.RawID, &id)
-	if err != nil {
-		return 0, fmt.Errorf("Error parsing JSON payload: %s", err)
-	}
-
-	return *id, nil
 }
 
 // Params takes a slice of any type and attempts to bind
