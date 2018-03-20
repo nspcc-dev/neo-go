@@ -23,6 +23,9 @@ func (chain testChain) BlockHeight() uint32 {
 func (chain testChain) HeaderHeight() uint32 {
 	return 0
 }
+func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
+	return nil, nil
+}
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
@@ -41,9 +44,12 @@ func (chain testChain) HasTransaction(util.Uint256) bool {
 
 type testDiscovery struct{}
 
-func (d testDiscovery) BackFill(addrs ...string) {}
-func (d testDiscovery) PoolCount() int           { return 0 }
-func (d testDiscovery) RequestRemote(n int)      {}
+func (d testDiscovery) BackFill(addrs ...string)   {}
+func (d testDiscovery) PoolCount() int             { return 0 }
+func (d testDiscovery) RegisterBadAddr(string)     {}
+func (d testDiscovery) UnconnectedPeers() []string { return []string{} }
+func (d testDiscovery) RequestRemote(n int)        {}
+func (d testDiscovery) BadPeers() []string         { return []string{} }
 
 type localTransport struct{}
 
