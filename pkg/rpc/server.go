@@ -162,7 +162,6 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 			}
 
 			results = true
-
 		} else {
 			err := errors.New("Unable to parse parameter in position 0, expected a string")
 			resultsErr = NewInvalidParamsError(err.Error(), err)

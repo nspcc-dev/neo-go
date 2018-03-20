@@ -19,6 +19,7 @@ type (
 	}
 )
 
+// NewPeers creates a new Peers struct.
 func NewPeers() Peers {
 	return Peers{
 		Unconnected: []Peer{},

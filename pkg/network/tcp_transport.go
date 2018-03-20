@@ -2,6 +2,7 @@ package network
 
 import (
 	"net"
+	"regexp"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -54,10 +55,29 @@ func (t *TCPTransport) Accept() {
 		conn, err := l.Accept()
 		if err != nil {
 			log.Warnf("TCP accept error: %s", err)
+			if t.isCloseError(err) {
+				break
+			}
+
 			continue
 		}
 		go t.handleConn(conn)
 	}
+}
+
+func (t *TCPTransport) isCloseError(err error) bool {
+	regex, err := regexp.Compile("accept tcp \\[::\\]:[0-9]+: use of closed network connection")
+	if err != nil {
+		return false
+	}
+
+	if opErr, ok := err.(*net.OpError); ok {
+		if regex.Match([]byte(opErr.Error())) && !opErr.Temporary() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (t *TCPTransport) handleConn(conn net.Conn) {
