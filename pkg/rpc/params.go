@@ -1,45 +1,62 @@
 package rpc
 
 import (
-	"fmt"
+	"encoding/json"
 )
 
 type (
 	// Params represent the JSON-RPC params.
-	Params []interface{}
+	Params []Param
 )
 
-func (p Params) IntValueAt(index int) int {
-	data := p[index].(float64)
-	return int(data)
-}
+// UnmarshalJSON implements the Unmarshaller
+// interface.
+func (p *Params) UnmarshalJSON(data []byte) error {
+	var params []interface{}
 
-func (p Params) FloatValueAt(index int) float64 {
-	return p[index].(float64)
-}
-
-func (p Params) StringValueAt(index int) string {
-	return p[index].(string)
-}
-
-func (p Params) ValueAt(index int) string {
-	switch val := p[index].(type) {
-	case int, int32, int64, float32, float64:
-		return "number"
-	case string:
-		return "string"
-	default:
-		return fmt.Sprintf("%s", val)
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return err
 	}
+
+	for i := 0; i < len(params); i++ {
+		param := Param{
+			RawValue: params[i],
+		}
+
+		switch val := params[i].(type) {
+		case string:
+			param.StringVal = val
+			param.Type = "string"
+
+		case float64:
+			newVal, _ := params[i].(float64)
+			param.IntVal = int(newVal)
+			param.Type = "number"
+		}
+
+		*p = append(*p, param)
+	}
+
+	return nil
 }
 
-func (p Params) IsTypeOfValueAt(valueType string, index int) bool {
-	switch p[index].(type) {
-	case int, int32, int64, float32, float64:
-		return valueType == "number"
-	case string:
-		return valueType == "string"
-	default:
-		return false
+// ValueAt returns the param struct for the given
+// index if it exists.
+func (p Params) ValueAt(index int) (*Param, bool) {
+	if len(p) > index {
+		return &p[index], true
 	}
+
+	return nil, false
+}
+
+// GetValueAt returns the param struct at the given index if it
+// exists and matches the given type.
+func (p Params) GetValueAt(index int, valueType string) (*Param, bool) {
+	if len(p) > index && valueType == p[index].Type {
+		return &p[index], true
+	}
+
+	return nil, false
 }

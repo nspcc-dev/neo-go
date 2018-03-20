@@ -85,7 +85,7 @@ func (r *Request) Params() (*Params, error) {
 func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
 	jsonErr, ok := err.(*Error)
 	if !ok {
-		jsonErr = NewInternalErrorError("Internal server error", err)
+		jsonErr = NewInternalServerError("Internal server error", err)
 	}
 
 	response := Response{
@@ -94,12 +94,17 @@ func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
 		ID:      r.RawID,
 	}
 
-	log.WithFields(log.Fields{
+	logFields := log.Fields{
 		"err":    jsonErr.Cause,
 		"method": r.Method,
-		"params": r.RawParams,
-	}).Error("Error encountered with rpc request")
+	}
+	params, err := r.Params()
+	if err == nil {
+		logFields["params"] = *params
+	}
 
+	log.WithFields(logFields).Error("Error encountered with rpc request")
+	w.WriteHeader(jsonErr.HTTPCode)
 	r.writeServerResponse(w, response)
 }
 
