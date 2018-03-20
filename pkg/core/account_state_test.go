@@ -60,6 +60,11 @@ func TestProcessTXOutputs(t *testing.T) {
 			40000,
 			util.RandomUint160(),
 		},
+		{
+			util.RandomUint256(),
+			393,
+			util.RandomUint160(),
+		},
 	}
 
 	store := storage.NewMemoryStore()
@@ -68,9 +73,66 @@ func TestProcessTXOutputs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	i := 0
-	for k, _ := range states {
-		assert.Equal(t, k, outputs[i].ScriptHash)
-		i++
+	for _, out := range outputs {
+		account := states[out.ScriptHash]
+		assert.Equal(t, account.ScriptHash, out.ScriptHash)
+		assert.Equal(t, false, account.IsFrozen)
+		assert.Equal(t, 0, len(account.Votes))
+		assert.Equal(t, 1, len(account.Balances))
+		assert.Equal(t, out.Amount, account.Balances[out.AssetID])
 	}
+
+	batch := store.Batch()
+	if err := states.Commit(batch); err != nil {
+		t.Fatal(err)
+	}
+	store.PutBatch(batch)
+
+	key := storage.AppendPrefix(storage.STAccount, outputs[0].ScriptHash.Bytes())
+	if _, err := store.Get(key); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessTXOutputsWithExistingAccount(t *testing.T) {
+	var (
+		assetA  = util.RandomUint256()
+		assetB  = util.RandomUint256()
+		remitee = util.RandomUint160()
+	)
+
+	balances := make(map[util.Uint256]util.Fixed8)
+	balances[assetA] = util.Fixed8(10)
+	balances[assetB] = util.Fixed8(20)
+
+	outputs := []*transaction.Output{
+		{
+			assetA,
+			1,
+			remitee,
+		},
+		{
+			assetB,
+			2,
+			remitee,
+		},
+	}
+
+	account := &AccountState{
+		ScriptHash: remitee,
+		Balances:   balances,
+	}
+
+	var (
+		store  = storage.NewMemoryStore()
+		buf    = new(bytes.Buffer)
+		states = make(AccountStates)
+	)
+
+	assert.Nil(t, account.EncodeBinary(buf))
+	key := storage.AppendPrefix(storage.STAccount, account.ScriptHash.Bytes())
+	assert.Nil(t, store.Put(key, buf.Bytes()))
+	assert.Nil(t, states.processTXOutputs(store, outputs))
+	assert.Equal(t, util.Fixed8(11), states[remitee].Balances[assetA])
+	assert.Equal(t, util.Fixed8(22), states[remitee].Balances[assetB])
 }

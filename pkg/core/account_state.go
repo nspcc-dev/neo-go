@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -15,35 +14,58 @@ import (
 // AccountStates is mapping between Uint160 and AccountState.
 type AccountStates map[util.Uint160]*AccountState
 
-func (s AccountStates) processTXOutputs(store storage.Store, outputs []*transaction.Output) error {
+func (a AccountStates) processTXOutputs(s storage.Store, outputs []*transaction.Output) error {
 	for _, out := range outputs {
-		if rawState, err := store.Get(out.ScriptHash.Bytes()); err != nil {
-			// If the account state is not found create a new one.
-			s[out.ScriptHash] = NewAccountState(out.ScriptHash)
-		} else {
-			fmt.Println("found this account state in the database !!")
-			state := &AccountState{}
-			if err := state.DecodeBinary(bytes.NewReader(rawState)); err != nil {
+		var (
+			account *AccountState
+			err     error
+			ok      bool
+		)
+
+		account, ok = a[out.ScriptHash]
+		if !ok {
+			account, err = getOrNewAccountState(s, out.ScriptHash)
+			if err != nil {
 				return err
 			}
-			state.Balances[out.AssetID] += out.Amount
-			s[state.ScriptHash] = state
 		}
+
+		if _, ok := account.Balances[out.AssetID]; ok {
+			account.Balances[out.AssetID] += out.Amount
+		} else {
+			account.Balances[out.AssetID] = out.Amount
+		}
+		a[out.ScriptHash] = account
 	}
+
 	return nil
 }
 
-// Commit writes all account states to the given to Store.
-func (s AccountStates) Commit(store storage.Store) error {
+// getOrNewAccountState will return  a new AccountState based on
+// the given script hash of the TX output. If the account is
+// not found in storage, the fetched and decoded state will be
+// returned otherwise.
+func getOrNewAccountState(store storage.Store, hash util.Uint160) (*AccountState, error) {
+	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
+	if rawState, err := store.Get(key); err == nil {
+		state := &AccountState{}
+		if err := state.DecodeBinary(bytes.NewReader(rawState)); err != nil {
+			return nil, err
+		}
+		return state, nil
+	}
+	return NewAccountState(hash), nil
+}
+
+// Commit writes all account states to the given Batch.
+func (s AccountStates) Commit(b storage.Batch) error {
 	buf := new(bytes.Buffer)
 	for hash, state := range s {
 		if err := state.EncodeBinary(buf); err != nil {
 			return err
 		}
 		key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
-		if err := store.Put(key, buf.Bytes()); err != nil {
-			return err
-		}
+		b.Put(key, buf.Bytes())
 		buf.Reset()
 	}
 	return nil

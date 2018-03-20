@@ -259,20 +259,24 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 
 	for _, tx := range block.Transactions {
 		storeAsTransaction(batch, tx, block.Index)
+
+		// Add state confirmed for each tx output.
 		unspentCoins := make([]CoinState, len(tx.Outputs))
 		for i := 0; i < len(tx.Outputs); i++ {
 			unspentCoins[i] = CoinStateConfirmed
 		}
 		unspentCoinStates[tx.Hash()] = NewUnspentCoinState(unspentCoins)
+
+		// Account states
 		if err := accountStates.processTXOutputs(bc.Store, tx.Outputs); err != nil {
 			return err
 		}
 	}
 
-	if err := bc.PutBatch(batch); err != nil {
+	if err := accountStates.Commit(batch); err != nil {
 		return err
 	}
-	if err := accountStates.Commit(bc.Store); err != nil {
+	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
 

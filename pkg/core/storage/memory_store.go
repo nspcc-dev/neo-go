@@ -1,5 +1,9 @@
 package storage
 
+import (
+	"encoding/hex"
+)
+
 // MemoryStore is an in-memory implementation of a Store, mainly
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
@@ -31,7 +35,7 @@ func NewMemoryStore() *MemoryStore {
 
 // Get implements the Store interface.
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
-	if val, ok := s.mem[string(key)]; ok {
+	if val, ok := s.mem[makeKey(key)]; ok {
 		return val, nil
 	}
 	return nil, ErrKeyNotFound
@@ -39,7 +43,7 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 
 // Put implementes the Store interface.
 func (s *MemoryStore) Put(key, value []byte) error {
-	s.mem[string(key)] = value
+	s.mem[makeKey(key)] = value
 	return nil
 }
 
@@ -61,4 +65,8 @@ func (s *MemoryStore) Batch() Batch {
 	return &MemoryBatch{
 		m: make(map[*[]byte][]byte),
 	}
+}
+
+func makeKey(k []byte) string {
+	return hex.EncodeToString(k)
 }
