@@ -155,6 +155,13 @@ func (bc *Blockchain) run() {
 	}
 }
 
+// For now this will return a hardcoded hash of the NEO governing token.
+func (bc *Blockchain) governingToken() util.Uint256 {
+	neoNativeAsset := "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
+	val, _ := util.Uint256DecodeString(neoNativeAsset)
+	return val
+}
+
 // AddBlock processes the given block and will add it to the cache so it
 // can be persisted.
 func (bc *Blockchain) AddBlock(block *Block) error {
@@ -247,12 +254,15 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	return nil
 }
 
+// TODO: persistBlock needs some more love, its implemented as in the original
+// project. This for the sake of development speed and understanding of what
+// is happening here, quite allot as you can see :). If things are wired together
+// and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) persistBlock(block *Block) error {
-	batch := bc.Batch()
-
 	var (
-		unspentCoinStates = make(UnspentCoinStates)
-		accountStates     = make(AccountStates)
+		batch        = bc.Batch()
+		unspentCoins = make(UnspentCoins)
+		accounts     = make(Accounts)
 	)
 
 	storeAsBlock(batch, block, 0)
@@ -261,20 +271,76 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	for _, tx := range block.Transactions {
 		storeAsTransaction(batch, tx, block.Index)
 
-		// Add state confirmed for each tx output.
-		unspentCoins := make([]CoinState, len(tx.Outputs))
+		// Add CoinStateConfirmed for each tx output.
+		unspent := make([]CoinState, len(tx.Outputs))
 		for i := 0; i < len(tx.Outputs); i++ {
-			unspentCoins[i] = CoinStateConfirmed
+			unspent[i] = CoinStateConfirmed
 		}
-		unspentCoinStates[tx.Hash()] = NewUnspentCoinState(unspentCoins)
+		unspentCoins[tx.Hash()] = &UnspentCoinState{unspent}
 
-		// Account states
-		if err := accountStates.processTXOutputs(bc.Store, tx.Outputs); err != nil {
-			return err
+		// Process TX outputs.
+		for _, output := range tx.Outputs {
+			account, err := accounts.getAndChange(bc.Store, output.ScriptHash)
+			if err != nil {
+				return err
+			}
+
+			if _, ok := account.Balances[output.AssetID]; ok {
+				account.Balances[output.AssetID] += output.Amount
+			} else {
+				account.Balances[output.AssetID] = output.Amount
+			}
+
+			if output.AssetID.Equals(bc.governingToken()) && len(account.Votes) > 0 {
+				log.Warnf("governing token detected in TX output need to update validators!")
+			}
+		}
+
+		// Process TX inputs that are grouped by previous hash.
+		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+			prevTX, _, err := bc.GetTransaction(prevHash)
+			if err != nil {
+				return err
+			}
+			for _, input := range inputs {
+				unspent, err := unspentCoins.getAndChange(bc.Store, input.PrevHash)
+				if err != nil {
+					return err
+				}
+				unspent.states[input.PrevIndex] = CoinStateSpent
+
+				prevTXOutput := prevTX.Outputs[input.PrevIndex]
+				account, err := accounts.getAndChange(bc.Store, prevTXOutput.ScriptHash)
+				if err != nil {
+					return err
+				}
+
+				if prevTXOutput.AssetID.Equals(bc.governingToken()) {
+					log.Warnf("governing token detected in TX input need to update validators!")
+				}
+
+				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
+			}
+		}
+
+		// Process the underlying type of the TX.
+		switch tx.Data.(type) {
+		case *transaction.RegisterTX:
+		case *transaction.IssueTX:
+		case *transaction.ClaimTX:
+		case *transaction.EnrollmentTX:
+		case *transaction.StateTX:
+		case *transaction.PublishTX:
+		case *transaction.InvocationTX:
+			log.Warn("invocation TX but we have no VM, o noo :(")
 		}
 	}
 
-	if err := accountStates.Commit(batch); err != nil {
+	// Persist all to storage.
+	if err := accounts.commit(batch); err != nil {
+		return err
+	}
+	if err := unspentCoins.commit(batch); err != nil {
 		return err
 	}
 	if err := bc.PutBatch(batch); err != nil {

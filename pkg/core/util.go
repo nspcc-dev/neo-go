@@ -76,7 +76,7 @@ func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index 
 
 	dest := make([]byte, buf.Len()+4)
 	binary.LittleEndian.PutUint32(dest[:4], index)
-	copy(dest[4:], buf.Bytes()) 
+	copy(dest[4:], buf.Bytes())
 	batch.Put(key, dest)
 
 	return nil

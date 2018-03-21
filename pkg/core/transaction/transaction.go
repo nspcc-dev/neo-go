@@ -236,3 +236,12 @@ func (t *Transaction) createHash() (hash util.Uint256, err error) {
 	b = sha.Sum(nil)
 	return util.Uint256DecodeBytes(util.ArrayReverse(b))
 }
+
+// GroupTXInputsByPrevHash groups all TX inputs by their previous hash.
+func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
+	m := make(map[util.Uint256][]*Input)
+	for _, in := range t.Inputs {
+		m[in.PrevHash] = append(m[in.PrevHash], in)
+	}
+	return m
+}
