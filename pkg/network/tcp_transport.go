@@ -66,13 +66,13 @@ func (t *TCPTransport) Accept() {
 }
 
 func (t *TCPTransport) isCloseError(err error) bool {
-	regex, err := regexp.Compile("accept tcp \\[::\\]:[0-9]+: use of closed network connection")
+	regex, err := regexp.Compile(".* use of closed network connection")
 	if err != nil {
 		return false
 	}
 
 	if opErr, ok := err.(*net.OpError); ok {
-		if regex.Match([]byte(opErr.Error())) && !opErr.Temporary() {
+		if regex.Match([]byte(opErr.Error())) {
 			return true
 		}
 	}

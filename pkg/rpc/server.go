@@ -18,7 +18,6 @@ type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		version    string
 		chain      core.Blockchainer
 		coreServer *network.Server
 	}
@@ -30,7 +29,6 @@ func NewServer(chain core.Blockchainer, port uint16, coreServer *network.Server)
 		Server: &http.Server{
 			Addr: fmt.Sprintf(":%d", port),
 		},
-		version:    jsonRPCVersion,
 		chain:      chain,
 		coreServer: coreServer,
 	}
