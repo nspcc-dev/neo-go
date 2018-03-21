@@ -147,6 +147,10 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case IssueType:
 		t.Data = &IssueTX{}
 		return t.Data.(*IssueTX).DecodeBinary(r)
+	case EnrollmentType:
+		t.Data = &EnrollmentTX{}
+		return t.Data.(*EnrollmentTX).DecodeBinary(r)
+
 	default:
 		log.Warnf("invalid TX type %s", t.Type)
 	}
@@ -180,8 +184,10 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	}
 
 	// Underlying TXer.
-	if err := t.Data.EncodeBinary(w); err != nil {
-		return err
+	if t.Data != nil {
+		if err := t.Data.EncodeBinary(w); err != nil {
+			return err
+		}
 	}
 
 	// Attributes
@@ -229,4 +235,13 @@ func (t *Transaction) createHash() (hash util.Uint256, err error) {
 	sha.Write(b)
 	b = sha.Sum(nil)
 	return util.Uint256DecodeBytes(util.ArrayReverse(b))
+}
+
+// GroupTXInputsByPrevHash groups all TX inputs by their previous hash.
+func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
+	m := make(map[util.Uint256][]*Input)
+	for _, in := range t.Inputs {
+		m[in.PrevHash] = append(m[in.PrevHash], in)
+	}
+	return m
 }

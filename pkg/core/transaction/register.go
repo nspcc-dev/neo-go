@@ -29,7 +29,7 @@ import (
 // # 2. For currencies, use only unlimited models;
 // # 3. For point coupons, you can use any pattern;
 
-// RegisterTx represents a register transaction.
+// RegisterTX represents a register transaction.
 type RegisterTX struct {
 	// The type of the asset being registered.
 	AssetType AssetType
@@ -44,7 +44,9 @@ type RegisterTX struct {
 	// Decimals
 	Precision uint8
 
-	Owner crypto.EllipticCurvePoint
+	// Public key of the owner
+	Owner *crypto.PublicKey
+
 	Admin util.Uint160
 }
 
@@ -65,11 +67,10 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	point, err := crypto.NewEllipticCurvePointFromReader(r)
-	if err != nil {
+	tx.Owner = &crypto.PublicKey{}
+	if err := tx.Owner.DecodeBinary(r); err != nil {
 		return err
 	}
-	tx.Owner = point
 
 	return binary.Read(r, binary.LittleEndian, &tx.Admin)
 }

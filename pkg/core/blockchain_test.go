@@ -122,6 +122,21 @@ func TestHasBlock(t *testing.T) {
 	assert.False(t, bc.HasBlock(newBlock.Hash()))
 }
 
+func TestGetTransaction(t *testing.T) {
+	block := getDecodedBlock(t, 1)
+	bc := newTestChain(t)
+
+	assert.Nil(t, bc.AddBlock(block))
+	assert.Nil(t, bc.persistBlock(block))
+
+	tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, block.Index, height)
+	assert.Equal(t, block.Transactions[0], tx)
+}
+
 func newTestChain(t *testing.T) *Blockchain {
 	startHash, _ := util.Uint256DecodeString("a")
 	chain, err := NewBlockchain(storage.NewMemoryStore(), startHash)

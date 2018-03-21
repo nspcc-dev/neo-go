@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -62,6 +63,22 @@ func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
 	}
 	buf.Write(b)
 	batch.Put(key, buf.Bytes())
+	return nil
+}
+
+// storeAsTransaction stores the given TX as DataTransaction.
+func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index uint32) error {
+	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		return err
+	}
+
+	dest := make([]byte, buf.Len()+4)
+	binary.LittleEndian.PutUint32(dest[:4], index)
+	copy(dest[4:], buf.Bytes())
+	batch.Put(key, dest)
+
 	return nil
 }
 
