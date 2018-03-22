@@ -150,7 +150,12 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case EnrollmentType:
 		t.Data = &EnrollmentTX{}
 		return t.Data.(*EnrollmentTX).DecodeBinary(r)
-
+	case PublishType:
+		t.Data = &PublishTX{}
+		return t.Data.(*PublishTX).DecodeBinary(r)
+	case StateType:
+		t.Data = &StateTX{}
+		return t.Data.(*StateTX).DecodeBinary(r)
 	default:
 		log.Warnf("invalid TX type %s", t.Type)
 	}
