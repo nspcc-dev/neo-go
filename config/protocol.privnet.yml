@@ -23,5 +23,5 @@ ApplicationConfiguration:
   NodePort: 20333
   Relay: true
   DialTimeout: 3
-  ProtoTickInterval: 10
+  ProtoTickInterval: 2
   MaxPeers: 50
