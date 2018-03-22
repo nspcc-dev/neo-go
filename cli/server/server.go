@@ -54,8 +54,11 @@ func startServer(ctx *cli.Context) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	s := network.NewServer(serverConfig, chain)
 	fmt.Println(logo())
-	network.NewServer(serverConfig, chain).Start()
+	fmt.Println(s.UserAgent)
+	fmt.Println()
+	s.Start()
 	return nil
 }
 
