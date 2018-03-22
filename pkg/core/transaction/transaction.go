@@ -37,7 +37,7 @@ type Transaction struct {
 	Scripts []*Witness `json:"scripts"`
 
 	// hash of the transaction
-	hash util.Uint256 `json:"hex"`
+	hash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.

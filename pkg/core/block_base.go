@@ -43,7 +43,7 @@ type BlockBase struct {
 	Script *transaction.Witness `json:"script"`
 
 	// hash of this block, created when binary encoded.
-	hash util.Uint256 `json:"hash"`
+	hash util.Uint256
 }
 
 // Verify verifies the integrity of the BlockBase.
