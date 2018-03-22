@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -142,30 +141,6 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 	case "getconnectioncount":
 		results = s.coreServer.PeerCount()
 
-	case "submitblock":
-		if param, exists := reqParams.ValueAtAndType(0, "string"); exists {
-			block := &core.Block{}
-			err := block.DecodeBinary(
-				strings.NewReader(param.StringVal),
-			)
-			if err != nil {
-				resultsErr = NewInvalidParamsError("Problem decoding raw block data", err)
-				break
-			}
-
-			err = s.chain.AddBlock(block)
-			if err != nil {
-				resultsErr = NewInternalServerError("Problem adding block to chain", err)
-				break
-			}
-
-			results = true
-		} else {
-			err := errors.New("Unable to parse parameter in position 0, expected a string")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
-		}
-
 	case "getversion":
 		results = result.Version{
 			Port:      s.coreServer.ListenTCP,
@@ -189,7 +164,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate", "getassetstate":
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate", "getassetstate":
 		results = "TODO"
 
 	default:
