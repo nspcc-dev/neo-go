@@ -4,11 +4,115 @@ import (
 	"bytes"
 	"encoding/binary"
 	"sort"
+	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
+
+func createGenesisBlock() *Block {
+	base := BlockBase{
+		PrevHash:      util.Uint256{},
+		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
+		Index:         0,
+		ConsensusData: 2083236893,
+		NextConsensus: util.Uint160{},
+		Script: &transaction.Witness{
+			InvocationScript:   []byte{},
+			VerificationScript: []byte{byte(vm.Opusht)},
+		},
+	}
+
+	governingTX := governingTokenTX()
+	utilityTX := utilityTokenTX()
+
+	block := &Block{
+		BlockBase: base,
+		Transactions: []*transaction.Transaction{
+			{
+				Type: transaction.MinerType,
+				Data: &transaction.MinerTX{
+					Nonce: 2083236893,
+				},
+				Attributes: []*transaction.Attribute{},
+				Inputs:     []*transaction.Input{},
+				Outputs:    []*transaction.Output{},
+				Scripts:    []*transaction.Witness{},
+			},
+			governingTX,
+			utilityTX,
+			{
+				Type:   transaction.IssueType,
+				Data:   &transaction.IssueTX{}, // no fields.
+				Inputs: []*transaction.Input{},
+				Outputs: []*transaction.Output{
+					{
+						AssetID:    governingTX.Hash(),
+						Amount:     governingTX.Data.(*transaction.RegisterTX).Amount,
+						ScriptHash: util.Uint160{},
+					},
+				},
+				Scripts: []*transaction.Witness{
+					{
+						InvocationScript:   []byte{},
+						VerificationScript: []byte{byte(vm.Opusht)},
+					},
+				},
+			},
+		},
+	}
+
+	return block
+}
+
+func governingTokenTX() *transaction.Transaction {
+	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opusht)})
+	registerTX := &transaction.RegisterTX{
+		AssetType: transaction.GoverningToken,
+		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
+		Amount:    100000000,
+		Precision: 0,
+		Owner:     &crypto.PublicKey{},
+		Admin:     admin,
+	}
+	return &transaction.Transaction{
+		Data:       registerTX,
+		Attributes: []*transaction.Attribute{},
+		Inputs:     []*transaction.Input{},
+		Outputs:    []*transaction.Output{},
+		Scripts:    []*transaction.Witness{},
+	}
+}
+
+func utilityTokenTX() *transaction.Transaction {
+	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opushf)})
+	registerTX := &transaction.RegisterTX{
+		AssetType: transaction.UtilityToken,
+		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
+		Amount:    calculateUtilityAmount(),
+		Precision: 8,
+		Owner:     &crypto.PublicKey{},
+		Admin:     admin,
+	}
+	return &transaction.Transaction{
+		Data:       registerTX,
+		Attributes: []*transaction.Attribute{},
+		Inputs:     []*transaction.Input{},
+		Outputs:    []*transaction.Output{},
+		Scripts:    []*transaction.Witness{},
+	}
+}
+
+func calculateUtilityAmount() util.Fixed8 {
+	sum := 0
+	for i := 0; i < len(genAmount); i++ {
+		sum += genAmount[i]
+	}
+	return util.Fixed8(sum * decrementInterval)
+}
 
 // Utilities for quick bootstrapping blockchains. Normally we should
 // create the genisis block. For now (to speed up development) we will add

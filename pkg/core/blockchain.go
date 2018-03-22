@@ -21,8 +21,9 @@ const (
 )
 
 var (
-	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	persistInterval = 5 * time.Second
+	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	decrementInterval = 2000000
+	persistInterval   = 5 * time.Second
 )
 
 // Blockchain holds the chain.
@@ -300,7 +301,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
 			prevTX, _, err := bc.GetTransaction(prevHash)
 			if err != nil {
-				return err
+				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
 			for _, input := range inputs {
 				unspent, err := unspentCoins.getAndChange(bc.Store, input.PrevHash)
@@ -366,6 +367,7 @@ func (bc *Blockchain) persist() (err error) {
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
+					log.Warnf("failed to persist blocks: %s", err)
 					return
 				}
 				bc.blockCache.Delete(hash)

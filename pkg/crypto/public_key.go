@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -11,6 +12,22 @@ import (
 // PublicKey represents a public key.
 type PublicKey struct {
 	ECPoint
+}
+
+// NewPublicKeyFromString return a public key created from the
+// given hex string.
+func NewPublicKeyFromString(s string) (*PublicKey, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey := &PublicKey{}
+	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
 }
 
 // Bytes returns the byte array representation of the public key.

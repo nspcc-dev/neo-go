@@ -15,7 +15,7 @@ type RegisterTX struct {
 	AssetType AssetType
 
 	// Name of the asset being registered.
-	Name []byte
+	Name string
 
 	// Amount registered
 	// Unlimited mode -0.00000001
@@ -35,14 +35,17 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &tx.AssetType); err != nil {
 		return err
 	}
-	lenName := util.ReadVarUint(r)
-	tx.Name = make([]byte, lenName)
-	if err := binary.Read(r, binary.LittleEndian, &tx.Name); err != nil {
+
+	var err error
+	tx.Name, err = util.ReadVarString(r)
+	if err != nil {
 		return err
 	}
+
 	if err := binary.Read(r, binary.LittleEndian, &tx.Amount); err != nil {
 		return err
 	}
+
 	if err := binary.Read(r, binary.LittleEndian, &tx.Precision); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,4 +18,13 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 		assert.Nil(t, pDecode.DecodeBinary(buf))
 		assert.Equal(t, p.X, pDecode.X)
 	}
+}
+
+func TestDecodeFromString(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	pubKey, err := NewPublicKeyFromString(str)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, str, hex.EncodeToString(pubKey.Bytes()))
 }
