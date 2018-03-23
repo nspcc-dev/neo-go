@@ -27,7 +27,7 @@ func NewMerkleTree(hashes []util.Uint256) (*MerkleTree, error) {
 		}
 	}
 
-	root, err := BuildMerkleTree(nodes)
+	root, err := buildMerkleTree(nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (t *MerkleTree) Root() util.Uint256 {
 	return t.root.hash
 }
 
-func BuildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
+func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 	if len(leaves) == 0 {
 		return nil, errors.New("length of the leaves cannot be zero")
 	}
@@ -70,7 +70,7 @@ func BuildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 		parents[i].hash = hash256(b1)
 	}
 
-	return BuildMerkleTree(parents)
+	return buildMerkleTree(parents)
 }
 
 // MerkleTreeNode represents a node in the MerkleTree.

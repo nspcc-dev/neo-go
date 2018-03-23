@@ -7,7 +7,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -45,7 +44,8 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	chain, err := newBlockchain(net, cfg.ApplicationConfiguration.DataDirectoryPath)
+	chain, err := newBlockchain(cfg)
+
 	if err != nil {
 		err = fmt.Errorf("could not initialize blockhain: %s", err)
 		return cli.NewExitError(err, 1)
@@ -63,25 +63,17 @@ func startServer(ctx *cli.Context) error {
 	return nil
 }
 
-func newBlockchain(net config.NetMode, path string) (*core.Blockchain, error) {
-	var startHash util.Uint256
-	if net == config.ModePrivNet {
-		startHash = core.GenesisHashPrivNet()
-	}
-	if net == config.ModeTestNet {
-		startHash = core.GenesisHashTestNet()
-	}
-	if net == config.ModeMainNet {
-		startHash = core.GenesisHashMainNet()
-	}
-
+func newBlockchain(cfg config.Config) (*core.Blockchain, error) {
 	// Hardcoded for now.
-	store, err := storage.NewLevelDBStore(path, nil)
+	store, err := storage.NewLevelDBStore(
+		cfg.ApplicationConfiguration.DataDirectoryPath,
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return core.NewBlockchain(store, startHash)
+	return core.NewBlockchain(store, cfg.ProtocolConfiguration)
 }
 
 func logo() string {

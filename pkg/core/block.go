@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/cbergoon/merkletree"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -32,19 +32,17 @@ func (b *Block) Header() *Header {
 
 // rebuildMerkleRoot rebuild the merkleroot of the block.
 func (b *Block) rebuildMerkleRoot() error {
-	content := make([]merkletree.Content, len(b.Transactions))
+	hashes := make([]util.Uint256, len(b.Transactions))
 	for i, tx := range b.Transactions {
-		content[i] = tx
+		hashes[i] = tx.Hash()
 	}
-	tree, err := merkletree.NewTree(content)
+
+	merkle, err := crypto.NewMerkleTree(hashes)
 	if err != nil {
 		return err
 	}
-	merkleRoot, err := util.Uint256DecodeBytes(tree.MerkleRoot())
-	if err != nil {
-		return err
-	}
-	b.MerkleRoot = merkleRoot
+
+	b.MerkleRoot = merkle.Root()
 	return nil
 }
 

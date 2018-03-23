@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sort"
 	"time"
 
@@ -28,18 +27,12 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		return nil, err
 	}
 
-	merkleRoot, err := util.Uint256DecodeString("803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4")
-	if err != nil {
-		return nil, err
-	}
-
 	base := BlockBase{
 		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
 		ConsensusData: 2083236893,
-		MerkleRoot:    merkleRoot,
 		NextConsensus: nextConsensus,
 		Script: &transaction.Witness{
 			InvocationScript:   []byte{},
@@ -98,8 +91,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 	}
 
 	block.rebuildMerkleRoot()
-	fmt.Println(block.MerkleRoot)
-	fmt.Println(merkleRoot)
 
 	return block, nil
 }
@@ -183,25 +174,6 @@ func calculateUtilityAmount() util.Fixed8 {
 		sum += genAmount[i]
 	}
 	return util.NewFixed8(sum * decrementInterval)
-}
-
-// Utilities for quick bootstrapping blockchains. Normally we should
-// create the genisis block. For now (to speed up development) we will add
-// The hashes manually.
-
-func GenesisHashPrivNet() util.Uint256 {
-	hash, _ := util.Uint256DecodeString("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
-	return hash
-}
-
-func GenesisHashTestNet() util.Uint256 {
-	hash, _ := util.Uint256DecodeString("b3181718ef6167105b70920e4a8fbbd0a0a56aacf460d70e10ba6fa1668f1fef")
-	return hash
-}
-
-func GenesisHashMainNet() util.Uint256 {
-	hash, _ := util.Uint256DecodeString("d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf")
-	return hash
 }
 
 // headerSliceReverse reverses the given slice of *Header.

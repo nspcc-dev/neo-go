@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/cbergoon/merkletree"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,16 +51,6 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 		hash:    hash,
 		Trimmed: true,
 	}
-}
-
-// CalculateHash implements merkletree.Content.
-func (t *Transaction) CalculateHash() []byte {
-	return t.Hash().Bytes()
-}
-
-// Equals implements merkletree.Content.
-func (t *Transaction) Equals(other merkletree.Content) bool {
-	return t.hash.Equals(other.(*Transaction).hash)
 }
 
 // Hash return the hash of the transaction.

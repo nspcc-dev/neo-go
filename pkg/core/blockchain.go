@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -18,6 +18,7 @@ import (
 const (
 	secondsPerBlock  = 15
 	headerBatchCount = 2000
+	version          = "0.0.1"
 )
 
 var (
@@ -28,6 +29,8 @@ var (
 
 // Blockchain represents the blockchain.
 type Blockchain struct {
+	config config.ProtocolConfiguration
+
 	// Any object that satisfies the BlockchainStorer interface.
 	storage.Store
 
@@ -40,8 +43,6 @@ type Blockchain struct {
 	storedHeaderCount uint32
 
 	blockCache *Cache
-
-	startHash util.Uint256
 
 	// All operation on headerList must be called from an
 	// headersOp to be routine safe.
@@ -59,12 +60,12 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain return a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
+		config:        cfg,
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		startHash:     startHash,
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
@@ -78,19 +79,31 @@ func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error)
 }
 
 func (bc *Blockchain) init() error {
-	// TODO: This should be the persistance of the genisis block.
-	// for now we just add the genisis block start hash.
-	bc.headerList = NewHeaderHashList(bc.startHash)
-	bc.storedHeaderCount = 1 // genesis hash
+	genesisBlock, err := createGenesisBlock(bc.config)
+	if err != nil {
+		return err
+	}
 
-	// If we get an "not found" error, the store could not find
-	// the current block, which indicates there is nothing stored
-	// in the chain file.
+	// Look in the storage for a version. If we could not the version key
+	// there is nothing stored.
+	if version, err := bc.Get(storage.SYSVersion.Bytes()); err != nil {
+		bc.Put(storage.SYSVersion.Bytes(), []byte(version))
+		if err := bc.persistBlock(genesisBlock); err != nil {
+			return err
+		}
+
+		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
+
+		return nil
+	}
+
+	// At this point there was no version found in the storage which
+	// implies a creating fresh storage with the version specified
+	// and the genesis block as first block.
+	log.Infof("restoring blockchain with storage version: %s", version)
+
 	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return nil
-		}
 		return err
 	}
 
@@ -99,8 +112,9 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+
 	for _, hash := range hashes {
-		if !bc.startHash.Equals(hash) {
+		if !genesisBlock.Hash().Equals(hash) {
 			bc.headerList.Add(hash)
 			bc.storedHeaderCount++
 		}

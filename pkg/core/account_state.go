@@ -18,7 +18,7 @@ func (a Accounts) getAndChange(s storage.Store, hash util.Uint160) (*AccountStat
 		return account, nil
 	}
 
-	var account *AccountState
+	account := &AccountState{}
 	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
 	if b, err := s.Get(key); err == nil {
 		if err := account.DecodeBinary(bytes.NewReader(b)); err != nil {
