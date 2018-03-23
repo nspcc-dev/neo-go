@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -28,23 +29,23 @@ func NewCommand() cli.Command {
 }
 
 func startServer(ctx *cli.Context) error {
-	net := network.ModePrivNet
+	net := config.ModePrivNet
 	if ctx.Bool("testnet") {
-		net = network.ModeTestNet
+		net = config.ModeTestNet
 	}
 	if ctx.Bool("mainnet") {
-		net = network.ModeMainNet
+		net = config.ModeMainNet
 	}
 
 	configPath := "./config"
 	configPath = ctx.String("config-path")
-	config, err := network.LoadConfig(configPath, net)
+	cfg, err := config.Load(configPath, net)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	serverConfig := network.NewServerConfig(config)
-	chain, err := newBlockchain(net, config.ApplicationConfiguration.DataDirectoryPath)
+	serverConfig := network.NewServerConfig(cfg)
+	chain, err := newBlockchain(net, cfg.ApplicationConfiguration.DataDirectoryPath)
 	if err != nil {
 		err = fmt.Errorf("could not initialize blockhain: %s", err)
 		return cli.NewExitError(err, 1)
@@ -62,15 +63,15 @@ func startServer(ctx *cli.Context) error {
 	return nil
 }
 
-func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
+func newBlockchain(net config.NetMode, path string) (*core.Blockchain, error) {
 	var startHash util.Uint256
-	if net == network.ModePrivNet {
+	if net == config.ModePrivNet {
 		startHash = core.GenesisHashPrivNet()
 	}
-	if net == network.ModeTestNet {
+	if net == config.ModeTestNet {
 		startHash = core.GenesisHashTestNet()
 	}
-	if net == network.ModeMainNet {
+	if net == config.ModeMainNet {
 		startHash = core.GenesisHashMainNet()
 	}
 

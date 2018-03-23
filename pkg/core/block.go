@@ -29,6 +29,11 @@ func (b *Block) Header() *Header {
 	}
 }
 
+// RebuildMerkleRoot rebuild the merkleroot of the block.
+func (b *Block) RebuildMerkleRoot() {
+
+}
+
 // Verify the integrity of the block.
 func (b *Block) Verify(full bool) bool {
 	// The first TX has to be a miner transaction.

@@ -26,7 +26,7 @@ var (
 	persistInterval   = 5 * time.Second
 )
 
-// Blockchain holds the chain.
+// Blockchain represents the blockchain.
 type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
 	storage.Store
@@ -81,7 +81,7 @@ func (bc *Blockchain) init() error {
 	// TODO: This should be the persistance of the genisis block.
 	// for now we just add the genisis block start hash.
 	bc.headerList = NewHeaderHashList(bc.startHash)
-	bc.storedHeaderCount = 1 // genisis hash
+	bc.storedHeaderCount = 1 // genesis hash
 
 	// If we get an "not found" error, the store could not find
 	// the current block, which indicates there is nothing stored

@@ -31,11 +31,9 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 		},
 		Transactions: txs,
 	}
-	hash, err := b.createHash()
-	if err != nil {
-		panic(err)
-	}
-	b.hash = hash
+
+	b.createHash()
+
 	return b
 }
 

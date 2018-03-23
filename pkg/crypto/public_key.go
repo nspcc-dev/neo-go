@@ -9,7 +9,27 @@ import (
 	"math/big"
 )
 
-// PublicKey represents a public key.
+// PublicKeys is a list of public keys.
+type PublicKeys []*PublicKey
+
+func (keys PublicKeys) Len() int      { return len(keys) }
+func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
+func (keys PublicKeys) Less(i, j int) bool {
+	if keys[i].X.Cmp(keys[j].X) == -1 {
+		return true
+	}
+	if keys[i].X.Cmp(keys[j].X) == 1 {
+		return false
+	}
+	if keys[i].X.Cmp(keys[j].X) == 0 {
+		return false
+	}
+
+	return keys[i].Y.Cmp(keys[j].Y) == -1
+}
+
+// PublicKey represents a public key and provides a high level
+// API around the ECPoint.
 type PublicKey struct {
 	ECPoint
 }

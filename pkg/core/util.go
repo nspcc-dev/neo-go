@@ -6,20 +6,40 @@ import (
 	"sort"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-func createGenesisBlock() *Block {
+// Creates a genesis block based on the given configuration.
+func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
+	validators, err := getValidators(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	nextConsensus, err := getNextConsensusAddress(validators)
+	if err != nil {
+		return nil, err
+	}
+
+	merkleRoot, err := util.Uint256DecodeString("803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4")
+	if err != nil {
+		return nil, err
+	}
+
 	base := BlockBase{
+		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
 		ConsensusData: 2083236893,
-		NextConsensus: util.Uint160{},
+		MerkleRoot:    merkleRoot,
+		NextConsensus: nextConsensus,
 		Script: &transaction.Witness{
 			InvocationScript:   []byte{},
 			VerificationScript: []byte{byte(vm.Opusht)},
@@ -28,6 +48,17 @@ func createGenesisBlock() *Block {
 
 	governingTX := governingTokenTX()
 	utilityTX := utilityTokenTX()
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(
+		len(cfg.StandbyValidators)/2+1,
+		validators,
+	)
+	if err != nil {
+		return nil, err
+	}
+	scriptOut, err := util.Uint160FromScript(rawScript)
+	if err != nil {
+		return nil, err
+	}
 
 	block := &Block{
 		BlockBase: base,
@@ -52,7 +83,7 @@ func createGenesisBlock() *Block {
 					{
 						AssetID:    governingTX.Hash(),
 						Amount:     governingTX.Data.(*transaction.RegisterTX).Amount,
-						ScriptHash: util.Uint160{},
+						ScriptHash: scriptOut,
 					},
 				},
 				Scripts: []*transaction.Witness{
@@ -65,7 +96,9 @@ func createGenesisBlock() *Block {
 		},
 	}
 
-	return block
+	block.createHash()
+
+	return block, nil
 }
 
 func governingTokenTX() *transaction.Transaction {
@@ -104,6 +137,30 @@ func utilityTokenTX() *transaction.Transaction {
 		Outputs:    []*transaction.Output{},
 		Scripts:    []*transaction.Witness{},
 	}
+}
+
+func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error) {
+	validators := make([]*crypto.PublicKey, len(cfg.StandbyValidators))
+	for i, pubKeyStr := range cfg.StandbyValidators {
+		pubKey, err := crypto.NewPublicKeyFromString(pubKeyStr)
+		if err != nil {
+			return nil, err
+		}
+		validators[i] = pubKey
+	}
+	return validators, nil
+}
+
+func getNextConsensusAddress(validators []*crypto.PublicKey) (val util.Uint160, err error) {
+	vlen := len(validators)
+	raw, err := smartcontract.CreateMultiSigRedeemScript(
+		vlen-(vlen-1)/3,
+		validators,
+	)
+	if err != nil {
+		return val, err
+	}
+	return util.Uint160FromScript(raw)
 }
 
 func calculateUtilityAmount() util.Fixed8 {

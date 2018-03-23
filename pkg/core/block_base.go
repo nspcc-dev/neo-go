@@ -24,16 +24,16 @@ type BlockBase struct {
 
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
-	// The height of the block must be exactly equal to the height of the previous block plus 1.
 	Timestamp uint32
 
 	// index/height of the block
+	// The height of the block must be exactly equal to the height of the previous block plus 1.
 	Index uint32
 
-	// Random number also called nonce
+	// Random number also known as the nonce.
 	ConsensusData uint64
 
-	// Contract addresss of the next miner
+	// Contract addresss of the next miner.
 	NextConsensus util.Uint160
 
 	// Padding that is fixed to 1
@@ -92,16 +92,19 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
-func (b *BlockBase) createHash() (hash util.Uint256, err error) {
+func (b *BlockBase) createHash() error {
 	buf := new(bytes.Buffer)
-	if err = b.encodeHashableFields(buf); err != nil {
-		return hash, err
+	if err := b.encodeHashableFields(buf); err != nil {
+		return err
 	}
 
 	// Double hash the encoded fields.
+	var hash util.Uint256
 	hash = sha256.Sum256(buf.Bytes())
 	hash = sha256.Sum256(hash.Bytes())
-	return hash, nil
+	b.hash = hash
+
+	return nil
 }
 
 // encodeHashableFields will only encode the fields used for hashing.
@@ -155,10 +158,5 @@ func (b *BlockBase) decodeHashableFields(r io.Reader) error {
 
 	// Make the hash of the block here so we dont need to do this
 	// again.
-	hash, err := b.createHash()
-	if err != nil {
-		return err
-	}
-	b.hash = hash
-	return nil
+	return b.createHash()
 }
