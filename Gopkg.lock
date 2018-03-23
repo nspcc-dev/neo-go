@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/anthdm/neo-go"
   packages = ["pkg/util"]
-  revision = "da01cdae5c15dcf7d6a046b27d2710c95e2cc66a"
+  revision = "9a605513fe8c5250c0ec71b30f9ecad49bd56c0a"
 
 [[projects]]
   branch = "master"
@@ -20,6 +20,24 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/go-kit/kit"
+  packages = ["log"]
+  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
+  version = "v0.6.0"
+
+[[projects]]
+  name = "github.com/go-logfmt/logfmt"
+  packages = ["."]
+  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
+  version = "v0.3.0"
+
+[[projects]]
+  name = "github.com/go-stack/stack"
+  packages = ["."]
+  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
+  version = "v1.7.0"
+
+[[projects]]
   name = "github.com/go-yaml/yaml"
   packages = ["."]
   revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
@@ -30,6 +48,12 @@
   name = "github.com/golang/snappy"
   packages = ["."]
   revision = "553a641470496b2327abcac10b36396bd98e45c9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kr/logfmt"
+  packages = ["."]
+  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -72,7 +96,7 @@
     "leveldb/table",
     "leveldb/util"
   ]
-  revision = "211f780988068502fe874c44dae530528ebd840f"
+  revision = "169b1b37be738edb2813dab48c97a549bcf99bb5"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -89,7 +113,7 @@
     "scrypt",
     "ssh/terminal"
   ]
-  revision = "8c653846df49742c4c85ec37e5d9f8d3ba657895"
+  revision = "374053ea96cb300f8671b8d3b07edeeb06e203b4"
 
 [[projects]]
   branch = "master"
@@ -98,7 +122,7 @@
     "unix",
     "windows"
   ]
-  revision = "c28acc882ebcbfbe8ce9f0f14b9ac26ee138dd51"
+  revision = "2f1e207ee39ff70f3433e49c6eb52677a515e3b5"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -121,11 +145,11 @@
     "go/buildutil",
     "go/loader"
   ]
-  revision = "73e16cff9e0d4a802937444bebb562458548241d"
+  revision = "96caea41033df6f8c3974c845ab094f8ec3bd345"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "83630d732c34b1ddf24cd34025fd9fdd982a5e5075ec93a450e7edada658c6c9"
+  inputs-digest = "d4338e14e8103a6626ecf662f3d0c08e972a39e667a6c76f31cc8938f59f2cba"
   solver-name = "gps-cdcl"
   solver-version = 1
