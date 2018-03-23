@@ -60,5 +60,20 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
-	return nil
+	if err := binary.Write(w, binary.LittleEndian, tx.AssetType); err != nil {
+		return err
+	}
+	if err := util.WriteVarString(w, tx.Name); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, tx.Amount); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, tx.Precision); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, tx.Owner.Bytes()); err != nil {
+		return err
+	}
+	return binary.Write(w, binary.LittleEndian, tx.Admin)
 }

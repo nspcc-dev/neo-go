@@ -52,6 +52,10 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
+	if p.IsInfinity() {
+		return []byte{0x00}
+	}
+
 	var (
 		x       = p.X.Bytes()
 		paddedX = append(bytes.Repeat([]byte{0x00}, 32-len(x)), x...)
@@ -70,6 +74,12 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	var prefix uint8
 	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
+	}
+
+	// Infinity
+	if prefix == 0x00 {
+		p.ECPoint = ECPoint{}
+		return nil
 	}
 
 	// Compressed public keys.

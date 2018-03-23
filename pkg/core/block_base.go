@@ -54,6 +54,9 @@ func (b *BlockBase) Verify() bool {
 
 // Hash return the hash of the block.
 func (b *BlockBase) Hash() util.Uint256 {
+	if b.hash.Equals(util.Uint256{}) {
+		b.createHash()
+	}
 	return b.hash
 }
 

@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/cbergoon/merkletree"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -53,8 +54,21 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 	}
 }
 
+// CalculateHash implements merkletree.Content.
+func (t *Transaction) CalculateHash() []byte {
+	return t.Hash().Bytes()
+}
+
+// Equals implements merkletree.Content.
+func (t *Transaction) Equals(other merkletree.Content) bool {
+	return t.hash.Equals(other.(*Transaction).hash)
+}
+
 // Hash return the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
+	if t.hash.Equals(util.Uint256{}) {
+		t.createHash()
+	}
 	return t.hash
 }
 
@@ -118,13 +132,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
-	hash, err := t.createHash()
-	if err != nil {
-		return err
-	}
-	t.hash = hash
-
-	return nil
+	return t.createHash()
 }
 
 func (t *Transaction) decodeData(r io.Reader) error {
@@ -228,18 +236,19 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	return nil
 }
 
-func (t *Transaction) createHash() (hash util.Uint256, err error) {
+// createHash creates the hash of the transaction.
+func (t *Transaction) createHash() error {
 	buf := new(bytes.Buffer)
-	if err = t.encodeHashableFields(buf); err != nil {
-		return
+	if err := t.encodeHashableFields(buf); err != nil {
+		return err
 	}
-	sha := sha256.New()
-	sha.Write(buf.Bytes())
-	b := sha.Sum(nil)
-	sha.Reset()
-	sha.Write(b)
-	b = sha.Sum(nil)
-	return util.Uint256DecodeBytes(util.ArrayReverse(b))
+
+	var hash util.Uint256
+	hash = sha256.Sum256(buf.Bytes())
+	hash = sha256.Sum256(hash.Bytes())
+	t.hash = hash
+
+	return nil
 }
 
 // GroupTXInputsByPrevHash groups all TX inputs by their previous hash.

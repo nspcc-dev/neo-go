@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEncodeDecodeInfinity(t *testing.T) {
+	key := &PublicKey{ECPoint{}}
+	buf := new(bytes.Buffer)
+	assert.Nil(t, key.EncodeBinary(buf))
+	assert.Equal(t, 1, buf.Len())
+
+	keyDecode := &PublicKey{}
+	assert.Nil(t, keyDecode.DecodeBinary(buf))
+	assert.Equal(t, []byte{0x00}, keyDecode.Bytes())
+}
+
 func TestEncodeDecodePublicKey(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		p := &PublicKey{RandomECPoint()}

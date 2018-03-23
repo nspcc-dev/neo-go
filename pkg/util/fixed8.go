@@ -5,6 +5,8 @@ import (
 	"strconv"
 )
 
+const decimals = 100000000
+
 // Fixed8 represents a fixed-point number with precision 10^-8.
 type Fixed8 int64
 
@@ -16,9 +18,9 @@ func (f Fixed8) String() string {
 		buf.WriteRune('-')
 		val = -val
 	}
-	str := strconv.FormatInt(val/100000000, 10)
+	str := strconv.FormatInt(val/decimals, 10)
 	buf.WriteString(str)
-	val %= 100000000
+	val %= decimals
 	if val > 0 {
 		buf.WriteRune('.')
 		str = strconv.FormatInt(val, 10)
@@ -28,4 +30,14 @@ func (f Fixed8) String() string {
 		buf.WriteString(str)
 	}
 	return buf.String()
+}
+
+// Value returns the original value representing the Fixed8.
+func (f Fixed8) Value() int64 {
+	return int64(f) / int64(decimals)
+}
+
+// NewFixed8 return a new Fixed8 type multiplied by decimals.
+func NewFixed8(val int) Fixed8 {
+	return Fixed8(decimals * val)
 }

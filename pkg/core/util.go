@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"time"
 
@@ -96,28 +97,38 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		},
 	}
 
-	block.createHash()
+	block.rebuildMerkleRoot()
+	fmt.Println(block.MerkleRoot)
+	fmt.Println(merkleRoot)
 
 	return block, nil
 }
 
 func governingTokenTX() *transaction.Transaction {
 	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opusht)})
+	adminB, _ := crypto.Uint160DecodeAddress("Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt")
+	if !admin.Equals(adminB) {
+		panic("kdjdkljfkdjfkdjf")
+	}
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
-		Amount:    100000000,
+		Amount:    util.NewFixed8(100000000),
 		Precision: 0,
 		Owner:     &crypto.PublicKey{},
 		Admin:     admin,
 	}
-	return &transaction.Transaction{
+
+	tx := &transaction.Transaction{
+		Type:       transaction.RegisterType,
 		Data:       registerTX,
 		Attributes: []*transaction.Attribute{},
 		Inputs:     []*transaction.Input{},
 		Outputs:    []*transaction.Output{},
 		Scripts:    []*transaction.Witness{},
 	}
+
+	return tx
 }
 
 func utilityTokenTX() *transaction.Transaction {
@@ -130,13 +141,16 @@ func utilityTokenTX() *transaction.Transaction {
 		Owner:     &crypto.PublicKey{},
 		Admin:     admin,
 	}
-	return &transaction.Transaction{
+	tx := &transaction.Transaction{
+		Type:       transaction.RegisterType,
 		Data:       registerTX,
 		Attributes: []*transaction.Attribute{},
 		Inputs:     []*transaction.Input{},
 		Outputs:    []*transaction.Output{},
 		Scripts:    []*transaction.Witness{},
 	}
+
+	return tx
 }
 
 func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error) {
@@ -168,7 +182,7 @@ func calculateUtilityAmount() util.Fixed8 {
 	for i := 0; i < len(genAmount); i++ {
 		sum += genAmount[i]
 	}
-	return util.Fixed8(sum * decrementInterval)
+	return util.NewFixed8(sum * decrementInterval)
 }
 
 // Utilities for quick bootstrapping blockchains. Normally we should

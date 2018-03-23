@@ -81,6 +81,11 @@ func ReadVarString(r io.Reader) (string, error) {
 	return string(b), err
 }
 
+// WriteVarString writes a variable length string.
+func WriteVarString(w io.Writer, s string) error {
+	return WriteVarBytes(w, []byte(s))
+}
+
 // WriteVarBytes writes a variable length byte array.
 func WriteVarBytes(w io.Writer, b []byte) error {
 	if err := WriteVarUint(w, uint64(len(b))); err != nil {
