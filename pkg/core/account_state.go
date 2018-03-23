@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -22,7 +23,7 @@ func (a Accounts) getAndChange(s storage.Store, hash util.Uint160) (*AccountStat
 	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
 	if b, err := s.Get(key); err == nil {
 		if err := account.DecodeBinary(bytes.NewReader(b)); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode (AccountState): %s", err)
 		}
 	} else {
 		account = NewAccountState(hash)
@@ -48,6 +49,7 @@ func (a Accounts) commit(b storage.Batch) error {
 
 // AccountState represents the state of a NEO account.
 type AccountState struct {
+	Version    uint8
 	ScriptHash util.Uint160
 	IsFrozen   bool
 	Votes      []*crypto.PublicKey
@@ -66,6 +68,9 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 
 // DecodeBinary decodes AccountState from the given io.Reader.
 func (s *AccountState) DecodeBinary(r io.Reader) error {
+	if err := binary.Read(r, binary.LittleEndian, &s.Version); err != nil {
+		return err
+	}
 	if err := binary.Read(r, binary.LittleEndian, &s.ScriptHash); err != nil {
 		return err
 	}
@@ -74,6 +79,7 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	}
 
 	lenVotes := util.ReadVarUint(r)
+	fmt.Println(lenVotes)
 	s.Votes = make([]*crypto.PublicKey, lenVotes)
 	for i := 0; i < int(lenVotes); i++ {
 		s.Votes[i] = &crypto.PublicKey{}
@@ -101,6 +107,9 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary encode AccountState to the given io.Writer.
 func (s *AccountState) EncodeBinary(w io.Writer) error {
+	if err := binary.Write(w, binary.LittleEndian, s.Version); err != nil {
+		return err
+	}
 	if err := binary.Write(w, binary.LittleEndian, s.ScriptHash); err != nil {
 		return err
 	}

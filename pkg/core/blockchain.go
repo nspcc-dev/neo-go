@@ -83,6 +83,7 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
 	// Look in the storage for a version. If we could not the version key
 	// there is nothing stored.
@@ -91,8 +92,6 @@ func (bc *Blockchain) init() error {
 		if err := bc.persistBlock(genesisBlock); err != nil {
 			return err
 		}
-
-		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
 		return nil
 	}

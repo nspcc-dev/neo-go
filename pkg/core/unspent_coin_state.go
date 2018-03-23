@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -18,11 +19,11 @@ func (u UnspentCoins) getAndChange(s storage.Store, hash util.Uint256) (*Unspent
 		return unspent, nil
 	}
 
-	var unspent *UnspentCoinState
+	unspent := &UnspentCoinState{}
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
 	if b, err := s.Get(key); err == nil {
 		if err := unspent.DecodeBinary(bytes.NewReader(b)); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", err)
 		}
 	} else {
 		unspent = &UnspentCoinState{
