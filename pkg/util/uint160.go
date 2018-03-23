@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 )
 
@@ -55,4 +56,9 @@ func (u Uint160) Equals(other Uint160) bool {
 		}
 	}
 	return true
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (u Uint160) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }

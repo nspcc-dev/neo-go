@@ -9,8 +9,8 @@ import (
 
 // Witness contains 2 scripts.
 type Witness struct {
-	InvocationScript   []byte
-	VerificationScript []byte
+	InvocationScript   []byte `json:"stack"`
+	VerificationScript []byte `json:"redeem"`
 }
 
 // DecodeBinary implements the payload interface.

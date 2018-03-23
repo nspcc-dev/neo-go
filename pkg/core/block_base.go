@@ -14,33 +14,33 @@ import (
 // BlockBase holds the base info of a block
 type BlockBase struct {
 	// Version of the block.
-	Version uint32
+	Version uint32 `json:"version"`
 
 	// hash of the previous block.
-	PrevHash util.Uint256
+	PrevHash util.Uint256 `json:"previousblockhash"`
 
 	// Root hash of a transaction list.
-	MerkleRoot util.Uint256
+	MerkleRoot util.Uint256 `json:"merkleroot"`
 
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
-	Timestamp uint32
+	Timestamp uint32 `json:"time"`
 
 	// index/height of the block
-	Index uint32
+	Index uint32 `json:"height"`
 
 	// Random number also called nonce
-	ConsensusData uint64
+	ConsensusData uint64 `json:"nonce"`
 
 	// Contract addresss of the next miner
-	NextConsensus util.Uint160
+	NextConsensus util.Uint160 `json:"nextminer"`
 
 	// Padding that is fixed to 1
 	_ uint8
 
 	// Script used to validate the block
-	Script *transaction.Witness
+	Script *transaction.Witness `json:"script"`
 
 	// hash of this block, created when binary encoded.
 	hash util.Uint256
