@@ -306,7 +306,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 			}
 
 			if output.AssetID.Equals(bc.governingToken()) && len(account.Votes) > 0 {
-				log.Warnf("governing token detected in TX output need to update validators!")
+				// TODO
 			}
 		}
 
@@ -330,7 +330,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(bc.governingToken()) {
-					log.Warnf("governing token detected in TX input need to update validators!")
+					// TODO
 				}
 
 				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
@@ -361,7 +361,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		return err
 	}
 
-	atomic.AddUint32(&bc.blockHeight, 1)
+	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	return nil
 }
 
@@ -385,6 +385,8 @@ func (bc *Blockchain) persist() (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
+			} else {
+				log.Warnf("could not find block %s in the block cache", hash)
 			}
 		}
 	}

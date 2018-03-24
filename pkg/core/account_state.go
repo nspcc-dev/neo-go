@@ -59,6 +59,7 @@ type AccountState struct {
 // NewAccountState returns a new AccountState object.
 func NewAccountState(scriptHash util.Uint160) *AccountState {
 	return &AccountState{
+		Version:    0,
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
 		Votes:      []*crypto.PublicKey{},
@@ -79,7 +80,6 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	}
 
 	lenVotes := util.ReadVarUint(r)
-	fmt.Println(lenVotes)
 	s.Votes = make([]*crypto.PublicKey, lenVotes)
 	for i := 0; i < int(lenVotes); i++ {
 		s.Votes[i] = &crypto.PublicKey{}
@@ -120,27 +120,35 @@ func (s *AccountState) EncodeBinary(w io.Writer) error {
 	if err := util.WriteVarUint(w, uint64(len(s.Votes))); err != nil {
 		return err
 	}
-
 	for _, point := range s.Votes {
 		if err := point.EncodeBinary(w); err != nil {
 			return err
 		}
 	}
 
-	if err := util.WriteVarUint(w, uint64(len(s.Balances))); err != nil {
+	balances := s.nonZeroBalances()
+	if err := util.WriteVarUint(w, uint64(len(balances))); err != nil {
 		return err
 	}
-
-	for k, v := range s.Balances {
-		if v > 0 {
-			if err := binary.Write(w, binary.LittleEndian, k); err != nil {
-				return err
-			}
-			if err := binary.Write(w, binary.LittleEndian, v); err != nil {
-				return err
-			}
+	for k, v := range balances {
+		if err := binary.Write(w, binary.LittleEndian, k); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, v); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// Returns only the non-zero balances for the account.
+func (s *AccountState) nonZeroBalances() map[util.Uint256]util.Fixed8 {
+	b := make(map[util.Uint256]util.Fixed8)
+	for k, v := range s.Balances {
+		if v > 0 {
+			b[k] = v
+		}
+	}
+	return b
 }

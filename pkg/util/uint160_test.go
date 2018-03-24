@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -28,17 +27,6 @@ func TestUint160DecodeBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, hexStr, val.String())
-}
-
-func TestFromScript(t *testing.T) {
-	script := bytes.Repeat([]byte{0x20}, 64)
-	script[0] = byte(0x42)
-	expect := "2d3b96ae1bcc5a585e075e3b81920210dec16302"
-	val, err := Uint160FromScript(script)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, expect, val.String())
 }
 
 func TestUInt160Equals(t *testing.T) {
