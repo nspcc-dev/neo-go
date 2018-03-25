@@ -385,8 +385,6 @@ func (bc *Blockchain) persist() (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
-			} else {
-				log.Warnf("could not find block %s in the block cache", hash)
 			}
 		}
 	}
