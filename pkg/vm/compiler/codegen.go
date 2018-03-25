@@ -386,7 +386,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
-			if !ok {
+			if !ok && !isBuiltin(n.Fun) {
 				log.Fatalf("could not resolve function %s", fun.Name)
 			}
 		case *ast.SelectorExpr:
@@ -421,7 +421,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// will put them in. ^^
 		emitOpcode(c.prog, vm.Onop)
 
-		if isSyscall(f.name) {
+		// Check builtin first to avoid nil pointer on funcScope!
+		if isBuiltin(n.Fun) {
+			// Use the ident to check, builtins are not in func scopes.
+			// We can be sure builtins are of type *ast.Ident.
+			c.convertBuiltin(n.Fun.(*ast.Ident).Name, n)
+		} else if isSyscall(f.name) {
 			c.convertSyscall(f.name)
 		} else {
 			emitCall(c.prog, vm.Ocall, int16(f.label))
@@ -477,6 +482,15 @@ func (c *codegen) convertSyscall(name string) {
 	}
 	emitSyscall(c.prog, api)
 	emitOpcode(c.prog, vm.Onop)
+}
+
+func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
+	switch name {
+	case "len":
+		emitOpcode(c.prog, vm.Oarraysize)
+	case "append":
+		log.Fatal("builtin (append) not yet implemented.")
+	}
 }
 
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
@@ -651,25 +665,4 @@ func (c *codegen) writeJumps() {
 			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}
-}
-
-func isSyscall(name string) bool {
-	_, ok := vm.Syscalls[name]
-	return ok
-}
-
-var noRetSyscalls = []string{
-	"Notify", "Log", "Put", "Register", "Delete",
-	"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
-	"PrevHash", "GetHeader",
-}
-
-// isNoRetSyscall checks if the syscall has a return value.
-func isNoRetSyscall(name string) bool {
-	for _, s := range noRetSyscalls {
-		if s == name {
-			return true
-		}
-	}
-	return false
 }
