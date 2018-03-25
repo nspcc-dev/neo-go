@@ -42,7 +42,7 @@ func NewCommand() cli.Command {
 				},
 			},
 			{
-				Name:   "invoke",
+				Name:   "testinvoke",
 				Usage:  "Test an invocation of a smart contract on the blockchain",
 				Action: testInvoke,
 				Flags: []cli.Flag{
