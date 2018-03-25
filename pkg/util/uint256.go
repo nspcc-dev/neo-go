@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 )
 
@@ -56,4 +57,9 @@ func (u Uint256) Equals(other Uint256) bool {
 // String implements the stringer interface.
 func (u Uint256) String() string {
 	return hex.EncodeToString(ArrayReverse(u.Bytes()))
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (u Uint256) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }

@@ -17,10 +17,10 @@ type Block struct {
 	BlockBase
 
 	// Transaction list.
-	Transactions []*transaction.Transaction
+	Transactions []*transaction.Transaction `json:"tx"`
 
 	// True if this block is created from trimmed data.
-	Trimmed bool
+	Trimmed bool `json:"-"`
 }
 
 // Header returns the Header of the Block.

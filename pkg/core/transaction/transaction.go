@@ -13,35 +13,35 @@ import (
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type TXType
+	Type TXType `json:"type"`
 
 	// The trading version which is currently 0.
-	Version uint8
+	Version uint8 `json:"-"`
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data TXer
+	Data TXer `json:"-"`
 
 	// Transaction attributes.
-	Attributes []*Attribute
+	Attributes []*Attribute `json:"attributes"`
 
 	// The inputs of the transaction.
-	Inputs []*Input
+	Inputs []*Input `json:"vin"`
 
 	// The outputs of the transaction.
-	Outputs []*Output
+	Outputs []*Output `json:"vout"`
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
-	Scripts []*Witness
+	Scripts []*Witness `json:"scripts"`
 
 	// hash of the transaction
 	hash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
-	Trimmed bool
+	Trimmed bool `json:"-"`
 }
 
 // NewTrimmedTX returns a trimmed transaction with only its hash

@@ -3,6 +3,7 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"golang.org/x/crypto/ripemd160"
@@ -74,4 +75,9 @@ func (u Uint160) Equals(other Uint160) bool {
 		}
 	}
 	return true
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (u Uint160) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }
