@@ -7,7 +7,7 @@ import (
 
 // MinerTX represents a miner transaction.
 type MinerTX struct {
-	// Random number/identifier
+	// Random number to avoid hash collision.
 	Nonce uint32
 }
 

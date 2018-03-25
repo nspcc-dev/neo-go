@@ -25,42 +25,29 @@
 
 # Overview
 
-> This project is currently in **alpha** and under active development.
-
-## Project Goals
-
-Full port of the original C# [NEO project](https://github.com/neo-project).
+This project aims to be a full port of the original C# [NEO project](https://github.com/neo-project).
 A complete toolkit for the NEO blockchain, including:
 
-- Full consensus node
-- Full RPC node
+- consensus node
+- RPC node
 - RPC client
 - CLI tool
 - Smart contract compiler
+- NEO virtual machine
 
-## Current State
+# Getting started
 
-The project will exist out of the following packages:
+## Installation
 
-| Package       | State   | Developer                            |
-|---------------|---------|--------------------------------------|
-| core          | started | [@anthdm](https://github.com/anthdm) |
-| network       | started | [@anthdm](https://github.com/anthdm) |
-| vm            | started | [@anthdm](https://github.com/anthdm) |
-| compiler      | started | [@anthdm](https://github.com/anthdm) |
-| client        | started | [@revett](https://github.com/revett) |
-| cli           | started | [@revett](https://github.com/revett) |
-| wallet        | started | [@pawanrawal](https://github.com/pawanrawal) |
+Install dependencies.
 
-# Getting Started
-
-## Node
-
-Install dependencies, this requires [dep](https://github.com/golang/dep):
+`neo-go` uses [dep](https://github.com/golang/dep) as its dependency manager. After installing `deps` you can run:
 
 ```
 make deps
 ```
+
+## How to setup a node
 
 Build the **neo-go** CLI:
 
@@ -68,55 +55,63 @@ Build the **neo-go** CLI:
 make build
 ```
 
-Currently, there is a minimal subset of the NEO protocol implemented.
-To start experimenting make sure you a have a private net running on your machine.
-If you dont, take a look at [docker-privnet-with-gas](https://hub.docker.com/r/metachris/neo-privnet-with-gas/).
-
-Start a NEO node:
+Quick start a NEO node on the private network. This requires the [neo-privatenet](https://hub.docker.com/r/cityofzion/neo-privatenet/) Docker image running on your machine.
 
 ```
 make run
 ```
 
-You can add multiple seeds if you want:
-
-```
-make run -e SEEDS="127.0.0.1:20333,127.0.01:20334"
-```
-
-By default the server will currently run on port 3000, for testing purposes.
-You can change that by setting the tcp flag:
-
-```
-make run -e PORT="1337"
-```
-
 To run the binary directly:
 
 ```
-./bin/neo-go node -seed 127.0.0.1:20333 -tcp 1337
+./bin/neo-go node -seed 127.0.0.1:20333,127.0.0.1:20334
 ```
 
-## RPC
-
-If you want your node to also serve JSON-RPC, you can do that by setting the following flag:
+By default the node will run on the `private network`, to change his:
 
 ```
-./bin/neo-go node -rpc 4000
+./bin/neo-go node --mainnet
 ```
 
-In this case the server will accept and respond JSON-RPC on port 4000.
-Keep in mind that currently there is only a small subset of the JSON-RPC implemented.
-Feel free to make a PR with more functionality.
+Available network flags:
+- `--mainnet, -m`
+- `--privnet, -p`
+- `--testnet, -t`
 
-## VM
+If you want in-depth customization for your node, there are `yaml` config files for each `network` available in the `config` directory. Those files are automaticly loaded, corresponding the provided `netmode` flag.
 
+```yaml
+ProtocolConfiguration:
+  Magic: 56753
+  AddressVersion: 23
+  StandbyValidators:
+  - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
+  - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
+  - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
+  - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
+  SeedList:
+  - 127.0.0.1:20333
+  - 127.0.0.1:20334
+  - 127.0.0.1:20335
+  - 127.0.0.1:20336
+  SystemFee:
+    EnrollmentTransaction: 1000
+    IssueTransaction: 500
+    PublishTransaction: 500
+    RegisterTransaction: 10000
+
+ApplicationConfiguration:
+  DataDirectoryPath: "./chains/privnet"
+  RPCPort: 20332
+  NodePort: 20333
+  Relay: true
+  DialTimeout: 3
+  ProtoTickInterval: 2
+  MaxPeers: 50
 ```
-TODO
-```
 
-## Smart Contracts
-> In depth documentation about the neo-go compiler and smart contract examples can be found inside the [compiler package](https://github.com/CityOfZion/neo-go/tree/master/pkg/vm/compiler).
+## Writing smart contracts in Go
+In depth documentation about the **neo-go** compiler and smart contract examples can be found inside the [compiler package](https://github.com/CityOfZion/neo-go/tree/master/pkg/vm/compiler).
 
 ### Compile a smart contract
 
@@ -124,7 +119,7 @@ TODO
 ./bin/neo-go contract compile -i mycontract.go
 ```
 
-By default the filename will be the name of your .go file with the .avm extension, the file will be located in the same directory where you called the command from. If you want another location for your compiled contract:
+By default the filename will be the name of your `.go` file with the `.avm` extension, the file will be located in the same directory where you called the command from. If you want another location for your compiled contract:
 
 ```
 ./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.avm
@@ -166,8 +161,9 @@ describing the feauture/topic you are going to implement.
 
 - [@anthdm](https://github.com/anthdm) on Github
 - [@anthdm](https://twitter.com/anthdm) on Twitter
+- Reach out to me on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
 - Send me an email anthony@cityofzion.io
 
 # License
 
-- Open-source [MIT](https://github.com/anthdm/neo-go/blob/master/LICENCE.md)
+- Open-source [MIT](https://github.com/CityOfZion/neo-go/blob/master/LICENCE.md)

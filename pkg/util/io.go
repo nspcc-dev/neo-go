@@ -65,6 +65,35 @@ func WriteVarUint(w io.Writer, val uint64) error {
 	return nil
 }
 
+// ReadVarBytes reads a variable length byte array.
+func ReadVarBytes(r io.Reader) ([]byte, error) {
+	n := ReadVarUint(r)
+	b := make([]byte, n)
+	if err := binary.Read(r, binary.LittleEndian, b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// ReadVarString reads a variable length string.
+func ReadVarString(r io.Reader) (string, error) {
+	b, err := ReadVarBytes(r)
+	return string(b), err
+}
+
+// WriteVarString writes a variable length string.
+func WriteVarString(w io.Writer, s string) error {
+	return WriteVarBytes(w, []byte(s))
+}
+
+// WriteVarBytes writes a variable length byte array.
+func WriteVarBytes(w io.Writer, b []byte) error {
+	if err := WriteVarUint(w, uint64(len(b))); err != nil {
+		return err
+	}
+	return binary.Write(w, binary.LittleEndian, b)
+}
+
 // Read2000Uint256Hashes attempt to read 2000 Uint256 hashes from
 // the given byte array.
 func Read2000Uint256Hashes(b []byte) ([]Uint256, error) {

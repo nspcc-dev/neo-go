@@ -1,8 +1,12 @@
 package util
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+
+	"golang.org/x/crypto/ripemd160"
 )
 
 const uint160Size = 20
@@ -33,6 +37,17 @@ func Uint160DecodeBytes(b []byte) (u Uint160, err error) {
 	return
 }
 
+// Uint160FromScript returns a Uint160 type from a raw script.
+func Uint160FromScript(script []byte) (u Uint160, err error) {
+	sha := sha256.New()
+	sha.Write(script)
+	b := sha.Sum(nil)
+	ripemd := ripemd160.New()
+	ripemd.Write(b)
+	b = ripemd.Sum(nil)
+	return Uint160DecodeBytes(b)
+}
+
 // Bytes returns the byte slice representation of u.
 func (u Uint160) Bytes() []byte {
 	b := make([]byte, uint160Size)
@@ -40,6 +55,11 @@ func (u Uint160) Bytes() []byte {
 		b[i] = byte(u[i])
 	}
 	return b
+}
+
+// BytesReverse return a reversed byte representation of u.
+func (u Uint160) BytesReverse() []byte {
+	return ArrayReverse(u.Bytes())
 }
 
 // String implements the stringer interface.
@@ -55,4 +75,9 @@ func (u Uint160) Equals(other Uint160) bool {
 		}
 	}
 	return true
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (u Uint160) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }

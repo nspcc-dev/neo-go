@@ -14,29 +14,38 @@ type Discoverer interface {
 	BackFill(...string)
 	PoolCount() int
 	RequestRemote(int)
+	RegisterBadAddr(string)
+	UnconnectedPeers() []string
+	BadPeers() []string
 }
 
-// DefaultDiscovery
+// DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
-	transport   Transporter
-	dialTimeout time.Duration
-	addrs       map[string]bool
-	badAddrs    map[string]bool
-	requestCh   chan int
-	backFill    chan string
-	pool        chan string
+	transport        Transporter
+	dialTimeout      time.Duration
+	addrs            map[string]bool
+	badAddrs         map[string]bool
+	unconnectedAddrs map[string]bool
+	requestCh        chan int
+	connectedCh      chan string
+	backFill         chan string
+	badAddrCh        chan string
+	pool             chan string
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
 func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 	d := &DefaultDiscovery{
-		transport:   ts,
-		dialTimeout: dt,
-		addrs:       make(map[string]bool),
-		badAddrs:    make(map[string]bool),
-		requestCh:   make(chan int),
-		backFill:    make(chan string),
-		pool:        make(chan string, maxPoolSize),
+		transport:        ts,
+		dialTimeout:      dt,
+		addrs:            make(map[string]bool),
+		badAddrs:         make(map[string]bool),
+		unconnectedAddrs: make(map[string]bool),
+		requestCh:        make(chan int),
+		connectedCh:      make(chan string),
+		backFill:         make(chan string),
+		badAddrCh:        make(chan string),
+		pool:             make(chan string, maxPoolSize),
 	}
 	go d.run()
 	return d
@@ -58,16 +67,42 @@ func (d *DefaultDiscovery) PoolCount() int {
 	return len(d.pool)
 }
 
-// Request will try to establish a connection with n nodes.
+// RequestRemote will try to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
 	d.requestCh <- n
 }
 
-func (d *DefaultDiscovery) work(addrCh, badAddrCh chan string) {
+// RegisterBadAddr registers the given address as a bad address.
+func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
+	d.badAddrCh <- addr
+	d.RequestRemote(1)
+}
+
+// UnconnectedPeers returns all addresses of unconnected addrs.
+func (d *DefaultDiscovery) UnconnectedPeers() []string {
+	var addrs []string
+	for addr := range d.unconnectedAddrs {
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+// BadPeers returns all addresses of bad addrs.
+func (d *DefaultDiscovery) BadPeers() []string {
+	var addrs []string
+	for addr := range d.badAddrs {
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+func (d *DefaultDiscovery) work(addrCh chan string) {
 	for {
 		addr := <-addrCh
 		if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
-			badAddrCh <- addr
+			d.badAddrCh <- addr
+		} else {
+			d.connectedCh <- addr
 		}
 	}
 }
@@ -79,12 +114,11 @@ func (d *DefaultDiscovery) next() string {
 func (d *DefaultDiscovery) run() {
 	var (
 		maxWorkers = 5
-		badAddrCh  = make(chan string)
 		workCh     = make(chan string)
 	)
 
 	for i := 0; i < maxWorkers; i++ {
-		go d.work(workCh, badAddrCh)
+		go d.work(workCh)
 	}
 
 	for {
@@ -95,6 +129,7 @@ func (d *DefaultDiscovery) run() {
 			}
 			if _, ok := d.addrs[addr]; !ok {
 				d.addrs[addr] = true
+				d.unconnectedAddrs[addr] = true
 				d.pool <- addr
 			}
 		case n := <-d.requestCh:
@@ -103,11 +138,15 @@ func (d *DefaultDiscovery) run() {
 					workCh <- d.next()
 				}
 			}()
-		case addr := <-badAddrCh:
+		case addr := <-d.badAddrCh:
 			d.badAddrs[addr] = true
+			delete(d.unconnectedAddrs, addr)
 			go func() {
 				workCh <- d.next()
 			}()
+
+		case addr := <-d.connectedCh:
+			delete(d.unconnectedAddrs, addr)
 		}
 	}
 }

@@ -34,7 +34,7 @@ type (
 		// ServerConfig holds the Server configuration.
 		ServerConfig
 
-		// id also known as the nonce of te server.
+		// id also known as the nonce of the server.
 		id uint32
 
 		transport Transporter
@@ -84,8 +84,13 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 	return s
 }
 
+// ID returns the servers ID.
+func (s *Server) ID() uint32 {
+	return s.id
+}
+
 // Start will start the server and its underlying transport.
-func (s *Server) Start() {
+func (s *Server) Start(errChan chan error) {
 	log.WithFields(log.Fields{
 		"blockHeight":  s.chain.BlockHeight(),
 		"headerHeight": s.chain.HeaderHeight(),
@@ -94,6 +99,22 @@ func (s *Server) Start() {
 	go s.transport.Accept()
 	s.discovery.BackFill(s.Seeds...)
 	s.run()
+}
+
+// Shutdown disconnects all peers and stops listening.
+func (s *Server) Shutdown() {
+	log.WithFields(log.Fields{
+		"peers": s.PeerCount(),
+	}).Info("shutting down server")
+	close(s.quit)
+}
+
+func (s *Server) UnconnectedPeers() []string {
+	return s.discovery.UnconnectedPeers()
+}
+
+func (s *Server) BadPeers() []string {
+	return s.discovery.BadPeers()
 }
 
 func (s *Server) run() {
@@ -130,7 +151,7 @@ func (s *Server) run() {
 				"endpoint": p.Endpoint(),
 			}).Info("new peer connected")
 		case drop := <-s.unregister:
-			s.discovery.RequestRemote(1)
+			s.discovery.RegisterBadAddr(drop.peer.Endpoint().String())
 			delete(s.peers, drop.peer)
 			log.WithFields(log.Fields{
 				"endpoint":  drop.peer.Endpoint(),
@@ -139,6 +160,12 @@ func (s *Server) run() {
 			}).Warn("peer disconnected")
 		}
 	}
+}
+
+// Peers returns the current list of peers connected to
+// the server.
+func (s *Server) Peers() map[Peer]bool {
+	return s.peers
 }
 
 // PeerCount returns the number of current connected peers.

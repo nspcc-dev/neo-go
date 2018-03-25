@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +20,6 @@ func TestAddHeaders(t *testing.T) {
 
 	assert.Equal(t, 0, bc.blockCache.Len())
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
-	assert.Equal(t, uint32(1), bc.storedHeaderCount)
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
@@ -30,7 +29,6 @@ func TestAddHeaders(t *testing.T) {
 	}
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
-	assert.Equal(t, uint32(1), bc.storedHeaderCount)
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 }
@@ -53,10 +51,18 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, 3, bc.blockCache.Len())
 	assert.Equal(t, lastBlock.Index, bc.HeaderHeight())
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
-	assert.Equal(t, uint32(1), bc.storedHeaderCount)
+
+	t.Log(bc.blockCache)
 
 	if err := bc.persist(); err != nil {
 		t.Fatal(err)
+	}
+
+	for _, block := range blocks {
+		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
+		if _, err := bc.Get(key); err != nil {
+			t.Fatalf("block %s not persisted", block.Hash())
+		}
 	}
 
 	assert.Equal(t, lastBlock.Index, bc.BlockHeight())
@@ -122,9 +128,27 @@ func TestHasBlock(t *testing.T) {
 	assert.False(t, bc.HasBlock(newBlock.Hash()))
 }
 
+func TestGetTransaction(t *testing.T) {
+	block := getDecodedBlock(t, 1)
+	bc := newTestChain(t)
+
+	assert.Nil(t, bc.AddBlock(block))
+	assert.Nil(t, bc.persistBlock(block))
+
+	tx, height, err := bc.GetTransaction(block.Transactions[0].Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, block.Index, height)
+	assert.Equal(t, block.Transactions[0], tx)
+}
+
 func newTestChain(t *testing.T) *Blockchain {
-	startHash, _ := util.Uint256DecodeString("a")
-	chain, err := NewBlockchain(storage.NewMemoryStore(), startHash)
+	cfg, err := config.Load("../../config", config.ModePrivNet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain, err := NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration)
 	if err != nil {
 		t.Fatal(err)
 	}

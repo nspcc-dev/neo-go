@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,15 +18,19 @@ import (
 const (
 	secondsPerBlock  = 15
 	headerBatchCount = 2000
+	version          = "0.0.1"
 )
 
 var (
-	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	persistInterval = 5 * time.Second
+	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	decrementInterval = 2000000
+	persistInterval   = 5 * time.Second
 )
 
-// Blockchain holds the chain.
+// Blockchain represents the blockchain.
 type Blockchain struct {
+	config config.ProtocolConfiguration
+
 	// Any object that satisfies the BlockchainStorer interface.
 	storage.Store
 
@@ -38,8 +43,6 @@ type Blockchain struct {
 	storedHeaderCount uint32
 
 	blockCache *Cache
-
-	startHash util.Uint256
 
 	// All operation on headerList must be called from an
 	// headersOp to be routine safe.
@@ -57,12 +60,12 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain return a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
+		config:        cfg,
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		startHash:     startHash,
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
@@ -76,19 +79,30 @@ func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error)
 }
 
 func (bc *Blockchain) init() error {
-	// TODO: This should be the persistance of the genisis block.
-	// for now we just add the genisis block start hash.
-	bc.headerList = NewHeaderHashList(bc.startHash)
-	bc.storedHeaderCount = 1 // genisis hash
+	genesisBlock, err := createGenesisBlock(bc.config)
+	if err != nil {
+		return err
+	}
+	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
-	// If we get an "not found" error, the store could not find
-	// the current block, which indicates there is nothing stored
-	// in the chain file.
+	// Look in the storage for a version. If we could not the version key
+	// there is nothing stored.
+	if version, err := bc.Get(storage.SYSVersion.Bytes()); err != nil {
+		bc.Put(storage.SYSVersion.Bytes(), []byte(version))
+		if err := bc.persistBlock(genesisBlock); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// At this point there was no version found in the storage which
+	// implies a creating fresh storage with the version specified
+	// and the genesis block as first block.
+	log.Infof("restoring blockchain with storage version: %s", version)
+
 	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return nil
-		}
 		return err
 	}
 
@@ -97,8 +111,9 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+
 	for _, hash := range hashes {
-		if !bc.startHash.Equals(hash) {
+		if !genesisBlock.Hash().Equals(hash) {
 			bc.headerList.Add(hash)
 			bc.storedHeaderCount++
 		}
@@ -152,6 +167,13 @@ func (bc *Blockchain) run() {
 			persistTimer.Reset(persistInterval)
 		}
 	}
+}
+
+// For now this will return a hardcoded hash of the NEO governing token.
+func (bc *Blockchain) governingToken() util.Uint256 {
+	neoNativeAsset := "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
+	val, _ := util.Uint256DecodeString(neoNativeAsset)
+	return val
 }
 
 // AddBlock processes the given block and will add it to the cache so it
@@ -246,16 +268,100 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	return nil
 }
 
+// TODO: persistBlock needs some more love, its implemented as in the original
+// project. This for the sake of development speed and understanding of what
+// is happening here, quite allot as you can see :). If things are wired together
+// and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) persistBlock(block *Block) error {
-	batch := bc.Batch()
+	var (
+		batch        = bc.Batch()
+		unspentCoins = make(UnspentCoins)
+		accounts     = make(Accounts)
+	)
 
 	storeAsBlock(batch, block, 0)
 	storeAsCurrentBlock(batch, block)
 
+	for _, tx := range block.Transactions {
+		storeAsTransaction(batch, tx, block.Index)
+
+		// Add CoinStateConfirmed for each tx output.
+		unspent := make([]CoinState, len(tx.Outputs))
+		for i := 0; i < len(tx.Outputs); i++ {
+			unspent[i] = CoinStateConfirmed
+		}
+		unspentCoins[tx.Hash()] = &UnspentCoinState{unspent}
+
+		// Process TX outputs.
+		for _, output := range tx.Outputs {
+			account, err := accounts.getAndChange(bc.Store, output.ScriptHash)
+			if err != nil {
+				return err
+			}
+
+			if _, ok := account.Balances[output.AssetID]; ok {
+				account.Balances[output.AssetID] += output.Amount
+			} else {
+				account.Balances[output.AssetID] = output.Amount
+			}
+
+			if output.AssetID.Equals(bc.governingToken()) && len(account.Votes) > 0 {
+				// TODO
+			}
+		}
+
+		// Process TX inputs that are grouped by previous hash.
+		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+			prevTX, _, err := bc.GetTransaction(prevHash)
+			if err != nil {
+				return fmt.Errorf("could not find previous TX: %s", prevHash)
+			}
+			for _, input := range inputs {
+				unspent, err := unspentCoins.getAndChange(bc.Store, input.PrevHash)
+				if err != nil {
+					return err
+				}
+				unspent.states[input.PrevIndex] = CoinStateSpent
+
+				prevTXOutput := prevTX.Outputs[input.PrevIndex]
+				account, err := accounts.getAndChange(bc.Store, prevTXOutput.ScriptHash)
+				if err != nil {
+					return err
+				}
+
+				if prevTXOutput.AssetID.Equals(bc.governingToken()) {
+					// TODO
+				}
+
+				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
+			}
+		}
+
+		// Process the underlying type of the TX.
+		switch tx.Data.(type) {
+		case *transaction.RegisterTX:
+		case *transaction.IssueTX:
+		case *transaction.ClaimTX:
+		case *transaction.EnrollmentTX:
+		case *transaction.StateTX:
+		case *transaction.PublishTX:
+		case *transaction.InvocationTX:
+			log.Warn("invocation TX but we have no VM, o noo :(")
+		}
+	}
+
+	// Persist all to storage.
+	if err := accounts.commit(batch); err != nil {
+		return err
+	}
+	if err := unspentCoins.commit(batch); err != nil {
+		return err
+	}
 	if err := bc.PutBatch(batch); err != nil {
 		return err
 	}
-	atomic.AddUint32(&bc.blockHeight, 1)
+
+	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	return nil
 }
 
@@ -274,6 +380,7 @@ func (bc *Blockchain) persist() (err error) {
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
+					log.Warnf("failed to persist blocks: %s", err)
 					return
 				}
 				bc.blockCache.Delete(hash)
@@ -300,6 +407,27 @@ func (bc *Blockchain) headerListLen() (n int) {
 	}
 	<-bc.headersOpDone
 	return
+}
+
+// GetTransaction returns a TX and its height by the given hash.
+func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
+	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
+	b, err := bc.Get(key)
+	if err != nil {
+		return nil, 0, err
+	}
+	r := bytes.NewReader(b)
+
+	var height uint32
+	if err := binary.Read(r, binary.LittleEndian, &height); err != nil {
+		return nil, 0, err
+	}
+
+	tx := &transaction.Transaction{}
+	if err := tx.DecodeBinary(r); err != nil {
+		return nil, 0, err
+	}
+	return tx, height, nil
 }
 
 // GetBlock returns a Block by the given hash.

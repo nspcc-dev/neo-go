@@ -3,6 +3,7 @@ package network
 import (
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,7 +24,7 @@ type (
 		// ModePrivNet docker private network.
 		// ModeTestNet NEO test network.
 		// ModeMainNet NEO main network.
-		Net NetMode
+		Net config.NetMode
 
 		// Relay determins whether the server is forwarding its inventory.
 		Relay bool
@@ -45,12 +46,12 @@ type (
 
 // NewServerConfig creates a new ServerConfig struct
 // using the main applications config.
-func NewServerConfig(config Config) ServerConfig {
-	appConfig := config.ApplicationConfiguration
-	protoConfig := config.ProtocolConfiguration
+func NewServerConfig(cfg config.Config) ServerConfig {
+	appConfig := cfg.ApplicationConfiguration
+	protoConfig := cfg.ProtocolConfiguration
 
 	return ServerConfig{
-		UserAgent:         config.GenerateUserAgent(),
+		UserAgent:         cfg.GenerateUserAgent(),
 		ListenTCP:         appConfig.NodePort,
 		Net:               protoConfig.Magic,
 		Relay:             appConfig.Relay,

@@ -9,6 +9,7 @@ type Blockchainer interface {
 	AddBlock(*Block) error
 	BlockHeight() uint32
 	HeaderHeight() uint32
+	GetBlock(hash util.Uint256) (*Block, error)
 	GetHeaderHash(int) util.Uint256
 	CurrentHeaderHash() util.Uint256
 	CurrentBlockHash() util.Uint256

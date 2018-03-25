@@ -22,6 +22,17 @@ func TestGetPut(t *testing.T) {
 	assert.Equal(t, value, newVal)
 }
 
+func TestKeyNotExist(t *testing.T) {
+	var (
+		s   = NewMemoryStore()
+		key = []byte("sparse")
+	)
+
+	_, err := s.Get(key)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "key not found")
+}
+
 func TestPutBatch(t *testing.T) {
 	var (
 		s     = NewMemoryStore()

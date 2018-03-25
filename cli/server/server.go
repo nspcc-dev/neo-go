@@ -2,11 +2,15 @@ package server
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -28,25 +32,28 @@ func NewCommand() cli.Command {
 }
 
 func startServer(ctx *cli.Context) error {
-	net := network.ModePrivNet
+	net := config.ModePrivNet
 	if ctx.Bool("testnet") {
-		net = network.ModeTestNet
+		net = config.ModeTestNet
 	}
 	if ctx.Bool("mainnet") {
-		net = network.ModeMainNet
+		net = config.ModeMainNet
 	}
 
 	configPath := "./config"
 	configPath = ctx.String("config-path")
-	config, err := network.LoadConfig(configPath, net)
+	cfg, err := config.Load(configPath, net)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	serverConfig := network.NewServerConfig(config)
-	chain, err := newBlockchain(net, config.ApplicationConfiguration.DataDirectoryPath)
+	interruptChan := make(chan os.Signal, 1)
+	signal.Notify(interruptChan, os.Interrupt)
+
+	serverConfig := network.NewServerConfig(cfg)
+	chain, err := newBlockchain(cfg)
 	if err != nil {
-		err = fmt.Errorf("could not initialize blockhain: %s", err)
+		err = fmt.Errorf("could not initialize blockchain: %s", err)
 		return cli.NewExitError(err, 1)
 	}
 
@@ -54,30 +61,52 @@ func startServer(ctx *cli.Context) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	server := network.NewServer(serverConfig, chain)
+	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
+	errChan := make(chan error)
+
+	go server.Start(errChan)
+	go rpcServer.Start(errChan)
+
 	fmt.Println(logo())
-	network.NewServer(serverConfig, chain).Start()
+	fmt.Println(server.UserAgent)
+	fmt.Println()
+
+	var shutdownErr error
+Main:
+	for {
+		select {
+		case err := <-errChan:
+			shutdownErr = errors.Wrap(err, "Error encountered by server")
+			interruptChan <- os.Kill
+
+		case <-interruptChan:
+			server.Shutdown()
+			if serverErr := rpcServer.Shutdown(); serverErr != nil {
+				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
+			}
+			break Main
+		}
+	}
+
+	if shutdownErr != nil {
+		return cli.NewExitError(shutdownErr, 1)
+	}
+
 	return nil
 }
 
-func newBlockchain(net network.NetMode, path string) (*core.Blockchain, error) {
-	var startHash util.Uint256
-	if net == network.ModePrivNet {
-		startHash = core.GenesisHashPrivNet()
-	}
-	if net == network.ModeTestNet {
-		startHash = core.GenesisHashTestNet()
-	}
-	if net == network.ModeMainNet {
-		startHash = core.GenesisHashMainNet()
-	}
-
+func newBlockchain(cfg config.Config) (*core.Blockchain, error) {
 	// Hardcoded for now.
-	store, err := storage.NewLevelDBStore(path, nil)
+	store, err := storage.NewLevelDBStore(
+		cfg.ApplicationConfiguration.DataDirectoryPath,
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return core.NewBlockchain(store, startHash)
+	return core.NewBlockchain(store, cfg.ProtocolConfiguration)
 }
 
 func logo() string {

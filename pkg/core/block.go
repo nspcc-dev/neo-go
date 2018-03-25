@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -16,10 +17,10 @@ type Block struct {
 	BlockBase
 
 	// Transaction list.
-	Transactions []*transaction.Transaction
+	Transactions []*transaction.Transaction `json:"tx"`
 
 	// True if this block is created from trimmed data.
-	Trimmed bool
+	Trimmed bool `json:"-"`
 }
 
 // Header returns the Header of the Block.
@@ -27,6 +28,22 @@ func (b *Block) Header() *Header {
 	return &Header{
 		BlockBase: b.BlockBase,
 	}
+}
+
+// rebuildMerkleRoot rebuild the merkleroot of the block.
+func (b *Block) rebuildMerkleRoot() error {
+	hashes := make([]util.Uint256, len(b.Transactions))
+	for i, tx := range b.Transactions {
+		hashes[i] = tx.Hash()
+	}
+
+	merkle, err := crypto.NewMerkleTree(hashes)
+	if err != nil {
+		return err
+	}
+
+	b.MerkleRoot = merkle.Root()
+	return nil
 }
 
 // Verify the integrity of the block.

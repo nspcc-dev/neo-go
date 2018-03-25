@@ -13,35 +13,35 @@ import (
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type TXType
+	Type TXType `json:"type"`
 
 	// The trading version which is currently 0.
-	Version uint8
+	Version uint8 `json:"-"`
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data TXer
+	Data TXer `json:"-"`
 
 	// Transaction attributes.
-	Attributes []*Attribute
+	Attributes []*Attribute `json:"attributes"`
 
 	// The inputs of the transaction.
-	Inputs []*Input
+	Inputs []*Input `json:"vin"`
 
 	// The outputs of the transaction.
-	Outputs []*Output
+	Outputs []*Output `json:"vout"`
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
-	Scripts []*Witness
+	Scripts []*Witness `json:"scripts"`
 
 	// hash of the transaction
 	hash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
-	Trimmed bool
+	Trimmed bool `json:"-"`
 }
 
 // NewTrimmedTX returns a trimmed transaction with only its hash
@@ -55,6 +55,9 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 
 // Hash return the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
+	if t.hash.Equals(util.Uint256{}) {
+		t.createHash()
+	}
 	return t.hash
 }
 
@@ -118,13 +121,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
-	hash, err := t.createHash()
-	if err != nil {
-		return err
-	}
-	t.hash = hash
-
-	return nil
+	return t.createHash()
 }
 
 func (t *Transaction) decodeData(r io.Reader) error {
@@ -147,6 +144,15 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	case IssueType:
 		t.Data = &IssueTX{}
 		return t.Data.(*IssueTX).DecodeBinary(r)
+	case EnrollmentType:
+		t.Data = &EnrollmentTX{}
+		return t.Data.(*EnrollmentTX).DecodeBinary(r)
+	case PublishType:
+		t.Data = &PublishTX{}
+		return t.Data.(*PublishTX).DecodeBinary(r)
+	case StateType:
+		t.Data = &StateTX{}
+		return t.Data.(*StateTX).DecodeBinary(r)
 	default:
 		log.Warnf("invalid TX type %s", t.Type)
 	}
@@ -180,8 +186,10 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	}
 
 	// Underlying TXer.
-	if err := t.Data.EncodeBinary(w); err != nil {
-		return err
+	if t.Data != nil {
+		if err := t.Data.EncodeBinary(w); err != nil {
+			return err
+		}
 	}
 
 	// Attributes
@@ -217,16 +225,26 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 	return nil
 }
 
-func (t *Transaction) createHash() (hash util.Uint256, err error) {
+// createHash creates the hash of the transaction.
+func (t *Transaction) createHash() error {
 	buf := new(bytes.Buffer)
-	if err = t.encodeHashableFields(buf); err != nil {
-		return
+	if err := t.encodeHashableFields(buf); err != nil {
+		return err
 	}
-	sha := sha256.New()
-	sha.Write(buf.Bytes())
-	b := sha.Sum(nil)
-	sha.Reset()
-	sha.Write(b)
-	b = sha.Sum(nil)
-	return util.Uint256DecodeBytes(util.ArrayReverse(b))
+
+	var hash util.Uint256
+	hash = sha256.Sum256(buf.Bytes())
+	hash = sha256.Sum256(hash.Bytes())
+	t.hash = hash
+
+	return nil
+}
+
+// GroupTXInputsByPrevHash groups all TX inputs by their previous hash.
+func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
+	m := make(map[util.Uint256][]*Input)
+	for _, in := range t.Inputs {
+		m[in.PrevHash] = append(m[in.PrevHash], in)
+	}
+	return m
 }
