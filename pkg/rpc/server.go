@@ -22,6 +22,12 @@ type (
 	}
 )
 
+var (
+	invalidBlockHeightError = func(index int, height int) error {
+		return fmt.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
+	}
+)
+
 // NewServer creates a new Server struct.
 func NewServer(chain core.Blockchainer, port uint16, coreServer *network.Server) Server {
 	return Server{
@@ -90,6 +96,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 	var results interface{}
 	var resultsErr *Error
 
+Methods:
 	switch req.Method {
 	case "getbestblockhash":
 		results = s.chain.CurrentBlockHash().String()
@@ -113,6 +120,12 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 				break
 			}
 		case "number":
+			if !s.validBlockHeight(param) {
+				err = invalidBlockHeightError(0, param.IntVal)
+				resultsErr = NewInvalidParamsError(err.Error(), err)
+				break Methods
+			}
+
 			hash = s.chain.GetHeaderHash(param.IntVal)
 		case "default":
 			err = errors.New("Expected param at index 0 to be either string or number")
@@ -130,10 +143,10 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 		results = s.chain.BlockHeight()
 
 	case "getblockhash":
-		if param, exists := reqParams.ValueAtAndType(0, "number"); exists {
+		if param, exists := reqParams.ValueAtAndType(0, "number"); exists && s.validBlockHeight(param) {
 			results = s.chain.GetHeaderHash(param.IntVal)
 		} else {
-			err := errors.New("Unable to parse parameter in position 0, expected a number")
+			err := invalidBlockHeightError(0, param.IntVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
@@ -173,9 +186,12 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 
 	if resultsErr != nil {
 		req.WriteErrorResponse(w, resultsErr)
+		return
 	}
 
-	if results != nil {
-		req.WriteResponse(w, results)
-	}
+	req.WriteResponse(w, results)
+}
+
+func (s Server) validBlockHeight(param *Param) bool {
+	return param.IntVal >= 0 && param.IntVal <= int(s.chain.BlockHeight())
 }
