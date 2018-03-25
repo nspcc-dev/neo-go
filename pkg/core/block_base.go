@@ -54,6 +54,9 @@ func (b *BlockBase) Verify() bool {
 
 // Hash return the hash of the block.
 func (b *BlockBase) Hash() util.Uint256 {
+	if b.hash.Equals(util.Uint256{}) {
+		b.createHash()
+	}
 	return b.hash
 }
 
@@ -92,16 +95,19 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
-func (b *BlockBase) createHash() (hash util.Uint256, err error) {
+func (b *BlockBase) createHash() error {
 	buf := new(bytes.Buffer)
-	if err = b.encodeHashableFields(buf); err != nil {
-		return hash, err
+	if err := b.encodeHashableFields(buf); err != nil {
+		return err
 	}
 
 	// Double hash the encoded fields.
+	var hash util.Uint256
 	hash = sha256.Sum256(buf.Bytes())
 	hash = sha256.Sum256(hash.Bytes())
-	return hash, nil
+	b.hash = hash
+
+	return nil
 }
 
 // encodeHashableFields will only encode the fields used for hashing.
@@ -155,10 +161,5 @@ func (b *BlockBase) decodeHashableFields(r io.Reader) error {
 
 	// Make the hash of the block here so we dont need to do this
 	// again.
-	hash, err := b.createHash()
-	if err != nil {
-		return err
-	}
-	b.hash = hash
-	return nil
+	return b.createHash()
 }

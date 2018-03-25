@@ -88,8 +88,6 @@ func ECPointFromReader(r io.Reader) (point ECPoint, err error) {
 		return
 	}
 
-	fmt.Println(f)
-
 	// Infinity
 	if f == 0 {
 		return ECPoint{

@@ -1,4 +1,4 @@
-package network
+package config
 
 import (
 	"fmt"
@@ -12,6 +12,11 @@ import (
 
 const (
 	userAgentFormat = "/NEO-GO:%s/"
+
+	// Valid NetMode constants.
+	ModeMainNet NetMode = 0x00746e41 // 7630401
+	ModeTestNet NetMode = 0x74746e41 // 1953787457
+	ModePrivNet NetMode = 56753      // docker privnet
 )
 
 var (
@@ -59,16 +64,33 @@ type (
 		ProtoTickInterval time.Duration `yaml:"ProtoTickInterval"`
 		MaxPeers          int           `yaml:"MaxPeers"`
 	}
+
+	// NetMode describes the mode the blockchain will operate on.
+	NetMode uint32
 )
+
+// String implements the stringer interface.
+func (n NetMode) String() string {
+	switch n {
+	case ModePrivNet:
+		return "privnet"
+	case ModeTestNet:
+		return "testnet"
+	case ModeMainNet:
+		return "mainnet"
+	default:
+		return "net unknown"
+	}
+}
 
 // GenerateUserAgent creates user agent string based on build time environment.
 func (c Config) GenerateUserAgent() string {
 	return fmt.Sprintf(userAgentFormat, Version)
 }
 
-// LoadConfig attempts to load the config from the give
+// Loadattempts to load the config from the give
 // path and netMode.
-func LoadConfig(path string, netMode NetMode) (Config, error) {
+func Load(path string, netMode NetMode) (Config, error) {
 	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return Config{}, errors.Wrap(err, "Unable to load config")

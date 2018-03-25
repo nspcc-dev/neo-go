@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -18,15 +18,19 @@ import (
 const (
 	secondsPerBlock  = 15
 	headerBatchCount = 2000
+	version          = "0.0.1"
 )
 
 var (
-	genAmount       = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	persistInterval = 5 * time.Second
+	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	decrementInterval = 2000000
+	persistInterval   = 5 * time.Second
 )
 
-// Blockchain holds the chain.
+// Blockchain represents the blockchain.
 type Blockchain struct {
+	config config.ProtocolConfiguration
+
 	// Any object that satisfies the BlockchainStorer interface.
 	storage.Store
 
@@ -39,8 +43,6 @@ type Blockchain struct {
 	storedHeaderCount uint32
 
 	blockCache *Cache
-
-	startHash util.Uint256
 
 	// All operation on headerList must be called from an
 	// headersOp to be routine safe.
@@ -58,12 +60,12 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain return a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
+		config:        cfg,
 		Store:         s,
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		startHash:     startHash,
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
@@ -77,19 +79,30 @@ func NewBlockchain(s storage.Store, startHash util.Uint256) (*Blockchain, error)
 }
 
 func (bc *Blockchain) init() error {
-	// TODO: This should be the persistance of the genisis block.
-	// for now we just add the genisis block start hash.
-	bc.headerList = NewHeaderHashList(bc.startHash)
-	bc.storedHeaderCount = 1 // genisis hash
+	genesisBlock, err := createGenesisBlock(bc.config)
+	if err != nil {
+		return err
+	}
+	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
-	// If we get an "not found" error, the store could not find
-	// the current block, which indicates there is nothing stored
-	// in the chain file.
+	// Look in the storage for a version. If we could not the version key
+	// there is nothing stored.
+	if version, err := bc.Get(storage.SYSVersion.Bytes()); err != nil {
+		bc.Put(storage.SYSVersion.Bytes(), []byte(version))
+		if err := bc.persistBlock(genesisBlock); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// At this point there was no version found in the storage which
+	// implies a creating fresh storage with the version specified
+	// and the genesis block as first block.
+	log.Infof("restoring blockchain with storage version: %s", version)
+
 	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return nil
-		}
 		return err
 	}
 
@@ -98,8 +111,9 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+
 	for _, hash := range hashes {
-		if !bc.startHash.Equals(hash) {
+		if !genesisBlock.Hash().Equals(hash) {
 			bc.headerList.Add(hash)
 			bc.storedHeaderCount++
 		}
@@ -292,7 +306,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 			}
 
 			if output.AssetID.Equals(bc.governingToken()) && len(account.Votes) > 0 {
-				log.Warnf("governing token detected in TX output need to update validators!")
+				// TODO
 			}
 		}
 
@@ -300,7 +314,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
 			prevTX, _, err := bc.GetTransaction(prevHash)
 			if err != nil {
-				return err
+				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
 			for _, input := range inputs {
 				unspent, err := unspentCoins.getAndChange(bc.Store, input.PrevHash)
@@ -316,7 +330,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(bc.governingToken()) {
-					log.Warnf("governing token detected in TX input need to update validators!")
+					// TODO
 				}
 
 				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
@@ -347,7 +361,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		return err
 	}
 
-	atomic.AddUint32(&bc.blockHeight, 1)
+	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	return nil
 }
 
@@ -366,6 +380,7 @@ func (bc *Blockchain) persist() (err error) {
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
+					log.Warnf("failed to persist blocks: %s", err)
 					return
 				}
 				bc.blockCache.Delete(hash)

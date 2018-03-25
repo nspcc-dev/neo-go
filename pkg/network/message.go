@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -23,34 +24,10 @@ var (
 	errChecksumMismatch = errors.New("checksum mismatch")
 )
 
-// NetMode type that is compatible with netModes below.
-type NetMode uint32
-
-// String implements the stringer interface.
-func (n NetMode) String() string {
-	switch n {
-	case ModePrivNet:
-		return "privnet"
-	case ModeTestNet:
-		return "testnet"
-	case ModeMainNet:
-		return "mainnet"
-	default:
-		return "net unknown"
-	}
-}
-
-// Values used for the magic field, according to the docs.
-const (
-	ModeMainNet NetMode = 0x00746e41 // 7630401
-	ModeTestNet NetMode = 0x74746e41 // 1953787457
-	ModePrivNet NetMode = 56753      // docker privnet
-)
-
 // Message is the complete message send between nodes.
 type Message struct {
 	// NetMode of the node that sends this message.
-	Magic NetMode
+	Magic config.NetMode
 
 	// Command is utf8 code, of which the length is 12 bytes,
 	// the extra part is filled with 0.
@@ -88,7 +65,7 @@ const (
 )
 
 // NewMessage returns a new message with the given payload.
-func NewMessage(magic NetMode, cmd CommandType, p payload.Payload) *Message {
+func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Message {
 	var (
 		size     uint32
 		checksum []byte

@@ -3,18 +3,59 @@ package crypto
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
 )
 
-// PublicKey represents a public key.
+// PublicKeys is a list of public keys.
+type PublicKeys []*PublicKey
+
+func (keys PublicKeys) Len() int      { return len(keys) }
+func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
+func (keys PublicKeys) Less(i, j int) bool {
+	if keys[i].X.Cmp(keys[j].X) == -1 {
+		return true
+	}
+	if keys[i].X.Cmp(keys[j].X) == 1 {
+		return false
+	}
+	if keys[i].X.Cmp(keys[j].X) == 0 {
+		return false
+	}
+
+	return keys[i].Y.Cmp(keys[j].Y) == -1
+}
+
+// PublicKey represents a public key and provides a high level
+// API around the ECPoint.
 type PublicKey struct {
 	ECPoint
 }
 
+// NewPublicKeyFromString return a public key created from the
+// given hex string.
+func NewPublicKeyFromString(s string) (*PublicKey, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey := &PublicKey{}
+	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
+}
+
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
+	if p.IsInfinity() {
+		return []byte{0x00}
+	}
+
 	var (
 		x       = p.X.Bytes()
 		paddedX = append(bytes.Repeat([]byte{0x00}, 32-len(x)), x...)
@@ -33,6 +74,12 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	var prefix uint8
 	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
+	}
+
+	// Infinity
+	if prefix == 0x00 {
+		p.ECPoint = ECPoint{}
+		return nil
 	}
 
 	// Compressed public keys.

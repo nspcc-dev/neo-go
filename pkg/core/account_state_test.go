@@ -21,6 +21,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	}
 
 	a := &AccountState{
+		Version:    0,
 		ScriptHash: util.RandomUint160(),
 		IsFrozen:   true,
 		Votes:      votes,
@@ -37,6 +38,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	assert.Equal(t, a.Version, aDecode.Version)
 	assert.Equal(t, a.ScriptHash, aDecode.ScriptHash)
 	assert.Equal(t, a.IsFrozen, aDecode.IsFrozen)
 
