@@ -15,8 +15,8 @@ type InvokeResult struct {
 
 // StackParam respresent a stack parameter.
 type StackParam struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
 }
 
 // AccountStateResponse holds the getaccountstate response.

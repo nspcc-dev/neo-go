@@ -1,5 +1,7 @@
 package rpc
 
+import "github.com/CityOfZion/neo-go/pkg/smartcontract"
+
 // GetBlock returns a block by its hash or index/height. If verbose is true
 // the response will contain a pretty Block object instead of the raw hex string.
 func (c *Client) GetBlock(indexOrHash interface{}, verbose bool) (*response, error) {
@@ -36,6 +38,20 @@ func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
 		resp   = &InvokeScriptResponse{}
 	)
 	if err := c.performRequest("invokescript", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// InvokeFunction return the results after calling a the smart contract scripthash
+// with the given operation and parameters.
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
+	var (
+		p    = newParams(script, operation, params)
+		resp = &InvokeScriptResponse{}
+	)
+	if err := c.performRequest("invokefunction", p, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil

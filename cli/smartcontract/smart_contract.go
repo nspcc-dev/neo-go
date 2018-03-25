@@ -35,10 +35,14 @@ func NewCommand() cli.Command {
 						Name:  "out, o",
 						Usage: "Output of the compiled contract",
 					},
+					cli.BoolFlag{
+						Name:  "debug, d",
+						Usage: "Debug mode will print out additional information after a compiling",
+					},
 				},
 			},
 			{
-				Name:   "invoke",
+				Name:   "testinvoke",
 				Usage:  "Test an invocation of a smart contract on the blockchain",
 				Action: testInvoke,
 				Flags: []cli.Flag{
@@ -71,12 +75,13 @@ func contractCompile(ctx *cli.Context) error {
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
-		Debug:   true,
+		Debug:   ctx.Bool("debug"),
 	}
 
 	if err := compiler.CompileAndSave(src, o); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+
 	return nil
 }
 
@@ -85,6 +90,7 @@ func testInvoke(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
+
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)

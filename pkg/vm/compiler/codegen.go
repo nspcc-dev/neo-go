@@ -80,7 +80,10 @@ func (c *codegen) emitLoadLocal(name string) {
 	if pos < 0 {
 		log.Fatalf("cannot load local variable with position: %d", pos)
 	}
+	c.emitLoadLocalPos(pos)
+}
 
+func (c *codegen) emitLoadLocalPos(pos int) {
 	emitOpcode(c.prog, vm.Ofromaltstack)
 	emitOpcode(c.prog, vm.Odup)
 	emitOpcode(c.prog, vm.Otoaltstack)
@@ -104,7 +107,7 @@ func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, vm.Osetitem)
 }
 
-func (c *codegen) emitLoadStructField(i int) {
+func (c *codegen) emitLoadField(i int) {
 	emitInt(c.prog, int64(i))
 	emitOpcode(c.prog, vm.Opickitem)
 }
@@ -383,7 +386,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
-			if !ok {
+			if !ok && !isBuiltin(n.Fun) {
 				log.Fatalf("could not resolve function %s", fun.Name)
 			}
 		case *ast.SelectorExpr:
@@ -418,7 +421,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// will put them in. ^^
 		emitOpcode(c.prog, vm.Onop)
 
-		if isSyscall(f.name) {
+		// Check builtin first to avoid nil pointer on funcScope!
+		if isBuiltin(n.Fun) {
+			// Use the ident to check, builtins are not in func scopes.
+			// We can be sure builtins are of type *ast.Ident.
+			c.convertBuiltin(n.Fun.(*ast.Ident).Name, n)
+		} else if isSyscall(f.name) {
 			c.convertSyscall(f.name)
 		} else {
 			emitCall(c.prog, vm.Ocall, int16(f.label))
@@ -438,7 +446,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if strct, ok := typ.(*types.Struct); ok {
 				c.emitLoadLocal(t.Name) // load the struct
 				i := indexOfStruct(strct, n.Sel.Name)
-				c.emitLoadStructField(i) // load the field
+				c.emitLoadField(i) // load the field
 			}
 		default:
 			log.Fatal("nested selectors not supported yet")
@@ -446,7 +454,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
-		// fmt.Println(n)
+		// TODO(@anthdm)
+
+	case *ast.IndexExpr:
+		// Walk the expression, this could be either an Ident or SelectorExpr.
+		// This will load local whatever X is.
+		ast.Walk(c, n.X)
+
+		switch n.Index.(type) {
+		case *ast.BasicLit:
+			t := c.typeInfo.Types[n.Index]
+			val, _ := constant.Int64Val(t.Value)
+			c.emitLoadField(int(val))
+		default:
+			ast.Walk(c, n.Index)
+			emitOpcode(c.prog, vm.Opickitem) // just pickitem here
+		}
+		return nil
 	}
 	return c
 }
@@ -458,6 +482,15 @@ func (c *codegen) convertSyscall(name string) {
 	}
 	emitSyscall(c.prog, api)
 	emitOpcode(c.prog, vm.Onop)
+}
+
+func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
+	switch name {
+	case "len":
+		emitOpcode(c.prog, vm.Oarraysize)
+	case "append":
+		log.Fatal("builtin (append) not yet implemented.")
+	}
 }
 
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
@@ -632,25 +665,4 @@ func (c *codegen) writeJumps() {
 			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}
-}
-
-func isSyscall(name string) bool {
-	_, ok := vm.Syscalls[name]
-	return ok
-}
-
-var noRetSyscalls = []string{
-	"Notify", "Log", "Put", "Register", "Delete",
-	"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
-	"PrevHash", "GetHeader",
-}
-
-// isNoRetSyscall checks if the syscall has a return value.
-func isNoRetSyscall(name string) bool {
-	for _, s := range noRetSyscalls {
-		if s == name {
-			return true
-		}
-	}
-	return false
 }

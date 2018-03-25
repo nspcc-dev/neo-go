@@ -6,10 +6,23 @@ import (
 	"go/types"
 	"log"
 
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
 )
 
-// typeAndValueForField returns a zero initializd typeAndValue or the given type.Var.
+var (
+	// Go language builtin functions.
+	builtinFuncs = []string{"len", "append"}
+
+	// VM system calls that have no return value.
+	noRetSyscalls = []string{
+		"Notify", "Log", "Put", "Register", "Delete",
+		"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
+		"PrevHash", "GetHeader",
+	}
+)
+
+// typeAndValueForField returns a zero initialized typeAndValue for the given type.Var.
 func typeAndValueForField(fld *types.Var) types.TypeAndValue {
 	switch t := fld.Type().(type) {
 	case *types.Basic:
@@ -137,6 +150,18 @@ func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 	return usage
 }
 
+func isBuiltin(expr ast.Expr) bool {
+	if ident, ok := expr.(*ast.Ident); ok {
+		for _, n := range builtinFuncs {
+			if ident.Name == n {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	if len(lit.Elts) == 0 {
 		return false
@@ -147,6 +172,21 @@ func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	case *types.Basic:
 		switch t.Kind() {
 		case types.Byte:
+			return true
+		}
+	}
+	return false
+}
+
+func isSyscall(name string) bool {
+	_, ok := vm.Syscalls[name]
+	return ok
+}
+
+// isNoRetSyscall checks if the syscall has a return value.
+func isNoRetSyscall(name string) bool {
+	for _, s := range noRetSyscalls {
+		if s == name {
 			return true
 		}
 	}
