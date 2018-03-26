@@ -16,7 +16,7 @@ type Transaction struct {
 	Type TXType `json:"type"`
 
 	// The trading version which is currently 0.
-	Version uint8 `json:"-"`
+	Version uint8 `json:"version"`
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
