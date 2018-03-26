@@ -64,7 +64,7 @@ func (u Uint160) BytesReverse() []byte {
 
 // String implements the stringer interface.
 func (u Uint160) String() string {
-	return hex.EncodeToString(u.Bytes())
+	return hex.EncodeToString(ArrayReverse(u.Bytes()))
 }
 
 // Equals returns true if both Uint256 values are the same.
@@ -79,5 +79,5 @@ func (u Uint160) Equals(other Uint160) bool {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u.String())
+	return json.Marshal(fmt.Sprintf("0x%s", u.String()))
 }

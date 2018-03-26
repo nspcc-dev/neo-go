@@ -61,5 +61,5 @@ func (u Uint256) String() string {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint256) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u.String())
+	return json.Marshal(fmt.Sprintf("0x%s", u.String()))
 }
