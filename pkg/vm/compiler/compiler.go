@@ -75,6 +75,7 @@ func CompileAndSave(src string, o *Options) error {
 	if !strings.HasSuffix(src, ".go") {
 		return fmt.Errorf("%s is not a Go file", src)
 	}
+	o.Outfile = strings.TrimSuffix(o.Outfile, fmt.Sprintf(".%s", fileExt))
 	if len(o.Outfile) == 0 {
 		o.Outfile = strings.TrimSuffix(src, ".go")
 	}
