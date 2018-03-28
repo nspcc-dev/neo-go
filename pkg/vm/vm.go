@@ -160,53 +160,53 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Oand:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(b.And(b, a))
+		v.estack.PushVal(new(big.Int).And(b, a))
 
 	case Oor:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(b.Or(b, a))
+		v.estack.PushVal(new(big.Int).Or(b, a))
 
 	case Oxor:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(b.Xor(b, a))
+		v.estack.PushVal(new(big.Int).Xor(b, a))
 
 	// Numeric operations.
 	case Oadd:
 		a := v.estack.Pop().GetBigInt()
 		b := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Add(a, b))
+		v.estack.PushVal(new(big.Int).Add(a, b))
 
 	case Osub:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Sub(a, b))
+		v.estack.PushVal(new(big.Int).Sub(a, b))
 
 	case Odiv:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Div(a, b))
+		v.estack.PushVal(new(big.Int).Div(a, b))
 
 	case Omul:
 		a := v.estack.Pop().GetBigInt()
 		b := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Mul(a, b))
+		v.estack.PushVal(new(big.Int).Mul(a, b))
 
 	case Omod:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Mod(a, b))
+		v.estack.PushVal(new(big.Int).Mod(a, b))
 
 	case Oshl:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Lsh(a, uint(b.Int64())))
+		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
 
 	case Oshr:
 		b := v.estack.Pop().GetBigInt()
 		a := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(a.Rsh(a, uint(b.Int64())))
+		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 
 	case Obooland:
 		b := v.estack.Pop().GetBool()
@@ -274,11 +274,11 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	case Oinc:
 		x := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(x.Add(x, big.NewInt(1)))
+		v.estack.PushVal(new(big.Int).Add(x, big.NewInt(1)))
 
 	case Odec:
 		x := v.estack.Pop().GetBigInt()
-		v.estack.PushVal(x.Sub(x, big.NewInt(1)))
+		v.estack.PushVal(new(big.Int).Sub(x, big.NewInt(1)))
 
 	case Osign:
 		x := v.estack.Pop().GetBigInt()

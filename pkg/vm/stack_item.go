@@ -109,5 +109,5 @@ func (i *arrayItem) Value() interface{} {
 }
 
 func (i *arrayItem) String() string {
-	return "array"
+	return fmt.Sprintf("%v (array)", i.value)
 }
