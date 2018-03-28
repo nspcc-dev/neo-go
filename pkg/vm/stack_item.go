@@ -83,7 +83,7 @@ func (i *boolItem) Value() interface{} {
 }
 
 func (i *boolItem) String() string {
-	return fmt.Sprintf("%v (bool)")
+	return fmt.Sprintf("%v (bool)", i.value)
 }
 
 type byteArrayItem struct {

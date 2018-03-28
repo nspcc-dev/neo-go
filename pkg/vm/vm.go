@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -17,6 +18,9 @@ type VM struct {
 
 	// interop layer.
 	interop *InteropService
+
+	// scripts loaded in memory.
+	scripts map[util.Uint160][]byte
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -30,6 +34,7 @@ func New(svc *InteropService) *VM {
 	}
 	return &VM{
 		interop: svc,
+		scripts: make(map[util.Uint160][]byte),
 		state:   haltState,
 		istack:  NewStack("invocation"),
 		estack:  NewStack("evaluation"),
@@ -37,6 +42,7 @@ func New(svc *InteropService) *VM {
 	}
 }
 
+// Load will load a program from the given path, ready to execute it.
 func (v *VM) Load(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -44,6 +50,14 @@ func (v *VM) Load(path string) error {
 	}
 	v.istack.PushVal(NewContext(b))
 	return nil
+}
+
+// LoadScript will load a script from the internal script table. It
+// will immediatly push a new context created from this script to
+// the invocation stack and starts executing it.
+func (v *VM) LoadScript(b []byte) {
+	ctx := NewContext(b)
+	v.istack.PushVal(ctx)
 }
 
 func (v *VM) context() *Context {
@@ -399,6 +413,27 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		if err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
+
+	case Oappcall, Otailcall:
+		if len(v.scripts) == 0 {
+			panic("script table is empty")
+		}
+
+		hash, err := util.Uint160DecodeBytes(ctx.readBytes(20))
+		if err != nil {
+			panic(err)
+		}
+
+		script, ok := v.scripts[hash]
+		if !ok {
+			panic("could not found script from the script table")
+		}
+
+		if op == Otailcall {
+			_ = v.istack.Pop()
+		}
+
+		v.LoadScript(script)
 
 	case Oret:
 		_ = v.istack.Pop()
