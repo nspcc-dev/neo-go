@@ -41,6 +41,28 @@ More information about standalone installation coming soon.
 
 # Usage
 
+```
+    _   ____________        __________      _    ____  ___
+   / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
+  /  |/ / __/ / / / /_____/ / __/ / / /____| | / / /|_/ /
+ / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /
+/_/ |_/_____/\____/      \____/\____/      |___/_/  /_/
+
+
+NEO-GO-VM > help
+
+COMMAND    USAGE
+ip         show the current instruction
+load       load a script into the VM (> load /path/to/script.avm)
+resume     resume the current loaded script
+help       show available commands
+exit       exit the VM prompt
+break      place a breakpoint (> break 1)
+stack      show stack details
+run        execute the current loaded script
+step       step (n) instruction in the program (> step 10)
+```
+
 ### Loading in your script
 
 To load a script into the VM:
