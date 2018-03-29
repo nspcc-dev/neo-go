@@ -19,6 +19,12 @@ You can create a new client and start interacting with any NEO node that exposes
 
 > Not all methods are currently supported in the client, please see table below for supported methods.
 
+### TODO
+
+* Merge structs so can be used by both server and client.
+* Add missing methods to client.
+* Allow client to connect using client cert. 
+
 ### Supported methods
 
 | Method  | Implemented | Required to implement |
@@ -49,6 +55,12 @@ You can create a new client and start interacting with any NEO node that exposes
 
 The server is written to support as much of the [JSON-RPC 2.0 Spec](http://www.jsonrpc.org/specification) as possible. The server is run as part of the node currently.
 
+### TODO
+
+* Implement HTTPS server.
+* Add remaining methods (Documented below).
+* Add Swagger spec and test using dredd in circleCI.
+
 ### Example call
 
 An example would be viewing the version of the node:
@@ -61,13 +73,13 @@ which would yeild the response:
 
 ```json
 {
-	"jsonrpc" : "2.0",
-		"id" : 1,
-		"result" : {
-			"port" : 20333,
-			"useragent" : "/NEO-GO:0.36.0-dev/",
-			"nonce" : 9318417
-		}
+  "jsonrpc" : "2.0",
+    "id" : 1,
+    "result" : {
+      "port" : 20333,
+      "useragent" : "/NEO-GO:0.36.0-dev/",
+      "nonce" : 9318417
+    }
 }
 ```
 
