@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -215,7 +214,6 @@ func (s *Stack) Remove(e *Element) *Element {
 func (s *Stack) Dup(n int) *Element {
 	e := s.Peek(n)
 	if e == nil {
-		panic(fmt.Sprintf("element being dupped is nil from %s", s.name))
 		return nil
 	}
 

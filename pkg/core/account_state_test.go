@@ -17,7 +17,9 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	)
 	for i := 0; i < n; i++ {
 		balances[util.RandomUint256()] = util.Fixed8(int64(util.RandomInt(1, 10000)))
-		votes[i] = &crypto.PublicKey{crypto.RandomECPoint()}
+		votes[i] = &crypto.PublicKey{
+			ECPoint: crypto.RandomECPoint(),
+		}
 	}
 
 	a := &AccountState{
