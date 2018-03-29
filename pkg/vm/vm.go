@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+// VM represents the virtual machine.
 type VM struct {
 	state State
 
@@ -42,6 +43,19 @@ func New(svc *InteropService) *VM {
 	}
 }
 
+// AddBreakPoint adds a breakpoint to the current context.
+func (v *VM) AddBreakPoint(n int) {
+	ctx := v.Context()
+	ctx.breakPoints = append(ctx.breakPoints, n)
+}
+
+// AddBreakPointRel adds a breakpoint relative to the current
+// instruction pointer.
+func (v *VM) AddBreakPointRel(n int) {
+	ctx := v.Context()
+	v.AddBreakPoint(ctx.ip)
+}
+
 // Load will load a program from the given path, ready to execute it.
 func (v *VM) Load(path string) error {
 	b, err := ioutil.ReadFile(path)
@@ -60,7 +74,12 @@ func (v *VM) LoadScript(b []byte) {
 	v.istack.PushVal(ctx)
 }
 
-func (v *VM) context() *Context {
+// Context returns the current executed context. Nil if there is no context,
+// which implies no program is loaded.
+func (v *VM) Context() *Context {
+	if v.istack.Len() == 0 {
+		return nil
+	}
 	return v.istack.Peek(0).value.Value().(*Context)
 }
 
@@ -75,25 +94,21 @@ func (v *VM) Run() error {
 		v.Step()
 	}
 
-	v.PrintState()
-
 	return nil
 }
 
 // Step 1 instruction in the program.
 func (v *VM) Step() {
-	ctx := v.context()
-	v.execute(ctx, ctx.Next())
-
-	if ctx.ip == len(ctx.prog) {
-		v.state = breakState
+	ctx := v.Context()
+	op := ctx.Next()
+	if ctx.ip >= len(ctx.prog) {
+		op = Oret
 	}
+	v.execute(ctx, op)
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
 func (v *VM) execute(ctx *Context, op Opcode) {
-	log.Printf("%d\t%s\n", ctx.ip, op)
-
 	// Instead of poluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state.
 	defer func() {
@@ -405,7 +420,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Ocall:
 		v.istack.PushVal(ctx.Copy())
 		ctx.ip += 2
-		v.execute(v.context(), Ojmp)
+		v.execute(v.Context(), Ojmp)
 
 	case Osyscall:
 		api := ctx.readVarBytes()
@@ -490,9 +505,15 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op))
 	}
+
+	currCtx := v.Context()
+	if currCtx.atBreakPoint() {
+		v.state |= breakState
+		fmt.Printf("at break point %d (%s)\n", currCtx.ip, Opcode(currCtx.prog[currCtx.ip]))
+	}
 }
 
-func (v *VM) PrintState() {
+func (v *VM) printState() {
 	fmt.Println(v.state)
 	v.estack.Dump()
 	v.astack.Dump()

@@ -9,13 +9,17 @@ type Context struct {
 
 	// The raw program script.
 	prog []byte
+
+	// Breakpoints
+	breakPoints []int
 }
 
 // NewContext return a new Context object.
 func NewContext(b []byte) *Context {
 	return &Context{
-		ip:   -1,
-		prog: b,
+		ip:          -1,
+		prog:        b,
+		breakPoints: []int{},
 	}
 }
 
@@ -32,17 +36,35 @@ func (c *Context) IP() int {
 	return c.ip + 1
 }
 
+// CurrInstr returns the current instruction and opcode.
+func (c *Context) CurrInstr() (int, Opcode) {
+	if c.ip < 0 {
+		return c.ip, Opcode(0x00)
+	}
+	return c.ip, Opcode(c.prog[c.ip])
+}
+
 // Copy returns an new exact copy of c.
 func (c *Context) Copy() *Context {
 	return &Context{
-		ip:   c.ip,
-		prog: c.prog,
+		ip:          c.ip,
+		prog:        c.prog,
+		breakPoints: c.breakPoints,
 	}
 }
 
 // Value implements StackItem interface.
 func (c *Context) Value() interface{} {
 	return c
+}
+
+func (c *Context) atBreakPoint() bool {
+	for _, n := range c.breakPoints {
+		if n == c.ip {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Context) String() string {

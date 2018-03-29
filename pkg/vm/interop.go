@@ -2,7 +2,7 @@ package vm
 
 import "fmt"
 
-// InteropFunc function signature.
+// InteropFunc allows to hook into the VM.
 type InteropFunc func(vm *VM) error
 
 // InteropService
@@ -10,6 +10,7 @@ type InteropService struct {
 	mapping map[string]InteropFunc
 }
 
+// NewInteropService returns a new InteropService object.
 func NewInteropService() *InteropService {
 	return &InteropService{
 		mapping: map[string]InteropFunc{},
