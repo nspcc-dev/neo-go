@@ -69,7 +69,7 @@ An example would be viewing the version of the node:
 curl -X POST -d '{"jsonrpc": "2.0", "method": "getversion", "params": [], "id": 1}" http://localhost:20332
 ```
 
-which would yeild the response:
+which would yield the response:
 
 ```json
 {
