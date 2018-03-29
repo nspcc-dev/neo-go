@@ -57,7 +57,7 @@ func (i *structItem) Value() interface{} {
 }
 
 func (i *structItem) String() string {
-	return fmt.Sprintf("%s (struct)", i.value)
+	return "Struct"
 }
 
 type bigIntegerItem struct {
@@ -70,7 +70,7 @@ func (i *bigIntegerItem) Value() interface{} {
 }
 
 func (i *bigIntegerItem) String() string {
-	return fmt.Sprintf("%d (big integer)", i.value)
+	return "BigInteger"
 }
 
 type boolItem struct {
@@ -83,7 +83,7 @@ func (i *boolItem) Value() interface{} {
 }
 
 func (i *boolItem) String() string {
-	return fmt.Sprintf("%v (bool)", i.value)
+	return "Bool"
 }
 
 type byteArrayItem struct {
@@ -96,7 +96,7 @@ func (i *byteArrayItem) Value() interface{} {
 }
 
 func (i *byteArrayItem) String() string {
-	return fmt.Sprintf("%s (byte array)", i.value)
+	return "ByteArray"
 }
 
 type arrayItem struct {
@@ -109,5 +109,5 @@ func (i *arrayItem) Value() interface{} {
 }
 
 func (i *arrayItem) String() string {
-	return fmt.Sprintf("%v (array)", i.value)
+	return "Array"
 }

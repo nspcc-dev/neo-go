@@ -3,7 +3,6 @@ package vm
 import (
 	"crypto/sha1"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -53,7 +52,7 @@ func (v *VM) AddBreakPoint(n int) {
 // instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {
 	ctx := v.Context()
-	v.AddBreakPoint(ctx.ip)
+	v.AddBreakPoint(ctx.ip + n)
 }
 
 // Load will load a program from the given path, ready to execute it.
@@ -83,28 +82,49 @@ func (v *VM) Context() *Context {
 	return v.istack.Peek(0).value.Value().(*Context)
 }
 
+// Stack returns json formatted representation of the stack.
+func (v *VM) Stack() string {
+	return buildStackOutput(v)
+}
+
 // Run starts the execution of the loaded program.
-func (v *VM) Run() error {
+func (v *VM) Run() {
 	if v.istack.Len() == 0 {
-		return errors.New("no program loaded")
+		fmt.Println("no program loaded")
+		return
 	}
 
-	v.state &= breakState
-	for v.state&haltState == 0 && v.state&faultState == 0 && v.state&breakState == 0 {
-		v.Step()
+	v.state = noneState
+	for {
+		switch v.state {
+		case haltState:
+			fmt.Println(v.Stack())
+			return
+		case breakState:
+			ctx := v.Context()
+			i, op := ctx.CurrInstr()
+			fmt.Printf("at breakpoint %d (%s)\n", i, op)
+			return
+		case faultState:
+			fmt.Println("FAULT")
+			return
+		case noneState:
+			v.Step()
+		}
 	}
-
-	return nil
 }
 
 // Step 1 instruction in the program.
 func (v *VM) Step() {
 	ctx := v.Context()
 	op := ctx.Next()
-	if ctx.ip >= len(ctx.prog) {
-		op = Oret
-	}
 	v.execute(ctx, op)
+
+	// re peek the context as it could been changed during execution
+	cctx := v.Context()
+	if cctx != nil && cctx.atBreakPoint() {
+		v.state = breakState
+	}
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
@@ -115,7 +135,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		if err := recover(); err != nil {
 			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
 			log.Println(err)
-			v.state |= faultState
+			v.state = faultState
 		}
 	}()
 
@@ -413,7 +433,6 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		if op > Ojmp {
 		}
 		if cond {
-			log.Printf("jumping to %d\n", offset)
 			ctx.ip = offset
 		}
 
@@ -441,7 +460,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		script, ok := v.scripts[hash]
 		if !ok {
-			panic("could not found script from the script table")
+			panic("could not find script")
 		}
 
 		if op == Otailcall {
@@ -453,7 +472,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Oret:
 		_ = v.istack.Pop()
 		if v.istack.Len() == 0 {
-			v.state |= haltState
+			v.state = haltState
 		}
 
 	// Cryptographic operations.
@@ -504,12 +523,6 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op))
-	}
-
-	currCtx := v.Context()
-	if currCtx.atBreakPoint() {
-		v.state |= breakState
-		fmt.Printf("at break point %d (%s)\n", currCtx.ip, Opcode(currCtx.prog[currCtx.ip]))
 	}
 }
 

@@ -45,7 +45,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) error {
 
 	switch cmd {
 	case "exit":
-		fmt.Println("Bye!")
+		fmt.Println("Bye o/")
 		os.Exit(0)
 
 	case "ip":
@@ -62,6 +62,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) error {
 		fmt.Printf("breakpoint added at instruction %d\n", n)
 
 	case "stack":
+		fmt.Println(c.vm.Stack())
 
 	case "load":
 		if err := c.vm.Load(args[0]); err != nil {
@@ -71,9 +72,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) error {
 		}
 
 	case "run", "resume":
-		if err := c.vm.Run(); err != nil {
-			fmt.Println(err)
-		}
+		c.vm.Run()
 
 	case "step":
 		if len(args) == 0 {
@@ -81,15 +80,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) error {
 		} else {
 			n, _ := strconv.Atoi(args[0])
 			c.vm.AddBreakPointRel(n)
-			if err := c.vm.Run(); err != nil {
-				fmt.Println(err)
-			}
-		}
-		if ctx := c.vm.Context(); ctx != nil {
-			ip, opcode := c.vm.Context().CurrInstr()
-			fmt.Printf("instruction pointer at %d (%s)\n", ip, opcode)
-		} else {
-			fmt.Println("DONE")
+			c.vm.Run()
 		}
 	}
 
