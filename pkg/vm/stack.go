@@ -3,8 +3,6 @@ package vm
 import (
 	"fmt"
 	"math/big"
-	"os"
-	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -60,9 +58,9 @@ func (e *Element) Prev() *Element {
 	return nil
 }
 
-// GetBigInt attempts to get the underlying value of the element as a big integer.
+// BigInt attempts to get the underlying value of the element as a big integer.
 // Will panic if the assertion failed which will be catched by the VM.
-func (e *Element) GetBigInt() *big.Int {
+func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
 	case *bigIntegerItem:
 		return t.value
@@ -72,15 +70,15 @@ func (e *Element) GetBigInt() *big.Int {
 	}
 }
 
-// GetBool attempts to get the underlying value of the element as a boolean.
+// Bool attempts to get the underlying value of the element as a boolean.
 // Will panic if the assertion failed which will be catched by the VM.
-func (e *Element) GetBool() bool {
+func (e *Element) Bool() bool {
 	return e.value.Value().(bool)
 }
 
-// GetBytes attempts to get the underlying value of the element as a byte array.
+// Bytes attempts to get the underlying value of the element as a byte array.
 // Will panic if the assertion failed which will be catched by the VM.
-func (e *Element) GetBytes() []byte {
+func (e *Element) Bytes() []byte {
 	return e.value.Value().([]byte)
 }
 
@@ -235,24 +233,4 @@ func (s *Stack) Iter(f func(*Element)) {
 	for e := s.Top(); e != nil; e = e.Next() {
 		f(e)
 	}
-}
-
-// Dump the stack for debugging purposes.
-func (s *Stack) Dump() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Println()
-	fmt.Fprintln(w, "STACK\tINDEX\tITEM")
-
-	if s.Len() == 0 {
-		fmt.Fprintf(w, "%s\t%s\n", s.name, "EMPTY")
-	} else {
-		i := 0
-		s.Iter(func(e *Element) {
-			fmt.Fprintf(w, "%s\t%d\t%v\n", s.name, i, e.value)
-			i++
-		})
-	}
-
-	w.Flush()
-	fmt.Println()
 }

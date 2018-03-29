@@ -36,6 +36,11 @@ func (c *Context) IP() int {
 	return c.ip + 1
 }
 
+// LenInstr returns the number of instructions loaded.
+func (c *Context) LenInstr() int {
+	return len(c.prog)
+}
+
 // CurrInstr returns the current instruction and opcode.
 func (c *Context) CurrInstr() (int, Opcode) {
 	if c.ip < 0 {

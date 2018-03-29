@@ -55,7 +55,7 @@ func EmitString(w *bytes.Buffer, s string) error {
 	return EmitBytes(w, []byte(s))
 }
 
-// EmitBytes emits a byte array the given buffer.
+// EmitBytes emits a byte array to the given buffer.
 func EmitBytes(w *bytes.Buffer, b []byte) error {
 	var (
 		err error

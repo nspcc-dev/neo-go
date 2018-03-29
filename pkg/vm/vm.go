@@ -87,9 +87,15 @@ func (v *VM) Stack() string {
 	return buildStackOutput(v)
 }
 
+// Ready return true if the VM ready to execute the loaded program.
+// Will return false if no program is loaded.
+func (v *VM) Ready() bool {
+	return v.istack.Len() > 0
+}
+
 // Run starts the execution of the loaded program.
 func (v *VM) Run() {
-	if v.istack.Len() == 0 {
+	if !v.Ready() {
 		fmt.Println("no program loaded")
 		return
 	}
@@ -118,9 +124,13 @@ func (v *VM) Run() {
 func (v *VM) Step() {
 	ctx := v.Context()
 	op := ctx.Next()
+	if ctx.ip >= len(ctx.prog) {
+		op = Oret
+	}
+
 	v.execute(ctx, op)
 
-	// re peek the context as it could been changed during execution
+	// re-peek the context as it could been changed during execution.
 	cctx := v.Context()
 	if cctx != nil && cctx.atBreakPoint() {
 		v.state = breakState
@@ -190,8 +200,46 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.Push(a)
 		v.estack.Push(b)
 
+	case Oxswap:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("XSWAP: invalid length")
+		}
+
+		// Swap values of elements instead of reordening stack elements.
+		if n > 0 {
+			a := v.estack.Peek(n)
+			b := v.estack.Peek(0)
+			aval := a.value
+			bval := b.value
+			a.value = bval
+			b.value = aval
+		}
+
+	case Otuck:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n <= 0 {
+			panic("OTUCK: invalid length")
+		}
+
+		v.estack.InsertAt(v.estack.Peek(0), n)
+
+	case Odepth:
+		v.estack.PushVal(v.estack.Len())
+
+	case Onip:
+		elem := v.estack.Pop()
+		_ = v.estack.Pop()
+		v.estack.Push(elem)
+
+	case Oover:
+		b := v.estack.Pop()
+		a := v.estack.Peek(0)
+		v.estack.Push(b)
+		v.estack.Push(a)
+
 	case Oroll:
-		n := int(v.estack.Pop().GetBigInt().Int64())
+		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
 			panic("negative stack item returned")
 		}
@@ -207,99 +255,99 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	// Bit operations.
 	case Oand:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).And(b, a))
 
 	case Oor:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Or(b, a))
 
 	case Oxor:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Xor(b, a))
 
 	// Numeric operations.
 	case Oadd:
-		a := v.estack.Pop().GetBigInt()
-		b := v.estack.Pop().GetBigInt()
+		a := v.estack.Pop().BigInt()
+		b := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Add(a, b))
 
 	case Osub:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Sub(a, b))
 
 	case Odiv:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Div(a, b))
 
 	case Omul:
-		a := v.estack.Pop().GetBigInt()
-		b := v.estack.Pop().GetBigInt()
+		a := v.estack.Pop().BigInt()
+		b := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Mul(a, b))
 
 	case Omod:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Mod(a, b))
 
 	case Oshl:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
 
 	case Oshr:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 
 	case Obooland:
-		b := v.estack.Pop().GetBool()
-		a := v.estack.Pop().GetBool()
+		b := v.estack.Pop().Bool()
+		a := v.estack.Pop().Bool()
 		v.estack.PushVal(a && b)
 
 	case Oboolor:
-		b := v.estack.Pop().GetBool()
-		a := v.estack.Pop().GetBool()
+		b := v.estack.Pop().Bool()
+		a := v.estack.Pop().Bool()
 		v.estack.PushVal(a || b)
 
 	case Onumequal:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == 0)
 
 	case Onumnotequal:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) != 0)
 
 	case Olt:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == -1)
 
 	case Ogt:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == 1)
 
 	case Olte:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) <= 0)
 
 	case Ogte:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) >= 0)
 
 	case Omin:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		val := a
 		if a.Cmp(b) == 1 {
 			val = b
@@ -307,8 +355,8 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(val)
 
 	case Omax:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
 		val := a
 		if a.Cmp(b) == -1 {
 			val = b
@@ -316,53 +364,52 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(val)
 
 	case Owithin:
-		b := v.estack.Pop().GetBigInt()
-		a := v.estack.Pop().GetBigInt()
-		x := v.estack.Pop().GetBigInt()
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(x) <= 0 && x.Cmp(b) == -1)
 
 	case Oinc:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Add(x, big.NewInt(1)))
 
 	case Odec:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Sub(x, big.NewInt(1)))
 
 	case Osign:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Sign())
 
 	case Onegate:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Neg(x))
 
 	case Oabs:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Abs(x))
 
 	case Onot:
-		x := v.estack.Pop().GetBigInt()
+		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Not(x))
 
 	case Onz:
 		panic("todo NZ")
-		// x := v.estack.Pop().GetBigInt()
+		// x := v.estack.Pop().BigInt()
 
 	// Object operations.
 	case Onewarray:
-		n := v.estack.Pop().GetBigInt().Int64()
+		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
 		v.estack.PushVal(&arrayItem{items})
 
 	case Onewstruct:
-		v.estack.Dump()
-		n := v.estack.Pop().GetBigInt().Int64()
+		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
 		v.estack.PushVal(&structItem{items})
 
 	case Opack:
-		n := int(v.estack.Pop().GetBigInt().Int64())
+		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 || n > v.estack.Len() {
 			panic("OPACK: invalid length")
 		}
@@ -374,11 +421,14 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		v.estack.PushVal(items)
 
+	case Ounpack:
+		panic("TODO")
+
 	case Opickitem:
 		var (
 			key   = v.estack.Pop()
 			obj   = v.estack.Pop()
-			index = int(key.GetBigInt().Int64())
+			index = int(key.BigInt().Int64())
 		)
 
 		switch t := obj.value.(type) {
@@ -399,7 +449,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 			obj   = v.estack.Pop()
 			key   = v.estack.Pop()
 			item  = v.estack.Pop().value
-			index = int(key.GetBigInt().Int64())
+			index = int(key.BigInt().Int64())
 		)
 
 		switch t := obj.value.(type) {
@@ -477,19 +527,19 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	// Cryptographic operations.
 	case Osha1:
-		b := v.estack.Pop().GetBytes()
+		b := v.estack.Pop().Bytes()
 		sha := sha1.New()
 		sha.Write(b)
 		v.estack.PushVal(sha.Sum(nil))
 
 	case Osha256:
-		b := v.estack.Pop().GetBytes()
+		b := v.estack.Pop().Bytes()
 		sha := sha256.New()
 		sha.Write(b)
 		v.estack.PushVal(sha.Sum(nil))
 
 	case Ohash160:
-		b := v.estack.Pop().GetBytes()
+		b := v.estack.Pop().Bytes()
 		sha := sha256.New()
 		sha.Write(b)
 		h := sha.Sum(nil)
@@ -498,7 +548,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(ripemd.Sum(nil))
 
 	case Ohash256:
-		b := v.estack.Pop().GetBytes()
+		b := v.estack.Pop().Bytes()
 		sha := sha256.New()
 		sha.Write(b)
 		h := sha.Sum(nil)
@@ -507,6 +557,8 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(sha.Sum(nil))
 
 	case Ochecksig:
+		//pubkey := v.estack.Pop().Bytes()
+		//sig := v.estack.Pop().Bytes()
 
 	case Ocheckmultisig:
 
@@ -517,20 +569,13 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		panic("THROW")
 
 	case Othrowifnot:
-		if !v.estack.Pop().GetBool() {
+		if !v.estack.Pop().Bool() {
 			panic("THROWIFNOT")
 		}
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op))
 	}
-}
-
-func (v *VM) printState() {
-	fmt.Println(v.state)
-	v.estack.Dump()
-	v.astack.Dump()
-	v.istack.Dump()
 }
 
 func init() {

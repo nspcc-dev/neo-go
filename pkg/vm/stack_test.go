@@ -96,6 +96,30 @@ func TestDupElement(t *testing.T) {
 	assert.Equal(t, dupped, s.Peek(0))
 }
 
+func TestBack(t *testing.T) {
+	var (
+		s     = NewStack("test")
+		elems = makeElements(10)
+	)
+	for _, elem := range elems {
+		s.Push(elem)
+	}
+
+	assert.Equal(t, elems[0], s.Back())
+}
+
+func TestTop(t *testing.T) {
+	var (
+		s     = NewStack("test")
+		elems = makeElements(10)
+	)
+	for _, elem := range elems {
+		s.Push(elem)
+	}
+
+	assert.Equal(t, elems[len(elems)-1], s.Top())
+}
+
 func TestRemoveLastElement(t *testing.T) {
 	var (
 		s     = NewStack("test")
