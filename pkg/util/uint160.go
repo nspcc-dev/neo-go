@@ -79,5 +79,7 @@ func (u Uint160) Equals(other Uint160) bool {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u.String())
+	return json.Marshal(
+		fmt.Sprintf("0x%s", hex.EncodeToString(ArrayReverse(u.Bytes()))),
+	)
 }

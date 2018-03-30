@@ -2,6 +2,8 @@ package transaction
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -9,32 +11,42 @@ import (
 
 // Witness contains 2 scripts.
 type Witness struct {
-	InvocationScript   []byte `json:"stack"`
-	VerificationScript []byte `json:"redeem"`
+	InvocationScript   []byte
+	VerificationScript []byte
 }
 
 // DecodeBinary implements the payload interface.
-func (wit *Witness) DecodeBinary(r io.Reader) error {
+func (w *Witness) DecodeBinary(r io.Reader) error {
 	lenb := util.ReadVarUint(r)
-	wit.InvocationScript = make([]byte, lenb)
-	if err := binary.Read(r, binary.LittleEndian, wit.InvocationScript); err != nil {
+	w.InvocationScript = make([]byte, lenb)
+	if err := binary.Read(r, binary.LittleEndian, w.InvocationScript); err != nil {
 		return err
 	}
 	lenb = util.ReadVarUint(r)
-	wit.VerificationScript = make([]byte, lenb)
-	return binary.Read(r, binary.LittleEndian, wit.VerificationScript)
+	w.VerificationScript = make([]byte, lenb)
+	return binary.Read(r, binary.LittleEndian, w.VerificationScript)
 }
 
 // EncodeBinary implements the payload interface.
-func (wit *Witness) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(wit.InvocationScript))); err != nil {
+func (w *Witness) EncodeBinary(writer io.Writer) error {
+	if err := util.WriteVarUint(writer, uint64(len(w.InvocationScript))); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, wit.InvocationScript); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, w.InvocationScript); err != nil {
 		return err
 	}
-	if err := util.WriteVarUint(w, uint64(len(wit.VerificationScript))); err != nil {
+	if err := util.WriteVarUint(writer, uint64(len(w.VerificationScript))); err != nil {
 		return err
 	}
-	return binary.Write(w, binary.LittleEndian, wit.VerificationScript)
+	return binary.Write(writer, binary.LittleEndian, w.VerificationScript)
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (w *Witness) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"invocation":   hex.EncodeToString(w.InvocationScript),
+		"verification": hex.EncodeToString(w.VerificationScript),
+	}
+
+	return json.Marshal(data)
 }
