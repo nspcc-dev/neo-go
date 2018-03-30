@@ -9,10 +9,10 @@ type stackItem struct {
 	Type  string      `json:"type"`
 }
 
-func buildStackOutput(vm *VM) string {
-	items := make([]stackItem, vm.estack.Len())
+func buildStackOutput(s *Stack) string {
+	items := make([]stackItem, s.Len())
 	i := 0
-	vm.estack.Iter(func(e *Element) {
+	s.Iter(func(e *Element) {
 		items[i] = stackItem{
 			Value: e.value.Value(),
 			Type:  e.value.String(),

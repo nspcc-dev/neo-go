@@ -2,9 +2,11 @@ package vm
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/rand"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,8 +68,147 @@ func TestPushData4(t *testing.T) {
 
 }
 
+func TestAdd(t *testing.T) {
+	prog := makeProgram(Oadd)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, int64(6), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestMul(t *testing.T) {
+	prog := makeProgram(Omul)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, int64(8), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestDiv(t *testing.T) {
+	prog := makeProgram(Odiv)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestSub(t *testing.T) {
+	prog := makeProgram(Osub)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestLT(t *testing.T) {
+	prog := makeProgram(Olt)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestLTE(t *testing.T) {
+	prog := makeProgram(Olte)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestGT(t *testing.T) {
+	prog := makeProgram(Ogt)
+	vm := load(prog)
+	vm.estack.PushVal(9)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+
+}
+
+func TestGTE(t *testing.T) {
+	prog := makeProgram(Ogte)
+	vm := load(prog)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestDepth(t *testing.T) {
+	prog := makeProgram(Odepth)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestNumEqual(t *testing.T) {
+	prog := makeProgram(Onumequal)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestNumNotEqual(t *testing.T) {
+	prog := makeProgram(Onumnotequal)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestAppCall(t *testing.T) {
+	prog := []byte{byte(Oappcall)}
+	hash := util.Uint160{}
+	prog = append(prog, hash.Bytes()...)
+	prog = append(prog, byte(Oret))
+
+	vm := load(prog)
+	vm.scripts[hash] = makeProgram(Odepth)
+	vm.estack.PushVal(2)
+
+	vm.Run()
+	elem := vm.estack.Pop() // depth should be 1
+	assert.Equal(t, int64(1), elem.BigInt().Int64())
+}
+
+func TestSimpleCall(t *testing.T) {
+	progStr := "52c56b525a7c616516006c766b00527ac46203006c766b00c3616c756653c56b6c766b00527ac46c766b51527ac46203006c766b00c36c766b51c393616c7566"
+	result := 12
+
+	prog, err := hex.DecodeString(progStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
+}
+
+func makeProgram(opcodes ...Opcode) []byte {
+	prog := make([]byte, len(opcodes)+1) // Oret
+	for i := 0; i < len(opcodes); i++ {
+		prog[i] = byte(opcodes[i])
+	}
+	prog[len(prog)-1] = byte(Oret)
+	return prog
+}
+
 func load(prog []byte) *VM {
 	vm := New(nil)
+	vm.mute = true
 	vm.istack.PushVal(NewContext(prog))
 	return vm
 }

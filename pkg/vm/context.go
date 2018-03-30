@@ -58,6 +58,11 @@ func (c *Context) Copy() *Context {
 	}
 }
 
+// Program returns the loaded program.
+func (c *Context) Program() []byte {
+	return c.prog
+}
+
 // Value implements StackItem interface.
 func (c *Context) Value() interface{} {
 	return c
@@ -78,6 +83,9 @@ func (c *Context) String() string {
 
 func (c *Context) readUint32() uint32 {
 	start, end := c.IP(), c.IP()+4
+	if end > len(c.prog) {
+		return 0
+	}
 	val := binary.LittleEndian.Uint32(c.prog[start:end])
 	c.ip += 4
 	return val
@@ -85,19 +93,24 @@ func (c *Context) readUint32() uint32 {
 
 func (c *Context) readUint16() uint16 {
 	start, end := c.IP(), c.IP()+2
+	if end > len(c.prog) {
+		return 0
+	}
 	val := binary.LittleEndian.Uint16(c.prog[start:end])
 	c.ip += 2
 	return val
 }
 
 func (c *Context) readByte() byte {
-	start, end := c.IP(), c.IP()+1
-	c.ip++
-	return c.prog[start:end][0]
+	return c.readBytes(1)[0]
 }
 
 func (c *Context) readBytes(n int) []byte {
 	start, end := c.IP(), c.IP()+n
+	if end > len(c.prog) {
+		return nil
+	}
+
 	out := make([]byte, n)
 	copy(out, c.prog[start:end])
 	c.ip += n

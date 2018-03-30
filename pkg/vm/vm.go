@@ -25,6 +25,9 @@ type VM struct {
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
+
+	// Mute all output after execution.
+	mute bool
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
@@ -82,9 +85,19 @@ func (v *VM) Context() *Context {
 	return v.istack.Peek(0).value.Value().(*Context)
 }
 
-// Stack returns json formatted representation of the stack.
-func (v *VM) Stack() string {
-	return buildStackOutput(v)
+// Stack returns json formatted representation of the given stack.
+func (v *VM) Stack(n string) string {
+	var s *Stack
+	if n == "astack" {
+		s = v.astack
+	}
+	if n == "istack" {
+		s = v.istack
+	}
+	if n == "estack" {
+		s = v.estack
+	}
+	return buildStackOutput(s)
 }
 
 // Ready return true if the VM ready to execute the loaded program.
@@ -104,7 +117,9 @@ func (v *VM) Run() {
 	for {
 		switch v.state {
 		case haltState:
-			fmt.Println(v.Stack())
+			if !v.mute {
+				fmt.Println(v.Stack("estack"))
+			}
 			return
 		case breakState:
 			ctx := v.Context()
@@ -408,6 +423,22 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		items := make([]StackItem, n)
 		v.estack.PushVal(&structItem{items})
 
+	case Oappend:
+		itemElem := v.estack.Pop()
+		arrElem := v.estack.Pop()
+
+		switch t := arrElem.value.(type) {
+		case *arrayItem, *structItem:
+			arr := t.Value().([]StackItem)
+			arr = append(arr, itemElem.value)
+		default:
+			panic("APPEND: not of underlying type Array")
+		}
+
+	case Oreverse:
+
+	case Oremove:
+
 	case Opack:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 || n > v.estack.Len() {
@@ -481,6 +512,10 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		cond := true
 		if op > Ojmp {
+			cond = v.estack.Pop().Bool()
+			if op == Ojmpifnot {
+				cond = !cond
+			}
 		}
 		if cond {
 			ctx.ip = offset

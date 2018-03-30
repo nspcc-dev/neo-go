@@ -18,18 +18,24 @@ type command struct {
 
 	// description of the command.
 	usage string
+
+	// whether the VM needs to be "ready" to execute this command.
+	ready bool
 }
 
 var commands = map[string]command{
-	"help":   {0, "show available commands"},
-	"exit":   {0, "exit the VM prompt"},
-	"ip":     {0, "show the current instruction"},
-	"break":  {1, "place a breakpoint (> break 1)"},
-	"stack":  {0, "show stack details"},
-	"load":   {1, "load a script into the VM (> load /path/to/script.avm)"},
-	"run":    {0, "execute the current loaded script"},
-	"resume": {0, "resume the current loaded script"},
-	"step":   {0, "step (n) instruction in the program (> step 10)"},
+	"help":   {0, "show available commands", false},
+	"exit":   {0, "exit the VM prompt", false},
+	"ip":     {0, "show the current instruction", true},
+	"break":  {1, "place a breakpoint (> break 1)", true},
+	"estack": {0, "shows evaluation stack details", false},
+	"astack": {0, "shows alt stack details", false},
+	"istack": {0, "show invocation stack details", false},
+	"load":   {1, "load a script into the VM (> load /path/to/script.avm)", false},
+	"run":    {0, "execute the current loaded script", true},
+	"resume": {0, "resume the current loaded script", true},
+	"step":   {0, "step (n) instruction in the program (> step 10)", true},
+	"opcode": {0, "print the opcodes of the current loaded program", true},
 }
 
 // VMCLI object for interacting with the VM.
@@ -54,6 +60,10 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		fmt.Printf("command (%s) takes at least %d arguments\n", cmd, com.args)
 		return
 	}
+	if com.ready && !c.vm.Ready() {
+		fmt.Println("VM is not ready: no program loaded")
+		return
+	}
 
 	switch cmd {
 	case "help":
@@ -71,19 +81,10 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		os.Exit(0)
 
 	case "ip":
-		if !c.vm.Ready() {
-			fmt.Println("no program loaded")
-		} else {
-			ip, opcode := c.vm.Context().CurrInstr()
-			fmt.Printf("instruction pointer at %d (%s)\n", ip, opcode)
-		}
+		ip, opcode := c.vm.Context().CurrInstr()
+		fmt.Printf("instruction pointer at %d (%s)\n", ip, opcode)
 
 	case "break":
-		if !c.vm.Ready() {
-			fmt.Println("no program loaded")
-			return
-		}
-
 		n, err := strconv.Atoi(args[0])
 		if err != nil {
 			fmt.Printf("argument conversion error: %s\n", err)
@@ -93,8 +94,8 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.AddBreakPoint(n)
 		fmt.Printf("breakpoint added at instruction %d\n", n)
 
-	case "stack":
-		fmt.Println(c.vm.Stack())
+	case "estack", "istack", "astack":
+		fmt.Println(c.vm.Stack(cmd))
 
 	case "load":
 		if err := c.vm.Load(args[0]); err != nil {
@@ -107,18 +108,29 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.Run()
 
 	case "step":
-		if !c.vm.Ready() {
-			fmt.Println("no program loaded")
-			return
+		var (
+			n   = 1
+			err error
+		)
+		if len(args) > 0 {
+			n, err = strconv.Atoi(args[0])
+			if err != nil {
+				fmt.Printf("argument conversion error: %s\n", err)
+				return
+			}
 		}
+		c.vm.AddBreakPointRel(n)
+		c.vm.Run()
 
-		if len(args) == 0 {
-			c.vm.Step()
-		} else {
-			n, _ := strconv.Atoi(args[0])
-			c.vm.AddBreakPointRel(n)
-			c.vm.Run()
+	case "opcode":
+		prog := c.vm.Context().Program()
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+		fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
+		for i := 0; i < len(prog); i++ {
+			fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, prog[i], vm.Opcode(prog[i]))
 		}
+		w.Flush()
 	}
 }
 
