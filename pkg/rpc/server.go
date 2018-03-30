@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
+	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -133,12 +134,13 @@ Methods:
 			break
 		}
 
-		results, err = s.chain.GetBlock(hash)
+		block, err := s.chain.GetBlock(hash)
 		if err != nil {
 			resultsErr = NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
 			break
 		}
 
+		results = wrappers.NewBlock(block, s.chain)
 	case "getblockcount":
 		results = s.chain.BlockHeight()
 

@@ -4,7 +4,7 @@ VERSION = $(shell cat ./VERSION)
 NETMODE ?= "privnet"
 
 build:
-	@go build -ldflags "-X github.com/CityOfZion/neo-go/pkg/network.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/pkg/network.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+	@go build -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
