@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -39,7 +40,7 @@ func makeStackItem(v interface{}) StackItem {
 	default:
 		panic(
 			fmt.Sprintf(
-				"invalid stack item type: %v (%s)",
+				"invalid stack item type: %v (%v)",
 				val,
 				reflect.TypeOf(val),
 			),
@@ -73,6 +74,11 @@ func (i *bigIntegerItem) String() string {
 	return "BigInteger"
 }
 
+// MarshalJSON implements the json.Marshaler interface.
+func (i *bigIntegerItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.value)
+}
+
 type boolItem struct {
 	value bool
 }
@@ -80,6 +86,11 @@ type boolItem struct {
 // Value implements StackItem interface.
 func (i *boolItem) Value() interface{} {
 	return i.value
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (i *boolItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.value)
 }
 
 func (i *boolItem) String() string {
@@ -95,6 +106,11 @@ func (i *byteArrayItem) Value() interface{} {
 	return i.value
 }
 
+// MarshalJSON implements the json.Marshaler interface.
+func (i *byteArrayItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(i.value))
+}
+
 func (i *byteArrayItem) String() string {
 	return "ByteArray"
 }
@@ -106,6 +122,11 @@ type arrayItem struct {
 // Value implements StackItem interface.
 func (i *arrayItem) Value() interface{} {
 	return i.value
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (i *arrayItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.value)
 }
 
 func (i *arrayItem) String() string {

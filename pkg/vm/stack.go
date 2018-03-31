@@ -99,6 +99,13 @@ func NewStack(n string) *Stack {
 	return s
 }
 
+// Clear will clear all elements on the stack and set its length to 0.
+func (s *Stack) Clear() {
+	s.top.next = &s.top
+	s.top.prev = &s.top
+	s.len = 0
+}
+
 // Len return the number of elements that are on the stack.
 func (s *Stack) Len() int {
 	return s.len

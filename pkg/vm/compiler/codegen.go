@@ -471,6 +471,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emitOpcode(c.prog, vm.Opickitem) // just pickitem here
 		}
 		return nil
+
+	case *ast.ForStmt:
+
 	}
 	return c
 }

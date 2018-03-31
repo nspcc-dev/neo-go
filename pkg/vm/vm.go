@@ -64,6 +64,12 @@ func (v *VM) Load(path string) error {
 	if err != nil {
 		return err
 	}
+
+	// clear all stacks, it could be a reload.
+	v.istack.Clear()
+	v.estack.Clear()
+	v.astack.Clear()
+
 	v.istack.PushVal(NewContext(b))
 	return nil
 }
@@ -196,7 +202,6 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(b)
 
 	// Stack operations.
-
 	case Otoaltstack:
 		v.astack.Push(v.estack.Pop())
 
@@ -239,6 +244,15 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		v.estack.InsertAt(v.estack.Peek(0), n)
 
+	case Orot:
+		c := v.estack.Pop()
+		b := v.estack.Pop()
+		a := v.estack.Pop()
+
+		v.estack.Push(b)
+		v.estack.Push(c)
+		v.estack.Push(a)
+
 	case Odepth:
 		v.estack.PushVal(v.estack.Len())
 
@@ -259,7 +273,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 			panic("negative stack item returned")
 		}
 		if n > 0 {
-			v.estack.Push(v.estack.RemoveAt(n - 1))
+			v.estack.Push(v.estack.RemoveAt(n))
 		}
 
 	case Odrop:
@@ -477,9 +491,9 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	case Osetitem:
 		var (
-			obj   = v.estack.Pop()
-			key   = v.estack.Pop()
 			item  = v.estack.Pop().value
+			key   = v.estack.Pop()
+			obj   = v.estack.Pop()
 			index = int(key.BigInt().Int64())
 		)
 
@@ -488,11 +502,11 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		case *arrayItem, *structItem:
 			arr := t.Value().([]StackItem)
 			if index < 0 || index >= len(arr) {
-				panic("PICKITEM: invalid index")
+				panic("SETITEM: invalid index")
 			}
 			arr[index] = item
 		default:
-			panic("SETITEM: unknown type")
+			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
 	case Oarraysize:
@@ -504,10 +518,10 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(len(arr))
 
 	case Ojmp, Ojmpif, Ojmpifnot:
-		rOffset := ctx.readUint16()
-		offset := ctx.ip + int(rOffset) - 3 // sizeOf(uint16 + uint8)
+		rOffset := int16(ctx.readUint16())
+		offset := ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
 		if offset < 0 || offset > len(ctx.prog) {
-			panic("JMP: invalid offset")
+			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
 		}
 
 		cond := true

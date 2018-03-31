@@ -127,8 +127,16 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 		fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
+		cursor := ""
+		ip, _ := c.vm.Context().CurrInstr()
 		for i := 0; i < len(prog); i++ {
-			fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, prog[i], vm.Opcode(prog[i]))
+			if i == ip {
+				cursor = "<<"
+			} else {
+				cursor = ""
+			}
+			fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], vm.Opcode(prog[i]), cursor)
+
 		}
 		w.Flush()
 	}

@@ -14,7 +14,7 @@ func buildStackOutput(s *Stack) string {
 	i := 0
 	s.Iter(func(e *Element) {
 		items[i] = stackItem{
-			Value: e.value.Value(),
+			Value: e.value,
 			Type:  e.value.String(),
 		}
 		i++

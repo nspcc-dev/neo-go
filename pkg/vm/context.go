@@ -1,6 +1,8 @@
 package vm
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 // Context represent the current execution context of the VM.
 type Context struct {
