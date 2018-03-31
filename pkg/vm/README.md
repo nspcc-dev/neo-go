@@ -52,18 +52,18 @@ More information about standalone installation coming soon.
 NEO-GO-VM > help
 
 COMMAND    USAGE
-run        execute the current loaded script
-exit       exit the VM prompt
-estack     shows evaluation stack details
-break      place a breakpoint (> break 1)
-astack     shows alt stack details
-istack     show invocation stack details
-load       load a script into the VM (> load /path/to/script.avm)
-resume     resume the current loaded script
 step       step (n) instruction in the program (> step 10)
-help       show available commands
+ops        show the opcodes of the current loaded program
 ip         show the current instruction
-opcode     print the opcodes of the current loaded program
+estack     show evaluation stack details
+astack     show alt stack details
+istack     show invocation stack details
+run        execute the current loaded script
+cont       continue execution of the current loaded script
+help       show available commands
+exit       exit the VM prompt
+break      place a breakpoint (> break 1)
+load       load a script into the VM (> load /path/to/script.avm)
 ```
 
 ### Loading in your script

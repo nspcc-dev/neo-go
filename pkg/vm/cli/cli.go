@@ -28,14 +28,14 @@ var commands = map[string]command{
 	"exit":   {0, "exit the VM prompt", false},
 	"ip":     {0, "show the current instruction", true},
 	"break":  {1, "place a breakpoint (> break 1)", true},
-	"estack": {0, "shows evaluation stack details", false},
-	"astack": {0, "shows alt stack details", false},
+	"estack": {0, "show evaluation stack details", false},
+	"astack": {0, "show alt stack details", false},
 	"istack": {0, "show invocation stack details", false},
 	"load":   {1, "load a script into the VM (> load /path/to/script.avm)", false},
 	"run":    {0, "execute the current loaded script", true},
-	"resume": {0, "resume the current loaded script", true},
+	"cont":   {0, "continue execution of the current loaded script", true},
 	"step":   {0, "step (n) instruction in the program (> step 10)", true},
-	"opcode": {0, "print the opcodes of the current loaded program", true},
+	"ops":    {0, "show the opcodes of the current loaded program", true},
 }
 
 // VMCLI object for interacting with the VM.
@@ -104,7 +104,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 			fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 		}
 
-	case "run", "resume":
+	case "run", "cont":
 		c.vm.Run()
 
 	case "step":
@@ -122,7 +122,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.AddBreakPointRel(n)
 		c.vm.Run()
 
-	case "opcode":
+	case "ops":
 		prog := c.vm.Context().Program()
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
