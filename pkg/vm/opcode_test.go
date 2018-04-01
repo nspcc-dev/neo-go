@@ -21,7 +21,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.Equal(t, 1, vm.estack.Len())
 
 		elem := vm.estack.Pop()
-		assert.IsType(t, &byteArrayItem{}, elem.value)
+		assert.IsType(t, &ByteArrayItem{}, elem.value)
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
@@ -50,7 +50,7 @@ func TestPushm1to16(t *testing.T) {
 		vm.Step()
 
 		elem := vm.estack.Pop()
-		assert.IsType(t, &bigIntegerItem{}, elem.value)
+		assert.IsType(t, &BigIntegerItem{}, elem.value)
 		val := i - int(Opush1) + 1
 		assert.Equal(t, elem.BigInt().Int64(), int64(val))
 	}
@@ -207,7 +207,7 @@ func makeProgram(opcodes ...Opcode) []byte {
 }
 
 func load(prog []byte) *VM {
-	vm := New(nil)
+	vm := New(nil, ModeMute)
 	vm.mute = true
 	vm.istack.PushVal(NewContext(prog))
 	return vm

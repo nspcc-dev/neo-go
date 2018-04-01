@@ -188,9 +188,9 @@ func TestPushVal(t *testing.T) {
 	assert.Equal(t, true, elem.Bool())
 
 	// array
-	s.PushVal([]StackItem{&boolItem{true}, &boolItem{false}, &boolItem{true}})
+	s.PushVal([]StackItem{&BoolItem{true}, &BoolItem{false}, &BoolItem{true}})
 	elem = s.Pop()
-	assert.IsType(t, elem.value, &arrayItem{})
+	assert.IsType(t, elem.value, &ArrayItem{})
 }
 
 func TestSwapElemValues(t *testing.T) {

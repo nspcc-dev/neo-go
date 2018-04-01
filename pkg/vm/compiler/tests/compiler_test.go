@@ -3,12 +3,10 @@ package compiler
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
-	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 )
 
 type testCase struct {
@@ -18,20 +16,6 @@ type testCase struct {
 }
 
 func TestAllCases(t *testing.T) {
-	vm := vm.New(nil)
-
-	testCases := []testCase{}
-	testCases = append(testCases, assignTestCases...)
-
-	for _, tc := range testCases {
-		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		vm.Load(b)
-		vm.Run()
-	}
-
 	// The Go language
 	//testCases = append(testCases, builtinTestCases...)
 	//testCases = append(testCases, arrayTestCases...)
