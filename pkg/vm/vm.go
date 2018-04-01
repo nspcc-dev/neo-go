@@ -12,6 +12,14 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+// Mode configures behaviour of the VM.
+type Mode uint
+
+// Available VM Modes.
+var (
+	ModeMute Mode = 1 << 0
+)
+
 // VM represents the virtual machine.
 type VM struct {
 	state State
@@ -31,11 +39,11 @@ type VM struct {
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
-func New(svc *InteropService) *VM {
+func New(svc *InteropService, mode Mode) *VM {
 	if svc == nil {
 		svc = NewInteropService()
 	}
-	return &VM{
+	vm := &VM{
 		interop: svc,
 		scripts: make(map[util.Uint160][]byte),
 		state:   haltState,
@@ -43,6 +51,10 @@ func New(svc *InteropService) *VM {
 		estack:  NewStack("evaluation"),
 		astack:  NewStack("alt"),
 	}
+	if mode == ModeMute {
+		vm.mute = true
+	}
+	return vm
 }
 
 // AddBreakPoint adds a breakpoint to the current context.
@@ -58,20 +70,22 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// Load will load a program from the given path, ready to execute it.
-func (v *VM) Load(path string) error {
+// LoadFile will load a program from the given path, ready to execute it.
+func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
+	v.Load(b)
+	return nil
+}
 
+func (v *VM) Load(prog []byte) {
 	// clear all stacks, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
 	v.astack.Clear()
-
-	v.istack.PushVal(NewContext(b))
-	return nil
+	v.istack.PushVal(NewContext(prog))
 }
 
 // LoadScript will load a script from the internal script table. It
@@ -89,6 +103,12 @@ func (v *VM) Context() *Context {
 		return nil
 	}
 	return v.istack.Peek(0).value.Value().(*Context)
+}
+
+// PopResult is used to pop the first item of the evaluation stack. This allows
+// us to test compiler and vm in a bi-directional way.
+func (v *VM) PopResult() interface{} {
+	return v.estack.Pop().value.Value()
 }
 
 // Stack returns json formatted representation of the given stack.
@@ -430,19 +450,19 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Onewarray:
 		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
-		v.estack.PushVal(&arrayItem{items})
+		v.estack.PushVal(&ArrayItem{items})
 
 	case Onewstruct:
 		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
-		v.estack.PushVal(&structItem{items})
+		v.estack.PushVal(&StructItem{items})
 
 	case Oappend:
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
 		switch t := arrElem.value.(type) {
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			arr = append(arr, itemElem.value)
 		default:
@@ -478,7 +498,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
@@ -499,7 +519,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")

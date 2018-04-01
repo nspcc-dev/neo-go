@@ -16,23 +16,23 @@ type StackItem interface {
 func makeStackItem(v interface{}) StackItem {
 	switch val := v.(type) {
 	case int:
-		return &bigIntegerItem{
+		return &BigIntegerItem{
 			value: big.NewInt(int64(val)),
 		}
 	case []byte:
-		return &byteArrayItem{
+		return &ByteArrayItem{
 			value: val,
 		}
 	case bool:
-		return &boolItem{
+		return &BoolItem{
 			value: val,
 		}
 	case []StackItem:
-		return &arrayItem{
+		return &ArrayItem{
 			value: val,
 		}
 	case *big.Int:
-		return &bigIntegerItem{
+		return &BigIntegerItem{
 			value: val,
 		}
 	case StackItem:
@@ -48,87 +48,119 @@ func makeStackItem(v interface{}) StackItem {
 	}
 }
 
-type structItem struct {
+// StructItem represents a struct on the stack.
+type StructItem struct {
 	value []StackItem
 }
 
+// NewStructItem returns an new StructItem object.
+func NewStructItem(items []StackItem) *StructItem {
+	return &StructItem{
+		value: items,
+	}
+}
+
 // Value implements StackItem interface.
-func (i *structItem) Value() interface{} {
+func (i *StructItem) Value() interface{} {
 	return i.value
 }
 
-func (i *structItem) String() string {
+func (i *StructItem) String() string {
 	return "Struct"
 }
 
-type bigIntegerItem struct {
+// BigIntegerItem represents a big integer on the stack.
+type BigIntegerItem struct {
 	value *big.Int
 }
 
+// NewBigIntegerItem returns an new BigIntegerItem object.
+func NewBigIntegerItem(value int) *BigIntegerItem {
+	return &BigIntegerItem{
+		value: big.NewInt(int64(value)),
+	}
+}
+
 // Value implements StackItem interface.
-func (i *bigIntegerItem) Value() interface{} {
+func (i *BigIntegerItem) Value() interface{} {
 	return i.value
 }
 
-func (i *bigIntegerItem) String() string {
+func (i *BigIntegerItem) String() string {
 	return "BigInteger"
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *bigIntegerItem) MarshalJSON() ([]byte, error) {
+func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
 }
 
-type boolItem struct {
+type BoolItem struct {
 	value bool
 }
 
 // Value implements StackItem interface.
-func (i *boolItem) Value() interface{} {
+func (i *BoolItem) Value() interface{} {
 	return i.value
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *boolItem) MarshalJSON() ([]byte, error) {
+func (i *BoolItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
 }
 
-func (i *boolItem) String() string {
+func (i *BoolItem) String() string {
 	return "Bool"
 }
 
-type byteArrayItem struct {
+// ByteArrayItem represents a byte array on the stack.
+type ByteArrayItem struct {
 	value []byte
 }
 
+// NewByteArrayItem returns an new ByteArrayItem object.
+func NewByteArrayItem(b []byte) *ByteArrayItem {
+	return &ByteArrayItem{
+		value: b,
+	}
+}
+
 // Value implements StackItem interface.
-func (i *byteArrayItem) Value() interface{} {
+func (i *ByteArrayItem) Value() interface{} {
 	return i.value
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *byteArrayItem) MarshalJSON() ([]byte, error) {
+func (i *ByteArrayItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(string(i.value))
 }
 
-func (i *byteArrayItem) String() string {
+func (i *ByteArrayItem) String() string {
 	return "ByteArray"
 }
 
-type arrayItem struct {
+// ArrayItem represents a new ArrayItem object.
+type ArrayItem struct {
 	value []StackItem
 }
 
+// NewArrayItem returns a new ArrayItem object.
+func NewArrayItem(items []StackItem) *ArrayItem {
+	return &ArrayItem{
+		value: items,
+	}
+}
+
 // Value implements StackItem interface.
-func (i *arrayItem) Value() interface{} {
+func (i *ArrayItem) Value() interface{} {
 	return i.value
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (i *arrayItem) MarshalJSON() ([]byte, error) {
+func (i *ArrayItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
 }
 
-func (i *arrayItem) String() string {
+func (i *ArrayItem) String() string {
 	return "Array"
 }

@@ -61,7 +61,7 @@ func (e *Element) Prev() *Element {
 // Will panic if the assertion failed which will be catched by the VM.
 func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
-	case *bigIntegerItem:
+	case *BigIntegerItem:
 		return t.value
 	default:
 		b := t.Value().([]uint8)

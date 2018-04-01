@@ -46,7 +46,7 @@ type VMCLI struct {
 // New returns a new VMCLI object.
 func New() *VMCLI {
 	return &VMCLI{
-		vm: vm.New(nil),
+		vm: vm.New(nil, 0),
 	}
 }
 
@@ -98,7 +98,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		fmt.Println(c.vm.Stack(cmd))
 
 	case "load":
-		if err := c.vm.Load(args[0]); err != nil {
+		if err := c.vm.LoadFile(args[0]); err != nil {
 			fmt.Println(err)
 		} else {
 			fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())

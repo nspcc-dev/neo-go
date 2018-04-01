@@ -473,7 +473,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.ForStmt:
-
+		//fmt.Println(n.Init)
+		ast.Walk(c, n.Init)
+		ast.Walk(c, n.Cond)
+		//fmt.Println(n.Cond)
 	}
 	return c
 }
@@ -575,8 +578,10 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Ogt)
 	case token.GEQ:
 		emitOpcode(c.prog, vm.Ogte)
-	case token.EQL, token.NEQ:
+	case token.EQL:
 		emitOpcode(c.prog, vm.Onumequal)
+	case token.NEQ:
+		emitOpcode(c.prog, vm.Onumnotequal)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
