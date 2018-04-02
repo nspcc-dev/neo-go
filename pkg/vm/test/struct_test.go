@@ -1,4 +1,10 @@
-package compiler
+package vm_test
+
+import (
+	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/vm"
+)
 
 var structTestCases = []testCase{
 	{
@@ -20,7 +26,7 @@ var structTestCases = []testCase{
 			y int
 		}
 		`,
-		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46c766b00c300c36c766b51527ac46203006c766b51c3616c7566",
+		big.NewInt(2),
 	},
 	{
 		"struct field return",
@@ -40,7 +46,7 @@ var structTestCases = []testCase{
 			return t.x
 		}
 		`,
-		"52c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46203006c766b00c300c3616c7566",
+		big.NewInt(2),
 	},
 	{
 		"struct field assign",
@@ -60,7 +66,7 @@ var structTestCases = []testCase{
 			return t.x
 		}
 		`,
-		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac45a6c766b00c3007bc46203006c766b00c300c3616c7566",
+		big.NewInt(10),
 	},
 	{
 		"complex struct",
@@ -84,7 +90,7 @@ var structTestCases = []testCase{
 			return y
 		}
 		`,
-		"54c56b5a6c766b00527ac46152c66b526c766b00527ac4546c766b51527ac46c6c766b51527ac46c766b00c36c766b51c300c3936c766b52527ac46203006c766b52c3616c7566",
+		big.NewInt(12),
 	},
 	{
 		"initialize same struct twice",
@@ -107,7 +113,7 @@ var structTestCases = []testCase{
 			return t1.x + t2.y
 		}
 		`,
-		"53c56b6152c66b526c766b00527ac4546c766b51527ac46c6c766b00527ac46152c66b526c766b00527ac4546c766b51527ac46c6c766b51527ac46203006c766b00c300c36c766b51c351c393616c7566",
+		big.NewInt(6),
 	},
 	{
 		"struct methods",
@@ -129,7 +135,7 @@ var structTestCases = []testCase{
 			return someInt
 		}
 		`,
-		"53c56b6151c66b546c766b00527ac46c6c766b00527ac46c766b00c3616516006c766b51527ac46203006c766b51c3616c756652c56b6c766b00527ac46203006c766b00c300c3616c7566",
+		big.NewInt(4),
 	},
 	{
 		"struct methods with arguments",
@@ -152,7 +158,7 @@ var structTestCases = []testCase{
 			return someInt
 		}
 		`,
-		"53c56b6151c66b546c766b00527ac46c6c766b00527ac46c766b00c352545272616516006c766b51527ac46203006c766b51c3616c756654c56b6c766b00527ac46c766b51527ac46c766b52527ac46203006c766b00c300c36c766b51c3936c766b52c393616c7566",
+		big.NewInt(10),
 	},
 	{
 		"initialize struct partially",
@@ -172,7 +178,7 @@ var structTestCases = []testCase{
 			return t.y
 		}
 		`,
-		"52c56b6154c66b546c766b00527ac4006c766b51527ac4006c766b52527ac4006c766b53527ac46c6c766b00527ac46203006c766b00c351c3616c7566",
+		big.NewInt(0),
 	},
 	{
 		"test return struct from func",
@@ -198,7 +204,12 @@ var structTestCases = []testCase{
 			return newToken()
 		}
 		`,
-		"51c56b62030061650700616c756651c56b6203006154c66b516c766b00527ac4526c766b51527ac40568656c6c6f6c766b52527ac4006c766b53527ac46c616c7566",
+		[]vm.StackItem{
+			vm.NewBigIntegerItem(1),
+			vm.NewBigIntegerItem(2),
+			vm.NewByteArrayItem([]byte("hello")),
+			vm.NewBigIntegerItem(0),
+		},
 	},
 	{
 		"pass struct as argument",
@@ -223,6 +234,6 @@ var structTestCases = []testCase{
 			return x 
 		}
 		`,
-		"53c56b6151c66b5a6c766b00527ac46c6c766b00527ac4546c766b00c37c616516006c766b51527ac46203006c766b51c3616c756654c56b6c766b00527ac46c766b51527ac46c766b51c300c36c766b00c3936c766b51c3007bc46203006c766b51c300c3616c7566",
+		big.NewInt(14),
 	},
 }

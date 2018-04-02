@@ -61,7 +61,7 @@ func (e *Element) Prev() *Element {
 // Will panic if the assertion failed which will be catched by the VM.
 func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
-	case *bigIntegerItem:
+	case *BigIntegerItem:
 		return t.value
 	default:
 		b := t.Value().([]uint8)
@@ -97,6 +97,13 @@ func NewStack(n string) *Stack {
 	s.top.prev = &s.top
 	s.len = 0
 	return s
+}
+
+// Clear will clear all elements on the stack and set its length to 0.
+func (s *Stack) Clear() {
+	s.top.next = &s.top
+	s.top.prev = &s.top
+	s.len = 0
 }
 
 // Len return the number of elements that are on the stack.

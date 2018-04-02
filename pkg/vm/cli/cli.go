@@ -28,14 +28,14 @@ var commands = map[string]command{
 	"exit":   {0, "exit the VM prompt", false},
 	"ip":     {0, "show the current instruction", true},
 	"break":  {1, "place a breakpoint (> break 1)", true},
-	"estack": {0, "shows evaluation stack details", false},
-	"astack": {0, "shows alt stack details", false},
+	"estack": {0, "show evaluation stack details", false},
+	"astack": {0, "show alt stack details", false},
 	"istack": {0, "show invocation stack details", false},
 	"load":   {1, "load a script into the VM (> load /path/to/script.avm)", false},
 	"run":    {0, "execute the current loaded script", true},
-	"resume": {0, "resume the current loaded script", true},
+	"cont":   {0, "continue execution of the current loaded script", true},
 	"step":   {0, "step (n) instruction in the program (> step 10)", true},
-	"opcode": {0, "print the opcodes of the current loaded program", true},
+	"ops":    {0, "show the opcodes of the current loaded program", true},
 }
 
 // VMCLI object for interacting with the VM.
@@ -46,7 +46,7 @@ type VMCLI struct {
 // New returns a new VMCLI object.
 func New() *VMCLI {
 	return &VMCLI{
-		vm: vm.New(nil),
+		vm: vm.New(nil, 0),
 	}
 }
 
@@ -98,13 +98,13 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		fmt.Println(c.vm.Stack(cmd))
 
 	case "load":
-		if err := c.vm.Load(args[0]); err != nil {
+		if err := c.vm.LoadFile(args[0]); err != nil {
 			fmt.Println(err)
 		} else {
 			fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 		}
 
-	case "run", "resume":
+	case "run", "cont":
 		c.vm.Run()
 
 	case "step":
@@ -122,15 +122,8 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.AddBreakPointRel(n)
 		c.vm.Run()
 
-	case "opcode":
-		prog := c.vm.Context().Program()
-
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-		fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
-		for i := 0; i < len(prog); i++ {
-			fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, prog[i], vm.Opcode(prog[i]))
-		}
-		w.Flush()
+	case "ops":
+		c.vm.PrintOps()
 	}
 }
 

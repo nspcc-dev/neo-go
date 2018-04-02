@@ -1,4 +1,10 @@
-package compiler
+package vm_test
+
+import (
+	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/vm"
+)
 
 var arrayTestCases = []testCase{
 	{
@@ -10,7 +16,11 @@ var arrayTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b53525153c16c766b00527ac46203006c766b00c3616c7566",
+		[]vm.StackItem{
+			vm.NewBigIntegerItem(1),
+			vm.NewBigIntegerItem(2),
+			vm.NewBigIntegerItem(3),
+		},
 	},
 	{
 		"assign string array",
@@ -21,7 +31,11 @@ var arrayTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b06666f6f6261720362617203666f6f53c16c766b00527ac46203006c766b00c3616c7566",
+		[]vm.StackItem{
+			vm.NewByteArrayItem([]byte("foo")),
+			vm.NewByteArrayItem([]byte("bar")),
+			vm.NewByteArrayItem([]byte("foobar")),
+		},
 	},
 	{
 		"array item assign",
@@ -33,7 +47,7 @@ var arrayTestCases = []testCase{
 			return y
 		}
 		`,
-		"53c56b52510053c16c766b00527ac46c766b00c300c36c766b51527ac46203006c766b51c3616c7566",
+		big.NewInt(0),
 	},
 	{
 		"array item return",
@@ -44,7 +58,7 @@ var arrayTestCases = []testCase{
 			return x[1]
 		}
 		`,
-		"52c56b52510053c16c766b00527ac46203006c766b00c351c3616c7566",
+		big.NewInt(1),
 	},
 	{
 		"array item in bin expr",
@@ -55,7 +69,7 @@ var arrayTestCases = []testCase{
 			return x[1] + 10
 		}
 		`,
-		"52c56b52510053c16c766b00527ac46203006c766b00c351c35a93616c7566",
+		big.NewInt(11),
 	},
 	{
 		"array item ident",
@@ -67,7 +81,7 @@ var arrayTestCases = []testCase{
 			return y[x]
 		}
 		`,
-		"53c56b516c766b00527ac452510053c16c766b51527ac46203006c766b51c36c766b00c3c3616c7566",
+		big.NewInt(1),
 	},
 	{
 		"array item index with binExpr",
@@ -79,7 +93,7 @@ var arrayTestCases = []testCase{
 			return y[x + 1]
 		}
 		`,
-		"53c56b516c766b00527ac452510053c16c766b51527ac46203006c766b51c36c766b00c35193c3616c7566",
+		big.NewInt(2),
 	},
 	{
 		"array item struct",
@@ -98,6 +112,6 @@ var arrayTestCases = []testCase{
 			return x + 2
 		}
 		`,
-		"53c56b6151c66b52510053c16c766b00527ac46c6c766b00527ac46c766b00c300c352c36c766b51527ac46203006c766b51c35293616c7566",
+		big.NewInt(4),
 	},
 }

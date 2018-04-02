@@ -7,9 +7,19 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
+	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
+)
+
+// Mode configures behaviour of the VM.
+type Mode uint
+
+// Available VM Modes.
+var (
+	ModeMute Mode = 1 << 0
 )
 
 // VM represents the virtual machine.
@@ -31,11 +41,11 @@ type VM struct {
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
-func New(svc *InteropService) *VM {
+func New(svc *InteropService, mode Mode) *VM {
 	if svc == nil {
 		svc = NewInteropService()
 	}
-	return &VM{
+	vm := &VM{
 		interop: svc,
 		scripts: make(map[util.Uint160][]byte),
 		state:   haltState,
@@ -43,6 +53,29 @@ func New(svc *InteropService) *VM {
 		estack:  NewStack("evaluation"),
 		astack:  NewStack("alt"),
 	}
+	if mode == ModeMute {
+		vm.mute = true
+	}
+	return vm
+}
+
+// PrintOps will print the opcodes of the current loaded program to stdout.
+func (v *VM) PrintOps() {
+	prog := v.Context().Program()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
+	cursor := ""
+	ip, _ := v.Context().CurrInstr()
+	for i := 0; i < len(prog); i++ {
+		if i == ip {
+			cursor = "<<"
+		} else {
+			cursor = ""
+		}
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Opcode(prog[i]), cursor)
+
+	}
+	w.Flush()
 }
 
 // AddBreakPoint adds a breakpoint to the current context.
@@ -58,14 +91,22 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// Load will load a program from the given path, ready to execute it.
-func (v *VM) Load(path string) error {
+// LoadFile will load a program from the given path, ready to execute it.
+func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	v.istack.PushVal(NewContext(b))
+	v.Load(b)
 	return nil
+}
+
+func (v *VM) Load(prog []byte) {
+	// clear all stacks, it could be a reload.
+	v.istack.Clear()
+	v.estack.Clear()
+	v.astack.Clear()
+	v.istack.PushVal(NewContext(prog))
 }
 
 // LoadScript will load a script from the internal script table. It
@@ -83,6 +124,12 @@ func (v *VM) Context() *Context {
 		return nil
 	}
 	return v.istack.Peek(0).value.Value().(*Context)
+}
+
+// PopResult is used to pop the first item of the evaluation stack. This allows
+// us to test compiler and vm in a bi-directional way.
+func (v *VM) PopResult() interface{} {
+	return v.estack.Pop().value.Value()
 }
 
 // Stack returns json formatted representation of the given stack.
@@ -196,7 +243,6 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(b)
 
 	// Stack operations.
-
 	case Otoaltstack:
 		v.astack.Push(v.estack.Pop())
 
@@ -239,6 +285,15 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		v.estack.InsertAt(v.estack.Peek(0), n)
 
+	case Orot:
+		c := v.estack.Pop()
+		b := v.estack.Pop()
+		a := v.estack.Pop()
+
+		v.estack.Push(b)
+		v.estack.Push(c)
+		v.estack.Push(a)
+
 	case Odepth:
 		v.estack.PushVal(v.estack.Len())
 
@@ -259,7 +314,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 			panic("negative stack item returned")
 		}
 		if n > 0 {
-			v.estack.Push(v.estack.RemoveAt(n - 1))
+			v.estack.Push(v.estack.RemoveAt(n))
 		}
 
 	case Odrop:
@@ -416,19 +471,19 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Onewarray:
 		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
-		v.estack.PushVal(&arrayItem{items})
+		v.estack.PushVal(&ArrayItem{items})
 
 	case Onewstruct:
 		n := v.estack.Pop().BigInt().Int64()
 		items := make([]StackItem, n)
-		v.estack.PushVal(&structItem{items})
+		v.estack.PushVal(&StructItem{items})
 
 	case Oappend:
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
 		switch t := arrElem.value.(type) {
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			arr = append(arr, itemElem.value)
 		default:
@@ -464,7 +519,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
@@ -477,22 +532,22 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	case Osetitem:
 		var (
-			obj   = v.estack.Pop()
-			key   = v.estack.Pop()
 			item  = v.estack.Pop().value
+			key   = v.estack.Pop()
+			obj   = v.estack.Pop()
 			index = int(key.BigInt().Int64())
 		)
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
-		case *arrayItem, *structItem:
+		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			if index < 0 || index >= len(arr) {
-				panic("PICKITEM: invalid index")
+				panic("SETITEM: invalid index")
 			}
 			arr[index] = item
 		default:
-			panic("SETITEM: unknown type")
+			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
 	case Oarraysize:
@@ -504,12 +559,13 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(len(arr))
 
 	case Ojmp, Ojmpif, Ojmpifnot:
-		rOffset := ctx.readUint16()
-		offset := ctx.ip + int(rOffset) - 3 // sizeOf(uint16 + uint8)
+		var (
+			rOffset = int16(ctx.readUint16())
+			offset  = ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
+		)
 		if offset < 0 || offset > len(ctx.prog) {
-			panic("JMP: invalid offset")
+			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
 		}
-
 		cond := true
 		if op > Ojmp {
 			cond = v.estack.Pop().Bool()

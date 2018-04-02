@@ -170,7 +170,51 @@ func TestIteration(t *testing.T) {
 }
 
 func TestPushVal(t *testing.T) {
+	s := NewStack("test")
 
+	// integer
+	s.PushVal(2)
+	elem := s.Pop()
+	assert.Equal(t, int64(2), elem.BigInt().Int64())
+
+	// byteArray
+	s.PushVal([]byte("foo"))
+	elem = s.Pop()
+	assert.Equal(t, "foo", string(elem.Bytes()))
+
+	// boolean
+	s.PushVal(true)
+	elem = s.Pop()
+	assert.Equal(t, true, elem.Bool())
+
+	// array
+	s.PushVal([]StackItem{&BoolItem{true}, &BoolItem{false}, &BoolItem{true}})
+	elem = s.Pop()
+	assert.IsType(t, elem.value, &ArrayItem{})
+}
+
+func TestSwapElemValues(t *testing.T) {
+	s := NewStack("test")
+
+	s.PushVal(2)
+	s.PushVal(4)
+
+	a := s.Peek(0)
+	b := s.Peek(1)
+
+	// [ 4 ] -> a
+	// [ 2 ] -> b
+
+	aval := a.value
+	bval := b.value
+	a.value = bval
+	b.value = aval
+
+	// [ 2 ] -> a
+	// [ 4 ] -> b
+
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
 }
 
 func makeElements(n int) []*Element {

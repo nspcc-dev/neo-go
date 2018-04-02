@@ -266,9 +266,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		emitOpcode(c.prog, vm.Ojmp)
-		emitOpcode(c.prog, vm.Opcode(0x03))
-		emitOpcode(c.prog, vm.Opush0)
+		// @OPTIMIZE: We could skip these 3 instructions for each return statement.
+		// To be backwards compatible we will put them them in.
+		l := c.newLabel()
+		emitJmp(c.prog, vm.Ojmp, int16(l))
+		c.setLabel(l)
 
 		if len(n.Results) > 0 {
 			ast.Walk(c, n.Results[0])
@@ -456,6 +458,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.UnaryExpr:
 		// TODO(@anthdm)
 
+	case *ast.IncDecStmt:
+		ast.Walk(c, n.X)
+		c.convertToken(n.Tok)
+
+		// For now only identifiers are supported for (post) for stmts.
+		// for i := 0; i < 10; i++ {}
+		// Where the post stmt is ( i++ )
+		if ident, ok := n.X.(*ast.Ident); ok {
+			pos := c.scope.loadLocal(ident.Name)
+			c.emitStoreLocal(pos)
+		}
+		return nil
+
 	case *ast.IndexExpr:
 		// Walk the expression, this could be either an Ident or SelectorExpr.
 		// This will load local whatever X is.
@@ -470,6 +485,32 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Index)
 			emitOpcode(c.prog, vm.Opickitem) // just pickitem here
 		}
+		return nil
+
+	case *ast.ForStmt:
+		var (
+			fstart = c.newLabel()
+			fend   = c.newLabel()
+		)
+
+		// Walk the initializer and condition.
+		ast.Walk(c, n.Init)
+
+		// Set label and walk the condition.
+		c.setLabel(fstart)
+		ast.Walk(c, n.Cond)
+
+		// Jump if the condition is false
+		emitJmp(c.prog, vm.Ojmpifnot, int16(fend))
+
+		// Walk body followed by the iterator (post stmt).
+		ast.Walk(c, n.Body)
+		ast.Walk(c, n.Post)
+
+		// Jump back to condition.
+		emitJmp(c.prog, vm.Ojmp, int16(fstart))
+		c.setLabel(fend)
+
 		return nil
 	}
 	return c
@@ -572,8 +613,14 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Ogt)
 	case token.GEQ:
 		emitOpcode(c.prog, vm.Ogte)
-	case token.EQL, token.NEQ:
+	case token.EQL:
 		emitOpcode(c.prog, vm.Onumequal)
+	case token.NEQ:
+		emitOpcode(c.prog, vm.Onumnotequal)
+	case token.DEC:
+		emitOpcode(c.prog, vm.Odec)
+	case token.INC:
+		emitOpcode(c.prog, vm.Oinc)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
@@ -653,8 +700,8 @@ func (c *codegen) writeJumps() {
 	for i, op := range b {
 		j := i + 1
 		switch vm.Opcode(op) {
-		case vm.Ojmpifnot, vm.Ojmpif, vm.Ocall:
-			index := binary.LittleEndian.Uint16(b[j : j+2])
+		case vm.Ojmp, vm.Ojmpifnot, vm.Ojmpif, vm.Ocall:
+			index := int16(binary.LittleEndian.Uint16(b[j : j+2]))
 			if int(index) > len(c.l) {
 				continue
 			}

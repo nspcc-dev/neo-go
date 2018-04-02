@@ -1,4 +1,6 @@
-package compiler
+package vm_test
+
+import "math/big"
 
 var assignTestCases = []testCase{
 	{
@@ -14,7 +16,7 @@ var assignTestCases = []testCase{
 			return bar
 		}
 		`,
-		"56c56b546c766b00527ac46c766b00c36c766b51527ac46c766b51c36c766b52527ac46c766b52c36c766b53527ac46c766b53c36c766b54527ac46203006c766b54c3616c7566",
+		big.NewInt(4),
 	},
 	{
 		"simple assign",
@@ -26,7 +28,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac4586c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(8),
 	},
 	{
 		"add assign",
@@ -38,7 +40,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac46c766b00c358936c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(12),
 	},
 	{
 		"sub assign",
@@ -50,7 +52,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac46c766b00c352946c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(2),
 	},
 	{
 		"mul assign",
@@ -62,7 +64,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac46c766b00c352956c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(8),
 	},
 	{
 		"div assign",
@@ -74,7 +76,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac46c766b00c352966c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(2),
 	},
 	{
 		"add assign binary expr",
@@ -86,7 +88,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"53c56b546c766b00527ac46c766b00c358936c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(12),
 	},
 	{
 		"add assign binary expr ident",
@@ -99,7 +101,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"54c56b546c766b00527ac4556c766b51527ac46c766b00c3566c766b51c393936c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(15),
 	},
 	{
 		"decl assign",
@@ -110,7 +112,7 @@ var assignTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b546c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(4),
 	},
 	{
 		"multi assign",
@@ -121,6 +123,6 @@ var assignTestCases = []testCase{
 			return x + y
 		}
 		`,
-		"53c56b516c766b00527ac4526c766b51527ac46203006c766b00c36c766b51c393616c7566",
+		big.NewInt(3),
 	},
 }
