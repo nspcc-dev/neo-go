@@ -15,6 +15,18 @@ type testCase struct {
 	result interface{}
 }
 
+func eval(t *testing.T, src string, result interface{}) {
+	vm := vm.New(nil, vm.ModeMute)
+	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vm.Load(b)
+	vm.Run()
+	assert.Equal(t, result, vm.PopResult())
+}
+
 func TestVMAndCompilerCases(t *testing.T) {
 	vm := vm.New(nil, vm.ModeMute)
 

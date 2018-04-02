@@ -3,6 +3,7 @@ package vm
 import (
 	"bytes"
 	"encoding/hex"
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -167,6 +168,14 @@ func TestNumNotEqual(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.Run()
 	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestINC(t *testing.T) {
+	prog := makeProgram(Oinc)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, big.NewInt(2), vm.estack.Pop().BigInt())
 }
 
 func TestAppCall(t *testing.T) {

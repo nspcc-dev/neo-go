@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
+	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
@@ -55,6 +57,25 @@ func New(svc *InteropService, mode Mode) *VM {
 		vm.mute = true
 	}
 	return vm
+}
+
+// PrintOps will print the opcodes of the current loaded program to stdout.
+func (v *VM) PrintOps() {
+	prog := v.Context().Program()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
+	cursor := ""
+	ip, _ := v.Context().CurrInstr()
+	for i := 0; i < len(prog); i++ {
+		if i == ip {
+			cursor = "<<"
+		} else {
+			cursor = ""
+		}
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Opcode(prog[i]), cursor)
+
+	}
+	w.Flush()
 }
 
 // AddBreakPoint adds a breakpoint to the current context.
@@ -538,12 +559,13 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(len(arr))
 
 	case Ojmp, Ojmpif, Ojmpifnot:
-		rOffset := int16(ctx.readUint16())
-		offset := ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
+		var (
+			rOffset = int16(ctx.readUint16())
+			offset  = ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
+		)
 		if offset < 0 || offset > len(ctx.prog) {
 			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
 		}
-
 		cond := true
 		if op > Ojmp {
 			cond = v.estack.Pop().Bool()
