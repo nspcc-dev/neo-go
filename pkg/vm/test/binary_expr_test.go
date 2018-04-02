@@ -1,4 +1,6 @@
-package compiler
+package vm_test
+
+import "math/big"
 
 var binaryExprTestCases = []testCase{
 	{
@@ -10,7 +12,7 @@ var binaryExprTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b546c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(4),
 	},
 	{
 		"simple sub",
@@ -21,7 +23,7 @@ var binaryExprTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b006c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(0),
 	},
 	{
 		"simple div",
@@ -32,7 +34,7 @@ var binaryExprTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b516c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(1),
 	},
 	{
 		"simple mul",
@@ -43,7 +45,7 @@ var binaryExprTestCases = []testCase{
 			return x
 		}
 		`,
-		"52c56b586c766b00527ac46203006c766b00c3616c7566",
+		big.NewInt(8),
 	},
 	{
 		"simple binary expr in return",
@@ -54,7 +56,7 @@ var binaryExprTestCases = []testCase{
 			return 2 + x
 		}
 		`,
-		"52c56b526c766b00527ac4620300526c766b00c393616c7566",
+		big.NewInt(4),
 	},
 	{
 		"complex binary expr",
@@ -67,7 +69,7 @@ var binaryExprTestCases = []testCase{
 			return y * z
 		}
 		`,
-		"54c56b546c766b00527ac4586c766b51527ac46c766b00c35293529358946c766b52527ac46203006c766b51c36c766b52c395616c7566",
+		big.NewInt(0),
 	},
 	{
 		"compare equal strings",
@@ -81,7 +83,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		"54c56b086120737472696e676c766b00527ac46c766b00c30e616e6f7468657220737472696e679c640b0062030051616c756662030000616c7566",
+		big.NewInt(0),
 	},
 	{
 		"compare equal ints",
@@ -95,7 +97,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		"54c56b5a6c766b00527ac46c766b00c35a9c640b0062030051616c756662030000616c7566",
+		big.NewInt(1),
 	},
 	{
 		"compare not equal ints",
@@ -109,6 +111,6 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		"54c56b5a6c766b00527ac46c766b00c35a9c640b0062030051616c756662030000616c7566",
+		big.NewInt(0),
 	},
 }

@@ -99,6 +99,13 @@ type BoolItem struct {
 	value bool
 }
 
+// NewBoolItem returns an new BoolItem object.
+func NewBoolItem(val bool) *BoolItem {
+	return &BoolItem{
+		value: val,
+	}
+}
+
 // Value implements StackItem interface.
 func (i *BoolItem) Value() interface{} {
 	return i.value
