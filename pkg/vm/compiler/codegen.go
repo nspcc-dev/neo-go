@@ -532,7 +532,13 @@ func (c *codegen) convertSyscall(name string) {
 func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
 	switch name {
 	case "len":
-		emitOpcode(c.prog, vm.Oarraysize)
+		arg := expr.Args[0]
+		typ := c.typeInfo.Types[arg].Type
+		if isStringType(typ) {
+			emitOpcode(c.prog, vm.Osize)
+		} else {
+			emitOpcode(c.prog, vm.Oarraysize)
+		}
 	case "append":
 		emitOpcode(c.prog, vm.Oappend)
 	}

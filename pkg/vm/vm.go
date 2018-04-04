@@ -559,6 +559,14 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		}
 		v.estack.PushVal(len(arr))
 
+	case Osize:
+		elem := v.estack.Pop()
+		arr, ok := elem.value.Value().([]uint8)
+		if !ok {
+			panic("SIZE: item not of type []uint8")
+		}
+		v.estack.PushVal(len(arr))
+
 	case Ojmp, Ojmpif, Ojmpifnot:
 		var (
 			rOffset = int16(ctx.readUint16())

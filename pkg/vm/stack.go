@@ -72,6 +72,9 @@ func (e *Element) BigInt() *big.Int {
 // Bool attempts to get the underlying value of the element as a boolean.
 // Will panic if the assertion failed which will be catched by the VM.
 func (e *Element) Bool() bool {
+	if v, ok := e.value.Value().(*big.Int); ok {
+		return v.Int64() == 1
+	}
 	return e.value.Value().(bool)
 }
 
