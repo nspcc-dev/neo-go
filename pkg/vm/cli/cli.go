@@ -132,7 +132,11 @@ func (c *VMCLI) Run() error {
 	printLogo()
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("NEO-GO-VM > ")
+		if c.vm.Ready() && c.vm.Context().IP()-1 >= 0 {
+			fmt.Printf("NEO-GO-VM %d > ", c.vm.Context().IP()-1)
+		} else {
+			fmt.Print("NEO-GO-VM > ")
+		}
 		input, _ := reader.ReadString('\n')
 		input = strings.Trim(input, "\n")
 		if len(input) != 0 {
