@@ -77,7 +77,7 @@ func TestArrayItemAssign(t *testing.T) {
 		package foo
 		func Main() int {
 			arr := []int{1, 2, 3}
-			y := x[0]
+			y := arr[0]
 			return y
 		}
 	`
@@ -186,7 +186,32 @@ func TestBoolCompareVerbose(t *testing.T) {
 	eval(t, src, big.NewInt(10))
 }
 
-func TestBoolUnaryInvert(t *testing.T) {
+func TestUnaryExpr(t *testing.T) {
+	src := `
+		package foo
+		func Main() bool {
+			x := false
+			return !x
+		}
+	`
+	eval(t, src, true)
+}
+
+func TestIfUnaryInvertPass(t *testing.T) {
+	src := `
+		package foo
+		func Main() int {
+			x := false
+			if !x { 
+				return 10
+			}
+			return 0
+		}
+	`
+	eval(t, src, big.NewInt(10))
+}
+
+func TestIfUnaryInvert(t *testing.T) {
 	src := `
 		package foo
 		func Main() int {

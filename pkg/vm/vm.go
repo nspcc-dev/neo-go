@@ -186,10 +186,6 @@ func (v *VM) Run() {
 func (v *VM) Step() {
 	ctx := v.Context()
 	op := ctx.Next()
-	if ctx.ip >= len(ctx.prog) {
-		op = Oret
-	}
-
 	v.execute(ctx, op)
 
 	// re-peek the context as it could been changed during execution.
@@ -460,8 +456,8 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(x.Abs(x))
 
 	case Onot:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Not(x))
+		x := v.estack.Pop().Bool()
+		v.estack.PushVal(!x)
 
 	case Onz:
 		panic("todo NZ")

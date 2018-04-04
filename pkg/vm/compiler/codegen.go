@@ -460,7 +460,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
-		// TODO(@anthdm)
+		ast.Walk(c, n.X)
+		c.convertToken(n.Op)
+		return nil
 
 	case *ast.IncDecStmt:
 		ast.Walk(c, n.X)
@@ -631,6 +633,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Odec)
 	case token.INC:
 		emitOpcode(c.prog, vm.Oinc)
+	case token.NOT:
+		emitOpcode(c.prog, vm.Onot)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}

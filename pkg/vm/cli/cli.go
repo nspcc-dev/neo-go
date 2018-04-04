@@ -2,13 +2,17 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 )
 
 // command describes a VM command.
@@ -24,18 +28,20 @@ type command struct {
 }
 
 var commands = map[string]command{
-	"help":   {0, "show available commands", false},
-	"exit":   {0, "exit the VM prompt", false},
-	"ip":     {0, "show the current instruction", true},
-	"break":  {1, "place a breakpoint (> break 1)", true},
-	"estack": {0, "show evaluation stack details", false},
-	"astack": {0, "show alt stack details", false},
-	"istack": {0, "show invocation stack details", false},
-	"load":   {1, "load a script into the VM (> load /path/to/script.avm)", false},
-	"run":    {0, "execute the current loaded script", true},
-	"cont":   {0, "continue execution of the current loaded script", true},
-	"step":   {0, "step (n) instruction in the program (> step 10)", true},
-	"ops":    {0, "show the opcodes of the current loaded program", true},
+	"help":    {0, "show available commands", false},
+	"exit":    {0, "exit the VM prompt", false},
+	"ip":      {0, "show the current instruction", true},
+	"break":   {1, "place a breakpoint (> break 1)", true},
+	"estack":  {0, "show evaluation stack details", false},
+	"astack":  {0, "show alt stack details", false},
+	"istack":  {0, "show invocation stack details", false},
+	"loadavm": {1, "load a script into the VM (> load /path/to/script.avm)", false},
+	"loadhex": {1, "load a hex string directly into the VM (> loadhex )", false},
+	"loadgo":  {1, "compile and load the given .go file.", false},
+	"run":     {0, "execute the current loaded script", true},
+	"cont":    {0, "continue execution of the current loaded script", true},
+	"step":    {0, "step (n) instruction in the program (> step 10)", true},
+	"ops":     {0, "show the opcodes of the current loaded program", true},
 }
 
 // VMCLI object for interacting with the VM.
@@ -103,6 +109,29 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		} else {
 			fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 		}
+
+	case "loadhex":
+		b, err := hex.DecodeString(args[0])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		c.vm.Load(b)
+		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
+
+	case "loadcompile":
+		fb, err := ioutil.ReadFile(args[0])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		b, err := compiler.Compile(bytes.NewReader(fb), &compiler.Options{})
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		c.vm.Load(b)
+		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 
 	case "run", "cont":
 		c.vm.Run()
