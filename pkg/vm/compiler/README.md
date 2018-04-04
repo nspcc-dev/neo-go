@@ -15,19 +15,19 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 - basic if statements
 - binary expressions
 - return statements
+- for loops
 - imports 
 
 ### Go builtins
 - len
+- append
 
 ### VM API (interop layer)
 - storage
 - runtime
 
 ## Not yet implemented
-- for loops
 - range
-- builtin (append)
 - some parts of the interop layer (VM API)
 
 ## Not supported
