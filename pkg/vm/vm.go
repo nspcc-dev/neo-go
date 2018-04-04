@@ -486,6 +486,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			arr = append(arr, itemElem.value)
+			v.estack.PushVal(arr)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
