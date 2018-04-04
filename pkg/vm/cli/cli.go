@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -19,10 +20,8 @@ import (
 type command struct {
 	// number of minimun arguments the command needs.
 	args int
-
 	// description of the command.
 	usage string
-
 	// whether the VM needs to be "ready" to execute this command.
 	ready bool
 }
@@ -35,9 +34,9 @@ var commands = map[string]command{
 	"estack":  {0, "show evaluation stack details", false},
 	"astack":  {0, "show alt stack details", false},
 	"istack":  {0, "show invocation stack details", false},
-	"loadavm": {1, "load a script into the VM (> load /path/to/script.avm)", false},
-	"loadhex": {1, "load a hex string directly into the VM (> loadhex )", false},
-	"loadgo":  {1, "compile and load the given .go file.", false},
+	"loadavm": {1, "load an avm script into the VM (> load /path/to/script.avm)", false},
+	"loadhex": {1, "load a hex string into the VM (> loadhex 006166 )", false},
+	"loadgo":  {1, "compile and load a .go file into the VM (> load /path/to/file.go)", false},
 	"run":     {0, "execute the current loaded script", true},
 	"cont":    {0, "continue execution of the current loaded script", true},
 	"step":    {0, "step (n) instruction in the program (> step 10)", true},
@@ -73,14 +72,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 
 	switch cmd {
 	case "help":
-		fmt.Println()
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-		fmt.Fprintln(w, "COMMAND\tUSAGE")
-		for name, details := range commands {
-			fmt.Fprintf(w, "%s\t%s\n", name, details.usage)
-		}
-		w.Flush()
-		fmt.Println()
+		printHelp()
 
 	case "exit":
 		fmt.Println("Bye!")
@@ -103,7 +95,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 	case "estack", "istack", "astack":
 		fmt.Println(c.vm.Stack(cmd))
 
-	case "load":
+	case "loadavm":
 		if err := c.vm.LoadFile(args[0]); err != nil {
 			fmt.Println(err)
 		} else {
@@ -119,7 +111,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.Load(b)
 		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 
-	case "loadcompile":
+	case "loadgo":
 		fb, err := ioutil.ReadFile(args[0])
 		if err != nil {
 			fmt.Println(err)
@@ -178,6 +170,25 @@ func (c *VMCLI) Run() error {
 			c.handleCommand(cmd, args...)
 		}
 	}
+}
+
+func printHelp() {
+	names := make([]string, len(commands))
+	i := 0
+	for name, _ := range commands {
+		names[i] = name
+		i++
+	}
+	sort.Strings(names)
+
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
+	fmt.Fprintln(w, "COMMAND\tUSAGE")
+	for _, name := range names {
+		fmt.Fprintf(w, "%s\t%s\n", name, commands[name].usage)
+	}
+	w.Flush()
+	fmt.Println()
 }
 
 func printLogo() {

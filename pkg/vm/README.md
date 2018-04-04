@@ -52,27 +52,29 @@ More information about standalone installation coming soon.
 NEO-GO-VM > help
 
 COMMAND    USAGE
-step       step (n) instruction in the program (> step 10)
-ops        show the opcodes of the current loaded program
-ip         show the current instruction
-estack     show evaluation stack details
 astack     show alt stack details
-istack     show invocation stack details
-run        execute the current loaded script
-cont       continue execution of the current loaded script
-help       show available commands
-exit       exit the VM prompt
 break      place a breakpoint (> break 1)
-load       load a script into the VM (> load /path/to/script.avm)
+cont       continue execution of the current loaded script
+estack     show evaluation stack details
+exit       exit the VM prompt
+help       show available commands
+ip         show the current instruction
+istack     show invocation stack details
+loadavm    load an avm script into the VM (> load /path/to/script.avm)
+loadgo     compile and load a .go file into the VM (> load /path/to/file.go)
+loadhex    load a hex string into the VM (> loadhex 006166 )
+ops        show the opcodes of the current loaded program
+run        execute the current loaded script
+step       step (n) instruction in the program (> step 10)
 ```
 
 ### Loading in your script
 
-To load a script into the VM:
+To load an avm script into the VM:
 
 ```
-NEO-GO-VM > load ../contract.avm
-READY
+NEO-GO-VM > loadavm ../contract.avm
+READY: loaded 36 instructions
 ```
 
 Run the script:
@@ -87,6 +89,28 @@ NEO-GO-VM > run
 ]
 ```
 
+You can also directly compile and load `.go` files:
+
+```
+NEO-GO-VM > loadgo ../contract.go
+READY: loaded 36 instructions
+```
+
+To make it even more complete, you can directly load hex strings into the VM:
+
+```
+NEO-GO-VM > loadhex 54c56b006c766b00527ac46c766b00c391640b006203005a616c756662030000616c7566
+READY: loaded 36 instructions
+NEO-GO-VM > run
+[
+    {
+        "value": 10,
+        "type": "BigInteger"
+    }
+]
+
+```
+
 ### Debugging
 The `neo-go-vm` provides a debugger to inspect your program in-depth.
 
@@ -95,6 +119,7 @@ Step 4 instructions.
 ```
 NEO-GO-VM > step 4
 at breakpoint 4 (Opush4)
+NEO-GO-VM 4 >
 ```
 
 Using just `step` will execute 1 instruction at a time.
@@ -102,6 +127,7 @@ Using just `step` will execute 1 instruction at a time.
 ```
 NEO-GO-VM > step
 instruction pointer at 5 (Odup)
+NEO-GO-VM 5 >
 ```
 
 To place breakpoints:
@@ -109,14 +135,15 @@ To place breakpoints:
 ```
 NEO-GO-VM > break 10
 breakpoint added at instruction 10
-NEO-GO-VM > resume
+NEO-GO-VM > cont
 at breakpoint 10 (Osetitem)
+NEO-GO-VM 10 > cont
 ```
 
-Inspecting the stack:
+Inspecting the evaluation stack:
 
 ```
-NEO-GO-VM > stack
+NEO-GO-VM > estack
 [
     {
         "value": [
@@ -137,4 +164,7 @@ NEO-GO-VM > stack
 ]
 ```
 
-And a lot more features coming next weeks..
+There are more stacks that you can inspect.
+- `astack` alt stack
+- `istack` invocation stack
+
