@@ -192,3 +192,7 @@ func isNoRetSyscall(name string) bool {
 	}
 	return false
 }
+
+func isStringType(t types.Type) bool {
+	return t.String() == "string"
+}

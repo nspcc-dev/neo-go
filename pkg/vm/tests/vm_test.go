@@ -33,7 +33,6 @@ func TestVMAndCompilerCases(t *testing.T) {
 	testCases := []testCase{}
 	testCases = append(testCases, numericTestCases...)
 	testCases = append(testCases, assignTestCases...)
-	testCases = append(testCases, arrayTestCases...)
 	testCases = append(testCases, binaryExprTestCases...)
 	testCases = append(testCases, structTestCases...)
 

@@ -28,10 +28,13 @@ func NewContext(b []byte) *Context {
 // Next return the next instruction to execute.
 func (c *Context) Next() Opcode {
 	c.ip++
+	if c.ip >= len(c.prog) {
+		return Oret
+	}
 	return Opcode(c.prog[c.ip])
 }
 
-// IP returns the absosulute instruction without taking 0 into account.
+// IP returns the absolute instruction without taking 0 into account.
 // If that program starts the ip = 0 but IP() will return 1, cause its
 // the first instruction.
 func (c *Context) IP() int {

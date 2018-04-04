@@ -380,15 +380,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.CallExpr:
 		var (
-			f       *funcScope
-			ok      bool
-			numArgs = len(n.Args)
+			f         *funcScope
+			ok        bool
+			numArgs   = len(n.Args)
+			isBuiltin = isBuiltin(n.Fun)
 		)
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
-			if !ok && !isBuiltin(n.Fun) {
+			if !ok && !isBuiltin {
 				log.Fatalf("could not resolve function %s", fun.Name)
 			}
 		case *ast.SelectorExpr:
@@ -410,12 +411,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, arg := range n.Args {
 			ast.Walk(c, arg)
 		}
-		if numArgs == 2 {
-			emitOpcode(c.prog, vm.Oswap)
-		}
-		if numArgs == 3 {
-			emitInt(c.prog, 2)
-			emitOpcode(c.prog, vm.Oxswap)
+		// Do not swap for builtin functions.
+		if !isBuiltin {
+			if numArgs == 2 {
+				emitOpcode(c.prog, vm.Oswap)
+			}
+			if numArgs == 3 {
+				emitInt(c.prog, 2)
+				emitOpcode(c.prog, vm.Oxswap)
+			}
 		}
 
 		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
@@ -424,7 +428,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emitOpcode(c.prog, vm.Onop)
 
 		// Check builtin first to avoid nil pointer on funcScope!
-		if isBuiltin(n.Fun) {
+		if isBuiltin {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n.Fun.(*ast.Ident).Name, n)
@@ -456,7 +460,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
-		// TODO(@anthdm)
+		ast.Walk(c, n.X)
+		c.convertToken(n.Op)
+		return nil
 
 	case *ast.IncDecStmt:
 		ast.Walk(c, n.X)
@@ -528,9 +534,15 @@ func (c *codegen) convertSyscall(name string) {
 func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
 	switch name {
 	case "len":
-		emitOpcode(c.prog, vm.Oarraysize)
+		arg := expr.Args[0]
+		typ := c.typeInfo.Types[arg].Type
+		if isStringType(typ) {
+			emitOpcode(c.prog, vm.Osize)
+		} else {
+			emitOpcode(c.prog, vm.Oarraysize)
+		}
 	case "append":
-		log.Fatal("builtin (append) not yet implemented.")
+		emitOpcode(c.prog, vm.Oappend)
 	}
 }
 
@@ -621,6 +633,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.Odec)
 	case token.INC:
 		emitOpcode(c.prog, vm.Oinc)
+	case token.NOT:
+		emitOpcode(c.prog, vm.Onot)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
@@ -702,7 +716,7 @@ func (c *codegen) writeJumps() {
 		switch vm.Opcode(op) {
 		case vm.Ojmp, vm.Ojmpifnot, vm.Ojmpif, vm.Ocall:
 			index := int16(binary.LittleEndian.Uint16(b[j : j+2]))
-			if int(index) > len(c.l) {
+			if int(index) > len(c.l) || int(index) < 0 {
 				continue
 			}
 			offset := uint16(c.l[index] - i)

@@ -186,10 +186,6 @@ func (v *VM) Run() {
 func (v *VM) Step() {
 	ctx := v.Context()
 	op := ctx.Next()
-	if ctx.ip >= len(ctx.prog) {
-		op = Oret
-	}
-
 	v.execute(ctx, op)
 
 	// re-peek the context as it could been changed during execution.
@@ -460,8 +456,8 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(x.Abs(x))
 
 	case Onot:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Not(x))
+		x := v.estack.Pop().Bool()
+		v.estack.PushVal(!x)
 
 	case Onz:
 		panic("todo NZ")
@@ -486,6 +482,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
 			arr = append(arr, itemElem.value)
+			v.estack.PushVal(arr)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
@@ -555,6 +552,14 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		arr, ok := elem.value.Value().([]StackItem)
 		if !ok {
 			panic("ARRAYSIZE: item not of type []StackItem")
+		}
+		v.estack.PushVal(len(arr))
+
+	case Osize:
+		elem := v.estack.Pop()
+		arr, ok := elem.value.Value().([]uint8)
+		if !ok {
+			panic("SIZE: item not of type []uint8")
 		}
 		v.estack.PushVal(len(arr))
 
