@@ -483,6 +483,9 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 			arr := t.Value().([]StackItem)
 			arr = append(arr, itemElem.value)
 			v.estack.PushVal(arr)
+		case *ByteArrayItem:
+			newVal := append(t.value, itemElem.value.Value().([]byte)...)
+			v.estack.PushVal(newVal)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}

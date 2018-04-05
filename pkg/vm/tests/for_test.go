@@ -225,6 +225,21 @@ func TestIfUnaryInvert(t *testing.T) {
 	eval(t, src, big.NewInt(0))
 }
 
+func TestAppendByte(t *testing.T) {
+	src := `
+	package foo
+		func Main() []byte {
+			arr := []byte{0x00, 0x01, 0x02}
+			arr = append(arr, 0x03)
+			arr = append(arr, 0x04)
+			arr = append(arr, 0x05)
+			arr = append(arr, 0x06)
+			return arr
+		}
+	`
+	eval(t, src, []uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
+}
+
 func TestAppendString(t *testing.T) {
 	src := `
 	package foo
