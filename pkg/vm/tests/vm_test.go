@@ -16,15 +16,26 @@ type testCase struct {
 }
 
 func eval(t *testing.T, src string, result interface{}) {
+	vm := vmAndCompile(t, src)
+	vm.Run()
+	assert.Equal(t, result, vm.PopResult())
+}
+
+func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, result interface{}) {
+	vm := vmAndCompile(t, src)
+	vm.LoadArgs(op, args)
+	vm.Run()
+	assert.Equal(t, result, vm.PopResult())
+}
+
+func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm := vm.New(nil, vm.ModeMute)
 	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	vm.Load(b)
-	vm.Run()
-	assert.Equal(t, result, vm.PopResult())
+	return vm
 }
 
 func TestVMAndCompilerCases(t *testing.T) {

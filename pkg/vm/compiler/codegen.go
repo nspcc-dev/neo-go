@@ -432,6 +432,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n.Fun.(*ast.Ident).Name, n)
+		} else if isNativeCall(f.name) {
+			c.convertNativeCall(f.name)
 		} else if isSyscall(f.name) {
 			c.convertSyscall(f.name)
 		} else {
@@ -537,6 +539,12 @@ func (c *codegen) convertSyscall(name string) {
 	}
 	emitSyscall(c.prog, api)
 	emitOpcode(c.prog, vm.Onop)
+}
+
+func (c *codegen) convertNativeCall(name string) {
+	if name == "Print" {
+		emitOpcode(c.prog, vm.Oprint)
+	}
 }
 
 func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
