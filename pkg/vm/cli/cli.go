@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -61,7 +62,7 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		fmt.Printf("unknown command (%s)\n", cmd)
 		return
 	}
-	if len(args) < com.args {
+	if (len(args) < com.args || len(args) > com.args) && cmd != "run" {
 		fmt.Printf("command (%s) takes at least %d arguments\n", cmd, com.args)
 		return
 	}
@@ -125,7 +126,31 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		c.vm.Load(b)
 		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 
-	case "run", "cont":
+	case "run":
+		var (
+			method []byte
+			params []vm.StackItem
+			err    error
+			start  int
+		)
+
+		if len(args) == 0 {
+			c.vm.Run()
+		} else {
+			if isMethodArg(args[0]) {
+				method = []byte(args[0])
+				start = 1
+			}
+			params, err = parseArgs(args[start:])
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+		c.vm.LoadArgs(method, params)
+		c.vm.Run()
+
+	case "cont":
 		c.vm.Run()
 
 	case "step":
@@ -170,6 +195,36 @@ func (c *VMCLI) Run() error {
 			c.handleCommand(cmd, args...)
 		}
 	}
+}
+
+func isMethodArg(s string) bool {
+	return len(strings.Split(s, ":")) == 1
+}
+
+func parseArgs(args []string) ([]vm.StackItem, error) {
+	items := make([]vm.StackItem, len(args))
+	for i, arg := range args {
+		typeAndVal := strings.Split(arg, ":")
+		if len(typeAndVal) < 2 {
+			return nil, errors.New("arguments need to be specified as <typ:val>")
+		}
+
+		typ := typeAndVal[0]
+		value := typeAndVal[1]
+
+		switch typ {
+		case "int":
+			val, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, err
+			}
+			items[i] = vm.NewBigIntegerItem(val)
+		case "string":
+			items[i] = vm.NewByteArrayItem([]byte(value))
+		}
+	}
+
+	return items, nil
 }
 
 func printHelp() {

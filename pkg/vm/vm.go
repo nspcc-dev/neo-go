@@ -59,6 +59,16 @@ func New(svc *InteropService, mode Mode) *VM {
 	return vm
 }
 
+// LoadArgs will load in the arguments used in the Mian entry point.
+func (v *VM) LoadArgs(method []byte, args []StackItem) {
+	if len(args) > 0 {
+		v.estack.PushVal(args)
+	}
+	if method != nil {
+		v.estack.PushVal([]byte(method))
+	}
+}
+
 // PrintOps will print the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps() {
 	prog := v.Context().Program()
