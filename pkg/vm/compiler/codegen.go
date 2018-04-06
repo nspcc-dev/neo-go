@@ -518,6 +518,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(fend)
 
 		return nil
+
+	// We dont really care about assertions for the core logic.
+	// The only thing we need is to please the compiler type checking.
+	// For this to work properly, we only need to walk the expression
+	// not the assertion type.
+	case *ast.TypeAssertExpr:
+		ast.Walk(c, n.X)
+		return nil
 	}
 	return c
 }
