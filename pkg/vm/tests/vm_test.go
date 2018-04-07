@@ -18,14 +18,20 @@ type testCase struct {
 func eval(t *testing.T, src string, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.Run()
-	assert.Equal(t, result, vm.PopResult())
+	assertResult(t, vm, result)
 }
 
 func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.LoadArgs(op, args)
 	vm.Run()
+	assertResult(t, vm, result)
+}
+
+func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 	assert.Equal(t, result, vm.PopResult())
+	assert.Equal(t, 0, vm.Astack().Len())
+	assert.Equal(t, 0, vm.Istack().Len())
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {

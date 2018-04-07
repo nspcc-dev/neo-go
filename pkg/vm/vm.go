@@ -71,6 +71,16 @@ func (v *VM) Estack() *Stack {
 	return v.estack
 }
 
+// Astack will return the alt stack so interop hooks can utilize this.
+func (v *VM) Astack() *Stack {
+	return v.astack
+}
+
+// Istack will return the invocation stack so interop hooks can utilize this.
+func (v *VM) Istack() *Stack {
+	return v.istack
+}
+
 // LoadArgs will load in the arguments used in the Mian entry point.
 func (v *VM) LoadArgs(method []byte, args []StackItem) {
 	if len(args) > 0 {
