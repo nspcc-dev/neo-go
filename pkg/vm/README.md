@@ -111,6 +111,53 @@ NEO-GO-VM > run
 
 ```
 
+### Running programs with arguments
+You can invoke smart contracts with arguments. Take the following ***roll the dice*** smartcontract as example. 
+
+```
+package rollthedice
+
+import "github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
+
+func Main(method string, args []interface{}) int {
+    if method == "rollDice" {
+        // args parameter is always of type []interface, hence we need to 
+        // cast it to an int.
+        rollDice(args[0].(int))
+    }
+    return 0
+}
+
+func rollDice(number int) {
+    if number == 0 {
+        runtime.Log("you rolled 0, better luck next time!")
+    }
+    if number == 1 {
+        runtime.Log("you rolled 1, still better then 0!")
+    }
+    if number == 2 {
+        runtime.Log("you rolled 2, coming closer..") 
+    }
+    if number == 3 {
+        runtime.Log("Sweet you rolled 3. This dice has only 3 sides o_O")
+    }
+}
+```
+
+To invoke this contract we need to specify both the method and the arguments.
+
+The first parameter (called method or operation) is always of type string. Notice that arguments can have different types, to make the VM aware of their type we need to do the following:
+
+```
+NEO-GO-VM > run rollDice int:1
+```
+
+> The method is always of type string, hence we don't need to specify the type.
+
+Current supported types:
+- `int (int:1 int:100)`
+- `string (string:foo string:this is a string)` 
+
 ### Debugging
 The `neo-go-vm` provides a debugger to inspect your program in-depth.
 
