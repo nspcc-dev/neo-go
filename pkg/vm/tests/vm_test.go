@@ -29,7 +29,7 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, resu
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {
-	vm := vm.New(nil, vm.ModeMute)
+	vm := vm.New(vm.ModeMute)
 	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +39,7 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 }
 
 func TestVMAndCompilerCases(t *testing.T) {
-	vm := vm.New(nil, vm.ModeMute)
+	vm := vm.New(vm.ModeMute)
 
 	testCases := []testCase{}
 	testCases = append(testCases, numericTestCases...)

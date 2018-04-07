@@ -52,7 +52,7 @@ type VMCLI struct {
 // New returns a new VMCLI object.
 func New() *VMCLI {
 	return &VMCLI{
-		vm: vm.New(nil, 0),
+		vm: vm.New(0),
 	}
 }
 

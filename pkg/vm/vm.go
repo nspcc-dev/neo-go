@@ -26,8 +26,8 @@ var (
 type VM struct {
 	state State
 
-	// interop layer.
-	interop *InteropService
+	// registered interop hooks.
+	interop map[string]InteropFunc
 
 	// scripts loaded in memory.
 	scripts map[util.Uint160][]byte
@@ -41,12 +41,9 @@ type VM struct {
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
-func New(svc *InteropService, mode Mode) *VM {
-	if svc == nil {
-		svc = NewInteropService()
-	}
+func New(mode Mode) *VM {
 	vm := &VM{
-		interop: svc,
+		interop: make(map[string]InteropFunc),
 		scripts: make(map[util.Uint160][]byte),
 		state:   haltState,
 		istack:  NewStack("invocation"),
@@ -56,7 +53,22 @@ func New(svc *InteropService, mode Mode) *VM {
 	if mode == ModeMute {
 		vm.mute = true
 	}
+
+	// Register native interop hooks.
+	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog)
+	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify)
+
 	return vm
+}
+
+// RegisterInteropFunc will register the given InteropFunc to the VM.
+func (v *VM) RegisterInteropFunc(name string, f InteropFunc) {
+	v.interop[name] = f
+}
+
+// Estack will return the evalutation stack so interop hooks can utilize this.
+func (v *VM) Estack() *Stack {
+	return v.estack
 }
 
 // LoadArgs will load in the arguments used in the Mian entry point.
@@ -602,8 +614,11 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	case Osyscall:
 		api := ctx.readVarBytes()
-		err := v.interop.Call(api, v)
-		if err != nil {
+		ifunc, ok := v.interop[string(api)]
+		if !ok {
+			panic(fmt.Sprintf("interop hook (%s) not registered", api))
+		}
+		if err := ifunc(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
 
