@@ -268,6 +268,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		// @OPTIMIZE: We could skip these 3 instructions for each return statement.
 		// To be backwards compatible we will put them them in.
+		// See issue #65 (https://github.com/CityOfZion/neo-go/issues/65)
 		l := c.newLabel()
 		emitJmp(c.prog, vm.Ojmp, int16(l))
 		c.setLabel(l)
@@ -276,7 +277,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Results[0])
 		}
 
-		emitOpcode(c.prog, vm.Onop)
+		emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
 		emitOpcode(c.prog, vm.Ofromaltstack)
 		emitOpcode(c.prog, vm.Odrop)
 		emitOpcode(c.prog, vm.Oret)
@@ -536,7 +537,7 @@ func (c *codegen) convertSyscall(name string) {
 		log.Fatalf("unknown VM syscall api: %s", name)
 	}
 	emitSyscall(c.prog, api)
-	emitOpcode(c.prog, vm.Onop)
+	emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
 }
 
 func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
