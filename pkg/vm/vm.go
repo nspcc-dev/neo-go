@@ -674,10 +674,6 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 	case Onop:
 		// unlucky ^^
 
-	case Oprint:
-		item := v.estack.Pop()
-		fmt.Printf("NEO-GO-VM > %s\n", item.value.Value())
-
 	case Othrow:
 		panic("THROW")
 

@@ -13,9 +13,6 @@ import (
 var (
 	// Go language builtin functions.
 	builtinFuncs = []string{"len", "append"}
-	// VM native function helpers.
-	nativeFuncs = []string{"Print"}
-
 	// VM system calls that have no return value.
 	noRetSyscalls = []string{
 		"Notify", "Log", "Put", "Register", "Delete",
@@ -160,15 +157,6 @@ func isBuiltin(expr ast.Expr) bool {
 			}
 		}
 		return false
-	}
-	return false
-}
-
-func isNativeCall(n string) bool {
-	for _, f := range nativeFuncs {
-		if f == n {
-			return true
-		}
 	}
 	return false
 }

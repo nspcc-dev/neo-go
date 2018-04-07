@@ -128,7 +128,4 @@ const (
 	// exceptions
 	Othrow      Opcode = 0xF0
 	Othrowifnot Opcode = 0xF1
-
-	// custom Opcodes
-	Oprint Opcode = 0xF2
 )

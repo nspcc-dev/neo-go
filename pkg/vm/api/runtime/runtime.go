@@ -1,6 +1,6 @@
 package runtime
 
-import "github.com/CityOfZion/neo-go/pkg/vm/smartcontract/types"
+import "github.com/CityOfZion/neo-go/pkg/vm/api/types"
 
 // CheckWitness verifies if the invoker is the owner of the contract.
 func CheckWitness(hash []byte) bool {
