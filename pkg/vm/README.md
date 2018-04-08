@@ -146,13 +146,19 @@ func rollDice(number int) {
 
 To invoke this contract we need to specify both the method and the arguments.
 
-The first parameter (called method or operation) is always of type string. Notice that arguments can have different types, to make the VM aware of their type we need to do the following:
+The first parameter (called method or operation) is always of type string. Notice that arguments can have different types, to make the VM aware of the type we need to specify it when calling `run`:
 
 ```
 NEO-GO-VM > run rollDice int:1
 ```
 
 > The method is always of type string, hence we don't need to specify the type.
+
+To add more then 1 argument:
+
+```
+NEO-GO-VM > run someMethod int:1 int:2 string:foo string:bar
+```
 
 Current supported types:
 - `int (int:1 int:100)`

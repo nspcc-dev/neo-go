@@ -6,11 +6,10 @@ var Syscalls = map[string]string{
 	// Storage API
 	"GetContext": "Neo.Storage.GetContext",
 	"Put":        "Neo.Storage.Put",
-	"GetInt":     "Neo.Storage.Get",
-	"GetString":  "Neo.Storage.Get",
+	"Get":        "Neo.Storage.Get",
 	"Delete":     "Neo.Storage.Delete",
 
-	// Runtime
+	// Runtime API
 	"GetTrigger":      "Neo.Runtime.GetTrigger",
 	"CheckWitness":    "Neo.Runtime.CheckWitness",
 	"GetCurrentBlock": "Neo.Runtime.GetCurrentBlock",

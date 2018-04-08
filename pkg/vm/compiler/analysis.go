@@ -127,6 +127,18 @@ func (f funcUsage) funcUsed(name string) bool {
 	return ok
 }
 
+// hasReturnStmt look if the given FuncDecl has a return statement.
+func hasReturnStmt(decl *ast.FuncDecl) (b bool) {
+	ast.Inspect(decl, func(node ast.Node) bool {
+		if _, ok := node.(*ast.ReturnStmt); ok {
+			b = true
+			return false
+		}
+		return true
+	})
+	return
+}
+
 func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 	usage := funcUsage{}
 

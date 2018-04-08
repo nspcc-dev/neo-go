@@ -21,9 +21,7 @@ func Notify(arg interface{}) int {
 }
 
 // Log intructs the VM to log the given message.
-func Log(message string) int {
-	return 0
-}
+func Log(message string) {}
 
 // Application returns the application trigger type.
 func Application() byte {

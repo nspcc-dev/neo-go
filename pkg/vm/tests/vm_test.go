@@ -1,6 +1,7 @@
 package vm_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -36,6 +37,11 @@ func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm := vm.New(vm.ModeMute)
+
+	storePlugin := newStoragePlugin()
+	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get)
+	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put)
+
 	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -46,6 +52,9 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 
 func TestVMAndCompilerCases(t *testing.T) {
 	vm := vm.New(vm.ModeMute)
+
+	storePlugin := newStoragePlugin()
+	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get)
 
 	testCases := []testCase{}
 	testCases = append(testCases, numericTestCases...)
@@ -62,4 +71,39 @@ func TestVMAndCompilerCases(t *testing.T) {
 		vm.Run()
 		assert.Equal(t, tc.result, vm.PopResult())
 	}
+}
+
+type storagePlugin struct {
+	mem map[string][]byte
+}
+
+func newStoragePlugin() *storagePlugin {
+	return &storagePlugin{
+		mem: make(map[string][]byte),
+	}
+}
+
+func (s *storagePlugin) Delete(vm *vm.VM) error {
+	vm.Estack().Pop()
+	key := vm.Estack().Pop().Bytes()
+	delete(s.mem, string(key))
+	return nil
+}
+
+func (s *storagePlugin) Put(vm *vm.VM) error {
+	vm.Estack().Pop()
+	key := vm.Estack().Pop().Bytes()
+	value := vm.Estack().Pop().Bytes()
+	s.mem[string(key)] = value
+	return nil
+}
+
+func (s *storagePlugin) Get(vm *vm.VM) error {
+	vm.Estack().Pop()
+	item := vm.Estack().Pop().Bytes()
+	if val, ok := s.mem[string(item)]; ok {
+		vm.Estack().PushVal(val)
+		return nil
+	}
+	return fmt.Errorf("could not find %+v", item)
 }

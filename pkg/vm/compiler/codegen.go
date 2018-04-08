@@ -118,19 +118,6 @@ func (c *codegen) emitStoreStructField(i int) {
 	emitOpcode(c.prog, vm.Osetitem)
 }
 
-func (c *codegen) emitSyscallReturn() {
-	emitOpcode(c.prog, vm.Ojmp)
-	emitOpcode(c.prog, vm.Opcode(0x03))
-	emitOpcode(c.prog, vm.Opush0)
-
-	emitInt(c.prog, int64(0))
-
-	emitOpcode(c.prog, vm.Onop)
-	emitOpcode(c.prog, vm.Ofromaltstack)
-	emitOpcode(c.prog, vm.Odrop)
-	emitOpcode(c.prog, vm.Oret)
-}
-
 // convertGlobals will traverse the AST and only convert global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
@@ -160,7 +147,7 @@ func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 	}
 
 	c.scope = f
-	ast.Inspect(decl, c.scope.analyzeVoidCalls)
+	ast.Inspect(decl, c.scope.analyzeVoidCalls) // @OPTIMIZE
 
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
@@ -193,17 +180,19 @@ func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 		l := c.scope.newLocal(name)
 		c.emitStoreLocal(l)
 	}
-
-	// If this function is a syscall we will manipulate the return value to 0.
-	// All the syscalls are just signatures functions and bring no real return value.
-	// The return values you will find in the smartcontract package is just for
-	// satisfying the typechecker and the user experience.
-	if isSyscall(f.name) {
-		c.emitSyscallReturn()
-	} else {
-		// After loading the arguments we can convert the globals into the scope of the function.
+	// Load in all the global variables in to the scope of the function.
+	// This is not necessary for syscalls.
+	if !isSyscall(f.name) {
 		c.convertGlobals(file)
-		ast.Walk(c, decl.Body)
+	}
+
+	ast.Walk(c, decl.Body)
+
+	// If this function returs the void (no return stmt) we will cleanup its junk on the stack.
+	if !hasReturnStmt(decl) {
+		emitOpcode(c.prog, vm.Ofromaltstack)
+		emitOpcode(c.prog, vm.Odrop)
+		emitOpcode(c.prog, vm.Oret)
 	}
 }
 
@@ -279,7 +268,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
 		emitOpcode(c.prog, vm.Ofromaltstack)
-		emitOpcode(c.prog, vm.Odrop)
+		emitOpcode(c.prog, vm.Odrop) // Cleanup the stack.
 		emitOpcode(c.prog, vm.Oret)
 		return nil
 
@@ -440,8 +429,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// If we are not assigning this function to a variable we need to drop
-		// the top stack item. It's not a void but you get the point \o/.
-		if _, ok := c.scope.voidCalls[n]; ok && !isNoRetSyscall(f.name) {
+		// (cleanup) the top stack item. It's not a void but you get the point \o/.
+		if _, ok := c.scope.voidCalls[n]; ok {
 			emitOpcode(c.prog, vm.Odrop)
 		}
 		return nil
