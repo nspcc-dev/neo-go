@@ -124,8 +124,8 @@ func (m *Message) CommandType() CommandType {
 	}
 }
 
-// decode a Message from the given reader.
-func (m *Message) decode(r io.Reader) error {
+// Decode a Message from the given reader.
+func (m *Message) Decode(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &m.Magic); err != nil {
 		return err
 	}
@@ -205,8 +205,8 @@ func (m *Message) decodePayload(r io.Reader) error {
 	return nil
 }
 
-// encode a Message to any given io.Writer.
-func (m *Message) encode(w io.Writer) error {
+// Encode a Message to any given io.Writer.
+func (m *Message) Encode(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, m.Magic); err != nil {
 		return err
 	}

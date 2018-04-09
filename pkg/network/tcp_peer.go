@@ -38,7 +38,7 @@ func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 // Send implements the Peer interface. This will encode the message
 // to the underlying connection.
 func (p *TCPPeer) Send(msg *Message) {
-	if err := msg.encode(p.conn); err != nil {
+	if err := msg.Encode(p.conn); err != nil {
 		select {
 		case p.disc <- err:
 		case <-p.closed:
@@ -71,7 +71,7 @@ func (p *TCPPeer) readLoop(proto chan protoTuple, readErr chan error) {
 			return
 		default:
 			msg := &Message{}
-			if err := msg.decode(p.conn); err != nil {
+			if err := msg.Decode(p.conn); err != nil {
 				readErr <- err
 				return
 			}

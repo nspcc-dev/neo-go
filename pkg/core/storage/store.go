@@ -34,7 +34,7 @@ type (
 		Batch() Batch
 		Get([]byte) ([]byte, error)
 		Put(k, v []byte) error
-		PutBatch(batch Batch) error
+		PutBatch(Batch) error
 		Seek(k []byte, f func(k, v []byte))
 	}
 
