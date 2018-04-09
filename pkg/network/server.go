@@ -340,8 +340,8 @@ func (s *Server) processProto(proto protoTuple) error {
 		getHeaders := msg.Payload.(*payload.GetBlocks)
 		s.handleGetHeadersCmd(peer, getHeaders)
 	case CMDVerack:
-		// Make sure this peer has sended his version before we start the
-		// protocol.
+		// Make sure this peer has send his version before we start the
+		// protocol with that peer.
 		if peer.Version() == nil {
 			return errInvalidHandshake
 		}
