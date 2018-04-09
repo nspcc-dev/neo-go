@@ -6,7 +6,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/sirupsen/logrus"
 )
 
 // TCPPeer represents a connected remote node in the
@@ -39,7 +38,6 @@ func NewTCPPeer(conn net.Conn, proto chan protoTuple) *TCPPeer {
 // Send implements the Peer interface. This will encode the message
 // to the underlying connection.
 func (p *TCPPeer) Send(msg *Message) {
-	logrus.Infof("sending %+v", msg.CommandType())
 	if err := msg.Encode(p.conn); err != nil {
 		select {
 		case p.disc <- err:
@@ -77,7 +75,6 @@ func (p *TCPPeer) readLoop(proto chan protoTuple, readErr chan error) {
 				readErr <- err
 				return
 			}
-			logrus.Infof("receiving %+v", msg.CommandType())
 			p.handleMessage(msg, proto)
 		}
 	}
