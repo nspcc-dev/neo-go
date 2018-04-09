@@ -85,29 +85,29 @@ func (bc *Blockchain) init() error {
 	}
 	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
-	// Look in the storage for a version. If we could not the version key
-	// there is nothing stored.
-	if version, err := bc.Get(storage.SYSVersion.Bytes()); err != nil {
-		bc.Put(storage.SYSVersion.Bytes(), []byte(version))
-		if err := bc.persistBlock(genesisBlock); err != nil {
-			return err
-		}
-
-		return nil
+	// If we could not find the version in the Store, we know that there is nothing stored.
+	ver, err := storage.Version(bc.Store)
+	if err != nil {
+		log.Infof("no storage version found! creating genesis block")
+		storage.PutVersion(bc.Store, version)
+		return bc.persistBlock(genesisBlock)
+	}
+	if ver != version {
+		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
 	}
 
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
 	// and the genesis block as first block.
-	log.Infof("restoring blockchain with storage version: %s", version)
+	log.Infof("restoring blockchain with version: %s", version)
 
-	currBlockBytes, err := bc.Get(storage.SYSCurrentBlock.Bytes())
+	bHeight, err := storage.CurrentBlockHeight(bc.Store)
 	if err != nil {
 		return err
 	}
+	bc.blockHeight = bHeight
 
-	bc.blockHeight = binary.LittleEndian.Uint32(currBlockBytes[32:36])
-	hashes, err := readStoredHeaderHashes(bc.Store)
+	hashes, err := storage.HeaderHashes(bc.Store)
 	if err != nil {
 		return err
 	}
@@ -119,23 +119,18 @@ func (bc *Blockchain) init() error {
 		}
 	}
 
-	currHeaderBytes, err := bc.Get(storage.SYSCurrentHeader.Bytes())
-	if err != nil {
-		return err
-	}
-	currHeaderHeight := binary.LittleEndian.Uint32(currHeaderBytes[32:36])
-	currHeaderHash, err := util.Uint256DecodeBytes(currHeaderBytes[:32])
+	currHeaderHeight, currHeaderHash, err := storage.CurrentHeaderHeight(bc.Store)
 	if err != nil {
 		return err
 	}
 
-	// Their is a high chance that the Node is stopped before the next
+	// There is a high chance that the Node is stopped before the next
 	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
 	// that with stored blocks.
 	if currHeaderHeight > bc.storedHeaderCount {
 		hash := currHeaderHash
 		targetHash := bc.headerList.Get(bc.headerList.Len() - 1)
-		headers := []*Header{}
+		headers := make([]*Header, 0)
 
 		for hash != targetHash {
 			header, err := bc.getHeader(hash)
@@ -392,9 +387,10 @@ func (bc *Blockchain) persist() (err error) {
 
 	if persisted > 0 {
 		log.WithFields(log.Fields{
-			"persisted":   persisted,
-			"blockHeight": bc.BlockHeight(),
-			"took":        time.Since(start),
+			"persisted":    persisted,
+			"headerHeight": bc.HeaderHeight(),
+			"blockHeight":  bc.BlockHeight(),
+			"took":         time.Since(start),
 		}).Info("blockchain persist completed")
 	}
 
