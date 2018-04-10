@@ -11,6 +11,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestInteropHook(t *testing.T) {
+	v := New(ModeMute)
+	v.RegisterInteropFunc("foo", func(evm *VM) error {
+		evm.Estack().PushVal(1)
+		return nil
+	})
+
+	buf := new(bytes.Buffer)
+	EmitSyscall(buf, "foo")
+	EmitOpcode(buf, Oret)
+	v.Load(buf.Bytes())
+	v.Run()
+	assert.Equal(t, 1, v.estack.Len())
+	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
+}
+
+func TestRegisterInterop(t *testing.T) {
+	v := New(ModeMute)
+	currRegistered := len(v.interop)
+	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil })
+	assert.Equal(t, currRegistered+1, len(v.interop))
+	_, ok := v.interop["foo"]
+	assert.Equal(t, true, ok)
+}
+
 func TestPushBytes1to75(t *testing.T) {
 	buf := new(bytes.Buffer)
 	for i := 1; i <= 75; i++ {
@@ -216,7 +241,7 @@ func makeProgram(opcodes ...Opcode) []byte {
 }
 
 func load(prog []byte) *VM {
-	vm := New(nil, ModeMute)
+	vm := New(ModeMute)
 	vm.mute = true
 	vm.istack.PushVal(NewContext(prog))
 	return vm

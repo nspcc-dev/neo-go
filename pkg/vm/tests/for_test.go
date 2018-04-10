@@ -7,6 +7,47 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
+func TestEntryPointWithMethod(t *testing.T) {
+	src := `
+		package foo
+
+		func Main(op string) int {
+			if op == "a" {
+				return 1
+			}
+			return 0
+		}
+	`
+	evalWithArgs(t, src, []byte("a"), nil, big.NewInt(1))
+}
+
+func TestEntryPointWithArgs(t *testing.T) {
+	src := `
+		package foo
+
+		func Main(args []interface{}) int {
+			return 2 + args[1].(int)
+		}
+	`
+	args := []vm.StackItem{vm.NewBigIntegerItem(0), vm.NewBigIntegerItem(1)}
+	evalWithArgs(t, src, nil, args, big.NewInt(3))
+}
+
+func TestEntryPointWithMethodAndArgs(t *testing.T) {
+	src := `
+		package foo
+
+		func Main(method string, args []interface{}) int {
+			if method == "foobar" {
+				return 2 + args[1].(int)
+			}
+			return 0
+		}
+	`
+	args := []vm.StackItem{vm.NewBigIntegerItem(0), vm.NewBigIntegerItem(1)}
+	evalWithArgs(t, src, []byte("foobar"), args, big.NewInt(3))
+}
+
 func TestArrayFieldInStruct(t *testing.T) {
 	src := `
 		package foo

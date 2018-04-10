@@ -1,5 +1,7 @@
 package vm
 
+//go:generate stringer -type=Opcode
+
 // Opcode is an single operational instruction for the GO NEO virtual machine.
 type Opcode byte
 

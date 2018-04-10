@@ -13,7 +13,6 @@ import (
 var (
 	// Go language builtin functions.
 	builtinFuncs = []string{"len", "append"}
-
 	// VM system calls that have no return value.
 	noRetSyscalls = []string{
 		"Notify", "Log", "Put", "Register", "Delete",
@@ -126,6 +125,18 @@ type funcUsage map[string]bool
 func (f funcUsage) funcUsed(name string) bool {
 	_, ok := f[name]
 	return ok
+}
+
+// hasReturnStmt look if the given FuncDecl has a return statement.
+func hasReturnStmt(decl *ast.FuncDecl) (b bool) {
+	ast.Inspect(decl, func(node ast.Node) bool {
+		if _, ok := node.(*ast.ReturnStmt); ok {
+			b = true
+			return false
+		}
+		return true
+	})
+	return
 }
 
 func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {

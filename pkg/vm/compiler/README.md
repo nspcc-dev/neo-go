@@ -103,7 +103,7 @@ Will output something like:
 ```Golang
 package mycontract
 
-import "github.com/CityOfZion/neo-go/pkg/vm/smartcontract/runtime"
+import "github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
 
 var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
 
@@ -125,8 +125,8 @@ func Main() bool {
 package mytoken
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/vm/smartcontract/runtime"
-	"github.com/CityOfZion/neo-go/pkg/vm/smartcontract/storage"
+	"github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
+	"github.com/CityOfZion/neo-go/pkg/vm/api/storage"
 )
 
 var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
@@ -139,7 +139,7 @@ type Token struct {
 }
 
 func (t Token) AddToCirculation(amount int) bool {
-	ctx := storage.GetContext()
+	ctx := storage.Context()
 	inCirc := storage.GetInt(ctx, "in_circ")
 	inCirc += amount
 	storage.Put(ctx, "in_circ", inCirc)
