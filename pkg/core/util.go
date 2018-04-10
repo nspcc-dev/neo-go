@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
-	"sort"
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
@@ -227,39 +226,4 @@ func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index 
 	batch.Put(key, dest)
 
 	return nil
-}
-
-// readStoredHeaderHashes returns a sorted list of header hashes
-// retrieved from the given Store.
-func readStoredHeaderHashes(store storage.Store) ([]util.Uint256, error) {
-	hashMap := make(map[uint32][]util.Uint256)
-	store.Seek(storage.IXHeaderHashList.Bytes(), func(k, v []byte) {
-		storedCount := binary.LittleEndian.Uint32(k[1:])
-		hashes, err := util.Read2000Uint256Hashes(v)
-		if err != nil {
-			panic(err)
-		}
-		hashMap[storedCount] = hashes
-	})
-
-	var (
-		i          = 0
-		sortedKeys = make([]int, len(hashMap))
-	)
-
-	for k, _ := range hashMap {
-		sortedKeys[i] = int(k)
-		i++
-	}
-	sort.Ints(sortedKeys)
-
-	hashes := []util.Uint256{}
-	for _, key := range sortedKeys {
-		values := hashMap[uint32(key)]
-		for _, hash := range values {
-			hashes = append(hashes, hash)
-		}
-	}
-
-	return hashes, nil
 }

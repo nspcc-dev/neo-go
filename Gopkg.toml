@@ -63,3 +63,7 @@
 [[constraint]]
   name = "github.com/go-yaml/yaml"
   version = "2.1.1"
+
+[[constraint]]
+  name = "github.com/go-redis/redis"
+  version = "6.10.2"

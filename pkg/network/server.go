@@ -109,10 +109,13 @@ func (s *Server) Shutdown() {
 	close(s.quit)
 }
 
+// UnconnectedPeers returns a list of peers that are in the discovery peer list
+// but are not connected to the server.
 func (s *Server) UnconnectedPeers() []string {
 	return s.discovery.UnconnectedPeers()
 }
 
+// BadPeers returns a list of peers the are flagged as "bad" peers.
 func (s *Server) BadPeers() []string {
 	return s.discovery.BadPeers()
 }
@@ -340,8 +343,8 @@ func (s *Server) processProto(proto protoTuple) error {
 		getHeaders := msg.Payload.(*payload.GetBlocks)
 		s.handleGetHeadersCmd(peer, getHeaders)
 	case CMDVerack:
-		// Make sure this peer has sended his version before we start the
-		// protocol.
+		// Make sure this peer has send his version before we start the
+		// protocol with that peer.
 		if peer.Version() == nil {
 			return errInvalidHandshake
 		}
