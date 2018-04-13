@@ -24,7 +24,7 @@ const (
 var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	decrementInterval = 2000000
-	persistInterval   = 5 * time.Second
+	persistInterval   = 1 * time.Second
 )
 
 // Blockchain represents the blockchain.
@@ -164,13 +164,6 @@ func (bc *Blockchain) run() {
 	}
 }
 
-// For now this will return a hardcoded hash of the NEO governing token.
-func (bc *Blockchain) governingToken() util.Uint256 {
-	neoNativeAsset := "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
-	val, _ := util.Uint256DecodeString(neoNativeAsset)
-	return val
-}
-
 // AddBlock processes the given block and will add it to the cache so it
 // can be persisted.
 func (bc *Blockchain) AddBlock(block *Block) error {
@@ -299,10 +292,6 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 			} else {
 				account.Balances[output.AssetID] = output.Amount
 			}
-
-			if output.AssetID.Equals(bc.governingToken()) && len(account.Votes) > 0 {
-				// TODO
-			}
 		}
 
 		// Process TX inputs that are grouped by previous hash.
@@ -322,10 +311,6 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 				account, err := accounts.getAndChange(bc.Store, prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
-				}
-
-				if prevTXOutput.AssetID.Equals(bc.governingToken()) {
-					// TODO
 				}
 
 				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
@@ -366,6 +351,10 @@ func (bc *Blockchain) persist() (err error) {
 		persisted = 0
 		lenCache  = bc.blockCache.Len()
 	)
+
+	if lenCache == 0 {
+		return nil
+	}
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
 		for i := 0; i < lenCache; i++ {

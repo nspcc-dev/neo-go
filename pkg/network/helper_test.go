@@ -53,10 +53,6 @@ func (d testDiscovery) BadPeers() []string         { return []string{} }
 
 type localTransport struct{}
 
-func (t localTransport) Consumer() <-chan protoTuple {
-	ch := make(chan protoTuple)
-	return ch
-}
 func (t localTransport) Dial(addr string, timeout time.Duration) error {
 	return nil
 }
@@ -85,8 +81,9 @@ func (p *localPeer) Endpoint() util.Endpoint {
 	return p.endpoint
 }
 func (p *localPeer) Disconnect(err error) {}
-func (p *localPeer) Send(msg *Message) {
+func (p *localPeer) WriteMsg(msg *Message) error {
 	p.messageHandler(p.t, msg)
+	return nil
 }
 func (p *localPeer) Done() chan error {
 	done := make(chan error)
@@ -94,6 +91,9 @@ func (p *localPeer) Done() chan error {
 }
 func (p *localPeer) Version() *payload.Version {
 	return p.version
+}
+func (p *localPeer) SetVersion(v *payload.Version) {
+	p.version = v
 }
 
 func newTestServer() *Server {
