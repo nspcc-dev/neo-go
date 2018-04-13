@@ -13,7 +13,6 @@ type TCPTransport struct {
 	server   *Server
 	listener net.Listener
 	bindAddr string
-	proto    chan protoTuple
 }
 
 // NewTCPTransport return a new TCPTransport that will listen for
@@ -22,13 +21,7 @@ func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
 	return &TCPTransport{
 		server:   s,
 		bindAddr: bindAddr,
-		proto:    make(chan protoTuple),
 	}
-}
-
-// Consumer implements the Transporter interface.
-func (t *TCPTransport) Consumer() <-chan protoTuple {
-	return t.proto
 }
 
 // Dial implements the Transporter interface.
@@ -58,7 +51,6 @@ func (t *TCPTransport) Accept() {
 			if t.isCloseError(err) {
 				break
 			}
-
 			continue
 		}
 		go t.handleConn(conn)
@@ -81,11 +73,26 @@ func (t *TCPTransport) isCloseError(err error) bool {
 }
 
 func (t *TCPTransport) handleConn(conn net.Conn) {
-	p := NewTCPPeer(conn, t.proto)
+	var (
+		p   = NewTCPPeer(conn)
+		err error
+	)
+
+	defer func() {
+		p.Disconnect(err)
+	}()
+
 	t.server.register <- p
-	// This will block until the peer is stopped running.
-	p.run(t.proto)
-	log.Warnf("TCP released peer: %s", p.Endpoint())
+
+	for {
+		msg := &Message{}
+		if err = msg.Decode(p.conn); err != nil {
+			return
+		}
+		if err = t.server.handleMessage(p, msg); err != nil {
+			return
+		}
+	}
 }
 
 // Close implements the Transporter interface.

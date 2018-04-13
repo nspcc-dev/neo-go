@@ -47,13 +47,6 @@ type (
 		register   chan Peer
 		unregister chan peerDrop
 		quit       chan struct{}
-
-		proto <-chan protoTuple
-	}
-
-	protoTuple struct {
-		msg  *Message
-		peer Peer
 	}
 
 	peerDrop struct {
@@ -75,7 +68,6 @@ func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
 	}
 
 	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
-	s.proto = s.transport.Consumer()
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -96,8 +88,14 @@ func (s *Server) Start(errChan chan error) {
 		"headerHeight": s.chain.HeaderHeight(),
 	}).Info("node started")
 
+	for _, addr := range s.Seeds {
+		if err := s.transport.Dial(addr, s.DialTimeout); err != nil {
+			log.Warnf("failed to connect to remote node %s", addr)
+			continue
+		}
+	}
+
 	go s.transport.Accept()
-	s.discovery.BackFill(s.Seeds...)
 	s.run()
 }
 
@@ -112,34 +110,17 @@ func (s *Server) Shutdown() {
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
 // but are not connected to the server.
 func (s *Server) UnconnectedPeers() []string {
-	return s.discovery.UnconnectedPeers()
+	return []string{}
 }
 
 // BadPeers returns a list of peers the are flagged as "bad" peers.
 func (s *Server) BadPeers() []string {
-	return s.discovery.BadPeers()
+	return []string{}
 }
 
 func (s *Server) run() {
-	// Ask discovery to connect with remote nodes to fill up
-	// the server minimum peer slots.
-	s.discovery.RequestRemote(minPeers - s.PeerCount())
-
 	for {
 		select {
-		case proto := <-s.proto:
-			if err := s.processProto(proto); err != nil {
-				proto.peer.Disconnect(err)
-				// verack and version implies that the protocol is
-				// not started and the only way to disconnect them
-				// from the server is to manually call unregister.
-				switch proto.msg.CommandType() {
-				case CMDVerack, CMDVersion:
-					go func() {
-						s.unregister <- peerDrop{proto.peer, err}
-					}()
-				}
-			}
 		case <-s.quit:
 			s.transport.Close()
 			for p := range s.peers {
@@ -154,7 +135,6 @@ func (s *Server) run() {
 				"endpoint": p.Endpoint(),
 			}).Info("new peer connected")
 		case drop := <-s.unregister:
-			s.discovery.RegisterBadAddr(drop.peer.Endpoint().String())
 			delete(s.peers, drop.peer)
 			log.WithFields(log.Fields{
 				"endpoint":  drop.peer.Endpoint(),
@@ -189,7 +169,6 @@ func (s *Server) startProtocol(p Peer) {
 	}).Info("started protocol")
 
 	s.requestHeaders(p)
-	s.requestPeerInfo(p)
 
 	timer := time.NewTimer(s.ProtoTickInterval)
 	for {
@@ -202,18 +181,13 @@ func (s *Server) startProtocol(p Peer) {
 			if p.Version().StartHeight > s.chain.BlockHeight() {
 				s.requestBlocks(p)
 			}
-			// If the discovery does not have a healthy address pool
-			// we will ask for a new batch of addresses.
-			if s.discovery.PoolCount() < minPoolCount {
-				s.requestPeerInfo(p)
-			}
 			timer.Reset(s.ProtoTickInterval)
 		}
 	}
 }
 
 // When a peer connects to the server, we will send our version immediately.
-func (s *Server) sendVersion(p Peer) {
+func (s *Server) sendVersion(p Peer) error {
 	payload := payload.NewVersion(
 		s.id,
 		s.ListenTCP,
@@ -221,7 +195,7 @@ func (s *Server) sendVersion(p Peer) {
 		s.chain.BlockHeight(),
 		s.Relay,
 	)
-	p.Send(NewMessage(s.Net, CMDVersion, payload))
+	return p.WriteMsg(NewMessage(s.Net, CMDVersion, payload))
 }
 
 // When a peer sends out his version we reply with verack after validating
@@ -233,8 +207,8 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
-	p.Send(NewMessage(s.Net, CMDVerack, nil))
-	return nil
+	p.SetVersion(version)
+	return p.WriteMsg(NewMessage(s.Net, CMDVerack, nil))
 }
 
 // handleHeadersCmd will process the headers it received from its peer.
@@ -268,12 +242,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		return errInvalidInvType
 	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	p.Send(NewMessage(s.Net, CMDGetData, payload))
-	return nil
-}
-
-func (s *Server) handleGetHeadersCmd(p Peer, getHeaders *payload.GetBlocks) error {
-	log.Info(getHeaders)
+	p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 	return nil
 }
 
@@ -282,13 +251,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, getHeaders *payload.GetBlocks) erro
 func (s *Server) requestHeaders(p Peer) {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	p.Send(NewMessage(s.Net, CMDGetHeaders, payload))
-}
-
-// requestPeerInfo will send a getaddr message to the peer
-// which will respond with his known addresses in the network.
-func (s *Server) requestPeerInfo(p Peer) {
-	p.Send(NewMessage(s.Net, CMDGetAddr, nil))
+	p.WriteMsg(NewMessage(s.Net, CMDGetHeaders, payload))
 }
 
 // requestBlocks will send a getdata message to the peer
@@ -307,19 +270,14 @@ func (s *Server) requestBlocks(p Peer) {
 	}
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
-		p.Send(NewMessage(s.Net, CMDGetData, payload))
+		p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
 		s.requestHeaders(p)
 	}
 }
 
-// process the received protocol message.
-func (s *Server) processProto(proto protoTuple) error {
-	var (
-		peer = proto.peer
-		msg  = proto.msg
-	)
-
+// handleMessage will process the given message.
+func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	// Make sure both server and peer are operating on
 	// the same network.
 	if msg.Magic != s.Net {
@@ -339,9 +297,6 @@ func (s *Server) processProto(proto protoTuple) error {
 	case CMDBlock:
 		block := msg.Payload.(*core.Block)
 		return s.handleBlockCmd(peer, block)
-	case CMDGetHeaders:
-		getHeaders := msg.Payload.(*payload.GetBlocks)
-		s.handleGetHeadersCmd(peer, getHeaders)
 	case CMDVerack:
 		// Make sure this peer has send his version before we start the
 		// protocol with that peer.
@@ -349,11 +304,6 @@ func (s *Server) processProto(proto protoTuple) error {
 			return errInvalidHandshake
 		}
 		go s.startProtocol(peer)
-	case CMDAddr:
-		addressList := msg.Payload.(*payload.AddressList)
-		for _, addr := range addressList.Addrs {
-			s.discovery.BackFill(addr.Endpoint.String())
-		}
 	}
 	return nil
 }

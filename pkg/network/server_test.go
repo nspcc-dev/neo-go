@@ -31,19 +31,6 @@ func TestSendVersion(t *testing.T) {
 	s.sendVersion(p)
 }
 
-func TestRequestPeerInfo(t *testing.T) {
-	var (
-		s = newTestServer()
-		p = newLocalPeer(t)
-	)
-
-	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.Equal(t, CMDGetAddr, msg.CommandType())
-		assert.Nil(t, msg.Payload)
-	}
-	s.requestPeerInfo(p)
-}
-
 // Server should reply with a verack after receiving a valid version.
 func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	var (
@@ -87,18 +74,6 @@ func TestServerNotSendsVerack(t *testing.T) {
 	err = s.handleVersionCmd(p, version)
 	assert.NotNil(t, err)
 	assert.Equal(t, errIdenticalID, err)
-}
-
-func TestRequestPeers(t *testing.T) {
-	var (
-		s = newTestServer()
-		p = newLocalPeer(t)
-	)
-	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.Nil(t, msg.Payload)
-		assert.Equal(t, CMDGetAddr, msg.CommandType())
-	}
-	s.requestPeerInfo(p)
 }
 
 func TestRequestHeaders(t *testing.T) {
