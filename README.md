@@ -49,6 +49,21 @@ make deps
 
 ## How to setup a node
 
+### Docker
+
+Each tagged build is built to docker hub and the `:latest` tag pointing at the latest tagged build.
+
+By default the `CMD` is set to run  a node on `testnet`, so to do this simply run:
+
+```bash
+ docker run -d --name neo-go -p 20332:20332 -p 20333:20333 cityofzion/neo-go
+```
+
+Which will start a node on `testnet` and expose the nodes port `20333` and `20332` for the `JSON-RPC` server.
+
+
+### Building
+
 Build the **neo-go** CLI:
 
 ```
