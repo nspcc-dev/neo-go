@@ -4,14 +4,11 @@ VERSION = $(shell cat ./VERSION)
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
 
-build-linux:
-	@GOOS=linux go build -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
-
 build:
 	@go build -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
 
 build-image:
-	docker build -t cityofzion/neo-go .
+	docker build -t cityofzion/neo-go --build-arg VERSION=${VERSION} .
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
