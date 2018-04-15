@@ -3,12 +3,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/anthdm/neo-go"
-  packages = ["pkg/util"]
-  revision = "9a605513fe8c5250c0ec71b30f9ecad49bd56c0a"
-
-[[projects]]
-  branch = "master"
   name = "github.com/anthdm/rfc6979"
   packages = ["."]
   revision = "6a90f24967ebb1aa57b22f74a13dbb3faad8cf3d"
@@ -141,6 +135,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c0527327199b5752699bd5cd0959e1f2cc45dd7c0341adc2a8327eaca246eef8"
+  inputs-digest = "a78ff5fce460573a959ec1ce2f81125252c2e8c55a4c5ca8e903937ec089964a"
   solver-name = "gps-cdcl"
   solver-version = 1
