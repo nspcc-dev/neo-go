@@ -14,7 +14,7 @@ import (
 // Accounts is mapping between a account address and AccountState.
 type Accounts map[util.Uint160]*AccountState
 
-func (a Accounts) getAndChange(s storage.Store, hash util.Uint160) (*AccountState, error) {
+func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountState, error) {
 	if account, ok := a[hash]; ok {
 		return account, nil
 	}

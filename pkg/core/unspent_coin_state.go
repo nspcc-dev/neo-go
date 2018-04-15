@@ -14,7 +14,7 @@ import (
 // coin state.
 type UnspentCoins map[util.Uint256]*UnspentCoinState
 
-func (u UnspentCoins) getAndChange(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
+func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	if unspent, ok := u[hash]; ok {
 		return unspent, nil
 	}
@@ -38,6 +38,17 @@ func (u UnspentCoins) getAndChange(s storage.Store, hash util.Uint256) (*Unspent
 // UnspentCoinState hold the state of a unspent coin.
 type UnspentCoinState struct {
 	states []CoinState
+}
+
+// NewUnspentCoinState returns a new unspent coin state with N confirmed states.
+func NewUnspentCoinState(n int) *UnspentCoinState {
+	u := &UnspentCoinState{
+		states: make([]CoinState, n),
+	}
+	for i := 0; i < n; i++ {
+		u.states[i] = CoinStateConfirmed
+	}
+	return u
 }
 
 // commit writes all unspent coin states to the given Batch.

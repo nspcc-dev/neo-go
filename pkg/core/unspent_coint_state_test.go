@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDecodeEncode(t *testing.T) {
+func TestDecodeEncodeUnspentCoinState(t *testing.T) {
 	unspent := &UnspentCoinState{
 		states: []CoinState{
 			CoinStateConfirmed,
@@ -26,7 +26,7 @@ func TestDecodeEncode(t *testing.T) {
 	assert.Nil(t, unspentDecode.DecodeBinary(buf))
 }
 
-func TestCommit(t *testing.T) {
+func TestCommitUnspentCoins(t *testing.T) {
 	var (
 		store        = storage.NewMemoryStore()
 		batch        = store.Batch()
