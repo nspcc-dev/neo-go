@@ -335,6 +335,20 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
 		case *transaction.PublishTX:
+			contract := &ContractState{
+				Script:      t.Script,
+				ParamList:   t.ParamList,
+				ReturnType:  t.ReturnType,
+				HasStorage:  t.NeedStorage,
+				Name:        t.Name,
+				CodeVersion: t.CodeVersion,
+				Author:      t.Author,
+				Email:       t.Email,
+				Description: t.Description,
+			}
+
+			fmt.Printf("%+v", contract)
+
 		case *transaction.InvocationTX:
 		}
 	}
