@@ -1,6 +1,6 @@
 package smartcontract
 
-import "github.com/anthdm/neo-go/pkg/util"
+import "github.com/CityOfZion/neo-go/pkg/util"
 
 // ParamType represent the Type of the contract parameter
 type ParamType int
