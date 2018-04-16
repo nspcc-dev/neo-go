@@ -96,10 +96,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 
 func governingTokenTX() *transaction.Transaction {
 	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opusht)})
-	adminB, _ := crypto.Uint160DecodeAddress("Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt")
-	if !admin.Equals(adminB) {
-		panic("kdjdkljfkdjfkdjf")
-	}
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",

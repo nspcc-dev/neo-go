@@ -264,7 +264,9 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	var (
 		batch        = bc.Batch()
 		unspentCoins = make(UnspentCoins)
+		spentCoins   = make(SpentCoins)
 		accounts     = make(Accounts)
+		assets       = make(Assets)
 	)
 
 	storeAsBlock(batch, block, 0)
@@ -272,21 +274,14 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 
 	for _, tx := range block.Transactions {
 		storeAsTransaction(batch, tx, block.Index)
-
-		// Add CoinStateConfirmed for each tx output.
-		unspent := make([]CoinState, len(tx.Outputs))
-		for i := 0; i < len(tx.Outputs); i++ {
-			unspent[i] = CoinStateConfirmed
-		}
-		unspentCoins[tx.Hash()] = &UnspentCoinState{unspent}
+		unspentCoins[tx.Hash()] = NewUnspentCoinState(len(tx.Outputs))
 
 		// Process TX outputs.
 		for _, output := range tx.Outputs {
-			account, err := accounts.getAndChange(bc.Store, output.ScriptHash)
+			account, err := accounts.getAndUpdate(bc.Store, output.ScriptHash)
 			if err != nil {
 				return err
 			}
-
 			if _, ok := account.Balances[output.AssetID]; ok {
 				account.Balances[output.AssetID] += output.Amount
 			} else {
@@ -296,21 +291,27 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 
 		// Process TX inputs that are grouped by previous hash.
 		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
-			prevTX, _, err := bc.GetTransaction(prevHash)
+			prevTX, prevTXHeight, err := bc.GetTransaction(prevHash)
 			if err != nil {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
 			for _, input := range inputs {
-				unspent, err := unspentCoins.getAndChange(bc.Store, input.PrevHash)
+				unspent, err := unspentCoins.getAndUpdate(bc.Store, input.PrevHash)
 				if err != nil {
 					return err
 				}
 				unspent.states[input.PrevIndex] = CoinStateSpent
 
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
-				account, err := accounts.getAndChange(bc.Store, prevTXOutput.ScriptHash)
+				account, err := accounts.getAndUpdate(bc.Store, prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
+				}
+
+				if prevTXOutput.AssetID.Equals(governingTokenTX().Hash()) {
+					spentCoin := NewSpentCoinState(input.PrevHash, prevTXHeight)
+					spentCoin.items[input.PrevIndex] = block.Index
+					spentCoins[input.PrevHash] = spentCoin
 				}
 
 				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
@@ -318,15 +319,37 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		}
 
 		// Process the underlying type of the TX.
-		switch tx.Data.(type) {
+		switch t := tx.Data.(type) {
 		case *transaction.RegisterTX:
+			assets[tx.Hash()] = &AssetState{
+				ID:        tx.Hash(),
+				AssetType: t.AssetType,
+				Name:      t.Name,
+				Amount:    t.Amount,
+				Precision: t.Precision,
+				Owner:     t.Owner,
+				Admin:     t.Admin,
+			}
 		case *transaction.IssueTX:
 		case *transaction.ClaimTX:
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
 		case *transaction.PublishTX:
+			contract := &ContractState{
+				Script:      t.Script,
+				ParamList:   t.ParamList,
+				ReturnType:  t.ReturnType,
+				HasStorage:  t.NeedStorage,
+				Name:        t.Name,
+				CodeVersion: t.CodeVersion,
+				Author:      t.Author,
+				Email:       t.Email,
+				Description: t.Description,
+			}
+
+			fmt.Printf("%+v", contract)
+
 		case *transaction.InvocationTX:
-			log.Warn("invocation TX but we have no VM, o noo :(")
 		}
 	}
 
@@ -335,6 +358,12 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		return err
 	}
 	if err := unspentCoins.commit(batch); err != nil {
+		return err
+	}
+	if err := spentCoins.commit(batch); err != nil {
+		return err
+	}
+	if err := assets.commit(batch); err != nil {
 		return err
 	}
 	if err := bc.PutBatch(batch); err != nil {
