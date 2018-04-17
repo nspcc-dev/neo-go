@@ -177,6 +177,18 @@ func TestStringLen(t *testing.T) {
 	eval(t, src, big.NewInt(27))
 }
 
+func TestByteArrayLen(t *testing.T) {
+	src := `
+		package foo
+
+		func Main() int {
+			b := []byte{0x00, 0x01, 0x2}
+			return len(b)
+		}
+	`
+	eval(t, src, big.NewInt(3))
+}
+
 func TestSimpleString(t *testing.T) {
 	src := `
 		package foo

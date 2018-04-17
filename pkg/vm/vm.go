@@ -584,11 +584,16 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 
 	case Oarraysize:
 		elem := v.estack.Pop()
-		arr, ok := elem.value.Value().([]StackItem)
-		if !ok {
+		// Cause there is no native (byte) item type here, hence we need to check
+		// the type of the item for array size operations.
+		switch t := elem.value.Value().(type) {
+		case []StackItem:
+			v.estack.PushVal(len(t))
+		case []uint8:
+			v.estack.PushVal(len(t))
+		default:
 			panic("ARRAYSIZE: item not of type []StackItem")
 		}
-		v.estack.PushVal(len(arr))
 
 	case Osize:
 		elem := v.estack.Pop()
