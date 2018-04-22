@@ -421,7 +421,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if isBuiltin {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
-			c.convertBuiltin(n.Fun.(*ast.Ident).Name, n)
+			c.convertBuiltin(n)
 		} else if isSyscall(f.name) {
 			c.convertSyscall(f.name)
 		} else {
@@ -529,7 +529,15 @@ func (c *codegen) convertSyscall(name string) {
 	emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
 }
 
-func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
+func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
+	var name string
+	switch t := expr.Fun.(type) {
+	case *ast.Ident:
+		name = t.Name
+	case *ast.SelectorExpr:
+		name = t.Sel.Name
+	}
+
 	switch name {
 	case "len":
 		arg := expr.Args[0]
@@ -541,6 +549,14 @@ func (c *codegen) convertBuiltin(name string, expr *ast.CallExpr) {
 		}
 	case "append":
 		emitOpcode(c.prog, vm.Oappend)
+	case "SHA256":
+		emitOpcode(c.prog, vm.Osha256)
+	case "SHA1":
+		emitOpcode(c.prog, vm.Osha1)
+	case "Hash256":
+		emitOpcode(c.prog, vm.Ohash256)
+	case "Hash160":
+		emitOpcode(c.prog, vm.Ohash160)
 	}
 }
 

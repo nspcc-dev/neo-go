@@ -26,6 +26,12 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 - storage
 - runtime
 
+### VM utility helper functions
+- SHA1
+- SHA256
+- Hash256
+- Hash160
+
 ## Not yet implemented
 - range
 - some parts of the interop layer (VM API)
