@@ -5,13 +5,23 @@ REPONAME = "neo-go"
 NETMODE ?= "privnet"
 
 build:
-	@go build -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+	@echo "=> Building darwin binary"
+	@go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
 
 build-image:
 	docker build -t cityofzion/neo-go --build-arg VERSION=${VERSION} .
 
+build-linux:
+	@echo "=> Building linux binary"
+	@GOOS=linux go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+
 check-version:
 	git fetch && (! git rev-list ${VERSION})
+
+clean-cluster:
+	@echo "=> Removing all containers and chain storage"
+	@rm -rf chains/privnet-docker-one chains/privnet-docker-two chains/privnet-docker-three chains/privnet-docker-four
+	@docker-compose rm -f
 
 deps:
 	@dep ensure
@@ -30,6 +40,14 @@ push-to-registry:
 
 run: build
 	./bin/neo-go node -config-path ./config -${NETMODE}
+
+run-cluster: build-linux
+	@echo "=> Starting docker-compose cluster"
+	@echo "=> Building container image"
+	@docker-compose build
+	@docker-compose up -d
+	@echo "=> Tailing logs, exiting this prompt will not stop the cluster"
+	@docker-compose logs -f
 
 test:
 	@go test ./... -cover
