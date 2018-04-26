@@ -21,6 +21,7 @@ check-version:
 clean-cluster:
 	@echo "=> Removing all containers and chain storage"
 	@rm -rf chains/privnet-docker-one chains/privnet-docker-two chains/privnet-docker-three chains/privnet-docker-four
+	@docker-compose stop
 	@docker-compose rm -f
 
 deps:

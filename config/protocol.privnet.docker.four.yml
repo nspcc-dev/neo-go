@@ -7,9 +7,9 @@ ProtocolConfiguration:
   - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
   - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   SeedList:
-  - node_one:20333
-  - node_two:20334
-  - node_three:20335
+  - node_one:20334
+  - node_two:20335
+  - node_three:20336
   SystemFee:
     EnrollmentTransaction: 1000
     IssueTransaction: 500
@@ -18,8 +18,8 @@ ProtocolConfiguration:
 
 ApplicationConfiguration:
   DataDirectoryPath: "/chains/privnet"
-  RPCPort: 20335
-  NodePort: 20336
+  RPCPort: 20336
+  NodePort: 20337
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2

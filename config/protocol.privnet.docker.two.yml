@@ -15,8 +15,8 @@ ProtocolConfiguration:
 
 ApplicationConfiguration:
   DataDirectoryPath: "/chains/privnet"
-  RPCPort: 20333
-  NodePort: 20334
+  RPCPort: 20334
+  NodePort: 20335
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
