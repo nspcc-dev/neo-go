@@ -10,6 +10,7 @@ ADD bin/neo-go /usr/bin/neo-go
 ADD config /config
 
 RUN chmod u+x /usr/bin/neo-go
+RUN mkdir -p /chains
 
 ENTRYPOINT ["neo-go"]
 CMD ["node", "--config-path", "./config", "--testnet"]

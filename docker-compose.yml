@@ -1,0 +1,38 @@
+version: '3'
+services:
+  node_one:
+    build: .
+    volumes:
+      - ./config/protocol.privnet.docker.one.yml:/config/protocol.privnet.yml
+      - ./chains/privnet-docker-one:/chains/privnet
+    ports:
+      -  20334:20334
+    command: "node --config-path /config --privnet"
+  node_two:
+    build: .
+    volumes:
+      - ./config/protocol.privnet.docker.two.yml:/config/protocol.privnet.yml
+      - ./chains/privnet-docker-two:/chains/privnet
+    ports:
+      -  20335:20335
+    command: "node --config-path /config --privnet"
+  node_three:
+    build: .
+    volumes:
+      - ./config/protocol.privnet.docker.three.yml:/config/protocol.privnet.yml
+      - ./chains/privnet-docker-three:/chains/privnet
+    ports:
+      -  20336:20336
+    command: "node --config-path /config --privnet"
+  node_four:
+    build: .
+    volumes:
+      - ./config/protocol.privnet.docker.four.yml:/config/protocol.privnet.yml
+      - ./chains/privnet-docker-four:/chains/privnet
+    ports:
+      -  20337:20337
+    command: "node --config-path /config --privnet"
+    depends_on:
+      - node_one
+      - node_two
+      - node_three
