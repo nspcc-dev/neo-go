@@ -21,9 +21,9 @@ const (
 // Parameter represents a smart contract parameter.
 type Parameter struct {
 	// Type of the parameter
-	Type ParamType
+	Type ParamType `json:"type"`
 	// The actual value of the parameter.
-	Value interface{}
+	Value interface{} `json:"value"`
 }
 
 // NewParameter returns a Parameter with proper initialized Value
