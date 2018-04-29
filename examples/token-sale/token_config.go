@@ -43,6 +43,8 @@ type TokenConfig struct {
 	CirculationKey []byte
 	// The prefix used to store how many tokens there are in the limited round.
 	LimitRoundKey []byte
+	// The prefix used to store the addresses that are registered with KYC.
+	KYCKey []byte
 }
 
 // NewTokenConfig returns the initialized TokenConfig.
@@ -59,8 +61,9 @@ func NewTokenConfig() TokenConfig {
 		MaxExchangeLimitRound: 500 * 60 * multiplier,
 		SaleStart:             75500,
 		LimitRoundEnd:         75500 + 10000,
-		CirculationKey:        []byte("inCirculation"),
-		LimitRoundKey:         []byte("R1"),
+		CirculationKey:        []byte("in_circulation"),
+		LimitRoundKey:         []byte("r1"),
+		KYCKey:                []byte("kyc_ok"),
 	}
 }
 
