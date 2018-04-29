@@ -2,6 +2,13 @@ package tokensale
 
 import "github.com/CityOfZion/neo-go/pkg/vm/api/storage"
 
+const (
+	decimals   = 8
+	multiplier = decimals * 10
+)
+
+var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
+
 // TokenConfig holds information about the token we want to use for the sale.
 type TokenConfig struct {
 	// Name of the token.
@@ -15,7 +22,7 @@ type TokenConfig struct {
 	// The total amount of tokens created. Notice that we need to multiply the
 	// amount by 100000000. (10^8)
 	TotalSupply int
-	// ??
+	// Initial amount is number of tokens that are available for the token sale.
 	InitialAmount int
 	// How many NEO will be worth 1 token. For example:
 	// Lets say 1 euro per token, where 1 NEO is 60 euro. This means buyers
@@ -40,7 +47,21 @@ type TokenConfig struct {
 
 // NewTokenConfig returns the initialized TokenConfig.
 func NewTokenConfig() TokenConfig {
-	return TokenConfig{}
+	return TokenConfig{
+		Name:                  "My awesome token",
+		Symbol:                "MAT",
+		Decimals:              decimals,
+		Owner:                 owner,
+		TotalSupply:           10000000 * multiplier,
+		InitialAmount:         5000000 * multiplier,
+		AmountPerNEO:          60 * multiplier,
+		AmountPerGas:          40 * multiplier,
+		MaxExchangeLimitRound: 500 * 60 * multiplier,
+		SaleStart:             75500,
+		LimitRoundEnd:         75500 + 10000,
+		CirculationKey:        []byte("inCirculation"),
+		LimitRoundKey:         []byte("R1"),
+	}
 }
 
 // InCirculation return the amount of total tokens that are in circulation.
