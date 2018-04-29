@@ -11,8 +11,8 @@ func TestStoragePutGet(t *testing.T) {
 		import "github.com/CityOfZion/neo-go/pkg/vm/api/storage"
 
 		func Main() string {
-			ctx := storage.Context()
-			key := "token"
+			ctx := storage.GetContext()
+			key := []byte("token")
 			storage.Put(ctx, key, "foo")
 			x := storage.Get(ctx, key)
 			return x.(string)
