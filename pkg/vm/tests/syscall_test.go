@@ -13,7 +13,7 @@ func TestStoragePutGet(t *testing.T) {
 		func Main() string {
 			ctx := storage.GetContext()
 			key := []byte("token")
-			storage.Put(ctx, key, "foo")
+			storage.Put(ctx, key, []byte("foo"))
 			x := storage.Get(ctx, key)
 			return x.(string)
 		}

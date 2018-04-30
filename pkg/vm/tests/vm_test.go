@@ -41,6 +41,7 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	storePlugin := newStoragePlugin()
 	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get)
 	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put)
+	vm.RegisterInteropFunc("Neo.Storage.GetContext", storePlugin.GetContext)
 
 	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
 	if err != nil {
@@ -107,3 +108,5 @@ func (s *storagePlugin) Get(vm *vm.VM) error {
 	}
 	return fmt.Errorf("could not find %+v", item)
 }
+
+func (s *storagePlugin) GetContext(vm *vm.VM) error { return nil }
