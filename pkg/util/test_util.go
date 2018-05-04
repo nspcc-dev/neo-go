@@ -18,7 +18,7 @@ func RandomString(n int) string {
 	return string(b)
 }
 
-// RamdomInt returns a ramdom integer betweeen min and max.
+// RandomInt returns a ramdom integer betweeen min and max.
 func RandomInt(min, max int) int {
 	return min + rand.Intn(max-min)
 }
