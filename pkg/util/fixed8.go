@@ -2,10 +2,17 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
+	"strings"
 )
 
-const decimals = 100000000
+const (
+	precision = 8
+	decimals  = 100000000
+)
+
+var errInvalidString = errors.New("Fixed8 must satisfy following regex \\d+(\\.\\d{1,8})?")
 
 // Fixed8 represents a fixed-point number with precision 10^-8.
 type Fixed8 int64
@@ -40,4 +47,24 @@ func (f Fixed8) Value() int64 {
 // NewFixed8 return a new Fixed8 type multiplied by decimals.
 func NewFixed8(val int) Fixed8 {
 	return Fixed8(decimals * val)
+}
+
+// Fixed8DecodeString
+func Fixed8DecodeString(s string) (Fixed8, error) {
+	parts := strings.SplitN(s, ".", 2)
+	ip, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, errInvalidString
+	} else if len(parts) == 1 {
+		return NewFixed8(ip), nil
+	}
+
+	fp, err := strconv.Atoi(parts[1])
+	if err != nil || fp >= decimals {
+		return 0, errInvalidString
+	}
+	for i := len(parts[1]); i < precision; i++ {
+		fp *= 10
+	}
+	return Fixed8(ip*decimals + fp), nil
 }
