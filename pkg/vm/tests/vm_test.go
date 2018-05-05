@@ -51,29 +51,6 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	return vm
 }
 
-func TestVMAndCompilerCases(t *testing.T) {
-	vm := vm.New(vm.ModeMute)
-
-	storePlugin := newStoragePlugin()
-	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get)
-
-	testCases := []testCase{}
-	testCases = append(testCases, numericTestCases...)
-	testCases = append(testCases, assignTestCases...)
-	testCases = append(testCases, binaryExprTestCases...)
-	testCases = append(testCases, structTestCases...)
-
-	for _, tc := range testCases {
-		b, err := compiler.Compile(strings.NewReader(tc.src), &compiler.Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		vm.Load(b)
-		vm.Run()
-		assert.Equal(t, tc.result, vm.PopResult())
-	}
-}
-
 type storagePlugin struct {
 	mem map[string][]byte
 }
@@ -109,4 +86,9 @@ func (s *storagePlugin) Get(vm *vm.VM) error {
 	return fmt.Errorf("could not find %+v", item)
 }
 
-func (s *storagePlugin) GetContext(vm *vm.VM) error { return nil }
+func (s *storagePlugin) GetContext(vm *vm.VM) error {
+	// Pushing anything on the stack here will work. This is just to satisfy
+	// the compiler, thinking it has pushed the context ^^.
+	vm.Estack().PushVal(10)
+	return nil
+}
