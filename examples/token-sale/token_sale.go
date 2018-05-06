@@ -110,52 +110,137 @@ func Main(operation string, args []interface{}) interface{} {
 		return false
 	}
 	if trigger == runtime.Application() {
-		return handleOperation(operation, ctx, cfg)
+		return handleOperation(operation, args, ctx, cfg)
 	}
 	return true
 }
 
-func handleOperation(op string, ctx storage.Context, cfg TokenConfig) interface{} {
-	// Handle the NEP5 methods.
-
-	if op == "deploy" {
-		return deployContract(cfg, ctx)
+func handleOperation(op string, args []interface{}, ctx storage.Context, cfg TokenConfig) interface{} {
+	// NEP-5 handlers
+	if op == "name" {
+		return cfg.Name
 	}
-	if op == "circulation" {
-		return cfg.InCirculation(ctx)
+	if op == "decimals" {
+		return cfg.Decimals
 	}
-	if op == "mintTokens" {
-		return doExchange(cfg, ctx)
+	if op == "symbol" {
+		return cfg.Symbol
 	}
-	if op == "tokenSaleRegister" {
-		// TODO
-		return true
+	if op == "totalSupply" {
+		return storage.Get(ctx, cfg.CirculationKey)
 	}
-	if op == "tokenSaleAvailable" {
-		// TODO
-		return true
+	if op == "balanceOf" {
+		if len(args) == 1 {
+			return storage.Get(ctx, args[0].([]byte))
+		}
 	}
-	if op == "getAttachments" {
-		// TODO
-		return true
+	if op == "transfer" {
+		if len(args) != 3 {
+			return false
+		}
+		from := args[0].([]byte)
+		to := args[1].([]byte)
+		amount := args[2].(int)
+		return transfer(cfg, ctx, from, to, amount)
 	}
-
+	if op == "transferFrom" {
+		if len(args) != 3 {
+			return false
+		}
+		from := args[0].([]byte)
+		to := args[1].([]byte)
+		amount := args[2].(int)
+		return transferFrom(cfg, ctx, from, to, amount)
+	}
+	if op == "approve" {
+		if len(args) != 3 {
+			return false
+		}
+		from := args[0].([]byte)
+		to := args[1].([]byte)
+		amount := args[2].(int)
+		return approve(ctx, from, to, amount)
+	}
+	if op == "allowance" {
+		if len(args) != 2 {
+			return false
+		}
+		from := args[0].([]byte)
+		to := args[1].([]byte)
+		return allowance(ctx, from, to)
+	}
 	return false
 }
 
-func doExchange(cfg TokenConfig, ctx storage.Context) bool {
-	return true
-}
-
-func canExchange(cfg TokenConfig, ctx storage.Context) bool {
-	return true
-}
-
-func deployContract(cfg TokenConfig, ctx storage.Context) bool {
-	if !runtime.CheckWitness(cfg.Owner) {
+func transfer(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int) bool {
+	if amount <= 0 || len(to) != 20 || !runtime.CheckWitness(from) {
 		return false
 	}
-	storage.Put(ctx, "initialized", 1)
-	storage.Put(ctx, cfg.Owner, cfg.InitialAmount)
-	return cfg.AddToCirculation(ctx, cfg.InitialAmount)
+	amountFrom := storage.Get(ctx, from).(int)
+	if amountFrom < amount {
+		return false
+	}
+	if amountFrom == amount {
+		storage.Delete(ctx, from)
+	} else {
+		diff := amountFrom - amount
+		storage.Put(ctx, from, diff)
+	}
+	amountTo := storage.Get(ctx, to).(int)
+	totalAmountTo := amountTo + amount
+	storage.Put(ctx, to, totalAmountTo)
+	return true
+}
+
+func transferFrom(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int) bool {
+	if amount <= 0 {
+		return false
+	}
+	availableKey := append(from, to...)
+	if len(availableKey) != 40 {
+		return false
+	}
+	availableTo := storage.Get(ctx, availableKey).(int)
+	if availableTo < amount {
+		return false
+	}
+	fromBalance := storage.Get(ctx, from).(int)
+	if fromBalance < amount {
+		return false
+	}
+	toBalance := storage.Get(ctx, to).(int)
+	newFromBalance := fromBalance - amount
+	newToBalance := toBalance + amount
+	storage.Put(ctx, to, newToBalance)
+	storage.Put(ctx, from, newFromBalance)
+
+	newAllowance := availableTo - amount
+	if newAllowance == 0 {
+		storage.Delete(ctx, availableKey)
+	} else {
+		storage.Put(ctx, availableKey, newAllowance)
+	}
+	return true
+}
+
+func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
+	if !runtime.CheckWitness(owner) || amount < 0 {
+		return false
+	}
+	toSpend := storage.Get(ctx, owner).(int)
+	if toSpend < amount {
+		return false
+	}
+	approvalKey := append(owner, spender...)
+	if amount == 0 {
+		storage.Delete(ctx, approvalKey)
+	} else {
+		storage.Put(ctx, approvalKey, amount)
+	}
+	return true
+}
+
+func allowance(ctx storage.Context, from, to []byte) int {
+	key := append(from, to...)
+	return storage.Get(ctx, key).(int)
 }
