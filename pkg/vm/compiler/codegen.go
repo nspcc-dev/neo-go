@@ -395,6 +395,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
 			}
+		case *ast.ArrayType:
+			// For now we will assume that there is only 1 argument passed which
+			// will be a basic literal (string kind). This only to handle string
+			// to byte slice conversions. E.G. []byte("foobar")
+			arg := n.Args[0].(*ast.BasicLit)
+			c.emitLoadConst(c.typeInfo.Types[arg])
+			return nil
 		}
 
 		// Handle the arguments

@@ -34,3 +34,17 @@ func TestImportStruct(t *testing.T) {
 	 `
 	eval(t, src, big.NewInt(0))
 }
+
+func TestMultipleDirFileImport(t *testing.T) {
+	src := `
+		package hello
+
+		import "github.com/CityOfZion/neo-go/pkg/vm/tests/foobar"
+
+		func Main() bool {
+			ok := foobar.OtherBool()
+			return ok
+		}
+	`
+	eval(t, src, big.NewInt(1))
+}
