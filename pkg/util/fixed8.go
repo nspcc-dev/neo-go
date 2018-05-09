@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -49,7 +50,8 @@ func NewFixed8(val int) Fixed8 {
 	return Fixed8(decimals * val)
 }
 
-// Fixed8DecodeString
+// Fixed8DecodeString parses s which must be a fixed point number
+// with precision up to 10^-8
 func Fixed8DecodeString(s string) (Fixed8, error) {
 	parts := strings.SplitN(s, ".", 2)
 	ip, err := strconv.Atoi(parts[0])
@@ -67,4 +69,25 @@ func Fixed8DecodeString(s string) (Fixed8, error) {
 		fp *= 10
 	}
 	return Fixed8(ip*decimals + fp), nil
+}
+
+// UnmarshalJSON implements the json unmarshaller interface.
+func (f *Fixed8) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		p, err := Fixed8DecodeString(s)
+		if err != nil {
+			return err
+		}
+		*f = p
+		return nil
+	}
+
+	var fl float64
+	if err := json.Unmarshal(data, &fl); err != nil {
+		return err
+	}
+
+	*f = Fixed8(decimals * fl)
+	return nil
 }
