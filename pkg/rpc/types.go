@@ -2,7 +2,8 @@ package rpc
 
 type InvokeScriptResponse struct {
 	responseHeader
-	Result *InvokeResult
+	Error  *Error        `json:"error,omitempty"`
+	Result *InvokeResult `json:"result,omitempty"`
 }
 
 // InvokeResult represents the outcome of a script that is
@@ -10,6 +11,7 @@ type InvokeScriptResponse struct {
 type InvokeResult struct {
 	State       string `json:"state"`
 	GasConsumed string `json:"gas_consumed"`
+	Script      string `json:"script"`
 	Stack       []*StackParam
 }
 
@@ -68,5 +70,6 @@ type responseHeader struct {
 
 type response struct {
 	responseHeader
+	Error  *Error      `json:"error"`
 	Result interface{} `json:"result"`
 }
