@@ -57,6 +57,18 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 	return resp, nil
 }
 
+// GetRawTransaction queries a transaction by hash.
+func (c *Client) GetRawTransaction(hash string, verbose bool) (*response, error) {
+	var (
+		params = newParams(hash, verbose)
+		resp   = &response{}
+	)
+	if err := c.performRequest("getrawtransaction", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // SendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
