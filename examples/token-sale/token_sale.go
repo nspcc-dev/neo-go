@@ -3,6 +3,7 @@ package tokensale
 import (
 	"github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
 	"github.com/CityOfZion/neo-go/pkg/vm/api/storage"
+	"github.com/CityOfZion/neo-go/pkg/vm/api/util"
 )
 
 const (
@@ -10,7 +11,7 @@ const (
 	multiplier = decimals * 10
 )
 
-var owner = []byte{0xaf, 0x12, 0xa8, 0x68, 0x7b, 0x14, 0x94, 0x8b, 0xc4, 0xa0, 0x08, 0x12, 0x8a, 0x55, 0x0a, 0x63, 0x69, 0x5b, 0xc1, 0xa5}
+var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg")
 
 // TokenConfig holds information about the token we want to use for the sale.
 type TokenConfig struct {

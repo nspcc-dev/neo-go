@@ -8,10 +8,13 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"strings"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
+// The identifier of the entry function. Default set to Main.
 const mainIdent = "Main"
 
 type codegen struct {
@@ -188,7 +191,7 @@ func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
 
 	ast.Walk(c, decl.Body)
 
-	// If this function returs the void (no return stmt) we will cleanup its junk on the stack.
+	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
 	if !hasReturnStmt(decl) {
 		emitOpcode(c.prog, vm.Ofromaltstack)
 		emitOpcode(c.prog, vm.Odrop)
@@ -564,6 +567,18 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog, vm.Ohash256)
 	case "Hash160":
 		emitOpcode(c.prog, vm.Ohash160)
+	case "FromAddress":
+		// We can be sure that this is a ast.BasicLit just containing a simple
+		// address string. Note that the string returned from callin Value will
+		// contain double qoutes that need to be stripped.
+		addressStr := expr.Args[0].(*ast.BasicLit).Value
+		addressStr = strings.Replace(addressStr, "\"", "", 2)
+		uint160, err := crypto.Uint160DecodeAddress(addressStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bytes := uint160.Bytes()
+		emitBytes(c.prog, bytes)
 	}
 }
 
