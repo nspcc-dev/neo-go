@@ -89,7 +89,7 @@ func (p *PublicKey) ToAddress() string {
 
 	hash160PubKey, _ := hash.Hash160(publicKeyBytes)
 
-	versionHash160PubKey := append([]byte{0x17}, hash160PubKey...)
+	versionHash160PubKey := append([]byte{0x17}, hash160PubKey.Bytes()...)
 
 	checksum, _ := hash.Checksum(versionHash160PubKey)
 

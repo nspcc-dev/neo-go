@@ -27,7 +27,7 @@ func Uint256DecodeString(s string) (u Uint256, err error) {
 
 // Uint256DecodeBytes attempts to decode the given string into an Uint256.
 func Uint256DecodeBytes(b []byte) (u Uint256, err error) {
-	b = slice.Reverse(b)
+	// b = slice.Reverse(b)
 	if len(b) != uint256Size {
 		return u, fmt.Errorf("expected []byte of size %d got %d", uint256Size, len(b))
 	}
