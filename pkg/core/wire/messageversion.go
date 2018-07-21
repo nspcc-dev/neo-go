@@ -6,11 +6,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"time"
+)
+
+const (
+	minMsgVersionSize = 28
 )
 
 type VersionMessage struct {
@@ -90,7 +93,6 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 // Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	// encode into w from v
-
 	if err := binary.Write(w, binary.LittleEndian, v.Version); err != nil {
 		return err
 	}
@@ -106,20 +108,23 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, v.Nonce); err != nil {
 		return err
 	}
+
 	if err := binary.Write(w, binary.LittleEndian, uint8(len(v.UserAgent))); err != nil {
 		return err
 	}
+
 	if err := binary.Write(w, binary.LittleEndian, v.UserAgent); err != nil {
 		return err
 	}
+
 	if err := binary.Write(w, binary.LittleEndian, v.StartHeight); err != nil {
 		return err
 	}
+
 	if err := binary.Write(w, binary.LittleEndian, v.Relay); err != nil {
 		return err
 	}
-	a := w.(*bytes.Buffer)
-	fmt.Println(a.Len())
+
 	return nil
 }
 
