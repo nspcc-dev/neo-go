@@ -1,7 +1,11 @@
 package wire
 
+type ProtocolVersion uint32
+
 const (
-	Version uint32 = 0
+	defaultVersion ProtocolVersion = 0
+	cmdSize                        = 12
+	UserAgent                      = "NEO-GO-V2" // TODO: This may be relocated to a config file
 )
 
 // ServiceFlag indicates the services provided by the node. 1 = P2P Full Node
