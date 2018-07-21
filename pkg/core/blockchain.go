@@ -14,6 +14,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// This package should be split up into two, one for storing the block and one for processing.
+// Processing should not  be in the blockchain
+// Blockchainer should act as an interface, only thing that should change state is the storage
+// which will be implemented as a singleton
+
+// Header package should deal with any processing and storing of the headers
+
+// Headers should only persist in memory, and not saved as they are in the block when received
+
 // tuning parameters
 const (
 	secondsPerBlock  = 15
@@ -86,6 +95,8 @@ func (bc *Blockchain) init() error {
 	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 
 	// If we could not find the version in the Store, we know that there is nothing stored.
+
+	// why not just look for genesis block?
 	ver, err := storage.Version(bc.Store)
 	if err != nil {
 		log.Infof("no storage version found! creating genesis block")
