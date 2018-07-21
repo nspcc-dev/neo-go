@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -45,6 +46,7 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver Proto
 		relay,
 	}
 
+	// saves a buffer of version in version
 	if err := version.EncodePayload(version.w); err != nil {
 		return nil, err
 	}
@@ -88,6 +90,7 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 // Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	// encode into w from v
+
 	if err := binary.Write(w, binary.LittleEndian, v.Version); err != nil {
 		return err
 	}
@@ -115,6 +118,8 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, v.Relay); err != nil {
 		return err
 	}
+	a := w.(*bytes.Buffer)
+	fmt.Println(a.Len())
 	return nil
 }
 

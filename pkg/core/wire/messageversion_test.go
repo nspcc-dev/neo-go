@@ -30,6 +30,6 @@ func TestBufferLen(t *testing.T) {
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
-	assert.Equal(t, len(message.UserAgent)+27, int(message.PayloadLength()))
+	assert.Equal(t, len(message.UserAgent)+27, uint32(message.PayloadLength()))
 
 }
