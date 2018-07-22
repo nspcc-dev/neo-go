@@ -57,11 +57,12 @@ func WriteMessage(w io.Writer, magic Magic, message Messager) error {
 }
 
 func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
+
 	var header MessageHeader
-	if err := header.DecodeMessageHeader(r); err != nil {
-		return nil, err
-	}
+	r, err := header.DecodeMessageHeader(r)
+
 	buf := new(bytes.Buffer)
+
 	n, err := io.CopyN(buf, r, int64(header.Length))
 	if err != nil {
 		return nil, err
@@ -70,16 +71,18 @@ func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
 	if uint32(n) != header.Length {
 		return nil, fmt.Errorf("expected to have read exactly %d bytes got %d", header.Length, n)
 	}
-
 	// Compare the checksum of the payload.
 	if !compareChecksum(header.Checksum, buf.Bytes()) {
 		return nil, errChecksumMismatch
 	}
-
 	switch header.Command {
 	case CMDVersion:
 		v := &VersionMessage{}
-		return v, v.DecodePayload(r)
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		fmt.Println("We have decoded", v)
+		return v, nil
 	}
 	return nil, nil
 
