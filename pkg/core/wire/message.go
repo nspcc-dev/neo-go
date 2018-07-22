@@ -43,22 +43,17 @@ const (
 )
 
 func WriteMessage(w io.Writer, magic Magic, message Messager) error {
-	if err := binary.Write(w, binary.LittleEndian, magic); err != nil {
+	bw := &binWriter{w: w}
+	bw.Write(magic)
+	bw.Write(cmdToByteArray(message.Command()))
+	bw.Write(message.PayloadLength())
+	bw.Write(message.Checksum())
+
+	if err := message.EncodePayload(bw.w); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, cmdToByteArray(message.Command())); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, message.PayloadLength()); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, message.Checksum()); err != nil {
-		return err
-	}
-	if err := message.EncodePayload(w); err != nil {
-		return err
-	}
-	return nil
+
+	return bw.err
 }
 
 func ReadMessage(r io.Reader, magic Magic) (Messager, error) {

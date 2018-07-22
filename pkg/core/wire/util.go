@@ -30,11 +30,28 @@ func (w *binWriter) Write(v interface{}) {
 	binary.Write(w.w, binary.LittleEndian, v)
 }
 
-// Only used for IP and PORT. Additional method
-// makes the default LittleEndian case clean
+// Only used for IP and PORT. Additional method makes the default LittleEndian case clean
 func (w *binWriter) WriteBigEnd(v interface{}) {
 	if w.err != nil {
 		return
 	}
 	binary.Write(w.w, binary.BigEndian, v)
+}
+
+type binReader struct {
+	r   io.Reader
+	err error
+}
+
+func (r *binReader) Read(v interface{}) {
+	if r.err != nil {
+		return
+	}
+	binary.Read(r.r, binary.LittleEndian, v)
+}
+func (r *binReader) ReadBigEnd(v interface{}) {
+	if r.err != nil {
+		return
+	}
+	binary.Read(r.r, binary.BigEndian, v)
 }
