@@ -97,7 +97,7 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	bw.Write(v.Version)
 	bw.Write(v.Services)
 	bw.Write(uint32(v.Timestamp.Unix()))
-	bw.Write(v.Port)
+	bw.WriteBigEnd(v.Port)
 	bw.Write(v.Nonce)
 	bw.Write(uint8(len(v.UserAgent)))
 	bw.Write(v.UserAgent)

@@ -29,3 +29,12 @@ func (w *binWriter) Write(v interface{}) {
 	}
 	binary.Write(w.w, binary.LittleEndian, v)
 }
+
+// Only used for IP and PORT. Additional method
+// makes the default LittleEndian case clean
+func (w *binWriter) WriteBigEnd(v interface{}) {
+	if w.err != nil {
+		return
+	}
+	binary.Write(w.w, binary.BigEndian, v)
+}
