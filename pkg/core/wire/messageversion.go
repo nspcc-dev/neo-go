@@ -61,9 +61,13 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 
 	br := &binReader{r: r}
 	br.Read(&v.Version)
+
 	br.Read(&v.Services)
+
 	br.Read(&v.Timestamp)
+
 	br.ReadBigEnd(&v.Port)
+
 	br.Read(&v.Nonce)
 
 	var lenUA uint8
@@ -74,6 +78,10 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	br.Read(&v.StartHeight)
 	br.Read(&v.Relay)
 
+	v.w = new(bytes.Buffer)
+	if err := v.EncodePayload(v.w); err != nil {
+		return err
+	}
 	return br.err
 }
 
