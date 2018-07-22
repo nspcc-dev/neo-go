@@ -48,5 +48,5 @@ func TestReadMessage(t *testing.T) {
 	}
 	version := readmsg.(*VersionMessage)
 	assert.Equal(t, 23, int(version.StartHeight))
-	// If MessageReading was unsuccessfull it will, return a nil object
+	// If MessageReading was unsuccessfull it will return a nil object
 }

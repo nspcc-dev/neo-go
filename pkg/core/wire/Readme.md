@@ -37,3 +37,19 @@ When modifying this package, please ensure that it does not depend on any other 
 	}
 	version := readmsg.(*VersionMessage)
 
+## RoadMap 
+
+These below commands are left to implement.
+
+[ x ] CMDVersion
+[   ] CMDVerack
+[   ] CMDGetAddr
+[   ] CMDAddr
+[   ] CMDGetHeaders
+[   ] CMDHeaders
+[   ] CMDGetBlocks
+[   ] CMDInv
+[   ] CMDGetData
+[   ] CMDBlock
+[   ] CMDTX
+[   ] CMDConsensus
