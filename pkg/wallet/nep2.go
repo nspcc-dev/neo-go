@@ -58,7 +58,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 	derivedKey2 := derivedKey[32:]
 	xr := xor(priv.Bytes(), derivedKey1)
 
-	encrypted, err := crypto.AESEncrypt(derivedKey2, xr)
+	encrypted, err := crypto.AESEncrypt(xr, derivedKey2)
 	if err != nil {
 		return s, err
 	}
@@ -77,7 +77,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 }
 
 // NEP2Decrypt decrypts an encrypted key using a given passphrase
-// under the NEP-2 standard.
+// under the NEP-2 standard and returns it in WIF format.
 func NEP2Decrypt(key, passphrase string) (s string, err error) {
 	b, err := crypto.Base58CheckDecode(key)
 	if err != nil {
@@ -87,6 +87,7 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 		return s, err
 	}
 
+	encryptedBytes := b[7:]
 	addrHash := b[3:7]
 	// Normalize the passphrase according to the NFC standard.
 	phraseNorm := norm.NFC.Bytes([]byte(passphrase))
@@ -97,7 +98,6 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 
 	derivedKey1 := derivedKey[:32]
 	derivedKey2 := derivedKey[32:]
-	encryptedBytes := b[7:]
 
 	decrypted, err := crypto.AESDecrypt(encryptedBytes, derivedKey2)
 	if err != nil {

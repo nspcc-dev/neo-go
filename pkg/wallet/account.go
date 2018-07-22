@@ -35,14 +35,19 @@ type Account struct {
 	Default bool `json:"isDefault"`
 }
 
-// Contract represents a subset of the smartcontract to embedd in the
+type ContractParameter struct {
+	Type byte
+	Name string
+}
+
+// Contract represents a subset of the smartcontract to embed in the
 // Account so it's NEP-6 compliant.
 type Contract struct {
 	// Script hash of the contract deployed on the blockchain.
 	Script util.Uint160 `json:"script"`
 
-	// A list of parameters used deploying this contract.
-	Parameters []interface{} `json:"parameters"`
+	// A list of parameters used for deploying this contract.
+	Parameters []ContractParameter `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
@@ -57,14 +62,15 @@ func NewAccount() (*Account, error) {
 	return newAccountFromPrivateKey(priv)
 }
 
-// DecryptAccount decrypt the encryptedWIF with the given passphrase and
-// return the decrypted Account.
-func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
-	wif, err := NEP2Decrypt(encryptedWIF, passphrase)
+// Decrypt tries to decrypt the account with the given passphrase and returns
+// whether the operation was successfull.
+func (a *Account) Decrypt(passphrase string) bool {
+	wif, err := NEP2Decrypt(a.EncryptedWIF, passphrase)
 	if err != nil {
-		return nil, err
+		return false
 	}
-	return NewAccountFromWIF(wif)
+	a.wif = wif
+	return true
 }
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
@@ -102,10 +108,25 @@ func newAccountFromPrivateKey(p *PrivateKey) (*Account, error) {
 		return nil, err
 	}
 
+	// TODO(pawan) - We can store public key in KeyPair struct instead of private key,
+	// so that we don't recalculate it.
+	sh, err := p.ScriptHashUint160()
+	if err != nil {
+		return nil, err
+	}
+	c := &Contract{
+		Script: sh,
+		Parameters: []ContractParameter{ContractParameter{
+			Name: "signature",
+			Type: Signature,
+		}},
+	}
+
 	a := &Account{
 		publicKey:  pubKey,
 		privateKey: p,
 		Address:    pubAddr,
+		Contract:   c,
 		wif:        wif,
 	}
 

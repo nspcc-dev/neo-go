@@ -13,7 +13,10 @@ import (
 
 var (
 	errNoPath          = errors.New("Target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags.")
+	errPathMandatory   = errors.New("While opening wallet (--path) is mandatory and must be passed as a flag.")
+	errNoPass          = errors.New("Passphrase is mandatory while trying to open a wallet using (--pass) flag..")
 	errPhraseMissmatch = errors.New("The entered passphrases do not match. Maybe you have misspelled them?")
+	errFileNotFound    = errors.New("File specified in --path doesn't exist")
 )
 
 // NewComand creates a new Wallet command.
@@ -46,6 +49,10 @@ func NewCommand() cli.Command {
 						Name:  "path, p",
 						Usage: "Target location of the wallet file.",
 					},
+					cli.StringFlag{
+						Name:  "passphrase, pass",
+						Usage: "Passphrase to unlock an account in the wallet.",
+					},
 				},
 			},
 		},
@@ -53,6 +60,30 @@ func NewCommand() cli.Command {
 }
 
 func openWallet(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errPathMandatory, 1)
+	}
+
+	pass := ctx.String("pass")
+	if len(pass) == 0 {
+		return cli.NewExitError(errNoPass, 1)
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return cli.NewExitError(errFileNotFound, 1)
+	}
+
+	w, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if err := w.Unlock(pass); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println("Wallet opened successfully.")
 	return nil
 }
 

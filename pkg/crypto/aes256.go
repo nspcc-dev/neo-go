@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 )
 
-// AESEncrypt encrypts the key with the given source.
+// AESEncrypt encrypts the src with the given key.
 func AESEncrypt(src, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
