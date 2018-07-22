@@ -13,7 +13,7 @@ type ServiceFlag uint64
 
 const (
 	NodePeerService ServiceFlag = 1
-	// BloomFilerService ServiceFlag = 2 // Not implemented yet
+	// BloomFilerService ServiceFlag = 2 // Not implemented
 	// PrunedNode        ServiceFlag = 3 // Not implemented
 	// LightNode         ServiceFlag = 4 // Not implemented
 
