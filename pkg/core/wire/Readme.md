@@ -41,15 +41,15 @@ When modifying this package, please ensure that it does not depend on any other 
 
 These below commands are left to implement.
 
-[ x ] CMDVersion
-[   ] CMDVerack
-[   ] CMDGetAddr
-[   ] CMDAddr
-[   ] CMDGetHeaders
-[   ] CMDHeaders
-[   ] CMDGetBlocks
-[   ] CMDInv
-[   ] CMDGetData
-[   ] CMDBlock
-[   ] CMDTX
-[   ] CMDConsensus
+	[ x ] CMDVersion
+	[   ] CMDVerack
+	[   ] CMDGetAddr
+	[   ] CMDAddr
+	[   ] CMDGetHeaders
+	[   ] CMDHeaders
+	[   ] CMDGetBlocks
+	[   ] CMDInv
+	[   ] CMDGetData
+	[   ] CMDBlock
+	[   ] CMDTX
+	[   ] CMDConsensus
