@@ -41,7 +41,9 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	configPath := "./config"
-	configPath = ctx.String("config-path")
+	if argCp := ctx.String("config-path"); argCp != "" {
+		configPath = argCp
+	}
 	cfg, err := config.Load(configPath, net)
 	if err != nil {
 		return cli.NewExitError(err, 1)
