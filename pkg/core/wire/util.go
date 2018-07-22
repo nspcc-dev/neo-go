@@ -3,6 +3,7 @@ package wire
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 )
 
 func calculatePayloadLength(buf *bytes.Buffer) uint32 {
@@ -13,4 +14,18 @@ func calculateCheckSum(buf *bytes.Buffer) uint32 {
 
 	checksum := sumSHA256(sumSHA256(buf.Bytes()))
 	return binary.LittleEndian.Uint32(checksum[:4])
+}
+
+/// Binary writer
+
+type binWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (w *binWriter) Write(v interface{}) {
+	if w.err != nil {
+		return
+	}
+	binary.Write(w.w, binary.LittleEndian, v)
 }

@@ -93,39 +93,18 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 // Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	// encode into w from v
-	if err := binary.Write(w, binary.LittleEndian, v.Version); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, v.Services); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, uint32(v.Timestamp.Unix())); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, v.Port); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, v.Nonce); err != nil {
-		return err
-	}
 
-	if err := binary.Write(w, binary.LittleEndian, uint8(len(v.UserAgent))); err != nil {
-		return err
-	}
-
-	if err := binary.Write(w, binary.LittleEndian, v.UserAgent); err != nil {
-		return err
-	}
-
-	if err := binary.Write(w, binary.LittleEndian, v.StartHeight); err != nil {
-		return err
-	}
-
-	if err := binary.Write(w, binary.LittleEndian, v.Relay); err != nil {
-		return err
-	}
-
-	return nil
+	bw := &binWriter{w: w}
+	bw.Write(v.Version)
+	bw.Write(v.Services)
+	bw.Write(uint32(v.Timestamp.Unix()))
+	bw.Write(v.Port)
+	bw.Write(v.Nonce)
+	bw.Write(uint8(len(v.UserAgent)))
+	bw.Write(v.UserAgent)
+	bw.Write(v.StartHeight)
+	bw.Write(v.Relay)
+	return bw.err
 }
 
 // Implements messager interface
