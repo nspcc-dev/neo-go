@@ -42,8 +42,8 @@ When modifying this package, please ensure that it does not depend on any other 
 These below commands are left to implement.
 
 	[ x ] CMDVersion
-	[   ] CMDVerack
-	[   ] CMDGetAddr
+	[ x ] CMDVerack (Needs tests)
+	[ x ] CMDGetAddr(Needs tests)
 	[   ] CMDAddr
 	[   ] CMDGetHeaders
 	[   ] CMDHeaders
