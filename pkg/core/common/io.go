@@ -92,17 +92,3 @@ func WriteVarBytes(w io.Writer, b []byte) error {
 	}
 	return binary.Write(w, binary.LittleEndian, b)
 }
-
-/// Binary writer
-
-type binWriter struct {
-	w   io.Writer
-	err error
-}
-
-func (w *binWriter) Write(v interface{}) {
-	if w.err != nil {
-		return
-	}
-	binary.Write(w.w, binary.LittleEndian, v)
-}

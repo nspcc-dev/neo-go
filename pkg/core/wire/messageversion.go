@@ -92,9 +92,8 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 
 // Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
-	// encode into w from v
-
 	bw := &binWriter{w: w}
+
 	bw.Write(v.Version)
 	bw.Write(v.Services)
 	bw.Write(uint32(v.Timestamp.Unix()))
