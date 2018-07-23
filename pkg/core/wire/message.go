@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/core/wire/util"
 )
 
 type Messager interface {
@@ -43,17 +45,17 @@ const (
 )
 
 func WriteMessage(w io.Writer, magic Magic, message Messager) error {
-	bw := &binWriter{w: w}
+	bw := &util.BinWriter{W: w}
 	bw.Write(magic)
 	bw.Write(cmdToByteArray(message.Command()))
 	bw.Write(message.PayloadLength())
 	bw.Write(message.Checksum())
 
-	if err := message.EncodePayload(bw.w); err != nil {
+	if err := message.EncodePayload(bw.W); err != nil {
 		return err
 	}
 
-	return bw.err
+	return bw.Err
 }
 
 func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
