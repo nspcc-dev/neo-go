@@ -26,12 +26,10 @@ func (w *BinWriter) WriteBigEnd(v interface{}) {
 	w.Err = binary.Write(w.W, binary.BigEndian, v)
 }
 
-// WriteVarString writes a variable length string.
-func (w *BinWriter) WriteVarString(s string) {
+func (w *BinWriter) VarString(s string) {
 	w.VarBytes([]byte(s))
 }
 
-// WriteVarUint writes a variable unsigned integer.
 func (w *BinWriter) VarUint(val uint64) {
 	if val < 0 {
 		w.Err = errors.New("value out of range")
