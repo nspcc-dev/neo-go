@@ -44,10 +44,10 @@ These below commands are left to implement.
 	[ x ] CMDVersion
 	[ x ] CMDVerack (Needs tests)
 	[ x ] CMDGetAddr(Needs tests)
-	[   ] CMDAddr
-	[   ] CMDGetHeaders
+	[ x ] CMDAddr (Needs tests)
+	[ x ] CMDGetHeaders
 	[   ] CMDHeaders
-	[   ] CMDGetBlocks
+	[ x ] CMDGetBlocks
 	[   ] CMDInv
 	[   ] CMDGetData
 	[   ] CMDBlock
