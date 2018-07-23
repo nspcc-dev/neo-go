@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 )
 
@@ -38,32 +37,6 @@ func ReadVarUint(r io.Reader) uint64 {
 	return uint64(b)
 }
 
-// WriteVarUint writes a variable unsigned integer.
-func WriteVarUint(w io.Writer, val uint64) error {
-	if val < 0 {
-		return errors.New("value out of range")
-	}
-	if val < 0xfd {
-		binary.Write(w, binary.LittleEndian, uint8(val))
-		return nil
-	}
-	if val < 0xFFFF {
-		binary.Write(w, binary.LittleEndian, byte(0xfd))
-		binary.Write(w, binary.LittleEndian, uint16(val))
-		return nil
-	}
-	if val < 0xFFFFFFFF {
-		binary.Write(w, binary.LittleEndian, byte(0xfe))
-		binary.Write(w, binary.LittleEndian, uint32(val))
-		return nil
-	}
-
-	binary.Write(w, binary.LittleEndian, byte(0xff))
-	binary.Write(w, binary.LittleEndian, val)
-
-	return nil
-}
-
 // ReadVarBytes reads a variable length byte array.
 func ReadVarBytes(r io.Reader) ([]byte, error) {
 	n := ReadVarUint(r)
@@ -78,17 +51,4 @@ func ReadVarBytes(r io.Reader) ([]byte, error) {
 func ReadVarString(r io.Reader) (string, error) {
 	b, err := ReadVarBytes(r)
 	return string(b), err
-}
-
-// WriteVarString writes a variable length string.
-func WriteVarString(w io.Writer, s string) error {
-	return WriteVarBytes(w, []byte(s))
-}
-
-// WriteVarBytes writes a variable length byte array.
-func WriteVarBytes(w io.Writer, b []byte) error {
-	if err := WriteVarUint(w, uint64(len(b))); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, b)
 }
