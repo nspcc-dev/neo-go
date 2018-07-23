@@ -3,6 +3,8 @@ package wire
 import (
 	"fmt"
 	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/core/wire/util"
 )
 
 type MessageHeader struct {
@@ -16,7 +18,7 @@ type MessageHeader struct {
 // As the header is implicitly inferred from
 // the message on encode
 func (h *MessageHeader) DecodeMessageHeader(r io.Reader) (io.Reader, error) {
-	br := &binReader{r: r}
+	br := &util.BinReader{R: r}
 	br.Read(&h.Magic)
 	fmt.Println(h.Magic)
 
@@ -28,7 +30,7 @@ func (h *MessageHeader) DecodeMessageHeader(r io.Reader) (io.Reader, error) {
 	fmt.Println(h.Length)
 	br.Read(&h.Checksum)
 	fmt.Println(h.Checksum)
-	return br.r, br.err
+	return br.R, br.Err
 }
 
 func cmdByteArrayToString(cmd [cmdSize]byte) string {
