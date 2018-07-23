@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net"
 	"time"
+
+	"github.com/CityOfZion/neo-go/pkg/core/wire/util"
 )
 
 const (
@@ -57,9 +59,8 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver Proto
 
 // Implements Messager interface
 func (v *VersionMessage) DecodePayload(r io.Reader) error {
-	// Decode into v from reader
+	br := &util.BinReader{R: r}
 
-	br := &binReader{r: r}
 	br.Read(&v.Version)
 
 	br.Read(&v.Services)
@@ -82,12 +83,12 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	if err := v.EncodePayload(v.w); err != nil {
 		return err
 	}
-	return br.err
+	return br.Err
 }
 
 // Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
-	bw := &binWriter{w: w}
+	bw := &util.BinWriter{W: w}
 
 	bw.Write(v.Version)
 	bw.Write(v.Services)
@@ -98,7 +99,7 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	bw.Write(v.UserAgent)
 	bw.Write(v.StartHeight)
 	bw.Write(v.Relay)
-	return bw.err
+	return bw.Err
 }
 
 // Implements messager interface
