@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/CityOfZion/neo-go/pkg/core/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 type MessageHeader struct {

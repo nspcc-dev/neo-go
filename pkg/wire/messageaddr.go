@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/core/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 // Once a VersionMessage is received, we can then store it inside of AddrMessage struct
