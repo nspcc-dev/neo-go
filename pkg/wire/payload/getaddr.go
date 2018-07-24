@@ -1,8 +1,12 @@
-package wire
+package payload
 
 import (
 	"bytes"
 	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/util"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
 )
 
 // No payload
@@ -29,10 +33,10 @@ func (v *GetAddrMessage) PayloadLength() uint32 {
 
 // Implements messager interface
 func (v *GetAddrMessage) Checksum() uint32 {
-	return calculateCheckSum(new(bytes.Buffer))
+	return util.CalculateCheckSum(new(bytes.Buffer))
 }
 
 // Implements messager interface
-func (v *GetAddrMessage) Command() CommandType {
-	return CMDGetAddr
+func (v *GetAddrMessage) Command() command.Type {
+	return command.GetAddr
 }

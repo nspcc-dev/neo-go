@@ -2,12 +2,13 @@ package wire
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
+	"github.com/CityOfZion/neo-go/pkg/wire/payload"
+	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -16,37 +17,14 @@ type Messager interface {
 	DecodePayload(r io.Reader) error
 	PayloadLength() uint32
 	Checksum() uint32
-	Command() CommandType
+	Command() command.Type
 }
 
 var (
 	errChecksumMismatch = errors.New("checksum mismatch")
 )
 
-// CommandType represents the type of a message command.
-type CommandType string
-
-// Valid protocol commands used to send between nodes.
-// use this to get
-const (
-	CMDVersion    CommandType = "version"
-	CMDPing       CommandType = "ping"
-	CMDPong       CommandType = "pong"
-	CMDVerack     CommandType = "verack"
-	CMDGetAddr    CommandType = "getaddr"
-	CMDAddr       CommandType = "addr"
-	CMDGetHeaders CommandType = "getheaders"
-	CMDHeaders    CommandType = "headers"
-	CMDGetBlocks  CommandType = "getblocks"
-	CMDInv        CommandType = "inv"
-	CMDGetData    CommandType = "getdata"
-	CMDBlock      CommandType = "block"
-	CMDTX         CommandType = "tx"
-	CMDConsensus  CommandType = "consensus"
-	CMDUnknown    CommandType = "unknown"
-)
-
-func WriteMessage(w io.Writer, magic Magic, message Messager) error {
+func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 	bw := &util.BinWriter{W: w}
 	bw.Write(magic)
 	bw.Write(cmdToByteArray(message.Command()))
@@ -60,10 +38,10 @@ func WriteMessage(w io.Writer, magic Magic, message Messager) error {
 	return bw.Err
 }
 
-func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
+func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 
-	var header MessageBase
-	r, err := header.DecodeMessageBase(r)
+	var header Base
+	r, err := header.DecodeBase(r)
 
 	buf := new(bytes.Buffer)
 
@@ -76,12 +54,12 @@ func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
 		return nil, fmt.Errorf("expected to have read exactly %d bytes got %d", header.Length, n)
 	}
 	// Compare the checksum of the payload.
-	if !compareChecksum(header.Checksum, buf.Bytes()) {
+	if !util.CompareChecksum(header.Checksum, buf.Bytes()) {
 		return nil, errChecksumMismatch
 	}
-	switch header.Command {
-	case CMDVersion:
-		v := &VersionMessage{}
+	switch header.CMD {
+	case command.Version:
+		v := &payload.VersionMessage{}
 		if err := v.DecodePayload(buf); err != nil {
 			return nil, err
 		}
@@ -91,29 +69,17 @@ func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
 
 }
 
-func cmdToByteArray(cmd CommandType) [cmdSize]byte {
+func cmdToByteArray(cmd command.Type) [command.Size]byte {
 	cmdLen := len(cmd)
-	if cmdLen > cmdSize {
+	if cmdLen > command.Size {
 		panic("exceeded command max length of size 12")
 	}
 
 	// The command can have max 12 bytes, rest is filled with 0.
-	b := [cmdSize]byte{}
+	b := [command.Size]byte{}
 	for i := 0; i < cmdLen; i++ {
 		b[i] = cmd[i]
 	}
 
 	return b
-}
-
-func sumSHA256(b []byte) []byte {
-	h := sha256.New()
-	h.Write(b)
-	return h.Sum(nil)
-}
-
-func compareChecksum(have uint32, b []byte) bool {
-	sum := sumSHA256(sumSHA256(b))[:4]
-	want := binary.LittleEndian.Uint32(sum)
-	return have == want
 }

@@ -1,6 +1,6 @@
 // Copied and Modified for NEO from: https://github.com/decred/dcrd/blob/master/wire/VersionMessage.go
 
-package wire
+package payload
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
+	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -19,9 +21,9 @@ const (
 
 type VersionMessage struct {
 	w           *bytes.Buffer
-	Version     ProtocolVersion
+	Version     protocol.Version
 	Timestamp   uint32
-	Services    ServiceFlag
+	Services    protocol.ServiceFlag
 	IP          net.IP
 	Port        uint16
 	Nonce       uint32
@@ -32,7 +34,7 @@ type VersionMessage struct {
 
 var ErrInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
 
-func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver ProtocolVersion) (*VersionMessage, error) {
+func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver protocol.Version) (*VersionMessage, error) {
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return nil, ErrInvalidNetAddr
@@ -41,11 +43,11 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver Proto
 		new(bytes.Buffer),
 		pver,
 		uint32(time.Now().Unix()),
-		NodePeerService,
+		protocol.NodePeerService,
 		tcpAddr.IP,
 		uint16(tcpAddr.Port),
 		rand.Uint32(),
-		[]byte(UserAgent),
+		[]byte(protocol.UserAgent),
 		startHeight,
 		relay,
 	}
@@ -104,15 +106,15 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 
 // Implements messager interface
 func (v *VersionMessage) PayloadLength() uint32 {
-	return calculatePayloadLength(v.w)
+	return util.CalculatePayloadLength(v.w)
 }
 
 // Implements messager interface
 func (v *VersionMessage) Checksum() uint32 {
-	return calculateCheckSum(v.w)
+	return util.CalculateCheckSum(v.w)
 }
 
 // Implements messager interface
-func (v *VersionMessage) Command() CommandType {
-	return CMDVersion
+func (v *VersionMessage) Command() command.Type {
+	return command.Version
 }

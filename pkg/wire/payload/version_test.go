@@ -1,4 +1,4 @@
-package wire
+package payload
 
 import (
 	"bytes"

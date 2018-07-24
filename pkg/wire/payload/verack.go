@@ -1,8 +1,11 @@
-package wire
+package payload
 
 import (
 	"bytes"
 	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
+	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 // No payload
@@ -29,10 +32,10 @@ func (v *VerackMessage) PayloadLength() uint32 {
 
 // Implements messager interface
 func (v *VerackMessage) Checksum() uint32 {
-	return calculateCheckSum(new(bytes.Buffer))
+	return util.CalculateCheckSum(new(bytes.Buffer))
 }
 
 // Implements messager interface
-func (v *VerackMessage) Command() CommandType {
-	return CMDVerack
+func (v *VerackMessage) Command() command.Type {
+	return command.Verack
 }

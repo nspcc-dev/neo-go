@@ -1,19 +1,20 @@
-package wire
+package payload
 
 import (
 	"bytes"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 type GetBlocksMessage struct {
 	w         *bytes.Buffer
-	hashStart []Uint256
-	hashStop  Uint256
+	hashStart []util.Uint256
+	hashStop  util.Uint256
 }
 
-func NewGetBlocksMessage(start []Uint256, stop Uint256) (*GetBlocksMessage, error) {
+func NewGetBlocksMessage(start []util.Uint256, stop util.Uint256) (*GetBlocksMessage, error) {
 	getBlocks := &GetBlocksMessage{new(bytes.Buffer), start, stop}
 	if err := getBlocks.EncodePayload(getBlocks.w); err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func NewGetBlocksMessage(start []Uint256, stop Uint256) (*GetBlocksMessage, erro
 func (v *GetBlocksMessage) DecodePayload(r io.Reader) error {
 	br := util.BinReader{R: r}
 	lenStart := br.VarUint()
-	v.hashStart = make([]Uint256, lenStart)
+	v.hashStart = make([]util.Uint256, lenStart)
 	br.Read(&v.hashStart)
 	br.Read(&v.hashStop)
 	return br.Err
@@ -43,15 +44,15 @@ func (v *GetBlocksMessage) EncodePayload(w io.Writer) error {
 
 // Implements messager interface
 func (v *GetBlocksMessage) PayloadLength() uint32 {
-	return calculatePayloadLength(v.w)
+	return util.CalculatePayloadLength(v.w)
 }
 
 // Implements messager interface
 func (v *GetBlocksMessage) Checksum() uint32 {
-	return calculateCheckSum(v.w)
+	return util.CalculateCheckSum(v.w)
 }
 
 // Implements messager interface
-func (v *GetBlocksMessage) Command() CommandType {
-	return CMDGetBlocks
+func (v *GetBlocksMessage) Command() command.Type {
+	return command.GetBlocks
 }

@@ -1,19 +1,20 @@
-package wire
+package payload
 
 import (
 	"bytes"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 type GetHeadersMessage struct {
 	w         *bytes.Buffer
-	hashStart []Uint256
-	hashStop  Uint256
+	hashStart []util.Uint256
+	hashStop  util.Uint256
 }
 
-func NewGetHeadersMessage(start []Uint256, stop Uint256) (*GetHeadersMessage, error) {
+func NewGetHeadersMessage(start []util.Uint256, stop util.Uint256) (*GetHeadersMessage, error) {
 	getHeaders := &GetHeadersMessage{new(bytes.Buffer), start, stop}
 	if err := getHeaders.EncodePayload(getHeaders.w); err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func NewGetHeadersMessage(start []Uint256, stop Uint256) (*GetHeadersMessage, er
 func (v *GetHeadersMessage) DecodePayload(r io.Reader) error {
 	br := util.BinReader{R: r}
 	lenStart := br.VarUint()
-	v.hashStart = make([]Uint256, lenStart)
+	v.hashStart = make([]util.Uint256, lenStart)
 	br.Read(&v.hashStart)
 	br.Read(&v.hashStop)
 	return br.Err
@@ -43,15 +44,15 @@ func (v *GetHeadersMessage) EncodePayload(w io.Writer) error {
 
 // Implements messager interface
 func (v *GetHeadersMessage) PayloadLength() uint32 {
-	return calculatePayloadLength(v.w)
+	return util.CalculatePayloadLength(v.w)
 }
 
 // Implements messager interface
 func (v *GetHeadersMessage) Checksum() uint32 {
-	return calculateCheckSum(v.w)
+	return util.CalculateCheckSum(v.w)
 }
 
 // Implements messager interface
-func (v *GetHeadersMessage) Command() CommandType {
-	return CMDGetHeaders
+func (v *GetHeadersMessage) Command() command.Type {
+	return command.GetHeaders
 }

@@ -1,10 +1,12 @@
-package wire
+package payload
 
 import (
 	"bytes"
 	"io"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
+	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -14,10 +16,10 @@ type net_addr struct {
 	Timestamp uint32
 	IP        [16]byte
 	Port      uint16
-	Service   ServiceFlag
+	Service   protocol.ServiceFlag
 }
 
-func NewAddrMessage(time uint32, ip [16]byte, port uint16, service ServiceFlag) (*net_addr, error) {
+func NewAddrMessage(time uint32, ip [16]byte, port uint16, service protocol.ServiceFlag) (*net_addr, error) {
 	return &net_addr{time, ip, port, service}, nil
 }
 
@@ -33,7 +35,7 @@ func NewAddrFromVersionMessage(version VersionMessage) (*net_addr, error) {
 func (n *net_addr) EncodePayload(bw *util.BinWriter) {
 
 	bw.Write(uint32(time.Now().Unix()))
-	bw.Write(NodePeerService)
+	bw.Write(protocol.NodePeerService)
 	bw.WriteBigEnd(n.IP)
 	bw.WriteBigEnd(n.Port)
 }
@@ -81,15 +83,15 @@ func (v *AddrMessage) EncodePayload(w io.Writer) error {
 
 // Implements messager interface
 func (v *AddrMessage) PayloadLength() uint32 {
-	return calculatePayloadLength(v.w)
+	return util.CalculatePayloadLength(v.w)
 }
 
 // Implements messager interface
 func (v *AddrMessage) Checksum() uint32 {
-	return calculateCheckSum(v.w)
+	return util.CalculateCheckSum(v.w)
 }
 
 // Implements messager interface
-func (v *AddrMessage) Command() CommandType {
-	return CMDAddr
+func (v *AddrMessage) Command() command.Type {
+	return command.Addr
 }
