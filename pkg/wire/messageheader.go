@@ -1,7 +1,6 @@
 package wire
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -19,17 +18,15 @@ type MessageHeader struct {
 // the message on encode
 func (h *MessageHeader) DecodeMessageHeader(r io.Reader) (io.Reader, error) {
 	br := &util.BinReader{R: r}
+
 	br.Read(&h.Magic)
-	fmt.Println(h.Magic)
 
 	var command [12]byte
 	br.Read(&command)
 	h.Command = CommandType(cmdByteArrayToString(command))
-	fmt.Println(h.Command)
+
 	br.Read(&h.Length)
-	fmt.Println(h.Length)
 	br.Read(&h.Checksum)
-	fmt.Println(h.Checksum)
 	return br.R, br.Err
 }
 

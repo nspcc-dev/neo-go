@@ -85,7 +85,6 @@ func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
 		if err := v.DecodePayload(buf); err != nil {
 			return nil, err
 		}
-		fmt.Println("We have decoded", v)
 		return v, nil
 	}
 	return nil, nil
