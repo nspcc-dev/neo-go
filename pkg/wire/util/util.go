@@ -13,6 +13,14 @@ const uint256Size = 32
 
 type Uint256 [uint256Size]uint8
 
+func (u Uint256) Bytes() []byte {
+	b := make([]byte, uint256Size)
+	for i := 0; i < uint256Size; i++ {
+		b[i] = byte(u[i])
+	}
+	return b
+}
+
 // Uint160 array
 const uint160Size = 20
 
