@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
@@ -76,8 +75,8 @@ type BlockHeader struct {
 	hash util.Uint256
 }
 
-func (b *BlockHeader) EncodePayload(w io.Writer) error {
-	bw := &util.BinWriter{W: w}
+func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
+
 	b.encodeHashableFields(bw)
 
 	bw.Write(uint8(1))
@@ -95,9 +94,8 @@ func (b *BlockHeader) encodeHashableFields(bw *util.BinWriter) {
 	bw.Write(b.NextConsensus)
 }
 
-func (b *BlockHeader) DecodePayload(r io.Reader) error {
+func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
 
-	br := &util.BinReader{R: r}
 	b.decodeHashableFields(br)
 
 	var padding uint8

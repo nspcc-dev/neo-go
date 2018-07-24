@@ -42,7 +42,7 @@ These below commands are left to implement.
 	[ x ] CMDGetAddr(Needs tests)
 	[ x ] CMDAddr (Needs tests)
 	[ x ] CMDGetHeaders
-	[   ] CMDHeaders
+	[ x ] CMDHeaders
 	[ x ] CMDGetBlocks
 	[ x ] CMDInv (Needs Tests)
 	[   ] CMDGetData
