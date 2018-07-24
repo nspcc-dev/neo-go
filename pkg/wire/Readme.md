@@ -10,10 +10,6 @@ This package will act as a standalone package.
 This package will solely be responsible for Encoding and decoding a Message.
 It will return a Messager interface, which means that the caller of the package will need to type assert it to the appropriate type.
 
-#Contributors
-
-When modifying this package, please ensure that it does not depend on any other package and that it conforms to the Single Responsibility Principle. If you see somewhere in the current implementation that does not do this, then please tell me :)
-
 # Usage 
 
 ## Write Message 
@@ -53,3 +49,7 @@ These below commands are left to implement.
 	[   ] CMDBlock
 	[   ] CMDTX
 	[   ] CMDConsensus
+
+# Contributors
+
+When modifying this package, please ensure that it does not depend on any other package and that it conforms to the Single Responsibility Principle. If you see somewhere in the current implementation that does not do this, then please tell me :)
