@@ -62,8 +62,8 @@ func WriteMessage(w io.Writer, magic Magic, message Messager) error {
 
 func ReadMessage(r io.Reader, magic Magic) (Messager, error) {
 
-	var header MessageHeader
-	r, err := header.DecodeMessageHeader(r)
+	var header MessageBase
+	r, err := header.DecodeMessageBase(r)
 
 	buf := new(bytes.Buffer)
 

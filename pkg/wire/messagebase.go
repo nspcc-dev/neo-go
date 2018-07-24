@@ -6,7 +6,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-type MessageHeader struct {
+// MessageBase is everything in the message except the payload
+
+type MessageBase struct {
 	Magic    uint32
 	Command  CommandType
 	Length   uint32
@@ -16,7 +18,7 @@ type MessageHeader struct {
 // Note, That there is no EncodeMessageHeader
 // As the header is implicitly inferred from
 // the message on encode
-func (h *MessageHeader) DecodeMessageHeader(r io.Reader) (io.Reader, error) {
+func (h *MessageBase) DecodeMessageBase(r io.Reader) (io.Reader, error) {
 	br := &util.BinReader{R: r}
 
 	br.Read(&h.Magic)
