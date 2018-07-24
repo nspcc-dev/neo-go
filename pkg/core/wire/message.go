@@ -30,6 +30,8 @@ type CommandType string
 // use this to get
 const (
 	CMDVersion    CommandType = "version"
+	CMDPing       CommandType = "ping"
+	CMDPong       CommandType = "pong"
 	CMDVerack     CommandType = "verack"
 	CMDGetAddr    CommandType = "getaddr"
 	CMDAddr       CommandType = "addr"
