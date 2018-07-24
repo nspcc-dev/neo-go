@@ -26,7 +26,7 @@ It will return a Messager interface, which means that the caller of the package 
 
 ## Read Message 
 
-	readmsg, err := ReadMessage(buf, Production)
+	readmsg, err := ReadMessage(conn, Production)
 
 	if err != nil {
 		// Log error
@@ -41,8 +41,8 @@ These below commands are left to implement.
 	[ x ] CMDVerack (Needs tests)
 	[ x ] CMDGetAddr(Needs tests)
 	[ x ] CMDAddr (Needs tests)
-	[ x ] CMDGetHeaders
-	[ x ] CMDHeaders
+	[ x ] CMDGetHeaders (No tests)
+	[ x ] CMDHeaders (No tests)
 	[ x ] CMDGetBlocks
 	[ x ] CMDInv (Needs Tests)
 	[   ] CMDGetData
