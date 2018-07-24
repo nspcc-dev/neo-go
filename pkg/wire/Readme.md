@@ -43,9 +43,9 @@ These below commands are left to implement.
 	[ x ] CMDAddr (Needs tests)
 	[ x ] CMDGetHeaders (No tests)
 	[ x ] CMDHeaders (No tests)
-	[ x ] CMDGetBlocks
+	[ x ] CMDGetBlocks (No tests)
 	[ x ] CMDInv (Needs Tests)
-	[   ] CMDGetData
+	[ x ] CMDGetData (Need Tests)
 	[   ] CMDBlock
 	[   ] CMDTX
 	[   ] CMDConsensus
