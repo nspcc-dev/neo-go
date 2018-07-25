@@ -17,12 +17,12 @@ func NewInput(prevHash util.Uint256, prevIndex uint16) *Input {
 		prevIndex,
 	}
 }
-func (i *Input) EncodePayload(bw *util.BinWriter) {
+func (i *Input) Encode(bw *util.BinWriter) {
 	bw.Write(i.PrevHash)
 	bw.Write(i.PrevIndex)
 }
 
-func (i *Input) DecodePayload(br *util.BinReader) {
+func (i *Input) Decode(br *util.BinReader) {
 	br.Read(&i.PrevHash)
 	br.Read(&i.PrevIndex)
 }

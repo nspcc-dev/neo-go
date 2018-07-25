@@ -19,10 +19,10 @@ const (
 	InvocationType TXType = 0xd1
 )
 
-func (t *TXType) EncodePayload(bw *util.BinWriter) {
+func (t *TXType) Encode(bw *util.BinWriter) {
 	bw.Write(t)
 }
-func (t *TXType) DecodePayload(br *util.BinReader) {
+func (t *TXType) Decode(br *util.BinReader) {
 	br.Read(&t)
 }
 

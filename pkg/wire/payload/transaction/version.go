@@ -8,10 +8,10 @@ const (
 	DefaultTxVersion TXVersion = 0
 )
 
-func (v *TXVersion) EncodePayload(bw *util.BinWriter) {
+func (v *TXVersion) Encode(bw *util.BinWriter) {
 	bw.Write(v)
 }
 
-func (v *TXVersion) DecodePayload(br *util.BinReader) {
+func (v *TXVersion) Decode(br *util.BinReader) {
 	br.Read(&v)
 }

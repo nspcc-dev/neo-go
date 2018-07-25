@@ -21,13 +21,13 @@ func NewOutput(assetID util.Uint256, Amount int64, ScriptHash util.Uint160) *Out
 	}
 }
 
-func (o *Output) EncodePayload(bw *util.BinWriter) {
+func (o *Output) Encode(bw *util.BinWriter) {
 	bw.Write(o.AssetID)
 	bw.Write(o.Amount)
 	bw.Write(o.ScriptHash)
 }
 
-func (o *Output) DecodePayload(br *util.BinReader) {
+func (o *Output) Decode(br *util.BinReader) {
 	br.Read(&o.AssetID)
 	br.Read(&o.Amount)
 	br.Read(&o.ScriptHash)

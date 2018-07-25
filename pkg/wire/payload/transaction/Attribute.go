@@ -20,7 +20,7 @@ const (
 	maxAttrSize = 65535
 )
 
-func (a *Attribute) EncodePayload(bw *util.BinWriter) {
+func (a *Attribute) Encode(bw *util.BinWriter) {
 	if len(a.Data) > maxAttrSize {
 		bw.Err = ErrMaxData
 		return
@@ -40,7 +40,7 @@ func (a *Attribute) EncodePayload(bw *util.BinWriter) {
 
 }
 
-func (a *Attribute) DecodePayload(br *util.BinReader) {
+func (a *Attribute) Decode(br *util.BinReader) {
 	br.Read(&a.Usage)
 	if a.Usage == DescriptionURL || a.Usage == Vote || a.Usage >= Hash1 && a.Usage <= Hash15 {
 		a.Data = make([]byte, 32)
