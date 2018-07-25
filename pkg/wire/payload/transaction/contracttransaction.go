@@ -3,11 +3,15 @@ package transaction
 import "github.com/CityOfZion/neo-go/pkg/wire/util"
 
 type ContractTransaction struct {
-	BasicTransaction
+	*BasicTransaction
 }
 
 func NewContractTransaction() *ContractTransaction {
-	contract := &ContractTransaction{}
+	basicTrans := createBasicTransaction(ContractType, ContractVersion)
+
+	contract := &ContractTransaction{
+		basicTrans,
+	}
 	contract.encodeExclusive = contract.encodeExcl
 	contract.decodeExclusive = contract.decodeExcl
 	return contract

@@ -19,6 +19,18 @@ type BasicTransaction struct {
 	decodeExclusive decodeExclusiveFields
 }
 
+func createBasicTransaction(Type TXType, Version TXVersion) *BasicTransaction {
+	return &BasicTransaction{
+		Type:       ContractType,
+		Version:    Version,
+		Inputs:     []*Input{},
+		Outputs:    []*Output{},
+		Attributes: []*Attribute{},
+		Witnesses:  []*Witness{},
+	}
+
+}
+
 func (b *BasicTransaction) EncodePayload(bw *util.BinWriter) {
 	b.encodeHashableFields(bw)
 

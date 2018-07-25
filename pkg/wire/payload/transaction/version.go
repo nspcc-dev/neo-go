@@ -5,7 +5,7 @@ import "github.com/CityOfZion/neo-go/pkg/wire/util"
 type TXVersion uint8
 
 const (
-	DefaultTxVersion TXVersion = 0
+	ContractVersion TXVersion = 0
 )
 
 func (v *TXVersion) Encode(bw *util.BinWriter) {
