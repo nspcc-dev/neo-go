@@ -50,3 +50,16 @@ func CompareChecksum(have uint32, b []byte) bool {
 	want := binary.LittleEndian.Uint32(sum)
 	return have == want
 }
+
+func CalculateHash(f func(bw *BinWriter)) (Uint256, error) {
+	buf := new(bytes.Buffer)
+	bw := &BinWriter{W: buf}
+
+	f(bw)
+
+	var hash Uint256
+	hash = sha256.Sum256(buf.Bytes())
+	hash = sha256.Sum256(hash.Bytes())
+	return hash, bw.Err
+
+}

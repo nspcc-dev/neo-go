@@ -1,10 +1,9 @@
 package payload
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -40,10 +39,10 @@ type BlockHeader struct {
 	_ uint8
 
 	// Script used to validate the block
-	Script Script `json:"script"`
+	Witness transaction.Witness `json:"script"`
 
 	// hash of this block, created when binary encoded.
-	hash util.Uint256
+	Hash util.Uint256
 }
 
 func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
@@ -51,7 +50,7 @@ func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
 	b.encodeHashableFields(bw)
 
 	bw.Write(uint8(1))
-	b.Script.EncodeScript(bw)
+	b.Witness.Encode(bw)
 	return bw.Err
 }
 
@@ -75,33 +74,25 @@ func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
 		return ErrPadding
 	}
 
-	b.Script = Script{}
-	b.Script.DecodeScript(br)
+	b.Witness = transaction.Witness{}
+	b.Witness.Decode(br)
 
 	return br.Err
 }
 
 func (b *BlockHeader) decodeHashableFields(br *util.BinReader) {
-	br.Read(b.Version)
-	br.Read(b.PrevHash)
-	br.Read(b.MerkleRoot)
-	br.Read(b.Timestamp)
-	br.Read(b.Index)
-	br.Read(b.ConsensusData)
-	br.Read(b.NextConsensus)
+	br.Read(&b.Version)
+	br.Read(&b.PrevHash)
+	br.Read(&b.MerkleRoot)
+	br.Read(&b.Timestamp)
+	br.Read(&b.Index)
+	br.Read(&b.ConsensusData)
+	br.Read(&b.NextConsensus)
 }
 
 func (b *BlockHeader) createHash() error {
 
-	buf := new(bytes.Buffer)
-	bw := &util.BinWriter{W: buf}
-
-	b.encodeHashableFields(bw)
-
-	var hash util.Uint256
-	hash = sha256.Sum256(buf.Bytes())
-	hash = sha256.Sum256(hash.Bytes())
-	b.hash = hash
-
-	return bw.Err
+	hash, err := util.CalculateHash(b.encodeHashableFields)
+	b.Hash = hash
+	return err
 }
