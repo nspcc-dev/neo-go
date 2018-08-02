@@ -6,13 +6,6 @@ import (
 	"encoding/binary"
 )
 
-// Uint160 array
-const uint160Size = 20
-
-type Uint160 [uint160Size]uint8
-
-// Type for CMD
-
 // Functions
 func CalculatePayloadLength(buf *bytes.Buffer) uint32 {
 
