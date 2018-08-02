@@ -42,14 +42,17 @@ func (w *BinWriter) VarUint(val uint64) {
 
 	if val < 0xfd {
 		w.Err = binary.Write(w.W, binary.LittleEndian, uint8(val))
+		return
 	}
 	if val < 0xFFFF {
 		w.Err = binary.Write(w.W, binary.LittleEndian, byte(0xfd))
 		w.Err = binary.Write(w.W, binary.LittleEndian, uint16(val))
+		return
 	}
 	if val < 0xFFFFFFFF {
 		w.Err = binary.Write(w.W, binary.LittleEndian, byte(0xfe))
 		w.Err = binary.Write(w.W, binary.LittleEndian, uint32(val))
+		return
 
 	}
 
