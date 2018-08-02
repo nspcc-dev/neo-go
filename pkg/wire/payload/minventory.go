@@ -32,9 +32,15 @@ type InvMessage struct {
 	Hashes []util.Uint256
 }
 
-func NewInvMessage(typ InvType, Hashes []util.Uint256) (*InvMessage, error) {
-	inv := &InvMessage{nil, typ, Hashes}
+func NewInvMessage(typ InvType) (*InvMessage, error) {
+
+	inv := &InvMessage{
+		new(bytes.Buffer),
+		typ,
+		nil,
+	}
 	if err := inv.EncodePayload(inv.w); err != nil {
+
 		return nil, err
 	}
 	return inv, nil
@@ -45,6 +51,9 @@ func (i *InvMessage) AddHash(h util.Uint256) error {
 		return MaxHashError
 	}
 	i.Hashes = append(i.Hashes, h)
+	if err := i.EncodePayload(i.w); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -64,15 +73,17 @@ func (v *InvMessage) DecodePayload(r io.Reader) error {
 
 // Implements messager interface
 func (v *InvMessage) EncodePayload(w io.Writer) error {
-	bw := &util.BinWriter{W: w}
 
+	bw := &util.BinWriter{W: w}
 	bw.Write(v.Type)
 
 	lenhashes := len(v.Hashes)
 	bw.VarUint(uint64(lenhashes))
 
 	for _, hash := range v.Hashes {
+
 		bw.Write(hash)
+
 	}
 
 	return bw.Err
