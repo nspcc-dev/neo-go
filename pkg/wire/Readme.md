@@ -41,14 +41,18 @@ These below commands are left to implement.
 	[ x ] CMDVerack (Needs tests)
 	[ x ] CMDGetAddr(Needs tests)
 	[ x ] CMDAddr (Needs tests)
-	[ x ] CMDGetHeaders (No tests)
-	[ x ] CMDHeaders (No tests)
-	[ x ] CMDGetBlocks (No tests)
+	[ x ] CMDGetHeaders (Needs tests)
+	[ x ] CMDHeaders (Needs tests)
+	[ x ] CMDGetBlocks (Needs tests)
 	[ x ] CMDInv (Needs Tests)
-	[ x ] CMDGetData (Need Tests)
+	[ x ] CMDGetData (Needs Tests)
 	[   ] CMDBlock
-	[   ] CMDTX
+	[   ] CMDTX (Basic Layout completed, now need to add all of the other Transactions, then tests)
 	[   ] CMDConsensus
+
+## Notes 
+
+Please not that this package will do sanity checks on the fields, however it will not verify if any of the items are valid for the current state of the system. Please see `Responbilities`.
 
 # Contributors
 
