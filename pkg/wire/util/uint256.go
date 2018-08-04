@@ -44,6 +44,10 @@ func (u Uint256) Bytes() []byte {
 	}
 	return b
 }
+func (u Uint256) Reverse() (res Uint256) {
+	res, _ = Uint256DecodeBytes(u.BytesReverse())
+	return
+}
 
 // BytesReverse return a reversed byte representation of u.
 func (u Uint256) BytesReverse() []byte {
