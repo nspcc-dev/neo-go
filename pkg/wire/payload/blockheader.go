@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrPadding = errors.New("format error: padding must equal 1")
+	ErrPadding = errors.New("There is a padding mismatch")
 )
 
 type BlockHeader struct {
@@ -43,6 +43,9 @@ type BlockHeader struct {
 
 	// hash of this block, created when binary encoded.
 	Hash util.Uint256
+
+	// Padding that is fixed to 0
+	_ uint8
 }
 
 func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
@@ -51,6 +54,7 @@ func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
 
 	bw.Write(uint8(1))
 	b.Witness.Encode(bw)
+	bw.Write(uint8(0))
 	return bw.Err
 }
 
@@ -77,6 +81,10 @@ func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
 	b.Witness = transaction.Witness{}
 	b.Witness.Decode(br)
 
+	br.Read(&padding)
+	if padding != 0 {
+		return ErrPadding
+	}
 	return br.Err
 }
 
