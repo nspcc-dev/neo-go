@@ -23,9 +23,9 @@ var (
 	ErrMaxHeaders = errors.New("Maximum amount of headers allowed is 2000")
 )
 
-func NewHeadersMessage(heads []*BlockHeader) (*HeadersMessage, error) {
+func NewHeadersMessage() (*HeadersMessage, error) {
 
-	headers := &HeadersMessage{nil, heads}
+	headers := &HeadersMessage{new(bytes.Buffer), nil}
 	if err := headers.EncodePayload(headers.w); err != nil {
 		return nil, err
 	}
