@@ -28,6 +28,7 @@ var (
 
 type InvMessage struct {
 	w      *bytes.Buffer
+	cmd    command.Type
 	Type   InvType
 	Hashes []util.Uint256
 }
@@ -36,6 +37,7 @@ func NewInvMessage(typ InvType) (*InvMessage, error) {
 
 	inv := &InvMessage{
 		new(bytes.Buffer),
+		command.Inv,
 		typ,
 		nil,
 	}
@@ -44,6 +46,18 @@ func NewInvMessage(typ InvType) (*InvMessage, error) {
 		return nil, err
 	}
 	return inv, nil
+}
+
+func newAbstractInv(typ InvType, cmd command.Type) (*InvMessage, error) {
+	inv, err := NewInvMessage(typ)
+
+	if err != nil {
+		return nil, err
+	}
+	inv.cmd = cmd
+
+	return inv, nil
+
 }
 
 func (i *InvMessage) AddHash(h util.Uint256) error {
@@ -59,6 +73,16 @@ func (i *InvMessage) AddHash(h util.Uint256) error {
 
 // Implements Messager interface
 func (v *InvMessage) DecodePayload(r io.Reader) error {
+
+	buf, err := util.ReaderToBuffer(r)
+	if err != nil {
+		return err
+	}
+
+	v.w = buf
+
+	r = bytes.NewReader(buf.Bytes())
+
 	br := &util.BinReader{R: r}
 
 	br.Read(&v.Type)
@@ -101,5 +125,5 @@ func (v *InvMessage) Checksum() uint32 {
 
 // Implements messager interface
 func (v *InvMessage) Command() command.Type {
-	return command.Inv
+	return v.cmd
 }
