@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewAddrMessage(t *testing.T) {
+func TestAddrMessageEncodeDecode(t *testing.T) {
 
 	ip := []byte(net.ParseIP("127.0.0.1").To16())
 
