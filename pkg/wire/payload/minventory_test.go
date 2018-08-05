@@ -13,28 +13,17 @@ import (
 
 func TestNewInventory(t *testing.T) {
 	msgInv, err := NewInvMessage(InvTypeBlock)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+
+	assert.Equal(t, nil, err)
 	assert.Equal(t, command.Inv, msgInv.Command())
 
 	hash, _ := util.Uint256DecodeBytes([]byte("hello"))
-	if err = msgInv.AddHash(hash); err != nil {
-		assert.Fail(t, "Error Adding a hash %s", err.Error())
-	}
-
-	for i := 0; i <= maxHashes+1; i++ {
-		err = msgInv.AddHash(hash)
-	}
-	if err == nil {
-		assert.Fail(t, "Max Hashes Exceeded, only allowed %v but have %v", maxHashes, len(msgInv.Hashes))
-	}
+	err = msgInv.AddHash(hash)
+	assert.Equal(t, nil, err)
 }
 func TestMaxHashes(t *testing.T) {
 	msgInv, err := NewInvMessage(InvTypeBlock)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+	assert.Equal(t, nil, err)
 
 	hash, _ := util.Uint256DecodeBytes([]byte("hello"))
 
@@ -49,20 +38,17 @@ func TestMaxHashes(t *testing.T) {
 }
 func TestEncodeDecodePayload(t *testing.T) {
 	msgInv, err := NewInvMessage(InvTypeBlock)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+	assert.Equal(t, nil, err)
 
 	blockOneHash := "d782db8a38b0eea0d7394e0f007c61c71798867578c77c387c08113903946cc9"
 	hash, _ := util.Uint256DecodeString(blockOneHash)
 
-	if err = msgInv.AddHash(hash); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err = msgInv.AddHash(hash)
+	assert.Equal(t, nil, err)
+
 	buf := new(bytes.Buffer)
-	if err = msgInv.EncodePayload(buf); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err = msgInv.EncodePayload(buf)
+	assert.Equal(t, nil, err)
 
 	numOfHashes := []byte{0, 0, 0, 1}
 	expected := append([]byte{byte(InvTypeBlock)}, numOfHashes...)
@@ -72,18 +58,17 @@ func TestEncodeDecodePayload(t *testing.T) {
 
 	var InvDec InvMessage
 	r := bytes.NewReader(buf.Bytes())
-	if err = InvDec.DecodePayload(r); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err = InvDec.DecodePayload(r)
+	assert.Equal(t, nil, err)
+
 	assert.Equal(t, 1, len(InvDec.Hashes))
 	assert.Equal(t, blockOneHash, hex.EncodeToString(InvDec.Hashes[0].Bytes()))
 
 }
 func TestEmptyInv(t *testing.T) {
 	msgInv, err := NewInvMessage(InvTypeBlock)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+	assert.Equal(t, nil, err)
+
 	buf := new(bytes.Buffer)
 	msgInv.EncodePayload(buf)
 	assert.Equal(t, []byte{byte(InvTypeBlock), 0, 0, 0, 0}, buf.Bytes())

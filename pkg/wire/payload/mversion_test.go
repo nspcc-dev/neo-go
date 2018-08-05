@@ -15,10 +15,8 @@ func TestValidNewVersionMessage(t *testing.T) {
 	expectedPort := 8333
 	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP(expectedIP), Port: expectedPort}
 	message, err := NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
 
+	assert.Equal(t, nil, err)
 	assert.Equal(t, expectedIP, message.IP.String())
 	assert.Equal(t, uint16(expectedPort), message.Port)
 	assert.Equal(t, protocol.DefaultVersion, message.Version)
@@ -29,13 +27,11 @@ func TestEncode(t *testing.T) {
 	expectedPort := 8333
 	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP(expectedIP), Port: expectedPort}
 	message, err := NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+
 	buf := new(bytes.Buffer)
-	if err := message.EncodePayload(buf); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err = message.EncodePayload(buf)
+
+	assert.Equal(t, nil, err)
 	assert.Equal(t, len(message.UserAgent)+minMsgVersionSize, int(buf.Len()))
 }
 func TestLenIsCorrect(t *testing.T) {
@@ -44,8 +40,7 @@ func TestLenIsCorrect(t *testing.T) {
 	expectedPort := 8333
 	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP(expectedIP), Port: expectedPort}
 	message, err := NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion)
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
+
+	assert.Equal(t, nil, err)
 	assert.Equal(t, len(message.UserAgent)+minMsgVersionSize, int(message.PayloadLength()))
 }

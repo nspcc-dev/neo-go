@@ -13,10 +13,8 @@ import (
 
 func TestNewHeaderMessage(t *testing.T) {
 	msgHeaders, err := NewHeadersMessage()
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
 
+	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, len(msgHeaders.headers))
 
 }
@@ -46,10 +44,8 @@ func TestAddAndEncodeHeaders(t *testing.T) {
 
 	assert.Equal(t, 1, len(msgHeaders.headers))
 
-	if err := msgHeaders.headers[0].createHash(); err != nil {
-		assert.Fail(t, err.Error())
-	}
-
+	err := msgHeaders.headers[0].createHash()
+	assert.Equal(t, nil, err)
 	// Hash being correct, automatically verifies that the fields are encoded properly
 	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", msgHeaders.headers[0].Hash.String())
 
@@ -64,16 +60,15 @@ func TestDecode(t *testing.T) {
 
 	r := bytes.NewReader(rawBlockBytes)
 
-	if err := msg.DecodePayload(r); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err := msg.DecodePayload(r)
+	assert.Equal(t, nil, err)
 
 	assert.Equal(t, 1, len(msg.headers))
 
 	header := msg.headers[0]
-	if err := header.createHash(); err != nil {
-		assert.Fail(t, err.Error())
-	}
+	err = header.createHash()
+	assert.Equal(t, nil, err)
+
 	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", header.Hash.String())
 
 }
