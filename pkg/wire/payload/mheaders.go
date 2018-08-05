@@ -43,6 +43,15 @@ func (h *HeadersMessage) AddHeader(head *BlockHeader) error {
 // Implements Messager interface
 func (v *HeadersMessage) DecodePayload(r io.Reader) error {
 
+	buf, err := util.ReaderToBuffer(r)
+	if err != nil {
+		return err
+	}
+
+	v.w = buf
+
+	r = bytes.NewReader(buf.Bytes())
+
 	br := &util.BinReader{R: r}
 
 	lenHeaders := br.VarUint()
