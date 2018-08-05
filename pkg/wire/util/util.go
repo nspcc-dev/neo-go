@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
 )
 
 // Functions
@@ -40,4 +42,17 @@ func CalculateHash(f func(bw *BinWriter)) (Uint256, error) {
 	hash = sha256.Sum256(hash.Bytes())
 	return hash, bw.Err
 
+}
+
+func ReaderToBuffer(r io.Reader) (buf *bytes.Buffer, err error) {
+	byt, err := ioutil.ReadAll(r)
+
+	if err != nil {
+
+		return
+	}
+
+	buf = bytes.NewBuffer(byt)
+
+	return
 }
