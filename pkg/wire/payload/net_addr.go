@@ -16,7 +16,7 @@ type net_addr struct {
 	Service   protocol.ServiceFlag
 }
 
-func NewAddrMessage(time uint32, ip [16]byte, port uint16, service protocol.ServiceFlag) (*net_addr, error) {
+func NewNetAddr(time uint32, ip [16]byte, port uint16, service protocol.ServiceFlag) (*net_addr, error) {
 	return &net_addr{time, ip, port, service}, nil
 }
 
@@ -26,7 +26,7 @@ func NewAddrFromVersionMessage(version VersionMessage) (*net_addr, error) {
 
 	copy(ip[:], []byte(version.IP)[:16])
 
-	return NewAddrMessage(version.Timestamp, ip, version.Port, version.Services)
+	return NewNetAddr(version.Timestamp, ip, version.Port, version.Services)
 }
 
 func (n *net_addr) EncodePayload(bw *util.BinWriter) {
