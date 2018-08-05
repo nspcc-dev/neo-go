@@ -23,6 +23,11 @@ func (r *BinReader) ReadBigEnd(v interface{}) {
 	binary.Read(r.R, binary.BigEndian, v)
 }
 
+// func (br *BinReader) Bytes() {
+// 	by, _ := util.ReaderToBuffer(br.R)
+// 	return by
+// }
+
 func (r *BinReader) VarUint() uint64 {
 	var b uint8
 	binary.Read(r.R, binary.LittleEndian, &b)
