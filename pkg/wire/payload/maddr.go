@@ -13,6 +13,25 @@ type AddrMessage struct {
 	AddrList []*net_addr
 }
 
+func NewAddrMessage() (*AddrMessage, error) {
+	addrMess := &AddrMessage{
+		new(bytes.Buffer),
+		nil,
+	}
+	return addrMess, nil
+}
+
+func (a *AddrMessage) AddNetAddr(n *net_addr) error {
+	a.AddrList = append(a.AddrList, n)
+	// check if max reached, if so return err. What is max?
+
+	if err := a.EncodePayload(a.w); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Implements Messager interface
 func (a *AddrMessage) DecodePayload(r io.Reader) error {
 
@@ -22,6 +41,8 @@ func (a *AddrMessage) DecodePayload(r io.Reader) error {
 	}
 
 	a.w = buf
+
+	r = bytes.NewReader(buf.Bytes())
 
 	br := &util.BinReader{R: r}
 	listLen := br.VarUint()
