@@ -61,16 +61,21 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver proto
 
 // Implements Messager interface
 func (v *VersionMessage) DecodePayload(r io.Reader) error {
+
+	buf, err := util.ReaderToBuffer(r)
+	if err != nil {
+		return err
+	}
+
+	v.w = buf
+
+	r = bytes.NewReader(buf.Bytes()) // reader is a pointer, so ReaderToBuffer will drain all bytes from it. Repopulate
+
 	br := &util.BinReader{R: r}
-
 	br.Read(&v.Version)
-
 	br.Read(&v.Services)
-
 	br.Read(&v.Timestamp)
-
 	br.ReadBigEnd(&v.Port)
-
 	br.Read(&v.Nonce)
 
 	var lenUA uint8
