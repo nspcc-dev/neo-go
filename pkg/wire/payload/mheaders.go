@@ -37,6 +37,9 @@ func (h *HeadersMessage) AddHeader(head *BlockHeader) error {
 		return ErrMaxHeaders
 	}
 	h.headers = append(h.headers, head)
+	if err := h.EncodePayload(h.w); err != nil {
+		return err
+	}
 	return nil
 }
 
