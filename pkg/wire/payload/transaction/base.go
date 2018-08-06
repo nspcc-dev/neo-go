@@ -123,6 +123,7 @@ func (b *Base) decodeHashableFields(br *util.BinReader) {
 	}
 
 	lenInputs := br.VarUint()
+
 	b.Inputs = make([]*Input, lenInputs)
 	for i := 0; i < int(lenInputs); i++ {
 		b.Inputs[i] = &Input{}
