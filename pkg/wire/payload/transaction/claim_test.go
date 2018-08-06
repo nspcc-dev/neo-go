@@ -28,12 +28,11 @@ func TestEncodeDecodeClaim(t *testing.T) {
 	claim := c.Claims[0]
 	assert.Equal(t, "497037a4c5e0a9ea1721e06f9d5e9aec183d11f2824ece93285729370f3a1baf", claim.PrevHash.String())
 	assert.Equal(t, uint16(0), claim.PrevIndex)
+	assert.Equal(t, "abf142faf539c340e42722b5b34b505cf4fd73185fed775784e37c2c5ef1b866", c.Hash.String())
 
+	// Encode
 	buf := new(bytes.Buffer)
-
 	err = c.Encode(buf)
 	assert.Equal(t, nil, err)
-
-	assert.Equal(t, "abf142faf539c340e42722b5b34b505cf4fd73185fed775784e37c2c5ef1b866", c.Hash.String())
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 }
