@@ -16,7 +16,7 @@ type Base struct {
 	Checksum uint32
 }
 
-// Note, That there is no EncodeMessageBase
+// Note, That there is no EncodeBase
 // As the header is implicitly inferred from
 // the message on Encode To send
 func (h *Base) DecodeBase(r io.Reader) (io.Reader, error) {
