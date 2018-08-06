@@ -14,10 +14,8 @@ type Claim struct {
 func NewClaim(ver version.TX) *Claim {
 	basicTrans := createBaseTransaction(types.Contract, ver)
 
-	claim := &Claim{
-		basicTrans,
-		nil,
-	}
+	claim := &Claim{}
+	claim.Base = basicTrans
 	claim.encodeExclusive = claim.encodeExcl
 	claim.decodeExclusive = claim.decodeExcl
 	return claim

@@ -31,15 +31,8 @@ type Register struct {
 func NewRegister(ver version.TX) *Register {
 	basicTrans := createBaseTransaction(types.Register, ver)
 
-	Register := &Register{
-		basicTrans,
-		0,
-		"",
-		0,
-		0,
-		PublicKey{},
-		util.Uint160{},
-	}
+	Register := &Register{}
+	Register.Base = basicTrans
 	Register.encodeExclusive = Register.encodeExcl
 	Register.decodeExclusive = Register.decodeExcl
 	return Register

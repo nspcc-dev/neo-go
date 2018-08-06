@@ -18,11 +18,8 @@ type Invocation struct {
 func NewInvocation(ver version.TX) *Invocation {
 	basicTrans := createBaseTransaction(types.Invocation, ver)
 
-	invocation := &Invocation{
-		basicTrans,
-		nil,
-		0,
-	}
+	invocation := &Invocation{}
+	invocation.Base = basicTrans
 	invocation.encodeExclusive = invocation.encodeExcl
 	invocation.decodeExclusive = invocation.decodeExcl
 	return invocation

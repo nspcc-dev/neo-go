@@ -14,10 +14,8 @@ type Miner struct {
 func NewMiner(ver version.TX) *Miner {
 	basicTrans := createBaseTransaction(types.Miner, ver)
 
-	Miner := &Miner{
-		basicTrans,
-		0,
-	}
+	Miner := &Miner{}
+	Miner.Base = basicTrans
 	Miner.encodeExclusive = Miner.encodeExcl
 	Miner.decodeExclusive = Miner.decodeExcl
 	return Miner

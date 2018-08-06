@@ -14,10 +14,8 @@ type Enrollment struct {
 func NewEnrollment(ver version.TX) *Enrollment {
 	basicTrans := createBaseTransaction(types.Enrollment, ver)
 
-	Enrollment := &Enrollment{
-		basicTrans,
-		PublicKey{},
-	}
+	Enrollment := &Enrollment{}
+	Enrollment.Base = basicTrans
 	Enrollment.encodeExclusive = Enrollment.encodeExcl
 	Enrollment.decodeExclusive = Enrollment.decodeExcl
 	return Enrollment

@@ -16,10 +16,8 @@ type StateTX struct {
 func NewStateTX(ver version.TX) *StateTX {
 	basicTrans := createBaseTransaction(types.State, ver)
 
-	StateTX := &StateTX{
-		basicTrans,
-		nil,
-	}
+	StateTX := &StateTX{}
+	StateTX.Base = basicTrans
 	StateTX.encodeExclusive = StateTX.encodeExcl
 	StateTX.decodeExclusive = StateTX.decodeExcl
 	return StateTX
