@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"errors"
-
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/version"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -25,7 +23,7 @@ type Register struct {
 	Precision uint8
 
 	// Public key of the owner
-	Owner []byte
+	Owner PublicKey
 
 	Admin util.Uint160
 }
@@ -39,7 +37,7 @@ func NewRegister(ver version.TX) *Register {
 		"",
 		0,
 		0,
-		nil,
+		PublicKey{},
 		util.Uint160{},
 	}
 	Register.encodeExclusive = Register.encodeExcl
@@ -52,7 +50,7 @@ func (r *Register) encodeExcl(bw *util.BinWriter) {
 	bw.VarString(r.Name)
 	bw.Write(r.Amount)
 	bw.Write(r.Precision)
-	bw.Write(r.Owner)
+	r.Owner.Encode(bw)
 	bw.Write(r.Admin)
 	return
 }
@@ -63,20 +61,6 @@ func (r *Register) decodeExcl(br *util.BinReader) {
 	br.Read(&r.Amount)
 	br.Read(&r.Precision)
 
-	var prefix uint8
-	br.Read(&prefix)
-
-	// Compressed public keys.
-	if prefix == 0x02 || prefix == 0x03 {
-		r.Owner = make([]byte, 32)
-		br.Read(r.Owner)
-	} else if prefix == 0x04 {
-		r.Owner = make([]byte, 65)
-		br.Read(r.Owner)
-	} else {
-		br.Err = errors.New("Prefix not recognised for public key")
-	}
-
-	r.Owner = append([]byte{prefix}, r.Owner...)
+	r.Owner.Decode(br)
 	br.Read(&r.Admin)
 }
