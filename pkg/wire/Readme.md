@@ -38,16 +38,16 @@ It will return a Messager interface, which means that the caller of the package 
 These below commands are left to implement.
 
 	[ x ] CMDVersion (Tests added)
-	[ x ] CMDVerack (Needs tests)
-	[ x ] CMDGetAddr(Needs tests)
-	[ x ] CMDAddr (Needs tests)
-	[ x ] CMDGetHeaders (Needs tests)
-	[ x ] CMDHeaders (Needs tests)
-	[ x ] CMDGetBlocks (Needs tests)
-	[ x ] CMDInv (Needs Tests)
-	[ x ] CMDGetData (Needs Tests)
-	[   ] CMDBlock
-	[   ] CMDTX (Basic Layout completed, now need to add all of the other Transactions, then tests)
+	[ x ] CMDVerack (Tests Added)
+	[ x ] CMDGetAddr(Tests Added)
+	[ x ] CMDAddr (Tests Added)
+	[ x ] CMDGetHeaders (Tests Added)
+	[ x ] CMDHeaders (Tests Added)
+	[ x ] CMDGetBlocks (Tests Added)
+	[ x ] CMDInv (Tests Added)
+	[ x ] CMDGetData (Tests Added)
+	[ x ] CMDBlock
+	[ x ] CMDTX // Each tx implments the messager interface
 	[   ] CMDConsensus
 
 ## Notes 
