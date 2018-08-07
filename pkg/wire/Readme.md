@@ -46,7 +46,7 @@ These below commands are left to implement.
 	[ x ] CMDGetBlocks (Tests Added)
 	[ x ] CMDInv (Tests Added)
 	[ x ] CMDGetData (Tests Added)
-	[ x ] CMDBlock
+	[ x ] CMDBlock (Tests Added)
 	[ x ] CMDTX // Each tx implments the messager interface
 	[   ] CMDConsensus
 
