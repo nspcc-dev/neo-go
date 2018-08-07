@@ -1,9 +1,7 @@
 package transaction
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
@@ -33,7 +31,6 @@ func (a *Attribute) Encode(bw *util.BinWriter) {
 		bw.Write(a.Data[:32])
 
 	} else if a.Usage == Script {
-		fmt.Println(hex.EncodeToString(a.Data))
 		bw.Write(a.Data[:20])
 	} else if a.Usage == ECDH02 || a.Usage == ECDH03 {
 		bw.Write(a.Data[1:33])

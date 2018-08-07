@@ -39,3 +39,5 @@ func (c *Claim) decodeExcl(br *util.BinReader) {
 	}
 
 }
+
+// use encode and decode exclusive to make the interface

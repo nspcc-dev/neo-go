@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"fmt"
-
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/version"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -38,6 +36,5 @@ func (s *StateTX) decodeExcl(br *util.BinReader) {
 	for i := 0; i < int(lenDesc); i++ {
 		s.Descriptors[i] = &StateDescriptor{}
 		s.Descriptors[i].Decode(br)
-		fmt.Println(s.Descriptors[i])
 	}
 }

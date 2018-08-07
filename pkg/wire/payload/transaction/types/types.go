@@ -1,8 +1,6 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -28,8 +26,6 @@ func (t *TX) Encode(bw *util.BinWriter) {
 }
 func (t *TX) Decode(br *util.BinReader) {
 	br.Read(t)
-
-	fmt.Println(t.String())
 }
 
 // String implements the stringer interface.
