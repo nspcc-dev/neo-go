@@ -18,8 +18,6 @@ type decodeExclusiveFields func(br *util.BinReader)
 type Transactioner interface {
 	Encode(w io.Writer) error
 	Decode(r io.Reader) error
-	encodeExcl(bw *util.BinWriter)
-	decodeExcl(br *util.BinReader)
 }
 
 // Base transaction is the template for all other transactions
