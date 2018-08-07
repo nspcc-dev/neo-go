@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
@@ -11,6 +10,17 @@ import (
 
 type encodeExclusiveFields func(bw *util.BinWriter)
 type decodeExclusiveFields func(br *util.BinReader)
+
+// Transactioner is the interface that will unite the
+// transaction types. Each transaction will implement this interface
+// and so wil be a transactioner
+
+type Transactioner interface {
+	Encode(w io.Writer) error
+	Decode(r io.Reader) error
+	encodeExcl(bw *util.BinWriter)
+	decodeExcl(br *util.BinReader)
+}
 
 // Base transaction is the template for all other transactions
 // It contains all of the shared fields between transactions and
@@ -108,9 +118,8 @@ func (b *Base) encodeHashableFields(bw *util.BinWriter) {
 // created for consistency
 func (b *Base) decodeHashableFields(br *util.BinReader) {
 	b.Type.Decode(br)
-	fmt.Println("Type", b.Type)
+
 	b.Version.Decode(br)
-	fmt.Println("Version", b.Version)
 
 	b.decodeExclusive(br)
 
