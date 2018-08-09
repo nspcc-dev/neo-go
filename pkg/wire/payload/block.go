@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
-	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
@@ -42,7 +41,7 @@ func (b *Block) DecodePayload(br *util.BinReader) error {
 	reader := bufio.NewReader(br.R)
 	for i := 0; i < int(lenTXs); i++ {
 
-		tx, err := BytesToTransaction(reader)
+		tx, err := transaction.FromBytes(reader)
 		if err != nil {
 			return err
 		}
@@ -51,36 +50,4 @@ func (b *Block) DecodePayload(br *util.BinReader) error {
 	}
 	return nil
 
-}
-
-func BytesToTransaction(reader *bufio.Reader) (transaction.Transactioner, error) {
-
-	t, err := reader.Peek(1)
-
-	typ := types.TX(t[0])
-	var trans transaction.Transactioner
-
-	switch typ {
-	case types.Miner:
-		miner := transaction.NewMiner(0)
-		err = miner.Decode(reader)
-		// fmt.Println(miner.Type, miner.Hash.String())
-		trans = miner
-	case types.Contract:
-		contract := transaction.NewContract(0)
-		err = contract.Decode(reader)
-		// fmt.Println(contract.Type, contract.Hash.String())
-		trans = contract
-	case types.Invocation:
-		invoc := transaction.NewInvocation(0)
-		err = invoc.Decode(reader)
-		// fmt.Println(invoc.Type, invoc.Hash.String())
-		trans = invoc
-	case types.Claim:
-		claim := transaction.NewClaim(0)
-		err = claim.Decode(reader)
-		// fmt.Println(claim.Type, claim.Hash.String())
-		trans = claim
-	}
-	return trans, err
 }
