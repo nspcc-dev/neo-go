@@ -23,10 +23,10 @@ func TestWriteMessageLen(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
-	if err := WriteMessage(buf, protocol.Production, message); err != nil {
+	if err := WriteMessage(buf, protocol.MainNet, message); err != nil {
 		assert.Fail(t, err.Error())
 	}
-	assert.Equal(t, 61, len(buf.Bytes()))
+	assert.Equal(t, 63, len(buf.Bytes()))
 }
 func TestReadMessage(t *testing.T) {
 
@@ -39,11 +39,11 @@ func TestReadMessage(t *testing.T) {
 		assert.Fail(t, err.Error())
 	}
 	buf := new(bytes.Buffer)
-	if err := WriteMessage(buf, protocol.Production, message); err != nil {
+	if err := WriteMessage(buf, protocol.MainNet, message); err != nil {
 		assert.Fail(t, err.Error())
 	}
 
-	readmsg, err := ReadMessage(buf, protocol.Production)
+	readmsg, err := ReadMessage(buf, protocol.MainNet)
 
 	if err != nil {
 		assert.Fail(t, err.Error())
