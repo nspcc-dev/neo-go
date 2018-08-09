@@ -3,8 +3,9 @@ package wire
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
@@ -20,6 +21,11 @@ type Messager interface {
 	Command() command.Type
 }
 
+const (
+	// Magic + cmd + length + checksum
+	minMsgSize = 4 + 12 + 4 + 4
+)
+
 var (
 	errChecksumMismatch = errors.New("checksum mismatch")
 )
@@ -31,9 +37,12 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 	bw.Write(message.PayloadLength())
 	bw.Write(message.Checksum())
 
-	if err := message.EncodePayload(bw.W); err != nil {
+	buf := new(bytes.Buffer)
+	if err := message.EncodePayload(buf); err != nil {
 		return err
 	}
+
+	bw.WriteBigEnd(buf.Bytes())
 
 	return bw.Err
 }
@@ -41,25 +50,28 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 
 	var header Base
-	r, err := header.DecodeBase(r)
+	rem, err := header.DecodeBase(r)
 
 	buf := new(bytes.Buffer)
 
-	n, err := io.CopyN(buf, r, int64(header.Length))
+	_, err = io.CopyN(buf, rem, int64(header.PayloadLength))
 	if err != nil {
 		return nil, err
 	}
 
-	if uint32(n) != header.Length {
-		return nil, fmt.Errorf("expected to have read exactly %d bytes got %d", header.Length, n)
-	}
 	// Compare the checksum of the payload.
-	if !util.CompareChecksum(header.Checksum, buf.Bytes()) {
+	if !checksum.Compare(header.Checksum, buf.Bytes()) {
 		return nil, errChecksumMismatch
 	}
 	switch header.CMD {
 	case command.Version:
 		v := &payload.VersionMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.Verack:
+		v := &payload.VerackMessage{}
 		if err := v.DecodePayload(buf); err != nil {
 			return nil, err
 		}
