@@ -4,7 +4,7 @@ type Version uint32
 
 const (
 	DefaultVersion Version = 0
-	UserAgent              = "NEO-GO-V2" // TODO: This may be relocated to a config file
+	UserAgent              = "/NEO-GO/" // TODO: This may be relocated to a config file
 )
 
 // ServiceFlag indicates the services provided by the node. 1 = P2P Full Node
@@ -22,6 +22,6 @@ const (
 type Magic uint32
 
 const (
-	Production Magic = 0x00746e41
-	Test       Magic = 0x74746e41
+	MainNet Magic = 7630401
+	TestNet Magic = 0x74746e41
 )
