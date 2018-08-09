@@ -11,7 +11,7 @@ var (
 	ErrPadding = errors.New("There is a padding mismatch")
 )
 
-type BlockHeader struct {
+type BlockBase struct {
 	// Version of the block.
 	Version uint32 `json:"version"`
 
@@ -43,23 +43,19 @@ type BlockHeader struct {
 
 	// hash of this block, created when binary encoded.
 	Hash util.Uint256
-
-	// Padding that is fixed to 0
-	_ uint8
 }
 
-func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
+func (b *BlockBase) EncodePayload(bw *util.BinWriter) error {
 
 	b.encodeHashableFields(bw)
 
 	bw.Write(uint8(1))
 	b.Witness.Encode(bw)
-	bw.Write(uint8(0))
 
 	return bw.Err
 }
 
-func (b *BlockHeader) encodeHashableFields(bw *util.BinWriter) {
+func (b *BlockBase) encodeHashableFields(bw *util.BinWriter) {
 	bw.Write(b.Version)
 	bw.Write(b.PrevHash)
 	bw.Write(b.MerkleRoot)
@@ -69,7 +65,7 @@ func (b *BlockHeader) encodeHashableFields(bw *util.BinWriter) {
 	bw.Write(b.NextConsensus)
 }
 
-func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
+func (b *BlockBase) DecodePayload(br *util.BinReader) error {
 
 	b.decodeHashableFields(br)
 
@@ -82,14 +78,10 @@ func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
 	b.Witness = transaction.Witness{}
 	b.Witness.Decode(br)
 
-	br.Read(&padding)
-	if padding != 0 {
-		return ErrPadding
-	}
 	return br.Err
 }
 
-func (b *BlockHeader) decodeHashableFields(br *util.BinReader) {
+func (b *BlockBase) decodeHashableFields(br *util.BinReader) {
 	br.Read(&b.Version)
 	br.Read(&b.PrevHash)
 	br.Read(&b.MerkleRoot)
@@ -99,7 +91,7 @@ func (b *BlockHeader) decodeHashableFields(br *util.BinReader) {
 	br.Read(&b.NextConsensus)
 }
 
-func (b *BlockHeader) createHash() error {
+func (b *BlockBase) createHash() error {
 
 	hash, err := util.CalculateHash(b.encodeHashableFields)
 	b.Hash = hash

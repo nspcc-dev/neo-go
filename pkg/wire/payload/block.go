@@ -9,7 +9,7 @@ import (
 )
 
 type Block struct {
-	BlockHeader
+	BlockBase
 	Txs []transaction.Transactioner
 }
 
@@ -24,7 +24,7 @@ func (b *Block) Encode(w io.Writer) error {
 	return bw.Err
 }
 func (b *Block) EncodePayload(bw *util.BinWriter) {
-	b.BlockHeader.EncodePayload(bw)
+	b.BlockBase.EncodePayload(bw)
 	bw.VarUint(uint64(len(b.Txs)))
 	for _, tx := range b.Txs {
 		tx.Encode(bw.W)
@@ -33,7 +33,7 @@ func (b *Block) EncodePayload(bw *util.BinWriter) {
 
 func (b *Block) DecodePayload(br *util.BinReader) error {
 
-	b.BlockHeader.DecodePayload(br)
+	b.BlockBase.DecodePayload(br)
 	lenTXs := br.VarUint()
 
 	b.Txs = make([]transaction.Transactioner, lenTXs)
