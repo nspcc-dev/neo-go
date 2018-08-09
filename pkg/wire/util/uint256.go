@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util/slice"
 )
@@ -62,6 +63,19 @@ func (u Uint256) Equals(other Uint256) bool {
 // String implements the stringer interface.
 func (u Uint256) String() string {
 	return hex.EncodeToString(slice.Reverse(u.Bytes()))
+}
+
+// UnmarshalJSON implements the json unmarshaller interface.
+func (u *Uint256) UnmarshalJSON(data []byte) (err error) {
+	var js string
+	if err = json.Unmarshal(data, &js); err != nil {
+		return err
+	}
+	if strings.HasPrefix(js, "0x") {
+		js = js[2:]
+	}
+	*u, err = Uint256DecodeString(js)
+	return err
 }
 
 // MarshalJSON implements the json marshaller interface.
