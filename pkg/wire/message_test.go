@@ -26,7 +26,8 @@ func TestWriteMessageLen(t *testing.T) {
 	if err := WriteMessage(buf, protocol.MainNet, message); err != nil {
 		assert.Fail(t, err.Error())
 	}
-	assert.Equal(t, 63, len(buf.Bytes()))
+	// This test will fail, if useragent is changed in protocol
+	assert.Equal(t, 60, len(buf.Bytes()))
 }
 func TestReadMessage(t *testing.T) {
 
