@@ -1,10 +1,12 @@
 package wire
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
 	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
@@ -76,6 +78,63 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 			return nil, err
 		}
 		return v, nil
+	case command.Inv:
+		v := &payload.InvMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.GetAddr:
+		v := &payload.GetAddrMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.Addr:
+		v := &payload.AddrMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.Block:
+		v := &payload.BlockMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+	case command.GetBlocks:
+		v := &payload.GetBlocksMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.GetData:
+		v := &payload.GetDataMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.GetHeaders:
+		v := &payload.GetHeadersMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.Headers:
+		v := &payload.HeadersMessage{}
+		if err := v.DecodePayload(buf); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case command.TX:
+		reader := bufio.NewReader(buf)
+		tx, err := transaction.FromBytes(reader)
+
+		if err != nil {
+			return nil, err
+		}
+		t, err := payload.NewTXMessage(tx)
+
+		return t, err
 	}
 	return nil, nil
 
