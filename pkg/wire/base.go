@@ -10,10 +10,10 @@ import (
 // Base is everything in the message except the payload
 
 type Base struct {
-	Magic    uint32
-	CMD      command.Type
-	Length   uint32
-	Checksum uint32
+	Magic         uint32
+	CMD           command.Type
+	PayloadLength uint32
+	Checksum      uint32
 }
 
 // Note, That there is no EncodeBase
@@ -28,7 +28,7 @@ func (h *Base) DecodeBase(r io.Reader) (io.Reader, error) {
 	br.Read(&cmd)
 	h.CMD = command.Type(cmdByteArrayToString(cmd))
 
-	br.Read(&h.Length)
+	br.Read(&h.PayloadLength)
 	br.Read(&h.Checksum)
 	return br.R, br.Err
 }
