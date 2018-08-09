@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util/slice"
 	"golang.org/x/crypto/ripemd160"
@@ -77,19 +76,6 @@ func (u Uint160) Equals(other Uint160) bool {
 		}
 	}
 	return true
-}
-
-// UnmarshalJSON implements the json unmarshaller interface.
-func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
-	var js string
-	if err = json.Unmarshal(data, &js); err != nil {
-		return err
-	}
-	if strings.HasPrefix(js, "0x") {
-		js = js[2:]
-	}
-	*u, err = Uint160DecodeString(js)
-	return err
 }
 
 // MarshalJSON implements the json marshaller interface.
