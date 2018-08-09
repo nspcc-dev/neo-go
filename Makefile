@@ -39,8 +39,6 @@ push-to-registry:
 	@docker push CityOfZion/${REPONAME}:${CIRCLE_TAG}
 	@docker push CityOfZion/${REPONAME}
 
-run: build
-	./bin/neo-go node -config-path ./config -${NETMODE}
 
 run-cluster: build-linux
 	@echo "=> Starting docker-compose cluster"
