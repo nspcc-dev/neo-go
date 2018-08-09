@@ -6,6 +6,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
+	checksum "github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 )
 
 type GetHeadersMessage struct {
@@ -73,7 +74,7 @@ func (v *GetHeadersMessage) PayloadLength() uint32 {
 
 // Implements messager interface
 func (v *GetHeadersMessage) Checksum() uint32 {
-	return util.CalculateCheckSum(v.w)
+	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface

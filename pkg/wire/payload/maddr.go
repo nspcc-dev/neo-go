@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
+
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
@@ -78,7 +80,7 @@ func (v *AddrMessage) PayloadLength() uint32 {
 
 // Implements messager interface
 func (v *AddrMessage) Checksum() uint32 {
-	return util.CalculateCheckSum(v.w)
+	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface
