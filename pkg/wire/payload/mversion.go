@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 )
 
 const (
@@ -46,7 +47,7 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver proto
 		protocol.NodePeerService,
 		tcpAddr.IP,
 		uint16(tcpAddr.Port),
-		rand.Uint32(),
+		randRange(12949672, 42949672),
 		[]byte(protocol.UserAgent),
 		startHeight,
 		relay,
@@ -75,7 +76,7 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	br.Read(&v.Version)
 	br.Read(&v.Services)
 	br.Read(&v.Timestamp)
-	br.ReadBigEnd(&v.Port)
+	br.Read(&v.Port) // Port is not BigEndian
 	br.Read(&v.Nonce)
 
 	var lenUA uint8
@@ -100,7 +101,7 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	bw.Write(v.Version)
 	bw.Write(v.Services)
 	bw.Write(v.Timestamp)
-	bw.WriteBigEnd(v.Port)
+	bw.Write(v.Port) // Not big End
 	bw.Write(v.Nonce)
 	bw.Write(uint8(len(v.UserAgent)))
 	bw.Write(v.UserAgent)
@@ -116,10 +117,15 @@ func (v *VersionMessage) PayloadLength() uint32 {
 
 // Implements messager interface
 func (v *VersionMessage) Checksum() uint32 {
-	return util.CalculateCheckSum(v.w)
+	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface
 func (v *VersionMessage) Command() command.Type {
 	return command.Version
+}
+
+func randRange(min, max int) uint32 {
+	rand.Seed(time.Now().Unix() + int64(rand.Uint64()))
+	return uint32(rand.Intn(max-min) + min)
 }
