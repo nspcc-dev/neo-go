@@ -19,7 +19,7 @@ func TestBlockDecodeEncode(t *testing.T) {
 	r := bytes.NewReader(rawtxBytes)
 	b.Decode(r)
 
-	expected := map[string]bool{
+	expected := map[string]bool{ // 18 trans
 
 		"009f61f481f47eb7478e887871e4e744669d461b13d68e04250035260171d706": false,
 		"3a62e473c1d67ac561b98e8131f7f7ceded4cd250edb78a6814ec9915930ad93": false,
@@ -64,9 +64,13 @@ func TestBlockDecodeEncode(t *testing.T) {
 	}
 
 	// iterate map; all vlaues should be true
+	val := true
 	for _, v := range expected {
-		assert.Equal(t, true, v)
+		if v == false {
+			val = false
+		}
 	}
+	assert.Equal(t, true, val)
 
 	buf := new(bytes.Buffer)
 

@@ -54,7 +54,8 @@ func (b *BlockHeader) EncodePayload(bw *util.BinWriter) error {
 
 	bw.Write(uint8(1))
 	b.Witness.Encode(bw)
-	// bw.Write(uint8(0))
+	bw.Write(uint8(0))
+
 	return bw.Err
 }
 
@@ -81,10 +82,10 @@ func (b *BlockHeader) DecodePayload(br *util.BinReader) error {
 	b.Witness = transaction.Witness{}
 	b.Witness.Decode(br)
 
-	// br.Read(&padding)
-	// if padding != 0 {
-	// 	return ErrPadding
-	// }
+	br.Read(&padding)
+	if padding != 0 {
+		return ErrPadding
+	}
 	return br.Err
 }
 

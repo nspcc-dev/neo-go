@@ -13,7 +13,7 @@ func TestUint256DecodeString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, hexStr, val.String())
+	assert.Equal(t, hexStr, val.Reverse().String())
 }
 
 func TestUint256DecodeBytes(t *testing.T) {
@@ -26,7 +26,7 @@ func TestUint256DecodeBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, hexStr, val.String())
+	assert.Equal(t, hexStr, val.Reverse().String())
 }
 
 func TestUInt256Equals(t *testing.T) {

@@ -17,7 +17,7 @@ func TestFixed8Add(t *testing.T) {
 
 	a := FromInt(1)
 	b := FromInt(2)
-	t.Fail()
+
 	c := a.Add(b)
 	expected := float64(3)
 	assert.Equal(t, expected, c.Value())

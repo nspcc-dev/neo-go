@@ -75,5 +75,5 @@ func TestEncodeDecode(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, rawBlockBytes, buf.Bytes())
+	assert.Equal(t, hex.EncodeToString(rawBlockBytes), hex.EncodeToString(buf.Bytes()))
 }
