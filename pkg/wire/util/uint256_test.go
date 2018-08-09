@@ -2,10 +2,28 @@ package util
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestUint256UnmarshalJSON(t *testing.T) {
+	str := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	expected, _ := Uint256DecodeString(str)
+
+	// UnmarshalJSON should decode hex-strings
+	var u1 Uint256
+	s, _ := json.Marshal(str)
+	assert.Nil(t, json.Unmarshal(s, &u1))
+	assert.True(t, expected.Equals(u1))
+
+	// UnmarshalJSON should decode hex-strings prefixed by 0x
+	var u2 Uint256
+	s, _ = json.Marshal("0x" + str)
+	assert.Nil(t, json.Unmarshal(s, &u2))
+	assert.True(t, expected.Equals(u2))
+}
 
 func TestUint256DecodeString(t *testing.T) {
 	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
