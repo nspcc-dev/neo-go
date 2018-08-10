@@ -49,19 +49,23 @@ type CommandType string
 
 // Valid protocol commands used to send between nodes.
 const (
-	CMDVersion    CommandType = "version"
-	CMDVerack     CommandType = "verack"
-	CMDGetAddr    CommandType = "getaddr"
-	CMDAddr       CommandType = "addr"
-	CMDGetHeaders CommandType = "getheaders"
-	CMDHeaders    CommandType = "headers"
-	CMDGetBlocks  CommandType = "getblocks"
-	CMDInv        CommandType = "inv"
-	CMDGetData    CommandType = "getdata"
-	CMDBlock      CommandType = "block"
-	CMDTX         CommandType = "tx"
-	CMDConsensus  CommandType = "consensus"
-	CMDUnknown    CommandType = "unknown"
+	CMDVersion     CommandType = "version"
+	CMDVerack      CommandType = "verack"
+	CMDGetAddr     CommandType = "getaddr"
+	CMDAddr        CommandType = "addr"
+	CMDGetHeaders  CommandType = "getheaders"
+	CMDHeaders     CommandType = "headers"
+	CMDGetBlocks   CommandType = "getblocks"
+	CMDInv         CommandType = "inv"
+	CMDGetData     CommandType = "getdata"
+	CMDBlock       CommandType = "block"
+	CMDTX          CommandType = "tx"
+	CMDConsensus   CommandType = "consensus"
+	CMDUnknown     CommandType = "unknown"
+	CMDFilterAdd   CommandType = "filteradd"
+	CMDFilterClear CommandType = "filterclear"
+	CMDFilterLoad  CommandType = "filterload"
+	CMDMerkleBlock CommandType = "merkleblock"
 )
 
 // NewMessage returns a new message with the given payload.
@@ -119,6 +123,14 @@ func (m *Message) CommandType() CommandType {
 		return CMDTX
 	case "consensus":
 		return CMDConsensus
+	case "merkleblock":
+		return CMDMerkleBlock
+	case "filterload":
+		return CMDFilterLoad
+	case "filteradd":
+		return CMDFilterAdd
+	case "filterclear":
+		return CMDFilterClear
 	default:
 		return CMDUnknown
 	}
@@ -195,6 +207,11 @@ func (m *Message) decodePayload(r io.Reader) error {
 		}
 	case CMDTX:
 		p = &transaction.Transaction{}
+		if err := p.DecodeBinary(buf); err != nil {
+			return err
+		}
+	case CMDMerkleBlock:
+		p = &payload.MerkleBlock{}
 		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
