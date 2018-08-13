@@ -68,6 +68,9 @@ loop:
 
 }
 
+// Call this function when we send a message to a peer
+// The command passed through is the command that we sent
+// and not the command we expect to receive
 func (d *Detector) AddMessage(cmd command.Type) {
 	cmds := d.addMessage(cmd)
 	fmt.Println(len(cmds))
@@ -77,17 +80,29 @@ func (d *Detector) AddMessage(cmd command.Type) {
 	}
 	d.lock.Unlock()
 }
+
+// Call this function when we receive a message from
+// peer. This will remove the pendingresponse message from the map.
+// The command passed through is the command we received
 func (d *Detector) RemoveMessage(cmd command.Type) {
+	cmds := d.addMessage(cmd)
 	d.lock.Lock()
-	delete(d.responses, cmd)
+	for _, cmd := range cmds {
+		delete(d.responses, cmd)
+	}
 	d.lock.Unlock()
 }
+
+// DeleteAll empties the map of all contents and
+// is called when the detector is being shut down
 func (d *Detector) DeleteAll() {
 	d.lock.Lock()
 	d.responses = make(map[command.Type]time.Time)
 	d.lock.Unlock()
 }
 
+// GetMessages Will return a map of all of the pendingResponses
+// and their deadlines
 func (d *Detector) GetMessages() map[command.Type]time.Time {
 	var resp map[command.Type]time.Time
 	d.lock.Lock()
@@ -114,13 +129,36 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 		// We will now expect a block/tx message
 		cmds = append(cmds, command.Block)
 		cmds = append(cmds, command.TX)
-
 	case command.GetBlocks:
 		// we will now expect a inv message
 		cmds = append(cmds, command.Inv)
 	case command.Version:
 		// We will now expect a verack
 		cmds = append(cmds, command.Verack)
+	}
+	return cmds
+}
+
+// if receive a message, we will delete it from pending
+func (d *Detector) removeMessage(cmd command.Type) []command.Type {
+
+	cmds := []command.Type{}
+
+	switch cmd {
+	case command.Block:
+		// We will now expect a block/tx message
+		cmds = append(cmds, command.Block)
+		cmds = append(cmds, command.TX)
+	case command.TX:
+		// We will now expect a block/tx message
+		cmds = append(cmds, command.Block)
+		cmds = append(cmds, command.TX)
+	case command.GetBlocks:
+		// we will now expect a inv message
+		cmds = append(cmds, command.Inv)
+	default:
+		// We will now expect a verack
+		cmds = append(cmds, cmd)
 	}
 	return cmds
 }
