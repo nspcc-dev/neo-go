@@ -1,6 +1,7 @@
 package stall
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,7 +26,7 @@ type Detector struct {
 	lock      sync.Mutex
 	responses map[command.Type]time.Time
 
-	shutdownPeer func()
+	quitch chan struct{}
 }
 
 func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector {
@@ -34,6 +35,7 @@ func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector
 		tickInterval: tickerInterval,
 		lock:         sync.Mutex{},
 		responses:    map[command.Type]time.Time{},
+		quitch:       make(chan struct{}),
 	}
 	go d.loop()
 	return d
@@ -46,16 +48,19 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
+			fmt.Println("Ticker accessed")
 			now := time.Now()
 			for _, deadline := range d.responses {
 				if now.After(deadline) {
+					fmt.Println("Dead")
+					close(d.quitch)
 					break loop
 				}
 			}
 
 		}
 	}
-	d.shutdownPeer()
+
 	d.DeleteAll()
 	ticker.Stop()
 
@@ -65,6 +70,7 @@ loop:
 
 func (d *Detector) AddMessage(cmd command.Type) {
 	cmds := d.addMessage(cmd)
+	fmt.Println(len(cmds))
 	d.lock.Lock()
 	for _, cmd := range cmds {
 		d.responses[cmd] = time.Now().Add(d.responseTime)
@@ -100,6 +106,9 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 	case command.GetHeaders:
 		// We now will expect a Headers Message
 		cmds = append(cmds, command.Headers)
+	case command.GetAddr:
+		// We now will expect a Headers Message
+		cmds = append(cmds, command.Addr)
 
 	case command.GetData:
 		// We will now expect a block/tx message

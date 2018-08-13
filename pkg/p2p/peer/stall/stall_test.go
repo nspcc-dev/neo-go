@@ -24,19 +24,44 @@ func TestAddRemoveMessage(t *testing.T) {
 	assert.Empty(t, mp[command.GetAddr])
 }
 
-func TestDeadline(t *testing.T) {
+type mockPeer struct {
+	online   bool
+	detector *Detector
+}
+
+func (mp *mockPeer) loop() {
+loop:
+	for {
+		select {
+		case <-mp.detector.quitch:
+
+			break loop
+		}
+	}
+	// cleanup
+	mp.online = false
+}
+func TestDeadlineWorks(t *testing.T) {
+
 	responseTime := 2 * time.Second
 	tickerInterval := 1 * time.Second
+
 	d := NewDetector(responseTime, tickerInterval)
+	mp := mockPeer{online: true, detector: d}
+	go mp.loop()
+
 	d.AddMessage(command.GetAddr)
 	time.Sleep(responseTime + 1*time.Second)
 
 	k := make(map[command.Type]time.Time)
 	assert.Equal(t, k, d.responses)
+	assert.Equal(t, false, mp.online)
+
 }
 func TestDeadlineShouldNotBeEmpty(t *testing.T) {
 	responseTime := 10 * time.Second
 	tickerInterval := 1 * time.Second
+
 	d := NewDetector(responseTime, tickerInterval)
 	d.AddMessage(command.GetAddr)
 	time.Sleep(1 * time.Second)
