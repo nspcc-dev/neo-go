@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/p2p/peer/stall"
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
@@ -46,14 +47,18 @@ type Peer struct {
 	statemutex     sync.Mutex
 	verackReceived bool
 
-	inch  chan func() // will handle all incoming connections from peer
-	outch chan func() // will handle all outcoming connections from peer
-	quit  chan struct{}
+	stall.Detector
+
+	inch   chan func() // will handle all incoming connections from peer
+	outch  chan func() // will handle all outcoming connections from peer
+	quitch chan struct{}
 }
 
 func NewPeer(con net.Conn, in bool, cfg LocalConfig) Peer {
 	p := Peer{}
 	p.inch = make(chan func(), 10)
+	p.outch = make(chan func(), 10)
+	p.quitch = make(chan struct{}, 1)
 	p.inbound = in
 	p.config = cfg
 	p.conn = con
@@ -79,6 +84,9 @@ func (p *Peer) Read() (wire.Messager, error) {
 // Disconnects from a peer
 func (p *Peer) Disconnect() {
 	p.conn.Close()
+
+	// Close all other channels
+	// Should not wait, just close and move on
 	fmt.Println("Disconnecting peer")
 }
 
@@ -124,15 +132,15 @@ func (p *Peer) Run() error {
 // run as a go-routine, will act as our queue for messages
 // should be ran after handshake
 func (p *Peer) StartProtocol() {
-
 	for {
 		select {
 		case f := <-p.inch:
 			f()
-		case <-p.quit:
+		case <-p.quitch:
+			p.Disconnect()
+		case <-p.Detector.Quitch:
 			p.Disconnect()
 		}
-
 	}
 }
 
@@ -140,6 +148,7 @@ func (p *Peer) StartProtocol() {
 // on a seperate go-routine.
 // ReadLoop Will block on the read until a message is
 // read
+
 func (p *Peer) ReadLoop() {
 loop:
 	for {
@@ -177,7 +186,20 @@ loop:
 	// cleanup: disconnect peer and then close channel. Disconnecting first will stop the flow
 	// of messages, then closing will drain all channels.
 	p.Disconnect()
-	close(p.quit)
+	close(p.quitch)
+}
+
+//
+func (p *Peer) WriteLoop() {
+	for {
+		select {
+		case f := <-p.outch:
+			f()
+		case <-p.Detector.Quitch:
+			p.Disconnect()
+
+		}
+	}
 }
 
 // OnGetHeaders Listener, outside of the anonymous func will be extra functionality
