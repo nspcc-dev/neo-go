@@ -35,7 +35,8 @@ func main() {
 		fmt.Println("Someone connected", conn)
 
 		tcpAddrMe := &net.TCPAddr{IP: net.ParseIP("82.2.97.142"), Port: 20338}
-		messageVer, err := payload.NewVersionMessage(tcpAddrMe, 2595770, false, protocol.DefaultVersion)
+		nonce := uint32(100)
+		messageVer, err := payload.NewVersionMessage(tcpAddrMe, 2595770, false, protocol.DefaultVersion, protocol.UserAgent, nonce, protocol.NodePeerService)
 
 		if err != nil {
 			fmt.Println(err)
