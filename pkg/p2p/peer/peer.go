@@ -46,13 +46,14 @@ type Peer struct {
 	statemutex     sync.Mutex
 	verackReceived bool
 
-	actionch chan func() // in - ran synchronously
-	quit     chan struct{}
+	inch  chan func() // will handle all incoming connections from peer
+	outch chan func() // will handle all outcoming connections from peer
+	quit  chan struct{}
 }
 
 func NewPeer(con net.Conn, in bool, cfg LocalConfig) Peer {
 	p := Peer{}
-	p.actionch = make(chan func(), 10)
+	p.inch = make(chan func(), 10)
 	p.inbound = in
 	p.config = cfg
 	p.conn = con
@@ -126,7 +127,7 @@ func (p *Peer) StartProtocol() {
 
 	for {
 		select {
-		case f := <-p.actionch:
+		case f := <-p.inch:
 			f()
 		case <-p.quit:
 			p.Disconnect()
@@ -182,7 +183,7 @@ loop:
 // OnGetHeaders Listener, outside of the anonymous func will be extra functionality
 // like timing
 func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 
 		fmt.Println("That was a getheaders message, please pass func down through config", msg.Command())
 
@@ -191,7 +192,7 @@ func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 
 // OnAddr Listener
 func (p *Peer) OnAddr(msg *payload.AddrMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 		p.config.AddressMessageListener.OnAddr(msg)
 		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
 
@@ -200,7 +201,7 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 
 // OnGetAddr Listener
 func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 		p.config.AddressMessageListener.OnGetAddr(msg)
 		fmt.Println("That was a getaddr message, please pass func down through config", msg.Command())
 
@@ -209,7 +210,7 @@ func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 
 // OnGetBlocks Listener
 func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 		p.config.BlockMessageListener.OnGetBlocks(msg)
 		fmt.Println("That was a getblocks message, please pass func down through config", msg.Command())
 
@@ -218,7 +219,7 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 
 // OnBlocks Listener
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 		p.config.BlockMessageListener.OnBlock(msg)
 		fmt.Println("That was a blocks message, please pass func down through config", msg.Command())
 
@@ -227,7 +228,7 @@ func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 
 // OnHeaders Listener
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
-	p.actionch <- func() {
+	p.inch <- func() {
 		p.config.HeadersMessageListener.OnHeader(msg)
 		fmt.Println("That was a headers message, please pass func down through config", msg.Command())
 	}
@@ -239,7 +240,7 @@ func (p *Peer) OnVerack() {
 	p.statemutex.Lock()
 	p.verackReceived = true
 	p.statemutex.Unlock()
-	p.actionch <- func() {
+	p.inch <- func() {
 		// No need to process it, we do nothing on verack unless we have received it before
 		// If so, this will never run, as the loop would have been broken.
 		// We do not have a verack method in config, as not needed.
