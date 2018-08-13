@@ -1,7 +1,6 @@
 package stall
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -22,8 +21,11 @@ const (
 type Detector struct {
 	responseTime time.Duration
 	tickInterval time.Duration
-	lock         sync.Mutex
-	responses    map[command.Type]time.Time
+
+	lock      sync.Mutex
+	responses map[command.Type]time.Time
+
+	shutdownPeer func()
 }
 
 func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector {
@@ -44,18 +46,16 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Ticker accessed")
 			now := time.Now()
 			for _, deadline := range d.responses {
 				if now.After(deadline) {
-					fmt.Println("Deadline passed")
 					break loop
 				}
 			}
 
 		}
 	}
-	fmt.Print("Deleting all vals")
+	d.shutdownPeer()
 	d.DeleteAll()
 	ticker.Stop()
 
@@ -115,14 +115,3 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 	}
 	return cmds
 }
-
-// OnTimer will be passed to the timer func,
-// and will run on each timer tick
-// We will check whether any responses are over the deadline
-// func (d *Detector) OnTimer() {
-// 	for _, deadline := range d.responses {
-// 		if time.Now().Before(deadline.Add(offset)) {
-
-// 		}
-// 	}
-// }
