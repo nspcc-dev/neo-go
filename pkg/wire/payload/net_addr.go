@@ -8,7 +8,8 @@ import (
 )
 
 // Once a VersionMessage is received, we can then store it inside of AddrMessage struct
-
+// TODO: store this inside version message and have a bool to indicate whether to encode ip
+// VersionMessage does not encodeIP
 type net_addr struct {
 	Timestamp uint32
 	IP        [16]byte

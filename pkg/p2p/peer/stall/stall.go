@@ -127,6 +127,7 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 
 	case command.GetData:
 		// We will now expect a block/tx message
+		// We can optimise this by including the exact inventory type, however it is not needed
 		cmds = append(cmds, command.Block)
 		cmds = append(cmds, command.TX)
 	case command.GetBlocks:
