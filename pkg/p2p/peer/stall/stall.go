@@ -26,7 +26,7 @@ type Detector struct {
 	lock      sync.Mutex
 	responses map[command.Type]time.Time
 
-	quitch chan struct{}
+	Quitch chan struct{}
 }
 
 func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector {
@@ -35,7 +35,7 @@ func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector
 		tickInterval: tickerInterval,
 		lock:         sync.Mutex{},
 		responses:    map[command.Type]time.Time{},
-		quitch:       make(chan struct{}),
+		Quitch:       make(chan struct{}),
 	}
 	go d.loop()
 	return d
@@ -52,8 +52,8 @@ loop:
 			now := time.Now()
 			for _, deadline := range d.responses {
 				if now.After(deadline) {
-					fmt.Println("Dead")
-					close(d.quitch)
+					fmt.Println("Deadline passed")
+					close(d.Quitch)
 					break loop
 				}
 			}

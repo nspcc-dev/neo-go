@@ -15,7 +15,7 @@ func TestAddRemoveMessage(t *testing.T) {
 	mp := d.GetMessages()
 
 	assert.Equal(t, 1, len(mp))
-	assert.NotEmpty(t, mp[command.GetAddr])
+	assert.IsType(t, time.Time{}, mp[command.GetAddr])
 
 	d.RemoveMessage(command.GetAddr)
 	mp = d.GetMessages()
@@ -33,7 +33,7 @@ func (mp *mockPeer) loop() {
 loop:
 	for {
 		select {
-		case <-mp.detector.quitch:
+		case <-mp.detector.Quitch:
 
 			break loop
 		}
