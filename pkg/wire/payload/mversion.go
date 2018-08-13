@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"math/rand"
 	"net"
 	"time"
 
@@ -19,6 +18,9 @@ import (
 const (
 	minMsgVersionSize = 28
 )
+
+// TODO: Refactor to pull out the useragent out of initialiser
+// and have a seperate method to add it
 
 type VersionMessage struct {
 	w           *bytes.Buffer
@@ -35,7 +37,7 @@ type VersionMessage struct {
 
 var ErrInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
 
-func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver protocol.Version) (*VersionMessage, error) {
+func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver protocol.Version, userAgent string, nonce uint32, services protocol.ServiceFlag) (*VersionMessage, error) {
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return nil, ErrInvalidNetAddr
@@ -44,11 +46,11 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver proto
 		new(bytes.Buffer),
 		pver,
 		uint32(time.Now().Unix()),
-		protocol.NodePeerService,
+		services,
 		tcpAddr.IP,
 		uint16(tcpAddr.Port),
-		randRange(12949672, 42949672),
-		[]byte(protocol.UserAgent),
+		nonce,
+		[]byte(userAgent),
 		startHeight,
 		relay,
 	}
@@ -123,9 +125,4 @@ func (v *VersionMessage) Checksum() uint32 {
 // Implements messager interface
 func (v *VersionMessage) Command() command.Type {
 	return command.Version
-}
-
-func randRange(min, max int) uint32 {
-	rand.Seed(time.Now().Unix() + int64(rand.Uint64()))
-	return uint32(rand.Intn(max-min) + min)
 }
