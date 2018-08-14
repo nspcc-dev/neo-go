@@ -40,7 +40,6 @@ type Peer struct {
 	addr      string
 	port      uint16
 	inbound   bool
-	net       protocol.Magic
 	userAgent string
 	services  protocol.ServiceFlag
 
@@ -69,7 +68,7 @@ func NewPeer(con net.Conn, in bool, cfg LocalConfig) Peer {
 
 // Write to a peer
 func (p *Peer) Write(msg wire.Messager) error {
-	if err := wire.WriteMessage(p.conn, p.net, msg); err != nil {
+	if err := wire.WriteMessage(p.conn, p.config.net, msg); err != nil {
 		return err
 	}
 	return nil
@@ -77,7 +76,7 @@ func (p *Peer) Write(msg wire.Messager) error {
 
 // Read to a peer
 func (p *Peer) Read() (wire.Messager, error) {
-	msg, err := wire.ReadMessage(p.conn, p.net)
+	msg, err := wire.ReadMessage(p.conn, p.config.net)
 	return msg, err
 }
 
@@ -87,15 +86,15 @@ func (p *Peer) Disconnect() {
 
 	// Close all other channels
 	// Should not wait, just close and move on
-	fmt.Println("Disconnecting peer")
+	// fmt.Println("Disconnecting peer")
 }
 
 // Exposed API functions below
 func (p *Peer) LocalAddr() net.Addr {
-	return p.LocalAddr()
+	return p.conn.LocalAddr()
 }
 func (p *Peer) RemoteAddr() net.Addr {
-	return p.RemoteAddr()
+	return p.conn.RemoteAddr()
 }
 func (p *Peer) Services() protocol.ServiceFlag {
 	return p.config.services
@@ -105,6 +104,9 @@ func (p *Peer) Inbound() bool {
 }
 func (p *Peer) UserAgent() string {
 	return p.config.userAgent
+}
+func (p *Peer) IsVerackReceived() bool {
+	return p.verackReceived
 }
 
 //End of Exposed API functions//
@@ -152,17 +154,20 @@ func (p *Peer) StartProtocol() {
 func (p *Peer) ReadLoop() {
 loop:
 	for {
-
+		fmt.Println("Blocking on Read")
 		readmsg, err := p.Read()
 
 		if err != nil {
+			fmt.Println("Err on read", err)
 			break loop
 		}
 
 		switch msg := readmsg.(type) {
 		case *payload.VersionMessage:
+			fmt.Println("Received a Version,break loop")
 			break loop // We have already done the handshake, break loop and disconnect
 		case *payload.VerackMessage:
+			fmt.Println("Received a Verack, break loop if recieved before")
 			if p.verackReceived {
 				break loop
 			}
@@ -263,6 +268,7 @@ func (p *Peer) OnVerack() {
 	p.verackReceived = true
 	p.statemutex.Unlock()
 	p.inch <- func() {
+		fmt.Println("Received a Verack from peer", p.RemoteAddr())
 		// No need to process it, we do nothing on verack unless we have received it before
 		// If so, this will never run, as the loop would have been broken.
 		// We do not have a verack method in config, as not needed.
