@@ -3,10 +3,8 @@ package wire
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"hash"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
@@ -82,13 +80,12 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 	fmt.Println("Command is", header.CMD)
 	fmt.Println("payload lengthA is ", header.PayloadLength)
 	fmt.Println("payload length is ", len(buf.Bytes()))
-
-	fmt.Println("Newly cal checksum", Hash256(buf.Bytes())[:4])
+	fmt.Println("Newly cal checksum", checksum.FromBuf(buf))
 	fmt.Println("Header checksum", header.Checksum)
 	// Compare the checksum of the payload.
-	// if !checksum.Compare(header.Checksum, buf.Bytes()) {
-	// 	return nil, errChecksumMismatch
-	// }
+	if !checksum.Compare(header.Checksum, buf.Bytes()) {
+		return nil, errChecksumMismatch
+	}
 	switch header.CMD {
 	case command.Version:
 		v := &payload.VersionMessage{}
@@ -148,7 +145,6 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		if err := v.DecodePayload(buf); err != nil {
 			return nil, err
 		}
-		fmt.Println("Direct checksum", v.Checksum())
 		return v, nil
 	case command.TX:
 		reader := bufio.NewReader(buf)
@@ -178,14 +174,4 @@ func cmdToByteArray(cmd command.Type) [command.Size]byte {
 	}
 
 	return b
-}
-
-func calcHash(buf []byte, hasher hash.Hash) []byte {
-	hasher.Write(buf)
-	return hasher.Sum(nil)
-}
-
-// Hash160 calculates the hash ripemd160(sha256(b)).
-func Hash256(buf []byte) []byte {
-	return calcHash(calcHash(buf, sha256.New()), sha256.New())
 }
