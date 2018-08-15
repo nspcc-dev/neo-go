@@ -45,6 +45,7 @@ type Peer struct {
 
 	statemutex     sync.Mutex
 	verackReceived bool
+	versionKnown   bool
 
 	stall.Detector
 
@@ -154,7 +155,6 @@ func (p *Peer) StartProtocol() {
 func (p *Peer) ReadLoop() {
 loop:
 	for {
-		fmt.Println("Blocking on Read")
 		readmsg, err := p.Read()
 
 		if err != nil {
@@ -183,7 +183,7 @@ loop:
 		case *payload.HeadersMessage:
 			p.OnHeaders(msg)
 		case *payload.GetHeadersMessage:
-			p.OnGetHeaders(msg) // TODO:Will change to interface once, I test this class
+			p.OnGetHeaders(msg)
 		default:
 			fmt.Println("Cannot recognise message", msg.Command())
 		}
@@ -256,7 +256,11 @@ func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 // OnHeaders Listener
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 	p.inch <- func() {
-		p.config.HeadersMessageListener.OnHeader(msg)
+		for _, header := range msg.Headers {
+			fmt.Println(header.Hash.String())
+		}
+		fmt.Println("Number of headers is", len(msg.Headers))
+		//		p.config.HeadersMessageListener.OnHeader(msg)
 		fmt.Println("That was a headers message, please pass func down through config", msg.Command())
 	}
 }
@@ -264,10 +268,11 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 // Since this is ran after handshake, if a verack has already been received
 // then this would violate the rules and hence be cause for a disconnect. Not a ban
 func (p *Peer) OnVerack() {
-	p.statemutex.Lock()
-	p.verackReceived = true
-	p.statemutex.Unlock()
+
 	p.inch <- func() {
+		p.statemutex.Lock()
+		p.verackReceived = true
+		p.statemutex.Unlock()
 		fmt.Println("Received a Verack from peer", p.RemoteAddr())
 		// No need to process it, we do nothing on verack unless we have received it before
 		// If so, this will never run, as the loop would have been broken.

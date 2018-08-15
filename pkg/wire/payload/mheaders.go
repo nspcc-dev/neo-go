@@ -9,7 +9,7 @@ import (
 )
 
 type HeadersMessage struct {
-	headers []*BlockBase
+	Headers []*BlockBase
 
 	// Padding that is fixed to 0
 	_ uint8
@@ -31,10 +31,10 @@ func NewHeadersMessage() (*HeadersMessage, error) {
 }
 
 func (h *HeadersMessage) AddHeader(head *BlockBase) error {
-	if len(h.headers)+1 > maxHeadersAllowed {
+	if len(h.Headers)+1 > maxHeadersAllowed {
 		return ErrMaxHeaders
 	}
-	h.headers = append(h.headers, head)
+	h.Headers = append(h.Headers, head)
 
 	return nil
 }
@@ -45,7 +45,7 @@ func (v *HeadersMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 
 	lenHeaders := br.VarUint()
-	v.headers = make([]*BlockBase, lenHeaders)
+	v.Headers = make([]*BlockBase, lenHeaders)
 
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &BlockBase{}
@@ -55,7 +55,7 @@ func (v *HeadersMessage) DecodePayload(r io.Reader) error {
 		if padding != 0 {
 			return ErrPadding
 		}
-		v.headers[i] = header
+		v.Headers[i] = header
 	}
 
 	return br.Err
@@ -64,8 +64,8 @@ func (v *HeadersMessage) DecodePayload(r io.Reader) error {
 // Implements messager interface
 func (v *HeadersMessage) EncodePayload(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
-	bw.VarUint(uint64(len(v.headers)))
-	for _, header := range v.headers {
+	bw.VarUint(uint64(len(v.Headers)))
+	for _, header := range v.Headers {
 		header.EncodePayload(bw)
 		bw.Write(uint8(0))
 	}

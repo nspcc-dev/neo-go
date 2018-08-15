@@ -78,6 +78,12 @@ func (b *BlockBase) DecodePayload(br *util.BinReader) error {
 	b.Witness = transaction.Witness{}
 	b.Witness.Decode(br)
 
+	err := b.createHash()
+
+	if err != nil {
+		return err
+	}
+
 	return br.Err
 }
 

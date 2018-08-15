@@ -56,4 +56,5 @@ Please not that this package will do sanity checks on the fields, however it wil
 
 # Contributors
 
-When modifying this package, please ensure that it does not depend on any other package and that it conforms to the Single Responsibility Principle. If you see somewhere in the current implementation that does not do this, then please tell me :)
+When modifying this package, please ensure that it does not depend on any other package and that it conforms to the Single Responsibility Principle. If you see somewhere in the current implementation that does not do this, then please tell me.
+

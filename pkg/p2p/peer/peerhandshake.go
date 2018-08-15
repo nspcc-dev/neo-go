@@ -28,7 +28,7 @@ func (p *Peer) Handshake() error {
 	case <-time.After(handshakeTimeout):
 		return errHandShakeTimeout
 	}
-	fmt.Println("hanshake with", p.addr, "successful")
+	fmt.Println("hanshake with", p.RemoteAddr().String(), "successful")
 	return nil
 }
 
@@ -102,7 +102,11 @@ func (p *Peer) readRemoteVersionMSG() error {
 	}
 	// TODO: validation checks on version message
 	// setMin of LR
+
 	_ = version
+
+	p.versionKnown = true
+
 	return nil
 }
 
@@ -118,5 +122,8 @@ func (p *Peer) readVerack() error {
 	if !ok {
 		return err
 	}
+	// should only be accessed on one go-routine
+	p.verackReceived = true
+
 	return nil
 }

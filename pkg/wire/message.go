@@ -35,8 +35,7 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 	bw := &util.BinWriter{W: w}
 	bw.Write(magic)
 	bw.Write(cmdToByteArray(message.Command()))
-	// bw.Write(message.PayloadLength())
-	// bw.Write(message.Checksum())
+
 	buf := new(bytes.Buffer)
 	if err := message.EncodePayload(buf); err != nil {
 		return err
@@ -82,6 +81,7 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 	fmt.Println("payload length is ", len(buf.Bytes()))
 	fmt.Println("Newly cal checksum", checksum.FromBuf(buf))
 	fmt.Println("Header checksum", header.Checksum)
+
 	// Compare the checksum of the payload.
 	if !checksum.Compare(header.Checksum, buf.Bytes()) {
 		return nil, errChecksumMismatch
