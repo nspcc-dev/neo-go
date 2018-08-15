@@ -51,12 +51,24 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 
 func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 
+	byt := make([]byte, minMsgSize)
+
+	if _, err := io.ReadFull(r, byt); err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(byt)
+
 	var header Base
-	rem, err := header.DecodeBase(r)
+	_, err := header.DecodeBase(reader)
+
+	if err != nil {
+		return nil, errors.New("Error decoding into the header base")
+	}
 
 	buf := new(bytes.Buffer)
 
-	_, err = io.CopyN(buf, rem, int64(header.PayloadLength))
+	_, err = io.CopyN(buf, r, int64(header.PayloadLength))
 	if err != nil {
 		return nil, err
 	}
