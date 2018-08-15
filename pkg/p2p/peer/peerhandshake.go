@@ -16,7 +16,6 @@ func (p *Peer) Handshake() error {
 		if p.inbound {
 			handshakeErr <- p.inboundHandShake()
 		} else {
-			fmt.Println("P is outbound, so doing outbound hs")
 			handshakeErr <- p.outboundHandShake()
 		}
 	}()
@@ -48,16 +47,20 @@ func (p *Peer) inboundHandShake() error {
 	if err != nil {
 		return err
 	}
-	return p.Write(verack)
+	err = p.Write(verack)
+	return p.readVerack()
 }
 func (p *Peer) outboundHandShake() error {
 	var err error
 	err = p.readRemoteVersionMSG()
-
 	if err != nil {
 		return err
 	}
 	err = p.writeLocalVersionMSG()
+	if err != nil {
+		return err
+	}
+	err = p.readVerack()
 	if err != nil {
 		return err
 	}
@@ -100,6 +103,20 @@ func (p *Peer) readRemoteVersionMSG() error {
 	// TODO: validation checks on version message
 	// setMin of LR
 	_ = version
+	return nil
+}
 
+func (p *Peer) readVerack() error {
+	readmsg, err := wire.ReadMessage(p.conn, p.config.net)
+
+	if err != nil {
+		return err
+	}
+
+	_, ok := readmsg.(*payload.VerackMessage)
+
+	if !ok {
+		return err
+	}
 	return nil
 }
