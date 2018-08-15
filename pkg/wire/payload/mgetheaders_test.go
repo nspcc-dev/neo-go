@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
+
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,6 +30,7 @@ func TestGetHeadersEncodeDecode(t *testing.T) {
 
 	err = msgGetHeaders.EncodePayload(buf)
 	assert.Equal(t, nil, err)
+	expected := checksum.FromBuf(buf)
 
 	msgGetHeadersDec, err := NewGetHeadersMessage([]util.Uint256{}, util.Uint256{})
 	assert.Equal(t, nil, err)
@@ -36,5 +39,9 @@ func TestGetHeadersEncodeDecode(t *testing.T) {
 	err = msgGetHeadersDec.DecodePayload(r)
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, msgGetHeaders.Checksum(), msgGetHeadersDec.Checksum())
+	buf = new(bytes.Buffer)
+	err = msgGetHeadersDec.EncodePayload(buf)
+	have := checksum.FromBuf(buf)
+
+	assert.Equal(t, expected, have)
 }

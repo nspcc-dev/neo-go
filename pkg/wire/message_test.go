@@ -17,7 +17,8 @@ func TestWriteMessageLen(t *testing.T) {
 	expectedIP := "127.0.0.1"
 	expectedPort := 8333
 	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP(expectedIP), Port: expectedPort}
-	message, err := payload.NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion)
+
+	message, err := payload.NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion, protocol.UserAgent, 100, protocol.NodePeerService)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -35,7 +36,7 @@ func TestReadMessage(t *testing.T) {
 	expectedPort := 8333
 	tcpAddrMe := &net.TCPAddr{IP: net.ParseIP(expectedIP), Port: expectedPort}
 
-	message, err := payload.NewVersionMessage(tcpAddrMe, 23, true, protocol.DefaultVersion)
+	message, err := payload.NewVersionMessage(tcpAddrMe, 23, true, protocol.DefaultVersion, protocol.UserAgent, 100, protocol.NodePeerService)
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}

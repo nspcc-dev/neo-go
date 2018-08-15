@@ -3,7 +3,6 @@
 package payload
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"net"
@@ -12,7 +11,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
-	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 )
 
 const (
@@ -23,7 +21,7 @@ const (
 // and have a seperate method to add it
 
 type VersionMessage struct {
-	w           *bytes.Buffer
+	// w           *bytes.Buffer
 	Version     protocol.Version
 	Timestamp   uint32
 	Services    protocol.ServiceFlag
@@ -38,12 +36,13 @@ type VersionMessage struct {
 var ErrInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
 
 func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver protocol.Version, userAgent string, nonce uint32, services protocol.ServiceFlag) (*VersionMessage, error) {
+
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return nil, ErrInvalidNetAddr
 	}
+
 	version := &VersionMessage{
-		new(bytes.Buffer),
 		pver,
 		uint32(time.Now().Unix()),
 		services,
@@ -54,26 +53,11 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver proto
 		startHeight,
 		relay,
 	}
-
-	// saves a buffer of version in version
-	if err := version.EncodePayload(version.w); err != nil {
-		return nil, err
-	}
 	return version, nil
 }
 
 // Implements Messager interface
 func (v *VersionMessage) DecodePayload(r io.Reader) error {
-
-	buf, err := util.ReaderToBuffer(r)
-	if err != nil {
-		return err
-	}
-
-	v.w = buf
-
-	r = bytes.NewReader(buf.Bytes()) // reader is a pointer, so ReaderToBuffer will drain all bytes from it. Repopulate
-
 	br := &util.BinReader{R: r}
 	br.Read(&v.Version)
 	br.Read(&v.Services)
@@ -88,11 +72,6 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	br.Read(&v.UserAgent)
 	br.Read(&v.StartHeight)
 	br.Read(&v.Relay)
-
-	v.w = new(bytes.Buffer)
-	if err := v.EncodePayload(v.w); err != nil {
-		return err
-	}
 	return br.Err
 }
 
@@ -110,16 +89,6 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	bw.Write(v.StartHeight)
 	bw.Write(v.Relay)
 	return bw.Err
-}
-
-// Implements messager interface
-func (v *VersionMessage) PayloadLength() uint32 {
-	return util.CalculatePayloadLength(v.w)
-}
-
-// Implements messager interface
-func (v *VersionMessage) Checksum() uint32 {
-	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface

@@ -1,23 +1,18 @@
 package payload
 
 import (
-	"bytes"
 	"io"
-
-	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
 type AddrMessage struct {
-	w        *bytes.Buffer
 	AddrList []*net_addr
 }
 
 func NewAddrMessage() (*AddrMessage, error) {
 	addrMess := &AddrMessage{
-		new(bytes.Buffer),
 		nil,
 	}
 	return addrMess, nil
@@ -25,26 +20,13 @@ func NewAddrMessage() (*AddrMessage, error) {
 
 func (a *AddrMessage) AddNetAddr(n *net_addr) error {
 	a.AddrList = append(a.AddrList, n)
-	// check if max reached, if so return err. What is max?
-
-	if err := a.EncodePayload(a.w); err != nil {
-		return err
-	}
+	// TODO:check if max reached, if so return err. What is max?
 
 	return nil
 }
 
 // Implements Messager interface
 func (a *AddrMessage) DecodePayload(r io.Reader) error {
-
-	buf, err := util.ReaderToBuffer(r)
-	if err != nil {
-		return err
-	}
-
-	a.w = buf
-
-	r = bytes.NewReader(buf.Bytes())
 
 	br := &util.BinReader{R: r}
 	listLen := br.VarUint()
@@ -71,16 +53,6 @@ func (v *AddrMessage) EncodePayload(w io.Writer) error {
 		addr.EncodePayload(bw)
 	}
 	return bw.Err
-}
-
-// Implements messager interface
-func (v *AddrMessage) PayloadLength() uint32 {
-	return util.CalculatePayloadLength(v.w)
-}
-
-// Implements messager interface
-func (v *AddrMessage) Checksum() uint32 {
-	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface

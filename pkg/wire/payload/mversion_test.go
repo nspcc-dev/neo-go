@@ -46,8 +46,11 @@ func TestLenIsCorrect(t *testing.T) {
 	nonce := randRange(12949672, 42949672)
 	message, err := NewVersionMessage(tcpAddrMe, 0, true, protocol.DefaultVersion, protocol.UserAgent, nonce, protocol.NodePeerService)
 
+	buf := new(bytes.Buffer)
+	err = message.EncodePayload(buf)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, len(message.UserAgent)+minMsgVersionSize, int(message.PayloadLength()))
+
+	assert.Equal(t, len(message.UserAgent)+minMsgVersionSize, len(buf.Bytes()))
 }
 
 func randRange(min, max int) uint32 {

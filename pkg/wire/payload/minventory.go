@@ -1,13 +1,11 @@
 package payload
 
 import (
-	"bytes"
 	"errors"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
-	checksum "github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 )
 
 type InvType uint32
@@ -28,7 +26,6 @@ var (
 )
 
 type InvMessage struct {
-	w      *bytes.Buffer
 	cmd    command.Type
 	Type   InvType
 	Hashes []util.Uint256
@@ -37,15 +34,11 @@ type InvMessage struct {
 func NewInvMessage(typ InvType) (*InvMessage, error) {
 
 	inv := &InvMessage{
-		new(bytes.Buffer),
 		command.Inv,
 		typ,
 		nil,
 	}
-	if err := inv.EncodePayload(inv.w); err != nil {
 
-		return nil, err
-	}
 	return inv, nil
 }
 
@@ -66,24 +59,11 @@ func (i *InvMessage) AddHash(h util.Uint256) error {
 		return MaxHashError
 	}
 	i.Hashes = append(i.Hashes, h)
-	if err := i.EncodePayload(i.w); err != nil {
-		return err
-	}
 	return nil
 }
 
 // Implements Messager interface
 func (v *InvMessage) DecodePayload(r io.Reader) error {
-
-	buf, err := util.ReaderToBuffer(r)
-	if err != nil {
-		return err
-	}
-
-	v.w = buf
-
-	r = bytes.NewReader(buf.Bytes())
-
 	br := &util.BinReader{R: r}
 
 	br.Read(&v.Type)
@@ -112,16 +92,6 @@ func (v *InvMessage) EncodePayload(w io.Writer) error {
 	}
 
 	return bw.Err
-}
-
-// Implements messager interface
-func (v *InvMessage) PayloadLength() uint32 {
-	return util.CalculatePayloadLength(v.w)
-}
-
-// Implements messager interface
-func (v *InvMessage) Checksum() uint32 {
-	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface

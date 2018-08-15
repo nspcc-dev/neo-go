@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
+
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,11 +25,16 @@ func TestAddrMessageEncodeDecode(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	err = addrmsg.EncodePayload(buf)
+	expected := checksum.FromBuf(buf)
 
 	addrmsgDec, err := NewAddrMessage()
 	r := bytes.NewReader(buf.Bytes())
 	err = addrmsgDec.DecodePayload(r)
 
+	buf = new(bytes.Buffer)
+	err = addrmsgDec.EncodePayload(buf)
+	have := checksum.FromBuf(buf)
+
 	assert.Equal(t, nil, err)
-	assert.Equal(t, addrmsg.Checksum(), addrmsgDec.Checksum())
+	assert.Equal(t, expected, have)
 }

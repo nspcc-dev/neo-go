@@ -1,17 +1,14 @@
 package payload
 
 import (
-	"bytes"
 	"errors"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
-	checksum "github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 )
 
 type HeadersMessage struct {
-	w       *bytes.Buffer
 	headers []*BlockBase
 
 	// Padding that is fixed to 0
@@ -29,10 +26,7 @@ var (
 
 func NewHeadersMessage() (*HeadersMessage, error) {
 
-	headers := &HeadersMessage{new(bytes.Buffer), nil, 0}
-	if err := headers.EncodePayload(headers.w); err != nil {
-		return nil, err
-	}
+	headers := &HeadersMessage{nil, 0}
 	return headers, nil
 }
 
@@ -41,23 +35,12 @@ func (h *HeadersMessage) AddHeader(head *BlockBase) error {
 		return ErrMaxHeaders
 	}
 	h.headers = append(h.headers, head)
-	if err := h.EncodePayload(h.w); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 // Implements Messager interface
 func (v *HeadersMessage) DecodePayload(r io.Reader) error {
-
-	buf, err := util.ReaderToBuffer(r)
-	if err != nil {
-		return err
-	}
-
-	v.w = buf
-
-	r = bytes.NewReader(buf.Bytes())
 
 	br := &util.BinReader{R: r}
 
@@ -87,16 +70,6 @@ func (v *HeadersMessage) EncodePayload(w io.Writer) error {
 		bw.Write(uint8(0))
 	}
 	return bw.Err
-}
-
-// Implements messager interface
-func (v *HeadersMessage) PayloadLength() uint32 {
-	return util.CalculatePayloadLength(v.w)
-}
-
-// Implements messager interface
-func (v *HeadersMessage) Checksum() uint32 {
-	return checksum.FromBuf(v.w)
 }
 
 // Implements messager interface

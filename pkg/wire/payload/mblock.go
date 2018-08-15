@@ -1,10 +1,7 @@
 package payload
 
 import (
-	"bytes"
 	"io"
-
-	"github.com/CityOfZion/neo-go/pkg/wire/util/Checksum"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 
@@ -31,16 +28,6 @@ func (b *BlockMessage) EncodePayload(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 	b.Block.EncodePayload(bw)
 	return bw.Err
-}
-
-// Implements messager interface
-func (v *BlockMessage) PayloadLength() uint32 {
-	return 0
-}
-
-// Implements messager interface
-func (v *BlockMessage) Checksum() uint32 {
-	return checksum.FromBuf(new(bytes.Buffer))
 }
 
 // Implements messager interface
