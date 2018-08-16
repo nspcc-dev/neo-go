@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
@@ -75,12 +74,6 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("Command is", header.CMD)
-	fmt.Println("payload lengthA is ", header.PayloadLength)
-	fmt.Println("payload length is ", len(buf.Bytes()))
-	fmt.Println("Newly cal checksum", checksum.FromBuf(buf))
-	fmt.Println("Header checksum", header.Checksum)
 
 	// Compare the checksum of the payload.
 	if !checksum.Compare(header.Checksum, buf.Bytes()) {

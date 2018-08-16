@@ -17,6 +17,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
+	"github.com/CityOfZion/neo-go/pkg/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/wire/util/io"
 )
 
 const (
@@ -164,11 +166,11 @@ loop:
 
 		switch msg := readmsg.(type) {
 		case *payload.VersionMessage:
-			fmt.Println("Received a Version,break loop")
+			fmt.Println("Already received a Version, disconnecting. " + p.RemoteAddr().String())
 			break loop // We have already done the handshake, break loop and disconnect
 		case *payload.VerackMessage:
-			fmt.Println("Received a Verack, break loop if recieved before")
 			if p.verackReceived {
+				fmt.Println("Already received a Verack, disconnecting. " + p.RemoteAddr().String())
 				break loop
 			}
 			p.OnVerack()
@@ -194,7 +196,6 @@ loop:
 	close(p.quitch)
 }
 
-//
 func (p *Peer) WriteLoop() {
 	for {
 		select {
@@ -257,9 +258,19 @@ func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 	p.inch <- func() {
 		for _, header := range msg.Headers {
-			fmt.Println(header.Hash.String())
+			if err := fileutils.UpdateFile("headers.txt", []byte(header.Hash.String())); err != nil {
+				fmt.Println("Error writing headers to file")
+				break
+			}
 		}
 		fmt.Println("Number of headers is", len(msg.Headers))
+		if len(msg.Headers) > 100 {
+			fmt.Println("Getting more headers")
+			err := p.RequestHeaders(msg.Headers[len(msg.Headers)-1].Hash.Reverse())
+			if err != nil {
+				fmt.Println("Error getting more headers", err)
+			}
+		}
 		//		p.config.HeadersMessageListener.OnHeader(msg)
 		fmt.Println("That was a headers message, please pass func down through config", msg.Command())
 	}
@@ -278,4 +289,10 @@ func (p *Peer) OnVerack() {
 		// If so, this will never run, as the loop would have been broken.
 		// We do not have a verack method in config, as not needed.
 	}
+}
+
+func (p *Peer) RequestHeaders(hash util.Uint256) error {
+	getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash.Reverse()}, util.Uint256{})
+	err = p.Write(getHeaders)
+	return err
 }
