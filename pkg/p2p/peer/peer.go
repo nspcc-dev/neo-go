@@ -27,7 +27,7 @@ const (
 	maxOutboundConnections = 100
 	protocolVer            = protocol.DefaultVersion
 	handshakeTimeout       = 30 * time.Second
-	idleTimeout            = 5 * time.Minute
+	idleTimeout            = 5 * time.Minute // If no message received after idleTimeout, then peer disconnects
 
 	// nodes will have `responseTime` seconds to reply with a response
 	responseTime = 120 * time.Second
@@ -184,9 +184,21 @@ loop:
 // read
 
 func (p *Peer) ReadLoop() {
+
+	idleTimer := time.AfterFunc(idleTimeout, func() {
+		fmt.Println("Timing out peer")
+		p.Disconnect()
+	})
+
 loop:
 	for atomic.LoadInt32(&p.disconnected) == 0 {
+
+		idleTimer.Reset(idleTimeout) // reset timer on each loop
+
 		readmsg, err := p.Read()
+
+		// Message read; stop Timer
+		idleTimer.Stop()
 
 		if err != nil {
 			fmt.Println("Err on read", err) // This will also happen if Peer is disconnected
@@ -225,6 +237,8 @@ loop:
 			fmt.Println("Cannot recognise message", msg.Command()) //Do not disconnect peer, just Log Message
 		}
 	}
+
+	idleTimer.Stop()
 	p.Disconnect()
 }
 
