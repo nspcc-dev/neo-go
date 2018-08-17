@@ -53,8 +53,8 @@ Once a connection has been made. The connection will represent a established pee
 
     func LocalHeight() uint32 {
         // This will be a function from the object that handles the block heights
-	return 10
-}
+	    return 10
+    }
 
 
 ### Notes
