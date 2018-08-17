@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/chainparams"
 	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
@@ -18,7 +19,10 @@ func main() {
 }
 
 func connectingToPeers() {
-	conn, err := net.Dial("tcp", "seed2.neo.org:10333")
+
+	dialTimeout := 5 * time.Second
+
+	conn, err := net.DialTimeout("tcp", "seed2.neo.org:10333", dialTimeout)
 	if err != nil {
 		fmt.Println("Error dialing connection", err.Error())
 		return
