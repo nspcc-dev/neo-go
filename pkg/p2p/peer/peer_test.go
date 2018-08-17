@@ -9,15 +9,15 @@ import (
 )
 
 func TestHandshake(t *testing.T) {
+
+	// startListener in integtest/local
+
 	conn, err := net.Dial("tcp", ":20338")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	p := newPeer(conn)
-	p.inbound = true
-	err = p.handshake()
-	go p.readLoop()
-	go p.startProtocol()
+	p := NewPeer(conn, true, DefaultConfig())
+	err = p.Run()
 	verack, err := payload.NewVerackMessage()
 	if err != nil {
 		t.Fail()

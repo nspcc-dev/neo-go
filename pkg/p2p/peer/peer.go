@@ -67,6 +67,7 @@ type Peer struct {
 	inbound   bool
 	userAgent string
 	services  protocol.ServiceFlag
+	createdAt time.Time
 
 	statemutex     sync.Mutex
 	verackReceived bool
@@ -244,7 +245,9 @@ func (p *Peer) WriteLoop() {
 // like timing
 func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 	p.inch <- func() {
-
+		if p.config.OnGetHeaders != nil {
+			p.config.OnGetHeaders(msg)
+		}
 		fmt.Println("That was a getheaders message, please pass func down through config", msg.Command())
 
 	}
@@ -253,7 +256,9 @@ func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 // OnAddr Listener
 func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	p.inch <- func() {
-		p.config.OnAddr(msg)
+		if p.config.OnAddr != nil {
+			p.config.OnAddr(msg)
+		}
 		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
 
 	}
@@ -262,7 +267,9 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 // OnGetAddr Listener
 func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 	p.inch <- func() {
-		p.config.OnGetAddr(msg)
+		if p.config.OnGetAddr != nil {
+			p.config.OnGetAddr(msg)
+		}
 		fmt.Println("That was a getaddr message, please pass func down through config", msg.Command())
 
 	}
@@ -271,9 +278,10 @@ func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 // OnGetBlocks Listener
 func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 	p.inch <- func() {
-		p.config.OnGetBlocks(msg)
+		if p.config.OnGetBlocks != nil {
+			p.config.OnGetBlocks(msg)
+		}
 		fmt.Println("That was a getblocks message, please pass func down through config", msg.Command())
-
 	}
 }
 
@@ -281,9 +289,10 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 
 	p.inch <- func() {
-		p.config.OnBlock(msg)
+		if p.config.OnBlock != nil {
+			p.config.OnBlock(msg)
+		}
 		fmt.Println("That was a blocks message, please pass func down through config", msg.Command())
-
 	}
 }
 
@@ -295,6 +304,7 @@ func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
 	p.port = msg.Port
 	p.services = msg.Services
 	p.userAgent = string(msg.UserAgent)
+	p.createdAt = time.Now()
 	return nil
 }
 
@@ -305,21 +315,21 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 		if p.config.OnHeader != nil {
 			p.config.OnHeader(p, msg)
 		}
-		//		p.config.HeadersMessageListener.OnHeader(msg)
-		// fmt.Println("That was a headers message, please pass func down through config", msg.Command())
 	}
 }
 
 // RequestHeaders will write a getheaders to peer
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
+
 	c := make(chan error, 0)
+
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetHeaders)
 		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash.Reverse()}, util.Uint256{})
 		err = p.Write(getHeaders)
-		// return err
 		c <- err
 	}
+
 	return <-c
 
 }

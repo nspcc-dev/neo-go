@@ -32,7 +32,6 @@ func main() {
 			fmt.Println(err)
 			break
 		}
-		fmt.Println("Someone connected", conn)
 
 		tcpAddrMe := &net.TCPAddr{IP: net.ParseIP("82.2.97.142"), Port: 20338}
 		nonce := uint32(100)
