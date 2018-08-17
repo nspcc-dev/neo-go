@@ -11,14 +11,16 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/command"
 
 	"github.com/CityOfZion/neo-go/pkg/p2p/peer/stall"
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
-	"github.com/CityOfZion/neo-go/pkg/wire/util/io"
 )
 
 const (
@@ -26,6 +28,23 @@ const (
 	protocolVer            = protocol.DefaultVersion
 	handshakeTimeout       = 30 * time.Second
 	idleTimeout            = 5 * time.Minute
+
+	// nodes will have `responseTime` seconds to reply with a response
+	responseTime = 120 * time.Second
+
+	// the stall detector will check every `tickerInterval` to see if messages
+	// are overdue. Should be less than `responseTime`
+	tickerInterval = 30 * time.Second
+
+	// The input buffer size is the amount of mesages that
+	// can be buffered into the channel to receive at once before
+	// blocking, and before determinism is broken
+	inputBufferSize = 100
+
+	// The output buffer size is the amount of messages that
+	// can be buffered into the channel to send at once before
+	// blocking, and before determinism is broken.
+	outputBufferSize = 100
 
 	// pingInterval = 20 * time.Second //Not implemented in neo clients
 )
@@ -38,8 +57,12 @@ type Peer struct {
 	config LocalConfig
 	conn   net.Conn
 
+	// atomic vals
+	disconnected int32
+
 	//unchangeable state: concurrent safe
 	addr      string
+	protoVer  protocol.Version
 	port      uint16
 	inbound   bool
 	userAgent string
@@ -49,21 +72,24 @@ type Peer struct {
 	verackReceived bool
 	versionKnown   bool
 
-	stall.Detector
+	*stall.Detector
 
 	inch   chan func() // will handle all incoming connections from peer
 	outch  chan func() // will handle all outcoming connections from peer
 	quitch chan struct{}
 }
 
-func NewPeer(con net.Conn, in bool, cfg LocalConfig) Peer {
+func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) Peer {
 	p := Peer{}
-	p.inch = make(chan func(), 10)
-	p.outch = make(chan func(), 10)
+	p.inch = make(chan func(), inputBufferSize)
+	p.outch = make(chan func(), outputBufferSize)
 	p.quitch = make(chan struct{}, 1)
-	p.inbound = in
+	p.inbound = inbound
 	p.config = cfg
 	p.conn = con
+	p.addr = p.conn.RemoteAddr().String()
+
+	p.Detector = stall.NewDetector(responseTime, tickerInterval)
 
 	// TODO: set the unchangeable states
 	return p
@@ -71,25 +97,24 @@ func NewPeer(con net.Conn, in bool, cfg LocalConfig) Peer {
 
 // Write to a peer
 func (p *Peer) Write(msg wire.Messager) error {
-	if err := wire.WriteMessage(p.conn, p.config.net, msg); err != nil {
-		return err
-	}
-	return nil
+	return wire.WriteMessage(p.conn, p.config.Net, msg)
 }
 
 // Read to a peer
 func (p *Peer) Read() (wire.Messager, error) {
-	msg, err := wire.ReadMessage(p.conn, p.config.net)
-	return msg, err
+	return wire.ReadMessage(p.conn, p.config.Net)
 }
 
 // Disconnects from a peer
 func (p *Peer) Disconnect() {
-	p.conn.Close()
 
-	// Close all other channels
-	// Should not wait, just close and move on
-	// fmt.Println("Disconnecting peer")
+	// Already disconnecting
+	if atomic.LoadInt32(&p.disconnected) != 0 {
+		return
+	}
+	fmt.Println("Disconnecting Peer")
+	atomic.AddInt32(&p.disconnected, 1)
+	p.conn.Close()
 }
 
 // Exposed API functions below
@@ -100,13 +125,13 @@ func (p *Peer) RemoteAddr() net.Addr {
 	return p.conn.RemoteAddr()
 }
 func (p *Peer) Services() protocol.ServiceFlag {
-	return p.config.services
+	return p.config.Services
 }
 func (p *Peer) Inbound() bool {
 	return p.inbound
 }
 func (p *Peer) UserAgent() string {
-	return p.config.userAgent
+	return p.config.UserAgent
 }
 func (p *Peer) IsVerackReceived() bool {
 	return p.verackReceived
@@ -125,9 +150,9 @@ func (p *Peer) Run() error {
 
 	err := p.Handshake()
 
-	// This will be refactored to allow more control over the go-routine
 	go p.StartProtocol()
 	go p.ReadLoop()
+	go p.WriteLoop()
 
 	//go p.PingLoop() // since it is not implemented. It will disconnect all other impls.
 	return err
@@ -137,16 +162,19 @@ func (p *Peer) Run() error {
 // run as a go-routine, will act as our queue for messages
 // should be ran after handshake
 func (p *Peer) StartProtocol() {
-	for {
+loop:
+	for atomic.LoadInt32(&p.disconnected) == 0 {
 		select {
 		case f := <-p.inch:
 			f()
 		case <-p.quitch:
-			p.Disconnect()
+			break loop
 		case <-p.Detector.Quitch:
-			p.Disconnect()
+			fmt.Println("Peer stalled, disconnecting")
+			break loop
 		}
 	}
+	p.Disconnect()
 }
 
 // Should only be called after handshake is complete
@@ -156,15 +184,19 @@ func (p *Peer) StartProtocol() {
 
 func (p *Peer) ReadLoop() {
 loop:
-	for {
+	for atomic.LoadInt32(&p.disconnected) == 0 {
 		readmsg, err := p.Read()
 
 		if err != nil {
-			fmt.Println("Err on read", err)
+			fmt.Println("Err on read", err) // This will also happen if Peer is disconnected
 			break loop
 		}
 
+		// Remove message as pending from the stall detector
+		p.Detector.RemoveMessage(readmsg.Command())
+
 		switch msg := readmsg.(type) {
+
 		case *payload.VersionMessage:
 			fmt.Println("Already received a Version, disconnecting. " + p.RemoteAddr().String())
 			break loop // We have already done the handshake, break loop and disconnect
@@ -173,7 +205,9 @@ loop:
 				fmt.Println("Already received a Verack, disconnecting. " + p.RemoteAddr().String())
 				break loop
 			}
-			p.OnVerack()
+			p.statemutex.Lock() // This should not happen, however if it does, then we should set it.
+			p.verackReceived = true
+			p.statemutex.Unlock()
 		case *payload.AddrMessage:
 			p.OnAddr(msg)
 		case *payload.GetAddrMessage:
@@ -187,23 +221,21 @@ loop:
 		case *payload.GetHeadersMessage:
 			p.OnGetHeaders(msg)
 		default:
-			fmt.Println("Cannot recognise message", msg.Command())
+			fmt.Println("Cannot recognise message", msg.Command()) //Do not disconnect peer, just Log Message
 		}
 	}
-	// cleanup: disconnect peer and then close channel. Disconnecting first will stop the flow
-	// of messages, then closing will drain all channels.
 	p.Disconnect()
-	close(p.quitch)
 }
 
+// WriteLoop will Queue all messages to be written to
+// the peer.
 func (p *Peer) WriteLoop() {
-	for {
+	for atomic.LoadInt32(&p.disconnected) == 0 {
 		select {
 		case f := <-p.outch:
 			f()
-		case <-p.Detector.Quitch:
+		case <-p.Detector.Quitch: // if the detector quits, disconnect peer
 			p.Disconnect()
-
 		}
 	}
 }
@@ -221,7 +253,7 @@ func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 // OnAddr Listener
 func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	p.inch <- func() {
-		p.config.AddressMessageListener.OnAddr(msg)
+		p.config.OnAddr(msg)
 		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
 
 	}
@@ -230,7 +262,7 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 // OnGetAddr Listener
 func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 	p.inch <- func() {
-		p.config.AddressMessageListener.OnGetAddr(msg)
+		p.config.OnGetAddr(msg)
 		fmt.Println("That was a getaddr message, please pass func down through config", msg.Command())
 
 	}
@@ -239,7 +271,7 @@ func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 // OnGetBlocks Listener
 func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 	p.inch <- func() {
-		p.config.BlockMessageListener.OnGetBlocks(msg)
+		p.config.OnGetBlocks(msg)
 		fmt.Println("That was a getblocks message, please pass func down through config", msg.Command())
 
 	}
@@ -247,52 +279,47 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 
 // OnBlocks Listener
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
+
 	p.inch <- func() {
-		p.config.BlockMessageListener.OnBlock(msg)
+		p.config.OnBlock(msg)
 		fmt.Println("That was a blocks message, please pass func down through config", msg.Command())
 
 	}
 }
 
+// OnVersion Listener will be called
+// during the handshake, any error checking should be done here for the versionMessage.
+// This should only ever be called during the handshake. Any other place and the peer will disconnect.
+func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
+	p.versionKnown = true
+	p.port = msg.Port
+	p.services = msg.Services
+	p.userAgent = string(msg.UserAgent)
+	return nil
+}
+
 // OnHeaders Listener
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
+
 	p.inch <- func() {
-		for _, header := range msg.Headers {
-			if err := fileutils.UpdateFile("headers.txt", []byte(header.Hash.String())); err != nil {
-				fmt.Println("Error writing headers to file")
-				break
-			}
-		}
-		fmt.Println("Number of headers is", len(msg.Headers))
-		if len(msg.Headers) > 100 {
-			fmt.Println("Getting more headers")
-			err := p.RequestHeaders(msg.Headers[len(msg.Headers)-1].Hash.Reverse())
-			if err != nil {
-				fmt.Println("Error getting more headers", err)
-			}
+		if p.config.OnHeader != nil {
+			p.config.OnHeader(p, msg)
 		}
 		//		p.config.HeadersMessageListener.OnHeader(msg)
-		fmt.Println("That was a headers message, please pass func down through config", msg.Command())
+		// fmt.Println("That was a headers message, please pass func down through config", msg.Command())
 	}
 }
 
-// Since this is ran after handshake, if a verack has already been received
-// then this would violate the rules and hence be cause for a disconnect. Not a ban
-func (p *Peer) OnVerack() {
-
-	p.inch <- func() {
-		p.statemutex.Lock()
-		p.verackReceived = true
-		p.statemutex.Unlock()
-		fmt.Println("Received a Verack from peer", p.RemoteAddr())
-		// No need to process it, we do nothing on verack unless we have received it before
-		// If so, this will never run, as the loop would have been broken.
-		// We do not have a verack method in config, as not needed.
-	}
-}
-
+// RequestHeaders will write a getheaders to peer
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
-	getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash.Reverse()}, util.Uint256{})
-	err = p.Write(getHeaders)
-	return err
+	c := make(chan error, 0)
+	p.outch <- func() {
+		p.Detector.AddMessage(command.GetHeaders)
+		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash.Reverse()}, util.Uint256{})
+		err = p.Write(getHeaders)
+		// return err
+		c <- err
+	}
+	return <-c
+
 }

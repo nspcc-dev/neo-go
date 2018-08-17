@@ -33,3 +33,5 @@ var testNetSeedList = []string{
 	"13.59.116.121:20333",
 	"18.218.255.178:20333",
 }
+
+var GenesisHash = "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"

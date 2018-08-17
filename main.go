@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/CityOfZion/neo-go/pkg/chainparams"
 	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
+	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/wire/util/io"
 )
 
 func main() {
@@ -14,53 +17,29 @@ func main() {
 	connectingToPeers()
 }
 
-func peersConnectToMe() {
-	listener, err := net.Listen("tcp", ":20338")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	defer func() {
-		listener.Close()
-		fmt.Println("Listener closed")
-	}()
-
-	for {
-		conn, err := listener.Accept()
-		fmt.Println("Connectioin accepted")
-		if err != nil {
-			fmt.Println("Error connecting to peer, ", err)
-		}
-
-		p := peer.NewPeer(conn, true, peer.DefaultConfig())
-		err = p.Handshake()
-		go p.StartProtocol()
-
-		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{}, util.Uint256{})
-		err = p.Write(getHeaders)
-		if err != nil {
-			fmt.Println("Error writing message ", err)
-		}
-
-		p.ReadLoop()
-
-		return
-
-	}
-}
 func connectingToPeers() {
 	conn, err := net.Dial("tcp", "seed2.neo.org:10333")
 	if err != nil {
 		fmt.Println("Error dialing connection", err.Error())
 		return
 	}
-	p := peer.NewPeer(conn, false, peer.DefaultConfig())
-	err = p.Handshake()
-	go p.StartProtocol()
-	go p.ReadLoop()
 
-	hash, err := util.Uint256DecodeString("d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf")
+	config := peer.LocalConfig{
+		Net:         protocol.MainNet,
+		UserAgent:   "NEO-G",
+		Services:    protocol.NodePeerService,
+		Nonce:       1200,
+		ProtocolVer: 0,
+		Relay:       false,
+		Port:        10332,
+		StartHeight: LocalHeight,
+		OnHeader:    OnHeader,
+	}
+
+	p := peer.NewPeer(conn, false, config)
+	err = p.Run()
+
+	hash, err := util.Uint256DecodeString(chainparams.GenesisHash)
 	// hash2, err := util.Uint256DecodeString("ff8fe95efc5d1cc3a22b17503aecaf289cef68f94b79ddad6f613569ca2342d8")
 	err = p.RequestHeaders(hash)
 	if err != nil {
@@ -70,3 +49,59 @@ func connectingToPeers() {
 	<-make(chan struct{})
 
 }
+
+func OnHeader(peer *peer.Peer, msg *payload.HeadersMessage) {
+
+	for _, header := range msg.Headers {
+		if err := fileutils.UpdateFile("headers.txt", []byte(header.Hash.String())); err != nil {
+			fmt.Println("Error writing headers to file")
+			break
+		}
+	}
+	if len(msg.Headers) > 100 {
+		lastHeader := msg.Headers[len(msg.Headers)-1]
+		fmt.Println("Latest hash is", lastHeader.Hash.String())
+		err := peer.RequestHeaders(lastHeader.Hash.Reverse())
+		if err != nil {
+			fmt.Println("Error getting more headers", err)
+		}
+	}
+}
+
+func LocalHeight() uint32 {
+	return 10
+}
+
+// func peersConnectToMe() {
+// 	listener, err := net.Listen("tcp", ":20338")
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		return
+// 	}
+
+// 	defer func() {
+// 		listener.Close()
+// 		fmt.Println("Listener closed")
+// 	}()
+
+// 	for {
+// 		conn, err := listener.Accept()
+// 		fmt.Println("Connectioin accepted")
+// 		if err != nil {
+// 			fmt.Println("Error connecting to peer, ", err)
+// 		}
+
+// 		p := peer.NewPeer(conn, true, peer.DefaultConfig())
+// 		err = p.Handshake()
+// 		go p.StartProtocol()
+
+// 		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{}, util.Uint256{})
+// 		err = p.Write(getHeaders)
+// 		if err != nil {
+// 			fmt.Println("Error writing message ", err)
+// 		}
+
+// 		go p.ReadLoop()
+// 		go p.WriteLoop()
+// 	}
+// }

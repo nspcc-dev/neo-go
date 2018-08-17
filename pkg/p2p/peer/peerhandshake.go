@@ -7,6 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
+	"github.com/CityOfZion/neo-go/pkg/wire/util/ip"
 )
 
 func (p *Peer) Handshake() error {
@@ -72,14 +73,14 @@ func (p *Peer) outboundHandShake() error {
 }
 func (p *Peer) writeLocalVersionMSG() error {
 
-	nonce := p.config.nonce
-	relay := p.config.relay
-	port := int(p.config.port)
-	ua := p.config.userAgent
-	sh := p.config.startHeight
-	services := p.config.services
-	proto := p.config.protocolVer
-	ip := GetLocalIP()
+	nonce := p.config.Nonce
+	relay := p.config.Relay
+	port := int(p.config.Port)
+	ua := p.config.UserAgent
+	sh := p.config.StartHeight()
+	services := p.config.Services
+	proto := p.config.ProtocolVer
+	ip := iputils.GetLocalIP()
 	tcpAddrMe := &net.TCPAddr{IP: ip, Port: port}
 
 	messageVer, err := payload.NewVersionMessage(tcpAddrMe, sh, relay, proto, ua, nonce, services)
@@ -91,7 +92,7 @@ func (p *Peer) writeLocalVersionMSG() error {
 }
 
 func (p *Peer) readRemoteVersionMSG() error {
-	readmsg, err := wire.ReadMessage(p.conn, p.config.net)
+	readmsg, err := wire.ReadMessage(p.conn, p.config.Net)
 	if err != nil {
 		return err
 	}
@@ -100,18 +101,11 @@ func (p *Peer) readRemoteVersionMSG() error {
 	if !ok {
 		return err
 	}
-	// TODO: validation checks on version message
-	// setMin of LR
-
-	_ = version
-
-	p.versionKnown = true
-
-	return nil
+	return p.OnVersion(version)
 }
 
 func (p *Peer) readVerack() error {
-	readmsg, err := wire.ReadMessage(p.conn, p.config.net)
+	readmsg, err := wire.ReadMessage(p.conn, p.config.Net)
 
 	if err != nil {
 		return err

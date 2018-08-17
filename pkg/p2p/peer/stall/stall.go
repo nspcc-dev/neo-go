@@ -12,13 +12,6 @@ import (
 // If any message takes too long to reply
 // the detector will disconnect the peer
 
-const (
-	// nodes will have `responseTime` seconds to reply with a response
-	responseTime = 60 * time.Second
-
-	tickerInterval = 10 * time.Second
-)
-
 type Detector struct {
 	responseTime time.Duration
 	tickInterval time.Duration
@@ -26,12 +19,17 @@ type Detector struct {
 	lock      sync.Mutex
 	responses map[command.Type]time.Time
 
+	// The detector is embedded into a peer and the peer watches this quit chan
+	// If this chan is closed, the peer disconnects
 	Quitch chan struct{}
 }
 
-func NewDetector(deadline time.Duration, tickerInterval time.Duration) *Detector {
+// rT is the responseTime and signals how long
+// a peer has to reply back to a sent message
+// tickerInterval is how often the detector wil check for stalled messages
+func NewDetector(rTime time.Duration, tickerInterval time.Duration) *Detector {
 	d := &Detector{
-		responseTime: deadline,
+		responseTime: rTime,
 		tickInterval: tickerInterval,
 		lock:         sync.Mutex{},
 		responses:    map[command.Type]time.Time{},
@@ -48,7 +46,6 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Ticker accessed")
 			now := time.Now()
 			for _, deadline := range d.responses {
 				if now.After(deadline) {
