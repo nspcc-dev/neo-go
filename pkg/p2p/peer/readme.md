@@ -4,7 +4,7 @@
 
 ## Responsibility
 
-Once a connection has been made. The connection will represent a established peer to the localNode. Since a connection is a golang primitive, that we cannot do much with. The peer package will encapsulate the connection, while adding extra functionality.
+Once a connection has been made. The connection will represent a established peer to the localNode. Since a connection  and the `Wire` is a golang primitive, that we cannot do much with. The peer package will encapsulate both, while adding extra functionality.
 
 
 ## Features
@@ -15,7 +15,7 @@ Once a connection has been made. The connection will represent a established pee
 
 - StallTimeouts: For Example, If a GetHeaders, is sent to the Peer and a Headers Response is not received within a certain period of time, then the peer is disconnected.
 
-- Concurrency Model: The concurrency model used is similar to Actor model, with a few changes. Messages can be sent to a peer asynchronously or synchronously. An example of an synchornous message send is the `RequestHeaders` method, where the channel blocks until an error value is received. The `OnHeaders` message is however asynchronously called. Furthermore, all methods passed through the config, are wrapped inside of an additional `Peers` method, this is to lay the ground work to capturing statistics regarding a specific command. These are also used so that we can pass bhaviour to be executed down the channel.
+- Concurrency Model: The concurrency model used is similar to Actor model, with a few changes. Messages can be sent to a peer asynchronously or synchronously. An example of an synchornous message send is the `RequestHeaders` method, where the channel blocks until an error value is received. The `OnHeaders` message is however asynchronously called. Furthermore, all methods passed through the config, are wrapped inside of an additional `Peers` method, this is to lay the ground work to capturing statistics regarding a specific command. These are also used so that we can pass behaviour to be executed down the channel.
 
 - Configuration: Each Peer will have a config struct passed to it, with information about the Local Peer and functions that will encapsulate the behaviour of what the peer should do, given a request. This way, the peer is not dependent on any other package.
 
