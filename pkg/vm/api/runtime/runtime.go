@@ -1,14 +1,9 @@
 package runtime
 
-import "github.com/CityOfZion/neo-go/pkg/vm/api/types"
-
 // CheckWitness verifies if the invoker is the owner of the contract.
 func CheckWitness(hash []byte) bool {
 	return true
 }
-
-// GetCurrentBlock returns the current block.
-func GetCurrentBlock() types.Block { return types.Block{} }
 
 // GetTime returns the timestamp of the most recent block.
 func GetTime() int {
