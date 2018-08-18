@@ -38,3 +38,13 @@ func Verification() byte {
 func GetTrigger() interface{} {
 	return 0
 }
+
+// Serialize serializes and item into a bytearray.
+func Serialize(item interface{}) []byte {
+	return nil
+}
+
+// Deserializes an item from a bytearray.
+func Deserialize(b []byte) interface{} {
+	return nil
+}
