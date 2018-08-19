@@ -70,7 +70,6 @@ loop:
 // and not the command we expect to receive
 func (d *Detector) AddMessage(cmd command.Type) {
 	cmds := d.addMessage(cmd)
-	fmt.Println(len(cmds))
 	d.lock.Lock()
 	for _, cmd := range cmds {
 		d.responses[cmd] = time.Now().Add(d.responseTime)
