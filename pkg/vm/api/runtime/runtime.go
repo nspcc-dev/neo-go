@@ -1,14 +1,9 @@
 package runtime
 
-import "github.com/CityOfZion/neo-go/pkg/vm/api/types"
-
 // CheckWitness verifies if the invoker is the owner of the contract.
 func CheckWitness(hash []byte) bool {
 	return true
 }
-
-// GetCurrentBlock returns the current block.
-func GetCurrentBlock() types.Block { return types.Block{} }
 
 // GetTime returns the timestamp of the most recent block.
 func GetTime() int {
@@ -37,4 +32,14 @@ func Verification() byte {
 // doesn't really mather, this is just an interop placeholder.
 func GetTrigger() interface{} {
 	return 0
+}
+
+// Serialize serializes and item into a bytearray.
+func Serialize(item interface{}) []byte {
+	return nil
+}
+
+// Deserializes an item from a bytearray.
+func Deserialize(b []byte) interface{} {
+	return nil
 }
