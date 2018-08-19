@@ -5,8 +5,11 @@ import (
 	"net"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/blockchain"
 	"github.com/CityOfZion/neo-go/pkg/chainparams"
+	"github.com/CityOfZion/neo-go/pkg/database"
 	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
+	"github.com/CityOfZion/neo-go/pkg/syncmanager"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -28,6 +31,15 @@ func connectingToPeers() {
 		return
 	}
 
+	// setup DB
+	db := database.New("test")
+
+	// setup blockchain
+	chain := blockchain.New(db)
+
+	// setup syncmanager
+	sm := syncmanager.New(chain)
+
 	config := peer.LocalConfig{
 		Net:         protocol.MainNet,
 		UserAgent:   "NEO-G",
@@ -37,7 +49,8 @@ func connectingToPeers() {
 		Relay:       false,
 		Port:        10332,
 		StartHeight: LocalHeight,
-		OnHeader:    OnHeader,
+		OnHeader:    sm.OnHeaders,
+		OnBlock:     sm.OnBlocks,
 	}
 
 	p := peer.NewPeer(conn, false, config)
@@ -62,9 +75,12 @@ func OnHeader(peer *peer.Peer, msg *payload.HeadersMessage) {
 			break
 		}
 	}
-	if len(msg.Headers) > 100 {
+	if len(msg.Headers) == 2000 { // reached tip
 		lastHeader := msg.Headers[len(msg.Headers)-1]
+
 		fmt.Println("Latest hash is", lastHeader.Hash.String())
+		fmt.Println("Latest Header height is", lastHeader.Index)
+
 		err := peer.RequestHeaders(lastHeader.Hash.Reverse())
 		if err != nil {
 			fmt.Println("Error getting more headers", err)
