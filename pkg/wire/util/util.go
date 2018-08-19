@@ -9,7 +9,7 @@ import (
 )
 
 // Functions
-func CalculatePayloadLength(buf *bytes.Buffer) uint32 {
+func BufferLength(buf *bytes.Buffer) uint32 {
 
 	return uint32(buf.Len())
 }

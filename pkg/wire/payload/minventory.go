@@ -61,6 +61,16 @@ func (i *InvMessage) AddHash(h util.Uint256) error {
 	i.Hashes = append(i.Hashes, h)
 	return nil
 }
+func (i *InvMessage) AddHashes(hashes []util.Uint256) error {
+	var err error
+	for _, hash := range hashes {
+		err = i.AddHash(hash)
+		if err != nil {
+			break
+		}
+	}
+	return err
+}
 
 // Implements Messager interface
 func (v *InvMessage) DecodePayload(r io.Reader) error {

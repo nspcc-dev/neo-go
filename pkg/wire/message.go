@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
@@ -40,7 +41,7 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 		return err
 	}
 
-	payloadLen := util.CalculatePayloadLength(buf)
+	payloadLen := util.BufferLength(buf)
 	checksum := checksum.FromBytes(buf.Bytes())
 
 	bw.Write(payloadLen)
@@ -74,6 +75,8 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Message:", header.CMD)
 
 	// Compare the checksum of the payload.
 	if !checksum.Compare(header.Checksum, buf.Bytes()) {

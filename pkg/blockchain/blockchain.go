@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -35,8 +36,14 @@ func (c *Chain) AddBlock(msg *payload.BlockMessage) error {
 
 	fmt.Println("Block Hash is ", msg.Hash.String())
 	fmt.Println("Number of TXs is ", len(msg.Txs))
-	c.db.Put(msg.Hash.Bytes(), []byte("Woh"))
-	return nil
+
+	buf := new(bytes.Buffer)
+	err := msg.Encode(buf)
+	if err != nil {
+		return err
+	}
+	return c.db.Put(msg.Hash.Bytes(), buf.Bytes())
+
 }
 
 // validateBlock will check the transactions,

@@ -313,6 +313,7 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 
 // OnBlocks Listener
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
+	fmt.Println("We have received a block")
 	p.inch <- func() {
 		if p.config.OnBlock != nil {
 			p.config.OnBlock(p, msg)
@@ -345,12 +346,12 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 
 // RequestHeaders will write a getheaders to peer
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
-
+	fmt.Println("Sending header request")
 	c := make(chan error, 0)
 
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetHeaders)
-		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash.Reverse()}, util.Uint256{})
+		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash}, util.Uint256{})
 		err = p.Write(getHeaders)
 		c <- err
 	}
@@ -360,17 +361,27 @@ func (p *Peer) RequestHeaders(hash util.Uint256) error {
 }
 
 // RequestBlocks will ask a peer for a block
-func (p *Peer) RequestBlocks(hash util.Uint256) error {
-
+func (p *Peer) RequestBlocks(headers []*payload.BlockBase) error {
+	fmt.Println("Requesting block from peer")
 	c := make(chan error, 0)
+
+	var hashes []util.Uint256
+	for _, header := range headers {
+		hashes = append(hashes, header.Hash)
+	}
 
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetData)
 		getdata, err := payload.NewGetDataMessage(payload.InvTypeBlock)
-		err = getdata.AddHash(hash.Reverse())
+		err = getdata.AddHashes(hashes)
+		if err != nil {
+			c <- err
+			return
+		}
 		err = p.Write(getdata)
 		c <- err
 	}
+
 	return <-c
 
 }

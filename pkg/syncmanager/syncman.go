@@ -36,7 +36,6 @@ func (s *Syncmanager) OnHeaders(p *peer.Peer, msg *payload.HeadersMessage) {
 			fmt.Println("Error re blocks", err)
 			return // We should custom name error so, that we can do something on WrongHash Error, Peer disconnect error
 		}
-
 		return
 
 	}
