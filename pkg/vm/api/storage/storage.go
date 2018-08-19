@@ -14,3 +14,6 @@ func Get(ctx interface{}, key interface{}) interface{} { return 0 }
 
 // Delete removes a stored key value pair.
 func Delete(ctx interface{}, key interface{}) {}
+
+// Find entrys somewhat matching the given key.
+func Find(ctx interface{}, key interface{}) interface{} { return 0 }
