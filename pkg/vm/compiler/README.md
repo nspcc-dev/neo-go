@@ -25,12 +25,18 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 ### VM API (interop layer)
 - storage
 - runtime
+- block
+- header
+- transaction
+- asset
+- blockchain
 
 ### VM utility helper functions
 - SHA1
 - SHA256
 - Hash256
 - Hash160
+- other..
 
 ### Custom utility functions
 - `FromAddress(address string) []byte`
