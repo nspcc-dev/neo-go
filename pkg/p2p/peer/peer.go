@@ -233,6 +233,8 @@ loop:
 			p.OnHeaders(msg)
 		case *payload.GetHeadersMessage:
 			p.OnGetHeaders(msg)
+		case *payload.InvMessage:
+			p.OnInv(msg)
 		default:
 			fmt.Println("Cannot recognise message", msg.Command()) //Do not disconnect peer, just Log Message
 		}
@@ -252,6 +254,16 @@ func (p *Peer) WriteLoop() {
 		case <-p.Detector.Quitch: // if the detector quits, disconnect peer
 			p.Disconnect()
 		}
+	}
+}
+
+// OnGetHeaders Listener, outside of the anonymous func will be extra functionality
+// like timing
+func (p *Peer) OnInv(msg *payload.InvMessage) {
+
+	p.inch <- func() {
+
+		fmt.Println("That was an inv Message please pass func down through config", msg.Command())
 	}
 }
 
@@ -301,10 +313,9 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 
 // OnBlocks Listener
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
-
 	p.inch <- func() {
 		if p.config.OnBlock != nil {
-			p.config.OnBlock(msg)
+			p.config.OnBlock(p, msg)
 		}
 		fmt.Println("That was a blocks message, please pass func down through config", msg.Command())
 	}
@@ -344,6 +355,22 @@ func (p *Peer) RequestHeaders(hash util.Uint256) error {
 		c <- err
 	}
 
+	return <-c
+
+}
+
+// RequestBlocks will ask a peer for a block
+func (p *Peer) RequestBlocks(hash util.Uint256) error {
+
+	c := make(chan error, 0)
+
+	p.outch <- func() {
+		p.Detector.AddMessage(command.GetData)
+		getdata, err := payload.NewGetDataMessage(payload.InvTypeBlock)
+		err = getdata.AddHash(hash.Reverse())
+		err = p.Write(getdata)
+		c <- err
+	}
 	return <-c
 
 }

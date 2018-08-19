@@ -24,7 +24,7 @@ type LocalConfig struct {
 	OnGetAddr    func(msg *payload.GetAddrMessage)
 	OnInv        func(msg *payload.InvMessage)
 	OnGetData    func(msg *payload.GetDataMessage)
-	OnBlock      func(msg *payload.BlockMessage)
+	OnBlock      func(*Peer, *payload.BlockMessage)
 	OnGetBlocks  func(msg *payload.GetBlocksMessage)
 }
 
