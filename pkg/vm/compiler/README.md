@@ -36,8 +36,7 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 - `FromAddress(address string) []byte`
 
 ## Not yet implemented
-- range
-- some parts of the interop layer (VM API)
+- very small part of the interop layer (VM API)
 
 ## Not supported
 Due to the limitations of the NEO virtual machine, features listed below will not be supported.
@@ -152,7 +151,7 @@ type Token struct {
 
 func (t Token) AddToCirculation(amount int) bool {
 	ctx := storage.Context()
-	inCirc := storage.GetInt(ctx, "in_circ")
+	inCirc := storage.Get(ctx, "in_circ").(int)
 	inCirc += amount
 	storage.Put(ctx, "in_circ", inCirc)
 	return true
