@@ -50,13 +50,17 @@ func connectingToPeers() {
 		Port:        10332,
 		StartHeight: LocalHeight,
 		OnHeader:    sm.OnHeaders,
-		OnBlock:     sm.OnBlocks,
+		OnBlock:     sm.OnBlock,
 	}
 
 	p := peer.NewPeer(conn, false, config)
 	err = p.Run()
 
 	hash, err := util.Uint256DecodeString(chainparams.GenesisHash)
+	if err != nil {
+		fmt.Println("Error converting hex to hash", err)
+		return
+	}
 	// hash2, err := util.Uint256DecodeString("ff8fe95efc5d1cc3a22b17503aecaf289cef68f94b79ddad6f613569ca2342d8")
 	err = p.RequestHeaders(hash)
 	if err != nil {
