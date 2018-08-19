@@ -115,6 +115,7 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		if err := v.DecodePayload(buf); err != nil {
 			return nil, err
 		}
+		return v, nil
 	case command.GetBlocks:
 		v := &payload.GetBlocksMessage{}
 		if err := v.DecodePayload(buf); err != nil {
@@ -146,11 +147,9 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		if err != nil {
 			return nil, err
 		}
-		t, err := payload.NewTXMessage(tx)
-
-		return t, err
+		return payload.NewTXMessage(tx)
 	}
-	return nil, nil
+	return nil, errors.New("Unknown Message found")
 
 }
 

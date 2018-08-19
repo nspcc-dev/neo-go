@@ -80,7 +80,7 @@ func (v *InvMessage) DecodePayload(r io.Reader) error {
 func (v *InvMessage) EncodePayload(w io.Writer) error {
 
 	bw := &util.BinWriter{W: w}
-	bw.Write(v.Type)
+	bw.Write(byte(v.Type))
 
 	lenhashes := len(v.Hashes)
 	bw.VarUint(uint64(lenhashes))
