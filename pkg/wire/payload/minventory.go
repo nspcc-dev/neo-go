@@ -8,7 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-type InvType uint32
+type InvType uint8
 
 //Inventory types
 const (
@@ -77,6 +77,7 @@ func (v *InvMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 
 	br.Read(&v.Type)
+
 	listLen := br.VarUint()
 	v.Hashes = make([]util.Uint256, listLen)
 
@@ -90,7 +91,7 @@ func (v *InvMessage) DecodePayload(r io.Reader) error {
 func (v *InvMessage) EncodePayload(w io.Writer) error {
 
 	bw := &util.BinWriter{W: w}
-	bw.Write(byte(v.Type))
+	bw.Write(v.Type)
 
 	lenhashes := len(v.Hashes)
 	bw.VarUint(uint64(lenhashes))
