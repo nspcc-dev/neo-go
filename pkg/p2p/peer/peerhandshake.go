@@ -57,10 +57,12 @@ func (p *Peer) outboundHandShake() error {
 	if err != nil {
 		return err
 	}
+
 	err = p.writeLocalVersionMSG()
 	if err != nil {
 		return err
 	}
+
 	err = p.readVerack()
 	if err != nil {
 		return err

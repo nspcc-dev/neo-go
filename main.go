@@ -25,7 +25,7 @@ func connectingToPeers() {
 
 	dialTimeout := 5 * time.Second
 
-	conn, err := net.DialTimeout("tcp", "seed2.neo.org:10333", dialTimeout)
+	conn, err := net.DialTimeout("tcp", "seed1.ngd.network:10333", dialTimeout)
 	if err != nil {
 		fmt.Println("Error dialing connection", err.Error())
 		return
@@ -62,7 +62,8 @@ func connectingToPeers() {
 		return
 	}
 	// hash2, err := util.Uint256DecodeString("ff8fe95efc5d1cc3a22b17503aecaf289cef68f94b79ddad6f613569ca2342d8")
-	err = p.RequestHeaders(hash)
+	err = p.RequestHeaders(hash.Reverse())
+	fmt.Println("For tests, we are only fetching first 2k batch")
 	if err != nil {
 		fmt.Println(err.Error())
 	}

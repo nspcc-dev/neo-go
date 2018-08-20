@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
@@ -76,8 +75,6 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		return nil, err
 	}
 
-	fmt.Println("Message:", header.CMD)
-
 	// Compare the checksum of the payload.
 	if !checksum.Compare(header.Checksum, buf.Bytes()) {
 		return nil, errChecksumMismatch
@@ -126,11 +123,9 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		}
 		return v, nil
 	case command.GetData:
-		v := &payload.GetDataMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewGetDataMessage(payload.InvTypeTx)
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.GetHeaders:
 		v := &payload.GetHeadersMessage{}
 		if err := v.DecodePayload(buf); err != nil {

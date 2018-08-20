@@ -25,7 +25,6 @@ func New(db *database.LDB) *Chain {
 	}
 }
 func (c *Chain) AddBlock(msg *payload.BlockMessage) error {
-	fmt.Println("We have received a Block")
 	if !validateBlock(msg) {
 		return ErrBlockValidation
 	}
@@ -35,7 +34,6 @@ func (c *Chain) AddBlock(msg *payload.BlockMessage) error {
 	}
 
 	fmt.Println("Block Hash is ", msg.Hash.String())
-	fmt.Println("Number of TXs is ", len(msg.Txs))
 
 	buf := new(bytes.Buffer)
 	err := msg.Encode(buf)

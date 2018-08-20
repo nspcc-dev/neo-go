@@ -10,10 +10,7 @@ type GetDataMessage struct {
 
 func NewGetDataMessage(typ InvType) (*GetDataMessage, error) {
 	getData, err := newAbstractInv(typ, command.GetData)
-	if err != nil {
-		return nil, err
-	}
 	return &GetDataMessage{
 		getData,
-	}, nil
+	}, err
 }

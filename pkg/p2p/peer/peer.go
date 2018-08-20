@@ -235,6 +235,8 @@ loop:
 			p.OnGetHeaders(msg)
 		case *payload.InvMessage:
 			p.OnInv(msg)
+		case *payload.GetDataMessage:
+			p.OnGetData(msg)
 		default:
 			fmt.Println("Cannot recognise message", msg.Command()) //Do not disconnect peer, just Log Message
 		}
@@ -257,8 +259,14 @@ func (p *Peer) WriteLoop() {
 	}
 }
 
-// OnGetHeaders Listener, outside of the anonymous func will be extra functionality
-// like timing
+func (p *Peer) OnGetData(msg *payload.GetDataMessage) {
+
+	p.inch <- func() {
+		fmt.Println(msg.Hashes)
+		fmt.Println("That was an getdata Message please pass func down through config", msg.Command())
+	}
+}
+
 func (p *Peer) OnInv(msg *payload.InvMessage) {
 
 	p.inch <- func() {
@@ -284,6 +292,9 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	p.inch <- func() {
 		if p.config.OnAddr != nil {
 			p.config.OnAddr(msg)
+		}
+		for i, addr := range msg.AddrList {
+			fmt.Println(i, addr.IP)
 		}
 		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
 
@@ -313,12 +324,10 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 
 // OnBlocks Listener
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
-	fmt.Println("We have received a block")
 	p.inch <- func() {
 		if p.config.OnBlock != nil {
 			p.config.OnBlock(p, msg)
 		}
-		fmt.Println("That was a blocks message, please pass func down through config", msg.Command())
 	}
 }
 
@@ -336,7 +345,7 @@ func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
 
 // OnHeaders Listener
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
-
+	fmt.Println("We have received the headers")
 	p.inch <- func() {
 		if p.config.OnHeader != nil {
 			p.config.OnHeader(p, msg)
@@ -348,7 +357,6 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
 	fmt.Println("Sending header request")
 	c := make(chan error, 0)
-
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetHeaders)
 		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash}, util.Uint256{})
