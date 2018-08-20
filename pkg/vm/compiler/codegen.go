@@ -532,7 +532,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 }
 
 func (c *codegen) convertSyscall(name string) {
-	api, ok := vm.Syscalls[name]
+	api, ok := syscalls[name]
 	if !ok {
 		log.Fatalf("unknown VM syscall api: %s", name)
 	}

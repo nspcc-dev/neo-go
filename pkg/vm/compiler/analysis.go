@@ -6,7 +6,6 @@ import (
 	"go/types"
 	"log"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -203,7 +202,7 @@ func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 }
 
 func isSyscall(name string) bool {
-	_, ok := vm.Syscalls[name]
+	_, ok := syscalls[name]
 	return ok
 }
 

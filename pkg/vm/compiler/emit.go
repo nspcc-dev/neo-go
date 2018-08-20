@@ -12,16 +12,16 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-func emit(w *bytes.Buffer, op vm.Instruction, b []byte) error {
-	if err := w.WriteByte(byte(op)); err != nil {
+func emit(w *bytes.Buffer, instr vm.Instruction, b []byte) error {
+	if err := w.WriteByte(byte(instr)); err != nil {
 		return err
 	}
 	_, err := w.Write(b)
 	return err
 }
 
-func emitOpcode(w io.ByteWriter, op vm.Instruction) error {
-	return w.WriteByte(byte(op))
+func emitOpcode(w io.ByteWriter, instr vm.Instruction) error {
+	return w.WriteByte(byte(instr))
 }
 
 func emitBool(w io.ByteWriter, ok bool) error {
@@ -89,21 +89,21 @@ func emitSyscall(w *bytes.Buffer, api string) error {
 	return emit(w, vm.SYSCALL, buf)
 }
 
-func emitCall(w *bytes.Buffer, op vm.Instruction, label int16) error {
-	return emitJmp(w, op, label)
+func emitCall(w *bytes.Buffer, instr vm.Instruction, label int16) error {
+	return emitJmp(w, instr, label)
 }
 
-func emitJmp(w *bytes.Buffer, op vm.Instruction, label int16) error {
-	if !isInstructionJmp(op) {
-		return fmt.Errorf("opcode %s is not a jump or call type", op)
+func emitJmp(w *bytes.Buffer, instr vm.Instruction, label int16) error {
+	if !isInstrJmp(instr) {
+		return fmt.Errorf("opcode %s is not a jump or call type", instr)
 	}
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, uint16(label))
-	return emit(w, op, buf)
+	return emit(w, instr, buf)
 }
 
-func isInstructionJmp(op vm.Instruction) bool {
-	if op == vm.JMP || op == vm.JMPIFNOT || op == vm.JMPIF || op == vm.CALL {
+func isInstrJmp(instr vm.Instruction) bool {
+	if instr == vm.JMP || instr == vm.JMPIFNOT || instr == vm.JMPIF || instr == vm.CALL {
 		return true
 	}
 	return false
