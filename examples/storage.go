@@ -5,7 +5,7 @@ import (
 )
 
 func Main(operation string, args []interface{}) interface{} {
-	var ctx = storage.GetContext()
+	ctx := storage.GetContext()
 
 	// Puts value at key
 	if operation == "put" {
