@@ -1,5 +1,8 @@
 package storage
 
+// Package storage provides function signatures that can be used inside
+// smart contracts that are written in the neo-go-sc framework.
+
 // Context represents the storage context
 type Context struct{}
 

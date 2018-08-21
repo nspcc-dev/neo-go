@@ -1,17 +1,31 @@
 package runtime
 
-// CheckWitness verifies if the given hash is the invoker of the contract
+// Package runtime provides function signatures that can be used inside
+// smart contracts that are written in the neo-go-sc framework.
+
+// CheckWitness verifies if the given hash is the invoker of the contract.
 func CheckWitness(hash []byte) bool {
 	return true
 }
 
-// Notify passes data to the VM
+// Log instucts the VM to log the given message.
+func Log(message string) {}
+
+// Notify an event to the VM.
 func Notify(arg interface{}) int {
 	return 0
 }
 
-// Log passes a message to the VM
-func Log(message string) {}
+// GetTime returns the timestamp of the most recent block.
+func GetTime() int {
+	return 0
+}
+
+// GetTrigger returns the smart contract invoke trigger which can be either
+// verification or application.
+func GetTrigger() byte {
+	return 0x00
+}
 
 // Application returns the Application trigger type
 func Application() byte {
@@ -23,8 +37,12 @@ func Verification() byte {
 	return 0x00
 }
 
-// GetTrigger return the current trigger type. The return in this function
-// Doesn't really matter, this is just an interop placeholder
-func GetTrigger() interface{} {
-	return 0
+// Serialize serializes and item into a bytearray.
+func Serialize(item interface{}) []byte {
+	return nil
+}
+
+// Deserializes an item from a bytearray.
+func Deserialize(b []byte) interface{} {
+	return nil
 }
