@@ -1,13 +1,13 @@
 package transaction
 
 import (
-	"github.com/CityOfZion/neo-go-sc/interop/attribute"
-	"github.com/CityOfZion/neo-go-sc/interop/input"
-	"github.com/CityOfZion/neo-go-sc/interop/output"
+	"github.com/CityOfZion/neo-storm/interop/attribute"
+	"github.com/CityOfZion/neo-storm/interop/input"
+	"github.com/CityOfZion/neo-storm/interop/output"
 )
 
 // Package transaction provides function signatures that can be used inside
-// smart contracts that are written in the neo-go-sc framework.
+// smart contracts that are written in the neo-storm framework.
 
 // Transaction stubs a NEO transaction type.
 type Transaction struct{}

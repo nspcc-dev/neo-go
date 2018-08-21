@@ -1,8 +1,8 @@
 package runtime_contract
 
 import (
-	"github.com/CityOfZion/neo-go-sc/interop/runtime"
-	"github.com/CityOfZion/neo-go-sc/interop/util"
+	"github.com/CityOfZion/neo-storm/interop/runtime"
+	"github.com/CityOfZion/neo-storm/interop/util"
 )
 
 // Check if the invoker of the contract is the specified owner

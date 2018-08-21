@@ -1,7 +1,7 @@
 package output
 
 // Package output provides function signatures that can be used inside
-// smart contracts that are written in the neo-go-sc framework.
+// smart contracts that are written in the neo-storm framework.
 
 // Output stubs the output of a NEO transaction.
 type Output struct{}

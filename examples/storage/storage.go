@@ -1,7 +1,7 @@
 package storage_contract
 
 import (
-	"github.com/CityOfZion/neo-go-sc/interop/storage"
+	"github.com/CityOfZion/neo-storm/interop/storage"
 )
 
 func Main(operation string, args []interface{}) interface{} {

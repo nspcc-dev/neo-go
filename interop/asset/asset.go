@@ -1,7 +1,7 @@
 package asset
 
 // Package asset provides function signatures that can be used inside
-// smart contracts that are written in the neo-go-sc framework.
+// smart contracts that are written in the neo-storm framework.
 
 // Asset stubs a NEO asset type.
 type Asset struct{}

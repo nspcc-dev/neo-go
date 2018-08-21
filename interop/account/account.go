@@ -1,7 +1,7 @@
 package account
 
 // Package account provides function signatures that can be used inside
-// smart contracts that are written in the neo-go-sc framework.
+// smart contracts that are written in the neo-storm framework.
 
 // Account stubs a NEO account type.
 type Account struct{}

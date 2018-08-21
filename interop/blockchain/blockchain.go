@@ -1,16 +1,16 @@
 package blockchain
 
 import (
-	"github.com/CityOfZion/neo-go-sc/interop/account"
-	"github.com/CityOfZion/neo-go-sc/interop/asset"
-	"github.com/CityOfZion/neo-go-sc/interop/block"
-	"github.com/CityOfZion/neo-go-sc/interop/contract"
-	"github.com/CityOfZion/neo-go-sc/interop/header"
-	"github.com/CityOfZion/neo-go-sc/interop/transaction"
+	"github.com/CityOfZion/neo-storm/interop/account"
+	"github.com/CityOfZion/neo-storm/interop/asset"
+	"github.com/CityOfZion/neo-storm/interop/block"
+	"github.com/CityOfZion/neo-storm/interop/contract"
+	"github.com/CityOfZion/neo-storm/interop/header"
+	"github.com/CityOfZion/neo-storm/interop/transaction"
 )
 
 // Package blockchain provides function signatures that can be used inside
-// smart contracts that are written in the neo-go-sc framework.
+// smart contracts that are written in the neo-storm framework.
 
 // GetHeight returns the height of te block recorded in the current execution scope.
 func GetHeight() int {
