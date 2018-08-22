@@ -185,7 +185,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	}
 	// Load in all the global variables in to the scope of the function.
 	// This is not necessary for syscalls.
-	if !isSyscall(f.name) {
+	if !isSyscall(f) {
 		c.convertGlobals(file)
 	}
 
@@ -394,7 +394,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				// Dont forget to add 1 extra argument when its a method.
 				numArgs++
 			}
+
 			f, ok = c.funcs[fun.Sel.Name]
+			// @FIXME this could cause runtime errors.
+			f.selector = fun.X.(*ast.Ident)
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
 			}
@@ -433,8 +436,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
-		case isSyscall(f.name):
-			c.convertSyscall(f.name)
+		case isSyscall(f):
+			c.convertSyscall(f.selector.Name, f.name)
 		default:
 			emitCall(c.prog, vm.CALL, int16(f.label))
 		}
@@ -531,8 +534,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	return c
 }
 
-func (c *codegen) convertSyscall(name string) {
-	api, ok := syscalls[name]
+func (c *codegen) convertSyscall(api, name string) {
+	api, ok := syscalls[api][name]
 	if !ok {
 		log.Fatalf("unknown VM syscall api: %s", name)
 	}

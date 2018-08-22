@@ -201,19 +201,12 @@ func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	return false
 }
 
-func isSyscall(name string) bool {
-	_, ok := syscalls[name]
-	return ok
-}
-
-// isNoRetSyscall checks if the syscall has a return value.
-func isNoRetSyscall(name string) bool {
-	for _, s := range noRetSyscalls {
-		if s == name {
-			return true
-		}
+func isSyscall(fun *funcScope) bool {
+	if fun.selector == nil {
+		return false
 	}
-	return false
+	_, ok := syscalls[fun.selector.Name][fun.name]
+	return ok
 }
 
 func isStringType(t types.Type) bool {
