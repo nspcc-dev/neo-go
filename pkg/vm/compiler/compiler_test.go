@@ -22,18 +22,25 @@ func TestExamplesFolder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(infos) > 1 {
-			t.Fatal("detected smart contract folder with more than 1 contract file")
-		}
 		if len(infos) == 0 {
 			t.Fatal("detected smart contract folder with no contract in it")
 		}
-		filename := infos[0].Name()
+
+		filename := filterFilename(infos)
 		targetPath := path.Join(examplePath, info.Name(), filename)
 		if err := compileFile(targetPath); err != nil {
 			t.Fatal(err)
 		}
 	}
+}
+
+func filterFilename(infos []os.FileInfo) string {
+	for _, info := range infos {
+		if !info.IsDir() {
+			return info.Name()
+		}
+	}
+	return ""
 }
 
 func compileFile(src string) error {

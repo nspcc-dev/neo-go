@@ -1,7 +1,7 @@
 package token_contract
 
 import (
-	"nep5"
+	"github.com/CityOfZion/neo-storm/examples/token/nep5"
 
 	"github.com/CityOfZion/neo-storm/interop/storage"
 	"github.com/CityOfZion/neo-storm/interop/util"
