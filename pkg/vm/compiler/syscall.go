@@ -75,4 +75,10 @@ var syscalls = map[string]map[string]string{
 		"GetValue":      "Neo.Output.GetValue",
 		"GetScriptHash": "Neo.Output.GetScriptHash",
 	},
+	"engine": {
+		"GetScriptContainer":     "System.ExecutionEngine.GetScriptContainer",
+		"GetCallingScriptHash":   "System.ExecutionEngine.GetCallingScriptHash",
+		"GetEntryScriptHash":     "System.ExecutionEngine.GetEntryScriptHash",
+		"GetExecutingScriptHash": "System.ExecutionEngine.GetExecutingScriptHash",
+	},
 }
