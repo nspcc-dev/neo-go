@@ -29,7 +29,14 @@ func (p *Peer) Handshake() error {
 	case <-time.After(handshakeTimeout):
 		return errHandShakeTimeout
 	}
-	fmt.Println("hanshake with", p.RemoteAddr().String(), "successful")
+
+	// This is purely here for Logs
+	if p.inbound {
+		fmt.Println("inbound handshake with", p.RemoteAddr().String(), "successful")
+	} else {
+
+		fmt.Println("outbound handshake with", p.RemoteAddr().String(), "successful")
+	}
 	return nil
 }
 
@@ -40,8 +47,7 @@ func (p *Peer) inboundHandShake() error {
 	if err := p.writeLocalVersionMSG(); err != nil {
 		return err
 	}
-	err = p.readRemoteVersionMSG()
-	if err != nil {
+	if err := p.readRemoteVersionMSG(); err != nil {
 		return err
 	}
 	verack, err := payload.NewVerackMessage()

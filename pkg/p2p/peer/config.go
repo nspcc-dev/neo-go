@@ -28,21 +28,21 @@ type LocalConfig struct {
 	OnGetBlocks  func(msg *payload.GetBlocksMessage)
 }
 
-func DefaultConfig() LocalConfig {
-	return LocalConfig{
-		Net:         protocol.MainNet,
-		UserAgent:   "NEO-GO-Default",
-		Services:    protocol.NodePeerService,
-		Nonce:       1200,
-		ProtocolVer: 0,
-		Relay:       false,
-		Port:        10332,
-		// pointer to config will keep the startheight updated for each version
-		//Message we plan to send
-		StartHeight: DefaultHeight,
-	}
-}
+// func DefaultConfig() LocalConfig {
+// 	return LocalConfig{
+// 		Net:         protocol.MainNet,
+// 		UserAgent:   "NEO-GO-Default",
+// 		Services:    protocol.NodePeerService,
+// 		Nonce:       1200,
+// 		ProtocolVer: 0,
+// 		Relay:       false,
+// 		Port:        10332,
+// 		// pointer to config will keep the startheight updated for each version
+// 		//Message we plan to send
+// 		StartHeight: DefaultHeight,
+// 	}
+// }
 
-func DefaultHeight() uint32 {
-	return 10
-}
+// func DefaultHeight() uint32 {
+// 	return 10
+// }

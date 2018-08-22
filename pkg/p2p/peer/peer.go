@@ -68,6 +68,7 @@ type Peer struct {
 	userAgent string
 	services  protocol.ServiceFlag
 	createdAt time.Time
+	relay     bool
 
 	statemutex     sync.Mutex
 	verackReceived bool
@@ -88,6 +89,7 @@ func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) Peer {
 	p.inbound = inbound
 	p.config = cfg
 	p.conn = con
+	p.createdAt = time.Now()
 	p.addr = p.conn.RemoteAddr().String()
 
 	p.Detector = stall.NewDetector(responseTime, tickerInterval)
@@ -119,6 +121,15 @@ func (p *Peer) Disconnect() {
 }
 
 // Exposed API functions below
+func (p *Peer) Port() uint16 {
+	return p.port
+}
+func (p *Peer) CreatedAt() time.Time {
+	return p.createdAt
+}
+func (p *Peer) CanRelay() bool {
+	return p.relay
+}
 func (p *Peer) LocalAddr() net.Addr {
 	return p.conn.LocalAddr()
 }
@@ -340,6 +351,7 @@ func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
 	p.services = msg.Services
 	p.userAgent = string(msg.UserAgent)
 	p.createdAt = time.Now()
+	p.relay = msg.Relay
 	return nil
 }
 
