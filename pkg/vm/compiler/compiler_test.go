@@ -23,7 +23,7 @@ func TestExamplesFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(infos) > 1 {
-			t.Fatal("detected smart contract folder with more then 1 contract file")
+			t.Fatal("detected smart contract folder with more than 1 contract file")
 		}
 		if len(infos) == 0 {
 			t.Fatal("detected smart contract folder with no contract in it")

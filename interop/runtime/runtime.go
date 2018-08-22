@@ -12,7 +12,7 @@ func CheckWitness(hash []byte) bool {
 func Log(message string) {}
 
 // Notify an event to the VM.
-func Notify(arg interface{}) int {
+func Notify(arg ...interface{}) int {
 	return 0
 }
 
@@ -42,7 +42,7 @@ func Serialize(item interface{}) []byte {
 	return nil
 }
 
-// Deserializes an item from a bytearray.
+// Deserialize an item from a bytearray.
 func Deserialize(b []byte) interface{} {
 	return nil
 }

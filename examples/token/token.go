@@ -1,7 +1,7 @@
 package token_contract
 
 import (
-	"token"
+	"nep5"
 
 	"github.com/CityOfZion/neo-storm/interop/storage"
 	"github.com/CityOfZion/neo-storm/interop/util"
@@ -15,8 +15,8 @@ const (
 var owner = util.FromAddress("AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y")
 
 // CreateToken initializes the Token Interface for the Smart Contract to operate with
-func CreateToken() token.Token {
-	return token.Token{
+func CreateToken() nep5.Token {
+	return nep5.Token{
 		Name:           "Awesome NEO Token",
 		Symbol:         "ANT",
 		Decimals:       decimals,
