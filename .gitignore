@@ -13,6 +13,7 @@
 # Added by CoZ developers
 vendor/
 bin/
+!examples/**/vendor
 
 # text editors
 # vscode
