@@ -571,6 +571,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog, vm.HASH256)
 	case "Hash160":
 		emitOpcode(c.prog, vm.HASH160)
+	case "CompareBytes":
+		emitOpcode(c.prog, vm.EQUAL)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will

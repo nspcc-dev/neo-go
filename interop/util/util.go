@@ -4,3 +4,9 @@ package util
 func FromAddress(address string) []byte {
 	return nil
 }
+
+// CompareBytes compares a with b and will return true whether a and b
+// are equal.
+func CompareBytes(a, b []byte) bool {
+	return false
+}

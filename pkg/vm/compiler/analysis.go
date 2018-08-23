@@ -13,14 +13,8 @@ var (
 	// Go language builtin functions and custom builtin utility functions.
 	builtinFuncs = []string{
 		"len", "append", "SHA256",
-		"SHA1", "Hash256", "Hash160", "FromAddress",
-	}
-
-	// VM system calls that have no return value.
-	noRetSyscalls = []string{
-		"Notify", "Log", "Put", "Register", "Delete",
-		"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
-		"PrevHash", "GetHeader",
+		"SHA1", "Hash256", "Hash160",
+		"FromAddress", "CompareBytes",
 	}
 )
 
