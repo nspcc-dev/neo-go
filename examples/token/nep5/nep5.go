@@ -4,6 +4,7 @@ import (
 	"github.com/CityOfZion/neo-storm/interop/engine"
 	"github.com/CityOfZion/neo-storm/interop/runtime"
 	"github.com/CityOfZion/neo-storm/interop/storage"
+	"github.com/CityOfZion/neo-storm/interop/util"
 )
 
 // Token holds all token info
@@ -85,28 +86,10 @@ func IsUsableAddress(addr []byte) bool {
 
 		// Check if a smart contract is calling scripthash
 		callingScriptHash := engine.GetCallingScriptHash()
-		if EqualAddresses(callingScriptHash, addr) {
+		if util.Equals(callingScriptHash, addr) {
 			return true
 		}
 	}
 
 	return false
-}
-
-// EqualAddresses compares two addresses if they're equal
-// also returns false if one of the two - or both - aren't actual addresses
-func EqualAddresses(a []byte, b []byte) bool {
-	aLen := len(a)
-	bLen := len(b)
-	if aLen != bLen || aLen != 20 || bLen != 20 {
-		return false
-	}
-
-	for i := 0; i < aLen; i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }

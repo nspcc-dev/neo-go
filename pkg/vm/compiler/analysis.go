@@ -14,7 +14,7 @@ var (
 	builtinFuncs = []string{
 		"len", "append", "SHA256",
 		"SHA1", "Hash256", "Hash160",
-		"FromAddress", "CompareBytes",
+		"FromAddress", "Equals",
 	}
 )
 
