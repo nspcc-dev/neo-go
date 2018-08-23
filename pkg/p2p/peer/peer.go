@@ -115,7 +115,9 @@ func (p *Peer) Disconnect() {
 	if atomic.LoadInt32(&p.disconnected) != 0 {
 		return
 	}
-	fmt.Println("Disconnecting Peer")
+
+	close(p.Detector.Quitch)
+	fmt.Println("Disconnecting Peer with address", p.RemoteAddr().String())
 	atomic.AddInt32(&p.disconnected, 1)
 	p.conn.Close()
 }
