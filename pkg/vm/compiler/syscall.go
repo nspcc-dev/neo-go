@@ -81,4 +81,10 @@ var syscalls = map[string]map[string]string{
 		"GetEntryScriptHash":     "System.ExecutionEngine.GetEntryScriptHash",
 		"GetExecutingScriptHash": "System.ExecutionEngine.GetExecutingScriptHash",
 	},
+	"iterator": {
+		"Create": "Neo.Iterator.Create",
+		"Key":    "Neo.Iterator.Key",
+		"Keys":   "Neo.Iterator.Keys",
+		"Values": "Neo.Iterator.Values",
+	},
 }

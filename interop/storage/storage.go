@@ -1,5 +1,7 @@
 package storage
 
+import "github.com/CityOfZion/neo-storm/interop/iterator"
+
 // Package storage provides function signatures that can be used inside
 // smart contracts that are written in the neo-storm framework.
 
@@ -18,5 +20,5 @@ func Get(ctx Context, key interface{}) interface{} { return 0 }
 // Delete key value pair from storage
 func Delete(ctx Context, key interface{}) {}
 
-// Find values stored on keys partially matching given key
-func Find(ctx Context, key interface{}) interface{} { return 0 }
+// Find returns an iterator.Iterator over the keys that matched the given key.
+func Find(ctx Context, key interface{}) iterator.Iterator { return iterator.Iterator{} }
