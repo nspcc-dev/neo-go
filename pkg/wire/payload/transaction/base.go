@@ -18,6 +18,7 @@ type decodeExclusiveFields func(br *util.BinReader)
 type Transactioner interface {
 	Encode(w io.Writer) error
 	Decode(r io.Reader) error
+	ID() (util.Uint256, error)
 }
 
 // Base transaction is the template for all other transactions
@@ -164,4 +165,14 @@ func (b *Base) createHash() error {
 	hash, err := util.CalculateHash(b.encodeHashableFields)
 	b.Hash = hash
 	return err
+}
+
+// TXHash returns the TXID of the transactions
+func (b *Base) ID() (util.Uint256, error) {
+	var emptyHash util.Uint256
+	var err error
+	if b.Hash == emptyHash {
+		err = b.createHash()
+	}
+	return b.Hash, err
 }

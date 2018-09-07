@@ -82,66 +82,47 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 	switch header.CMD {
 	case command.Version:
 		v := &payload.VersionMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		err := v.DecodePayload(buf)
+		return v, err
 	case command.Verack:
-		v := &payload.VerackMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewVerackMessage()
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.Inv:
-		v := &payload.InvMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewInvMessage(0)
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.GetAddr:
-		v := &payload.GetAddrMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewGetAddrMessage()
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.Addr:
-		v := &payload.AddrMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewAddrMessage()
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.Block:
-		v := &payload.BlockMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewBlockMessage()
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.GetBlocks:
-		v := &payload.GetBlocksMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewGetBlocksMessage([]util.Uint256{}, util.Uint256{})
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.GetData:
 		v, err := payload.NewGetDataMessage(payload.InvTypeTx)
 		err = v.DecodePayload(buf)
 		return v, err
 	case command.GetHeaders:
-		v := &payload.GetHeadersMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewGetHeadersMessage([]util.Uint256{}, util.Uint256{})
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.Headers:
-		v := &payload.HeadersMessage{}
-		if err := v.DecodePayload(buf); err != nil {
-			return nil, err
-		}
-		return v, nil
+		v, err := payload.NewHeadersMessage()
+		err = v.DecodePayload(buf)
+		return v, err
 	case command.TX:
 		reader := bufio.NewReader(buf)
 		tx, err := transaction.FromBytes(reader)
-
 		if err != nil {
 			return nil, err
 		}

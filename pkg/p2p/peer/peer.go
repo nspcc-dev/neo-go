@@ -116,7 +116,10 @@ func (p *Peer) Disconnect() {
 		return
 	}
 
-	close(p.Detector.Quitch)
+	_, ok := <-p.Detector.Quitch
+	if ok {
+		close(p.Detector.Quitch)
+	}
 	fmt.Println("Disconnecting Peer with address", p.RemoteAddr().String())
 	atomic.AddInt32(&p.disconnected, 1)
 	p.conn.Close()
@@ -250,6 +253,8 @@ loop:
 			p.OnInv(msg)
 		case *payload.GetDataMessage:
 			p.OnGetData(msg)
+		case *payload.TXMessage:
+			p.OnTX(msg)
 		default:
 			fmt.Println("Cannot recognise message", msg.Command()) //Do not disconnect peer, just Log Message
 		}
@@ -275,15 +280,31 @@ func (p *Peer) WriteLoop() {
 func (p *Peer) OnGetData(msg *payload.GetDataMessage) {
 
 	p.inch <- func() {
-		fmt.Println(msg.Hashes)
+		// fmt.Println(msg.Hashes)
 		fmt.Println("That was an getdata Message please pass func down through config", msg.Command())
+	}
+}
+func (p *Peer) OnTX(msg *payload.TXMessage) {
+
+	p.inch <- func() {
+		// fmt.Println(msg.Hashes)
+		getdata, err := payload.NewGetDataMessage(payload.InvTypeTx)
+		if err != nil {
+			fmt.Println("Eor", err)
+		}
+		id, err := msg.Tx.ID()
+		getdata.AddHash(id)
+		p.Write(getdata)
+		fmt.Println("That was an tx Message please pass func down through config", msg.Command())
 	}
 }
 
 func (p *Peer) OnInv(msg *payload.InvMessage) {
 
 	p.inch <- func() {
-
+		if p.config.OnInv != nil {
+			p.config.OnInv(p, msg)
+		}
 		fmt.Println("That was an inv Message please pass func down through config", msg.Command())
 	}
 }
@@ -304,10 +325,7 @@ func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	p.inch <- func() {
 		if p.config.OnAddr != nil {
-			p.config.OnAddr(msg)
-		}
-		for i, addr := range msg.AddrList {
-			fmt.Println(i, addr.IP)
+			p.config.OnAddr(p, msg)
 		}
 		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
 
@@ -318,7 +336,7 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 	p.inch <- func() {
 		if p.config.OnGetAddr != nil {
-			p.config.OnGetAddr(msg)
+			p.config.OnGetAddr(p, msg)
 		}
 		fmt.Println("That was a getaddr message, please pass func down through config", msg.Command())
 
@@ -348,6 +366,10 @@ func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 // during the handshake, any error checking should be done here for the versionMessage.
 // This should only ever be called during the handshake. Any other place and the peer will disconnect.
 func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
+	if msg.Nonce == p.config.Nonce {
+		p.conn.Close()
+		return errors.New("Self connection, disconnecting Peer")
+	}
 	p.versionKnown = true
 	p.port = msg.Port
 	p.services = msg.Services
@@ -383,14 +405,9 @@ func (p *Peer) RequestHeaders(hash util.Uint256) error {
 }
 
 // RequestBlocks will ask a peer for a block
-func (p *Peer) RequestBlocks(headers []*payload.BlockBase) error {
+func (p *Peer) RequestBlocks(hashes []util.Uint256) error {
 	fmt.Println("Requesting block from peer")
 	c := make(chan error, 0)
-
-	var hashes []util.Uint256
-	for _, header := range headers {
-		hashes = append(hashes, header.Hash)
-	}
 
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetData)

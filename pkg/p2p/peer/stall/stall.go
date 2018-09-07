@@ -51,6 +51,7 @@ loop:
 				if now.After(deadline) {
 					fmt.Println("Deadline passed")
 					close(d.Quitch)
+					ticker.Stop()
 					break loop
 				}
 			}

@@ -20,9 +20,9 @@ type LocalConfig struct {
 	StartHeight  func() uint32
 	OnHeader     func(*Peer, *payload.HeadersMessage)
 	OnGetHeaders func(msg *payload.GetHeadersMessage) // returns HeaderMessage
-	OnAddr       func(msg *payload.AddrMessage)
-	OnGetAddr    func(msg *payload.GetAddrMessage)
-	OnInv        func(msg *payload.InvMessage)
+	OnAddr       func(*Peer, *payload.AddrMessage)
+	OnGetAddr    func(*Peer, *payload.GetAddrMessage)
+	OnInv        func(*Peer, *payload.InvMessage)
 	OnGetData    func(msg *payload.GetDataMessage)
 	OnBlock      func(*Peer, *payload.BlockMessage)
 	OnGetBlocks  func(msg *payload.GetBlocksMessage)
