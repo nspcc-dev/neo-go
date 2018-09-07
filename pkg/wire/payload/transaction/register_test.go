@@ -25,8 +25,30 @@ func TestEncodeDecodeRegister(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	err = reg.Encode(buf)
-
+	t.Fail()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 	assert.Equal(t, "0c092117b4ba47b81001712425e6e7f760a637695eaf23741ba335925b195ecd", reg.Hash.String())
+}
+func TestEncodeDecodeGenesisRegister(t *testing.T) {
+
+	// genesis transaction taken from mainnet; can be found on mainnet(Block 0) : c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b
+
+	rawtx := "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000"
+	rawtxBytes, _ := hex.DecodeString(rawtx)
+
+	reg := NewRegister(0)
+
+	r := bytes.NewReader(rawtxBytes)
+	err := reg.Decode(r)
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, types.Register, reg.Type)
+
+	buf := new(bytes.Buffer)
+	err = reg.Encode(buf)
+
+	assert.Equal(t, nil, err)
+	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
+	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", reg.Hash.String())
 }

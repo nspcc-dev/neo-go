@@ -30,7 +30,6 @@ type Register struct {
 
 func NewRegister(ver version.TX) *Register {
 	basicTrans := createBaseTransaction(types.Register, ver)
-
 	Register := &Register{}
 	Register.Base = basicTrans
 	Register.encodeExclusive = Register.encodeExcl
@@ -45,7 +44,6 @@ func (r *Register) encodeExcl(bw *util.BinWriter) {
 	bw.Write(r.Precision)
 	r.Owner.Encode(bw)
 	bw.Write(r.Admin)
-	return
 }
 
 func (r *Register) decodeExcl(br *util.BinReader) {
@@ -53,7 +51,6 @@ func (r *Register) decodeExcl(br *util.BinReader) {
 	r.Name = br.VarString()
 	br.Read(&r.Amount)
 	br.Read(&r.Precision)
-
 	r.Owner.Decode(br)
 	br.Read(&r.Admin)
 }
