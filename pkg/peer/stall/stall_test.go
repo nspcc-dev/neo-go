@@ -10,6 +10,10 @@ import (
 )
 
 func TestAddRemoveMessage(t *testing.T) {
+
+	responseTime := 2 * time.Second
+	tickerInterval := 1 * time.Second
+
 	d := NewDetector(responseTime, tickerInterval)
 	d.AddMessage(command.GetAddr)
 	mp := d.GetMessages()

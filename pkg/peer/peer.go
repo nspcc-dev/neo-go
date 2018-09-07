@@ -111,15 +111,13 @@ func (p *Peer) Read() (wire.Messager, error) {
 // Disconnects from a peer
 func (p *Peer) Disconnect() {
 
-	// Already disconnecting
+	// return if already disconnected
 	if atomic.LoadInt32(&p.disconnected) != 0 {
 		return
 	}
 
-	_, ok := <-p.Detector.Quitch
-	if ok {
-		close(p.Detector.Quitch)
-	}
+	p.Detector.Quit()
+
 	fmt.Println("Disconnecting Peer with address", p.RemoteAddr().String())
 	atomic.AddInt32(&p.disconnected, 1)
 	p.conn.Close()

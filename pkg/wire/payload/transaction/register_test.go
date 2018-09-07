@@ -25,7 +25,7 @@ func TestEncodeDecodeRegister(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	err = reg.Encode(buf)
-	t.Fail()
+
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 	assert.Equal(t, "0c092117b4ba47b81001712425e6e7f760a637695eaf23741ba335925b195ecd", reg.Hash.String())

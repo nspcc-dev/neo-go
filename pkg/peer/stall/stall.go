@@ -3,6 +3,7 @@ package stall
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
@@ -22,6 +23,9 @@ type Detector struct {
 	// The detector is embedded into a peer and the peer watches this quit chan
 	// If this chan is closed, the peer disconnects
 	Quitch chan struct{}
+
+	// atomic vals
+	disconnected int32
 }
 
 // rT is the responseTime and signals how long
@@ -50,7 +54,6 @@ loop:
 			for _, deadline := range d.responses {
 				if now.After(deadline) {
 					fmt.Println("Deadline passed")
-					close(d.Quitch)
 					ticker.Stop()
 					break loop
 				}
@@ -58,12 +61,21 @@ loop:
 
 		}
 	}
-
+	d.Quit()
 	d.DeleteAll()
 	ticker.Stop()
+}
 
-	// close the peer connection
+// Quit is a concurrent safe way to call the Quit channel
+// Without blocking
+func (d *Detector) Quit() {
+	// return if already disconnected
+	if atomic.LoadInt32(&d.disconnected) != 0 {
+		return
+	}
 
+	atomic.AddInt32(&d.disconnected, 1)
+	close(d.Quitch)
 }
 
 // Call this function when we send a message to a peer

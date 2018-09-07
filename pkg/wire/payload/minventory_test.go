@@ -52,8 +52,8 @@ func TestEncodeDecodePayload(t *testing.T) {
 	err = msgInv.EncodePayload(buf)
 	assert.Equal(t, nil, err)
 
-	numOfHashes := []byte{0, 0, 0, 1}
-	expected := append([]byte{byte(InvTypeBlock)}, numOfHashes...)
+	numOfHashes := []byte{1}
+	expected := append([]byte{uint8(InvTypeBlock)}, numOfHashes...)
 	expected = append(expected, hash.Bytes()...)
 
 	assert.Equal(t, hex.EncodeToString(expected), hex.EncodeToString(buf.Bytes()))
@@ -73,6 +73,6 @@ func TestEmptyInv(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	msgInv.EncodePayload(buf)
-	assert.Equal(t, []byte{byte(InvTypeBlock), 0, 0, 0, 0}, buf.Bytes())
+	assert.Equal(t, []byte{byte(InvTypeBlock), 0}, buf.Bytes())
 	assert.Equal(t, 0, len(msgInv.Hashes))
 }

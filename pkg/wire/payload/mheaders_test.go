@@ -15,7 +15,7 @@ func TestNewHeaderMessage(t *testing.T) {
 	msgHeaders, err := NewHeadersMessage()
 
 	assert.Equal(t, nil, err)
-	assert.Equal(t, 0, len(msgHeaders.headers))
+	assert.Equal(t, 0, len(msgHeaders.Headers))
 
 }
 
@@ -42,12 +42,12 @@ func TestAddAndEncodeHeaders(t *testing.T) {
 		Witness:       transaction.Witness{invocationScript, verificationScript},
 	})
 
-	assert.Equal(t, 1, len(msgHeaders.headers))
+	assert.Equal(t, 1, len(msgHeaders.Headers))
 
-	err := msgHeaders.headers[0].createHash()
+	err := msgHeaders.Headers[0].createHash()
 	assert.Equal(t, nil, err)
 	// Hash being correct, automatically verifies that the fields are encoded properly
-	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", msgHeaders.headers[0].Hash.String())
+	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", msgHeaders.Headers[0].Hash.String())
 
 }
 
@@ -62,9 +62,9 @@ func TestEncodeDecode(t *testing.T) {
 
 	err := headerMsg.DecodePayload(r)
 
-	assert.Equal(t, 1, len(headerMsg.headers))
+	assert.Equal(t, 1, len(headerMsg.Headers))
 
-	header := headerMsg.headers[0]
+	header := headerMsg.Headers[0]
 	err = header.createHash()
 
 	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", header.Hash.String())

@@ -1,11 +1,12 @@
 package peer_test
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
+	"github.com/CityOfZion/neo-go/pkg/peer"
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
@@ -18,10 +19,10 @@ func returnConfig() peer.LocalConfig {
 		return 10
 	}
 
-	OnAddr := func(msg *payload.AddrMessage) {}
+	OnAddr := func(p *peer.Peer, msg *payload.AddrMessage) {}
 	OnHeader := func(p *peer.Peer, msg *payload.HeadersMessage) {}
 	OnGetHeaders := func(msg *payload.GetHeadersMessage) {}
-	OnInv := func(msg *payload.InvMessage) {}
+	OnInv := func(p *peer.Peer, msg *payload.InvMessage) {}
 	OnGetData := func(msg *payload.GetDataMessage) {}
 	OnBlock := func(p *peer.Peer, msg *payload.BlockMessage) {}
 	OnGetBlocks := func(msg *payload.GetBlocksMessage) {}
@@ -177,9 +178,12 @@ func TestPeerDisconnect(t *testing.T) {
 	inbound := true
 	config := returnConfig()
 	p := peer.NewPeer(conn, inbound, config)
+	fmt.Println("Calling disconnect")
 	p.Disconnect()
-
+	fmt.Println("Disconnect finished calling")
 	verack, _ := payload.NewVerackMessage()
+
+	fmt.Println(" We good here")
 
 	err := p.Write(verack)
 
