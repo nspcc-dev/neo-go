@@ -123,13 +123,11 @@ func (c *Chain) verifyBlock(msg *payload.BlockMessage) bool {
 
 //addHeaders is not safe for concurrent access
 func (c *Chain) ValidateHeaders(msg *payload.HeadersMessage) error {
-	fmt.Println("Checking and Adding Headers into List")
 
 	table := database.NewTable(c.db, database.HEADER)
 
 	latestHash, err := table.Get(database.LATESTHEADER)
 	if err != nil {
-		fmt.Println("Could not find the latest hash in the database")
 		return err
 	}
 
@@ -139,11 +137,10 @@ func (c *Chain) ValidateHeaders(msg *payload.HeadersMessage) error {
 	lastHeader := &payload.BlockBase{}
 	err = lastHeader.Decode(bytes.NewReader(val))
 	if err != nil {
-		fmt.Println("Error decoding blockbase", err)
 		return err
 	}
 
-	// TODO:Maybe we should sort these headers using the Index
+	// TODO?:Maybe we should sort these headers using the Index
 	// We should not get them in mixed order, but doing it would not be expensive
 	// If they are already in order
 
@@ -158,15 +155,11 @@ func (c *Chain) ValidateHeaders(msg *payload.HeadersMessage) error {
 
 		// Check current hash links with previous
 		if currentHeader.PrevHash != lastHeader.Hash {
-			fmt.Println("CurrentHeader says PrevHash=", currentHeader.PrevHash)
-			fmt.Println("LastHeader says Hash=", lastHeader.Hash)
 			return errors.New("Last Header hash != current header Prev hash")
 		}
 
 		// Check current Index is one more than the previous Index
 		if currentHeader.Index != lastHeader.Index+1 {
-			fmt.Println("CurrentHeader says Index=", currentHeader.Index)
-			fmt.Println("LastHeader says Index=", lastHeader.Index)
 			return errors.New("Last Header Index != current header Index")
 		}
 

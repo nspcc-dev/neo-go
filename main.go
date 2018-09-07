@@ -8,7 +8,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/blockchain"
 	"github.com/CityOfZion/neo-go/pkg/database"
-	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
+	"github.com/CityOfZion/neo-go/pkg/peer"
 	"github.com/CityOfZion/neo-go/pkg/peermanager"
 	"github.com/CityOfZion/neo-go/pkg/syncmanager"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"

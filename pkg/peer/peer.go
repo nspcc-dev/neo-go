@@ -16,7 +16,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 
-	"github.com/CityOfZion/neo-go/pkg/p2p/peer/stall"
+	"github.com/CityOfZion/neo-go/pkg/peer/stall"
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
