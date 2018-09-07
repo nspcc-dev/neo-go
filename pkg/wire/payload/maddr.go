@@ -8,7 +8,7 @@ import (
 )
 
 type AddrMessage struct {
-	AddrList []*net_addr
+	AddrList []*Net_addr
 }
 
 func NewAddrMessage() (*AddrMessage, error) {
@@ -18,7 +18,7 @@ func NewAddrMessage() (*AddrMessage, error) {
 	return addrMess, nil
 }
 
-func (a *AddrMessage) AddNetAddr(n *net_addr) error {
+func (a *AddrMessage) AddNetAddr(n *Net_addr) error {
 	a.AddrList = append(a.AddrList, n)
 	// TODO:check if max reached, if so return err. What is max?
 
@@ -31,9 +31,9 @@ func (a *AddrMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 	listLen := br.VarUint()
 
-	a.AddrList = make([]*net_addr, listLen)
+	a.AddrList = make([]*Net_addr, listLen)
 	for i := 0; i < int(listLen); i++ {
-		a.AddrList[i] = &net_addr{}
+		a.AddrList[i] = &Net_addr{}
 		a.AddrList[i].DecodePayload(br)
 		if br.Err != nil {
 			return br.Err
