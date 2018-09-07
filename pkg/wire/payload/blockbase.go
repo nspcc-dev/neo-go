@@ -1,7 +1,9 @@
 package payload
 
 import (
+	"bytes"
 	"errors"
+	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -55,6 +57,17 @@ func (b *BlockBase) EncodePayload(bw *util.BinWriter) error {
 	return bw.Err
 }
 
+func (b *BlockBase) Decode(r io.Reader) error {
+	br := &util.BinReader{R: r}
+	b.DecodePayload(br)
+	return br.Err
+}
+func (b *BlockBase) Encode(w io.Writer) error {
+	bw := &util.BinWriter{W: w}
+	b.EncodePayload(bw)
+	return bw.Err
+}
+
 func (b *BlockBase) encodeHashableFields(bw *util.BinWriter) {
 	bw.Write(b.Version)
 	bw.Write(b.PrevHash)
@@ -102,4 +115,10 @@ func (b *BlockBase) createHash() error {
 	hash, err := util.CalculateHash(b.encodeHashableFields)
 	b.Hash = hash
 	return err
+}
+
+func (b *BlockBase) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := b.Encode(buf)
+	return buf.Bytes(), err
 }

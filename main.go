@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/blockchain"
-	"github.com/CityOfZion/neo-go/pkg/chainparams"
 	"github.com/CityOfZion/neo-go/pkg/database"
 	"github.com/CityOfZion/neo-go/pkg/p2p/peer"
+	"github.com/CityOfZion/neo-go/pkg/peermanager"
 	"github.com/CityOfZion/neo-go/pkg/syncmanager"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
@@ -33,16 +34,35 @@ func connectingToPeers() {
 
 	// setup DB
 	db := database.New("test")
-
 	// setup blockchain
-	chain := blockchain.New(db)
+	chain := blockchain.New(db, protocol.MainNet)
+
+	var res util.Uint256
+
+	if chain != nil {
+		fmt.Println("Db Successfully initialised")
+		table := database.NewTable(db, database.HEADER)
+		resa, err := table.Get(database.LATESTHEADER)
+		res, err = util.Uint256DecodeBytes(resa)
+		if err != nil {
+			fmt.Println("Failed to get LastHeader")
+			return
+		}
+		fmt.Println(hex.EncodeToString(resa))
+	} else {
+		fmt.Println("Failed to add genesis block")
+	}
+
+	// setup peerManager
+	pm := peermanager.New()
 
 	// setup syncmanager
-	sm := syncmanager.New(chain)
+	sm := syncmanager.New(chain, pm, res)
 
+	// This should be configured on the server, then we pass it around
 	config := peer.LocalConfig{
 		Net:         protocol.MainNet,
-		UserAgent:   "NEO-G",
+		UserAgent:   "DIG",
 		Services:    protocol.NodePeerService,
 		Nonce:       1200,
 		ProtocolVer: 0,
@@ -56,13 +76,17 @@ func connectingToPeers() {
 	p := peer.NewPeer(conn, false, config)
 	err = p.Run()
 
-	hash, err := util.Uint256DecodeString(chainparams.GenesisHash)
 	if err != nil {
-		fmt.Println("Error converting hex to hash", err)
-		return
+		pm.AddPeer(&p)
 	}
-	// hash2, err := util.Uint256DecodeString("ff8fe95efc5d1cc3a22b17503aecaf289cef68f94b79ddad6f613569ca2342d8")
-	err = p.RequestHeaders(hash.Reverse())
+
+	// hash, err := util.Uint256DecodeString(chainparams.GenesisHash)
+	// if err != nil {
+	// 	fmt.Println("Error converting hex to hash", err)
+	// 	return
+	// }
+	// fmt.Println(hash.Bytes())
+	err = p.RequestHeaders(res)
 	fmt.Println("For tests, we are only fetching first 2k batch")
 	if err != nil {
 		fmt.Println(err.Error())

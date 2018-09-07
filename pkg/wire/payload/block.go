@@ -2,6 +2,7 @@ package payload
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
@@ -49,5 +50,10 @@ func (b *Block) DecodePayload(br *util.BinReader) error {
 
 	}
 	return nil
+}
 
+func (b *Block) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := b.Encode(buf)
+	return buf.Bytes(), err
 }
