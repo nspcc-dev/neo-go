@@ -12,6 +12,7 @@ type Type string
 // use this to get
 const (
 	Version    Type = "version"
+	Mempool    Type = "mempool"
 	Ping       Type = "ping"
 	Pong       Type = "pong"
 	Verack     Type = "verack"
