@@ -24,8 +24,11 @@ func (p *PublicKey) Decode(br *util.BinReader) {
 	} else if prefix == 0x04 {
 		p.Key = make([]byte, 65)
 		br.Read(p.Key)
+	} else if prefix == 0x00 {
+		// do nothing, For infinity, the p.Key == 0x00, included in the prefix
 	} else {
 		br.Err = errors.New("Prefix not recognised for public key")
+		return
 	}
 
 	p.Key = append([]byte{prefix}, p.Key...)
