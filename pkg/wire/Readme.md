@@ -54,6 +54,8 @@ These below commands are left to implement.
 
 Please not that this package will do sanity checks on the fields, however it will not verify if any of the items are valid for the current state of the system. Please see `Responbilities`.
 
+The difference between Encode/Decode and EncodePayload/DecodePayload, is the parameter type.
+In most cases, Encode/Decode is just a convenience method.
 # Contributors
 
 When modifying this package, please ensure that it does not depend on any other package and that it conforms to the Single Responsibility Principle. If you see somewhere in the current implementation that does not do this, then please tell me.
