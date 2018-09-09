@@ -1,6 +1,8 @@
 package payload
 
 import (
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
@@ -43,4 +45,10 @@ func (n *Net_addr) DecodePayload(br *util.BinReader) {
 	br.Read(&n.Service)
 	br.ReadBigEnd(&n.IP)
 	br.ReadBigEnd(&n.Port)
+}
+func (n *Net_addr) IPPort() string {
+	ip := net.IP(n.IP[:]).String()
+	port := strconv.Itoa(int(n.Port))
+	ipport := ip + ":" + port
+	return ipport
 }
