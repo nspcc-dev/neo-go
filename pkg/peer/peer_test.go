@@ -194,3 +194,16 @@ func TestPeerDisconnect(t *testing.T) {
 	assert.Equal(t, ok, false)
 
 }
+
+func TestNotifyDisconnect(t *testing.T) {
+
+	_, conn := net.Pipe()
+	inbound := true
+	config := returnConfig()
+	p := peer.NewPeer(conn, inbound, config)
+
+	p.Disconnect()
+	p.NotifyDisconnect()
+	// TestNotify uses default test timeout as the passing condition
+	// Failure condition can be seen when you comment out p.Disconnect()
+}

@@ -116,11 +116,14 @@ func (p *Peer) Disconnect() {
 		return
 	}
 
-	p.Detector.Quit()
-
-	fmt.Println("Disconnecting Peer with address", p.RemoteAddr().String())
 	atomic.AddInt32(&p.disconnected, 1)
+
+	p.Detector.Quit()
+	close(p.quitch)
 	p.conn.Close()
+
+	fmt.Println("Disconnected Peer with address", p.RemoteAddr().String())
+
 }
 
 // Exposed API functions below
@@ -150,6 +153,12 @@ func (p *Peer) UserAgent() string {
 }
 func (p *Peer) IsVerackReceived() bool {
 	return p.verackReceived
+}
+func (p *Peer) NotifyDisconnect() bool {
+	fmt.Println("Peer has not disconnected yet")
+	<-p.quitch
+	fmt.Println("Peer has just disconnected")
+	return true
 }
 
 //End of Exposed API functions//
