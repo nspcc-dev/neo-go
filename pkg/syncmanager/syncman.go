@@ -16,12 +16,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-// Moving Variables are OnHeaders and OnBlocks
-// And HeadersFirstMode, BlocksOnly and Maintain
-/*
-
-HeadersFirstMode + OnHeaders
-*/
 var (
 	// This is the maximum amount of inflight objects that we would like to have
 	// Number taken from original codebase
@@ -40,6 +34,7 @@ type Syncmanager struct {
 	inflightBlockReqs map[util.Uint256]*peer.Peer // when we send a req for block, we will put hash in here, along with peer who we requested it from
 }
 
+// TODO: Pass through a config object instead
 func New(chain *blockchain.Chain, pmgr *peermanager.PeerMgr, bestHash util.Uint256) *Syncmanager {
 	return &Syncmanager{
 		pmgr,
@@ -214,68 +209,3 @@ func (s *Syncmanager) Emit(e pubsub.Event) {
 	}
 	// do something with received event
 }
-
-/*
-	Stage 1: We download the headers only from one peer. We make sure headers fit and save them, then take the hash
-	of header and put it in the wantedBlocks list.
-
-	<< This means we can put the addHeaders method back into Chain and save headers to disk.>>
-
-	Stage 2: We are now in BlocksOnly Mode, We start requesting blocks in bulks of 21 from peers
-	from the wantedHeaders list. When we receive a block, we save it and if it is the next block that the blockchain needs
-	We give it to the chain. If not we save it. Or we could use channels, make channel a size of 2k and send them over channel
-	Letting the blockchain deal with newBlocks via the channel, send async over channel
-	if blockchain says all is good, then we continue. Problem is that if we have queued up a lot of blocks and they are invalid
-
-	We need to keep track of who we have requested blocks from, incase they disconnect, then re-request from
-	different peers.
-
-	map: key = peer and val = slice of blocks Requested
-
-	If a peer is disconnected, we take
-*/
-
-/*
-1. Download the headers from one peer inititally
-2. When downloaded verify and save them
-3. Switch to BlocksOnly Mode
-4. Fetch multiple blocks in parallel
-
-We will have a PeerManager, which will inform others of when a Peer disconnects. Whoever wants to know
-When the SyncManager sees that a peer has disconnected, then we put their blocks back to the front
-of the queue.
-
-The sync manager will not be care about the peers it will ask the peer manager to manage the peer states.
-
-The syncmanager will be in charge of synchronising the node, when blocks are recieved they are passed onto
-the blockchain to process. The syncmanager should receive the blocks and headers because it also keeps the state
-of requested blocks.
-
-5. Maintain mode:
-
-- If we are in this mode and we receive headers, we disconnect the peer, as we did not ask for
-them.
-- If we receive blocks, then pass them onto the chain
-
-
-HEADERS Mode:
-
-OnHeaders: Save the header and make sure it links with previous
-OnBlock : disconnect Peer
-
-BLOCKSONLY:
-
-OnHeaders: Disconnect, we did not ask for headers
-OnBlock: Match it with a header, if it is a block that is > headerHeight just discard,
-If it is equal <= headerHeight but just invalid block, then disconnect peer.
-If matches a header, save and validate
-
-MAINTAIN:
-
-OnHeaders: Save header and validate, then send a getdata for the block that corresponds to it
-OnBlock: Save and validate
-
-https://bitcointalk.org/index.php?topic=550.0 - Batch save instead of saving 1 at a time. Can we
-save the intermediate state of blocks , based on previous blocks, then batch save the state
-
-*/
