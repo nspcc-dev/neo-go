@@ -227,21 +227,24 @@ func (a *Addrmgr) Failed(addressport string) {
 //OnAddr is the responder for the Config file
 // when a OnAddr is received by a peer
 func (a *Addrmgr) OnAddr(p *peer.Peer, msg *payload.AddrMessage) {
-
-	// Deal with dups
-	// Make sure we are not over the maximum
-	// update last added
-
-	// a.actionch <- func() {
-	// 	a.AddAddrs(msg.AddrList)
-	// }
-
+	a.AddAddrs(msg.AddrList)
 }
 
 // OnGetAddr Is called when a peer sends a request for the addressList
 // We will give them the best addresses we have from good.
 func (a *Addrmgr) OnGetAddr(p *peer.Peer, msg *payload.GetAddrMessage) {
+	a.addrmtx.RLock()
+	defer a.addrmtx.RUnlock()
 	// Push most recent peers to peer
+	addrMsg, err := payload.NewAddrMessage()
+	if err != nil {
+		return
+	}
+	for _, add := range a.Good() {
+		addrMsg.AddNetAddr(&add)
+	}
+
+	p.Write(addrMsg)
 }
 
 // https://www.dotnetperls.com/duplicates-go
