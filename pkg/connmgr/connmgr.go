@@ -17,8 +17,8 @@ var (
 // Connmgr manages pending/active/failed cnnections
 type Connmgr struct {
 	config        Config
-	pendingList   map[string]*Request
-	connectedList map[string]*Request
+	PendingList   map[string]*Request
+	ConnectedList map[string]*Request
 	actionch      chan func()
 }
 
@@ -26,8 +26,8 @@ type Connmgr struct {
 func New(cfg Config) *Connmgr {
 	return &Connmgr{
 		cfg,
-		nil,
-		nil,
+		make(map[string]*Request),
+		make(map[string]*Request),
 		make(chan func(), 300),
 	}
 }
@@ -56,13 +56,13 @@ func (c *Connmgr) Connect(r *Request) {
 	// dial address
 	conn, err := c.Dial(r.Addr)
 	if err != nil {
-		c.Failed(r)
+		c.failed(r)
 	}
 	r.Conn = conn
 	r.Inbound = true
 	// r.Permanent is set by the caller. default is false
 	// The permanent connections will be the ones that are hardcoded, e.g seed3.ngd.network
-	c.Connect(r)
+	c.connected(r)
 }
 
 // Dial is used to dial up connections given the addres and ip in the form address:port
@@ -77,7 +77,7 @@ func (c *Connmgr) Dial(addr string) (net.Conn, error) {
 	}
 	return conn, nil
 }
-func (c *Connmgr) Failed(r *Request) {
+func (c *Connmgr) failed(r *Request) {
 
 	/// Here we will have retry logic
 
@@ -90,24 +90,24 @@ func (c *Connmgr) Failed(r *Request) {
 // Disconnected is called when a peer disconnects.
 // we take the addr from peer, which is also it's key in the map
 // and we use it to remove it from the connectedList
-func (c *Connmgr) Disconnected(addr string) {
+func (c *Connmgr) disconnected(addr string) {
 
 	c.actionch <- func() {
 		// if for some reason the underlying connection is not closed, close it
-		r, ok := c.connectedList[addr]
+		r, ok := c.ConnectedList[addr]
 		if ok {
 			r.Conn.Close()
 		}
 		// if for some reason it is in pending list, remove it
-		delete(c.pendingList, addr)
-		delete(c.connectedList, addr)
+		delete(c.PendingList, addr)
+		delete(c.ConnectedList, addr)
 
 		// Now lets check if we should connect to it again
 		// Because we have a lot of peers on neo, who connect from their laptops
 		// we will check if the directon is inbound/outbound. If we connected to them, then we can retry
 		// if they are also permanent then we will retry also
 
-		if r.Inbound && len(c.connectedList) < maxOutboundConn || r.Permanent {
+		if r.Inbound && len(c.ConnectedList) < maxOutboundConn || r.Permanent {
 			c.Dial(r.Addr)
 		}
 
@@ -116,7 +116,7 @@ func (c *Connmgr) Disconnected(addr string) {
 
 //Connected is called when the connection manager
 // makes a successful connection.
-func (c *Connmgr) Connected(r *Request) {
+func (c *Connmgr) connected(r *Request) {
 
 	c.actionch <- func() {
 
@@ -130,10 +130,10 @@ func (c *Connmgr) Connected(r *Request) {
 		r.Retries = 0
 
 		// add to connectedList
-		c.connectedList[r.Addr] = r
+		c.ConnectedList[r.Addr] = r
 
 		// remove from pending if it was there
-		delete(c.pendingList, r.Addr)
+		delete(c.PendingList, r.Addr)
 
 		if c.config.OnConnection != nil {
 			c.config.OnConnection(r.Conn, r.Addr)
@@ -143,7 +143,7 @@ func (c *Connmgr) Connected(r *Request) {
 
 // Pending is synchronous, we do not want to continue with logic
 // until we are certain it has been added to the pendingList
-func (c *Connmgr) Pending(r *Request) error {
+func (c *Connmgr) pending(r *Request) error {
 
 	if r == nil {
 		return errors.New("Error : Request object is nil")
@@ -153,7 +153,7 @@ func (c *Connmgr) Pending(r *Request) error {
 
 	c.actionch <- func() {
 		var err error
-		c.pendingList[r.Addr] = r
+		c.PendingList[r.Addr] = r
 		errChan <- err
 	}
 
