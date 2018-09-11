@@ -141,3 +141,27 @@ func TestAttemptedMoveFromGoodToBad(t *testing.T) {
 	assert.Equal(t, 0, len(addrmgr.Good()))
 	assert.Equal(t, 1, len(addrmgr.Bad()))
 }
+
+func TestGetAddress(t *testing.T) {
+
+	addrmgr := addrmgr.New()
+
+	ip := [16]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // different
+	addr, _ := payload.NewNetAddr(0, ip, 10333, protocol.NodePeerService)
+	ip2 := [16]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // different
+	addr2, _ := payload.NewNetAddr(0, ip2, 10334, protocol.NodePeerService)
+	ip3 := [16]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // different
+	addr3, _ := payload.NewNetAddr(0, ip3, 10335, protocol.NodePeerService)
+
+	addrs := []*payload.Net_addr{addr, addr2, addr3}
+
+	addrmgr.AddAddrs(addrs)
+
+	fetchAddr, err := addrmgr.NewAddr()
+	assert.Equal(t, nil, err)
+
+	ipports := []string{addr.IPPort(), addr2.IPPort(), addr3.IPPort()}
+
+	assert.Contains(t, ipports, fetchAddr)
+
+}

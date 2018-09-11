@@ -1,7 +1,9 @@
 package addrmgr
 
 import (
+	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -126,7 +128,7 @@ func (a *Addrmgr) Bad() []payload.Net_addr {
 	return badAddrs
 }
 
-// FetchMoreAddresses will return true if the number of good + NewAddrs are less than 100
+// FetchMoreAddresses will return true if the numOfKnownAddrs are less than 100
 // This number is kept low because at the moment, there are not a lot of Good Addresses
 // Tests have shown that at most there are < 100
 func (a *Addrmgr) FetchMoreAddresses() bool {
@@ -245,6 +247,21 @@ func (a *Addrmgr) OnGetAddr(p *peer.Peer, msg *payload.GetAddrMessage) {
 	}
 
 	p.Write(addrMsg)
+}
+
+// NewAddr will return an address for the external caller to
+// connect to. In our case, it will be the connection manager.
+func (a *Addrmgr) NewAddr() (string, error) {
+	// For now it just returns a random value from unconnected
+	// TODO: When an address is tried, the address manager is notified.
+	// When asked for a new address, this should be taken into account
+	// when choosing a new one, also the number of retries.
+	unconnected := a.Unconnected()
+	if len(unconnected) == 0 {
+		return "", errors.New("No Addresses to give")
+	}
+	rand := rand.Intn(len(unconnected))
+	return unconnected[rand].IPPort(), nil
 }
 
 // https://www.dotnetperls.com/duplicates-go
