@@ -47,7 +47,7 @@ func (c *Connmgr) NewRequest() {
 	r := &Request{}
 
 	r.Addr = addr
-
+	fmt.Println("Connecting")
 	c.Connect(r)
 
 }
@@ -116,14 +116,18 @@ func (c *Connmgr) disconnected(addr string) {
 
 //Connected is called when the connection manager
 // makes a successful connection.
-func (c *Connmgr) connected(r *Request) {
+func (c *Connmgr) connected(r *Request) error {
+
+	errorChan := make(chan error, 0)
 
 	c.actionch <- func() {
+
+		var err error
 
 		// This should not be the case, since we connected
 		// Keeping it here to be safe
 		if r == nil {
-			return
+			err = errors.New("Request object as nil inside of the connected function")
 		}
 
 		// reset retries to 0
@@ -138,7 +142,11 @@ func (c *Connmgr) connected(r *Request) {
 		if c.config.OnConnection != nil {
 			c.config.OnConnection(r.Conn, r.Addr)
 		}
+
+		errorChan <- err
 	}
+
+	return <-errorChan
 }
 
 // Pending is synchronous, we do not want to continue with logic

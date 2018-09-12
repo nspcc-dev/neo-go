@@ -2,7 +2,6 @@ package connmgr_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/connmgr"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +31,30 @@ func TestConnect(t *testing.T) {
 
 	cm.Connect(&r)
 
-	time.Sleep(1 * time.Second) // to not use this, we would need to change the API. To me, it is not worth it, just for test and the 2sec sleep is good enough
 	assert.Equal(t, 1, len(cm.ConnectedList))
+
+}
+func TestNewRequest(t *testing.T) {
+
+	address := "google.com:80"
+
+	var getAddr = func() (string, error) {
+		return address, nil
+	}
+
+	cfg := connmgr.Config{getAddr, nil}
+
+	cm := connmgr.New(cfg)
+	cm.Run()
+
+	cm.NewRequest()
+
+	if _, ok := cm.ConnectedList[address]; ok {
+		assert.Equal(t, true, ok)
+		assert.Equal(t, 1, len(cm.ConnectedList))
+		return
+	}
+
+	t.Fail()
 
 }
