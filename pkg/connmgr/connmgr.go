@@ -12,6 +12,10 @@ var (
 	// maxOutboundConn is the maximum number of active peers
 	// that the connection manager will try to have
 	maxOutboundConn = 10
+
+	// maxRetries is the maximum amount of successive retries that
+	// we can have before we stop dialing that peer
+	maxRetries = uint8(5)
 )
 
 // Connmgr manages pending/active/failed cnnections
@@ -52,17 +56,37 @@ func (c *Connmgr) NewRequest() {
 
 }
 
-func (c *Connmgr) Connect(r *Request) {
-	// dial address
+func (c *Connmgr) Connect(r *Request) error {
+
+	r.Retries++
+
 	conn, err := c.Dial(r.Addr)
 	if err != nil {
 		c.failed(r)
+		return err
 	}
+
 	r.Conn = conn
 	r.Inbound = true
+
 	// r.Permanent is set by the caller. default is false
 	// The permanent connections will be the ones that are hardcoded, e.g seed3.ngd.network
-	c.connected(r)
+
+	return c.connected(r)
+}
+
+func (cm *Connmgr) Disconnect(addr string) {
+
+	// fetch from connected list
+	r, ok := cm.ConnectedList[addr]
+
+	if !ok {
+		// If not in connected, check pending
+		r, ok = cm.PendingList[addr]
+	}
+
+	cm.disconnected(r)
+
 }
 
 // Dial is used to dial up connections given the addres and ip in the form address:port
@@ -73,45 +97,67 @@ func (c *Connmgr) Dial(addr string) (net.Conn, error) {
 		if !isConnected() {
 			return nil, errors.New("Fatal Error: You do not seem to be connected to the internet")
 		}
-		return conn, nil
+		return conn, err
 	}
 	return conn, nil
 }
-func (c *Connmgr) failed(r *Request) {
+func (cm *Connmgr) failed(r *Request) {
 
-	/// Here we will have retry logic
+	cm.actionch <- func() {
+		// priority to check if it is permanent or inbound
+		// if so then these peers are valuable in NEO and so we will just retry another time
+		if r.Inbound || r.Permanent {
 
-	c.actionch <- func() {
+			multiplier := time.Duration(r.Retries * 10)
+			time.AfterFunc(multiplier*time.Second,
+				func() {
+					cm.Connect(r)
+				},
+			)
+			// if not then we should check if this request has had maxRetries
+			// if it has then get a new address
+			// if not then call Connect on it again
+		} else if r.Retries > maxRetries {
+			if cm.config.GetAddress != nil {
+				go cm.NewRequest()
+			}
+			fmt.Println("This peer has been tried the maximum amount of times and a source of new address has not been specified.")
+		} else {
+			go cm.Connect(r)
+		}
 
-		fmt.Println("The connecton has failed bro", len(c.actionch))
 	}
+
 }
 
 // Disconnected is called when a peer disconnects.
 // we take the addr from peer, which is also it's key in the map
 // and we use it to remove it from the connectedList
-func (c *Connmgr) disconnected(addr string) {
+func (c *Connmgr) disconnected(r *Request) error {
+
+	errChan := make(chan error, 0)
 
 	c.actionch <- func() {
+
+		var err error
+
+		if r == nil {
+			err = errors.New("Request object is nil")
+		}
+
+		r2 := *r // dereference it, so that r.Addr is not lost on delete
+
 		// if for some reason the underlying connection is not closed, close it
-		r, ok := c.ConnectedList[addr]
-		if ok {
-			r.Conn.Close()
-		}
+		r.Conn.Close()
+		r.Conn = nil
 		// if for some reason it is in pending list, remove it
-		delete(c.PendingList, addr)
-		delete(c.ConnectedList, addr)
-
-		// Now lets check if we should connect to it again
-		// Because we have a lot of peers on neo, who connect from their laptops
-		// we will check if the directon is inbound/outbound. If we connected to them, then we can retry
-		// if they are also permanent then we will retry also
-
-		if r.Inbound && len(c.ConnectedList) < maxOutboundConn || r.Permanent {
-			c.Dial(r.Addr)
-		}
-
+		delete(c.PendingList, r.Addr)
+		delete(c.ConnectedList, r.Addr)
+		c.failed(&r2)
+		errChan <- err
 	}
+
+	return <-errChan
 }
 
 //Connected is called when the connection manager
@@ -153,14 +199,16 @@ func (c *Connmgr) connected(r *Request) error {
 // until we are certain it has been added to the pendingList
 func (c *Connmgr) pending(r *Request) error {
 
-	if r == nil {
-		return errors.New("Error : Request object is nil")
-	}
-
-	errChan := make(chan error, 1)
+	errChan := make(chan error, 0)
 
 	c.actionch <- func() {
+
 		var err error
+
+		if r == nil {
+			err = errors.New("Error : Request object is nil")
+		}
+
 		c.PendingList[r.Addr] = r
 		errChan <- err
 	}

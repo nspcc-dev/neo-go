@@ -45,6 +45,7 @@ func TestNewRequest(t *testing.T) {
 	cfg := connmgr.Config{getAddr, nil}
 
 	cm := connmgr.New(cfg)
+
 	cm.Run()
 
 	cm.NewRequest()
@@ -55,6 +56,27 @@ func TestNewRequest(t *testing.T) {
 		return
 	}
 
-	t.Fail()
+	assert.Fail(t, "Could not find the address in the connected lists")
+
+}
+func TestDisconnect(t *testing.T) {
+
+	address := "google.com:80"
+
+	var getAddr = func() (string, error) {
+		return address, nil
+	}
+
+	cfg := connmgr.Config{getAddr, nil}
+
+	cm := connmgr.New(cfg)
+
+	cm.Run()
+
+	cm.NewRequest()
+
+	cm.Disconnect(address)
+
+	assert.Equal(t, 0, len(cm.ConnectedList))
 
 }
