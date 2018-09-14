@@ -28,12 +28,39 @@ type Connmgr struct {
 
 //New creates a new connection manager
 func New(cfg Config) *Connmgr {
-	return &Connmgr{
+	cnnmgr := &Connmgr{
 		cfg,
 		make(map[string]*Request),
 		make(map[string]*Request),
 		make(chan func(), 300),
 	}
+
+	go func() {
+
+		listener, err := net.Listen("tcp", cfg.AddrPort)
+
+		if err != nil {
+			fmt.Println("Error connecting to outbound ", err)
+		}
+
+		defer func() {
+			listener.Close()
+		}()
+
+		for {
+
+			conn, err := listener.Accept()
+
+			if err != nil {
+				continue
+			}
+			// TODO(kev): in the OnAccept the connection address will be added to AddrMgr
+			go cfg.OnAccept(conn)
+		}
+
+	}()
+
+	return cnnmgr
 }
 
 // NewRequest will make a new connection

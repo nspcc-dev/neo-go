@@ -13,4 +13,10 @@ type Config struct {
 	// we successfully connect to a peer
 	// The caller should ideally inform the address manager that we have connected to this address in this function
 	OnConnection func(conn net.Conn, addr string)
+
+	// OnAccept will take a established connection
+	OnAccept func(net.Conn)
+
+	// AddrPort is the address and port in the format "127.0.0.1:80"
+	AddrPort string
 }
