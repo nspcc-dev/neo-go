@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/CityOfZion/neo-go/pkg/wire/util/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 )
 
 func Compare(have uint32, b []byte) bool {

@@ -3,7 +3,7 @@ package address
 import (
 	"encoding/hex"
 
-	"github.com/CityOfZion/neo-go/pkg/wire/util/crypto/base58"
+	"github.com/CityOfZion/neo-go/pkg/crypto/base58"
 )
 
 func ToScriptHash(address string) string {
