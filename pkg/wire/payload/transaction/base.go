@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
@@ -14,11 +15,14 @@ type decodeExclusiveFields func(br *util.BinReader)
 // Transactioner is the interface that will unite the
 // transaction types. Each transaction will implement this interface
 // and so wil be a transactioner
-
 type Transactioner interface {
 	Encode(w io.Writer) error
 	Decode(r io.Reader) error
 	ID() (util.Uint256, error)
+	Bytes() []byte
+	UTXOs() []*Output
+	TXOs() []*Input
+	Witness() []*Witness
 }
 
 // Base transaction is the template for all other transactions
@@ -167,7 +171,7 @@ func (b *Base) createHash() error {
 	return err
 }
 
-// TXHash returns the TXID of the transactions
+// ID returns the TXID of the transaction
 func (b *Base) ID() (util.Uint256, error) {
 	var emptyHash util.Uint256
 	var err error
@@ -175,4 +179,26 @@ func (b *Base) ID() (util.Uint256, error) {
 		err = b.createHash()
 	}
 	return b.Hash, err
+}
+
+// Bytes returns the raw bytes of the tx
+func (b *Base) Bytes() []byte {
+	buf := new(bytes.Buffer)
+	b.Encode(buf)
+	return buf.Bytes()
+}
+
+// UTXOs returns the outputs in the tx
+func (b *Base) UTXOs() []*Output {
+	return b.Outputs
+}
+
+// TXOs returns the inputs in the tx
+func (b *Base) TXOs() []*Input {
+	return b.Inputs
+}
+
+// Witness returns the witnesses in the tx
+func (b *Base) Witness() []*Witness {
+	return b.Witnesses
 }
