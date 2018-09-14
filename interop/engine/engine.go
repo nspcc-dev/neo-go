@@ -22,7 +22,7 @@ func GetCallingScriptHash() []byte {
 	return nil
 }
 
-// GetEntryScriptHash returns the script hash of the contract the started the
+// GetEntryScriptHash returns the script hash of the contract that started the
 // execution from the start.
 func GetEntryScriptHash() []byte {
 	return nil
