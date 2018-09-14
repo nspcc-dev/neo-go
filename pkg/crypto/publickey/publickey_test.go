@@ -22,7 +22,10 @@ func TestDecodeFromString(t *testing.T) {
 }
 
 func TestEncodeDecodeInfinity(t *testing.T) {
-	key := &PublicKey{elliptic.Point{}}
+
+	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
+
+	key := &PublicKey{curve, elliptic.Point{}}
 	buf := new(bytes.Buffer)
 	assert.Nil(t, key.EncodeBinary(buf))
 	assert.Equal(t, 1, buf.Len())
@@ -33,12 +36,14 @@ func TestEncodeDecodeInfinity(t *testing.T) {
 }
 
 func TestEncodeDecodePublicKey(t *testing.T) {
+	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
+
 	for i := 0; i < 4; i++ {
-		p := &PublicKey{randomECPoint()}
+		p := &PublicKey{curve, randomECPoint()}
 		buf := new(bytes.Buffer)
 		assert.Nil(t, p.EncodeBinary(buf))
 
-		pDecode := &PublicKey{}
+		pDecode := &PublicKey{curve, elliptic.Point{}}
 		assert.Nil(t, pDecode.DecodeBinary(buf))
 		assert.Equal(t, p.X, pDecode.X)
 	}

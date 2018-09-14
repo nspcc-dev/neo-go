@@ -68,7 +68,7 @@ func (p *PrivateKey) PublicKey() (*publickey.PublicKey, error) {
 		return nil, errors.New("failed to derive public key using elliptic curve")
 	}
 
-	return &publickey.PublicKey{point}, nil
+	return &publickey.PublicKey{c, point}, nil
 
 }
 

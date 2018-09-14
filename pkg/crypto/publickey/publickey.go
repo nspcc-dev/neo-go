@@ -17,12 +17,6 @@ import (
 // PublicKeys is a list of public keys.
 type PublicKeys []*PublicKey
 
-var curve elliptic.Curve
-
-func init() {
-	curve = elliptic.NewEllipticCurve(elliptic.Secp256r1)
-}
-
 func (keys PublicKeys) Len() int      { return len(keys) }
 func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
 func (keys PublicKeys) Less(i, j int) bool {
@@ -43,6 +37,7 @@ func (keys PublicKeys) Less(i, j int) bool {
 // PublicKey represents a public key and provides a high level
 // API around the ECPoint.
 type PublicKey struct {
+	Curve elliptic.Curve
 	elliptic.Point
 }
 
@@ -53,8 +48,9 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 
-	pubKey := &PublicKey{}
+	pubKey := &PublicKey{curve, elliptic.Point{}}
 	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
 		return nil, err
 	}
@@ -64,7 +60,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
-	if curve.IsInfinity(p.Point) {
+	if p.Curve.IsInfinity(p.Point) {
 		return []byte{0x00}
 	}
 
@@ -102,6 +98,7 @@ func (p *PublicKey) ToAddress() string {
 
 // DecodeBinary decodes a PublicKey from the given io.Reader.
 func (p *PublicKey) DecodeBinary(r io.Reader) error {
+
 	var prefix uint8
 	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
@@ -123,7 +120,7 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 
 		var err error
 
-		p.Point, err = curve.Decompress(new(big.Int).SetBytes(b), uint(prefix&0x1))
+		p.Point, err = p.Curve.Decompress(new(big.Int).SetBytes(b), uint(prefix&0x1))
 		if err != nil {
 			return err
 		}
@@ -148,10 +145,9 @@ func (p *PublicKey) EncodeBinary(w io.Writer) error {
 }
 
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
-	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 
 	publicKey := &ecdsa.PublicKey{}
-	publicKey.Curve = curve
+	publicKey.Curve = p.Curve
 	publicKey.X = p.X
 	publicKey.Y = p.Y
 	if p.X == nil || p.Y == nil {
