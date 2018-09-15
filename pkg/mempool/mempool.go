@@ -9,23 +9,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-// type Mempooler interface {
-// 	// Exists will return whether or not a tx is
-// 	// in the pool
-// 	Exists(hash util.Uint256) bool
-
-// 	// IsDoubleSpend will return whether or not the tx is a double spend
-// 	IsDoubleSpend(transaction.Transactioner) bool
-// 	// AddTransaction is used to enter a transaction into
-// 	// the mempool
-// 	AddTransaction(transaction.Transactioner) error
-
-// 	// RemoveTransaction will remove any transaction from the
-// 	// mempool
-// 	RemoveTransaction(transaction.Transactioner) error
-
-// }
-
 var (
 	ErrMemPoolFull        = errors.New("mempool is currently full")
 	ErrMempoolEmpty       = errors.New("There are no TXs in the mempool")
@@ -153,8 +136,3 @@ func (m *Mempool) Exists(hash util.Uint256) bool {
 
 	return ok
 }
-
-// // IsDoubleSpend check whether the transaction exists in the mempool and the blockchain
-// func (m *Mempool) IsDoubleSpend(hash util.Uint256) bool {
-// 	return m.Exists(hash) || checkBlockchain()
-// }

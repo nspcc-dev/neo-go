@@ -20,13 +20,6 @@ type Config struct {
 	// MaxTXSize is the maximum number of bytes a tx can have to be entered into the pool
 	MaxTXSize uint64
 
-	// // DynamicFee will allow the MiXTXFee to be dynamic
-	// DynamicFee bool
-
-	// // FeeEstimator is a stub function which takes in the current fee,
-	// // the number of txs already in the mempool and returns a new TXFee
-	// FeeEstimator func(currentTXFee int64, numOfTX int64) int64
-
 	// TXTTL is the duration to which we should keep an item in the mempool before removing it
 	// HMM: Should this be amount of blocks instead? For when blocks take time a long time
 	// to process?
@@ -35,11 +28,4 @@ type Config struct {
 	// SigLimit is the maximum amount of signatures
 	// that we will allow a tx to have, default will be 20
 	SigLimit uint8
-
-	// // RateLimit set to true will limit the amount of TXs that are <= the MinTXFee
-	// RateLimit bool
-
-	// // TXRate is the rate at which we should accept one TX below the MinTXFee
-	// // E.g. If we want 10TXS every 10 seconds. TXRate = 1 Second
-	// TXRate time.Time
 }
