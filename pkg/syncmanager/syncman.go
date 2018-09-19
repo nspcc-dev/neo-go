@@ -61,27 +61,7 @@ func (s *Syncmanager) OnHeaders(p *peer.Peer, msg *payload.HeadersMessage) {
 			return // We should custom name error so, that we can do something on WrongHash Error, Peer disconnect error
 		}
 		return
-
 	}
-
-	// If we receive a Header while in BlocksOnly mode
-	// We just save the headers.
-	if s.Mode == 2 {
-		// Just save header while in BlocksOnly Mode
-		// err := s.addHeaders(msg)
-		// if err != nil {
-		// 	p.Disconnect()
-		// 	fmt.Println("Bad Header, disconnecting Peer")
-		// }
-
-	}
-
-	// Maintain: We may receive headers when in maintain mode
-	// We save it and ask for the block that goes with it
-	if s.Mode == 3 {
-
-	}
-
 }
 
 func (s *Syncmanager) HeadersFirstMode(p *peer.Peer, msg *payload.HeadersMessage) error {
