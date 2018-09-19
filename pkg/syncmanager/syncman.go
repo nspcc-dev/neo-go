@@ -11,7 +11,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/blockchain"
 	"github.com/CityOfZion/neo-go/pkg/peer"
-	"github.com/CityOfZion/neo-go/pkg/pubsub"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
@@ -34,15 +33,20 @@ type Syncmanager struct {
 	inflightBlockReqs map[util.Uint256]*peer.Peer // when we send a req for block, we will put hash in here, along with peer who we requested it from
 }
 
-// TODO: Pass through a config object instead
-func New(chain *blockchain.Chain, pmgr *peermanager.PeerMgr, bestHash util.Uint256) *Syncmanager {
+// New will setup the syncmanager with the required
+// parameters
+func New(cfg Config) *Syncmanager {
 	return &Syncmanager{
-		pmgr,
+		peermanager.New(),
 		1,
-		chain,
+		cfg.Chain,
 		[]util.Uint256{},
 		make(map[util.Uint256]*peer.Peer, 2000),
 	}
+}
+
+func (s *Syncmanager) AddPeer(peer *peer.Peer) error {
+	return s.pmgr.AddPeer(peer)
 }
 
 func (s *Syncmanager) OnHeaders(p *peer.Peer, msg *payload.HeadersMessage) {
@@ -156,56 +160,12 @@ func (s *Syncmanager) RequestMoreBlocks() error {
 }
 
 // OnBlock receives a block from a peer, then passes it to the blockchain to process.
-// For now, this will be blocking. When made async, ensure that if a bad block
-// Is received from a peer, we disconnect the peer, remove all blocks in flight from peer
-// and re-request those blocks. Any blocks that are now relying on those re-requested blocks will now need to wait
+// For now we will only use this simple setup, to allow us to test the other parts of the system.
+// See Issue #24
 func (s *Syncmanager) OnBlock(p *peer.Peer, msg *payload.BlockMessage) {
-	// We should not deal with chain state in here
-	// If a block fails, we will be notified by the pubsub system, to request it again.
-
-	if s.Mode == 1 {
-		// Peers will broadcast blocks
-		// when they find a new block, we will ignore them while in this mode
-	} else if s.Mode == 2 || s.Mode == 3 {
-		err := s.chain.AddBlock(msg)
-		if err != nil {
-			// Put headers back in front of queue to fetch block for.
-			fmt.Println("Block had an error", err)
-		}
-
-		if len(s.inflightBlockReqs) < maxBlockRequest && len(s.inflightBlockReqs) != 0 {
-			err := s.RequestMoreBlocks()
-			if err != nil {
-				fmt.Println("Could not request more blocks", err)
-			}
-		}
-
-		if len(s.headers) < 120 {
-			// original NEO code base uses 2k to signal maintain mode.
-			// I would like to stay in parallel download mode for as long as possible
-			// To speed up syncing
-			// TODO(KEV): instead of using the number of headers, use the blocktimestamp
-			// If timestamp of a block is within the hour or two then we switch.
-			// Although we download in parallel, The difference between the lowest and highest block
-			// should be consistent.
-			// For this to happen, the MovingWindow will need to be implemented.
-			s.Mode = 3
-		}
+	err := s.chain.AddBlock(msg)
+	if err != nil {
+		// Put headers back in front of queue to fetch block for.
+		fmt.Println("Block had an error", err)
 	}
-}
-
-// Topics will implement the subscriber interface
-// for pub-sub. Return type is a list of Topics that
-// The syncmanager is interested in receiving information
-//about. Can be static or dynamic by making it inside of the syncmanager struct
-func (s *Syncmanager) Topics() []pubsub.EventType {
-	return []pubsub.EventType{}
-}
-
-// Emit will Receive events from Whoever they have subscribed to
-func (s *Syncmanager) Emit(e pubsub.Event) {
-	if e.Type == pubsub.NewBlock {
-		// do something we have a new block
-	}
-	// do something with received event
 }
