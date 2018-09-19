@@ -17,6 +17,9 @@ type Config struct {
 	// OnAccept will take a established connection
 	OnAccept func(net.Conn)
 
-	// AddrPort is the address and port in the format "127.0.0.1:80"
-	AddrPort string
+	// Port is the port in the format "10333"
+	Port string
+
+	// DialTimeout is the amount of time, before we can disconnect a pending dialed connection
+	DialTimeout int
 }

@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/util/ip"
 )
 
 var (
@@ -37,7 +39,10 @@ func New(cfg Config) *Connmgr {
 
 	go func() {
 
-		listener, err := net.Listen("tcp", cfg.AddrPort)
+		ip := iputils.GetLocalIP()
+		addrPort := ip.String() + ":" + cfg.Port
+
+		listener, err := net.Listen("tcp", addrPort)
 
 		if err != nil {
 			fmt.Println("Error connecting to outbound ", err)
@@ -216,9 +221,10 @@ func (c *Connmgr) connected(r *Request) error {
 			c.config.OnConnection(r.Conn, r.Addr)
 		}
 
+		fmt.Println("Error connected", err)
+
 		errorChan <- err
 	}
-
 	return <-errorChan
 }
 
