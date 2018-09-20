@@ -39,7 +39,10 @@ func TestAddAndEncodeHeaders(t *testing.T) {
 		Timestamp:     1476647551,
 		ConsensusData: 0xc0f0280216ff14bf,
 		NextConsensus: nextCon,
-		Witness:       transaction.Witness{invocationScript, verificationScript},
+		Witness: transaction.Witness{
+			InvocationScript:   invocationScript,
+			VerificationScript: verificationScript,
+		},
 	})
 
 	assert.Equal(t, 1, len(msgHeaders.Headers))

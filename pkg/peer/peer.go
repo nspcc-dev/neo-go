@@ -81,7 +81,7 @@ type Peer struct {
 	quitch chan struct{}
 }
 
-func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) Peer {
+func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) *Peer {
 	p := Peer{}
 	p.inch = make(chan func(), inputBufferSize)
 	p.outch = make(chan func(), outputBufferSize)
@@ -95,7 +95,7 @@ func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) Peer {
 	p.Detector = stall.NewDetector(responseTime, tickerInterval)
 
 	// TODO: set the unchangeable states
-	return p
+	return &p
 }
 
 // Write to a peer

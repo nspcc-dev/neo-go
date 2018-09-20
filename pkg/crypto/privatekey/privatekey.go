@@ -63,12 +63,18 @@ func (p *PrivateKey) PublicKey() (*publickey.PublicKey, error) {
 	)
 
 	p1, p2 := c.ScalarBaseMult(q.Bytes())
-	point := elliptic.Point{p1, p2}
+	point := elliptic.Point{
+		X: p1,
+		Y: p2,
+	}
 	if !c.IsOnCurve(p1, p2) {
 		return nil, errors.New("failed to derive public key using elliptic curve")
 	}
 
-	return &publickey.PublicKey{c, point}, nil
+	return &publickey.PublicKey{
+		Curve: c,
+		Point: point,
+	}, nil
 
 }
 

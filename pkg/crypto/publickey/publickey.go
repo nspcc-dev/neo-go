@@ -51,6 +51,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 
 	pubKey := &PublicKey{curve, elliptic.Point{}}
+
 	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
 		return nil, err
 	}

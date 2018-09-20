@@ -74,5 +74,8 @@ func randomECPoint() elliptic.Point {
 
 	q := new(big.Int).SetBytes(d.Bytes())
 	P1, P2 := curve.ScalarBaseMult(q.Bytes())
-	return elliptic.Point{P1, P2}
+	return elliptic.Point{
+		X: P1,
+		Y: P2,
+	}
 }

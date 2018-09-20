@@ -11,12 +11,12 @@ import (
 
 func TestMempoolExists(t *testing.T) {
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		10000,
-		10 * time.Minute,
-		20,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   20,
 	}
 	mem := mempool.New(cfg)
 
@@ -33,20 +33,20 @@ func TestMempoolFullPool(t *testing.T) {
 
 	maxTx := uint64(100)
 	cfg := mempool.Config{
-		maxTx,
-		20,
-		0,
-		10000,
-		10 * time.Minute,
-		20,
+		MaxNumOfTX: maxTx,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   20,
 	}
 	mem := mempool.New(cfg)
 
 	for i := uint64(1); i <= maxTx; i++ {
 		trans := transaction.NewContract(0)
 		attr := &transaction.Attribute{
-			transaction.Remark,
-			[]byte{byte(i)},
+			Usage: transaction.Remark,
+			Data:  []byte{byte(i)},
 		}
 		trans.AddAttribute(attr)
 		err := mem.AddTransaction(trans)
@@ -62,20 +62,20 @@ func TestMempoolLargeTX(t *testing.T) {
 
 	maxTxSize := uint64(100)
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		maxTxSize,
-		10 * time.Minute,
-		20,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  maxTxSize,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   20,
 	}
 	mem := mempool.New(cfg)
 
 	trans := transaction.NewContract(0)
 	for i := uint64(1); i <= 100; i++ { // 100 attributes will be over 100 bytes
 		attr := &transaction.Attribute{
-			transaction.Remark,
-			[]byte{byte(i)},
+			Usage: transaction.Remark,
+			Data:  []byte{byte(i)},
 		}
 		trans.AddAttribute(attr)
 	}
@@ -88,27 +88,27 @@ func TestMempoolTooManyWitness(t *testing.T) {
 
 	maxWitness := uint8(3)
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		10000,
-		10 * time.Minute,
-		maxWitness,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   maxWitness,
 	}
 	mem := mempool.New(cfg)
 
 	trans := transaction.NewContract(0)
 	for i := uint8(1); i <= maxWitness; i++ { // 100 attributes will be over 100 bytes
 		wit := &transaction.Witness{
-			[]byte{byte(i)},
-			[]byte{byte(i)},
+			InvocationScript:   []byte{byte(i)},
+			VerificationScript: []byte{byte(i)},
 		}
 		trans.AddWitness(wit)
 	}
 
 	trans.AddWitness(&transaction.Witness{
-		[]byte{},
-		[]byte{},
+		InvocationScript:   []byte{},
+		VerificationScript: []byte{},
 	})
 
 	err := mem.AddTransaction(trans)
@@ -118,12 +118,12 @@ func TestMempoolTooManyWitness(t *testing.T) {
 func TestMempoolDuplicate(t *testing.T) {
 
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		10000,
-		10 * time.Minute,
-		1,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   1,
 	}
 	mem := mempool.New(cfg)
 
@@ -139,12 +139,12 @@ func TestMempoolDuplicate(t *testing.T) {
 func TestMempoolReturnAll(t *testing.T) {
 
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		10000,
-		10 * time.Minute,
-		1,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      10 * time.Minute,
+		SigLimit:   1,
 	}
 	mem := mempool.New(cfg)
 
@@ -153,8 +153,8 @@ func TestMempoolReturnAll(t *testing.T) {
 	for i := uint64(1); i <= numTx; i++ {
 		trans := transaction.NewContract(0)
 		attr := &transaction.Attribute{
-			transaction.Remark,
-			[]byte{byte(i)},
+			Usage: transaction.Remark,
+			Data:  []byte{byte(i)},
 		}
 		trans.AddAttribute(attr)
 		err := mem.AddTransaction(trans)
@@ -170,12 +170,12 @@ func TestMempoolReturnAll(t *testing.T) {
 func TestMempoolRemove(t *testing.T) {
 
 	cfg := mempool.Config{
-		100,
-		20,
-		0,
-		10000,
-		3 * time.Second,
-		1,
+		MaxNumOfTX: 100,
+		FreeTX:     20,
+		MinTXFee:   0,
+		MaxTXSize:  10000,
+		TXTTL:      3 * time.Minute,
+		SigLimit:   1,
 	}
 	mem := mempool.New(cfg)
 
@@ -193,8 +193,8 @@ func TestMempoolRemove(t *testing.T) {
 
 	diffTrans.AddAttribute(
 		&transaction.Attribute{
-			transaction.Remark,
-			[]byte{},
+			Usage: transaction.Remark,
+			Data:  []byte{},
 		})
 
 	diffHash, _ := diffTrans.ID()

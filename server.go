@@ -166,7 +166,7 @@ func (s *Server) OnConn(conn net.Conn, addr string) {
 	}
 
 	if err == nil {
-		s.sm.AddPeer(&p)
+		s.sm.AddPeer(p)
 	}
 
 	// This is here just to quickly test the system

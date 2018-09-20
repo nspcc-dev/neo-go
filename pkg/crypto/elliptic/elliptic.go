@@ -46,13 +46,13 @@ func (p *Point) format() string {
 
 func (ec Curve) Params() *nativeelliptic.CurveParams {
 	return &nativeelliptic.CurveParams{
-		ec.P,
-		ec.N,
-		ec.B,
-		ec.G.X,
-		ec.G.Y,
-		256,
-		ec.Name,
+		P:       ec.P,
+		N:       ec.N,
+		B:       ec.B,
+		Gx:      ec.G.X,
+		Gy:      ec.G.Y,
+		BitSize: 256,
+		Name:    ec.Name,
 	}
 }
 

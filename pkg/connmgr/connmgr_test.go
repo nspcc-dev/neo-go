@@ -8,7 +8,13 @@ import (
 )
 
 func TestDial(t *testing.T) {
-	cfg := connmgr.Config{nil, nil, nil, "", 0}
+	cfg := connmgr.Config{
+		GetAddress:   nil,
+		OnConnection: nil,
+		OnAccept:     nil,
+		Port:         "",
+		DialTimeout:  0,
+	}
 
 	cm := connmgr.New(cfg)
 	cm.Run()
@@ -20,7 +26,13 @@ func TestDial(t *testing.T) {
 	assert.NotEqual(t, nil, conn)
 }
 func TestConnect(t *testing.T) {
-	cfg := connmgr.Config{nil, nil, nil, "", 0}
+	cfg := connmgr.Config{
+		GetAddress:   nil,
+		OnConnection: nil,
+		OnAccept:     nil,
+		Port:         "",
+		DialTimeout:  0,
+	}
 
 	cm := connmgr.New(cfg)
 	cm.Run()
@@ -42,7 +54,13 @@ func TestNewRequest(t *testing.T) {
 		return address, nil
 	}
 
-	cfg := connmgr.Config{getAddr, nil, nil, "", 0}
+	cfg := connmgr.Config{
+		GetAddress:   getAddr,
+		OnConnection: nil,
+		OnAccept:     nil,
+		Port:         "",
+		DialTimeout:  0,
+	}
 
 	cm := connmgr.New(cfg)
 
@@ -67,7 +85,13 @@ func TestDisconnect(t *testing.T) {
 		return address, nil
 	}
 
-	cfg := connmgr.Config{getAddr, nil, nil, "", 0}
+	cfg := connmgr.Config{
+		GetAddress:   getAddr,
+		OnConnection: nil,
+		OnAccept:     nil,
+		Port:         "",
+		DialTimeout:  0,
+	}
 
 	cm := connmgr.New(cfg)
 
