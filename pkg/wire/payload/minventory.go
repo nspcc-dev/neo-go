@@ -38,7 +38,6 @@ func NewInvMessage(typ InvType) (*InvMessage, error) {
 		typ,
 		nil,
 	}
-
 	return inv, nil
 }
 
