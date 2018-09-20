@@ -62,3 +62,16 @@ func Hash160(data []byte) (util.Uint160, error) {
 	}
 	return hash, nil
 }
+
+func Checksum(data []byte) ([]byte, error) {
+	hash, err := Sum(data)
+	if err != nil {
+		return nil, err
+	}
+	return hash[:4], nil
+}
+
+func Sum(b []byte) (util.Uint256, error) {
+	hash, err := DoubleSha256((b))
+	return hash, err
+}
