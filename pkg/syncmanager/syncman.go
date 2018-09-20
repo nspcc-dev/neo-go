@@ -106,7 +106,8 @@ func (s *Syncmanager) HeadersFirstMode(p *peer.Peer, msg *payload.HeadersMessage
 		return s.RequestMoreBlocks()
 	}
 	lastHeader := msg.Headers[len(msg.Headers)-1]
-	return s.pmgr.RequestHeaders(lastHeader.Hash)
+	_, err = s.pmgr.RequestHeaders(lastHeader.Hash)
+	return err
 }
 
 func (s *Syncmanager) RequestMoreBlocks() error {
