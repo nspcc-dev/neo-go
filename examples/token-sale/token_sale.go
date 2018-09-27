@@ -228,6 +228,9 @@ func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
 	if !runtime.CheckWitness(owner) || amount < 0 {
 		return false
 	}
+	if len(spender) != 20 {
+		return false
+	}
 	toSpend := storage.Get(ctx, owner).(int)
 	if toSpend < amount {
 		return false
