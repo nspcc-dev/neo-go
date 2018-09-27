@@ -232,7 +232,7 @@ func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
 		return false
 	}
 	toSpend := storage.Get(ctx, owner).(int)
-	if Spend < amount {
+	if toSpend < amount {
 		return false
 	}
 	approvalKey := append(owner, spender...)
