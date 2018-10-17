@@ -87,18 +87,13 @@ func (c *codegen) emitLoadLocal(name string) {
 }
 
 func (c *codegen) emitLoadLocalPos(pos int) {
-	emitOpcode(c.prog, vm.FROMALTSTACK)
-	emitOpcode(c.prog, vm.DUP)
-	emitOpcode(c.prog, vm.TOALTSTACK)
-
+	emitOpcode(c.prog, vm.DUPFROMALTSTACK)
 	emitInt(c.prog, int64(pos))
 	emitOpcode(c.prog, vm.PICKITEM)
 }
 
 func (c *codegen) emitStoreLocal(pos int) {
-	emitOpcode(c.prog, vm.FROMALTSTACK)
-	emitOpcode(c.prog, vm.DUP)
-	emitOpcode(c.prog, vm.TOALTSTACK)
+	emitOpcode(c.prog, vm.DUPFROMALTSTACK)
 
 	if pos < 0 {
 		log.Fatalf("invalid position to store local: %d", pos)
@@ -144,6 +139,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	f, ok = c.funcs[decl.Name.Name]
 	if ok {
+		// If this function is a syscall we will not convert it to bytecode.
+		if isSyscall(f) {
+			return
+		}
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
@@ -262,14 +261,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// To be backwards compatible we will put them them in.
 		// See issue #65 (https://github.com/CityOfZion/neo-go/issues/65)
 		l := c.newLabel()
-		emitJmp(c.prog, vm.JMP, int16(l))
+		// emitJmp(c.prog, vm.JMP, int16(l))
 		c.setLabel(l)
 
 		if len(n.Results) > 0 {
 			ast.Walk(c, n.Results[0])
 		}
 
-		emitOpcode(c.prog, vm.NOP) // @OPTIMIZE
 		emitOpcode(c.prog, vm.FROMALTSTACK)
 		emitOpcode(c.prog, vm.DROP) // Cleanup the stack.
 		emitOpcode(c.prog, vm.RET)
@@ -425,11 +423,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 
-		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
-		// and we could easily removed it, but to be consistent with the original compiler I
-		// will put them in. ^^
-		emitOpcode(c.prog, vm.NOP)
-
 		// Check builtin first to avoid nil pointer on funcScope!
 		switch {
 		case isBuiltin:
@@ -442,11 +435,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emitCall(c.prog, vm.CALL, int16(f.label))
 		}
 
-		// If we are not assigning this function to a variable we need to drop
-		// (cleanup) the top stack item. It's not a void but you get the point \o/.
-		if _, ok := c.scope.voidCalls[n]; ok {
-			emitOpcode(c.prog, vm.DROP)
-		}
 		return nil
 
 	case *ast.SelectorExpr:
@@ -540,7 +528,10 @@ func (c *codegen) convertSyscall(api, name string) {
 		log.Fatalf("unknown VM syscall api: %s", name)
 	}
 	emitSyscall(c.prog, api)
-	emitOpcode(c.prog, vm.NOP) // @OPTIMIZE
+
+	// This NOP instruction is basically not needed, but if we do, we have a
+	// one to one matching avm file with neo-python which is very nice for debugging.
+	emitOpcode(c.prog, vm.NOP)
 }
 
 func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
