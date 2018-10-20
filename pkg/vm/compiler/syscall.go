@@ -76,10 +76,10 @@ var syscalls = map[string]map[string]string{
 		"GetScriptHash": "Neo.Output.GetScriptHash",
 	},
 	"engine": {
-		"GetScriptContainer":     "Neo.ExecutionEngine.GetScriptContainer",
-		"GetCallingScriptHash":   "Neo.ExecutionEngine.GetCallingScriptHash",
-		"GetEntryScriptHash":     "Neo.ExecutionEngine.GetEntryScriptHash",
-		"GetExecutingScriptHash": "Neo.ExecutionEngine.GetExecutingScriptHash",
+		"GetScriptContainer":     "System.ExecutionEngine.GetScriptContainer",
+		"GetCallingScriptHash":   "System.ExecutionEngine.GetCallingScriptHash",
+		"GetEntryScriptHash":     "System.ExecutionEngine.GetEntryScriptHash",
+		"GetExecutingScriptHash": "System.ExecutionEngine.GetExecutingScriptHash",
 	},
 	"iterator": {
 		"Create": "Neo.Iterator.Create",
