@@ -173,8 +173,7 @@ func testInvoke(ctx *cli.Context) error {
 	// On the long term the internal VM will run the script.
 	// TODO: remove RPC dependency, hardcoded node.
 	endpoint := "http://seed5.bridgeprotocol.io:10332"
-	opts := rpc.ClientOptions{}
-	client, err := rpc.NewClient(context.TODO(), endpoint, opts)
+	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

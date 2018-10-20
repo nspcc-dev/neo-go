@@ -257,11 +257,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		// @OPTIMIZE: We could skip these 3 instructions for each return statement.
-		// To be backwards compatible we will put them them in.
-		// See issue #65 (https://github.com/CityOfZion/neo-go/issues/65)
 		l := c.newLabel()
-		// emitJmp(c.prog, vm.JMP, int16(l))
 		c.setLabel(l)
 
 		if len(n.Results) > 0 {
@@ -276,6 +272,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.IfStmt:
 		lIf := c.newLabel()
 		lElse := c.newLabel()
+		lElseEnd := c.newLabel()
+
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
 			emitJmp(c.prog, vm.JMPIFNOT, int16(lElse))
@@ -283,15 +281,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
-
 		if n.Else != nil {
-			// TODO: handle else statements.
-			// emitJmp(c.prog, vm.JMP, int16(lEnd))
+			emitJmp(c.prog, vm.JMP, int16(lElseEnd))
 		}
+
 		c.setLabel(lElse)
 		if n.Else != nil {
 			ast.Walk(c, n.Else)
 		}
+		c.setLabel(lElseEnd)
 		return nil
 
 	case *ast.BasicLit:
@@ -659,7 +657,11 @@ func (c *codegen) convertToken(tok token.Token) {
 	case token.GEQ:
 		emitOpcode(c.prog, vm.GTE)
 	case token.EQL:
-		emitOpcode(c.prog, vm.NUMEQUAL)
+		// It seems that (looking to the python compiler) that comparing for
+		// equal (==) needs to return the instruction EQUAL. Where comparing
+		// (anything) to not equal (!=) needs to use the opcode NUMNOTEQUAL
+		// even for comparing strings.
+		emitOpcode(c.prog, vm.EQUAL)
 	case token.NEQ:
 		emitOpcode(c.prog, vm.NUMNOTEQUAL)
 	case token.DEC:
