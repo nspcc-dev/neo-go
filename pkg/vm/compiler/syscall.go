@@ -43,6 +43,7 @@ var syscalls = map[string]map[string]string{
 		"GetTransaction":      "Neo.Block.GetTransaction",
 	},
 	"transaction": {
+		"GetHash":         "Neo.Transaction.GetHash",
 		"GetType":         "Neo.Transaction.GetType",
 		"GetAttributes":   "Neo.Transaction.GetAttributes",
 		"GetInputs":       "Neo.Transaction.GetInputs",

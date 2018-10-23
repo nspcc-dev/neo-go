@@ -72,17 +72,6 @@ func NewCommand() cli.Command {
 				},
 			},
 			{
-				Name:   "opdump",
-				Usage:  "dump the opcode of a .go file",
-				Action: contractDumpOpcode,
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file for the smart contract",
-					},
-				},
-			},
-			{
 				Name:   "init",
 				Usage:  "initialize a new smart-contract in a directory with boiler plate code",
 				Action: initSmartContract,
@@ -94,6 +83,17 @@ func NewCommand() cli.Command {
 					cli.BoolFlag{
 						Name:  "skip-details, skip",
 						Usage: "skip filling in the projects and contract details",
+					},
+				},
+			},
+			{
+				Name:   "inspect",
+				Usage:  "creates a user readable dump of the program instructions",
+				Action: inspect,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "input file of the program",
 					},
 				},
 			},
@@ -172,7 +172,7 @@ func testInvoke(ctx *cli.Context) error {
 	// For now we will hardcode the endpoint.
 	// On the long term the internal VM will run the script.
 	// TODO: remove RPC dependency, hardcoded node.
-	endpoint := "http://seed5.bridgeprotocol.io:10332"
+	endpoint := "http://node1.ams2.bridgeprotocol.io:10332"
 	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -191,17 +191,6 @@ func testInvoke(ctx *cli.Context) error {
 
 	fmt.Println(string(b))
 
-	return nil
-}
-
-func contractDumpOpcode(ctx *cli.Context) error {
-	src := ctx.String("in")
-	if len(src) == 0 {
-		return cli.NewExitError(errNoInput, 1)
-	}
-	if err := compiler.DumpOpcode(src); err != nil {
-		return cli.NewExitError(err, 1)
-	}
 	return nil
 }
 
@@ -258,4 +247,13 @@ func parseContractDetails() ContractDetails {
 	details.Description, _ = reader.ReadString('\n')
 
 	return details
+}
+
+func inspect(ctx *cli.Context) error {
+	src := ctx.String("in")
+	if len(src) == 0 {
+		return cli.NewExitError(errNoInput, 1)
+	}
+	compiler.CompileAndInspect(src)
+	return nil
 }

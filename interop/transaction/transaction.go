@@ -29,8 +29,8 @@ func GetAttributes(t Transaction) []attribute.Attribute {
 
 // FIXME: What is the correct return type for this?
 // GetReferences returns a slice of references for the given transaction.
-func GetReferences(t Transaction) interface{} {
-	return 0
+func GetReferences(t Transaction) []interface{} {
+	return []interface{}{}
 }
 
 // FIXME: What is the correct return type for this?

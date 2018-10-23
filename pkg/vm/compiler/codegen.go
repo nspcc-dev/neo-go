@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
@@ -248,6 +249,21 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				default:
 					log.Fatal("nested selector assigns not supported yet")
 				}
+
+			// Assignments to index expressions.
+			// slice[0] = 10
+			case *ast.IndexExpr:
+				ast.Walk(c, n.Rhs[i])
+				name := t.X.(*ast.Ident).Name
+				c.emitLoadLocal(name)
+				// For now storm only supports basic index operations. Hence we
+				// cast this to an *ast.BasicLit (1, 2 , 3)
+				indexStr := t.Index.(*ast.BasicLit).Value
+				index, err := strconv.Atoi(indexStr)
+				if err != nil {
+					log.Fatal("failed to convert slice index to integer")
+				}
+				c.emitStoreStructField(index)
 			}
 		}
 		return nil
