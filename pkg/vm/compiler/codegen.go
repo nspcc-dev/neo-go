@@ -58,7 +58,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
 		switch typ.Kind() {
-		case types.Int, types.UntypedInt:
+		case types.Int, types.UntypedInt, types.Uint:
 			val, _ := constant.Int64Val(t.Value)
 			emitInt(c.prog, val)
 		case types.String, types.UntypedString:
@@ -686,6 +686,16 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog, vm.INC)
 	case token.NOT:
 		emitOpcode(c.prog, vm.NOT)
+	case token.AND:
+		emitOpcode(c.prog, vm.AND)
+	case token.OR:
+		emitOpcode(c.prog, vm.OR)
+	case token.SHL:
+		emitOpcode(c.prog, vm.SHL)
+	case token.SHR:
+		emitOpcode(c.prog, vm.SHR)
+	case token.XOR:
+		emitOpcode(c.prog, vm.XOR)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
