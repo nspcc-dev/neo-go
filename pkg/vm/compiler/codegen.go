@@ -466,6 +466,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					emitOpcode(c.prog, vm.DROP)
 				}
 			}
+			if numArgs > 3 {
+				for i := 1; i < numArgs; i++ {
+					emitInt(c.prog, int64(i))
+					emitOpcode(c.prog, vm.ROLL)
+				}
+			}
 		}
 
 		// Check builtin first to avoid nil pointer on funcScope!
