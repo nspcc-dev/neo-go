@@ -40,7 +40,7 @@ func startServer(ctx *cli.Context) error {
 		net = config.ModeMainNet
 	}
 
-	configPath := "./config"
+	configPath := "../config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
