@@ -1,6 +1,8 @@
 package core
 
-import "github.com/CityOfZion/neo-go/pkg/util"
+import (
+	"github.com/CityOfZion/neo-go/pkg/util"
+)
 
 // Blockchainer is an interface that abstract the implementation
 // of the blockchain.
@@ -15,4 +17,5 @@ type Blockchainer interface {
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
+	GetAssetState(util.Uint256) *AssetState
 }
