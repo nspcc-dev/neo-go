@@ -101,7 +101,7 @@ which would yield the response:
 | `submitblock` | No | Needs to be implemented in `pkg/core/blockchain.go` |
 | `gettxout` | No | Needs to be implemented in `pkg/core/blockchain.go` |
 | `invoke` | No | VM |
-| `getassetstate` | No | Needs to be implemented in `pkg/core/blockchain.go` |
+| `getassetstate` | Yes |-|
 | `getpeers` | Yes | - |
 | `getversion` | Yes | - |
 | `getconnectioncount` | Yes | - |
