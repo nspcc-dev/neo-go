@@ -31,7 +31,6 @@ type Parameter struct {
 }
 
 func (pt ParamType) String() string {
-    fmt.Println("here")
     names := [...] string {
 	"Signature",
 	"Boolean",
