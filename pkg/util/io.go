@@ -19,24 +19,22 @@ import (
 func ReadVarUint(r io.Reader) uint64 {
 	var b uint8
 	binary.Read(r, binary.LittleEndian, &b)
-
-	if b == 0xfd {
+	switch b {
+	case 0xfd:
 		var v uint16
 		binary.Read(r, binary.LittleEndian, &v)
 		return uint64(v)
-	}
-	if b == 0xfe {
+	case 0xfe:
 		var v uint32
 		binary.Read(r, binary.LittleEndian, &v)
 		return uint64(v)
-	}
-	if b == 0xff {
+	case 0xff:
 		var v uint64
 		binary.Read(r, binary.LittleEndian, &v)
 		return v
+	default:
+		return uint64(b)
 	}
-
-	return uint64(b)
 }
 
 // WriteVarUint writes a variable unsigned integer.
@@ -45,24 +43,26 @@ func WriteVarUint(w io.Writer, val uint64) error {
 		return errors.New("value out of range")
 	}
 	if val < 0xfd {
-		binary.Write(w, binary.LittleEndian, uint8(val))
-		return nil
+		return binary.Write(w, binary.LittleEndian, uint8(val))
 	}
 	if val < 0xFFFF {
-		binary.Write(w, binary.LittleEndian, byte(0xfd))
-		binary.Write(w, binary.LittleEndian, uint16(val))
-		return nil
+		if err := binary.Write(w, binary.LittleEndian, byte(0xfd)); err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, uint16(val))
 	}
 	if val < 0xFFFFFFFF {
-		binary.Write(w, binary.LittleEndian, byte(0xfe))
-		binary.Write(w, binary.LittleEndian, uint32(val))
-		return nil
+		if err := binary.Write(w, binary.LittleEndian, byte(0xfe)); err != nil {
+			return err
+		}
+		return binary.Write(w, binary.LittleEndian, uint32(val))
 	}
 
-	binary.Write(w, binary.LittleEndian, byte(0xff))
-	binary.Write(w, binary.LittleEndian, val)
+	if err := binary.Write(w, binary.LittleEndian, byte(0xff)); err != nil {
+		return err
+	}
 
-	return nil
+	return binary.Write(w, binary.LittleEndian, val)
 }
 
 // ReadVarBytes reads a variable length byte array.

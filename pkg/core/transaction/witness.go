@@ -43,7 +43,7 @@ func (w *Witness) EncodeBinary(writer io.Writer) error {
 
 // MarshalJSON implements the json marshaller interface.
 func (w *Witness) MarshalJSON() ([]byte, error) {
-	data := map[string]interface{}{
+	data := map[string]string{
 		"invocation":   hex.EncodeToString(w.InvocationScript),
 		"verification": hex.EncodeToString(w.VerificationScript),
 	}
