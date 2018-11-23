@@ -1,10 +1,6 @@
 package smartcontract
 
-import (
-    "encoding/json"
-
-    "github.com/CityOfZion/neo-go/pkg/util"
-)
+import "github.com/CityOfZion/neo-go/pkg/util"
 
 // ParamType represent the Type of the contract parameter
 type ParamType int
@@ -31,25 +27,32 @@ type Parameter struct {
 }
 
 func (pt ParamType) String() string {
-    names := [...] string {
-	"Signature",
-	"Boolean",
-	"Integer",
-	"Hash160",
-	"Hash256",
-	"ByteArray",
-	"PublicKey",
-	"String",
-	"Array",
-    }
-    if pt < SignatureType || pt > ArrayType {
+    switch pt {
+    case SignatureType:
+	return "Signature"
+    case BoolType:
+	return "Boolean"
+    case IntegerType:
+	return "Integer"
+    case Hash160Type:
+	return "Hash160"
+    case Hash256Type:
+	return "Hash256"
+    case ByteArrayType:
+	return "ByteArray"
+    case PublicKeyType:
+	return "PublicKey"
+    case StringType:
+	return "String"
+    case ArrayType:
+	return "Array"
+    default:
         return ""
     }
-    return names[pt]
 }
 
 func (pt ParamType) MarshalJSON() ([]byte, error) {
-    return json.Marshal(pt.String())
+    return []byte(`"` + pt.String() + `"`), nil
 }
 
 // NewParameter returns a Parameter with proper initialized Value
