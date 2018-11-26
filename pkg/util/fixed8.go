@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -20,7 +19,7 @@ type Fixed8 int64
 
 // String implements the Stringer interface.
 func (f Fixed8) String() string {
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	val := int64(f)
 	if val < 0 {
 		buf.WriteRune('-')
@@ -54,19 +53,22 @@ func NewFixed8(val int) Fixed8 {
 // with precision up to 10^-8
 func Fixed8DecodeString(s string) (Fixed8, error) {
 	parts := strings.SplitN(s, ".", 2)
-	ip, err := strconv.Atoi(parts[0])
+	ip, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		return 0, errInvalidString
 	} else if len(parts) == 1 {
-		return NewFixed8(ip), nil
+		return Fixed8(ip * decimals), nil
 	}
 
-	fp, err := strconv.Atoi(parts[1])
+	fp, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil || fp >= decimals {
 		return 0, errInvalidString
 	}
 	for i := len(parts[1]); i < precision; i++ {
 		fp *= 10
+	}
+	if ip < 0 {
+		return Fixed8(ip*decimals - fp), nil
 	}
 	return Fixed8(ip*decimals + fp), nil
 }
@@ -90,4 +92,9 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 
 	*f = Fixed8(decimals * fl)
 	return nil
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (f Fixed8) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + f.String() + `"`), nil
 }

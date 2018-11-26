@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,19 +40,25 @@ func TestFixed8DecodeString(t *testing.T) {
 }
 
 func TestFixed8UnmarshalJSON(t *testing.T) {
-	fl := float64(123.45)
-	str := "123.45"
-	expected, _ := Fixed8DecodeString(str)
+	var testCases = []float64{
+		123.45,
+		-123.45,
+	}
 
-	// UnmarshalJSON should decode floats
-	var u1 Fixed8
-	s, _ := json.Marshal(fl)
-	assert.Nil(t, json.Unmarshal(s, &u1))
-	assert.Equal(t, expected, u1)
+	for _, fl := range testCases {
+		str := strconv.FormatFloat(fl, 'g', -1, 64)
+		expected, _ := Fixed8DecodeString(str)
 
-	// UnmarshalJSON should decode strings
-	var u2 Fixed8
-	s, _ = json.Marshal(str)
-	assert.Nil(t, json.Unmarshal(s, &u2))
-	assert.Equal(t, expected, u2)
+		// UnmarshalJSON should decode floats
+		var u1 Fixed8
+		s, _ := json.Marshal(fl)
+		assert.Nil(t, json.Unmarshal(s, &u1))
+		assert.Equal(t, expected, u1)
+
+		// UnmarshalJSON should decode strings
+		var u2 Fixed8
+		s, _ = json.Marshal(str)
+		assert.Nil(t, json.Unmarshal(s, &u2))
+		assert.Equal(t, expected, u2)
+	}
 }

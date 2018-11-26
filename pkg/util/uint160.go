@@ -16,7 +16,8 @@ const uint160Size = 20
 type Uint160 [uint160Size]uint8
 
 // Uint160DecodeString attempts to decode the given string into an Uint160.
-func Uint160DecodeString(s string) (u Uint160, err error) {
+func Uint160DecodeString(s string) (Uint160, error) {
+	var u Uint160
 	if len(s) != uint160Size*2 {
 		return u, fmt.Errorf("expected string size of %d got %d", uint160Size*2, len(s))
 	}
@@ -51,11 +52,7 @@ func Uint160FromScript(script []byte) (u Uint160, err error) {
 
 // Bytes returns the byte slice representation of u.
 func (u Uint160) Bytes() []byte {
-	b := make([]byte, uint160Size)
-	for i := 0; i < uint160Size; i++ {
-		b[i] = byte(u[i])
-	}
-	return b
+	return u[:]
 }
 
 // BytesReverse return a reversed byte representation of u.
@@ -70,12 +67,7 @@ func (u Uint160) String() string {
 
 // Equals returns true if both Uint256 values are the same.
 func (u Uint160) Equals(other Uint160) bool {
-	for i := 0; i < uint160Size; i++ {
-		if u[i] != other[i] {
-			return false
-		}
-	}
-	return true
+	return u == other
 }
 
 // UnmarshalJSON implements the json unmarshaller interface.
@@ -93,7 +85,5 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
-	return json.Marshal(
-		fmt.Sprintf("0x%s", hex.EncodeToString(ArrayReverse(u.Bytes()))),
-	)
+	return []byte(`"0x` + u.String() + `"`), nil
 }
