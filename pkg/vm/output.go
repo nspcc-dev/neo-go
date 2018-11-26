@@ -10,14 +10,12 @@ type stackItem struct {
 }
 
 func buildStackOutput(s *Stack) string {
-	items := make([]stackItem, s.Len())
-	i := 0
+	items := make([]stackItem, 0, s.Len())
 	s.Iter(func(e *Element) {
-		items[i] = stackItem{
+		items = append(items, stackItem{
 			Value: e.value,
 			Type:  e.value.String(),
-		}
-		i++
+		})
 	})
 
 	b, _ := json.MarshalIndent(items, "", "    ")

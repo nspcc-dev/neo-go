@@ -57,6 +57,19 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 	return resp, nil
 }
 
+// InvokeFunction return the results after calling a the smart contract scripthash
+// with the given parameters.
+func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
+	var (
+		p    = newParams(script, params)
+		resp = &InvokeScriptResponse{}
+	)
+	if err := c.performRequest("invoke", p, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetRawTransaction queries a transaction by hash.
 func (c *Client) GetRawTransaction(hash string, verbose bool) (*response, error) {
 	var (
