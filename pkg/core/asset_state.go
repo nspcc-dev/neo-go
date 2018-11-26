@@ -139,7 +139,7 @@ func (a *AssetState) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, a.IsFrozen)
 }
 
-// Get the asset name based on its type.
+// GetName returns the asset name based on its type.
 func (a *AssetState) GetName() string {
 
 	if a.AssetType == transaction.GoverningToken {

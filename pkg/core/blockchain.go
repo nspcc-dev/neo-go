@@ -475,7 +475,7 @@ func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
 	return block.Header(), nil
 }
 
-// HasBlock return true if the blockchain contains he given
+// HasTransaction returns true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	return false
@@ -528,6 +528,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
+// GetAssetState return the asset state of the corresponding assetID
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 
 	var as *AssetState
