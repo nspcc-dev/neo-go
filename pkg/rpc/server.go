@@ -179,8 +179,34 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate", "getassetstate":
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate":
 		results = "TODO"
+
+	case "getassetstate":
+		var err error
+
+		param, exists := reqParams.ValueAt(0)
+		if !exists {
+			err = errors.New("Param at index at 0 doesn't exist")
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
+
+		if param.Type != "string" {
+			err = errors.New("Param need to be a string")
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
+
+		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
+
+		as := s.chain.GetAssetState(paramAssetID)
+
+		if as != nil {
+			results = wrappers.NewAssetState(as)
+		} else {
+			results = "Invalid assetid"
+		}
 
 	default:
 		resultsErr = NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
+	//"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -525,6 +526,20 @@ func (bc *Blockchain) BlockHeight() uint32 {
 // HeaderHeight returns the index/height of the highest header.
 func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
+}
+
+func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
+
+	var as *AssetState
+	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
+		var a AssetState
+		a.DecodeBinary(bytes.NewReader(v))
+		if a.ID == assetID {
+			as = &a
+		}
+	})
+
+	return as
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
