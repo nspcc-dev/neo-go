@@ -9,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	//"github.com/CityOfZion/neo-go/pkg/core"
+
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -77,6 +78,19 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 	}
 
 	return bc, nil
+}
+
+// GetBlockchainLevelDB returns blockchain based on configuration
+func NewBlockchainLevelDB(cfg config.Config) (*Blockchain, error) {
+	store, err := storage.NewLevelDBStore(
+		cfg.ApplicationConfiguration.DataDirectoryPath,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewBlockchain(store, cfg.ProtocolConfiguration)
 }
 
 func (bc *Blockchain) init() error {
@@ -475,7 +489,7 @@ func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
 	return block.Header(), nil
 }
 
-// HasTransaction returns true if the blockchain contains he given
+// HasBlock return true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	return false
@@ -528,7 +542,6 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
-// GetAssetState return the asset state of the corresponding assetID
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 
 	var as *AssetState
