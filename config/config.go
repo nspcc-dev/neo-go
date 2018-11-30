@@ -14,9 +14,10 @@ const (
 	userAgentFormat = "/NEO-GO:%s/"
 
 	// Valid NetMode constants.
-	ModeMainNet NetMode = 0x00746e41 // 7630401
-	ModeTestNet NetMode = 0x74746e41 // 1953787457
-	ModePrivNet NetMode = 56753      // docker privnet
+	ModeMainNet     NetMode = 0x00746e41 // 7630401
+	ModeTestNet     NetMode = 0x74746e41 // 1953787457
+	ModePrivNet     NetMode = 56753      // docker privnet
+	ModeUnitTestNet NetMode = 0
 )
 
 var (
@@ -78,6 +79,8 @@ func (n NetMode) String() string {
 		return "testnet"
 	case ModeMainNet:
 		return "mainnet"
+	case ModeUnitTestNet:
+		return "unit_testnet"
 	default:
 		return "net unknown"
 	}
