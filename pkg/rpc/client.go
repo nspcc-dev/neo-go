@@ -83,18 +83,21 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 }
 
 func (c *Client) performRequest(method string, p params, v interface{}) error {
-	r := request{
-		JSONRPC: c.version,
-		Method:  method,
-		Params:  p.values,
-		ID:      1,
-	}
+	var (
+		r = request{
+			JSONRPC: c.version,
+			Method:  method,
+			Params:  p.values,
+			ID:      1,
+		}
+		buf = new(bytes.Buffer)
+	)
 
-	b, err := json.Marshal(r)
-	if err != nil {
+	if err := json.NewEncoder(buf).Encode(r); err != nil {
 		return err
 	}
-	req, err := http.NewRequest("POST", c.endpoint.String(), bytes.NewReader(b))
+
+	req, err := http.NewRequest("POST", c.endpoint.String(), buf)
 	if err != nil {
 		return err
 	}

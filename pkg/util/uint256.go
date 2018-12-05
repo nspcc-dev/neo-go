@@ -38,11 +38,7 @@ func Uint256DecodeBytes(b []byte) (u Uint256, err error) {
 
 // Bytes returns a byte slice representation of u.
 func (u Uint256) Bytes() []byte {
-	b := make([]byte, uint256Size)
-	for i := 0; i < uint256Size; i++ {
-		b[i] = byte(u[i])
-	}
-	return b
+	return u[:]
 }
 
 // BytesReverse return a reversed byte representation of u.
@@ -52,7 +48,7 @@ func (u Uint256) BytesReverse() []byte {
 
 // Equals returns true if both Uint256 values are the same.
 func (u Uint256) Equals(other Uint256) bool {
-	return u.String() == other.String()
+	return u == other
 }
 
 // String implements the stringer interface.
@@ -75,5 +71,5 @@ func (u *Uint256) UnmarshalJSON(data []byte) (err error) {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint256) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fmt.Sprintf("0x%s", u.String()))
+	return []byte(`"0x` + u.String() + `"`), nil
 }

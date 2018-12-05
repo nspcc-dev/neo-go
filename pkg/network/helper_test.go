@@ -29,6 +29,9 @@ func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
+func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
+	return nil
+}
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
 }

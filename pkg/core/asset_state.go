@@ -38,6 +38,7 @@ type AssetState struct {
 	Available  util.Fixed8
 	Precision  uint8
 	FeeMode    uint8
+	FeeAddress util.Uint160
 	Owner      *crypto.PublicKey
 	Admin      util.Uint160
 	Issuer     util.Uint160
@@ -70,6 +71,9 @@ func (a *AssetState) DecodeBinary(r io.Reader) error {
 		return err
 	}
 	if err := binary.Read(r, binary.LittleEndian, &a.FeeMode); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.LittleEndian, &a.FeeAddress); err != nil {
 		return err
 	}
 
@@ -115,6 +119,11 @@ func (a *AssetState) EncodeBinary(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, a.FeeMode); err != nil {
 		return err
 	}
+
+	if err := binary.Write(w, binary.LittleEndian, a.FeeAddress); err != nil {
+		return err
+	}
+
 	if err := a.Owner.EncodeBinary(w); err != nil {
 		return err
 	}
@@ -128,4 +137,16 @@ func (a *AssetState) EncodeBinary(w io.Writer) error {
 		return err
 	}
 	return binary.Write(w, binary.LittleEndian, a.IsFrozen)
+}
+
+// Get the asset name based on its type.
+func (a *AssetState) GetName() string {
+
+	if a.AssetType == transaction.GoverningToken {
+		return "NEO"
+	} else if a.AssetType == transaction.UtilityToken {
+		return "NEOGas"
+	}
+
+	return a.Name
 }

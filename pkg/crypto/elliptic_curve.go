@@ -138,11 +138,11 @@ func (p ECPoint) EncodeBinary(w io.Writer) error {
 // String implements the Stringer interface.
 func (p *ECPoint) String() string {
 	if p.IsInfinity() {
-		return "(inf, inf)"
+		return "00"
 	}
 	bx := hex.EncodeToString(p.X.Bytes())
 	by := hex.EncodeToString(p.Y.Bytes())
-	return fmt.Sprintf("(%s, %s)", bx, by)
+	return fmt.Sprintf("%s%s", bx, by)
 }
 
 // IsInfinity checks if point P is infinity on EllipticCurve ec.

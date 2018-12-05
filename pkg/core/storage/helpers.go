@@ -42,6 +42,13 @@ func CurrentHeaderHeight(s Store) (i uint32, h util.Uint256, err error) {
 	return
 }
 
+// uint32Slice attaches the methods of Interface to []int, sorting in increasing order.
+type uint32Slice []uint32
+
+func (p uint32Slice) Len() int           { return len(p) }
+func (p uint32Slice) Less(i, j int) bool { return p[i] < p[j] }
+func (p uint32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 // HeaderHashes returns a sorted list of header hashes retrieved from
 // the given underlying Store.
 func HeaderHashes(s Store) ([]util.Uint256, error) {
@@ -56,19 +63,17 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 	})
 
 	var (
-		i          = 0
-		sortedKeys = make([]int, len(hashMap))
+		hashes     []util.Uint256
+		sortedKeys = make([]uint32, 0, len(hashMap))
 	)
 
-	for k, _ := range hashMap {
-		sortedKeys[i] = int(k)
-		i++
+	for k := range hashMap {
+		sortedKeys = append(sortedKeys, k)
 	}
-	sort.Ints(sortedKeys)
+	sort.Sort(uint32Slice(sortedKeys))
 
-	hashes := []util.Uint256{}
 	for _, key := range sortedKeys {
-		values := hashMap[uint32(key)]
+		values := hashMap[key]
 		for _, hash := range values {
 			hashes = append(hashes, hash)
 		}
