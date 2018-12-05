@@ -64,11 +64,7 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkw, err := NewPrivateKeyFromBytes(privkey.D.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	return pkw, nil
+	return NewPrivateKeyFromBytes(privkey.D.Bytes())
 }
 
 // PublicKey derives the public key from the private key.
