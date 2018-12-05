@@ -58,7 +58,7 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 	return &PrivateKey{b}, nil
 }
 
-// NewPrivateKeyFromRawBytes returns a NEO PrivateKey from the protobuf serialized x509 private key.
+// NewPrivateKeyFromRawBytes returns a NEO PrivateKey from the ASN.1 serialized keys.
 func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 	privkey, err := x509.ParseECPrivateKey(b)
 	if err != nil {
