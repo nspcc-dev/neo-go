@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -55,6 +56,15 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		)
 	}
 	return &PrivateKey{b}, nil
+}
+
+// NewPrivateKeyFromRawBytes returns a NEO PrivateKey from the ASN.1 serialized keys.
+func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
+	privkey, err := x509.ParseECPrivateKey(b)
+	if err != nil {
+		return nil, err
+	}
+	return NewPrivateKeyFromBytes(privkey.D.Bytes())
 }
 
 // PublicKey derives the public key from the private key.
