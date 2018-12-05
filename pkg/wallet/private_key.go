@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -55,6 +56,19 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 		)
 	}
 	return &PrivateKey{b}, nil
+}
+
+// NewPrivateKeyFromRawBytes returns a NEO PrivateKey from the protobuf serialized x509 private key.
+func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
+	privkey, err := x509.ParseECPrivateKey(b)
+	if err != nil {
+		return nil, err
+	}
+	pkw, err := NewPrivateKeyFromBytes(privkey.D.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	return pkw, nil
 }
 
 // PublicKey derives the public key from the private key.
@@ -111,7 +125,6 @@ func (p *PrivateKey) Address() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	b = append([]byte{0x17}, b...)
 
 	sha := sha256.New()
