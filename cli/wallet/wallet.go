@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	errNoPath          = errors.New("Target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags.")
-	errPhraseMissmatch = errors.New("The entered passphrases do not match. Maybe you have misspelled them?")
+	errNoPath          = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags")
+	errPhraseMismatch  = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
-// NewComand creates a new Wallet command.
+// NewCommand creates a new Wallet command.
 func NewCommand() cli.Command {
 	return cli.Command{
 		Name:  "wallet",
@@ -102,7 +102,7 @@ func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
 	)
 
 	if phrase != phraseCheck {
-		return errPhraseMissmatch
+		return errPhraseMismatch
 	}
 
 	return wall.CreateAccount(name, phrase)
