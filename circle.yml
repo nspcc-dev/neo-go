@@ -9,10 +9,10 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
       - run: /scripts/build.sh
       - save_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
           paths:
             - vendor
             - /go/pkg
@@ -28,7 +28,7 @@ jobs:
             - dependency-cache-{{ .Revision }}
       - restore_cache:
           keys:
-            - dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+            - dependency-cache-cli-{{ checksum "Gopkg.toml" }}
       - setup_remote_docker
       - run:
           name: Install Docker client
@@ -46,7 +46,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
       - run: make test
   vet:
     working_directory: /go/src/github.com/CityOfZion/neo-go
@@ -55,15 +55,8 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
       - run: make vet
-  check_version:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
-    docker:
-      - image: vidsyhq/go-builder:latest
-    steps:
-      - checkout
-      - run: make check-version
   build_cli:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     docker:
@@ -71,10 +64,10 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
       - run: make build
       - save_cache:
-          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}
           paths:
             - bin/neo-go
   deploy:
@@ -85,9 +78,9 @@ jobs:
       - run: apk update && apk add git make curl tar
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}
       - restore_cache:
-          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}
       - setup_remote_docker
       - run:
           name: Install Docker client
@@ -121,10 +114,6 @@ workflows:
           filters:
             tags:
               only: /[0-9]+\.[0-9]+\.[0-9]+/
-      - check_version:
-          filters:
-            branches:
-              ignore: master
       - build_cli:
           requires:
             - install_deps
@@ -143,7 +132,6 @@ workflows:
             - build_image
             - test
             - vet
-            - check_version
           filters:
             tags:
               only:
