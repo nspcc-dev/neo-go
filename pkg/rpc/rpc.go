@@ -1,6 +1,13 @@
 package rpc
 
-import "github.com/CityOfZion/neo-go/pkg/smartcontract"
+import (
+	"bytes"
+	"encoding/hex"
+
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/CityOfZion/neo-go/pkg/util"
+)
 
 // GetBlock returns a block by its hash or index/height. If verbose is true
 // the response will contain a pretty Block object instead of the raw hex string.
@@ -95,4 +102,24 @@ func (c *Client) SendRawTransaction(rawTX string) (*response, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+// SendToAddress sends an amount of specific asset to a given address.
+// This call requires open wallet. (`Wif` key in client struct.)
+// If response.Result is `true` then transaction was formed correctly and was written in blockchain.
+func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*response, error) {
+	var (
+		err      error
+		buf      = &bytes.Buffer{}
+		rawTx    *transaction.Transaction
+		rawTxStr string
+	)
+
+	rawTx, err = CreateRawContractTransaction(*c.Wif, asset, address, amount)
+	if err != nil {
+		return nil, err
+	}
+	rawTx.EncodeBinary(buf)
+	rawTxStr = hex.EncodeToString(buf.Bytes())
+	return c.SendRawTransaction(rawTxStr)
 }
