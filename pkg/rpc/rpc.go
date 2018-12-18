@@ -119,7 +119,9 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	if err != nil {
 		return nil, err
 	}
-	rawTx.EncodeBinary(buf)
+	if err = rawTx.EncodeBinary(buf); err != nil {
+		return nil, err
+	}
 	rawTxStr = hex.EncodeToString(buf.Bytes())
 	return c.SendRawTransaction(rawTxStr)
 }

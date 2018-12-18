@@ -121,6 +121,7 @@ func (p *PrivateKey) Address() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	b = append([]byte{0x17}, b...)
 
 	sha := sha256.New()

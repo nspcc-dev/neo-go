@@ -23,8 +23,8 @@ type (
 	// unspent per asset
 	Unspent struct {
 		Unspent []UTXO
-		Asset   string // "NEO" / "GAS"
-		Amount  util.Fixed8  // total unspent of this asset
+		Asset   string      // "NEO" / "GAS"
+		Amount  util.Fixed8 // total unspent of this asset
 	}
 
 	// struct of NeoScan response to 'get_balance' request
@@ -34,7 +34,7 @@ type (
 	}
 )
 
-var GlobalAssets = map[string]string {
+var GlobalAssets = map[string]string{
 	"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b": "NEO",
 	"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7": "GAS",
 }
@@ -42,18 +42,17 @@ var GlobalAssets = map[string]string {
 func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, address string, amount util.Fixed8) (*transaction.Transaction, error) {
 	var (
 		err                            error
-		tx                             *transaction.Transaction
+		tx                             = transaction.NewContractTX()
 		toAddressHash, fromAddressHash util.Uint160
-		fromAddress         		   string
+		fromAddress                    string
 		senderOutput, receiverOutput   *transaction.Output
 		inputs                         []*transaction.Input
 		spent                          util.Fixed8
 		unspents                       []*Unspent
 		witness                        transaction.Witness
-		assetId						   = GlobalAssets[assetIdUint.String()]
+		assetId                        = GlobalAssets[assetIdUint.String()]
 	)
 
-	tx = transaction.NewContractTX()
 	fromAddress, err = wif.PrivateKey.Address()
 	if err != nil {
 		return nil, err
@@ -71,9 +70,11 @@ func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, addr
 	if err != nil {
 		return nil, err
 	}
-	tx.Attributes = append(tx.Attributes, &transaction.Attribute{
-		Usage: transaction.Script,
-		Data:  fromAddressHash.Bytes()})
+	tx.Attributes = append(tx.Attributes,
+		&transaction.Attribute{
+			Usage: transaction.Script,
+			Data:  fromAddressHash.Bytes(),
+	})
 
 	inputs, spent = calculateInputs(assetId, unspents, amount)
 	if inputs == nil {
@@ -92,7 +93,7 @@ func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, addr
 	if err != nil {
 		return nil, err
 	}
-	witness.VerificationScript, err = getVerificationScript(wif)
+	witness.VerificationScript, err = wif.GetVerificationScript()
 	if err != nil {
 		return nil, err
 	}
@@ -102,30 +103,13 @@ func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, addr
 	return tx, nil
 }
 
-func getVerificationScript(wif wallet.WIF) ([]byte, error) {
-	const (
-		pushbytes33 = 0x21
-		checksig    = 0xac
-	)
-	var (
-		pubkey, vScript []byte
-	)
-	pubkey, err := wif.PrivateKey.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	vScript = append([]byte{pushbytes33}, pubkey...)
-	vScript = append(vScript, checksig)
-	return vScript, nil
-}
-
 func getInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, error) {
 	const (
 		pushbytes64 = 0x40
 	)
 	var (
 		err       error
-		buf       = &bytes.Buffer{}
+		buf       = new(bytes.Buffer)
 		signature []byte
 	)
 	if err = tx.EncodeBinary(buf); err != nil {
@@ -158,7 +142,7 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 
 func calculateInputs(assetId string, us []*Unspent, cost util.Fixed8) ([]*transaction.Input, util.Fixed8) {
 	var (
-		num          = uint16(0)
+		num, i       = uint16(0), uint16(0)
 		required     = cost
 		selected     = util.Fixed8(0)
 		assetUnspent Unspent
@@ -178,7 +162,7 @@ func calculateInputs(assetId string, us []*Unspent, cost util.Fixed8) ([]*transa
 	}
 
 	inputs := make([]*transaction.Input, num)
-	for i := uint16(0); i < num; i++ {
+	for i = 0; i < num; i++ {
 		inputs[i] = &transaction.Input{
 			PrevHash:  assetUnspent.Unspent[i].TxID,
 			PrevIndex: assetUnspent.Unspent[i].N,

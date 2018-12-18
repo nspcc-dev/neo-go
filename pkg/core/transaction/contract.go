@@ -11,11 +11,6 @@ type ContractTX struct{}
 func NewContractTX() *Transaction {
 	return &Transaction{
 		Type:    ContractType,
-		Version: 0,
-		Attributes: []*Attribute{},
-		Inputs:     []*Input{},
-		Outputs:    []*Output{},
-		Scripts:    []*Witness{},
 	}
 }
 
