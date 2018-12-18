@@ -7,6 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 )
 
 // GetBlock returns a block by its hash or index/height. If verbose is true
@@ -117,10 +118,10 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 
 	rawTx, err = CreateRawContractTransaction(*c.Wif, asset, address, amount)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to create raw transaction for `sendtoaddress`")
 	}
 	if err = rawTx.EncodeBinary(buf); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to encode raw transaction to binary for `sendtoaddress`")
 	}
 	rawTxStr = hex.EncodeToString(buf.Bytes())
 	return c.SendRawTransaction(rawTxStr)

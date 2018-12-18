@@ -11,33 +11,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
+	errs "github.com/pkg/errors"
 )
-
-type (
-	UTXO struct {
-		Value util.Fixed8
-		TxID  util.Uint256
-		N     uint16
-	}
-
-	// unspent per asset
-	Unspent struct {
-		Unspent []UTXO
-		Asset   string      // "NEO" / "GAS"
-		Amount  util.Fixed8 // total unspent of this asset
-	}
-
-	// struct of NeoScan response to 'get_balance' request
-	NeoScanBalance struct {
-		Balance []*Unspent
-		Address string
-	}
-)
-
-var GlobalAssets = map[string]string{
-	"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b": "NEO",
-	"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7": "GAS",
-}
 
 func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, address string, amount util.Fixed8) (*transaction.Transaction, error) {
 	var (
@@ -55,26 +30,26 @@ func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, addr
 
 	fromAddress, err = wif.PrivateKey.Address()
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrapf(err, "Failed to take address from WIF: %v", wif.S)
 	}
 	unspents, err = getBalance(fromAddress, "")
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "Failed to ge balance")
 	}
 
 	fromAddressHash, err = crypto.Uint160DecodeAddress(fromAddress)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
 	}
 	toAddressHash, err = crypto.Uint160DecodeAddress(address)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", address)
 	}
 	tx.Attributes = append(tx.Attributes,
 		&transaction.Attribute{
 			Usage: transaction.Script,
 			Data:  fromAddressHash.Bytes(),
-	})
+		})
 
 	inputs, spent = calculateInputs(assetId, unspents, amount)
 	if inputs == nil {
@@ -91,11 +66,11 @@ func CreateRawContractTransaction(wif wallet.WIF, assetIdUint util.Uint256, addr
 
 	witness.InvocationScript, err = getInvocationScript(tx, wif)
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "Failed to create invocation script")
 	}
 	witness.VerificationScript, err = wif.GetVerificationScript()
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "Failed to create verification script")
 	}
 	tx.Scripts = append(tx.Scripts, &witness)
 	tx.Hash()
@@ -113,20 +88,14 @@ func getInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, e
 		signature []byte
 	)
 	if err = tx.EncodeBinary(buf); err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "Failed to encode transaction to binary")
 	}
 	bytes := buf.Bytes()
 	signature, err = wif.PrivateKey.Sign(bytes[:(len(bytes) - 1)])
 	if err != nil {
-		return nil, err
+		return nil, errs.Wrap(err, "Failed ti sign transaction with private key")
 	}
 	return append([]byte{pushbytes64}, signature...), nil
-}
-
-func sortUnspent(us Unspent) {
-	sort.Slice(us.Unspent, func(i, j int) bool {
-		return us.Unspent[i].Value > us.Unspent[j].Value
-	})
 }
 
 func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent) {
@@ -148,7 +117,7 @@ func calculateInputs(assetId string, us []*Unspent, cost util.Fixed8) ([]*transa
 		assetUnspent Unspent
 	)
 	filterSpecificAsset(assetId, us, &assetUnspent)
-	sortUnspent(assetUnspent)
+	sort.Sort(assetUnspent.Unspent)
 
 	for _, us := range assetUnspent.Unspent {
 		if selected >= required {

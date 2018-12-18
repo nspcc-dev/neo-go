@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/wallet"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -28,7 +29,7 @@ type Client struct {
 	endpoint *url.URL
 	ctx      context.Context
 	version  string
-	Wif   	 *wallet.WIF
+	Wif      *wallet.WIF
 }
 
 // ClientOptions defines options for the RPC client.
@@ -87,10 +88,10 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 
 // AddAccountByWIF decodes given WIF and adds some wallet
 // data to client. Useful for RPC calls that require an open wallet.
-func (c *Client) AddAccountByWIF(wif string) error {
+func (c *Client) SetWIF(wif string) error {
 	decodedWif, err := wallet.WIFDecode(wif, 0x00)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to decode WIF; failed to add WIF to client ")
 	}
 	c.Wif = decodedWif
 	return nil
