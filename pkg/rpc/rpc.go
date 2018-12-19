@@ -114,10 +114,16 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 		buf      = &bytes.Buffer{}
 		rawTx    *transaction.Transaction
 		rawTxStr string
+		txParams = ContractTxParams{
+			assetId: asset,
+			address: address,
+			value: amount,
+			wif: *c.Wif,
+			balancer: c.Balancer,
+		}
 	)
 
-	rawTx, err = CreateRawContractTransaction(*c.Wif, asset, address, amount)
-	if err != nil {
+	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "Failed to create raw transaction for `sendtoaddress`")
 	}
 	if err = rawTx.EncodeBinary(buf); err != nil {

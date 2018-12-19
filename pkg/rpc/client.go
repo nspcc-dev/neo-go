@@ -30,6 +30,7 @@ type Client struct {
 	ctx      context.Context
 	version  string
 	Wif      *wallet.WIF
+	Balancer	BalanceGetter
 }
 
 // ClientOptions defines options for the RPC client.
@@ -86,7 +87,7 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 	}, nil
 }
 
-// AddAccountByWIF decodes given WIF and adds some wallet
+// SetWIF decodes given WIF and adds some wallet
 // data to client. Useful for RPC calls that require an open wallet.
 func (c *Client) SetWIF(wif string) error {
 	decodedWif, err := wallet.WIFDecode(wif, 0x00)
@@ -95,6 +96,10 @@ func (c *Client) SetWIF(wif string) error {
 	}
 	c.Wif = decodedWif
 	return nil
+}
+
+func (c *Client) SetBalancer(b BalanceGetter) {
+	c.Balancer = b
 }
 
 func (c *Client) performRequest(method string, p params, v interface{}) error {
