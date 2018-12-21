@@ -95,7 +95,7 @@ func TestHandler(t *testing.T) {
 
 			jsonStr := []byte(tc.rpcCall)
 
-			req := httptest.NewRequest("POST", "http://0.0.0.0:1033/", bytes.NewBuffer(jsonStr))
+			req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", bytes.NewBuffer(jsonStr))
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
