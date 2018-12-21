@@ -23,9 +23,15 @@ func TestHandler(t *testing.T) {
 
 	configPath := "../../config"
 
-	cfg, _ := config.Load(configPath, net)
+	cfg, err := config.Load(configPath, net)
+	if err != nil {
+		t.Errorf("could not load configuration file")
+	}
 
-	chain, _ := core.NewBlockchainLevelDB(cfg)
+	chain, err := core.NewBlockchainLevelDB(cfg)
+	if err != nil {
+		t.Errorf("could not create levelDB chain")
+	}
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
@@ -103,7 +109,10 @@ func TestHandler(t *testing.T) {
 
 			resp := w.Result()
 
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("could not read response from the request: %s", tc.rpcCall)
+			}
 
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
