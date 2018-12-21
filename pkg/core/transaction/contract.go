@@ -8,6 +8,12 @@ import (
 // This TX has not special attributes.
 type ContractTX struct{}
 
+func NewContractTX() *Transaction {
+	return &Transaction{
+		Type:    ContractType,
+	}
+}
+
 // DecodeBinary implements the Payload interface.
 func (tx *ContractTX) DecodeBinary(r io.Reader) error {
 	return nil

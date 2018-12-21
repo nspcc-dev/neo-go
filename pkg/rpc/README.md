@@ -34,15 +34,15 @@ You can create a new client and start interacting with any NEO node that exposes
 | `invokescript` | Yes | - |
 | `invokefunction` | Yes | - |
 | `sendrawtransaction` | Yes | - |
+| `invoke` | Yes | - |
+| `getrawtransaction` | Yes | - |
 | `validateaddress` | No | Handler and result struct |
 | `getblocksysfee` | No | Handler and result struct |
 | `getcontractstate` | No | Handler and result struct |
 | `getrawmempool` | No | Handler and result struct |
-| `getrawtransaction` | No | Handler and result struct |
 | `getstorage` | No | Handler and result struct |
 | `submitblock` | No | Handler and result struct |
 | `gettxout` | No | Handler and result struct |
-| `invoke` | No | Handler and result struct |
 | `getassetstate` | No | Handler and result struct |
 | `getpeers` | No | Handler and result struct |
 | `getversion` | No | Handler and result struct |

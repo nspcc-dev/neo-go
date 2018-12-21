@@ -90,3 +90,21 @@ func WIFDecode(wif string, version byte) (*WIF, error) {
 	w.Compressed = true
 	return w, nil
 }
+
+func (wif WIF) GetVerificationScript() ([]byte, error) {
+	const (
+		pushbytes33 = 0x21
+		checksig    = 0xac
+	)
+	var (
+		pubkey, vScript []byte
+	)
+	pubkey, err := wif.PrivateKey.PublicKey()
+	if err != nil {
+		return nil, err
+	}
+	vScript = append([]byte{pushbytes33}, pubkey...)
+	vScript = append(vScript, checksig)
+	return vScript, nil
+}
+
