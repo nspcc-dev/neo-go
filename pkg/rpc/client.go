@@ -30,7 +30,7 @@ type Client struct {
 	ctx      context.Context
 	version  string
 	Wif      *wallet.WIF
-	Balancer	BalanceGetter
+	Balancer BalanceGetter
 }
 
 // ClientOptions defines options for the RPC client.

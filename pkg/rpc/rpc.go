@@ -108,27 +108,38 @@ func (c *Client) SendRawTransaction(rawTX string) (*response, error) {
 // SendToAddress sends an amount of specific asset to a given address.
 // This call requires open wallet. (`Wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*response, error) {
+func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*SendToAddressResponse, error) {
 	var (
 		err      error
 		buf      = &bytes.Buffer{}
 		rawTx    *transaction.Transaction
 		rawTxStr string
 		txParams = ContractTxParams{
-			assetId: asset,
-			address: address,
-			value: amount,
-			wif: *c.Wif,
+			assetId:  asset,
+			address:  address,
+			value:    amount,
+			wif:      *c.Wif,
 			balancer: c.Balancer,
 		}
+		resp     *response
+		response = &SendToAddressResponse{}
 	)
 
 	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
-		return nil, errors.Wrap(err, "Failed to create raw transaction for `sendtoaddress`")
+		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
 	if err = rawTx.EncodeBinary(buf); err != nil {
-		return nil, errors.Wrap(err, "Failed to encode raw transaction to binary for `sendtoaddress`")
+		return nil, errors.Wrap(err, "failed to encode raw transaction to binary for `sendtoaddress`")
 	}
 	rawTxStr = hex.EncodeToString(buf.Bytes())
-	return c.SendRawTransaction(rawTxStr)
+	if resp, err = c.SendRawTransaction(rawTxStr); err != nil {
+		return nil, errors.Wrap(err, "failed to send raw transaction")
+	}
+	response.Error = resp.Error
+	response.ID = resp.ID
+	response.JSONRPC = resp.JSONRPC
+	response.Result = &TxResponse{
+		TxID: rawTx.Hash().String(),
+	}
+	return response, nil
 }
