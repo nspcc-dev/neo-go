@@ -53,7 +53,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	receiverOutput = transaction.NewOutput(assetID, amount, toAddressHash)
 	tx.AddOutput(receiverOutput)
 
-	if witness.InvocationScript, err = getInvocationScript(tx, wif); err != nil {
+	if witness.InvocationScript, err = GetInvocationScript(tx, wif); err != nil {
 		return nil, errs.Wrap(err, "Failed to create invocation script")
 	}
 	if witness.VerificationScript, err = wif.GetVerificationScript(); err != nil {
@@ -65,7 +65,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	return tx, nil
 }
 
-func getInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, error) {
+func GetInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, error) {
 	const (
 		pushbytes64 = 0x40
 	)

@@ -11,7 +11,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-func (s NeoScanServer) getBalance(address string) ([]*Unspent, error) {
+func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 	var (
 		err        error
 		req        *http.Request
@@ -21,7 +21,7 @@ func (s NeoScanServer) getBalance(address string) ([]*Unspent, error) {
 		balanceURL = s.URL + s.Path
 	)
 
-	if req, err = http.NewRequest(http.MethodGet, balanceURL + address, nil); err != nil {
+	if req, err = http.NewRequest(http.MethodGet, balanceURL+address, nil); err != nil {
 		return nil, errs.Wrap(err, "Failed to compose HTTP request")
 	}
 
@@ -56,7 +56,7 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 
 func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
-		err			error
+		err          error
 		num, i       = uint16(0), uint16(0)
 		required     = cost
 		selected     = util.Fixed8(0)
@@ -64,7 +64,7 @@ func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256,
 		assetUnspent Unspent
 		assetId      = GlobalAssets[assetIdUint.String()]
 	)
-	if us, err = s.getBalance(address); err != nil {
+	if us, err = s.GetBalance(address); err != nil {
 		return nil, util.Fixed8(0), errs.Wrapf(err, "Cannot get balance for address %v", address)
 	}
 	filterSpecificAsset(assetId, us, &assetUnspent)
