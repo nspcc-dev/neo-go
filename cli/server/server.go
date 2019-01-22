@@ -7,7 +7,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/pkg/errors"
@@ -53,7 +52,7 @@ func startServer(ctx *cli.Context) error {
 	signal.Notify(interruptChan, os.Interrupt)
 
 	serverConfig := network.NewServerConfig(cfg)
-	chain, err := newBlockchain(cfg)
+	chain, err := core.NewBlockchainLevelDB(cfg)
 	if err != nil {
 		err = fmt.Errorf("could not initialize blockchain: %s", err)
 		return cli.NewExitError(err, 1)
@@ -96,19 +95,6 @@ Main:
 	}
 
 	return nil
-}
-
-func newBlockchain(cfg config.Config) (*core.Blockchain, error) {
-	// Hardcoded for now.
-	store, err := storage.NewLevelDBStore(
-		cfg.ApplicationConfiguration.DataDirectoryPath,
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return core.NewBlockchain(store, cfg.ProtocolConfiguration)
 }
 
 func logo() string {

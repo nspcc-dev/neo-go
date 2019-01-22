@@ -52,9 +52,9 @@ func NewUnspentCoinState(n int) *UnspentCoinState {
 }
 
 // commit writes all unspent coin states to the given Batch.
-func (s UnspentCoins) commit(b storage.Batch) error {
+func (u UnspentCoins) commit(b storage.Batch) error {
 	buf := new(bytes.Buffer)
-	for hash, state := range s {
+	for hash, state := range u {
 		if err := state.EncodeBinary(buf); err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
-// DecodBinary decodes UnspentCoinState from the given io.Reader.
+// DecodeBinary decodes UnspentCoinState from the given io.Reader.
 func (s *UnspentCoinState) DecodeBinary(r io.Reader) error {
 	lenStates := util.ReadVarUint(r)
 	s.states = make([]CoinState, lenStates)

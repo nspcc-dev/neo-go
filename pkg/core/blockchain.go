@@ -9,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	//"github.com/CityOfZion/neo-go/pkg/core"
+
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -77,6 +78,19 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 	}
 
 	return bc, nil
+}
+
+// GetBlockchainLevelDB returns blockchain based on configuration
+func NewBlockchainLevelDB(cfg config.Config) (*Blockchain, error) {
+	store, err := storage.NewLevelDBStore(
+		cfg.ApplicationConfiguration.DataDirectoryPath,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewBlockchain(store, cfg.ProtocolConfiguration)
 }
 
 func (bc *Blockchain) init() error {
