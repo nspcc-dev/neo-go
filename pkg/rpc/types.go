@@ -91,7 +91,7 @@ type RawTxResponse struct {
 }
 
 type TxResponse struct {
-	TxID       string                  `json:txid"`
+	TxID       string                  `json:"txid"`
 	Size       int                     `json:"size"`
 	Type       string                  `json:"type"` // todo: convert to TransactionType
 	Version    int                     `json:"version"`
