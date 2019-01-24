@@ -28,7 +28,9 @@ func TestSendVersion(t *testing.T) {
 		assert.Equal(t, uint32(0), version.StartHeight)
 	}
 
-	s.sendVersion(p)
+	if err := s.sendVersion(p); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // Server should reply with a verack after receiving a valid version.

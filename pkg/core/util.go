@@ -89,7 +89,9 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		},
 	}
 
-	block.rebuildMerkleRoot()
+	if err = block.rebuildMerkleRoot(); err != nil {
+		return nil, err
+	}
 
 	return block, nil
 }

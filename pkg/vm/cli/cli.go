@@ -188,7 +188,7 @@ func (c *VMCLI) Run() error {
 		if len(input) != 0 {
 			parts := strings.Split(input, " ")
 			cmd := parts[0]
-			args := []string{}
+			var args []string
 			if len(parts) > 1 {
 				args = parts[1:]
 			}

@@ -51,7 +51,9 @@ func (s *MemoryStore) Put(key, value []byte) error {
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
 	for k, v := range b.m {
-		s.Put(*k, v)
+		if err := s.Put(*k, v); err != nil {
+			return err
+		}
 	}
 	return nil
 }

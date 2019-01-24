@@ -9,7 +9,7 @@ type Opcode byte
 const (
 	// Constants
 	Opush0       Opcode = 0x00 // An empty array of bytes is pushed onto the stack.
-	Opushf       Opcode = Opush0
+	Opushf              = Opush0
 	Opushbytes1  Opcode = 0x01 // 0x01-0x4B The next opcode bytes is data to be pushed onto the stack
 	Opushbytes75 Opcode = 0x4B
 	Opushdata1   Opcode = 0x4C // The next byte contains the number of bytes to be pushed onto the stack.
@@ -17,7 +17,7 @@ const (
 	Opushdata4   Opcode = 0x4E // The next four bytes contain the number of bytes to be pushed onto the stack.
 	Opushm1      Opcode = 0x4F // The number -1 is pushed onto the stack.
 	Opush1       Opcode = 0x51
-	Opusht       Opcode = Opush1
+	Opusht              = Opush1
 	Opush2       Opcode = 0x52 // The number 2 is pushed onto the stack.
 	Opush3       Opcode = 0x53 // The number 3 is pushed onto the stack.
 	Opush4       Opcode = 0x54 // The number 4 is pushed onto the stack.

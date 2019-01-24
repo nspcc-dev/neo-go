@@ -39,4 +39,3 @@ type (
 		GetBalance(address string) ([]*Unspent, error)
 	}
 )
-

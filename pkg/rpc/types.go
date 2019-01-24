@@ -14,7 +14,7 @@ type InvokeResult struct {
 	State       string `json:"state"`
 	GasConsumed string `json:"gas_consumed"`
 	Script      string `json:"script"`
-	Stack       []*StackParam
+	Stack       []StackParam
 }
 
 // AccountStateResponse holds the getaccountstate response.
@@ -80,37 +80,37 @@ type SendToAddressResponse struct {
 type GetRawTxResponse struct {
 	responseHeader
 	Error  *Error         `json:"error"`
-	Result *RawTxResponse `json: "result"`
+	Result *RawTxResponse `json:"result"`
 }
 
 type RawTxResponse struct {
 	TxResponse
-	BlockHash     string `json: "blockhash"`
-	Confirmations uint   `json: "confirmations"`
-	BlockTime     uint   `json: "blocktime"`
+	BlockHash     string `json:"blockhash"`
+	Confirmations uint   `json:"confirmations"`
+	BlockTime     uint   `json:"blocktime"`
 }
 
 type TxResponse struct {
-	TxID       string                  `json: "txid"`
-	Size       int                     `json: "size"`
-	Type       string                  `json: "type"` // todo: convert to TransactionType
-	Version    int                     `json: "version"`
-	Attributes []transaction.Attribute `json: "attributes"`
-	Vins       []Vin                   `json: "vin"`
-	Vouts      []Vout                  `json: "vout"`
-	SysFee     int                     `json: "sys_fee"`
-	NetFee     int                     `json: "net_fee"`
-	Scripts    []transaction.Witness   `json: "scripts"`
+	TxID       string                  `json:txid"`
+	Size       int                     `json:"size"`
+	Type       string                  `json:"type"` // todo: convert to TransactionType
+	Version    int                     `json:"version"`
+	Attributes []transaction.Attribute `json:"attributes"`
+	Vins       []Vin                   `json:"vin"`
+	Vouts      []Vout                  `json:"vout"`
+	SysFee     int                     `json:"sys_fee"`
+	NetFee     int                     `json:"net_fee"`
+	Scripts    []transaction.Witness   `json:"scripts"`
 }
 
 type Vin struct {
-	TxId string `json: "txid"`
-	Vout int    `json: "vout"`
+	TxId string `json:"txid"`
+	Vout int    `json:"vout"`
 }
 
 type Vout struct {
-	N       int    `json: "n"`
-	Asset   string `json: "asset"`
-	Value   int    `json: "value"`
-	Address string `json: "address"`
+	N       int    `json:"n"`
+	Asset   string `json:"asset"`
+	Value   int    `json:"value"`
+	Address string `json:"address"`
 }

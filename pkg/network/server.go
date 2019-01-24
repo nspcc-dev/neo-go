@@ -242,8 +242,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		return errInvalidInvType
 	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
-	return nil
+	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 }
 
 // requestHeaders will send a getheaders message to the peer.

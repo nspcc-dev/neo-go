@@ -107,4 +107,3 @@ func (wif WIF) GetVerificationScript() ([]byte, error) {
 	vScript = append(vScript, checksig)
 	return vScript, nil
 }
-
