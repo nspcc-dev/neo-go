@@ -172,3 +172,32 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 	}
 	return
 }
+
+func (p *StackParam) TryParse(dest interface{}) error {
+	var (
+		err  error
+		ok   bool
+		data []byte
+	)
+	switch p.Type {
+	case ByteArray:
+		if data, ok = p.Value.([]byte); !ok {
+			return errors.Errorf("failed to cast %s to []byte", p.Value)
+		}
+		switch dest := dest.(type) {
+		case *util.Uint160:
+			if *dest, err = util.Uint160DecodeBytes(data); err != nil {
+				return err
+			}
+			return nil
+		case *[]byte:
+			dest = &data
+			return nil
+		default:
+			return errors.Errorf("cannot cast stackparam of type %s to type %s", p.Type, dest)
+		}
+	default:
+		return errors.New("cannot define stackparam type")
+	}
+	return nil
+}

@@ -103,3 +103,56 @@ func TestStackParam_UnmarshalJSON(t *testing.T) {
 		}
 	}
 }
+
+var (
+	hash, err = util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
+	byts = hash.Bytes()
+)
+
+var tryParseCases = []struct {
+	input  StackParam
+	result interface{}
+}{
+	{
+		input:  StackParam{Type: ByteArray, Value: "0bcd2978634d961c24f5aea0802297ff128724d6"},
+		result: hash,
+	},
+	{
+		input:  StackParam{Type: ByteArray, Value: "0bcd2978634d961c24f5aea0802297ff128724d6"},
+		result: byts,
+	},
+}
+
+func TestStackParam_TryParse(t *testing.T) {
+	var(
+		input = StackParam{
+			Type: ByteArray,
+			Value: "0bcd2978634d961c24f5aea0802297ff128724d6",
+		}
+	)
+
+	// ByteArray to util.Uint160 conversion
+	var (
+		expectedUint160, err = util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
+		outputUint160 util.Uint160
+	)
+	if err = input.TryParse(&outputUint160); err != nil {
+		t.Errorf("failed to parse stackparam to Uint160: %v", err)
+	}
+	if !reflect.DeepEqual(outputUint160, expectedUint160) {
+		t.Errorf("got (%v), expected (%v)", outputUint160, expectedUint160)
+	}
+
+	// ByteArray to []byte conversion
+	var(
+		outputBytes []byte
+		expectedBytes = expectedUint160.Bytes()
+	)
+	if err = input.TryParse(&outputBytes); err != nil {
+		t.Errorf("failed to parse stackparam to []byte: %v", err)
+	}
+	if !reflect.DeepEqual(outputBytes, expectedBytes) {
+		t.Errorf("got (%v), expected (%v)", outputBytes, expectedBytes)
+	}
+
+}
