@@ -21,7 +21,10 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 	}
 
 	var padding uint8
-	binary.Read(r, binary.LittleEndian, &padding)
+	if err := binary.Read(r, binary.LittleEndian, &padding); err != nil {
+		return err
+	}
+
 	if padding != 0 {
 		return fmt.Errorf("format error: padding must equal 0 got %d", padding)
 	}

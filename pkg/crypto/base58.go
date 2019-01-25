@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/big"
+
+	"github.com/pkg/errors"
 )
 
 const prefix rune = '1'
@@ -54,7 +56,7 @@ func Base58Decode(s string) ([]byte, error) {
 	}
 
 	out := n.Bytes()
-	buf := make([]byte, (zero + len(out)))
+	buf := make([]byte, zero+len(out))
 	copy(buf[zero:], out[:])
 
 	return buf, nil
@@ -94,7 +96,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	}
 
 	if len(b) < 5 {
-		return nil, fmt.Errorf("Invalid base-58 check string: missing checksum.")
+		return nil, errors.New("invalid base-58 check string: missing checksum.")
 	}
 
 	sha := sha256.New()
@@ -106,7 +108,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	hash = sha.Sum(nil)
 
 	if bytes.Compare(hash[0:4], b[len(b)-4:]) != 0 {
-		return nil, fmt.Errorf("Invalid base-58 check string: invalid checksum.")
+		return nil, errors.New("invalid base-58 check string: invalid checksum.")
 	}
 
 	// Strip the 4 byte long hash.

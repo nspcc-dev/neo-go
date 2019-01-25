@@ -11,7 +11,7 @@ import (
 
 func TestHeadersEncodeDecode(t *testing.T) {
 	headers := &Headers{[]*core.Header{
-		&core.Header{
+		{
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   1,
@@ -20,7 +20,7 @@ func TestHeadersEncodeDecode(t *testing.T) {
 					VerificationScript: []byte{0x1},
 				},
 			}},
-		&core.Header{
+		{
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   2,
@@ -29,7 +29,7 @@ func TestHeadersEncodeDecode(t *testing.T) {
 					VerificationScript: []byte{0x1},
 				},
 			}},
-		&core.Header{
+		{
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   3,

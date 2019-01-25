@@ -10,7 +10,7 @@ type ContractTX struct{}
 
 func NewContractTX() *Transaction {
 	return &Transaction{
-		Type:    ContractType,
+		Type: ContractType,
 	}
 }
 

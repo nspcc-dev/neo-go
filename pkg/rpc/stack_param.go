@@ -84,16 +84,16 @@ func StackParamTypeFromString(s string) (StackParamType, error) {
 	}
 }
 
-func (p *StackParamType) UnmarshalJSON(data []byte) (err error) {
+func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	var (
 		s = string(data)
 		l = len(s)
 	)
 	if l < 2 || s[0] != '"' || s[l-1] != '"' {
-		*p = Unknown
+		*t = Unknown
 		return errors.Errorf("invalid type: %s", s)
 	}
-	*p, err = StackParamTypeFromString(s[1 : l-1])
+	*t, err = StackParamTypeFromString(s[1 : l-1])
 	return
 }
 
@@ -149,7 +149,7 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 		}
 		p.Value = i
 	case Array:
-		//https://github.com/neo-project/neo/blob/3d59ecca5a8deb057bdad94b3028a6d5e25ac088/neo/Network/RPC/RpcServer.cs#L67
+		// https://github.com/neo-project/neo/blob/3d59ecca5a8deb057bdad94b3028a6d5e25ac088/neo/Network/RPC/RpcServer.cs#L67
 		var rs []StackParam
 		if err = json.Unmarshal(r.Value, &rs); err != nil {
 			return

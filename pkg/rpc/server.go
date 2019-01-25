@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -33,7 +34,7 @@ var (
 func NewServer(chain core.Blockchainer, port uint16, coreServer *network.Server) Server {
 	return Server{
 		Server: &http.Server{
-			Addr: fmt.Sprintf(":%d", port),
+			Addr: ":" + strconv.FormatUint(uint64(port), 10),
 		},
 		chain:      chain,
 		coreServer: coreServer,

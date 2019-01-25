@@ -60,7 +60,7 @@ func TestPushBytes1to75(t *testing.T) {
 }
 
 func TestPushm1to16(t *testing.T) {
-	prog := []byte{}
+	var prog []byte
 	for i := int(Opushm1); i <= int(Opush16); i++ {
 		if i == 80 {
 			continue // opcode layout we got here.
