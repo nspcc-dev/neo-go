@@ -1,6 +1,6 @@
 package wallet
 
-import(
+import (
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func TestNEP2Encrypt(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if want, have:= testCase.encryptedWif, encryptedWif; want != have {
+		if want, have := testCase.encryptedWif, encryptedWif; want != have {
 			t.Fatalf("expected %s got %s", want, have)
 		}
 	}
@@ -42,7 +42,7 @@ func TestNEP2Decrypt(t *testing.T) {
 		}
 
 		wif, err := privKey.WIF()
-		if err != nil{
+		if err != nil {
 			t.Fatal(err)
 		}
 		if want, have := testCase.wif, wif; want != have {
@@ -50,7 +50,7 @@ func TestNEP2Decrypt(t *testing.T) {
 		}
 
 		address, err := privKey.Address()
-		if err != nil{
+		if err != nil {
 			t.Fatal(err)
 		}
 		if want, have := testCase.address, address; want != have {

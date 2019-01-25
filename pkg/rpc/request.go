@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,11 +48,11 @@ func (r *Request) DecodeData(data io.ReadCloser) error {
 
 	err := json.NewDecoder(data).Decode(r)
 	if err != nil {
-		return fmt.Errorf("Error parsing JSON payload: %s", err)
+		return errors.Errorf("error parsing JSON payload: %s", err)
 	}
 
 	if r.JSONRPC != jsonRPCVersion {
-		return fmt.Errorf("Invalid version, expected 2.0 got: '%s'", r.JSONRPC)
+		return errors.Errorf("invalid version, expected 2.0 got: '%s'", r.JSONRPC)
 	}
 
 	return nil
@@ -64,7 +65,7 @@ func (r *Request) Params() (*Params, error) {
 
 	err := json.Unmarshal(r.RawParams, &params)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing params field in payload: %s", err)
+		return nil, errors.Errorf("error parsing params field in payload: %s", err)
 	}
 
 	return &params, nil

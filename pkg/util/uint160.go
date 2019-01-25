@@ -33,9 +33,7 @@ func Uint160DecodeBytes(b []byte) (u Uint160, err error) {
 	if len(b) != uint160Size {
 		return u, fmt.Errorf("expected byte size of %d got %d", uint160Size, len(b))
 	}
-	for i := 0; i < uint160Size; i++ {
-		u[i] = b[i]
-	}
+	copy(u[:], b)
 	return
 }
 

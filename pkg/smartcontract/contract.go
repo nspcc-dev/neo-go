@@ -22,13 +22,21 @@ func CreateMultiSigRedeemScript(m int, publicKeys crypto.PublicKeys) ([]byte, er
 	}
 
 	buf := new(bytes.Buffer)
-	vm.EmitInt(buf, int64(m))
+	if err := vm.EmitInt(buf, int64(m)); err != nil {
+		return nil, err
+	}
 	sort.Sort(publicKeys)
 	for _, pubKey := range publicKeys {
-		vm.EmitBytes(buf, pubKey.Bytes())
+		if err := vm.EmitBytes(buf, pubKey.Bytes()); err != nil {
+			return nil, err
+		}
 	}
-	vm.EmitInt(buf, int64(len(publicKeys)))
-	vm.EmitOpcode(buf, vm.Ocheckmultisig)
+	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
+		return nil, err
+	}
+	if err := vm.EmitOpcode(buf, vm.Ocheckmultisig); err != nil {
+		return nil, err
+	}
 
 	return buf.Bytes(), nil
 }

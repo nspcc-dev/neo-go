@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
-	//"github.com/CityOfZion/neo-go/pkg/core"
-
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -104,7 +102,9 @@ func (bc *Blockchain) init() error {
 	ver, err := storage.Version(bc.Store)
 	if err != nil {
 		log.Infof("no storage version found! creating genesis block")
-		storage.PutVersion(bc.Store, version)
+		if err = storage.PutVersion(bc.Store, version); err != nil {
+			return err
+		}
 		return bc.persistBlock(genesisBlock)
 	}
 	if ver != version {
@@ -284,11 +284,17 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		assets       = make(Assets)
 	)
 
-	storeAsBlock(batch, block, 0)
+	if err := storeAsBlock(batch, block, 0); err != nil {
+		return err
+	}
+
 	storeAsCurrentBlock(batch, block)
 
 	for _, tx := range block.Transactions {
-		storeAsTransaction(batch, tx, block.Index)
+		if err := storeAsTransaction(batch, tx, block.Index); err != nil {
+			return err
+		}
+
 		unspentCoins[tx.Hash()] = NewUnspentCoinState(len(tx.Outputs))
 
 		// Process TX outputs.
@@ -471,9 +477,9 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 		return nil, err
 	}
 	// TODO: persist TX first before we can handle this logic.
-	//if len(block.Transactions) == 0 {
-	//	return nil, fmt.Errorf("block has no TX")
-	//}
+	// if len(block.Transactions) == 0 {
+	// 	return nil, fmt.Errorf("block has no TX")
+	// }
 	return block, nil
 }
 
