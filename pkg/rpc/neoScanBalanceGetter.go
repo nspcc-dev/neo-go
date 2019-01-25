@@ -29,12 +29,7 @@ func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 		return nil, errs.Wrap(err, "Failed to perform HTTP request")
 	}
 
-	defer func() error {
-		if err := res.Body.Close(); err != nil {
-			return err
-		}
-		return nil
-	}()
+	defer res.Body.Close()
 
 	if err = json.NewDecoder(res.Body).Decode(&balance); err != nil {
 		return nil, errs.Wrap(err, "Failed to decode HTTP response")
@@ -78,7 +73,7 @@ func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256,
 		num++
 	}
 	if selected < required {
-		return nil, util.Fixed8(0), errors.New("Cannot compose inputs for transaction; check sender balance")
+		return nil, util.Fixed8(0), errors.New("cannot compose inputs for transaction; check sender balance")
 	}
 
 	inputs := make([]transaction.Input, 0, num)

@@ -13,7 +13,9 @@ func TestGetPut(t *testing.T) {
 		value = []byte("rocks")
 	)
 
-	s.Put(key, value)
+	if err := s.Put(key, value); err != nil {
+		t.Fatal(err)
+	}
 
 	newVal, err := s.Get(key)
 	if err != nil {
@@ -43,7 +45,10 @@ func TestPutBatch(t *testing.T) {
 
 	batch.Put(key, value)
 
-	s.PutBatch(batch)
+	if err := s.PutBatch(batch); err != nil {
+		t.Fatal(err)
+	}
+
 	newVal, err := s.Get(key)
 	if err != nil {
 		t.Fatal(err)

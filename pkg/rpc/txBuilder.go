@@ -77,8 +77,8 @@ func GetInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, e
 	if err = tx.EncodeBinary(buf); err != nil {
 		return nil, errs.Wrap(err, "Failed to encode transaction to binary")
 	}
-	bytes := buf.Bytes()
-	signature, err = wif.PrivateKey.Sign(bytes[:(len(bytes) - 1)])
+	data := buf.Bytes()
+	signature, err = wif.PrivateKey.Sign(data[:(len(data) - 1)])
 	if err != nil {
 		return nil, errs.Wrap(err, "Failed ti sign transaction with private key")
 	}

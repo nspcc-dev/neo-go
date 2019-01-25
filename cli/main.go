@@ -22,5 +22,7 @@ func main() {
 		vm.NewCommand(),
 	}
 
-	ctl.Run(os.Args)
+	if err := ctl.Run(os.Args); err != nil {
+		panic(err)
+	}
 }

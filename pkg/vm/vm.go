@@ -696,8 +696,8 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		v.estack.PushVal(sha.Sum(nil))
 
 	case Ochecksig:
-		//pubkey := v.estack.Pop().Bytes()
-		//sig := v.estack.Pop().Bytes()
+		// pubkey := v.estack.Pop().Bytes()
+		// sig := v.estack.Pop().Bytes()
 
 	case Ocheckmultisig:
 

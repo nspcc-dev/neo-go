@@ -41,7 +41,7 @@ func EmitInt(w *bytes.Buffer, i int64) error {
 		return EmitOpcode(w, Opushf)
 	}
 	if i > 0 && i < 16 {
-		val := Opcode((int(Opush1) - 1 + int(i)))
+		val := Opcode(int(Opush1) - 1 + int(i))
 		return EmitOpcode(w, val)
 	}
 

@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	errNoPath          = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags")
-	errPhraseMismatch  = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
+	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags")
+	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
 // NewCommand creates a new Wallet command.

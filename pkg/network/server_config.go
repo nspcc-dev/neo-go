@@ -56,8 +56,8 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		Net:               protoConfig.Magic,
 		Relay:             appConfig.Relay,
 		Seeds:             protoConfig.SeedList,
-		DialTimeout:       (appConfig.DialTimeout * time.Second),
-		ProtoTickInterval: (appConfig.ProtoTickInterval * time.Second),
+		DialTimeout:       appConfig.DialTimeout * time.Second,
+		ProtoTickInterval: appConfig.ProtoTickInterval * time.Second,
 		MaxPeers:          appConfig.MaxPeers,
 	}
 }

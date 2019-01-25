@@ -9,9 +9,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
-
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,12 +24,12 @@ func TestHandler(t *testing.T) {
 
 	cfg, err := config.Load(configPath, net)
 	if err != nil {
-		t.Errorf("could not load configuration file")
+		t.Fatal("could not create levelDB chain", err)
 	}
 
 	chain, err := core.NewBlockchainLevelDB(cfg)
 	if err != nil {
-		t.Errorf("could not create levelDB chain")
+		t.Fatal("could not create levelDB chain", err)
 	}
 
 	serverConfig := network.NewServerConfig(cfg)

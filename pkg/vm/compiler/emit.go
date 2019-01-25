@@ -38,7 +38,7 @@ func emitInt(w *bytes.Buffer, i int64) error {
 		return emitOpcode(w, vm.Opushf)
 	}
 	if i > 0 && i < 16 {
-		val := vm.Opcode((int(vm.Opush1) - 1 + int(i)))
+		val := vm.Opcode(int(vm.Opush1) - 1 + int(i))
 		return emitOpcode(w, val)
 	}
 
@@ -83,7 +83,7 @@ func emitSyscall(w *bytes.Buffer, api string) error {
 	}
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
-	copy(buf[1:len(buf)], []byte(api))
+	copy(buf[1:], []byte(api))
 	return emit(w, vm.Osyscall, buf)
 }
 

@@ -128,7 +128,7 @@ func (c *Client) performRequest(method string, p params, v interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Remote responded with a non 200 response: %d", resp.StatusCode)
+		return fmt.Errorf("remote responded with a non 200 response: %d", resp.StatusCode)
 	}
 
 	return json.NewDecoder(resp.Body).Decode(v)

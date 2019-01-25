@@ -260,7 +260,7 @@ func cmdToByteArray(cmd CommandType) [cmdSize]byte {
 }
 
 func cmdByteArrayToString(cmd [cmdSize]byte) string {
-	buf := []byte{}
+	buf := make([]byte, 0, cmdSize)
 	for i := 0; i < cmdSize; i++ {
 		if cmd[i] != 0 {
 			buf = append(buf, cmd[i])
