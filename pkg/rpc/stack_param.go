@@ -191,7 +191,7 @@ func (p *StackParam) TryParse(dest interface{}) error {
 			}
 			return nil
 		case *[]byte:
-			dest = &data
+			*dest = data
 			return nil
 		default:
 			return errors.Errorf("cannot cast stackparam of type %s to type %s", p.Type, dest)

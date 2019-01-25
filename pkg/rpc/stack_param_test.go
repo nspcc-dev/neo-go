@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -106,7 +107,7 @@ func TestStackParam_UnmarshalJSON(t *testing.T) {
 
 var (
 	hash, err = util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
-	byts = hash.Bytes()
+	byts      = hash.Bytes()
 )
 
 var tryParseCases = []struct {
@@ -124,18 +125,20 @@ var tryParseCases = []struct {
 }
 
 func TestStackParam_TryParse(t *testing.T) {
-	var(
-		input = StackParam{
-			Type: ByteArray,
-			Value: "0bcd2978634d961c24f5aea0802297ff128724d6",
-		}
+	const (
+		hash = "0bcd2978634d961c24f5aea0802297ff128724d6"
 	)
+	data, err := hex.DecodeString(hash)
+	input := StackParam{
+		Type:  ByteArray,
+		Value: data,
+	}
 
 	// ByteArray to util.Uint160 conversion
 	var (
-		expectedUint160, err = util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
-		outputUint160 util.Uint160
+		outputUint160, expectedUint160 util.Uint160
 	)
+	expectedUint160, err = util.Uint160DecodeString(hash)
 	if err = input.TryParse(&outputUint160); err != nil {
 		t.Errorf("failed to parse stackparam to Uint160: %v", err)
 	}
@@ -144,8 +147,8 @@ func TestStackParam_TryParse(t *testing.T) {
 	}
 
 	// ByteArray to []byte conversion
-	var(
-		outputBytes []byte
+	var (
+		outputBytes   []byte
 		expectedBytes = expectedUint160.Bytes()
 	)
 	if err = input.TryParse(&outputBytes); err != nil {
