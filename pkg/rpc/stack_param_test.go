@@ -105,45 +105,46 @@ func TestStackParam_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-var (
-	hash, err = util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
-	byts      = hash.Bytes()
+const (
+	hash160 = "0bcd2978634d961c24f5aea0802297ff128724d6"
+	hash256 = "7fe610b7c8259ae949accacb091a1bc53219c51a1cb8752fbc6457674c13ec0b"
+	testString = "myteststring"
 )
 
-var tryParseCases = []struct {
-	input  StackParam
-	result interface{}
-}{
-	{
-		input:  StackParam{Type: ByteArray, Value: "0bcd2978634d961c24f5aea0802297ff128724d6"},
-		result: hash,
-	},
-	{
-		input:  StackParam{Type: ByteArray, Value: "0bcd2978634d961c24f5aea0802297ff128724d6"},
-		result: byts,
-	},
-}
-
 func TestStackParam_TryParse(t *testing.T) {
-	const (
-		hash = "0bcd2978634d961c24f5aea0802297ff128724d6"
-	)
-	data, err := hex.DecodeString(hash)
-	input := StackParam{
-		Type:  ByteArray,
-		Value: data,
-	}
 
 	// ByteArray to util.Uint160 conversion
+	data, err := hex.DecodeString(hash160)
 	var (
 		outputUint160, expectedUint160 util.Uint160
+		input = StackParam{
+			Type:  ByteArray,
+			Value: data,
+		}
 	)
-	expectedUint160, err = util.Uint160DecodeString(hash)
+	expectedUint160, err = util.Uint160DecodeString(hash160)
 	if err = input.TryParse(&outputUint160); err != nil {
 		t.Errorf("failed to parse stackparam to Uint160: %v", err)
 	}
 	if !reflect.DeepEqual(outputUint160, expectedUint160) {
 		t.Errorf("got (%v), expected (%v)", outputUint160, expectedUint160)
+	}
+
+	// ByteArray to util.Uint256 conversion
+	data, err = hex.DecodeString(hash256)
+	var (
+		outputUint256, expectedUint256 util.Uint256
+		uint256input = StackParam{
+			Type:  ByteArray,
+			Value: data,
+		}
+	)
+	expectedUint256, err = util.Uint256DecodeString(hash256)
+	if err = uint256input.TryParse(&outputUint256); err != nil {
+		t.Errorf("failed to parse stackparam to []byte: %v", err)
+	}
+	if !reflect.DeepEqual(outputUint256, expectedUint256) {
+		t.Errorf("got (%v), expected (%v)", outputUint256, expectedUint256)
 	}
 
 	// ByteArray to []byte conversion
@@ -156,6 +157,40 @@ func TestStackParam_TryParse(t *testing.T) {
 	}
 	if !reflect.DeepEqual(outputBytes, expectedBytes) {
 		t.Errorf("got (%v), expected (%v)", outputBytes, expectedBytes)
+	}
+
+	// ByteArray to int64 conversion
+	data, err = hex.DecodeString("637829cd0b")
+	var (
+        outputInt, expectedInt int64
+		intinput = StackParam{
+			Type:  ByteArray,
+			Value: data,
+		}
+	)
+	expectedInt = 50686687331
+	if err = intinput.TryParse(&outputInt); err != nil {
+		t.Errorf("failed to parse stackparam to []byte: %v", err)
+	}
+	if !reflect.DeepEqual(outputInt, expectedInt) {
+		t.Errorf("got (%v), expected (%v)", outputInt, expectedInt)
+	}
+
+	// ByteArray to string conversion
+	data = []byte(testString)
+	var (
+		outputStr, expectedStr string
+		strinput = StackParam{
+			Type:  ByteArray,
+			Value: data,
+		}
+	)
+	expectedStr = testString
+	if err = strinput.TryParse(&outputStr); err != nil {
+		t.Errorf("failed to parse stackparam to []byte: %v", err)
+	}
+	if !reflect.DeepEqual(outputStr, expectedStr) {
+		t.Errorf("got (%v), expected (%v)", outputStr, expectedStr)
 	}
 
 }

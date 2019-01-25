@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/hex"
 	"encoding/json"
+	"math/big"
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -193,6 +194,19 @@ func (p *StackParam) TryParse(dest interface{}) error {
 		case *[]byte:
 			*dest = data
 			return nil
+		case *util.Uint256:
+			if *dest, err = util.Uint256DecodeBytes(data); err != nil {
+				return err
+			}
+			return nil
+		case *int64:
+			bi := &big.Int{}
+			bi.SetBytes(reverseBytes(data))
+			*dest = bi.Int64()
+			return nil
+		case *string:
+			*dest = string(data)
+			return nil
 		default:
 			return errors.Errorf("cannot cast stackparam of type %s to type %s", p.Type, dest)
 		}
@@ -201,3 +215,12 @@ func (p *StackParam) TryParse(dest interface{}) error {
 	}
 	return nil
 }
+
+func reverseBytes(arr []byte) []byte {
+	for i := len(arr)/2 - 1; i >= 0; i-- {
+		opp := len(arr) - 1 - i
+		arr[i], arr[opp] = arr[opp], arr[i]
+	}
+	return arr
+}
+
