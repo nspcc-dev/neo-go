@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"encoding/hex"
+	"github.com/davecgh/go-spew/spew"
+	"reflect"
 	"encoding/json"
 	"math/big"
 	"strconv"
@@ -172,6 +174,26 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 		return errors.New("not implemented")
 	}
 	return
+}
+
+type StackParams []StackParam
+
+func (p *StackParams) TryParseArray(vals ...interface{}) error {
+	var (
+		err error
+		i int
+		par StackParam
+	)
+	spew.Dump(reflect.TypeOf(vals[0]))
+	if len(*p) != len(vals) {
+		return errors.New("receiver array doesn't fit the StackParams length")
+	}
+	for i, par = range *p {
+		if err = par.TryParse(vals[i])	; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *StackParam) TryParse(dest interface{}) error {

@@ -106,8 +106,8 @@ func TestStackParam_UnmarshalJSON(t *testing.T) {
 }
 
 const (
-	hash160 = "0bcd2978634d961c24f5aea0802297ff128724d6"
-	hash256 = "7fe610b7c8259ae949accacb091a1bc53219c51a1cb8752fbc6457674c13ec0b"
+	hash160    = "0bcd2978634d961c24f5aea0802297ff128724d6"
+	hash256    = "7fe610b7c8259ae949accacb091a1bc53219c51a1cb8752fbc6457674c13ec0b"
 	testString = "myteststring"
 )
 
@@ -117,7 +117,7 @@ func TestStackParam_TryParse(t *testing.T) {
 	data, err := hex.DecodeString(hash160)
 	var (
 		outputUint160, expectedUint160 util.Uint160
-		input = StackParam{
+		input                          = StackParam{
 			Type:  ByteArray,
 			Value: data,
 		}
@@ -134,7 +134,7 @@ func TestStackParam_TryParse(t *testing.T) {
 	data, err = hex.DecodeString(hash256)
 	var (
 		outputUint256, expectedUint256 util.Uint256
-		uint256input = StackParam{
+		uint256input                   = StackParam{
 			Type:  ByteArray,
 			Value: data,
 		}
@@ -162,8 +162,8 @@ func TestStackParam_TryParse(t *testing.T) {
 	// ByteArray to int64 conversion
 	data, err = hex.DecodeString("637829cd0b")
 	var (
-        outputInt, expectedInt int64
-		intinput = StackParam{
+		outputInt, expectedInt int64
+		intinput               = StackParam{
 			Type:  ByteArray,
 			Value: data,
 		}
@@ -180,7 +180,7 @@ func TestStackParam_TryParse(t *testing.T) {
 	data = []byte(testString)
 	var (
 		outputStr, expectedStr string
-		strinput = StackParam{
+		strinput               = StackParam{
 			Type:  ByteArray,
 			Value: data,
 		}
@@ -191,6 +191,40 @@ func TestStackParam_TryParse(t *testing.T) {
 	}
 	if !reflect.DeepEqual(outputStr, expectedStr) {
 		t.Errorf("got (%v), expected (%v)", outputStr, expectedStr)
+	}
+
+	// StackParams to []util.Uint160
+	data, err = hex.DecodeString(hash160)
+	expUint160, err := util.Uint160DecodeString(hash160)
+	var (
+		params                 = StackParams{
+			StackParam{
+				Type:  ByteArray,
+				Value: data,
+			},
+			StackParam{
+				Type:  ByteArray,
+				Value: data,
+			},
+		}
+		//out1, out2 []*util.Uint160
+		expectedArray = []util.Uint160{
+			expUint160,
+			expUint160,
+		}
+		outputArray []interface{}
+		//out1 = &util.Uint160{}
+		//out2 = &util.Uint160{}
+	)
+	outputArrayUints := make([]*util.Uint160, 2)
+	for i, v := range outputArrayUints {
+		outputArray[i] = v
+	}
+	if err = params.TryParseArray(outputArray...); err != nil {
+		t.Errorf("failed to parse stackparam to []byte: %v", err)
+	}
+	if !reflect.DeepEqual(outputArray, expectedArray) {
+		t.Errorf("got (%v), expected (%v)", outputArray, expectedArray )
 	}
 
 }
