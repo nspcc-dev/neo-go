@@ -62,11 +62,11 @@ func ECPointFromReader(r io.Reader) (point ECPoint, err error) {
 		point.X = new(big.Int)
 		point.Y = new(big.Int)
 	case 2, 3:
-		var pub *ecdsa.PrivateKey
-		if pub, err = ecdsa.GenerateKey(curve, r); err != nil {
+		var sk *ecdsa.PrivateKey
+		if sk, err = ecdsa.GenerateKey(curve, r); err != nil {
 			return
 		}
-		point.X, point.Y = pub.X, pub.Y
+		point.X, point.Y = sk.X, sk.Y // copying PublicKey
 	}
 	return
 }
