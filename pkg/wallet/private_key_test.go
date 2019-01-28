@@ -1,6 +1,15 @@
 package wallet
 
-import "testing"
+import (
+	"bytes"
+	"crypto/rand"
+	"io"
+	"math/big"
+	"testing"
+
+	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/stretchr/testify/assert"
+)
 
 type testKey struct {
 	address,
@@ -36,6 +45,32 @@ var testKeyCases = []testKey{
 		passphrase:   "MyL33tP@33w0rd",
 		encryptedWif: "6PYNoc1EG5J38MTqGN9Anphfdd6UwbS4cpFCzHhrkSKBBbV1qkbJJZQnkn",
 	},
+}
+
+func oldPrivateKey(buf *bytes.Buffer) *PrivateKey {
+	reader := io.TeeReader(rand.Reader, buf)
+	c := crypto.NewEllipticCurve()
+	b := make([]byte, c.Params().N.BitLen()/8+8)
+	if _, err := io.ReadFull(reader, b); err != nil {
+		panic(err)
+	}
+
+	d := new(big.Int).SetBytes(b)
+	d.Mod(d, new(big.Int).Sub(c.Params().N, big.NewInt(1)))
+	d.Add(d, big.NewInt(1))
+
+	p := &PrivateKey{b: d.Bytes()}
+	return p
+}
+
+func TestOldNewPrivateKey(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		buf := new(bytes.Buffer)
+
+		sk1 := oldPrivateKey(buf)
+		sk2, _ := newPrivateKey(buf)
+		assert.Equal(t, sk1.ecdsa(), sk2.ecdsa())
+	}
 }
 
 func TestPrivateKey(t *testing.T) {
