@@ -25,13 +25,13 @@ type PrivateKey struct {
 
 func NewPrivateKey() (*PrivateKey, error) {
 	c := crypto.NewEllipticCurve()
-	b := make([]byte, c.N.BitLen()/8+8)
+	b := make([]byte, c.Params().N.BitLen()/8+8)
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		return nil, err
 	}
 
 	d := new(big.Int).SetBytes(b)
-	d.Mod(d, new(big.Int).Sub(c.N, big.NewInt(1)))
+	d.Mod(d, new(big.Int).Sub(c.Params().N, big.NewInt(1)))
 	d.Add(d, big.NewInt(1))
 
 	p := &PrivateKey{b: d.Bytes()}

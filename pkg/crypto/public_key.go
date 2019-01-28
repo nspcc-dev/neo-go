@@ -44,7 +44,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	}
 
 	pubKey := &PublicKey{}
-	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
+	if err := pubKey.DecodeBytes(b); err != nil {
 		return nil, err
 	}
 
