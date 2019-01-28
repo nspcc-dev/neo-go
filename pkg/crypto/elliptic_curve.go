@@ -142,20 +142,7 @@ func (c *EllipticCurve) IsInfinity(P ECPoint) bool {
 
 // IsOnCurve checks if point P is on EllipticCurve ec.
 func (c *EllipticCurve) IsOnCurve(P ECPoint) bool {
-	if c.IsInfinity(P) {
-		return false
-	}
-	lhs := mulMod(P.Y, P.Y, c.Params().P)
-	rhs := addMod(
-		addMod(
-			expMod(P.X, big.NewInt(3), c.Params().P),
-			mulMod(c.A, P.X, c.Params().P), c.Params().P),
-		c.Params().B, c.Params().P)
-
-	if lhs.Cmp(rhs) == 0 {
-		return true
-	}
-	return false
+	return c.Curve.IsOnCurve(P.X, P.Y)
 }
 
 // Add computes R = P + Q on EllipticCurve ec.
