@@ -5,6 +5,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/binary"
@@ -13,17 +14,12 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type (
-	// EllipticCurve represents the parameters of a short Weierstrass equation elliptic
-	// curve.
+	// EllipticCurve represents elliptic.P256.
 	EllipticCurve struct {
-		A *big.Int
-		H *big.Int
-		elliptic.Curve
+		curve elliptic.Curve
 	}
 
 	// ECPoint represents a point on the EllipticCurve.
@@ -33,36 +29,23 @@ type (
 	}
 )
 
+var curve = elliptic.P256()
+
 // NewEllipticCurve returns a ready to use EllipticCurve with preconfigured
 // fields for the NEO protocol.
 func NewEllipticCurve() EllipticCurve {
-	c := EllipticCurve{
-		Curve: elliptic.P256(),
-	}
-
-	c.A, _ = new(big.Int).SetString(
-		"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC", 16,
-	)
-	c.H, _ = new(big.Int).SetString("01", 16)
-
-	return c
+	return EllipticCurve{curve: curve}
 }
 
 // RandomECPoint returns a random generated ECPoint, mostly used
 // for testing.
-func RandomECPoint() ECPoint {
-	c := NewEllipticCurve()
-	b := make([]byte, c.Params().N.BitLen()/8+8)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
-		return ECPoint{}
+func RandomECPoint() (p ECPoint) {
+	pub, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		return
 	}
-
-	d := new(big.Int).SetBytes(b)
-	d.Mod(d, new(big.Int).Sub(c.Params().N, big.NewInt(1)))
-	d.Add(d, big.NewInt(1))
-
-	q := new(big.Int).SetBytes(d.Bytes())
-	return c.ScalarBaseMult(q)
+	p.X, p.Y = pub.X, pub.Y
+	return
 }
 
 // ECPointFromReader return a new point from the given reader.
@@ -73,27 +56,17 @@ func ECPointFromReader(r io.Reader) (point ECPoint, err error) {
 		return
 	}
 
+	switch f {
 	// Infinity
-	if f == 0 {
-		return ECPoint{
-			X: new(big.Int),
-			Y: new(big.Int),
-		}, nil
-	}
-
-	if f == 2 || f == 3 {
-		y := new(big.Int).SetBytes([]byte{f & 1})
-		data := make([]byte, 32)
-		if err = binary.Read(r, binary.LittleEndian, data); err != nil {
+	case 0:
+		point.X = new(big.Int)
+		point.Y = new(big.Int)
+	case 2, 3:
+		var pub *ecdsa.PrivateKey
+		if pub, err = ecdsa.GenerateKey(curve, r); err != nil {
 			return
 		}
-		data = util.ArrayReverse(data)
-		data = append(data, byte(0x00))
-
-		return ECPoint{
-			X: new(big.Int).SetBytes(data),
-			Y: y,
-		}, nil
+		point.X, point.Y = pub.X, pub.Y
 	}
 	return
 }
@@ -135,6 +108,11 @@ func (p *ECPoint) IsInfinity() bool {
 	return p.X == nil && p.Y == nil
 }
 
+// Params returns the parameters for the curve.
+func (c *EllipticCurve) Params() *elliptic.CurveParams {
+	return c.curve.Params()
+}
+
 // IsInfinity checks if point P is infinity on EllipticCurve ec.
 func (c *EllipticCurve) IsInfinity(P ECPoint) bool {
 	return P.X == nil && P.Y == nil
@@ -142,12 +120,12 @@ func (c *EllipticCurve) IsInfinity(P ECPoint) bool {
 
 // IsOnCurve checks if point P is on EllipticCurve ec.
 func (c *EllipticCurve) IsOnCurve(P ECPoint) bool {
-	return c.Curve.IsOnCurve(P.X, P.Y)
+	return c.curve.IsOnCurve(P.X, P.Y)
 }
 
 // Add computes R = P + Q on EllipticCurve ec.
 func (c *EllipticCurve) Add(P, Q ECPoint) (R ECPoint) {
-	R.X, R.Y = c.Curve.Add(P.X, P.Y, Q.X, Q.Y)
+	R.X, R.Y = c.curve.Add(P.X, P.Y, Q.X, Q.Y)
 	return
 }
 
@@ -163,7 +141,7 @@ func (c *EllipticCurve) ScalarMult(k *big.Int, P ECPoint) (Q ECPoint) {
 	R1.X = new(big.Int).Set(P.X)
 	R1.Y = new(big.Int).Set(P.Y)
 
-	for i := c.Params().N.BitLen() - 1; i >= 0; i-- {
+	for i := c.curve.Params().N.BitLen() - 1; i >= 0; i-- {
 		if k.Bit(i) == 0 {
 			R1 = c.Add(R0, R1)
 			R0 = c.Add(R0, R0)
@@ -177,7 +155,7 @@ func (c *EllipticCurve) ScalarMult(k *big.Int, P ECPoint) (Q ECPoint) {
 
 // ScalarBaseMult computes Q = k * G on EllipticCurve ec.
 func (c *EllipticCurve) ScalarBaseMult(k *big.Int) (Q ECPoint) {
-	Q.X, Q.Y = c.Curve.ScalarBaseMult(k.Bytes())
+	Q.X, Q.Y = c.curve.ScalarBaseMult(k.Bytes())
 	return
 }
 
@@ -186,14 +164,14 @@ func (c *EllipticCurve) Decompress(x *big.Int, ylsb uint) (P ECPoint, err error)
 	/* y**2 = x**3 + a*x + b  % p */
 	rhs := addMod(
 		addMod(
-			expMod(x, big.NewInt(3), c.Params().P),
-			mulMod(c.A, x, c.Params().P),
-			c.Params().P),
-		c.Params().B, c.Params().P)
+			expMod(x, big.NewInt(3), c.curve.Params().P),
+			mulMod(big.NewInt(-3), x, c.curve.Params().P),
+			c.curve.Params().P),
+		c.curve.Params().B, c.curve.Params().P)
 
-	y := sqrtMod(rhs, c.Params().P)
+	y := new(big.Int).ModSqrt(rhs, c.curve.Params().P)
 	if y.Bit(0) != (ylsb & 0x1) {
-		y = subMod(big.NewInt(0), y, c.Params().P)
+		y = subMod(big.NewInt(0), y, c.curve.Params().P)
 	}
 
 	P.X = x
