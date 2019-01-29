@@ -194,21 +194,21 @@ func (v *VM) Run() {
 
 	v.state = noneState
 	for {
-		switch v.state {
-		case haltState:
+		switch true {
+		case v.state.HasFlag(haltState):
 			if !v.mute {
 				fmt.Println(v.Stack("estack"))
 			}
 			return
-		case breakState:
+		case v.state.HasFlag(breakState):
 			ctx := v.Context()
 			i, op := ctx.CurrInstr()
 			fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
 			return
-		case faultState:
+		case v.state.HasFlag(faultState):
 			fmt.Println("FAULT")
 			return
-		case noneState:
+		case v.state == noneState:
 			v.Step()
 		}
 	}
