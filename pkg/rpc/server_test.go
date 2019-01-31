@@ -55,11 +55,11 @@ func TestHandler(t *testing.T) {
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
 			"getassetstate_3",
-			`{"jsonrpc":"2.0","result":"Invalid assetid","id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode 62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7 to Uint256"},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
 			"getassetstate_4",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Param need to be a string"},"id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Please provide a valid string assetID parameter"},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [10] }`,
 			"getblockhash_1",
@@ -92,6 +92,21 @@ func TestHandler(t *testing.T) {
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getpeers", "params": [] }`,
 			"getpeers",
 			`{"jsonrpc":"2.0","result":{"unconnected":[],"connected":[],"bad":[]},"id":1}`},
+
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"] }`,
+			"getaccountstate_1",
+			`{"jsonrpc":"2.0","result":{"version":0,"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","script_hash":"0xe9eed8dc39332032dc22e5d6e86332c50327ba23","frozen":false,"votes":[],"balances":{"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7":"72099.99960000","c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b":"99989900"}},"id":1}`,
+		},
+
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
+			"getaccountstate_2",
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint260"},"id":1}`,
+		},
+
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
+			"getaccountstate_3",
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Please provide a valid string account address parameter"},"id":1}`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -113,6 +128,7 @@ func TestHandler(t *testing.T) {
 				t.Errorf("could not read response from the request: %s", tc.rpcCall)
 			}
 
+			fmt.Println(string(bytes.TrimSpace(body)))
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 

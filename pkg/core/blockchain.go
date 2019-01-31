@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
+	//"github.com/CityOfZion/neo-go/pkg/core"
+
+	//"github.com/CityOfZion/neo-go/pkg/core"
+
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -555,6 +559,21 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 		var a AssetState
 		a.DecodeBinary(bytes.NewReader(v))
 		if a.ID == assetID {
+			as = &a
+		}
+	})
+
+	return as
+}
+
+// GetAccountState returns the account state from its script hash
+func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
+
+	var as *AccountState
+	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
+		var a AccountState
+		a.DecodeBinary(bytes.NewReader(v))
+		if a.ScriptHash == scriptHash {
 			as = &a
 		}
 	})

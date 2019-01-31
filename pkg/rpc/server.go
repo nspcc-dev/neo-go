@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
@@ -180,26 +181,24 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate":
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
 		results = "TODO"
 
 	case "getassetstate":
 		var err error
-
-		param, exists := reqParams.ValueAt(0)
+		param, exists := reqParams.ValueAtAndType(0, "string")
 		if !exists {
-			err = errors.New("Param at index at 0 doesn't exist")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
-		}
-
-		if param.Type != "string" {
-			err = errors.New("Param need to be a string")
+			err = fmt.Errorf("Please provide a valid string assetID parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
 
 		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
+		if err != nil {
+			err = fmt.Errorf("unable to decode %s to Uint256", param.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
 
 		as := s.chain.GetAssetState(paramAssetID)
 
@@ -207,6 +206,31 @@ Methods:
 			results = wrappers.NewAssetState(as)
 		} else {
 			results = "Invalid assetid"
+		}
+
+	case "getaccountstate":
+		var err error
+
+		param, exists := reqParams.ValueAtAndType(0, "string")
+		if !exists {
+			err = fmt.Errorf("Please provide a valid string account address parameter")
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
+
+		scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal)
+		if err != nil {
+			err = fmt.Errorf("unable to decode %s to Uint260", param.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
+
+		as := s.chain.GetAccountState(scriptHash)
+
+		if as != nil {
+			results = wrappers.NewAccountState(as)
+		} else {
+			results = "Invalid public account address"
 		}
 
 	default:
