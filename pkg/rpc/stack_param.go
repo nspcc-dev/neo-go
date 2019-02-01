@@ -2,8 +2,6 @@ package rpc
 
 import (
 	"encoding/hex"
-	"github.com/davecgh/go-spew/spew"
-	"reflect"
 	"encoding/json"
 	"math/big"
 	"strconv"
@@ -181,15 +179,14 @@ type StackParams []StackParam
 func (p *StackParams) TryParseArray(vals ...interface{}) error {
 	var (
 		err error
-		i int
+		i   int
 		par StackParam
 	)
-	spew.Dump(reflect.TypeOf(vals[0]))
 	if len(*p) != len(vals) {
 		return errors.New("receiver array doesn't fit the StackParams length")
 	}
 	for i, par = range *p {
-		if err = par.TryParse(vals[i])	; err != nil {
+		if err = par.TryParse(vals[i]); err != nil {
 			return err
 		}
 	}
@@ -245,4 +242,3 @@ func reverseBytes(arr []byte) []byte {
 	}
 	return arr
 }
-

@@ -207,24 +207,18 @@ func TestStackParam_TryParse(t *testing.T) {
 				Value: data,
 			},
 		}
-		//out1, out2 []*util.Uint160
 		expectedArray = []util.Uint160{
 			expUint160,
 			expUint160,
 		}
-		outputArray []interface{}
-		//out1 = &util.Uint160{}
-		//out2 = &util.Uint160{}
+		out1, out2 = &util.Uint160{}, &util.Uint160{}
 	)
-	outputArrayUints := make([]*util.Uint160, 2)
-	for i, v := range outputArrayUints {
-		outputArray[i] = v
-	}
-	if err = params.TryParseArray(outputArray...); err != nil {
+	if err = params.TryParseArray(out1, out2); err != nil {
 		t.Errorf("failed to parse stackparam to []byte: %v", err)
 	}
-	if !reflect.DeepEqual(outputArray, expectedArray) {
-		t.Errorf("got (%v), expected (%v)", outputArray, expectedArray )
+	outArray := []util.Uint160{*out1, *out2}
+	if !reflect.DeepEqual(outArray, expectedArray) {
+		t.Errorf("got (%v), expected (%v)", outArray, expectedArray )
 	}
 
 }
