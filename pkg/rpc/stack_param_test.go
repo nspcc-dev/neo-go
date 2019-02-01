@@ -112,7 +112,6 @@ const (
 )
 
 func TestStackParam_TryParse(t *testing.T) {
-
 	// ByteArray to util.Uint160 conversion
 	data, err := hex.DecodeString(hash160)
 	var (
@@ -197,7 +196,7 @@ func TestStackParam_TryParse(t *testing.T) {
 	data, err = hex.DecodeString(hash160)
 	expUint160, err := util.Uint160DecodeString(hash160)
 	var (
-		params                 = StackParams{
+		params = StackParams{
 			StackParam{
 				Type:  ByteArray,
 				Value: data,
@@ -218,7 +217,7 @@ func TestStackParam_TryParse(t *testing.T) {
 	}
 	outArray := []util.Uint160{*out1, *out2}
 	if !reflect.DeepEqual(outArray, expectedArray) {
-		t.Errorf("got (%v), expected (%v)", outArray, expectedArray )
+		t.Errorf("got (%v), expected (%v)", outArray, expectedArray)
 	}
 
 }

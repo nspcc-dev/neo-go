@@ -220,7 +220,7 @@ func (p *StackParam) TryParse(dest interface{}) error {
 			return nil
 		case *int64:
 			bi := &big.Int{}
-			bi.SetBytes(reverseBytes(data))
+			bi.SetBytes(util.ArrayReverse(data))
 			*dest = bi.Int64()
 			return nil
 		case *string:
@@ -235,10 +235,3 @@ func (p *StackParam) TryParse(dest interface{}) error {
 	return nil
 }
 
-func reverseBytes(arr []byte) []byte {
-	for i := len(arr)/2 - 1; i >= 0; i-- {
-		opp := len(arr) - 1 - i
-		arr[i], arr[opp] = arr[opp], arr[i]
-	}
-	return arr
-}
