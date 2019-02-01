@@ -8,10 +8,6 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
-	//"github.com/CityOfZion/neo-go/pkg/core"
-
-	//"github.com/CityOfZion/neo-go/pkg/core"
-
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
