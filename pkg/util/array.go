@@ -1,14 +1,14 @@
 package util
 
 // ArrayReverse return a reversed version of the given byte slice.
-func ArrayReverse(arr []byte) []byte {
+func ArrayReverse(b []byte) []byte {
 	// Protect from big.Ints that have 1 len bytes.
-	if len(arr) < 2 {
-		return arr
+	if len(b) < 2 {
+		return b
 	}
-	for i := len(arr)/2 - 1; i >= 0; i-- {
-		opp := len(arr) - 1 - i
-		arr[i], arr[opp] = arr[opp], arr[i]
+	dest := make([]byte, len(b))
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		dest[i], dest[j] = b[j], b[i]
 	}
-	return arr
+	return dest
 }
