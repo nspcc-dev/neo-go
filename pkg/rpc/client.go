@@ -66,9 +66,9 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 	}
 
 	transport := &http.Transport{
-		Dial: (&net.Dialer{
+		DialContext: (&net.Dialer{
 			Timeout: opts.DialTimeout,
-		}).Dial,
+		}).DialContext,
 	}
 
 	// TODO(@antdm): Enable SSL.
