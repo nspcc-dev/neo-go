@@ -98,7 +98,7 @@ func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// StackParam respresent a stack parameter.
+// StackParam represent a stack parameter.
 type StackParam struct {
 	Type  StackParamType `json:"type"`
 	Value interface{}    `json:"value"`
@@ -176,16 +176,16 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 
 type StackParams []StackParam
 
-func (p *StackParams) TryParseArray(vals ...interface{}) error {
+func (p StackParams) TryParseArray(vals ...interface{}) error {
 	var (
 		err error
 		i   int
 		par StackParam
 	)
-	if len(*p) != len(vals) {
+	if len(p) != len(vals) {
 		return errors.New("receiver array doesn't fit the StackParams length")
 	}
-	for i, par = range *p {
+	for i, par = range p {
 		if err = par.TryParse(vals[i]); err != nil {
 			return err
 		}
@@ -193,7 +193,7 @@ func (p *StackParams) TryParseArray(vals ...interface{}) error {
 	return nil
 }
 
-func (p *StackParam) TryParse(dest interface{}) error {
+func (p StackParam) TryParse(dest interface{}) error {
 	var (
 		err  error
 		ok   bool
@@ -234,4 +234,3 @@ func (p *StackParam) TryParse(dest interface{}) error {
 	}
 	return nil
 }
-
