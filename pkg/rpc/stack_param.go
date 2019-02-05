@@ -219,7 +219,7 @@ func (p StackParam) TryParse(dest interface{}) error {
 			}
 			return nil
 		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
-			i := bytesToInt64(data)
+			i := bytesToUint64(data)
 			switch dest := dest.(type) {
 			case *int64:
 				*dest = int64(i)
@@ -254,7 +254,7 @@ func (p StackParam) TryParse(dest interface{}) error {
 	return nil
 }
 
-func bytesToInt64(b []byte) uint64 {
+func bytesToUint64(b []byte) uint64 {
 	data := make([]byte, 8)
 	copy(data[8-len(b):], util.ArrayReverse(b))
 	return binary.BigEndian.Uint64(data)
