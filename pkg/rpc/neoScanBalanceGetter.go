@@ -9,7 +9,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	errs "github.com/pkg/errors"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
@@ -36,7 +35,6 @@ func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 		return nil, errs.Wrap(err, "Failed to decode HTTP response")
 	}
 
-	spew.Dump(balance)
 	return balance.Balance, nil
 }
 
