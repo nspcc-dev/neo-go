@@ -167,7 +167,7 @@ func TestStackParam_TryParse(t *testing.T) {
 			Value: data,
 		}
 	)
-	expectedInt = 50684000355
+	expectedInt = 50686687331
 	if err = intinput.TryParse(&outputInt); err != nil {
 		t.Errorf("failed to parse stackparam to []byte: %v", err)
 	}

@@ -1,9 +1,9 @@
 package rpc
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"math/big"
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -218,11 +218,30 @@ func (p StackParam) TryParse(dest interface{}) error {
 				return err
 			}
 			return nil
-		case *int64:
-			bi := &big.Int{}
-			bi.SetBytes(util.ArrayReverse(data))
-			*dest = bi.Int64()
-			return nil
+		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
+			i := bytesToInt64(data)
+			switch dest := dest.(type) {
+			case *int64:
+				*dest = int64(i)
+			case *int32:
+				*dest = int32(i)
+			case *int16:
+				*dest = int16(i)
+			case *int8:
+				*dest = int8(i)
+			case *int:
+				*dest = int(i)
+			case *uint64:
+				*dest = i
+			case *uint32:
+				*dest = uint32(i)
+			case *uint16:
+				*dest = uint16(i)
+			case *uint8:
+				*dest = uint8(i)
+			case *uint:
+				*dest = uint(i)
+			}
 		case *string:
 			*dest = string(data)
 			return nil
@@ -233,4 +252,10 @@ func (p StackParam) TryParse(dest interface{}) error {
 		return errors.New("cannot define stackparam type")
 	}
 	return nil
+}
+
+func bytesToInt64(b []byte) uint64 {
+	data := make([]byte, 8)
+	copy(data[8-len(b):], util.ArrayReverse(b))
+	return binary.BigEndian.Uint64(data)
 }
