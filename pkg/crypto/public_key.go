@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math/big"
+
+	"github.com/pkg/errors"
 )
 
 // PublicKeys is a list of public keys.
@@ -69,44 +70,70 @@ func (p *PublicKey) Bytes() []byte {
 	return append([]byte{prefix}, paddedX...)
 }
 
+// DecodeBytes decodes a PublicKey from the given slice of bytes.
+func (p *PublicKey) DecodeBytes(data []byte) error {
+	l := len(data)
+
+	switch prefix := data[0]; prefix {
+	// Infinity
+	case 0x00:
+		p.ECPoint = ECPoint{}
+	// Compressed public keys
+	case 0x02, 0x03:
+		if l < 33 {
+			return errors.Errorf("bad binary size(%d)", l)
+		}
+
+		c := NewEllipticCurve()
+		var err error
+		p.ECPoint, err = c.Decompress(new(big.Int).SetBytes(data[1:]), uint(prefix&0x1))
+		if err != nil {
+			return err
+		}
+	case 0x04:
+		if l < 66 {
+			return errors.Errorf("bad binary size(%d)", l)
+		}
+		p.X = new(big.Int).SetBytes(data[2:34])
+		p.Y = new(big.Int).SetBytes(data[34:66])
+	default:
+		return errors.Errorf("invalid prefix %d", prefix)
+	}
+
+	return nil
+}
+
 // DecodeBinary decodes a PublicKey from the given io.Reader.
 func (p *PublicKey) DecodeBinary(r io.Reader) error {
-	var prefix uint8
+	var prefix, size uint8
+
 	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
 	}
 
 	// Infinity
-	if prefix == 0x00 {
+	switch prefix {
+	case 0x00:
 		p.ECPoint = ECPoint{}
 		return nil
+	// Compressed public keys
+	case 0x02, 0x03:
+		size = 32
+	case 0x04:
+		size = 65
+	default:
+		return errors.Errorf("invalid prefix %d", prefix)
 	}
 
-	// Compressed public keys.
-	if prefix == 0x02 || prefix == 0x03 {
-		c := NewEllipticCurve()
-		b := make([]byte, 32)
-		if err := binary.Read(r, binary.LittleEndian, b); err != nil {
-			return err
-		}
+	data := make([]byte, size+1) // prefix + size
 
-		var err error
-		p.ECPoint, err = c.Decompress(new(big.Int).SetBytes(b), uint(prefix&0x1))
-		if err != nil {
-			return err
-		}
-	} else if prefix == 0x04 {
-		buf := make([]byte, 65)
-		if err := binary.Read(r, binary.LittleEndian, buf); err != nil {
-			return err
-		}
-		p.X = new(big.Int).SetBytes(buf[1:33])
-		p.Y = new(big.Int).SetBytes(buf[33:65])
-	} else {
-		return fmt.Errorf("invalid prefix %d", prefix)
+	if _, err := io.ReadFull(r, data[1:]); err != nil {
+		return err
 	}
 
-	return nil
+	data[0] = prefix
+
+	return p.DecodeBytes(data)
 }
 
 // EncodeBinary encodes a PublicKey to the given io.Writer.
