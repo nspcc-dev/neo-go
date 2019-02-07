@@ -27,7 +27,7 @@ type (
 
 var (
 	invalidBlockHeightError = func(index int, height int) error {
-		return errors.New(fmt.Sprintf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
+		return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
 	}
 )
 
@@ -195,7 +195,7 @@ Methods:
 
 		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
 		if err != nil {
-			err = errors.Wrap(err, fmt.Sprintf("unable to decode %s to Uint256", param.StringVal))
+			err = errors.Wrapf(err, "unable to decode %s to Uint256", param.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
@@ -220,7 +220,7 @@ Methods:
 
 		scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal)
 		if err != nil {
-			err = errors.Wrap(err, fmt.Sprintf("unable to decode %s to Uint160", param.StringVal))
+			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
