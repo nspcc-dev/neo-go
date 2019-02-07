@@ -48,8 +48,10 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		tx.AddInput(&input)
 	}
 
-	senderOutput = transaction.NewOutput(assetID, spent-amount, fromAddressHash)
-	tx.AddOutput(senderOutput)
+	if senderUnspent := spent - amount; senderUnspent > 0 {
+		senderOutput = transaction.NewOutput(assetID, senderUnspent, fromAddressHash)
+		tx.AddOutput(senderOutput)
+	}
 	receiverOutput = transaction.NewOutput(assetID, amount, toAddressHash)
 	tx.AddOutput(receiverOutput)
 
