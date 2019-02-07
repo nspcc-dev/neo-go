@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -27,7 +27,7 @@ type (
 
 var (
 	invalidBlockHeightError = func(index int, height int) error {
-		return fmt.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
+		return errors.New(fmt.Sprintf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
 	}
 )
 
@@ -188,14 +188,14 @@ Methods:
 		var err error
 		param, exists := reqParams.ValueAtAndType(0, "string")
 		if !exists {
-			err = fmt.Errorf("Please provide a valid string assetID parameter")
+			err = errors.New("expected param at index 0 to be a valid string assetID parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
 
 		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
 		if err != nil {
-			err = fmt.Errorf("unable to decode %s to Uint256", param.StringVal)
+			err = errors.Wrap(err, fmt.Sprintf("unable to decode %s to Uint256", param.StringVal))
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
@@ -213,14 +213,14 @@ Methods:
 
 		param, exists := reqParams.ValueAtAndType(0, "string")
 		if !exists {
-			err = fmt.Errorf("Please provide a valid string account address parameter")
+			err = errors.New("expected param at index 0 to be a valid string account address parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
 
 		scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal)
 		if err != nil {
-			err = fmt.Errorf("unable to decode %s to Uint260", param.StringVal)
+			err = errors.Wrap(err, fmt.Sprintf("unable to decode %s to Uint160", param.StringVal))
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}

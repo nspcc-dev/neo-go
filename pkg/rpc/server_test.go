@@ -55,11 +55,11 @@ func TestHandler(t *testing.T) {
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
 			"getassetstate_3",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode 62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7 to Uint256"},"id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode 62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7 to Uint256: expected string size of 64 got 63"},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
 			"getassetstate_4",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Please provide a valid string assetID parameter"},"id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string assetID parameter"},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [10] }`,
 			"getblockhash_1",
@@ -100,12 +100,12 @@ func TestHandler(t *testing.T) {
 
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
 			"getaccountstate_2",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint260"},"id":1}`,
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint160: invalid base-58 check string: invalid checksum."},"id":1}`,
 		},
 
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
 			"getaccountstate_3",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Please provide a valid string account address parameter"},"id":1}`,
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string account address parameter"},"id":1}`,
 		},
 	}
 
