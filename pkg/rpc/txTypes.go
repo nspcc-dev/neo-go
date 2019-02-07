@@ -36,6 +36,5 @@ type (
 		// total: 		summarized asset amount from all the `inputs`
 		// error: 		error would be considered in the caller function
 		CalculateInputs(address string, assetId util.Uint256, amount util.Fixed8) (inputs []transaction.Input, total util.Fixed8, err error)
-		GetBalance(address string) ([]*Unspent, error)
 	}
 )
