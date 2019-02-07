@@ -548,8 +548,8 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
+// GetAssetState returns asset state from its assetID
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
-
 	var as *AssetState
 	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
 		var a AssetState
@@ -564,7 +564,6 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 
 // GetAccountState returns the account state from its script hash
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
-
 	var as *AccountState
 	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
 		var a AccountState
