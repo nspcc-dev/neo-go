@@ -567,8 +567,7 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	var as *AccountState
 	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
 		var a AccountState
-		a.DecodeBinary(bytes.NewReader(v))
-		if a.ScriptHash == scriptHash {
+		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ScriptHash == scriptHash {
 			as = &a
 		}
 	})

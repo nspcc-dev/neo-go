@@ -1,9 +1,8 @@
 package wrappers
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/crypto"
-
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -29,7 +28,6 @@ func NewAccountState(a *core.AccountState) AccountState {
 
 	// reverse scriptHash to be consistent with other client
 	scriptHash, err := util.Uint160DecodeBytes(a.ScriptHash.BytesReverse())
-
 	if err != nil {
 		scriptHash = a.ScriptHash
 	}

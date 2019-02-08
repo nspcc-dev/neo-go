@@ -16,12 +16,9 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-
 	// setup rpcServer server
 	net := config.ModeUnitTestNet
-
 	configPath := "../../config"
-
 	cfg, err := config.Load(configPath, net)
 	if err != nil {
 		t.Fatal("could not create levelDB chain", err)
@@ -34,7 +31,6 @@ func TestHandler(t *testing.T) {
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
-
 	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
 
 	// setup handler
@@ -110,7 +106,6 @@ func TestHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-
 		t.Run(fmt.Sprintf("method: %s, rpc call: %s", tc.method, tc.rpcCall), func(t *testing.T) {
 
 			jsonStr := []byte(tc.rpcCall)
@@ -120,15 +115,12 @@ func TestHandler(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			handler(w, req)
-
 			resp := w.Result()
-
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				t.Errorf("could not read response from the request: %s", tc.rpcCall)
 			}
 
-			fmt.Println(string(bytes.TrimSpace(body)))
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 

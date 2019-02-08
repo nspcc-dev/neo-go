@@ -201,7 +201,6 @@ Methods:
 		}
 
 		as := s.chain.GetAssetState(paramAssetID)
-
 		if as != nil {
 			results = wrappers.NewAssetState(as)
 		} else {
@@ -215,19 +214,10 @@ Methods:
 		if !exists {
 			err = errors.New("expected param at index 0 to be a valid string account address parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
-		}
-
-		scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal)
-		if err != nil {
+		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
 			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
-		}
-
-		as := s.chain.GetAccountState(scriptHash)
-
-		if as != nil {
+		} else if as := s.chain.GetAccountState(scriptHash); as != nil {
 			results = wrappers.NewAccountState(as)
 		} else {
 			results = "Invalid public account address"
