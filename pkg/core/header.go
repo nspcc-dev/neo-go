@@ -14,7 +14,7 @@ type Header struct {
 	_ uint8
 }
 
-// DecodeBinary impelements the Payload interface.
+// DecodeBinary implements the Payload interface.
 func (h *Header) DecodeBinary(r io.Reader) error {
 	if err := h.BlockBase.DecodeBinary(r); err != nil {
 		return err
@@ -32,7 +32,7 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 	return nil
 }
 
-// EncodeBinary  impelements the Payload interface.
+// EncodeBinary  implements the Payload interface.
 func (h *Header) EncodeBinary(w io.Writer) error {
 	if err := h.BlockBase.EncodeBinary(w); err != nil {
 		return err

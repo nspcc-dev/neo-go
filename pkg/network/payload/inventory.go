@@ -8,7 +8,7 @@ import (
 )
 
 // The node can broadcast the object information it owns by this message.
-// The message can be sent automatically or can be used to answer getbloks messages.
+// The message can be sent automatically or can be used to answer getblock messages.
 
 // InventoryType is the type of an object in the Inventory message.
 type InventoryType uint8

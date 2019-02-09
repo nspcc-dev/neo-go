@@ -38,8 +38,8 @@ func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) 
 	return resp, nil
 }
 
-// InvokeScipt returns the result of the given script after running it true the VM.
-// NOTE: This is a test invoke and will not affect the blokchain.
+// InvokeScript returns the result of the given script after running it true the VM.
+// NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
 	var (
 		params = newParams(script)

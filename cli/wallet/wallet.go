@@ -76,7 +76,7 @@ func createWallet(ctx *cli.Context) error {
 	}
 
 	dumpWallet(wall)
-	fmt.Printf("wallet succesfully created, file location is %s\n", wall.Path())
+	fmt.Printf("wallet successfully created, file location is %s\n", wall.Path())
 	return nil
 }
 

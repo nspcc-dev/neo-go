@@ -162,7 +162,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// The method receiver will be passed in as first argument.
 	// We check if this declaration has a receiver and load it into scope.
 	//
-	// FIXME: For now we will hard cast this to a struct. We can later finetune this
+	// FIXME: For now we will hard cast this to a struct. We can later fine tune this
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
@@ -356,7 +356,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// The AST package will try to resolve all basic literals for us.
 			// If the typeinfo.Value is not nil we know that the expr is resolved
 			// and needs no further action. e.g. x := 2 + 2 + 2 will be resolved to 6.
-			// NOTE: Constants will also be automagically resolved be the AST parser.
+			// NOTE: Constants will also be automatically resolved be the AST parser.
 			// example:
 			// const x = 10
 			// x + 2 will results into 12
@@ -570,8 +570,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog, vm.Ohash160)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
-		// address string. Note that the string returned from callin Value will
-		// contain double qoutes that need to be stripped.
+		// address string. Note that the string returned from calling Value will
+		// contain double quotes that need to be stripped.
 		addressStr := expr.Args[0].(*ast.BasicLit).Value
 		addressStr = strings.Replace(addressStr, "\"", "", 2)
 		uint160, err := crypto.Uint160DecodeAddress(addressStr)
@@ -720,7 +720,7 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 			for _, decl := range f.Decls {
 				switch n := decl.(type) {
 				case *ast.FuncDecl:
-					// Dont convert the function if its not used. This will save alot
+					// Dont convert the function if its not used. This will save a lot
 					// of bytecode space.
 					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
 						c.convertFuncDecl(f, n)
