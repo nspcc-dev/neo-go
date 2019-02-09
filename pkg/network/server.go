@@ -56,7 +56,7 @@ type (
 )
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain *core.Blockchain) *Server {
+func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
@@ -129,7 +129,11 @@ func (s *Server) run() {
 			return
 		case p := <-s.register:
 			// When a new peer is connected we send out our version immediately.
-			s.sendVersion(p)
+			if err := s.sendVersion(p); err != nil {
+				log.WithFields(log.Fields{
+					"endpoint": p.Endpoint(),
+				}).Error(err)
+			}
 			s.peers[p] = true
 			log.WithFields(log.Fields{
 				"endpoint": p.Endpoint(),
@@ -258,9 +262,9 @@ func (s *Server) requestHeaders(p Peer) {
 // send at once.
 func (s *Server) requestBlocks(p Peer) {
 	var (
+		hashes       []util.Uint256
 		hashStart    = s.chain.BlockHeight() + 1
 		headerHeight = s.chain.HeaderHeight()
-		hashes       = []util.Uint256{}
 	)
 	for hashStart < headerHeight && len(hashes) < maxBlockBatch {
 		hash := s.chain.GetHeaderHash(int(hashStart))

@@ -41,13 +41,13 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	return nil, ErrKeyNotFound
 }
 
-// Put implementes the Store interface.
+// Put implements the Store interface.
 func (s *MemoryStore) Put(key, value []byte) error {
 	s.mem[makeKey(key)] = value
 	return nil
 }
 
-// PutBatch implementes the Store interface.
+// PutBatch implements the Store interface.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
 	for k, v := range b.m {
@@ -58,7 +58,7 @@ func (s *MemoryStore) PutBatch(batch Batch) error {
 	return nil
 }
 
-// Seek implementes the Store interface.
+// Seek implements the Store interface.
 func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
 }
 

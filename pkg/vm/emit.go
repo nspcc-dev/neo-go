@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -20,12 +21,12 @@ func Emit(w *bytes.Buffer, op Opcode, b []byte) error {
 }
 
 // EmitOpcode emits a single VM Opcode the given buffer.
-func EmitOpcode(w *bytes.Buffer, op Opcode) error {
+func EmitOpcode(w io.ByteWriter, op Opcode) error {
 	return w.WriteByte(byte(op))
 }
 
 // EmitBool emits a bool type the given buffer.
-func EmitBool(w *bytes.Buffer, ok bool) error {
+func EmitBool(w io.ByteWriter, ok bool) error {
 	if ok {
 		return EmitOpcode(w, Opusht)
 	}
@@ -90,7 +91,7 @@ func EmitSyscall(w *bytes.Buffer, api string) error {
 	}
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
-	copy(buf[1:len(buf)], []byte(api))
+	copy(buf[1:], []byte(api))
 	return Emit(w, Osyscall, buf)
 }
 
@@ -102,7 +103,7 @@ func EmitCall(w *bytes.Buffer, op Opcode, label int16) error {
 // EmitJmp emits a jump Opcode along with label to the given buffer.
 func EmitJmp(w *bytes.Buffer, op Opcode, label int16) error {
 	if !isOpcodeJmp(op) {
-		return fmt.Errorf("opcode %s is not a jump or call type", op)
+		return fmt.Errorf("opcode %s is not a jump or call type", op.String())
 	}
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, uint16(label))

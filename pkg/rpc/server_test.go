@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/config"
@@ -108,9 +109,7 @@ func TestHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("method: %s, rpc call: %s", tc.method, tc.rpcCall), func(t *testing.T) {
 
-			jsonStr := []byte(tc.rpcCall)
-
-			req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", bytes.NewBuffer(jsonStr))
+			req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", strings.NewReader(tc.rpcCall))
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()

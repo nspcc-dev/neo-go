@@ -167,10 +167,7 @@ func (c *EllipticCurve) IsOnCurve(P ECPoint) bool {
 			mulMod(c.A, P.X, c.P), c.P),
 		c.B, c.P)
 
-	if lhs.Cmp(rhs) == 0 {
-		return true
-	}
-	return false
+	return lhs.Cmp(rhs) == 0
 }
 
 // Add computes R = P + Q on EllipticCurve ec.

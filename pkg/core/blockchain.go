@@ -510,7 +510,7 @@ func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 	return false
 }
 
-// CurrentBlockHash returns the heighest processed block hash.
+// CurrentBlockHash returns the highest processed block hash.
 func (bc *Blockchain) CurrentBlockHash() (hash util.Uint256) {
 	bc.headersOp <- func(headerList *HeaderHashList) {
 		hash = headerList.Get(int(bc.BlockHeight()))
@@ -553,8 +553,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 	var as *AssetState
 	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
 		var a AssetState
-		a.DecodeBinary(bytes.NewReader(v))
-		if a.ID == assetID {
+		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ID == assetID {
 			as = &a
 		}
 	})

@@ -54,7 +54,7 @@ func typeAndValueForField(fld *types.Var) types.TypeAndValue {
 
 // countGlobals counts the global variables in the program to add
 // them with the stacksize of the function.
-func countGlobals(f *ast.File) (i int64) {
+func countGlobals(f ast.Node) (i int64) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch node.(type) {
 		// Skip all functio declarations.
@@ -78,11 +78,12 @@ func isIdentBool(ident *ast.Ident) bool {
 // makeBoolFromIdent creates a bool type from an *ast.Ident.
 func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
 	var b bool
-	if ident.Name == "true" {
+	switch ident.Name {
+	case "true":
 		b = true
-	} else if ident.Name == "false" {
+	case "false":
 		b = false
-	} else {
+	default:
 		log.Fatalf("givent identifier cannot be converted to a boolean => %s", ident.Name)
 	}
 	return types.TypeAndValue{
@@ -132,7 +133,7 @@ func (f funcUsage) funcUsed(name string) bool {
 }
 
 // hasReturnStmt look if the given FuncDecl has a return statement.
-func hasReturnStmt(decl *ast.FuncDecl) (b bool) {
+func hasReturnStmt(decl ast.Node) (b bool) {
 	ast.Inspect(decl, func(node ast.Node) bool {
 		if _, ok := node.(*ast.ReturnStmt); ok {
 			b = true

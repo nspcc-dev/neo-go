@@ -80,7 +80,7 @@ func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
 
 // UnconnectedPeers returns all addresses of unconnected addrs.
 func (d *DefaultDiscovery) UnconnectedPeers() []string {
-	var addrs []string
+	addrs := make([]string, 0, len(d.unconnectedAddrs))
 	for addr := range d.unconnectedAddrs {
 		addrs = append(addrs, addr)
 	}
@@ -89,7 +89,7 @@ func (d *DefaultDiscovery) UnconnectedPeers() []string {
 
 // BadPeers returns all addresses of bad addrs.
 func (d *DefaultDiscovery) BadPeers() []string {
-	var addrs []string
+	addrs := make([]string, 0, len(d.badAddrs))
 	for addr := range d.badAddrs {
 		addrs = append(addrs, addr)
 	}
