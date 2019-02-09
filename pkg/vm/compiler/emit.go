@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -19,11 +20,11 @@ func emit(w *bytes.Buffer, op vm.Opcode, b []byte) error {
 	return err
 }
 
-func emitOpcode(w *bytes.Buffer, op vm.Opcode) error {
+func emitOpcode(w io.ByteWriter, op vm.Opcode) error {
 	return w.WriteByte(byte(op))
 }
 
-func emitBool(w *bytes.Buffer, ok bool) error {
+func emitBool(w io.ByteWriter, ok bool) error {
 	if ok {
 		return emitOpcode(w, vm.Opusht)
 	}
@@ -57,15 +58,16 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 		n   = len(b)
 	)
 
-	if n <= int(vm.Opushbytes75) {
+	switch {
+	case n <= int(vm.Opushbytes75):
 		return emit(w, vm.Opcode(n), b)
-	} else if n < 0x100 {
+	case n < 0x100:
 		err = emit(w, vm.Opushdata1, []byte{byte(n)})
-	} else if n < 0x10000 {
+	case n < 0x10000:
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
 		err = emit(w, vm.Opushdata2, buf)
-	} else {
+	default:
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
 		err = emit(w, vm.Opushdata4, buf)

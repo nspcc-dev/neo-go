@@ -66,7 +66,7 @@ The server is written to support as much of the [JSON-RPC 2.0 Spec](http://www.j
 An example would be viewing the version of the node:
 
 ```bash
-curl -X POST -d '{"jsonrpc": "2.0", "method": "getversion", "params": [], "id": 1}" http://localhost:20332
+$ curl -X POST -d '{"jsonrpc": "2.0", "method": "getversion", "params": [], "id": 1}' http://localhost:20332
 ```
 
 which would yield the response:

@@ -230,7 +230,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 func printHelp() {
 	names := make([]string, len(commands))
 	i := 0
-	for name, _ := range commands {
+	for name := range commands {
 		names[i] = name
 		i++
 	}

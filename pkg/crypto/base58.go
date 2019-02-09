@@ -57,7 +57,7 @@ func Base58Decode(s string) ([]byte, error) {
 
 	out := n.Bytes()
 	buf := make([]byte, zero+len(out))
-	copy(buf[zero:], out[:])
+	copy(buf[zero:], out)
 
 	return buf, nil
 }
@@ -100,14 +100,18 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	}
 
 	sha := sha256.New()
-	sha.Write(b[:len(b)-4])
+	if _, err = sha.Write(b[:len(b)-4]); err != nil {
+		return nil, err
+	}
 	hash := sha.Sum(nil)
 
 	sha.Reset()
-	sha.Write(hash)
+	if _, err = sha.Write(hash); err != nil {
+		return nil, err
+	}
 	hash = sha.Sum(nil)
 
-	if bytes.Compare(hash[0:4], b[len(b)-4:]) != 0 {
+	if !bytes.Equal(hash[0:4], b[len(b)-4:]) {
 		return nil, errors.New("invalid base-58 check string: invalid checksum.")
 	}
 

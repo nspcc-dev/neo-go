@@ -87,7 +87,7 @@ func (v *VM) LoadArgs(method []byte, args []StackItem) {
 		v.estack.PushVal(args)
 	}
 	if method != nil {
-		v.estack.PushVal([]byte(method))
+		v.estack.PushVal(method)
 	}
 }
 
@@ -104,7 +104,7 @@ func (v *VM) PrintOps() {
 		} else {
 			cursor = ""
 		}
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Opcode(prog[i]), cursor)
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Opcode(prog[i]).String(), cursor)
 
 	}
 	w.Flush()
@@ -142,7 +142,7 @@ func (v *VM) Load(prog []byte) {
 }
 
 // LoadScript will load a script from the internal script table. It
-// will immediatly push a new context created from this script to
+// will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
 	ctx := NewContext(b)
@@ -203,7 +203,7 @@ func (v *VM) Run() {
 		case breakState:
 			ctx := v.Context()
 			i, op := ctx.CurrInstr()
-			fmt.Printf("at breakpoint %d (%s)\n", i, op)
+			fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
 			return
 		case faultState:
 			fmt.Println("FAULT")
@@ -229,7 +229,7 @@ func (v *VM) Step() {
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
 func (v *VM) execute(ctx *Context, op Opcode) {
-	// Instead of poluting the whole VM logic with error handling, we will recover
+	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state.
 	defer func() {
 		if err := recover(); err != nil {
@@ -713,7 +713,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 		}
 
 	default:
-		panic(fmt.Sprintf("unknown opcode %s", op))
+		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
 }
 
