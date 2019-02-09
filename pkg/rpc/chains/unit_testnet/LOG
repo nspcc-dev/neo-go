@@ -80,24 +80,3 @@
 21:57:38.843345 db@janitor F·9 G·0
 21:57:38.843446 db@open done T·67.525965ms
 21:57:38.843705 table@compaction L0·4 -> L1·3 S·8MiB Q·81398
-=============== Feb 9, 2019 (MSK) ===============
-20:48:16.467663 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
-20:48:16.472088 version@stat F·[4 3] S·8MiB[3MiB 5MiB] Sc·[1.00 0.06]
-20:48:16.472500 db@open opening
-20:48:16.473501 journal@recovery F·2
-20:48:16.476487 journal@recovery recovering @24
-20:48:16.483482 journal@recovery recovering @65
-20:48:16.486483 memdb@flush created L0@66 N·700 S·149KiB "\x01\x00/..\x02&\xab,v81641":"\xc1,v81400"
-20:48:16.486535 version@stat F·[5 3] S·8MiB[3MiB 5MiB] Sc·[1.25 0.06]
-20:48:16.500677 memdb@flush created L0@68 N·700 S·149KiB "\x01\x00/..\x02&\xab,v90754":"\xc1,v90513"
-20:48:16.503424 version@stat F·[6 3] S·8MiB[3MiB 5MiB] Sc·[1.50 0.06]
-20:48:16.505806 db@janitor F·17 G·6
-20:48:16.506193 db@janitor removing table-62
-20:48:16.506915 db@janitor removing table-60
-20:48:16.507661 db@janitor removing table-64
-20:48:16.508513 db@janitor removing table-67
-20:48:16.509267 db@janitor removing table-26
-20:48:16.509465 db@janitor removing manifest-66
-20:48:16.509682 db@open done T·36.939648ms
-20:48:16.509780 table@compaction L0·6 -> L1·3 S·8MiB Q·91212
-20:48:16.659920 table@build created L1@70 N·5394 S·2MiB "\x01\x00\x01..\n\xce\xf5,v67975":"\x01oK..2\xb3\xac,v43250"
