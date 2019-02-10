@@ -119,11 +119,18 @@ func TestHandler(t *testing.T) {
 			expectedResult: `{"jsonrpc":"2.0","result":{"address":"152f1muMCNa7goXYhYAQC61hxEgGacmncB","isvalid":false},"id":1}`,
 		},
 
-		// Bad case, incorrect value for address
+		// Bad case, not string
 		{
 			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [1] }`,
 			method:         "validateaddress_3",
-			expectedResult: `{"jsonrpc":"2.0","result":{"address":"","isvalid":false},"id":1}`,
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":1,"isvalid":false},"id":1}`,
+		},
+
+		// Bad case, empty params
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [] }`,
+			method:         "validateaddress_4",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less"},"id":1}`,
 		},
 	}
 
