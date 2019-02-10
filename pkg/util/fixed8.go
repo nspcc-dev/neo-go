@@ -40,8 +40,8 @@ func (f Fixed8) String() string {
 }
 
 // Value returns the original value representing the Fixed8.
-func (f Fixed8) Value() int64 {
-	return int64(f) / int64(decimals)
+func (f Fixed8) Value() int {
+	return int(f) / decimals
 }
 
 // NewFixed8 return a new Fixed8 type multiplied by decimals.
@@ -94,7 +94,32 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Size returns the size in number of bytes of Fixed8.
+func (f *Fixed8) Size() int {
+	return 8
+}
+
 // MarshalJSON implements the json marshaller interface.
 func (f Fixed8) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil
+}
+
+// Satoshi defines the value of a 'Satoshi'.
+func Satoshi() Fixed8 {
+	return NewFixed8(1)
+}
+
+// Div implements Fixd8 division operator.
+func (f Fixed8) Div(i int) Fixed8 {
+	return NewFixed8(f.Value() / i)
+}
+
+// Add implements Fixd8 addition operator.
+func (f Fixed8) Add(g Fixed8) Fixed8 {
+	return NewFixed8(f.Value() + g.Value())
+}
+
+// Sub implements Fixd8 subtraction operator.
+func (f Fixed8) Sub(g Fixed8) Fixed8 {
+	return NewFixed8(f.Value() - g.Value())
 }
