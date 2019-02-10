@@ -104,6 +104,27 @@ func TestHandler(t *testing.T) {
 			"getaccountstate_3",
 			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string account address parameter"},"id":1}`,
 		},
+
+		// Good case, valid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": ["AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i"] }`,
+			method:         "validateaddress_1",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":"AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i","isvalid":true},"id":1}`,
+		},
+
+		// Bad case, invalid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": ["152f1muMCNa7goXYhYAQC61hxEgGacmncB"] }`,
+			method:         "validateaddress_2",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":"152f1muMCNa7goXYhYAQC61hxEgGacmncB","isvalid":false},"id":1}`,
+		},
+
+		// Bad case, incorrect value for address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [1] }`,
+			method:         "validateaddress_3",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":"","isvalid":false},"id":1}`,
+		},
 	}
 
 	for _, tc := range testCases {
