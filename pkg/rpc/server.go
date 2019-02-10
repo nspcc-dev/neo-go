@@ -188,9 +188,9 @@ Methods:
 		param, exists := reqParams.ValueAt(0)
 		if !exists {
 			resultsErr = newError(-2146233086, http.StatusOK, "Index was out of range. Must be non-negative and less", "", nil)
-		} else {
-			results = wrappers.ValidateAddress(param.RawValue)
+			break
 		}
+		results = wrappers.ValidateAddress(param.RawValue)
 
 	case "getassetstate":
 		var err error
