@@ -13,6 +13,8 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
+
+	//"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,6 +28,7 @@ func TestHandler(t *testing.T) {
 	}
 
 	chain, err := core.NewBlockchainLevelDB(cfg)
+
 	if err != nil {
 		t.Fatal("could not create levelDB chain", err)
 	}
@@ -68,7 +71,7 @@ func TestHandler(t *testing.T) {
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblock", "params": [10] }`,
 			"getblock",
-			`{"jsonrpc":"2.0","result":{"version":0,"previousblockhash":"0x7c5b4c8a70336bf68e8679be7c9a2a15f85c0f6d0e14389019dcc3edfab2bb4b","merkleroot":"0xc027979ad29226b7d34523b1439a64a6cf57fe3f4e823e9d3e90d43934783d26","time":1529926220,"height":10,"nonce":8313828522725096825,"next_consensus":"0xbe48d3a3f5d10013ab9ffee489706078714f1ea2","script":{"invocation":"40ac828e1c2a214e4d356fd2eccc7c7be9ef426f8e4ea67a50464e90ca4367e611c4c5247082b85a7d5ed985cfb90b9af2f1195531038f49c63fb6894b517071ea40b22b83d9457ca5c4c5bb2d8d7e95333820611d447bb171ce7b8af3b999d0a5a61c2301cdd645a33a47defd09c0f237a0afc86e9a84c2fe675d701e4015c0302240a6899296660c612736edc22f8d630927649d4ef1301868079032d80aae6cc1e21622f256497a84a71d7afeeef4c124135f611db24a0f7ab3d2a6886f15db7865","verification":"532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae"},"tx":[{"type":0,"version":0,"attributes":null,"vin":null,"vout":null,"scripts":null}],"confirmations":12338,"nextblockhash":"0x2b1c78633dae7ab81f64362e0828153079a17b018d779d0406491f84c27b086f","hash":"0xd69e7a1f62225a35fed91ca578f33447d93fa0fd2b2f662b957e19c38c1dab1e"},"id":1}`},
+			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblockcount", "params": [] }`,
 			"getblockcount",
@@ -94,15 +97,37 @@ func TestHandler(t *testing.T) {
 			"getaccountstate_1",
 			`{"jsonrpc":"2.0","result":{"version":0,"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","script_hash":"0xe9eed8dc39332032dc22e5d6e86332c50327ba23","frozen":false,"votes":[],"balances":{"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7":"72099.99960000","c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b":"99989900"}},"id":1}`,
 		},
-
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
 			"getaccountstate_2",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint160: invalid base-58 check string: invalid checksum."},"id":1}`,
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint260"},"id":1}`,
 		},
-
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
 			"getaccountstate_3",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string account address parameter"},"id":1}`,
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Please provide a valid string account address parameter"},"id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
+			"getrawtransaction_1",
+			`{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"usage":"Script","data":"23ba2703c53263e8d6e522dc32203339dcd8eee9"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"10000","address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","n":0},{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"99990000","address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","n":1}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 3] }`,
+			"getrawtransaction_2",
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "dads"] }`,
+			"getrawtransaction_3",
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
+			"getrawtransaction_4",
+			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"param at index 0, (45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a), could not be decode to Uint256: expected string size of 64 got 56"},"id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a"] }`,
+			"getrawtransaction_5",
+			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+		},
+		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 0] }`,
+			"getrawtransaction_6",
+			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
 		},
 	}
 
@@ -120,6 +145,7 @@ func TestHandler(t *testing.T) {
 				t.Errorf("could not read response from the request: %s", tc.rpcCall)
 			}
 
+			fmt.Println(string(bytes.TrimSpace(body)))
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 

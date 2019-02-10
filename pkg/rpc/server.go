@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -181,7 +182,7 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
 		results = "TODO"
 
 	case "getassetstate":
@@ -221,6 +222,38 @@ Methods:
 			results = wrappers.NewAccountState(as)
 		} else {
 			results = "Invalid public account address"
+		}
+	case "getrawtransaction":
+		var err error
+
+		param0, exists := reqParams.ValueAtAndType(0, "string")
+		if !exists {
+			err = errors.New("expected param at index 0 to be a valid string transactionID")
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
+			err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
+			err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if len(reqParams) >= 2 {
+			_header := s.chain.GetHeaderHash(int(height))
+			header, err := s.chain.GetHeader(_header)
+
+			param1, exists := reqParams.ValueAtAndType(1, "number")
+			if !exists {
+				err = errors.New("expected param at index 1 to be either 1 or 0")
+				resultsErr = NewInvalidParamsError(err.Error(), err)
+			} else if verboseFlag := param1.IntVal; verboseFlag != 0 && verboseFlag != 1 {
+				err = errors.New("expected param at index 1 to be either 1 or 0")
+				resultsErr = NewInvalidParamsError(err.Error(), err)
+			} else if verboseFlag == 1 {
+				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+			} else {
+				results = hex.EncodeToString(tx.Bytes())
+			}
+		} else {
+			results = hex.EncodeToString(tx.Bytes())
 		}
 
 	default:

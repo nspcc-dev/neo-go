@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -29,6 +30,10 @@ func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
+func (chain testChain) GetHeader(hash util.Uint256) (*core.Header, error) {
+	return nil, nil
+}
+
 func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 	return nil
 }
@@ -46,6 +51,9 @@ func (chain testChain) HasBlock(util.Uint256) bool {
 }
 func (chain testChain) HasTransaction(util.Uint256) bool {
 	return false
+}
+func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error) {
+	return nil, 0, nil
 }
 
 type testDiscovery struct{}
