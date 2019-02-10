@@ -25,6 +25,8 @@ var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	decrementInterval = 2000000
 	persistInterval   = 1 * time.Second
+
+	BlockchainDefault *Blockchain
 )
 
 // Blockchain represents the blockchain.
@@ -75,10 +77,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		return nil, err
 	}
 
+	RegisterBlockchain(bc)
 	return bc, nil
 }
 
-// GetBlockchainLevelDB returns blockchain based on configuration
+// NewBlockchainLevelDB returns LevelDB blockchain based on configuration
 func NewBlockchainLevelDB(cfg config.Config) (*Blockchain, error) {
 	store, err := storage.NewLevelDBStore(
 		cfg.ApplicationConfiguration.DataDirectoryPath,
@@ -148,7 +151,7 @@ func (bc *Blockchain) init() error {
 		headers := make([]*Header, 0)
 
 		for hash != targetHash {
-			header, err := bc.getHeader(hash)
+			header, err := bc.GetHeader(hash)
 			if err != nil {
 				return fmt.Errorf("could not get header %s: %s", hash, err)
 			}
@@ -177,6 +180,11 @@ func (bc *Blockchain) run() {
 			persistTimer.Reset(persistInterval)
 		}
 	}
+}
+
+// RegisterBlockchain registers a blockchain
+func RegisterBlockchain(b *Blockchain) {
+	BlockchainDefault = b
 }
 
 // AddBlock processes the given block and will add it to the cache so it
@@ -483,7 +491,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	return block, nil
 }
 
-func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
+func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
 	if err != nil {
 		return nil, err
@@ -504,7 +512,7 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock return true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
-	if header, err := bc.getHeader(hash); err == nil {
+	if header, err := bc.GetHeader(hash); err == nil {
 		return header.Index <= bc.BlockHeight()
 	}
 	return false

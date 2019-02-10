@@ -77,7 +77,7 @@ func TestGetHeader(t *testing.T) {
 	assert.Nil(t, err)
 
 	hash := block.Hash()
-	header, err := bc.getHeader(hash)
+	header, err := bc.GetHeader(hash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestGetHeader(t *testing.T) {
 
 	block = newBlock(2)
 	hash = block.Hash()
-	_, err = bc.getHeader(block.Hash())
+	_, err = bc.GetHeader(block.Hash())
 	assert.NotNil(t, err)
 }
 

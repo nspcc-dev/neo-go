@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 )
@@ -27,6 +29,9 @@ var (
 	// BuildTime the time and date the current version of the node built,
 	// set at build time.
 	BuildTime string
+
+	// ConfigDefault is the Config which has been initialized in the Load method.
+	ConfigDefault *Config
 )
 
 type (
@@ -49,10 +54,10 @@ type (
 
 	// SystemFee fees related to system.
 	SystemFee struct {
-		EnrollmentTransaction int64 `yaml:"EnrollmentTransaction"`
-		IssueTransaction      int64 `yaml:"IssueTransaction"`
-		PublishTransaction    int64 `yaml:"PublishTransaction"`
-		RegisterTransaction   int64 `yaml:"RegisterTransaction"`
+		EnrollmentTransaction int `yaml:"EnrollmentTransaction"`
+		IssueTransaction      int `yaml:"IssueTransaction"`
+		PublishTransaction    int `yaml:"PublishTransaction"`
+		RegisterTransaction   int `yaml:"RegisterTransaction"`
 	}
 
 	// ApplicationConfiguration config specific to the node.
@@ -116,5 +121,26 @@ func Load(path string, netMode NetMode) (Config, error) {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}
 
+	setConfigDefault(&config)
+
 	return config, nil
+}
+
+func setConfigDefault(cfg *Config) {
+	ConfigDefault = cfg
+}
+
+func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
+	switch txType {
+	case transaction.EnrollmentType:
+		return util.NewFixed8(s.EnrollmentTransaction)
+	case transaction.IssueType:
+		return util.NewFixed8(s.IssueTransaction)
+	case transaction.PublishType:
+		return util.NewFixed8(s.PublishTransaction)
+	case transaction.RegisterType:
+		return util.NewFixed8(s.RegisterTransaction)
+	default:
+		return util.NewFixed8(0)
+	}
 }
