@@ -1,5 +1,7 @@
 package transaction
 
+import "encoding/json"
+
 // TXType is the type of a transaction.
 type TXType uint8
 
@@ -45,4 +47,13 @@ func (t TXType) String() string {
 	default:
 		return "UnkownTransaction"
 	}
+}
+
+// MarshalJSON implements the json marshaller interface.
+func (t TXType) MarshalJSON() ([]byte, error) {
+	j, err := json.Marshal(t.String())
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
 }
