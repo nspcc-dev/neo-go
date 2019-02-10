@@ -2,8 +2,10 @@ package transaction
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -17,6 +19,10 @@ type Output struct {
 
 	// The address of the remittee.
 	ScriptHash util.Uint160
+
+	// The position of the Output in slice []Output. This is actually set in NewTransactionOutputRaw
+	// and used for diplaying purposes.
+	Position int
 }
 
 // NewOutput returns a new transaction output.
@@ -48,4 +54,27 @@ func (out *Output) EncodeBinary(w io.Writer) error {
 		return err
 	}
 	return binary.Write(w, binary.LittleEndian, out.ScriptHash)
+}
+
+// Size returns the size in bytes of the Output
+func (out *Output) Size() int {
+	return out.AssetID.Size() + out.Amount.Size() + out.ScriptHash.Size()
+}
+
+// MarshalJSON implements the Marshaler interface
+func (out *Output) MarshalJSON() ([]byte, error) {
+	j, err := json.Marshal(
+		struct {
+			Asset   util.Uint256 `json:"asset"`
+			Value   util.Fixed8  `json:"value"`
+			Address string       `json:"address"`
+			N       int          `json:"n"`
+		}{out.AssetID,
+			out.Amount,
+			crypto.AddressFromUint160(out.ScriptHash),
+			out.Position})
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
 }

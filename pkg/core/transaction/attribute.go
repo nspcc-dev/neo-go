@@ -2,8 +2,11 @@ package transaction
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"unsafe"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -76,4 +79,34 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 		return binary.Write(w, binary.LittleEndian, attr.Data)
 	}
 	return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+}
+
+// Size returns the size in number bytes of the Attribute
+func (attr *Attribute) Size() int {
+	var b byte
+	if attr.Usage == ContractHash || attr.Usage == ECDH02 || attr.Usage == ECDH03 || attr.Usage == Vote || (attr.Usage >= Hash1 && attr.Usage <= Hash15) {
+		return int(unsafe.Sizeof(attr.Usage)) + 32
+	} else if attr.Usage == Script {
+		return int(unsafe.Sizeof(attr.Usage)) + 20
+	} else if attr.Usage == DescriptionURL {
+		return int(unsafe.Sizeof(attr.Usage)) + int(unsafe.Sizeof(b)) + len(attr.Data)
+	} else {
+		return int(unsafe.Sizeof(attr.Usage)) + util.GetVarSize(attr.Data)
+	}
+}
+
+// MarshalJSON implements the json Marschaller interface
+func (attr *Attribute) MarshalJSON() ([]byte, error) {
+	j, err := json.Marshal(
+		struct {
+			Usage string `json:"usage"`
+			Data  string `json:"data"`
+		}{
+			attr.Usage.String(),
+			hex.EncodeToString(attr.Data),
+		})
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
 }

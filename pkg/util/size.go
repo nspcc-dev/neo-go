@@ -20,7 +20,7 @@ var (
 	i64  int64
 )
 
-// GetVarIntSize returns the size of a variable integer
+// GetVarIntSize returns the size in number of bytes of a variable integer
 // (reference: GetVarSize(int value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
 func GetVarIntSize(value int) int {
 	var size uintptr
@@ -77,6 +77,5 @@ func GetVarSize(value interface{}) int {
 		return GetVarIntSize(valueLength) + valueSize
 	default:
 		panic(fmt.Sprintf("unable to calculate GetVarSize, %s", reflect.TypeOf(value)))
-
 	}
 }
