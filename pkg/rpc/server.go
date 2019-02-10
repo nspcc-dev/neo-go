@@ -190,7 +190,6 @@ Methods:
 		if !exists {
 			err = errors.New("expected param at index 0 to be a valid string account address parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
 		} else if resp, err := wrappers.ValidateAddress(param.StringVal); err != nil {
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 		} else {
