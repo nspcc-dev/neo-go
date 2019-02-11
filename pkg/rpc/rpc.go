@@ -106,7 +106,7 @@ func (c *Client) SendRawTransaction(rawTX string) (*response, error) {
 }
 
 // SendToAddress sends an amount of specific asset to a given address.
-// This call requires open wallet. (`Wif` key in client struct.)
+// This call requires open wallet. (`wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
 func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*SendToAddressResponse, error) {
 	var (
@@ -118,8 +118,8 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 			assetId:  asset,
 			address:  address,
 			value:    amount,
-			wif:      *c.Wif,
-			balancer: c.Balancer,
+			wif:      c.WIF(),
+			balancer: c.Balancer(),
 		}
 		resp     *response
 		response = &SendToAddressResponse{}
