@@ -208,12 +208,9 @@ Methods:
 		}
 
 	case "getaccountstate":
-		var err error
-
-		param, exists := reqParams.ValueAtAndType(0, "string")
-		if !exists {
-			err = errors.New("expected param at index 0 to be a valid string account address parameter")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+		param, err := reqParams.ValueWithType(0, "string")
+		if err != nil {
+			resultsErr = err
 		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
 			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
