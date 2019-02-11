@@ -43,7 +43,7 @@ func (e Endpoint) Network() string { return "tcp" }
 func (e Endpoint) String() string {
 	b := make([]uint8, 4)
 	for i := 0; i < 4; i++ {
-		b[i] = byte(e.IP[len(e.IP)-4+i])
+		b[i] = e.IP[len(e.IP)-4+i]
 	}
 	return fmt.Sprintf("%d.%d.%d.%d:%d", b[0], b[1], b[2], b[3], e.Port)
 }

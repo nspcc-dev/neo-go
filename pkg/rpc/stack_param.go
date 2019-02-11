@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
@@ -97,7 +98,7 @@ func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// StackParam respresent a stack parameter.
+// StackParam represent a stack parameter.
 type StackParam struct {
 	Type  StackParamType `json:"type"`
 	Value interface{}    `json:"value"`
@@ -171,4 +172,90 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 		return errors.New("not implemented")
 	}
 	return
+}
+
+type StackParams []StackParam
+
+func (p StackParams) TryParseArray(vals ...interface{}) error {
+	var (
+		err error
+		i   int
+		par StackParam
+	)
+	if len(p) != len(vals) {
+		return errors.New("receiver array doesn't fit the StackParams length")
+	}
+	for i, par = range p {
+		if err = par.TryParse(vals[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p StackParam) TryParse(dest interface{}) error {
+	var (
+		err  error
+		ok   bool
+		data []byte
+	)
+	switch p.Type {
+	case ByteArray:
+		if data, ok = p.Value.([]byte); !ok {
+			return errors.Errorf("failed to cast %s to []byte", p.Value)
+		}
+		switch dest := dest.(type) {
+		case *util.Uint160:
+			if *dest, err = util.Uint160DecodeBytes(data); err != nil {
+				return err
+			}
+			return nil
+		case *[]byte:
+			*dest = data
+			return nil
+		case *util.Uint256:
+			if *dest, err = util.Uint256DecodeBytes(data); err != nil {
+				return err
+			}
+			return nil
+		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
+			i := bytesToUint64(data)
+			switch dest := dest.(type) {
+			case *int64:
+				*dest = int64(i)
+			case *int32:
+				*dest = int32(i)
+			case *int16:
+				*dest = int16(i)
+			case *int8:
+				*dest = int8(i)
+			case *int:
+				*dest = int(i)
+			case *uint64:
+				*dest = i
+			case *uint32:
+				*dest = uint32(i)
+			case *uint16:
+				*dest = uint16(i)
+			case *uint8:
+				*dest = uint8(i)
+			case *uint:
+				*dest = uint(i)
+			}
+		case *string:
+			*dest = string(data)
+			return nil
+		default:
+			return errors.Errorf("cannot cast stackparam of type %s to type %s", p.Type, dest)
+		}
+	default:
+		return errors.New("cannot define stackparam type")
+	}
+	return nil
+}
+
+func bytesToUint64(b []byte) uint64 {
+	data := make([]byte, 8)
+	copy(data[8-len(b):], util.ArrayReverse(b))
+	return binary.BigEndian.Uint64(data)
 }

@@ -18,4 +18,5 @@ type Blockchainer interface {
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
 	GetAssetState(util.Uint256) *AssetState
+	GetAccountState(util.Uint160) *AccountState
 }

@@ -124,7 +124,7 @@ func (c *codegen) emitStoreStructField(i int) {
 // convertGlobals will traverse the AST and only convert global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f *ast.File) {
+func (c *codegen) convertGlobals(f ast.Node) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
@@ -136,7 +136,7 @@ func (c *codegen) convertGlobals(f *ast.File) {
 	})
 }
 
-func (c *codegen) convertFuncDecl(file *ast.File, decl *ast.FuncDecl) {
+func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	var (
 		f  *funcScope
 		ok bool
@@ -428,13 +428,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emitOpcode(c.prog, vm.Onop)
 
 		// Check builtin first to avoid nil pointer on funcScope!
-		if isBuiltin {
+		switch {
+		case isBuiltin:
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
-		} else if isSyscall(f.name) {
+		case isSyscall(f.name):
 			c.convertSyscall(f.name)
-		} else {
+		default:
 			emitCall(c.prog, vm.Ocall, int16(f.label))
 		}
 

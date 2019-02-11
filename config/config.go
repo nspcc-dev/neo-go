@@ -111,7 +111,7 @@ func Load(path string, netMode NetMode) (Config, error) {
 		ApplicationConfiguration: ApplicationConfiguration{},
 	}
 
-	err = yaml.Unmarshal([]byte(configData), &config)
+	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}

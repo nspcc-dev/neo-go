@@ -2,16 +2,17 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -26,7 +27,7 @@ type (
 
 var (
 	invalidBlockHeightError = func(index int, height int) error {
-		return fmt.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
+		return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
 	}
 )
 
@@ -180,33 +181,46 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction", "getaccountstate":
+	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
 		results = "TODO"
 
 	case "getassetstate":
 		var err error
-
-		param, exists := reqParams.ValueAt(0)
+		param, exists := reqParams.ValueAtAndType(0, "string")
 		if !exists {
-			err = errors.New("Param at index at 0 doesn't exist")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
-		}
-
-		if param.Type != "string" {
-			err = errors.New("Param need to be a string")
+			err = errors.New("expected param at index 0 to be a valid string assetID parameter")
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 			break
 		}
 
 		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
+		if err != nil {
+			err = errors.Wrapf(err, "unable to decode %s to Uint256", param.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+			break
+		}
 
 		as := s.chain.GetAssetState(paramAssetID)
-
 		if as != nil {
 			results = wrappers.NewAssetState(as)
 		} else {
 			results = "Invalid assetid"
+		}
+
+	case "getaccountstate":
+		var err error
+
+		param, exists := reqParams.ValueAtAndType(0, "string")
+		if !exists {
+			err = errors.New("expected param at index 0 to be a valid string account address parameter")
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
+			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if as := s.chain.GetAccountState(scriptHash); as != nil {
+			results = wrappers.NewAccountState(as)
+		} else {
+			results = "Invalid public account address"
 		}
 
 	default:

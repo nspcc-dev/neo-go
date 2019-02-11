@@ -26,7 +26,7 @@ type (
 		// ModeMainNet NEO main network.
 		Net config.NetMode
 
-		// Relay determins whether the server is forwarding its inventory.
+		// Relay determines whether the server is forwarding its inventory.
 		Relay bool
 
 		// Seeds are a list of initial nodes used to establish connectivity.

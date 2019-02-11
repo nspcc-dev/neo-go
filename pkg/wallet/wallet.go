@@ -16,13 +16,13 @@ type Wallet struct {
 	// Version of the wallet, used for later upgrades.
 	Version string `json:"version"`
 
-	// A list of accounts which decribes the details of each account
+	// A list of accounts which describes the details of each account
 	// in the wallet.
 	Accounts []*Account `json:"accounts"`
 
 	Scrypt scryptParams `json:"scrypt"`
 
-	// Extra metadata can be used for storing abritrary data.
+	// Extra metadata can be used for storing arbitrary data.
 	// This field can be empty.
 	Extra interface{} `json:"extra"`
 

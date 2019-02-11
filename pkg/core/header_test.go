@@ -52,10 +52,10 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	if !header.NextConsensus.Equals(headerDecode.NextConsensus) {
 		t.Fatalf("expected both next consensus fields to be equal")
 	}
-	if bytes.Compare(header.Script.InvocationScript, headerDecode.Script.InvocationScript) != 0 {
+	if !bytes.Equal(header.Script.InvocationScript, headerDecode.Script.InvocationScript) {
 		t.Fatalf("expected equal invocation scripts %v and %v", header.Script.InvocationScript, headerDecode.Script.InvocationScript)
 	}
-	if bytes.Compare(header.Script.VerificationScript, headerDecode.Script.VerificationScript) != 0 {
+	if !bytes.Equal(header.Script.VerificationScript, headerDecode.Script.VerificationScript) {
 		t.Fatalf("expected equal verification scripts %v and %v", header.Script.VerificationScript, headerDecode.Script.VerificationScript)
 	}
 }
