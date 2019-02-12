@@ -14,7 +14,7 @@ func TestArrayReverse(t *testing.T) {
 	}
 }
 
-// This tests a bug that occured with arrays of size 1
+// This tests a bug that occurred with arrays of size 1
 func TestArrayReverseLen2(t *testing.T) {
 	arr := []byte{0x01}
 	have := ArrayReverse(arr)

@@ -1,7 +1,7 @@
 package vm
 
 // Syscalls are a mapping between the syscall function name
-// and the registerd VM interop API.
+// and the registered VM interop API.
 var Syscalls = map[string]string{
 	// Storage API
 	"GetContext": "Neo.Storage.GetContext",

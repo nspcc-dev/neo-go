@@ -29,7 +29,7 @@ func (a Assets) commit(b storage.Batch) error {
 	return nil
 }
 
-// AssetState represents the state of an NEO registerd Asset.
+// AssetState represents the state of an NEO registered Asset.
 type AssetState struct {
 	ID         util.Uint256
 	AssetType  transaction.AssetType

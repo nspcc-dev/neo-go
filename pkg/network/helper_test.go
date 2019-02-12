@@ -32,6 +32,9 @@ func (chain testChain) GetHeaderHash(int) util.Uint256 {
 func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 	return nil
 }
+func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
+	return nil
+}
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
 }
