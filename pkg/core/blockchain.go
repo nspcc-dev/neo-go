@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,7 +27,9 @@ var (
 	decrementInterval = 2000000
 	persistInterval   = 1 * time.Second
 
-	BlockchainDefault *Blockchain
+	// BlockchainDefault is the Blockchain which is defined in the NewBlockchain method.
+	blockchainDefault *Blockchain
+	mu                sync.Mutex
 )
 
 // Blockchain represents the blockchain.
@@ -71,14 +74,27 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
-	go bc.run()
 
-	if err := bc.init(); err != nil {
+	setBlockChain(bc)
+
+	go blockchainDefault.run()
+	if err := blockchainDefault.init(); err != nil {
 		return nil, err
 	}
 
-	RegisterBlockchain(bc)
-	return bc, nil
+	return blockchainDefault, nil
+}
+
+// GetBlockchain returns the blockchainDefault.
+func GetBlockchain() *Blockchain {
+	return blockchainDefault
+}
+
+// setBlockChain sets the blockchainDefault.
+func setBlockChain(bc *Blockchain) {
+	mu.Lock()
+	blockchainDefault = bc
+	mu.Unlock()
 }
 
 // NewBlockchainLevelDB returns LevelDB blockchain based on configuration
@@ -180,11 +196,6 @@ func (bc *Blockchain) run() {
 			persistTimer.Reset(persistInterval)
 		}
 	}
-}
-
-// RegisterBlockchain registers a blockchain
-func RegisterBlockchain(b *Blockchain) {
-	BlockchainDefault = b
 }
 
 // AddBlock processes the given block and will add it to the cache so it

@@ -40,13 +40,18 @@ func (f Fixed8) String() string {
 }
 
 // Value returns the original value representing the Fixed8.
-func (f Fixed8) Value() int {
-	return int(f) / decimals
+func (f Fixed8) Value() int64 {
+	return int64(f) / decimals
 }
 
-// NewFixed8 return a new Fixed8 type multiplied by decimals.
-func NewFixed8(val int) Fixed8 {
+// NewFixed8 returns a new Fixed8 type multiplied by decimals.
+func NewFixed8(val int64) Fixed8 {
 	return Fixed8(decimals * val)
+}
+
+// NewFixed8FromFloat returns a new Fixed8 type multiplied by decimals.
+func NewFixed8FromFloat(val float64) Fixed8 {
+	return Fixed8(int64(decimals * val))
 }
 
 // Fixed8DecodeString parses s which must be a fixed point number
@@ -110,7 +115,7 @@ func Satoshi() Fixed8 {
 }
 
 // Div implements Fixd8 division operator.
-func (f Fixed8) Div(i int) Fixed8 {
+func (f Fixed8) Div(i int64) Fixed8 {
 	return NewFixed8(f.Value() / i)
 }
 

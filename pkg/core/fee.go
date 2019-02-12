@@ -15,9 +15,8 @@ func References(t *transaction.Transaction) map[util.Uint256]*transaction.Output
 	references := make(map[util.Uint256]*transaction.Output)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
-		if BlockchainDefault == nil {
-			panic("no default blockchain available! please register one.")
-		} else if tx, _, err := BlockchainDefault.GetTransaction(prevHash); err != nil {
+		bc := GetBlockchain()
+		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
 			tx = nil
 		} else if tx != nil {
 			for _, in := range inputs {
@@ -32,7 +31,7 @@ func References(t *transaction.Transaction) map[util.Uint256]*transaction.Output
 
 // FeePerByte returns network fee divided by the size of the transaction
 func FeePerByte(t *transaction.Transaction) util.Fixed8 {
-	return NetworkFee(t).Div(t.Size())
+	return NetworkFee(t).Div(int64(t.Size()))
 }
 
 // NetworkFee returns network fee
@@ -56,5 +55,5 @@ func NetworkFee(t *transaction.Transaction) util.Fixed8 {
 
 // SystemFee returns system fee
 func SystemFee(t *transaction.Transaction) util.Fixed8 {
-	return config.ConfigDefault.ProtocolConfiguration.SystemFee.TryGetValue(t.Type)
+	return config.GetConfig().ProtocolConfiguration.SystemFee.TryGetValue(t.Type)
 }

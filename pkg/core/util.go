@@ -170,7 +170,7 @@ func calculateUtilityAmount() util.Fixed8 {
 	for i := 0; i < len(genAmount); i++ {
 		sum += genAmount[i]
 	}
-	return util.NewFixed8(sum * decrementInterval)
+	return util.NewFixed8(int64(sum * decrementInterval))
 }
 
 // headerSliceReverse reverses the given slice of *Header.

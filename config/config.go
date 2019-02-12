@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -30,8 +31,9 @@ var (
 	// set at build time.
 	BuildTime string
 
-	// ConfigDefault is the Config which has been initialized in the Load method.
-	ConfigDefault *Config
+	// ConfigDefault is the Config which is defined in the Load method.
+	configDefault *Config
+	mu            sync.Mutex
 )
 
 type (
@@ -54,10 +56,10 @@ type (
 
 	// SystemFee fees related to system.
 	SystemFee struct {
-		EnrollmentTransaction int `yaml:"EnrollmentTransaction"`
-		IssueTransaction      int `yaml:"IssueTransaction"`
-		PublishTransaction    int `yaml:"PublishTransaction"`
-		RegisterTransaction   int `yaml:"RegisterTransaction"`
+		EnrollmentTransaction int64 `yaml:"EnrollmentTransaction"`
+		IssueTransaction      int64 `yaml:"IssueTransaction"`
+		PublishTransaction    int64 `yaml:"PublishTransaction"`
+		RegisterTransaction   int64 `yaml:"RegisterTransaction"`
 	}
 
 	// ApplicationConfiguration config specific to the node.
@@ -109,27 +111,38 @@ func Load(path string, netMode NetMode) (Config, error) {
 		return Config{}, errors.Wrap(err, "Unable to read config")
 	}
 
-	config := Config{
+	config := &Config{
 		ProtocolConfiguration: ProtocolConfiguration{
 			SystemFee: SystemFee{},
 		},
 		ApplicationConfiguration: ApplicationConfiguration{},
 	}
 
-	err = yaml.Unmarshal(configData, &config)
+	setConfig(config)
+
+	err = yaml.Unmarshal(configData, &configDefault)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}
 
-	setConfigDefault(&config)
-
-	return config, nil
+	return *configDefault, nil
 }
 
-func setConfigDefault(cfg *Config) {
-	ConfigDefault = cfg
+func setConfig(cfg *Config) {
+	mu.Lock()
+	configDefault = cfg
+	mu.Unlock()
 }
 
+// GetConfig returns a single instance of configDefault.
+func GetConfig() *Config {
+	if configDefault == nil {
+		panic("configDefault is not available. Please load a configuration file.")
+	}
+	return configDefault
+}
+
+// TryGetValue returns the system fee base on transaction type.
 func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
 	switch txType {
 	case transaction.EnrollmentType:
