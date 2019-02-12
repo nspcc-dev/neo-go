@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"unsafe"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -83,15 +82,16 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 
 // Size returns the size in number bytes of the Attribute
 func (attr *Attribute) Size() int {
-	var b byte
-	if attr.Usage == ContractHash || attr.Usage == ECDH02 || attr.Usage == ECDH03 || attr.Usage == Vote || (attr.Usage >= Hash1 && attr.Usage <= Hash15) {
-		return int(unsafe.Sizeof(attr.Usage)) + 32
-	} else if attr.Usage == Script {
-		return int(unsafe.Sizeof(attr.Usage)) + 20
-	} else if attr.Usage == DescriptionURL {
-		return int(unsafe.Sizeof(attr.Usage)) + int(unsafe.Sizeof(b)) + len(attr.Data)
-	} else {
-		return int(unsafe.Sizeof(attr.Usage)) + util.GetVarSize(attr.Data)
+	switch attr.Usage {
+	case ContractHash, ECDH02, ECDH03, Vote,
+		Hash1, Hash2, Hash3, Hash4, Hash5, Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
+		return 33 // uint8 + 32 = size(attrUsage) + 32
+	case Script:
+		return 21 // uint8 + 20 = size(attrUsage) + 20
+	case Description:
+		return 2 + len(attr.Data) // uint8 + uint8+ len of data = size(attrUsage) + size(byte) + len of data
+	default:
+		return 1 + len(attr.Data) // uint8 + len of data = size(attrUsage) + len of data
 	}
 }
 

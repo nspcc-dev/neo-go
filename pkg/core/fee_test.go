@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/config"
@@ -13,7 +12,7 @@ import (
 func TestSize(t *testing.T) {
 	txID := "f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a"
 	tx := getTestTransaction(txID, t)
-	fmt.Println(tx.Bytes())
+
 	assert.Equal(t, 283, tx.Size())
 	assert.Equal(t, 22, util.GetVarSize(tx.Attributes))
 	assert.Equal(t, 35, util.GetVarSize(tx.Inputs))

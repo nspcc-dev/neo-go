@@ -3,7 +3,6 @@ package util
 import (
 	"fmt"
 	"reflect"
-	"unsafe"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
 )
@@ -26,11 +25,11 @@ func GetVarIntSize(value int) int {
 	var size uintptr
 
 	if value < 0xFD {
-		size = unsafe.Sizeof(bit8)
+		size = 1 // unit8
 	} else if value <= 0xFFFF {
-		size = unsafe.Sizeof(bit8) + unsafe.Sizeof(ui16)
+		size = 3 // byte + uint16
 	} else {
-		size = unsafe.Sizeof(bit8) + unsafe.Sizeof(ui32)
+		size = 5 // byte + uint32
 	}
 	return int(size)
 }
@@ -50,27 +49,50 @@ func GetVarSize(value interface{}) int {
 	switch v.Kind() {
 	case reflect.String:
 		return GetVarStringSize(v.String())
-	case reflect.Int:
+	case reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64:
 		return GetVarIntSize(int(v.Int()))
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
+		return GetVarIntSize(int(v.Uint()))
 	case reflect.Slice, reflect.Array:
 		valueLength := v.Len()
 		valueSize := 0
 
-		// case v is a slice / Array of io.Serializable
-		t := reflect.TypeOf(value).Elem()
+		// workaround for case v is a slice / Array of io.Serializable
+		typeArray := reflect.TypeOf(value).Elem()
 		SerializableType := reflect.TypeOf((*io.Serializable)(nil)).Elem()
-		if t.Implements(SerializableType) {
+		if typeArray.Implements(SerializableType) {
 			for i := 0; i < valueLength; i++ {
 				elem := v.Index(i).Interface().(io.Serializable)
 				valueSize += elem.Size()
 			}
-		} else if t == reflect.TypeOf(bit8) || t == reflect.TypeOf(ui8) || t == reflect.TypeOf(i8) {
+		}
+
+		switch value.(type) {
+		case []uint8, []int8,
+			Uint160, Uint256,
+			[20]uint8, [32]uint8,
+			[20]int8, [32]int8:
+			fmt.Println("t []uint8")
 			valueSize = valueLength
-		} else if t == reflect.TypeOf(ui16) || t == reflect.TypeOf(i16) {
+		case []uint16, []int16,
+			[10]uint16, [10]int16:
+			fmt.Println("t []uint16")
 			valueSize = valueLength * 2
-		} else if t == reflect.TypeOf(ui32) || t == reflect.TypeOf(i32) {
+		case []uint32, []int32,
+			[30]uint32, [30]int32:
+			fmt.Println("t []uint32")
 			valueSize = valueLength * 4
-		} else if t == reflect.TypeOf(ui64) || t == reflect.TypeOf(i64) {
+		case []uint64, []int64,
+			[30]uint64, [30]int64:
+			fmt.Println("t", "[]uint64")
 			valueSize = valueLength * 8
 		}
 

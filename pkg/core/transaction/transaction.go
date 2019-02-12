@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"io"
-	"unsafe"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
@@ -254,14 +253,12 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 
 // Size returns the size of the transaction in term of bytes
 func (t *Transaction) Size() int {
-	var bit8 byte
-
 	attrSize := util.GetVarSize(t.Attributes)
 	inputSize := util.GetVarSize(t.Inputs)
 	outputSize := util.GetVarSize(t.Outputs)
 	witnesSize := util.GetVarSize(t.Scripts)
-
-	return int(unsafe.Sizeof(t.Type)) + int(unsafe.Sizeof(bit8)) + attrSize + inputSize + outputSize + witnesSize
+	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
+	return 2 + attrSize + inputSize + outputSize + witnesSize
 
 }
 
