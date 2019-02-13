@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,10 +25,6 @@ var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	decrementInterval = 2000000
 	persistInterval   = 1 * time.Second
-
-	// BlockchainDefault is the Blockchain which is defined in the NewBlockchain method.
-	blockchainDefault *Blockchain
-	mu                sync.Mutex
 )
 
 // Blockchain represents the blockchain.
@@ -75,26 +70,12 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		verifyBlocks:  false,
 	}
 
-	setBlockChain(bc)
-
-	go blockchainDefault.run()
-	if err := blockchainDefault.init(); err != nil {
+	go bc.run()
+	if err := bc.init(); err != nil {
 		return nil, err
 	}
 
-	return blockchainDefault, nil
-}
-
-// GetBlockchain returns the blockchainDefault.
-func GetBlockchain() *Blockchain {
-	return blockchainDefault
-}
-
-// setBlockChain sets the blockchainDefault.
-func setBlockChain(bc *Blockchain) {
-	mu.Lock()
-	blockchainDefault = bc
-	mu.Unlock()
+	return bc, nil
 }
 
 // NewBlockchainLevelDB returns LevelDB blockchain based on configuration
@@ -591,6 +572,62 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	})
 
 	return as
+}
+
+// GetConfig returns the config stored in the blockchain
+func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
+	return bc.config
+}
+
+// References returns a map with input prevHash as key (util.Uint256)
+// and transaction output as value from a transaction t.
+// @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
+// transaction package because of a import cycle problem. Perhaps we should think to re-design
+// the code base to avoid this situation.
+func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
+	references := make(map[util.Uint256]*transaction.Output)
+
+	for prevHash, inputs := range t.GroupInputsByPrevHash() {
+		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
+			tx = nil
+		} else if tx != nil {
+			for _, in := range inputs {
+				references[in.PrevHash] = tx.Outputs[in.PrevIndex]
+			}
+		} else {
+			references = nil
+		}
+	}
+	return references
+}
+
+// FeePerByte returns network fee divided by the size of the transaction
+func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
+	return bc.NetworkFee(t).Div(int64(t.Size()))
+}
+
+// NetworkFee returns network fee
+func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	inputAmount := util.NewFixed8(0)
+	for _, txOutput := range bc.References(t) {
+		if txOutput.AssetID == utilityTokenTX().Hash() {
+			inputAmount.Add(txOutput.Amount)
+		}
+	}
+
+	outputAmount := util.NewFixed8(0)
+	for _, txOutput := range t.Outputs {
+		if txOutput.AssetID == utilityTokenTX().Hash() {
+			outputAmount.Add(txOutput.Amount)
+		}
+	}
+
+	return inputAmount.Sub(outputAmount).Sub(bc.SystemFee(t))
+}
+
+// SystemFee returns system fee
+func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

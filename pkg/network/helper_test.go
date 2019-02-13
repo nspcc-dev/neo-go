@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -11,6 +12,26 @@ import (
 )
 
 type testChain struct{}
+
+func (chain testChain) GetConfig() config.ProtocolConfiguration {
+	return config.Config{}.ProtocolConfiguration
+}
+
+func (chain testChain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
+	return nil
+}
+
+func (chain testChain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
+	return util.NewFixed8(0)
+}
+
+func (chain testChain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	return util.NewFixed8(0)
+}
+
+func (chain testChain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	return util.NewFixed8(0)
+}
 
 func (chain testChain) AddHeaders(...*core.Header) error {
 	return nil

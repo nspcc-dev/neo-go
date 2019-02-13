@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -30,10 +29,6 @@ var (
 	// BuildTime the time and date the current version of the node built,
 	// set at build time.
 	BuildTime string
-
-	// ConfigDefault is the Config which is defined in the Load method.
-	configDefault *Config
-	mu            sync.Mutex
 )
 
 type (
@@ -111,35 +106,19 @@ func Load(path string, netMode NetMode) (Config, error) {
 		return Config{}, errors.Wrap(err, "Unable to read config")
 	}
 
-	config := &Config{
+	config := Config{
 		ProtocolConfiguration: ProtocolConfiguration{
 			SystemFee: SystemFee{},
 		},
 		ApplicationConfiguration: ApplicationConfiguration{},
 	}
 
-	setConfig(config)
-
-	err = yaml.Unmarshal(configData, &configDefault)
+	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
 		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
 	}
 
-	return *configDefault, nil
-}
-
-func setConfig(cfg *Config) {
-	mu.Lock()
-	configDefault = cfg
-	mu.Unlock()
-}
-
-// GetConfig returns a single instance of configDefault.
-func GetConfig() *Config {
-	if configDefault == nil {
-		panic("configDefault is not available. Please load a configuration file.")
-	}
-	return configDefault
+	return config, nil
 }
 
 // TryGetValue returns the system fee base on transaction type.
