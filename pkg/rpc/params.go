@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"encoding/json"
-	"net/http"
 )
 
 type (
@@ -64,7 +63,7 @@ func (p Params) ValueAtAndType(index int, valueType string) (*Param, bool) {
 
 func (p Params) Value(index int) (*Param, *Error) {
 	if len(p) <= index {
-		return nil, newError(-2146233086, http.StatusOK, "Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index", "", nil)
+		return nil, ErrEmptyParams
 	}
 	return &p[index], nil
 }
@@ -74,7 +73,7 @@ func (p Params) ValueWithType(index int, valType string) (*Param, *Error) {
 	if err != nil {
 		return nil, err
 	} else if val.Type != valType {
-		return nil, newError(-2146233033, http.StatusOK, "One of the identified items was in an invalid format.", "", nil)
+		return nil, ErrTypeMismatch
 	}
 	return &p[index], nil
 }
