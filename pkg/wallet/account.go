@@ -14,7 +14,7 @@ type Account struct {
 	// Account import file.
 	wif string
 
-	// NEO public addresss.
+	// NEO public address.
 	Address string `json:"address"`
 
 	// Encrypted WIF of the account also known as the key.
@@ -35,7 +35,7 @@ type Account struct {
 	Default bool `json:"isDefault"`
 }
 
-// Contract represents a subset of the smartcontract to embedd in the
+// Contract represents a subset of the smartcontract to embed in the
 // Account so it's NEP-6 compliant.
 type Contract struct {
 	// Script hash of the contract deployed on the blockchain.

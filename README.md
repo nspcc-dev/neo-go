@@ -93,7 +93,7 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-If you want in-depth customization for your node, there are `yaml` config files for each `network` available in the `config` directory. Those files are automaticly loaded, corresponding the provided `netmode` flag.
+If you want in-depth customization for your node, there are `yaml` config files for each `network` available in the `config` directory. Those files are automatically loaded, corresponding the provided `netmode` flag.
 
 ```yaml
 ProtocolConfiguration:
@@ -134,7 +134,7 @@ Feel free to contribute to this project after reading the
 [contributing guidelines](https://github.com/CityOfZion/neo-go/blob/master/CONTRIBUTING.md).
 
 Before starting to work on a certain topic, create an new issue first,
-describing the feauture/topic you are going to implement.
+describing the feature/topic you are going to implement.
 
 # Contact
 
