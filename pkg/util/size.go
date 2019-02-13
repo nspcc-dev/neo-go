@@ -65,34 +65,19 @@ func GetVarSize(value interface{}) int {
 		valueLength := v.Len()
 		valueSize := 0
 
-		// workaround for case v is a slice / Array of io.Serializable
-		typeArray := reflect.TypeOf(value).Elem()
-		SerializableType := reflect.TypeOf((*io.Serializable)(nil)).Elem()
-		if typeArray.Implements(SerializableType) {
+		switch reflect.ValueOf(value).Index(0).Interface().(type) {
+		case io.Serializable:
 			for i := 0; i < valueLength; i++ {
 				elem := v.Index(i).Interface().(io.Serializable)
 				valueSize += elem.Size()
 			}
-		}
-
-		switch value.(type) {
-		case []uint8, []int8,
-			Uint160, Uint256,
-			[20]uint8, [32]uint8,
-			[20]int8, [32]int8:
-			fmt.Println("t []uint8")
+		case uint8, int8:
 			valueSize = valueLength
-		case []uint16, []int16,
-			[10]uint16, [10]int16:
-			fmt.Println("t []uint16")
+		case uint16, int16:
 			valueSize = valueLength * 2
-		case []uint32, []int32,
-			[30]uint32, [30]int32:
-			fmt.Println("t []uint32")
+		case uint32, int32:
 			valueSize = valueLength * 4
-		case []uint64, []int64,
-			[30]uint64, [30]int64:
-			fmt.Println("t", "[]uint64")
+		case uint64, int64:
 			valueSize = valueLength * 8
 		}
 
