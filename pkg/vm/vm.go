@@ -66,7 +66,7 @@ func (v *VM) RegisterInteropFunc(name string, f InteropFunc) {
 	v.interop[name] = f
 }
 
-// Estack will return the evalutation stack so interop hooks can utilize this.
+// Estack will return the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
 }
@@ -295,7 +295,7 @@ func (v *VM) execute(ctx *Context, op Opcode) {
 			panic("XSWAP: invalid length")
 		}
 
-		// Swap values of elements instead of reordening stack elements.
+		// Swap values of elements instead of reordering stack elements.
 		if n > 0 {
 			a := v.estack.Peek(n)
 			b := v.estack.Peek(0)

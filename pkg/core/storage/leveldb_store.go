@@ -6,7 +6,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-// LevelDBStore is the official storage implementation for storing and retreiving
+// LevelDBStore is the official storage implementation for storing and retrieving
 // blockchain data.
 type LevelDBStore struct {
 	db   *leveldb.DB

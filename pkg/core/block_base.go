@@ -33,7 +33,7 @@ type BlockBase struct {
 	// Random number also called nonce
 	ConsensusData uint64 `json:"nonce"`
 
-	// Contract addresss of the next miner
+	// Contract address of the next miner
 	NextConsensus util.Uint160 `json:"next_consensus"`
 
 	// Padding that is fixed to 1

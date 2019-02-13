@@ -51,7 +51,7 @@ func (c *Cache) has(h util.Uint256) bool {
 	return ok
 }
 
-// Has returns whether the cach contains the given hash.
+// Has returns whether the cache contains the given hash.
 func (c *Cache) Has(h util.Uint256) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()

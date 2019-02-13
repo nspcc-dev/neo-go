@@ -11,7 +11,7 @@ const (
 	walletVersion = "1.0"
 )
 
-// Wallet respresents a NEO (NEP-2, NEP-6) compliant wallet.
+// Wallet represents a NEO (NEP-2, NEP-6) compliant wallet.
 type Wallet struct {
 	// Version of the wallet, used for later upgrades.
 	Version string `json:"version"`
@@ -72,7 +72,7 @@ func newWallet(rw io.ReadWriter) *Wallet {
 	}
 }
 
-// CreatAccount generates a new account for the end user and ecrypts
+// CreatAccount generates a new account for the end user and encrypts
 // the private key with the given passphrase.
 func (w *Wallet) CreateAccount(name, passphrase string) error {
 	acc, err := NewAccount()

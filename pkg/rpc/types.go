@@ -23,7 +23,7 @@ type AccountStateResponse struct {
 	Result *Account `json:"result"`
 }
 
-// Account respresents details about a NEO account.
+// Account represents details about a NEO account.
 type Account struct {
 	Version    int    `json:"version"`
 	ScriptHash string `json:"script_hash"`
@@ -33,7 +33,7 @@ type Account struct {
 	Balances []*Balance
 }
 
-// Balance respresents details about a NEO account balance.
+// Balance represents details about a NEO account balance.
 type Balance struct {
 	Asset string `json:"asset"`
 	Value string `json:"value"`

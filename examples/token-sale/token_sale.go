@@ -17,7 +17,7 @@ var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg")
 type TokenConfig struct {
 	// Name of the token.
 	Name string
-	// 3 letter abreviation of the token.
+	// 3 letter abbreviation of the token.
 	Symbol string
 	// How decimals this token will have.
 	Decimals int

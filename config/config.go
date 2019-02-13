@@ -37,7 +37,7 @@ type (
 		ApplicationConfiguration ApplicationConfiguration `yaml:"ApplicationConfiguration"`
 	}
 
-	// ProtocolConfiguration represents the protolcol config.
+	// ProtocolConfiguration represents the protocol config.
 	ProtocolConfiguration struct {
 		Magic                   NetMode   `yaml:"Magic"`
 		AddressVersion          int64     `yaml:"AddressVersion"`
