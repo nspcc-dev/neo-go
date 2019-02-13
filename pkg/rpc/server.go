@@ -185,19 +185,17 @@ Methods:
 		results = "TODO"
 
 	case "validateaddress":
-		param, exists := reqParams.ValueAt(0)
-		if !exists {
-			resultsErr = newError(-2146233086, http.StatusOK, "Index was out of range. Must be non-negative and less", "", nil)
+		param, err := reqParams.Value(0)
+		if err != nil {
+			resultsErr = err
 			break
 		}
 		results = wrappers.ValidateAddress(param.RawValue)
 
 	case "getassetstate":
-		var err error
-		param, exists := reqParams.ValueAtAndType(0, "string")
-		if !exists {
-			err = errors.New("expected param at index 0 to be a valid string assetID parameter")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+		param, errRes := reqParams.ValueWithType(0, "string")
+		if errRes != nil {
+			resultsErr = errRes
 			break
 		}
 

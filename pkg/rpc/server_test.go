@@ -56,7 +56,7 @@ func TestHandler(t *testing.T) {
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
 			"getassetstate_4",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string assetID parameter"},"id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [10] }`,
 			"getblockhash_1",
@@ -143,7 +143,7 @@ func TestHandler(t *testing.T) {
 		{
 			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [] }`,
 			method:         "validateaddress_4",
-			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less"},"id":1}`,
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index"},"id":1}`,
 		},
 	}
 
