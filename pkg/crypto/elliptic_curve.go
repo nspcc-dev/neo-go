@@ -221,7 +221,7 @@ func (c *EllipticCurve) Add(P, Q ECPoint) (R ECPoint) {
 
 // ScalarMult computes Q = k * P on EllipticCurve ec.
 func (c *EllipticCurve) ScalarMult(k *big.Int, P ECPoint) (Q ECPoint) {
-	// Implementation based on pseudo code here:
+	// Implementation based on pseudocode here:
 	// https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Montgomery_ladder
 	var R0 ECPoint
 	var R1 ECPoint
