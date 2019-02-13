@@ -181,15 +181,21 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+	case "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
 		results = "TODO"
 
+	case "validateaddress":
+		param, err := reqParams.Value(0)
+		if err != nil {
+			resultsErr = err
+			break
+		}
+		results = wrappers.ValidateAddress(param.RawValue)
+
 	case "getassetstate":
-		var err error
-		param, exists := reqParams.ValueAtAndType(0, "string")
-		if !exists {
-			err = errors.New("expected param at index 0 to be a valid string assetID parameter")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+		param, errRes := reqParams.ValueWithType(0, "string")
+		if errRes != nil {
+			resultsErr = errRes
 			break
 		}
 
