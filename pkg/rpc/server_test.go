@@ -209,7 +209,7 @@ func TestHandler(t *testing.T) {
 			if err != nil {
 				t.Errorf("could not read response from the request: %s", tc.rpcCall)
 			}
-			fmt.Println(string(bytes.TrimSpace(body)))
+
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 
