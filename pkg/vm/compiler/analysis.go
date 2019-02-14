@@ -53,11 +53,11 @@ func typeAndValueForField(fld *types.Var) types.TypeAndValue {
 }
 
 // countGlobals counts the global variables in the program to add
-// them with the stacksize of the function.
+// them with the stack size of the function.
 func countGlobals(f ast.Node) (i int64) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch node.(type) {
-		// Skip all functio declarations.
+		// Skip all function declarations.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls we are sure that each value spec

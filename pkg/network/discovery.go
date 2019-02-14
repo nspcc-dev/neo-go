@@ -9,7 +9,7 @@ const (
 )
 
 // Discoverer is an interface that is responsible for maintaining
-// a healty connection pool.
+// a healthy connection pool.
 type Discoverer interface {
 	BackFill(...string)
 	PoolCount() int

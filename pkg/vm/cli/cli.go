@@ -19,7 +19,7 @@ import (
 
 // command describes a VM command.
 type command struct {
-	// number of minimun arguments the command needs.
+	// number of minimum arguments the command needs.
 	args int
 	// description of the command.
 	usage string

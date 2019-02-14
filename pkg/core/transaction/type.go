@@ -45,7 +45,7 @@ func (t TXType) String() string {
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
-		return "UnkownTransaction"
+		return "UnknownTransaction"
 	}
 }
 

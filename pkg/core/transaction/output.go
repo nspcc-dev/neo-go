@@ -17,7 +17,7 @@ type Output struct {
 	// Amount of AssetType send or received.
 	Amount util.Fixed8
 
-	// The address of the remittee.
+	// The address of the recipient.
 	ScriptHash util.Uint160
 
 	// The position of the Output in slice []Output. This is actually set in NewTransactionOutputRaw

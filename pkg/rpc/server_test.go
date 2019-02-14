@@ -56,7 +56,7 @@ func TestHandler(t *testing.T) {
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
 			"getassetstate_4",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string assetID parameter"},"id":1}`},
+			`{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`},
 
 		{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [10] }`,
 			"getblockhash_1",
@@ -90,18 +90,6 @@ func TestHandler(t *testing.T) {
 			"getpeers",
 			`{"jsonrpc":"2.0","result":{"unconnected":[],"connected":[],"bad":[]},"id":1}`},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"] }`,
-			"getaccountstate_1",
-			`{"jsonrpc":"2.0","result":{"version":0,"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","script_hash":"0xe9eed8dc39332032dc22e5d6e86332c50327ba23","frozen":false,"votes":[],"balances":{"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7":"72099.99960000","c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b":"99989900"}},"id":1}`},
-
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
-			"getaccountstate_2",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint160: invalid base-58 check string: invalid checksum."},"id":1}`},
-
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
-			"getaccountstate_3",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string account address parameter"},"id":1}`},
-
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
 			"getrawtransaction_1",
 			`{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"usage":"Script","data":"23ba2703c53263e8d6e522dc32203339dcd8eee9"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"10000","address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","n":0},{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"99990000","address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","n":1}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`},
@@ -125,6 +113,62 @@ func TestHandler(t *testing.T) {
 		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 0] }`,
 			"getrawtransaction_6",
 			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`},
+		
+    // Good case, valid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"] }`,
+			method:         "getaccountstate_1",
+			expectedResult: `{"jsonrpc":"2.0","result":{"version":0,"script_hash":"0xe9eed8dc39332032dc22e5d6e86332c50327ba23","frozen":false,"votes":[],"balances":[{"asset":"0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7","value":"72099.99960000"},{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"99989900"}]},"id":1}`,
+		},
+
+		// Bad case, invalid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
+			method:         "getaccountstate_2",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint160: invalid base-58 check string: invalid checksum."},"id":1}`,
+		},
+
+		// Bad case, not string
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
+			method:         "getaccountstate_3",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`,
+		},
+
+		// Bad case, empty params
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [] }`,
+			method:         "getaccountstate_4",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index"},"id":1}`,
+		},
+
+		// Good case, valid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": ["AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i"] }`,
+			method:         "validateaddress_1",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":"AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i","isvalid":true},"id":1}`,
+		},
+
+		// Bad case, invalid address
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": ["152f1muMCNa7goXYhYAQC61hxEgGacmncB"] }`,
+			method:         "validateaddress_2",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":"152f1muMCNa7goXYhYAQC61hxEgGacmncB","isvalid":false},"id":1}`,
+		},
+
+		// Bad case, not string
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [1] }`,
+			method:         "validateaddress_3",
+			expectedResult: `{"jsonrpc":"2.0","result":{"address":1,"isvalid":false},"id":1}`,
+		},
+
+		// Bad case, empty params
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [] }`,
+			method:         "validateaddress_4",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index"},"id":1}`,
+		},
 	}
 
 	for _, tc := range testCases {

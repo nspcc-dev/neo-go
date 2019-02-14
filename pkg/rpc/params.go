@@ -60,3 +60,20 @@ func (p Params) ValueAtAndType(index int, valueType string) (*Param, bool) {
 
 	return nil, false
 }
+
+func (p Params) Value(index int) (*Param, *Error) {
+	if len(p) <= index {
+		return nil, ErrEmptyParams
+	}
+	return &p[index], nil
+}
+
+func (p Params) ValueWithType(index int, valType string) (*Param, *Error) {
+	val, err := p.Value(index)
+	if err != nil {
+		return nil, err
+	} else if val.Type != valType {
+		return nil, ErrTypeMismatch
+	}
+	return &p[index], nil
+}
