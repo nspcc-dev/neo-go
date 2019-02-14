@@ -90,31 +90,56 @@ func TestHandler(t *testing.T) {
 			"getpeers",
 			`{"jsonrpc":"2.0","result":{"unconnected":[],"connected":[],"bad":[]},"id":1}`},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
-			"getrawtransaction_1",
-			`{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"usage":"Script","data":"23ba2703c53263e8d6e522dc32203339dcd8eee9"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"10000","address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","n":0},{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"99990000","address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","n":1}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`},
+		// Good case, valid transaction
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
+			method:         "getrawtransaction_1",
+			expectedResult: `{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"usage":"Script","data":"23ba2703c53263e8d6e522dc32203339dcd8eee9"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"10000","address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","n":0},{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"99990000","address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","n":1}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`,
+		},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 3] }`,
-			"getrawtransaction_2",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`},
+		// Bad case, invalid param at index 1
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 3] }`,
+			method:         "getrawtransaction_2",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`,
+		},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "dads"] }`,
-			"getrawtransaction_3",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`},
+		// Bad case, invalid param at index 1
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "dads"] }`,
+			method:         "getrawtransaction_3",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`,
+		},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
-			"getrawtransaction_4",
-			`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"param at index 0, (45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a), could not be decode to Uint256: expected string size of 64 got 56"},"id":1}`},
+		// Bad case, invalid transaction
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
+			method:         "getrawtransaction_4",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"param at index 0, (45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a), could not be decode to Uint256: expected string size of 64 got 56"},"id":1}`,
+		},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a"] }`,
-			"getrawtransaction_5",
-			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`},
+		// Good case, valid transaction
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a"] }`,
+			method:         "getrawtransaction_5",
+			expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+		},
 
-		{`{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 0] }`,
-			"getrawtransaction_6",
-			`{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`},
-		
-    // Good case, valid address
+		// Good case, valid transaction
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 0] }`,
+			method:         "getrawtransaction_6",
+			expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+		},
+
+		// Bad case, param at index 0 not a string
+		{
+			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": [123, 0] }`,
+			method:         "getrawtransaction_7",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 0 to be a valid string transactionID: One of the identified items was in an invalid format. (-2146233033) -  - %!s(\u003cnil\u003e)"},"id":1}`,
+		},
+
+		// Good case, valid address
 		{
 			rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"] }`,
 			method:         "getaccountstate_1",
@@ -184,7 +209,7 @@ func TestHandler(t *testing.T) {
 			if err != nil {
 				t.Errorf("could not read response from the request: %s", tc.rpcCall)
 			}
-
+			fmt.Println(string(bytes.TrimSpace(body)))
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 
