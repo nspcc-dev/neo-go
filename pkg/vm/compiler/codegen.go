@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -773,8 +774,16 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 	// convert the entry point first
 	c.convertFuncDecl(mainFile, main)
 
+	// sort map keys to generate code deterministically
+	keys := make([]*types.Package, 0, len(info.program.AllPackages))
+	for p := range info.program.AllPackages {
+		keys = append(keys, p)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
+
 	// Generate the code for the program
-	for _, pkg := range info.program.AllPackages {
+	for _, k := range keys {
+		pkg := info.program.AllPackages[k]
 		c.typeInfo = &pkg.Info
 
 		for _, f := range pkg.Files {
