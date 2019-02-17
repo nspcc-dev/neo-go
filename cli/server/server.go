@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -30,6 +31,17 @@ func NewCommand() cli.Command {
 	}
 }
 
+func newGraceContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	go func() {
+		<-stop
+		cancel()
+	}()
+	return ctx
+}
+
 func startServer(ctx *cli.Context) error {
 	net := config.ModePrivNet
 	if ctx.Bool("testnet") {
@@ -38,6 +50,8 @@ func startServer(ctx *cli.Context) error {
 	if ctx.Bool("mainnet") {
 		net = config.ModeMainNet
 	}
+
+	grace, cancel := context.WithCancel(newGraceContext())
 
 	configPath := "../config"
 	if argCp := ctx.String("config-path"); argCp != "" {
@@ -48,11 +62,8 @@ func startServer(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	interruptChan := make(chan os.Signal, 1)
-	signal.Notify(interruptChan, os.Interrupt)
-
 	serverConfig := network.NewServerConfig(cfg)
-	chain, err := core.NewBlockchainLevelDB(cfg)
+	chain, err := core.NewBlockchainLevelDB(grace, cfg)
 	if err != nil {
 		err = fmt.Errorf("could not initialize blockchain: %s", err)
 		return cli.NewExitError(err, 1)
@@ -79,9 +90,9 @@ Main:
 		select {
 		case err := <-errChan:
 			shutdownErr = errors.Wrap(err, "Error encountered by server")
-			interruptChan <- os.Kill
+			cancel()
 
-		case <-interruptChan:
+		case <-grace.Done():
 			server.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")

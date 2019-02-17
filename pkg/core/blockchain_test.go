@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/config"
@@ -54,7 +55,7 @@ func TestAddBlock(t *testing.T) {
 
 	t.Log(bc.blockCache)
 
-	if err := bc.persist(); err != nil {
+	if err := bc.persist(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -118,7 +119,7 @@ func TestHasBlock(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	assert.Nil(t, bc.persist())
+	assert.Nil(t, bc.persist(context.Background()))
 
 	for i := 0; i < len(blocks); i++ {
 		assert.True(t, bc.HasBlock(blocks[i].Hash()))
@@ -148,7 +149,7 @@ func newTestChain(t *testing.T) *Blockchain {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chain, err := NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration)
+	chain, err := NewBlockchain(context.Background(), storage.NewMemoryStore(), cfg.ProtocolConfiguration)
 	if err != nil {
 		t.Fatal(err)
 	}
