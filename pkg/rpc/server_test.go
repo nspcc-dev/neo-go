@@ -113,7 +113,7 @@ var testRpcCases = []tc{
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": [123, 0] }`,
 		method:         "getrawtransaction_7",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"One of the identified items was in an invalid format. (-2146233033) -  - %!s(\u003cnil\u003e)"},"id":1}`,
+		expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`,
 	},
 
 	// Good case, valid address

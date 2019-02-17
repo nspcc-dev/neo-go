@@ -230,7 +230,7 @@ Methods:
 	case "getrawtransaction":
 		param0, err := reqParams.ValueWithType(0, "string")
 		if err != nil {
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+			resultsErr = err
 		} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
 			err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
