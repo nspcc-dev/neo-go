@@ -19,22 +19,22 @@ type TransactionOutputRaw struct {
 	Timestamp     uint32       `json:"blocktime"`
 }
 
+// NewTransactionOutputRaw returns a new ransactionOutputRaw object.
 func NewTransactionOutputRaw(tx *transaction.Transaction, header *core.Header, chain core.Blockchainer) TransactionOutputRaw {
-
+	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.BlockBase.Index + 1)
-
+	// set index position
 	for i, o := range tx.Outputs {
 		o.Position = i
 	}
-
 	return TransactionOutputRaw{
-		tx,
-		tx.Hash(),
-		tx.Size(),
-		chain.SystemFee(tx),
-		chain.NetworkFee(tx),
-		header.Hash(),
-		confirmations,
-		header.Timestamp,
+		Transaction:   tx,
+		TxHash:        tx.Hash(),
+		Size:          tx.Size(),
+		SysFee:        chain.SystemFee(tx),
+		NetFee:        chain.NetworkFee(tx),
+		Blockhash:     header.Hash(),
+		Confirmations: confirmations,
+		Timestamp:     header.Timestamp,
 	}
 }
