@@ -248,10 +248,7 @@ Methods:
 			if !exists {
 				err = errors.New("expected param at index 1 to be either 1 or 0")
 				resultsErr = NewInvalidParamsError(err.Error(), err)
-			} else if verboseFlag := param1.IntVal; verboseFlag != 0 && verboseFlag != 1 {
-				err = errors.New("expected param at index 1 to be either 1 or 0")
-				resultsErr = NewInvalidParamsError(err.Error(), err)
-			} else if verboseFlag == 1 {
+			} else if verboseFlag := param1.IntVal; verboseFlag != 0 {
 				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
 			} else {
 				results = hex.EncodeToString(tx.Bytes())
