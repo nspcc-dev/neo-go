@@ -63,18 +63,10 @@ func (out *Output) Size() int {
 
 // MarshalJSON implements the Marshaler interface
 func (out *Output) MarshalJSON() ([]byte, error) {
-	j, err := json.Marshal(
-		struct {
-			Asset   util.Uint256 `json:"asset"`
-			Value   util.Fixed8  `json:"value"`
-			Address string       `json:"address"`
-			N       int          `json:"n"`
-		}{out.AssetID,
-			out.Amount,
-			crypto.AddressFromUint160(out.ScriptHash),
-			out.Position})
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+	return json.Marshal(map[string]interface{}{
+		"asset":   out.AssetID,
+		"value":   out.Amount,
+		"address": crypto.AddressFromUint160(out.ScriptHash),
+		"n":       out.Position,
+	})
 }

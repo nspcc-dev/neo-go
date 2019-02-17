@@ -3,7 +3,6 @@ package transaction
 import (
 	"encoding/binary"
 	"io"
-	"unsafe"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -38,6 +37,5 @@ func (in *Input) EncodeBinary(w io.Writer) error {
 
 // Size returns the size in bytes of the Input
 func (in *Input) Size() int {
-	var ui16 uint16
-	return in.PrevHash.Size() + int(unsafe.Sizeof(ui16))
+	return in.PrevHash.Size() + 2 // 2 = sizeOf uint16
 }

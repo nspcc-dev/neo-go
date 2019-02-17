@@ -51,9 +51,5 @@ func (t TXType) String() string {
 
 // MarshalJSON implements the json marshaller interface.
 func (t TXType) MarshalJSON() ([]byte, error) {
-	j, err := json.Marshal(t.String())
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+	return json.Marshal(t.String())
 }

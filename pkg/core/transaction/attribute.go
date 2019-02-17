@@ -97,16 +97,8 @@ func (attr *Attribute) Size() int {
 
 // MarshalJSON implements the json Marschaller interface
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
-	j, err := json.Marshal(
-		struct {
-			Usage string `json:"usage"`
-			Data  string `json:"data"`
-		}{
-			attr.Usage.String(),
-			hex.EncodeToString(attr.Data),
-		})
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+	return json.Marshal(map[string]string{
+		"usage": attr.Usage.String(),
+		"data":  hex.EncodeToString(attr.Data),
+	})
 }
