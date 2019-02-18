@@ -80,9 +80,7 @@ func TestGetHeader(t *testing.T) {
 
 	hash := block.Hash()
 	header, err := bc.GetHeader(hash)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	assert.Equal(t, block.Header(), header)
 
 	block = newBlock(2)
@@ -172,16 +170,12 @@ func getTestBlockchain(t *testing.T) *Blockchain {
 	net := config.ModeUnitTestNet
 	configPath := "../../config"
 	cfg, err := config.Load(configPath, net)
-	if err != nil {
-		t.Fatal("could not create levelDB chain", err)
-	}
+	assert.NoError(t, err, "could not create levelDB chain")
 
 	// adjust datadirectory to point to the correct folder
 	cfg.ApplicationConfiguration.DataDirectoryPath = "../rpc/chains/unit_testnet"
 	chain, err := NewBlockchainLevelDB(cfg)
-	if err != nil {
-		t.Fatal("could not create levelDB chain", err)
-	}
+	assert.NoErrorf(t, err, "could not create levelDB chain")
 
 	return chain
 }
@@ -190,13 +184,10 @@ func getTestTransaction(txID string, t *testing.T) *transaction.Transaction {
 	chain := getTestBlockchain(t)
 
 	txHash, err := util.Uint256DecodeString(txID)
-	if err != nil {
-		t.Fatalf("could not decode string %s to Uint256: err =%s", txID, err)
-	}
+	assert.NoErrorf(t, err, "could not decode string %s to Uint256", txID)
 
 	tx, _, err := chain.GetTransaction(txHash)
-	if err != nil {
-		t.Fatalf("Could not get transaction with hash=%s: err=%s", txHash, err)
-	}
+	assert.NoErrorf(t, err, "could not get transaction with hash=%s", txHash)
+
 	return tx
 }

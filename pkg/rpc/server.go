@@ -240,15 +240,21 @@ Methods:
 		} else if len(reqParams) >= 2 {
 			_header := s.chain.GetHeaderHash(int(height))
 			header, err := s.chain.GetHeader(_header)
-
-			param1, exists := reqParams.ValueAtAndType(1, "number")
-			if !exists {
-				err = errors.New("expected param at index 1 to be either 1 or 0")
+			if err != nil {
 				resultsErr = NewInvalidParamsError(err.Error(), err)
-			} else if verboseFlag := param1.IntVal; verboseFlag != 0 {
+			}
+
+			param1, _ := reqParams.ValueAt(1)
+			switch v := param1.RawValue.(type) {
+
+			case int, float64, bool, string:
+				if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
+					results = hex.EncodeToString(tx.Bytes())
+				} else {
+					results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+				}
+			default:
 				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
-			} else {
-				results = hex.EncodeToString(tx.Bytes())
 			}
 		} else {
 			results = hex.EncodeToString(tx.Bytes())

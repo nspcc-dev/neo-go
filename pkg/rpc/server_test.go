@@ -23,6 +23,7 @@ type tc struct {
 }
 
 var testRpcCases = []tc{
+
 	{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
 		"getassetstate_1",
 		`{"jsonrpc":"2.0","result":{"assetId":"0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7","assetType":1,"name":"NEOGas","amount":"100000000","available":"0","precision":8,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`},
@@ -75,17 +76,18 @@ var testRpcCases = []tc{
 	},
 
 	// Good case, valid transaction (param[1]=3 -> verbose = 1. Following the C# any number different from 0 is interpreted as verbose = 1)
+
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 3] }`,
 		method:         "getrawtransaction_2",
 		expectedResult: `{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"data":"23ba2703c53263e8d6e522dc32203339dcd8eee9","usage":"Script"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","n":0,"value":"10000"},{"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","n":1,"value":"99990000"}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`,
 	},
 
-	// Bad case, invalid param at index 1
+	// Good case, valid transaction (param[1]="dads" -> verbose = 1. Following the C# any string different from "0", "false" is interpreted as verbose = 1)
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "dads"] }`,
 		method:         "getrawtransaction_3",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"expected param at index 1 to be either 1 or 0"},"id":1}`,
+		expectedResult: `{"jsonrpc":"2.0","result":{"type":"ContractTransaction","version":0,"attributes":[{"data":"23ba2703c53263e8d6e522dc32203339dcd8eee9","usage":"Script"}],"vin":[{"txid":"0x539084697cc220916cb5b16d2805945ec9f267aa004b6688fbf15e116c846aff","vout":0}],"vout":[{"address":"AXpNr3SDfLXbPHNdqxYeHK5cYpKMHZxMZ9","asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","n":0,"value":"10000"},{"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y","asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","n":1,"value":"99990000"}],"scripts":[{"invocation":"40a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c6","verification":"21031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac"}],"txid":"0xf999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a","size":283,"sys_fee":"0","net_fee":"0","blockhash":"0x6088bf9d3b55c67184f60b00d2e380228f713b4028b24c1719796dcd2006e417","confirmations":2902,"blocktime":1533756500},"id":1}`,
 	},
 
 	// Bad case, invalid transaction
@@ -102,10 +104,31 @@ var testRpcCases = []tc{
 		expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
 	},
 
-	// Good case, valid transaction
+	// Good case, valid transaction (param[1]= 0 -> verbose = 0)
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 0] }`,
 		method:         "getrawtransaction_6",
+		expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+	},
+
+	// Good case, valid transaction (param[1]="false" -> verbose = 0)
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "false"] }`,
+		method:         "getrawtransaction_6_a",
+		expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+	},
+
+	// Good case, valid transaction (param[1]=false -> verbose = 0)
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", false] }`,
+		method:         "getrawtransaction_6_b",
+		expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
+	},
+
+	// Good case, valid transaction (param[1]="0" -> verbose = 0)
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", "0"] }`,
+		method:         "getrawtransaction_6_c",
 		expectedResult: `{"jsonrpc":"2.0","result":"8000012023ba2703c53263e8d6e522dc32203339dcd8eee901ff6a846c115ef1fb88664b00aa67f2c95e9405286db1b56c9120c27c698490530000029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc50010a5d4e8000000affb37f5fdb9c6fec48d9f0eee85af82950f9b4a9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500f01b9b0986230023ba2703c53263e8d6e522dc32203339dcd8eee9014140a88bd1fcfba334b06da0ce1a679f80711895dade50352074e79e438e142dc95528d04a00c579398cb96c7301428669a09286ae790459e05e907c61ab8a1191c62321031a6c6fbbdf02ca351745fa86b9ba5a9452d785ac4f7fc2b7548ca2a46c4fcf4aac","id":1}`,
 	},
 
@@ -178,14 +201,10 @@ func TestHandler(t *testing.T) {
 	net := config.ModeUnitTestNet
 	configPath := "../../config"
 	cfg, err := config.Load(configPath, net)
-	if err != nil {
-		t.Fatal("could not create levelDB chain", err)
-	}
+	assert.NoError(t, err, "could not load config")
 
 	chain, err := core.NewBlockchainLevelDB(cfg)
-	if err != nil {
-		t.Fatal("could not create levelDB chain", err)
-	}
+	assert.NoError(t, err, "could not create levelDB chain")
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
@@ -211,10 +230,7 @@ func TestHandler(t *testing.T) {
 			handler(w, req)
 			resp := w.Result()
 			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Errorf("could not read response from the request: %s", tc.rpcCall)
-			}
-
+			assert.NoErrorf(t, err, "could not read response from the request: %s", tc.rpcCall)
 			assert.Equal(t, tc.expectedResult, string(bytes.TrimSpace(body)))
 		})
 
