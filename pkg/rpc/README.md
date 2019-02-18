@@ -88,11 +88,11 @@ which would yield the response:
 | Method  | Implemented | Required to implement |
 | ------- | ------------| --------------------- | 
 | `getblock` | Yes | - |
-| `getaccountstate` | No | Result struct & wallet functionality |
+| `getaccountstate` | Yes | - |
 | `invokescript` | No | VM |
 | `invokefunction` | No | VM |
 | `sendrawtransaction` | No | Needs to be implemented in `pkg/core/blockchain.go` |
-| `validateaddress` | No | Needs to be implemented in `pkg/core/blockchain.go` |
+| `validateaddress` | Yes | - |
 | `getblocksysfee` | No | N/A |
 | `getcontractstate` | No | Needs to be implemented in `pkg/core/blockchain.go` |
 | `getrawmempool` | No | Needs to be implemented on in `pkg/network/server.go` |

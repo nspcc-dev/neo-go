@@ -15,7 +15,7 @@ func Notify(arg interface{}) int {
 	return 0
 }
 
-// Log intructs the VM to log the given message.
+// Log instructs the VM to log the given message.
 func Log(message string) {}
 
 // Application returns the application trigger type.
@@ -39,7 +39,7 @@ func Serialize(item interface{}) []byte {
 	return nil
 }
 
-// Deserializes an item from a bytearray.
+// Deserialize an item from a bytearray.
 func Deserialize(b []byte) interface{} {
 	return nil
 }

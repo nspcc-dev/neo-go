@@ -58,7 +58,7 @@ func (e *Element) Prev() *Element {
 }
 
 // BigInt attempts to get the underlying value of the element as a big integer.
-// Will panic if the assertion failed which will be catched by the VM.
+// Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
 	case *BigIntegerItem:
@@ -70,7 +70,7 @@ func (e *Element) BigInt() *big.Int {
 }
 
 // Bool attempts to get the underlying value of the element as a boolean.
-// Will panic if the assertion failed which will be catched by the VM.
+// Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bool() bool {
 	if v, ok := e.value.Value().(*big.Int); ok {
 		return v.Int64() == 1
@@ -79,7 +79,7 @@ func (e *Element) Bool() bool {
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.
-// Will panic if the assertion failed which will be catched by the VM.
+// Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bytes() []byte {
 	return e.value.Value().([]byte)
 }

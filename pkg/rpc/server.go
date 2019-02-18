@@ -53,7 +53,7 @@ func (s *Server) Start(errChan chan error) {
 	errChan <- s.ListenAndServe()
 }
 
-// Shutdown overrride the http.Server Shutdown
+// Shutdown override the http.Server Shutdown
 // method.
 func (s *Server) Shutdown() error {
 	log.WithFields(log.Fields{
@@ -181,15 +181,21 @@ Methods:
 
 		results = peers
 
-	case "validateaddress", "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+	case "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
 		results = "TODO"
 
+	case "validateaddress":
+		param, err := reqParams.Value(0)
+		if err != nil {
+			resultsErr = err
+			break
+		}
+		results = wrappers.ValidateAddress(param.RawValue)
+
 	case "getassetstate":
-		var err error
-		param, exists := reqParams.ValueAtAndType(0, "string")
-		if !exists {
-			err = errors.New("expected param at index 0 to be a valid string assetID parameter")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+		param, errRes := reqParams.ValueWithType(0, "string")
+		if errRes != nil {
+			resultsErr = errRes
 			break
 		}
 
@@ -208,12 +214,9 @@ Methods:
 		}
 
 	case "getaccountstate":
-		var err error
-
-		param, exists := reqParams.ValueAtAndType(0, "string")
-		if !exists {
-			err = errors.New("expected param at index 0 to be a valid string account address parameter")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+		param, err := reqParams.ValueWithType(0, "string")
+		if err != nil {
+			resultsErr = err
 		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
 			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
 			resultsErr = NewInvalidParamsError(err.Error(), err)
