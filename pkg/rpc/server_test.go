@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type tc struct {
@@ -76,7 +77,6 @@ var testRpcCases = []tc{
 	},
 
 	// Good case, valid transaction (param[1]=3 -> verbose = 1. Following the C# any number different from 0 is interpreted as verbose = 1)
-
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 3] }`,
 		method:         "getrawtransaction_2",
@@ -201,10 +201,10 @@ func TestHandler(t *testing.T) {
 	net := config.ModeUnitTestNet
 	configPath := "../../config"
 	cfg, err := config.Load(configPath, net)
-	assert.NoError(t, err, "could not load config")
+	require.NoError(t, err, "could not load config")
 
 	chain, err := core.NewBlockchainLevelDB(cfg)
-	assert.NoError(t, err, "could not create levelDB chain")
+	require.NoError(t, err, "could not create levelDB chain")
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)

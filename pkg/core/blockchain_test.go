@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddHeaders(t *testing.T) {
@@ -80,7 +81,7 @@ func TestGetHeader(t *testing.T) {
 
 	hash := block.Hash()
 	header, err := bc.GetHeader(hash)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, block.Header(), header)
 
 	block = newBlock(2)
@@ -170,12 +171,12 @@ func getTestBlockchain(t *testing.T) *Blockchain {
 	net := config.ModeUnitTestNet
 	configPath := "../../config"
 	cfg, err := config.Load(configPath, net)
-	assert.NoError(t, err, "could not create levelDB chain")
+	require.NoError(t, err, "could not create levelDB chain")
 
 	// adjust datadirectory to point to the correct folder
 	cfg.ApplicationConfiguration.DataDirectoryPath = "../rpc/chains/unit_testnet"
 	chain, err := NewBlockchainLevelDB(cfg)
-	assert.NoErrorf(t, err, "could not create levelDB chain")
+	require.NoErrorf(t, err, "could not create levelDB chain")
 
 	return chain
 }
@@ -184,10 +185,10 @@ func getTestTransaction(txID string, t *testing.T) *transaction.Transaction {
 	chain := getTestBlockchain(t)
 
 	txHash, err := util.Uint256DecodeString(txID)
-	assert.NoErrorf(t, err, "could not decode string %s to Uint256", txID)
+	require.NoErrorf(t, err, "could not decode string %s to Uint256", txID)
 
 	tx, _, err := chain.GetTransaction(txHash)
-	assert.NoErrorf(t, err, "could not get transaction with hash=%s", txHash)
+	require.NoErrorf(t, err, "could not get transaction with hash=%s", txHash)
 
 	return tx
 }
