@@ -1,6 +1,9 @@
 package rpc
 
-import "github.com/CityOfZion/neo-go/pkg/core/transaction"
+import (
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/vm"
+)
 
 type InvokeScriptResponse struct {
 	responseHeader
@@ -11,9 +14,9 @@ type InvokeScriptResponse struct {
 // InvokeResult represents the outcome of a script that is
 // executed by the NEO VM.
 type InvokeResult struct {
-	State       string `json:"state"`
-	GasConsumed string `json:"gas_consumed"`
-	Script      string `json:"script"`
+	State       vm.State `json:"state"`
+	GasConsumed string   `json:"gas_consumed"`
+	Script      string   `json:"script"`
 	Stack       []StackParam
 }
 

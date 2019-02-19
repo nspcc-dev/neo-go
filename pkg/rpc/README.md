@@ -10,7 +10,7 @@
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)
-* [NEO JSON-RPC 2.0 docs](http://docs.neo.org/en-us/node/api.html)
+* [NEO JSON-RPC 2.0 docs](https://docs.neo.org/en-us/node/cli/apigen.html)
 
 ## Client
 
