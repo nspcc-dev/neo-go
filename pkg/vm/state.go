@@ -7,7 +7,7 @@ import (
 )
 
 // State of the VM.
-type State uint
+type State uint8
 
 // Available States.
 const (
@@ -61,7 +61,7 @@ func StateFromString(s string) (st State, err error) {
 }
 
 func (s State) MarshalJSON() (data []byte, err error) {
-	return []byte(s.String()), nil
+	return []byte(`"` + s.String() + `"`), nil
 }
 
 func (s *State) UnmarshalJSON(data []byte) (err error) {

@@ -194,7 +194,7 @@ func (v *VM) Run() {
 
 	v.state = noneState
 	for {
-		switch true {
+		switch {
 		case v.state.HasFlag(haltState):
 			if !v.mute {
 				fmt.Println(v.Stack("estack"))
