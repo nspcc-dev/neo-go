@@ -176,7 +176,7 @@ func getTestBlockchain(t *testing.T) *Blockchain {
 
 	// adjust datadirectory to point to the correct folder
 	cfg.ApplicationConfiguration.DataDirectoryPath = "../rpc/chains/unit_testnet"
-	chain, err := NewBlockchainLevelDB(cfg)
+	chain, err := NewBlockchainLevelDB(context.Background(), cfg)
 	require.NoErrorf(t, err, "could not create levelDB chain")
 
 	return chain
