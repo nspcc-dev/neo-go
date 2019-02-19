@@ -60,9 +60,7 @@ func (u *Uint256) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &js); err != nil {
 		return err
 	}
-	if strings.HasPrefix(js, "0x") {
-		js = js[2:]
-	}
+	js = strings.TrimPrefix(js, "0x")
 	*u, err = Uint256DecodeString(js)
 	return err
 }
