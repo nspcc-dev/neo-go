@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -25,7 +26,7 @@ func TestHandler(t *testing.T) {
 		t.Fatal("could not create levelDB chain", err)
 	}
 
-	chain, err := core.NewBlockchainLevelDB(cfg)
+	chain, err := core.NewBlockchainLevelDB(context.Background(), cfg)
 	if err != nil {
 		t.Fatal("could not create levelDB chain", err)
 	}
