@@ -97,13 +97,14 @@ func (wif WIF) GetVerificationScript() ([]byte, error) {
 		checksig    = 0xac
 	)
 	var (
-		pubkey, vScript []byte
+		vScript []byte
+		pubkey *crypto.PublicKey
 	)
 	pubkey, err := wif.PrivateKey.PublicKey()
 	if err != nil {
 		return nil, err
 	}
-	vScript = append([]byte{pushbytes33}, pubkey...)
+	vScript = append([]byte{pushbytes33}, pubkey.Bytes()...)
 	vScript = append(vScript, checksig)
 	return vScript, nil
 }

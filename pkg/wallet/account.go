@@ -103,7 +103,7 @@ func newAccountFromPrivateKey(p *PrivateKey) (*Account, error) {
 	}
 
 	a := &Account{
-		publicKey:  pubKey,
+		publicKey:  pubKey.Bytes(),
 		privateKey: p,
 		Address:    pubAddr,
 		wif:        wif,
