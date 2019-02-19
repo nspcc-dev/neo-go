@@ -161,8 +161,11 @@ func (p *PublicKey) Signature() ([]byte, error) {
 }
 
 func (p *PublicKey) Address() (string, error) {
-	b, err := p.Signature()
-	if err != nil {
+	var (
+		err error
+		b []byte
+	)
+	if b, err = p.Signature(); err != nil {
 		return "", err
 	}
 
@@ -179,6 +182,5 @@ func (p *PublicKey) Address() (string, error) {
 	b = append(b, hash[0:4]...)
 
 	address := Base58Encode(b)
-
 	return address, nil
 }

@@ -69,6 +69,8 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 // PublicKey derives the public key from the private key.
 func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
 	var (
+		err error
+		pk crypto.PublicKey
 		c = crypto.NewEllipticCurve()
 		q = new(big.Int).SetBytes(p.b)
 	)
@@ -93,12 +95,10 @@ func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
 	}
 	b := append(prefix, padded...)
 
-	pk := new(crypto.PublicKey)
-	err := pk.DecodeBytes(b);
-	if err != nil {
+	if err = pk.DecodeBytes(b); err != nil {
 		return nil, err
 	}
-	return pk, nil
+	return &pk, nil
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given
