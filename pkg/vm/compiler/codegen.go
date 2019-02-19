@@ -484,7 +484,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.UnaryExpr:
 		ast.Walk(c, n.X)
-		c.convertToken(n.Op)
+		// From https://golang.org/ref/spec#Operators
+		// there can be only following unary operators
+		// "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+		// of which last three are not used in SC
+		switch n.Op {
+		case token.ADD:
+			// +10 == 10, no need to do anything in this case
+		case token.SUB:
+			emitOpcode(c.prog, vm.NEGATE)
+		case token.NOT:
+			emitOpcode(c.prog, vm.NOT)
+		case token.XOR:
+			emitOpcode(c.prog, vm.INVERT)
+		default:
+			log.Fatalf("invalid unary operator: %s", n.Op)
+		}
 		return nil
 
 	case *ast.IncDecStmt:
