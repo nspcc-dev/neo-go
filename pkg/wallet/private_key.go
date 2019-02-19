@@ -121,7 +121,9 @@ func (p *PrivateKey) Address() (string, error) {
 		return "", err
 	}
 	pk := crypto.PublicKey{}
-	pk.DecodeBytes(b)
+	if err = pk.DecodeBytes(b); err != nil {
+		return "", err
+	}
 	return pk.Address()
 }
 
@@ -132,7 +134,9 @@ func (p *PrivateKey) Signature() ([]byte, error) {
 		return nil, err
 	}
 	pk := crypto.PublicKey{}
-	pk.DecodeBytes(b)
+	if err = pk.DecodeBytes(b); err != nil {
+		return nil, err
+	}
 	return pk.Signature()
 }
 
