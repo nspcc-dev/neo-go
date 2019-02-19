@@ -63,7 +63,7 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 	})
 
 	var (
-		hashes     []util.Uint256
+		hashes     = make([]util.Uint256, 0, len(hashMap))
 		sortedKeys = make([]uint32, 0, len(hashMap))
 	)
 
