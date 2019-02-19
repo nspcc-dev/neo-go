@@ -757,9 +757,6 @@ func (c *codegen) writeJumps() {
 				continue
 			}
 			offset := uint16(c.l[index] - i)
-			if offset < 0 {
-				log.Fatalf("new offset is negative, table list %v", c.l)
-			}
 			binary.LittleEndian.PutUint16(b[j:j+2], offset)
 		}
 	}

@@ -125,7 +125,7 @@ func compareAddressHash(priv *PrivateKey, hash []byte) bool {
 		return false
 	}
 	addrHash := hashAddress(address)[0:4]
-	return bytes.Compare(addrHash, hash) == 0
+	return bytes.Equal(addrHash, hash)
 }
 
 func validateNEP2Format(b []byte) error {

@@ -37,7 +37,7 @@ func TestStateFromString(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, faultState|breakState, s)
 
-	s, err = StateFromString("HALT, KEK")
+	_, err = StateFromString("HALT, KEK")
 	assert.Error(t, err)
 }
 
