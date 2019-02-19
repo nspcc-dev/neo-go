@@ -2,12 +2,14 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"math/big"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // PublicKeys is a list of public keys.
@@ -139,4 +141,44 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 // EncodeBinary encodes a PublicKey to the given io.Writer.
 func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
+}
+
+func (p *PublicKey) Signature() ([]byte, error) {
+	b := p.Bytes()
+	b = append([]byte{0x21}, b...)
+	b = append(b, 0xAC)
+
+	sha := sha256.New()
+	sha.Write(b)
+	hash := sha.Sum(nil)
+
+	ripemd := ripemd160.New()
+	ripemd.Reset()
+	ripemd.Write(hash)
+	hash = ripemd.Sum(nil)
+
+	return hash, nil
+}
+
+func (p *PublicKey) Address() (string, error) {
+	b, err := p.Signature()
+	if err != nil {
+		return "", err
+	}
+
+	b = append([]byte{0x17}, b...)
+
+	sha := sha256.New()
+	sha.Write(b)
+	hash := sha.Sum(nil)
+
+	sha.Reset()
+	sha.Write(hash)
+	hash = sha.Sum(nil)
+
+	b = append(b, hash[0:4]...)
+
+	address := Base58Encode(b)
+
+	return address, nil
 }
