@@ -447,27 +447,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emitInt(c.prog, 2)
 				emitOpcode(c.prog, vm.XSWAP)
 			} else {
-				half := int(numArgs / 2)
-
-				for i := 0; i < half; i++ {
-					to := numArgs - 1 - i
-
-					emitInt(c.prog, int64(to))
-					emitOpcode(c.prog, vm.PICK)
-
-					emitInt(c.prog, int64(i+1))
-					emitOpcode(c.prog, vm.PICK)
-
-					emitInt(c.prog, int64(to+2))
-					emitOpcode(c.prog, vm.XSWAP)
-					emitOpcode(c.prog, vm.DROP)
-
-					emitInt(c.prog, int64(i+1))
-					emitOpcode(c.prog, vm.XSWAP)
-					emitOpcode(c.prog, vm.DROP)
-				}
-			}
-			if numArgs > 3 {
 				for i := 1; i < numArgs; i++ {
 					emitInt(c.prog, int64(i))
 					emitOpcode(c.prog, vm.ROLL)
