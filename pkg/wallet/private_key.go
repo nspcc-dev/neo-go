@@ -93,7 +93,7 @@ func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
 	}
 	b := append(prefix, padded...)
 
-	pk := &crypto.PublicKey{}
+	pk := new(crypto.PublicKey)
 	err := pk.DecodeBytes(b);
 	if err != nil {
 		return nil, err
