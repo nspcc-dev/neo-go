@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -182,7 +183,8 @@ Methods:
 
 		results = peers
 
-	case "getblocksysfee", "getcontractstate", "getrawmempool", "getrawtransaction", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+	case "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+
 		results = "TODO"
 
 	case "validateaddress":
@@ -223,6 +225,38 @@ Methods:
 			results = wrappers.NewAccountState(as)
 		} else {
 			results = "Invalid public account address"
+		}
+	case "getrawtransaction":
+		param0, err := reqParams.ValueWithType(0, "string")
+		if err != nil {
+			resultsErr = err
+		} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
+			err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
+			err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		} else if len(reqParams) >= 2 {
+			_header := s.chain.GetHeaderHash(int(height))
+			header, err := s.chain.GetHeader(_header)
+			if err != nil {
+				resultsErr = NewInvalidParamsError(err.Error(), err)
+			}
+
+			param1, _ := reqParams.ValueAt(1)
+			switch v := param1.RawValue.(type) {
+
+			case int, float64, bool, string:
+				if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
+					results = hex.EncodeToString(tx.Bytes())
+				} else {
+					results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+				}
+			default:
+				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+			}
+		} else {
+			results = hex.EncodeToString(tx.Bytes())
 		}
 
 	default:

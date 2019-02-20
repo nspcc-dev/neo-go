@@ -250,3 +250,24 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 	}
 	return m
 }
+
+// Size returns the size of the transaction in term of bytes
+func (t *Transaction) Size() int {
+	attrSize := util.GetVarSize(t.Attributes)
+	inputSize := util.GetVarSize(t.Inputs)
+	outputSize := util.GetVarSize(t.Outputs)
+	witnesSize := util.GetVarSize(t.Scripts)
+	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
+	return 2 + attrSize + inputSize + outputSize + witnesSize
+
+}
+
+// Bytes convert the transaction to []byte
+func (t *Transaction) Bytes() []byte {
+	buf := new(bytes.Buffer)
+	if err := t.EncodeBinary(buf); err != nil {
+		return nil
+	}
+	return buf.Bytes()
+
+}

@@ -70,9 +70,9 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
-	go bc.run(ctx)
 
-	if err := bc.init(); err != nil {
+  go bc.run(ctx)
+  if err := bc.init(); err != nil {
 		return nil, err
 	}
 
@@ -150,7 +150,7 @@ func (bc *Blockchain) init() error {
 		headers := make([]*Header, 0)
 
 		for hash != targetHash {
-			header, err := bc.getHeader(hash)
+			header, err := bc.GetHeader(hash)
 			if err != nil {
 				return fmt.Errorf("could not get header %s: %s", hash, err)
 			}
@@ -494,7 +494,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	return block, nil
 }
 
-func (bc *Blockchain) getHeader(hash util.Uint256) (*Header, error) {
+func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
 	if err != nil {
 		return nil, err
@@ -515,7 +515,7 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock return true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
-	if header, err := bc.getHeader(hash); err == nil {
+	if header, err := bc.GetHeader(hash); err == nil {
 		return header.Index <= bc.BlockHeight()
 	}
 	return false
@@ -583,6 +583,62 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	})
 
 	return as
+}
+
+// GetConfig returns the config stored in the blockchain
+func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
+	return bc.config
+}
+
+// References returns a map with input prevHash as key (util.Uint256)
+// and transaction output as value from a transaction t.
+// @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
+// transaction package because of a import cycle problem. Perhaps we should think to re-design
+// the code base to avoid this situation.
+func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
+	references := make(map[util.Uint256]*transaction.Output)
+
+	for prevHash, inputs := range t.GroupInputsByPrevHash() {
+		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
+			tx = nil
+		} else if tx != nil {
+			for _, in := range inputs {
+				references[in.PrevHash] = tx.Outputs[in.PrevIndex]
+			}
+		} else {
+			references = nil
+		}
+	}
+	return references
+}
+
+// FeePerByte returns network fee divided by the size of the transaction
+func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
+	return bc.NetworkFee(t).Div(int64(t.Size()))
+}
+
+// NetworkFee returns network fee
+func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	inputAmount := util.NewFixed8(0)
+	for _, txOutput := range bc.References(t) {
+		if txOutput.AssetID == utilityTokenTX().Hash() {
+			inputAmount.Add(txOutput.Amount)
+		}
+	}
+
+	outputAmount := util.NewFixed8(0)
+	for _, txOutput := range t.Outputs {
+		if txOutput.AssetID == utilityTokenTX().Hash() {
+			outputAmount.Add(txOutput.Amount)
+		}
+	}
+
+	return inputAmount.Sub(outputAmount).Sub(bc.SystemFee(t))
+}
+
+// SystemFee returns system fee
+func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

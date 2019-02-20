@@ -46,3 +46,8 @@ func (t TXType) String() string {
 		return "UnknownTransaction"
 	}
 }
+
+// MarshalJSON implements the json marshaller interface.
+func (t TXType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
+}

@@ -50,3 +50,8 @@ func (w *Witness) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(data)
 }
+
+// Size returns the size in bytes of the Witness.
+func (w *Witness) Size() int {
+	return util.GetVarSize(w.InvocationScript) + util.GetVarSize(w.VerificationScript)
+}

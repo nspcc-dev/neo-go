@@ -4,18 +4,40 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type testChain struct{}
 
+func (chain testChain) GetConfig() config.ProtocolConfiguration {
+	panic("TODO")
+}
+
+func (chain testChain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
+	panic("TODO")
+}
+
+func (chain testChain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
+	panic("TODO")
+}
+
+func (chain testChain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	panic("TODO")
+}
+
+func (chain testChain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	panic("TODO")
+}
+
 func (chain testChain) AddHeaders(...*core.Header) error {
-	return nil
+	panic("TODO")
 }
 func (chain testChain) AddBlock(*core.Block) error {
-	return nil
+	panic("TODO")
 }
 func (chain testChain) BlockHeight() uint32 {
 	return 0
@@ -24,16 +46,20 @@ func (chain testChain) HeaderHeight() uint32 {
 	return 0
 }
 func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
-	return nil, nil
+	panic("TODO")
 }
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
+func (chain testChain) GetHeader(hash util.Uint256) (*core.Header, error) {
+	panic("TODO")
+}
+
 func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
-	return nil
+	panic("TODO")
 }
 func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
-	return nil
+	panic("TODO")
 }
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
@@ -46,6 +72,9 @@ func (chain testChain) HasBlock(util.Uint256) bool {
 }
 func (chain testChain) HasTransaction(util.Uint256) bool {
 	return false
+}
+func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error) {
+	panic("TODO")
 }
 
 type testDiscovery struct{}

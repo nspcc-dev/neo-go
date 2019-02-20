@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 )
@@ -117,4 +119,20 @@ func Load(path string, netMode NetMode) (Config, error) {
 	}
 
 	return config, nil
+}
+
+// TryGetValue returns the system fee base on transaction type.
+func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
+	switch txType {
+	case transaction.EnrollmentType:
+		return util.NewFixed8(s.EnrollmentTransaction)
+	case transaction.IssueType:
+		return util.NewFixed8(s.IssueTransaction)
+	case transaction.PublishType:
+		return util.NewFixed8(s.PublishTransaction)
+	case transaction.RegisterType:
+		return util.NewFixed8(s.RegisterTransaction)
+	default:
+		return util.NewFixed8(0)
+	}
 }
