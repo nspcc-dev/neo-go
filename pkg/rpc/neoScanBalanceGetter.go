@@ -52,7 +52,7 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
 		err          error
-		num, i       = uint16(0), uint16(0)
+		num, i       uint16
 		required     = cost
 		selected     = util.Fixed8(0)
 		us           []*Unspent

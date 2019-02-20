@@ -114,6 +114,10 @@ const (
 func TestStackParam_TryParse(t *testing.T) {
 	// ByteArray to util.Uint160 conversion
 	data, err := hex.DecodeString(hash160)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var (
 		outputUint160, expectedUint160 util.Uint160
 		input                          = StackParam{
@@ -122,6 +126,9 @@ func TestStackParam_TryParse(t *testing.T) {
 		}
 	)
 	expectedUint160, err = util.Uint160DecodeString(hash160)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err = input.TryParse(&outputUint160); err != nil {
 		t.Errorf("failed to parse stackparam to Uint160: %v", err)
 	}
@@ -131,6 +138,10 @@ func TestStackParam_TryParse(t *testing.T) {
 
 	// ByteArray to util.Uint256 conversion
 	data, err = hex.DecodeString(hash256)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var (
 		outputUint256, expectedUint256 util.Uint256
 		uint256input                   = StackParam{
@@ -139,6 +150,9 @@ func TestStackParam_TryParse(t *testing.T) {
 		}
 	)
 	expectedUint256, err = util.Uint256DecodeString(hash256)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err = uint256input.TryParse(&outputUint256); err != nil {
 		t.Errorf("failed to parse stackparam to []byte: %v", err)
 	}
@@ -160,6 +174,9 @@ func TestStackParam_TryParse(t *testing.T) {
 
 	// ByteArray to int64 conversion
 	data, err = hex.DecodeString("637829cd0b")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
 		outputInt, expectedInt int64
 		intinput               = StackParam{
@@ -194,7 +211,13 @@ func TestStackParam_TryParse(t *testing.T) {
 
 	// StackParams to []util.Uint160
 	data, err = hex.DecodeString(hash160)
+	if err != nil {
+		t.Fatal(err)
+	}
 	expUint160, err := util.Uint160DecodeString(hash160)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
 		params = StackParams{
 			StackParam{

@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"sync/atomic"
@@ -60,7 +61,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain return a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
+func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
 		config:        cfg,
 		Store:         s,
@@ -69,7 +70,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
 	}
-	go bc.run()
+	go bc.run(ctx)
 
 	if err := bc.init(); err != nil {
 		return nil, err
@@ -79,8 +80,9 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 }
 
 // GetBlockchainLevelDB returns blockchain based on configuration
-func NewBlockchainLevelDB(cfg config.Config) (*Blockchain, error) {
+func NewBlockchainLevelDB(ctx context.Context, cfg config.Config) (*Blockchain, error) {
 	store, err := storage.NewLevelDBStore(
+		ctx,
 		cfg.ApplicationConfiguration.DataDirectoryPath,
 		nil,
 	)
@@ -88,7 +90,7 @@ func NewBlockchainLevelDB(cfg config.Config) (*Blockchain, error) {
 		return nil, err
 	}
 
-	return NewBlockchain(store, cfg.ProtocolConfiguration)
+	return NewBlockchain(ctx, store, cfg.ProtocolConfiguration)
 }
 
 func (bc *Blockchain) init() error {
@@ -165,15 +167,18 @@ func (bc *Blockchain) init() error {
 	return nil
 }
 
-func (bc *Blockchain) run() {
+func (bc *Blockchain) run(ctx context.Context) {
 	persistTimer := time.NewTimer(persistInterval)
+	defer persistTimer.Stop()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case op := <-bc.headersOp:
 			op(bc.headerList)
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
-			go bc.persist()
+			go bc.persist(ctx)
 			persistTimer.Reset(persistInterval)
 		}
 	}
@@ -395,7 +400,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	return nil
 }
 
-func (bc *Blockchain) persist() (err error) {
+func (bc *Blockchain) persist(ctx context.Context) (err error) {
 	var (
 		start     = time.Now()
 		persisted = 0
@@ -422,7 +427,13 @@ func (bc *Blockchain) persist() (err error) {
 			}
 		}
 	}
-	<-bc.headersOpDone
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-bc.headersOpDone:
+		//
+	}
 
 	if persisted > 0 {
 		log.WithFields(log.Fields{

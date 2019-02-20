@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 )
 
@@ -39,9 +38,6 @@ func ReadVarUint(r io.Reader) uint64 {
 
 // WriteVarUint writes a variable unsigned integer.
 func WriteVarUint(w io.Writer, val uint64) error {
-	if val < 0 {
-		return errors.New("value out of range")
-	}
 	if val < 0xfd {
 		return binary.Write(w, binary.LittleEndian, uint8(val))
 	}
