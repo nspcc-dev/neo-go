@@ -2,7 +2,9 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"io"
@@ -70,6 +72,28 @@ func (p *PublicKey) Bytes() []byte {
 	}
 
 	return append([]byte{prefix}, paddedX...)
+}
+
+// NewPublicKeyFromRawBytes returns a NEO PublicKey from the ASN.1 serialized keys.
+func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
+	var (
+		err    error
+		pubkey interface{}
+	)
+	if pubkey, err = x509.ParsePKIXPublicKey(data); err != nil {
+		return nil, err
+	}
+	pk, ok := pubkey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("given bytes aren't ECDSA public key")
+	}
+	key := PublicKey{
+		ECPoint{
+			X: pk.X,
+			Y: pk.Y,
+		},
+	}
+	return &key, nil
 }
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
@@ -163,7 +187,7 @@ func (p *PublicKey) Signature() ([]byte, error) {
 func (p *PublicKey) Address() (string, error) {
 	var (
 		err error
-		b []byte
+		b   []byte
 	)
 	if b, err = p.Signature(); err != nil {
 		return "", err
