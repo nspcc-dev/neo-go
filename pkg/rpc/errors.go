@@ -18,11 +18,7 @@ type (
 )
 
 var (
-	// ErrEmptyParams is CSharp error caused by index out of range
-	ErrEmptyParams = newError(-2146233086, http.StatusOK, "Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index", "", nil)
-
-	// ErrTypeMismatch is CSharp error caused by type mismatch
-	ErrTypeMismatch = newError(-2146233033, http.StatusOK, "One of the identified items was in an invalid format.", "", nil)
+	errInvalidParams = NewInvalidParamsError("", nil)
 )
 
 func newError(code int64, httpCode int, message string, data string, cause error) *Error {

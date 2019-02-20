@@ -2,12 +2,16 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"math/big"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // PublicKeys is a list of public keys.
@@ -43,7 +47,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 		return nil, err
 	}
 
-	pubKey := &PublicKey{}
+	pubKey := new(PublicKey)
 	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
 		return nil, err
 	}
@@ -68,6 +72,28 @@ func (p *PublicKey) Bytes() []byte {
 	}
 
 	return append([]byte{prefix}, paddedX...)
+}
+
+// NewPublicKeyFromRawBytes returns a NEO PublicKey from the ASN.1 serialized keys.
+func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
+	var (
+		err    error
+		pubkey interface{}
+	)
+	if pubkey, err = x509.ParsePKIXPublicKey(data); err != nil {
+		return nil, err
+	}
+	pk, ok := pubkey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("given bytes aren't ECDSA public key")
+	}
+	key := PublicKey{
+		ECPoint{
+			X: pk.X,
+			Y: pk.Y,
+		},
+	}
+	return &key, nil
 }
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
@@ -139,4 +165,46 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 // EncodeBinary encodes a PublicKey to the given io.Writer.
 func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
+}
+
+func (p *PublicKey) Signature() ([]byte, error) {
+	b := p.Bytes()
+	b = append([]byte{0x21}, b...)
+	b = append(b, 0xAC)
+
+	sha := sha256.New()
+	sha.Write(b)
+	hash := sha.Sum(nil)
+
+	ripemd := ripemd160.New()
+	ripemd.Reset()
+	ripemd.Write(hash)
+	hash = ripemd.Sum(nil)
+
+	return hash, nil
+}
+
+func (p *PublicKey) Address() (string, error) {
+	var (
+		err error
+		b   []byte
+	)
+	if b, err = p.Signature(); err != nil {
+		return "", err
+	}
+
+	b = append([]byte{0x17}, b...)
+
+	sha := sha256.New()
+	sha.Write(b)
+	hash := sha.Sum(nil)
+
+	sha.Reset()
+	sha.Write(hash)
+	hash = sha.Sum(nil)
+
+	b = append(b, hash[0:4]...)
+
+	address := Base58Encode(b)
+	return address, nil
 }

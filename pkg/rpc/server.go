@@ -97,8 +97,10 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 		"params": fmt.Sprintf("%v", reqParams),
 	}).Info("processing rpc request")
 
-	var results interface{}
-	var resultsErr *Error
+	var (
+		results    interface{}
+		resultsErr error
+	)
 
 Methods:
 	switch req.Method {
@@ -107,34 +109,30 @@ Methods:
 
 	case "getblock":
 		var hash util.Uint256
-		var err error
 
-		param, exists := reqParams.ValueAt(0)
-		if !exists {
-			err = errors.New("Param at index at 0 doesn't exist")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
+		param, err := reqParams.Value(0)
+		if err != nil {
+			resultsErr = err
+			break Methods
 		}
 
 		switch param.Type {
 		case "string":
 			hash, err = util.Uint256DecodeString(param.StringVal)
 			if err != nil {
-				resultsErr = NewInvalidParamsError("Problem decoding block hash", err)
-				break
+				resultsErr = errInvalidParams
+				break Methods
 			}
 		case "number":
 			if !s.validBlockHeight(param) {
-				err = invalidBlockHeightError(0, param.IntVal)
-				resultsErr = NewInvalidParamsError(err.Error(), err)
+				resultsErr = errInvalidParams
 				break Methods
 			}
 
 			hash = s.chain.GetHeaderHash(param.IntVal)
 		case "default":
-			err = errors.New("Expected param at index 0 to be either string or number")
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
+			resultsErr = errInvalidParams
+			break Methods
 		}
 
 		block, err := s.chain.GetBlock(hash)
@@ -148,13 +146,16 @@ Methods:
 		results = s.chain.BlockHeight()
 
 	case "getblockhash":
-		if param, exists := reqParams.ValueAtAndType(0, "number"); exists && s.validBlockHeight(param) {
-			results = s.chain.GetHeaderHash(param.IntVal)
-		} else {
-			err := invalidBlockHeightError(0, param.IntVal)
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-			break
+		param, err := reqParams.ValueWithType(0, "number")
+		if err != nil {
+			resultsErr = err
+			break Methods
+		} else if !s.validBlockHeight(param) {
+			resultsErr = invalidBlockHeightError(0, param.IntVal)
+			break Methods
 		}
+
+		results = s.chain.GetHeaderHash(param.IntVal)
 
 	case "getconnectioncount":
 		results = s.coreServer.PeerCount()
@@ -190,21 +191,20 @@ Methods:
 		param, err := reqParams.Value(0)
 		if err != nil {
 			resultsErr = err
-			break
+			break Methods
 		}
 		results = wrappers.ValidateAddress(param.RawValue)
 
 	case "getassetstate":
-		param, errRes := reqParams.ValueWithType(0, "string")
-		if errRes != nil {
-			resultsErr = errRes
-			break
+		param, err := reqParams.ValueWithType(0, "string")
+		if err != nil {
+			resultsErr = err
+			break Methods
 		}
 
 		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
 		if err != nil {
-			err = errors.Wrapf(err, "unable to decode %s to Uint256", param.StringVal)
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+			resultsErr = errInvalidParams
 			break
 		}
 
@@ -220,8 +220,7 @@ Methods:
 		if err != nil {
 			resultsErr = err
 		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
-			err = errors.Wrapf(err, "unable to decode %s to Uint160", param.StringVal)
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+			resultsErr = errInvalidParams
 		} else if as := s.chain.GetAccountState(scriptHash); as != nil {
 			results = wrappers.NewAccountState(as)
 		} else {

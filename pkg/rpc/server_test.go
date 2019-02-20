@@ -34,21 +34,27 @@ var testRpcCases = []tc{
 		"getassetstate_2",
 		`{"jsonrpc":"2.0","result":{"assetId":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","assetType":0,"name":"NEO","amount":"100000000","available":"0","precision":0,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`},
 
-	{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
-		"getassetstate_3",
-		`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode 62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7 to Uint256: expected string size of 64 got 63"},"id":1}`},
+	{
+			rpcCall:        `{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["62c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
+			method:         "getassetstate_3",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
+	},
 
-	{`{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
-		"getassetstate_4",
-		`{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`},
+	{
+			rpcCall:        `{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": [123] }`,
+			method:         "getassetstate_4",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
+	},
 
 	{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [10] }`,
 		"getblockhash_1",
 		`{"jsonrpc":"2.0","result":"0xd69e7a1f62225a35fed91ca578f33447d93fa0fd2b2f662b957e19c38c1dab1e","id":1}`},
-
-	{`{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [-2] }`,
-		"getblockhash_2",
-		`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"Param at index 0 should be greater than or equal to 0 and less then or equal to current block height, got: -2"},"id":1}`},
+  
+  {
+			rpcCall:        `{"jsonrpc": "2.0", "id": 1, "method": "getblockhash", "params": [-2] }`,
+			method:         "getblockhash_2",
+			expectedResult: `{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":"Internal server error"},"id":1}`,
+  },
 
 	{`{"jsonrpc": "2.0", "id": 1, "method": "getblock", "params": [10] }`,
 		"getblock",
@@ -149,23 +155,23 @@ var testRpcCases = []tc{
 
 	// Bad case, invalid address
 	{
-		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
-		method:         "getaccountstate_2",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"unable to decode AK2nJJpJr6o664CWJKi1QRXjqeic2zR to Uint160: invalid base-58 check string: invalid checksum."},"id":1}`,
+    rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zR"] }`,
+    method:         "getaccountstate_2",
+    expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
 	},
 
 	// Bad case, not string
 	{
-		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
-		method:         "getaccountstate_3",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233033,"message":"One of the identified items was in an invalid format."},"id":1}`,
+    rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [123] }`,
+    method:         "getaccountstate_3",
+    expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
 	},
 
 	// Bad case, empty params
 	{
-		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [] }`,
-		method:         "getaccountstate_4",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index"},"id":1}`,
+    rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": [] }`,
+    method:         "getaccountstate_4",
+    expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
 	},
 
 	// Good case, valid address
@@ -190,11 +196,11 @@ var testRpcCases = []tc{
 	},
 
 	// Bad case, empty params
-	{
-		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [] }`,
-		method:         "validateaddress_4",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-2146233086,"message":"Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index"},"id":1}`,
-	},
+  {
+    rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "validateaddress", "params": [] }`,
+    method:         "validateaddress_4",
+    expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
+  },
 }
 
 func TestHandler(t *testing.T) {
@@ -221,7 +227,7 @@ func TestHandler(t *testing.T) {
 	},
 	)
 
-	for _, tc := range testRpcCases {
+	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("method: %s, rpc call: %s", tc.method, tc.rpcCall), func(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", strings.NewReader(tc.rpcCall))

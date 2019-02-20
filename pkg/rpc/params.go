@@ -61,19 +61,23 @@ func (p Params) ValueAtAndType(index int, valueType string) (*Param, bool) {
 	return nil, false
 }
 
-func (p Params) Value(index int) (*Param, *Error) {
+// Value returns the param struct for the given
+// index if it exists.
+func (p Params) Value(index int) (*Param, error) {
 	if len(p) <= index {
-		return nil, ErrEmptyParams
+		return nil, errInvalidParams
 	}
 	return &p[index], nil
 }
 
-func (p Params) ValueWithType(index int, valType string) (*Param, *Error) {
+// ValueWithType returns the param struct at the given index if it
+// exists and matches the given type.
+func (p Params) ValueWithType(index int, valType string) (*Param, error) {
 	val, err := p.Value(index)
 	if err != nil {
 		return nil, err
 	} else if val.Type != valType {
-		return nil, ErrTypeMismatch
+		return nil, errInvalidParams
 	}
 	return &p[index], nil
 }

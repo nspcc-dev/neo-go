@@ -15,7 +15,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/anthdm/rfc6979"
-	"golang.org/x/crypto/ripemd160"
 )
 
 // PrivateKey represents a NEO private key.
@@ -68,8 +67,10 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 }
 
 // PublicKey derives the public key from the private key.
-func (p *PrivateKey) PublicKey() ([]byte, error) {
+func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
 	var (
+		err error
+		pk crypto.PublicKey
 		c = crypto.NewEllipticCurve()
 		q = new(big.Int).SetBytes(p.b)
 	)
@@ -94,7 +95,10 @@ func (p *PrivateKey) PublicKey() ([]byte, error) {
 	}
 	b := append(prefix, padded...)
 
-	return b, nil
+	if err = pk.DecodeBytes(b); err != nil {
+		return nil, err
+	}
+	return &pk, nil
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given
@@ -117,48 +121,20 @@ func (p *PrivateKey) WIF() (string, error) {
 // Address derives the public NEO address that is coupled with the private key, and
 // returns it as a string.
 func (p *PrivateKey) Address() (string, error) {
-	b, err := p.Signature()
+	pk, err := p.PublicKey()
 	if err != nil {
 		return "", err
 	}
-
-	b = append([]byte{0x17}, b...)
-
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
-
-	sha.Reset()
-	sha.Write(hash)
-	hash = sha.Sum(nil)
-
-	b = append(b, hash[0:4]...)
-
-	address := crypto.Base58Encode(b)
-
-	return address, nil
+	return pk.Address()
 }
 
 // Signature creates the signature using the private key.
 func (p *PrivateKey) Signature() ([]byte, error) {
-	b, err := p.PublicKey()
+	pk, err := p.PublicKey()
 	if err != nil {
 		return nil, err
 	}
-
-	b = append([]byte{0x21}, b...)
-	b = append(b, 0xAC)
-
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
-
-	ripemd := ripemd160.New()
-	ripemd.Reset()
-	ripemd.Write(hash)
-	hash = ripemd.Sum(nil)
-
-	return hash, nil
+	return pk.Signature()
 }
 
 // Sign signs arbitrary length data using the private key.
