@@ -1,0 +1,152 @@
+version: 2
+jobs:
+  install_deps:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+        environment:
+          BUILD: false
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - run: /scripts/build.sh
+      - save_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          paths:
+            - vendor
+            - /go/pkg
+  build_image:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: alpine
+    steps:
+      - run: apk update && apk add git make curl tar
+      - checkout
+      - restore_cache:
+          keys:
+            - dependency-cache-{{ .Revision }}
+      - restore_cache:
+          keys:
+            - dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - setup_remote_docker
+      - run:
+          name: Install Docker client
+          command: |
+            set -x
+            VER="17.03.0-ce"
+            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+            mv /tmp/docker/* /usr/bin
+      - run: make build-image
+  test:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - run: make test
+  vet:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - run: make vet
+  check_version:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - run: make check-version
+  build_cli:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: vidsyhq/go-builder:latest
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - run: make build
+      - save_cache:
+          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+          paths:
+            - bin/neo-go
+  deploy:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    docker:
+      - image: alpine
+    steps:
+      - run: apk update && apk add git make curl tar
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - restore_cache:
+          key: dependency-cache-cli-{{ checksum "Gopkg.toml" }}-{{ checksum "VERSION" }}
+      - setup_remote_docker
+      - run:
+          name: Install Docker client
+          command: |
+            set -x
+            VER="17.03.0-ce"
+            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+            mv /tmp/docker/* /usr/bin
+      - run: make build-image
+      - deploy:
+          name: deploy
+          command: make push-to-registry
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - install_deps:
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+      - test:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+      - vet:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+      - check_version:
+          filters:
+            branches:
+              ignore: master
+      - build_cli:
+          requires:
+            - install_deps
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+      - build_image:
+          requires:
+            - install_deps
+            - build_cli
+          filters:
+            tags:
+              only: /[0-9]+\.[0-9]+\.[0-9]+/
+      - deploy:
+          requires:
+            - build_image
+            - test
+            - vet
+            - check_version
+          filters:
+            tags:
+              only:
+                - /[0-9]+\.[0-9]+\.[0-9]+/
+            branches:
+              ignore: /.*/
