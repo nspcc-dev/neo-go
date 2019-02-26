@@ -17,7 +17,7 @@ type Detector struct {
 	responseTime time.Duration
 	tickInterval time.Duration
 
-	lock      sync.Mutex
+	lock      *sync.RWMutex
 	responses map[command.Type]time.Time
 
 	// The detector is embedded into a peer and the peer watches this quit chan
@@ -35,7 +35,7 @@ func NewDetector(rTime time.Duration, tickerInterval time.Duration) *Detector {
 	d := &Detector{
 		responseTime: rTime,
 		tickInterval: tickerInterval,
-		lock:         sync.Mutex{},
+		lock:         new(sync.RWMutex),
 		responses:    map[command.Type]time.Time{},
 		Quitch:       make(chan struct{}),
 	}
@@ -46,24 +46,27 @@ func NewDetector(rTime time.Duration, tickerInterval time.Duration) *Detector {
 func (d *Detector) loop() {
 	ticker := time.NewTicker(d.tickInterval)
 
-loop:
+	defer func() {
+		d.Quit()
+		d.DeleteAll()
+		ticker.Stop()
+	}()
+
 	for {
 		select {
 		case <-ticker.C:
 			now := time.Now()
-			for _, deadline := range d.responses {
+			d.lock.RLock()
+			resp := d.responses
+			d.lock.RUnlock()
+			for _, deadline := range resp {
 				if now.After(deadline) {
 					fmt.Println("Deadline passed")
-					ticker.Stop()
-					break loop
+					return
 				}
 			}
-
 		}
 	}
-	d.Quit()
-	d.DeleteAll()
-	ticker.Stop()
 }
 
 // Quit is a concurrent safe way to call the Quit channel
@@ -114,17 +117,16 @@ func (d *Detector) DeleteAll() {
 // and their deadlines
 func (d *Detector) GetMessages() map[command.Type]time.Time {
 	var resp map[command.Type]time.Time
-	d.lock.Lock()
+	d.lock.RLock()
 	resp = d.responses
-	d.lock.Unlock()
+	d.lock.RUnlock()
 	return resp
 }
 
 // when a message is added, we will add a deadline for
 // expected response
 func (d *Detector) addMessage(cmd command.Type) []command.Type {
-
-	cmds := []command.Type{}
+	var cmds []command.Type
 
 	switch cmd {
 	case command.GetHeaders:
@@ -151,8 +153,7 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 
 // if receive a message, we will delete it from pending
 func (d *Detector) removeMessage(cmd command.Type) []command.Type {
-
-	cmds := []command.Type{}
+	var cmds []command.Type
 
 	switch cmd {
 	case command.Block:
