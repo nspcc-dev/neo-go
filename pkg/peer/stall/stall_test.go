@@ -1,6 +1,7 @@
 package stall
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ func TestAddRemoveMessage(t *testing.T) {
 }
 
 type mockPeer struct {
+	lock     *sync.RWMutex
 	online   bool
 	detector *Detector
 }
@@ -43,7 +45,9 @@ loop:
 		}
 	}
 	// cleanup
+	mp.lock.Lock()
 	mp.online = false
+	mp.lock.Unlock()
 }
 func TestDeadlineWorks(t *testing.T) {
 
@@ -51,16 +55,19 @@ func TestDeadlineWorks(t *testing.T) {
 	tickerInterval := 1 * time.Second
 
 	d := NewDetector(responseTime, tickerInterval)
-	mp := mockPeer{online: true, detector: d}
+	mp := mockPeer{online: true, detector: d, lock: new(sync.RWMutex)}
 	go mp.loop()
 
 	d.AddMessage(command.GetAddr)
 	time.Sleep(responseTime + 1*time.Second)
 
 	k := make(map[command.Type]time.Time)
+	d.lock.RLock()
 	assert.Equal(t, k, d.responses)
+	d.lock.RUnlock()
+	mp.lock.RLock()
 	assert.Equal(t, false, mp.online)
-
+	mp.lock.RUnlock()
 }
 func TestDeadlineShouldNotBeEmpty(t *testing.T) {
 	responseTime := 10 * time.Second
@@ -71,5 +78,7 @@ func TestDeadlineShouldNotBeEmpty(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	k := make(map[command.Type]time.Time)
+	d.lock.RLock()
 	assert.NotEqual(t, k, d.responses)
+	d.lock.RUnlock()
 }
