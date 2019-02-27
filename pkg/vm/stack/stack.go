@@ -70,7 +70,6 @@ func (ras *RandomAccess) Push(item Item) *RandomAccess {
 
 // Insert will push a stackItem onto the stack at position `n`
 // Note; index 0 is the top of the stack, which is the end of slice
-// REDO:
 func (ras *RandomAccess) Insert(n uint16, item Item) (*RandomAccess, error) {
 
 	if n == 0 {
@@ -112,7 +111,6 @@ func (ras *RandomAccess) Peek(n uint16) (Item, error) {
 	}
 
 	// Check that we are not peeking out of the bounds
-
 	if n > stackSize-1 {
 		return nil, fmt.Errorf("Tried to peek at index %d when length of stack is %d", n, len(ras.vals))
 	}

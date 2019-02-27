@@ -72,3 +72,24 @@ func (i *Int) Lsh(n *Int) (*Int, error) {
 func (i *Int) Integer() (*Int, error) {
 	return i, nil
 }
+
+// ByteArray override the default ByteArray method
+// to convert a Integer into a byte Array
+func (i *Int) ByteArray() (*ByteArray, error) {
+	return &ByteArray{
+		i.abstractItem,
+		i.val.Bytes(),
+	}, nil
+}
+
+//Boolean override the default Boolean method
+// to convert an Integer into a Boolean StackItem
+func (i *Int) Boolean() (*Boolean, error) {
+
+	boolean := (i.val.Int64() != 0)
+	return &Boolean{
+		i.abstractItem,
+		boolean,
+	}, nil
+
+}
