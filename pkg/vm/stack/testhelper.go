@@ -1,6 +1,8 @@
 package stack
 
 import (
+	"bytes"
+	"encoding/binary"
 	"math/big"
 	"testing"
 
@@ -32,4 +34,11 @@ func testMakeStackInt(t *testing.T, num int64) *Int {
 	a, err := NewInt(big.NewInt(num))
 	assert.Nil(t, err)
 	return a
+}
+
+func testReadInt64(data []byte) int64 {
+	var ret int64
+	buf := bytes.NewBuffer(data)
+	binary.Read(buf, binary.LittleEndian, &ret)
+	return ret
 }

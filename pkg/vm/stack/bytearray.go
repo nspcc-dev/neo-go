@@ -42,8 +42,6 @@ func (ba *ByteArray) Integer() (*Int, error) {
 		ba.abstractItem,
 		integerVal,
 	}, nil
-
-	// return ba, nil
 }
 
 // Boolean will convert
