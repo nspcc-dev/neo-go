@@ -128,3 +128,26 @@ func (f Fixed8) Add(g Fixed8) Fixed8 {
 func (f Fixed8) Sub(g Fixed8) Fixed8 {
 	return NewFixed8(f.Value() - g.Value())
 }
+
+// LessThan implements Fixd8 < operator.
+func (f Fixed8) LessThan(g Fixed8) bool {
+	return f.Value() < g.Value()
+}
+
+// GreaterThan implements Fixd8 < operator.
+func (f Fixed8) GreaterThan(g Fixed8) bool {
+	return f.Value() > g.Value()
+}
+
+// Equal implements Fixd8 == operator.
+func (f Fixed8) Equal(g Fixed8) bool {
+	return f.Value() == g.Value()
+}
+
+// CompareTo returns the difference between the f and g.
+// difference < 0 implies f < g.
+// difference = 0 implies f = g.
+// difference > 0 implies f > g.
+func (f Fixed8) CompareTo(g Fixed8) int {
+	return int(f.Value() - g.Value())
+}
