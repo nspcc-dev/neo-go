@@ -10,6 +10,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
+	// set to be 102400.
+	MaxTransactionSize = 102400
+)
+
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
@@ -247,6 +253,15 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 	m := make(map[util.Uint256][]*Input)
 	for _, in := range t.Inputs {
 		m[in.PrevHash] = append(m[in.PrevHash], in)
+	}
+	return m
+}
+
+// GroupOutputByAssetID groups all TX outputs by their assetID.
+func (t *Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
+	m := make(map[util.Uint256][]*Output)
+	for _, out := range t.Outputs {
+		m[out.AssetID] = append(m[out.AssetID], out)
 	}
 	return m
 }
