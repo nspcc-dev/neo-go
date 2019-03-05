@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
@@ -309,4 +310,42 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		go s.startProtocol(peer)
 	}
 	return nil
+}
+
+// RelayTxn a new transaction to the local node and the connected peers.
+// Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
+func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
+	if t.Type == transaction.MinerType {
+		return RelayInvalid
+	}
+	if s.chain.HasTransaction(t.Hash()) {
+		return RelayAlreadyExists
+	}
+	if !s.chain.Verify(t) {
+		return RelayInvalid
+	}
+	// TODO: Implement Plugin.CheckPolicy?
+	//if (!Plugin.CheckPolicy(transaction))
+	// return RelayResultReason.PolicyFail;
+	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), core.NewPoolItem(t, s.chain)); !ok {
+		return RelayOutOfMemory
+	}
+
+	for p := range s.Peers() {
+		payload := payload.NewInventory(payload.TXType, []util.Uint256{t.Hash()})
+		s.RelayDirectly(p, payload)
+	}
+
+	return RelaySucceed
+}
+
+// RelayDirectly relay directly the inventory to the remote peers.
+// Reference: the method OnRelayDirectly in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L166
+func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
+	if !p.Version().Relay {
+		return
+	}
+
+	p.WriteMsg(NewMessage(s.Net, CMDInv, inv))
+
 }
