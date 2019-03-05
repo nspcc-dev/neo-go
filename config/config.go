@@ -43,6 +43,8 @@ type (
 	ProtocolConfiguration struct {
 		Magic                   NetMode   `yaml:"Magic"`
 		AddressVersion          int64     `yaml:"AddressVersion"`
+		SecondsPerBlock         int       `yaml:"SecondsPerBlock"`
+		LowPriorityThreshold    float64   `yaml:"LowPriorityThreshold"`
 		MaxTransactionsPerBlock int64     `yaml:"MaxTransactionsPerBlock"`
 		StandbyValidators       []string  `yaml:"StandbyValidators"`
 		SeedList                []string  `yaml:"SeedList"`
