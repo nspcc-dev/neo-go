@@ -55,3 +55,8 @@ func (w *Witness) MarshalJSON() ([]byte, error) {
 func (w *Witness) Size() int {
 	return util.GetVarSize(w.InvocationScript) + util.GetVarSize(w.VerificationScript)
 }
+
+// ScriptHash returns the hash of the VerificationScript.
+func (w *Witness) ScriptHash() (util.Uint160, error) {
+	return util.Uint160FromScript(w.VerificationScript)
+}
