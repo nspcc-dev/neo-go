@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
@@ -183,7 +185,7 @@ Methods:
 
 		results = peers
 
-	case "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript", "sendrawtransaction":
+	case "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript":
 
 		results = "TODO"
 
@@ -257,6 +259,43 @@ Methods:
 			}
 		} else {
 			results = hex.EncodeToString(tx.Bytes())
+		}
+
+	case "sendrawtransaction":
+		param, err := reqParams.ValueWithType(0, "string")
+		if err != nil {
+			resultsErr = err
+		} else if byteTx, err := hex.DecodeString(param.StringVal); err != nil {
+			resultsErr = errInvalidParams
+		} else {
+			r := bytes.NewReader(byteTx)
+			tx := &transaction.Transaction{}
+			err = tx.DecodeBinary(r)
+			if err != nil {
+				err = errors.Wrap(err, "transaction DecodeBinary failed")
+			}
+			relayReason := s.coreServer.RelayTxn(tx)
+			switch relayReason {
+			case network.RelaySucceed:
+				results = true
+			case network.RelayAlreadyExists:
+				err = errors.New("block or transaction already exists and cannot be sent repeatedly")
+			case network.RelayOutOfMemory:
+				err = errors.New("the memory pool is full and no more transactions can be sent")
+			case network.RelayUnableToVerify:
+				err = errors.New("the block cannot be validated")
+			case network.RelayInvalid:
+				err = errors.New("block or transaction validation failed")
+			case network.RelayPolicyFail:
+				err = errors.New("one of the Policy filters failed")
+			default:
+				err = errors.New("unknown error")
+
+			}
+			if err != nil {
+				resultsErr = NewInternalServerError(err.Error(), err)
+			}
+
 		}
 
 	default:

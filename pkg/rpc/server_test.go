@@ -216,6 +216,27 @@ var testRpcCases = []tc{
 		method:         "validateaddress_4",
 		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
 	},
+
+	// Good case
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "sendrawtransaction", "params": ["80000190274d792072617720636f6e7472616374207472616e73616374696f6e206465736372697074696f6e01949354ea0a8b57dfee1e257a1aedd1e0eea2e5837de145e8da9c0f101bfccc8e0100029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500a3e11100000000ea610aa6db39bd8c8556c9569d94b5e5a5d0ad199b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5004f2418010000001cc9c05cefffe6cdd7b182816a9152ec218d2ec0014140dbd3cddac5cb2bd9bf6d93701f1a6f1c9dbe2d1b480c54628bbb2a4d536158c747a6af82698edf9f8af1cac3850bcb772bd9c8e4ac38f80704751cc4e0bd0e67232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"] }`,
+		method:         "sendrawtransaction_1",
+		expectedResult: `{"jsonrpc":"2.0","result":true,"id":1}`,
+	},
+
+	/* Good case: TODO: uncomment this test case once https://github.com/CityOfZion/neo-go/issues/173 is fixed!
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "sendrawtransaction", "params": ["d1001b00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c733101201cc9c05cefffe6cdd7b182816a9152ec218d2ec000000141403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"] }`,
+		method:         "sendrawtransaction_2",
+		expectedResult: `{"jsonrpc":"2.0","result":true,"id":1}`,
+	},*/
+
+	// Bad case, incorrect raw transaction
+	{
+		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "sendrawtransaction", "params": ["0274d792072617720636f6e7472616374207472616e73616374696f6e206465736372697074696f6e01949354ea0a8b57dfee1e257a1aedd1e0eea2e5837de145e8da9c0f101bfccc8e0100029b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc500a3e11100000000ea610aa6db39bd8c8556c9569d94b5e5a5d0ad199b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5004f2418010000001cc9c05cefffe6cdd7b182816a9152ec218d2ec0014140dbd3cddac5cb2bd9bf6d93701f1a6f1c9dbe2d1b480c54628bbb2a4d536158c747a6af82698edf9f8af1cac3850bcb772bd9c8e4ac38f80704751cc4e0bd0e67232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"] }`,
+		method:         "sendrawtransaction_1",
+		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
+	},
 }
 
 func TestHandler(t *testing.T) {
