@@ -229,74 +229,10 @@ Methods:
 			results = "Invalid public account address"
 		}
 	case "getrawtransaction":
-		param0, err := reqParams.ValueWithType(0, "string")
-		if err != nil {
-			resultsErr = err
-		} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
-			err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-		} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
-			err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
-			resultsErr = NewInvalidParamsError(err.Error(), err)
-		} else if len(reqParams) >= 2 {
-			_header := s.chain.GetHeaderHash(int(height))
-			header, err := s.chain.GetHeader(_header)
-			if err != nil {
-				resultsErr = NewInvalidParamsError(err.Error(), err)
-			}
-
-			param1, _ := reqParams.ValueAt(1)
-			switch v := param1.RawValue.(type) {
-
-			case int, float64, bool, string:
-				if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
-					results = hex.EncodeToString(tx.Bytes())
-				} else {
-					results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
-				}
-			default:
-				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
-			}
-		} else {
-			results = hex.EncodeToString(tx.Bytes())
-		}
+		results, resultsErr = s.getrawtransaction(reqParams)
 
 	case "sendrawtransaction":
-		param, err := reqParams.ValueWithType(0, "string")
-		if err != nil {
-			resultsErr = err
-		} else if byteTx, err := hex.DecodeString(param.StringVal); err != nil {
-			resultsErr = errInvalidParams
-		} else {
-			r := bytes.NewReader(byteTx)
-			tx := &transaction.Transaction{}
-			err = tx.DecodeBinary(r)
-			if err != nil {
-				err = errors.Wrap(err, "transaction DecodeBinary failed")
-			}
-			relayReason := s.coreServer.RelayTxn(tx)
-			switch relayReason {
-			case network.RelaySucceed:
-				results = true
-			case network.RelayAlreadyExists:
-				err = errors.New("block or transaction already exists and cannot be sent repeatedly")
-			case network.RelayOutOfMemory:
-				err = errors.New("the memory pool is full and no more transactions can be sent")
-			case network.RelayUnableToVerify:
-				err = errors.New("the block cannot be validated")
-			case network.RelayInvalid:
-				err = errors.New("block or transaction validation failed")
-			case network.RelayPolicyFail:
-				err = errors.New("one of the Policy filters failed")
-			default:
-				err = errors.New("unknown error")
-
-			}
-			if err != nil {
-				resultsErr = NewInternalServerError(err.Error(), err)
-			}
-
-		}
+		results, resultsErr = s.sendrawtransaction(reqParams)
 
 	default:
 		resultsErr = NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
@@ -308,6 +244,87 @@ Methods:
 	}
 
 	req.WriteResponse(w, results)
+}
+
+func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
+	var resultsErr error
+	var results interface{}
+
+	param0, err := reqParams.ValueWithType(0, "string")
+	if err != nil {
+		resultsErr = err
+	} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
+		err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
+		resultsErr = NewInvalidParamsError(err.Error(), err)
+	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
+		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
+		resultsErr = NewInvalidParamsError(err.Error(), err)
+	} else if len(reqParams) >= 2 {
+		_header := s.chain.GetHeaderHash(int(height))
+		header, err := s.chain.GetHeader(_header)
+		if err != nil {
+			resultsErr = NewInvalidParamsError(err.Error(), err)
+		}
+
+		param1, _ := reqParams.ValueAt(1)
+		switch v := param1.RawValue.(type) {
+
+		case int, float64, bool, string:
+			if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
+				results = hex.EncodeToString(tx.Bytes())
+			} else {
+				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+			}
+		default:
+			results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+		}
+	} else {
+		results = hex.EncodeToString(tx.Bytes())
+	}
+
+	return results, resultsErr
+}
+
+func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
+	var resultsErr error
+	var results interface{}
+
+	param, err := reqParams.ValueWithType(0, "string")
+	if err != nil {
+		resultsErr = err
+	} else if byteTx, err := hex.DecodeString(param.StringVal); err != nil {
+		resultsErr = errInvalidParams
+	} else {
+		r := bytes.NewReader(byteTx)
+		tx := &transaction.Transaction{}
+		err = tx.DecodeBinary(r)
+		if err != nil {
+			err = errors.Wrap(err, "transaction DecodeBinary failed")
+		}
+		relayReason := s.coreServer.RelayTxn(tx)
+		switch relayReason {
+		case network.RelaySucceed:
+			results = true
+		case network.RelayAlreadyExists:
+			err = errors.New("block or transaction already exists and cannot be sent repeatedly")
+		case network.RelayOutOfMemory:
+			err = errors.New("the memory pool is full and no more transactions can be sent")
+		case network.RelayUnableToVerify:
+			err = errors.New("the block cannot be validated")
+		case network.RelayInvalid:
+			err = errors.New("block or transaction validation failed")
+		case network.RelayPolicyFail:
+			err = errors.New("one of the Policy filters failed")
+		default:
+			err = errors.New("unknown error")
+
+		}
+		if err != nil {
+			resultsErr = NewInternalServerError(err.Error(), err)
+		}
+	}
+
+	return results, resultsErr
 }
 
 func (s Server) validBlockHeight(param *Param) bool {
