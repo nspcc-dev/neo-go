@@ -19,7 +19,6 @@ import (
 
 // tuning parameters
 const (
-	secondsPerBlock  = 15
 	headerBatchCount = 2000
 	version          = "0.0.1"
 )
@@ -930,4 +929,8 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, index)
 	return append(h.BytesReverse(), buf...)
+}
+
+func (bc *Blockchain) secondsPerBlock() int {
+	return bc.config.SecondsPerBlock
 }
