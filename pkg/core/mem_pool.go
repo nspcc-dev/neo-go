@@ -105,7 +105,6 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	var pool PoolItems
 
 	mp.lock.Lock()
-
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		return false
 	}

@@ -57,6 +57,6 @@ func (w *Witness) Size() int {
 }
 
 // ScriptHash returns the hash of the VerificationScript.
-func (w *Witness) ScriptHash() (util.Uint160, error) {
+func (w Witness) ScriptHash() (util.Uint160, error) {
 	return util.Uint160FromScript(w.VerificationScript)
 }

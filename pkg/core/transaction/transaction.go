@@ -258,7 +258,7 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 }
 
 // GroupOutputByAssetID groups all TX outputs by their assetID.
-func (t *Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
+func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 	m := make(map[util.Uint256][]*Output)
 	for _, out := range t.Outputs {
 		m[out.AssetID] = append(m[out.AssetID], out)

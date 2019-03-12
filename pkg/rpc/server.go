@@ -254,8 +254,7 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	if err != nil {
 		resultsErr = err
 	} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
-		err = errors.Wrapf(err, "param at index 0, (%s), could not be decode to Uint256", param0.StringVal)
-		resultsErr = NewInvalidParamsError(err.Error(), err)
+		resultsErr = errInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
 		resultsErr = NewInvalidParamsError(err.Error(), err)

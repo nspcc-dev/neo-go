@@ -116,7 +116,7 @@ var testRpcCases = []tc{
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a", 1] }`,
 		method:         "getrawtransaction_4",
-		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params","data":"param at index 0, (45a41306c846ea80290416143e8e856559818065be3f4e143c60e43a), could not be decode to Uint256: expected string size of 64 got 56"},"id":1}`,
+		expectedResult: `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"},"id":1}`,
 	},
 
 	// Good case, valid transaction
