@@ -2,6 +2,7 @@ package core
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -20,6 +21,7 @@ type PoolItems []*PoolItem
 
 // MemPool stores the unconfirms transactions.
 type MemPool struct {
+	lock                        *sync.Mutex
 	unsortedTxn                 map[util.Uint256]*PoolItem
 	unverifiedTxn               map[util.Uint256]*PoolItem
 	sortedHighPrioTxn           PoolItems
@@ -32,13 +34,13 @@ type MemPool struct {
 
 func (p PoolItems) Len() int           { return len(p) }
 func (p PoolItems) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p PoolItems) Less(i, j int) bool { return (p[i].CompareTo(p[j]) < 0) }
+func (p PoolItems) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 
 // CompareTo returns the difference between two PoolItems.
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p *PoolItem) CompareTo(otherP *PoolItem) int {
+func (p PoolItem) CompareTo(otherP *PoolItem) int {
 	if otherP == nil {
 		return 1
 	}
@@ -76,11 +78,17 @@ func (p *PoolItem) CompareTo(otherP *PoolItem) int {
 
 // Count returns the total number of uncofirm transactions.
 func (mp MemPool) Count() int {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
+
 	return len(mp.unsortedTxn) + len(mp.unverifiedTxn)
 }
 
 // ContainsKey checks if a transactions hash is in the MemPool.
 func (mp MemPool) ContainsKey(hash util.Uint256) bool {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
+
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		return true
 	}
@@ -96,30 +104,39 @@ func (mp MemPool) ContainsKey(hash util.Uint256) bool {
 func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	var pool PoolItems
 
+	mp.lock.Lock()
+
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
+	mp.lock.Unlock()
 
 	if pItem.fee.IsLowPriority(pItem.txn) {
 		pool = mp.sortedLowPrioTxn
 	} else {
 		pool = mp.sortedHighPrioTxn
 	}
+
+	mp.lock.Lock()
 	pool = append(pool, pItem)
 	sort.Sort(pool)
+	mp.lock.Unlock()
 
 	if mp.Count() > mp.capacity {
-
+		(&mp).RemoveOverCapacity()
 	}
-
+	mp.lock.Lock()
 	_, ok := mp.unsortedTxn[hash]
+	mp.lock.Unlock()
 	return ok
 }
 
-// RemoveOverCapacity removes ...
-func (mp MemPool) RemoveOverCapacity(pool map[util.Uint256]PoolItem, time time.Time) {
+// RemoveOverCapacity removes transactions with lowest fees until the total number of transactions
+// in the MemPool is within the capacity of the MemPool.
+func (mp *MemPool) RemoveOverCapacity() {
 	for mp.Count()-mp.capacity > 0 {
+		mp.lock.Lock()
 		if minItem, argPosition := getLowestFeeTransaction(mp.sortedLowPrioTxn, mp.unverifiedSortedLowPrioTxn); minItem != nil {
 			if argPosition == 1 {
 				// minItem belongs to the mp.sortedLowPrioTxn slice.
@@ -147,6 +164,7 @@ func (mp MemPool) RemoveOverCapacity(pool map[util.Uint256]PoolItem, time time.T
 
 			}
 		}
+		mp.lock.Unlock()
 	}
 
 }
@@ -163,6 +181,7 @@ func NewPoolItem(t *transaction.Transaction, fee Feer) *PoolItem {
 // NewMemPool returns a new MemPool struct.
 func NewMemPool(capacity int) MemPool {
 	return MemPool{
+		lock:          new(sync.Mutex),
 		unsortedTxn:   make(map[util.Uint256]*PoolItem),
 		unverifiedTxn: make(map[util.Uint256]*PoolItem),
 		capacity:      capacity,
@@ -171,6 +190,8 @@ func NewMemPool(capacity int) MemPool {
 
 // TryGetValue returns a transactions if it esists in the memory pool.
 func (mp MemPool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
 	if pItem, ok := mp.unsortedTxn[hash]; ok {
 		return pItem.txn, ok
 	}
@@ -203,19 +224,19 @@ func getLowestFeeTransaction(verifiedTxnSorted PoolItems, unverifiedTxnSorted Po
 // min return the minimum item in a ascending sorted slice of pool items.
 // The  function can't be applied to unsorted slice!
 func min(sortedPool PoolItems) *PoolItem {
-	var minItem *PoolItem
-	if len(sortedPool) > 0 {
-		minItem = sortedPool[0]
-	} else {
-		minItem = nil
+	if len(sortedPool) == 0 {
+		return nil
 	}
-	return minItem
+	return sortedPool[0]
 }
 
 // GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
 // whose hash is not included in excludedHashes.
 func (mp *MemPool) GetVerifiedTransactions() []*transaction.Transaction {
 	var t []*transaction.Transaction
+
+	mp.lock.Lock()
+	defer mp.lock.Unlock()
 	for _, p := range mp.unsortedTxn {
 		t = append(t, p.txn)
 	}
@@ -227,24 +248,21 @@ func (mp *MemPool) GetVerifiedTransactions() []*transaction.Transaction {
 // If yes, the transaction tx is not a valid transaction and the function return false.
 // If no, the transaction tx is a valid transaction and the function return true.
 func (mp MemPool) Verify(tx *transaction.Transaction) bool {
-	var mpInputs []transaction.Input
+	count := 0
+	inputs := make([]*transaction.Input, 0)
+	for _, item := range mp.GetVerifiedTransactions() {
+		if tx.Hash().Equals(item.Hash()) {
+			inputs = append(inputs, item.Inputs...)
+		}
+	}
 
-	mpTxn := mp.GetVerifiedTransactions()
-	for _, t := range mpTxn {
-		if t.Hash() != tx.Hash() {
-			for _, in := range t.Inputs {
-				mpInputs = append(mpInputs, *in)
+	for i := 0; i < len(inputs); i++ {
+		for j := 0; j < len(tx.Inputs); j++ {
+			if inputs[i].PrevHash.Equals(tx.Inputs[j].PrevHash) {
+				count++
 			}
 		}
 	}
 
-	var txInputs []transaction.Input
-	for _, in := range tx.Inputs {
-		txInputs = append(txInputs, *in)
-	}
-
-	if i := transaction.InputIntersection(mpInputs, txInputs); len(i) > 0 {
-		return false
-	}
-	return true
+	return count == 0
 }

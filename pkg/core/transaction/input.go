@@ -36,23 +36,6 @@ func (in *Input) EncodeBinary(w io.Writer) error {
 }
 
 // Size returns the size in bytes of the Input
-func (in *Input) Size() int {
+func (in Input) Size() int {
 	return in.PrevHash.Size() + 2 // 2 = sizeOf uint16
-}
-
-// InputIntersection finds the intersection between to input slice a, b.
-func InputIntersection(a, b []Input) []Input {
-	m := make(map[Input]bool)
-	c := []Input{}
-
-	for _, item := range a {
-		m[item] = true
-	}
-
-	for _, item := range b {
-		if _, ok := m[item]; ok {
-			c = append(c, item)
-		}
-	}
-	return c
 }
