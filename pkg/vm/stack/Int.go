@@ -11,6 +11,8 @@ type Int struct {
 // NewInt will convert a big integer into
 // a StackInteger
 func NewInt(val *big.Int) (*Int, error) {
+	// TOODO: check it is 32 bytes
+
 	return &Int{
 		abstractItem: &abstractItem{},
 		val:          val,
@@ -76,20 +78,19 @@ func (i *Int) Integer() (*Int, error) {
 // ByteArray override the default ByteArray method
 // to convert a Integer into a byte Array
 func (i *Int) ByteArray() (*ByteArray, error) {
-	return &ByteArray{
-		i.abstractItem,
-		i.val.Bytes(),
-	}, nil
+	b := i.val.Bytes()
+	dest := reverse(b)
+	return NewByteArray(dest), nil
 }
 
 //Boolean override the default Boolean method
 // to convert an Integer into a Boolean StackItem
 func (i *Int) Boolean() (*Boolean, error) {
-
 	boolean := (i.val.Int64() != 0)
-	return &Boolean{
-		i.abstractItem,
-		boolean,
-	}, nil
+	return NewBoolean(boolean)
+}
 
+//Value returns the underlying big.Int
+func (i *Int) Value() *big.Int {
+	return i.val
 }

@@ -29,29 +29,33 @@ func (ba *ByteArray) ByteArray() (*ByteArray, error) {
 //Integer overrides the default Integer method to convert an
 // ByteArray Into an integer
 func (ba *ByteArray) Integer() (*Int, error) {
-
-	dest := make([]byte, 0)
-
-	for i, j := 0, len(ba.val)-1; i < j+1; i, j = i+1, j-1 {
-		dest[i], dest[j] = ba.val[j], ba.val[i]
-	}
-
+	dest := reverse(ba.val)
 	integerVal := new(big.Int).SetBytes(dest)
+	return NewInt(integerVal)
 
-	return &Int{
-		ba.abstractItem,
-		integerVal,
-	}, nil
 }
 
-// Boolean will convert
+// Boolean will convert a byte array into a boolean stack item
 func (ba *ByteArray) Boolean() (*Boolean, error) {
 	boolean, err := strconv.ParseBool(string(ba.val))
 	if err != nil {
 		return nil, errors.New("cannot convert byte array to a boolean")
 	}
-	return &Boolean{
-		ba.abstractItem,
-		boolean,
-	}, nil
+	return NewBoolean(boolean)
+}
+
+// XXX: move this into a pkg/util/slice folder
+// Go mod not working
+func reverse(b []byte) []byte {
+	if len(b) < 2 {
+		return b
+	}
+
+	dest := make([]byte, len(b))
+
+	for i, j := 0, len(b)-1; i < j+1; i, j = i+1, j-1 {
+		dest[i], dest[j] = b[j], b[i]
+	}
+
+	return dest
 }

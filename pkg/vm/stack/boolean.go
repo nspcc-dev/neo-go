@@ -6,6 +6,14 @@ type Boolean struct {
 	val bool
 }
 
+//NewBoolean returns a new boolean stack item
+func NewBoolean(val bool) (*Boolean, error) {
+	return &Boolean{
+		&abstractItem{},
+		val,
+	}, nil
+}
+
 // Boolean overrides the default implementation
 // by the abstractItem, returning a Boolean struct
 func (b *Boolean) Boolean() (*Boolean, error) {

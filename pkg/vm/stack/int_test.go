@@ -55,3 +55,18 @@ func TestRsh(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, true, expected.Equal(c))
 }
+
+func TestByteArrConversion(t *testing.T) {
+
+	var num int64 = 100000
+
+	a := testMakeStackInt(t, num)
+	ba, err := a.ByteArray()
+	assert.Nil(t, err)
+
+	have, err := ba.Integer()
+	assert.Nil(t, err)
+
+	assert.Equal(t, num, have.val.Int64())
+
+}
