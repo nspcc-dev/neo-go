@@ -612,7 +612,7 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
 func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
-	references := make(map[util.Uint256]*transaction.Output)
+	references := make(map[util.Uint256]*transaction.Output, 0)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
 		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
@@ -733,52 +733,51 @@ func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
 }
 
 func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
-	if results := bc.GetTransationResults(t); results == nil {
+	results := bc.GetTransationResults(t)
+	if results == nil {
 		return false
-	} else {
-		var resultsDestroy []*transaction.Result
-		var resultsIssue []*transaction.Result
-		for _, re := range results {
-			if re.Amount.GreaterThan(util.Fixed8(0)) {
-				resultsDestroy = append(resultsDestroy, re)
-			}
-
-			if re.Amount.LessThan(util.Fixed8(0)) {
-				resultsIssue = append(resultsIssue, re)
-			}
-		}
-		if len(resultsDestroy) > 1 {
-			return false
-		}
-		if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
-			return false
-		}
-		if bc.SystemFee(t).GreaterThan(util.Fixed8(0)) && (len(resultsDestroy) == 0 || resultsDestroy[0].Amount.LessThan(bc.SystemFee(t))) {
-			return false
+	}
+	var resultsDestroy []*transaction.Result
+	var resultsIssue []*transaction.Result
+	for _, re := range results {
+		if re.Amount.GreaterThan(util.Fixed8(0)) {
+			resultsDestroy = append(resultsDestroy, re)
 		}
 
-		switch t.Type {
-		case transaction.MinerType, transaction.ClaimType:
-			for _, r := range resultsIssue {
-				if r.AssetID != utilityTokenTX().Hash() {
-					return false
-				}
-			}
-			break
-		case transaction.IssueType:
-			for _, r := range resultsIssue {
-				if r.AssetID == utilityTokenTX().Hash() {
-					return false
-				}
-			}
-			break
-		default:
-			if len(resultsIssue) > 0 {
+		if re.Amount.LessThan(util.Fixed8(0)) {
+			resultsIssue = append(resultsIssue, re)
+		}
+	}
+	if len(resultsDestroy) > 1 {
+		return false
+	}
+	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
+		return false
+	}
+	if bc.SystemFee(t).GreaterThan(util.Fixed8(0)) && (len(resultsDestroy) == 0 || resultsDestroy[0].Amount.LessThan(bc.SystemFee(t))) {
+		return false
+	}
+
+	switch t.Type {
+	case transaction.MinerType, transaction.ClaimType:
+		for _, r := range resultsIssue {
+			if r.AssetID != utilityTokenTX().Hash() {
 				return false
 			}
-			break
 		}
-
+		break
+	case transaction.IssueType:
+		for _, r := range resultsIssue {
+			if r.AssetID == utilityTokenTX().Hash() {
+				return false
+			}
+		}
+		break
+	default:
+		if len(resultsIssue) > 0 {
+			return false
+		}
+		break
 	}
 
 	return true
@@ -814,8 +813,8 @@ func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transa
 			}
 		}
 
+		results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
 		for assetID, amount := range tempGroupResult {
-			results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
 			if amount != util.Fixed8(0) {
 				results = append(results, &transaction.Result{
 					AssetID: assetID,
@@ -847,7 +846,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	}
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.Script {
-			h, err := util.Uint160FromScript(a.Data)
+			h, err := util.Uint160DecodeBytes(a.Data)
 			if err != nil {
 				return nil, err
 			}
