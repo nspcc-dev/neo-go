@@ -26,11 +26,12 @@ func NewVM(script []byte) *VM {
 
 // ExecuteOp will execute one opcode for a given context
 func (v *VM) ExecuteOp(op stack.Instruction, ctx *stack.Context) error {
+
 	handleOp, ok := opFunc[op]
 	if !ok {
 		return fmt.Errorf("unknown opcode entered %v", op)
 	}
-	err := handleOp(ctx, &v.InvocationStack)
+	err := handleOp(op, ctx, &v.InvocationStack)
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import (
 // Add adds two stack Items together.
 // Returns an error if either items cannot be casted to an integer
 // or if integers cannot be added together
-func Add(ctx *stack.Context, istack *stack.Invocation) error {
+func Add(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) error {
 
 	operandA, operandB, err := popTwoIntegers(ctx)
 
@@ -24,7 +24,7 @@ func Add(ctx *stack.Context, istack *stack.Invocation) error {
 // Sub subtracts two stack Items.
 // Returns an error if either items cannot be casted to an integer
 // or if integers cannot be subtracted together
-func Sub(ctx *stack.Context, istack *stack.Invocation) error {
+func Sub(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) error {
 
 	operandA, operandB, err := popTwoIntegers(ctx)
 
