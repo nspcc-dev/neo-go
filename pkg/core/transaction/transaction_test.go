@@ -86,6 +86,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
 		t.Fatal(err)
 	}
+	assert.Equal(t, int(tx.Version), 1)
 	assert.Equal(t, tx.Type, InvocationType)
 	assert.IsType(t, tx.Data, &InvocationTX{})
 
@@ -108,4 +109,41 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
+}
+
+func TestDecodeEncodeInvocationTX2(t *testing.T) {
+	b, err := hex.DecodeString(rawInvocationTX2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, int(tx.Version), 0)
+
+	//@todo: add the following assert once issue https://github.com/CityOfZion/neo-go/issues/177 is fixed
+	//assert.Equal(t, tx.Size(), 157)
+	assert.Equal(t, tx.Type, InvocationType)
+	assert.IsType(t, tx.Data, &InvocationTX{})
+
+	invocTX := tx.Data.(*InvocationTX)
+	script := "00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c7331"
+	assert.Equal(t, script, hex.EncodeToString(invocTX.Script))
+	assert.Equal(t, util.Fixed8(0), invocTX.Gas)
+
+	assert.Equal(t, 1, len(tx.Attributes))
+	assert.Equal(t, 0, len(tx.Inputs))
+	assert.Equal(t, 0, len(tx.Outputs))
+	invoc := "403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6"
+	verif := "2103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"
+	assert.Equal(t, 1, len(tx.Scripts))
+	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawInvocationTX2, hex.EncodeToString(buf.Bytes()))
 }

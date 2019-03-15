@@ -130,7 +130,11 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	switch t.Type {
 	case InvocationType:
 		t.Data = &InvocationTX{}
-		return t.Data.(*InvocationTX).DecodeBinary(r)
+		invTx := t.Data.(*InvocationTX)
+		if t.Version >= 1 {
+			invTx.decodeEncodeGasFlag = true
+		}
+		return invTx.DecodeBinary(r)
 	case MinerType:
 		t.Data = &MinerTX{}
 		return t.Data.(*MinerTX).DecodeBinary(r)
@@ -189,6 +193,11 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 
 	// Underlying TXer.
 	if t.Data != nil {
+		if invTx, ok := t.Data.(*InvocationTX); ok {
+			if t.Version >= 1 {
+				invTx.decodeEncodeGasFlag = true
+			}
+		}
 		if err := t.Data.EncodeBinary(w); err != nil {
 			return err
 		}
