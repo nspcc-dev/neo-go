@@ -11,8 +11,6 @@ type Int struct {
 // NewInt will convert a big integer into
 // a StackInteger
 func NewInt(val *big.Int) (*Int, error) {
-	// TOODO: check it is 32 bytes
-
 	return &Int{
 		abstractItem: &abstractItem{},
 		val:          val,

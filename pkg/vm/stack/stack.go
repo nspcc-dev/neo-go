@@ -119,3 +119,15 @@ func (ras *RandomAccess) Peek(n uint16) (Item, error) {
 
 	return ras.vals[index], nil
 }
+
+// Convenience Functions
+
+// PopInt will remove the last stack item that was added
+// And cast it to an integer
+func (ras *RandomAccess) PopInt() (*Int, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.Integer()
+}
