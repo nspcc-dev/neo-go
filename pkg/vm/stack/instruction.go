@@ -1,4 +1,4 @@
-package vm
+package stack
 
 // Instruction represents a operation code in the neovm
 type Instruction byte
