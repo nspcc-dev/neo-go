@@ -10,6 +10,7 @@ type Item interface {
 	Boolean() (*Boolean, error)
 	ByteArray() (*ByteArray, error)
 	Array() (*Array, error)
+	Context() (*Context, error)
 }
 
 // Represents an `abstract` stack item
@@ -39,4 +40,10 @@ func (a *abstractItem) ByteArray() (*ByteArray, error) {
 // Implements Item interface
 func (a *abstractItem) Array() (*Array, error) {
 	return nil, errors.New("This stack item is not an array")
+}
+
+// Context is the default implementation for a stackItem
+// Implements Item interface
+func (a *abstractItem) Context() (*Context, error) {
+	return nil, errors.New("This stack item is not of type context")
 }
