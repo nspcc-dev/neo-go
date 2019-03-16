@@ -19,8 +19,8 @@ type Point struct {
 	Y *big.Int
 }
 
-/* y**2 = x**3 + a*x + b  % p */
 // Curve represents the parameters of a short Weierstrass equation elliptic curve.
+/* y**2 = x**3 + a*x + b  % p */
 type Curve struct {
 	A    *big.Int
 	B    *big.Int
@@ -44,6 +44,7 @@ func (p *Point) format() string {
 	return fmt.Sprintf("(%s,%s)", hex.EncodeToString(p.X.Bytes()), hex.EncodeToString(p.Y.Bytes()))
 }
 
+// Params represent the paramters for the Elliptic Curve
 func (ec Curve) Params() *nativeelliptic.CurveParams {
 	return &nativeelliptic.CurveParams{
 		P:       ec.P,
@@ -302,12 +303,13 @@ func (ec *Curve) Decompress(x *big.Int, ylsb uint) (P Point, err error) {
 	P.Y = y
 
 	if !ec.IsOnCurve(P.X, P.Y) {
-		return P, errors.New("Compressed (x, ylsb) not on curve.")
+		return P, errors.New("compressed (x, ylsb) not on curve")
 	}
 
 	return P, nil
 }
 
+// Double will return the (x1+x1,y1+y1)
 func (ec Curve) Double(x1, y1 *big.Int) (x, y *big.Int) {
 	x = &big.Int{}
 	x.SetBytes([]byte{0x00})
