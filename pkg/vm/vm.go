@@ -9,12 +9,13 @@ import (
 // VM represents an instance of a Neo Virtual Machine
 type VM struct {
 	InvocationStack stack.Invocation
-	state           vmstate
+	state           Vmstate
 }
 
-//NewVM loads in a script
-// uses the script to initiate a Context object
-// pushes the context to the invocation stack
+// NewVM will:
+// Set the state of the VM to NONE
+// instantiate a script as a new context
+// Push the Context to the Invocation stack
 func NewVM(script []byte) *VM {
 	ctx := stack.NewContext(script)
 	v := &VM{
@@ -24,16 +25,43 @@ func NewVM(script []byte) *VM {
 	return v
 }
 
-// ExecuteOp will execute one opcode for a given context
-func (v *VM) ExecuteOp(op stack.Instruction, ctx *stack.Context) error {
+// Run loops over the current context by continuously steppping.
+// Run breaks; once step returns an error or any state that is not NONE
+func (v *VM) Run() (Vmstate, error) {
+	for {
+		state, err := v.step()
+		if err != nil || state != NONE {
+			return state, err
+		}
+	}
+}
 
+// step will read `one` opcode from the script in the current context
+// Then excute that opcode
+func (v *VM) step() (Vmstate, error) {
+	// Get Current Context
+	ctx, err := v.InvocationStack.CurrentContext()
+	if err != nil {
+		return FAULT, err
+	}
+	// Read Opcode from context
+	op, _ := ctx.Next() // The only error that can occur from this, is if the pointer goes over the pointer
+	// In the NEO-VM specs, this is ignored and we return the RET opcode
+	// Execute OpCode
+	state, err := v.executeOp(stack.Instruction(op), ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	return state, nil
+}
+
+// ExecuteOp will execute one opcode on a given context.
+// If the opcode is not registered, then an unknown opcode error will be returned
+func (v *VM) executeOp(op stack.Instruction, ctx *stack.Context) (Vmstate, error) {
+	//Find function which handles that specific opcode
 	handleOp, ok := opFunc[op]
 	if !ok {
-		return fmt.Errorf("unknown opcode entered %v", op)
+		return FAULT, fmt.Errorf("unknown opcode entered %v", op)
 	}
-	err := handleOp(op, ctx, &v.InvocationStack)
-	if err != nil {
-		return err
-	}
-	return nil
+	return handleOp(op, ctx, &v.InvocationStack)
 }
