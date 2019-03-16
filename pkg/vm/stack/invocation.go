@@ -21,16 +21,19 @@ func (i *Invocation) peekContext(n uint16) (*Context, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, err := item.Context()
-	if err != nil {
-		return nil, err
-	}
-	return ctx, nil
+	return item.Context()
 }
 
 // CurrentContext returns the current context on the invocation stack
 func (i *Invocation) CurrentContext() (*Context, error) {
 	return i.peekContext(0)
+}
+
+// RemoveCurrentContext removes the context on the top of the invocation stack
+// This is a convenience method for Pop
+func (i *Invocation) RemoveCurrentContext() error {
+	_, err := i.Pop()
+	return err
 }
 
 // CallingContext will return the cntext item

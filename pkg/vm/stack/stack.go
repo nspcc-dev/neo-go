@@ -106,15 +106,14 @@ func (ras *RandomAccess) Peek(n uint16) (Item, error) {
 		return ras.vals[index], nil
 	}
 
-	if ras.vals == nil {
-		return nil, errors.New("Cannot peak at a nil stack")
+	if ras.Len() < 1 {
+		return nil, fmt.Errorf("cannot peak at a stack with no item, length of stack is %d", ras.Len())
 	}
 
 	// Check that we are not peeking out of the bounds
 	if n > stackSize-1 {
 		return nil, fmt.Errorf("Tried to peek at index %d when length of stack is %d", n, len(ras.vals))
 	}
-
 	index := stackSize - n - 1
 
 	return ras.vals[index], nil
@@ -130,4 +129,14 @@ func (ras *RandomAccess) PopInt() (*Int, error) {
 		return nil, err
 	}
 	return item.Integer()
+}
+
+// PopByteArray will remove the last stack item that was added
+// And cast it to an ByteArray
+func (ras *RandomAccess) PopByteArray() (*ByteArray, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.ByteArray()
 }

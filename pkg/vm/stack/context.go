@@ -41,12 +41,12 @@ func (c *Context) Context() (*Context, error) {
 }
 
 // Next return the next instruction to execute.
-func (c *Context) Next() Instruction {
+func (c *Context) Next() (Instruction, error) {
 	c.ip++
 	if c.ip >= len(c.prog) {
-		return RET
+		return RET, errors.New("program pointer is more than the length of program. RETURNING")
 	}
-	return Instruction(c.prog[c.ip])
+	return Instruction(c.prog[c.ip]), nil
 }
 
 // IP returns the absolute instruction without taking 0 into account.
