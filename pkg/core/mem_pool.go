@@ -21,7 +21,7 @@ type PoolItems []*PoolItem
 
 // MemPool stores the unconfirms transactions.
 type MemPool struct {
-	lock                        *sync.Mutex
+	lock                        *sync.RWMutex
 	unsortedTxn                 map[util.Uint256]*PoolItem
 	unverifiedTxn               map[util.Uint256]*PoolItem
 	sortedHighPrioTxn           PoolItems
@@ -135,7 +135,7 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 // in the MemPool is within the capacity of the MemPool.
 func (mp *MemPool) RemoveOverCapacity() {
 	for mp.Count()-mp.capacity > 0 {
-		mp.lock.Lock()
+		mp.lock.RLock()
 		if minItem, argPosition := getLowestFeeTransaction(mp.sortedLowPrioTxn, mp.unverifiedSortedLowPrioTxn); minItem != nil {
 			if argPosition == 1 {
 				// minItem belongs to the mp.sortedLowPrioTxn slice.
@@ -163,7 +163,7 @@ func (mp *MemPool) RemoveOverCapacity() {
 
 			}
 		}
-		mp.lock.Unlock()
+		mp.lock.RUnlock()
 	}
 
 }
@@ -180,7 +180,7 @@ func NewPoolItem(t *transaction.Transaction, fee Feer) *PoolItem {
 // NewMemPool returns a new MemPool struct.
 func NewMemPool(capacity int) MemPool {
 	return MemPool{
-		lock:          new(sync.Mutex),
+		lock:          new(sync.RWMutex),
 		unsortedTxn:   make(map[util.Uint256]*PoolItem),
 		unverifiedTxn: make(map[util.Uint256]*PoolItem),
 		capacity:      capacity,
