@@ -7,15 +7,20 @@ type Boolean struct {
 }
 
 //NewBoolean returns a new boolean stack item
-func NewBoolean(val bool) (*Boolean, error) {
+func NewBoolean(val bool) *Boolean {
 	return &Boolean{
 		&abstractItem{},
 		val,
-	}, nil
+	}
 }
 
 // Boolean overrides the default implementation
 // by the abstractItem, returning a Boolean struct
 func (b *Boolean) Boolean() (*Boolean, error) {
 	return b, nil
+}
+
+// Value returns the underlying boolean value
+func (b *Boolean) Value() bool {
+	return b.val
 }

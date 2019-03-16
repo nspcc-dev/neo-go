@@ -1,6 +1,7 @@
 package stack
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 	"strconv"
@@ -26,6 +27,15 @@ func (ba *ByteArray) ByteArray() (*ByteArray, error) {
 	return ba, nil
 }
 
+//Equals returns true, if two bytearrays are equal
+func (ba *ByteArray) Equals(other *ByteArray) *Boolean {
+	// If either are nil, return false
+	if ba == nil || other == nil {
+		return NewBoolean(false)
+	}
+	return NewBoolean(bytes.Equal(ba.val, other.val))
+}
+
 //Integer overrides the default Integer method to convert an
 // ByteArray Into an integer
 func (ba *ByteArray) Integer() (*Int, error) {
@@ -41,7 +51,7 @@ func (ba *ByteArray) Boolean() (*Boolean, error) {
 	if err != nil {
 		return nil, errors.New("cannot convert byte array to a boolean")
 	}
-	return NewBoolean(boolean)
+	return NewBoolean(boolean), nil
 }
 
 // XXX: move this into a pkg/util/slice folder

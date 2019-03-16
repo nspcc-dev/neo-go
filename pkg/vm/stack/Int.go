@@ -85,7 +85,7 @@ func (i *Int) ByteArray() (*ByteArray, error) {
 // to convert an Integer into a Boolean StackItem
 func (i *Int) Boolean() (*Boolean, error) {
 	boolean := (i.val.Int64() != 0)
-	return NewBoolean(boolean)
+	return NewBoolean(boolean), nil
 }
 
 //Value returns the underlying big.Int
