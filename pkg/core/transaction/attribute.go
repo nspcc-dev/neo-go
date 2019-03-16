@@ -91,7 +91,7 @@ func (attr *Attribute) Size() int {
 	case Description:
 		return 2 + len(attr.Data) // uint8 + uint8+ len of data = size(attrUsage) + size(byte) + len of data
 	default:
-		return 1 + len(attr.Data) // uint8 + len of data = size(attrUsage) + len of data
+		return 1 + util.GetVarSize(attr.Data) // uint8 + GetVarSize(attr.Data)
 	}
 }
 
