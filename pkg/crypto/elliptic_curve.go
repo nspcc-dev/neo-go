@@ -150,6 +150,14 @@ func (p *ECPoint) IsInfinity() bool {
 	return p.X == nil && p.Y == nil
 }
 
+// Size define the size in bytes of an ECPoint.
+func (p ECPoint) Size() int {
+	if p.IsInfinity() {
+		return 1
+	}
+	return 33
+}
+
 // IsInfinity checks if point P is infinity on EllipticCurve ec.
 func (c *EllipticCurve) IsInfinity(P ECPoint) bool {
 	return P.X == nil && P.Y == nil

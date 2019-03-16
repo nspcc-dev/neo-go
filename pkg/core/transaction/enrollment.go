@@ -26,3 +26,9 @@ func (tx *EnrollmentTX) DecodeBinary(r io.Reader) error {
 func (tx *EnrollmentTX) EncodeBinary(w io.Writer) error {
 	return tx.PublicKey.EncodeBinary(w)
 }
+
+// Size returns the size in bytes of the EnrollmentTX.
+func (tx EnrollmentTX) Size() int {
+	return tx.PublicKey.Size()
+
+}

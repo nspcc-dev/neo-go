@@ -36,3 +36,8 @@ func (tx *ClaimTX) EncodeBinary(w io.Writer) error {
 	}
 	return nil
 }
+
+// Size returns the size in bytes of the ClaimTX.
+func (tx ClaimTX) Size() int {
+	return util.GetVarSize(tx.Claims)
+}

@@ -86,6 +86,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
 		t.Fatal(err)
 	}
+	assert.Equal(t, int(tx.Version), 1)
 	assert.Equal(t, tx.Type, InvocationType)
 	assert.IsType(t, tx.Data, &InvocationTX{})
 
@@ -109,3 +110,167 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	}
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
 }
+
+func TestDecodeEncodeInvocationTX2(t *testing.T) {
+	b, err := hex.DecodeString(rawInvocationTX2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, int(tx.Version), 0)
+
+	//@todo: add the following assert once issue https://github.com/CityOfZion/neo-go/issues/177 is fixed
+	assert.Equal(t, tx.Size(), 157)
+	assert.Equal(t, tx.Type, InvocationType)
+	assert.IsType(t, tx.Data, &InvocationTX{})
+
+	invocTX := tx.Data.(*InvocationTX)
+	script := "00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c7331"
+	assert.Equal(t, script, hex.EncodeToString(invocTX.Script))
+	assert.Equal(t, util.Fixed8(0), invocTX.Gas)
+
+	assert.Equal(t, 1, len(tx.Attributes))
+	assert.Equal(t, 0, len(tx.Inputs))
+	assert.Equal(t, 0, len(tx.Outputs))
+	invoc := "403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6"
+	verif := "2103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"
+	assert.Equal(t, 1, len(tx.Scripts))
+	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawInvocationTX2, hex.EncodeToString(buf.Bytes()))
+}
+
+func TestMinerTX(t *testing.T) {
+	b, err := hex.DecodeString(rawMinerTX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, int(tx.Version), 0)
+	assert.Equal(t, tx.Size(), 10)
+	assert.Equal(t, tx.Type, MinerType)
+	assert.IsType(t, tx.Data, &MinerTX{})
+
+	MinerTX := tx.Data.(*MinerTX)
+	txid := "4c68669a54fa247d02545cff9d78352cb4a5059de7b3cd6ba82efad13953c9b9"
+
+	assert.Equal(t, 1113941606, int(MinerTX.Nonce))
+	assert.Equal(t, txid, tx.Hash().String())
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawMinerTX, hex.EncodeToString(buf.Bytes()))
+
+}
+
+func TestDecodeEncodeRegisterTX(t *testing.T) {
+	b, err := hex.DecodeString(rawRegisterTX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, int(tx.Version), 0)
+	assert.Equal(t, 302, tx.Size())
+	assert.Equal(t, RegisterType, tx.Type)
+	assert.IsType(t, tx.Data, &RegisterTX{})
+
+	registerTX := tx.Data.(*RegisterTX)
+	txid := "0c092117b4ba47b81001712425e6e7f760a637695eaf23741ba335925b195ecd"
+
+	assert.Equal(t, "ARFe4mTKRTETerRoMsyzBXoPt2EKBvBXFX", crypto.AddressFromUint160(registerTX.Admin))
+	assert.Equal(t, `[{"lang":"zh-CN","name":"TestCoin"}]`, registerTX.Name)
+	assert.Equal(t, 8, int(registerTX.Precision))
+	assert.Equal(t, 0, len(tx.Attributes))
+	assert.Equal(t, 1, len(tx.Inputs))
+	assert.Equal(t, 1, len(tx.Outputs))
+	assert.Equal(t, txid, tx.Hash().String())
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawRegisterTX, hex.EncodeToString(buf.Bytes()))
+
+}
+
+func TestDecodeEncodeContractTX(t *testing.T) {
+	b, err := hex.DecodeString(rawContractTX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+	txid := "e4d2ea5df2adf77df91049beccbb16f98863b93a16439c60381eac1f23bff178"
+
+	assert.Equal(t, int(tx.Version), 0)
+	assert.Equal(t, 383, tx.Size())
+	assert.Equal(t, ContractType, tx.Type)
+	assert.IsType(t, tx.Data, &ContractTX{})
+	assert.Equal(t, 1, len(tx.Attributes))
+	assert.Equal(t, 2, len(tx.Inputs))
+	assert.Equal(t, 1, len(tx.Outputs))
+	assert.Equal(t, 2, len(tx.Scripts))
+	assert.Equal(t, txid, tx.Hash().String())
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawContractTX, hex.EncodeToString(buf.Bytes()))
+
+}
+
+// TODO: uncomments and fixed the following test once https://github.com/CityOfZion/neo-go/issues/179 is resolved!
+/*func TestDecodeEncodePusblishTX(t *testing.T) {
+	b, err := hex.DecodeString(rawPublishTX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx := &Transaction{}
+	if err := tx.DecodeBinary(bytes.NewReader(b)); err != nil {
+		t.Fatal(err)
+	}
+	txid := "514157940a3e31b087891c5e8ed362721f0a7f3dda3f80b7a3fe618d02b7d3d3"
+
+	assert.Equal(t, int(tx.Version), 0)
+	assert.Equal(t, 402, tx.Size())
+	assert.Equal(t, PublishType, tx.Type)
+	assert.IsType(t, tx.Data, &PublishTX{})
+	assert.Equal(t, 0, len(tx.Attributes))
+	assert.Equal(t, 1, len(tx.Inputs))
+	assert.Equal(t, 1, len(tx.Outputs))
+
+	invoc := "402725b8f7e5ada56e5c5e85177cdda9dd6cf738a7f35861fb3413c4e05017125acae5d978cd9e89bda7ab13eb87ba960023cb44d085b9d2b06a88e47cefd6e224"
+	verif := "2102ff8ac54687f36bbc31a91b730cc385da8af0b581f2d59d82b5cfef824fd271f6ac"
+	assert.Equal(t, 1, len(tx.Scripts))
+	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
+	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
+	assert.Equal(t, txid, tx.Hash().String())
+
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeBinary(buf); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
+
+}
+*/

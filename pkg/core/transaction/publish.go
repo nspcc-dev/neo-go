@@ -79,3 +79,18 @@ func (tx *PublishTX) DecodeBinary(r io.Reader) error {
 func (tx *PublishTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+// Size return the size in byte of the PublishTX.
+func (tx PublishTX) Size() int {
+	s := util.GetVarSize(tx.Script)
+	pl := util.GetVarSize(tx.ParamList)
+	rt := util.GetVarSize(tx.ReturnType)
+	ns := util.GetVarSize(tx.NeedStorage)
+	n := util.GetVarSize(tx.Name)
+	cv := util.GetVarSize(tx.CodeVersion)
+	a := util.GetVarSize(tx.Author)
+	e := util.GetVarSize(tx.Email)
+	d := util.GetVarSize(tx.Description)
+
+	return s + pl + rt + ns + n + cv + a + e + d
+}

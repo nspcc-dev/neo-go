@@ -77,3 +77,16 @@ func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
 	}
 	return binary.Write(w, binary.LittleEndian, tx.Admin)
 }
+
+// Size return the size in byte of the RegisterTX.
+func (tx RegisterTX) Size() int {
+	assetTypeSize := util.GetVarSize(tx.AssetType)
+	nameSize := util.GetVarSize(tx.Name)
+	amoutSize := tx.Amount.Size()
+	ownerSize := tx.Owner.Size()
+	adminSize := tx.Admin.Size()
+
+	// uint8 + assetTypeSize + nameSize + amoutSize + ownerSize + adminSize
+	return 1 + assetTypeSize + nameSize + amoutSize + ownerSize + adminSize
+
+}

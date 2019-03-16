@@ -15,6 +15,12 @@ type InvocationTX struct {
 
 	// Gas cost of the smart contract.
 	Gas util.Fixed8
+
+	// decodeEncodeGasFlag depend from the transaction version.
+	// it is true if version >=1. Otherwise false.
+	// Depending from the flag the encoding and decoding behavior changes in regards to the
+	// Gas attribute
+	decodeEncodeGasFlag bool
 }
 
 // NewInvocationTX returns a new invocation transaction.
@@ -39,7 +45,12 @@ func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, tx.Script); err != nil {
 		return err
 	}
-	return binary.Read(r, binary.LittleEndian, &tx.Gas)
+	if tx.decodeEncodeGasFlag {
+		return binary.Read(r, binary.LittleEndian, &tx.Gas)
+	}
+	tx.Gas = util.Fixed8(0)
+
+	return nil
 }
 
 // EncodeBinary implements the Payload interface.
@@ -50,5 +61,14 @@ func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
 	if err := binary.Write(w, binary.LittleEndian, tx.Script); err != nil {
 		return err
 	}
-	return binary.Write(w, binary.LittleEndian, tx.Gas)
+	if tx.decodeEncodeGasFlag {
+		return binary.Write(w, binary.LittleEndian, tx.Gas)
+	}
+
+	return nil
+}
+
+// Size returns the size in bytes of the InvocationTX.
+func (tx InvocationTX) Size() int {
+	return util.GetVarSize(tx.Script)
 }

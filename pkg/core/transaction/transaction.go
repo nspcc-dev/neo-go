@@ -130,7 +130,11 @@ func (t *Transaction) decodeData(r io.Reader) error {
 	switch t.Type {
 	case InvocationType:
 		t.Data = &InvocationTX{}
-		return t.Data.(*InvocationTX).DecodeBinary(r)
+		invTx := t.Data.(*InvocationTX)
+		if t.Version >= 1 {
+			invTx.decodeEncodeGasFlag = true
+		}
+		return invTx.DecodeBinary(r)
 	case MinerType:
 		t.Data = &MinerTX{}
 		return t.Data.(*MinerTX).DecodeBinary(r)
@@ -189,6 +193,11 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 
 	// Underlying TXer.
 	if t.Data != nil {
+		if invTx, ok := t.Data.(*InvocationTX); ok {
+			if t.Version >= 1 {
+				invTx.decodeEncodeGasFlag = true
+			}
+		}
 		if err := t.Data.EncodeBinary(w); err != nil {
 			return err
 		}
@@ -253,12 +262,33 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 
 // Size returns the size of the transaction in term of bytes
 func (t *Transaction) Size() int {
+	var sizeType int
+	switch data := t.Data.(type) {
+	case *MinerTX:
+		// uint32
+		sizeType = data.Size()
+	case *ClaimTX:
+		sizeType = data.Size()
+	case *EnrollmentTX:
+		sizeType = data.Size()
+	case *RegisterTX:
+		sizeType = data.Size()
+	case *StateTX:
+		sizeType = data.Size()
+	case *PublishTX:
+		sizeType = data.Size()
+	case *InvocationTX:
+		sizeType = data.Size()
+	default:
+		sizeType = 0
+
+	}
 	attrSize := util.GetVarSize(t.Attributes)
 	inputSize := util.GetVarSize(t.Inputs)
 	outputSize := util.GetVarSize(t.Outputs)
 	witnesSize := util.GetVarSize(t.Scripts)
-	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
-	return 2 + attrSize + inputSize + outputSize + witnesSize
+	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize + sizeTypeTx
+	return 2 + attrSize + inputSize + outputSize + witnesSize + sizeType
 
 }
 

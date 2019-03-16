@@ -27,3 +27,9 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 func (tx *StateTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+// Size return the size in byte of the StateTX.
+func (tx StateTX) Size() int {
+	return util.GetVarSize(tx.Descriptors)
+
+}

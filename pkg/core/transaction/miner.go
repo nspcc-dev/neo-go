@@ -20,3 +20,9 @@ func (tx *MinerTX) DecodeBinary(r io.Reader) error {
 func (tx *MinerTX) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, tx.Nonce)
 }
+
+// Size return the size in byte of miner transation.
+func (tx MinerTX) Size() int {
+	// size of uint32
+	return 4
+}
