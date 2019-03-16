@@ -1,6 +1,7 @@
 package vm
 
-type vmstate byte
+//Vmstate represents all possible states that the neo-vm can be in
+type Vmstate byte
 
 const (
 	NONE  = 0
