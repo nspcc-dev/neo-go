@@ -24,7 +24,7 @@ func TestAddOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.ExecuteOp(stack.ADD, ctx)
+	v.executeOp(stack.ADD, ctx)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -54,7 +54,7 @@ func TestSubOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.ExecuteOp(stack.SUB, ctx)
+	v.executeOp(stack.SUB, ctx)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
