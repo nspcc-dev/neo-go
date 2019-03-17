@@ -1,6 +1,9 @@
 package base58
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math/big"
 )
@@ -75,4 +78,59 @@ func Encode(bytes []byte) string {
 	}
 
 	return encoded
+}
+
+// CheckDecode decodes the given string.
+func CheckDecode(s string) (b []byte, err error) {
+	b, err = Decode(s)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(s); i++ {
+		if s[i] != '1' {
+			break
+		}
+		b = append([]byte{0x00}, b...)
+	}
+
+	if len(b) < 5 {
+		return nil, errors.New("invalid base-58 check string: missing checksum.")
+	}
+
+	sha := sha256.New()
+	if _, err = sha.Write(b[:len(b)-4]); err != nil {
+		return nil, err
+	}
+	hash := sha.Sum(nil)
+
+	sha.Reset()
+	if _, err = sha.Write(hash); err != nil {
+		return nil, err
+	}
+	hash = sha.Sum(nil)
+
+	if !bytes.Equal(hash[0:4], b[len(b)-4:]) {
+		return nil, errors.New("invalid base-58 check string: invalid checksum.")
+	}
+
+	// Strip the 4 byte long hash.
+	b = b[:len(b)-4]
+
+	return b, nil
+}
+
+// CheckEncode encodes b into a base-58 check encoded string.
+func CheckEncode(b []byte) string {
+	sha := sha256.New()
+	sha.Write(b)
+	hash := sha.Sum(nil)
+
+	sha.Reset()
+	sha.Write(hash)
+	hash = sha.Sum(nil)
+
+	b = append(b, hash[0:4]...)
+
+	return Encode(b)
 }
