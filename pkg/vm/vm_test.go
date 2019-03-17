@@ -51,11 +51,13 @@ func TestPushAdd(t *testing.T) {
 	ok = peekTopEStackIsValue(t, vm, 54)
 	assert.True(t, ok)
 
-	// If we try to step again, we should get an error and HALT
+	// If we try to step again, we should get a nil error and HALT
 	// because we have gone over the instruction pointer
+	// error is nil because when there are nomore instructions, the vm
+	// will add a RET opcode and return
 	state, err = vm.step()
 	assert.Equal(t, HALT, int(state))
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 
 }
 
