@@ -1,6 +1,6 @@
 package slice
 
-// SliceReverse return a reversed version of the given byte slice.
+// Reverse return a reversed version of the given byte slice.
 func Reverse(b []byte) []byte {
 	// Protect from big.Ints that have 1 len bytes.
 	if len(b) < 2 {

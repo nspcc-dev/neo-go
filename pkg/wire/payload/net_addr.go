@@ -9,21 +9,21 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-// Once a VersionMessage is received, we can then store it inside of AddrMessage struct
-// TODO: store this inside version message and have a bool to indicate whether to encode ip
-// VersionMessage does not encodeIP
-type Net_addr struct {
+//NetAddr is an abstraction for the IP layer
+type NetAddr struct {
 	Timestamp uint32
 	IP        [16]byte
 	Port      uint16
 	Service   protocol.ServiceFlag
 }
 
-func NewNetAddr(time uint32, ip [16]byte, port uint16, service protocol.ServiceFlag) (*Net_addr, error) {
-	return &Net_addr{time, ip, port, service}, nil
+//NewNetAddr returns a NetAddr object
+func NewNetAddr(time uint32, ip [16]byte, port uint16, service protocol.ServiceFlag) (*NetAddr, error) {
+	return &NetAddr{time, ip, port, service}, nil
 }
 
-func NewAddrFromVersionMessage(version VersionMessage) (*Net_addr, error) {
+//NewAddrFromVersionMessage returns a NetAddr object from a version message
+func NewAddrFromVersionMessage(version VersionMessage) (*NetAddr, error) {
 
 	var ip [16]byte
 
@@ -32,21 +32,26 @@ func NewAddrFromVersionMessage(version VersionMessage) (*Net_addr, error) {
 	return NewNetAddr(version.Timestamp, ip, version.Port, version.Services)
 }
 
-func (n *Net_addr) EncodePayload(bw *util.BinWriter) {
+// EncodePayload Implements messager interface
+func (n *NetAddr) EncodePayload(bw *util.BinWriter) {
 
 	bw.Write(uint32(time.Now().Unix()))
 	bw.Write(protocol.NodePeerService)
 	bw.WriteBigEnd(n.IP)
 	bw.WriteBigEnd(n.Port)
 }
-func (n *Net_addr) DecodePayload(br *util.BinReader) {
+
+// DecodePayload Implements Messager interface
+func (n *NetAddr) DecodePayload(br *util.BinReader) {
 
 	br.Read(&n.Timestamp)
 	br.Read(&n.Service)
 	br.ReadBigEnd(&n.IP)
 	br.ReadBigEnd(&n.Port)
 }
-func (n *Net_addr) IPPort() string {
+
+//IPPort returns the IPPort from the NetAddr
+func (n *NetAddr) IPPort() string {
 	ip := net.IP(n.IP[:]).String()
 	port := strconv.Itoa(int(n.Port))
 	ipport := ip + ":" + port

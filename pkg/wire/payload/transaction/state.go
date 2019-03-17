@@ -6,11 +6,14 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//StateTX represents a state transaction on the neo network
+// XXX: TX postfix here as `state` is ambiguous. We can remove it for consistency
 type StateTX struct {
 	*Base
 	Descriptors []*StateDescriptor
 }
 
+//NewStateTX returns a state transaction
 func NewStateTX(ver version.TX) *StateTX {
 	basicTrans := createBaseTransaction(types.State, ver)
 

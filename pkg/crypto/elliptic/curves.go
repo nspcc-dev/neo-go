@@ -18,10 +18,13 @@ var curve Curve
 type curveType string
 
 const (
+	// Secp256r1 curve type
 	Secp256r1 curveType = "Secp256r1"
+	// Secp256k1 curve type
 	Secp256k1 curveType = "Secp256k1"
 )
 
+// SetCurveSecp256r1 Will set the curve parameters to match Secp256r1
 func (ChosenCurve *Curve) SetCurveSecp256r1() {
 	ChosenCurve.P, _ = new(big.Int).SetString("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF", 16) //Q
 	ChosenCurve.A, _ = new(big.Int).SetString("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC", 16)
@@ -33,6 +36,7 @@ func (ChosenCurve *Curve) SetCurveSecp256r1() {
 	ChosenCurve.Name = "Secp256r1"
 }
 
+// SetCurveSecp256k1 Will set the curve parameters to match Secp256k1
 func (ChosenCurve *Curve) SetCurveSecp256k1() {
 	ChosenCurve.P, _ = new(big.Int).SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16)
 	ChosenCurve.A, _ = new(big.Int).SetString("0000000000000000000000000000000000000000000000000000000000000000", 16)
@@ -44,6 +48,8 @@ func (ChosenCurve *Curve) SetCurveSecp256k1() {
 	ChosenCurve.Name = "Secp256k1"
 }
 
+//NewEllipticCurve will instantiate a new EllipticCurve
+//Defaults to secp256r1
 func NewEllipticCurve(ct curveType) Curve {
 	var curve Curve
 	switch ct {

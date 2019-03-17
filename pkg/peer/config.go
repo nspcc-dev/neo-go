@@ -6,7 +6,6 @@ import (
 )
 
 // LocalConfig specifies the properties that should be available for each remote peer
-
 type LocalConfig struct {
 	Net         protocol.Magic
 	UserAgent   string

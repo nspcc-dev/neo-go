@@ -7,12 +7,14 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//GetHeadersMessage represents a GetHeaders message on the neo-network
 type GetHeadersMessage struct {
 	cmd       command.Type
 	hashStart []util.Uint256
 	hashStop  util.Uint256
 }
 
+// NewGetHeadersMessage returns a NewGetHeaders object
 // Start contains the list of all headers you want to fetch
 // End contains the list of the highest header hash you would like to fetch
 func NewGetHeadersMessage(start []util.Uint256, stop util.Uint256) (*GetHeadersMessage, error) {
@@ -32,7 +34,7 @@ func newAbstractGetHeaders(start []util.Uint256, stop util.Uint256, cmd command.
 	return getHeaders, nil
 }
 
-// Implements Messager interface
+// DecodePayload Implements Messager interface
 func (v *GetHeadersMessage) DecodePayload(r io.Reader) error {
 
 	br := util.BinReader{R: r}
@@ -44,7 +46,7 @@ func (v *GetHeadersMessage) DecodePayload(r io.Reader) error {
 	return br.Err
 }
 
-// Implements messager interface
+// EncodePayload  Implements messager interface
 func (v *GetHeadersMessage) EncodePayload(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 	bw.VarUint(uint64(len(v.hashStart)))
@@ -53,7 +55,7 @@ func (v *GetHeadersMessage) EncodePayload(w io.Writer) error {
 	return bw.Err
 }
 
-// Implements messager interface
+// Command Implements messager interface
 func (v *GetHeadersMessage) Command() command.Type {
 	return v.cmd
 }

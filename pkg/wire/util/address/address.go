@@ -6,6 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/base58"
 )
 
+// ToScriptHash converts an address to a script hash
 func ToScriptHash(address string) string {
 
 	decodedAddressAsBytes, err := base58.Decode(address)
