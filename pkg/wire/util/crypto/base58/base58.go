@@ -1,8 +1,11 @@
 package base58
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/wire/util/crypto/hash"
 )
 
 const prefix rune = '1'
@@ -22,7 +25,7 @@ var decodeMap = map[rune]int64{
 	'x': 55, 'y': 56, 'z': 57,
 }
 
-// Base58Decode decodes the base58 encoded string.
+// Decode decodes the base58 encoded string.
 func Decode(s string) ([]byte, error) {
 	var (
 		startIndex = 0
@@ -58,7 +61,7 @@ func Decode(s string) ([]byte, error) {
 	return buf, nil
 }
 
-// Base58Encode encodes a byte slice to be a base58 encoded string.
+// Encode encodes a byte slice to be a base58 encoded string.
 func Encode(bytes []byte) string {
 	var (
 		lookupTable = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -77,47 +80,47 @@ func Encode(bytes []byte) string {
 	return encoded
 }
 
-// Base58CheckDecode decodes the given string.
-// func CheckDecode(s string) (b []byte, err error) {
-// 	b, err = Decode(s)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+// CheckDecode decodes the given string.
+func CheckDecode(s string) (b []byte, err error) {
+	b, err = Decode(s)
+	if err != nil {
+		return nil, err
+	}
 
-// 	for i := 0; i < len(s); i++ {
-// 		if s[i] != '1' {
-// 			break
-// 		}
-// 		b = append([]byte{0x00}, b...)
-// 	}
+	for i := 0; i < len(s); i++ {
+		if s[i] != '1' {
+			break
+		}
+		b = append([]byte{0x00}, b...)
+	}
 
-// 	if len(b) < 5 {
-// 		return nil, fmt.Errorf("Invalid base-58 check string: missing checksum. -1")
-// 	}
+	if len(b) < 5 {
+		return nil, fmt.Errorf("Invalid base-58 check string: missing checksum. -1")
+	}
 
-// 	hash, err := hash.DoubleSha256(b[:len(b)-4])
+	hash, err := hash.DoubleSha256(b[:len(b)-4])
 
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Could not double sha256 data")
-// 	}
+	if err != nil {
+		return nil, fmt.Errorf("Could not double sha256 data")
+	}
 
-// 	if bytes.Compare(hash[0:4], b[len(b)-4:]) != 0 {
-// 		return nil, fmt.Errorf("Invalid base-58 check string: invalid checksum. -2")
-// 	}
+	if bytes.Compare(hash[0:4], b[len(b)-4:]) != 0 {
+		return nil, fmt.Errorf("Invalid base-58 check string: invalid checksum. -2")
+	}
 
-// 	// Strip the 4 byte long hash.
-// 	b = b[:len(b)-4]
+	// Strip the 4 byte long hash.
+	b = b[:len(b)-4]
 
-// 	return b, nil
-// }
+	return b, nil
+}
 
-// // Base58checkEncode encodes b into a base-58 check encoded string.
-// func CheckEncode(b []byte) (string, error) {
-// 	hash, err := hash.DoubleSha256(b)
-// 	if err != nil {
-// 		return "", fmt.Errorf("Could not double sha256 data")
-// 	}
-// 	b = append(b, hash[0:4]...)
+// CheckEncode encodes b into a base-58 check encoded string.
+func CheckEncode(b []byte) (string, error) {
+	hash, err := hash.DoubleSha256(b)
+	if err != nil {
+		return "", fmt.Errorf("Could not double sha256 data")
+	}
+	b = append(b, hash[0:4]...)
 
-// 	return Encode(b), nil
-// }
+	return Encode(b), nil
+}

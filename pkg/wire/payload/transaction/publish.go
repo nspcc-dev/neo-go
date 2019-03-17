@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+// Publish represents a publish transaction on the neo network
 type Publish struct {
 	*Base
 	Script      []byte
@@ -21,6 +22,7 @@ type Publish struct {
 	Description string
 }
 
+//NewPublish returns a publish transaction
 func NewPublish(ver version.TX) *Publish {
 	basicTrans := createBaseTransaction(types.Publish, ver)
 

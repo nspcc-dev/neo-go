@@ -53,16 +53,20 @@ func createBaseTransaction(typ types.TX, ver version.TX) *Base {
 
 }
 
+// Decode implements the transactioner interface
 func (b *Base) Decode(r io.Reader) error {
 	br := &util.BinReader{R: r}
 	return b.DecodePayload(br)
 }
+
+// Encode implements the transactioner interface
 func (b *Base) Encode(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 	b.EncodePayload(bw)
 	return bw.Err
 }
 
+//EncodePayload implements the Messager interface
 func (b *Base) EncodePayload(bw *util.BinWriter) {
 	b.encodeHashableFields(bw)
 
@@ -74,6 +78,7 @@ func (b *Base) EncodePayload(bw *util.BinWriter) {
 	}
 }
 
+// DecodePayload implements the messager interface
 func (b *Base) DecodePayload(br *util.BinReader) error {
 	b.decodeHashableFields(br)
 
@@ -118,7 +123,6 @@ func (b *Base) encodeHashableFields(bw *util.BinWriter) {
 	}
 }
 
-// created for consistency
 func (b *Base) decodeHashableFields(br *util.BinReader) {
 	b.Type.Decode(br)
 
@@ -151,15 +155,22 @@ func (b *Base) decodeHashableFields(br *util.BinReader) {
 
 }
 
+// AddInput adds an input to the transaction
 func (b *Base) AddInput(i *Input) {
 	b.Inputs = append(b.Inputs, i)
 }
+
+// AddOutput adds an output to the transaction
 func (b *Base) AddOutput(o *Output) {
 	b.Outputs = append(b.Outputs, o)
 }
+
+// AddAttribute adds an attribute to the transaction
 func (b *Base) AddAttribute(a *Attribute) {
 	b.Attributes = append(b.Attributes, a)
 }
+
+// AddWitness adds a witness object to the transaction
 func (b *Base) AddWitness(w *Witness) {
 	b.Witnesses = append(b.Witnesses, w)
 }

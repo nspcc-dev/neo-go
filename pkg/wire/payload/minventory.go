@@ -8,29 +8,30 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//InvType represents the enum of inventory types
 type InvType uint8
 
-//Inventory types
 const (
-	InvTypeTx        InvType = 0x01
-	InvTypeBlock     InvType = 0x02
+	// InvTypeTx represents the transaction inventory type
+	InvTypeTx InvType = 0x01
+	// InvTypeBlock represents the block inventory type
+	InvTypeBlock InvType = 0x02
+	// InvTypeConsensus represents the consensus inventory type
 	InvTypeConsensus InvType = 0xe0
 )
 
-const (
-	maxHashes = 0x10000000
-)
+const maxHashes = 0x10000000
 
-var (
-	MaxHashError = errors.New("Max size For Hashes reached")
-)
+var errMaxHash = errors.New("max size For Hashes reached")
 
+// InvMessage represents an Inventory message on the neo-network
 type InvMessage struct {
 	cmd    command.Type
 	Type   InvType
 	Hashes []util.Uint256
 }
 
+//NewInvMessage returns an InvMessage object
 func NewInvMessage(typ InvType) (*InvMessage, error) {
 
 	inv := &InvMessage{
@@ -53,17 +54,20 @@ func newAbstractInv(typ InvType, cmd command.Type) (*InvMessage, error) {
 
 }
 
-func (i *InvMessage) AddHash(h util.Uint256) error {
-	if len(i.Hashes)+1 > maxHashes {
-		return MaxHashError
+// AddHash adds a hash to the list of hashes
+func (inv *InvMessage) AddHash(h util.Uint256) error {
+	if len(inv.Hashes)+1 > maxHashes {
+		return errMaxHash
 	}
-	i.Hashes = append(i.Hashes, h)
+	inv.Hashes = append(inv.Hashes, h)
 	return nil
 }
-func (i *InvMessage) AddHashes(hashes []util.Uint256) error {
+
+// AddHashes adds multiple hashes to the list of hashes
+func (inv *InvMessage) AddHashes(hashes []util.Uint256) error {
 	var err error
 	for _, hash := range hashes {
-		err = i.AddHash(hash)
+		err = inv.AddHash(hash)
 		if err != nil {
 			break
 		}
@@ -71,31 +75,31 @@ func (i *InvMessage) AddHashes(hashes []util.Uint256) error {
 	return err
 }
 
-// Implements Messager interface
-func (v *InvMessage) DecodePayload(r io.Reader) error {
+// DecodePayload Implements Messager interface
+func (inv *InvMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 
-	br.Read(&v.Type)
+	br.Read(&inv.Type)
 
 	listLen := br.VarUint()
-	v.Hashes = make([]util.Uint256, listLen)
+	inv.Hashes = make([]util.Uint256, listLen)
 
 	for i := 0; i < int(listLen); i++ {
-		br.Read(&v.Hashes[i])
+		br.Read(&inv.Hashes[i])
 	}
 	return nil
 }
 
-// Implements messager interface
-func (v *InvMessage) EncodePayload(w io.Writer) error {
+// EncodePayload Implements messager interface
+func (inv *InvMessage) EncodePayload(w io.Writer) error {
 
 	bw := &util.BinWriter{W: w}
-	bw.Write(v.Type)
+	bw.Write(inv.Type)
 
-	lenhashes := len(v.Hashes)
+	lenhashes := len(inv.Hashes)
 	bw.VarUint(uint64(lenhashes))
 
-	for _, hash := range v.Hashes {
+	for _, hash := range inv.Hashes {
 
 		bw.Write(hash)
 
@@ -104,7 +108,7 @@ func (v *InvMessage) EncodePayload(w io.Writer) error {
 	return bw.Err
 }
 
-// Implements messager interface
-func (v *InvMessage) Command() command.Type {
-	return v.cmd
+// Command Implements messager interface
+func (inv *InvMessage) Command() command.Type {
+	return inv.cmd
 }

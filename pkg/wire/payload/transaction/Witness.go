@@ -4,11 +4,13 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//Witness represents a Witness object in a neo transaction
 type Witness struct {
 	InvocationScript   []byte
 	VerificationScript []byte
 }
 
+// Encode encodes a Witness into a binary writer
 func (s *Witness) Encode(bw *util.BinWriter) error {
 
 	bw.VarUint(uint64(len(s.InvocationScript)))
@@ -20,6 +22,7 @@ func (s *Witness) Encode(bw *util.BinWriter) error {
 	return bw.Err
 }
 
+// Decode decodes a binary reader into a Witness object
 func (s *Witness) Decode(br *util.BinReader) error {
 
 	lenb := br.VarUint()

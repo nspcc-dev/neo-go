@@ -8,7 +8,6 @@ import (
 )
 
 // Base is everything in the message except the payload
-
 type Base struct {
 	Magic         uint32
 	CMD           command.Type
@@ -16,9 +15,8 @@ type Base struct {
 	Checksum      uint32
 }
 
-// Note, That there is no EncodeBase
-// As the header is implicitly inferred from
-// the message on Encode To send
+// DecodeBase will decode an io.Reader into a Base object
+// Note, That there is no EncodeBase, As the header is implicitly inferred from the message on Encode To send
 func (h *Base) DecodeBase(r io.Reader) (io.Reader, error) {
 	br := &util.BinReader{R: r}
 

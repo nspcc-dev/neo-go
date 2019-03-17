@@ -8,6 +8,8 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+// Sha256 hashes the incoming byte slice
+// using the sha256 algorithm
 func Sha256(data []byte) (util.Uint256, error) {
 	var hash util.Uint256
 	hasher := sha256.New()
@@ -21,6 +23,7 @@ func Sha256(data []byte) (util.Uint256, error) {
 	return hash, nil
 }
 
+// DoubleSha256 performs sha256 twice on the given data
 func DoubleSha256(data []byte) (util.Uint256, error) {
 	var hash util.Uint256
 
@@ -36,6 +39,8 @@ func DoubleSha256(data []byte) (util.Uint256, error) {
 	return hash, nil
 }
 
+// RipeMD160 performs the RIPEMD160 hash algorithm
+// on the given data
 func RipeMD160(data []byte) (util.Uint160, error) {
 	var hash util.Uint160
 	hasher := ripemd160.New()
@@ -49,6 +54,8 @@ func RipeMD160(data []byte) (util.Uint160, error) {
 	return hash, nil
 }
 
+// Hash160 performs sha256 and then ripemd160
+// on the given data
 func Hash160(data []byte) (util.Uint160, error) {
 	var hash util.Uint160
 	h1, err := Sha256(data)
@@ -63,6 +70,8 @@ func Hash160(data []byte) (util.Uint160, error) {
 	return hash, nil
 }
 
+// Checksum returns the checksum for a given piece of data
+// using sha256 twice as the hash algorithm
 func Checksum(data []byte) ([]byte, error) {
 	hash, err := Sum(data)
 	if err != nil {
@@ -71,6 +80,8 @@ func Checksum(data []byte) ([]byte, error) {
 	return hash[:4], nil
 }
 
+// Sum performs sha256 twice on the given data
+// XXX(issue): We should remove this and just do doublesha256
 func Sum(b []byte) (util.Uint256, error) {
 	hash, err := DoubleSha256((b))
 	return hash, err

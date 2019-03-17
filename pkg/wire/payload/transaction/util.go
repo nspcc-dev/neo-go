@@ -8,7 +8,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction/types"
 )
 
-func FromBytes(reader *bufio.Reader) (Transactioner, error) {
+// FromReader returns a transaction from a bufio.Reader
+func FromReader(reader *bufio.Reader) (Transactioner, error) {
 
 	t, err := reader.Peek(1)
 
@@ -45,17 +46,17 @@ func FromBytes(reader *bufio.Reader) (Transactioner, error) {
 		err = pub.Decode(reader)
 		trans = pub
 	case types.State:
-		sta := NewStateTX(0)
-		err = sta.Decode(reader)
-		trans = sta
+		state := NewStateTX(0)
+		err = state.Decode(reader)
+		trans = state
 	case types.Enrollment:
 		enr := NewEnrollment(0)
 		err = enr.Decode(reader)
 		trans = enr
 	case types.Agency:
-		err = errors.New("Unsupported transaction type: Agency")
+		err = errors.New("unsupported transaction type: Agency")
 	default:
-		err = errors.New("Unsupported transaction with byte type " + hex.EncodeToString([]byte{t[0]}))
+		err = errors.New("unsupported transaction with byte type " + hex.EncodeToString([]byte{t[0]}))
 	}
 	return trans, err
 }

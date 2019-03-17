@@ -13,15 +13,12 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-const (
-	minMsgVersionSize = 28
-)
+const minMsgVersionSize = 28
 
-// TODO: Refactor to pull out the useragent out of initialiser
-// and have a seperate method to add it
+var errInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
 
+//VersionMessage represents a version message on the neo-network
 type VersionMessage struct {
-	// w           *bytes.Buffer
 	Version     protocol.Version
 	Timestamp   uint32
 	Services    protocol.ServiceFlag
@@ -33,13 +30,12 @@ type VersionMessage struct {
 	Relay       bool
 }
 
-var ErrInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
-
+//NewVersionMessage will return a VersionMessage object
 func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver protocol.Version, userAgent string, nonce uint32, services protocol.ServiceFlag) (*VersionMessage, error) {
 
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
-		return nil, ErrInvalidNetAddr
+		return nil, errInvalidNetAddr
 	}
 
 	version := &VersionMessage{
@@ -56,13 +52,13 @@ func NewVersionMessage(addr net.Addr, startHeight uint32, relay bool, pver proto
 	return version, nil
 }
 
-// Implements Messager interface
+// DecodePayload Implements Messager interface
 func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 	br.Read(&v.Version)
 	br.Read(&v.Services)
 	br.Read(&v.Timestamp)
-	br.Read(&v.Port) // Port is not BigEndian
+	br.Read(&v.Port) // Port is not BigEndian as stated in the docs
 	br.Read(&v.Nonce)
 
 	var lenUA uint8
@@ -75,7 +71,7 @@ func (v *VersionMessage) DecodePayload(r io.Reader) error {
 	return br.Err
 }
 
-// Implements messager interface
+// EncodePayload Implements messager interface
 func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 
@@ -91,7 +87,7 @@ func (v *VersionMessage) EncodePayload(w io.Writer) error {
 	return bw.Err
 }
 
-// Implements messager interface
+// Command Implements messager interface
 func (v *VersionMessage) Command() command.Type {
 	return command.Version
 }

@@ -7,9 +7,10 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/wire"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
-	"github.com/CityOfZion/neo-go/pkg/wire/util/ip"
+	iputils "github.com/CityOfZion/neo-go/pkg/wire/util/ip"
 )
 
+// Handshake will initiate a handshake with this peer
 func (p *Peer) Handshake() error {
 
 	handshakeErr := make(chan error, 1)

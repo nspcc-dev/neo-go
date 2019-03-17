@@ -7,6 +7,7 @@ import (
 // TX is the type of a transaction.
 type TX uint8
 
+// List of transaction types
 const (
 	Miner      TX = 0x00
 	Issue      TX = 0x01
@@ -21,9 +22,12 @@ const (
 	Invocation TX = 0xd1
 )
 
+// Encode encodes a tx type into the binary writer
 func (t *TX) Encode(bw *util.BinWriter) {
 	bw.Write(t)
 }
+
+// Decode decodes a binary reader into a tx type
 func (t *TX) Decode(br *util.BinReader) {
 	br.Read(t)
 }

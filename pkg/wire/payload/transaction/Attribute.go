@@ -12,17 +12,14 @@ type Attribute struct {
 	Data  []byte
 }
 
-var (
-	ErrMaxData = errors.New("Max Size of Attribute reached")
-)
+var errMaxData = errors.New("max Size of Attribute reached")
 
-const (
-	maxAttrSize = 65535
-)
+const maxAttrSize = 65535
 
+// Encode encodes the given Attribute into the binary writer
 func (a *Attribute) Encode(bw *util.BinWriter) {
 	if len(a.Data) > maxAttrSize {
-		bw.Err = ErrMaxData
+		bw.Err = errMaxData
 		return
 	}
 	bw.Write(uint8(a.Usage))
@@ -43,6 +40,7 @@ func (a *Attribute) Encode(bw *util.BinWriter) {
 
 }
 
+// Decode decodes the binary reader into an Attribute object
 func (a *Attribute) Decode(br *util.BinReader) {
 	br.Read(&a.Usage)
 	if a.Usage == DescriptionURL || a.Usage == Vote || a.Usage >= Hash1 && a.Usage <= Hash15 {

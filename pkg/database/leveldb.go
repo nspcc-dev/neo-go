@@ -12,27 +12,38 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 
+// LDB represents a leveldb object
 type LDB struct {
 	db   *leveldb.DB
 	path string
 }
 
+// Database contains all methods needed for an object to be a database
 type Database interface {
+	// Has checks whether the key is in the database
 	Has(key []byte) (bool, error)
+	// Put adds the key value pair into the pair
 	Put(key []byte, value []byte) error
+	// Get returns the value for the given key
 	Get(key []byte) ([]byte, error)
+	// Delete deletes the given value for the key from the database
 	Delete(key []byte) error
+	// Close closes the underlying db object
 	Close() error
 }
 
 var (
-	// TX, HEADER AND UTXO are the prefixes for the db
-	TX           = []byte("TX")
-	HEADER       = []byte("HEADER")
+	// TX is the prefix used when inserting a tx into the db
+	TX = []byte("TX")
+	// HEADER is the prefix used when inserting a header into the db
+	HEADER = []byte("HEADER")
+	// LATESTHEADER is the prefix used when inserting the latests header into the db
 	LATESTHEADER = []byte("LH")
-	UTXO         = []byte("UTXO")
+	// UTXO is the prefix used when inserting a utxo into the db
+	UTXO = []byte("UTXO")
 )
 
+// New will return a new leveldb instance
 func New(path string) *LDB {
 	db, err := leveldb.OpenFile(path, nil)
 
@@ -50,23 +61,32 @@ func New(path string) *LDB {
 	}
 }
 
+// Has implements the database interface
 func (l *LDB) Has(key []byte) (bool, error) {
 	return l.db.Has(key, nil)
 }
 
+// Put implements the database interface
 func (l *LDB) Put(key []byte, value []byte) error {
 	return l.db.Put(key, value, nil)
 }
+
+// Get implements the database interface
 func (l *LDB) Get(key []byte) ([]byte, error) {
 	return l.db.Get(key, nil)
 }
+
+// Delete implements the database interface
 func (l *LDB) Delete(key []byte) error {
 	return l.db.Delete(key, nil)
 }
+
+// Close implements the database interface
 func (l *LDB) Close() error {
 	return l.db.Close()
 }
 
+// AddHeader adds a header into the database
 func (l *LDB) AddHeader(header *payload.BlockBase) error {
 
 	table := NewTable(l, HEADER)
@@ -102,6 +122,7 @@ func (l *LDB) AddHeader(header *payload.BlockBase) error {
 	return table.Put(LATESTHEADER, header.Hash.Bytes())
 }
 
+// AddTransactions adds a set of transactions into the database
 func (l *LDB) AddTransactions(blockhash util.Uint256, txs []transaction.Transactioner) error {
 
 	// SHOULD BE DONE IN BATCH!!!!
