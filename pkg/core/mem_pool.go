@@ -78,16 +78,16 @@ func (p PoolItem) CompareTo(otherP *PoolItem) int {
 
 // Count returns the total number of uncofirm transactions.
 func (mp MemPool) Count() int {
-	mp.lock.Lock()
-	defer mp.lock.Unlock()
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
 
 	return len(mp.unsortedTxn) + len(mp.unverifiedTxn)
 }
 
 // ContainsKey checks if a transactions hash is in the MemPool.
 func (mp MemPool) ContainsKey(hash util.Uint256) bool {
-	mp.lock.Lock()
-	defer mp.lock.Unlock()
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
 
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		return true
@@ -104,12 +104,12 @@ func (mp MemPool) ContainsKey(hash util.Uint256) bool {
 func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	var pool PoolItems
 
-	mp.lock.Lock()
+	mp.lock.RLock()
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
-	mp.lock.Unlock()
+	mp.lock.RUnlock()
 
 	if pItem.fee.IsLowPriority(pItem.txn) {
 		pool = mp.sortedLowPrioTxn
@@ -125,9 +125,9 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	if mp.Count() > mp.capacity {
 		(&mp).RemoveOverCapacity()
 	}
-	mp.lock.Lock()
+	mp.lock.RLock()
 	_, ok := mp.unsortedTxn[hash]
-	mp.lock.Unlock()
+	mp.lock.RUnlock()
 	return ok
 }
 
@@ -135,7 +135,7 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 // in the MemPool is within the capacity of the MemPool.
 func (mp *MemPool) RemoveOverCapacity() {
 	for mp.Count()-mp.capacity > 0 {
-		mp.lock.RLock()
+		mp.lock.Lock()
 		if minItem, argPosition := getLowestFeeTransaction(mp.sortedLowPrioTxn, mp.unverifiedSortedLowPrioTxn); minItem != nil {
 			if argPosition == 1 {
 				// minItem belongs to the mp.sortedLowPrioTxn slice.
@@ -163,7 +163,7 @@ func (mp *MemPool) RemoveOverCapacity() {
 
 			}
 		}
-		mp.lock.RUnlock()
+		mp.lock.Unlock()
 	}
 
 }
