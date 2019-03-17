@@ -1,5 +1,6 @@
 package transaction
 
+// AttrUsage represents an attribute usage on the neo network
 type AttrUsage uint8
 
 // List of valid attribute usages.

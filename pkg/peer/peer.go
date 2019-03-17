@@ -53,6 +53,7 @@ var (
 	errHandShakeTimeout = errors.New("Handshake timed out, peers have " + string(handshakeTimeout) + " Seconds to Complete the handshake")
 )
 
+// Peer represents a peer on the neo network
 type Peer struct {
 	config LocalConfig
 	conn   net.Conn
@@ -81,6 +82,7 @@ type Peer struct {
 	quitch chan struct{}
 }
 
+// NewPeer returns a new NEO peer
 func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) *Peer {
 	p := Peer{}
 	p.inch = make(chan func(), inputBufferSize)
@@ -108,7 +110,7 @@ func (p *Peer) Read() (wire.Messager, error) {
 	return wire.ReadMessage(p.conn, p.config.Net)
 }
 
-// Disconnects from a peer
+// Disconnect disconnects a peer and closes the connection
 func (p *Peer) Disconnect() {
 
 	// return if already disconnected
@@ -126,34 +128,54 @@ func (p *Peer) Disconnect() {
 
 }
 
-// Exposed API functions below
+// Port returns the peers port
 func (p *Peer) Port() uint16 {
 	return p.port
 }
+
+// CreatedAt returns the time at which the connection was made
 func (p *Peer) CreatedAt() time.Time {
 	return p.createdAt
 }
+
+// CanRelay returns true, if the peer can relay information
 func (p *Peer) CanRelay() bool {
 	return p.relay
 }
+
+// LocalAddr returns this node's local address
 func (p *Peer) LocalAddr() net.Addr {
 	return p.conn.LocalAddr()
 }
+
+// RemoteAddr returns the remote address of the connected peer
 func (p *Peer) RemoteAddr() net.Addr {
 	return p.conn.RemoteAddr()
 }
+
+// Services returns the services offered by the peer
 func (p *Peer) Services() protocol.ServiceFlag {
 	return p.config.Services
 }
+
+//Inbound returns true whether this peer is an inbound peer
 func (p *Peer) Inbound() bool {
 	return p.inbound
 }
+
+// UserAgent returns this nodes, useragent
 func (p *Peer) UserAgent() string {
 	return p.config.UserAgent
 }
+
+// IsVerackReceived returns true, if this node has
+// received a verack from this peer
 func (p *Peer) IsVerackReceived() bool {
 	return p.verackReceived
 }
+
+//NotifyDisconnect returns once the peer has disconnected
+// Blocking
 func (p *Peer) NotifyDisconnect() bool {
 	fmt.Println("Peer has not disconnected yet")
 	<-p.quitch
@@ -163,7 +185,7 @@ func (p *Peer) NotifyDisconnect() bool {
 
 //End of Exposed API functions//
 
-// Ping not impl. in neo yet, adding it now
+// PingLoop not impl. in neo yet, adding it now
 // will cause this client to disconnect from all other implementations
 func (p *Peer) PingLoop() { /*not implemented in other neo clients*/ }
 
@@ -183,7 +205,7 @@ func (p *Peer) Run() error {
 
 }
 
-// run as a go-routine, will act as our queue for messages
+// StartProtocol run as a go-routine, will act as our queue for messages
 // should be ran after handshake
 func (p *Peer) StartProtocol() {
 loop:
@@ -201,11 +223,9 @@ loop:
 	p.Disconnect()
 }
 
+// ReadLoop Will block on the read until a message is read
 // Should only be called after handshake is complete
 // on a seperate go-routine.
-// ReadLoop Will block on the read until a message is
-// read
-
 func (p *Peer) ReadLoop() {
 
 	idleTimer := time.AfterFunc(idleTimeout, func() {
@@ -271,8 +291,7 @@ loop:
 	p.Disconnect()
 }
 
-// WriteLoop will Queue all messages to be written to
-// the peer.
+// WriteLoop will Queue all messages to be written to the peer.
 func (p *Peer) WriteLoop() {
 	for atomic.LoadInt32(&p.disconnected) == 0 {
 		select {
@@ -284,17 +303,21 @@ func (p *Peer) WriteLoop() {
 	}
 }
 
+// OnGetData is called when a GetData message is received
 func (p *Peer) OnGetData(msg *payload.GetDataMessage) {
 
 	p.inch <- func() {
-		// fmt.Println(msg.Hashes)
+		if p.config.OnInv != nil {
+			p.config.OnGetData(msg)
+		}
 		fmt.Println("That was an getdata Message please pass func down through config", msg.Command())
 	}
 }
+
+//OnTX is callwed when a TX message is received
 func (p *Peer) OnTX(msg *payload.TXMessage) {
 
 	p.inch <- func() {
-		// fmt.Println(msg.Hashes)
 		getdata, err := payload.NewGetDataMessage(payload.InvTypeTx)
 		if err != nil {
 			fmt.Println("Eor", err)
@@ -302,10 +325,10 @@ func (p *Peer) OnTX(msg *payload.TXMessage) {
 		id, err := msg.Tx.ID()
 		getdata.AddHash(id)
 		p.Write(getdata)
-		fmt.Println("That was an tx Message please pass func down through config", msg.Command())
 	}
 }
 
+// OnInv is called when a Inv message is received
 func (p *Peer) OnInv(msg *payload.InvMessage) {
 
 	p.inch <- func() {
@@ -316,8 +339,7 @@ func (p *Peer) OnInv(msg *payload.InvMessage) {
 	}
 }
 
-// OnGetHeaders Listener, outside of the anonymous func will be extra functionality
-// like timing
+// OnGetHeaders is called when a GetHeaders message is received
 func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 	p.inch <- func() {
 		if p.config.OnGetHeaders != nil {
@@ -328,7 +350,7 @@ func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
 	}
 }
 
-// OnAddr Listener
+// OnAddr is called when a Addr message is received
 func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	p.inch <- func() {
 		if p.config.OnAddr != nil {
@@ -339,7 +361,7 @@ func (p *Peer) OnAddr(msg *payload.AddrMessage) {
 	}
 }
 
-// OnGetAddr Listener
+// OnGetAddr is called when a GetAddr message is received
 func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 	p.inch <- func() {
 		if p.config.OnGetAddr != nil {
@@ -350,7 +372,7 @@ func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
 	}
 }
 
-// OnGetBlocks Listener
+// OnGetBlocks is called when a GetBlocks message is received
 func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 	p.inch <- func() {
 		if p.config.OnGetBlocks != nil {
@@ -360,7 +382,7 @@ func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
 	}
 }
 
-// OnBlocks Listener
+// OnBlocks is called when a Blocks message is received
 func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
 	p.inch <- func() {
 		if p.config.OnBlock != nil {
@@ -386,7 +408,7 @@ func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
 	return nil
 }
 
-// OnHeaders Listener
+// OnHeaders is called when a Headers message is received
 func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 	fmt.Println("We have received the headers")
 	p.inch <- func() {
@@ -396,9 +418,8 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 	}
 }
 
-// RequestHeaders will write a getheaders to peer
+// RequestHeaders will write a getheaders to this peer
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
-	fmt.Println("Sending header request")
 	c := make(chan error, 0)
 	p.outch <- func() {
 		p.Detector.AddMessage(command.GetHeaders)
@@ -406,14 +427,11 @@ func (p *Peer) RequestHeaders(hash util.Uint256) error {
 		err = p.Write(getHeaders)
 		c <- err
 	}
-
 	return <-c
-
 }
 
-// RequestBlocks will ask a peer for a block
+// RequestBlocks will ask this peer for a set of blocks
 func (p *Peer) RequestBlocks(hashes []util.Uint256) error {
-	fmt.Println("Requesting block from peer")
 	c := make(chan error, 0)
 
 	p.outch <- func() {

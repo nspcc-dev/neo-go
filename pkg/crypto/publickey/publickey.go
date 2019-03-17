@@ -77,6 +77,8 @@ func (p *PublicKey) Bytes() []byte {
 
 	return append([]byte{prefix}, paddedX...)
 }
+
+// ToAddress will convert a public key to it's neo-address
 func (p *PublicKey) ToAddress() string {
 
 	publicKeyBytes := p.Bytes()
@@ -145,6 +147,8 @@ func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
 }
 
+// Verify returns true if the signature is valid and corresponds
+// to the hash and public key
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 
 	publicKey := &ecdsa.PublicKey{}

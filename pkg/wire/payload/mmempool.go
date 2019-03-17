@@ -6,24 +6,25 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 )
 
-// No payload
+// GetMempool represents a GetMempool message on the neo-network
 type GetMempool struct{}
 
+//NewGetMempool returns a GetMempool message
 func NewGetMempool() (*GetMempool, error) {
 	return &GetMempool{}, nil
 }
 
-// Implements Messager interface
+// DecodePayload Implements Messager interface
 func (v *GetMempool) DecodePayload(r io.Reader) error {
 	return nil
 }
 
-// Implements messager interface
+// EncodePayload Implements messager interface
 func (v *GetMempool) EncodePayload(w io.Writer) error {
 	return nil
 }
 
-// Implements messager interface
+// Command Implements messager interface
 func (v *GetMempool) Command() command.Type {
 	return command.Mempool
 }

@@ -25,7 +25,7 @@ var decodeMap = map[rune]int64{
 	'x': 55, 'y': 56, 'z': 57,
 }
 
-// Base58Decode decodes the base58 encoded string.
+// Decode decodes the base58 encoded string.
 func Decode(s string) ([]byte, error) {
 	var (
 		startIndex = 0
@@ -61,7 +61,7 @@ func Decode(s string) ([]byte, error) {
 	return buf, nil
 }
 
-// Base58Encode encodes a byte slice to be a base58 encoded string.
+// Encode encodes a byte slice to be a base58 encoded string.
 func Encode(bytes []byte) string {
 	var (
 		lookupTable = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"

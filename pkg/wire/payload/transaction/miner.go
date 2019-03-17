@@ -6,11 +6,13 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//Miner represents a miner transaction on the neo network
 type Miner struct {
 	*Base
 	Nonce uint32
 }
 
+//NewMiner returns a miner transaction
 func NewMiner(ver version.TX) *Miner {
 	basicTrans := createBaseTransaction(types.Miner, ver)
 
@@ -22,13 +24,9 @@ func NewMiner(ver version.TX) *Miner {
 }
 
 func (c *Miner) encodeExcl(bw *util.BinWriter) {
-
 	bw.Write(c.Nonce)
-	return
 }
 
 func (c *Miner) decodeExcl(br *util.BinReader) {
-
 	br.Read(&c.Nonce)
-
 }

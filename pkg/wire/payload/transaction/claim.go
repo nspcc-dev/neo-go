@@ -6,11 +6,13 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//Claim represents a claim transaction on the neo network
 type Claim struct {
 	*Base
 	Claims []*Input
 }
 
+//NewClaim returns a ClaimTransaction
 func NewClaim(ver version.TX) *Claim {
 	basicTrans := createBaseTransaction(types.Contract, ver)
 
@@ -39,5 +41,3 @@ func (c *Claim) decodeExcl(br *util.BinReader) {
 	}
 
 }
-
-// use encode and decode exclusive to make the interface

@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 )
 
-// AESEncrypt encrypts the key with the given source.
+// Encrypt encrypts the key with the given source.
 func Encrypt(src, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -19,7 +19,7 @@ func Encrypt(src, key []byte) ([]byte, error) {
 	return out, nil
 }
 
-// AESDecrypt decrypts the encrypted source with the given key.
+// Decrypt decrypts the encrypted source with the given key.
 func Decrypt(crypted, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {

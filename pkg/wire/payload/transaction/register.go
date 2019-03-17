@@ -7,6 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util/fixed8"
 )
 
+// Register represents a register transaction on the neo network
 type Register struct {
 	*Base
 	// The type of the asset being registered.
@@ -28,6 +29,7 @@ type Register struct {
 	Admin util.Uint160
 }
 
+//NewRegister returns a register transaction
 func NewRegister(ver version.TX) *Register {
 	basicTrans := createBaseTransaction(types.Register, ver)
 	Register := &Register{}

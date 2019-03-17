@@ -9,10 +9,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 )
 
-// stall detector will keep track of all pendingMessages
+// Detector (stall detector) will keep track of all pendingMessages
 // If any message takes too long to reply
 // the detector will disconnect the peer
-
 type Detector struct {
 	responseTime time.Duration
 	tickInterval time.Duration
@@ -28,6 +27,7 @@ type Detector struct {
 	disconnected int32
 }
 
+// NewDetector will create a new stall detector
 // rT is the responseTime and signals how long
 // a peer has to reply back to a sent message
 // tickerInterval is how often the detector wil check for stalled messages
@@ -81,9 +81,10 @@ func (d *Detector) Quit() {
 	close(d.Quitch)
 }
 
+//AddMessage will add a message to the responses map
 // Call this function when we send a message to a peer
 // The command passed through is the command that we sent
-// and not the command we expect to receive
+// we will then set a timer for the expected message(s)
 func (d *Detector) AddMessage(cmd command.Type) {
 	cmds := d.addMessage(cmd)
 	d.lock.Lock()
@@ -93,6 +94,7 @@ func (d *Detector) AddMessage(cmd command.Type) {
 	d.lock.Unlock()
 }
 
+// RemoveMessage remove messages from the responses map
 // Call this function when we receive a message from
 // peer. This will remove the pendingresponse message from the map.
 // The command passed through is the command we received
