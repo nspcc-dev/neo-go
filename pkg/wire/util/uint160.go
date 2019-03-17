@@ -65,6 +65,11 @@ func (u Uint160) BytesReverse() []byte {
 
 // String implements the stringer interface.
 func (u Uint160) String() string {
+	return hex.EncodeToString(u.Bytes())
+}
+
+// ReverseString displays the string representation of Uint160 in reverse order.
+func (u Uint160) ReverseString() string {
 	return hex.EncodeToString(u.BytesReverse())
 }
 
