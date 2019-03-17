@@ -7,10 +7,12 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+// AddrMessage represents an address message on the neo network
 type AddrMessage struct {
 	AddrList []*Net_addr
 }
 
+// NewAddrMessage instantiates a new AddrMessage
 func NewAddrMessage() (*AddrMessage, error) {
 	addrMess := &AddrMessage{
 		nil,
@@ -18,6 +20,7 @@ func NewAddrMessage() (*AddrMessage, error) {
 	return addrMess, nil
 }
 
+// AddNetAddr will add a net address into the Address message
 func (a *AddrMessage) AddNetAddr(n *Net_addr) error {
 	a.AddrList = append(a.AddrList, n)
 	// TODO:check if max reached, if so return err. What is max?
@@ -25,7 +28,7 @@ func (a *AddrMessage) AddNetAddr(n *Net_addr) error {
 	return nil
 }
 
-// Implements Messager interface
+// DecodePayload Implements Messager interface
 func (a *AddrMessage) DecodePayload(r io.Reader) error {
 
 	br := &util.BinReader{R: r}
@@ -42,20 +45,20 @@ func (a *AddrMessage) DecodePayload(r io.Reader) error {
 	return br.Err
 }
 
-// Implements messager interface
-func (v *AddrMessage) EncodePayload(w io.Writer) error {
+// EncodePayload Implements messager interface
+func (a *AddrMessage) EncodePayload(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 
-	listLen := uint64(len(v.AddrList))
+	listLen := uint64(len(a.AddrList))
 	bw.VarUint(listLen)
 
-	for _, addr := range v.AddrList {
+	for _, addr := range a.AddrList {
 		addr.EncodePayload(bw)
 	}
 	return bw.Err
 }
 
-// Implements messager interface
-func (v *AddrMessage) Command() command.Type {
+// Command Implements messager interface
+func (a *AddrMessage) Command() command.Type {
 	return command.Addr
 }

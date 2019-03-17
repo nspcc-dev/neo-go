@@ -15,9 +15,15 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+// Messager is implemented by any object that can
+// Encode and Decode Payloads
 type Messager interface {
+	// EncodePayload takes a message payload and encodes it
 	EncodePayload(w io.Writer) error
+	// DecodePayload takes an io.Reader and decodes it into
+	// a message payload
 	DecodePayload(r io.Reader) error
+	// Command returns the assosciated command type
 	Command() command.Type
 }
 
@@ -30,6 +36,7 @@ var (
 	errChecksumMismatch = errors.New("checksum mismatch")
 )
 
+// WriteMessage will write a message to a given io.Writer
 func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 	bw := &util.BinWriter{W: w}
 	bw.Write(magic)
@@ -51,6 +58,7 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 	return bw.Err
 }
 
+// ReadMessage will read a message from a given io.Reader
 func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 
 	byt := make([]byte, minMsgSize)

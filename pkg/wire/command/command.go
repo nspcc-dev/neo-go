@@ -5,11 +5,10 @@ const (
 	Size = 12
 )
 
-// CommandType represents the type of a message command.
+// Type represents the type of a message command.
 type Type string
 
 // Valid protocol commands used to send between nodes.
-// use this to get
 const (
 	Version    Type = "version"
 	Mempool    Type = "mempool"

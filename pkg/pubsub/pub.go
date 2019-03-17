@@ -1,5 +1,6 @@
 package pubsub
 
+// Publisher sends events to subscribers
 type Publisher struct {
 	subs []Subscriber
 }

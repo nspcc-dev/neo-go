@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	ErrPadding = errors.New("There is a padding mismatch")
+	errPadding = errors.New("There is a padding mismatch")
 )
 
+//BlockBase represents the base of the block
+// This is different than the block header. See HeadersMessage
 type BlockBase struct {
 	// Version of the block.
 	Version uint32 `json:"version"`
@@ -47,6 +49,7 @@ type BlockBase struct {
 	Hash util.Uint256
 }
 
+// EncodePayload implements the Messager interface
 func (b *BlockBase) EncodePayload(bw *util.BinWriter) error {
 
 	b.encodeHashableFields(bw)
@@ -57,11 +60,14 @@ func (b *BlockBase) EncodePayload(bw *util.BinWriter) error {
 	return bw.Err
 }
 
+// Decode decodes an io.Reader into a Blockbase
 func (b *BlockBase) Decode(r io.Reader) error {
 	br := &util.BinReader{R: r}
 	b.DecodePayload(br)
 	return br.Err
 }
+
+// Encode encodes a blockbase into an io.Writer
 func (b *BlockBase) Encode(w io.Writer) error {
 	bw := &util.BinWriter{W: w}
 	b.EncodePayload(bw)
@@ -78,6 +84,7 @@ func (b *BlockBase) encodeHashableFields(bw *util.BinWriter) {
 	bw.Write(b.NextConsensus)
 }
 
+// DecodePayload implements the messager interface
 func (b *BlockBase) DecodePayload(br *util.BinReader) error {
 
 	b.decodeHashableFields(br)
@@ -85,7 +92,7 @@ func (b *BlockBase) DecodePayload(br *util.BinReader) error {
 	var padding uint8
 	br.Read(&padding)
 	if padding != 1 {
-		return ErrPadding
+		return errPadding
 	}
 
 	b.Witness = transaction.Witness{}
@@ -117,6 +124,7 @@ func (b *BlockBase) createHash() error {
 	return err
 }
 
+// Bytes returns the byte representation of Blockbase
 func (b *BlockBase) Bytes() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := b.Encode(buf)
