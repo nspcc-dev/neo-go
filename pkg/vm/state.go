@@ -3,6 +3,7 @@ package vm
 //Vmstate represents all possible states that the neo-vm can be in
 type Vmstate byte
 
+// List of possible vm states
 const (
 	NONE  = 0
 	HALT  = 1 << 0
