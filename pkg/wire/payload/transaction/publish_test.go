@@ -31,3 +31,42 @@ func TestEncodeDecodePublish(t *testing.T) {
 	assert.Equal(t, "5467a1fc8723ceffa8e5ee59399b02eea1df6fbaa53768c6704b90b960d223fa", publ.Hash.String())
 
 }
+
+func TestEncodeDecodePublish2(t *testing.T) {
+	// https://github.com/CityOfZion/neo-python/blob/master/neo/Core/TX/test_transactions.py#L154
+
+	rawtx := "d000a9746b7400936c766b94797451936c766b9479a1633a007400936c766b94797451936c766b94797452936c766b9479617c6554009561746c768c6b946d746c768c6b946d746c768c6b946d6c75667400936c766b94797451936c766b9479617c6525007452936c766b94799561746c768c6b946d746c768c6b946d746c768c6b946d6c7566746b7400936c766b94797451936c766b94799361746c768c6b946d746c768c6b946d6c756600ff09e5919ce5919ce5919c04302e3031037777770377777704656565660001fb9b53e0a87295a94973cd395d64c068c705d662e3965682b2cb36bf67acf7e5000001e72d286979ee6cb1b7e65dfddfb2e384100b8d148e7758de42e4168b71792c60001edc0c1700000050ac4949596f5b62fef7be4d1c3e494e6048ed4a0141402725b8f7e5ada56e5c5e85177cdda9dd6cf738a7f35861fb3413c4e05017125acae5d978cd9e89bda7ab13eb87ba960023cb44d085b9d2b06a88e47cefd6e224232102ff8ac54687f36bbc31a91b730cc385da8af0b581f2d59d82b5cfef824fd271f6ac"
+	rawtxBytes, _ := hex.DecodeString(rawtx)
+
+	publ := NewPublish(30)
+
+	r := bytes.NewReader(rawtxBytes)
+	err := publ.Decode(r)
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, 0, int(publ.Version))
+	assert.Equal(t, types.Publish, publ.Type)
+
+	//@todo: add the following assert once we have the Size calculation in place
+	//assert.Equal(t, 402, publ.Size())
+
+	assert.Equal(t, 0, len(publ.Attributes))
+
+	assert.Equal(t, 1, len(publ.Inputs))
+	assert.Equal(t, "e5f7ac67bf36cbb2825696e362d605c768c0645d39cd7349a99572a8e0539bfb", publ.Inputs[0].PrevHash.String())
+
+	assert.Equal(t, 1, len(publ.Outputs))
+	assert.Equal(t, "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7", publ.Outputs[0].AssetID.String())
+
+	assert.Equal(t, 1, len(publ.Witnesses))
+	assert.Equal(t, "402725b8f7e5ada56e5c5e85177cdda9dd6cf738a7f35861fb3413c4e05017125acae5d978cd9e89bda7ab13eb87ba960023cb44d085b9d2b06a88e47cefd6e224", hex.EncodeToString(publ.Witnesses[0].InvocationScript))
+	assert.Equal(t, "2102ff8ac54687f36bbc31a91b730cc385da8af0b581f2d59d82b5cfef824fd271f6ac", hex.EncodeToString(publ.Witnesses[0].VerificationScript))
+
+	buf := new(bytes.Buffer)
+	err = publ.Encode(buf)
+
+	assert.Equal(t, nil, err)
+	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
+	assert.Equal(t, "514157940a3e31b087891c5e8ed362721f0a7f3dda3f80b7a3fe618d02b7d3d3", publ.Hash.String())
+
+}
