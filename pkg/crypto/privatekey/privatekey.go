@@ -23,6 +23,8 @@ type PrivateKey struct {
 	b []byte
 }
 
+// NewPrivateKey will create a new private key
+// With curve as Secp256r1
 func NewPrivateKey() (*PrivateKey, error) {
 	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 	b := make([]byte, curve.N.BitLen()/8+8)
@@ -38,6 +40,7 @@ func NewPrivateKey() (*PrivateKey, error) {
 	return p, nil
 }
 
+// NewPrivateKeyFromHex will create a new private key hex string
 func NewPrivateKeyFromHex(str string) (*PrivateKey, error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
@@ -56,6 +59,8 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 	return &PrivateKey{b}, nil
 }
 
+// PublicKey returns a the public corresponding to the private key
+// For the curve secp256r1
 func (p *PrivateKey) PublicKey() (*publickey.PublicKey, error) {
 	var (
 		c = elliptic.NewEllipticCurve(elliptic.Secp256r1)
@@ -78,6 +83,8 @@ func (p *PrivateKey) PublicKey() (*publickey.PublicKey, error) {
 
 }
 
+// WIFEncode will converts a private key
+// to the Wallet Import Format for NEO
 func WIFEncode(key []byte) (s string) {
 	if len(key) != 32 {
 		return "invalid private key length"
@@ -97,6 +104,7 @@ func WIFEncode(key []byte) (s string) {
 	return WIF
 }
 
+// Sign will sign the corresponding data using the private key
 func (p *PrivateKey) Sign(data []byte) ([]byte, error) {
 	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 	key := p.b
