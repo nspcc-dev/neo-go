@@ -6,8 +6,7 @@ import (
 )
 
 // Context represent the current execution context of the VM.
-// context will be treated as stack item
-// and placed onto the invocation stack
+// context will be treated as stack item and placed onto the invocation stack
 type Context struct {
 	*abstractItem
 
@@ -22,6 +21,9 @@ type Context struct {
 
 	// Evaluation Stack
 	Estack RandomAccess
+
+	// Alternative Stack
+	Astack RandomAccess
 }
 
 // NewContext return a new Context object.
@@ -44,7 +46,7 @@ func (c *Context) Context() (*Context, error) {
 func (c *Context) Next() (Instruction, error) {
 	c.ip++
 	if c.ip >= len(c.prog) {
-		return RET, errors.New("program pointer is more than the length of program. RETURNING")
+		return RET, errors.New("program pointer is more than the length of program. Returning RET OPCODE")
 	}
 	return Instruction(c.prog[c.ip]), nil
 }
