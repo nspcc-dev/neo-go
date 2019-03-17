@@ -2,10 +2,10 @@ package base58
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 )
 
 const prefix rune = '1'
@@ -95,23 +95,17 @@ func CheckDecode(s string) (b []byte, err error) {
 	}
 
 	if len(b) < 5 {
-		return nil, errors.New("invalid base-58 check string: missing checksum.")
+		return nil, fmt.Errorf("Invalid base-58 check string: missing checksum")
 	}
 
-	sha := sha256.New()
-	if _, err = sha.Write(b[:len(b)-4]); err != nil {
-		return nil, err
-	}
-	hash := sha.Sum(nil)
+	hash, err := hash.DoubleSha256(b[:len(b)-4])
 
-	sha.Reset()
-	if _, err = sha.Write(hash); err != nil {
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("Could not double sha256 data")
 	}
-	hash = sha.Sum(nil)
 
-	if !bytes.Equal(hash[0:4], b[len(b)-4:]) {
-		return nil, errors.New("invalid base-58 check string: invalid checksum.")
+	if bytes.Compare(hash[0:4], b[len(b)-4:]) != 0 {
+		return nil, fmt.Errorf("Invalid base-58 check string: invalid checksum")
 	}
 
 	// Strip the 4 byte long hash.
@@ -121,16 +115,12 @@ func CheckDecode(s string) (b []byte, err error) {
 }
 
 // CheckEncode encodes b into a base-58 check encoded string.
-func CheckEncode(b []byte) string {
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
-
-	sha.Reset()
-	sha.Write(hash)
-	hash = sha.Sum(nil)
-
+func CheckEncode(b []byte) (string, error) {
+	hash, err := hash.DoubleSha256(b)
+	if err != nil {
+		return "", fmt.Errorf("Could not double sha256 data")
+	}
 	b = append(b, hash[0:4]...)
 
-	return Encode(b)
+	return Encode(b), nil
 }
