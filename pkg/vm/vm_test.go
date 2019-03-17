@@ -76,9 +76,11 @@ func TestSimpleRun(t *testing.T) {
 	builder := stack.NewBuilder()
 	builder.EmitInt(20).EmitInt(34).EmitOpcode(stack.ADD)
 	builder.EmitInt(54).EmitOpcode(stack.EQUAL).EmitOpcode(stack.THROWIFNOT)
+
 	// Pass program to VM
 	vm := NewVM(builder.Bytes())
 
+	// Runs vm with program
 	_, err := vm.Run()
 	assert.Nil(t, err)
 
