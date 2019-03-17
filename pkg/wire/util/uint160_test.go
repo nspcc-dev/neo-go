@@ -9,15 +9,17 @@ import (
 
 func TestUInt160DecodeString(t *testing.T) {
 	hexStr := "2d3b96ae1bcc5a585e075e3b81920210dec16302"
+	hexStrBytesReverse := "0263c1de100292813b5e075e585acc1bae963b2d"
 	val, err := Uint160DecodeString(hexStr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, hexStr, val.String())
+	assert.Equal(t, hexStrBytesReverse, val.String())
 }
 
 func TestUint160DecodeBytes(t *testing.T) {
 	hexStr := "2d3b96ae1bcc5a585e075e3b81920210dec16302"
+	hexStrBytesReverse := "0263c1de100292813b5e075e585acc1bae963b2d"
 	b, err := hex.DecodeString(hexStr)
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +28,7 @@ func TestUint160DecodeBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, hexStr, val.String())
+	assert.Equal(t, hexStrBytesReverse, val.String())
 }
 
 func TestUInt160Equals(t *testing.T) {
