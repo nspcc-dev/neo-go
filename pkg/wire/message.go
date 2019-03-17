@@ -130,7 +130,7 @@ func ReadMessage(r io.Reader, magic protocol.Magic) (Messager, error) {
 		return v, err
 	case command.TX:
 		reader := bufio.NewReader(buf)
-		tx, err := transaction.FromBytes(reader)
+		tx, err := transaction.FromReader(reader)
 		if err != nil {
 			return nil, err
 		}

@@ -49,7 +49,7 @@ func (b *Block) DecodePayload(br *util.BinReader) error {
 	reader := bufio.NewReader(br.R)
 	for i := 0; i < int(lenTXs); i++ {
 
-		tx, err := transaction.FromBytes(reader)
+		tx, err := transaction.FromReader(reader)
 		if err != nil {
 			return err
 		}

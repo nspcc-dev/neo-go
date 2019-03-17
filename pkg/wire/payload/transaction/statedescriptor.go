@@ -13,7 +13,8 @@ const (
 	Validator DescStateType = 0x48
 )
 
-// StateDescriptor ..
+// StateDescriptor represents a state descriptor on the neo network
+// used in a state transaction
 type StateDescriptor struct {
 	Type  DescStateType
 	Key   []byte
@@ -21,6 +22,7 @@ type StateDescriptor struct {
 	Field string
 }
 
+// Decode decodes a binary reader into a state descriptor
 func (s *StateDescriptor) Decode(br *util.BinReader) {
 	br.Read(&s.Type)
 
@@ -38,6 +40,8 @@ func (s *StateDescriptor) Decode(br *util.BinReader) {
 
 	s.Field = string(field)
 }
+
+//Encode encodes a state descriptor into a binary writer
 func (s *StateDescriptor) Encode(bw *util.BinWriter) {
 	bw.Write(s.Type)
 
@@ -48,5 +52,4 @@ func (s *StateDescriptor) Encode(bw *util.BinWriter) {
 	bw.Write(s.Value)
 
 	bw.VarString(s.Field)
-
 }

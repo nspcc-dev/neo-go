@@ -9,12 +9,14 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util/fixed8"
 )
 
+//Invocation represents an invocation transaction on the neo network
 type Invocation struct {
 	*Base
 	Script []byte
 	Gas    fixed8.Fixed8
 }
 
+//NewInvocation returns an invocation transaction
 func NewInvocation(ver version.TX) *Invocation {
 	basicTrans := createBaseTransaction(types.Invocation, ver)
 
@@ -53,7 +55,7 @@ func (c *Invocation) decodeExcl(br *util.BinReader) {
 	case 1:
 		br.Read(&c.Gas)
 	default:
-		br.Err = errors.New("Invalid Version Number for Invocation Transaction")
+		br.Err = errors.New("invalid Version Number for Invocation Transaction")
 	}
 	return
 }

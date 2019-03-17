@@ -9,7 +9,7 @@ import (
 
 // AddrMessage represents an address message on the neo network
 type AddrMessage struct {
-	AddrList []*Net_addr
+	AddrList []*NetAddr
 }
 
 // NewAddrMessage instantiates a new AddrMessage
@@ -21,7 +21,7 @@ func NewAddrMessage() (*AddrMessage, error) {
 }
 
 // AddNetAddr will add a net address into the Address message
-func (a *AddrMessage) AddNetAddr(n *Net_addr) error {
+func (a *AddrMessage) AddNetAddr(n *NetAddr) error {
 	a.AddrList = append(a.AddrList, n)
 	// TODO:check if max reached, if so return err. What is max?
 
@@ -34,9 +34,9 @@ func (a *AddrMessage) DecodePayload(r io.Reader) error {
 	br := &util.BinReader{R: r}
 	listLen := br.VarUint()
 
-	a.AddrList = make([]*Net_addr, listLen)
+	a.AddrList = make([]*NetAddr, listLen)
 	for i := 0; i < int(listLen); i++ {
-		a.AddrList[i] = &Net_addr{}
+		a.AddrList[i] = &NetAddr{}
 		a.AddrList[i].DecodePayload(br)
 		if br.Err != nil {
 			return br.Err

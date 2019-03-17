@@ -6,10 +6,12 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
+//Contract represents a contract transaction on the neo network
 type Contract struct {
 	*Base
 }
 
+//NewContract returns a contract transaction
 func NewContract(ver version.TX) *Contract {
 	basicTrans := createBaseTransaction(types.Contract, ver)
 
@@ -21,10 +23,6 @@ func NewContract(ver version.TX) *Contract {
 	return contract
 }
 
-func (c *Contract) encodeExcl(bw *util.BinWriter) {
-	return
-}
+func (c *Contract) encodeExcl(bw *util.BinWriter) {}
 
-func (c *Contract) decodeExcl(br *util.BinReader) {
-	return
-}
+func (c *Contract) decodeExcl(br *util.BinReader) {}

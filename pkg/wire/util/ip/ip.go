@@ -5,6 +5,7 @@ import (
 	"net"
 )
 
+//GetLocalIP returns the ip address of the current node
 // https://stackoverflow.com/a/37382208
 func GetLocalIP() net.IP {
 	conn, err := net.Dial("udp", "8.8.8.8:80")

@@ -5,17 +5,24 @@ import (
 	"io"
 )
 
+//BinReader is a convenient wrapper around a io.Reader and err object
+// Used to simplify error handling when reading into a struct with many fields
 type BinReader struct {
 	R   io.Reader
 	Err error
 }
 
+// Read reads from the underlying io.Reader
+// into the interface v in LE
 func (r *BinReader) Read(v interface{}) {
 	if r.Err != nil {
 		return
 	}
 	r.Err = binary.Read(r.R, binary.LittleEndian, v)
 }
+
+// ReadBigEnd reads from the underlying io.Reader
+// into the interface v in BE
 func (r *BinReader) ReadBigEnd(v interface{}) {
 	if r.Err != nil {
 		return
@@ -23,6 +30,8 @@ func (r *BinReader) ReadBigEnd(v interface{}) {
 	r.Err = binary.Read(r.R, binary.BigEndian, v)
 }
 
+//VarUint reads a variable integer from the
+// underlying reader
 func (r *BinReader) VarUint() uint64 {
 	var b uint8
 	r.Err = binary.Read(r.R, binary.LittleEndian, &b)
@@ -46,6 +55,8 @@ func (r *BinReader) VarUint() uint64 {
 	return uint64(b)
 }
 
+// VarBytes reads the next set of bytes from the underlying reader.
+// VarUInt is used to determine how large that slice is
 func (r *BinReader) VarBytes() []byte {
 	n := r.VarUint()
 	b := make([]byte, n)
@@ -53,6 +64,7 @@ func (r *BinReader) VarBytes() []byte {
 	return b
 }
 
+// VarString calls VarBytes and casts the results as a string
 func (r *BinReader) VarString() string {
 	b := r.VarBytes()
 	return string(b)
