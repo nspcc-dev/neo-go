@@ -30,7 +30,7 @@ func NewVM(script []byte) *VM {
 	return v
 }
 
-// Run loops over the current context by continuously steppping.
+// Run loops over the current context by continuously stepping.
 // Run breaks; once step returns an error or any state that is not NONE
 func (v *VM) Run() (Vmstate, error) {
 	for {
