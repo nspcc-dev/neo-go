@@ -21,7 +21,7 @@ func ToScriptHash(address string) string {
 
 // FromUint160 returns the "NEO address" from the given
 // Uint160.
-func FromUint160(u util.Uint160) string {
+func FromUint160(u util.Uint160) (string, error) {
 	// Dont forget to prepend the Address version 0x17 (23) A
 	b := append([]byte{0x17}, u.Bytes()...)
 	return base58.CheckEncode(b)

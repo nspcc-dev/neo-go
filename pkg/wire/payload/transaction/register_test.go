@@ -73,7 +73,9 @@ func TestEncodeDecodeRegister2(t *testing.T) {
 
 	assert.Equal(t, types.Register, reg.Type)
 
-	assert.Equal(t, "ARFe4mTKRTETerRoMsyzBXoPt2EKBvBXFX", address.FromUint160(reg.Admin))
+	addr, err := address.FromUint160(reg.Admin)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "ARFe4mTKRTETerRoMsyzBXoPt2EKBvBXFX", addr)
 	assert.Equal(t, `[{"lang":"zh-CN","name":"TestCoin"}]`, reg.Name)
 	assert.Equal(t, 8, int(reg.Precision))
 	assert.Equal(t, 0, len(reg.Attributes))
