@@ -8,6 +8,11 @@ import (
 
 // VM represents an instance of a Neo Virtual Machine
 type VM struct {
+	// ResultStack contains the results of
+	// the last evaluation stack before the program terminated
+	ResultStack stack.RandomAccess
+	// InvocationStack contains all of the contexts
+	// loaded into the vm
 	InvocationStack stack.Invocation
 	state           Vmstate
 }
@@ -63,5 +68,5 @@ func (v *VM) executeOp(op stack.Instruction, ctx *stack.Context) (Vmstate, error
 	if !ok {
 		return FAULT, fmt.Errorf("unknown opcode entered %v", op)
 	}
-	return handleOp(op, ctx, &v.InvocationStack)
+	return handleOp(op, ctx, &v.InvocationStack, &v.ResultStack)
 }
