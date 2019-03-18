@@ -85,7 +85,7 @@ func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
 	panic("TODO")
 }
 
-func (chain testChain) Verify(*transaction.Transaction) bool {
+func (chain testChain) Verify(*transaction.Transaction) error {
 	panic("TODO")
 }
 

@@ -321,7 +321,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	if s.chain.HasTransaction(t.Hash()) {
 		return RelayAlreadyExists
 	}
-	if !s.chain.Verify(t) {
+	if err := s.chain.Verify(t); err != nil {
 		return RelayInvalid
 	}
 	// TODO: Implement Plugin.CheckPolicy?

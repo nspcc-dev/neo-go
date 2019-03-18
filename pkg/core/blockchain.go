@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 	"sync/atomic"
@@ -14,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -670,29 +670,29 @@ func (bc *Blockchain) GetMemPool() MemPool {
 
 // Verify verifies whether a transaction is bonafide or not.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) Verify(t *transaction.Transaction) bool {
+func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 	if t.Size() > transaction.MaxTransactionSize {
-		return false
+		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", t.Size(), transaction.MaxTransactionSize)
 	}
 	if ok := bc.verifyInputs(t); !ok {
-		return false
+		return errors.New("invalid transaction's inputs")
 	}
 	if ok := bc.memPool.Verify(t); !ok {
-		return false
+		return errors.New("invalid transaction due to conflicts with the memory pool")
 	}
 	if IsDoubleSpend(bc.Store, t) {
-		return false
+		return errors.New("invalid transaction caused by double spending")
 	}
 	if ok := bc.verifyOutputs(t); !ok {
-		return false
+		return errors.New("invalid transaction's outputs")
 	}
 	if ok := bc.verifyResults(t); !ok {
-		return false
+		return errors.New("invalid transaction's results")
 	}
 
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.ECDH02 || a.Usage == transaction.ECDH03 {
-			return false
+			return errors.Errorf("invalid attribute's usage = %s ", a.Usage)
 		}
 	}
 
@@ -883,15 +883,15 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 // VerifyWitnesses verify the scripts (witnesses) that come with a transactions.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
-func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) bool {
+func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {
-		return false
+		return err
 	}
 
 	witnesses := t.Scripts
 	if len(hashes) != len(witnesses) {
-		return false
+		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
 	}
 	for i := 0; i < len(hashes); i++ {
 		verification := witnesses[i].VerificationScript
@@ -907,7 +907,7 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) bool {
 
 		} else {
 			if h, err := witnesses[i].ScriptHash(); err != nil || hashes[i] != h {
-				return false
+				return err
 			}
 		}
 
@@ -921,7 +921,7 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) bool {
 		}*/
 	}
 
-	return true
+	return nil
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
