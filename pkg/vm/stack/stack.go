@@ -119,6 +119,14 @@ func (ras *RandomAccess) Peek(n uint16) (Item, error) {
 	return ras.vals[index], nil
 }
 
+// CopyTo will copy all of the stack items from `ras` into the stack that is passed as an argument
+// XXX: once maxstacksize is implemented, we will return error if size goes over
+// There will also be additional checks needed once stack isolation is added
+func (ras *RandomAccess) CopyTo(stack *RandomAccess) error {
+	stack.vals = append(stack.vals, ras.vals...)
+	return nil
+}
+
 // Convenience Functions
 
 // PopInt will remove the last stack item that was added

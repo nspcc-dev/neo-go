@@ -29,11 +29,17 @@ func (i *Invocation) CurrentContext() (*Context, error) {
 	return i.peekContext(0)
 }
 
-// RemoveCurrentContext removes the context on the top of the invocation stack
-// This is a convenience method for Pop
-func (i *Invocation) RemoveCurrentContext() error {
-	_, err := i.Pop()
-	return err
+// PopCurrentContext Pops a context item from the top of the stack
+func (i *Invocation) PopCurrentContext() (*Context, error) {
+	item, err := i.Pop()
+	if err != nil {
+		return nil, err
+	}
+	ctx, err := item.Context()
+	if err != nil {
+		return nil, err
+	}
+	return ctx, err
 }
 
 // CallingContext will return the cntext item
@@ -49,8 +55,7 @@ func (i *Invocation) CallingContext() (*Context, error) {
 // started the program
 func (i *Invocation) EntryContext() (*Context, error) {
 
-	// firstItemIndex refers to the first item
-	// that was popped on the stack
+	// firstItemIndex refers to the first item that was popped on the stack
 	firstItemIndex := uint16(i.Len() - 1) // N.B. if this overflows because len is zero, then an error will be returned
 	return i.peekContext(firstItemIndex)
 }
