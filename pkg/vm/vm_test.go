@@ -86,6 +86,9 @@ func TestSimpleRun(t *testing.T) {
 	_, err := vm.Run()
 	assert.Nil(t, err)
 
+	// ResultStack should be nil
+	assert.Equal(t, -1, vm.ResultStack.Len())
+
 }
 
 // returns true if the value at the top of the evaluation stack is a integer
@@ -108,8 +111,7 @@ func peakTopEstack(t *testing.T, vm *VM) stack.Item {
 	return item
 }
 
-// returns true if the total number of items on the evaluation stack
-// is equal to value
+// returns true if the total number of items on the evaluation stack is equal to value
 func EstackLen(t *testing.T, vm *VM, value int) bool {
 	ctx, err := vm.InvocationStack.CurrentContext()
 	assert.Nil(t, err)
