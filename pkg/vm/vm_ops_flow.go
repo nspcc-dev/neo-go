@@ -8,17 +8,19 @@ import (
 
 // RET Returns from the current context
 // Returns HALT if there are nomore context's to run
-func RET(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) (Vmstate, error) {
+func RET(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	// Pop current context from the Inovation stack
-	err := istack.RemoveCurrentContext()
+	ctx, err := istack.PopCurrentContext()
 	if err != nil {
 		return FAULT, err
 	}
-
-	// If there are no-more context's left to ran, then we HALT
+	// If this was the last context, then we copy over the evaluation stack to the resultstack
+	// As the program is about to terminate, once we remove the context
 	if istack.Len() == 0 {
-		return HALT, nil
+
+		err = ctx.Estack.CopyTo(rstack)
+		return HALT, err
 	}
 
 	return NONE, nil

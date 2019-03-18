@@ -7,7 +7,7 @@ import (
 // Stack Manipulation Opcodes
 
 // PushNBytes will Read N Bytes from the script and push it onto the stack
-func PushNBytes(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) (Vmstate, error) {
+func PushNBytes(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	val, err := ctx.ReadBytes(int(op))
 	if err != nil {

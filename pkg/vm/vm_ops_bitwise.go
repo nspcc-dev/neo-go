@@ -6,7 +6,7 @@ import "github.com/CityOfZion/neo-go/pkg/vm/stack"
 
 // EQUAL pushes true to the stack
 // If the two top items on the stack are equal
-func EQUAL(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) (Vmstate, error) {
+func EQUAL(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	itemA, itemB, err := popTwoByteArrays(ctx)
 	if err != nil {

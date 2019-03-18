@@ -12,7 +12,7 @@ import (
 // does not evaluate to true
 // For specific logic on how a number of bytearray is evaluated can be seen
 // from the boolean conversion methods on the stack items
-func THROWIFNOT(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation) (Vmstate, error) {
+func THROWIFNOT(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	// Pop item from top of stack
 	item, err := ctx.Estack.Pop()
@@ -27,7 +27,7 @@ func THROWIFNOT(op stack.Instruction, ctx *stack.Context, istack *stack.Invocati
 
 	// If false, throw
 	if !ok.Value() {
-		return FAULT, errors.New("Item on top of stack evaluates to false")
+		return FAULT, errors.New("item on top of stack evaluates to false")
 	}
 	return NONE, nil
 }
