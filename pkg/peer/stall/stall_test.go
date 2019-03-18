@@ -12,8 +12,8 @@ import (
 
 func TestAddRemoveMessage(t *testing.T) {
 
-	responseTime := 2 * time.Second
-	tickerInterval := 1 * time.Second
+	responseTime := 2 * time.Millisecond
+	tickerInterval := 1 * time.Millisecond
 
 	d := NewDetector(responseTime, tickerInterval)
 	d.AddMessage(command.GetAddr)
@@ -51,15 +51,15 @@ loop:
 }
 func TestDeadlineWorks(t *testing.T) {
 
-	responseTime := 2 * time.Second
-	tickerInterval := 1 * time.Second
+	responseTime := 2 * time.Millisecond
+	tickerInterval := 1 * time.Millisecond
 
 	d := NewDetector(responseTime, tickerInterval)
 	mp := mockPeer{online: true, detector: d, lock: new(sync.RWMutex)}
 	go mp.loop()
 
 	d.AddMessage(command.GetAddr)
-	time.Sleep(responseTime + 1*time.Second)
+	time.Sleep(responseTime + 1*time.Millisecond)
 
 	k := make(map[command.Type]time.Time)
 	d.lock.RLock()
@@ -70,12 +70,12 @@ func TestDeadlineWorks(t *testing.T) {
 	mp.lock.RUnlock()
 }
 func TestDeadlineShouldNotBeEmpty(t *testing.T) {
-	responseTime := 10 * time.Second
-	tickerInterval := 1 * time.Second
+	responseTime := 10 * time.Millisecond
+	tickerInterval := 1 * time.Millisecond
 
 	d := NewDetector(responseTime, tickerInterval)
 	d.AddMessage(command.GetAddr)
-	time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Millisecond)
 
 	k := make(map[command.Type]time.Time)
 	d.lock.RLock()
