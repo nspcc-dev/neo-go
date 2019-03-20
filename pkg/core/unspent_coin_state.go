@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -90,4 +91,33 @@ func (s *UnspentCoinState) DecodeBinary(r io.Reader) error {
 		s.states[i] = CoinState(state)
 	}
 	return nil
+}
+
+// IsDoubleSpend verifies that the input transactions are not double spent.
+func IsDoubleSpend(s storage.Store, tx *transaction.Transaction) bool {
+	if len(tx.Inputs) == 0 {
+		return false
+	}
+
+	for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+		unspent := &UnspentCoinState{}
+		key := storage.AppendPrefix(storage.STCoin, prevHash.BytesReverse())
+		if b, err := s.Get(key); err == nil {
+			if err := unspent.DecodeBinary(bytes.NewReader(b)); err != nil {
+				return false
+			}
+			if unspent == nil {
+				return true
+			}
+
+			for _, input := range inputs {
+				if int(input.PrevIndex) >= len(unspent.states) || unspent.states[input.PrevIndex] == CoinStateSpent {
+					return true
+				}
+			}
+		}
+
+	}
+
+	return false
 }

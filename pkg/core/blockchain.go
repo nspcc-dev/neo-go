@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -12,12 +13,12 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 // tuning parameters
 const (
-	secondsPerBlock  = 15
 	headerBatchCount = 2000
 	version          = "0.0.1"
 )
@@ -55,6 +56,8 @@ type Blockchain struct {
 
 	// Whether we will verify received blocks.
 	verifyBlocks bool
+
+	memPool MemPool
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -69,10 +72,11 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 		headersOpDone: make(chan struct{}),
 		blockCache:    NewCache(),
 		verifyBlocks:  false,
+		memPool:       NewMemPool(50000),
 	}
 
-  go bc.run(ctx)
-  if err := bc.init(); err != nil {
+	go bc.run(ctx)
+	if err := bc.init(); err != nil {
 		return nil, err
 	}
 
@@ -457,6 +461,10 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
+	if tx, ok := bc.memPool.TryGetValue(hash); ok {
+		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
+	}
+
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
 	b, err := bc.Get(key)
 	if err != nil {
@@ -506,9 +514,17 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 	return block.Header(), nil
 }
 
-// HasBlock return true if the blockchain contains he given
+// HasTransaction return true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
+	if bc.memPool.ContainsKey(hash) {
+		return true
+	}
+
+	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
+	if _, err := bc.Get(key); err == nil {
+		return true
+	}
 	return false
 }
 
@@ -596,7 +612,7 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
 func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
-	references := make(map[util.Uint256]*transaction.Output)
+	references := make(map[util.Uint256]*transaction.Output, 0)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
 		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
@@ -641,8 +657,279 @@ func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
+// IsLowPriority flags a trnsaction as low priority if the network fee is less than
+// LowPriorityThreshold
+func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
+	return bc.NetworkFee(t) < util.NewFixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
+}
+
+// GetMemPool returns the memory pool of the blockchain.
+func (bc *Blockchain) GetMemPool() MemPool {
+	return bc.memPool
+}
+
+// Verify verifies whether a transaction is bonafide or not.
+// Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
+func (bc *Blockchain) Verify(t *transaction.Transaction) error {
+	if t.Size() > transaction.MaxTransactionSize {
+		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", t.Size(), transaction.MaxTransactionSize)
+	}
+	if ok := bc.verifyInputs(t); !ok {
+		return errors.New("invalid transaction's inputs")
+	}
+	if ok := bc.memPool.Verify(t); !ok {
+		return errors.New("invalid transaction due to conflicts with the memory pool")
+	}
+	if IsDoubleSpend(bc.Store, t) {
+		return errors.New("invalid transaction caused by double spending")
+	}
+	if ok := bc.verifyOutputs(t); !ok {
+		return errors.New("invalid transaction's outputs")
+	}
+	if ok := bc.verifyResults(t); !ok {
+		return errors.New("invalid transaction's results")
+	}
+
+	for _, a := range t.Attributes {
+		if a.Usage == transaction.ECDH02 || a.Usage == transaction.ECDH03 {
+			return errors.Errorf("invalid attribute's usage = %s ", a.Usage)
+		}
+	}
+
+	return bc.VerifyWitnesses(t)
+}
+
+func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
+	for i := 1; i < len(t.Inputs); i++ {
+		for j := 0; j < i; j++ {
+			if t.Inputs[i].PrevHash == t.Inputs[j].PrevHash && t.Inputs[i].PrevIndex == t.Inputs[j].PrevIndex {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
+	for assetID, outputs := range t.GroupOutputByAssetID() {
+		assetState := bc.GetAssetState(assetID)
+		if assetState == nil {
+			return false
+		}
+
+		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
+			return false
+		}
+
+		for _, out := range outputs {
+			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
+	results := bc.GetTransationResults(t)
+	if results == nil {
+		return false
+	}
+	var resultsDestroy []*transaction.Result
+	var resultsIssue []*transaction.Result
+	for _, re := range results {
+		if re.Amount.GreaterThan(util.Fixed8(0)) {
+			resultsDestroy = append(resultsDestroy, re)
+		}
+
+		if re.Amount.LessThan(util.Fixed8(0)) {
+			resultsIssue = append(resultsIssue, re)
+		}
+	}
+	if len(resultsDestroy) > 1 {
+		return false
+	}
+	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
+		return false
+	}
+	if bc.SystemFee(t).GreaterThan(util.Fixed8(0)) && (len(resultsDestroy) == 0 || resultsDestroy[0].Amount.LessThan(bc.SystemFee(t))) {
+		return false
+	}
+
+	switch t.Type {
+	case transaction.MinerType, transaction.ClaimType:
+		for _, r := range resultsIssue {
+			if r.AssetID != utilityTokenTX().Hash() {
+				return false
+			}
+		}
+		break
+	case transaction.IssueType:
+		for _, r := range resultsIssue {
+			if r.AssetID == utilityTokenTX().Hash() {
+				return false
+			}
+		}
+		break
+	default:
+		if len(resultsIssue) > 0 {
+			return false
+		}
+		break
+	}
+
+	return true
+}
+
+// GetTransationResults returns the transaction results aggregate by assetID.
+// Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
+func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transaction.Result {
+	var tempResults []*transaction.Result
+	var results []*transaction.Result
+	tempGroupResult := make(map[util.Uint256]util.Fixed8)
+
+	if references := bc.References(t); references == nil {
+		return nil
+	} else {
+		for _, output := range references {
+			tempResults = append(tempResults, &transaction.Result{
+				AssetID: output.AssetID,
+				Amount:  output.Amount,
+			})
+		}
+		for _, output := range t.Outputs {
+			tempResults = append(tempResults, &transaction.Result{
+				AssetID: output.AssetID,
+				Amount:  -output.Amount,
+			})
+		}
+		for _, r := range tempResults {
+			if amount, ok := tempGroupResult[r.AssetID]; ok {
+				tempGroupResult[r.AssetID] = amount.Add(r.Amount)
+			} else {
+				tempGroupResult[r.AssetID] = r.Amount
+			}
+		}
+
+		results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
+		for assetID, amount := range tempGroupResult {
+			if amount != util.Fixed8(0) {
+				results = append(results, &transaction.Result{
+					AssetID: assetID,
+					Amount:  amount,
+				})
+			}
+		}
+
+		return results
+
+	}
+
+}
+
+// GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
+// to verify whether the transaction is bonafide or not.
+// Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
+func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
+	references := bc.References(t)
+	if references == nil {
+		return nil, errors.New("Invalid operation")
+	}
+	hashes := make(map[util.Uint160]bool)
+	for _, i := range t.Inputs {
+		h := references[i.PrevHash].ScriptHash
+		if _, ok := hashes[h]; !ok {
+			hashes[h] = true
+		}
+	}
+	for _, a := range t.Attributes {
+		if a.Usage == transaction.Script {
+			h, err := util.Uint160DecodeBytes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := hashes[h]; !ok {
+				hashes[h] = true
+			}
+		}
+	}
+
+	for a, outputs := range t.GroupOutputByAssetID() {
+		as := bc.GetAssetState(a)
+		if as == nil {
+			return nil, errors.New("Invalid operation")
+		}
+		if as.AssetType == transaction.DutyFlag {
+			for _, o := range outputs {
+				h := o.ScriptHash
+				if _, ok := hashes[h]; !ok {
+					hashes[h] = true
+				}
+			}
+		}
+	}
+	// convert hashes to []util.Uint160
+	hashesResult := make([]util.Uint160, 0, len(hashes))
+	for h := range hashes {
+		hashesResult = append(hashesResult, h)
+	}
+
+	return hashesResult, nil
+
+}
+
+// VerifyWitnesses verify the scripts (witnesses) that come with a transactions.
+// Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
+// Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
+func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
+	hashes, err := bc.GetScriptHashesForVerifying(t)
+	if err != nil {
+		return err
+	}
+
+	witnesses := t.Scripts
+	if len(hashes) != len(witnesses) {
+		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
+	}
+	for i := 0; i < len(hashes); i++ {
+		verification := witnesses[i].VerificationScript
+
+		if len(verification) == 0 {
+			/*TODO: replicate following C# code:
+			using (ScriptBuilder sb = new ScriptBuilder())
+			{
+				sb.EmitAppCall(hashes[i].ToArray());
+				verification = sb.ToArray();
+			}
+			*/
+
+		} else {
+			if h, err := witnesses[i].ScriptHash(); err != nil || hashes[i] != h {
+				return err
+			}
+		}
+
+		/*TODO: replicate following C# code:
+		using (ApplicationEngine engine = new ApplicationEngine(TriggerType.Verification, verifiable, snapshot, Fixed8.Zero))
+		{
+			engine.LoadScript(verification);
+			engine.LoadScript(verifiable.Witnesses[i].InvocationScript);
+			if (!engine.Execute()) return false;
+			if (engine.ResultStack.Count != 1 || !engine.ResultStack.Pop().GetBoolean()) return false;
+		}*/
+	}
+
+	return nil
+}
+
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, index)
 	return append(h.BytesReverse(), buf...)
+}
+
+func (bc *Blockchain) secondsPerBlock() int {
+	return bc.config.SecondsPerBlock
 }

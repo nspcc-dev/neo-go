@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -74,3 +75,9 @@ func (u Uint256) Size() int {
 func (u Uint256) MarshalJSON() ([]byte, error) {
 	return []byte(`"0x` + u.String() + `"`), nil
 }
+
+// CompareTo compares two Uint256 with each other. Possible output: 1, -1, 0
+//  1 implies u > other.
+// -1 implies u < other.
+//  0 implies  u = other.
+func (u Uint256) CompareTo(other Uint256) int { return bytes.Compare(u[:], other[:]) }

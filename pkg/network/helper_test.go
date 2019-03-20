@@ -77,6 +77,18 @@ func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, u
 	panic("TODO")
 }
 
+func (chain testChain) GetMemPool() core.MemPool {
+	panic("TODO")
+}
+
+func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
+	panic("TODO")
+}
+
+func (chain testChain) Verify(*transaction.Transaction) error {
+	panic("TODO")
+}
+
 type testDiscovery struct{}
 
 func (d testDiscovery) BackFill(addrs ...string)   {}

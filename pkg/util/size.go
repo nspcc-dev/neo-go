@@ -65,20 +65,22 @@ func GetVarSize(value interface{}) int {
 		valueLength := v.Len()
 		valueSize := 0
 
-		switch reflect.ValueOf(value).Index(0).Interface().(type) {
-		case io.Serializable:
-			for i := 0; i < valueLength; i++ {
-				elem := v.Index(i).Interface().(io.Serializable)
-				valueSize += elem.Size()
+		if valueLength != 0 {
+			switch reflect.ValueOf(value).Index(0).Interface().(type) {
+			case io.Serializable:
+				for i := 0; i < valueLength; i++ {
+					elem := v.Index(i).Interface().(io.Serializable)
+					valueSize += elem.Size()
+				}
+			case uint8, int8:
+				valueSize = valueLength
+			case uint16, int16:
+				valueSize = valueLength * 2
+			case uint32, int32:
+				valueSize = valueLength * 4
+			case uint64, int64:
+				valueSize = valueLength * 8
 			}
-		case uint8, int8:
-			valueSize = valueLength
-		case uint16, int16:
-			valueSize = valueLength * 2
-		case uint32, int32:
-			valueSize = valueLength * 4
-		case uint64, int64:
-			valueSize = valueLength * 8
 		}
 
 		return GetVarIntSize(valueLength) + valueSize
