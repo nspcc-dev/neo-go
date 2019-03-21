@@ -195,13 +195,15 @@ func (p *Peer) PingLoop() { /*not implemented in other neo clients*/ }
 func (p *Peer) Run() error {
 
 	err := p.Handshake()
-
+	if err != nil {
+		return err
+	}
 	go p.StartProtocol()
 	go p.ReadLoop()
 	go p.WriteLoop()
 
 	//go p.PingLoop() // since it is not implemented. It will disconnect all other impls.
-	return err
+	return nil
 
 }
 
