@@ -10,13 +10,21 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
+	ldbutil "github.com/syndtr/goleveldb/leveldb/util"
 )
+
+//DbDir is the folder which all database files will be put under
+// Structure /DbDir/net
+const DbDir = "db/"
 
 // LDB represents a leveldb object
 type LDB struct {
 	db   *leveldb.DB
-	path string
+	Path string
 }
+
+// ErrNotFound means that the value was not found in the db
+var ErrNotFound = errors.New("value not found for that key")
 
 // Database contains all methods needed for an object to be a database
 type Database interface {
@@ -28,6 +36,8 @@ type Database interface {
 	Get(key []byte) ([]byte, error)
 	// Delete deletes the given value for the key from the database
 	Delete(key []byte) error
+	//Prefix returns all values that start with key
+	Prefix(key []byte) ([][]byte, error)
 	// Close closes the underlying db object
 	Close() error
 }
@@ -45,7 +55,8 @@ var (
 
 // New will return a new leveldb instance
 func New(path string) *LDB {
-	db, err := leveldb.OpenFile(path, nil)
+	dbPath := DbDir + path
+	db, err := leveldb.OpenFile(dbPath, nil)
 
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
 		db, err = leveldb.RecoverFile(path, nil)
@@ -57,7 +68,7 @@ func New(path string) *LDB {
 
 	return &LDB{
 		db,
-		path,
+		dbPath,
 	}
 }
 
@@ -73,7 +84,15 @@ func (l *LDB) Put(key []byte, value []byte) error {
 
 // Get implements the database interface
 func (l *LDB) Get(key []byte) ([]byte, error) {
-	return l.db.Get(key, nil)
+	val, err := l.db.Get(key, nil)
+	if err == nil {
+		return val, nil
+	}
+	if err == leveldb.ErrNotFound {
+		return val, ErrNotFound
+	}
+	return val, err
+
 }
 
 // Delete implements the database interface
@@ -84,6 +103,31 @@ func (l *LDB) Delete(key []byte) error {
 // Close implements the database interface
 func (l *LDB) Close() error {
 	return l.db.Close()
+}
+
+// Prefix implements the database interface
+func (l *LDB) Prefix(key []byte) ([][]byte, error) {
+
+	var results [][]byte
+
+	iter := l.db.NewIterator(ldbutil.BytesPrefix(key), nil)
+	for iter.Next() {
+
+		value := iter.Value()
+
+		// Copy the data, as we cannot modify it
+		// Once the iter has been released
+		deref := make([]byte, len(value))
+
+		copy(deref, value)
+
+		// Append result
+		results = append(results, deref)
+
+	}
+	iter.Release()
+	err := iter.Error()
+	return results, err
 }
 
 // AddHeader adds a header into the database

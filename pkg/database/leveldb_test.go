@@ -6,14 +6,13 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/database"
 	"github.com/stretchr/testify/assert"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 
 const path = "temp"
 
 func cleanup(db *database.LDB) {
 	db.Close()
-	os.RemoveAll(path)
+	os.RemoveAll(database.DbDir)
 }
 func TestDBCreate(t *testing.T) {
 	db := database.New(path)
@@ -48,7 +47,7 @@ func TestPutDelete(t *testing.T) {
 
 	res, err := db.Get(key)
 
-	assert.Equal(t, errors.ErrNotFound, err)
+	assert.Equal(t, database.ErrNotFound, err)
 	assert.Equal(t, res, []byte{})
 	cleanup(db)
 }
