@@ -16,29 +16,35 @@ func NewTable(db Database, prefix []byte) *Table {
 
 // Has implements the database interface
 func (t *Table) Has(key []byte) (bool, error) {
-	key = append(t.prefix, key...)
-	return t.db.Has(key)
+	prefixedKey := append(t.prefix, key...)
+	return t.db.Has(prefixedKey)
 }
 
 // Put implements the database interface
 func (t *Table) Put(key []byte, value []byte) error {
-	key = append(t.prefix, key...)
-	return t.db.Put(key, value)
+	prefixedKey := append(t.prefix, key...)
+	return t.db.Put(prefixedKey, value)
 }
 
 // Get implements the database interface
 func (t *Table) Get(key []byte) ([]byte, error) {
-	key = append(t.prefix, key...)
-	return t.db.Get(key)
+	prefixedKey := append(t.prefix, key...)
+	return t.db.Get(prefixedKey)
 }
 
 // Delete implements the database interface
 func (t *Table) Delete(key []byte) error {
-	key = append(t.prefix, key...)
-	return t.db.Delete(key)
+	prefixedKey := append(t.prefix, key...)
+	return t.db.Delete(prefixedKey)
 }
 
 // Close implements the database interface
 func (t *Table) Close() error {
 	return nil
+}
+
+// Prefix implements the database interface
+func (t *Table) Prefix(key []byte) ([][]byte, error) {
+	prefixedKey := append(t.prefix, key...)
+	return t.db.Prefix(prefixedKey)
 }
