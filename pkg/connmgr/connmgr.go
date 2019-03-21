@@ -54,7 +54,6 @@ func New(cfg Config) *Connmgr {
 			if err != nil {
 				continue
 			}
-			// TODO(kev): in the OnAccept the connection address will be added to AddrMgr
 			go cfg.OnAccept(conn)
 		}
 
@@ -96,6 +95,8 @@ func (c *Connmgr) Connect(r *Request) error {
 
 	// r.Permanent is set by the address manager/caller. default is false
 	// The permanent connections will be the ones that are hardcoded, e.g seed3.ngd.network
+	// or are reliable. The connmgr will be more leniennt to permanent addresses as they have
+	// a track record or reputation of being reliable.
 
 	return c.connected(r)
 }
@@ -147,7 +148,6 @@ func (c *Connmgr) failed(r *Request) {
 			if c.config.GetAddress != nil {
 				go c.NewRequest()
 			}
-			fmt.Println("This peer has been tried the maximum amount of times and a source of new address has not been specified.")
 		} else {
 			go c.Connect(r)
 		}
@@ -224,14 +224,6 @@ func (c *Connmgr) pending(r *Request) error {
 func (c *Connmgr) Run() error {
 	fmt.Println("Connection manager started")
 	go c.loop()
-
-	// Address manager should have a function which exposes all permanent nodes
-	// We call it here upon starting
-	// permNodes:=c.cfg.PermanentAddr()
-	// for addr in permAddr
-	// c.Connect{Request(addr)}
-	// for now we wil just use newRequest
-	// XXX
 	return nil
 }
 
