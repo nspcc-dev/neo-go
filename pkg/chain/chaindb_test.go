@@ -2,7 +2,6 @@ package chain
 
 import (
 	"bytes"
-	"encoding/binary"
 	"math/rand"
 	"os"
 	"testing"
@@ -41,8 +40,7 @@ func TestSaveHeader(t *testing.T) {
 	headerTable := database.NewTable(db, HEADER)
 	// check that each header was saved
 	for _, hdr := range hdrs {
-		index := make([]byte, 4)
-		binary.BigEndian.PutUint32(index, hdr.Index)
+		index := uint32ToBytes(hdr.Index)
 		ok, err := headerTable.Has(index)
 		assert.Nil(t, err)
 		assert.True(t, ok)
@@ -64,7 +62,7 @@ func TestSaveBlock(t *testing.T) {
 	block0, block1 := twoBlocksLinked(t)
 
 	// Save genesis header
-	err = cdb.saveHeaders([]*payload.BlockBase{&block0.BlockBase})
+	err = cdb.saveHeader(&block0.BlockBase)
 	assert.Nil(t, err)
 
 	// Save genesis block
@@ -75,7 +73,7 @@ func TestSaveBlock(t *testing.T) {
 	testBlockWasSaved(t, cdb, block0)
 
 	// Save block1 header
-	err = cdb.saveHeaders([]*payload.BlockBase{&block1.BlockBase})
+	err = cdb.saveHeader(&block1.BlockBase)
 	assert.Nil(t, err)
 
 	// Save block1

@@ -213,35 +213,44 @@ func (c *Chaindb) removeUTXO(txo *transaction.Input) error {
 	return nil
 }
 
-// saveHeaders will save the set of headers without validating
-// The headers are saved with their `blockheights`
+// saveHeaders will save a set of headers into the database
+func (c *Chaindb) saveHeaders(headers []*payload.BlockBase) error {
+
+	for _, hdr := range headers {
+		err := c.saveHeader(hdr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// saveHeader saves a header into the database and updates the latest header
+// The headers are saved with their `blockheights` as Key
 // If we want to search for a header, we need to know it's index
 // Alternatively, we can search the hashHeightTable with the block index to get the hash
 // If the block has been saved.
 // The reason why headers are saved with their index as Key, is so that we can
 // increment the key to find out what block we should fetch next during the initial
 // block download, when we are saving thousands of headers
-func (c *Chaindb) saveHeaders(headers []*payload.BlockBase) error {
+func (c *Chaindb) saveHeader(hdr *payload.BlockBase) error {
 
 	headerTable := database.NewTable(c.db, HEADER)
 	latestHeaderTable := database.NewTable(c.db, LATESTHEADER)
 
-	for _, hdr := range headers {
-		index := uint32ToBytes(hdr.Index)
+	index := uint32ToBytes(hdr.Index)
 
-		byt, err := hdr.Bytes()
-		if err != nil {
-			return err
-		}
-
-		err = headerTable.Put(index, byt)
-		if err != nil {
-			return err
-		}
+	byt, err := hdr.Bytes()
+	if err != nil {
+		return err
 	}
+
+	err = headerTable.Put(index, byt)
+	if err != nil {
+		return err
+	}
+
 	// Update latest header
-	lastHeader := headers[len(headers)-1]
-	index := uint32ToBytes(lastHeader.Index)
 	return latestHeaderTable.Put([]byte(""), index)
 }
 
