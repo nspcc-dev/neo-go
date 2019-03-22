@@ -59,6 +59,7 @@ func (c *Chaindb) saveBlock(blk payload.Block, genesis bool) error {
 	if err != nil {
 		return err
 	}
+
 	err = hashHeightTable.Put(blk.Hash.Bytes(), height)
 	if err != nil {
 		return err
@@ -83,7 +84,6 @@ func (c *Chaindb) saveTXs(txs []transaction.Transactioner, blockHash []byte, gen
 			return err
 		}
 	}
-
 	return nil
 }
 
