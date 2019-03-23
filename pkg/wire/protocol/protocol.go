@@ -30,3 +30,15 @@ const (
 	MainNet Magic = 7630401
 	TestNet Magic = 0x74746e41
 )
+
+// String implements the stringer interface
+func (m Magic) String() string {
+	switch m {
+	case MainNet:
+		return "Mainnet"
+	case TestNet:
+		return "Testnet"
+	default:
+		return "UnknownNet"
+	}
+}
