@@ -24,7 +24,7 @@ func TestEncodeDecodeMiner(t *testing.T) {
 	assert.Equal(t, types.Miner, m.Type)
 	assert.Equal(t, uint32(571397116), m.Nonce)
 
-	assert.Equal(t, "a1f219dc6be4c35eca172e65e02d4591045220221b1543f1a4b67b9e9442c264", m.Hash.String())
+	assert.Equal(t, "a1f219dc6be4c35eca172e65e02d4591045220221b1543f1a4b67b9e9442c264", m.Hash.ReverseString())
 
 	// Encode
 	buf := new(bytes.Buffer)

@@ -28,6 +28,6 @@ func TestEncodeDecodePublish(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
-	assert.Equal(t, "5467a1fc8723ceffa8e5ee59399b02eea1df6fbaa53768c6704b90b960d223fa", publ.Hash.String())
+	assert.Equal(t, "5467a1fc8723ceffa8e5ee59399b02eea1df6fbaa53768c6704b90b960d223fa", publ.Hash.ReverseString())
 
 }

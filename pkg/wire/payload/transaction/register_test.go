@@ -28,7 +28,7 @@ func TestEncodeDecodeRegister(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
-	assert.Equal(t, "0c092117b4ba47b81001712425e6e7f760a637695eaf23741ba335925b195ecd", reg.Hash.String())
+	assert.Equal(t, "0c092117b4ba47b81001712425e6e7f760a637695eaf23741ba335925b195ecd", reg.Hash.ReverseString())
 }
 func TestEncodeDecodeGenesisRegister(t *testing.T) {
 
@@ -50,5 +50,5 @@ func TestEncodeDecodeGenesisRegister(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
-	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", reg.Hash.String())
+	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", reg.Hash.ReverseString())
 }

@@ -50,7 +50,7 @@ func TestAddAndEncodeHeaders(t *testing.T) {
 	err := msgHeaders.Headers[0].createHash()
 	assert.Equal(t, nil, err)
 	// Hash being correct, automatically verifies that the fields are encoded properly
-	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", msgHeaders.Headers[0].Hash.String())
+	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", msgHeaders.Headers[0].Hash.ReverseString())
 
 }
 
@@ -70,7 +70,7 @@ func TestEncodeDecode(t *testing.T) {
 	header := headerMsg.Headers[0]
 	err = header.createHash()
 
-	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", header.Hash.String())
+	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", header.Hash.ReverseString())
 
 	buf := new(bytes.Buffer)
 

@@ -34,7 +34,7 @@ func TestEncodeDecodeInvoc(t *testing.T) {
 	assert.Equal(t, "31363a30373a3032203a2030333366616431392d643638322d343035382d626437662d313563393331323434336538", hex.EncodeToString(attr2.Data))
 
 	assert.Equal(t, "050034e23004141ad842821c7341d5a32b17d7177a1750d30014ca14628c9e5bc6a9346ca6bcdf050ceabdeb2bdc774953c1087472616e736665726703e1df72015bdef1a1b9567d4700635f23b1f406f1", hex.EncodeToString(i.Script))
-	assert.Equal(t, "b2a22cd9dd7636ae23e25576866cd1d9e2f3d85a85e80874441f085cd60006d1", i.Hash.String())
+	assert.Equal(t, "b2a22cd9dd7636ae23e25576866cd1d9e2f3d85a85e80874441f085cd60006d1", i.Hash.ReverseString())
 
 	// Encode
 	buf := new(bytes.Buffer)
