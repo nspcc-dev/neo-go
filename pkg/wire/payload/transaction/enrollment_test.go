@@ -26,5 +26,5 @@ func TestEncodeDecodeEnrollment(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
-	assert.Equal(t, "988832f693785dcbcb8d5a0e9d5d22002adcbfb1eb6bbeebf8c494fff580e147", enroll.Hash.String())
+	assert.Equal(t, "988832f693785dcbcb8d5a0e9d5d22002adcbfb1eb6bbeebf8c494fff580e147", enroll.Hash.ReverseString())
 }

@@ -46,13 +46,13 @@ func TestBlockDecodeEncode(t *testing.T) {
 	for _, tx := range b.Txs {
 		switch t := tx.(type) {
 		case *transaction.Contract:
-			hashes = append(hashes, t.Hash.String())
+			hashes = append(hashes, t.Hash.ReverseString())
 		case *transaction.Miner:
-			hashes = append(hashes, t.Hash.String())
+			hashes = append(hashes, t.Hash.ReverseString())
 		case *transaction.Claim:
-			hashes = append(hashes, t.Hash.String())
+			hashes = append(hashes, t.Hash.ReverseString())
 		case *transaction.Invocation:
-			hashes = append(hashes, t.Hash.String())
+			hashes = append(hashes, t.Hash.ReverseString())
 		}
 	}
 
