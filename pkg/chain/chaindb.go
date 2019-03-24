@@ -98,7 +98,7 @@ func (c *Chaindb) saveTx(tx transaction.Transactioner, txIndex uint32, blockHash
 	if err != nil {
 		return err
 	}
-	err = txTable.Put(txHash.Bytes(), tx.Bytes())
+	err = txTable.Put(txHash.Bytes(), tx.BaseTx().Bytes())
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (c *Chaindb) saveTx(tx transaction.Transactioner, txIndex uint32, blockHash
 	// Save all of the utxos in a transaction
 	// We do this additional save so that we can form a utxo database
 	// and know when a transaction is a double spend.
-	utxos := tx.UTXOs()
+	utxos := tx.BaseTx().UTXOs()
 	for utxoIndex, utxo := range utxos {
 		err := c.saveUTXO(utxo, uint16(utxoIndex), txHash.Bytes(), blockHash)
 		if err != nil {
@@ -135,7 +135,7 @@ func (c *Chaindb) saveTx(tx transaction.Transactioner, txIndex uint32, blockHash
 	// We do this so that once an output has been spent
 	// It will be removed from the utxo database and cannot be spent again
 	// If the output was never in the utxo database, this function will return an error
-	txos := tx.TXOs()
+	txos := tx.BaseTx().TXOs()
 	for _, txo := range txos {
 		err := c.removeUTXO(txo)
 		if err != nil {
