@@ -42,3 +42,37 @@ func TestEncodeDecodeInvoc(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtxBytes, buf.Bytes())
 }
+
+func TestEncodeDecodeInvocAttributes(t *testing.T) {
+	// taken from mainnet cb0b5edc7e87b3b1bd9e029112fd3ce17c16d3de20c43ca1c0c26f3add578ecb
+
+	rawtx := "d1015308005b950f5e010000140000000000000000000000000000000000000000141a1e29d6232d2148e1e71e30249835ea41eb7a3d53c1087472616e7366657267fb1c540417067c270dee32f21023aa8b9b71abce000000000000000002201a1e29d6232d2148e1e71e30249835ea41eb7a3d8110f9f504da6334935a2db42b18296d88700000014140461370f6847c4abbdddff54a3e1337e453ecc8133c882ec5b9aabcf0f47dafd3432d47e449f4efc77447ef03519b7808c450a998cca3ecc10e6536ed9db862ba23210285264b6f349f0fe86e9bb3044fde8f705b016593cf88cd5e8a802b78c7d2c950ac"
+	rawtxBytes, _ := hex.DecodeString(rawtx)
+
+	i := NewInvocation(30)
+
+	r := bytes.NewReader(rawtxBytes)
+	err := i.Decode(r)
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, types.Invocation, i.Type)
+
+	assert.Equal(t, 1, int(i.Version))
+
+	assert.Equal(t, 2, len(i.Attributes))
+
+	assert.Equal(t, Script, i.Attributes[0].Usage)
+	assert.Equal(t, "1a1e29d6232d2148e1e71e30249835ea41eb7a3d", hex.EncodeToString(i.Attributes[0].Data))
+	assert.Equal(t, DescriptionURL, i.Attributes[1].Usage)
+	assert.Equal(t, "f9f504da6334935a2db42b18296d8870", hex.EncodeToString(i.Attributes[1].Data))
+
+	assert.Equal(t, "08005b950f5e010000140000000000000000000000000000000000000000141a1e29d6232d2148e1e71e30249835ea41eb7a3d53c1087472616e7366657267fb1c540417067c270dee32f21023aa8b9b71abce", hex.EncodeToString(i.Script))
+	assert.Equal(t, "cb0b5edc7e87b3b1bd9e029112fd3ce17c16d3de20c43ca1c0c26f3add578ecb", i.Hash.ReverseString())
+
+	// Encode
+	buf := new(bytes.Buffer)
+	err = i.Encode(buf)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, rawtxBytes, buf.Bytes())
+
+}
