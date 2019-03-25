@@ -133,13 +133,12 @@ func TestBlockSizeCalculation(t *testing.T) {
 		assert.Equal(t, expected[i].ID, txID.ReverseString())
 
 		assert.Equal(t, expected[i].Size, len(tx.BaseTx().Bytes()))
-		assert.Equal(t, expected[i].Type, tx.BaseTx().TypeTx().String())
-		assert.Equal(t, expected[i].Version, int(tx.BaseTx().VersionTx()))
-		assert.Equal(t, expected[i].InputsLen, len(tx.BaseTx().TXOs()))
-		assert.Equal(t, expected[i].OutputsLen, len(tx.BaseTx().UTXOs()))
-		assert.Equal(t, expected[i].InputsLen, len(tx.BaseTx().TXOs()))
-		assert.Equal(t, expected[i].AttributesLen, len(tx.BaseTx().Attrs()))
-		assert.Equal(t, expected[i].WitnessesLen, len(tx.BaseTx().Witness()))
+		assert.Equal(t, expected[i].Type, tx.BaseTx().Type.String())
+		assert.Equal(t, expected[i].Version, int(tx.BaseTx().Version))
+		assert.Equal(t, expected[i].InputsLen, len(tx.BaseTx().Inputs))
+		assert.Equal(t, expected[i].OutputsLen, len(tx.BaseTx().Outputs))
+		assert.Equal(t, expected[i].AttributesLen, len(tx.BaseTx().Attributes))
+		assert.Equal(t, expected[i].WitnessesLen, len(tx.BaseTx().Witnesses))
 	}
 
 	assert.Equal(t, len(expected), len(b.Txs))

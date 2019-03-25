@@ -196,36 +196,6 @@ func (b *Base) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// UTXOs returns the outputs in the tx
-func (b *Base) UTXOs() []*Output {
-	return b.Outputs
-}
-
-// TXOs returns the inputs in the tx
-func (b *Base) TXOs() []*Input {
-	return b.Inputs
-}
-
-// Witness returns the witnesses in the tx
-func (b *Base) Witness() []*Witness {
-	return b.Witnesses
-}
-
-// TypeTx returns the Type in the tx
-func (b Base) TypeTx() types.TX {
-	return b.Type
-}
-
-// VersionTx returns the Version in the tx
-func (b Base) VersionTx() version.TX {
-	return b.Version
-}
-
-// Attrs returns the Attributes in the tx
-func (b Base) Attrs() []*Attribute {
-	return b.Attributes
-}
-
 // BaseTx retuns a pointer to himself
 func (b Base) BaseTx() *Base {
 	return &b
