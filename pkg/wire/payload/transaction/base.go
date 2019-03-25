@@ -196,7 +196,7 @@ func (b *Base) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// BaseTx retuns a pointer to himself
-func (b Base) BaseTx() *Base {
-	return &b
+// BaseTx returns the Base object in a transaction
+func (b *Base) BaseTx() *Base {
+	return b
 }
