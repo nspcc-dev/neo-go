@@ -91,6 +91,61 @@ func TestSimpleRun(t *testing.T) {
 
 }
 
+func TestThrow(t *testing.T) {
+
+	// Program pushes 20 to the stack
+	// exits with an error
+
+	// Push(20)
+	//THROW
+
+	builder := stack.NewBuilder()
+	builder.EmitInt(20).EmitOpcode(stack.THROW)
+
+	// Pass program to VM
+	vm := NewVM(builder.Bytes())
+
+	// Runs vm with program
+	_, err := vm.Run()
+	assert.Equal(t, "the execution of the script program end with an error", err.Error())
+
+	ctx, err := vm.InvocationStack.CurrentContext()
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 1, ctx.Estack.Len())
+	assert.Equal(t, -1, ctx.Astack.Len())
+}
+
+func TestThrowIfNot(t *testing.T) {
+
+	// Program pushes 20 and 20 to the stack
+	// Adds them together
+	// pushes 54 to the stack
+	// Checks if result of addition and 54 are equal
+	// Faults if not
+
+	// Push(20)
+	// Push(20)
+	// Add
+	// Push(54)
+	// Equal
+	// THROWIFNOT
+	builder := stack.NewBuilder()
+	builder.EmitInt(20).EmitInt(20).EmitOpcode(stack.ADD)
+	builder.EmitInt(54).EmitOpcode(stack.EQUAL).EmitOpcode(stack.THROWIFNOT)
+
+	// Pass program to VM
+	vm := NewVM(builder.Bytes())
+
+	// Runs vm with program
+	_, err := vm.Run()
+	assert.Equal(t, "item on top of stack evaluates to false", err.Error())
+
+	ctx, err := vm.InvocationStack.CurrentContext()
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 0, ctx.Estack.Len())
+	assert.Equal(t, -1, ctx.Astack.Len())
+}
+
 // returns true if the value at the top of the evaluation stack is a integer
 // and equals the value passed in
 func peekTopEStackIsValue(t *testing.T, vm *VM, value int64) bool {

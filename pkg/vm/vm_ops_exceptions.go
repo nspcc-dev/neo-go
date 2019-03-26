@@ -31,3 +31,9 @@ func THROWIFNOT(op stack.Instruction, ctx *stack.Context, istack *stack.Invocati
 	}
 	return NONE, nil
 }
+
+// THROW returns a FAULT VM state. This indicate that there is an error in the
+// current context loaded program.
+func THROW(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+	return FAULT, errors.New("the execution of the script program end with an error")
+}

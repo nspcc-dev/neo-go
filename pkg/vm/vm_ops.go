@@ -12,6 +12,7 @@ var opFunc = map[stack.Instruction]stackInfo{
 	stack.RET:         RET,
 	stack.EQUAL:       EQUAL,
 	stack.THROWIFNOT:  THROWIFNOT,
+	stack.THROW:       THROW,
 }
 
 func init() {
