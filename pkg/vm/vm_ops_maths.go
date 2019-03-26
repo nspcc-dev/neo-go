@@ -44,7 +44,7 @@ func Sub(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
-// Inc increments the stack Item's value of 1.
+// Inc increments the stack Item's value by 1.
 // Returns an error if the item cannot be casted to an integer
 // or if 1 cannot be added to the item
 func Inc(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
@@ -69,7 +69,7 @@ func Inc(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
-// Dec decrements the stack Item's value of 1.
+// Dec decrements the stack Item's value by 1.
 // Returns an error if the item cannot be casted to an integer
 // or if 1 cannot be subtracted to the item
 func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
