@@ -61,7 +61,7 @@ func TestPushAdd(t *testing.T) {
 
 }
 
-func TestSimpleRun(t *testing.T) {
+func TestThrowIfNot(t *testing.T) {
 
 	// Program pushes 20 and 34 to the stack
 	// Adds them together
@@ -89,6 +89,9 @@ func TestSimpleRun(t *testing.T) {
 	// ResultStack should be nil
 	assert.Equal(t, -1, vm.ResultStack.Len())
 
+	// InvocationStack should be empty
+	assert.Equal(t, 0, vm.InvocationStack.Len())
+
 }
 
 func TestThrow(t *testing.T) {
@@ -97,7 +100,7 @@ func TestThrow(t *testing.T) {
 	// exits with an error
 
 	// Push(20)
-	//THROW
+	// THROW
 
 	builder := stack.NewBuilder()
 	builder.EmitInt(20).EmitOpcode(stack.THROW)
@@ -107,42 +110,11 @@ func TestThrow(t *testing.T) {
 
 	// Runs vm with program
 	_, err := vm.Run()
-	assert.Equal(t, "the execution of the script program end with an error", err.Error())
+	assert.NotNil(t, err)
 
 	ctx, err := vm.InvocationStack.CurrentContext()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, ctx.Estack.Len())
-	assert.Equal(t, -1, ctx.Astack.Len())
-}
-
-func TestThrowIfNot(t *testing.T) {
-
-	// Program pushes 20 and 20 to the stack
-	// Adds them together
-	// pushes 54 to the stack
-	// Checks if result of addition and 54 are equal
-	// Faults if not
-
-	// Push(20)
-	// Push(20)
-	// Add
-	// Push(54)
-	// Equal
-	// THROWIFNOT
-	builder := stack.NewBuilder()
-	builder.EmitInt(20).EmitInt(20).EmitOpcode(stack.ADD)
-	builder.EmitInt(54).EmitOpcode(stack.EQUAL).EmitOpcode(stack.THROWIFNOT)
-
-	// Pass program to VM
-	vm := NewVM(builder.Bytes())
-
-	// Runs vm with program
-	_, err := vm.Run()
-	assert.Equal(t, "item on top of stack evaluates to false", err.Error())
-
-	ctx, err := vm.InvocationStack.CurrentContext()
-	assert.Equal(t, nil, err)
-	assert.Equal(t, 0, ctx.Estack.Len())
 	assert.Equal(t, -1, ctx.Astack.Len())
 }
 
