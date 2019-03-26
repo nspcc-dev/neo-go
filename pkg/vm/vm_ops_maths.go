@@ -34,7 +34,7 @@ func Sub(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	}
 	res, err := operandB.Sub(operandA)
 	if err != nil {
-		return HALT, err
+		return FAULT, err
 	}
 
 	ctx.Estack.Push(res)
