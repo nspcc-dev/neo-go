@@ -96,8 +96,8 @@ func (i *Int) Value() *big.Int {
 // Abs returns a stack integer whose underlying value is
 // the absolute value of the original stack integer.
 func (i *Int) Abs() (*Int, error) {
-	a := i.Value()
-	b, err := NewInt(a.Abs(a))
+	a := big.NewInt(0).Abs(i.Value())
+	b, err := NewInt(a)
 	if err != nil {
 		return nil, err
 	}

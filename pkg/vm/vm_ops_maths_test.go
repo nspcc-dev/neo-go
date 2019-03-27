@@ -134,7 +134,6 @@ func TestAbsOp(t *testing.T) {
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
-	assert.Equal(t, -1, ctx.Astack.Len())
 
 	item, err := ctx.Estack.PopInt()
 	if err != nil {
@@ -151,18 +150,12 @@ func TestNotOp(t *testing.T) {
 	b := stack.NewBoolean(false)
 
 	ctx := stack.NewContext([]byte{})
-	assert.Equal(t, 0, ctx.IP())
-	assert.Equal(t, 0, ctx.LenInstr())
-
 	ctx.Estack.Push(b)
 
 	v.executeOp(stack.NOT, ctx)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
-	assert.Equal(t, -1, ctx.Astack.Len())
-	assert.Equal(t, 0, ctx.IP())
-	assert.Equal(t, 0, ctx.LenInstr())
 
 	item, err := ctx.Estack.PopBoolean()
 	if err != nil {

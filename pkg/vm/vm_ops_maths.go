@@ -94,7 +94,8 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
-// Abs converts the Stack Item's value to an absolute value.
+// Abs pops an integer off of the stack and pushes its absolute value onto the stack.
+// Returns an error if the popped value is not an integer or if the absolute value cannot be taken
 func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	i, err := ctx.Estack.PopInt()
