@@ -92,3 +92,15 @@ func (i *Int) Boolean() (*Boolean, error) {
 func (i *Int) Value() *big.Int {
 	return i.val
 }
+
+// Abs returns a stack integer whose underlying value is
+// the absolute value of the original stack integer.
+func (i *Int) Abs() (*Int, error) {
+	a := i.Value()
+	b, err := NewInt(a.Abs(a))
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}

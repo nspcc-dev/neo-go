@@ -117,3 +117,57 @@ func TestSubOp(t *testing.T) {
 	assert.Equal(t, int64(-10), item.Value().Int64())
 
 }
+
+func TestAbsOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(-20))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a)
+
+	v.executeOp(stack.ABS, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+	assert.Equal(t, -1, ctx.Astack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, int64(20), item.Value().Int64())
+}
+
+func TestNotOp(t *testing.T) {
+
+	v := VM{}
+
+	b := stack.NewBoolean(false)
+
+	ctx := stack.NewContext([]byte{})
+	assert.Equal(t, 0, ctx.IP())
+	assert.Equal(t, 0, ctx.LenInstr())
+
+	ctx.Estack.Push(b)
+
+	v.executeOp(stack.NOT, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+	assert.Equal(t, -1, ctx.Astack.Len())
+	assert.Equal(t, 0, ctx.IP())
+	assert.Equal(t, 0, ctx.LenInstr())
+
+	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, true, item.Value())
+}

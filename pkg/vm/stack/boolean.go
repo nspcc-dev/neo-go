@@ -24,3 +24,9 @@ func (b *Boolean) Boolean() (*Boolean, error) {
 func (b *Boolean) Value() bool {
 	return b.val
 }
+
+// Not returns a Boolean whose underlying value is flipped.
+// If the value is True, it is flipped to False and viceversa
+func (b *Boolean) Not() *Boolean {
+	return NewBoolean(!b.Value())
+}

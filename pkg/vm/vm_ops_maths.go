@@ -94,6 +94,38 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Abs converts the Stack Item's value to an absolute value.
+func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	a, err := i.Abs()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(a)
+
+	return NONE, nil
+}
+
+// Not flips the stack Item's value.
+// If the value is True, it is flipped to False and viceversa.
+func Not(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	b, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(b.Not())
+
+	return NONE, nil
+}
+
 func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
 	operandA, err := ctx.Estack.PopInt()
 	if err != nil {
