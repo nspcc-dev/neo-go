@@ -124,8 +124,8 @@ func Negate(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, 
 		return FAULT, err
 	}
 
-	a := big.NewInt(0)
-	b, err := stack.NewInt(a.Neg(i.Value()))
+	a := big.NewInt(0).Neg(i.Value())
+	b, err := stack.NewInt(a)
 	if err != nil {
 		return FAULT, err
 	}
