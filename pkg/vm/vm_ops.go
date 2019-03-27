@@ -7,6 +7,8 @@ type stackInfo func(op stack.Instruction, ctx *stack.Context, istack *stack.Invo
 var opFunc = map[stack.Instruction]stackInfo{
 	stack.INC:         Inc,
 	stack.DEC:         Dec,
+	stack.NZ:          Nz,
+	stack.MUL:         Mul,
 	stack.ADD:         Add,
 	stack.SUB:         Sub,
 	stack.PUSHBYTES1:  PushNBytes,

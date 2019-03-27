@@ -94,6 +94,45 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Nz returns a stack Item whose value is:
+// a) true if the stack Item's value is not zero.
+// b)  false if the stack Item's value is zero.
+func Nz(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	b, err := i.Boolean()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(b)
+
+	return NONE, nil
+}
+
+// Mul multiplies two stack Items together.
+// Returns an error if either items cannot be casted to an integer
+// or if integers cannot be multiplied together.
+func Mul(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := operandA.Mul(operandB)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
 	operandA, err := ctx.Estack.PopInt()
 	if err != nil {
