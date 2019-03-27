@@ -46,7 +46,7 @@ func Sub(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 
 // Inc increments the stack Item's value by 1.
 // Returns an error if the item cannot be casted to an integer
-// or if 1 cannot be added to the item
+// or if 1 cannot be added to the item.
 func Inc(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	i, err := ctx.Estack.PopInt()
@@ -71,7 +71,7 @@ func Inc(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 
 // Dec decrements the stack Item's value by 1.
 // Returns an error if the item cannot be casted to an integer
-// or if 1 cannot be subtracted to the item
+// or if 1 cannot be subtracted to the item.
 func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
 	i, err := ctx.Estack.PopInt()
@@ -90,6 +90,47 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	}
 
 	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// Sign puts the sign of the top stack Item on top of the stack.
+// If value is negative, put -1;
+// If positive, put 1;
+// If value is zero, put 0.
+func Sign(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	s := int64(i.Value().Sign())
+	sign, err := stack.NewInt(big.NewInt(s))
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(sign)
+
+	return NONE, nil
+}
+
+// Negate flips the sign of the stack Item.
+func Negate(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	a := big.NewInt(0)
+	b, err := stack.NewInt(a.Neg(i.Value()))
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(b)
 
 	return NONE, nil
 }
