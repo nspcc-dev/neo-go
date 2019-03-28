@@ -164,3 +164,53 @@ func TestNotOp(t *testing.T) {
 
 	assert.Equal(t, true, item.Value())
 }
+
+func TestSignOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(-20))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a)
+
+	v.executeOp(stack.SIGN, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, int64(-1), item.Value().Int64())
+}
+
+func TestNegateOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(-20))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a)
+
+	v.executeOp(stack.NEGATE, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, int64(20), item.Value().Int64())
+}

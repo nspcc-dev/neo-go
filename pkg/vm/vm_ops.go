@@ -9,6 +9,8 @@ var opFunc = map[stack.Instruction]stackInfo{
 	stack.DEC:         Dec,
 	stack.ABS:         Abs,
 	stack.NOT:         Not,
+	stack.SIGN:        Sign,
+	stack.NEGATE:      Negate,
 	stack.ADD:         Add,
 	stack.SUB:         Sub,
 	stack.PUSHBYTES1:  PushNBytes,
