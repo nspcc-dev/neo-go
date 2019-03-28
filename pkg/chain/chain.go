@@ -23,7 +23,8 @@ var (
 
 // Chain represents a blockchain instance
 type Chain struct {
-	Db *Chaindb
+	Db     *Chaindb
+	height uint32
 }
 
 // New returns a new chain instance
@@ -127,4 +128,10 @@ func (c *Chain) ProcessHeaders(hdrs []*payload.BlockBase) error {
 // or when the node receives a HeadersMessage
 func (c *Chain) verifyHeaders(hdrs []*payload.BlockBase) error {
 	return nil
+}
+
+// CurrentHeight returns the index of the block
+// at the tip of the chain
+func (c Chain) CurrentHeight() uint32 {
+	return c.height
 }

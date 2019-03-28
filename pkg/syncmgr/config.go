@@ -9,7 +9,7 @@ import (
 type Config struct {
 
 	// Chain functions
-	ProcessBlock   func(msg payload.Block) error
+	ProcessBlock   func(block payload.Block) error
 	ProcessHeaders func(hdrs []*payload.BlockBase) error
 
 	// RequestHeaders will send a getHeaders request
