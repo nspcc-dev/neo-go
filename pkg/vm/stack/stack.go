@@ -148,3 +148,13 @@ func (ras *RandomAccess) PopByteArray() (*ByteArray, error) {
 	}
 	return item.ByteArray()
 }
+
+// PopBoolean will remove the last stack item that was added
+// and cast it to a Boolean.
+func (ras *RandomAccess) PopBoolean() (*Boolean, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.Boolean()
+}
