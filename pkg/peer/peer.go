@@ -176,7 +176,6 @@ func (p *Peer) IsVerackReceived() bool {
 //NotifyDisconnect returns once the peer has disconnected
 // Blocking
 func (p *Peer) NotifyDisconnect() {
-	fmt.Println("Peer has not disconnected yet")
 	<-p.quitch
 	fmt.Println("Peer has just disconnected")
 }
