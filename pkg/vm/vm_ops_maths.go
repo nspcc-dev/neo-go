@@ -94,6 +94,44 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Div divides one stack Item by an other.
+// Returns an error if either items cannot be casted to an integer
+// or if the division of the integers cannot be performed.
+func Div(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := operandB.Div(operandA)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// Mod returns the mod of two stack Items.
+// Returns an error if either items cannot be casted to an integer
+// or if the mode of the integers cannot be performed.
+func Mod(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := operandB.Mod(operandA)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 // Nz pops an integer from the stack.
 // Then pushes a boolean to the stack which evaluates to true
 // iff the integer was not zero.

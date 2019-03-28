@@ -46,6 +46,13 @@ func (i *Int) Mul(s *Int) (*Int, error) {
 	}, nil
 }
 
+// Div will divide one stackInteger by an other.
+func (i *Int) Div(s *Int) (*Int, error) {
+	return &Int{
+		val: new(big.Int).Div(i.val, s.val),
+	}, nil
+}
+
 // Mod will take the mod of two stackIntegers together
 func (i *Int) Mod(s *Int) (*Int, error) {
 	return &Int{

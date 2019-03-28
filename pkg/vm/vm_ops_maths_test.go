@@ -118,6 +118,64 @@ func TestSubOp(t *testing.T) {
 
 }
 
+func TestDivOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(10))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(4))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.DIV, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	if err != nil {
+		t.Fail()
+	}
+  
+	assert.Equal(t, int64(2), item.Value().Int64())
+}
+
+func TestModOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(15))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(4))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.MOD, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, int64(3), item.Value().Int64())
+}
+
 func TestNzOp(t *testing.T) {
 
 	v := VM{}
@@ -141,7 +199,6 @@ func TestNzOp(t *testing.T) {
 	}
 
 	assert.Equal(t, true, item.Value())
-
 }
 
 func TestMulOp(t *testing.T) {
@@ -171,7 +228,6 @@ func TestMulOp(t *testing.T) {
 	}
 
 	assert.Equal(t, int64(400), item.Value().Int64())
-
 }
 
 func TestAbsOp(t *testing.T) {
