@@ -24,7 +24,6 @@ type mode uint8
 //blockTimer approximates to how long it takes to reach consensus and propagate
 // a block in the network. Once a node has synchronised with the network, he will
 // ask the network for a newblock every blockTimer
-
 const blockTimer = 20 * time.Second
 
 // trailingHeight indicates how many blocks the node has to be behind by
