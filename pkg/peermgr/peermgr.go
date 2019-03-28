@@ -2,7 +2,6 @@ package peermgr
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
@@ -120,5 +119,4 @@ func (pmgr *PeerMgr) onDisconnect(p mPeer) {
 	pmgr.pLock.Lock()
 	delete(pmgr.peers, p)
 	pmgr.pLock.Unlock()
-	fmt.Println(pmgr.Len())
 }
