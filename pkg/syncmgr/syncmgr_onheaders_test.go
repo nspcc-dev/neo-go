@@ -12,20 +12,8 @@ import (
 
 func TestHeadersModeOnHeaders(t *testing.T) {
 
-	helper := syncTestHelper{}
+	syncmgr, helper := setupSyncMgr(headersMode)
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 0))
 
 	// Since there were no headers, we should have exited early and processed nothing
@@ -41,42 +29,14 @@ func TestHeadersModeOnHeaders(t *testing.T) {
 }
 
 func TestBlockModeOnHeaders(t *testing.T) {
-	helper := syncTestHelper{}
-
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = blockMode
+	syncmgr, helper := setupSyncMgr(blockMode)
 
 	// If we receive a header in blockmode, no headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 100))
 	assert.Equal(t, 0, helper.headersProcessed)
 }
 func TestNormalModeOnHeadersMaxHeaders(t *testing.T) {
-	helper := syncTestHelper{}
-
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = normalMode
+	syncmgr, helper := setupSyncMgr(normalMode)
 
 	// If we receive a header in normalmode, headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 2000))
@@ -89,21 +49,7 @@ func TestNormalModeOnHeadersMaxHeaders(t *testing.T) {
 // This differs from the previous function in that
 //we did not receive the max amount of headers
 func TestNormalModeOnHeaders(t *testing.T) {
-	helper := syncTestHelper{}
-
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = normalMode
+	syncmgr, helper := setupSyncMgr(normalMode)
 
 	// If we receive a header in normalmode, headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))
@@ -114,21 +60,7 @@ func TestNormalModeOnHeaders(t *testing.T) {
 }
 
 func TestLastHeaderUpdates(t *testing.T) {
-	helper := syncTestHelper{}
-
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = headersMode
+	syncmgr, _ := setupSyncMgr(headersMode)
 
 	hdrsMessage := randomHeadersMessage(t, 200)
 	hdrs := hdrsMessage.Headers
@@ -162,23 +94,9 @@ func TestLastHeaderUpdates(t *testing.T) {
 }
 
 func TestHeadersModeOnHeadersErr(t *testing.T) {
-	helper := syncTestHelper{
-		err: &chain.ValidationError{},
-	}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = headersMode
+	syncmgr, helper := setupSyncMgr(headersMode)
+	helper.err = &chain.ValidationError{}
 
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))
 
@@ -188,23 +106,8 @@ func TestHeadersModeOnHeadersErr(t *testing.T) {
 }
 
 func TestNormalModeOnHeadersErr(t *testing.T) {
-	helper := syncTestHelper{
-		err: &chain.ValidationError{},
-	}
-
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = normalMode
+	syncmgr, helper := setupSyncMgr(normalMode)
+	helper.err = &chain.ValidationError{}
 
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))
 

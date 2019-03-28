@@ -68,7 +68,7 @@ func New(cfg *Config) *Syncmgr {
 }
 
 // OnHeader is called when the node receives a headers message
-func (s *Syncmgr) OnHeader(peer SyncPeer, msg *payload.HeadersMessage) {
+func (s *Syncmgr) OnHeader(peer SyncPeer, msg *payload.HeadersMessage) error {
 
 	// XXX(Optimisation): First check if we actually need these headers
 	// Check the last header in msg and then check what our latest header that was saved is
@@ -78,7 +78,7 @@ func (s *Syncmgr) OnHeader(peer SyncPeer, msg *payload.HeadersMessage) {
 
 	if len(msg.Headers) == 0 {
 		// XXX: Increment banScore for this peer, for sending empty headers message
-		return
+		return nil
 	}
 
 	var err error
@@ -100,17 +100,14 @@ func (s *Syncmgr) OnHeader(peer SyncPeer, msg *payload.HeadersMessage) {
 	// Upon re-alising this, the node will then send out GetAddresses to the network and
 	// syncing will be resumed, once we find peers to connect to.
 
-	if err != nil {
-		// just log the error
-		fmt.Println(err.Error())
-	}
-
 	hdr := msg.Headers[len(msg.Headers)-1]
 	fmt.Printf("Finished processing headers. LastHash in set was: %s\n ", hdr.Hash.ReverseString())
+
+	return err
 }
 
 // OnBlock is called when the node receives a block
-func (s *Syncmgr) OnBlock(peer SyncPeer, msg *payload.BlockMessage) {
+func (s *Syncmgr) OnBlock(peer SyncPeer, msg *payload.BlockMessage) error {
 	fmt.Printf("Block received with height %d\n", msg.Block.Index)
 
 	var err error
@@ -126,11 +123,9 @@ func (s *Syncmgr) OnBlock(peer SyncPeer, msg *payload.BlockMessage) {
 		err = s.headersModeOnBlock(peer, msg.Block)
 	}
 
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
 	fmt.Printf("Processed Block with height %d\n", msg.Block.Index)
+
+	return err
 }
 
 //IsCurrent returns true if the node is currently

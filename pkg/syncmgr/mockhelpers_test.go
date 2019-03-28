@@ -46,13 +46,21 @@ func (s *syncTestHelper) FetchBlockAgain(util.Uint256) error {
 	return s.err
 }
 
+func (s *syncTestHelper) RequestBlock(util.Uint256) error {
+	s.blockFetchRequest++
+	return s.err
+}
+
+func (s *syncTestHelper) RequestHeaders(util.Uint256) error {
+	s.headersFetchRequest++
+	return s.err
+}
+
 type mockPeer struct {
 	height uint32
 }
 
-func (p *mockPeer) RequestBlocks(hashes []util.Uint256) error { return nil }
-func (p *mockPeer) RequestHeaders(hash util.Uint256) error    { return nil }
-func (p *mockPeer) Height() uint32                            { return p.height }
+func (p *mockPeer) Height() uint32 { return p.height }
 
 func randomHeadersMessage(t *testing.T, num int) *payload.HeadersMessage {
 	var hdrs []*payload.BlockBase
@@ -79,4 +87,27 @@ func randomUint256(t *testing.T) util.Uint256 {
 	u, err := util.Uint256DecodeBytes(hash)
 	assert.Nil(t, err)
 	return u
+}
+
+func setupSyncMgr(mode mode) (*Syncmgr, *syncTestHelper) {
+	helper := &syncTestHelper{}
+
+	cfg := &Config{
+		ProcessBlock:   helper.ProcessBlock,
+		ProcessHeaders: helper.ProcessHeaders,
+
+		GetNextBlockHash: helper.GetNextBlockHash,
+		AskForNewBlocks:  helper.AskForNewBlocks,
+
+		FetchHeadersAgain: helper.FetchHeadersAgain,
+		FetchBlockAgain:   helper.FetchBlockAgain,
+
+		RequestBlock:   helper.RequestBlock,
+		RequestHeaders: helper.RequestHeaders,
+	}
+
+	syncmgr := New(cfg)
+	syncmgr.syncmode = mode
+
+	return syncmgr, helper
 }

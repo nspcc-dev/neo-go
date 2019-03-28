@@ -43,7 +43,5 @@ type Config struct {
 // SyncPeer represents a peer on the network
 // that this node can sync with
 type SyncPeer interface {
-	RequestBlocks(hashes []util.Uint256) error
-	RequestHeaders(hash util.Uint256) error
 	Height() uint32
 }

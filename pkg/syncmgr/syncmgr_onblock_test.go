@@ -10,20 +10,8 @@ import (
 )
 
 func TestHeadersModeOnBlock(t *testing.T) {
-	helper := syncTestHelper{}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
+	syncmgr, helper := setupSyncMgr(headersMode)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -32,21 +20,8 @@ func TestHeadersModeOnBlock(t *testing.T) {
 }
 
 func TestBlockModeOnBlock(t *testing.T) {
-	helper := syncTestHelper{}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = blockMode
+	syncmgr, helper := setupSyncMgr(blockMode)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -54,21 +29,8 @@ func TestBlockModeOnBlock(t *testing.T) {
 	assert.Equal(t, 1, helper.blocksProcessed)
 }
 func TestNormalModeOnBlock(t *testing.T) {
-	helper := syncTestHelper{}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = normalMode
+	syncmgr, helper := setupSyncMgr(normalMode)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -77,21 +39,8 @@ func TestNormalModeOnBlock(t *testing.T) {
 }
 
 func TestBlockModeToNormalMode(t *testing.T) {
-	helper := syncTestHelper{}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = blockMode
+	syncmgr, _ := setupSyncMgr(blockMode)
 
 	peer := &mockPeer{
 		height: 100,
@@ -107,21 +56,8 @@ func TestBlockModeToNormalMode(t *testing.T) {
 
 }
 func TestBlockModeStayInBlockMode(t *testing.T) {
-	helper := syncTestHelper{}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = blockMode
+	syncmgr, _ := setupSyncMgr(blockMode)
 
 	// We need our latest know hash to not be equal to the hash
 	// of the block we received, to stay in blockmode
@@ -140,29 +76,17 @@ func TestBlockModeStayInBlockMode(t *testing.T) {
 	assert.Equal(t, blockMode, syncmgr.syncmode)
 }
 func TestBlockModeAlreadyExistsErr(t *testing.T) {
-	helper := syncTestHelper{
-		err: chain.ErrBlockAlreadyExists,
-	}
 
-	cfg := &Config{
-		ProcessBlock:   helper.ProcessBlock,
-		ProcessHeaders: helper.ProcessHeaders,
-
-		GetNextBlockHash: helper.GetNextBlockHash,
-		AskForNewBlocks:  helper.AskForNewBlocks,
-
-		FetchHeadersAgain: helper.FetchHeadersAgain,
-		FetchBlockAgain:   helper.FetchBlockAgain,
-	}
-
-	syncmgr := New(cfg)
-	syncmgr.syncmode = blockMode
+	syncmgr, helper := setupSyncMgr(blockMode)
+	helper.err = chain.ErrBlockAlreadyExists
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 100))
 
-	// On a blockAladyExists error, we should request for another peer
-	// to send us the block
-	assert.Equal(t, 1, helper.blockFetchRequest)
+	assert.Equal(t, 0, helper.blockFetchRequest)
+
+	// If we have a block already exists in blockmode, then we
+	// switch back to headers mode.
+	assert.Equal(t, headersMode, syncmgr.syncmode)
 }
 
 func randomBlockMessage(t *testing.T, height uint32) *payload.BlockMessage {
