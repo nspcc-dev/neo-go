@@ -1,9 +1,13 @@
 package chain
 
 import (
-	"errors"
+	"fmt"
 
+	"github.com/pkg/errors"
+
+	"github.com/CityOfZion/neo-go/pkg/chaincfg"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
+	"github.com/CityOfZion/neo-go/pkg/wire/protocol"
 
 	"github.com/CityOfZion/neo-go/pkg/database"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
@@ -12,58 +16,89 @@ import (
 var (
 	// ErrBlockAlreadyExists happens when you try to save the same block twice
 	ErrBlockAlreadyExists = errors.New("this block has already been saved in the database")
+
+	// ErrFutureBlock happens when you try to save a block that is not the next block sequentially
+	ErrFutureBlock = errors.New("this is not the next block sequentially, that should be added to the chain")
 )
 
 // Chain represents a blockchain instance
 type Chain struct {
-	db *Chaindb
+	Db *Chaindb
 }
 
-//New returns a new chain instance
-func New(db database.Database) *Chain {
-	return &Chain{
-		db: &Chaindb{db},
+// New returns a new chain instance
+func New(db database.Database, magic protocol.Magic) (*Chain, error) {
+
+	chain := &Chain{
+		Db: &Chaindb{db},
 	}
+
+	// Get last header saved to see if this is a fresh database
+	_, err := chain.Db.GetLastHeader()
+	if err == nil {
+		return chain, nil
+	}
+
+	if err != database.ErrNotFound {
+		return nil, err
+	}
+
+	// We have a database.ErrNotFound. Insert the genesisBlock
+	fmt.Printf("Starting a fresh database for %s\n", magic.String())
+
+	params, err := chaincfg.NetParams(magic)
+	if err != nil {
+		return nil, err
+	}
+	err = chain.Db.saveHeader(&params.GenesisBlock.BlockBase)
+	if err != nil {
+		return nil, err
+	}
+	err = chain.Db.saveBlock(params.GenesisBlock, true)
+	if err != nil {
+		return nil, err
+	}
+	return chain, nil
 }
 
-// SaveBlock verifies and saves the block in the database
+// ProcessBlock verifies and saves the block in the database
 // XXX: for now we will just save without verifying the block
 // This function is called by the server and if an error is returned then
 // the server informs the sync manager to redownload the block
 // XXX:We should also check if the header is already saved in the database
 // If not, then we need to validate the header with the rest of the chain
 // For now we re-save the header
-func (c *Chain) SaveBlock(msg payload.BlockMessage) error {
-	err := c.VerifyBlock(msg.Block)
-	if err != nil {
-		return err
-	}
-	//XXX(Issue): We can either check the hash here for genesisblock.
-	//We most likely will have it anyways after validation/ We can return it from VerifyBlock
-	// Or we can do it somewhere in startup, performance benefits
-	// won't be that big since it's just a bytes.Equal.
-	// so it's more about which is more readable and where it makes sense to put
-	return c.db.saveBlock(msg.Block, false)
-}
+func (c *Chain) ProcessBlock(block payload.Block) error {
 
-// VerifyBlock verifies whether a block is valid according
-// to the rules of consensus
-func (c *Chain) VerifyBlock(block payload.Block) error {
-
-	// Check if we already have this block
-	// XXX: We can optimise by implementing a Has method
+	// Check if we already have this block saved
+	// XXX: We can optimise by implementing a Has() method
 	// caching the last block in memory
-	lastBlock, err := c.db.GetLastBlock()
+	lastBlock, err := c.Db.GetLastBlock()
 	if err != nil {
 		return err
 	}
-	// Check if we have already saved this block
-	// by looking if the latest block height is more than
-	// incoming block height
 	if lastBlock.Index > block.Index {
 		return ErrBlockAlreadyExists
 	}
 
+	if block.Index > lastBlock.Index+1 {
+		return ErrFutureBlock
+	}
+
+	err = c.verifyBlock(block)
+	if err != nil {
+		return ValidationError{err.Error()}
+	}
+	err = c.Db.saveBlock(block, false)
+	if err != nil {
+		return DatabaseError{err.Error()}
+	}
+	return nil
+}
+
+// VerifyBlock verifies whether a block is valid according
+// to the rules of consensus
+func (c *Chain) verifyBlock(block payload.Block) error {
 	return nil
 }
 
@@ -73,14 +108,18 @@ func (c *Chain) VerifyTx(tx transaction.Transactioner) error {
 	return nil
 }
 
-// SaveHeaders will save the set of headers without validating
-func (c *Chain) SaveHeaders(msg payload.HeadersMessage) error {
+// ProcessHeaders will save the set of headers without validating
+func (c *Chain) ProcessHeaders(hdrs []*payload.BlockBase) error {
 
-	err := c.verifyHeaders(msg.Headers)
+	err := c.verifyHeaders(hdrs)
 	if err != nil {
-		return err
+		return ValidationError{err.Error()}
 	}
-	return c.db.saveHeaders(msg.Headers)
+	err = c.Db.saveHeaders(hdrs)
+	if err != nil {
+		return DatabaseError{err.Error()}
+	}
+	return nil
 }
 
 // verifyHeaders will be used to verify a batch of headers
