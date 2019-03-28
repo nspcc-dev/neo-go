@@ -61,6 +61,7 @@ func (d *Detector) loop() {
 			d.lock.RUnlock()
 			for _, deadline := range resp {
 				if now.After(deadline) {
+					fmt.Println(resp)
 					fmt.Println("Deadline passed")
 					return
 				}
@@ -99,7 +100,7 @@ func (d *Detector) AddMessage(cmd command.Type) {
 // peer. This will remove the pendingresponse message from the map.
 // The command passed through is the command we received
 func (d *Detector) RemoveMessage(cmd command.Type) {
-	cmds := d.addMessage(cmd)
+	cmds := d.removeMessage(cmd)
 	d.lock.Lock()
 	for _, cmd := range cmds {
 		delete(d.responses, cmd)
@@ -137,10 +138,8 @@ func (d *Detector) addMessage(cmd command.Type) []command.Type {
 	case command.GetAddr:
 		// We now will expect a Headers Message
 		cmds = append(cmds, command.Addr)
-
 	case command.GetData:
 		// We will now expect a block/tx message
-		// We can optimise this by including the exact inventory type, however it is not needed
 		cmds = append(cmds, command.Block)
 		cmds = append(cmds, command.TX)
 	case command.GetBlocks:
@@ -159,17 +158,14 @@ func (d *Detector) removeMessage(cmd command.Type) []command.Type {
 
 	switch cmd {
 	case command.Block:
-		// We will now expect a block/tx message
+		// We will now remove a block and tx message
 		cmds = append(cmds, command.Block)
 		cmds = append(cmds, command.TX)
 	case command.TX:
-		// We will now expect a block/tx message
+		// We will now remove a block and tx message
 		cmds = append(cmds, command.Block)
 		cmds = append(cmds, command.TX)
-	case command.GetBlocks:
-		// we will now expect a inv message
-		cmds = append(cmds, command.Inv)
-	default:
+	case command.Verack:
 		// We will now expect a verack
 		cmds = append(cmds, cmd)
 	}

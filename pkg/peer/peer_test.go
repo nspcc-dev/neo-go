@@ -1,7 +1,6 @@
 package peer_test
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -21,11 +20,11 @@ func returnConfig() peer.LocalConfig {
 
 	OnAddr := func(p *peer.Peer, msg *payload.AddrMessage) {}
 	OnHeader := func(p *peer.Peer, msg *payload.HeadersMessage) {}
-	OnGetHeaders := func(msg *payload.GetHeadersMessage) {}
+	OnGetHeaders := func(p *peer.Peer, msg *payload.GetHeadersMessage) {}
 	OnInv := func(p *peer.Peer, msg *payload.InvMessage) {}
-	OnGetData := func(msg *payload.GetDataMessage) {}
+	OnGetData := func(p *peer.Peer, msg *payload.GetDataMessage) {}
 	OnBlock := func(p *peer.Peer, msg *payload.BlockMessage) {}
-	OnGetBlocks := func(msg *payload.GetBlocksMessage) {}
+	OnGetBlocks := func(p *peer.Peer, msg *payload.GetBlocksMessage) {}
 
 	return peer.LocalConfig{
 		Net:         protocol.MainNet,
@@ -157,17 +156,9 @@ func TestConfigurations(t *testing.T) {
 
 	assert.Equal(t, config.Services, p.Services())
 
-	assert.Equal(t, config.UserAgent, p.UserAgent())
-
 	assert.Equal(t, config.Relay, p.CanRelay())
 
 	assert.WithinDuration(t, time.Now(), p.CreatedAt(), 1*time.Second)
-
-}
-
-func TestHandshakeCancelled(t *testing.T) {
-	// These are the conditions which should invalidate the handshake.
-	// Make sure peer is disconnected.
 }
 
 func TestPeerDisconnect(t *testing.T) {
@@ -178,21 +169,17 @@ func TestPeerDisconnect(t *testing.T) {
 	inbound := true
 	config := returnConfig()
 	p := peer.NewPeer(conn, inbound, config)
-	fmt.Println("Calling disconnect")
+
 	p.Disconnect()
-	fmt.Println("Disconnect finished calling")
-	verack, _ := payload.NewVerackMessage()
+	verack, err := payload.NewVerackMessage()
+	assert.Nil(t, err)
 
-	fmt.Println(" We good here")
+	err = p.Write(verack)
+	assert.NotNil(t, err)
 
-	err := p.Write(verack)
-
-	assert.NotEqual(t, err, nil)
-
-	// Check if Stall detector is still running
+	// Check if stall detector is still running
 	_, ok := <-p.Detector.Quitch
 	assert.Equal(t, ok, false)
-
 }
 
 func TestNotifyDisconnect(t *testing.T) {

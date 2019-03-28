@@ -58,6 +58,8 @@ type Peer struct {
 	config LocalConfig
 	conn   net.Conn
 
+	startHeight uint32
+
 	// atomic vals
 	disconnected int32
 
@@ -84,20 +86,18 @@ type Peer struct {
 
 // NewPeer returns a new NEO peer
 func NewPeer(con net.Conn, inbound bool, cfg LocalConfig) *Peer {
-	p := Peer{}
-	p.inch = make(chan func(), inputBufferSize)
-	p.outch = make(chan func(), outputBufferSize)
-	p.quitch = make(chan struct{}, 1)
-	p.inbound = inbound
-	p.config = cfg
-	p.conn = con
-	p.createdAt = time.Now()
-	p.addr = p.conn.RemoteAddr().String()
-
-	p.Detector = stall.NewDetector(responseTime, tickerInterval)
-
-	// TODO: set the unchangeable states
-	return &p
+	return &Peer{
+		inch:        make(chan func(), inputBufferSize),
+		outch:       make(chan func(), outputBufferSize),
+		quitch:      make(chan struct{}, 1),
+		inbound:     inbound,
+		config:      cfg,
+		conn:        con,
+		createdAt:   time.Now(),
+		startHeight: 0,
+		addr:        con.RemoteAddr().String(),
+		Detector:    stall.NewDetector(responseTime, tickerInterval),
+	}
 }
 
 // Write to a peer
@@ -125,7 +125,6 @@ func (p *Peer) Disconnect() {
 	p.conn.Close()
 
 	fmt.Println("Disconnected Peer with address", p.RemoteAddr().String())
-
 }
 
 // Port returns the peers port
@@ -136,6 +135,11 @@ func (p *Peer) Port() uint16 {
 // CreatedAt returns the time at which the connection was made
 func (p *Peer) CreatedAt() time.Time {
 	return p.createdAt
+}
+
+// Height returns the latest recorded height of this peer
+func (p *Peer) Height() uint32 {
+	return p.startHeight
 }
 
 // CanRelay returns true, if the peer can relay information
@@ -161,11 +165,6 @@ func (p *Peer) Services() protocol.ServiceFlag {
 //Inbound returns true whether this peer is an inbound peer
 func (p *Peer) Inbound() bool {
 	return p.inbound
-}
-
-// UserAgent returns this nodes, useragent
-func (p *Peer) UserAgent() string {
-	return p.config.UserAgent
 }
 
 // IsVerackReceived returns true, if this node has
@@ -204,7 +203,6 @@ func (p *Peer) Run() error {
 
 	//go p.PingLoop() // since it is not implemented. It will disconnect all other impls.
 	return nil
-
 }
 
 // StartProtocol run as a go-routine, will act as our queue for messages
@@ -305,128 +303,17 @@ func (p *Peer) WriteLoop() {
 	}
 }
 
-// OnGetData is called when a GetData message is received
-func (p *Peer) OnGetData(msg *payload.GetDataMessage) {
-
-	p.inch <- func() {
-		if p.config.OnInv != nil {
-			p.config.OnGetData(msg)
-		}
-		fmt.Println("That was an getdata Message please pass func down through config", msg.Command())
-	}
-}
-
-//OnTX is callwed when a TX message is received
-func (p *Peer) OnTX(msg *payload.TXMessage) {
-
-	p.inch <- func() {
-		getdata, err := payload.NewGetDataMessage(payload.InvTypeTx)
-		if err != nil {
-			fmt.Println("Eor", err)
-		}
-		id, err := msg.Tx.ID()
-		getdata.AddHash(id)
-		p.Write(getdata)
-	}
-}
-
-// OnInv is called when a Inv message is received
-func (p *Peer) OnInv(msg *payload.InvMessage) {
-
-	p.inch <- func() {
-		if p.config.OnInv != nil {
-			p.config.OnInv(p, msg)
-		}
-		fmt.Println("That was an inv Message please pass func down through config", msg.Command())
-	}
-}
-
-// OnGetHeaders is called when a GetHeaders message is received
-func (p *Peer) OnGetHeaders(msg *payload.GetHeadersMessage) {
-	p.inch <- func() {
-		if p.config.OnGetHeaders != nil {
-			p.config.OnGetHeaders(msg)
-		}
-		fmt.Println("That was a getheaders message, please pass func down through config", msg.Command())
-
-	}
-}
-
-// OnAddr is called when a Addr message is received
-func (p *Peer) OnAddr(msg *payload.AddrMessage) {
-	p.inch <- func() {
-		if p.config.OnAddr != nil {
-			p.config.OnAddr(p, msg)
-		}
-		fmt.Println("That was a addr message, please pass func down through config", msg.Command())
-
-	}
-}
-
-// OnGetAddr is called when a GetAddr message is received
-func (p *Peer) OnGetAddr(msg *payload.GetAddrMessage) {
-	p.inch <- func() {
-		if p.config.OnGetAddr != nil {
-			p.config.OnGetAddr(p, msg)
-		}
-		fmt.Println("That was a getaddr message, please pass func down through config", msg.Command())
-
-	}
-}
-
-// OnGetBlocks is called when a GetBlocks message is received
-func (p *Peer) OnGetBlocks(msg *payload.GetBlocksMessage) {
-	p.inch <- func() {
-		if p.config.OnGetBlocks != nil {
-			p.config.OnGetBlocks(msg)
-		}
-		fmt.Println("That was a getblocks message, please pass func down through config", msg.Command())
-	}
-}
-
-// OnBlocks is called when a Blocks message is received
-func (p *Peer) OnBlocks(msg *payload.BlockMessage) {
-	p.inch <- func() {
-		if p.config.OnBlock != nil {
-			p.config.OnBlock(p, msg)
-		}
-	}
-}
-
-// OnVersion Listener will be called
-// during the handshake, any error checking should be done here for the versionMessage.
-// This should only ever be called during the handshake. Any other place and the peer will disconnect.
-func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
-	if msg.Nonce == p.config.Nonce {
-		p.conn.Close()
-		return errors.New("Self connection, disconnecting Peer")
-	}
-	p.versionKnown = true
-	p.port = msg.Port
-	p.services = msg.Services
-	p.userAgent = string(msg.UserAgent)
-	p.createdAt = time.Now()
-	p.relay = msg.Relay
-	return nil
-}
-
-// OnHeaders is called when a Headers message is received
-func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
-	fmt.Println("We have received the headers")
-	p.inch <- func() {
-		if p.config.OnHeader != nil {
-			p.config.OnHeader(p, msg)
-		}
-	}
-}
+// Outgoing Requests
 
 // RequestHeaders will write a getheaders to this peer
 func (p *Peer) RequestHeaders(hash util.Uint256) error {
 	c := make(chan error, 0)
 	p.outch <- func() {
-		p.Detector.AddMessage(command.GetHeaders)
 		getHeaders, err := payload.NewGetHeadersMessage([]util.Uint256{hash}, util.Uint256{})
 		err = p.Write(getHeaders)
+		if err != nil {
+			p.Detector.AddMessage(command.GetHeaders)
+		}
 		c <- err
 	}
 	return <-c
@@ -437,17 +324,19 @@ func (p *Peer) RequestBlocks(hashes []util.Uint256) error {
 	c := make(chan error, 0)
 
 	p.outch <- func() {
-		p.Detector.AddMessage(command.GetData)
 		getdata, err := payload.NewGetDataMessage(payload.InvTypeBlock)
 		err = getdata.AddHashes(hashes)
 		if err != nil {
 			c <- err
 			return
 		}
+
 		err = p.Write(getdata)
+		if err != nil {
+			p.Detector.AddMessage(command.GetData)
+		}
+
 		c <- err
 	}
-
 	return <-c
-
 }
