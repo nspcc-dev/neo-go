@@ -31,14 +31,14 @@ func (b *Boolean) Not() *Boolean {
 	return NewBoolean(!b.Value())
 }
 
-// And return a Boolean whose underlying value is obtained
+// And returns a Boolean whose underlying value is obtained
 // by applying the && operator to two Booleans' values.
 func (b *Boolean) And(a *Boolean) *Boolean {
 	c := b.Value() && a.Value()
 	return NewBoolean(c)
 }
 
-// Or return a Boolean whose underlying value is obtained
+// Or returns a Boolean whose underlying value is obtained
 // by applying the || operator to two Booleans' values.
 func (b *Boolean) Or(a *Boolean) *Boolean {
 	c := b.Value() || a.Value()
