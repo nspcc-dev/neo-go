@@ -7,6 +7,8 @@ type stackInfo func(op stack.Instruction, ctx *stack.Context, istack *stack.Invo
 var opFunc = map[stack.Instruction]stackInfo{
 	stack.INC:         Inc,
 	stack.DEC:         Dec,
+	stack.ABS:         Abs,
+	stack.NOT:         Not,
 	stack.SIGN:        Sign,
 	stack.NEGATE:      Negate,
 	stack.ADD:         Add,

@@ -94,6 +94,39 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Abs pops an integer off of the stack and pushes its absolute value onto the stack.
+// Returns an error if the popped value is not an integer or if the absolute value cannot be taken
+func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	a, err := i.Abs()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(a)
+
+	return NONE, nil
+}
+
+// Not flips the stack Item's value.
+// If the value is True, it is flipped to False and viceversa.
+func Not(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	b, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(b.Not())
+
+	return NONE, nil
+}
+
 // Sign puts the sign of the top stack Item on top of the stack.
 // If value is negative, put -1;
 // If positive, put 1;
