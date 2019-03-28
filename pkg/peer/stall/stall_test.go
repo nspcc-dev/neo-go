@@ -22,7 +22,7 @@ func TestAddRemoveMessage(t *testing.T) {
 	assert.Equal(t, 1, len(mp))
 	assert.IsType(t, time.Time{}, mp[command.GetAddr])
 
-	d.RemoveMessage(command.GetAddr)
+	d.RemoveMessage(command.Addr)
 	mp = d.GetMessages()
 
 	assert.Equal(t, 0, len(mp))
