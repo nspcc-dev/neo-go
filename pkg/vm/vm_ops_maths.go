@@ -94,6 +94,47 @@ func Dec(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Nz pops an integer from the stack.
+// Then pushes a boolean to the stack which evaluates to true
+// iff the integer was not zero.
+// Returns an error if the popped item cannot be casted to an integer
+// or if we cannot create a boolean.
+func Nz(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	i, err := ctx.Estack.PopInt()
+	if err != nil {
+		return FAULT, err
+	}
+
+	b, err := i.Boolean()
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(b)
+
+	return NONE, nil
+}
+
+// Mul multiplies two stack Items together.
+// Returns an error if either items cannot be casted to an integer
+// or if integers cannot be multiplied together.
+func Mul(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := operandA.Mul(operandB)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 // Abs pops an integer off of the stack and pushes its absolute value onto the stack.
 // Returns an error if the popped value is not an integer or if the absolute value cannot be taken
 func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
