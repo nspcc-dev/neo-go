@@ -143,7 +143,7 @@ func TestDivOp(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-  
+
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
 
@@ -265,6 +265,64 @@ func TestNotOp(t *testing.T) {
 	ctx.Estack.Push(b)
 
 	v.executeOp(stack.NOT, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, true, item.Value())
+}
+
+func TestNumEqual(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(6))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(6))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.NUMEQUAL, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, true, item.Value())
+}
+
+func TestNumNotEqual(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(5))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(6))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.NUMNOTEQUAL, ctx)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
