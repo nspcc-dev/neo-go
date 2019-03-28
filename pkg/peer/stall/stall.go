@@ -168,6 +168,8 @@ func (d *Detector) removeMessage(cmd command.Type) []command.Type {
 	case command.Verack:
 		// We will now expect a verack
 		cmds = append(cmds, cmd)
+	default:
+		cmds = append(cmds, cmd)
 	}
 	return cmds
 }
