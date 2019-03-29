@@ -395,6 +395,52 @@ func TestShrOp(t *testing.T) {
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
 
+func TestBoolAndOp(t *testing.T) {
+
+ 	v := VM{}
+
+ 	a := stack.NewBoolean(true)
+	b := stack.NewBoolean(true)
+
+ 	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+ 	v.executeOp(stack.BOOLAND, ctx)
+
+ 	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+ 	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+ 	assert.Equal(t, true, item.Value())
+}
+
+ func TestBoolOrOp(t *testing.T) {
+
+ 	v := VM{}
+
+ 	a := stack.NewBoolean(false)
+	b := stack.NewBoolean(true)
+
+ 	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+ 	v.executeOp(stack.BOOLOR, ctx)
+
+ 	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+ 	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+ 	assert.Equal(t, true, item.Value())
+}
+
 func TestLtOp(t *testing.T) {
 
 	v := VM{}
@@ -452,3 +498,4 @@ func TestGtOp(t *testing.T) {
 
 	assert.Equal(t, true, item.Value())
 }
+
