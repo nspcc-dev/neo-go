@@ -206,6 +206,44 @@ func Not(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// BoolAnd pops two booleans off of the stack and pushes a boolean to the stack
+// whose value is true iff both booleans' values are true.
+// Returns an error if either items cannot be casted to an boolean
+func BoolAnd(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	bool1, bool2, err := popTwoBooleans(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := bool1.And(bool2)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// BoolOr pops two booleans off of the stack and pushes a boolean to the stack
+// whose value is true iff at least one of the two booleans' value is true.
+// Returns an error if either items cannot be casted to an boolean
+func BoolOr(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	bool1, bool2, err := popTwoBooleans(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := bool1.Or(bool2)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 // Sign puts the sign of the top stack Item on top of the stack.
 // If value is negative, put -1;
 // If positive, put 1;
@@ -319,6 +357,38 @@ func Shr(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Lt pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is less than b's value.
+// Returns an error if either items cannot be casted to an integer
+func Lt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Lt(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
+// Gt pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is greated than b's value.
+// Returns an error if either items cannot be casted to an integer
+func Gt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Gt(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
 func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
 	operandA, err := ctx.Estack.PopInt()
 	if err != nil {
@@ -344,4 +414,17 @@ func popTwoByteArrays(ctx *stack.Context) (*stack.ByteArray, *stack.ByteArray, e
 		return nil, nil, err
 	}
 	return ba1, ba2, nil
+}
+
+func popTwoBooleans(ctx *stack.Context) (*stack.Boolean, *stack.Boolean, error) {
+	bool1, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		return nil, nil, err
+	}
+	bool2, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return bool1, bool2, nil
 }
