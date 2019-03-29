@@ -104,16 +104,14 @@ func (i *Int) Value() *big.Int {
 // value is true if a <= b.
 // value is false if a > b.
 func (i *Int) Lte(s *Int) bool {
-	res := i.Value().Cmp(s.Value())
-	return res == -1 || res == 0
+	return i.Value().Cmp(s.Value()) != 1
 }
 
 // Gte returns a bool value from the comparison of two integers, a and b.
 // value is true if a >= b.
 // value is false if a < b.
 func (i *Int) Gte(s *Int) bool {
-	res := i.Value().Cmp(s.Value())
-	return res == 1 || res == 0
+	return i.Value().Cmp(s.Value()) != -1
 }
 
 // Abs returns a stack integer whose underlying value is
