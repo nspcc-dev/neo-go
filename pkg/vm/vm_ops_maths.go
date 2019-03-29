@@ -338,6 +338,38 @@ func Shr(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// Lt pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is less than b's value.
+// Returns an error if either items cannot be casted to an integer
+func Lt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Lt(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
+// Gt pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is greated than b's value.
+// Returns an error if either items cannot be casted to an integer
+func Gt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Gt(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
 func popTwoByteArrays(ctx *stack.Context) (*stack.ByteArray, *stack.ByteArray, error) {
 	// Pop first stack item and cast as byte array
 	ba1, err := ctx.Estack.PopByteArray()
