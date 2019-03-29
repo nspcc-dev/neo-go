@@ -111,3 +111,27 @@ func (i *Int) Abs() (*Int, error) {
 
 	return b, nil
 }
+
+// Lt returns a bool value from the comparison of two integers, a and b.
+// value is true if a < b.
+// value is false if a >= b.
+func (i *Int) Lt(s *Int) bool {
+	res := i.Value().Cmp(s.Value())
+	if res == -1 {
+		return true
+	}
+
+	return false
+}
+
+// Gt returns a bool value from the comparison of two integers, a and b.
+// value is true if a > b.
+// value is false if a <= b.
+func (i *Int) Gt(s *Int) bool {
+	res := i.Value().Cmp(s.Value())
+	if res == 1 {
+		return true
+	}
+
+	return false
+}

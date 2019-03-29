@@ -394,3 +394,71 @@ func TestShrOp(t *testing.T) {
 
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
+
+func TestLtOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(10))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(2))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	// b is the first item pop.
+	// a is the second item pop.
+	// we perform a < b and place
+	// the result on top of the evaluation
+	// stack
+	v.executeOp(stack.LT, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, false, item.Value())
+}
+
+func TestGtOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(10))
+	if err != nil {
+		t.Fail()
+	}
+	b, err := stack.NewInt(big.NewInt(2))
+	if err != nil {
+		t.Fail()
+	}
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	// b is the first item pop.
+	// a is the second item pop.
+	// we perform a > b and place
+	// the result on top of the evaluation
+	// stack
+	v.executeOp(stack.GT, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopBoolean()
+	if err != nil {
+		t.Fail()
+	}
+
+	assert.Equal(t, true, item.Value())
+}
