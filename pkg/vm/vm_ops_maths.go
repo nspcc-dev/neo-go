@@ -292,6 +292,46 @@ func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
 	return operandA, operandB, nil
 }
 
+// Shl pops two integers, a and b, off of the stack and pushes an integer to the stack
+// whose value is the b's value shift to the left by a's value bits.
+// Returns an error if either items cannot be casted to an integer
+// or if the left shift operation cannot per performed with the two integer's value.
+func Shl(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	a, b, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := b.Lsh(a)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// Shr pops two integers, a and b, off of the stack and pushes an integer to the stack
+// whose value is the b's value shift to the right by a's value bits.
+// Returns an error if either items cannot be casted to an integer
+// or if the right shift operation cannot per performed with the two integer's value.
+func Shr(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	a, b, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res, err := b.Rsh(a)
+	if err != nil {
+		return FAULT, err
+	}
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 func popTwoByteArrays(ctx *stack.Context) (*stack.ByteArray, *stack.ByteArray, error) {
 	// Pop first stack item and cast as byte array
 	ba1, err := ctx.Estack.PopByteArray()
