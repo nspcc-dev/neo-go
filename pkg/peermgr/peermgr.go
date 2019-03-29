@@ -35,12 +35,17 @@ type peerstats struct {
 type PeerMgr struct {
 	pLock sync.RWMutex
 	peers map[mPeer]peerstats
+
+	requestCache *requestCache
 }
 
 //New returns a new peermgr object
 func New() *PeerMgr {
 	return &PeerMgr{
 		peers: make(map[mPeer]peerstats),
+		requestCache: &requestCache{
+			blockCache: make([]util.Uint256, 0, cacheLimit),
+		},
 	}
 }
 
@@ -73,7 +78,19 @@ func (pmgr *PeerMgr) MsgReceived(peer mPeer, cmd command.Type) error {
 	}
 	val.requests[cmd] = false
 
-	return nil
+	if pmgr.requestCache.cacheLen() == 0 || cmd != command.Block {
+		return nil
+	}
+
+	// Try to clean an item from the blockCache, a peer has just finished serving a block request
+	blockHash, err := pmgr.requestCache.pickItem()
+	if err != nil {
+		return err
+	}
+
+	return pmgr.callPeerForCmd(command.Block, func(p mPeer) error {
+		return p.RequestBlocks([]util.Uint256{blockHash})
+	})
 }
 
 // Len returns the amount of peers that the peer manager
@@ -84,25 +101,34 @@ func (pmgr *PeerMgr) Len() int {
 	return len(pmgr.peers)
 }
 
-// RequestBlock will request  a block from the most
+// RequestBlock will request a block from the most
 // available peer. Then update it's stats, so we know that
 // this peer is busy
 func (pmgr *PeerMgr) RequestBlock(hash util.Uint256) error {
-	return pmgr.callPeerForCmd(command.Block, func(p mPeer) error {
+	pmgr.pLock.Lock()
+	defer pmgr.pLock.Unlock()
+
+	err := pmgr.callPeerForCmd(command.Block, func(p mPeer) error {
 		return p.RequestBlocks([]util.Uint256{hash})
 	})
+
+	if err == ErrNoAvailablePeers {
+		return pmgr.requestCache.addBlock(hash)
+	}
+
+	return err
 }
 
 // RequestHeaders will request a headers from the most available peer.
 func (pmgr *PeerMgr) RequestHeaders(hash util.Uint256) error {
+	pmgr.pLock.Lock()
+	defer pmgr.pLock.Unlock()
 	return pmgr.callPeerForCmd(command.Headers, func(p mPeer) error {
 		return p.RequestHeaders(hash)
 	})
 }
 
 func (pmgr *PeerMgr) callPeerForCmd(cmd command.Type, f func(p mPeer) error) error {
-	pmgr.pLock.Lock()
-	defer pmgr.pLock.Unlock()
 	for peer, stats := range pmgr.peers {
 		if !stats.requests[cmd] {
 			stats.requests[cmd] = true

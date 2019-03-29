@@ -77,23 +77,26 @@ func TestRequestBlocks(t *testing.T) {
 	assert.Equal(t, 1, peerC.blockRequested)
 
 	// Since the peer manager still has not received a MsgReceived
-	// another call to request blocks, will return a NoAvailablePeerError
+	// another call to request blocks, will add the request to the cache
+	// and return a nil err
 
 	err = pmgr.RequestBlock(util.Uint256{})
-	assert.Equal(t, ErrNoAvailablePeers, err)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 1, pmgr.requestCache.cacheLen())
 
 	// If we tell the peer manager that peerA has given us a block
-	// then send another BlockRequest. It will go to peerA
-	// since the other two peers are still busy with their
-	// block requests
+	// it will check the cache for any pending requests and send a block request if there are any.
+	// The request  will go to peerA since the other two peers are still busy with their block requests
 
-	pmgr.MsgReceived(peerA, command.Block)
-	err = pmgr.RequestBlock(util.Uint256{})
+	err = pmgr.MsgReceived(peerA, command.Block)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, peerA.blockRequested)
 	assert.Equal(t, 1, peerB.blockRequested)
 	assert.Equal(t, 1, peerC.blockRequested)
+
+	// cache should be empty now
+	assert.Equal(t, 0, pmgr.requestCache.cacheLen())
 }
 func TestRequestHeaders(t *testing.T) {
 	pmgr := New()
