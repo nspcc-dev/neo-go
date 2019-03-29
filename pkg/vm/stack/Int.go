@@ -111,3 +111,29 @@ func (i *Int) Abs() (*Int, error) {
 
 	return b, nil
 }
+
+// Min returns the mininum between two integers.
+func Min(a *Int, b *Int) *Int {
+	if a.Value().Cmp(b.Value()) == -1 {
+		return a
+	}
+	return b
+
+}
+
+// Max returns the maximun between two integers.
+func Max(a *Int, b *Int) *Int {
+	if a.Value().Cmp(b.Value()) == 1 {
+		return a
+	}
+	return b
+}
+
+// Within returns a bool whose value is true
+// iff the value of the integer i is within the specified
+// range [a,b) (left-inclusive).
+func (i *Int) Within(a *Int, b *Int) bool {
+	// i >= a && i < b
+	return !(i.Value().Cmp(a.Value()) == -1) && i.Value().Cmp(b.Value()) == -1
+
+}

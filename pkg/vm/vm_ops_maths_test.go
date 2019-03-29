@@ -394,3 +394,85 @@ func TestShrOp(t *testing.T) {
 
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
+
+func TestMinOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(10))
+	assert.NoError(t, err)
+
+	b, err := stack.NewInt(big.NewInt(2))
+	assert.NoError(t, err)
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.MIN, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	assert.NoError(t, err)
+
+	assert.Equal(t, int64(2), item.Value().Int64())
+}
+
+func TestMaxOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(10))
+	assert.NoError(t, err)
+
+	b, err := stack.NewInt(big.NewInt(2))
+	assert.NoError(t, err)
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b)
+
+	v.executeOp(stack.MAX, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopInt()
+	assert.NoError(t, err)
+
+	assert.Equal(t, int64(10), item.Value().Int64())
+}
+
+func TestWithinOp(t *testing.T) {
+
+	v := VM{}
+
+	a, err := stack.NewInt(big.NewInt(5))
+	assert.NoError(t, err)
+
+	b, err := stack.NewInt(big.NewInt(2))
+	assert.NoError(t, err)
+
+	c, err := stack.NewInt(big.NewInt(10))
+	assert.NoError(t, err)
+
+	ctx := stack.NewContext([]byte{})
+	ctx.Estack.Push(a).Push(b).Push(c)
+
+	// c is the first item popped.
+	// b is the second item popped.
+	// a is the third item popped.
+	// if a is within [b, c) we place a boolean,
+	// whose value is true, on top of the evaluation
+	// stack. Otherwise we place a boolean with
+	// false value.
+	v.executeOp(stack.WITHIN, ctx)
+
+	// Stack should have one item
+	assert.Equal(t, 1, ctx.Estack.Len())
+
+	item, err := ctx.Estack.PopBoolean()
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, item.Value())
+}
