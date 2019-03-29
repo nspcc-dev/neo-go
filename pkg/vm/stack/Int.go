@@ -100,6 +100,22 @@ func (i *Int) Value() *big.Int {
 	return i.val
 }
 
+// Lte returns a bool value from the comparison of two integers, a and b.
+// value is true if a <= b.
+// value is false if a > b.
+func (i *Int) Lte(s *Int) bool {
+	res := i.Value().Cmp(s.Value())
+	return res == -1 || res == 0
+}
+
+// Gte returns a bool value from the comparison of two integers, a and b.
+// value is true if a >= b.
+// value is false if a < b.
+func (i *Int) Gte(s *Int) bool {
+	res := i.Value().Cmp(s.Value())
+	return res == 1 || res == 0
+}
+
 // Abs returns a stack integer whose underlying value is
 // the absolute value of the original stack integer.
 func (i *Int) Abs() (*Int, error) {
