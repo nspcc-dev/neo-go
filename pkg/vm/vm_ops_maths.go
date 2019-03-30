@@ -173,6 +173,38 @@ func Mul(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rst
 	return NONE, nil
 }
 
+// NumEqual pops two Items off of the stack and pushes a boolean to the stack
+// whose value is true iff the the two Items are equal.
+// Returns an error if either items cannot be casted to an integer.
+func NumEqual(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandA.Equal(operandB)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
+// NumNotEqual pops two Items off of the stack and pushes a boolean to the stack
+// whose value is true iff the two Items are not equal.
+// Returns an error if either items cannot be casted to an integer.
+func NumNotEqual(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandA.Equal(operandB)
+
+	ctx.Estack.Push(stack.NewBoolean(!res))
+
+	return NONE, nil
+}
+
 // Abs pops an integer off of the stack and pushes its absolute value onto the stack.
 // Returns an error if the popped value is not an integer or if the absolute value cannot be taken
 func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
