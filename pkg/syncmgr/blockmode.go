@@ -15,7 +15,7 @@ func (s *Syncmgr) blockModeOnBlock(peer SyncPeer, block payload.Block) error {
 	if block.Index > s.nextBlockIndex+2000 {
 		return nil
 	}
-	if block.Index != s.nextBlockIndex {
+	if block.Index > s.nextBlockIndex {
 		s.addToBlockPool(block)
 		return nil
 	}
