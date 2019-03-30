@@ -75,6 +75,6 @@ func randomBlockInfo(t *testing.T) BlockInfo {
 
 	return BlockInfo{
 		randomUint256(t),
-		rand.Uint64(),
+		rand.Uint32(),
 	}
 }

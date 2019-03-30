@@ -32,7 +32,7 @@ func (s *Syncmgr) blockModeOnBlock(peer SyncPeer, block payload.Block) error {
 		if err != nil {
 			return err
 		}
-		err = s.cfg.RequestBlock(nextHash)
+		err = s.cfg.RequestBlock(nextHash, block.Index)
 		return err
 	}
 

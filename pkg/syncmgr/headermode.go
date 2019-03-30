@@ -12,6 +12,7 @@ func (s *Syncmgr) headersModeOnHeaders(peer SyncPeer, hdrs []*payload.BlockBase)
 	// Note: For the un-optimised version, we move straight to blocksOnly mode
 
 	firstHash := hdrs[0].Hash
+	firstHashIndex := hdrs[0].Index
 
 	err := s.cfg.ProcessHeaders(hdrs)
 	if err == nil {
@@ -19,7 +20,7 @@ func (s *Syncmgr) headersModeOnHeaders(peer SyncPeer, hdrs []*payload.BlockBase)
 		s.headerHash = hdrs[len(hdrs)-1].Hash
 
 		s.syncmode = blockMode
-		return s.cfg.RequestBlock(firstHash)
+		return s.cfg.RequestBlock(firstHash, firstHashIndex)
 	}
 
 	// Check whether it is a validation error, or a database error

@@ -16,6 +16,7 @@ func (s *Syncmgr) normalModeOnHeaders(peer SyncPeer, hdrs []*payload.BlockBase) 
 
 	lenHeaders := len(hdrs)
 	firstHash := hdrs[0].Hash
+	firstHashIndex := hdrs[0].Index
 	lastHash := hdrs[lenHeaders-1].Hash
 
 	// Update syncmgr latest header
@@ -32,7 +33,7 @@ func (s *Syncmgr) normalModeOnHeaders(peer SyncPeer, hdrs []*payload.BlockBase) 
 	// Bounds state that len > 1 && len!= 2000 & maxHeadersInMessage == 2000
 	// This means that we have less than 2k headers
 	s.syncmode = blockMode
-	return s.cfg.RequestBlock(firstHash)
+	return s.cfg.RequestBlock(firstHash, firstHashIndex)
 }
 
 // normalModeOnBlock is called when the sync manager is normal mode

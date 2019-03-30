@@ -23,7 +23,7 @@ var (
 // to sort and store block requests
 type BlockInfo struct {
 	BlockHash  util.Uint256
-	BlockIndex uint64
+	BlockIndex uint32
 }
 
 // Equals returns true if two blockInfo objects

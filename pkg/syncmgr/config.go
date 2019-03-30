@@ -18,7 +18,7 @@ type Config struct {
 
 	//RequestBlock will send a getdata request for the block
 	// with the hash passed as a parameter
-	RequestBlock func(hash util.Uint256) error
+	RequestBlock func(hash util.Uint256, index uint32) error
 
 	// GetNextBlockHash returns the block hash of the header infront of thr block
 	// at the tip of this nodes chain. This assumes that the node is not in sync

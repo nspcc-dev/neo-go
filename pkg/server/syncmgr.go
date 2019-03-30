@@ -38,7 +38,7 @@ func (s *Server) onHeader(peer *peer.Peer, hdrsMessage *payload.HeadersMessage) 
 func (s *Server) onBlock(peer *peer.Peer, blockMsg *payload.BlockMessage) {
 	s.pmg.BlockMsgReceived(peer, peermgr.BlockInfo{
 		BlockHash:  blockMsg.Hash,
-		BlockIndex: uint64(blockMsg.Index),
+		BlockIndex: blockMsg.Index,
 	})
 	s.smg.OnBlock(peer, blockMsg)
 }
@@ -55,8 +55,11 @@ func (s *Server) requestHeaders(hash util.Uint256) error {
 	return s.pmg.RequestHeaders(hash)
 }
 
-func (s *Server) requestBlock(hash util.Uint256) error {
-	return s.pmg.RequestBlock(hash)
+func (s *Server) requestBlock(hash util.Uint256, index uint32) error {
+	return s.pmg.RequestBlock(peermgr.BlockInfo{
+		BlockHash:  hash,
+		BlockIndex: index,
+	})
 }
 
 // getNextBlockHash searches the database for the blockHash
