@@ -22,14 +22,14 @@ var (
 //BlockInfo holds the necessary information that the cache needs
 // to sort and store block requests
 type BlockInfo struct {
-	blockHash  util.Uint256
-	blockIndex uint64
+	BlockHash  util.Uint256
+	BlockIndex uint64
 }
 
 // Equals returns true if two blockInfo objects
 // have the same hash and the same index
 func (bi *BlockInfo) Equals(other BlockInfo) bool {
-	return bi.blockHash.Equals(other.blockHash) && bi.blockIndex == other.blockIndex
+	return bi.BlockHash.Equals(other.BlockHash) && bi.BlockIndex == other.BlockIndex
 }
 
 // indexSorter sorts the blockInfos by blockIndex.
@@ -37,7 +37,7 @@ type indexSorter []BlockInfo
 
 func (is indexSorter) Len() int           { return len(is) }
 func (is indexSorter) Swap(i, j int)      { is[i], is[j] = is[j], is[i] }
-func (is indexSorter) Less(i, j int) bool { return is[i].blockIndex < is[j].blockIndex }
+func (is indexSorter) Less(i, j int) bool { return is[i].BlockIndex < is[j].BlockIndex }
 
 //blockCache will cache any pending block requests
 // for the node when there are no available nodes
@@ -147,7 +147,7 @@ func (bc *blockCache) findHash(hashToFind util.Uint256) (int, error) {
 	bc.cacheLock.Lock()
 	defer bc.cacheLock.Unlock()
 	for i, bInfo := range bc.cache {
-		if bInfo.blockHash.Equals(hashToFind) {
+		if bInfo.BlockHash.Equals(hashToFind) {
 			return i, nil
 		}
 	}
