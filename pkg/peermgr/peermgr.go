@@ -2,11 +2,21 @@ package peermgr
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/command"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
+)
+
+const (
+	// blockCacheLimit is the maximum amount of pending requests that the cache can hold
+	pendingBlockCacheLimit = 20
+
+	//peerBlockCacheLimit is the maximum amount of inflight blocks that a peer can
+	// have, before they are flagged as busy
+	peerBlockCacheLimit = 1
 )
 
 var (
@@ -28,6 +38,10 @@ type mPeer interface {
 }
 
 type peerstats struct {
+	// when a peer is sent a blockRequest
+	// the peermanager will track this using this blockCache
+	blockCache *blockCache
+	// all other requests will be tracked using the requests map
 	requests map[command.Type]bool
 }
 
@@ -36,16 +50,14 @@ type PeerMgr struct {
 	pLock sync.RWMutex
 	peers map[mPeer]peerstats
 
-	requestCache *requestCache
+	requestCache *blockCache
 }
 
 //New returns a new peermgr object
 func New() *PeerMgr {
 	return &PeerMgr{
-		peers: make(map[mPeer]peerstats),
-		requestCache: &requestCache{
-			blockCache: make([]util.Uint256, 0, cacheLimit),
-		},
+		peers:        make(map[mPeer]peerstats),
+		requestCache: newBlockCache(pendingBlockCacheLimit),
 	}
 }
 
@@ -57,7 +69,10 @@ func (pmgr *PeerMgr) AddPeer(peer mPeer) {
 	if _, exists := pmgr.peers[peer]; exists {
 		return
 	}
-	pmgr.peers[peer] = peerstats{requests: make(map[command.Type]bool)}
+	pmgr.peers[peer] = peerstats{
+		requests:   make(map[command.Type]bool),
+		blockCache: newBlockCache(peerBlockCacheLimit),
+	}
 	go pmgr.onDisconnect(peer)
 }
 
@@ -66,6 +81,8 @@ func (pmgr *PeerMgr) AddPeer(peer mPeer) {
 func (pmgr *PeerMgr) MsgReceived(peer mPeer, cmd command.Type) error {
 	pmgr.pLock.Lock()
 	defer pmgr.pLock.Unlock()
+
+	// if peer was unknown then disconnect
 	val, ok := pmgr.peers[peer]
 	if !ok {
 
@@ -78,18 +95,44 @@ func (pmgr *PeerMgr) MsgReceived(peer mPeer, cmd command.Type) error {
 	}
 	val.requests[cmd] = false
 
-	if pmgr.requestCache.cacheLen() == 0 || cmd != command.Block {
-		return nil
+	return nil
+}
+
+//BlockMsgReceived notifies the peer manager that we have received a
+// block message from a peer
+func (pmgr *PeerMgr) BlockMsgReceived(peer mPeer, bi BlockInfo) error {
+
+	// if peer was unknown then disconnect
+	val, ok := pmgr.peers[peer]
+	if !ok {
+
+		go func() {
+			peer.NotifyDisconnect()
+		}()
+
+		peer.Disconnect()
+		return ErrUnknownPeer
 	}
 
-	// Try to clean an item from the blockCache, a peer has just finished serving a block request
-	blockHash, err := pmgr.requestCache.pickItem()
+	// // remove item from the peersBlock cache
+	err := val.blockCache.removeHash(bi.blockHash)
 	if err != nil {
 		return err
 	}
 
-	return pmgr.callPeerForCmd(command.Block, func(p mPeer) error {
-		return p.RequestBlocks([]util.Uint256{blockHash})
+	// check if cache empty, if so then return
+	if pmgr.requestCache.cacheLen() == 0 {
+		return nil
+	}
+
+	// Try to clean an item from the pendingBlockCache, a peer has just finished serving a block request
+	cachedBInfo, err := pmgr.requestCache.pickFirstItem()
+	if err != nil {
+		return err
+	}
+
+	return pmgr.blockCallPeer(cachedBInfo, func(p mPeer) error {
+		return p.RequestBlocks([]util.Uint256{cachedBInfo.blockHash})
 	})
 }
 
@@ -104,16 +147,16 @@ func (pmgr *PeerMgr) Len() int {
 // RequestBlock will request a block from the most
 // available peer. Then update it's stats, so we know that
 // this peer is busy
-func (pmgr *PeerMgr) RequestBlock(hash util.Uint256) error {
+func (pmgr *PeerMgr) RequestBlock(bi BlockInfo) error {
 	pmgr.pLock.Lock()
 	defer pmgr.pLock.Unlock()
 
-	err := pmgr.callPeerForCmd(command.Block, func(p mPeer) error {
-		return p.RequestBlocks([]util.Uint256{hash})
+	err := pmgr.blockCallPeer(bi, func(p mPeer) error {
+		return p.RequestBlocks([]util.Uint256{bi.blockHash})
 	})
 
 	if err == ErrNoAvailablePeers {
-		return pmgr.requestCache.addBlock(hash)
+		return pmgr.requestCache.addBlockInfo(bi)
 	}
 
 	return err
@@ -137,12 +180,48 @@ func (pmgr *PeerMgr) callPeerForCmd(cmd command.Type, f func(p mPeer) error) err
 	}
 	return ErrNoAvailablePeers
 }
+
+func (pmgr *PeerMgr) blockCallPeer(bi BlockInfo, f func(p mPeer) error) error {
+	for peer, stats := range pmgr.peers {
+		if stats.blockCache.cacheLen() < peerBlockCacheLimit {
+			err := stats.blockCache.addBlockInfo(bi)
+			if err != nil {
+				return err
+			}
+			return f(peer)
+		}
+	}
+	return ErrNoAvailablePeers
+}
+
 func (pmgr *PeerMgr) onDisconnect(p mPeer) {
 
 	// Blocking until peer is disconnected
 	p.NotifyDisconnect()
 
 	pmgr.pLock.Lock()
-	delete(pmgr.peers, p)
-	pmgr.pLock.Unlock()
+	defer func() {
+		delete(pmgr.peers, p)
+		pmgr.pLock.Unlock()
+	}()
+
+	// Add all of peers outstanding block requests into
+	// the peer managers pendingBlockRequestCache
+
+	val, ok := pmgr.peers[p]
+	if !ok {
+		return
+	}
+
+	pendingRequests, err := val.blockCache.pickAllItems()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = pmgr.requestCache.addBlockInfos(pendingRequests)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 }
