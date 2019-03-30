@@ -2,12 +2,11 @@ package peermgr
 
 import (
 	"errors"
+	"sort"
 	"sync"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
-
-const cacheLimit = 20
 
 var (
 	//ErrCacheLimit is returned when the cache limit is reached
@@ -20,48 +19,137 @@ var (
 	ErrDuplicateItem = errors.New("this item is already in the cache")
 )
 
-//requestCache will cache any pending block requests
-// for the node when there are no available nodes
-type requestCache struct {
-	cacheLock  sync.Mutex
-	blockCache []util.Uint256
+//BlockInfo holds the necessary information that the cache needs
+// to sort and store block requests
+type BlockInfo struct {
+	blockHash  util.Uint256
+	blockIndex uint64
 }
 
-func (rc *requestCache) addBlock(newHash util.Uint256) error {
-	if rc.cacheLen() == cacheLimit {
+// Equals returns true if two blockInfo objects
+// have the same hash and the same index
+func (bi *BlockInfo) Equals(other BlockInfo) bool {
+	return bi.blockHash.Equals(other.blockHash) && bi.blockIndex == other.blockIndex
+}
+
+// indexSorter sorts the blockInfos by blockIndex.
+type indexSorter []BlockInfo
+
+func (is indexSorter) Len() int           { return len(is) }
+func (is indexSorter) Swap(i, j int)      { is[i], is[j] = is[j], is[i] }
+func (is indexSorter) Less(i, j int) bool { return is[i].blockIndex < is[j].blockIndex }
+
+//blockCache will cache any pending block requests
+// for the node when there are no available nodes
+type blockCache struct {
+	cacheLimit int
+	cacheLock  sync.Mutex
+	cache      []BlockInfo
+}
+
+func newBlockCache(cacheLimit int) *blockCache {
+	return &blockCache{
+		cache:      make([]BlockInfo, 0, cacheLimit),
+		cacheLimit: cacheLimit,
+	}
+}
+
+func (bc *blockCache) addBlockInfo(bi BlockInfo) error {
+	if bc.cacheLen() == bc.cacheLimit {
 		return ErrCacheLimit
 	}
 
-	rc.cacheLock.Lock()
-	defer rc.cacheLock.Unlock()
+	bc.cacheLock.Lock()
+	defer bc.cacheLock.Unlock()
 
 	// Check for duplicates. slice will always be small so a simple for loop will work
-	for _, hash := range rc.blockCache {
-		if hash.Equals(newHash) {
+	for _, bInfo := range bc.cache {
+		if bInfo.Equals(bi) {
 			return ErrDuplicateItem
 		}
 	}
+	bc.cache = append(bc.cache, bi)
 
-	rc.blockCache = append(rc.blockCache, newHash)
+	sort.Sort(indexSorter(bc.cache))
 
 	return nil
 }
 
-func (rc *requestCache) cacheLen() int {
-	rc.cacheLock.Lock()
-	defer rc.cacheLock.Unlock()
-	return len(rc.blockCache)
-}
+func (bc *blockCache) addBlockInfos(bis []BlockInfo) error {
 
-func (rc *requestCache) pickItem() (util.Uint256, error) {
-	if rc.cacheLen() < 1 {
-		return util.Uint256{}, ErrNoItems
+	if len(bis)+bc.cacheLen() > bc.cacheLimit {
+		return errors.New("too many items to add, this will exceed the cache limit")
 	}
 
-	rc.cacheLock.Lock()
-	defer rc.cacheLock.Unlock()
+	for _, bi := range bis {
+		err := bc.addBlockInfo(bi)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	item := rc.blockCache[0]
-	rc.blockCache = rc.blockCache[1:]
+func (bc *blockCache) cacheLen() int {
+	bc.cacheLock.Lock()
+	defer bc.cacheLock.Unlock()
+	return len(bc.cache)
+}
+
+func (bc *blockCache) pickFirstItem() (BlockInfo, error) {
+	return bc.pickItem(0)
+}
+
+func (bc *blockCache) pickAllItems() ([]BlockInfo, error) {
+
+	numOfItems := bc.cacheLen()
+
+	items := make([]BlockInfo, 0, numOfItems)
+
+	for i := 0; i < numOfItems; i++ {
+		bi, err := bc.pickFirstItem()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, bi)
+	}
+	return items, nil
+}
+
+func (bc *blockCache) pickItem(i uint) (BlockInfo, error) {
+	if bc.cacheLen() < 1 {
+		return BlockInfo{}, ErrNoItems
+	}
+
+	if i >= uint(bc.cacheLen()) {
+		return BlockInfo{}, errors.New("index out of range")
+	}
+
+	bc.cacheLock.Lock()
+	defer bc.cacheLock.Unlock()
+
+	item := bc.cache[i]
+	bc.cache = append(bc.cache[:i], bc.cache[i+1:]...)
 	return item, nil
+}
+
+func (bc *blockCache) removeHash(hashToRemove util.Uint256) error {
+	index, err := bc.findHash(hashToRemove)
+	if err != nil {
+		return err
+	}
+
+	_, err = bc.pickItem(uint(index))
+	return err
+}
+
+func (bc *blockCache) findHash(hashToFind util.Uint256) (int, error) {
+	bc.cacheLock.Lock()
+	defer bc.cacheLock.Unlock()
+	for i, bInfo := range bc.cache {
+		if bInfo.blockHash.Equals(hashToFind) {
+			return i, nil
+		}
+	}
+	return -1, errors.New("hash cannot be found in the cache")
 }

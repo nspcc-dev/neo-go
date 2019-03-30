@@ -1,7 +1,7 @@
 package peermgr
 
 import (
-	"crypto/rand"
+	"math/rand"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
@@ -10,49 +10,55 @@ import (
 
 func TestAddBlock(t *testing.T) {
 
-	rc := &requestCache{}
-	hash := util.Uint256{0, 2, 3, 4}
+	bc := &blockCache{
+		cacheLimit: 20,
+	}
+	bi := randomBlockInfo(t)
 
-	err := rc.addBlock(hash)
+	err := bc.addBlockInfo(bi)
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, 1, rc.cacheLen())
+	assert.Equal(t, 1, bc.cacheLen())
 
-	err = rc.addBlock(hash)
+	err = bc.addBlockInfo(bi)
 	assert.Equal(t, ErrDuplicateItem, err)
 
-	assert.Equal(t, 1, rc.cacheLen())
+	assert.Equal(t, 1, bc.cacheLen())
 }
 
 func TestCacheLimit(t *testing.T) {
 
-	rc := &requestCache{}
+	bc := &blockCache{
+		cacheLimit: 20,
+	}
 
-	for i := 0; i < cacheLimit; i++ {
-		err := rc.addBlock(randomUint256(t))
+	for i := 0; i < bc.cacheLimit; i++ {
+		err := bc.addBlockInfo(randomBlockInfo(t))
 		assert.Equal(t, nil, err)
 	}
 
-	err := rc.addBlock(randomUint256(t))
+	err := bc.addBlockInfo(randomBlockInfo(t))
 	assert.Equal(t, ErrCacheLimit, err)
 
-	assert.Equal(t, cacheLimit, rc.cacheLen())
+	assert.Equal(t, bc.cacheLimit, bc.cacheLen())
 }
 func TestPickItem(t *testing.T) {
 
-	rc := &requestCache{}
+	bc := &blockCache{
+		cacheLimit: 20,
+	}
 
-	for i := 0; i < cacheLimit; i++ {
-		err := rc.addBlock(randomUint256(t))
+	for i := 0; i < bc.cacheLimit; i++ {
+		err := bc.addBlockInfo(randomBlockInfo(t))
 		assert.Equal(t, nil, err)
 	}
 
-	for i := 0; i < cacheLimit; i++ {
-		_, err := rc.pickItem()
+	for i := 0; i < bc.cacheLimit; i++ {
+		_, err := bc.pickFirstItem()
 		assert.Equal(t, nil, err)
 	}
 
-	assert.Equal(t, 0, rc.cacheLen())
+	assert.Equal(t, 0, bc.cacheLen())
 }
 
 func randomUint256(t *testing.T) util.Uint256 {
@@ -63,4 +69,12 @@ func randomUint256(t *testing.T) util.Uint256 {
 	assert.Equal(t, nil, err)
 
 	return u
+}
+
+func randomBlockInfo(t *testing.T) BlockInfo {
+
+	return BlockInfo{
+		randomUint256(t),
+		rand.Uint64(),
+	}
 }
