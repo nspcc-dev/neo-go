@@ -44,7 +44,7 @@ func (s *Syncmgr) checkPool() error {
 			break
 		}
 
-		// Save this block and save the indice so we can remove it
+		// Save this block and save the indice location so we can remove it, when we defer
 		err := s.processBlock(block)
 		if err != nil {
 			return err
