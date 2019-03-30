@@ -46,7 +46,7 @@ func (s *syncTestHelper) FetchBlockAgain(util.Uint256) error {
 	return s.err
 }
 
-func (s *syncTestHelper) RequestBlock(util.Uint256) error {
+func (s *syncTestHelper) RequestBlock(util.Uint256, uint32) error {
 	s.blockFetchRequest++
 	return s.err
 }
