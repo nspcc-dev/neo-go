@@ -3,6 +3,8 @@ package server
 import (
 	"encoding/binary"
 
+	"github.com/CityOfZion/neo-go/pkg/peermgr"
+
 	"github.com/CityOfZion/neo-go/pkg/peer"
 	"github.com/CityOfZion/neo-go/pkg/syncmgr"
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
@@ -34,7 +36,10 @@ func (s *Server) onHeader(peer *peer.Peer, hdrsMessage *payload.HeadersMessage) 
 }
 
 func (s *Server) onBlock(peer *peer.Peer, blockMsg *payload.BlockMessage) {
-	s.pmg.MsgReceived(peer, blockMsg.Command())
+	s.pmg.BlockMsgReceived(peer, peermgr.BlockInfo{
+		BlockHash:  blockMsg.Hash,
+		BlockIndex: uint64(blockMsg.Index),
+	})
 	s.smg.OnBlock(peer, blockMsg)
 }
 

@@ -115,7 +115,7 @@ func (pmgr *PeerMgr) BlockMsgReceived(peer mPeer, bi BlockInfo) error {
 	}
 
 	// // remove item from the peersBlock cache
-	err := val.blockCache.removeHash(bi.blockHash)
+	err := val.blockCache.removeHash(bi.BlockHash)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (pmgr *PeerMgr) BlockMsgReceived(peer mPeer, bi BlockInfo) error {
 	}
 
 	return pmgr.blockCallPeer(cachedBInfo, func(p mPeer) error {
-		return p.RequestBlocks([]util.Uint256{cachedBInfo.blockHash})
+		return p.RequestBlocks([]util.Uint256{cachedBInfo.BlockHash})
 	})
 }
 
@@ -152,7 +152,7 @@ func (pmgr *PeerMgr) RequestBlock(bi BlockInfo) error {
 	defer pmgr.pLock.Unlock()
 
 	err := pmgr.blockCallPeer(bi, func(p mPeer) error {
-		return p.RequestBlocks([]util.Uint256{bi.blockHash})
+		return p.RequestBlocks([]util.Uint256{bi.BlockHash})
 	})
 
 	if err == ErrNoAvailablePeers {

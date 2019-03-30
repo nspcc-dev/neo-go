@@ -93,7 +93,7 @@ func TestRequestBlocks(t *testing.T) {
 	// The request  will go to the peer who sent back the block corresponding to the first hash
 	//  since the other two peers are still busy with their block requests
 
-	peer := findPeerwithHash(t, pmgr, firstBlock.blockHash)
+	peer := findPeerwithHash(t, pmgr, firstBlock.BlockHash)
 	err = pmgr.BlockMsgReceived(peer, firstBlock)
 	assert.Nil(t, err)
 
