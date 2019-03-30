@@ -9,20 +9,27 @@ import (
 // and receives a block.
 func (s *Syncmgr) blockModeOnBlock(peer SyncPeer, block payload.Block) error {
 
-	// Process Block
-	err := s.cfg.ProcessBlock(block)
-
-	if err == chain.ErrFutureBlock {
-		// XXX(Optimisation): We can cache future blocks in blockmode, if we have the corresponding header
-		// We can have the server cache them and sort out the semantics for when to send them to the chain
-		// Server can listen on chain for when a new block is saved
-		// or we could embed a struct in this syncmgr called blockCache, syncmgr can just tell it when it has processed
-		//a block and we can call ProcessBlock
-		return err
+	// Check if it is a future block
+	// XXX: since we are storing blocks in memory, we do not want to store blocks
+	// from the tip
+	if block.Index > s.nextBlockIndex+2000 {
+		return nil
+	}
+	if block.Index != s.nextBlockIndex {
+		s.addToBlockPool(block)
+		return nil
 	}
 
+	// Process Block
+	err := s.processBlock(block)
 	if err != nil && err != chain.ErrBlockAlreadyExists {
 		return s.cfg.FetchBlockAgain(block.Hash)
+	}
+
+	// Check the block pool
+	err = s.checkPool()
+	if err != nil {
+		return err
 	}
 
 	// Check if blockhashReceived == the header hash from last get headers this node performed
@@ -32,8 +39,7 @@ func (s *Syncmgr) blockModeOnBlock(peer SyncPeer, block payload.Block) error {
 		if err != nil {
 			return err
 		}
-		err = s.cfg.RequestBlock(nextHash, block.Index)
-		return err
+		return s.cfg.RequestBlock(nextHash, block.Index)
 	}
 
 	// If we are caught up then go into normal mode

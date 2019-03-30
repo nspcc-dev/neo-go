@@ -11,7 +11,7 @@ import (
 
 func TestHeadersModeOnBlock(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(headersMode)
+	syncmgr, helper := setupSyncMgr(headersMode, 0)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -21,7 +21,7 @@ func TestHeadersModeOnBlock(t *testing.T) {
 
 func TestBlockModeOnBlock(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(blockMode)
+	syncmgr, helper := setupSyncMgr(blockMode, 0)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -30,7 +30,7 @@ func TestBlockModeOnBlock(t *testing.T) {
 }
 func TestNormalModeOnBlock(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(normalMode)
+	syncmgr, helper := setupSyncMgr(normalMode, 0)
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 0))
 
@@ -40,7 +40,7 @@ func TestNormalModeOnBlock(t *testing.T) {
 
 func TestBlockModeToNormalMode(t *testing.T) {
 
-	syncmgr, _ := setupSyncMgr(blockMode)
+	syncmgr, _ := setupSyncMgr(blockMode, 100)
 
 	peer := &mockPeer{
 		height: 100,
@@ -57,7 +57,7 @@ func TestBlockModeToNormalMode(t *testing.T) {
 }
 func TestBlockModeStayInBlockMode(t *testing.T) {
 
-	syncmgr, _ := setupSyncMgr(blockMode)
+	syncmgr, _ := setupSyncMgr(blockMode, 0)
 
 	// We need our latest know hash to not be equal to the hash
 	// of the block we received, to stay in blockmode
@@ -77,7 +77,7 @@ func TestBlockModeStayInBlockMode(t *testing.T) {
 }
 func TestBlockModeAlreadyExistsErr(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(blockMode)
+	syncmgr, helper := setupSyncMgr(blockMode, 100)
 	helper.err = chain.ErrBlockAlreadyExists
 
 	syncmgr.OnBlock(&mockPeer{}, randomBlockMessage(t, 100))

@@ -24,9 +24,6 @@ type Config struct {
 	// at the tip of this nodes chain. This assumes that the node is not in sync
 	GetNextBlockHash func() (util.Uint256, error)
 
-	// GetBestBlockHash gets the block hash of the last saved block.
-	GetBestBlockHash func() (util.Uint256, error)
-
 	// AskForNewBlocks will send out a message to the network
 	// asking for new blocks
 	AskForNewBlocks func()

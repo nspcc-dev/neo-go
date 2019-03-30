@@ -43,7 +43,7 @@ func (s *Syncmgr) normalModeOnBlock(peer SyncPeer, block payload.Block) error {
 	s.timer.Stop()
 
 	// process block
-	err := s.cfg.ProcessBlock(block)
+	err := s.processBlock(block)
 	if err != nil {
 		s.timer.Reset(blockTimer)
 		return s.cfg.FetchBlockAgain(block.Hash)
