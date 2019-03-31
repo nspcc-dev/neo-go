@@ -95,7 +95,8 @@ func (s *Server) Run() error {
 	if err != nil {
 		return err
 	}
-	err = s.pmg.RequestHeaders(bestHeader.Hash.Reverse())
+
+	err = s.pmg.RequestHeaders(bestHeader.Hash)
 	if err != nil {
 		return err
 	}

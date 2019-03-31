@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/connmgr"
 
 	"github.com/CityOfZion/neo-go/pkg/peer"
-	"github.com/CityOfZion/neo-go/pkg/wire/util"
 	iputils "github.com/CityOfZion/neo-go/pkg/wire/util/ip"
 )
 
@@ -34,19 +32,6 @@ func (s *Server) onConnection(conn net.Conn, addr string) {
 	}
 
 	s.pmg.AddPeer(p)
-
-	byt, err := hex.DecodeString("d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf")
-	if err != nil {
-		fmt.Println("Error getting hash " + err.Error())
-	}
-	lh, err := util.Uint256DecodeBytes(byt)
-	if err != nil {
-		fmt.Println("Error getting hash " + err.Error())
-	}
-	err = p.RequestHeaders(lh.Reverse())
-	if err != nil {
-		fmt.Println(err)
-	}
 }
 
 func (s *Server) onAccept(conn net.Conn) {
