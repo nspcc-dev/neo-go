@@ -8,7 +8,7 @@ var opFunc = map[stack.Instruction]stackInfo{
 	stack.BOOLAND:     BoolAnd,
 	stack.BOOLOR:      BoolOr,
 	stack.LT:          Lt,
-  stack.LTE:         Lte,
+	stack.LTE:         Lte,
 	stack.GT:          Gt,
 	stack.GTE:         Gte,
 	stack.SHR:         Shr,

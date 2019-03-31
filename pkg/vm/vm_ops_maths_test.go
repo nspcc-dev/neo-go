@@ -332,10 +332,10 @@ func TestLteOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -351,7 +351,7 @@ func TestLteOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -361,10 +361,10 @@ func TestGteOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -380,7 +380,7 @@ func TestGteOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -455,48 +455,48 @@ func TestShrOp(t *testing.T) {
 
 func TestBoolAndOp(t *testing.T) {
 
- 	v := VM{}
+	v := VM{}
 
- 	a := stack.NewBoolean(true)
+	a := stack.NewBoolean(true)
 	b := stack.NewBoolean(true)
 
- 	ctx := stack.NewContext([]byte{})
+	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
- 	v.executeOp(stack.BOOLAND, ctx)
+	v.executeOp(stack.BOOLAND, ctx)
 
- 	// Stack should have one item
+	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
 
- 	item, err := ctx.Estack.PopBoolean()
+	item, err := ctx.Estack.PopBoolean()
 	if err != nil {
 		t.Fail()
 	}
 
- 	assert.Equal(t, true, item.Value())
+	assert.Equal(t, true, item.Value())
 }
 
- func TestBoolOrOp(t *testing.T) {
+func TestBoolOrOp(t *testing.T) {
 
- 	v := VM{}
+	v := VM{}
 
- 	a := stack.NewBoolean(false)
+	a := stack.NewBoolean(false)
 	b := stack.NewBoolean(true)
 
- 	ctx := stack.NewContext([]byte{})
+	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
- 	v.executeOp(stack.BOOLOR, ctx)
+	v.executeOp(stack.BOOLOR, ctx)
 
- 	// Stack should have one item
+	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
 
- 	item, err := ctx.Estack.PopBoolean()
+	item, err := ctx.Estack.PopBoolean()
 	if err != nil {
 		t.Fail()
 	}
 
- 	assert.Equal(t, true, item.Value())
+	assert.Equal(t, true, item.Value())
 }
 
 func TestLtOp(t *testing.T) {
@@ -556,4 +556,3 @@ func TestGtOp(t *testing.T) {
 
 	assert.Equal(t, true, item.Value())
 }
-
