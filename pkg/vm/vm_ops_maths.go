@@ -317,17 +317,36 @@ func Negate(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, 
 	return NONE, nil
 }
 
-func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
-	operandA, err := ctx.Estack.PopInt()
-	if err != nil {
-		return nil, nil, err
-	}
-	operandB, err := ctx.Estack.PopInt()
-	if err != nil {
-		return nil, nil, err
-	}
+// Lte pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is less than or equal to b's value.
+// Returns an error if either items cannot be casted to an integer
+func Lte(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	return operandA, operandB, nil
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Lte(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
+// Gte pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is greated than or equal to b's value.
+// Returns an error if either items cannot be casted to an integer
+func Gte(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Gte(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
 }
 
 // Shl pops two integers, a and b, off of the stack and pushes an integer to the stack
@@ -400,6 +419,19 @@ func Gt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rsta
 	ctx.Estack.Push(stack.NewBoolean(res))
 
 	return NONE, nil
+}
+
+func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
+	operandA, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, err
+	}
+	operandB, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return operandA, operandB, nil
 }
 
 func popTwoByteArrays(ctx *stack.Context) (*stack.ByteArray, *stack.ByteArray, error) {
