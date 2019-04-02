@@ -1,6 +1,9 @@
 package stack
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 // Int represents an integer on the stack
 type Int struct {
@@ -124,4 +127,10 @@ func (i *Int) Lt(s *Int) bool {
 // value is false if a <= b.
 func (i *Int) Gt(s *Int) bool {
 	return i.Value().Cmp(s.Value()) == 1
+}
+
+// Hash overrides the default abstract hash method.
+func (i *Int) Hash() (string, error) {
+	data := fmt.Sprintf("%T %v", i, i.Value())
+	return KeyGenerator([]byte(data))
 }
