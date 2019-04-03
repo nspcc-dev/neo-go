@@ -139,3 +139,34 @@ func (i *Int) Lt(s *Int) bool {
 func (i *Int) Gt(s *Int) bool {
 	return i.Value().Cmp(s.Value()) == 1
 }
+
+// Invert returns an Integer whose underlying value is the bitwise complement
+// of the original value.
+func (i *Int) Invert() (*Int, error) {
+	res := new(big.Int).Not(i.Value())
+	return NewInt(res)
+}
+
+// And returns an Integer whose underlying value is the result of the
+// application of the bitwise AND operator to the two original integers'
+// values.
+func (i *Int) And(s *Int) (*Int, error) {
+	res := new(big.Int).And(i.Value(), s.Value())
+	return NewInt(res)
+}
+
+// Or returns an Integer whose underlying value is the result of the
+// application of the bitwise OR operator to the two original integers'
+// values.
+func (i *Int) Or(s *Int) (*Int, error) {
+	res := new(big.Int).Or(i.Value(), s.Value())
+	return NewInt(res)
+}
+
+// Xor returns an Integer whose underlying value is the result of the
+// application of the bitwise XOR operator to the two original integers'
+// values.
+func (i *Int) Xor(s *Int) (*Int, error) {
+	res := new(big.Int).Xor(i.Value(), s.Value())
+	return NewInt(res)
+}
