@@ -112,9 +112,37 @@ func (i *Int) Abs() (*Int, error) {
 	return b, nil
 }
 
+// Lte returns a bool value from the comparison of two integers, a and b.
+// value is true if a <= b.
+// value is false if a > b.
+func (i *Int) Lte(s *Int) bool {
+	return i.Value().Cmp(s.Value()) != 1
+}
+
+// Gte returns a bool value from the comparison of two integers, a and b.
+// value is true if a >= b.
+// value is false if a < b.
+func (i *Int) Gte(s *Int) bool {
+	return i.Value().Cmp(s.Value()) != -1
+}
+
+// Lt returns a bool value from the comparison of two integers, a and b.
+// value is true if a < b.
+// value is false if a >= b.
+func (i *Int) Lt(s *Int) bool {
+	return i.Value().Cmp(s.Value()) == -1
+}
+
+// Gt returns a bool value from the comparison of two integers, a and b.
+// value is true if a > b.
+// value is false if a <= b.
+func (i *Int) Gt(s *Int) bool {
+	return i.Value().Cmp(s.Value()) == 1
+}
+
 // Min returns the mininum between two integers.
 func Min(a *Int, b *Int) *Int {
-	if a.Value().Cmp(b.Value()) == -1 {
+	if a.Lte(b) {
 		return a
 	}
 	return b
@@ -123,7 +151,7 @@ func Min(a *Int, b *Int) *Int {
 
 // Max returns the maximun between two integers.
 func Max(a *Int, b *Int) *Int {
-	if a.Value().Cmp(b.Value()) == 1 {
+	if a.Gte(b) {
 		return a
 	}
 	return b
@@ -134,6 +162,6 @@ func Max(a *Int, b *Int) *Int {
 // range [a,b) (left-inclusive).
 func (i *Int) Within(a *Int, b *Int) bool {
 	// i >= a && i < b
-	return !(i.Value().Cmp(a.Value()) == -1) && i.Value().Cmp(b.Value()) == -1
+	return i.Gte(a) && i.Lt(b)
 
 }
