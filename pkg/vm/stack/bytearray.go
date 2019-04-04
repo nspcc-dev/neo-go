@@ -69,3 +69,8 @@ func reverse(b []byte) []byte {
 
 	return dest
 }
+
+// Value returns the underlying ByteArray's value.
+func (ba ByteArray) Value() []byte {
+	return ba.val
+}
