@@ -15,12 +15,7 @@ import (
 // the popped item does not have a concrete bytearray implementation.
 func SHA1(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	i, err := ctx.Estack.Pop()
-	if err != nil {
-		return FAULT, err
-	}
-
-	ba, err := i.ByteArray()
+	ba, err := ctx.Estack.PopByteArray()
 	if err != nil {
 		return FAULT, err
 	}
@@ -43,12 +38,7 @@ func SHA1(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rs
 // the popped item does not have a concrete bytearray implementation.
 func SHA256(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	i, err := ctx.Estack.Pop()
-	if err != nil {
-		return FAULT, err
-	}
-
-	ba, err := i.ByteArray()
+	ba, err := ctx.Estack.PopByteArray()
 	if err != nil {
 		return FAULT, err
 	}
@@ -73,12 +63,7 @@ func SHA256(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, 
 // the popped item does not have a concrete bytearray implementation.
 func HASH160(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	i, err := ctx.Estack.Pop()
-	if err != nil {
-		return FAULT, err
-	}
-
-	ba, err := i.ByteArray()
+	ba, err := ctx.Estack.PopByteArray()
 	if err != nil {
 		return FAULT, err
 	}
@@ -103,12 +88,7 @@ func HASH160(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation,
 // the popped item does not have a concrete bytearray implementation.
 func HASH256(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	i, err := ctx.Estack.Pop()
-	if err != nil {
-		return FAULT, err
-	}
-
-	ba, err := i.ByteArray()
+	ba, err := ctx.Estack.PopByteArray()
 	if err != nil {
 		return FAULT, err
 	}
