@@ -13,9 +13,7 @@ func TestIncOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -26,9 +24,7 @@ func TestIncOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(21), item.Value().Int64())
 }
@@ -38,9 +34,7 @@ func TestDecOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -51,9 +45,7 @@ func TestDecOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(19), item.Value().Int64())
 }
@@ -63,13 +55,10 @@ func TestAddOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(23))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -80,9 +69,7 @@ func TestAddOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(43), item.Value().Int64())
 
@@ -93,13 +80,10 @@ func TestSubOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(30))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(40))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -110,9 +94,7 @@ func TestSubOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(-10), item.Value().Int64())
 
@@ -123,13 +105,10 @@ func TestDivOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(4))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -140,9 +119,7 @@ func TestDivOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
@@ -152,13 +129,10 @@ func TestModOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(15))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(4))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -169,9 +143,7 @@ func TestModOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(3), item.Value().Int64())
 }
@@ -181,9 +153,7 @@ func TestNzOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -194,9 +164,7 @@ func TestNzOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -206,13 +174,10 @@ func TestMulOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -223,9 +188,7 @@ func TestMulOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(400), item.Value().Int64())
 }
@@ -235,9 +198,7 @@ func TestAbsOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(-20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -248,9 +209,7 @@ func TestAbsOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(20), item.Value().Int64())
 }
@@ -270,9 +229,7 @@ func TestNotOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -282,13 +239,10 @@ func TestNumEqual(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(6))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(6))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -299,9 +253,7 @@ func TestNumEqual(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -311,13 +263,10 @@ func TestNumNotEqual(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(5))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(6))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -328,9 +277,7 @@ func TestNumNotEqual(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -340,9 +287,7 @@ func TestSignOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(-20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -353,9 +298,7 @@ func TestSignOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(-1), item.Value().Int64())
 }
@@ -365,9 +308,7 @@ func TestNegateOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(-20))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
@@ -378,9 +319,7 @@ func TestNegateOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(20), item.Value().Int64())
 }
@@ -448,13 +387,10 @@ func TestShlOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(2))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(3))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -470,9 +406,7 @@ func TestShlOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(16), item.Value().Int64())
 }
@@ -482,13 +416,10 @@ func TestShrOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
+
 	b, err := stack.NewInt(big.NewInt(2))
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -504,9 +435,7 @@ func TestShrOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
@@ -527,9 +456,7 @@ func TestBoolAndOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -550,9 +477,7 @@ func TestBoolOrOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	if err != nil {
-		t.Fail()
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -562,10 +487,10 @@ func TestLtOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -581,7 +506,7 @@ func TestLtOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, false, item.Value())
 }
@@ -591,10 +516,10 @@ func TestGtOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -610,7 +535,7 @@ func TestGtOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
@@ -620,10 +545,10 @@ func TestMinOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -634,7 +559,7 @@ func TestMinOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(2), item.Value().Int64())
 }
@@ -644,10 +569,10 @@ func TestMaxOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
@@ -658,7 +583,7 @@ func TestMaxOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopInt()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, int64(10), item.Value().Int64())
 }
@@ -668,13 +593,13 @@ func TestWithinOp(t *testing.T) {
 	v := VM{}
 
 	a, err := stack.NewInt(big.NewInt(5))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	b, err := stack.NewInt(big.NewInt(2))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	c, err := stack.NewInt(big.NewInt(10))
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b).Push(c)
@@ -692,7 +617,7 @@ func TestWithinOp(t *testing.T) {
 	assert.Equal(t, 1, ctx.Estack.Len())
 
 	item, err := ctx.Estack.PopBoolean()
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, true, item.Value())
 }
