@@ -127,6 +127,21 @@ func (ras *RandomAccess) CopyTo(stack *RandomAccess) error {
 	return nil
 }
 
+// Set sets the n-item from the stack
+// starting from the top of the stack with the new item.
+// the n-item to replace is located at the position "len(stack)-index-1".
+func (ras *RandomAccess) Set(index uint16, item Item) error {
+	stackSize := uint16(len(ras.vals))
+	if ok := index >= stackSize; ok {
+		return errors.New("index out of range")
+	}
+
+	n := stackSize - index - 1
+	ras.vals[n] = item
+
+	return nil
+}
+
 // Convenience Functions
 
 // PopInt will remove the last stack item that was added
