@@ -19,6 +19,15 @@ func ToScriptHash(address string) string {
 	return scriptHash
 }
 
+// ToReverseScriptHash converts an address to a reverse script hash
+func ToReverseScriptHash(address string) string {
+	a, err := Uint160Decode(address)
+	if err != nil {
+		return ""
+	}
+	return a.ReverseString()
+}
+
 // FromUint160 returns the "NEO address" from the given
 // Uint160.
 func FromUint160(u util.Uint160) (string, error) {
