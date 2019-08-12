@@ -26,7 +26,7 @@ func ExampleSignECDSA() {
 
 	// Hash a message.
 	alg := sha512.New()
-	alg.Write([]byte("I am a potato."))
+	_, _ = alg.Write([]byte("I am a potato."))
 	hash := alg.Sum(nil)
 
 	// Sign the message. You don't need a PRNG for this.
@@ -59,7 +59,7 @@ func ExampleSignDSA() {
 
 	// Hash a message.
 	alg := sha1.New()
-	alg.Write([]byte("I am a potato."))
+	_, _ = alg.Write([]byte("I am a potato."))
 	hash := alg.Sum(nil)
 
 	// Sign the message. You don't need a PRNG for this.

@@ -21,7 +21,7 @@ func SHA1(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rs
 	}
 
 	alg := sha1.New()
-	alg.Write(ba.Value())
+	_, _ = alg.Write(ba.Value())
 	hash := alg.Sum(nil)
 	res := stack.NewByteArray(hash)
 
