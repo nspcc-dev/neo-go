@@ -296,9 +296,6 @@ func BoolAnd(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation,
 		return FAULT, err
 	}
 	res := bool1.And(bool2)
-	if err != nil {
-		return FAULT, err
-	}
 
 	ctx.Estack.Push(res)
 
@@ -315,9 +312,6 @@ func BoolOr(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, 
 		return FAULT, err
 	}
 	res := bool1.Or(bool2)
-	if err != nil {
-		return FAULT, err
-	}
 
 	ctx.Estack.Push(res)
 
