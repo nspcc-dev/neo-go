@@ -22,11 +22,11 @@ func (a *Array) Value() []Item {
 }
 
 // NewArray returns a new Array.
-func NewArray(val []Item) *Array {
+func NewArray(val []Item) (*Array, error) {
 	return &Array{
 		&abstractItem{},
 		val,
-	}
+	}, nil
 }
 
 // Hash overrides the default abstract hash method.

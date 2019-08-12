@@ -49,8 +49,8 @@ func testMakeStackMap(t *testing.T, m map[Item]Item) *Map {
 	return a
 }
 
-func testArray(t *testing.T, m map[Item]Item) *Map {
-	a, err := NewMap(m)
+func testMakeArray(t *testing.T, v []Item) *Array {
+	a, err := NewArray(v)
 	assert.Nil(t, err)
 	return a
 }

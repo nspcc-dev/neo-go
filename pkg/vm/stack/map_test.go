@@ -16,7 +16,7 @@ func TestMap(t *testing.T) {
 		b: a,
 	})
 	var e = NewContext([]byte{1, 2, 3, 4})
-	var f = NewArray([]Item{a, b})
+	var f = testMakeArray(t, []Item{a, b})
 
 	val := map[Item]Item{
 		a: c,
@@ -47,7 +47,7 @@ func TestMap(t *testing.T) {
 	valueE, _ := m.ValueOfKey(NewContext([]byte{1, 2, 3, 4}))
 	assert.Equal(t, d, valueE)
 
-	valueF, _ := m.ValueOfKey(NewArray([]Item{a, b}))
+	valueF, _ := m.ValueOfKey(testMakeArray(t, []Item{a, b}))
 	assert.Equal(t, e, valueF)
 
 	valueX, _ := m.ValueOfKey(NewByteArray([]byte{1, 2, 35}))
@@ -100,7 +100,7 @@ func TestMap(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, true, checkContext.Value())
 
-	checkArray, err := CompareHash(f, NewArray([]Item{a, b}))
+	checkArray, err := CompareHash(f, testMakeArray(t, []Item{a, b}))
 	assert.Nil(t, err)
 	assert.Equal(t, true, checkArray.Value())
 }
