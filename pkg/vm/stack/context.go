@@ -121,6 +121,11 @@ func (c *Context) ReadUint16() uint16 {
 	return val
 }
 
+// ReadInt16 reads a int16 from the script
+func (c *Context) ReadInt16() int16 {
+	return int16(c.ReadUint16())
+}
+
 // ReadByte reads one byte from the script
 func (c *Context) ReadByte() (byte, error) {
 	byt, err := c.ReadBytes(1)
@@ -150,6 +155,16 @@ func (c *Context) readVarBytes() ([]byte, error) {
 		return nil, err
 	}
 	return c.ReadBytes(int(n))
+}
+
+// SetIP sets the instruction pointer ip to a given integer.
+// Returns an error if ip is less than -1 or greater than LenInstr.
+func (c *Context) SetIP(ip int) error {
+	if ok := ip < -1 || ip > c.LenInstr(); ok {
+		return errors.New("invalid instruction pointer")
+	}
+	c.ip = ip
+	return nil
 }
 
 // Hash overrides the default abstract hash method.
