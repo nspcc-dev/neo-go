@@ -43,7 +43,7 @@ func (m *Map) ContainsKey(key Item) (*Boolean, error) {
 	for k := range m.Value() {
 		if ok, err := CompareHash(k, key); err != nil {
 			return nil, err
-		} else if ok.Value() == true {
+		} else if ok.Value() {
 			return ok, nil
 		}
 
@@ -63,7 +63,7 @@ func (m *Map) Remove(key Item) error {
 	for k := range m.Value() {
 		if ok, err := CompareHash(k, key); err != nil {
 			return err
-		} else if ok.Value() == true {
+		} else if ok.Value() {
 			d = k
 		}
 
@@ -80,7 +80,7 @@ func (m *Map) Add(key Item, value Item) error {
 	for k := range m.Value() {
 		if ok, err := CompareHash(k, key); err != nil {
 			return err
-		} else if ok.Value() == true {
+		} else if ok.Value() {
 			return errors.New("try to insert duplicate key! ")
 		}
 	}
@@ -94,7 +94,7 @@ func (m *Map) ValueOfKey(key Item) (Item, error) {
 	for k, v := range m.Value() {
 		if ok, err := CompareHash(k, key); err != nil {
 			return nil, err
-		} else if ok.Value() == true {
+		} else if ok.Value() {
 			return v, nil
 		}
 
