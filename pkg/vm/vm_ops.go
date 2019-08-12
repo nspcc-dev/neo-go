@@ -5,6 +5,10 @@ import "github.com/CityOfZion/neo-go/pkg/vm/stack"
 type stackInfo func(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error)
 
 var opFunc = map[stack.Instruction]stackInfo{
+	stack.HASH256:     HASH256,
+	stack.HASH160:     HASH160,
+	stack.SHA256:      SHA256,
+	stack.SHA1:        SHA1,
 	stack.XOR:         Xor,
 	stack.OR:          Or,
 	stack.AND:         And,
