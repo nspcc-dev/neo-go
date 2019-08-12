@@ -51,7 +51,7 @@ func TestStackPushPop(t *testing.T) {
 	assert.Equal(t, true, item.Equal(a))
 
 	// We should get an error as there are nomore items left to pop
-	stackElement, err = testStack.Pop()
+	_, err = testStack.Pop()
 	assert.NotNil(t, err)
 
 }
