@@ -205,6 +205,54 @@ func NumNotEqual(op stack.Instruction, ctx *stack.Context, istack *stack.Invocat
 	return NONE, nil
 }
 
+// Min pops two integers, a and b, off of the stack and pushes an integer to the stack
+// whose value is is the minum between a and b's value.
+// Returns an error if either items cannot be casted to an integer
+func Min(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := stack.Min(operandA, operandB)
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// Max pops two integers, a and b, off of the stack and pushes an integer to the stack
+// whose value is is the maximum between a and b's value.
+// Returns an error if either items cannot be casted to an integer
+func Max(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := stack.Max(operandA, operandB)
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
+// Within pops three integers, a, b, and c off of the stack and pushes a boolean to the stack
+// whose value is true iff c's value is within b's value (include) and a's value.
+// Returns an error if at least one item cannot be casted to an boolean.
+func Within(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	a, b, c, err := popThreeIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := stack.NewBoolean(c.Within(b, a))
+
+	ctx.Estack.Push(res)
+
+	return NONE, nil
+}
+
 // Abs pops an integer off of the stack and pushes its absolute value onto the stack.
 // Returns an error if the popped value is not an integer or if the absolute value cannot be taken
 func Abs(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
@@ -317,17 +365,36 @@ func Negate(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, 
 	return NONE, nil
 }
 
-func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
-	operandA, err := ctx.Estack.PopInt()
-	if err != nil {
-		return nil, nil, err
-	}
-	operandB, err := ctx.Estack.PopInt()
-	if err != nil {
-		return nil, nil, err
-	}
+// Lte pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is less than or equal to b's value.
+// Returns an error if either items cannot be casted to an integer
+func Lte(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
 
-	return operandA, operandB, nil
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Lte(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
+}
+
+// Gte pops two integers, a and b, off of the stack and pushes a boolean the stack
+// whose value is true if a's value is greated than or equal to b's value.
+// Returns an error if either items cannot be casted to an integer
+func Gte(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+
+	operandA, operandB, err := popTwoIntegers(ctx)
+	if err != nil {
+		return FAULT, err
+	}
+	res := operandB.Gte(operandA)
+
+	ctx.Estack.Push(stack.NewBoolean(res))
+
+	return NONE, nil
 }
 
 // Shl pops two integers, a and b, off of the stack and pushes an integer to the stack
@@ -400,6 +467,36 @@ func Gt(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rsta
 	ctx.Estack.Push(stack.NewBoolean(res))
 
 	return NONE, nil
+}
+
+func popTwoIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, error) {
+	operandA, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, err
+	}
+	operandB, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return operandA, operandB, nil
+}
+
+func popThreeIntegers(ctx *stack.Context) (*stack.Int, *stack.Int, *stack.Int, error) {
+	operandA, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	operandB, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	operandC, err := ctx.Estack.PopInt()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return operandA, operandB, operandC, nil
 }
 
 func popTwoByteArrays(ctx *stack.Context) (*stack.ByteArray, *stack.ByteArray, error) {
