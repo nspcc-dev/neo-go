@@ -5,6 +5,10 @@ import "github.com/CityOfZion/neo-go/pkg/vm/stack"
 type stackInfo func(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error)
 
 var opFunc = map[stack.Instruction]stackInfo{
+	stack.XOR:         Xor,
+	stack.OR:          Or,
+	stack.AND:         And,
+	stack.INVERT:      Invert,
 	stack.MIN:         Min,
 	stack.MAX:         Max,
 	stack.WITHIN:      Within,
