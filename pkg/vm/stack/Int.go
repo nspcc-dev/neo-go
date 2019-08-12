@@ -1,6 +1,9 @@
 package stack
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 // Int represents an integer on the stack
 type Int struct {
@@ -140,7 +143,12 @@ func (i *Int) Gt(s *Int) bool {
 	return i.Value().Cmp(s.Value()) == 1
 }
 
-// Min returns the mininum between two integers.
+// Hash overrides the default abstract hash method.
+func (i *Int) Hash() (string, error) {
+	data := fmt.Sprintf("%T %v", i, i.Value())
+	return KeyGenerator([]byte(data))
+
+  // Min returns the mininum between two integers.
 func Min(a *Int, b *Int) *Int {
 	if a.Lte(b) {
 		return a
@@ -163,5 +171,4 @@ func Max(a *Int, b *Int) *Int {
 func (i *Int) Within(a *Int, b *Int) bool {
 	// i >= a && i < b
 	return i.Gte(a) && i.Lt(b)
-
 }
