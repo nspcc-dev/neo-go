@@ -18,7 +18,8 @@ func TestIncOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.INC, ctx)
+	_, err = v.executeOp(stack.INC, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -39,7 +40,8 @@ func TestDecOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.DEC, ctx)
+	_, err = v.executeOp(stack.DEC, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -63,7 +65,8 @@ func TestAddOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.ADD, ctx)
+	_, err = v.executeOp(stack.ADD, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -88,7 +91,8 @@ func TestSubOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.SUB, ctx)
+	_, err = v.executeOp(stack.SUB, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -113,7 +117,8 @@ func TestDivOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.DIV, ctx)
+	_, err = v.executeOp(stack.DIV, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -137,7 +142,8 @@ func TestModOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.MOD, ctx)
+	_, err = v.executeOp(stack.MOD, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -158,7 +164,8 @@ func TestNzOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.NZ, ctx)
+	_, err = v.executeOp(stack.NZ, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -182,7 +189,8 @@ func TestMulOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.MUL, ctx)
+	_, err = v.executeOp(stack.MUL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -203,7 +211,8 @@ func TestAbsOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.ABS, ctx)
+	_, err = v.executeOp(stack.ABS, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -223,7 +232,8 @@ func TestNotOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(b)
 
-	v.executeOp(stack.NOT, ctx)
+	_, err := v.executeOp(stack.NOT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -247,7 +257,8 @@ func TestNumEqual(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.NUMEQUAL, ctx)
+	_, err = v.executeOp(stack.NUMEQUAL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -271,7 +282,8 @@ func TestNumNotEqual(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.NUMNOTEQUAL, ctx)
+	_, err = v.executeOp(stack.NUMNOTEQUAL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -292,7 +304,8 @@ func TestSignOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.SIGN, ctx)
+	_, err = v.executeOp(stack.SIGN, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -313,7 +326,8 @@ func TestNegateOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.NEGATE, ctx)
+	_, err = v.executeOp(stack.NEGATE, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -342,7 +356,8 @@ func TestLteOp(t *testing.T) {
 	// we perform a <= b and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.LTE, ctx)
+	_, err = v.executeOp(stack.LTE, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -371,7 +386,8 @@ func TestGteOp(t *testing.T) {
 	// we perform a >= b and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.GTE, ctx)
+	_, err = v.executeOp(stack.GTE, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -400,7 +416,8 @@ func TestShlOp(t *testing.T) {
 	// we perform a.Lsh(b) and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.SHL, ctx)
+	_, err = v.executeOp(stack.SHL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -429,7 +446,8 @@ func TestShrOp(t *testing.T) {
 	// we perform a.Rsh(b) and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.SHR, ctx)
+	_, err = v.executeOp(stack.SHR, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -450,7 +468,8 @@ func TestBoolAndOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.BOOLAND, ctx)
+	_, err := v.executeOp(stack.BOOLAND, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -471,7 +490,8 @@ func TestBoolOrOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.BOOLOR, ctx)
+	_, err := v.executeOp(stack.BOOLOR, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -500,7 +520,8 @@ func TestLtOp(t *testing.T) {
 	// we perform a < b and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.LT, ctx)
+	_, err = v.executeOp(stack.LT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -529,7 +550,8 @@ func TestGtOp(t *testing.T) {
 	// we perform a > b and place
 	// the result on top of the evaluation
 	// stack
-	v.executeOp(stack.GT, ctx)
+	_, err = v.executeOp(stack.GT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -553,7 +575,8 @@ func TestMinOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.MIN, ctx)
+	_, err = v.executeOp(stack.MIN, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -577,7 +600,8 @@ func TestMaxOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.MAX, ctx)
+	_, err = v.executeOp(stack.MAX, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -611,7 +635,8 @@ func TestWithinOp(t *testing.T) {
 	// whose value is true, on top of the evaluation
 	// stack. Otherwise we place a boolean with
 	// false value.
-	v.executeOp(stack.WITHIN, ctx)
+	_, err = v.executeOp(stack.WITHIN, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())

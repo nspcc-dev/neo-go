@@ -17,7 +17,8 @@ func TestSha1Op(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(ba1)
 
-	v.executeOp(stack.SHA1, ctx)
+	_, err := v.executeOp(stack.SHA1, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -40,7 +41,8 @@ func TestSha256Op(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(ba1)
 
-	v.executeOp(stack.SHA256, ctx)
+	_, err := v.executeOp(stack.SHA256, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -63,7 +65,8 @@ func TestHash160Op(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(ba1)
 
-	v.executeOp(stack.HASH160, ctx)
+	_, err := v.executeOp(stack.HASH160, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -86,7 +89,8 @@ func TestHash256Op(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(ba1)
 
-	v.executeOp(stack.HASH256, ctx)
+	_, err := v.executeOp(stack.HASH256, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())

@@ -32,7 +32,8 @@ func TestRollOp(t *testing.T) {
 	// has index len(stack)-n-1 (= 3-2-1= 0)
 	// onto the top stack item.
 	// The final stack will be [b,c,a]
-	v.executeOp(stack.ROLL, ctx)
+	_, err = v.executeOp(stack.ROLL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have three items
 	assert.Equal(t, 3, ctx.Estack.Len())
@@ -69,7 +70,8 @@ func TestRotOp(t *testing.T) {
 	// move the third top stack a item  onto
 	// the top stack item c.
 	// The final stack will be [b,c,a]
-	v.executeOp(stack.ROT, ctx)
+	_, err = v.executeOp(stack.ROT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have three items
 	assert.Equal(t, 3, ctx.Estack.Len())
@@ -103,7 +105,8 @@ func TestSwapOp(t *testing.T) {
 
 	// Swaps the top two stack items.
 	// The final stack will be [b,a]
-	v.executeOp(stack.SWAP, ctx)
+	_, err = v.executeOp(stack.SWAP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have two items
 	assert.Equal(t, 2, ctx.Estack.Len())
@@ -138,7 +141,8 @@ func TestTuckOp(t *testing.T) {
 	// copy the top stack item c and
 	// inserts it before the second top stack item.
 	// The final stack will be [a,c,b,c]
-	v.executeOp(stack.TUCK, ctx)
+	_, err = v.executeOp(stack.TUCK, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have four items
 	assert.Equal(t, 4, ctx.Estack.Len())
@@ -172,7 +176,8 @@ func TestDupOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.DUP, ctx)
+	_, err = v.executeOp(stack.DUP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have two items
 	assert.Equal(t, 2, ctx.Estack.Len())
@@ -204,7 +209,8 @@ func TestNipOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b).Push(c)
 
-	v.executeOp(stack.NIP, ctx)
+	_, err = v.executeOp(stack.NIP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have two items
 	assert.Equal(t, 2, ctx.Estack.Len())
@@ -236,7 +242,8 @@ func TestOverOp(t *testing.T) {
 	// OVER copies the second top stack item a
 	// onto the top stack item b.
 	// the new stack will be [a,b,a].
-	v.executeOp(stack.OVER, ctx)
+	_, err = v.executeOp(stack.OVER, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have three items
 	assert.Equal(t, 3, ctx.Estack.Len())
@@ -280,7 +287,8 @@ func TestPickOp(t *testing.T) {
 	// has index len(stack)-n-1 (= 3-2-1= 0)
 	// onto the top stack item.
 	// The final stack will be [a,b,c,a]
-	v.executeOp(stack.PICK, ctx)
+	_, err = v.executeOp(stack.PICK, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have four items
 	assert.Equal(t, 4, ctx.Estack.Len())
@@ -327,7 +335,8 @@ func TestXswapOp(t *testing.T) {
 	// is located in position len(stack)-n-1 (= 3-2-1= 0)
 	// with the top stack item.
 	// The final stack will be [c,b,a]
-	v.executeOp(stack.XSWAP, ctx)
+	_, err = v.executeOp(stack.XSWAP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have three items
 	assert.Equal(t, 3, ctx.Estack.Len())
@@ -370,7 +379,8 @@ func TestXTuckOp(t *testing.T) {
 	// and insert the top stack item c
 	// to the position len(stack)-n (= 3-2 = 1)
 	// of the stack.The final stack will be [a,c,b,c]
-	v.executeOp(stack.XTUCK, ctx)
+	_, err = v.executeOp(stack.XTUCK, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have four items
 	assert.Equal(t, 4, ctx.Estack.Len())
@@ -410,7 +420,8 @@ func TestXDepthOp(t *testing.T) {
 
 	// push integer whose value is len(stack) (2)
 	// on top of the stack
-	v.executeOp(stack.DEPTH, ctx)
+	_, err = v.executeOp(stack.DEPTH, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have three items
 	assert.Equal(t, 3, ctx.Estack.Len())
@@ -444,7 +455,8 @@ func TestDupFromAltStackOp(t *testing.T) {
 	ctx.Estack.Push(a)
 	ctx.Astack.Push(b)
 
-	v.executeOp(stack.DUPFROMALTSTACK, ctx)
+	_, err = v.executeOp(stack.DUPFROMALTSTACK, ctx)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 1, ctx.Astack.Len())
 	assert.Equal(t, 2, ctx.Estack.Len())
@@ -473,7 +485,8 @@ func TestToAltStackOp(t *testing.T) {
 	ctx.Estack.Push(a)
 	ctx.Astack.Push(b)
 
-	v.executeOp(stack.TOALTSTACK, ctx)
+	_, err = v.executeOp(stack.TOALTSTACK, ctx)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 2, ctx.Astack.Len())
 	assert.Equal(t, 0, ctx.Estack.Len())
@@ -498,7 +511,8 @@ func TestFromAltStackOp(t *testing.T) {
 	ctx.Estack.Push(a)
 	ctx.Astack.Push(b)
 
-	v.executeOp(stack.FROMALTSTACK, ctx)
+	_, err = v.executeOp(stack.FROMALTSTACK, ctx)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 0, ctx.Astack.Len())
 	assert.Equal(t, 2, ctx.Estack.Len())
@@ -537,7 +551,8 @@ func TestXDropOp(t *testing.T) {
 	// len(stack)-n-1 = 3-2-1 = 0.
 	// Therefore a is removed from the stack.
 	// Only b, c remain on the stack.
-	v.executeOp(stack.XDROP, ctx)
+	_, err = v.executeOp(stack.XDROP, ctx)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 2, ctx.Estack.Len())
 

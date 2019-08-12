@@ -18,7 +18,8 @@ func TestNopOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a)
 
-	v.executeOp(stack.NOP, ctx)
+	_, err = v.executeOp(stack.NOP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -46,7 +47,8 @@ func TestJmpOp(t *testing.T) {
 	// ctx.ip will be set to offset.
 	// offset = ctx.IP() + int(ctx.ReadInt16()) - 3
 	//        = 0 + 5 -3 = 2
-	v.executeOp(stack.JMP, ctx)
+	_, err = v.executeOp(stack.JMP, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -75,7 +77,8 @@ func TestJmpIfOp1(t *testing.T) {
 	// on top of the stack.
 	// offset = ctx.IP() + int(ctx.ReadInt16()) - 3
 	//        = 0 + 5 -3 = 2
-	v.executeOp(stack.JMPIF, ctx)
+	_, err := v.executeOp(stack.JMPIF, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have 0 item
 	assert.Equal(t, 0, ctx.Estack.Len())
@@ -102,7 +105,8 @@ func TestJmpIfOp2(t *testing.T) {
 	// nothing will happen because
 	// the value of the boolean on top of the stack
 	// is false
-	v.executeOp(stack.JMPIF, ctx)
+	_, err := v.executeOp(stack.JMPIF, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have 0 item
 	assert.Equal(t, 0, ctx.Estack.Len())
@@ -129,7 +133,8 @@ func TestJmpIfNotOp1(t *testing.T) {
 	// nothing will happen because
 	// the value of the boolean on top of the stack
 	// is true
-	v.executeOp(stack.JMPIFNOT, ctx)
+	_, err := v.executeOp(stack.JMPIFNOT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have 0 item
 	assert.Equal(t, 0, ctx.Estack.Len())
@@ -158,7 +163,8 @@ func TestJmpIfNotOp2(t *testing.T) {
 	// on top of the stack.
 	// offset = ctx.IP() + int(ctx.ReadInt16()) - 3
 	//        = 0 + 5 -3 = 2
-	v.executeOp(stack.JMPIFNOT, ctx)
+	_, err := v.executeOp(stack.JMPIFNOT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 0, ctx.Estack.Len())

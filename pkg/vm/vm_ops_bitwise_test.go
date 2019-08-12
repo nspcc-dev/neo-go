@@ -20,7 +20,8 @@ func TestInvertOp(t *testing.T) {
 	ctx.Estack.Push(a)
 
 	// 1111 11001 = -6 (two complement representation)
-	v.executeOp(stack.INVERT, ctx)
+	_, err = v.executeOp(stack.INVERT, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -47,7 +48,8 @@ func TestAndOp(t *testing.T) {
 	ctx.Estack.Push(a).Push(b)
 
 	// 100001 = 33
-	v.executeOp(stack.AND, ctx)
+	_, err = v.executeOp(stack.AND, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -74,7 +76,8 @@ func TestOrOp(t *testing.T) {
 	ctx.Estack.Push(a).Push(b)
 
 	// 110011 = 51 (49 OR 35)
-	v.executeOp(stack.OR, ctx)
+	_, err = v.executeOp(stack.OR, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -101,7 +104,8 @@ func TestXorOp(t *testing.T) {
 	ctx.Estack.Push(a).Push(b)
 
 	// 010010 = 18 (49 XOR 35)
-	v.executeOp(stack.XOR, ctx)
+	_, err = v.executeOp(stack.XOR, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
@@ -125,7 +129,8 @@ func TestEqualOp(t *testing.T) {
 	ctx := stack.NewContext([]byte{})
 	ctx.Estack.Push(a).Push(b)
 
-	v.executeOp(stack.EQUAL, ctx)
+	_, err = v.executeOp(stack.EQUAL, ctx)
+	assert.Nil(t, err)
 
 	// Stack should have one item
 	assert.Equal(t, 1, ctx.Estack.Len())
