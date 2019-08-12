@@ -9,6 +9,7 @@ import (
 // RET Returns from the current context
 // Returns HALT if there are nomore context's to run
 func RET(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, rstack *stack.RandomAccess) (Vmstate, error) {
+	_ = ctx // fix SA4009 warning
 
 	// Pop current context from the Inovation stack
 	ctx, err := istack.PopCurrentContext()
