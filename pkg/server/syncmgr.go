@@ -11,7 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/wire/util"
 )
 
-func setupSyncManager(s *Server) *syncmgr.Syncmgr {
+func setupSyncManager(s *Server) (*syncmgr.Syncmgr, error) {
 
 	cfg := &syncmgr.Config{
 		ProcessBlock:   s.processBlock,
@@ -27,7 +27,15 @@ func setupSyncManager(s *Server) *syncmgr.Syncmgr {
 		FetchBlockAgain:   s.fetchBlockAgain,
 	}
 
-	return syncmgr.New(cfg)
+	// Add nextBlockIndex in syncmgr
+	lastBlock, err := s.chain.Db.GetLastBlock()
+	if err != nil {
+		return nil, err
+	}
+
+	nextBlockIndex := lastBlock.Index + 1
+
+	return syncmgr.New(cfg, nextBlockIndex), nil
 }
 
 func (s *Server) onHeader(peer *peer.Peer, hdrsMessage *payload.HeadersMessage) {

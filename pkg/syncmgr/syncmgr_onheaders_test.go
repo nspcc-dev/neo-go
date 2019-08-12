@@ -12,7 +12,7 @@ import (
 
 func TestHeadersModeOnHeaders(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(headersMode)
+	syncmgr, helper := setupSyncMgr(headersMode, 0)
 
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 0))
 
@@ -29,14 +29,14 @@ func TestHeadersModeOnHeaders(t *testing.T) {
 }
 
 func TestBlockModeOnHeaders(t *testing.T) {
-	syncmgr, helper := setupSyncMgr(blockMode)
+	syncmgr, helper := setupSyncMgr(blockMode, 0)
 
 	// If we receive a header in blockmode, no headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 100))
 	assert.Equal(t, 0, helper.headersProcessed)
 }
 func TestNormalModeOnHeadersMaxHeaders(t *testing.T) {
-	syncmgr, helper := setupSyncMgr(normalMode)
+	syncmgr, helper := setupSyncMgr(normalMode, 0)
 
 	// If we receive a header in normalmode, headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 2000))
@@ -49,7 +49,7 @@ func TestNormalModeOnHeadersMaxHeaders(t *testing.T) {
 // This differs from the previous function in that
 //we did not receive the max amount of headers
 func TestNormalModeOnHeaders(t *testing.T) {
-	syncmgr, helper := setupSyncMgr(normalMode)
+	syncmgr, helper := setupSyncMgr(normalMode, 0)
 
 	// If we receive a header in normalmode, headers will be processed
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))
@@ -60,7 +60,7 @@ func TestNormalModeOnHeaders(t *testing.T) {
 }
 
 func TestLastHeaderUpdates(t *testing.T) {
-	syncmgr, _ := setupSyncMgr(headersMode)
+	syncmgr, _ := setupSyncMgr(headersMode, 0)
 
 	hdrsMessage := randomHeadersMessage(t, 200)
 	hdrs := hdrsMessage.Headers
@@ -95,7 +95,7 @@ func TestLastHeaderUpdates(t *testing.T) {
 
 func TestHeadersModeOnHeadersErr(t *testing.T) {
 
-	syncmgr, helper := setupSyncMgr(headersMode)
+	syncmgr, helper := setupSyncMgr(headersMode, 0)
 	helper.err = &chain.ValidationError{}
 
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))
@@ -106,7 +106,7 @@ func TestHeadersModeOnHeadersErr(t *testing.T) {
 }
 
 func TestNormalModeOnHeadersErr(t *testing.T) {
-	syncmgr, helper := setupSyncMgr(normalMode)
+	syncmgr, helper := setupSyncMgr(normalMode, 0)
 	helper.err = &chain.ValidationError{}
 
 	syncmgr.OnHeader(&mockPeer{}, randomHeadersMessage(t, 200))

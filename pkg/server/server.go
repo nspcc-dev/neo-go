@@ -56,7 +56,10 @@ func New(net protocol.Magic, port uint16) (*Server, error) {
 	s.chain = chain
 
 	// Setup sync manager
-	syncmgr := setupSyncManager(s)
+	syncmgr, err := setupSyncManager(s)
+	if err != nil {
+		return nil, err
+	}
 	s.smg = syncmgr
 
 	// Setup connection manager
@@ -92,7 +95,8 @@ func (s *Server) Run() error {
 	if err != nil {
 		return err
 	}
-	err = s.pmg.RequestHeaders(bestHeader.Hash.Reverse())
+
+	err = s.pmg.RequestHeaders(bestHeader.Hash)
 	if err != nil {
 		return err
 	}

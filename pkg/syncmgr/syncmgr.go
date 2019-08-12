@@ -2,6 +2,7 @@ package syncmgr
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
@@ -50,10 +51,14 @@ type Syncmgr struct {
 	// When receiving blocks, we can use this to determine whether the node has downloaded
 	// all of the blocks for the last headers messages
 	headerHash util.Uint256
+
+	poolLock       sync.Mutex
+	blockPool      []payload.Block
+	nextBlockIndex uint32
 }
 
 // New creates a new sync manager
-func New(cfg *Config) *Syncmgr {
+func New(cfg *Config, nextBlockIndex uint32) *Syncmgr {
 
 	newBlockTimer := time.AfterFunc(blockTimer, func() {
 		cfg.AskForNewBlocks()
@@ -61,9 +66,10 @@ func New(cfg *Config) *Syncmgr {
 	newBlockTimer.Stop()
 
 	return &Syncmgr{
-		syncmode: headersMode,
-		cfg:      cfg,
-		timer:    newBlockTimer,
+		syncmode:       headersMode,
+		cfg:            cfg,
+		timer:          newBlockTimer,
+		nextBlockIndex: nextBlockIndex,
 	}
 }
 
@@ -132,4 +138,15 @@ func (s *Syncmgr) OnBlock(peer SyncPeer, msg *payload.BlockMessage) error {
 // synced up with the network
 func (s *Syncmgr) IsCurrent() bool {
 	return s.syncmode == normalMode
+}
+
+func (s *Syncmgr) processBlock(block payload.Block) error {
+	err := s.cfg.ProcessBlock(block)
+	if err != nil {
+		return err
+	}
+
+	s.nextBlockIndex++
+
+	return nil
 }

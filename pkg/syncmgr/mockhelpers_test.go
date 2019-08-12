@@ -89,7 +89,7 @@ func randomUint256(t *testing.T) util.Uint256 {
 	return u
 }
 
-func setupSyncMgr(mode mode) (*Syncmgr, *syncTestHelper) {
+func setupSyncMgr(mode mode, nextBlockIndex uint32) (*Syncmgr, *syncTestHelper) {
 	helper := &syncTestHelper{}
 
 	cfg := &Config{
@@ -106,7 +106,7 @@ func setupSyncMgr(mode mode) (*Syncmgr, *syncTestHelper) {
 		RequestHeaders: helper.RequestHeaders,
 	}
 
-	syncmgr := New(cfg)
+	syncmgr := New(cfg, nextBlockIndex)
 	syncmgr.syncmode = mode
 
 	return syncmgr, helper
