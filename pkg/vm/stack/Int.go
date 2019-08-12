@@ -22,10 +22,7 @@ func NewInt(val *big.Int) (*Int, error) {
 
 // Equal will check if two integers hold equal value
 func (i *Int) Equal(s *Int) bool {
-	if i.val.Cmp(s.val) != 0 {
-		return false
-	}
-	return true
+	return i.val.Cmp(s.val) == 0
 }
 
 // Add will add two stackIntegers together
