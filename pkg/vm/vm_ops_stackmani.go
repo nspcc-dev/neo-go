@@ -226,7 +226,7 @@ func DEPTH(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, r
 		return FAULT, err
 	}
 
-  ctx.Estack.Push(length)
+	ctx.Estack.Push(length)
 
 	return NONE, nil
 }

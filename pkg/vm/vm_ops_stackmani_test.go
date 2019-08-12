@@ -302,7 +302,7 @@ func TestPickOp(t *testing.T) {
 	itemB, err := ctx.Estack.PopInt()
 	assert.Nil(t, err)
 
-  itemA2, err := ctx.Estack.PopInt()
+	itemA2, err := ctx.Estack.PopInt()
 	assert.Nil(t, err)
 
 	assert.Equal(t, int64(3), itemA.Value().Int64())

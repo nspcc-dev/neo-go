@@ -36,7 +36,7 @@ var opFunc = map[stack.Instruction]stackInfo{
 	stack.MIN:             Min,
 	stack.MAX:             Max,
 	stack.WITHIN:          Within,
-  stack.NUMEQUAL:        NumEqual,
+	stack.NUMEQUAL:        NumEqual,
 	stack.NUMNOTEQUAL:     NumNotEqual,
 	stack.BOOLAND:         BoolAnd,
 	stack.BOOLOR:          BoolOr,
