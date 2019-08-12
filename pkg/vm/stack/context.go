@@ -3,6 +3,7 @@ package stack
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Context represent the current execution context of the VM.
@@ -164,4 +165,10 @@ func (c *Context) SetIP(ip int) error {
 	}
 	c.ip = ip
 	return nil
+}
+
+// Hash overrides the default abstract hash method.
+func (c *Context) Hash() (string, error) {
+	data := c.String() + fmt.Sprintf(" %v-%v-%v-%v-%v", c.ip, c.prog, c.breakPoints, c.Estack, c.Astack)
+	return KeyGenerator([]byte(data))
 }
