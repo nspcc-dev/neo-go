@@ -10,7 +10,7 @@ import (
 )
 
 // helper functions
-func testPeakInteger(t *testing.T, tStack *RandomAccess, n uint16) *Int {
+func testPeekInteger(t *testing.T, tStack *RandomAccess, n uint16) *Int {
 	stackElement, err := tStack.Peek(n)
 	assert.Nil(t, err)
 	item, err := stackElement.Integer()
