@@ -291,7 +291,7 @@ func XDROP(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation, r
 		return FAULT, err
 	}
 
-	ctx.Estack.Remove(uint16(n.Value().Uint64()))
+	_, err = ctx.Estack.Remove(uint16(n.Value().Uint64()))
 	if err != nil {
 		return FAULT, err
 	}
