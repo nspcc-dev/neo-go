@@ -173,3 +173,19 @@ func (ras *RandomAccess) PopBoolean() (*Boolean, error) {
 	}
 	return item.Boolean()
 }
+
+// Remove removes the n-item from the stack
+// starting from the top of the stack. In other words
+// the n-item to remove is located at the index "len(stack)-n-1"
+func (ras *RandomAccess) Remove(n uint16) (Item, error) {
+	if int(n) >= len(ras.vals) {
+		return nil, errors.New("index out of range")
+	}
+
+	index := uint16(len(ras.vals)) - n - 1
+	item := ras.vals[index]
+
+	ras.vals = append(ras.vals[:index], ras.vals[index+1:]...)
+
+	return item, nil
+}
