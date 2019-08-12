@@ -64,7 +64,7 @@ func TestByteArrConversion(t *testing.T) {
 	ba, err := a.ByteArray()
 	assert.Nil(t, err)
 
-	assert.Equal(t, num, testReadInt64(ba.val))
+	assert.Equal(t, num, testReadInt64(t, ba.val))
 
 	have, err := ba.Integer()
 	assert.Nil(t, err)
