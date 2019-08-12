@@ -38,7 +38,11 @@ func testMakeStackInt(t *testing.T, num int64) *Int {
 
 func testReadInt64(data []byte) int64 {
 	var ret int64
-	buf := bytes.NewBuffer(data)
+	var arr [8]byte
+
+	// expands or shrinks data automatically
+	copy(arr[:], data)
+	buf := bytes.NewBuffer(arr[:])
 	binary.Read(buf, binary.LittleEndian, &ret)
 	return ret
 }
