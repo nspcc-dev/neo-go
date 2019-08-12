@@ -51,7 +51,7 @@ func TestStackPushPop(t *testing.T) {
 	assert.Equal(t, true, item.Equal(a))
 
 	// We should get an error as there are nomore items left to pop
-	stackElement, err = testStack.Pop()
+	_, err = testStack.Pop()
 	assert.NotNil(t, err)
 
 }
@@ -97,7 +97,7 @@ func TestStackPeekMutability(t *testing.T) {
 
 	testStack.Push(a).Push(b)
 
-	peekedItem := testPeakInteger(t, testStack, 0)
+	peekedItem := testPeekInteger(t, testStack, 0)
 	assert.Equal(t, true, peekedItem.Equal(b))
 
 	// Check that by modifying the peeked value,
@@ -122,7 +122,7 @@ func TestStackPeek(t *testing.T) {
 	// i starts at 0, j starts at len(values)-1
 	for i, j := 0, len(values)-1; j >= 0; i, j = i+1, j-1 {
 
-		peekedItem := testPeakInteger(t, testStack, uint16(i))
+		peekedItem := testPeekInteger(t, testStack, uint16(i))
 		a := testMakeStackInt(t, values[j])
 
 		fmt.Printf("%#v\n", peekedItem.val.Int64())

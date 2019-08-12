@@ -61,7 +61,7 @@ func TestPushAdd(t *testing.T) {
 
 }
 
-func TestSimpleRun(t *testing.T) {
+func TestThrowIfNot(t *testing.T) {
 
 	// Program pushes 20 and 34 to the stack
 	// Adds them together
@@ -89,6 +89,33 @@ func TestSimpleRun(t *testing.T) {
 	// ResultStack should be nil
 	assert.Equal(t, -1, vm.ResultStack.Len())
 
+	// InvocationStack should be empty
+	assert.Equal(t, 0, vm.InvocationStack.Len())
+
+}
+
+func TestThrow(t *testing.T) {
+
+	// Program pushes 20 to the stack
+	// exits with an error
+
+	// Push(20)
+	// THROW
+
+	builder := stack.NewBuilder()
+	builder.EmitInt(20).EmitOpcode(stack.THROW)
+
+	// Pass program to VM
+	vm := NewVM(builder.Bytes())
+
+	// Runs vm with program
+	_, err := vm.Run()
+	assert.NotNil(t, err)
+
+	ctx, err := vm.InvocationStack.CurrentContext()
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 1, ctx.Estack.Len())
+	assert.Equal(t, -1, ctx.Astack.Len())
 }
 
 // returns true if the value at the top of the evaluation stack is a integer

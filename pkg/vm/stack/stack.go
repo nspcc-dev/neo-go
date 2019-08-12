@@ -23,11 +23,6 @@ func New() *RandomAccess {
 	}
 }
 
-// Items will return all items in the stack
-func (ras *RandomAccess) items() []Item {
-	return ras.vals
-}
-
 //Len will return the length of the stack
 func (ras *RandomAccess) Len() int {
 	if ras.vals == nil {
@@ -127,6 +122,21 @@ func (ras *RandomAccess) CopyTo(stack *RandomAccess) error {
 	return nil
 }
 
+// Set sets the n-item from the stack
+// starting from the top of the stack with the new item.
+// the n-item to replace is located at the position "len(stack)-index-1".
+func (ras *RandomAccess) Set(index uint16, item Item) error {
+	stackSize := uint16(len(ras.vals))
+	if ok := index >= stackSize; ok {
+		return errors.New("index out of range")
+	}
+
+	n := stackSize - index - 1
+	ras.vals[n] = item
+
+	return nil
+}
+
 // Convenience Functions
 
 // PopInt will remove the last stack item that was added
@@ -147,4 +157,30 @@ func (ras *RandomAccess) PopByteArray() (*ByteArray, error) {
 		return nil, err
 	}
 	return item.ByteArray()
+}
+
+// PopBoolean will remove the last stack item that was added
+// and cast it to a Boolean.
+func (ras *RandomAccess) PopBoolean() (*Boolean, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.Boolean()
+}
+
+// Remove removes the n-item from the stack
+// starting from the top of the stack. In other words
+// the n-item to remove is located at the index "len(stack)-n-1"
+func (ras *RandomAccess) Remove(n uint16) (Item, error) {
+	if int(n) >= len(ras.vals) {
+		return nil, errors.New("index out of range")
+	}
+
+	index := uint16(len(ras.vals)) - n - 1
+	item := ras.vals[index]
+
+	ras.vals = append(ras.vals[:index], ras.vals[index+1:]...)
+
+	return item, nil
 }
