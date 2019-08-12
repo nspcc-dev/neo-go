@@ -100,6 +100,18 @@ func (i *Int) Value() *big.Int {
 	return i.val
 }
 
+// Abs returns a stack integer whose underlying value is
+// the absolute value of the original stack integer.
+func (i *Int) Abs() (*Int, error) {
+	a := big.NewInt(0).Abs(i.Value())
+	b, err := NewInt(a)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
 // Lte returns a bool value from the comparison of two integers, a and b.
 // value is true if a <= b.
 // value is false if a > b.
@@ -114,18 +126,6 @@ func (i *Int) Gte(s *Int) bool {
 	return i.Value().Cmp(s.Value()) != -1
 }
 
-// Abs returns a stack integer whose underlying value is
-// the absolute value of the original stack integer.
-func (i *Int) Abs() (*Int, error) {
-	a := big.NewInt(0).Abs(i.Value())
-	b, err := NewInt(a)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
 // Lt returns a bool value from the comparison of two integers, a and b.
 // value is true if a < b.
 // value is false if a >= b.
@@ -138,4 +138,30 @@ func (i *Int) Lt(s *Int) bool {
 // value is false if a <= b.
 func (i *Int) Gt(s *Int) bool {
 	return i.Value().Cmp(s.Value()) == 1
+}
+
+// Min returns the mininum between two integers.
+func Min(a *Int, b *Int) *Int {
+	if a.Lte(b) {
+		return a
+	}
+	return b
+
+}
+
+// Max returns the maximun between two integers.
+func Max(a *Int, b *Int) *Int {
+	if a.Gte(b) {
+		return a
+	}
+	return b
+}
+
+// Within returns a bool whose value is true
+// iff the value of the integer i is within the specified
+// range [a,b) (left-inclusive).
+func (i *Int) Within(a *Int, b *Int) bool {
+	// i >= a && i < b
+	return i.Gte(a) && i.Lt(b)
+
 }
