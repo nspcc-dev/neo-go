@@ -11,6 +11,8 @@ type Item interface {
 	ByteArray() (*ByteArray, error)
 	Array() (*Array, error)
 	Context() (*Context, error)
+	Map() (*Map, error)
+	Hash() (string, error)
 }
 
 // Represents an `abstract` stack item
@@ -46,4 +48,14 @@ func (a *abstractItem) Array() (*Array, error) {
 // Implements Item interface
 func (a *abstractItem) Context() (*Context, error) {
 	return nil, errors.New("This stack item is not of type context")
+}
+
+// Context is the default implementation for a stackItem
+// Implements Item interface
+func (a *abstractItem) Map() (*Map, error) {
+	return nil, errors.New("This stack item is not a map")
+}
+
+func (a *abstractItem) Hash() (string, error) {
+	return "", errors.New("This stack item need to override the Hash Method")
 }

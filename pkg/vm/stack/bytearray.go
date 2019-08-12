@@ -3,6 +3,7 @@ package stack
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 )
@@ -68,4 +69,15 @@ func reverse(b []byte) []byte {
 	}
 
 	return dest
+}
+
+//Value returns the underlying ByteArray's value.
+func (ba *ByteArray) Value() []byte {
+	return ba.val
+}
+
+// Hash overrides the default abstract hash method.
+func (ba *ByteArray) Hash() (string, error) {
+	data := fmt.Sprintf("%T %v", ba, ba.Value())
+	return KeyGenerator([]byte(data))
 }
