@@ -1,5 +1,9 @@
 package stack
 
+import (
+	"fmt"
+)
+
 // Boolean represents a boolean value on the stack
 type Boolean struct {
 	*abstractItem
@@ -43,4 +47,10 @@ func (b *Boolean) And(a *Boolean) *Boolean {
 func (b *Boolean) Or(a *Boolean) *Boolean {
 	c := b.Value() || a.Value()
 	return NewBoolean(c)
+}
+
+// Hash overrides the default abstract hash method.
+func (b *Boolean) Hash() (string, error) {
+	data := fmt.Sprintf("%T %v", b, b.Value())
+	return KeyGenerator([]byte(data))
 }

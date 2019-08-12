@@ -42,3 +42,15 @@ func testReadInt64(data []byte) int64 {
 	binary.Read(buf, binary.LittleEndian, &ret)
 	return ret
 }
+
+func testMakeStackMap(t *testing.T, m map[Item]Item) *Map {
+	a, err := NewMap(m)
+	assert.Nil(t, err)
+	return a
+}
+
+func testArray(t *testing.T, m map[Item]Item) *Map {
+	a, err := NewMap(m)
+	assert.Nil(t, err)
+	return a
+}
