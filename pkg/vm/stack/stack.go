@@ -23,11 +23,6 @@ func New() *RandomAccess {
 	}
 }
 
-// Items will return all items in the stack
-func (ras *RandomAccess) items() []Item {
-	return ras.vals
-}
-
 //Len will return the length of the stack
 func (ras *RandomAccess) Len() int {
 	if ras.vals == nil {
