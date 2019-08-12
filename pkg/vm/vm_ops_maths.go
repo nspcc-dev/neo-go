@@ -296,7 +296,6 @@ func BoolAnd(op stack.Instruction, ctx *stack.Context, istack *stack.Invocation,
 		return FAULT, err
 	}
 	res := bool1.And(bool2)
-
 	ctx.Estack.Push(res)
 
 	return NONE, nil

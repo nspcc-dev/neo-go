@@ -25,7 +25,7 @@ func TestEncodeDecodeState(t *testing.T) {
 
 	assert.Equal(t, 1, len(s.Inputs))
 	input := s.Inputs[0]
-	assert.Equal(t, "a192cbabc6d613ecfcce43fd09e9197556ca5cf7d4bd1f6c65726ea9f08441cb", input.PrevHash.String())
+	assert.Equal(t, "a192cbabc6d613ecfcce43fd09e9197556ca5cf7d4bd1f6c65726ea9f08441cb", input.PrevHash.ReverseString())
 	assert.Equal(t, uint16(0), input.PrevIndex)
 
 	assert.Equal(t, 1, len(s.Descriptors))
@@ -43,5 +43,5 @@ func TestEncodeDecodeState(t *testing.T) {
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtxBytes, buf.Bytes())
-	assert.Equal(t, "8abf5ebdb9a8223b12109513647f45bd3c0a6cf1a6346d56684cff71ba308724", s.Hash.String())
+	assert.Equal(t, "8abf5ebdb9a8223b12109513647f45bd3c0a6cf1a6346d56684cff71ba308724", s.Hash.ReverseString())
 }

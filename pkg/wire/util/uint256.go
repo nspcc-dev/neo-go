@@ -63,6 +63,11 @@ func (u Uint256) Equals(other Uint256) bool {
 
 // String implements the stringer interface.
 func (u Uint256) String() string {
+	return hex.EncodeToString(u.Bytes())
+}
+
+// ReverseString displays a reverse string representation of Uint256.
+func (u Uint256) ReverseString() string {
 	return hex.EncodeToString(slice.Reverse(u.Bytes()))
 }
 

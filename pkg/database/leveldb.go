@@ -1,22 +1,23 @@
 package database
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
-
-	"github.com/CityOfZion/neo-go/pkg/wire/payload"
-	"github.com/CityOfZion/neo-go/pkg/wire/payload/transaction"
-	"github.com/CityOfZion/neo-go/pkg/wire/util"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
+	ldbutil "github.com/syndtr/goleveldb/leveldb/util"
 )
+
+//DbDir is the folder which all database files will be put under
+// Structure /DbDir/net
+const DbDir = "db/"
 
 // LDB represents a leveldb object
 type LDB struct {
 	db   *leveldb.DB
-	path string
+	Path string
 }
+
+// ErrNotFound means that the value was not found in the db
+var ErrNotFound = errors.New("value not found for that key")
 
 // Database contains all methods needed for an object to be a database
 type Database interface {
@@ -28,37 +29,30 @@ type Database interface {
 	Get(key []byte) ([]byte, error)
 	// Delete deletes the given value for the key from the database
 	Delete(key []byte) error
+	//Prefix returns all values that start with key
+	Prefix(key []byte) ([][]byte, error)
 	// Close closes the underlying db object
 	Close() error
 }
 
-var (
-	// TX is the prefix used when inserting a tx into the db
-	TX = []byte("TX")
-	// HEADER is the prefix used when inserting a header into the db
-	HEADER = []byte("HEADER")
-	// LATESTHEADER is the prefix used when inserting the latests header into the db
-	LATESTHEADER = []byte("LH")
-	// UTXO is the prefix used when inserting a utxo into the db
-	UTXO = []byte("UTXO")
-)
-
 // New will return a new leveldb instance
-func New(path string) *LDB {
-	db, err := leveldb.OpenFile(path, nil)
-
+func New(path string) (*LDB, error) {
+	dbPath := DbDir + path
+	db, err := leveldb.OpenFile(dbPath, nil)
+	if err != nil {
+		return nil, err
+	}
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
 		db, err = leveldb.RecoverFile(path, nil)
-	}
-
-	if err != nil {
-		return nil
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &LDB{
 		db,
-		path,
-	}
+		dbPath,
+	}, nil
 }
 
 // Has implements the database interface
@@ -73,7 +67,15 @@ func (l *LDB) Put(key []byte, value []byte) error {
 
 // Get implements the database interface
 func (l *LDB) Get(key []byte) ([]byte, error) {
-	return l.db.Get(key, nil)
+	val, err := l.db.Get(key, nil)
+	if err == nil {
+		return val, nil
+	}
+	if err == leveldb.ErrNotFound {
+		return val, ErrNotFound
+	}
+	return val, err
+
 }
 
 // Delete implements the database interface
@@ -86,79 +88,27 @@ func (l *LDB) Close() error {
 	return l.db.Close()
 }
 
-// AddHeader adds a header into the database
-func (l *LDB) AddHeader(header *payload.BlockBase) error {
+// Prefix implements the database interface
+func (l *LDB) Prefix(key []byte) ([][]byte, error) {
 
-	table := NewTable(l, HEADER)
+	var results [][]byte
 
-	byt, err := header.Bytes()
-	if err != nil {
-		fmt.Println("Could not Get bytes from decoded BlockBase")
-		return nil
+	iter := l.db.NewIterator(ldbutil.BytesPrefix(key), nil)
+	for iter.Next() {
+
+		value := iter.Value()
+
+		// Copy the data, as we cannot modify it
+		// Once the iter has been released
+		deref := make([]byte, len(value))
+
+		copy(deref, value)
+
+		// Append result
+		results = append(results, deref)
+
 	}
-
-	fmt.Println("Adding Header, This should be batched!!!!")
-
-	// This is the main mapping
-	//Key: HEADER+BLOCKHASH Value: contents of blockhash
-	key := header.Hash.Bytes()
-	err = table.Put(key, byt)
-	if err != nil {
-		fmt.Println("Error trying to add the original mapping into the DB for Header. Mapping is [Header]+[Hash]")
-		return err
-	}
-
-	// This is the secondary mapping
-	// Key: HEADER + BLOCKHEIGHT Value: blockhash
-
-	bh := uint32ToBytes(header.Index)
-	key = []byte(bh)
-	err = table.Put(key, header.Hash.Bytes())
-	if err != nil {
-		return err
-	}
-	// This is the third mapping
-	// WARNING: This assumes that headers are adding in order.
-	return table.Put(LATESTHEADER, header.Hash.Bytes())
-}
-
-// AddTransactions adds a set of transactions into the database
-func (l *LDB) AddTransactions(blockhash util.Uint256, txs []transaction.Transactioner) error {
-
-	// SHOULD BE DONE IN BATCH!!!!
-	for i, tx := range txs {
-		buf := new(bytes.Buffer)
-		fmt.Println(tx.ID())
-		tx.Encode(buf)
-		txByt := buf.Bytes()
-		txhash, err := tx.ID()
-		if err != nil {
-			fmt.Println("Error adding transaction with bytes", txByt)
-			return err
-		}
-		// This is the original mapping
-		// Key: [TX] + TXHASH
-		key := append(TX, txhash.Bytes()...)
-		l.Put(key, txByt)
-
-		// This is the index
-		// Key: [TX] + BLOCKHASH + I <- i is the incrementer from the for loop
-		//Value : TXHASH
-		key = append(TX, blockhash.Bytes()...)
-		key = append(key, uint32ToBytes(uint32(i))...)
-
-		err = l.Put(key, txhash.Bytes())
-		if err != nil {
-			fmt.Println("Error could not add tx index into db")
-			return err
-		}
-	}
-	return nil
-}
-
-// BigEndian
-func uint32ToBytes(h uint32) []byte {
-	a := make([]byte, 4)
-	binary.BigEndian.PutUint32(a, h)
-	return a
+	iter.Release()
+	err := iter.Error()
+	return results, err
 }

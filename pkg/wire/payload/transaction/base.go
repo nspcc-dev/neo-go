@@ -18,11 +18,8 @@ type decodeExclusiveFields func(br *util.BinReader)
 type Transactioner interface {
 	Encode(w io.Writer) error
 	Decode(r io.Reader) error
+	BaseTx() *Base
 	ID() (util.Uint256, error)
-	Bytes() []byte
-	UTXOs() []*Output
-	TXOs() []*Input
-	Witness() []*Witness
 }
 
 // Base transaction is the template for all other transactions
@@ -199,17 +196,7 @@ func (b *Base) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// UTXOs returns the outputs in the tx
-func (b *Base) UTXOs() []*Output {
-	return b.Outputs
-}
-
-// TXOs returns the inputs in the tx
-func (b *Base) TXOs() []*Input {
-	return b.Inputs
-}
-
-// Witness returns the witnesses in the tx
-func (b *Base) Witness() []*Witness {
-	return b.Witnesses
+// BaseTx returns the Base object in a transaction
+func (b *Base) BaseTx() *Base {
+	return b
 }

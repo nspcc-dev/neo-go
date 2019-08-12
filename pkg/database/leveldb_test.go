@@ -6,27 +6,31 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/database"
 	"github.com/stretchr/testify/assert"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 
 const path = "temp"
 
 func cleanup(db *database.LDB) {
 	db.Close()
-	os.RemoveAll(path)
+	os.RemoveAll(database.DbDir)
 }
 func TestDBCreate(t *testing.T) {
-	db := database.New(path)
+
+	db, err := database.New(path)
+	assert.Nil(t, err)
+
 	assert.NotEqual(t, nil, db)
 	cleanup(db)
 }
 func TestPutGet(t *testing.T) {
-	db := database.New(path)
+
+	db, err := database.New(path)
+	assert.Nil(t, err)
 
 	key := []byte("Hello")
 	value := []byte("World")
 
-	err := db.Put(key, value)
+	err = db.Put(key, value)
 	assert.Equal(t, nil, err)
 
 	res, err := db.Get(key)
@@ -36,25 +40,28 @@ func TestPutGet(t *testing.T) {
 }
 func TestPutDelete(t *testing.T) {
 
-	db := database.New(path)
+	db, err := database.New(path)
+	assert.Nil(t, err)
 
 	key := []byte("Hello")
 	value := []byte("World")
 
-	err := db.Put(key, value)
+	err = db.Put(key, value)
 
 	err = db.Delete(key)
 	assert.Equal(t, nil, err)
 
 	res, err := db.Get(key)
 
-	assert.Equal(t, errors.ErrNotFound, err)
+	assert.Equal(t, database.ErrNotFound, err)
 	assert.Equal(t, res, []byte{})
 	cleanup(db)
 }
 
 func TestHas(t *testing.T) {
-	db := database.New("temp")
+
+	db, err := database.New(path)
+	assert.Nil(t, err)
 
 	res, err := db.Has([]byte("NotExist"))
 	assert.Equal(t, res, false)
@@ -73,8 +80,12 @@ func TestHas(t *testing.T) {
 
 }
 func TestDBClose(t *testing.T) {
-	db := database.New("temp")
-	err := db.Close()
+
+	db, err := database.New(path)
+	assert.Nil(t, err)
+
+	err = db.Close()
 	assert.Equal(t, nil, err)
+
 	cleanup(db)
 }

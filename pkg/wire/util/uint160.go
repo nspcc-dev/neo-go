@@ -68,6 +68,11 @@ func (u Uint160) String() string {
 	return hex.EncodeToString(u.Bytes())
 }
 
+// ReverseString implements the stringer interface.
+func (u Uint160) ReverseString() string {
+	return hex.EncodeToString(u.BytesReverse())
+}
+
 // Equals returns true if both Uint256 values are the same.
 func (u Uint160) Equals(other Uint160) bool {
 	for i := 0; i < uint160Size; i++ {

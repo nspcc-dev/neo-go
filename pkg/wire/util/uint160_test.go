@@ -48,3 +48,15 @@ func TestUInt160Equals(t *testing.T) {
 		t.Fatalf("%s and %s must be equal", ua, ua)
 	}
 }
+
+func TestUInt160String(t *testing.T) {
+	hexStr := "b28427088a3729b2536d10122960394e8be6721f"
+	hexRevStr := "1f72e68b4e39602912106d53b229378a082784b2"
+
+	val, err := Uint160DecodeString(hexStr)
+	assert.Nil(t, err)
+
+	assert.Equal(t, hexStr, val.String())
+	assert.Equal(t, hexRevStr, val.ReverseString())
+
+}
