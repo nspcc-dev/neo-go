@@ -254,6 +254,8 @@ func inspect(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	compiler.CompileAndInspect(src)
+	if err := compiler.CompileAndInspect(src); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	return nil
 }
