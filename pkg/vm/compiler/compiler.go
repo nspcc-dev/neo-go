@@ -112,7 +112,7 @@ func DumpOpcode(src string) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
 	for i := 0; i < len(b); i++ {
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, b[i], vm.Opcode(b[i]))
+		fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, b[i], vm.Instruction(b[i]))
 	}
 	w.Flush()
 	return nil

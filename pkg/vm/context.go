@@ -26,12 +26,12 @@ func NewContext(b []byte) *Context {
 }
 
 // Next return the next instruction to execute.
-func (c *Context) Next() Opcode {
+func (c *Context) Next() Instruction {
 	c.ip++
 	if c.ip >= len(c.prog) {
-		return Oret
+		return RET
 	}
-	return Opcode(c.prog[c.ip])
+	return Instruction(c.prog[c.ip])
 }
 
 // IP returns the absolute instruction without taking 0 into account.
@@ -47,11 +47,11 @@ func (c *Context) LenInstr() int {
 }
 
 // CurrInstr returns the current instruction and opcode.
-func (c *Context) CurrInstr() (int, Opcode) {
+func (c *Context) CurrInstr() (int, Instruction) {
 	if c.ip < 0 {
-		return c.ip, Opcode(0x00)
+		return c.ip, Instruction(0x00)
 	}
-	return c.ip, Opcode(c.prog[c.ip])
+	return c.ip, Instruction(c.prog[c.ip])
 }
 
 // Copy returns an new exact copy of c.

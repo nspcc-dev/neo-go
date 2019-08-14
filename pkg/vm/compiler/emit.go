@@ -12,7 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-func emit(w *bytes.Buffer, op vm.Opcode, b []byte) error {
+func emit(w *bytes.Buffer, op vm.Instruction, b []byte) error {
 	if err := w.WriteByte(byte(op)); err != nil {
 		return err
 	}
@@ -20,26 +20,26 @@ func emit(w *bytes.Buffer, op vm.Opcode, b []byte) error {
 	return err
 }
 
-func emitOpcode(w io.ByteWriter, op vm.Opcode) error {
+func emitOpcode(w io.ByteWriter, op vm.Instruction) error {
 	return w.WriteByte(byte(op))
 }
 
 func emitBool(w io.ByteWriter, ok bool) error {
 	if ok {
-		return emitOpcode(w, vm.Opusht)
+		return emitOpcode(w, vm.PUSHT)
 	}
-	return emitOpcode(w, vm.Opushf)
+	return emitOpcode(w, vm.PUSHF)
 }
 
 func emitInt(w *bytes.Buffer, i int64) error {
 	if i == -1 {
-		return emitOpcode(w, vm.Opushm1)
+		return emitOpcode(w, vm.PUSHM1)
 	}
 	if i == 0 {
-		return emitOpcode(w, vm.Opushf)
+		return emitOpcode(w, vm.PUSHF)
 	}
 	if i > 0 && i < 16 {
-		val := vm.Opcode(int(vm.Opush1) - 1 + int(i))
+		val := vm.Instruction(int(vm.PUSH1) - 1 + int(i))
 		return emitOpcode(w, val)
 	}
 
@@ -59,18 +59,18 @@ func emitBytes(w *bytes.Buffer, b []byte) error {
 	)
 
 	switch {
-	case n <= int(vm.Opushbytes75):
-		return emit(w, vm.Opcode(n), b)
+	case n <= int(vm.PUSHBYTES75):
+		return emit(w, vm.Instruction(n), b)
 	case n < 0x100:
-		err = emit(w, vm.Opushdata1, []byte{byte(n)})
+		err = emit(w, vm.PUSHDATA1, []byte{byte(n)})
 	case n < 0x10000:
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
-		err = emit(w, vm.Opushdata2, buf)
+		err = emit(w, vm.PUSHDATA2, buf)
 	default:
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
-		err = emit(w, vm.Opushdata4, buf)
+		err = emit(w, vm.PUSHDATA4, buf)
 	}
 	if err != nil {
 		return err
@@ -86,15 +86,15 @@ func emitSyscall(w *bytes.Buffer, api string) error {
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
 	copy(buf[1:], []byte(api))
-	return emit(w, vm.Osyscall, buf)
+	return emit(w, vm.SYSCALL, buf)
 }
 
-func emitCall(w *bytes.Buffer, op vm.Opcode, label int16) error {
+func emitCall(w *bytes.Buffer, op vm.Instruction, label int16) error {
 	return emitJmp(w, op, label)
 }
 
-func emitJmp(w *bytes.Buffer, op vm.Opcode, label int16) error {
-	if !isOpcodeJmp(op) {
+func emitJmp(w *bytes.Buffer, op vm.Instruction, label int16) error {
+	if !isInstructionJmp(op) {
 		return fmt.Errorf("opcode %s is not a jump or call type", op)
 	}
 	buf := make([]byte, 2)
@@ -102,8 +102,8 @@ func emitJmp(w *bytes.Buffer, op vm.Opcode, label int16) error {
 	return emit(w, op, buf)
 }
 
-func isOpcodeJmp(op vm.Opcode) bool {
-	if op == vm.Ojmp || op == vm.Ojmpifnot || op == vm.Ojmpif || op == vm.Ocall {
+func isInstructionJmp(op vm.Instruction) bool {
+	if op == vm.JMP || op == vm.JMPIFNOT || op == vm.JMPIF || op == vm.CALL {
 		return true
 	}
 	return false
