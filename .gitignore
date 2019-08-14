@@ -32,3 +32,7 @@ chains/
 chain/
 blockchain/
 blockchains/
+
+# patch
+*.orig
+*.rej
