@@ -121,11 +121,11 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	// Ask contract information and write a storm.yml file unless the -skip-details flag is set.
-	// TODO: Fix the missing storm.yml file with the `init` command when the package manager is in place.
+	// Ask contract information and write a neo-go.yml file unless the -skip-details flag is set.
+	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
 	if !ctx.Bool("skip-details") {
 		details := parseContractDetails()
-		if err := ioutil.WriteFile(filepath.Join(basePath, "storm.yml"), details.toStormFile(), 0644); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), details.toStormFile(), 0644); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -205,8 +205,8 @@ type ContractDetails struct {
 func (d ContractDetails) toStormFile() []byte {
 	buf := new(bytes.Buffer)
 
-	buf.WriteString("# Storm specific configuration. Do not modify this unless you know what you are doing!\n")
-	buf.WriteString("storm:\n")
+	buf.WriteString("# NEO-GO specific configuration. Do not modify this unless you know what you are doing!\n")
+	buf.WriteString("neo-go:\n")
 	buf.WriteString("  version: 1.0\n")
 
 	buf.WriteString("\n")
@@ -222,7 +222,7 @@ func (d ContractDetails) toStormFile() []byte {
 	buf.WriteString("\n")
 
 	buf.WriteString("# Module section contains a list of imported modules\n")
-	buf.WriteString("# This will be automatically managed by the neo-storm package manager\n")
+	buf.WriteString("# This will be automatically managed by the neo-go package manager\n")
 	buf.WriteString("modules: \n")
 	return buf.Bytes()
 }

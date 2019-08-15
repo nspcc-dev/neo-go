@@ -1,5 +1,5 @@
 # Runtime
-A brief overview of NEO smart contract API's that can be used in the neo-storm framework.
+A brief overview of NEO smart contract API's that can be used in the neo-go framework.
 
 # Overview
 1. [Account]()
