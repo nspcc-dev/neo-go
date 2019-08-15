@@ -705,11 +705,10 @@ func (c *codegen) convertToken(tok token.Token) {
 	case token.GEQ:
 		emitOpcode(c.prog, vm.GTE)
 	case token.EQL:
-		// It seems that (looking to the python compiler) that comparing for
-		// equal (==) needs to return the instruction EQUAL. Where comparing
-		// (anything) to not equal (!=) needs to use the opcode NUMNOTEQUAL
-		// even for comparing strings.
-		emitOpcode(c.prog, vm.EQUAL)
+		// TODO: this is wrong (and the next one also is), see issue #294
+		// Changing it EQUAL is not that big of an improvement, so we're
+		// using NUMEQUAL for now
+		emitOpcode(c.prog, vm.NUMEQUAL)
 	case token.NEQ:
 		emitOpcode(c.prog, vm.NUMNOTEQUAL)
 	case token.DEC:
