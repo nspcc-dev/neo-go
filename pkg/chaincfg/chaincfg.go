@@ -18,6 +18,9 @@ func NetParams(magic protocol.Magic) (Params, error) {
 	switch magic {
 	case protocol.MainNet:
 		return mainnet()
+	//	todo: there have to be different scenarios for different networks
+	case protocol.PrivNet:
+		return mainnet()
 	default:
 		return mainnet()
 	}

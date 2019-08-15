@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	s, err := server.New(protocol.MainNet, 10332)
+	s, err := server.New(protocol.PrivNet, 20336)
 	if err != nil {
 		fmt.Println(err)
 		return

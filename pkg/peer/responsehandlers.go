@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"errors"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/wire/payload"
@@ -96,10 +95,11 @@ func (p *Peer) OnHeaders(msg *payload.HeadersMessage) {
 // during the handshake, any error checking should be done here for the versionMessage.
 // This should only ever be called during the handshake. Any other place and the peer will disconnect.
 func (p *Peer) OnVersion(msg *payload.VersionMessage) error {
-	if msg.Nonce == p.config.Nonce {
-		p.conn.Close()
-		return errors.New("self connection, disconnecting Peer")
-	}
+	// todo: figure out why this check should be here
+	//if msg.Nonce == p.config.Nonce {
+	//	p.conn.Close()
+	//	return errors.New("self connection, disconnecting Peer")
+	//}
 	p.versionKnown = true
 	p.port = msg.Port
 	p.services = msg.Services

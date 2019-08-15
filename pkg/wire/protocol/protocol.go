@@ -29,6 +29,7 @@ type Magic uint32
 const (
 	MainNet Magic = 7630401
 	TestNet Magic = 0x74746e41
+	PrivNet Magic = 56753
 )
 
 // String implements the stringer interface
@@ -38,6 +39,8 @@ func (m Magic) String() string {
 		return "Mainnet"
 	case TestNet:
 		return "Testnet"
+	case PrivNet:
+		return "Privnet"
 	default:
 		return "UnknownNet"
 	}
