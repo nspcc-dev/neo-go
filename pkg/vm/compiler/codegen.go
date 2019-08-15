@@ -361,7 +361,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		case token.LOR:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, vm.JMPIF, int16(len(c.l)-2))
+			emitJmp(c.prog, vm.JMPIF, int16(len(c.l) - 3))
 			ast.Walk(c, n.Y)
 			return nil
 
