@@ -118,8 +118,8 @@ Will output something like:
 package mycontract
 
 import (
-    "github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
-    "github.com/CityOfZion/neo-go/pkg/vm/api/util"
+    "github.com/CityOfZion/neo-go/pkg/interop/runtime"
+    "github.com/CityOfZion/neo-go/pkg/interop/util"
 )
 
 var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg") 
@@ -142,8 +142,8 @@ func Main() bool {
 package mytoken
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
-	"github.com/CityOfZion/neo-go/pkg/vm/api/storage"
+	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
+	"github.com/CityOfZion/neo-go/pkg/interop/storage"
 )
 
 var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg") 

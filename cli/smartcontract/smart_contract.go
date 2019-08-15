@@ -28,7 +28,7 @@ var (
 	// %s is parsed to be the smartContractName
 	smartContractTmpl = `package %s
 
-import "github.com/CityOfZion/neo-storm/interop/runtime"
+import "github.com/CityOfZion/neo-go/pkg/interop/runtime"
 
 func Main(op string, args []interface{}) {
     runtime.Notify("Hello world!")

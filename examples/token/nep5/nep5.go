@@ -1,10 +1,10 @@
 package nep5
 
 import (
-	"github.com/CityOfZion/neo-storm/interop/engine"
-	"github.com/CityOfZion/neo-storm/interop/runtime"
-	"github.com/CityOfZion/neo-storm/interop/storage"
-	"github.com/CityOfZion/neo-storm/interop/util"
+	"github.com/CityOfZion/neo-go/pkg/interop/engine"
+	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
+	"github.com/CityOfZion/neo-go/pkg/interop/storage"
+	"github.com/CityOfZion/neo-go/pkg/interop/util"
 )
 
 // Token holds all token info

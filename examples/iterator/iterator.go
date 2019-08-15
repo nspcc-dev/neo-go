@@ -1,9 +1,9 @@
 package iterator_contract
 
 import (
-	"github.com/CityOfZion/neo-storm/interop/iterator"
-	"github.com/CityOfZion/neo-storm/interop/runtime"
-	"github.com/CityOfZion/neo-storm/interop/storage"
+	"github.com/CityOfZion/neo-go/pkg/interop/iterator"
+	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
+	"github.com/CityOfZion/neo-go/pkg/interop/storage"
 )
 
 func Main() bool {
