@@ -122,6 +122,12 @@ func CompileAndInspect(src string) error {
 		}
 		fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], instr)
 		i++
+		if instr == vm.JMP || instr == vm.JMPIF || instr == vm.JMPIFNOT || instr == vm.CALL {
+			for x := 0; x < 2; x++ {
+				fmt.Fprintf(w, "%d\t0x%x\t%d\t\n", i, b[i + x], b[i + x])
+			}
+			i += 2
+		}
 	}
 	w.Flush()
 	return nil
