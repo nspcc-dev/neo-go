@@ -382,15 +382,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.X)
 			ast.Walk(c, n.Y)
 
-			// VM has separate opcode for string concatenation
-			if n.Op == token.ADD {
-				typ, ok := tinfo.Type.Underlying().(*types.Basic)
-				if ok && typ.Kind() == types.String {
+			switch {
+			case n.Op == token.ADD:
+				// VM has separate opcodes for number and string concatenation
+				if isStringType(tinfo.Type) {
 					emitOpcode(c.prog, vm.CAT)
 				} else {
 					emitOpcode(c.prog, vm.ADD)
 				}
-			} else {
+			case n.Op == token.EQL:
+				// VM has separate opcodes for number and string equality
+				if isStringType(tinfo.Type) {
+					emitOpcode(c.prog, vm.EQUAL)
+				} else {
+					emitOpcode(c.prog, vm.NUMEQUAL)
+				}
+			default:
 				c.convertToken(n.Op)
 			}
 			return nil
