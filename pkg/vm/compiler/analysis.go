@@ -6,7 +6,6 @@ import (
 	"go/types"
 	"log"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -14,14 +13,8 @@ var (
 	// Go language builtin functions and custom builtin utility functions.
 	builtinFuncs = []string{
 		"len", "append", "SHA256",
-		"SHA1", "Hash256", "Hash160", "FromAddress",
-	}
-
-	// VM system calls that have no return value.
-	noRetSyscalls = []string{
-		"Notify", "Log", "Put", "Register", "Delete",
-		"SetVotes", "ContractDestroy", "MerkleRoot", "Hash",
-		"PrevHash", "GetHeader",
+		"SHA1", "Hash256", "Hash160",
+		"FromAddress", "Equals",
 	}
 )
 
@@ -202,19 +195,12 @@ func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	return false
 }
 
-func isSyscall(name string) bool {
-	_, ok := vm.Syscalls[name]
-	return ok
-}
-
-// isNoRetSyscall checks if the syscall has a return value.
-func isNoRetSyscall(name string) bool {
-	for _, s := range noRetSyscalls {
-		if s == name {
-			return true
-		}
+func isSyscall(fun *funcScope) bool {
+	if fun.selector == nil {
+		return false
 	}
-	return false
+	_, ok := syscalls[fun.selector.Name][fun.name]
+	return ok
 }
 
 func isStringType(t types.Type) bool {

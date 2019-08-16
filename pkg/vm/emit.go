@@ -11,8 +11,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// Emit a VM Opcode with data to the given buffer.
-func Emit(w *bytes.Buffer, op Opcode, b []byte) error {
+// Emit a VM Instruction with data to the given buffer.
+func Emit(w *bytes.Buffer, op Instruction, b []byte) error {
 	if err := w.WriteByte(byte(op)); err != nil {
 		return err
 	}
@@ -20,29 +20,29 @@ func Emit(w *bytes.Buffer, op Opcode, b []byte) error {
 	return err
 }
 
-// EmitOpcode emits a single VM Opcode the given buffer.
-func EmitOpcode(w io.ByteWriter, op Opcode) error {
+// EmitOpcode emits a single VM Instruction the given buffer.
+func EmitOpcode(w io.ByteWriter, op Instruction) error {
 	return w.WriteByte(byte(op))
 }
 
 // EmitBool emits a bool type the given buffer.
 func EmitBool(w io.ByteWriter, ok bool) error {
 	if ok {
-		return EmitOpcode(w, Opusht)
+		return EmitOpcode(w, PUSHT)
 	}
-	return EmitOpcode(w, Opushf)
+	return EmitOpcode(w, PUSHF)
 }
 
 // EmitInt emits a int type to the given buffer.
 func EmitInt(w *bytes.Buffer, i int64) error {
 	if i == -1 {
-		return EmitOpcode(w, Opushm1)
+		return EmitOpcode(w, PUSHM1)
 	}
 	if i == 0 {
-		return EmitOpcode(w, Opushf)
+		return EmitOpcode(w, PUSHF)
 	}
 	if i > 0 && i < 16 {
-		val := Opcode(int(Opush1) - 1 + int(i))
+		val := Instruction(int(PUSH1) - 1 + int(i))
 		return EmitOpcode(w, val)
 	}
 
@@ -63,18 +63,18 @@ func EmitBytes(w *bytes.Buffer, b []byte) error {
 		n   = len(b)
 	)
 
-	if n <= int(Opushbytes75) {
-		return Emit(w, Opcode(n), b)
+	if n <= int(PUSHBYTES75) {
+		return Emit(w, Instruction(n), b)
 	} else if n < 0x100 {
-		err = Emit(w, Opushdata1, []byte{byte(n)})
+		err = Emit(w, PUSHDATA1, []byte{byte(n)})
 	} else if n < 0x10000 {
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
-		err = Emit(w, Opushdata2, buf)
+		err = Emit(w, PUSHDATA2, buf)
 	} else {
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
-		err = Emit(w, Opushdata4, buf)
+		err = Emit(w, PUSHDATA4, buf)
 	}
 	if err != nil {
 		return err
@@ -92,17 +92,17 @@ func EmitSyscall(w *bytes.Buffer, api string) error {
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
 	copy(buf[1:], []byte(api))
-	return Emit(w, Osyscall, buf)
+	return Emit(w, SYSCALL, buf)
 }
 
-// EmitCall emits a call Opcode with label to the given buffer.
-func EmitCall(w *bytes.Buffer, op Opcode, label int16) error {
+// EmitCall emits a call Instruction with label to the given buffer.
+func EmitCall(w *bytes.Buffer, op Instruction, label int16) error {
 	return EmitJmp(w, op, label)
 }
 
-// EmitJmp emits a jump Opcode along with label to the given buffer.
-func EmitJmp(w *bytes.Buffer, op Opcode, label int16) error {
-	if !isOpcodeJmp(op) {
+// EmitJmp emits a jump Instruction along with label to the given buffer.
+func EmitJmp(w *bytes.Buffer, op Instruction, label int16) error {
+	if !isInstructionJmp(op) {
 		return fmt.Errorf("opcode %s is not a jump or call type", op.String())
 	}
 	buf := make([]byte, 2)
@@ -113,9 +113,9 @@ func EmitJmp(w *bytes.Buffer, op Opcode, label int16) error {
 // EmitAppCall emits an appcall, if tailCall is true, tailCall opcode will be
 // emitted instead.
 func EmitAppCall(w *bytes.Buffer, scriptHash util.Uint160, tailCall bool) error {
-	op := Oappcall
+	op := APPCALL
 	if tailCall {
-		op = Otailcall
+		op = TAILCALL
 	}
 	return Emit(w, op, scriptHash.Bytes())
 }
@@ -142,8 +142,8 @@ func EmitAppCallWithOperation(w *bytes.Buffer, scriptHash util.Uint160, operatio
 	return EmitAppCall(w, scriptHash, false)
 }
 
-func isOpcodeJmp(op Opcode) bool {
-	if op == Ojmp || op == Ojmpifnot || op == Ojmpif || op == Ocall {
+func isInstructionJmp(op Instruction) bool {
+	if op == JMP || op == JMPIFNOT || op == JMPIF || op == CALL {
 		return true
 	}
 	return false

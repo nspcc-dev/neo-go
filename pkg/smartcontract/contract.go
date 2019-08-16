@@ -34,7 +34,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys crypto.PublicKeys) ([]byte, er
 	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitOpcode(buf, vm.Ocheckmultisig); err != nil {
+	if err := vm.EmitOpcode(buf, vm.CHECKMULTISIG); err != nil {
 		return nil, err
 	}
 

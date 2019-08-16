@@ -90,16 +90,15 @@ func CompileAndSave(src string, o *Options) error {
 	if err != nil {
 		return fmt.Errorf("Error while trying to compile smart contract file: %v", err)
 	}
-	if o.Debug {
-		log.Println(hex.EncodeToString(b))
-	}
+
+	log.Println(hex.EncodeToString(b))
 
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	return ioutil.WriteFile(out, b, os.ModePerm)
 }
 
-// DumpOpcode compiles the program and dumps the opcode in a user friendly format.
-func DumpOpcode(src string) error {
+// CompileAndInspect compiles the program and dumps the opcode in a user friendly format.
+func CompileAndInspect(src string) error {
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return err
@@ -111,8 +110,24 @@ func DumpOpcode(src string) error {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
-	for i := 0; i < len(b); i++ {
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\t\n", i, b[i], vm.Opcode(b[i]))
+	for i := 0; i <= len(b)-1; {
+		instr := vm.Instruction(b[i])
+		if instr >= vm.PUSHBYTES1 && instr <= vm.PUSHBYTES75 {
+			fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], fmt.Sprintf("PUSHBYTES%d", int(instr)))
+			for x := 0; x < int(instr); x++ {
+				fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i+1+x], string(b[i+1+x]))
+			}
+			i += int(instr) + 1
+			continue
+		}
+		fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], instr)
+		i++
+		if instr == vm.JMP || instr == vm.JMPIF || instr == vm.JMPIFNOT || instr == vm.CALL {
+			for x := 0; x < 2; x++ {
+				fmt.Fprintf(w, "%d\t0x%x\t%d\t\n", i, b[i + x], b[i + x])
+			}
+			i += 2
+		}
 	}
 	w.Flush()
 	return nil

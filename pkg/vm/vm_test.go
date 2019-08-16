@@ -20,7 +20,7 @@ func TestInteropHook(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	EmitSyscall(buf, "foo")
-	EmitOpcode(buf, Oret)
+	EmitOpcode(buf, RET)
 	v.Load(buf.Bytes())
 	v.Run()
 	assert.Equal(t, 1, v.estack.Len())
@@ -51,7 +51,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		vm.execute(nil, Oret)
+		vm.execute(nil, RET)
 
 		assert.Equal(t, 0, vm.astack.Len())
 		assert.Equal(t, 0, vm.istack.Len())
@@ -61,7 +61,7 @@ func TestPushBytes1to75(t *testing.T) {
 
 func TestPushm1to16(t *testing.T) {
 	var prog []byte
-	for i := int(Opushm1); i <= int(Opush16); i++ {
+	for i := int(PUSHM1); i <= int(PUSH16); i++ {
 		if i == 80 {
 			continue // opcode layout we got here.
 		}
@@ -69,7 +69,7 @@ func TestPushm1to16(t *testing.T) {
 	}
 
 	vm := load(prog)
-	for i := int(Opushm1); i <= int(Opush16); i++ {
+	for i := int(PUSHM1); i <= int(PUSH16); i++ {
 		if i == 80 {
 			continue // nice opcode layout we got here.
 		}
@@ -77,7 +77,7 @@ func TestPushm1to16(t *testing.T) {
 
 		elem := vm.estack.Pop()
 		assert.IsType(t, &BigIntegerItem{}, elem.value)
-		val := i - int(Opush1) + 1
+		val := i - int(PUSH1) + 1
 		assert.Equal(t, elem.BigInt().Int64(), int64(val))
 	}
 }
@@ -95,7 +95,7 @@ func TestPushData4(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	prog := makeProgram(Oadd)
+	prog := makeProgram(ADD)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -104,7 +104,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestMul(t *testing.T) {
-	prog := makeProgram(Omul)
+	prog := makeProgram(MUL)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -113,7 +113,7 @@ func TestMul(t *testing.T) {
 }
 
 func TestDiv(t *testing.T) {
-	prog := makeProgram(Odiv)
+	prog := makeProgram(DIV)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -122,7 +122,7 @@ func TestDiv(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
-	prog := makeProgram(Osub)
+	prog := makeProgram(SUB)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -131,7 +131,7 @@ func TestSub(t *testing.T) {
 }
 
 func TestLT(t *testing.T) {
-	prog := makeProgram(Olt)
+	prog := makeProgram(LT)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(3)
@@ -140,7 +140,7 @@ func TestLT(t *testing.T) {
 }
 
 func TestLTE(t *testing.T) {
-	prog := makeProgram(Olte)
+	prog := makeProgram(LTE)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
@@ -149,7 +149,7 @@ func TestLTE(t *testing.T) {
 }
 
 func TestGT(t *testing.T) {
-	prog := makeProgram(Ogt)
+	prog := makeProgram(GT)
 	vm := load(prog)
 	vm.estack.PushVal(9)
 	vm.estack.PushVal(3)
@@ -159,7 +159,7 @@ func TestGT(t *testing.T) {
 }
 
 func TestGTE(t *testing.T) {
-	prog := makeProgram(Ogte)
+	prog := makeProgram(GTE)
 	vm := load(prog)
 	vm.estack.PushVal(3)
 	vm.estack.PushVal(3)
@@ -168,7 +168,7 @@ func TestGTE(t *testing.T) {
 }
 
 func TestDepth(t *testing.T) {
-	prog := makeProgram(Odepth)
+	prog := makeProgram(DEPTH)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -178,7 +178,7 @@ func TestDepth(t *testing.T) {
 }
 
 func TestNumEqual(t *testing.T) {
-	prog := makeProgram(Onumequal)
+	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -187,7 +187,7 @@ func TestNumEqual(t *testing.T) {
 }
 
 func TestNumNotEqual(t *testing.T) {
-	prog := makeProgram(Onumnotequal)
+	prog := makeProgram(NUMNOTEQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(2)
@@ -196,7 +196,7 @@ func TestNumNotEqual(t *testing.T) {
 }
 
 func TestINC(t *testing.T) {
-	prog := makeProgram(Oinc)
+	prog := makeProgram(INC)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.Run()
@@ -204,13 +204,13 @@ func TestINC(t *testing.T) {
 }
 
 func TestAppCall(t *testing.T) {
-	prog := []byte{byte(Oappcall)}
+	prog := []byte{byte(APPCALL)}
 	hash := util.Uint160{}
 	prog = append(prog, hash.Bytes()...)
-	prog = append(prog, byte(Oret))
+	prog = append(prog, byte(RET))
 
 	vm := load(prog)
-	vm.scripts[hash] = makeProgram(Odepth)
+	vm.scripts[hash] = makeProgram(DEPTH)
 	vm.estack.PushVal(2)
 
 	vm.Run()
@@ -231,12 +231,12 @@ func TestSimpleCall(t *testing.T) {
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
 }
 
-func makeProgram(opcodes ...Opcode) []byte {
-	prog := make([]byte, len(opcodes)+1) // Oret
+func makeProgram(opcodes ...Instruction) []byte {
+	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
 		prog[i] = byte(opcodes[i])
 	}
-	prog[len(prog)-1] = byte(Oret)
+	prog[len(prog)-1] = byte(RET)
 	return prog
 }
 

@@ -24,7 +24,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 
 	buf := bytes.NewBuffer(out)
 	b, _ := buf.ReadByte()
-	assert.Equal(t, vm.Opush3, vm.Opcode(b))
+	assert.Equal(t, vm.PUSH3, vm.Instruction(b))
 
 	for i := 0; i < len(validators); i++ {
 		b, err := util.ReadVarBytes(buf)
@@ -35,7 +35,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	}
 
 	b, _ = buf.ReadByte()
-	assert.Equal(t, vm.Opush3, vm.Opcode(b))
+	assert.Equal(t, vm.PUSH3, vm.Instruction(b))
 	b, _ = buf.ReadByte()
-	assert.Equal(t, vm.Ocheckmultisig, vm.Opcode(b))
+	assert.Equal(t, vm.CHECKMULTISIG, vm.Instruction(b))
 }

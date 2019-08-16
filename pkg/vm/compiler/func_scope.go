@@ -10,6 +10,10 @@ type funcScope struct {
 	// identifier of the function.
 	name string
 
+	// Selector of the function if there is any. Only functions imported
+	// from other packages should have a selector.
+	selector *ast.Ident
+
 	// The declaration of the function in the AST. Nil if this scope is not a function.
 	decl *ast.FuncDecl
 

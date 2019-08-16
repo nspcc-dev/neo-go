@@ -13,6 +13,7 @@
 # Added by CoZ developers
 vendor/
 bin/
+!examples/**/vendor
 
 # text editors
 # vscode
@@ -32,3 +33,7 @@ chains/
 chain/
 blockchain/
 blockchains/
+
+# patch
+*.orig
+*.rej

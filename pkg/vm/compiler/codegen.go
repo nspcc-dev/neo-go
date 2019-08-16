@@ -8,6 +8,8 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
@@ -57,7 +59,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
 		switch typ.Kind() {
-		case types.Int, types.UntypedInt:
+		case types.Int, types.UntypedInt, types.Uint:
 			val, _ := constant.Int64Val(t.Value)
 			emitInt(c.prog, val)
 		case types.String, types.UntypedString:
@@ -87,18 +89,13 @@ func (c *codegen) emitLoadLocal(name string) {
 }
 
 func (c *codegen) emitLoadLocalPos(pos int) {
-	emitOpcode(c.prog, vm.Ofromaltstack)
-	emitOpcode(c.prog, vm.Odup)
-	emitOpcode(c.prog, vm.Otoaltstack)
-
+	emitOpcode(c.prog, vm.DUPFROMALTSTACK)
 	emitInt(c.prog, int64(pos))
-	emitOpcode(c.prog, vm.Opickitem)
+	emitOpcode(c.prog, vm.PICKITEM)
 }
 
 func (c *codegen) emitStoreLocal(pos int) {
-	emitOpcode(c.prog, vm.Ofromaltstack)
-	emitOpcode(c.prog, vm.Odup)
-	emitOpcode(c.prog, vm.Otoaltstack)
+	emitOpcode(c.prog, vm.DUPFROMALTSTACK)
 
 	if pos < 0 {
 		log.Fatalf("invalid position to store local: %d", pos)
@@ -106,19 +103,19 @@ func (c *codegen) emitStoreLocal(pos int) {
 
 	emitInt(c.prog, int64(pos))
 	emitInt(c.prog, 2)
-	emitOpcode(c.prog, vm.Oroll)
-	emitOpcode(c.prog, vm.Osetitem)
+	emitOpcode(c.prog, vm.ROLL)
+	emitOpcode(c.prog, vm.SETITEM)
 }
 
 func (c *codegen) emitLoadField(i int) {
 	emitInt(c.prog, int64(i))
-	emitOpcode(c.prog, vm.Opickitem)
+	emitOpcode(c.prog, vm.PICKITEM)
 }
 
 func (c *codegen) emitStoreStructField(i int) {
 	emitInt(c.prog, int64(i))
-	emitOpcode(c.prog, vm.Orot)
-	emitOpcode(c.prog, vm.Osetitem)
+	emitOpcode(c.prog, vm.ROT)
+	emitOpcode(c.prog, vm.SETITEM)
 }
 
 // convertGlobals will traverse the AST and only convert global declarations.
@@ -144,6 +141,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	f, ok = c.funcs[decl.Name.Name]
 	if ok {
+		// If this function is a syscall we will not convert it to bytecode.
+		if isSyscall(f) {
+			return
+		}
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
@@ -155,8 +156,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
 	emitInt(c.prog, f.stackSize()+countGlobals(file))
-	emitOpcode(c.prog, vm.Onewarray)
-	emitOpcode(c.prog, vm.Otoaltstack)
+	emitOpcode(c.prog, vm.NEWARRAY)
+	emitOpcode(c.prog, vm.TOALTSTACK)
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -185,7 +186,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	}
 	// Load in all the global variables in to the scope of the function.
 	// This is not necessary for syscalls.
-	if !isSyscall(f.name) {
+	if !isSyscall(f) {
 		c.convertGlobals(file)
 	}
 
@@ -193,9 +194,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
 	if !hasReturnStmt(decl) {
-		emitOpcode(c.prog, vm.Ofromaltstack)
-		emitOpcode(c.prog, vm.Odrop)
-		emitOpcode(c.prog, vm.Oret)
+		emitOpcode(c.prog, vm.FROMALTSTACK)
+		emitOpcode(c.prog, vm.DROP)
+		emitOpcode(c.prog, vm.RET)
 	}
 }
 
@@ -249,6 +250,21 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				default:
 					log.Fatal("nested selector assigns not supported yet")
 				}
+
+			// Assignments to index expressions.
+			// slice[0] = 10
+			case *ast.IndexExpr:
+				ast.Walk(c, n.Rhs[i])
+				name := t.X.(*ast.Ident).Name
+				c.emitLoadLocal(name)
+				// For now storm only supports basic index operations. Hence we
+				// cast this to an *ast.BasicLit (1, 2 , 3)
+				indexStr := t.Index.(*ast.BasicLit).Value
+				index, err := strconv.Atoi(indexStr)
+				if err != nil {
+					log.Fatal("failed to convert slice index to integer")
+				}
+				c.emitStoreStructField(index)
 			}
 		}
 		return nil
@@ -258,42 +274,39 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			log.Fatal("multiple returns not supported.")
 		}
 
-		// @OPTIMIZE: We could skip these 3 instructions for each return statement.
-		// To be backwards compatible we will put them them in.
-		// See issue #65 (https://github.com/CityOfZion/neo-go/issues/65)
 		l := c.newLabel()
-		emitJmp(c.prog, vm.Ojmp, int16(l))
 		c.setLabel(l)
 
 		if len(n.Results) > 0 {
 			ast.Walk(c, n.Results[0])
 		}
 
-		emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
-		emitOpcode(c.prog, vm.Ofromaltstack)
-		emitOpcode(c.prog, vm.Odrop) // Cleanup the stack.
-		emitOpcode(c.prog, vm.Oret)
+		emitOpcode(c.prog, vm.FROMALTSTACK)
+		emitOpcode(c.prog, vm.DROP) // Cleanup the stack.
+		emitOpcode(c.prog, vm.RET)
 		return nil
 
 	case *ast.IfStmt:
 		lIf := c.newLabel()
 		lElse := c.newLabel()
+		lElseEnd := c.newLabel()
+
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
-			emitJmp(c.prog, vm.Ojmpifnot, int16(lElse))
+			emitJmp(c.prog, vm.JMPIFNOT, int16(lElse))
 		}
 
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
-
 		if n.Else != nil {
-			// TODO: handle else statements.
-			// emitJmp(c.prog, vm.Ojmp, int16(lEnd))
+			emitJmp(c.prog, vm.JMP, int16(lElseEnd))
 		}
+
 		c.setLabel(lElse)
 		if n.Else != nil {
 			ast.Walk(c, n.Else)
 		}
+		c.setLabel(lElseEnd)
 		return nil
 
 	case *ast.BasicLit:
@@ -327,7 +340,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitLoadConst(c.typeInfo.Types[n.Elts[i]])
 			}
 			emitInt(c.prog, int64(ln))
-			emitOpcode(c.prog, vm.Opack)
+			emitOpcode(c.prog, vm.PACK)
 			return nil
 		}
 
@@ -342,13 +355,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Op {
 		case token.LAND:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, vm.Ojmpifnot, int16(len(c.l)-1))
+			emitJmp(c.prog, vm.JMPIFNOT, int16(len(c.l)-1))
 			ast.Walk(c, n.Y)
 			return nil
 
 		case token.LOR:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog, vm.Ojmpif, int16(len(c.l)-2))
+			emitJmp(c.prog, vm.JMPIF, int16(len(c.l) - 3))
 			ast.Walk(c, n.Y)
 			return nil
 
@@ -360,14 +373,33 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// example:
 			// const x = 10
 			// x + 2 will results into 12
-			if tinfo := c.typeInfo.Types[n]; tinfo.Value != nil {
+			tinfo := c.typeInfo.Types[n]
+			if tinfo.Value != nil {
 				c.emitLoadConst(tinfo)
 				return nil
 			}
 
 			ast.Walk(c, n.X)
 			ast.Walk(c, n.Y)
-			c.convertToken(n.Op)
+
+			switch {
+			case n.Op == token.ADD:
+				// VM has separate opcodes for number and string concatenation
+				if isStringType(tinfo.Type) {
+					emitOpcode(c.prog, vm.CAT)
+				} else {
+					emitOpcode(c.prog, vm.ADD)
+				}
+			case n.Op == token.EQL:
+				// VM has separate opcodes for number and string equality
+				if isStringType(tinfo.Type) {
+					emitOpcode(c.prog, vm.EQUAL)
+				} else {
+					emitOpcode(c.prog, vm.NUMEQUAL)
+				}
+			default:
+				c.convertToken(n.Op)
+			}
 			return nil
 		}
 
@@ -394,7 +426,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				// Dont forget to add 1 extra argument when its a method.
 				numArgs++
 			}
+
 			f, ok = c.funcs[fun.Sel.Name]
+			// @FIXME this could cause runtime errors.
+			f.selector = fun.X.(*ast.Ident)
 			if !ok {
 				log.Fatalf("could not resolve function %s", fun.Sel.Name)
 			}
@@ -414,18 +449,17 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Do not swap for builtin functions.
 		if !isBuiltin {
 			if numArgs == 2 {
-				emitOpcode(c.prog, vm.Oswap)
-			}
-			if numArgs == 3 {
+				emitOpcode(c.prog, vm.SWAP)
+			} else if numArgs == 3 {
 				emitInt(c.prog, 2)
-				emitOpcode(c.prog, vm.Oxswap)
+				emitOpcode(c.prog, vm.XSWAP)
+			} else {
+				for i := 1; i < numArgs; i++ {
+					emitInt(c.prog, int64(i))
+					emitOpcode(c.prog, vm.ROLL)
+				}
 			}
 		}
-
-		// c# compiler adds a NOP (0x61) before every function call. Dont think its relevant
-		// and we could easily removed it, but to be consistent with the original compiler I
-		// will put them in. ^^
-		emitOpcode(c.prog, vm.Onop)
 
 		// Check builtin first to avoid nil pointer on funcScope!
 		switch {
@@ -433,17 +467,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
-		case isSyscall(f.name):
-			c.convertSyscall(f.name)
+		case isSyscall(f):
+			c.convertSyscall(f.selector.Name, f.name)
 		default:
-			emitCall(c.prog, vm.Ocall, int16(f.label))
+			emitCall(c.prog, vm.CALL, int16(f.label))
 		}
 
-		// If we are not assigning this function to a variable we need to drop
-		// (cleanup) the top stack item. It's not a void but you get the point \o/.
-		if _, ok := c.scope.voidCalls[n]; ok {
-			emitOpcode(c.prog, vm.Odrop)
-		}
 		return nil
 
 	case *ast.SelectorExpr:
@@ -462,7 +491,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.UnaryExpr:
 		ast.Walk(c, n.X)
-		c.convertToken(n.Op)
+		// From https://golang.org/ref/spec#Operators
+		// there can be only following unary operators
+		// "+" | "-" | "!" | "^" | "*" | "&" | "<-" .
+		// of which last three are not used in SC
+		switch n.Op {
+		case token.ADD:
+			// +10 == 10, no need to do anything in this case
+		case token.SUB:
+			emitOpcode(c.prog, vm.NEGATE)
+		case token.NOT:
+			emitOpcode(c.prog, vm.NOT)
+		case token.XOR:
+			emitOpcode(c.prog, vm.INVERT)
+		default:
+			log.Fatalf("invalid unary operator: %s", n.Op)
+		}
 		return nil
 
 	case *ast.IncDecStmt:
@@ -490,7 +534,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.emitLoadField(int(val))
 		default:
 			ast.Walk(c, n.Index)
-			emitOpcode(c.prog, vm.Opickitem) // just pickitem here
+			emitOpcode(c.prog, vm.PICKITEM) // just pickitem here
 		}
 		return nil
 
@@ -508,14 +552,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.Cond)
 
 		// Jump if the condition is false
-		emitJmp(c.prog, vm.Ojmpifnot, int16(fend))
+		emitJmp(c.prog, vm.JMPIFNOT, int16(fend))
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
 		ast.Walk(c, n.Post)
 
 		// Jump back to condition.
-		emitJmp(c.prog, vm.Ojmp, int16(fstart))
+		emitJmp(c.prog, vm.JMP, int16(fstart))
 		c.setLabel(fend)
 
 		return nil
@@ -531,13 +575,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	return c
 }
 
-func (c *codegen) convertSyscall(name string) {
-	api, ok := vm.Syscalls[name]
+func (c *codegen) convertSyscall(api, name string) {
+	api, ok := syscalls[api][name]
 	if !ok {
 		log.Fatalf("unknown VM syscall api: %s", name)
 	}
 	emitSyscall(c.prog, api)
-	emitOpcode(c.prog, vm.Onop) // @OPTIMIZE
+
+	// This NOP instruction is basically not needed, but if we do, we have a
+	// one to one matching avm file with neo-python which is very nice for debugging.
+	emitOpcode(c.prog, vm.NOP)
 }
 
 func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
@@ -554,20 +601,22 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
 		if isStringType(typ) {
-			emitOpcode(c.prog, vm.Osize)
+			emitOpcode(c.prog, vm.SIZE)
 		} else {
-			emitOpcode(c.prog, vm.Oarraysize)
+			emitOpcode(c.prog, vm.ARRAYSIZE)
 		}
 	case "append":
-		emitOpcode(c.prog, vm.Oappend)
+		emitOpcode(c.prog, vm.APPEND)
 	case "SHA256":
-		emitOpcode(c.prog, vm.Osha256)
+		emitOpcode(c.prog, vm.SHA256)
 	case "SHA1":
-		emitOpcode(c.prog, vm.Osha1)
+		emitOpcode(c.prog, vm.SHA1)
 	case "Hash256":
-		emitOpcode(c.prog, vm.Ohash256)
+		emitOpcode(c.prog, vm.HASH256)
 	case "Hash160":
-		emitOpcode(c.prog, vm.Ohash160)
+		emitOpcode(c.prog, vm.HASH160)
+	case "Equals":
+		emitOpcode(c.prog, vm.EQUAL)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
@@ -601,10 +650,10 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		log.Fatalf("the given literal is not of type struct: %v", lit)
 	}
 
-	emitOpcode(c.prog, vm.Onop)
+	emitOpcode(c.prog, vm.NOP)
 	emitInt(c.prog, int64(strct.NumFields()))
-	emitOpcode(c.prog, vm.Onewstruct)
-	emitOpcode(c.prog, vm.Otoaltstack)
+	emitOpcode(c.prog, vm.NEWSTRUCT)
+	emitOpcode(c.prog, vm.TOALTSTACK)
 
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
@@ -633,45 +682,58 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		c.emitLoadConst(typeAndVal)
 		c.emitStoreLocal(i)
 	}
-	emitOpcode(c.prog, vm.Ofromaltstack)
+	emitOpcode(c.prog, vm.FROMALTSTACK)
 }
 
 func (c *codegen) convertToken(tok token.Token) {
 	switch tok {
 	case token.ADD_ASSIGN:
-		emitOpcode(c.prog, vm.Oadd)
+		emitOpcode(c.prog, vm.ADD)
 	case token.SUB_ASSIGN:
-		emitOpcode(c.prog, vm.Osub)
+		emitOpcode(c.prog, vm.SUB)
 	case token.MUL_ASSIGN:
-		emitOpcode(c.prog, vm.Omul)
+		emitOpcode(c.prog, vm.MUL)
 	case token.QUO_ASSIGN:
-		emitOpcode(c.prog, vm.Odiv)
+		emitOpcode(c.prog, vm.DIV)
 	case token.ADD:
-		emitOpcode(c.prog, vm.Oadd)
+		emitOpcode(c.prog, vm.ADD)
 	case token.SUB:
-		emitOpcode(c.prog, vm.Osub)
+		emitOpcode(c.prog, vm.SUB)
 	case token.MUL:
-		emitOpcode(c.prog, vm.Omul)
+		emitOpcode(c.prog, vm.MUL)
 	case token.QUO:
-		emitOpcode(c.prog, vm.Odiv)
+		emitOpcode(c.prog, vm.DIV)
 	case token.LSS:
-		emitOpcode(c.prog, vm.Olt)
+		emitOpcode(c.prog, vm.LT)
 	case token.LEQ:
-		emitOpcode(c.prog, vm.Olte)
+		emitOpcode(c.prog, vm.LTE)
 	case token.GTR:
-		emitOpcode(c.prog, vm.Ogt)
+		emitOpcode(c.prog, vm.GT)
 	case token.GEQ:
-		emitOpcode(c.prog, vm.Ogte)
+		emitOpcode(c.prog, vm.GTE)
 	case token.EQL:
-		emitOpcode(c.prog, vm.Onumequal)
+		// TODO: this is wrong (and the next one also is), see issue #294
+		// Changing it EQUAL is not that big of an improvement, so we're
+		// using NUMEQUAL for now
+		emitOpcode(c.prog, vm.NUMEQUAL)
 	case token.NEQ:
-		emitOpcode(c.prog, vm.Onumnotequal)
+		emitOpcode(c.prog, vm.NUMNOTEQUAL)
 	case token.DEC:
-		emitOpcode(c.prog, vm.Odec)
+		emitOpcode(c.prog, vm.DEC)
 	case token.INC:
-		emitOpcode(c.prog, vm.Oinc)
+		emitOpcode(c.prog, vm.INC)
 	case token.NOT:
-		emitOpcode(c.prog, vm.Onot)
+		emitOpcode(c.prog, vm.NOT)
+	case token.AND:
+		emitOpcode(c.prog, vm.AND)
+	case token.OR:
+		emitOpcode(c.prog, vm.OR)
+	case token.SHL:
+		emitOpcode(c.prog, vm.SHL)
+	case token.SHR:
+		emitOpcode(c.prog, vm.SHR)
+	case token.XOR:
+		emitOpcode(c.prog, vm.XOR)
 	default:
 		log.Fatalf("compiler could not convert token: %s", tok)
 	}
@@ -712,8 +774,16 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 	// convert the entry point first
 	c.convertFuncDecl(mainFile, main)
 
+	// sort map keys to generate code deterministically
+	keys := make([]*types.Package, 0, len(info.program.AllPackages))
+	for p := range info.program.AllPackages {
+		keys = append(keys, p)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
+
 	// Generate the code for the program
-	for _, pkg := range info.program.AllPackages {
+	for _, k := range keys {
+		pkg := info.program.AllPackages[k]
 		c.typeInfo = &pkg.Info
 
 		for _, f := range pkg.Files {
@@ -750,8 +820,8 @@ func (c *codegen) writeJumps() {
 	b := c.prog.Bytes()
 	for i, op := range b {
 		j := i + 1
-		switch vm.Opcode(op) {
-		case vm.Ojmp, vm.Ojmpifnot, vm.Ojmpif, vm.Ocall:
+		switch vm.Instruction(op) {
+		case vm.JMP, vm.JMPIFNOT, vm.JMPIF, vm.CALL:
 			index := int16(binary.LittleEndian.Uint16(b[j : j+2]))
 			if int(index) > len(c.l) || int(index) < 0 {
 				continue
