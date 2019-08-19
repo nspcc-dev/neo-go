@@ -27,7 +27,13 @@ type Connmgr struct {
 }
 
 //New creates a new connection manager
-func New(cfg Config) *Connmgr {
+func New(cfg Config) (*Connmgr, error) {
+	listener, err := net.Listen("tcp", cfg.AddressPort)
+
+	if err != nil {
+		return nil, err
+	}
+
 	cnnmgr := &Connmgr{
 		cfg,
 		make(map[string]*Request),
@@ -36,13 +42,6 @@ func New(cfg Config) *Connmgr {
 	}
 
 	go func() {
-
-		listener, err := net.Listen("tcp", cfg.AddressPort)
-
-		if err != nil {
-			fmt.Println("Error connecting to outbound ", err)
-		}
-
 		defer func() {
 			listener.Close()
 		}()
@@ -59,7 +58,7 @@ func New(cfg Config) *Connmgr {
 
 	}()
 
-	return cnnmgr
+	return cnnmgr, nil
 }
 
 // NewRequest will make a new connection gets the address from address func in config
