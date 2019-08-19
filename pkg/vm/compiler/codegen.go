@@ -392,10 +392,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			case n.Op == token.EQL:
 				// VM has separate opcodes for number and string equality
-				if isStringType(tinfo.Type) {
+				if isStringType(c.typeInfo.Types[n.X].Type) {
 					emitOpcode(c.prog, vm.EQUAL)
 				} else {
 					emitOpcode(c.prog, vm.NUMEQUAL)
+				}
+			case n.Op == token.NEQ:
+				// VM has separate opcodes for number and string equality
+				if isStringType(c.typeInfo.Types[n.X].Type) {
+					emitOpcode(c.prog, vm.EQUAL)
+					emitOpcode(c.prog, vm.NOT)
+				} else {
+					emitOpcode(c.prog, vm.NUMNOTEQUAL)
 				}
 			default:
 				c.convertToken(n.Op)
