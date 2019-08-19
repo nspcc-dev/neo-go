@@ -11,7 +11,7 @@ import (
 	iputils "github.com/CityOfZion/neo-go/pkg/wire/util/ip"
 )
 
-func setupConnManager(s *Server, port uint16) *connmgr.Connmgr {
+func setupConnManager(s *Server, port uint16) (*connmgr.Connmgr, error) {
 	cfg := connmgr.Config{
 		GetAddress:   s.getAddress,
 		OnAccept:     s.onAccept,

@@ -63,7 +63,10 @@ func New(net protocol.Magic, port uint16) (*Server, error) {
 	s.smg = syncmgr
 
 	// Setup connection manager
-	connmgr := setupConnManager(s, port)
+	connmgr, err := setupConnManager(s, port)
+	if err != nil {
+		return nil, err
+	}
 	s.cmg = connmgr
 
 	// Setup peer config
