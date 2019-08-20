@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"text/tabwriter"
+	"reflect"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
@@ -349,7 +350,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.Pop()
 
 	case EQUAL:
-		panic("TODO EQUAL")
+		b := v.estack.Pop()
+		a := v.estack.Pop()
+		v.estack.PushVal(reflect.DeepEqual(a,b))
 
 	// Bit operations.
 	case AND:
