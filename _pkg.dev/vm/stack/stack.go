@@ -1,0 +1,186 @@
+package stack
+
+import (
+	"errors"
+	"fmt"
+)
+
+const (
+	// StackAverageSize is used to set the capacity of the stack
+	// setting this number too low, will cause extra allocations
+	StackAverageSize = 20
+)
+
+// RandomAccess represents a Random Access Stack
+type RandomAccess struct {
+	vals []Item
+}
+
+// New will return a new random access stack
+func New() *RandomAccess {
+	return &RandomAccess{
+		vals: make([]Item, 0, StackAverageSize),
+	}
+}
+
+//Len will return the length of the stack
+func (ras *RandomAccess) Len() int {
+	if ras.vals == nil {
+		return -1
+	}
+	return len(ras.vals)
+}
+
+// Clear will remove all items in the stack
+func (ras *RandomAccess) Clear() {
+	ras.vals = make([]Item, 0, StackAverageSize)
+}
+
+// Pop will remove the last stack item that was added
+func (ras *RandomAccess) Pop() (Item, error) {
+	if len(ras.vals) == 0 {
+		return nil, errors.New("There are no items on the stack to pop")
+	}
+	if ras.vals == nil {
+		return nil, errors.New("Cannot pop from a nil stack")
+	}
+
+	l := len(ras.vals)
+	item := ras.vals[l-1]
+	ras.vals = ras.vals[:l-1]
+
+	return item, nil
+}
+
+// Push will put a stack item onto the top of the stack
+func (ras *RandomAccess) Push(item Item) *RandomAccess {
+	if ras.vals == nil {
+		ras.vals = make([]Item, 0, StackAverageSize)
+	}
+
+	ras.vals = append(ras.vals, item)
+
+	return ras
+}
+
+// Insert will push a stackItem onto the stack at position `n`
+// Note; index 0 is the top of the stack, which is the end of slice
+func (ras *RandomAccess) Insert(n uint16, item Item) (*RandomAccess, error) {
+
+	if n == 0 {
+		return ras.Push(item), nil
+	}
+
+	if ras.vals == nil {
+		ras.vals = make([]Item, 0, StackAverageSize)
+	}
+
+	// Check that we are not inserting out of the bounds
+	stackSize := uint16(len(ras.vals))
+	if n > stackSize-1 {
+		return nil, fmt.Errorf("Tried to insert at index %d when length of stack is %d", n, len(ras.vals))
+	}
+
+	index := stackSize - n
+
+	ras.vals = append(ras.vals, item)
+	copy(ras.vals[index:], ras.vals[index-1:])
+	ras.vals[index] = item
+
+	return ras, nil
+}
+
+// Peek will check an element at a given index
+// Note: 0 is the top of the stack, which is the end of the slice
+func (ras *RandomAccess) Peek(n uint16) (Item, error) {
+
+	stackSize := uint16(len(ras.vals))
+
+	if n == 0 {
+		index := stackSize - 1
+		return ras.vals[index], nil
+	}
+
+	if ras.Len() < 1 {
+		return nil, fmt.Errorf("cannot peak at a stack with no item, length of stack is %d", ras.Len())
+	}
+
+	// Check that we are not peeking out of the bounds
+	if n > stackSize-1 {
+		return nil, fmt.Errorf("Tried to peek at index %d when length of stack is %d", n, len(ras.vals))
+	}
+	index := stackSize - n - 1
+
+	return ras.vals[index], nil
+}
+
+// CopyTo will copy all of the stack items from `ras` into the stack that is passed as an argument
+// XXX: once maxstacksize is implemented, we will return error if size goes over
+// There will also be additional checks needed once stack isolation is added
+func (ras *RandomAccess) CopyTo(stack *RandomAccess) error {
+	stack.vals = append(stack.vals, ras.vals...)
+	return nil
+}
+
+// Set sets the n-item from the stack
+// starting from the top of the stack with the new item.
+// the n-item to replace is located at the position "len(stack)-index-1".
+func (ras *RandomAccess) Set(index uint16, item Item) error {
+	stackSize := uint16(len(ras.vals))
+	if ok := index >= stackSize; ok {
+		return errors.New("index out of range")
+	}
+
+	n := stackSize - index - 1
+	ras.vals[n] = item
+
+	return nil
+}
+
+// Convenience Functions
+
+// PopInt will remove the last stack item that was added
+// And cast it to an integer
+func (ras *RandomAccess) PopInt() (*Int, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.Integer()
+}
+
+// PopByteArray will remove the last stack item that was added
+// And cast it to an ByteArray
+func (ras *RandomAccess) PopByteArray() (*ByteArray, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.ByteArray()
+}
+
+// PopBoolean will remove the last stack item that was added
+// and cast it to a Boolean.
+func (ras *RandomAccess) PopBoolean() (*Boolean, error) {
+	item, err := ras.Pop()
+	if err != nil {
+		return nil, err
+	}
+	return item.Boolean()
+}
+
+// Remove removes the n-item from the stack
+// starting from the top of the stack. In other words
+// the n-item to remove is located at the index "len(stack)-n-1"
+func (ras *RandomAccess) Remove(n uint16) (Item, error) {
+	if int(n) >= len(ras.vals) {
+		return nil, errors.New("index out of range")
+	}
+
+	index := uint16(len(ras.vals)) - n - 1
+	item := ras.vals[index]
+
+	ras.vals = append(ras.vals[:index], ras.vals[index+1:]...)
+
+	return item, nil
+}

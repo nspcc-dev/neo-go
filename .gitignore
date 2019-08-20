@@ -24,6 +24,9 @@ bin/
 !.vscode/extensions.json
 # goland
 .idea/*
+# emacs
+*~
+TAGS
 
 # anthdm todolists
 /pkg/vm/compiler/todo.md
