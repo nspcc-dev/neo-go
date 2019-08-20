@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"math/big"
+	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
@@ -236,4 +237,8 @@ var structTestCases = []testCase{
 		`,
 		big.NewInt(14),
 	},
+}
+
+func TestStructs(t *testing.T) {
+	run_testcases(t, structTestCases)
 }

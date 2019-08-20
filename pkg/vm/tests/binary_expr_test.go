@@ -1,6 +1,9 @@
 package vm_test
 
-import "math/big"
+import (
+	"math/big"
+	"testing"
+)
 
 var binaryExprTestCases = []testCase{
 	{
@@ -113,4 +116,8 @@ var binaryExprTestCases = []testCase{
 		`,
 		big.NewInt(0),
 	},
+}
+
+func TestBinaryExprs(t *testing.T) {
+	run_testcases(t, binaryExprTestCases)
 }

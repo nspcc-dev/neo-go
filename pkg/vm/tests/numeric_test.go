@@ -1,6 +1,9 @@
 package vm_test
 
-import "math/big"
+import (
+	"math/big"
+	"testing"
+)
 
 var numericTestCases = []testCase{
 	{
@@ -15,4 +18,8 @@ var numericTestCases = []testCase{
 		`,
 		big.NewInt(6),
 	},
+}
+
+func TestNumericExprs(t *testing.T) {
+	run_testcases(t, numericTestCases)
 }

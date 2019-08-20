@@ -1,6 +1,9 @@
 package vm_test
 
-import "math/big"
+import (
+	"math/big"
+	"testing"
+)
 
 var assignTestCases = []testCase{
 	{
@@ -125,4 +128,8 @@ var assignTestCases = []testCase{
 		`,
 		big.NewInt(3),
 	},
+}
+
+func TestAssignments(t *testing.T) {
+	run_testcases(t, assignTestCases)
 }

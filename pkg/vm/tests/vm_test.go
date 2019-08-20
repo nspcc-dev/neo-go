@@ -16,6 +16,12 @@ type testCase struct {
 	result interface{}
 }
 
+func run_testcases(t *testing.T, tcases []testCase) {
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {eval(t, tcase.src, tcase.result)})
+	}
+}
+
 func eval(t *testing.T, src string, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.Run()
