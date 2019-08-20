@@ -75,7 +75,7 @@ var binaryExprTestCases = []testCase{
 		big.NewInt(0),
 	},
 	{
-		"compare equal strings",
+		"compare not equal strings with eql",
 		`
 		package testcase
 		func Main() int {
@@ -89,7 +89,49 @@ var binaryExprTestCases = []testCase{
 		big.NewInt(0),
 	},
 	{
-		"compare equal ints",
+		"compare equal strings with eql",
+		`
+		package testcase
+		func Main() int {
+			str := "a string"
+			if str == "a string" {
+				return 1
+			}
+			return 0
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"compare not equal strings with neq",
+		`
+		package testcase
+		func Main() int {
+			str := "a string"
+			if str != "another string" {
+				return 1
+			}
+			return 0
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"compare equal strings with neq",
+		`
+		package testcase
+		func Main() int {
+			str := "a string"
+			if str != "a string" {
+				return 1
+			}
+			return 0
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"compare equal ints with eql",
 		`
 		package testcase
 		func Main() int {
@@ -103,7 +145,7 @@ var binaryExprTestCases = []testCase{
 		big.NewInt(1),
 	},
 	{
-		"compare not equal ints",
+		"compare equal ints with neq",
 		`
 		package testcase
 		func Main() int {
@@ -115,6 +157,34 @@ var binaryExprTestCases = []testCase{
 		}
 		`,
 		big.NewInt(0),
+	},
+	{
+		"compare not equal ints with eql",
+		`
+		package testcase
+		func Main() int {
+			x := 11
+			if x == 10 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		big.NewInt(0),
+	},
+	{
+		"compare not equal ints with neq",
+		`
+		package testcase
+		func Main() int {
+			x := 11
+			if x != 10 {
+				return 1
+			}
+			return 0
+		}
+		`,
+		big.NewInt(1),
 	},
 }
 
