@@ -62,6 +62,34 @@ jobs:
       - gomod
       - run: go test -v -race ./...
 
+  build_cli:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    executor: go1_12
+    steps:
+      - checkout
+      - gomod
+      - run: make build
+
+  build_image:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    executor: go1_12
+    docker:
+      - image: alpine
+    steps:
+      - run: apk update && apk add git make curl tar
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install Docker client
+          command: |
+            set -x
+            VER="17.03.0-ce"
+            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+            mv /tmp/docker/* /usr/bin
+      - run: make build-image
+
+
 workflows:
   version: 2.1
   workflow:
@@ -69,16 +97,26 @@ workflows:
       - vet:
           filters:
             tags:
-              only: /[0-9]+\.[0-9]+\.[0-9]+/
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - lint:
           filters:
             tags:
-              only: /[0-9]+\.[0-9]+\.[0-9]+/
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - test_1_11:
           filters:
             tags:
-              only: /[0-9]+\.[0-9]+\.[0-9]+/
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - test_1_12:
           filters:
             tags:
-              only: /[0-9]+\.[0-9]+\.[0-9]+/
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
+      - build_cli:
+          filters:
+            tags:
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
+      - build_image:
+          requires:
+            - build_cli
+          filters:
+            tags:
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
