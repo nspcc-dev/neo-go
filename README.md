@@ -7,17 +7,13 @@
   <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
 </p>
 
-<p align="center">
-  <a href="https://github.com/CityOfZion/neo-go/releases">
-    <img src="https://img.shields.io/github/tag/CityOfZion/neo-go.svg?style=flat">
-  </a>
-  <a href="https://circleci.com/gh/CityOfZion/neo-go/tree/master">
-    <img src="https://circleci.com/gh/CityOfZion/neo-go/tree/master.svg?style=shield">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/CityOfZion/neo-go">
-    <img src="https://goreportcard.com/badge/github.com/CityOfZion/neo-go">
-  </a>
-</p>
+<hr />
+
+[![codecov](https://codecov.io/gh/nspcc-dev/neo-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-go)
+[![CircleCI](https://circleci.com/gh/nspcc-dev/neo-go/tree/master.svg?style=svg)](https://circleci.com/gh/nspcc-dev/neo-go/tree/master)
+[![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neo-go)](https://goreportcard.com/report/github.com/nspcc-dev/neo-go)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nspcc-dev/neo-go?sort=semver)
+![License](https://img.shields.io/github/license/nspcc-dev/neo-go.svg?style=popout)
 
 # Overview
 
@@ -25,7 +21,7 @@ This project aims to be a full port of the original C# [NEO project](https://git
 A complete toolkit for the NEO blockchain, including:
 
 - Consensus node (WIP)
-- [RPC node & client](https://github.com/CityOfZion/neo-go/tree/master/pkg/rpc/README.md)
+- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/pkg/rpc/README.md)
 - [RPC client](https://github.com/nspcc-dev/neo-go/blob/master/pkg/rpc/README.md)
 - CLI tool
 - [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/compiler/README.md)
@@ -122,7 +118,7 @@ ApplicationConfiguration:
 ```
 
 ## Writing smart contracts in Go
-In depth documentation about the **neo-go** compiler and smart contract examples can be found inside the [compiler package](https://github.com/CityOfZion/neo-go/tree/master/pkg/vm/compiler).
+In depth documentation about the **neo-go** compiler and smart contract examples can be found inside the [compiler package](https://github.com/nspcc-dev/neo-go/tree/master/pkg/vm/compiler).
 
 ### Compile a smart contract
 
@@ -177,7 +173,7 @@ INDEX    OPCODE    DESC
 # Contributing
 
 Feel free to contribute to this project after reading the
-[contributing guidelines](https://github.com/CityOfZion/neo-go/blob/master/CONTRIBUTING.md).
+[contributing guidelines](https://github.com/nspcc-dev/neo-go/blob/master/CONTRIBUTING.md).
 
 Before starting to work on a certain topic, create an new issue first,
 describing the feature/topic you are going to implement.
@@ -191,4 +187,4 @@ describing the feature/topic you are going to implement.
 
 # License
 
-- Open-source [MIT](https://github.com/CityOfZion/neo-go/blob/master/LICENCE.md)
+- Open-source [MIT](https://github.com/nspcc-dev/neo-go/blob/master/LICENSE.md)
