@@ -1,12 +1,8 @@
 <p align="center">
 <img
-    src="http://res.cloudinary.com/vidsy/image/upload/v1503160820/CoZ_Icon_DARKBLUE_200x178px_oq0gxm.png"
-    width="125px"
-  >
+    src="https://neo-cdn.azureedge.net/images/neo_logo.svg"
+    width="250px">
 </p>
-
-<h1 align="center">neo-go</h1>
-
 <p align="center">
   <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
 </p>
@@ -28,12 +24,12 @@
 This project aims to be a full port of the original C# [NEO project](https://github.com/neo-project).
 A complete toolkit for the NEO blockchain, including:
 
-- consensus node
+- Consensus node (WIP)
 - [RPC node & client](https://github.com/CityOfZion/neo-go/tree/master/pkg/rpc/README.md)
-- RPC client
+- [RPC client](https://github.com/nspcc-dev/neo-go/blob/master/pkg/rpc/README.md)
 - CLI tool
-- Smart contract compiler
-- NEO virtual machine
+- [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/compiler/README.md)
+- [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/README.md)
 
 # Getting started
 
@@ -188,10 +184,10 @@ describing the feature/topic you are going to implement.
 
 # Contact
 
+- [@roman-khimov](https://github.com/roman-khimov) on GitHub
+- [@volekerb](https://github.com/volekerb) on Github
 - [@anthdm](https://github.com/anthdm) on Github
-- [@anthdm](https://twitter.com/anthdm) on Twitter
-- Reach out to me on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
-- Send me an email anthony@cityofzion.io
+- Reach out to us on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
 
