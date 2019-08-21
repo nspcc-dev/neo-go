@@ -15,7 +15,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/base58"
 	"github.com/CityOfZion/neo-go/pkg/crypto/elliptic"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
-	"github.com/CityOfZion/neo-go/pkg/crypto/rfc6979"
+	"github.com/anthdm/rfc6979"
 )
 
 // PrivateKey represents a NEO private key.
