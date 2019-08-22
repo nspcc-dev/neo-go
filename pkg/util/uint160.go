@@ -63,6 +63,11 @@ func (u Uint160) String() string {
 	return hex.EncodeToString(u.Bytes())
 }
 
+// ReverseString is the same as String, but returnes an inversed representation.
+func (u Uint160) ReverseString() string {
+	return hex.EncodeToString(u.BytesReverse())
+}
+
 // Equals returns true if both Uint256 values are the same.
 func (u Uint160) Equals(other Uint160) bool {
 	return u == other
