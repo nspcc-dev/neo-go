@@ -214,7 +214,7 @@ func (p StackParam) TryParse(dest interface{}) error {
 			*dest = data
 			return nil
 		case *util.Uint256:
-			if *dest, err = util.Uint256DecodeBytes(data); err != nil {
+			if *dest, err = util.Uint256DecodeReverseBytes(data); err != nil {
 				return err
 			}
 			return nil

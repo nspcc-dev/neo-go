@@ -57,7 +57,7 @@ func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256,
 		selected     = util.Fixed8(0)
 		us           []*Unspent
 		assetUnspent Unspent
-		assetId      = GlobalAssets[assetIdUint.String()]
+		assetId      = GlobalAssets[assetIdUint.ReverseString()]
 	)
 	if us, err = s.GetBalance(address); err != nil {
 		return nil, util.Fixed8(0), errs.Wrapf(err, "Cannot get balance for address %v", address)

@@ -185,7 +185,7 @@ func getTestBlockchain(t *testing.T) *Blockchain {
 func getTestTransaction(txID string, t *testing.T) *transaction.Transaction {
 	chain := getTestBlockchain(t)
 
-	txHash, err := util.Uint256DecodeString(txID)
+	txHash, err := util.Uint256DecodeReverseString(txID)
 	require.NoErrorf(t, err, "could not decode string %s to Uint256", txID)
 
 	tx, _, err := chain.GetTransaction(txHash)

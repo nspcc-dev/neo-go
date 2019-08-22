@@ -17,7 +17,7 @@ func TestComputeMerkleTree(t *testing.T) {
 
 	hashes := make([]util.Uint256, len(rawHashes))
 	for i, str := range rawHashes {
-		hash, _ := util.Uint256DecodeString(str)
+		hash, _ := util.Uint256DecodeReverseString(str)
 		hashes[i] = hash
 	}
 
@@ -25,5 +25,5 @@ func TestComputeMerkleTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4", merkle.Root().String())
+	assert.Equal(t, "803ff4abe3ea6533bcc0be574efa02f83ae8fdc651c879056b0d9be336c01bf4", merkle.Root().ReverseString())
 }

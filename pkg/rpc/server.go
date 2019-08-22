@@ -107,7 +107,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 Methods:
 	switch req.Method {
 	case "getbestblockhash":
-		results = s.chain.CurrentBlockHash().String()
+		results = s.chain.CurrentBlockHash().ReverseString()
 
 	case "getblock":
 		var hash util.Uint256
@@ -120,7 +120,7 @@ Methods:
 
 		switch param.Type {
 		case "string":
-			hash, err = util.Uint256DecodeString(param.StringVal)
+			hash, err = util.Uint256DecodeReverseString(param.StringVal)
 			if err != nil {
 				resultsErr = errInvalidParams
 				break Methods
@@ -204,7 +204,7 @@ Methods:
 			break Methods
 		}
 
-		paramAssetID, err := util.Uint256DecodeString(param.StringVal)
+		paramAssetID, err := util.Uint256DecodeReverseString(param.StringVal)
 		if err != nil {
 			resultsErr = errInvalidParams
 			break
@@ -253,7 +253,7 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	param0, err := reqParams.ValueWithType(0, "string")
 	if err != nil {
 		resultsErr = err
-	} else if txHash, err := util.Uint256DecodeString(param0.StringVal); err != nil {
+	} else if txHash, err := util.Uint256DecodeReverseString(param0.StringVal); err != nil {
 		resultsErr = errInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
