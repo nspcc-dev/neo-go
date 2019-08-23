@@ -116,32 +116,32 @@ func Satoshi() Fixed8 {
 
 // Div implements Fixd8 division operator.
 func (f Fixed8) Div(i int64) Fixed8 {
-	return NewFixed8(f.Value() / i)
+	return f / NewFixed8(i)
 }
 
 // Add implements Fixd8 addition operator.
 func (f Fixed8) Add(g Fixed8) Fixed8 {
-	return NewFixed8(f.Value() + g.Value())
+	return f + g
 }
 
 // Sub implements Fixd8 subtraction operator.
 func (f Fixed8) Sub(g Fixed8) Fixed8 {
-	return NewFixed8(f.Value() - g.Value())
+	return f - g
 }
 
 // LessThan implements Fixd8 < operator.
 func (f Fixed8) LessThan(g Fixed8) bool {
-	return f.Value() < g.Value()
+	return f < g
 }
 
 // GreaterThan implements Fixd8 < operator.
 func (f Fixed8) GreaterThan(g Fixed8) bool {
-	return f.Value() > g.Value()
+	return f > g
 }
 
 // Equal implements Fixd8 == operator.
 func (f Fixed8) Equal(g Fixed8) bool {
-	return f.Value() == g.Value()
+	return f == g
 }
 
 // CompareTo returns the difference between the f and g.
@@ -149,5 +149,5 @@ func (f Fixed8) Equal(g Fixed8) bool {
 // difference = 0 implies f = g.
 // difference > 0 implies f > g.
 func (f Fixed8) CompareTo(g Fixed8) int {
-	return int(f.Value() - g.Value())
+	return int(f - g)
 }
