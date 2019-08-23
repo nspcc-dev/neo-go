@@ -1,6 +1,7 @@
 package network
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
@@ -149,7 +150,7 @@ func newTestServer() *Server {
 		chain:        testChain{},
 		transport:    localTransport{},
 		discovery:    testDiscovery{},
-		id:           util.RandUint32(1000000, 9999999),
+		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
