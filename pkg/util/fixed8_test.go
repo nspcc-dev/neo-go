@@ -66,6 +66,11 @@ func TestFixed8DecodeString(t *testing.T) {
 	assert.Equal(t, Fixed8(90123410000), n)
 }
 
+func TestSatoshi(t *testing.T) {
+	satoshif8 := Satoshi()
+	assert.Equal(t, "0.00000001", satoshif8.String())
+}
+
 func TestFixed8UnmarshalJSON(t *testing.T) {
 	var testCases = []float64{
 		123.45,

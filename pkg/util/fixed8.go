@@ -116,7 +116,7 @@ func (f Fixed8) MarshalJSON() ([]byte, error) {
 
 // Satoshi defines the value of a 'Satoshi'.
 func Satoshi() Fixed8 {
-	return NewFixed8(1)
+	return Fixed8(1)
 }
 
 // Div implements Fixd8 division operator.
