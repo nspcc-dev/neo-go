@@ -635,14 +635,14 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 
 // NetworkFee returns network fee
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
-	inputAmount := util.NewFixed8(0)
+	inputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range bc.References(t) {
 		if txOutput.AssetID == utilityTokenTX().Hash() {
 			inputAmount.Add(txOutput.Amount)
 		}
 	}
 
-	outputAmount := util.NewFixed8(0)
+	outputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range t.Outputs {
 		if txOutput.AssetID == utilityTokenTX().Hash() {
 			outputAmount.Add(txOutput.Amount)
@@ -660,7 +660,7 @@ func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
 // IsLowPriority flags a trnsaction as low priority if the network fee is less than
 // LowPriorityThreshold
 func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
-	return bc.NetworkFee(t) < util.NewFixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
+	return bc.NetworkFee(t) < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
 }
 
 // GetMemPool returns the memory pool of the blockchain.

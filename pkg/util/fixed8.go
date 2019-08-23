@@ -49,19 +49,19 @@ func (f Fixed8) Int64Value() int64 {
 	return int64(f) / decimals
 }
 
-// NewFixed8 returns a new Fixed8 type multiplied by decimals.
-func NewFixed8(val int64) Fixed8 {
+// Fixed8FromInt64 returns a new Fixed8 type multiplied by decimals.
+func Fixed8FromInt64(val int64) Fixed8 {
 	return Fixed8(decimals * val)
 }
 
-// NewFixed8FromFloat returns a new Fixed8 type multiplied by decimals.
-func NewFixed8FromFloat(val float64) Fixed8 {
+// Fixed8FromFloat returns a new Fixed8 type multiplied by decimals.
+func Fixed8FromFloat(val float64) Fixed8 {
 	return Fixed8(int64(decimals * val))
 }
 
-// Fixed8DecodeString parses s which must be a fixed point number
+// Fixed8FromString parses s which must be a fixed point number
 // with precision up to 10^-8
-func Fixed8DecodeString(s string) (Fixed8, error) {
+func Fixed8FromString(s string) (Fixed8, error) {
 	parts := strings.SplitN(s, ".", 2)
 	ip, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
@@ -87,7 +87,7 @@ func Fixed8DecodeString(s string) (Fixed8, error) {
 func (f *Fixed8) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
-		p, err := Fixed8DecodeString(s)
+		p, err := Fixed8FromString(s)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func Satoshi() Fixed8 {
 
 // Div implements Fixd8 division operator.
 func (f Fixed8) Div(i int64) Fixed8 {
-	return f / NewFixed8(i)
+	return f / Fixed8FromInt64(i)
 }
 
 // Add implements Fixd8 addition operator.

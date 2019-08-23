@@ -101,7 +101,7 @@ func governingTokenTX() *transaction.Transaction {
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
-		Amount:    util.NewFixed8(100000000),
+		Amount:    util.Fixed8FromInt64(100000000),
 		Precision: 0,
 		Owner:     &crypto.PublicKey{},
 		Admin:     admin,
@@ -170,7 +170,7 @@ func calculateUtilityAmount() util.Fixed8 {
 	for i := 0; i < len(genAmount); i++ {
 		sum += genAmount[i]
 	}
-	return util.NewFixed8(int64(sum * decrementInterval))
+	return util.Fixed8FromInt64(int64(sum * decrementInterval))
 }
 
 // headerSliceReverse reverses the given slice of *Header.
