@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"io"
 
-	"github.com/CityOfZion/neo-go/pkg/wire/util"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"golang.org/x/crypto/ripemd160"
 )
 

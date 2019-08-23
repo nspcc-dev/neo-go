@@ -25,14 +25,19 @@ func Uint256DecodeReverseString(s string) (u Uint256, err error) {
 	return Uint256DecodeReverseBytes(b)
 }
 
-// Uint256DecodeReverseBytes attempts to decode the given string (in LE representation) into an Uint256.
-func Uint256DecodeReverseBytes(b []byte) (u Uint256, err error) {
-	b = ArrayReverse(b)
+// Uint256DecodeBytes attempts to decode the given string (in BE representation) into an Uint256.
+func Uint256DecodeBytes(b []byte) (u Uint256, err error) {
 	if len(b) != uint256Size {
 		return u, fmt.Errorf("expected []byte of size %d got %d", uint256Size, len(b))
 	}
 	copy(u[:], b)
 	return u, nil
+}
+
+// Uint256DecodeReverseBytes attempts to decode the given string (in LE representation) into an Uint256.
+func Uint256DecodeReverseBytes(b []byte) (u Uint256, err error) {
+	b = ArrayReverse(b)
+	return Uint256DecodeBytes(b)
 }
 
 // Bytes returns a byte slice representation of u.

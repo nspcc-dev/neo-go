@@ -15,7 +15,7 @@ func TestSha256(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-	actual := hex.EncodeToString(data.Bytes()) // MARK: In the DecodeBytes function, there is a bytes reverse, not sure why?
+	actual := hex.EncodeToString(data.Bytes())
 
 	assert.Equal(t, expected, actual)
 }
