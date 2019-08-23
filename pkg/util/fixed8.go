@@ -34,7 +34,7 @@ func (f Fixed8) String() string {
 		for i := len(str); i < 8; i++ {
 			buf.WriteRune('0')
 		}
-		buf.WriteString(str)
+		buf.WriteString(strings.TrimRight(str, "0"))
 	}
 	return buf.String()
 }

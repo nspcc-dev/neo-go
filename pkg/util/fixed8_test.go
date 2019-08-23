@@ -19,7 +19,7 @@ func TestNewFixed8(t *testing.T) {
 
 func TestFixed8DecodeString(t *testing.T) {
 	// Fixed8DecodeString works correctly with integers
-	ivalues := []string{"9000", "100000000", "5", "10945"}
+	ivalues := []string{"9000", "100000000", "5", "10945", "20.45", "0.00000001", "-42"}
 	for _, val := range ivalues {
 		n, err := Fixed8DecodeString(val)
 		assert.Nil(t, err)
