@@ -39,8 +39,13 @@ func (f Fixed8) String() string {
 	return buf.String()
 }
 
-// Value returns the original value representing the Fixed8.
-func (f Fixed8) Value() int64 {
+// FloatValue returns the original value representing Fixed8 as float64.
+func (f Fixed8) FloatValue() float64 {
+	return float64(f) / decimals
+}
+
+// Int64Value returns the original value representing Fixed8 as int64.
+func (f Fixed8) Int64Value() int64 {
 	return int64(f) / decimals
 }
 

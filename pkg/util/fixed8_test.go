@@ -9,11 +9,38 @@ import (
 )
 
 func TestNewFixed8(t *testing.T) {
-	values := []int64{9000, 100000000, 5, 10945}
+	values := []int64{9000, 100000000, 5, 10945, -42}
 
 	for _, val := range values {
 		assert.Equal(t, Fixed8(val*decimals), NewFixed8(val))
-		assert.Equal(t, val, NewFixed8(val).Value())
+		assert.Equal(t, val, NewFixed8(val).Int64Value())
+	}
+}
+
+func TestFixed8Add(t *testing.T) {
+	a := NewFixed8(1)
+	b := NewFixed8(2)
+
+	c := a.Add(b)
+	expected := int64(3)
+	assert.Equal(t, strconv.FormatInt(expected, 10), c.String())
+}
+
+func TestFixed8Sub(t *testing.T) {
+
+	a := NewFixed8(42)
+	b := NewFixed8(34)
+
+	c := a.Sub(b)
+	assert.Equal(t, int64(8), c.Int64Value())
+}
+
+func TestFixed8FromFloat(t *testing.T) {
+	inputs := []float64{12.98, 23.87654333, 100.654322, 456789.12345665, -3.14159265}
+
+	for _, val := range inputs {
+		assert.Equal(t, Fixed8(val*decimals), NewFixed8FromFloat(val))
+		assert.Equal(t, val, NewFixed8FromFloat(val).FloatValue())
 	}
 }
 
