@@ -11,7 +11,7 @@ import (
 
 func TestEncodeDecodeSpentCoinState(t *testing.T) {
 	spent := &SpentCoinState{
-		txHash:   util.RandomUint256(),
+		txHash:   randomUint256(),
 		txHeight: 1001,
 		items: map[uint16]uint32{
 			1: 3,
@@ -35,9 +35,9 @@ func TestCommitSpentCoins(t *testing.T) {
 	)
 
 	txx := []util.Uint256{
-		util.RandomUint256(),
-		util.RandomUint256(),
-		util.RandomUint256(),
+		randomUint256(),
+		randomUint256(),
+		randomUint256(),
 	}
 
 	for i := 0; i < len(txx); i++ {

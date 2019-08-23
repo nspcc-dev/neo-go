@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -48,10 +49,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	scriptOut, err := util.Uint160FromScript(rawScript)
-	if err != nil {
-		return nil, err
-	}
+	scriptOut := hash.Hash160(rawScript)
 
 	block := &Block{
 		BlockBase: base,
@@ -97,7 +95,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 }
 
 func governingTokenTX() *transaction.Transaction {
-	admin, _ := util.Uint160FromScript([]byte{byte(vm.PUSHT)})
+	admin := hash.Hash160([]byte{byte(vm.PUSHT)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
@@ -120,7 +118,7 @@ func governingTokenTX() *transaction.Transaction {
 }
 
 func utilityTokenTX() *transaction.Transaction {
-	admin, _ := util.Uint160FromScript([]byte{byte(vm.PUSHF)})
+	admin := hash.Hash160([]byte{byte(vm.PUSHF)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.UtilityToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
@@ -162,7 +160,7 @@ func getNextConsensusAddress(validators []*crypto.PublicKey) (val util.Uint160, 
 	if err != nil {
 		return val, err
 	}
-	return util.Uint160FromScript(raw)
+	return hash.Hash160(raw), nil
 }
 
 func calculateUtilityAmount() util.Fixed8 {

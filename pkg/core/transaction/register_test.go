@@ -11,6 +11,7 @@ import (
 )
 
 func TestRegisterTX(t *testing.T) {
+	someuint160, _ := util.Uint160DecodeString("4d3b96ae1bcc5a585e075e3b81920210dec16302")
 	tx := &Transaction{
 		Type:    RegisterType,
 		Version: 0,
@@ -20,7 +21,7 @@ func TestRegisterTX(t *testing.T) {
 			Amount:    util.Fixed8FromInt64(1000000),
 			Precision: 8,
 			Owner:     &crypto.PublicKey{},
-			Admin:     util.RandomUint160(),
+			Admin:     someuint160,
 		},
 	}
 

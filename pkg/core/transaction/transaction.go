@@ -2,10 +2,10 @@ package transaction
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -240,10 +240,7 @@ func (t *Transaction) createHash() error {
 		return err
 	}
 
-	var hash util.Uint256
-	hash = sha256.Sum256(buf.Bytes())
-	hash = sha256.Sum256(hash.Bytes())
-	t.hash = hash
+	t.hash = hash.DoubleSha256(buf.Bytes())
 
 	return nil
 }

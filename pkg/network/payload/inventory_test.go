@@ -2,17 +2,17 @@ package payload
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"reflect"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	. "github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func TestInventoryEncodeDecode(t *testing.T) {
 	hashes := []Uint256{
-		sha256.Sum256([]byte("a")),
-		sha256.Sum256([]byte("b")),
+		hash.Sha256([]byte("a")),
+		hash.Sha256([]byte("b")),
 	}
 	inv := NewInventory(BlockType, hashes)
 

@@ -2,19 +2,19 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"testing"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 func TestHeaderEncodeDecode(t *testing.T) {
 	header := Header{BlockBase: BlockBase{
 		Version:       0,
-		PrevHash:      sha256.Sum256([]byte("prevhash")),
-		MerkleRoot:    sha256.Sum256([]byte("merkleroot")),
+		PrevHash:      hash.Sha256([]byte("prevhash")),
+		MerkleRoot:    hash.Sha256([]byte("merkleroot")),
 		Timestamp:     uint32(time.Now().UTC().Unix()),
 		Index:         3445,
 		ConsensusData: 394949,

@@ -2,7 +2,6 @@ package vm
 
 import (
 	"crypto/sha1"
-	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,8 +10,8 @@ import (
 	"text/tabwriter"
 	"reflect"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"golang.org/x/crypto/ripemd160"
 )
 
 // Mode configures behaviour of the VM.
@@ -676,27 +675,15 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case SHA256:
 		b := v.estack.Pop().Bytes()
-		sha := sha256.New()
-		sha.Write(b)
-		v.estack.PushVal(sha.Sum(nil))
+		v.estack.PushVal(hash.Sha256(b).Bytes())
 
 	case HASH160:
 		b := v.estack.Pop().Bytes()
-		sha := sha256.New()
-		sha.Write(b)
-		h := sha.Sum(nil)
-		ripemd := ripemd160.New()
-		ripemd.Write(h)
-		v.estack.PushVal(ripemd.Sum(nil))
+		v.estack.PushVal(hash.Hash160(b).Bytes())
 
 	case HASH256:
 		b := v.estack.Pop().Bytes()
-		sha := sha256.New()
-		sha.Write(b)
-		h := sha.Sum(nil)
-		sha.Reset()
-		sha.Write(h)
-		v.estack.PushVal(sha.Sum(nil))
+		v.estack.PushVal(hash.DoubleSha256(b).Bytes())
 
 	case CHECKSIG:
 		// pubkey := v.estack.Pop().Bytes()

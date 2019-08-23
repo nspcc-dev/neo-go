@@ -1,9 +1,9 @@
 package crypto
 
 import (
-	"crypto/sha256"
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -67,7 +67,7 @@ func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 		b1 := parents[i].leftChild.hash.Bytes()
 		b2 := parents[i].rightChild.hash.Bytes()
 		b1 = append(b1, b2...)
-		parents[i].hash = hash256(b1)
+		parents[i].hash = hash.DoubleSha256(b1)
 	}
 
 	return buildMerkleTree(parents)
@@ -89,11 +89,4 @@ func (n *MerkleTreeNode) IsLeaf() bool {
 // IsRoot returns whether this node is a root node or not.
 func (n *MerkleTreeNode) IsRoot() bool {
 	return n.parent == nil
-}
-
-func hash256(b []byte) util.Uint256 {
-	var hash util.Uint256
-	hash = sha256.Sum256(b)
-	hash = sha256.Sum256(hash.Bytes())
-	return hash
 }

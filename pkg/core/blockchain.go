@@ -906,8 +906,8 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 			*/
 
 		} else {
-			if h, err := witnesses[i].ScriptHash(); err != nil || hashes[i] != h {
-				return err
+			if h := witnesses[i].ScriptHash(); hashes[i] != h {
+				return errors.Errorf("hash mismatch for script #%d", i)
 			}
 		}
 

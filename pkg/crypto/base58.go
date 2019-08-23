@@ -2,10 +2,10 @@ package crypto
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/pkg/errors"
 )
 
@@ -99,19 +99,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 		return nil, errors.New("invalid base-58 check string: missing checksum.")
 	}
 
-	sha := sha256.New()
-	if _, err = sha.Write(b[:len(b)-4]); err != nil {
-		return nil, err
-	}
-	hash := sha.Sum(nil)
-
-	sha.Reset()
-	if _, err = sha.Write(hash); err != nil {
-		return nil, err
-	}
-	hash = sha.Sum(nil)
-
-	if !bytes.Equal(hash[0:4], b[len(b)-4:]) {
+	if !bytes.Equal(hash.Checksum(b[:len(b)-4]), b[len(b)-4:]) {
 		return nil, errors.New("invalid base-58 check string: invalid checksum.")
 	}
 
@@ -123,15 +111,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 
 // Base58checkEncode encodes b into a base-58 check encoded string.
 func Base58CheckEncode(b []byte) string {
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
-
-	sha.Reset()
-	sha.Write(hash)
-	hash = sha.Sum(nil)
-
-	b = append(b, hash[0:4]...)
+	b = append(b, hash.Checksum(b)...)
 
 	return Base58Encode(b)
 }
