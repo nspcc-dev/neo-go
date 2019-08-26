@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -18,8 +18,8 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 	b := &Block{
 		BlockBase: BlockBase{
 			Version:       0,
-			PrevHash:      sha256.Sum256([]byte("a")),
-			MerkleRoot:    sha256.Sum256([]byte("b")),
+			PrevHash:      hash.Sha256([]byte("a")),
+			MerkleRoot:    hash.Sha256([]byte("b")),
 			Timestamp:     uint32(time.Now().UTC().Unix()),
 			Index:         index,
 			ConsensusData: 1111,

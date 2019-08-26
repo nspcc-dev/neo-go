@@ -2,12 +2,12 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -100,12 +100,7 @@ func (b *BlockBase) createHash() error {
 	if err := b.encodeHashableFields(buf); err != nil {
 		return err
 	}
-
-	// Double hash the encoded fields.
-	var hash util.Uint256
-	hash = sha256.Sum256(buf.Bytes())
-	hash = sha256.Sum256(hash.Bytes())
-	b.hash = hash
+	b.hash = hash.DoubleSha256(buf.Bytes())
 
 	return nil
 }

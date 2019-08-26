@@ -90,7 +90,7 @@ func TestStackParam_UnmarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("error while unmarhsalling: %v", err)
 	}
-	h256, err := util.Uint256DecodeString("f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d")
+	h256, err := util.Uint256DecodeReverseString("f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d")
 	if err != nil {
 		t.Errorf("unmarshal error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestStackParam_TryParse(t *testing.T) {
 			Value: data,
 		}
 	)
-	expectedUint256, err = util.Uint256DecodeString(hash256)
+	expectedUint256, err = util.Uint256DecodeReverseString(hash256)
 	if err != nil {
 		t.Fatal(err)
 	}

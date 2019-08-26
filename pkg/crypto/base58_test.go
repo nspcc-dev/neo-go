@@ -1,4 +1,4 @@
-package base58
+package crypto
 
 import (
 	"encoding/hex"
@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDecode(t *testing.T) {
+func TestBase58Decode(t *testing.T) {
 	input := "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX"
 
-	data, err := Decode(input)
+	data, err := Base58Decode(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,12 +19,12 @@ func TestDecode(t *testing.T) {
 	actual := hex.EncodeToString(data)
 	assert.Equal(t, expected, actual)
 }
-func TestEncode(t *testing.T) {
+func TestBase58Encode(t *testing.T) {
 	input := "0099bc78ba577a95a11f1a344d4d2ae55f2f857b989ea5e5e2"
 
 	inputBytes, _ := hex.DecodeString(input)
 
-	data := Encode(inputBytes)
+	data := Base58Encode(inputBytes)
 
 	expected := "F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX" // Removed the 1 as it is not checkEncoding
 	actual := data

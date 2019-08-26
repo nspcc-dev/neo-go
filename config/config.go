@@ -127,14 +127,14 @@ func Load(path string, netMode NetMode) (Config, error) {
 func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
 	switch txType {
 	case transaction.EnrollmentType:
-		return util.NewFixed8(s.EnrollmentTransaction)
+		return util.Fixed8FromInt64(s.EnrollmentTransaction)
 	case transaction.IssueType:
-		return util.NewFixed8(s.IssueTransaction)
+		return util.Fixed8FromInt64(s.IssueTransaction)
 	case transaction.PublishType:
-		return util.NewFixed8(s.PublishTransaction)
+		return util.Fixed8FromInt64(s.PublishTransaction)
 	case transaction.RegisterType:
-		return util.NewFixed8(s.RegisterTransaction)
+		return util.Fixed8FromInt64(s.RegisterTransaction)
 	default:
-		return util.NewFixed8(0)
+		return util.Fixed8FromInt64(0)
 	}
 }

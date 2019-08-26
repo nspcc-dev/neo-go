@@ -30,9 +30,9 @@ func TestDecodeBlock1(t *testing.T) {
 
 	assert.Equal(t, uint32(data["index"].(float64)), block.Index)
 	assert.Equal(t, uint32(data["version"].(float64)), block.Version)
-	assert.Equal(t, data["hash"].(string), block.Hash().String())
-	assert.Equal(t, data["previousblockhash"].(string), block.PrevHash.String())
-	assert.Equal(t, data["merkleroot"].(string), block.MerkleRoot.String())
+	assert.Equal(t, data["hash"].(string), block.Hash().ReverseString())
+	assert.Equal(t, data["previousblockhash"].(string), block.PrevHash.ReverseString())
+	assert.Equal(t, data["merkleroot"].(string), block.MerkleRoot.ReverseString())
 	assert.Equal(t, data["nextconsensus"].(string), crypto.AddressFromUint160(block.NextConsensus))
 
 	script := data["script"].(map[string]interface{})

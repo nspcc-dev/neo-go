@@ -34,29 +34,34 @@ func (f Fixed8) String() string {
 		for i := len(str); i < 8; i++ {
 			buf.WriteRune('0')
 		}
-		buf.WriteString(str)
+		buf.WriteString(strings.TrimRight(str, "0"))
 	}
 	return buf.String()
 }
 
-// Value returns the original value representing the Fixed8.
-func (f Fixed8) Value() int64 {
+// FloatValue returns the original value representing Fixed8 as float64.
+func (f Fixed8) FloatValue() float64 {
+	return float64(f) / decimals
+}
+
+// Int64Value returns the original value representing Fixed8 as int64.
+func (f Fixed8) Int64Value() int64 {
 	return int64(f) / decimals
 }
 
-// NewFixed8 returns a new Fixed8 type multiplied by decimals.
-func NewFixed8(val int64) Fixed8 {
+// Fixed8FromInt64 returns a new Fixed8 type multiplied by decimals.
+func Fixed8FromInt64(val int64) Fixed8 {
 	return Fixed8(decimals * val)
 }
 
-// NewFixed8FromFloat returns a new Fixed8 type multiplied by decimals.
-func NewFixed8FromFloat(val float64) Fixed8 {
+// Fixed8FromFloat returns a new Fixed8 type multiplied by decimals.
+func Fixed8FromFloat(val float64) Fixed8 {
 	return Fixed8(int64(decimals * val))
 }
 
-// Fixed8DecodeString parses s which must be a fixed point number
+// Fixed8FromString parses s which must be a fixed point number
 // with precision up to 10^-8
-func Fixed8DecodeString(s string) (Fixed8, error) {
+func Fixed8FromString(s string) (Fixed8, error) {
 	parts := strings.SplitN(s, ".", 2)
 	ip, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
@@ -82,7 +87,7 @@ func Fixed8DecodeString(s string) (Fixed8, error) {
 func (f *Fixed8) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
-		p, err := Fixed8DecodeString(s)
+		p, err := Fixed8FromString(s)
 		if err != nil {
 			return err
 		}
@@ -111,37 +116,37 @@ func (f Fixed8) MarshalJSON() ([]byte, error) {
 
 // Satoshi defines the value of a 'Satoshi'.
 func Satoshi() Fixed8 {
-	return NewFixed8(1)
+	return Fixed8(1)
 }
 
 // Div implements Fixd8 division operator.
 func (f Fixed8) Div(i int64) Fixed8 {
-	return NewFixed8(f.Value() / i)
+	return f / Fixed8FromInt64(i)
 }
 
 // Add implements Fixd8 addition operator.
 func (f Fixed8) Add(g Fixed8) Fixed8 {
-	return NewFixed8(f.Value() + g.Value())
+	return f + g
 }
 
 // Sub implements Fixd8 subtraction operator.
 func (f Fixed8) Sub(g Fixed8) Fixed8 {
-	return NewFixed8(f.Value() - g.Value())
+	return f - g
 }
 
 // LessThan implements Fixd8 < operator.
 func (f Fixed8) LessThan(g Fixed8) bool {
-	return f.Value() < g.Value()
+	return f < g
 }
 
 // GreaterThan implements Fixd8 < operator.
 func (f Fixed8) GreaterThan(g Fixed8) bool {
-	return f.Value() > g.Value()
+	return f > g
 }
 
 // Equal implements Fixd8 == operator.
 func (f Fixed8) Equal(g Fixed8) bool {
-	return f.Value() == g.Value()
+	return f == g
 }
 
 // CompareTo returns the difference between the f and g.
@@ -149,5 +154,5 @@ func (f Fixed8) Equal(g Fixed8) bool {
 // difference = 0 implies f = g.
 // difference > 0 implies f > g.
 func (f Fixed8) CompareTo(g Fixed8) int {
-	return int(f.Value() - g.Value())
+	return int(f - g)
 }

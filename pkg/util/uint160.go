@@ -1,13 +1,10 @@
 package util
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"golang.org/x/crypto/ripemd160"
 )
 
 const uint160Size = 20
@@ -37,17 +34,6 @@ func Uint160DecodeBytes(b []byte) (u Uint160, err error) {
 	return
 }
 
-// Uint160FromScript returns a Uint160 type from a raw script.
-func Uint160FromScript(script []byte) (u Uint160, err error) {
-	sha := sha256.New()
-	sha.Write(script)
-	b := sha.Sum(nil)
-	ripemd := ripemd160.New()
-	ripemd.Write(b)
-	b = ripemd.Sum(nil)
-	return Uint160DecodeBytes(b)
-}
-
 // Bytes returns the byte slice representation of u.
 func (u Uint160) Bytes() []byte {
 	return u[:]
@@ -61,6 +47,11 @@ func (u Uint160) BytesReverse() []byte {
 // String implements the stringer interface.
 func (u Uint160) String() string {
 	return hex.EncodeToString(u.Bytes())
+}
+
+// ReverseString is the same as String, but returnes an inversed representation.
+func (u Uint160) ReverseString() string {
+	return hex.EncodeToString(u.BytesReverse())
 }
 
 // Equals returns true if both Uint256 values are the same.

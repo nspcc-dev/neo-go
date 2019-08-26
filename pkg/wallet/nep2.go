@@ -2,11 +2,11 @@ package wallet
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/text/unicode/norm"
 )
@@ -46,7 +46,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 		return s, err
 	}
 
-	addrHash := hashAddress(address)[0:4]
+	addrHash := hash.Checksum([]byte(address))
 	// Normalize the passphrase according to the NFC standard.
 	phraseNorm := norm.NFC.Bytes([]byte(passphrase))
 	derivedKey, err := scrypt.Key(phraseNorm, addrHash, n, r, p, keyLen)
@@ -119,13 +119,13 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 	return privKey.WIF()
 }
 
-func compareAddressHash(priv *PrivateKey, hash []byte) bool {
+func compareAddressHash(priv *PrivateKey, inhash []byte) bool {
 	address, err := priv.Address()
 	if err != nil {
 		return false
 	}
-	addrHash := hashAddress(address)[0:4]
-	return bytes.Equal(addrHash, hash)
+	addrHash := hash.Checksum([]byte(address))
+	return bytes.Equal(addrHash, inhash)
 }
 
 func validateNEP2Format(b []byte) error {
@@ -153,13 +153,4 @@ func xor(a, b []byte) []byte {
 		dst[i] = a[i] ^ b[i]
 	}
 	return dst
-}
-
-func hashAddress(addr string) []byte {
-	sha := sha256.New()
-	sha.Write([]byte(addr))
-	hash := sha.Sum(nil)
-	sha.Reset()
-	sha.Write(hash)
-	return sha.Sum(nil)
 }

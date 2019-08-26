@@ -2,7 +2,6 @@ package network
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
@@ -81,9 +81,9 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 			panic(err)
 		}
 		size = uint32(buf.Len())
-		checksum = sumSHA256(sumSHA256(buf.Bytes()))
+		checksum = hash.Checksum(buf.Bytes())
 	} else {
-		checksum = sumSHA256(sumSHA256([]byte{}))
+		checksum = hash.Checksum([]byte{})
 	}
 
 	return &Message{
@@ -269,14 +269,8 @@ func cmdByteArrayToString(cmd [cmdSize]byte) string {
 	return string(buf)
 }
 
-func sumSHA256(b []byte) []byte {
-	h := sha256.New()
-	h.Write(b)
-	return h.Sum(nil)
-}
-
 func compareChecksum(have uint32, b []byte) bool {
-	sum := sumSHA256(sumSHA256(b))[:4]
+	sum := hash.Checksum(b)
 	want := binary.LittleEndian.Uint32(sum)
 	return have == want
 }

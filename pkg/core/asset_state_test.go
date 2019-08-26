@@ -12,7 +12,7 @@ import (
 
 func TestEncodeDecodeAssetState(t *testing.T) {
 	asset := &AssetState{
-		ID:         util.RandomUint256(),
+		ID:         randomUint256(),
 		AssetType:  transaction.Token,
 		Name:       "super cool token",
 		Amount:     util.Fixed8(1000000),
@@ -20,8 +20,8 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 		Precision:  0,
 		FeeMode:    feeMode,
 		Owner:      &crypto.PublicKey{},
-		Admin:      util.RandomUint160(),
-		Issuer:     util.RandomUint160(),
+		Admin:      randomUint160(),
+		Issuer:     randomUint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}

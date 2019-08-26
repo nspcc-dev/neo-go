@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -57,6 +58,6 @@ func (w *Witness) Size() int {
 }
 
 // ScriptHash returns the hash of the VerificationScript.
-func (w Witness) ScriptHash() (util.Uint160, error) {
-	return util.Uint160FromScript(w.VerificationScript)
+func (w Witness) ScriptHash() util.Uint160 {
+	return hash.Hash160(w.VerificationScript)
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,9 +32,9 @@ func TestCommitUnspentCoins(t *testing.T) {
 		unspentCoins = make(UnspentCoins)
 	)
 
-	txA := util.RandomUint256()
-	txB := util.RandomUint256()
-	txC := util.RandomUint256()
+	txA := randomUint256()
+	txB := randomUint256()
+	txC := randomUint256()
 
 	unspentCoins[txA] = &UnspentCoinState{
 		states: []CoinState{CoinStateConfirmed},

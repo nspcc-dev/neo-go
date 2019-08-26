@@ -38,7 +38,7 @@ func CurrentHeaderHeight(s Store) (i uint32, h util.Uint256, err error) {
 		return
 	}
 	i = binary.LittleEndian.Uint32(b[32:36])
-	h, err = util.Uint256DecodeBytes(b[:32])
+	h, err = util.Uint256DecodeReverseBytes(b[:32])
 	return
 }
 

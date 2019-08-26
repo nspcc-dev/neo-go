@@ -139,7 +139,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	response.ID = resp.ID
 	response.JSONRPC = resp.JSONRPC
 	response.Result = &TxResponse{
-		TxID: rawTx.Hash().String(),
+		TxID: rawTx.Hash().ReverseString(),
 	}
 	return response, nil
 }

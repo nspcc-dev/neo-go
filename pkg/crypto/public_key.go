@@ -3,15 +3,14 @@ package crypto
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ripemd160"
 )
 
 // PublicKeys is a list of public keys.
@@ -172,16 +171,9 @@ func (p *PublicKey) Signature() ([]byte, error) {
 	b = append([]byte{0x21}, b...)
 	b = append(b, 0xAC)
 
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
+	sig := hash.Hash160(b)
 
-	ripemd := ripemd160.New()
-	ripemd.Reset()
-	ripemd.Write(hash)
-	hash = ripemd.Sum(nil)
-
-	return hash, nil
+	return sig.Bytes(), nil
 }
 
 func (p *PublicKey) Address() (string, error) {
@@ -195,15 +187,8 @@ func (p *PublicKey) Address() (string, error) {
 
 	b = append([]byte{0x17}, b...)
 
-	sha := sha256.New()
-	sha.Write(b)
-	hash := sha.Sum(nil)
-
-	sha.Reset()
-	sha.Write(hash)
-	hash = sha.Sum(nil)
-
-	b = append(b, hash[0:4]...)
+	csum := hash.Checksum(b)
+	b = append(b, csum...)
 
 	address := Base58Encode(b)
 	return address, nil

@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
-		id:           util.RandUint32(1000000, 9999999),
+		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
@@ -348,4 +349,8 @@ func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
 
 	p.WriteMsg(NewMessage(s.Net, CMDInv, inv))
 
+}
+
+func init() {
+        rand.Seed(time.Now().UTC().UnixNano())
 }
