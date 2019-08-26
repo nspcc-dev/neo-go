@@ -31,9 +31,11 @@ A complete toolkit for the NEO blockchain, including:
 
 ## Installation
 
+Go: 1.11+
+
 Install dependencies.
 
-`neo-go` uses [dep](https://github.com/golang/dep) as its dependency manager. After installing `deps` you can run:
+`neo-go` uses [GoModules](https://github.com/golang/go/wiki/Modules) as dependency manager:
 
 ```
 make deps
