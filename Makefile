@@ -3,18 +3,22 @@ BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
 
+REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
+BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION) -X $(REPO)/config.BuildTime=$(BUILD_TIME)"
 
-build:
-	@echo "=> Building darwin binary"
-	@go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+build: deps
+	@echo "=> Building binary"
+	@set -x \
+		&& export GOGC=off \
+		&& export CGO_ENABLED=0 \
+		&& echo $(VERSION)-$(BUILD_TIME) \
+		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ./bin/node ./cli/main.go
 
-build-image:
-	docker build -t cityofzion/neo-go --build-arg VERSION=${VERSION} .
-
-build-linux:
-	@echo "=> Building linux binary"
-	@GOOS=linux go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+image: deps
+	@echo "=> Building image"
+	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+	@docker build -t cityofzion/neo-go:$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
@@ -26,7 +30,8 @@ clean-cluster:
 	@docker-compose rm -f
 
 deps:
-	@dep ensure
+	@go mod tidy -v
+	@go mod vendor
 
 push-tag:
 	git checkout ${BRANCH}
