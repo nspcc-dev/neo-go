@@ -7,12 +7,14 @@ import (
 	"github.com/CityOfZion/neo-go/cli/smartcontract"
 	"github.com/CityOfZion/neo-go/cli/vm"
 	"github.com/CityOfZion/neo-go/cli/wallet"
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/urfave/cli"
 )
 
 func main() {
 	ctl := cli.NewApp()
 	ctl.Name = "neo-go"
+	ctl.Version = config.Version
 	ctl.Usage = "Official Go client for Neo"
 
 	ctl.Commands = []cli.Command{
