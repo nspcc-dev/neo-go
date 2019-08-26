@@ -1,8 +1,9 @@
 BRANCH = "master"
 BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
-VERSION = $(shell cat ./VERSION)
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
+
+VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
 
 build:
 	@echo "=> Building darwin binary"
