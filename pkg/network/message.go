@@ -49,26 +49,26 @@ type CommandType string
 
 // Valid protocol commands used to send between nodes.
 const (
-	CMDVersion     CommandType = "version"
-	CMDVerack      CommandType = "verack"
-	CMDGetAddr     CommandType = "getaddr"
 	CMDAddr        CommandType = "addr"
-	CMDGetHeaders  CommandType = "getheaders"
-	CMDHeaders     CommandType = "headers"
-	CMDGetBlocks   CommandType = "getblocks"
-	CMDInv         CommandType = "inv"
-	CMDGetData     CommandType = "getdata"
 	CMDBlock       CommandType = "block"
-	CMDTX          CommandType = "tx"
 	CMDConsensus   CommandType = "consensus"
-	CMDUnknown     CommandType = "unknown"
 	CMDFilterAdd   CommandType = "filteradd"
 	CMDFilterClear CommandType = "filterclear"
 	CMDFilterLoad  CommandType = "filterload"
-	CMDMerkleBlock CommandType = "merkleblock"
+	CMDGetAddr     CommandType = "getaddr"
+	CMDGetBlocks   CommandType = "getblocks"
+	CMDGetData     CommandType = "getdata"
+	CMDGetHeaders  CommandType = "getheaders"
+	CMDHeaders     CommandType = "headers"
+	CMDInv         CommandType = "inv"
 	CMDMempool     CommandType = "mempool"
+	CMDMerkleBlock CommandType = "merkleblock"
 	CMDPing        CommandType = "ping"
 	CMDPong        CommandType = "pong"
+	CMDTX          CommandType = "tx"
+	CMDUnknown     CommandType = "unknown"
+	CMDVerack      CommandType = "verack"
+	CMDVersion     CommandType = "version"
 )
 
 // NewMessage returns a new message with the given payload.
@@ -102,44 +102,44 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 func (m *Message) CommandType() CommandType {
 	cmd := cmdByteArrayToString(m.Command)
 	switch cmd {
-	case "version":
-		return CMDVersion
-	case "verack":
-		return CMDVerack
-	case "getaddr":
-		return CMDGetAddr
 	case "addr":
 		return CMDAddr
-	case "getheaders":
-		return CMDGetHeaders
-	case "headers":
-		return CMDHeaders
-	case "getblocks":
-		return CMDGetBlocks
-	case "inv":
-		return CMDInv
-	case "getdata":
-		return CMDGetData
 	case "block":
 		return CMDBlock
-	case "tx":
-		return CMDTX
 	case "consensus":
 		return CMDConsensus
-	case "merkleblock":
-		return CMDMerkleBlock
-	case "filterload":
-		return CMDFilterLoad
 	case "filteradd":
 		return CMDFilterAdd
 	case "filterclear":
 		return CMDFilterClear
+	case "filterload":
+		return CMDFilterLoad
+	case "getaddr":
+		return CMDGetAddr
+	case "getblocks":
+		return CMDGetBlocks
+	case "getdata":
+		return CMDGetData
+	case "getheaders":
+		return CMDGetHeaders
+	case "headers":
+		return CMDHeaders
+	case "inv":
+		return CMDInv
 	case "mempool":
 		return CMDMempool
+	case "merkleblock":
+		return CMDMerkleBlock
 	case "ping":
 		return CMDPing
 	case "pong":
 		return CMDPong
+	case "tx":
+		return CMDTX
+	case "verack":
+		return CMDVerack
+	case "version":
+		return CMDVersion
 	default:
 		return CMDUnknown
 	}
