@@ -8,6 +8,15 @@ import (
 
 const minVersionSize = 27
 
+// List of Services offered by the node
+const (
+	nodePeerService uint64 = 1
+	// BloomFilerService uint64 = 2 // Not implemented
+	// PrunedNode        uint64 = 3 // Not implemented
+	// LightNode         uint64 = 4 // Not implemented
+
+)
+
 // Version payload.
 type Version struct {
 	// currently the version of the protocol is 0
@@ -32,7 +41,7 @@ type Version struct {
 func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	return &Version{
 		Version:     0,
-		Services:    1,
+		Services:    nodePeerService,
 		Timestamp:   uint32(time.Now().UTC().Unix()),
 		Port:        p,
 		Nonce:       id,
