@@ -8,7 +8,7 @@ package rpc
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/wallet"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 )
 
 type (
@@ -19,7 +19,7 @@ type (
 		assetId util.Uint256
 		address string
 		value   util.Fixed8
-		wif     wallet.WIF // a WIF to send the transaction
+		wif     keys.WIF // a WIF to send the transaction
 		// since there are many ways to provide unspents,
 		// transaction composer stays agnostic to that how
 		// unspents was got;

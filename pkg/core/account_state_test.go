@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,11 +14,11 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	var (
 		n        = 10
 		balances = make(map[util.Uint256]util.Fixed8)
-		votes    = make([]*crypto.PublicKey, n)
+		votes    = make([]*keys.PublicKey, n)
 	)
 	for i := 0; i < n; i++ {
 		balances[randomUint256()] = util.Fixed8(int64(randomInt(1, 10000)))
-		votes[i] = &crypto.PublicKey{
+		votes[i] = &keys.PublicKey{
 			ECPoint: crypto.RandomECPoint(),
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -25,7 +25,7 @@ type RegisterTX struct {
 	Precision uint8
 
 	// Public key of the owner
-	Owner *crypto.PublicKey
+	Owner *keys.PublicKey
 
 	Admin util.Uint160
 }
@@ -50,7 +50,7 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	tx.Owner = &crypto.PublicKey{}
+	tx.Owner = &keys.PublicKey{}
 	if err := tx.Owner.DecodeBinary(r); err != nil {
 		return err
 	}

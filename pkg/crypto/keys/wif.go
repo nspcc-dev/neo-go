@@ -1,4 +1,4 @@
-package wallet
+package keys
 
 import (
 	"bytes"
@@ -98,7 +98,7 @@ func (wif WIF) GetVerificationScript() ([]byte, error) {
 	)
 	var (
 		vScript []byte
-		pubkey *crypto.PublicKey
+		pubkey *PublicKey
 	)
 	pubkey, err := wif.PrivateKey.PublicKey()
 	if err != nil {

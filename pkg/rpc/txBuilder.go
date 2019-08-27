@@ -5,8 +5,8 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/wallet"
 	errs "github.com/pkg/errors"
 )
 
@@ -67,7 +67,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	return tx, nil
 }
 
-func GetInvocationScript(tx *transaction.Transaction, wif wallet.WIF) ([]byte, error) {
+func GetInvocationScript(tx *transaction.Transaction, wif keys.WIF) ([]byte, error) {
 	const (
 		pushbytes64 = 0x40
 	)

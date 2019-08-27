@@ -1,17 +1,18 @@
-package publickey
+package keys
 
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/base58"
-	"github.com/CityOfZion/neo-go/pkg/crypto/elliptic"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/pkg/errors"
 )
 
 // PublicKeys is a list of public keys.
@@ -20,7 +21,6 @@ type PublicKeys []*PublicKey
 func (keys PublicKeys) Len() int      { return len(keys) }
 func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
 func (keys PublicKeys) Less(i, j int) bool {
-
 	if keys[i].X.Cmp(keys[j].X) == -1 {
 		return true
 	}
@@ -37,8 +37,7 @@ func (keys PublicKeys) Less(i, j int) bool {
 // PublicKey represents a public key and provides a high level
 // API around the ECPoint.
 type PublicKey struct {
-	Curve elliptic.Curve
-	elliptic.Point
+	crypto.ECPoint
 }
 
 // NewPublicKeyFromString return a public key created from the
@@ -48,10 +47,8 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	curve := elliptic.NewEllipticCurve(elliptic.Secp256r1)
 
-	pubKey := &PublicKey{curve, elliptic.Point{}}
-
+	pubKey := new(PublicKey)
 	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
 		return nil, err
 	}
@@ -61,7 +58,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
-	if p.Curve.IsInfinity(p.Point) {
+	if p.IsInfinity() {
 		return []byte{0x00}
 	}
 
@@ -78,68 +75,92 @@ func (p *PublicKey) Bytes() []byte {
 	return append([]byte{prefix}, paddedX...)
 }
 
-// ToAddress will convert a public key to it's neo-address
-func (p *PublicKey) ToAddress() string {
+// NewPublicKeyFromRawBytes returns a NEO PublicKey from the ASN.1 serialized keys.
+func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
+	var (
+		err    error
+		pubkey interface{}
+	)
+	if pubkey, err = x509.ParsePKIXPublicKey(data); err != nil {
+		return nil, err
+	}
+	pk, ok := pubkey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("given bytes aren't ECDSA public key")
+	}
+	key := PublicKey{
+		crypto.ECPoint{
+			X: pk.X,
+			Y: pk.Y,
+		},
+	}
+	return &key, nil
+}
 
-	publicKeyBytes := p.Bytes()
+// DecodeBytes decodes a PublicKey from the given slice of bytes.
+func (p *PublicKey) DecodeBytes(data []byte) error {
+	l := len(data)
 
-	publicKeyBytes = append([]byte{0x21}, publicKeyBytes...) // 0x21 = length of pubKey
-	publicKeyBytes = append(publicKeyBytes, 0xAC)            // 0xAC = CheckSig
+	switch prefix := data[0]; prefix {
+	// Infinity
+	case 0x00:
+		p.ECPoint = crypto.ECPoint{}
+	// Compressed public keys
+	case 0x02, 0x03:
+		if l < 33 {
+			return errors.Errorf("bad binary size(%d)", l)
+		}
 
-	hash160PubKey, _ := hash.Hash160(publicKeyBytes)
+		c := crypto.NewEllipticCurve()
+		var err error
+		p.ECPoint, err = c.Decompress(new(big.Int).SetBytes(data[1:]), uint(prefix&0x1))
+		if err != nil {
+			return err
+		}
+	case 0x04:
+		if l < 66 {
+			return errors.Errorf("bad binary size(%d)", l)
+		}
+		p.X = new(big.Int).SetBytes(data[2:34])
+		p.Y = new(big.Int).SetBytes(data[34:66])
+	default:
+		return errors.Errorf("invalid prefix %d", prefix)
+	}
 
-	versionHash160PubKey := append([]byte{0x17}, hash160PubKey.Bytes()...)
-
-	checksum, _ := hash.Checksum(versionHash160PubKey)
-
-	checkVersionHash160 := append(versionHash160PubKey, checksum...)
-
-	address := base58.Encode(checkVersionHash160)
-
-	return address
+	return nil
 }
 
 // DecodeBinary decodes a PublicKey from the given io.Reader.
 func (p *PublicKey) DecodeBinary(r io.Reader) error {
+	var prefix, size uint8
 
-	var prefix uint8
 	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
 	}
 
 	// Infinity
-	if prefix == 0x00 {
-		p.Point = elliptic.Point{}
+	switch prefix {
+	case 0x00:
+		p.ECPoint = crypto.ECPoint{}
 		return nil
+	// Compressed public keys
+	case 0x02, 0x03:
+		size = 32
+	case 0x04:
+		size = 65
+	default:
+		return errors.Errorf("invalid prefix %d", prefix)
 	}
 
-	// Compressed public keys.
-	if prefix == 0x02 || prefix == 0x03 {
+	data := make([]byte, size+1) // prefix + size
 
-		b := make([]byte, 32)
-		if err := binary.Read(r, binary.LittleEndian, b); err != nil {
-			return err
-		}
-
-		var err error
-
-		p.Point, err = p.Curve.Decompress(new(big.Int).SetBytes(b), uint(prefix&0x1))
-		if err != nil {
-			return err
-		}
-
-	} else if prefix == 0x04 {
-		buf := make([]byte, 65)
-		if err := binary.Read(r, binary.LittleEndian, buf); err != nil {
-			return err
-		}
-		p.X = new(big.Int).SetBytes(buf[1:33])
-		p.Y = new(big.Int).SetBytes(buf[33:65])
-	} else {
-		return fmt.Errorf("invalid prefix %d", prefix)
+	if _, err := io.ReadFull(r, data[1:]); err != nil {
+		return err
 	}
 
-	return nil
+	data[0] = prefix
+
+	return p.DecodeBytes(data)
 }
 
 // EncodeBinary encodes a PublicKey to the given io.Writer.
@@ -147,12 +168,33 @@ func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
 }
 
+func (p *PublicKey) Signature() []byte {
+	b := p.Bytes()
+	b = append([]byte{0x21}, b...)
+	b = append(b, 0xAC)
+
+	sig := hash.Hash160(b)
+
+	return sig.Bytes()
+}
+
+func (p *PublicKey) Address() string {
+	var b []byte = p.Signature()
+
+	b = append([]byte{0x17}, b...)
+	csum := hash.Checksum(b)
+	b = append(b, csum...)
+
+	address := crypto.Base58Encode(b)
+	return address
+}
+
 // Verify returns true if the signature is valid and corresponds
 // to the hash and public key
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 
 	publicKey := &ecdsa.PublicKey{}
-	publicKey.Curve = p.Curve
+	publicKey.Curve = elliptic.P256()
 	publicKey.X = p.X
 	publicKey.Y = p.Y
 	if p.X == nil || p.Y == nil {

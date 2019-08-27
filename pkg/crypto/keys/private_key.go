@@ -1,4 +1,4 @@
-package wallet
+package keys
 
 import (
 	"bytes"
@@ -67,10 +67,10 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 }
 
 // PublicKey derives the public key from the private key.
-func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
+func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 	var (
 		err error
-		pk crypto.PublicKey
+		pk PublicKey
 		c = crypto.NewEllipticCurve()
 		q = new(big.Int).SetBytes(p.b)
 	)
@@ -125,7 +125,7 @@ func (p *PrivateKey) Address() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return pk.Address()
+	return pk.Address(), nil
 }
 
 // Signature creates the signature using the private key.
@@ -134,7 +134,7 @@ func (p *PrivateKey) Signature() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.Signature()
+	return pk.Signature(), nil
 }
 
 // Sign signs arbitrary length data using the private key.

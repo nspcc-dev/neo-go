@@ -4,18 +4,18 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateMultiSigRedeemScript(t *testing.T) {
-	val1, _ := crypto.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
-	val2, _ := crypto.NewPublicKeyFromString("02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093")
-	val3, _ := crypto.NewPublicKeyFromString("03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a")
+	val1, _ := keys.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+	val2, _ := keys.NewPublicKeyFromString("02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093")
+	val3, _ := keys.NewPublicKeyFromString("03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a")
 
-	validators := []*crypto.PublicKey{val1, val2, val3}
+	validators := []*keys.PublicKey{val1, val2, val3}
 
 	out, err := CreateMultiSigRedeemScript(3, validators)
 	if err != nil {

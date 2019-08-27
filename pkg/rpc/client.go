@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/wallet"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/pkg/errors"
 )
 
@@ -32,7 +32,7 @@ type Client struct {
 	ctx        context.Context
 	version    string
 	wifMu      *sync.Mutex
-	wif        *wallet.WIF
+	wif        *keys.WIF
 	balancerMu *sync.Mutex
 	balancer   BalanceGetter
 }
@@ -93,10 +93,10 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 	}, nil
 }
 
-func (c *Client) WIF() wallet.WIF {
+func (c *Client) WIF() keys.WIF {
 	c.wifMu.Lock()
 	defer c.wifMu.Unlock()
-	return wallet.WIF{
+	return keys.WIF{
 		Version:    c.wif.Version,
 		Compressed: c.wif.Compressed,
 		PrivateKey: c.wif.PrivateKey,
@@ -109,7 +109,7 @@ func (c *Client) WIF() wallet.WIF {
 func (c *Client) SetWIF(wif string) error {
 	c.wifMu.Lock()
 	defer c.wifMu.Unlock()
-	decodedWif, err := wallet.WIFDecode(wif, 0x00)
+	decodedWif, err := keys.WIFDecode(wif, 0x00)
 	if err != nil {
 		return errors.Wrap(err, "Failed to decode WIF; failed to add WIF to client ")
 	}

@@ -8,8 +8,8 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -101,7 +101,7 @@ func governingTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
 		Amount:    util.Fixed8FromInt64(100000000),
 		Precision: 0,
-		Owner:     &crypto.PublicKey{},
+		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 
@@ -124,7 +124,7 @@ func utilityTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
 		Amount:    calculateUtilityAmount(),
 		Precision: 8,
-		Owner:     &crypto.PublicKey{},
+		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 	tx := &transaction.Transaction{
@@ -139,10 +139,10 @@ func utilityTokenTX() *transaction.Transaction {
 	return tx
 }
 
-func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error) {
-	validators := make([]*crypto.PublicKey, len(cfg.StandbyValidators))
+func getValidators(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
+	validators := make([]*keys.PublicKey, len(cfg.StandbyValidators))
 	for i, pubKeyStr := range cfg.StandbyValidators {
-		pubKey, err := crypto.NewPublicKeyFromString(pubKeyStr)
+		pubKey, err := keys.NewPublicKeyFromString(pubKeyStr)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error
 	return validators, nil
 }
 
-func getNextConsensusAddress(validators []*crypto.PublicKey) (val util.Uint160, err error) {
+func getNextConsensusAddress(validators []*keys.PublicKey) (val util.Uint160, err error) {
 	vlen := len(validators)
 	raw, err := smartcontract.CreateMultiSigRedeemScript(
 		vlen-(vlen-1)/3,

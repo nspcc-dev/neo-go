@@ -1,12 +1,15 @@
 package wallet
 
-import "github.com/CityOfZion/neo-go/pkg/util"
+import (
+	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+)
 
 // Account represents a NEO account. It holds the private and public key
 // along with some metadata.
 type Account struct {
 	// NEO private key.
-	privateKey *PrivateKey
+	privateKey *keys.PrivateKey
 
 	// NEO public key.
 	publicKey []byte
@@ -50,7 +53,7 @@ type Contract struct {
 
 // NewAccount creates a new Account with a random generated PrivateKey.
 func NewAccount() (*Account, error) {
-	priv, err := NewPrivateKey()
+	priv, err := keys.NewPrivateKey()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +63,7 @@ func NewAccount() (*Account, error) {
 // DecryptAccount decrypt the encryptedWIF with the given passphrase and
 // return the decrypted Account.
 func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
-	wif, err := NEP2Decrypt(encryptedWIF, passphrase)
+	wif, err := keys.NEP2Decrypt(encryptedWIF, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +73,7 @@ func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
 // under the NEP-2 standard.
 func (a *Account) Encrypt(passphrase string) error {
-	wif, err := NEP2Encrypt(a.privateKey, passphrase)
+	wif, err := keys.NEP2Encrypt(a.privateKey, passphrase)
 	if err != nil {
 		return err
 	}
@@ -80,7 +83,7 @@ func (a *Account) Encrypt(passphrase string) error {
 
 // NewAccountFromWIF creates a new Account from the given WIF.
 func NewAccountFromWIF(wif string) (*Account, error) {
-	privKey, err := NewPrivateKeyFromWIF(wif)
+	privKey, err := keys.NewPrivateKeyFromWIF(wif)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +91,7 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 }
 
 // newAccountFromPrivateKey created a wallet from the given PrivateKey.
-func newAccountFromPrivateKey(p *PrivateKey) (*Account, error) {
+func newAccountFromPrivateKey(p *keys.PrivateKey) (*Account, error) {
 	pubKey, err := p.PublicKey()
 	if err != nil {
 		return nil, err
