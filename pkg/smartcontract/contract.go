@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 // CreateMultiSigRedeemScript will create a script runnable by the VM.
-func CreateMultiSigRedeemScript(m int, publicKeys crypto.PublicKeys) ([]byte, error) {
+func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m <= 1 {
 		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)
 	}

@@ -1,4 +1,4 @@
-package wallet
+package keys
 
 import (
 	"bytes"
@@ -24,19 +24,20 @@ const (
 
 var nepHeader = []byte{0x01, 0x42}
 
-type scryptParams struct {
+type ScryptParams struct {
 	N int `json:"n"`
 	R int `json:"r"`
 	P int `json:"p"`
 }
 
-func newScryptParams() scryptParams {
-	return scryptParams{
+func NEP2ScryptParams() ScryptParams {
+	return ScryptParams{
 		N: n,
 		R: r,
 		P: p,
 	}
 }
+
 
 // NEP2Encrypt encrypts a the PrivateKey using a given passphrase
 // under the NEP-2 standard.

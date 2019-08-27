@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -15,7 +15,7 @@ type AccountState struct {
 	Version    uint8               `json:"version"`
 	ScriptHash util.Uint160        `json:"script_hash"`
 	IsFrozen   bool                `json:"frozen"`
-	Votes      []*crypto.PublicKey `json:"votes"`
+	Votes      []*keys.PublicKey `json:"votes"`
 	Balances   []Balance           `json:"balances"`
 }
 

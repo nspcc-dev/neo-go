@@ -1,32 +1,34 @@
-package wallet
+package keys
 
 import (
 	"testing"
+
+	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
 )
 
 func TestNEP2Encrypt(t *testing.T) {
-	for _, testCase := range testKeyCases {
+	for _, testCase := range keytestcases.Arr {
 
-		privKey, err := NewPrivateKeyFromHex(testCase.privateKey)
+		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		encryptedWif, err := NEP2Encrypt(privKey, testCase.passphrase)
+		encryptedWif, err := NEP2Encrypt(privKey, testCase.Passphrase)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if want, have := testCase.encryptedWif, encryptedWif; want != have {
+		if want, have := testCase.EncryptedWif, encryptedWif; want != have {
 			t.Fatalf("expected %s got %s", want, have)
 		}
 	}
 }
 
 func TestNEP2Decrypt(t *testing.T) {
-	for _, testCase := range testKeyCases {
+	for _, testCase := range keytestcases.Arr {
 
-		privKeyString, err := NEP2Decrypt(testCase.encryptedWif, testCase.passphrase)
+		privKeyString, err := NEP2Decrypt(testCase.EncryptedWif, testCase.Passphrase)
 
 		if err != nil {
 			t.Fatal(err)
@@ -37,7 +39,7 @@ func TestNEP2Decrypt(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if want, have := testCase.privateKey, privKey.String(); want != have {
+		if want, have := testCase.PrivateKey, privKey.String(); want != have {
 			t.Fatalf("expected %s got %s", want, have)
 		}
 
@@ -45,7 +47,7 @@ func TestNEP2Decrypt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want, have := testCase.wif, wif; want != have {
+		if want, have := testCase.Wif, wif; want != have {
 			t.Fatalf("expected %s got %s", want, have)
 		}
 
@@ -53,7 +55,7 @@ func TestNEP2Decrypt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want, have := testCase.address, address; want != have {
+		if want, have := testCase.Address, address; want != have {
 			t.Fatalf("expected %s got %s", want, have)
 		}
 	}

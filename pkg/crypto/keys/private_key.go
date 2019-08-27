@@ -1,4 +1,4 @@
-package wallet
+package keys
 
 import (
 	"bytes"
@@ -67,10 +67,10 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 }
 
 // PublicKey derives the public key from the private key.
-func (p *PrivateKey) PublicKey() (*crypto.PublicKey, error) {
+func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 	var (
 		err error
-		pk crypto.PublicKey
+		pk PublicKey
 		c = crypto.NewEllipticCurve()
 		q = new(big.Int).SetBytes(p.b)
 	)

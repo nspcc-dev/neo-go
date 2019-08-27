@@ -1,8 +1,9 @@
-package crypto
+package keys
 
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +37,7 @@ func (keys PublicKeys) Less(i, j int) bool {
 // PublicKey represents a public key and provides a high level
 // API around the ECPoint.
 type PublicKey struct {
-	ECPoint
+	crypto.ECPoint
 }
 
 // NewPublicKeyFromString return a public key created from the
@@ -87,7 +89,7 @@ func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
 		return nil, errors.New("given bytes aren't ECDSA public key")
 	}
 	key := PublicKey{
-		ECPoint{
+		crypto.ECPoint{
 			X: pk.X,
 			Y: pk.Y,
 		},
@@ -102,14 +104,14 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 	switch prefix := data[0]; prefix {
 	// Infinity
 	case 0x00:
-		p.ECPoint = ECPoint{}
+		p.ECPoint = crypto.ECPoint{}
 	// Compressed public keys
 	case 0x02, 0x03:
 		if l < 33 {
 			return errors.Errorf("bad binary size(%d)", l)
 		}
 
-		c := NewEllipticCurve()
+		c := crypto.NewEllipticCurve()
 		var err error
 		p.ECPoint, err = c.Decompress(new(big.Int).SetBytes(data[1:]), uint(prefix&0x1))
 		if err != nil {
@@ -139,7 +141,7 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	// Infinity
 	switch prefix {
 	case 0x00:
-		p.ECPoint = ECPoint{}
+		p.ECPoint = crypto.ECPoint{}
 		return nil
 	// Compressed public keys
 	case 0x02, 0x03:
@@ -190,6 +192,22 @@ func (p *PublicKey) Address() (string, error) {
 	csum := hash.Checksum(b)
 	b = append(b, csum...)
 
-	address := Base58Encode(b)
+	address := crypto.Base58Encode(b)
 	return address, nil
+}
+
+// Verify returns true if the signature is valid and corresponds
+// to the hash and public key
+func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
+
+	publicKey := &ecdsa.PublicKey{}
+	publicKey.Curve = elliptic.P256()
+	publicKey.X = p.X
+	publicKey.Y = p.Y
+	if p.X == nil || p.Y == nil {
+		return false
+	}
+	rBytes := new(big.Int).SetBytes(signature[0:32])
+	sBytes := new(big.Int).SetBytes(signature[32:64])
+	return ecdsa.Verify(publicKey, hash, rBytes, sBytes)
 }

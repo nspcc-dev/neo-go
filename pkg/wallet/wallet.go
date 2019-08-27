@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 )
 
 const (
@@ -20,7 +22,7 @@ type Wallet struct {
 	// in the wallet.
 	Accounts []*Account `json:"accounts"`
 
-	Scrypt scryptParams `json:"scrypt"`
+	Scrypt keys.ScryptParams `json:"scrypt"`
 
 	// Extra metadata can be used for storing arbitrary data.
 	// This field can be empty.
@@ -66,7 +68,7 @@ func newWallet(rw io.ReadWriter) *Wallet {
 	return &Wallet{
 		Version:  walletVersion,
 		Accounts: []*Account{},
-		Scrypt:   newScryptParams(),
+		Scrypt:   keys.NEP2ScryptParams(),
 		rw:       rw,
 		path:     path,
 	}

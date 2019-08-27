@@ -3,11 +3,13 @@ package wallet
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
 )
 
 func TestNewAccount(t *testing.T) {
-	for _, testCase := range testKeyCases {
-		acc, err := NewAccountFromWIF(testCase.wif)
+	for _, testCase := range keytestcases.Arr {
+		acc, err := NewAccountFromWIF(testCase.Wif)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -16,8 +18,8 @@ func TestNewAccount(t *testing.T) {
 }
 
 func TestDecryptAccount(t *testing.T) {
-	for _, testCase := range testKeyCases {
-		acc, err := DecryptAccount(testCase.encryptedWif, testCase.passphrase)
+	for _, testCase := range keytestcases.Arr {
+		acc, err := DecryptAccount(testCase.EncryptedWif, testCase.Passphrase)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -26,8 +28,8 @@ func TestDecryptAccount(t *testing.T) {
 }
 
 func TestNewFromWif(t *testing.T) {
-	for _, testCase := range testKeyCases {
-		acc, err := NewAccountFromWIF(testCase.wif)
+	for _, testCase := range keytestcases.Arr {
+		acc, err := NewAccountFromWIF(testCase.Wif)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -35,17 +37,17 @@ func TestNewFromWif(t *testing.T) {
 	}
 }
 
-func compareFields(t *testing.T, tk testKey, acc *Account) {
-	if want, have := tk.address, acc.Address; want != have {
+func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
+	if want, have := tk.Address, acc.Address; want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.wif, acc.wif; want != have {
+	if want, have := tk.Wif, acc.wif; want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.publicKey, hex.EncodeToString(acc.publicKey); want != have {
+	if want, have := tk.PublicKey, hex.EncodeToString(acc.publicKey); want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
-	if want, have := tk.privateKey, acc.privateKey.String(); want != have {
+	if want, have := tk.PrivateKey, acc.privateKey.String(); want != have {
 		t.Fatalf("expected %s got %s", want, have)
 	}
 }

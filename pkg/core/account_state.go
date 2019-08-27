@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -52,7 +52,7 @@ type AccountState struct {
 	Version    uint8
 	ScriptHash util.Uint160
 	IsFrozen   bool
-	Votes      []*crypto.PublicKey
+	Votes      []*keys.PublicKey
 	Balances   map[util.Uint256]util.Fixed8
 }
 
@@ -62,7 +62,7 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 		Version:    0,
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
-		Votes:      []*crypto.PublicKey{},
+		Votes:      []*keys.PublicKey{},
 		Balances:   make(map[util.Uint256]util.Fixed8),
 	}
 }
@@ -80,9 +80,9 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	}
 
 	lenVotes := util.ReadVarUint(r)
-	s.Votes = make([]*crypto.PublicKey, lenVotes)
+	s.Votes = make([]*keys.PublicKey, lenVotes)
 	for i := 0; i < int(lenVotes); i++ {
-		s.Votes[i] = &crypto.PublicKey{}
+		s.Votes[i] = &keys.PublicKey{}
 		if err := s.Votes[i].DecodeBinary(r); err != nil {
 			return err
 		}

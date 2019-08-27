@@ -7,7 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -39,7 +39,7 @@ type AssetState struct {
 	Precision  uint8
 	FeeMode    uint8
 	FeeAddress util.Uint160
-	Owner      *crypto.PublicKey
+	Owner      *keys.PublicKey
 	Admin      util.Uint160
 	Issuer     util.Uint160
 	Expiration uint32
@@ -77,7 +77,7 @@ func (a *AssetState) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	a.Owner = &crypto.PublicKey{}
+	a.Owner = &keys.PublicKey{}
 	if err := a.Owner.DecodeBinary(r); err != nil {
 		return err
 	}

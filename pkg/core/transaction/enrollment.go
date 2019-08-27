@@ -3,7 +3,7 @@ package transaction
 import (
 	"io"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 )
 
 // A Enrollment transaction represents an enrollment form, which indicates
@@ -13,12 +13,12 @@ import (
 // The way to cancel the registration is: Spend the deposit on the address of the PublicKey.
 type EnrollmentTX struct {
 	// PublicKey of the validator
-	PublicKey *crypto.PublicKey
+	PublicKey *keys.PublicKey
 }
 
 // DecodeBinary implements the Payload interface.
 func (tx *EnrollmentTX) DecodeBinary(r io.Reader) error {
-	tx.PublicKey = &crypto.PublicKey{}
+	tx.PublicKey = &keys.PublicKey{}
 	return tx.PublicKey.DecodeBinary(r)
 }
 
