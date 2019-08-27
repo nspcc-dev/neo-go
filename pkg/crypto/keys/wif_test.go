@@ -3,6 +3,8 @@ package keys
 import (
 	"encoding/hex"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type wifTestCase struct {
@@ -36,29 +38,15 @@ var wifTestCases = []wifTestCase{
 func TestWIFEncodeDecode(t *testing.T) {
 	for _, testCase := range wifTestCases {
 		b, err := hex.DecodeString(testCase.privateKey)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 		wif, err := WIFEncode(b, testCase.version, testCase.compressed)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want, have := testCase.wif, wif; want != have {
-			t.Fatalf("expected %s got %s", want, have)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.wif, wif)
 
 		WIF, err := WIFDecode(wif, testCase.version)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want, have := testCase.privateKey, WIF.PrivateKey.String(); want != have {
-			t.Fatalf("expected %s got %s", want, have)
-		}
-		if want, have := testCase.compressed, WIF.Compressed; want != have {
-			t.Fatalf("expected %v got %v", want, have)
-		}
-		if want, have := testCase.version, WIF.Version; want != have {
-			t.Fatalf("expected %d got %d", want, have)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.privateKey, WIF.PrivateKey.String())
+		assert.Equal(t, testCase.compressed, WIF.Compressed)
+		assert.Equal(t, testCase.version, WIF.Version)
 	}
 }

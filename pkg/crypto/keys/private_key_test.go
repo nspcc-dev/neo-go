@@ -13,23 +13,14 @@ import (
 func TestPrivateKey(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 		address, err := privKey.Address()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want, have := testCase.Address, address; want != have {
-			t.Fatalf("expected %s got %s", want, have)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.Address, address)
+
 		wif, err := privKey.WIF()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want, have := testCase.Wif, wif; want != have {
-			t.Fatalf("expected %s got %s", want, have)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.Wif, wif)
 		pubKey, _ := privKey.PublicKey()
 		assert.Equal(t, hex.EncodeToString(pubKey.Bytes()), testCase.PublicKey)
 	}
@@ -38,12 +29,8 @@ func TestPrivateKey(t *testing.T) {
 func TestPrivateKeyFromWIF(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		key, err := NewPrivateKeyFromWIF(testCase.Wif)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want, have := testCase.PrivateKey, key.String(); want != have {
-			t.Fatalf("expected %s got %s", want, have)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.PrivateKey, key.String())
 	}
 }
 
@@ -55,9 +42,7 @@ func TestSigning(t *testing.T) {
 	PrivateKey, _ := NewPrivateKeyFromHex("C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721")
 
 	data, err := PrivateKey.Sign([]byte("sample"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	r := "EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716"
 	s := "F7CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8"

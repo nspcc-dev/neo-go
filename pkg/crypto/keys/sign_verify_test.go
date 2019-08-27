@@ -7,38 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// SignDataWithRandomPrivateKey will sign data with
-// a random private key, then verify said data
-// returning true if Verify returns true
-func SignDataWithRandomPrivateKey(data []byte) (bool, error) {
+func TestPubKeyVerify(t *testing.T) {
+	var data = []byte("sample")
 	hashedData := hash.Sha256(data)
 
 	privKey, err := NewPrivateKey()
-	if err != nil {
-		return false, err
-	}
+	assert.Nil(t, err)
 	signedData, err := privKey.Sign(data)
-	if err != nil {
-		return false, err
-	}
+	assert.Nil(t, err)
 	pubKey, err := privKey.PublicKey()
-	if err != nil {
-		return false, err
-	}
+	assert.Nil(t, err)
 	result := pubKey.Verify(signedData, hashedData.Bytes())
-
-	return result, nil
-}
-
-func TestPubKeyVerify(t *testing.T) {
-	actual, err := SignDataWithRandomPrivateKey([]byte("sample"))
-
-	if err != nil {
-		t.Fatal(err)
-	}
 	expected := true
-
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, expected, result)
 }
 
 func TestWrongPubKey(t *testing.T) {
