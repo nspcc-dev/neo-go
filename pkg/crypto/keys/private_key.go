@@ -125,7 +125,7 @@ func (p *PrivateKey) Address() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return pk.Address()
+	return pk.Address(), nil
 }
 
 // Signature creates the signature using the private key.
@@ -134,7 +134,7 @@ func (p *PrivateKey) Signature() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.Signature()
+	return pk.Signature(), nil
 }
 
 // Sign signs arbitrary length data using the private key.

@@ -42,7 +42,7 @@ func TestDecodeFromString(t *testing.T) {
 func TestPubkeyToAddress(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	assert.Nil(t, err)
-	actual, _ := pubKey.Address()
+	actual := pubKey.Address()
 	expected := "AUpGsNCHzSimeMRVPQfhwrVdiUp8Q2N2Qx"
 	assert.Equal(t, expected, actual)
 }

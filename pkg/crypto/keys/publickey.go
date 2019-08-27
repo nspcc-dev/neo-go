@@ -168,32 +168,25 @@ func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
 }
 
-func (p *PublicKey) Signature() ([]byte, error) {
+func (p *PublicKey) Signature() []byte {
 	b := p.Bytes()
 	b = append([]byte{0x21}, b...)
 	b = append(b, 0xAC)
 
 	sig := hash.Hash160(b)
 
-	return sig.Bytes(), nil
+	return sig.Bytes()
 }
 
-func (p *PublicKey) Address() (string, error) {
-	var (
-		err error
-		b   []byte
-	)
-	if b, err = p.Signature(); err != nil {
-		return "", err
-	}
+func (p *PublicKey) Address() string {
+	var b []byte = p.Signature()
 
 	b = append([]byte{0x17}, b...)
-
 	csum := hash.Checksum(b)
 	b = append(b, csum...)
 
 	address := crypto.Base58Encode(b)
-	return address, nil
+	return address
 }
 
 // Verify returns true if the signature is valid and corresponds
