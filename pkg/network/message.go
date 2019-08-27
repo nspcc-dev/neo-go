@@ -66,6 +66,9 @@ const (
 	CMDFilterClear CommandType = "filterclear"
 	CMDFilterLoad  CommandType = "filterload"
 	CMDMerkleBlock CommandType = "merkleblock"
+	CMDMempool     CommandType = "mempool"
+	CMDPing        CommandType = "ping"
+	CMDPong        CommandType = "pong"
 )
 
 // NewMessage returns a new message with the given payload.
@@ -131,6 +134,12 @@ func (m *Message) CommandType() CommandType {
 		return CMDFilterAdd
 	case "filterclear":
 		return CMDFilterClear
+	case "mempool":
+		return CMDMempool
+	case "ping":
+		return CMDPing
+	case "pong":
+		return CMDPong
 	default:
 		return CMDUnknown
 	}
