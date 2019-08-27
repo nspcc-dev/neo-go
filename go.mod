@@ -1,12 +1,11 @@
 module github.com/CityOfZion/neo-go
 
 require (
-	github.com/anthdm/rfc6979 v0.0.0-20141003034818-6a90f24967eb
-	github.com/codahale/rfc6979 v0.0.0-20141003034818-6a90f24967eb // indirect
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/golang/snappy v0.0.0-20170215233205-553a64147049 // indirect
+	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/onsi/gomega v1.4.2 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
