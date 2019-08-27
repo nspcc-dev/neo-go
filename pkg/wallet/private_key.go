@@ -14,7 +14,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
-	"github.com/anthdm/rfc6979"
+	"github.com/nspcc-dev/rfc6979"
 )
 
 // PrivateKey represents a NEO private key.
