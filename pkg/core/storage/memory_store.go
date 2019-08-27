@@ -2,11 +2,13 @@ package storage
 
 import (
 	"encoding/hex"
+	"sync"
 )
 
 // MemoryStore is an in-memory implementation of a Store, mainly
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
+	*sync.RWMutex
 	mem map[string][]byte
 }
 
@@ -29,12 +31,15 @@ func (b *MemoryBatch) Len() int {
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		mem: make(map[string][]byte),
+		RWMutex: new(sync.RWMutex),
+		mem:     make(map[string][]byte),
 	}
 }
 
 // Get implements the Store interface.
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
+	s.RLock()
+	defer s.RUnlock()
 	if val, ok := s.mem[makeKey(key)]; ok {
 		return val, nil
 	}
@@ -43,7 +48,9 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 
 // Put implements the Store interface.
 func (s *MemoryStore) Put(key, value []byte) error {
+	s.Lock()
 	s.mem[makeKey(key)] = value
+	s.Unlock()
 	return nil
 }
 
