@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (
@@ -147,17 +148,13 @@ func (m *Message) CommandType() CommandType {
 
 // Decode a Message from the given reader.
 func (m *Message) Decode(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &m.Magic); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Command); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Length); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Checksum); err != nil {
-		return err
+	br := util.BinReader{R: r}
+	br.ReadLE(&m.Magic)
+	br.ReadLE(&m.Command)
+	br.ReadLE(&m.Length)
+	br.ReadLE(&m.Checksum)
+	if br.Err != nil {
+		return br.Err
 	}
 	// return if their is no payload.
 	if m.Length == 0 {
@@ -233,17 +230,13 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // Encode a Message to any given io.Writer.
 func (m *Message) Encode(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, m.Magic); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Command); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Length); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
-		return err
+	br := util.BinWriter{W: w}
+	br.WriteLE(m.Magic)
+	br.WriteLE(m.Command)
+	br.WriteLE(m.Length)
+	br.WriteLE(m.Checksum)
+	if br.Err != nil {
+		return br.Err
 	}
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)

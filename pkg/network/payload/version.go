@@ -1,9 +1,10 @@
 package payload
 
 import (
-	"encoding/binary"
 	"io"
 	"time"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const minVersionSize = 27
@@ -53,63 +54,36 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements the Payload interface.
 func (p *Version) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Version); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Port); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Nonce); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&p.Version)
+	br.ReadLE(&p.Services)
+	br.ReadLE(&p.Timestamp)
+	br.ReadLE(&p.Port)
+	br.ReadLE(&p.Nonce)
 
 	var lenUA uint8
-	if err := binary.Read(r, binary.LittleEndian, &lenUA); err != nil {
-		return err
-	}
+	br.ReadLE(&lenUA)
 	p.UserAgent = make([]byte, lenUA)
-	if err := binary.Read(r, binary.LittleEndian, &p.UserAgent); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.StartHeight); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &p.Relay)
+	br.ReadLE(&p.UserAgent)
+	br.ReadLE(&p.StartHeight)
+	br.ReadLE(&p.Relay)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (p *Version) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Version); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Port); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Nonce); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, uint8(len(p.UserAgent))); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.UserAgent); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.StartHeight); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, p.Relay)
+	br := util.BinWriter{W: w}
+	br.WriteLE(p.Version)
+	br.WriteLE(p.Services)
+	br.WriteLE(p.Timestamp)
+	br.WriteLE(p.Port)
+	br.WriteLE(p.Nonce)
+
+	br.WriteLE(uint8(len(p.UserAgent)))
+	br.WriteLE(p.UserAgent)
+	br.WriteLE(p.StartHeight)
+	br.WriteLE(&p.Relay)
+	return br.Err
 }
 
 // Size implements the payloader interface.
