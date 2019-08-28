@@ -12,27 +12,27 @@ type BinReader struct {
 	Err error
 }
 
-// Read reads from the underlying io.Reader
-// into the interface v in LE
-func (r *BinReader) Read(v interface{}) {
+// ReadLE reads from the underlying io.Reader
+// into the interface v in little-endian format
+func (r *BinReader) ReadLE(v interface{}) {
 	if r.Err != nil {
 		return
 	}
 	r.Err = binary.Read(r.R, binary.LittleEndian, v)
 }
 
-// ReadBigEnd reads from the underlying io.Reader
-// into the interface v in BE
-func (r *BinReader) ReadBigEnd(v interface{}) {
+// ReadBE reads from the underlying io.Reader
+// into the interface v in big-endian format
+func (r *BinReader) ReadBE(v interface{}) {
 	if r.Err != nil {
 		return
 	}
 	r.Err = binary.Read(r.R, binary.BigEndian, v)
 }
 
-//VarUint reads a variable integer from the
+// ReadVarUint reads a variable-length-encoded integer from the
 // underlying reader
-func (r *BinReader) VarUint() uint64 {
+func (r *BinReader) ReadVarUint() uint64 {
 	var b uint8
 	r.Err = binary.Read(r.R, binary.LittleEndian, &b)
 
@@ -55,17 +55,17 @@ func (r *BinReader) VarUint() uint64 {
 	return uint64(b)
 }
 
-// VarBytes reads the next set of bytes from the underlying reader.
-// VarUInt is used to determine how large that slice is
-func (r *BinReader) VarBytes() []byte {
-	n := r.VarUint()
+// ReadBytes reads the next set of bytes from the underlying reader.
+// ReadVarUInt() is used to determine how large that slice is
+func (r *BinReader) ReadBytes() []byte {
+	n := r.ReadVarUint()
 	b := make([]byte, n)
-	r.Read(b)
+	r.ReadLE(b)
 	return b
 }
 
-// VarString calls VarBytes and casts the results as a string
-func (r *BinReader) VarString() string {
-	b := r.VarBytes()
+// ReadString calls ReadBytes and casts the results as a string
+func (r *BinReader) ReadString() string {
+	b := r.ReadBytes()
 	return string(b)
 }

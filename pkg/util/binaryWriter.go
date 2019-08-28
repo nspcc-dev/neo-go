@@ -14,25 +14,24 @@ type BinWriter struct {
 	Err error
 }
 
-// Write writes into the underlying io.Writer from an object v in LE format
-func (w *BinWriter) Write(v interface{}) {
+// WriteLE writes into the underlying io.Writer from an object v in little-endian format
+func (w *BinWriter) WriteLE(v interface{}) {
 	if w.Err != nil {
 		return
 	}
 	w.Err = binary.Write(w.W, binary.LittleEndian, v)
 }
 
-// WriteBigEnd writes into the underlying io.Writer from an object v in BE format
-// Only used for IP and PORT. Additional method makes the default LittleEndian case clean
-func (w *BinWriter) WriteBigEnd(v interface{}) {
+// WriteBE writes into the underlying io.Writer from an object v in big-endian format
+func (w *BinWriter) WriteBE(v interface{}) {
 	if w.Err != nil {
 		return
 	}
 	w.Err = binary.Write(w.W, binary.BigEndian, v)
 }
 
-// VarUint writes a uint64 into the underlying writer
-func (w *BinWriter) VarUint(val uint64) {
+// WriteVarUint writes a uint64 into the underlying writer using variable-length encoding
+func (w *BinWriter) WriteVarUint(val uint64) {
 	if val < 0 {
 		w.Err = errors.New("value out of range")
 		return
@@ -63,13 +62,13 @@ func (w *BinWriter) VarUint(val uint64) {
 
 }
 
-// VarBytes writes a variable length byte array into the underlying io.Writer
-func (w *BinWriter) VarBytes(b []byte) {
-	w.VarUint(uint64(len(b)))
-	w.Write(b)
+// WriteBytes writes a variable length byte array into the underlying io.Writer
+func (w *BinWriter) WriteBytes(b []byte) {
+	w.WriteVarUint(uint64(len(b)))
+	w.WriteLE(b)
 }
 
-//VarString casts the string as a byte slice and calls VarBytes
-func (w *BinWriter) VarString(s string) {
-	w.VarBytes([]byte(s))
+// WriteString writes a variable length string into the underlying io.Writer
+func (w *BinWriter) WriteString(s string) {
+	w.WriteBytes([]byte(s))
 }
