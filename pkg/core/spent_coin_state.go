@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -68,49 +67,33 @@ func NewSpentCoinState(hash util.Uint256, height uint32) *SpentCoinState {
 
 // DecodeBinary implements the Payload interface.
 func (s *SpentCoinState) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &s.txHash); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &s.txHeight); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&s.txHash)
+	br.ReadLE(&s.txHeight)
 
 	s.items = make(map[uint16]uint32)
-	lenItems := util.ReadVarUint(r)
+	lenItems := br.ReadVarUint()
 	for i := 0; i < int(lenItems); i++ {
 		var (
 			key   uint16
 			value uint32
 		)
-		if err := binary.Read(r, binary.LittleEndian, &key); err != nil {
-			return err
-		}
-		if err := binary.Read(r, binary.LittleEndian, &value); err != nil {
-			return err
-		}
+		br.ReadLE(&key)
+		br.ReadLE(&value)
 		s.items[key] = value
 	}
-	return nil
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (s *SpentCoinState) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, s.txHash); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, s.txHeight); err != nil {
-		return err
-	}
-	if err := util.WriteVarUint(w, uint64(len(s.items))); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(s.txHash)
+	bw.WriteLE(s.txHeight)
+	bw.WriteVarUint(uint64(len(s.items)))
 	for k, v := range s.items {
-		if err := binary.Write(w, binary.LittleEndian, k); err != nil {
-			return err
-		}
-		if err := binary.Write(w, binary.LittleEndian, v); err != nil {
-			return err
-		}
+		bw.WriteLE(k)
+		bw.WriteLE(v)
 	}
-	return nil
+	return bw.Err
 }

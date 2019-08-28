@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"io"
 
@@ -36,24 +35,20 @@ func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160
 
 // DecodeBinary implements the Payload interface.
 func (out *Output) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &out.AssetID); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &out.Amount); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &out.ScriptHash)
+	br := util.BinReader{R: r}
+	br.ReadLE(&out.AssetID)
+	br.ReadLE(&out.Amount)
+	br.ReadLE(&out.ScriptHash)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (out *Output) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, out.AssetID); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, out.Amount); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, out.ScriptHash)
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(out.AssetID)
+	bw.WriteLE(out.Amount)
+	bw.WriteLE(out.ScriptHash)
+	return bw.Err
 }
 
 // Size returns the size in bytes of the Output

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -60,14 +59,11 @@ func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
 // WriteTo will write n underlying hashes to the given io.Writer
 // starting from start.
 func (l *HeaderHashList) Write(w io.Writer, start, n int) error {
-	if err := util.WriteVarUint(w, uint64(n)); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(n))
 	hashes := l.Slice(start, start+n)
 	for _, hash := range hashes {
-		if err := binary.Write(w, binary.LittleEndian, hash); err != nil {
-			return err
-		}
+		bw.WriteLE(hash)
 	}
-	return nil
+	return bw.Err
 }

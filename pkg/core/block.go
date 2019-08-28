@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -79,9 +78,11 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 		return block, err
 	}
 
+	br := util.BinReader{R: r}
 	var padding uint8
-	if err := binary.Read(r, binary.LittleEndian, &padding); err != nil {
-		return block, err
+	br.ReadLE(&padding)
+	if br.Err != nil {
+		return block, br.Err
 	}
 
 	block.Script = &transaction.Witness{}
@@ -89,17 +90,15 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 		return block, err
 	}
 
-	lenTX := util.ReadVarUint(r)
+	lenTX := br.ReadVarUint()
 	block.Transactions = make([]*transaction.Transaction, lenTX)
 	for i := 0; i < int(lenTX); i++ {
 		var hash util.Uint256
-		if err := binary.Read(r, binary.LittleEndian, &hash); err != nil {
-			return block, err
-		}
+		br.ReadLE(&hash)
 		block.Transactions[i] = transaction.NewTrimmedTX(hash)
 	}
 
-	return block, nil
+	return block, br.Err
 }
 
 // Trim returns a subset of the block data to save up space
@@ -110,23 +109,22 @@ func (b *Block) Trim() ([]byte, error) {
 	if err := b.encodeHashableFields(buf); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(buf, binary.LittleEndian, uint8(1)); err != nil {
-		return nil, err
+	bw := util.BinWriter{W: buf}
+	bw.WriteLE(uint8(1))
+	if bw.Err != nil {
+		return nil, bw.Err
 	}
 	if err := b.Script.EncodeBinary(buf); err != nil {
 		return nil, err
 	}
 
-	lenTX := uint64(len(b.Transactions))
-	if err := util.WriteVarUint(buf, lenTX); err != nil {
-		return nil, err
-	}
+	bw.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
-		if err := binary.Write(buf, binary.LittleEndian, tx.Hash()); err != nil {
-			return nil, err
-		}
+		bw.WriteLE(tx.Hash())
 	}
-
+	if bw.Err != nil {
+		return nil, bw.Err
+	}
 	return buf.Bytes(), nil
 }
 
@@ -136,7 +134,11 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	lentx := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	lentx := br.ReadVarUint()
+	if br.Err != nil {
+		return br.Err
+	}
 	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
 		b.Transactions[i] = &transaction.Transaction{}

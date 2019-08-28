@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -48,95 +47,56 @@ type AssetState struct {
 
 // DecodeBinary implements the Payload interface.
 func (a *AssetState) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &a.ID); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.AssetType); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&a.ID)
+	br.ReadLE(&a.AssetType)
 
-	var err error
-	a.Name, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
+	a.Name = br.ReadString()
 
-	if err := binary.Read(r, binary.LittleEndian, &a.Amount); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.Available); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.Precision); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.FeeMode); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.FeeAddress); err != nil {
-		return err
-	}
+	br.ReadLE(&a.Amount)
+	br.ReadLE(&a.Available)
+	br.ReadLE(&a.Precision)
+	br.ReadLE(&a.FeeMode)
+	br.ReadLE(&a.FeeAddress)
 
+	if br.Err != nil {
+		return br.Err
+	}
 	a.Owner = &keys.PublicKey{}
 	if err := a.Owner.DecodeBinary(r); err != nil {
 		return err
 	}
-	if err := binary.Read(r, binary.LittleEndian, &a.Admin); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.Issuer); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &a.Expiration); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &a.IsFrozen)
+	br.ReadLE(&a.Admin)
+	br.ReadLE(&a.Issuer)
+	br.ReadLE(&a.Expiration)
+	br.ReadLE(&a.IsFrozen)
+
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (a *AssetState) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, a.ID); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.AssetType); err != nil {
-		return err
-	}
-	if err := util.WriteVarUint(w, uint64(len(a.Name))); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, []byte(a.Name)); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.Amount); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.Available); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.Precision); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.FeeMode); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(a.ID)
+	bw.WriteLE(a.AssetType)
+	bw.WriteString(a.Name)
+	bw.WriteLE(a.Amount)
+	bw.WriteLE(a.Available)
+	bw.WriteLE(a.Precision)
+	bw.WriteLE(a.FeeMode)
+	bw.WriteLE(a.FeeAddress)
 
-	if err := binary.Write(w, binary.LittleEndian, a.FeeAddress); err != nil {
-		return err
+	if bw.Err != nil {
+		return bw.Err
 	}
-
 	if err := a.Owner.EncodeBinary(w); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, a.Admin); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.Issuer); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, a.Expiration); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, a.IsFrozen)
+	bw.WriteLE(a.Admin)
+	bw.WriteLE(a.Issuer)
+	bw.WriteLE(a.Expiration)
+	bw.WriteLE(a.IsFrozen)
+	return bw.Err
 }
 
 // GetName returns the asset name based on its type.

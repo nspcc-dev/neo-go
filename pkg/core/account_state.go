@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -69,17 +68,11 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 
 // DecodeBinary decodes AccountState from the given io.Reader.
 func (s *AccountState) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &s.Version); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &s.ScriptHash); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &s.IsFrozen); err != nil {
-		return err
-	}
-
-	lenVotes := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	br.ReadLE(&s.Version)
+	br.ReadLE(&s.ScriptHash)
+	br.ReadLE(&s.IsFrozen)
+	lenVotes := br.ReadVarUint()
 	s.Votes = make([]*keys.PublicKey, lenVotes)
 	for i := 0; i < int(lenVotes); i++ {
 		s.Votes[i] = &keys.PublicKey{}
@@ -89,37 +82,25 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	}
 
 	s.Balances = make(map[util.Uint256]util.Fixed8)
-	lenBalances := util.ReadVarUint(r)
+	lenBalances := br.ReadVarUint()
 	for i := 0; i < int(lenBalances); i++ {
 		key := util.Uint256{}
-		if err := binary.Read(r, binary.LittleEndian, &key); err != nil {
-			return err
-		}
+		br.ReadLE(&key)
 		var val util.Fixed8
-		if err := binary.Read(r, binary.LittleEndian, &val); err != nil {
-			return err
-		}
+		br.ReadLE(&val)
 		s.Balances[key] = val
 	}
 
-	return nil
+	return br.Err
 }
 
 // EncodeBinary encode AccountState to the given io.Writer.
 func (s *AccountState) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, s.Version); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, s.ScriptHash); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, s.IsFrozen); err != nil {
-		return err
-	}
-
-	if err := util.WriteVarUint(w, uint64(len(s.Votes))); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(s.Version)
+	bw.WriteLE(s.ScriptHash)
+	bw.WriteLE(s.IsFrozen)
+	bw.WriteVarUint(uint64(len(s.Votes)))
 	for _, point := range s.Votes {
 		if err := point.EncodeBinary(w); err != nil {
 			return err
@@ -127,19 +108,13 @@ func (s *AccountState) EncodeBinary(w io.Writer) error {
 	}
 
 	balances := s.nonZeroBalances()
-	if err := util.WriteVarUint(w, uint64(len(balances))); err != nil {
-		return err
-	}
+	bw.WriteVarUint(uint64(len(balances)))
 	for k, v := range balances {
-		if err := binary.Write(w, binary.LittleEndian, k); err != nil {
-			return err
-		}
-		if err := binary.Write(w, binary.LittleEndian, v); err != nil {
-			return err
-		}
+		bw.WriteLE(k)
+		bw.WriteLE(v)
 	}
 
-	return nil
+	return bw.Err
 }
 
 // Returns only the non-zero balances for the account.

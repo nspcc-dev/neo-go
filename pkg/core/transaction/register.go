@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -32,22 +31,15 @@ type RegisterTX struct {
 
 // DecodeBinary implements the Payload interface.
 func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &tx.AssetType); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&tx.AssetType)
 
-	var err error
-	tx.Name, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
+	tx.Name = br.ReadString()
 
-	if err := binary.Read(r, binary.LittleEndian, &tx.Amount); err != nil {
-		return err
-	}
-
-	if err := binary.Read(r, binary.LittleEndian, &tx.Precision); err != nil {
-		return err
+	br.ReadLE(&tx.Amount)
+	br.ReadLE(&tx.Precision)
+	if br.Err != nil {
+		return br.Err
 	}
 
 	tx.Owner = &keys.PublicKey{}
@@ -55,25 +47,18 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	return binary.Read(r, binary.LittleEndian, &tx.Admin)
+	br.ReadLE(&tx.Admin)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, tx.AssetType); err != nil {
-		return err
-	}
-	if err := util.WriteVarString(w, tx.Name); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, tx.Amount); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, tx.Precision); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, tx.Owner.Bytes()); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, tx.Admin)
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(tx.AssetType)
+	bw.WriteString(tx.Name)
+	bw.WriteLE(tx.Amount)
+	bw.WriteLE(tx.Precision)
+	bw.WriteLE(tx.Owner.Bytes())
+	bw.WriteLE(tx.Admin)
+	return bw.Err
 }

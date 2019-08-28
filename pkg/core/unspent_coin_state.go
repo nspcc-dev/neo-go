@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -68,29 +67,25 @@ func (u UnspentCoins) commit(b storage.Batch) error {
 
 // EncodeBinary encodes UnspentCoinState to the given io.Writer.
 func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(s.states))); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
-		if err := binary.Write(w, binary.LittleEndian, byte(state)); err != nil {
-			return err
-		}
+		bw.WriteLE(byte(state))
 	}
-	return nil
+	return bw.Err
 }
 
 // DecodeBinary decodes UnspentCoinState from the given io.Reader.
 func (s *UnspentCoinState) DecodeBinary(r io.Reader) error {
-	lenStates := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	lenStates := br.ReadVarUint()
 	s.states = make([]CoinState, lenStates)
 	for i := 0; i < int(lenStates); i++ {
 		var state uint8
-		if err := binary.Read(r, binary.LittleEndian, &state); err != nil {
-			return err
-		}
+		br.ReadLE(&state)
 		s.states[i] = CoinState(state)
 	}
-	return nil
+	return br.Err
 }
 
 // IsDoubleSpend verifies that the input transactions are not double spent.

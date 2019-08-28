@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -24,55 +23,30 @@ type PublishTX struct {
 
 // DecodeBinary implements the Payload interface.
 func (tx *PublishTX) DecodeBinary(r io.Reader) error {
-	var err error
+	br := util.BinReader{R: r}
+	tx.Script = br.ReadBytes()
 
-	tx.Script, err = util.ReadVarBytes(r)
-	if err != nil {
-		return err
-	}
-
-	lenParams := util.ReadVarUint(r)
+	lenParams := br.ReadVarUint()
 	tx.ParamList = make([]smartcontract.ParamType, lenParams)
 	for i := 0; i < int(lenParams); i++ {
 		var ptype uint8
-		if err := binary.Read(r, binary.LittleEndian, &ptype); err != nil {
-			return err
-		}
+		br.ReadLE(&ptype)
 		tx.ParamList[i] = smartcontract.ParamType(ptype)
 	}
 
 	var rtype uint8
-	if err := binary.Read(r, binary.LittleEndian, &rtype); err != nil {
-		return err
-	}
+	br.ReadLE(&rtype)
 	tx.ReturnType = smartcontract.ParamType(rtype)
 
-	if err := binary.Read(r, binary.LittleEndian, &tx.NeedStorage); err != nil {
-		return err
-	}
+	br.ReadLE(&tx.NeedStorage)
 
-	tx.Name, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
-	tx.CodeVersion, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
-	tx.Author, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
-	tx.Email, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
-	tx.Description, err = util.ReadVarString(r)
-	if err != nil {
-		return err
-	}
+	tx.Name = br.ReadString()
+	tx.CodeVersion = br.ReadString()
+	tx.Author = br.ReadString()
+	tx.Email = br.ReadString()
+	tx.Description = br.ReadString()
 
-	return nil
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.

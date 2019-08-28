@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -26,30 +25,14 @@ type StateDescriptor struct {
 
 // DecodeBinary implements the Payload interface.
 func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &s.Type); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&s.Type)
 
-	keyLen := util.ReadVarUint(r)
-	s.Key = make([]byte, keyLen)
-	if err := binary.Read(r, binary.LittleEndian, s.Key); err != nil {
-		return err
-	}
+	s.Key = br.ReadBytes()
+	s.Value = br.ReadBytes()
+	s.Field = br.ReadString()
 
-	valLen := util.ReadVarUint(r)
-	s.Value = make([]byte, valLen)
-	if err := binary.Read(r, binary.LittleEndian, s.Value); err != nil {
-		return err
-	}
-
-	fieldLen := util.ReadVarUint(r)
-	field := make([]byte, fieldLen)
-	if err := binary.Read(r, binary.LittleEndian, field); err != nil {
-		return err
-	}
-	s.Field = string(field)
-
-	return nil
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.

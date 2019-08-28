@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -18,21 +17,18 @@ type Input struct {
 
 // DecodeBinary implements the Payload interface.
 func (in *Input) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &in.PrevHash); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &in.PrevIndex)
+	br := util.BinReader{R: r}
+	br.ReadLE(&in.PrevHash)
+	br.ReadLE(&in.PrevIndex)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (in *Input) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, in.PrevHash); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, in.PrevIndex); err != nil {
-		return err
-	}
-	return nil
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(in.PrevHash)
+	bw.WriteLE(in.PrevIndex)
+	return bw.Err
 }
 
 // Size returns the size in bytes of the Input

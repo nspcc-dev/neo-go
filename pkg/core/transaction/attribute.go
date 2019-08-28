@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,66 +17,58 @@ type Attribute struct {
 
 // DecodeBinary implements the Payload interface.
 func (attr *Attribute) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &attr.Usage); err != nil {
-		return err
-	}
-	if attr.Usage == ContractHash ||
-		attr.Usage == Vote ||
-		(attr.Usage >= Hash1 && attr.Usage <= Hash15) {
-		attr.Data = make([]byte, 32)
-		return binary.Read(r, binary.LittleEndian, attr.Data)
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&attr.Usage)
+
+	// very special case
 	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
 		attr.Data = make([]byte, 33)
 		attr.Data[0] = byte(attr.Usage)
-		return binary.Read(r, binary.LittleEndian, attr.Data[1:])
+		br.ReadLE(attr.Data[1:])
+		return br.Err
 	}
-	if attr.Usage == Script {
-		attr.Data = make([]byte, 20)
-		return binary.Read(r, binary.LittleEndian, attr.Data)
+	var datasize uint64
+	switch attr.Usage {
+	case ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5,
+		Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13,
+		Hash14, Hash15:
+		datasize = 32
+	case Script:
+		datasize = 20
+	case DescriptionURL:
+		datasize = 1
+	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
+		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
+		Remark12, Remark13, Remark14, Remark15:
+		datasize = br.ReadVarUint()
+	default:
+		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", attr.Usage)
 	}
-	if attr.Usage == DescriptionURL {
-		attr.Data = make([]byte, 1)
-		return binary.Read(r, binary.LittleEndian, attr.Data)
-	}
-	if attr.Usage == Description || attr.Usage >= Remark {
-		lenData := util.ReadVarUint(r)
-		attr.Data = make([]byte, lenData)
-		return binary.Read(r, binary.LittleEndian, attr.Data)
-	}
-	return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", attr.Usage)
+	attr.Data = make([]byte, datasize)
+	br.ReadLE(attr.Data)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (attr *Attribute) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, &attr.Usage); err != nil {
-		return err
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(&attr.Usage)
+	switch attr.Usage {
+	case ECDH02, ECDH03:
+		bw.WriteLE(attr.Data[1:])
+	case DescriptionURL, Description, Remark, Remark1, Remark2, Remark3, Remark4,
+		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
+		Remark12, Remark13, Remark14, Remark15:
+		bw.WriteVarUint(uint64(len(attr.Data)))
+		fallthrough
+	case Script, ContractHash, Vote, Hash1,	Hash2, Hash3, Hash4, Hash5, Hash6,
+		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
+		bw.WriteLE(attr.Data)
+	default:
+		return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 	}
-	if attr.Usage == ContractHash ||
-		attr.Usage == Vote ||
-		(attr.Usage >= Hash1 && attr.Usage <= Hash15) {
-		return binary.Write(w, binary.LittleEndian, attr.Data)
-	}
-	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
-		attr.Data[0] = byte(attr.Usage)
-		return binary.Write(w, binary.LittleEndian, attr.Data[1:33])
-	}
-	if attr.Usage == Script {
-		return binary.Write(w, binary.LittleEndian, attr.Data)
-	}
-	if attr.Usage == DescriptionURL {
-		if err := util.WriteVarUint(w, uint64(len(attr.Data))); err != nil {
-			return err
-		}
-		return binary.Write(w, binary.LittleEndian, attr.Data)
-	}
-	if attr.Usage == Description || attr.Usage >= Remark {
-		if err := util.WriteVarUint(w, uint64(len(attr.Data))); err != nil {
-			return err
-		}
-		return binary.Write(w, binary.LittleEndian, attr.Data)
-	}
-	return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+
+	return bw.Err
 }
 
 // Size returns the size in number bytes of the Attribute
