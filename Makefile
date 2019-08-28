@@ -2,6 +2,7 @@ BRANCH = "master"
 BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
+BINARY = "./bin/neo-go"
 
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
@@ -13,7 +14,7 @@ build: deps
 		&& export GOGC=off \
 		&& export CGO_ENABLED=0 \
 		&& echo $(VERSION)-$(BUILD_TIME) \
-		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ./bin/node ./cli/main.go
+		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
 image: deps
 	@echo "=> Building image"
@@ -46,7 +47,7 @@ push-to-registry:
 	@docker push CityOfZion/${REPONAME}
 
 run: build
-	./bin/neo-go node -config-path ./config -${NETMODE}
+	${BINARY} node -config-path ./config -${NETMODE}
 
 run-cluster: build-linux
 	@echo "=> Starting docker-compose cluster"
