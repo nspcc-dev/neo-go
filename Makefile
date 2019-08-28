@@ -1,19 +1,17 @@
 BRANCH = "master"
-BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
 BINARY = "./bin/neo-go"
 
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
-BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION) -X $(REPO)/config.BuildTime=$(BUILD_TIME)"
+BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION)"
 
 build: deps
 	@echo "=> Building binary"
 	@set -x \
 		&& export GOGC=off \
 		&& export CGO_ENABLED=0 \
-		&& echo $(VERSION)-$(BUILD_TIME) \
 		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
 image: deps
