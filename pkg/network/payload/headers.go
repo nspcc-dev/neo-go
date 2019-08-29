@@ -5,6 +5,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // Headers payload
@@ -12,12 +13,22 @@ type Headers struct {
 	Hdrs []*core.Header
 }
 
+// Users can at most request 2k header
+const (
+	maxHeadersAllowed = 2000
+)
+
 // DecodeBinary implements the Payload interface.
 func (p *Headers) DecodeBinary(r io.Reader) error {
 	br := util.BinReader{R: r}
 	lenHeaders := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
+	}
+	// C# node does it silently
+	if lenHeaders > maxHeadersAllowed {
+		log.Warnf("received %d headers, capping to %d", lenHeaders, maxHeadersAllowed)
+		lenHeaders = maxHeadersAllowed
 	}
 
 	p.Hdrs = make([]*core.Header, lenHeaders)
