@@ -87,11 +87,11 @@ jobs:
             curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
             tar -xz -C /tmp -f /tmp/docker-$VER.tgz
             mv /tmp/docker/* /usr/bin
-      - run: make build-image
+      - run: make image
 
 
 workflows:
-  version: 2.1
+  version: 2
   workflow:
     jobs:
       - vet:

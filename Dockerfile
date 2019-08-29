@@ -16,9 +16,12 @@ ARG VERSION=dev
 # go build -mod=vendor
 RUN set -x \
     && export GOGC=off \
+    && export GO111MODULE=on \
     && export CGO_ENABLED=0 \
     && export LDFLAGS="-X ${REPO}/config.Version=${VERSION}" \
-    && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/node ./cli/main.go
+    && go mod tidy -v \
+    && go mod vendor \
+    && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli/main.go
 
 # Executable image
 FROM alpine:3.10
@@ -31,9 +34,9 @@ WORKDIR /
 
 ENV NETMODE=testnet
 COPY --from=builder /neo-go/config   /config
-COPY --from=builder /go/bin/node     /usr/bin/node
+COPY --from=builder /go/bin/neo-go     /usr/bin/neo-go
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT ["/usr/bin/node"]
+ENTRYPOINT ["/usr/bin/neo-go"]
 
-CMD ["node", "--config-path", "./config", "--testnet"]
+CMD ["neo-go", "--config-path", "./config", "--testnet"]
