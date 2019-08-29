@@ -41,14 +41,12 @@ func TestHeadersEncodeDecode(t *testing.T) {
 	}}
 
 	buf := new(bytes.Buffer)
-	if err := headers.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err := headers.EncodeBinary(buf)
+	assert.Nil(t, err)
 
 	headersDecode := &Headers{}
-	if err := headersDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err = headersDecode.DecodeBinary(buf)
+	assert.Nil(t, err)
 
 	for i := 0; i < len(headers.Hdrs); i++ {
 		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)

@@ -2,11 +2,11 @@ package payload
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	. "github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInventoryEncodeDecode(t *testing.T) {
@@ -17,16 +17,11 @@ func TestInventoryEncodeDecode(t *testing.T) {
 	inv := NewInventory(BlockType, hashes)
 
 	buf := new(bytes.Buffer)
-	if err := inv.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err := inv.EncodeBinary(buf)
+	assert.Nil(t, err)
 
 	invDecode := &Inventory{}
-	if err := invDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(inv, invDecode) {
-		t.Fatalf("expected both inventories to be equal %v and %v", inv, invDecode)
-	}
+	err = invDecode.DecodeBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, inv, invDecode)
 }

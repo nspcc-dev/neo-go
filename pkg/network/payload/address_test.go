@@ -17,14 +17,12 @@ func TestEncodeDecodeAddress(t *testing.T) {
 		buf  = new(bytes.Buffer)
 	)
 
-	if err := addr.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err := addr.EncodeBinary(buf)
+	assert.Nil(t, err)
 
 	addrDecode := &AddressAndTime{}
-	if err := addrDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err = addrDecode.DecodeBinary(buf)
+	assert.Nil(t, err)
 
 	assert.Equal(t, addr, addrDecode)
 }
@@ -38,14 +36,12 @@ func TestEncodeDecodeAddressList(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
-	if err := addrList.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err := addrList.EncodeBinary(buf)
+	assert.Nil(t, err)
 
 	addrListDecode := &AddressList{}
-	if err := addrListDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err = addrListDecode.DecodeBinary(buf)
+	assert.Nil(t, err)
 
 	assert.Equal(t, addrList, addrListDecode)
 }
