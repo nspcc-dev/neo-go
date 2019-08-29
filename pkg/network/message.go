@@ -201,6 +201,8 @@ func (m *Message) decodePayload(r io.Reader) error {
 		if err := p.DecodeBinary(buf); err != nil {
 			return err
 		}
+	case CMDGetBlocks:
+		fallthrough
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
 		if err := p.DecodeBinary(buf); err != nil {
