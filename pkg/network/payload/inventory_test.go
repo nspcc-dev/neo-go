@@ -25,3 +25,13 @@ func TestInventoryEncodeDecode(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, inv, invDecode)
 }
+
+func TestEmptyInv(t *testing.T) {
+	msgInv := NewInventory(TXType, []Uint256{})
+
+	buf := new(bytes.Buffer)
+	err := msgInv.EncodeBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{byte(TXType), 0}, buf.Bytes())
+	assert.Equal(t, 0, len(msgInv.Hashes))
+}
