@@ -15,10 +15,9 @@ ARG VERSION=dev
 # https://github.com/golang/go/wiki/Modules#how-do-i-use-vendoring-with-modules-is-vendoring-going-away
 # go build -mod=vendor
 RUN set -x \
-    && export BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
     && export GOGC=off \
     && export CGO_ENABLED=0 \
-    && export LDFLAGS="-X ${REPO}/config.Version=${VERSION} -X ${REPO}/config.BuildTime=${BUILD_TIME}" \
+    && export LDFLAGS="-X ${REPO}/config.Version=${VERSION}" \
     && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/node ./cli/main.go
 
 # Executable image

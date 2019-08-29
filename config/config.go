@@ -25,10 +25,6 @@ const (
 var (
 	// Version the version of the node, set at build time.
 	Version string
-
-	// BuildTime the time and date the current version of the node built,
-	// set at build time.
-	BuildTime string
 )
 
 type (
