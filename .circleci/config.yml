@@ -69,6 +69,9 @@ jobs:
       - checkout
       - gomod
       - run: make build
+      - store_artifacts:
+          path: bin
+          destination: /
 
   build_image:
     working_directory: /go/src/github.com/CityOfZion/neo-go
