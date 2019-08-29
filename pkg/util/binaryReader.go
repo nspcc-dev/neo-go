@@ -33,6 +33,10 @@ func (r *BinReader) ReadBE(v interface{}) {
 // ReadVarUint reads a variable-length-encoded integer from the
 // underlying reader
 func (r *BinReader) ReadVarUint() uint64 {
+	if r.Err != nil {
+		return 0
+	}
+
 	var b uint8
 	r.Err = binary.Read(r.R, binary.LittleEndian, &b)
 

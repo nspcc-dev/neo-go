@@ -32,6 +32,10 @@ func (w *BinWriter) WriteBE(v interface{}) {
 
 // WriteVarUint writes a uint64 into the underlying writer using variable-length encoding
 func (w *BinWriter) WriteVarUint(val uint64) {
+	if w.Err != nil {
+		return
+	}
+
 	if val < 0 {
 		w.Err = errors.New("value out of range")
 		return
