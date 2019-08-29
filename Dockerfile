@@ -19,6 +19,8 @@ RUN set -x \
     && export GO111MODULE=on \
     && export CGO_ENABLED=0 \
     && export LDFLAGS="-X ${REPO}/config.Version=${VERSION}" \
+    && go mod tidy -v \
+    && go mod vendor \
     && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli/main.go
 
 # Executable image
