@@ -14,6 +14,10 @@ func TestVersionEncodeDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if int(version.Size()) != buf.Len() {
+		t.Fatalf("Expected version size of %d", buf.Len())
+	}
+
 	versionDecoded := &Version{}
 	if err := versionDecoded.DecodeBinary(buf); err != nil {
 		t.Fatal(err)
@@ -23,7 +27,4 @@ func TestVersionEncodeDecode(t *testing.T) {
 		t.Fatalf("expected both version payload to be equal: %+v and %+v", version, versionDecoded)
 	}
 
-	if version.Size() != uint32(minVersionSize+len(version.UserAgent)) {
-		t.Fatalf("Expected version size of %d", minVersionSize+len(version.UserAgent))
-	}
 }
