@@ -19,6 +19,7 @@ type PublishTX struct {
 	Author      string
 	Email       string
 	Description string
+	Version     uint8 // Version of the parent struct Transaction. Used in reading NeedStorage flag.
 }
 
 // DecodeBinary implements the Payload interface.
@@ -38,7 +39,11 @@ func (tx *PublishTX) DecodeBinary(r io.Reader) error {
 	br.ReadLE(&rtype)
 	tx.ReturnType = smartcontract.ParamType(rtype)
 
-	br.ReadLE(&tx.NeedStorage)
+	if tx.Version >= 1 {
+		br.ReadLE(&tx.NeedStorage)
+	} else {
+		tx.NeedStorage = false
+	}
 
 	tx.Name = br.ReadString()
 	tx.CodeVersion = br.ReadString()

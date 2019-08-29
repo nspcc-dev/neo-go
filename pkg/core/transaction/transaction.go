@@ -93,7 +93,6 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	for i := 0; i < int(lenAttrs); i++ {
 		t.Attributes[i] = &Attribute{}
 		if err := t.Attributes[i].DecodeBinary(r); err != nil {
-			// @TODO: remove this when TX attribute decode bug is solved.
 			log.Warnf("failed to decode TX %s", t.hash)
 			return err
 		}
@@ -158,7 +157,7 @@ func (t *Transaction) decodeData(r io.Reader) error {
 		t.Data = &EnrollmentTX{}
 		return t.Data.(*EnrollmentTX).DecodeBinary(r)
 	case PublishType:
-		t.Data = &PublishTX{}
+		t.Data = &PublishTX{Version: t.Version}
 		return t.Data.(*PublishTX).DecodeBinary(r)
 	case StateType:
 		t.Data = &StateTX{}
