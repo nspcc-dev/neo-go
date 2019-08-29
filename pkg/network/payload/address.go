@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"encoding/binary"
 	"io"
 	"time"
 
@@ -26,30 +25,22 @@ func NewAddressAndTime(e util.Endpoint, t time.Time) *AddressAndTime {
 
 // DecodeBinary implements the Payload interface.
 func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.BigEndian, &p.Endpoint.IP); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.BigEndian, &p.Endpoint.Port)
+	br := util.BinReader{R: r}
+	br.ReadLE(&p.Timestamp)
+	br.ReadLE(&p.Services)
+	br.ReadBE(&p.Endpoint.IP)
+	br.ReadBE(&p.Endpoint.Port)
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, p.Endpoint.IP); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.BigEndian, p.Endpoint.Port)
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(p.Timestamp)
+	bw.WriteLE(p.Services)
+	bw.WriteBE(p.Endpoint.IP)
+	bw.WriteBE(p.Endpoint.Port)
+	return bw.Err
 }
 
 // AddressList is a list with AddrAndTime.
@@ -59,7 +50,11 @@ type AddressList struct {
 
 // DecodeBinary implements the Payload interface.
 func (p *AddressList) DecodeBinary(r io.Reader) error {
-	listLen := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	listLen := br.ReadVarUint()
+	if br.Err != nil {
+		return br.Err
+	}
 
 	p.Addrs = make([]*AddressAndTime, listLen)
 	for i := 0; i < int(listLen); i++ {
@@ -73,8 +68,10 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *AddressList) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(p.Addrs))); err != nil {
-		return err
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(p.Addrs)))
+	if bw.Err != nil {
+		return bw.Err
 	}
 	for _, addr := range p.Addrs {
 		if err := addr.EncodeBinary(w); err != nil {

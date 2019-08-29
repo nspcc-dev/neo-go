@@ -23,19 +23,21 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	}
 
 	buf := bytes.NewBuffer(out)
-	b, _ := buf.ReadByte()
+	br := util.BinReader{R: buf}
+	var b uint8
+	br.ReadLE(&b)
 	assert.Equal(t, vm.PUSH3, vm.Instruction(b))
 
 	for i := 0; i < len(validators); i++ {
-		b, err := util.ReadVarBytes(buf)
+		bb := br.ReadBytes()
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, validators[i].Bytes(), b)
+		assert.Equal(t, validators[i].Bytes(), bb)
 	}
 
-	b, _ = buf.ReadByte()
+	br.ReadLE(&b)
 	assert.Equal(t, vm.PUSH3, vm.Instruction(b))
-	b, _ = buf.ReadByte()
+	br.ReadLE(&b)
 	assert.Equal(t, vm.CHECKMULTISIG, vm.Instruction(b))
 }

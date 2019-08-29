@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (
@@ -49,23 +50,26 @@ type CommandType string
 
 // Valid protocol commands used to send between nodes.
 const (
-	CMDVersion     CommandType = "version"
-	CMDVerack      CommandType = "verack"
-	CMDGetAddr     CommandType = "getaddr"
 	CMDAddr        CommandType = "addr"
-	CMDGetHeaders  CommandType = "getheaders"
-	CMDHeaders     CommandType = "headers"
-	CMDGetBlocks   CommandType = "getblocks"
-	CMDInv         CommandType = "inv"
-	CMDGetData     CommandType = "getdata"
 	CMDBlock       CommandType = "block"
-	CMDTX          CommandType = "tx"
 	CMDConsensus   CommandType = "consensus"
-	CMDUnknown     CommandType = "unknown"
 	CMDFilterAdd   CommandType = "filteradd"
 	CMDFilterClear CommandType = "filterclear"
 	CMDFilterLoad  CommandType = "filterload"
+	CMDGetAddr     CommandType = "getaddr"
+	CMDGetBlocks   CommandType = "getblocks"
+	CMDGetData     CommandType = "getdata"
+	CMDGetHeaders  CommandType = "getheaders"
+	CMDHeaders     CommandType = "headers"
+	CMDInv         CommandType = "inv"
+	CMDMempool     CommandType = "mempool"
 	CMDMerkleBlock CommandType = "merkleblock"
+	CMDPing        CommandType = "ping"
+	CMDPong        CommandType = "pong"
+	CMDTX          CommandType = "tx"
+	CMDUnknown     CommandType = "unknown"
+	CMDVerack      CommandType = "verack"
+	CMDVersion     CommandType = "version"
 )
 
 // NewMessage returns a new message with the given payload.
@@ -99,38 +103,44 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 func (m *Message) CommandType() CommandType {
 	cmd := cmdByteArrayToString(m.Command)
 	switch cmd {
-	case "version":
-		return CMDVersion
-	case "verack":
-		return CMDVerack
-	case "getaddr":
-		return CMDGetAddr
 	case "addr":
 		return CMDAddr
-	case "getheaders":
-		return CMDGetHeaders
-	case "headers":
-		return CMDHeaders
-	case "getblocks":
-		return CMDGetBlocks
-	case "inv":
-		return CMDInv
-	case "getdata":
-		return CMDGetData
 	case "block":
 		return CMDBlock
-	case "tx":
-		return CMDTX
 	case "consensus":
 		return CMDConsensus
-	case "merkleblock":
-		return CMDMerkleBlock
-	case "filterload":
-		return CMDFilterLoad
 	case "filteradd":
 		return CMDFilterAdd
 	case "filterclear":
 		return CMDFilterClear
+	case "filterload":
+		return CMDFilterLoad
+	case "getaddr":
+		return CMDGetAddr
+	case "getblocks":
+		return CMDGetBlocks
+	case "getdata":
+		return CMDGetData
+	case "getheaders":
+		return CMDGetHeaders
+	case "headers":
+		return CMDHeaders
+	case "inv":
+		return CMDInv
+	case "mempool":
+		return CMDMempool
+	case "merkleblock":
+		return CMDMerkleBlock
+	case "ping":
+		return CMDPing
+	case "pong":
+		return CMDPong
+	case "tx":
+		return CMDTX
+	case "verack":
+		return CMDVerack
+	case "version":
+		return CMDVersion
 	default:
 		return CMDUnknown
 	}
@@ -138,17 +148,13 @@ func (m *Message) CommandType() CommandType {
 
 // Decode a Message from the given reader.
 func (m *Message) Decode(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &m.Magic); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Command); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Length); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &m.Checksum); err != nil {
-		return err
+	br := util.BinReader{R: r}
+	br.ReadLE(&m.Magic)
+	br.ReadLE(&m.Command)
+	br.ReadLE(&m.Length)
+	br.ReadLE(&m.Checksum)
+	if br.Err != nil {
+		return br.Err
 	}
 	// return if their is no payload.
 	if m.Length == 0 {
@@ -224,17 +230,13 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // Encode a Message to any given io.Writer.
 func (m *Message) Encode(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, m.Magic); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Command); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Length); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, m.Checksum); err != nil {
-		return err
+	br := util.BinWriter{W: w}
+	br.WriteLE(m.Magic)
+	br.WriteLE(m.Command)
+	br.WriteLE(m.Length)
+	br.WriteLE(m.Checksum)
+	if br.Err != nil {
+		return br.Err
 	}
 	if m.Payload != nil {
 		return m.Payload.EncodeBinary(w)

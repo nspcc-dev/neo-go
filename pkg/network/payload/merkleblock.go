@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
@@ -20,18 +19,16 @@ func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
 	if err := m.BlockBase.DecodeBinary(r); err != nil {
 		return err
 	}
+	br := util.BinReader{R: r}
 
-	m.TxCount = int(util.ReadVarUint(r))
-	n := util.ReadVarUint(r)
+	m.TxCount = int(br.ReadVarUint())
+	n := br.ReadVarUint()
 	m.Hashes = make([]util.Uint256, n)
 	for i := 0; i < len(m.Hashes); i++ {
-		if err := binary.Read(r, binary.LittleEndian, &m.Hashes[i]); err != nil {
-			return err
-		}
+		br.ReadLE(&m.Hashes[i])
 	}
-	var err error
-	m.Flags, err = util.ReadVarBytes(r)
-	return err
+	m.Flags = br.ReadBytes()
+	return br.Err
 }
 
 func (m *MerkleBlock) EncodeBinary(w io.Writer) error {

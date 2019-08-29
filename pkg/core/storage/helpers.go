@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/binary"
 	"sort"
 
@@ -55,7 +56,7 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
 	s.Seek(IXHeaderHashList.Bytes(), func(k, v []byte) {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
-		hashes, err := util.Read2000Uint256Hashes(v)
+		hashes, err := read2000Uint256Hashes(v)
 		if err != nil {
 			panic(err)
 		}
@@ -76,5 +77,19 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 		hashes = append(hashes, hashMap[key]...)
 	}
 
+	return hashes, nil
+}
+
+// read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
+// the given byte array.
+func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
+	r := bytes.NewReader(b)
+	br := util.BinReader{R: r}
+	lenHashes := br.ReadVarUint()
+	hashes := make([]util.Uint256, lenHashes)
+	br.ReadLE(hashes)
+	if br.Err != nil {
+		return nil, br.Err
+	}
 	return hashes, nil
 }

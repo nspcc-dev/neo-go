@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -67,8 +66,10 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 	}
 
 	var padding uint8
-	if err := binary.Read(r, binary.LittleEndian, &padding); err != nil {
-		return err
+	br := util.BinReader{R: r}
+	br.ReadLE(&padding)
+	if br.Err != nil {
+		return br.Err
 	}
 	if padding != 1 {
 		return fmt.Errorf("format error: padding must equal 1 got %d", padding)
@@ -83,8 +84,10 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 	if err := b.encodeHashableFields(w); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, uint8(1)); err != nil {
-		return err
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(uint8(1))
+	if bw.Err != nil {
+		return bw.Err
 	}
 	return b.Script.EncodeBinary(w)
 }
@@ -108,50 +111,31 @@ func (b *BlockBase) createHash() error {
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, b.Version); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, b.PrevHash); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, b.MerkleRoot); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, b.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, b.Index); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, b.ConsensusData); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, b.NextConsensus)
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(b.Version)
+	bw.WriteLE(b.PrevHash)
+	bw.WriteLE(b.MerkleRoot)
+	bw.WriteLE(b.Timestamp)
+	bw.WriteLE(b.Index)
+	bw.WriteLE(b.ConsensusData)
+	bw.WriteLE(b.NextConsensus)
+	return bw.Err
 }
 
 // decodeHashableFields will only decode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) decodeHashableFields(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &b.Version); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.PrevHash); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.MerkleRoot); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.Index); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.ConsensusData); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &b.NextConsensus); err != nil {
-		return err
+	br := util.BinReader{R: r}
+	br.ReadLE(&b.Version)
+	br.ReadLE(&b.PrevHash)
+	br.ReadLE(&b.MerkleRoot)
+	br.ReadLE(&b.Timestamp)
+	br.ReadLE(&b.Index)
+	br.ReadLE(&b.ConsensusData)
+	br.ReadLE(&b.NextConsensus)
+
+	if br.Err != nil {
+		return br.Err
 	}
 
 	// Make the hash of the block here so we dont need to do this

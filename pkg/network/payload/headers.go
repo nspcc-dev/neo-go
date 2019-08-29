@@ -14,7 +14,11 @@ type Headers struct {
 
 // DecodeBinary implements the Payload interface.
 func (p *Headers) DecodeBinary(r io.Reader) error {
-	lenHeaders := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	lenHeaders := br.ReadVarUint()
+	if br.Err != nil {
+		return br.Err
+	}
 
 	p.Hdrs = make([]*core.Header, lenHeaders)
 
@@ -31,9 +35,12 @@ func (p *Headers) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *Headers) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(p.Hdrs))); err != nil {
-		return err
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(p.Hdrs)))
+	if bw.Err != nil {
+		return bw.Err
 	}
+
 	for _, header := range p.Hdrs {
 		if err := header.EncodeBinary(w); err != nil {
 			return err

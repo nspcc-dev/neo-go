@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -18,28 +17,21 @@ type Witness struct {
 
 // DecodeBinary implements the payload interface.
 func (w *Witness) DecodeBinary(r io.Reader) error {
-	lenb := util.ReadVarUint(r)
-	w.InvocationScript = make([]byte, lenb)
-	if err := binary.Read(r, binary.LittleEndian, w.InvocationScript); err != nil {
-		return err
-	}
-	lenb = util.ReadVarUint(r)
-	w.VerificationScript = make([]byte, lenb)
-	return binary.Read(r, binary.LittleEndian, w.VerificationScript)
+	br := util.BinReader{R: r}
+
+	w.InvocationScript = br.ReadBytes()
+	w.VerificationScript = br.ReadBytes()
+	return br.Err
 }
 
 // EncodeBinary implements the payload interface.
 func (w *Witness) EncodeBinary(writer io.Writer) error {
-	if err := util.WriteVarUint(writer, uint64(len(w.InvocationScript))); err != nil {
-		return err
-	}
-	if err := binary.Write(writer, binary.LittleEndian, w.InvocationScript); err != nil {
-		return err
-	}
-	if err := util.WriteVarUint(writer, uint64(len(w.VerificationScript))); err != nil {
-		return err
-	}
-	return binary.Write(writer, binary.LittleEndian, w.VerificationScript)
+	bw := util.BinWriter{W: writer}
+
+	bw.WriteBytes(w.InvocationScript)
+	bw.WriteBytes(w.VerificationScript)
+
+	return bw.Err
 }
 
 // MarshalJSON implements the json marshaller interface.

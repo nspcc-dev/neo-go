@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -58,36 +57,28 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 
 // DecodeBinary implements the Payload interface.
 func (p *Inventory) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Type); err != nil {
-		return err
-	}
+	br := util.BinReader{R: r}
+	br.ReadLE(&p.Type)
 
-	listLen := util.ReadVarUint(r)
+	listLen := br.ReadVarUint()
 	p.Hashes = make([]util.Uint256, listLen)
 	for i := 0; i < int(listLen); i++ {
-		if err := binary.Read(r, binary.LittleEndian, &p.Hashes[i]); err != nil {
-			return err
-		}
+		br.ReadLE(&p.Hashes[i])
 	}
 
-	return nil
+	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
 func (p *Inventory) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Type); err != nil {
-		return err
-	}
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(p.Type)
 
 	listLen := len(p.Hashes)
-	if err := util.WriteVarUint(w, uint64(listLen)); err != nil {
-		return err
-	}
-	for i := 0; i < len(p.Hashes); i++ {
-		if err := binary.Write(w, binary.LittleEndian, p.Hashes[i]); err != nil {
-			return err
-		}
+	bw.WriteVarUint(uint64(listLen))
+	for i := 0; i < listLen; i++ {
+		bw.WriteLE(p.Hashes[i])
 	}
 
-	return nil
+	return bw.Err
 }

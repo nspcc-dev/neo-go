@@ -13,7 +13,11 @@ type StateTX struct {
 
 // DecodeBinary implements the Payload interface.
 func (tx *StateTX) DecodeBinary(r io.Reader) error {
-	lenDesc := util.ReadVarUint(r)
+	br := util.BinReader{R: r}
+	lenDesc := br.ReadVarUint()
+	if br.Err != nil {
+		return br.Err
+	}
 	for i := 0; i < int(lenDesc); i++ {
 		tx.Descriptors[i] = &StateDescriptor{}
 		if err := tx.Descriptors[i].DecodeBinary(r); err != nil {

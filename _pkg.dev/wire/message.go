@@ -47,7 +47,7 @@ func WriteMessage(w io.Writer, magic protocol.Magic, message Messager) error {
 		return err
 	}
 
-	payloadLen := util.BufferLength(buf)
+	payloadLen := uint32(buf.Len())
 	checksum := checksum.FromBytes(buf.Bytes())
 
 	bw.Write(payloadLen)
