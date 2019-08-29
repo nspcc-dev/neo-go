@@ -14,7 +14,7 @@ build: deps
 		&& export CGO_ENABLED=0 \
 		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
-image: deps
+image:
 	@echo "=> Building image"
 	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 	@docker build -t cityofzion/neo-go:$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
