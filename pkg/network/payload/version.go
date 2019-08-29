@@ -60,11 +60,7 @@ func (p *Version) DecodeBinary(r io.Reader) error {
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Port)
 	br.ReadLE(&p.Nonce)
-
-	var lenUA uint8
-	br.ReadLE(&lenUA)
-	p.UserAgent = make([]byte, lenUA)
-	br.ReadLE(&p.UserAgent)
+	p.UserAgent = br.ReadBytes()
 	br.ReadLE(&p.StartHeight)
 	br.ReadLE(&p.Relay)
 	return br.Err
@@ -79,8 +75,7 @@ func (p *Version) EncodeBinary(w io.Writer) error {
 	br.WriteLE(p.Port)
 	br.WriteLE(p.Nonce)
 
-	br.WriteLE(uint8(len(p.UserAgent)))
-	br.WriteLE(p.UserAgent)
+	br.WriteBytes(p.UserAgent)
 	br.WriteLE(p.StartHeight)
 	br.WriteLE(&p.Relay)
 	return br.Err
