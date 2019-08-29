@@ -13,10 +13,13 @@ import (
 func TestEncodeDecodeAddress(t *testing.T) {
 	var (
 		e    = util.NewEndpoint("127.0.0.1:2000")
-		addr = NewAddressAndTime(e, time.Now())
+		ts   = time.Now()
+		addr = NewAddressAndTime(e, ts)
 		buf  = new(bytes.Buffer)
 	)
 
+	assert.Equal(t, ts.UTC().Unix(), int64(addr.Timestamp))
+	assert.Equal(t, e, addr.Endpoint)
 	err := addr.EncodeBinary(buf)
 	assert.Nil(t, err)
 
