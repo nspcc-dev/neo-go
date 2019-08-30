@@ -136,7 +136,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 func (t *Transaction) decodeData(r io.Reader) error {
 	switch t.Type {
 	case InvocationType:
-		t.Data = &InvocationTX{}
+		t.Data = &InvocationTX{Version: t.Version}
 		return t.Data.(*InvocationTX).DecodeBinary(r)
 	case MinerType:
 		t.Data = &MinerTX{}
