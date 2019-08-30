@@ -18,6 +18,7 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 	if br.Err != nil {
 		return br.Err
 	}
+	tx.Descriptors = make([]*StateDescriptor, lenDesc)
 	for i := 0; i < int(lenDesc); i++ {
 		tx.Descriptors[i] = &StateDescriptor{}
 		if err := tx.Descriptors[i].DecodeBinary(r); err != nil {
