@@ -1,4 +1,7 @@
 version: 2.1
+orbs:
+  codecov: codecov/codecov@1.0.5
+
 executors:
   go1_11:
     docker:
@@ -60,7 +63,9 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: go test -v -race ./...
+      - run: go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic
+      - codecov/upload:
+          file: coverage.txt
 
   build_cli:
     working_directory: /go/src/github.com/CityOfZion/neo-go
