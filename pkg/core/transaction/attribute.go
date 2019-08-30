@@ -42,7 +42,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		Remark12, Remark13, Remark14, Remark15:
 		datasize = br.ReadVarUint()
 	default:
-		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", attr.Usage)
+		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
 	}
 	attr.Data = make([]byte, datasize)
 	br.ReadLE(attr.Data)
