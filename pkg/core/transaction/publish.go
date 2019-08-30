@@ -56,7 +56,22 @@ func (tx *PublishTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *PublishTX) EncodeBinary(w io.Writer) error {
-	return nil
+	bw := util.BinWriter{W: w}
+	bw.WriteBytes(tx.Script)
+	bw.WriteVarUint(uint64(len(tx.ParamList)))
+	for _, param := range tx.ParamList {
+		bw.WriteLE(uint8(param))
+	}
+	bw.WriteLE(uint8(tx.ReturnType))
+	if tx.Version >= 1 {
+		bw.WriteLE(tx.NeedStorage)
+	}
+	bw.WriteString(tx.Name)
+	bw.WriteString(tx.CodeVersion)
+	bw.WriteString(tx.Author)
+	bw.WriteString(tx.Email)
+	bw.WriteString(tx.Description)
+	return bw.Err
 }
 
 func (tx *PublishTX) Size() int {

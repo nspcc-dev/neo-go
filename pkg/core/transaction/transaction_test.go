@@ -144,4 +144,9 @@ func TestDecodePublishTX(t *testing.T) {
 	assert.Equal(t, expectedTX.Data, actualTX.Data)
 	assert.Equal(t, expectedTX.Type, actualTX.Type)
 	assert.Equal(t, expectedTX.Version, actualTX.Version)
+
+	buf := new(bytes.Buffer)
+	err := actualTX.EncodeBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
 }
