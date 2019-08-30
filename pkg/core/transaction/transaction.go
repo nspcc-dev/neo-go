@@ -276,8 +276,7 @@ func (t *Transaction) Size() int {
 	outputSize := util.GetVarSize(t.Outputs)
 	witnesSize := util.GetVarSize(t.Scripts)
 	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
-	return 2 + attrSize + inputSize + outputSize + witnesSize
-
+	return 2 + attrSize + inputSize + outputSize + witnesSize + t.Data.Size()
 }
 
 // Bytes convert the transaction to []byte

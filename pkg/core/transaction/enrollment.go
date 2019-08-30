@@ -26,3 +26,7 @@ func (tx *EnrollmentTX) DecodeBinary(r io.Reader) error {
 func (tx *EnrollmentTX) EncodeBinary(w io.Writer) error {
 	return tx.PublicKey.EncodeBinary(w)
 }
+
+func (tx *EnrollmentTX) Size() int {
+	return len(tx.PublicKey.Bytes())
+}

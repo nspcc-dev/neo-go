@@ -17,3 +17,7 @@ func (tx *IssueTX) DecodeBinary(r io.Reader) error {
 func (tx *IssueTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+func (tx *IssueTX) Size() int {
+	return 0
+}

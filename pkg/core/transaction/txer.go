@@ -7,4 +7,5 @@ import "io"
 type TXer interface {
 	DecodeBinary(io.Reader) error
 	EncodeBinary(io.Writer) error
+	Size() int
 }

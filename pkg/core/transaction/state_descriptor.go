@@ -39,3 +39,7 @@ func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
 func (s *StateDescriptor) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+func (s *StateDescriptor) Size() int {
+	return 1 + util.GetVarSize(s.Key) + util.GetVarSize(s.Value) + util.GetVarSize(s.Field)
+}

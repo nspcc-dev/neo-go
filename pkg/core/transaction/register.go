@@ -62,3 +62,7 @@ func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
 	bw.WriteLE(tx.Admin)
 	return bw.Err
 }
+
+func (tx *RegisterTX) Size() int {
+	return 1 + util.GetVarSize(tx.Name) + tx.Amount.Size() + 1 + len(tx.Owner.Bytes()) + tx.Admin.Size()
+}

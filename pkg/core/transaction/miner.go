@@ -20,3 +20,7 @@ func (tx *MinerTX) DecodeBinary(r io.Reader) error {
 func (tx *MinerTX) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, tx.Nonce)
 }
+
+func (tx *MinerTX) Size() int {
+	return 4 // Nonce
+}

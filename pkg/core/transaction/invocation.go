@@ -53,3 +53,11 @@ func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
 	}
 	return bw.Err
 }
+
+func (tx *InvocationTX) Size() int {
+	sz := util.GetVarSize(tx.Script)
+	if (tx.Version >= 1) {
+		sz += tx.Gas.Size()
+	}
+	return sz
+}
