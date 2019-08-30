@@ -9,6 +9,7 @@ ProtocolConfiguration:
     - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
     - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   SeedList:
+    - 127.0.0.1:20333
     - 127.0.0.1:20334
     - 127.0.0.1:20335
     - 127.0.0.1:20336
@@ -20,8 +21,8 @@ ProtocolConfiguration:
 
 ApplicationConfiguration:
   DataDirectoryPath: "./chains/privnet"
-  RPCPort: 20332
-  NodePort: 20333
+  RPCPort: 20331
+  NodePort: 20332
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2

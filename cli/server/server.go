@@ -54,7 +54,7 @@ func startServer(ctx *cli.Context) error {
 	grace, cancel := context.WithCancel(newGraceContext())
 	defer cancel()
 
-	configPath := "../config"
+	configPath := "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
