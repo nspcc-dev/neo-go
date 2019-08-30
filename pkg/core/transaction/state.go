@@ -29,6 +29,17 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *StateTX) EncodeBinary(w io.Writer) error {
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(tx.Descriptors)))
+	if bw.Err != nil {
+		return bw.Err
+	}
+	for _, desc := range tx.Descriptors {
+		err := desc.EncodeBinary(w)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

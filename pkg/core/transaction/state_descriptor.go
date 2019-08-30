@@ -37,7 +37,12 @@ func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (s *StateDescriptor) EncodeBinary(w io.Writer) error {
-	return nil
+	bw := util.BinWriter{W: w}
+	bw.WriteLE(s.Type)
+	bw.WriteBytes(s.Key)
+	bw.WriteBytes(s.Value)
+	bw.WriteString(s.Field)
+	return bw.Err
 }
 
 func (s *StateDescriptor) Size() int {
