@@ -36,7 +36,10 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 	case Script:
 		datasize = 20
 	case DescriptionURL:
-		datasize = 1
+		// It's not VarUint as per C# implementation, dunno why
+		var urllen uint8
+		br.ReadLE(&urllen)
+		datasize = uint64(urllen)
 	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
 		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
 		Remark12, Remark13, Remark14, Remark15:
@@ -56,10 +59,13 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 	switch attr.Usage {
 	case ECDH02, ECDH03:
 		bw.WriteLE(attr.Data[1:])
-	case DescriptionURL, Description, Remark, Remark1, Remark2, Remark3, Remark4,
+	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
 		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
 		Remark12, Remark13, Remark14, Remark15:
-		bw.WriteVarUint(uint64(len(attr.Data)))
+		bw.WriteBytes(attr.Data)
+	case DescriptionURL:
+		var urllen uint8 = uint8(len(attr.Data))
+		bw.WriteLE(urllen)
 		fallthrough
 	case Script, ContractHash, Vote, Hash1,	Hash2, Hash3, Hash4, Hash5, Hash6,
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
@@ -81,7 +87,7 @@ func (attr *Attribute) Size() int {
 	case Script:
 		sz += 20 // uint8 + 20 = size(attrUsage) + 20
 	case DescriptionURL:
-		sz += 1
+		sz += 1 + len(attr.Data)
 	default:
 		sz += util.GetVarSize(attr.Data)
 	}

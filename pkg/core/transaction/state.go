@@ -18,6 +18,7 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 	if br.Err != nil {
 		return br.Err
 	}
+	tx.Descriptors = make([]*StateDescriptor, lenDesc)
 	for i := 0; i < int(lenDesc); i++ {
 		tx.Descriptors[i] = &StateDescriptor{}
 		if err := tx.Descriptors[i].DecodeBinary(r); err != nil {
@@ -29,6 +30,17 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *StateTX) EncodeBinary(w io.Writer) error {
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(tx.Descriptors)))
+	if bw.Err != nil {
+		return bw.Err
+	}
+	for _, desc := range tx.Descriptors {
+		err := desc.EncodeBinary(w)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
