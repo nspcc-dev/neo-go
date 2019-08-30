@@ -42,7 +42,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		Remark12, Remark13, Remark14, Remark15:
 		datasize = br.ReadVarUint()
 	default:
-		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", attr.Usage)
+		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
 	}
 	attr.Data = make([]byte, datasize)
 	br.ReadLE(attr.Data)
@@ -73,17 +73,19 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 
 // Size returns the size in number bytes of the Attribute
 func (attr *Attribute) Size() int {
+	sz := 1 // usage
 	switch attr.Usage {
 	case ContractHash, ECDH02, ECDH03, Vote,
 		Hash1, Hash2, Hash3, Hash4, Hash5, Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
-		return 33 // uint8 + 32 = size(attrUsage) + 32
+		sz += 32 // uint8 + 32 = size(attrUsage) + 32
 	case Script:
-		return 21 // uint8 + 20 = size(attrUsage) + 20
-	case Description:
-		return 2 + len(attr.Data) // uint8 + uint8+ len of data = size(attrUsage) + size(byte) + len of data
+		sz += 20 // uint8 + 20 = size(attrUsage) + 20
+	case DescriptionURL:
+		sz += 1
 	default:
-		return 1 + len(attr.Data) // uint8 + len of data = size(attrUsage) + len of data
+		sz += util.GetVarSize(attr.Data)
 	}
+	return sz
 }
 
 // MarshalJSON implements the json Marschaller interface

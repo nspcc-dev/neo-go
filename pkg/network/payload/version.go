@@ -7,6 +7,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
+// Size of the payload not counting UserAgent encoding (which is at least 1 byte
+// for zero-length string)
 const minVersionSize = 27
 
 // List of Services offered by the node
@@ -83,5 +85,5 @@ func (p *Version) EncodeBinary(w io.Writer) error {
 
 // Size implements the payloader interface.
 func (p *Version) Size() uint32 {
-	return uint32(minVersionSize + len(p.UserAgent))
+	return uint32(minVersionSize + util.GetVarSize(p.UserAgent))
 }

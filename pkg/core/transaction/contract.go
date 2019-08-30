@@ -23,3 +23,7 @@ func (tx *ContractTX) DecodeBinary(r io.Reader) error {
 func (tx *ContractTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+func (tx *ContractTX) Size() int {
+	return 0
+}

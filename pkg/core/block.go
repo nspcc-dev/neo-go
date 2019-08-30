@@ -152,5 +152,20 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary encodes the block to the given writer.
 func (b *Block) EncodeBinary(w io.Writer) error {
+	err := b.BlockBase.EncodeBinary(w)
+	if err != nil {
+		return err
+	}
+	bw := util.BinWriter{W: w}
+	bw.WriteVarUint(uint64(len(b.Transactions)))
+	if bw.Err != nil {
+		return err
+	}
+	for _, tx := range b.Transactions {
+		err := tx.EncodeBinary(w)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

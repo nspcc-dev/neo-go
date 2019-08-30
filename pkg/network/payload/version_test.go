@@ -2,28 +2,32 @@ package payload
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
-	version := NewVersion(13337, 3000, "/NEO:0.0.1/", 0, true)
+	var port uint16 = 3000
+	var id uint32 = 13337
+	useragent := "/NEO:0.0.1/"
+	var height uint32 = 100500
+	var relay bool = true
+
+	version := NewVersion(id, port, useragent, height, relay)
 
 	buf := new(bytes.Buffer)
-	if err := version.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	err := version.EncodeBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, int(version.Size()), buf.Len())
 
 	versionDecoded := &Version{}
-	if err := versionDecoded.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(version, versionDecoded) {
-		t.Fatalf("expected both version payload to be equal: %+v and %+v", version, versionDecoded)
-	}
-
-	if version.Size() != uint32(minVersionSize+len(version.UserAgent)) {
-		t.Fatalf("Expected version size of %d", minVersionSize+len(version.UserAgent))
-	}
+	err = versionDecoded.DecodeBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, versionDecoded.Nonce, id)
+	assert.Equal(t, versionDecoded.Port, port)
+	assert.Equal(t, versionDecoded.UserAgent, []byte(useragent))
+	assert.Equal(t, versionDecoded.StartHeight, height)
+	assert.Equal(t, versionDecoded.Relay, relay)
+	assert.Equal(t, version, versionDecoded)
 }

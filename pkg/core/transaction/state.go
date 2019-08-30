@@ -31,3 +31,11 @@ func (tx *StateTX) DecodeBinary(r io.Reader) error {
 func (tx *StateTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
+
+func (tx *StateTX) Size() int {
+	sz := util.GetVarSize(uint64(len(tx.Descriptors)))
+	for _, desc := range tx.Descriptors {
+		sz += desc.Size()
+	}
+	return sz
+}

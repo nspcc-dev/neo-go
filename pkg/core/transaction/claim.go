@@ -42,3 +42,11 @@ func (tx *ClaimTX) EncodeBinary(w io.Writer) error {
 	}
 	return nil
 }
+
+func (tx *ClaimTX) Size() int {
+	sz := util.GetVarSize(uint64(len(tx.Claims)))
+	for _, claim := range tx.Claims {
+		sz += claim.Size()
+	}
+	return sz
+}

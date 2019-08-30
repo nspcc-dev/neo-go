@@ -224,12 +224,11 @@ var testRpcCases = []tc{
 		expectedResult: `{"jsonrpc":"2.0","result":true,"id":1}`,
 	},
 
-	/* Good case: TODO: uncomment this test case once https://github.com/CityOfZion/neo-go/issues/173 is fixed!
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "sendrawtransaction", "params": ["d1001b00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c733101201cc9c05cefffe6cdd7b182816a9152ec218d2ec000000141403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"] }`,
 		method:         "sendrawtransaction_2",
 		expectedResult: `{"jsonrpc":"2.0","result":true,"id":1}`,
-	},*/
+	},
 
 	// Bad case, incorrect raw transaction
 	{

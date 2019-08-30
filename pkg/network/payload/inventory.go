@@ -16,9 +16,9 @@ type InventoryType uint8
 func (i InventoryType) String() string {
 	switch i {
 	case 0x01:
-		return "block"
-	case 0x02:
 		return "TX"
+	case 0x02:
+		return "block"
 	case 0xe0:
 		return "consensus"
 	default:

@@ -136,7 +136,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 func (t *Transaction) decodeData(r io.Reader) error {
 	switch t.Type {
 	case InvocationType:
-		t.Data = &InvocationTX{}
+		t.Data = &InvocationTX{Version: t.Version}
 		return t.Data.(*InvocationTX).DecodeBinary(r)
 	case MinerType:
 		t.Data = &MinerTX{}
@@ -276,8 +276,7 @@ func (t *Transaction) Size() int {
 	outputSize := util.GetVarSize(t.Outputs)
 	witnesSize := util.GetVarSize(t.Scripts)
 	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
-	return 2 + attrSize + inputSize + outputSize + witnesSize
-
+	return 2 + attrSize + inputSize + outputSize + witnesSize + t.Data.Size()
 }
 
 // Bytes convert the transaction to []byte
