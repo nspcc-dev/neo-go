@@ -39,4 +39,4 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENTRYPOINT ["/usr/bin/neo-go"]
 
-CMD ["neo-go", "--config-path", "./config", "--testnet"]
+CMD ["node", "--config-path", "/config", "--testnet"]
