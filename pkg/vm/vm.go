@@ -342,7 +342,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("negative stack item returned")
 		}
 		if n > 0 {
-			v.estack.Push(v.estack.RemoveAt(n))
+			e := v.estack.RemoveAt(n)
+			if e == nil {
+				panic("bad index")
+			}
+			v.estack.Push(e)
 		}
 
 	case DROP:
