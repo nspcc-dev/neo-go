@@ -127,16 +127,13 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
 
 	case "run":
-		var (
-			method []byte
-			params []vm.StackItem
-			err    error
-			start  int
-		)
-
-		if len(args) == 0 {
-			c.vm.Run()
-		} else {
+		if len(args) != 0 {
+			var (
+				method []byte
+				params []vm.StackItem
+				err    error
+				start  int
+			)
 			if isMethodArg(args[0]) {
 				method = []byte(args[0])
 				start = 1
@@ -146,8 +143,8 @@ func (c *VMCLI) handleCommand(cmd string, args ...string) {
 				fmt.Println(err)
 				return
 			}
+			c.vm.LoadArgs(method, params)
 		}
-		c.vm.LoadArgs(method, params)
 		c.vm.Run()
 
 	case "cont":
