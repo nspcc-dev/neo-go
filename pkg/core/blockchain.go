@@ -791,43 +791,41 @@ func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transa
 	var results []*transaction.Result
 	tempGroupResult := make(map[util.Uint256]util.Fixed8)
 
-	if references := bc.References(t); references == nil {
+	references := bc.References(t)
+	if references == nil {
 		return nil
-	} else {
-		for _, output := range references {
-			tempResults = append(tempResults, &transaction.Result{
-				AssetID: output.AssetID,
-				Amount:  output.Amount,
-			})
+	}
+	for _, output := range references {
+		tempResults = append(tempResults, &transaction.Result{
+			AssetID: output.AssetID,
+			Amount:  output.Amount,
+		})
+	}
+	for _, output := range t.Outputs {
+		tempResults = append(tempResults, &transaction.Result{
+			AssetID: output.AssetID,
+			Amount:  -output.Amount,
+		})
+	}
+	for _, r := range tempResults {
+		if amount, ok := tempGroupResult[r.AssetID]; ok {
+			tempGroupResult[r.AssetID] = amount.Add(r.Amount)
+		} else {
+			tempGroupResult[r.AssetID] = r.Amount
 		}
-		for _, output := range t.Outputs {
-			tempResults = append(tempResults, &transaction.Result{
-				AssetID: output.AssetID,
-				Amount:  -output.Amount,
-			})
-		}
-		for _, r := range tempResults {
-			if amount, ok := tempGroupResult[r.AssetID]; ok {
-				tempGroupResult[r.AssetID] = amount.Add(r.Amount)
-			} else {
-				tempGroupResult[r.AssetID] = r.Amount
-			}
-		}
-
-		results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
-		for assetID, amount := range tempGroupResult {
-			if amount != util.Fixed8(0) {
-				results = append(results, &transaction.Result{
-					AssetID: assetID,
-					Amount:  amount,
-				})
-			}
-		}
-
-		return results
-
 	}
 
+	results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
+	for assetID, amount := range tempGroupResult {
+		if amount != util.Fixed8(0) {
+			results = append(results, &transaction.Result{
+				AssetID: assetID,
+				Amount:  amount,
+			})
+		}
+	}
+
+	return results
 }
 
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
