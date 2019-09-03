@@ -12,19 +12,20 @@ import (
 
 // getBlock returns a block by its hash or index/height. If verbose is true
 // the response will contain a pretty Block object instead of the raw hex string.
-func (c *Client) getBlock(indexOrHash interface{}, verbose bool) (*response, error) {
-	var (
-		params = newParams(indexOrHash)
-		resp   = &response{}
-	)
-	if verbose {
-		params = newParams(indexOrHash, 1)
-	}
-	if err := c.performRequest("getblock", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
+// missing output wrapper at the moment, thus commented out
+// func (c *Client) getBlock(indexOrHash interface{}, verbose bool) (*response, error) {
+// 	var (
+// 		params = newParams(indexOrHash)
+// 		resp   = &response{}
+// 	)
+// 	if verbose {
+// 		params = newParams(indexOrHash, 1)
+// 	}
+// 	if err := c.performRequest("getblock", params, resp); err != nil {
+// 		return nil, err
+// 	}
+// 	return resp, nil
+// }
 
 // GetAccountState will return detailed information about a NEO account.
 func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) {
@@ -79,16 +80,17 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*Invok
 }
 
 // getRawTransaction queries a transaction by hash.
-func (c *Client) getRawTransaction(hash string, verbose bool) (*response, error) {
-	var (
-		params = newParams(hash, verbose)
-		resp   = &response{}
-	)
-	if err := c.performRequest("getrawtransaction", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
+// missing output wrapper at the moment, thus commented out
+// func (c *Client) getRawTransaction(hash string, verbose bool) (*response, error) {
+// 	var (
+// 		params = newParams(hash, verbose)
+// 		resp   = &response{}
+// 	)
+// 	if err := c.performRequest("getrawtransaction", params, resp); err != nil {
+// 		return nil, err
+// 	}
+// 	return resp, nil
+// }
 
 // sendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.
