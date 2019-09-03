@@ -1,4 +1,4 @@
-package storage_contract
+package storagecontract
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/interop/storage"

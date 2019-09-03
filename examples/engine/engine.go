@@ -1,4 +1,4 @@
-package engine_contract
+package enginecontract
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/interop/engine"

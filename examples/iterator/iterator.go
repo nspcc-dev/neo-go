@@ -1,4 +1,4 @@
-package iterator_contract
+package iteratorcontract
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/interop/iterator"

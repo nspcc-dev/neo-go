@@ -1,4 +1,4 @@
-package runtime_contract
+package runtimecontract
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/interop/runtime"

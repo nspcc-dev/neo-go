@@ -1,4 +1,4 @@
-package token_contract
+package tokencontract
 
 import (
 	"github.com/CityOfZion/neo-go/examples/token/nep5"
