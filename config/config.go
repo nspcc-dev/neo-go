@@ -15,10 +15,13 @@ import (
 const (
 	userAgentFormat = "/NEO-GO:%s/"
 
-	// Valid NetMode constants.
+	// ModeMainNet contains magic code used in the NEO main official network.
 	ModeMainNet     NetMode = 0x00746e41 // 7630401
+	// ModeTestNet contains magic code used in the NEO testing network.
 	ModeTestNet     NetMode = 0x74746e41 // 1953787457
+	// ModePrivNet contains magic code usually used for NEO private networks.
 	ModePrivNet     NetMode = 56753      // docker privnet
+	// ModeUnitTestNet is a stub magic code used for testing purposes.
 	ModeUnitTestNet NetMode = 0
 )
 
@@ -91,8 +94,8 @@ func (c Config) GenerateUserAgent() string {
 	return fmt.Sprintf(userAgentFormat, Version)
 }
 
-// Loadattempts to load the config from the give
-// path and netMode.
+// Load attempts to load the config from the given
+// path for the given netMode.
 func Load(path string, netMode NetMode) (Config, error) {
 	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {

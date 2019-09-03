@@ -24,18 +24,18 @@ type tc struct {
 	expectedResult string
 }
 
-var testRpcCases = []tc{
+var testRPCCases = []tc{
 
 	{
 		rpcCall:        `{"jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"] }`,
 		method:         "getassetstate_1",
-		expectedResult: `{"jsonrpc":"2.0","result":{"assetId":"0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7","assetType":1,"name":"NEOGas","amount":"100000000","available":"0","precision":8,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`,
+		expectedResult: `{"jsonrpc":"2.0","result":{"assetID":"0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7","assetType":1,"name":"NEOGas","amount":"100000000","available":"0","precision":8,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`,
 	},
 
 	{
 		rpcCall:        `{ "jsonrpc": "2.0", "id": 1, "method": "getassetstate", "params": ["c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"] }`,
 		method:         "getassetstate_2",
-		expectedResult: `{"jsonrpc":"2.0","result":{"assetId":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","assetType":0,"name":"NEO","amount":"100000000","available":"0","precision":0,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`,
+		expectedResult: `{"jsonrpc":"2.0","result":{"assetID":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","assetType":0,"name":"NEO","amount":"100000000","available":"0","precision":0,"fee":0,"address":"0x0000000000000000000000000000000000000000","owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":0,"is_frozen":false},"id":1}`,
 	},
 
 	{
@@ -255,13 +255,13 @@ func TestHandler(t *testing.T) {
 	// setup handler
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
-	testRpcCases = append(testRpcCases, tc{
+	testRPCCases = append(testRPCCases, tc{
 		rpcCall:        `{"jsonrpc": "2.0", "id": 1, "method": "getversion", "params": [] }`,
 		method:         "getversion",
 		expectedResult: fmt.Sprintf(`{"jsonrpc":"2.0","result":{"port":20333,"nonce":%s,"useragent":"/NEO-GO:/"},"id":1}`, strconv.FormatUint(uint64(server.ID()), 10)),
 	})
 
-	for _, tc := range testRpcCases {
+	for _, tc := range testRPCCases {
 		t.Run(fmt.Sprintf("method: %s, rpc call: %s", tc.method, tc.rpcCall), func(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", strings.NewReader(tc.rpcCall))

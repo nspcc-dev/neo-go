@@ -5,6 +5,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
+// InvokeScriptResponse stores response for the invoke script call.
 type InvokeScriptResponse struct {
 	responseHeader
 	Error  *Error        `json:"error,omitempty"`
@@ -73,19 +74,21 @@ type response struct {
 	Result interface{} `json:"result"`
 }
 
+// SendToAddressResponse stores response for the sendtoaddress call.
 type SendToAddressResponse struct {
 	responseHeader
 	Error  *Error `json:"error"`
 	Result *TxResponse
 }
 
-// struct represents verbose output of `getrawtransaction` RPC call
+// GetRawTxResponse struct represents verbose output of `getrawtransaction` RPC call.
 type GetRawTxResponse struct {
 	responseHeader
 	Error  *Error         `json:"error"`
 	Result *RawTxResponse `json:"result"`
 }
 
+// RawTxResponse stores transaction with blockchain metadata to be sent as a response.
 type RawTxResponse struct {
 	TxResponse
 	BlockHash     string `json:"blockhash"`
@@ -93,6 +96,7 @@ type RawTxResponse struct {
 	BlockTime     uint   `json:"blocktime"`
 }
 
+// TxResponse stores transaction to be sent as a response.
 type TxResponse struct {
 	TxID       string                  `json:"txid"`
 	Size       int                     `json:"size"`
@@ -106,11 +110,13 @@ type TxResponse struct {
 	Scripts    []transaction.Witness   `json:"scripts"`
 }
 
+// Vin represents JSON-serializable tx input.
 type Vin struct {
-	TxId string `json:"txid"`
+	TxID string `json:"txid"`
 	Vout int    `json:"vout"`
 }
 
+// Vout represents JSON-serializable tx output.
 type Vout struct {
 	N       int    `json:"n"`
 	Asset   string `json:"asset"`

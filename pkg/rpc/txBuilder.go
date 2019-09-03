@@ -10,6 +10,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
+// CreateRawContractTransaction returns contract-type Transaction built from specified parameters.
 func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transaction, error) {
 	var (
 		err                            error
@@ -21,7 +22,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		spent                          util.Fixed8
 		witness                        transaction.Witness
 
-		wif, assetID, address, amount, balancer = params.wif, params.assetId, params.address, params.value, params.balancer
+		wif, assetID, address, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
 	)
 
 	if fromAddress, err = wif.PrivateKey.Address(); err != nil {
@@ -67,6 +68,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	return tx, nil
 }
 
+// GetInvocationScript returns NEO VM script containing transaction signature.
 func GetInvocationScript(tx *transaction.Transaction, wif keys.WIF) ([]byte, error) {
 	const (
 		pushbytes64 = 0x40

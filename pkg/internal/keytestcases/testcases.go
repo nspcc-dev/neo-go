@@ -1,5 +1,6 @@
 package keytestcases
 
+// Ktype represents key testcase values (different encodings of the key).
 type Ktype struct {
 	Address,
 	PrivateKey,
@@ -9,6 +10,7 @@ type Ktype struct {
 	EncryptedWif string
 }
 
+// Arr contains a set of known keys in Ktype format.
 var Arr = []Ktype{
 	{
 		Address:      "ALq7AWrhAueN6mJNqk6FHJjnsEoPRytLdW",

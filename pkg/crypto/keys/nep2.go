@@ -24,12 +24,14 @@ const (
 
 var nepHeader = []byte{0x01, 0x42}
 
+// ScryptParams is a json-serializable container for scrypt KDF parameters.
 type ScryptParams struct {
 	N int `json:"n"`
 	R int `json:"r"`
 	P int `json:"p"`
 }
 
+// NEP2ScryptParams returns scrypt parameters specified in the NEP-2.
 func NEP2ScryptParams() ScryptParams {
 	return ScryptParams{
 		N: n,

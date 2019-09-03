@@ -96,11 +96,11 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	}
 
 	if len(b) < 5 {
-		return nil, errors.New("invalid base-58 check string: missing checksum.")
+		return nil, errors.New("invalid base-58 check string: missing checksum")
 	}
 
 	if !bytes.Equal(hash.Checksum(b[:len(b)-4]), b[len(b)-4:]) {
-		return nil, errors.New("invalid base-58 check string: invalid checksum.")
+		return nil, errors.New("invalid base-58 check string: invalid checksum")
 	}
 
 	// Strip the 4 byte long hash.
@@ -109,7 +109,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	return b, nil
 }
 
-// Base58checkEncode encodes b into a base-58 check encoded string.
+// Base58CheckEncode encodes b into a base-58 check encoded string.
 func Base58CheckEncode(b []byte) string {
 	b = append(b, hash.Checksum(b)...)
 

@@ -10,8 +10,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// StackParamType represents different types of stack values.
 type StackParamType int
 
+// All possible StackParamType values are listed here
 const (
 	Unknown          StackParamType = -1
 	Signature        StackParamType = 0x00
@@ -27,6 +29,7 @@ const (
 	Void             StackParamType = 0xff
 )
 
+// String implements the stringer interface.
 func (t StackParamType) String() string {
 	switch t {
 	case Signature:
@@ -56,6 +59,7 @@ func (t StackParamType) String() string {
 	}
 }
 
+// StackParamTypeFromString converts string into the StackParamType.
 func StackParamTypeFromString(s string) (StackParamType, error) {
 	switch s {
 	case "Signature":
@@ -85,6 +89,7 @@ func StackParamTypeFromString(s string) (StackParamType, error) {
 	}
 }
 
+// UnmarshalJSON sets StackParamType from JSON-encoded data.
 func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	var (
 		s = string(data)
@@ -174,8 +179,10 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// StackParams in an array of StackParam (TODO: drop it?).
 type StackParams []StackParam
 
+// TryParseArray converts an array of StackParam into an array of more appropriate things.
 func (p StackParams) TryParseArray(vals ...interface{}) error {
 	var (
 		err error
@@ -193,6 +200,7 @@ func (p StackParams) TryParseArray(vals ...interface{}) error {
 	return nil
 }
 
+// TryParse converts one StackParam into something more appropriate.
 func (p StackParam) TryParse(dest interface{}) error {
 	var (
 		err  error

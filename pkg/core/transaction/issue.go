@@ -18,6 +18,7 @@ func (tx *IssueTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *IssueTX) Size() int {
 	return 0
 }

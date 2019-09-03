@@ -4,6 +4,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 )
 
+// ValidateAddressResponse represents response to validate address call.
 type ValidateAddressResponse struct {
 	Address interface{} `json:"address"`
 	IsValid bool        `json:"isvalid"`

@@ -11,8 +11,8 @@ func Create(items []interface{}) Iterator {
 	return Iterator{}
 }
 
-// TODO: Better description for this.
 // Key returns the iterator key.
+// TODO: Better description for this.
 func Key(it Iterator) interface{} {
 	return nil
 }

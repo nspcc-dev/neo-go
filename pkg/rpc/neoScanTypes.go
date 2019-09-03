@@ -9,35 +9,37 @@ import "github.com/CityOfZion/neo-go/pkg/util"
 */
 
 type (
+	// NeoScanServer stores NEOSCAN URL and API path
 	NeoScanServer struct {
 		URL  string // "protocol://host:port/"
 		Path string // path to API endpoint without wallet address
 	}
 
+	// UTXO stores unspent TX output for some transaction.
 	UTXO struct {
 		Value util.Fixed8
 		TxID  util.Uint256
 		N     uint16
 	}
 
+	// Unspents is a slice of UTXOs (TODO: drop it?).
 	Unspents []UTXO
 
-	// unspent per asset
+	// Unspent stores Unspents per asset
 	Unspent struct {
 		Unspent Unspents
 		Asset   string      // "NEO" / "GAS"
 		Amount  util.Fixed8 // total unspent of this asset
 	}
 
-	// struct of NeoScan response to 'get_balance' request
+	// NeoScanBalance is a struct of NeoScan response to 'get_balance' request
 	NeoScanBalance struct {
 		Balance []*Unspent
 		Address string
 	}
 )
 
-// NeoScan returns asset IDs as strings ("NEO"/"GAS");
-// strings might be converted to uint256 assets IDs using this map
+// GlobalAssets stores a map of asset IDs to user-friendly strings ("NEO"/"GAS");
 var GlobalAssets = map[string]string{
 	"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b": "NEO",
 	"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7": "GAS",

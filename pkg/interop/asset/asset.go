@@ -49,5 +49,5 @@ func GetIssuer(a Asset) []byte {
 // Create registers a new asset on the blockchain.
 func Create(assetType byte, name string, amount int, precision byte, owner, admin, issuer []byte) {}
 
-// Renew renews the existance of an asset by the given years.
+// Renew renews the existence of an asset by the given years.
 func Renew(asset Asset, years int) {}

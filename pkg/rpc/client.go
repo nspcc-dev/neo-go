@@ -93,6 +93,7 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 	}, nil
 }
 
+// WIF returns WIF structure associated with the client.
 func (c *Client) WIF() keys.WIF {
 	c.wifMu.Lock()
 	defer c.wifMu.Unlock()
@@ -117,12 +118,14 @@ func (c *Client) SetWIF(wif string) error {
 	return nil
 }
 
+// Balancer is a getter for balance field.
 func (c *Client) Balancer() BalanceGetter {
 	c.balancerMu.Lock()
 	defer c.balancerMu.Unlock()
 	return c.balancer
 }
 
+// SetBalancer is a setter for balance field.
 func (c *Client) SetBalancer(b BalanceGetter) {
 	c.balancerMu.Lock()
 	defer c.balancerMu.Unlock()
@@ -132,12 +135,14 @@ func (c *Client) SetBalancer(b BalanceGetter) {
 	}
 }
 
+// Client is a getter for client field.
 func (c *Client) Client() *http.Client {
 	c.cliMu.Lock()
 	defer c.cliMu.Unlock()
 	return c.cli
 }
 
+// SetClient is a setter for client field.
 func (c *Client) SetClient(cli *http.Client) {
 	c.cliMu.Lock()
 	defer c.cliMu.Unlock()

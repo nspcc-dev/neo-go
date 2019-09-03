@@ -194,6 +194,7 @@ func testInvoke(ctx *cli.Context) error {
 	return nil
 }
 
+// ContractDetails contains contract metadata.
 type ContractDetails struct {
 	Author      string
 	Email       string

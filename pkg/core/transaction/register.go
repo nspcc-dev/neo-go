@@ -63,6 +63,7 @@ func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
 	return bw.Err
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *RegisterTX) Size() int {
 	return 1 + util.GetVarSize(tx.Name) + tx.Amount.Size() + 1 + len(tx.Owner.Bytes()) + tx.Admin.Size()
 }

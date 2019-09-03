@@ -21,6 +21,7 @@ func (tx *MinerTX) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, tx.Nonce)
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *MinerTX) Size() int {
 	return 4 // Nonce
 }

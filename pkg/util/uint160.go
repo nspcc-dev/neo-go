@@ -70,7 +70,7 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-// Size returns the lenght of the bytes representation of Uint160
+// Size returns the length of the bytes representation of Uint160
 func (u Uint160) Size() int {
 	return uint160Size
 }

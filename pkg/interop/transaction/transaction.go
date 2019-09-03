@@ -27,14 +27,14 @@ func GetAttributes(t Transaction) []attribute.Attribute {
 	return []attribute.Attribute{}
 }
 
-// FIXME: What is the correct return type for this?
 // GetReferences returns a slice of references for the given transaction.
+// FIXME: What is the correct return type for this?
 func GetReferences(t Transaction) []interface{} {
 	return []interface{}{}
 }
 
-// FIXME: What is the correct return type for this?
 // GetUnspentCoins returns the unspent coins for the given transaction.
+// FIXME: What is the correct return type for this?
 func GetUnspentCoins(t Transaction) interface{} {
 	return 0
 }

@@ -1,4 +1,4 @@
-package runtime_contract
+package runtimecontract
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
@@ -8,6 +8,7 @@ import (
 // Check if the invoker of the contract is the specified owner
 var owner = util.FromAddress("Aej1fe4mUgou48Zzup5j8sPrE3973cJ5oz")
 
+// Main is something to be ran from outside.
 func Main(operation string, args []interface{}) bool {
 	trigger := runtime.GetTrigger()
 
