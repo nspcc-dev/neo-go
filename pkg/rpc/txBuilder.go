@@ -22,7 +22,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		spent                          util.Fixed8
 		witness                        transaction.Witness
 
-		wif, assetID, address, amount, balancer = params.wif, params.assetId, params.address, params.value, params.balancer
+		wif, assetID, address, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
 	)
 
 	if fromAddress, err = wif.PrivateKey.Address(); err != nil {

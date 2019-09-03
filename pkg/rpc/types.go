@@ -112,7 +112,7 @@ type TxResponse struct {
 
 // Vin represents JSON-serializable tx input.
 type Vin struct {
-	TxId string `json:"txid"`
+	TxID string `json:"txid"`
 	Vout int    `json:"vout"`
 }
 

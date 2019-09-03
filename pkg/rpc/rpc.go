@@ -115,7 +115,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 		rawTx    *transaction.Transaction
 		rawTxStr string
 		txParams = ContractTxParams{
-			assetId:  asset,
+			assetID:  asset,
 			address:  address,
 			value:    amount,
 			wif:      c.WIF(),

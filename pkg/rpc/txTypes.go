@@ -16,7 +16,7 @@ type (
 	// includes parameters duplication `sendtoaddress` RPC call params
 	// and also some utility data;
 	ContractTxParams struct {
-		assetId util.Uint256
+		assetID util.Uint256
 		address string
 		value   util.Fixed8
 		wif     keys.WIF // a WIF to send the transaction
@@ -30,12 +30,12 @@ type (
 	BalanceGetter interface {
 		// 		parameters
 		// address: 	base58-encoded address assets would be transferred from
-		// assetId: 	asset identifier
+		// assetID: 	asset identifier
 		// amount: 		an asset amount to spend
 		// 		return values
 		// inputs: 		UTXO's for the preparing transaction
 		// total: 		summarized asset amount from all the `inputs`
 		// error: 		error would be considered in the caller function
-		CalculateInputs(address string, assetId util.Uint256, amount util.Fixed8) (inputs []transaction.Input, total util.Fixed8, err error)
+		CalculateInputs(address string, assetID util.Uint256, amount util.Fixed8) (inputs []transaction.Input, total util.Fixed8, err error)
 	}
 )

@@ -51,7 +51,7 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 }
 
 // CalculateInputs creates input transactions for the specified amount of given asset belonging to specified address.
-func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
+func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
 		err          error
 		num, i       uint16
@@ -59,12 +59,12 @@ func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256,
 		selected     = util.Fixed8(0)
 		us           []*Unspent
 		assetUnspent Unspent
-		assetId      = GlobalAssets[assetIdUint.ReverseString()]
+		assetID      = GlobalAssets[assetIDUint.ReverseString()]
 	)
 	if us, err = s.GetBalance(address); err != nil {
 		return nil, util.Fixed8(0), errs.Wrapf(err, "Cannot get balance for address %v", address)
 	}
-	filterSpecificAsset(assetId, us, &assetUnspent)
+	filterSpecificAsset(assetID, us, &assetUnspent)
 	sort.Sort(assetUnspent.Unspent)
 
 	for _, us := range assetUnspent.Unspent {

@@ -10,7 +10,7 @@ import (
 // AssetState wrapper used for the representation of
 // core.AssetState on the RPC Server.
 type AssetState struct {
-	ID         util.Uint256          `json:"assetId"`
+	ID         util.Uint256          `json:"assetID"`
 	AssetType  transaction.AssetType `json:"assetType"`
 	Name       string                `json:"name"`
 	Amount     util.Fixed8           `json:"amount"`
