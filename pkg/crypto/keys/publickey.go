@@ -181,7 +181,7 @@ func (p *PublicKey) Signature() []byte {
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
-	var b []byte = p.Signature()
+	var b = p.Signature()
 
 	b = append([]byte{0x17}, b...)
 	csum := hash.Checksum(b)

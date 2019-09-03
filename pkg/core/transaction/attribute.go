@@ -64,7 +64,7 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 		Remark12, Remark13, Remark14, Remark15:
 		bw.WriteBytes(attr.Data)
 	case DescriptionURL:
-		var urllen uint8 = uint8(len(attr.Data))
+		var urllen = uint8(len(attr.Data))
 		bw.WriteLE(urllen)
 		fallthrough
 	case Script, ContractHash, Vote, Hash1,	Hash2, Hash3, Hash4, Hash5, Hash6,

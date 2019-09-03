@@ -12,7 +12,7 @@ func TestVersionEncodeDecode(t *testing.T) {
 	var id uint32 = 13337
 	useragent := "/NEO:0.0.1/"
 	var height uint32 = 100500
-	var relay bool = true
+	var relay = true
 
 	version := NewVersion(id, port, useragent, height, relay)
 
