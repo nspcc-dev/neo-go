@@ -7,6 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
+// MerkleBlock represents a merkle block packet payload.
 type MerkleBlock struct {
 	*core.BlockBase
 	TxCount int
@@ -14,6 +15,7 @@ type MerkleBlock struct {
 	Flags   []byte
 }
 
+// DecodeBinary implements the Payload interface.
 func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
 	m.BlockBase = &core.BlockBase{}
 	if err := m.BlockBase.DecodeBinary(r); err != nil {
@@ -31,6 +33,7 @@ func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
 	return br.Err
 }
 
+// EncodeBinary implements the Payload interface.
 func (m *MerkleBlock) EncodeBinary(w io.Writer) error {
 	return nil
 }

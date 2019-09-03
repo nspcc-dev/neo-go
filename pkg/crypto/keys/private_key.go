@@ -22,6 +22,7 @@ type PrivateKey struct {
 	b []byte
 }
 
+// NewPrivateKey creates a new random private key.
 func NewPrivateKey() (*PrivateKey, error) {
 	c := crypto.NewEllipticCurve()
 	b := make([]byte, c.N.BitLen()/8+8)

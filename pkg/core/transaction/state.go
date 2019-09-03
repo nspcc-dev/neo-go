@@ -44,6 +44,7 @@ func (tx *StateTX) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *StateTX) Size() int {
 	sz := util.GetVarSize(uint64(len(tx.Descriptors)))
 	for _, desc := range tx.Descriptors {

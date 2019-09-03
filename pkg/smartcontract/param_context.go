@@ -51,6 +51,7 @@ func (pt ParamType) String() string {
 	}
 }
 
+// MarshalJSON implements the json.Marshaler interface.
 func (pt ParamType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + pt.String() + `"`), nil
 }

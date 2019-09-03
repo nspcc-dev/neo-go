@@ -74,7 +74,7 @@ func newWallet(rw io.ReadWriter) *Wallet {
 	}
 }
 
-// CreatAccount generates a new account for the end user and encrypts
+// CreateAccount generates a new account for the end user and encrypts
 // the private key with the given passphrase.
 func (w *Wallet) CreateAccount(name, passphrase string) error {
 	acc, err := NewAccount()

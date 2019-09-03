@@ -4,6 +4,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/interop/storage"
 )
 
+// Main is a very useful function.
 func Main(operation string, args []interface{}) interface{} {
 	ctx := storage.GetContext()
 

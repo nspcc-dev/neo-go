@@ -6,6 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/interop/storage"
 )
 
+// Main is Main(), really.
 func Main() bool {
 	iter := storage.Find(storage.GetContext(), []byte("foo"))
 	values := iterator.Values(iter)

@@ -6,7 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 )
 
-// A Enrollment transaction represents an enrollment form, which indicates
+// EnrollmentTX transaction represents an enrollment form, which indicates
 // that the sponsor of the transaction would like to sign up as a validator.
 // The way to sign up is: To construct an EnrollmentTransaction type of transaction,
 // and send a deposit to the address of the PublicKey.
@@ -27,6 +27,7 @@ func (tx *EnrollmentTX) EncodeBinary(w io.Writer) error {
 	return tx.PublicKey.EncodeBinary(w)
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *EnrollmentTX) Size() int {
 	return len(tx.PublicKey.Bytes())
 }

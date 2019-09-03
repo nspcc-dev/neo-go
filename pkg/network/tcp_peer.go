@@ -23,6 +23,7 @@ type TCPPeer struct {
 	wg sync.WaitGroup
 }
 
+// NewTCPPeer returns a TCPPeer structure based on the given connection.
 func NewTCPPeer(conn net.Conn) *TCPPeer {
 	return &TCPPeer{
 		conn:     conn,

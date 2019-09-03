@@ -17,10 +17,12 @@ const (
 	breakState
 )
 
+// HasFlag check for State flag presence.
 func (s State) HasFlag(f State) bool {
 	return s&f != 0
 }
 
+// String implements the stringer interface.
 func (s State) String() string {
 	if s == noneState {
 		return "NONE"
@@ -39,6 +41,7 @@ func (s State) String() string {
 	return strings.Join(ss, ", ")
 }
 
+// StateFromString converts string into the VM State.
 func StateFromString(s string) (st State, err error) {
 	if s = strings.TrimSpace(s); s == "NONE" {
 		return noneState, nil
@@ -60,10 +63,12 @@ func StateFromString(s string) (st State, err error) {
 	return
 }
 
+// MarshalJSON implements the json.Marshaler interface
 func (s State) MarshalJSON() (data []byte, err error) {
 	return []byte(`"` + s.String() + `"`), nil
 }
 
+// UnmarshalJSON implements the json.Marshaler interface
 func (s *State) UnmarshalJSON(data []byte) (err error) {
 	l := len(data)
 	if l < 2 || data[0] != '"' || data[l-1] != '"' {

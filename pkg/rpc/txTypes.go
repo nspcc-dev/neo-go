@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	// parameters for tx to transfer assets;
+	// ContractTxParams contains parameters for tx to transfer assets;
 	// includes parameters duplication `sendtoaddress` RPC call params
 	// and also some utility data;
 	ContractTxParams struct {
@@ -26,6 +26,7 @@ type (
 		balancer BalanceGetter
 	}
 
+	// BalanceGetter is an interface supporting CalculateInputs() method.
 	BalanceGetter interface {
 		// 		parameters
 		// address: 	base58-encoded address assets would be transferred from

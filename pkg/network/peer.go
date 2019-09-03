@@ -5,6 +5,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
+// Peer represents a network node neo-go is connected to.
 type Peer interface {
 	Endpoint() util.Endpoint
 	Disconnect(error)

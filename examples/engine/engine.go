@@ -5,6 +5,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
 )
 
+// Main is that famous Main() function, you know.
 func Main() bool {
 	tx := engine.GetScriptContainer()
 	runtime.Notify(tx)

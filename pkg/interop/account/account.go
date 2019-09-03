@@ -6,7 +6,7 @@ package account
 // Account stubs a NEO account type.
 type Account struct{}
 
-// GetScripHash returns the script hash of the given account.
+// GetScriptHash returns the script hash of the given account.
 func GetScriptHash(a Account) []byte {
 	return nil
 }

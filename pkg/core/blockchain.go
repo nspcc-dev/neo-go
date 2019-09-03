@@ -83,7 +83,7 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 	return bc, nil
 }
 
-// GetBlockchainLevelDB returns blockchain based on configuration
+// NewBlockchainLevelDB initializes new blockchain DB store based on configuration
 func NewBlockchainLevelDB(ctx context.Context, cfg config.Config) (*Blockchain, error) {
 	store, err := storage.NewLevelDBStore(
 		ctx,
@@ -502,6 +502,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	return block, nil
 }
 
+// GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
 	if err != nil {

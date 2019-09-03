@@ -65,7 +65,7 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 	return resp, nil
 }
 
-// InvokeFunction return the results after calling a the smart contract scripthash
+// Invoke returns the results after calling a the smart contract scripthash
 // with the given parameters.
 func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
 	var (

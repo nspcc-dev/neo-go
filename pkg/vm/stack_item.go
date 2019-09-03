@@ -95,6 +95,7 @@ func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
 }
 
+// BoolItem represents a boolean StackItem.
 type BoolItem struct {
 	value bool
 }

@@ -251,7 +251,7 @@ func (t *Transaction) createHash() error {
 	return nil
 }
 
-// GroupTXInputsByPrevHash groups all TX inputs by their previous hash.
+// GroupInputsByPrevHash groups all TX inputs by their previous hash.
 func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 	m := make(map[util.Uint256][]*Input)
 	for _, in := range t.Inputs {

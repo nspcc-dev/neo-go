@@ -109,7 +109,7 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	return b, nil
 }
 
-// Base58checkEncode encodes b into a base-58 check encoded string.
+// Base58CheckEncode encodes b into a base-58 check encoded string.
 func Base58CheckEncode(b []byte) string {
 	b = append(b, hash.Checksum(b)...)
 

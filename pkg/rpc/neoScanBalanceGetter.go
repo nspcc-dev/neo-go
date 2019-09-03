@@ -11,6 +11,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
+// GetBalance performs a request to get balance for the address specified.
 func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 	var (
 		err        error
@@ -49,6 +50,7 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 	}
 }
 
+// CalculateInputs creates input transactions for the specified amount of given asset belonging to specified address.
 func (s NeoScanServer) CalculateInputs(address string, assetIdUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
 		err          error

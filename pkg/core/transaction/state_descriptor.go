@@ -45,6 +45,7 @@ func (s *StateDescriptor) EncodeBinary(w io.Writer) error {
 	return bw.Err
 }
 
+// Size returns serialized binary size for state descriptor.
 func (s *StateDescriptor) Size() int {
 	return 1 + util.GetVarSize(s.Key) + util.GetVarSize(s.Value) + util.GetVarSize(s.Field)
 }

@@ -74,6 +74,7 @@ func (tx *PublishTX) EncodeBinary(w io.Writer) error {
 	return bw.Err
 }
 
+// Size returns serialized binary size for this transaction.
 func (tx *PublishTX) Size() int {
 	sz := util.GetVarSize(tx.Script) + util.GetVarSize(uint64(len(tx.ParamList)))
 	sz += 1 * len(tx.ParamList)

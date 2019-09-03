@@ -8,7 +8,6 @@ import (
 )
 
 // MerkleTree implementation.
-
 type MerkleTree struct {
 	root  *MerkleTreeNode
 	depth int

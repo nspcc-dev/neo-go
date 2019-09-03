@@ -3,6 +3,7 @@ package transaction
 // TXType is the type of a transaction.
 type TXType uint8
 
+// Constants for all valid transaction types.
 const (
 	MinerType      TXType = 0x00
 	IssueType      TXType = 0x01

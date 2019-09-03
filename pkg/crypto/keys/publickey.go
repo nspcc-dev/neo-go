@@ -168,6 +168,7 @@ func (p *PublicKey) EncodeBinary(w io.Writer) error {
 	return binary.Write(w, binary.LittleEndian, p.Bytes())
 }
 
+// Signature returns a NEO-specific hash of the key.
 func (p *PublicKey) Signature() []byte {
 	b := p.Bytes()
 	b = append([]byte{0x21}, b...)
@@ -178,6 +179,7 @@ func (p *PublicKey) Signature() []byte {
 	return sig.Bytes()
 }
 
+// Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
 	var b []byte = p.Signature()
 
