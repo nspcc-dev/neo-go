@@ -78,9 +78,9 @@ func (tx *PublishTX) EncodeBinary(w io.Writer) error {
 func (tx *PublishTX) Size() int {
 	sz := util.GetVarSize(tx.Script) + util.GetVarSize(uint64(len(tx.ParamList)))
 	sz += 1 * len(tx.ParamList)
-	sz += 1
+	sz++
 	if tx.Version >= 1 {
-		sz += 1
+		sz++
 	}
 	sz += util.GetVarSize(tx.Name) + util.GetVarSize(tx.CodeVersion)
 	sz += util.GetVarSize(tx.Author) + util.GetVarSize(tx.Email)
