@@ -5,12 +5,11 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeInfinity(t *testing.T) {
-	key := &PublicKey{crypto.ECPoint{}}
+	key := &PublicKey{}
 	buf := new(bytes.Buffer)
 	assert.Nil(t, key.EncodeBinary(buf))
 	assert.Equal(t, 1, buf.Len())

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math/big"
 
@@ -35,9 +36,10 @@ func (keys PublicKeys) Less(i, j int) bool {
 }
 
 // PublicKey represents a public key and provides a high level
-// API around the ECPoint.
+// API around the X/Y point.
 type PublicKey struct {
-	crypto.ECPoint
+	X *big.Int
+	Y *big.Int
 }
 
 // NewPublicKeyFromString return a public key created from the
@@ -58,7 +60,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
-	if p.IsInfinity() {
+	if p.isInfinity() {
 		return []byte{0x00}
 	}
 
@@ -89,12 +91,36 @@ func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
 		return nil, errors.New("given bytes aren't ECDSA public key")
 	}
 	key := PublicKey{
-		crypto.ECPoint{
-			X: pk.X,
-			Y: pk.Y,
-		},
+		X: pk.X,
+		Y: pk.Y,
 	}
 	return &key, nil
+}
+
+// decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit
+func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
+	c := elliptic.P256()
+	cp := c.Params()
+	three := big.NewInt(3)
+	/* y**2 = x**3 + a*x + b  % p */
+	xCubed := new(big.Int).Exp(x, three, cp.P)
+	threeX := new(big.Int).Mul(x, three)
+	threeX.Mod(threeX, cp.P)
+	ySquared := new(big.Int).Sub(xCubed, threeX)
+	ySquared.Add(ySquared, cp.B)
+	ySquared.Mod(ySquared, cp.P)
+	y := new(big.Int).ModSqrt(ySquared, cp.P)
+	if y == nil {
+		return nil, errors.New("error computing Y for compressed point")
+	}
+	if y.Bit(0) != ylsb {
+		y.Neg(y)
+		y.Mod(y, cp.P)
+	}
+	if !c.IsOnCurve(x, y) {
+		return nil, errors.New("compressed (x, ylsb) not on curve")
+	}
+	return y, nil
 }
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
@@ -104,19 +130,22 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 	switch prefix := data[0]; prefix {
 	// Infinity
 	case 0x00:
-		p.ECPoint = crypto.ECPoint{}
+		p.X = nil
+		p.Y = nil
 	// Compressed public keys
 	case 0x02, 0x03:
 		if l < 33 {
 			return errors.Errorf("bad binary size(%d)", l)
 		}
 
-		c := crypto.NewEllipticCurve()
-		var err error
-		p.ECPoint, err = c.Decompress(new(big.Int).SetBytes(data[1:]), uint(prefix&0x1))
+		x := new(big.Int).SetBytes(data[1:])
+		ylsb := uint(prefix&0x1)
+		y, err := decodeCompressedY(x, ylsb)
 		if err != nil {
 			return err
 		}
+		p.X = x
+		p.Y = y
 	case 0x04:
 		if l < 66 {
 			return errors.Errorf("bad binary size(%d)", l)
@@ -141,7 +170,8 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	// Infinity
 	switch prefix {
 	case 0x00:
-		p.ECPoint = crypto.ECPoint{}
+		p.X = nil
+		p.Y = nil
 		return nil
 	// Compressed public keys
 	case 0x02, 0x03:
@@ -205,4 +235,19 @@ func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 	rBytes := new(big.Int).SetBytes(signature[0:32])
 	sBytes := new(big.Int).SetBytes(signature[32:64])
 	return ecdsa.Verify(publicKey, hash, rBytes, sBytes)
+}
+
+// isInfinity checks if point P is infinity on EllipticCurve ec.
+func (p *PublicKey) isInfinity() bool {
+	return p.X == nil && p.Y == nil
+}
+
+// String implements the Stringer interface.
+func (p *PublicKey) String() string {
+	if p.isInfinity() {
+		return "00"
+	}
+	bx := hex.EncodeToString(p.X.Bytes())
+	by := hex.EncodeToString(p.Y.Bytes())
+	return fmt.Sprintf("%s%s", bx, by)
 }

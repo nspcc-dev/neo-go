@@ -10,10 +10,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/rfc6979"
 )
 
@@ -24,18 +22,11 @@ type PrivateKey struct {
 
 // NewPrivateKey creates a new random private key.
 func NewPrivateKey() (*PrivateKey, error) {
-	c := crypto.NewEllipticCurve()
-	b := make([]byte, c.N.BitLen()/8+8)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+	priv, _, _, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
 		return nil, err
 	}
-
-	d := new(big.Int).SetBytes(b)
-	d.Mod(d, new(big.Int).Sub(c.N, big.NewInt(1)))
-	d.Add(d, big.NewInt(1))
-
-	p := &PrivateKey{b: d.Bytes()}
-	return p, nil
+	return &PrivateKey{b: priv}, nil
 }
 
 // NewPrivateKeyFromHex returns a PrivateKey created from the
@@ -72,16 +63,16 @@ func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 	var (
 		err error
 		pk PublicKey
-		c = crypto.NewEllipticCurve()
+		c = elliptic.P256()
 		q = new(big.Int).SetBytes(p.b)
 	)
 
-	point := c.ScalarBaseMult(q)
-	if !c.IsOnCurve(point) {
+	x, y := c.ScalarBaseMult(q.Bytes())
+	if !c.IsOnCurve(x, y) {
 		return nil, errors.New("failed to derive public key using elliptic curve")
 	}
 
-	bx := point.X.Bytes()
+	bx := x.Bytes()
 	padded := append(
 		bytes.Repeat(
 			[]byte{0x00},
@@ -91,7 +82,7 @@ func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 	)
 
 	prefix := []byte{0x03}
-	if point.Y.Bit(0) == 0 {
+	if y.Bit(0) == 0 {
 		prefix = []byte{0x02}
 	}
 	b := append(prefix, padded...)
