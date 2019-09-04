@@ -22,7 +22,10 @@ func TestEncodeDecodeInfinity(t *testing.T) {
 
 func TestEncodeDecodePublicKey(t *testing.T) {
 	for i := 0; i < 4; i++ {
-		p := &PublicKey{crypto.RandomECPoint()}
+		k, err := NewPrivateKey()
+		assert.Nil(t, err)
+		p, err := k.PublicKey()
+		assert.Nil(t, err)
 		buf := new(bytes.Buffer)
 		assert.Nil(t, p.EncodeBinary(buf))
 
