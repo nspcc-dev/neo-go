@@ -99,7 +99,6 @@ describing the feature/topic you are going to implement.
 
 - [@roman-khimov](https://github.com/roman-khimov) on GitHub
 - [@volekerb](https://github.com/volekerb) on Github
-- [@anthdm](https://github.com/anthdm) on Github
 - Reach out to us on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
