@@ -499,8 +499,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(!x)
 
 	case NZ:
-		panic("todo NZ")
-		// x := v.estack.Pop().BigInt()
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Cmp(big.NewInt(0)) != 0)
 
 	// Object operations.
 	case NEWARRAY:

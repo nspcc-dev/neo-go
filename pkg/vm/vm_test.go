@@ -231,6 +231,24 @@ func TestSimpleCall(t *testing.T) {
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
 }
 
+func TestNZtrue(t *testing.T) {
+	prog := makeProgram(NZ)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestNZfalse(t *testing.T) {
+	prog := makeProgram(NZ)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
