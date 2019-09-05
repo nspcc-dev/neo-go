@@ -306,13 +306,19 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			b.value = aval
 		}
 
-	case TUCK:
+	case XTUCK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n <= 0 {
-			panic("OTUCK: invalid length")
+		if n < 0 {
+			panic("XTUCK: invalid length")
 		}
-
-		v.estack.InsertAt(v.estack.Peek(0), n)
+		a := v.estack.Dup(0)
+		if a == nil {
+			panic("no top-level element found")
+		}
+		if n > v.estack.Len() {
+			panic("can't push to the position specified")
+		}
+		v.estack.InsertAt(a, n)
 
 	case ROT:
 		c := v.estack.Pop()

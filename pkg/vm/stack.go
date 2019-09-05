@@ -141,6 +141,8 @@ func (s *Stack) InsertBefore(e, mark *Element) *Element {
 }
 
 // InsertAt will insert the given item (n) deep on the stack.
+// Be very careful using it and _always_ check both e and n before invocation
+// as it will silently do wrong things otherwise.
 func (s *Stack) InsertAt(e *Element, n int) *Element {
 	before := s.Peek(n)
 	if before == nil {

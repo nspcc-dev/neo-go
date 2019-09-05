@@ -296,6 +296,48 @@ func TestPICKgood(t *testing.T) {
 	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestXTUCKbadNoitem(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKbadNoN(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKbadNegative(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKgood(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	topelement := 5
+	xtuckdepth := 3
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(topelement)
+	vm.estack.PushVal(xtuckdepth)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(topelement), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(topelement), vm.estack.Peek(xtuckdepth).BigInt().Int64())
+}
 
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
