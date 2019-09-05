@@ -300,6 +300,16 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.InsertAt(a, 2)
 
+	case XDROP:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("invalid length")
+		}
+		e := v.estack.RemoveAt(n)
+		if e == nil {
+			panic("bad index")
+		}
+
 	case XSWAP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {

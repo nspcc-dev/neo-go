@@ -408,6 +408,44 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, 3, vm.estack.Len())
 }
 
+func TestXDROPbadNoitem(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPbadNoN(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPbadNegative(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPgood(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
 
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
