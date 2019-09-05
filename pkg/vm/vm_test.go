@@ -23,6 +23,7 @@ func TestInteropHook(t *testing.T) {
 	EmitOpcode(buf, RET)
 	v.Load(buf.Bytes())
 	v.Run()
+	assert.Equal(t, false, v.state.HasFlag(faultState))
 	assert.Equal(t, 1, v.estack.Len())
 	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
 }
@@ -100,6 +101,7 @@ func TestAdd(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(6), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -109,6 +111,7 @@ func TestMul(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(8), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -118,6 +121,7 @@ func TestDiv(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -127,6 +131,7 @@ func TestSub(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -136,6 +141,7 @@ func TestLT(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -145,6 +151,7 @@ func TestLTE(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
@@ -154,6 +161,7 @@ func TestGT(t *testing.T) {
 	vm.estack.PushVal(9)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 
 }
@@ -164,6 +172,7 @@ func TestGTE(t *testing.T) {
 	vm.estack.PushVal(3)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
@@ -174,6 +183,7 @@ func TestDepth(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -183,6 +193,7 @@ func TestNumEqual(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -192,6 +203,7 @@ func TestNumNotEqual(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -200,6 +212,7 @@ func TestINC(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, big.NewInt(2), vm.estack.Pop().BigInt())
 }
 
@@ -214,6 +227,7 @@ func TestAppCall(t *testing.T) {
 	vm.estack.PushVal(2)
 
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	elem := vm.estack.Pop() // depth should be 1
 	assert.Equal(t, int64(1), elem.BigInt().Int64())
 }
@@ -228,6 +242,7 @@ func TestSimpleCall(t *testing.T) {
 	}
 	vm := load(prog)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
 }
 
