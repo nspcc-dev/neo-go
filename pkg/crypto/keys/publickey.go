@@ -125,72 +125,59 @@ func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
 func (p *PublicKey) DecodeBytes(data []byte) error {
-	l := len(data)
-
-	switch prefix := data[0]; prefix {
-	// Infinity
-	case 0x00:
-		p.X = nil
-		p.Y = nil
-	// Compressed public keys
-	case 0x02, 0x03:
-		if l < 33 {
-			return errors.Errorf("bad binary size(%d)", l)
-		}
-
-		x := new(big.Int).SetBytes(data[1:])
-		ylsb := uint(prefix&0x1)
-		y, err := decodeCompressedY(x, ylsb)
-		if err != nil {
-			return err
-		}
-		p.X = x
-		p.Y = y
-	case 0x04:
-		if l < 66 {
-			return errors.Errorf("bad binary size(%d)", l)
-		}
-		p.X = new(big.Int).SetBytes(data[2:34])
-		p.Y = new(big.Int).SetBytes(data[34:66])
-	default:
-		return errors.Errorf("invalid prefix %d", prefix)
-	}
-
-	return nil
+	var datab []byte
+	copy(datab, data)
+	b := bytes.NewBuffer(datab)
+	return p.DecodeBinary(b)
 }
 
 // DecodeBinary decodes a PublicKey from the given io.Reader.
 func (p *PublicKey) DecodeBinary(r io.Reader) error {
-	var prefix, size uint8
+	var prefix uint8
+	var x, y *big.Int
+	var err error
 
-	if err := binary.Read(r, binary.LittleEndian, &prefix); err != nil {
+	if err = binary.Read(r, binary.LittleEndian, &prefix); err != nil {
 		return err
 	}
 
 	// Infinity
 	switch prefix {
 	case 0x00:
-		p.X = nil
-		p.Y = nil
-		return nil
-	// Compressed public keys
+		// noop, initialized to nil
 	case 0x02, 0x03:
-		size = 32
+		// Compressed public keys
+		xbytes := make([]byte, 32)
+		if _, err := io.ReadFull(r, xbytes); err != nil {
+			return err
+		}
+		x = new(big.Int).SetBytes(xbytes)
+		ylsb := uint(prefix&0x1)
+		y, err = decodeCompressedY(x, ylsb)
+		if err != nil {
+			return err
+		}
 	case 0x04:
-		size = 65
+		xbytes := make([]byte, 32)
+		ybytes := make([]byte, 32)
+		if _, err = io.ReadFull(r, xbytes); err != nil {
+			return err
+		}
+		if _, err = io.ReadFull(r, ybytes); err != nil {
+			return err
+		}
+		c := elliptic.P256()
+		x = new(big.Int).SetBytes(xbytes)
+		y = new(big.Int).SetBytes(ybytes)
+		if !c.IsOnCurve(x, y) {
+			return errors.New("point given is not on curve P256")
+		}
 	default:
 		return errors.Errorf("invalid prefix %d", prefix)
 	}
+	p.X, p.Y = x, y
 
-	data := make([]byte, size+1) // prefix + size
-
-	if _, err := io.ReadFull(r, data[1:]); err != nil {
-		return err
-	}
-
-	data[0] = prefix
-
-	return p.DecodeBytes(data)
+	return nil
 }
 
 // EncodeBinary encodes a PublicKey to the given io.Writer.
