@@ -264,6 +264,39 @@ func TestNZfalse(t *testing.T) {
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
+func TestPICKbadNoitem(t *testing.T) {
+	prog := makeProgram(PICK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKbadNegative(t *testing.T) {
+	prog := makeProgram(PICK)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKgood(t *testing.T) {
+	prog := makeProgram(PICK)
+	result := 2
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(result)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
+}
+
+
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {

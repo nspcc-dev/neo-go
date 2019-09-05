@@ -337,6 +337,14 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.Push(b)
 		v.estack.Push(a)
 
+	case PICK:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("negative stack item returned")
+		}
+		a := v.estack.Peek(n)
+		v.estack.Push(a)
+
 	case ROLL:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
