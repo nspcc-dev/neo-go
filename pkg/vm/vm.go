@@ -402,6 +402,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(reflect.DeepEqual(a,b))
 
 	// Bit operations.
+	case INVERT:
+		// inplace
+		a := v.estack.Peek(0).BigInt()
+		a.Not(a)
+
 	case AND:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()

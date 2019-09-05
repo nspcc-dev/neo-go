@@ -447,6 +447,40 @@ func TestXDROPgood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
 }
 
+func TestINVERTbadNoitem(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestINVERTgood1(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTgood2(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(0), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTgood3(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(0x69)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
+}
+
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
