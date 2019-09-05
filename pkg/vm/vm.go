@@ -339,7 +339,13 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case OVER:
 		b := v.estack.Pop()
+		if b == nil {
+			panic("no top-level element found")
+		}
 		a := v.estack.Peek(0)
+		if a == nil {
+			panic("no second element found")
+		}
 		v.estack.Push(b)
 		v.estack.Push(a)
 
@@ -349,6 +355,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("negative stack item returned")
 		}
 		a := v.estack.Peek(n)
+		if a == nil {
+			panic("no nth element found")
+		}
 		v.estack.Push(a)
 
 	case ROLL:
