@@ -290,6 +290,26 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.Push(a)
 		v.estack.Push(b)
 
+	case TUCK:
+		a := v.estack.Dup(0)
+		if a == nil {
+			panic("no top-level element found")
+		}
+		if v.estack.Len() < 2 {
+			panic("can't TUCK with a one-element stack")
+		}
+		v.estack.InsertAt(a, 2)
+
+	case XDROP:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("invalid length")
+		}
+		e := v.estack.RemoveAt(n)
+		if e == nil {
+			panic("bad index")
+		}
+
 	case XSWAP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
@@ -306,13 +326,19 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			b.value = aval
 		}
 
-	case TUCK:
+	case XTUCK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n <= 0 {
-			panic("OTUCK: invalid length")
+		if n < 0 {
+			panic("XTUCK: invalid length")
 		}
-
-		v.estack.InsertAt(v.estack.Peek(0), n)
+		a := v.estack.Dup(0)
+		if a == nil {
+			panic("no top-level element found")
+		}
+		if n > v.estack.Len() {
+			panic("can't push to the position specified")
+		}
+		v.estack.InsertAt(a, n)
 
 	case ROT:
 		c := v.estack.Pop()
@@ -333,8 +359,25 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case OVER:
 		b := v.estack.Pop()
+		if b == nil {
+			panic("no top-level element found")
+		}
 		a := v.estack.Peek(0)
+		if a == nil {
+			panic("no second element found")
+		}
 		v.estack.Push(b)
+		v.estack.Push(a)
+
+	case PICK:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("negative stack item returned")
+		}
+		a := v.estack.Peek(n)
+		if a == nil {
+			panic("no nth element found")
+		}
 		v.estack.Push(a)
 
 	case ROLL:
@@ -359,6 +402,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(reflect.DeepEqual(a,b))
 
 	// Bit operations.
+	case INVERT:
+		// inplace
+		a := v.estack.Peek(0).BigInt()
+		a.Not(a)
+
 	case AND:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
@@ -499,8 +547,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(!x)
 
 	case NZ:
-		panic("todo NZ")
-		// x := v.estack.Pop().BigInt()
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Cmp(big.NewInt(0)) != 0)
 
 	// Object operations.
 	case NEWARRAY:
@@ -529,10 +577,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("APPEND: not of underlying type Array")
 		}
 
-	case REVERSE:
-
-	case REMOVE:
-
 	case PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 || n > v.estack.Len() {
@@ -545,9 +589,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 		v.estack.PushVal(items)
-
-	case UNPACK:
-		panic("TODO")
 
 	case PICKITEM:
 		var (
@@ -671,6 +712,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
+	case CAT, SUBSTR, LEFT, RIGHT, CHECKSIG, CHECKMULTISIG,
+		UNPACK, REVERSE, REMOVE:
+		panic("unimplemented")
+
 	// Cryptographic operations.
 	case SHA1:
 		b := v.estack.Pop().Bytes()
@@ -689,12 +734,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case HASH256:
 		b := v.estack.Pop().Bytes()
 		v.estack.PushVal(hash.DoubleSha256(b).Bytes())
-
-	case CHECKSIG:
-		// pubkey := v.estack.Pop().Bytes()
-		// sig := v.estack.Pop().Bytes()
-
-	case CHECKMULTISIG:
 
 	case NOP:
 		// unlucky ^^

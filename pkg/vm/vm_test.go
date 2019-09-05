@@ -23,6 +23,7 @@ func TestInteropHook(t *testing.T) {
 	EmitOpcode(buf, RET)
 	v.Load(buf.Bytes())
 	v.Run()
+	assert.Equal(t, false, v.state.HasFlag(faultState))
 	assert.Equal(t, 1, v.estack.Len())
 	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
 }
@@ -100,6 +101,7 @@ func TestAdd(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(6), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -109,6 +111,7 @@ func TestMul(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(8), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -118,6 +121,7 @@ func TestDiv(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -127,6 +131,7 @@ func TestSub(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -136,6 +141,7 @@ func TestLT(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -145,6 +151,7 @@ func TestLTE(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
@@ -154,6 +161,7 @@ func TestGT(t *testing.T) {
 	vm.estack.PushVal(9)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 
 }
@@ -164,6 +172,7 @@ func TestGTE(t *testing.T) {
 	vm.estack.PushVal(3)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
@@ -174,6 +183,7 @@ func TestDepth(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
@@ -183,6 +193,7 @@ func TestNumEqual(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -192,6 +203,7 @@ func TestNumNotEqual(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(2)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, false, vm.estack.Pop().Bool())
 }
 
@@ -200,6 +212,7 @@ func TestINC(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, big.NewInt(2), vm.estack.Pop().BigInt())
 }
 
@@ -214,6 +227,7 @@ func TestAppCall(t *testing.T) {
 	vm.estack.PushVal(2)
 
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	elem := vm.estack.Pop() // depth should be 1
 	assert.Equal(t, int64(1), elem.BigInt().Int64())
 }
@@ -228,7 +242,243 @@ func TestSimpleCall(t *testing.T) {
 	}
 	vm := load(prog)
 	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
+}
+
+func TestNZtrue(t *testing.T) {
+	prog := makeProgram(NZ)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestNZfalse(t *testing.T) {
+	prog := makeProgram(NZ)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestPICKbadNoitem(t *testing.T) {
+	prog := makeProgram(PICK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKbadNegative(t *testing.T) {
+	prog := makeProgram(PICK)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKgood(t *testing.T) {
+	prog := makeProgram(PICK)
+	result := 2
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(result)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestXTUCKbadNoitem(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKbadNoN(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKbadNegative(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKgood(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	topelement := 5
+	xtuckdepth := 3
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(topelement)
+	vm.estack.PushVal(xtuckdepth)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(topelement), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(topelement), vm.estack.Peek(xtuckdepth).BigInt().Int64())
+}
+
+func TestTUCKbadNoitems(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestTUCKbadNoitem(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestTUCKgood(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(42)
+	vm.estack.PushVal(34)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
+}
+
+func TestTUCKgood2(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(11)
+	vm.estack.PushVal(42)
+	vm.estack.PushVal(34)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
+	assert.Equal(t, int64(11), vm.estack.Peek(3).BigInt().Int64())
+}
+
+func TestOVERbadNoitem(t *testing.T) {
+	prog := makeProgram(OVER)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestOVERbadNoitems(t *testing.T) {
+	prog := makeProgram(OVER)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestOVERgood(t *testing.T) {
+	prog := makeProgram(OVER)
+	vm := load(prog)
+	vm.estack.PushVal(42)
+	vm.estack.PushVal(34)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(42), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(34), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(42), vm.estack.Peek(2).BigInt().Int64())
+	assert.Equal(t, 3, vm.estack.Len())
+}
+
+func TestXDROPbadNoitem(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPbadNoN(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPbadNegative(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXDROPgood(t *testing.T) {
+	prog := makeProgram(XDROP)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestINVERTbadNoitem(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestINVERTgood1(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTgood2(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(0), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTgood3(t *testing.T) {
+	prog := makeProgram(INVERT)
+	vm := load(prog)
+	vm.estack.PushVal(0x69)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
 }
 
 func makeProgram(opcodes ...Instruction) []byte {
