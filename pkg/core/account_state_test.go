@@ -19,9 +19,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		balances[randomUint256()] = util.Fixed8(int64(randomInt(1, 10000)))
 		k, err := keys.NewPrivateKey()
 		assert.Nil(t, err)
-		p, err := k.PublicKey()
-		assert.Nil(t, err)
-		votes[i] = p
+		votes[i] = k.PublicKey()
 	}
 
 	a := &AccountState{

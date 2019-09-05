@@ -23,8 +23,7 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		k, err := NewPrivateKey()
 		assert.Nil(t, err)
-		p, err := k.PublicKey()
-		assert.Nil(t, err)
+		p := k.PublicKey()
 		buf := new(bytes.Buffer)
 		assert.Nil(t, p.EncodeBinary(buf))
 

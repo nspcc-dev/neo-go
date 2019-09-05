@@ -92,7 +92,7 @@ func WIFDecode(wif string, version byte) (*WIF, error) {
 }
 
 // GetVerificationScript returns NEO VM bytecode with checksig command for the public key.
-func (wif WIF) GetVerificationScript() ([]byte, error) {
+func (wif WIF) GetVerificationScript() []byte {
 	const (
 		pushbytes33 = 0x21
 		checksig    = 0xac
@@ -101,11 +101,8 @@ func (wif WIF) GetVerificationScript() ([]byte, error) {
 		vScript []byte
 		pubkey *PublicKey
 	)
-	pubkey, err := wif.PrivateKey.PublicKey()
-	if err != nil {
-		return nil, err
-	}
+	pubkey = wif.PrivateKey.PublicKey()
 	vScript = append([]byte{pushbytes33}, pubkey.Bytes()...)
 	vScript = append(vScript, checksig)
-	return vScript, nil
+	return vScript
 }
