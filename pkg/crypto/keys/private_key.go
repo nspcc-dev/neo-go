@@ -1,7 +1,6 @@
 package keys
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -61,8 +60,6 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 // PublicKey derives the public key from the private key.
 func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 	var (
-		err error
-		pk PublicKey
 		c = elliptic.P256()
 		q = new(big.Int).SetBytes(p.b)
 	)
@@ -72,25 +69,7 @@ func (p *PrivateKey) PublicKey() (*PublicKey, error) {
 		return nil, errors.New("failed to derive public key using elliptic curve")
 	}
 
-	bx := x.Bytes()
-	padded := append(
-		bytes.Repeat(
-			[]byte{0x00},
-			32-len(bx),
-		),
-		bx...,
-	)
-
-	prefix := []byte{0x03}
-	if y.Bit(0) == 0 {
-		prefix = []byte{0x02}
-	}
-	b := append(prefix, padded...)
-
-	if err = pk.DecodeBytes(b); err != nil {
-		return nil, err
-	}
-	return &pk, nil
+	return &PublicKey{X: x, Y: y}, nil
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given
