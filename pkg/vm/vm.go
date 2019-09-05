@@ -290,6 +290,16 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.Push(a)
 		v.estack.Push(b)
 
+	case TUCK:
+		a := v.estack.Dup(0)
+		if a == nil {
+			panic("no top-level element found")
+		}
+		if v.estack.Len() < 2 {
+			panic("can't TUCK with a one-element stack")
+		}
+		v.estack.InsertAt(a, 2)
+
 	case XSWAP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {

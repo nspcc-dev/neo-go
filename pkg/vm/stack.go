@@ -132,23 +132,15 @@ func (s *Stack) insert(e, at *Element) *Element {
 	return e
 }
 
-// InsertBefore will insert the element before the mark on the stack.
-func (s *Stack) InsertBefore(e, mark *Element) *Element {
-	if mark == nil {
-		return nil
-	}
-	return s.insert(e, mark.prev)
-}
-
 // InsertAt will insert the given item (n) deep on the stack.
 // Be very careful using it and _always_ check both e and n before invocation
 // as it will silently do wrong things otherwise.
 func (s *Stack) InsertAt(e *Element, n int) *Element {
-	before := s.Peek(n)
+	before := s.Peek(n - 1)
 	if before == nil {
 		return nil
 	}
-	return s.InsertBefore(e, before)
+	return s.insert(e, before)
 }
 
 // Push pushes the given element on the stack.

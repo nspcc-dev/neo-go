@@ -339,6 +339,47 @@ func TestXTUCKgood(t *testing.T) {
 	assert.Equal(t, int64(topelement), vm.estack.Peek(xtuckdepth).BigInt().Int64())
 }
 
+func TestTUCKbadNoitems(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestTUCKbadNoitem(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestTUCKgood(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(42)
+	vm.estack.PushVal(34)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
+}
+
+func TestTUCKgood2(t *testing.T) {
+	prog := makeProgram(TUCK)
+	vm := load(prog)
+	vm.estack.PushVal(11)
+	vm.estack.PushVal(42)
+	vm.estack.PushVal(34)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
+	assert.Equal(t, int64(11), vm.estack.Peek(3).BigInt().Int64())
+}
+
 func TestOVERbadNoitem(t *testing.T) {
 	prog := makeProgram(OVER)
 	vm := load(prog)
