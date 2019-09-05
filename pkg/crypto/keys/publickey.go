@@ -117,9 +117,6 @@ func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
 		y.Neg(y)
 		y.Mod(y, cp.P)
 	}
-	if !c.IsOnCurve(x, y) {
-		return nil, errors.New("compressed (x, ylsb) not on curve")
-	}
 	return y, nil
 }
 
@@ -145,6 +142,7 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	switch prefix {
 	case 0x00:
 		// noop, initialized to nil
+		return nil
 	case 0x02, 0x03:
 		// Compressed public keys
 		xbytes := make([]byte, 32)
@@ -166,14 +164,18 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 		if _, err = io.ReadFull(r, ybytes); err != nil {
 			return err
 		}
-		c := elliptic.P256()
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
-		if !c.IsOnCurve(x, y) {
-			return errors.New("point given is not on curve P256")
-		}
 	default:
 		return errors.Errorf("invalid prefix %d", prefix)
+	}
+	c := elliptic.P256()
+	cp := c.Params()
+	if !c.IsOnCurve(x, y) {
+		return errors.New("enccoded point is not on the P256 curve")
+	}
+	if x.Cmp(cp.P) >= 0 || y.Cmp(cp.P) >= 0 {
+		return errors.New("enccoded point is not correct (X or Y is bigger than P")
 	}
 	p.X, p.Y = x, y
 
