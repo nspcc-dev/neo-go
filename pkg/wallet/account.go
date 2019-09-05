@@ -57,7 +57,7 @@ func NewAccount() (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newAccountFromPrivateKey(priv)
+	return newAccountFromPrivateKey(priv), nil
 }
 
 // DecryptAccount decrypt the encryptedWIF with the given passphrase and
@@ -87,23 +87,14 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newAccountFromPrivateKey(privKey)
+	return newAccountFromPrivateKey(privKey), nil
 }
 
 // newAccountFromPrivateKey created a wallet from the given PrivateKey.
-func newAccountFromPrivateKey(p *keys.PrivateKey) (*Account, error) {
-	pubKey, err := p.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	pubAddr, err := p.Address()
-	if err != nil {
-		return nil, err
-	}
-	wif, err := p.WIF()
-	if err != nil {
-		return nil, err
-	}
+func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
+	pubKey := p.PublicKey()
+	pubAddr := p.Address()
+	wif := p.WIF()
 
 	a := &Account{
 		publicKey:  pubKey.Bytes(),
@@ -112,5 +103,5 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) (*Account, error) {
 		wif:        wif,
 	}
 
-	return a, nil
+	return a
 }

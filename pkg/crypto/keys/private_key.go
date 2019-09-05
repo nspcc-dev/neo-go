@@ -1,19 +1,15 @@
 package keys
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"io"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/rfc6979"
 )
 
@@ -24,18 +20,11 @@ type PrivateKey struct {
 
 // NewPrivateKey creates a new random private key.
 func NewPrivateKey() (*PrivateKey, error) {
-	c := crypto.NewEllipticCurve()
-	b := make([]byte, c.N.BitLen()/8+8)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+	priv, _, _, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
 		return nil, err
 	}
-
-	d := new(big.Int).SetBytes(b)
-	d.Mod(d, new(big.Int).Sub(c.N, big.NewInt(1)))
-	d.Add(d, big.NewInt(1))
-
-	p := &PrivateKey{b: d.Bytes()}
-	return p, nil
+	return &PrivateKey{b: priv}, nil
 }
 
 // NewPrivateKeyFromHex returns a PrivateKey created from the
@@ -68,38 +57,15 @@ func NewPrivateKeyFromRawBytes(b []byte) (*PrivateKey, error) {
 }
 
 // PublicKey derives the public key from the private key.
-func (p *PrivateKey) PublicKey() (*PublicKey, error) {
+func (p *PrivateKey) PublicKey() *PublicKey {
 	var (
-		err error
-		pk PublicKey
-		c = crypto.NewEllipticCurve()
+		c = elliptic.P256()
 		q = new(big.Int).SetBytes(p.b)
 	)
 
-	point := c.ScalarBaseMult(q)
-	if !c.IsOnCurve(point) {
-		return nil, errors.New("failed to derive public key using elliptic curve")
-	}
+	x, y := c.ScalarBaseMult(q.Bytes())
 
-	bx := point.X.Bytes()
-	padded := append(
-		bytes.Repeat(
-			[]byte{0x00},
-			32-len(bx),
-		),
-		bx...,
-	)
-
-	prefix := []byte{0x03}
-	if point.Y.Bit(0) == 0 {
-		prefix = []byte{0x02}
-	}
-	b := append(prefix, padded...)
-
-	if err = pk.DecodeBytes(b); err != nil {
-		return nil, err
-	}
-	return &pk, nil
+	return &PublicKey{X: x, Y: y}
 }
 
 // NewPrivateKeyFromWIF returns a NEO PrivateKey from the given
@@ -115,27 +81,27 @@ func NewPrivateKeyFromWIF(wif string) (*PrivateKey, error) {
 // WIF returns the (wallet import format) of the PrivateKey.
 // Good documentation about this process can be found here:
 // https://en.bitcoin.it/wiki/Wallet_import_format
-func (p *PrivateKey) WIF() (string, error) {
-	return WIFEncode(p.b, WIFVersion, true)
+func (p *PrivateKey) WIF() string {
+	w, err := WIFEncode(p.b, WIFVersion, true)
+	// The only way WIFEncode() can fail is if we're to give it a key of
+	// wrong size, but we have a proper key here, aren't we?
+	if err != nil {
+		panic(err)
+	}
+	return w
 }
 
 // Address derives the public NEO address that is coupled with the private key, and
 // returns it as a string.
-func (p *PrivateKey) Address() (string, error) {
-	pk, err := p.PublicKey()
-	if err != nil {
-		return "", err
-	}
-	return pk.Address(), nil
+func (p *PrivateKey) Address() string {
+	pk := p.PublicKey()
+	return pk.Address()
 }
 
 // Signature creates the signature using the private key.
-func (p *PrivateKey) Signature() ([]byte, error) {
-	pk, err := p.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-	return pk.Signature(), nil
+func (p *PrivateKey) Signature() []byte {
+	pk := p.PublicKey()
+	return pk.Signature()
 }
 
 // Sign signs arbitrary length data using the private key.

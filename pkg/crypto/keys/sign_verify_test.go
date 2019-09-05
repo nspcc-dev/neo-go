@@ -15,8 +15,7 @@ func TestPubKeyVerify(t *testing.T) {
 	assert.Nil(t, err)
 	signedData, err := privKey.Sign(data)
 	assert.Nil(t, err)
-	pubKey, err := privKey.PublicKey()
-	assert.Nil(t, err)
+	pubKey := privKey.PublicKey()
 	result := pubKey.Verify(signedData, hashedData.Bytes())
 	expected := true
 	assert.Equal(t, expected, result)
@@ -29,7 +28,7 @@ func TestWrongPubKey(t *testing.T) {
 	signedData, _ := privKey.Sign(sample)
 
 	secondPrivKey, _ := NewPrivateKey()
-	wrongPubKey, _ := secondPrivKey.PublicKey()
+	wrongPubKey := secondPrivKey.PublicKey()
 
 	actual := wrongPubKey.Verify(signedData, hashedData.Bytes())
 	expcted := false

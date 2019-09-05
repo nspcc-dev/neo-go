@@ -25,9 +25,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		wif, assetID, address, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
 	)
 
-	if fromAddress, err = wif.PrivateKey.Address(); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take address from WIF: %v", wif.S)
-	}
+	fromAddress = wif.PrivateKey.Address()
 
 	if fromAddressHash, err = crypto.Uint160DecodeAddress(fromAddress); err != nil {
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
@@ -59,9 +57,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	if witness.InvocationScript, err = GetInvocationScript(tx, wif); err != nil {
 		return nil, errs.Wrap(err, "Failed to create invocation script")
 	}
-	if witness.VerificationScript, err = wif.GetVerificationScript(); err != nil {
-		return nil, errs.Wrap(err, "Failed to create verification script")
-	}
+	witness.VerificationScript = wif.GetVerificationScript()
 	tx.Scripts = append(tx.Scripts, &witness)
 	tx.Hash()
 

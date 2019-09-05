@@ -44,10 +44,7 @@ func NEP2ScryptParams() ScryptParams {
 // NEP2Encrypt encrypts a the PrivateKey using a given passphrase
 // under the NEP-2 standard.
 func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
-	address, err := priv.Address()
-	if err != nil {
-		return s, err
-	}
+	address := priv.Address()
 
 	addrHash := hash.Checksum([]byte(address))
 	// Normalize the passphrase according to the NFC standard.
@@ -119,14 +116,11 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 		return s, errors.New("password mismatch")
 	}
 
-	return privKey.WIF()
+	return privKey.WIF(), nil
 }
 
 func compareAddressHash(priv *PrivateKey, inhash []byte) bool {
-	address, err := priv.Address()
-	if err != nil {
-		return false
-	}
+	address := priv.Address()
 	addrHash := hash.Checksum([]byte(address))
 	return bytes.Equal(addrHash, inhash)
 }

@@ -14,14 +14,12 @@ func TestPrivateKey(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
 		assert.Nil(t, err)
-		address, err := privKey.Address()
-		assert.Nil(t, err)
+		address := privKey.Address()
 		assert.Equal(t, testCase.Address, address)
 
-		wif, err := privKey.WIF()
-		assert.Nil(t, err)
+		wif := privKey.WIF()
 		assert.Equal(t, testCase.Wif, wif)
-		pubKey, _ := privKey.PublicKey()
+		pubKey := privKey.PublicKey()
 		assert.Equal(t, hex.EncodeToString(pubKey.Bytes()), testCase.PublicKey)
 	}
 }

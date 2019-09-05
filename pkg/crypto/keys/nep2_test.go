@@ -31,12 +31,10 @@ func TestNEP2Decrypt(t *testing.T) {
 
 		assert.Equal(t, testCase.PrivateKey, privKey.String())
 
-		wif, err := privKey.WIF()
-		assert.Nil(t, err)
+		wif := privKey.WIF()
 		assert.Equal(t, testCase.Wif, wif)
 
-		address, err := privKey.Address()
-		assert.Nil(t, err)
+		address := privKey.Address()
 		assert.Equal(t, testCase.Address, address)
 	}
 }
