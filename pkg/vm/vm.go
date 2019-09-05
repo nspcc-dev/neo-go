@@ -577,10 +577,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("APPEND: not of underlying type Array")
 		}
 
-	case REVERSE:
-
-	case REMOVE:
-
 	case PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 || n > v.estack.Len() {
@@ -593,9 +589,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 		v.estack.PushVal(items)
-
-	case UNPACK:
-		panic("TODO")
 
 	case PICKITEM:
 		var (
@@ -719,6 +712,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
+	case CAT, SUBSTR, LEFT, RIGHT, CHECKSIG, CHECKMULTISIG,
+		UNPACK, REVERSE, REMOVE:
+		panic("unimplemented")
+
 	// Cryptographic operations.
 	case SHA1:
 		b := v.estack.Pop().Bytes()
@@ -737,12 +734,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case HASH256:
 		b := v.estack.Pop().Bytes()
 		v.estack.PushVal(hash.DoubleSha256(b).Bytes())
-
-	case CHECKSIG:
-		// pubkey := v.estack.Pop().Bytes()
-		// sig := v.estack.Pop().Bytes()
-
-	case CHECKMULTISIG:
 
 	case NOP:
 		// unlucky ^^
