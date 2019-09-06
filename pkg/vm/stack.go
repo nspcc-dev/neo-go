@@ -84,6 +84,18 @@ func (e *Element) Bytes() []byte {
 	return e.value.Value().([]byte)
 }
 
+// Array attempts to get the underlying value of the element as an array of
+// other items. Will panic if the item type is different which will be caught
+// by the VM.
+func (e *Element) Array() []StackItem {
+	switch t := e.value.(type) {
+	case *ArrayItem:
+		return t.value
+	default:
+		panic("element is not an array")
+	}
+}
+
 // Stack represents a Stack backed by a double linked list.
 type Stack struct {
 	top  Element
