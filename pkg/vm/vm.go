@@ -607,6 +607,14 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 		v.estack.PushVal(items)
 
+	case UNPACK:
+		a := v.estack.Pop().Array()
+		l := len(a)
+		for i := l - 1; i >= 0; i-- {
+			v.estack.PushVal(a[i])
+		}
+		v.estack.PushVal(l)
+
 	case PICKITEM:
 		var (
 			key   = v.estack.Pop()
@@ -646,6 +654,20 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
+
+	case REVERSE:
+		a := v.estack.Peek(0).Array()
+		if len(a) > 1 {
+			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
+				a[i], a[j] = a[j], a[i]
+			}
+		}
+	case REMOVE:
+		key := int(v.estack.Pop().BigInt().Int64())
+		elem := v.estack.Peek(0)
+		a := elem.Array()
+		a = append(a[:key], a[key+1:]...)
+		elem.value = makeStackItem(a)
 
 	case ARRAYSIZE:
 		elem := v.estack.Pop()
@@ -729,8 +751,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
-	case CHECKSIG, CHECKMULTISIG,
-		UNPACK, REVERSE, REMOVE:
+	case CHECKSIG, CHECKMULTISIG:
 		panic("unimplemented")
 
 	// Cryptographic operations.
