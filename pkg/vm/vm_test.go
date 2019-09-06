@@ -481,6 +481,158 @@ func TestINVERTgood3(t *testing.T) {
 	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
 }
 
+func TestCATBadNoArgs(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestCATBadOneArg(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abc"))
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestCATGood(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abc"))
+	vm.estack.PushVal([]byte("def"))
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("abcdef"), vm.estack.Peek(0).Bytes())
+}
+
+func TestSUBSTRBadNoArgs(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadOneArg(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadTwoArgs(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRGood(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("bc"), vm.estack.Peek(0).Bytes())
+}
+
+func TestSUBSTRBadOffset(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(6)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadLen(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(6)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestLEFTBadNoArgs(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestLEFTBadNoString(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestLEFTGood(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("ab"), vm.estack.Peek(0).Bytes())
+}
+
+func TestLEFTBadLen(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(8)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestRIGHTBadNoArgs(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestRIGHTBadNoString(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestRIGHTGood(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("ef"), vm.estack.Peek(0).Bytes())
+}
+
+func TestRIGHTBadLen(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(8)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
