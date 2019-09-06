@@ -633,6 +633,171 @@ func TestRIGHTBadLen(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestPACKBadLen(t *testing.T) {
+	prog := makeProgram(PACK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPACKGoodZeroLen(t *testing.T) {
+	prog := makeProgram(PACK)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []StackItem{}, vm.estack.Peek(0).Array())
+}
+
+func TestPACKGood(t *testing.T) {
+	prog := makeProgram(PACK)
+	elements := []int{55, 34, 42}
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	for i := len(elements) - 1; i >= 0; i-- {
+		vm.estack.PushVal(elements[i])
+	}
+	vm.estack.PushVal(len(elements))
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 2, vm.estack.Len())
+	a := vm.estack.Peek(0).Array()
+	assert.Equal(t, len(elements), len(a))
+	for i := 0; i < len(elements); i++ {
+		e := a[i].Value().(*big.Int)
+		assert.Equal(t, int64(elements[i]), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestUNPACKBadNotArray(t *testing.T) {
+	prog := makeProgram(UNPACK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestUNPACKGood(t *testing.T) {
+	prog := makeProgram(UNPACK)
+	elements := []int{55, 34, 42}
+	vm := load(prog)
+	// canary
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(elements)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 5, vm.estack.Len())
+	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).BigInt().Int64())
+	for k, v := range elements {
+		assert.Equal(t, int64(v), vm.estack.Peek(k + 1).BigInt().Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(len(elements) + 1).BigInt().Int64())
+}
+
+func TestREVERSEBadNotArray(t *testing.T) {
+	prog := makeProgram(REVERSE)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestREVERSEGoodOneElem(t *testing.T) {
+	prog := makeProgram(REVERSE)
+	elements := []int{22}
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(elements)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 2, vm.estack.Len())
+	a := vm.estack.Peek(0).Array()
+	assert.Equal(t, len(elements), len(a))
+	e := a[0].Value().(*big.Int)
+	assert.Equal(t, int64(elements[0]), e.Int64())
+}
+
+func TestREVERSEGood(t *testing.T) {
+	eodd := []int{22, 34, 42, 55, 81}
+	even := []int{22, 34, 42, 55, 81, 99}
+	eall := [][]int{eodd, even}
+
+	for _, elements := range eall {
+		prog := makeProgram(REVERSE)
+		vm := load(prog)
+		vm.estack.PushVal(1)
+		vm.estack.PushVal(elements)
+		vm.Run()
+		assert.Equal(t, false, vm.state.HasFlag(faultState))
+		assert.Equal(t, 2, vm.estack.Len())
+		a := vm.estack.Peek(0).Array()
+		assert.Equal(t, len(elements), len(a))
+		for k, v := range elements {
+			e := a[len(a) - 1 - k].Value().(*big.Int)
+			assert.Equal(t, int64(v), e.Int64())
+		}
+		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	}
+}
+
+func TestREMOVEBadNoArgs(t *testing.T) {
+	prog := makeProgram(REMOVE)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestREMOVEBadOneArg(t *testing.T) {
+	prog := makeProgram(REMOVE)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestREMOVEBadNotArray(t *testing.T) {
+	prog := makeProgram(REMOVE)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestREMOVEBadIndex(t *testing.T) {
+	prog := makeProgram(REMOVE)
+	elements := []int{22, 34, 42, 55, 81}
+	vm := load(prog)
+	vm.estack.PushVal(elements)
+	vm.estack.PushVal(10)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestREMOVEGood(t *testing.T) {
+	prog := makeProgram(REMOVE)
+	elements := []int{22, 34, 42, 55, 81}
+	reselements := []int{22, 34, 55, 81}
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(elements)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 2, vm.estack.Len())
+	a := vm.estack.Peek(0).Array()
+	assert.Equal(t, len(reselements), len(a))
+	for k, v := range reselements {
+		e := a[k].Value().(*big.Int)
+		assert.Equal(t, int64(v), e.Int64())
+	}
+	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
 func makeProgram(opcodes ...Instruction) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {

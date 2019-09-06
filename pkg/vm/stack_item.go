@@ -37,6 +37,12 @@ func makeStackItem(v interface{}) StackItem {
 		}
 	case StackItem:
 		return val
+	case []int:
+		a := []StackItem{}
+		for _, i := range val {
+			a = append(a, makeStackItem(i))
+		}
+		return makeStackItem(a)
 	default:
 		panic(
 			fmt.Sprintf(
