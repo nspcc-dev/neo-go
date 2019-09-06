@@ -299,7 +299,24 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("can't TUCK with a one-element stack")
 		}
 		v.estack.InsertAt(a, 2)
-
+	case CAT:
+		b := v.estack.Pop().Bytes()
+		a := v.estack.Pop().Bytes()
+		ab := append(a, b...)
+		v.estack.PushVal(ab)
+	case SUBSTR:
+		l := int(v.estack.Pop().BigInt().Int64())
+		o := int(v.estack.Pop().BigInt().Int64())
+		s := v.estack.Pop().Bytes()
+		v.estack.PushVal(s[o:o+l])
+	case LEFT:
+		l := int(v.estack.Pop().BigInt().Int64())
+		s := v.estack.Pop().Bytes()
+		v.estack.PushVal(s[:l])
+	case RIGHT:
+		l := int(v.estack.Pop().BigInt().Int64())
+		s := v.estack.Pop().Bytes()
+		v.estack.PushVal(s[len(s)-l:])
 	case XDROP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
@@ -712,7 +729,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
-	case CAT, SUBSTR, LEFT, RIGHT, CHECKSIG, CHECKMULTISIG,
+	case CHECKSIG, CHECKMULTISIG,
 		UNPACK, REVERSE, REMOVE:
 		panic("unimplemented")
 
