@@ -183,9 +183,10 @@ const (
 	HASH160       Instruction = 0xA9
 	HASH256       Instruction = 0xAA
 	CHECKSIG      Instruction = 0xAC
+	VERIFY        Instruction = 0xAD
 	CHECKMULTISIG Instruction = 0xAE
 
-	// Array
+	// Advanced data structures (arrays, structures, maps)
 	ARRAYSIZE Instruction = 0xC0
 	PACK      Instruction = 0xC1
 	UNPACK    Instruction = 0xC2
@@ -193,9 +194,20 @@ const (
 	SETITEM   Instruction = 0xC4
 	NEWARRAY  Instruction = 0xC5
 	NEWSTRUCT Instruction = 0xC6
+	NEWMAP    Instruction = 0xC7
 	APPEND    Instruction = 0xC8
 	REVERSE   Instruction = 0xC9
 	REMOVE    Instruction = 0xCA
+	HASKEY    Instruction = 0xCB
+	KEYS      Instruction = 0xCC
+	VALUES    Instruction = 0xCD
+
+	// Stack isolation (intentionally left out, see #362)
+	// CALL_I   Instruction = 0xE0
+	// CALL_E   Instruction = 0xE1
+	// CALL_ED  Instruction = 0xE2
+	// CALL_ET  Instruction = 0xE3
+	// CALL_EDT Instruction = 0xE4
 
 	// Exceptions
 	THROW      Instruction = 0xF0

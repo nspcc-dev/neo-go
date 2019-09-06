@@ -751,7 +751,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
-	case CHECKSIG, CHECKMULTISIG:
+	case CHECKSIG, VERIFY, CHECKMULTISIG, NEWMAP, HASKEY, KEYS, VALUES:
 		panic("unimplemented")
 
 	// Cryptographic operations.
