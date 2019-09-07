@@ -43,7 +43,7 @@ func GetVarStringSize(value string) int {
 
 // GetVarSize return the size om bytes of a variable. This implementation is not exactly like the C#
 // (reference: GetVarSize<T>(this T[] value), https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L53) as in the C# variable
-// like Uint160, Uint256 are not supported. @TODO: make sure to have full unit tests coverage.
+// like Uint160, Uint256 are not supported.
 func GetVarSize(value interface{}) int {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {

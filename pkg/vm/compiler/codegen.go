@@ -720,9 +720,6 @@ func (c *codegen) convertToken(tok token.Token) {
 	case token.GEQ:
 		emitOpcode(c.prog, vm.GTE)
 	case token.EQL:
-		// TODO: this is wrong (and the next one also is), see issue #294
-		// Changing it EQUAL is not that big of an improvement, so we're
-		// using NUMEQUAL for now
 		emitOpcode(c.prog, vm.NUMEQUAL)
 	case token.NEQ:
 		emitOpcode(c.prog, vm.NUMNOTEQUAL)
