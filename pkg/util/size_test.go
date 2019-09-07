@@ -2,10 +2,27 @@ package util
 
 import (
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// Mock structure to test getting size of an array of serializable things
+type smthSerializable struct {
+}
+
+func (*smthSerializable) DecodeBinary(io.Reader) error {
+	return nil
+}
+
+func (*smthSerializable) EncodeBinary(io.Writer) error {
+	return nil
+}
+
+func (*smthSerializable) Size() int {
+	return 42
+}
 
 func TestVarSize(t *testing.T) {
 	testCases := []struct {
@@ -36,6 +53,31 @@ func TestVarSize(t *testing.T) {
 		{
 			4294967295,
 			"test_int_5",
+			5,
+		},
+		{
+			uint(252),
+			"test_uint_1",
+			1,
+		},
+		{
+			uint(253),
+			"test_uint_2",
+			3,
+		},
+		{
+			uint(65535),
+			"test_uint_3",
+			3,
+		},
+		{
+			uint(65536),
+			"test_uint_4",
+			5,
+		},
+		{
+			uint(4294967295),
+			"test_uint_5",
 			5,
 		},
 		{
@@ -128,6 +170,10 @@ func TestVarSize(t *testing.T) {
 			"test_string_3",
 			41,
 		},
+		{[]*smthSerializable{&smthSerializable{}, &smthSerializable{}},
+			"test_Serializable",
+			2 * 42 + 1,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -136,4 +182,13 @@ func TestVarSize(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestVarSizePanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r)
+	}()
+
+	_ = GetVarSize(t)
 }
