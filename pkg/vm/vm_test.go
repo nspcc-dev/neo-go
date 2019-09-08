@@ -216,6 +216,86 @@ func TestINC(t *testing.T) {
 	assert.Equal(t, big.NewInt(2), vm.estack.Pop().BigInt())
 }
 
+func TestNEWARRAYInteger(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+}
+
+func TestNEWARRAYStruct(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	arr := []StackItem{makeStackItem(42)}
+	vm.estack.Push(&Element{value: &StructItem{arr}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
+}
+
+func TestNEWARRAYArray(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	arr := []StackItem{makeStackItem(42)}
+	vm.estack.Push(&Element{value: &ArrayItem{arr}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
+}
+
+func TestNEWARRAYWrongType(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	vm.estack.Push(NewElement([]byte{}))
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestNEWSTRUCTInteger(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &StructItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+}
+
+func TestNEWSTRUCTArray(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	arr := []StackItem{makeStackItem(42)}
+	vm.estack.Push(&Element{value: &ArrayItem{arr}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
+}
+
+func TestNEWSTRUCTStruct(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	arr := []StackItem{makeStackItem(42)}
+	vm.estack.Push(&Element{value: &StructItem{arr}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
+}
+
+func TestNEWSTRUCTWrongType(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	vm.estack.Push(NewElement([]byte{}))
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestAppCall(t *testing.T) {
 	prog := []byte{byte(APPCALL)}
 	hash := util.Uint160{}
