@@ -180,7 +180,7 @@ Methods:
 		}
 
 		for addr := range s.coreServer.Peers() {
-			peers.AddPeer("connected", addr.Endpoint().String())
+			peers.AddPeer("connected", addr.NetAddr().String())
 		}
 
 		results = peers

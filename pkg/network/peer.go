@@ -1,13 +1,14 @@
 package network
 
 import (
+	"net"
+
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Peer represents a network node neo-go is connected to.
 type Peer interface {
-	Endpoint() util.Endpoint
+	NetAddr() *net.TCPAddr
 	Disconnect(error)
 	WriteMsg(msg *Message) error
 	Done() chan error
