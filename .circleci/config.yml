@@ -13,6 +13,11 @@ executors:
       - image: circleci/golang:1.12
         environment:
           GO111MODULE: "on"
+  go1_13:
+    docker:
+      - image: circleci/golang:1.13
+        environment:
+          GO111MODULE: "on"
 
 commands:
   gomod:
@@ -29,7 +34,7 @@ commands:
 jobs:
   lint:
     working_directory: /go/src/github.com/CityOfZion/neo-go
-    executor: go1_12
+    executor: go1_13
     steps:
       - checkout
       - gomod
@@ -41,7 +46,7 @@ jobs:
 
   vet:
     working_directory: /go/src/github.com/CityOfZion/neo-go
-    executor: go1_12
+    executor: go1_13
     steps:
       - checkout
       - gomod
@@ -60,6 +65,14 @@ jobs:
   test_1_12:
     working_directory: /go/src/github.com/CityOfZion/neo-go
     executor: go1_12
+    steps:
+      - checkout
+      - gomod
+      - run: go test -v -race ./...
+
+  test_1_13:
+    working_directory: /go/src/github.com/CityOfZion/neo-go
+    executor: go1_13
     steps:
       - checkout
       - gomod
@@ -115,6 +128,10 @@ workflows:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - test_1_12:
+          filters:
+            tags:
+              only: v/[0-9]+\.[0-9]+\.[0-9]+/
+      - test_1_13:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
