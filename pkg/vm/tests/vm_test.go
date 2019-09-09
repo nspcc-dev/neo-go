@@ -18,7 +18,7 @@ type testCase struct {
 
 func run_testcases(t *testing.T, tcases []testCase) {
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {eval(t, tcase.src, tcase.result)})
+		t.Run(tcase.name, func(t *testing.T) { eval(t, tcase.src, tcase.result) })
 	}
 }
 

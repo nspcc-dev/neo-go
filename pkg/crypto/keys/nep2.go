@@ -40,7 +40,6 @@ func NEP2ScryptParams() ScryptParams {
 	}
 }
 
-
 // NEP2Encrypt encrypts a the PrivateKey using a given passphrase
 // under the NEP-2 standard.
 func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {

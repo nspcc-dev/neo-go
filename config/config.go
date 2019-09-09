@@ -16,11 +16,11 @@ const (
 	userAgentFormat = "/NEO-GO:%s/"
 
 	// ModeMainNet contains magic code used in the NEO main official network.
-	ModeMainNet     NetMode = 0x00746e41 // 7630401
+	ModeMainNet NetMode = 0x00746e41 // 7630401
 	// ModeTestNet contains magic code used in the NEO testing network.
-	ModeTestNet     NetMode = 0x74746e41 // 1953787457
+	ModeTestNet NetMode = 0x74746e41 // 1953787457
 	// ModePrivNet contains magic code usually used for NEO private networks.
-	ModePrivNet     NetMode = 56753      // docker privnet
+	ModePrivNet NetMode = 56753 // docker privnet
 	// ModeUnitTestNet is a stub magic code used for testing purposes.
 	ModeUnitTestNet NetMode = 0
 )

@@ -13,7 +13,7 @@ type InvocationTX struct {
 	Script []byte
 
 	// Gas cost of the smart contract.
-	Gas util.Fixed8
+	Gas     util.Fixed8
 	Version uint8
 }
 
@@ -36,7 +36,7 @@ func NewInvocationTX(script []byte) *Transaction {
 func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 	br := util.BinReader{R: r}
 	tx.Script = br.ReadBytes()
-	if (tx.Version >= 1) {
+	if tx.Version >= 1 {
 		br.ReadLE(&tx.Gas)
 	} else {
 		tx.Gas = util.Fixed8FromInt64(0)
@@ -48,7 +48,7 @@ func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
 	bw := util.BinWriter{W: w}
 	bw.WriteBytes(tx.Script)
-	if (tx.Version >= 1) {
+	if tx.Version >= 1 {
 		bw.WriteLE(tx.Gas)
 	}
 	return bw.Err
@@ -57,7 +57,7 @@ func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
 // Size returns serialized binary size for this transaction.
 func (tx *InvocationTX) Size() int {
 	sz := util.GetVarSize(tx.Script)
-	if (tx.Version >= 1) {
+	if tx.Version >= 1 {
 		sz += tx.Gas.Size()
 	}
 	return sz

@@ -170,9 +170,9 @@ func TestVarSize(t *testing.T) {
 			"test_string_3",
 			41,
 		},
-		{[]*smthSerializable{&smthSerializable{}, &smthSerializable{}},
+		{[]*smthSerializable{{}, {}},
 			"test_Serializable",
-			2 * 42 + 1,
+			2*42 + 1,
 		},
 	}
 

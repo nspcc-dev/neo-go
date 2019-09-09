@@ -12,11 +12,11 @@ import (
 // AccountState wrapper used for the representation of
 // core.AccountState on the RPC Server.
 type AccountState struct {
-	Version    uint8               `json:"version"`
-	ScriptHash util.Uint160        `json:"script_hash"`
-	IsFrozen   bool                `json:"frozen"`
+	Version    uint8             `json:"version"`
+	ScriptHash util.Uint160      `json:"script_hash"`
+	IsFrozen   bool              `json:"frozen"`
 	Votes      []*keys.PublicKey `json:"votes"`
-	Balances   []Balance           `json:"balances"`
+	Balances   []Balance         `json:"balances"`
 }
 
 // Balances type for sorting balances in rpc response

@@ -176,7 +176,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 func TestBlockSizeCalculation(t *testing.T) {
 	// block taken from mainnet: 0006d3ff96e269f599eb1b5c5a527c218439e498dcc65b63794591bbcdc0516b
 	// The Size in golang is given by counting the number of bytes of an object. (len(Bytes))
-	// its implementation is different from the corresponding C# and python implentation. But the result should
+	// its implementation is different from the corresponding C# and python implementations. But the result should
 	// should be the same.In this test we provide more details then necessary because in case of failure we can easily debug the
 	// root cause of the size calculation missmatch.
 
@@ -249,7 +249,6 @@ func TestBlockSizeCalculation(t *testing.T) {
 	assert.Equal(t, "4012afae6df64195041e4764b57caa9e27fc2cfc596833163904136ec95816d104b44b3737d0e9f6b1b4445cd3b6a5cc80f6b0935675bc44dba44415eb309832b3404dc95bcf85e4635556a1d618e4ce947b26972992ed74788df5f9501b850ac0b40b7112d1ff30e4ade00369e16f0d13932d1ba76725e7682db072f8e2cd7752b840d12bb7dd45dd3b0e2098db5c67b6de55b7c40164937491fcaca1239b25860251224ead23ab232add78ccccd347239eae50ffc98f50b2a84c60ec5c3d284647a7406fabf6ca241b759af6b71080c0dfad7395632e989226a7e52f8cd2c133aeb2226e6e1aea47666fd81f578405a9f9bbd9d0bc523c3a44d7a5099ddc649feabe5f406188b8ee478731a89beeb76fdbd108eb0071b8f2b8678f40c5a1f387a491314336783255dee8cc5af4bf914dfeaacecc318fc13e02262658e39e8ce0631941b1", hex.EncodeToString(b.Script.InvocationScript))
 	assert.Equal(t, "552102486fd15702c4490a26703112a5cc1d0923fd697a33406bd5a1c00e0013b09a7021024c7b7fb6c310fccf1ba33b082519d82964ea93868d676662d4a59ad548df0e7d2102aaec38470f6aad0042c6e877cfd8087d2676b0f516fddd362801b9bd3936399e2103b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c2103b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a2102ca0e27697b9c248f6f16e085fd0061e26f44da85b58ee835c110caa5ec3ba5542102df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e89509357ae", hex.EncodeToString(b.Script.VerificationScript))
 	assert.Equal(t, "0006d3ff96e269f599eb1b5c5a527c218439e498dcc65b63794591bbcdc0516b", b.Hash().ReverseString())
-
 
 	buf := new(bytes.Buffer)
 

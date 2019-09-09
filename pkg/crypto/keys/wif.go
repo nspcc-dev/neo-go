@@ -99,7 +99,7 @@ func (wif WIF) GetVerificationScript() []byte {
 	)
 	var (
 		vScript []byte
-		pubkey *PublicKey
+		pubkey  *PublicKey
 	)
 	pubkey = wif.PrivateKey.PublicKey()
 	vScript = append([]byte{pushbytes33}, pubkey.Bytes()...)
