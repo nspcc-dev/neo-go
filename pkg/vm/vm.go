@@ -315,6 +315,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		s := v.estack.Pop().Bytes()
+		if t := len(s); l > t {
+			l = t
+		}
 		v.estack.PushVal(s[:l])
 	case RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())

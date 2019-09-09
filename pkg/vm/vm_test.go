@@ -685,13 +685,15 @@ func TestLEFTGood(t *testing.T) {
 	assert.Equal(t, []byte("ab"), vm.estack.Peek(0).Bytes())
 }
 
-func TestLEFTBadLen(t *testing.T) {
+func TestLEFTGoodLen(t *testing.T) {
 	prog := makeProgram(LEFT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(8)
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("abcdef"), vm.estack.Peek(0).Bytes())
 }
 
 func TestRIGHTBadNoArgs(t *testing.T) {
