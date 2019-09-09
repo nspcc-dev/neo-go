@@ -7,6 +7,11 @@ REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
 BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION)"
 
+# All of the targets are phony here because we don't really use make dependency
+# tracking for files
+.PHONY: build deps image check-version clean-cluster push-tag push-to-registry \
+	run run-cluster test vet lint fmt cover
+
 build: deps
 	@echo "=> Building binary"
 	@set -x \
