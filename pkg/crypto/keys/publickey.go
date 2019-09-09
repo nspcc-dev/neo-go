@@ -203,11 +203,8 @@ func (p *PublicKey) Address() string {
 	var b = p.Signature()
 
 	b = append([]byte{0x17}, b...)
-	csum := hash.Checksum(b)
-	b = append(b, csum...)
 
-	address := crypto.Base58Encode(b)
-	return address
+	return crypto.Base58CheckEncode(b)
 }
 
 // Verify returns true if the signature is valid and corresponds

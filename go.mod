@@ -5,6 +5,7 @@ require (
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/golang/snappy v0.0.0-20170215233205-553a64147049 // indirect
+	github.com/mr-tron/base58 v1.1.2
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/onsi/gomega v1.4.2 // indirect
 	github.com/pkg/errors v0.8.0

@@ -7,26 +7,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBase58Decode(t *testing.T) {
-	input := "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX"
+func TestBase58CheckEncodeDecode(t *testing.T) {
+	var b58CsumEncoded = "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9o"
+	var b58CsumDecodedHex = "802bfe58ab6d9fd575bdc3a624e4825dd2b375d64ac033fbc46ea79dbab4f69a3e01"
 
-	data, err := Base58Decode(input)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := "0099bc78ba577a95a11f1a344d4d2ae55f2f857b989ea5e5e2"
-	actual := hex.EncodeToString(data)
-	assert.Equal(t, expected, actual)
+	b58CsumDecoded, _ := hex.DecodeString(b58CsumDecodedHex)
+	encoded := Base58CheckEncode(b58CsumDecoded)
+	decoded, err := Base58CheckDecode(b58CsumEncoded)
+	assert.Nil(t, err)
+	assert.Equal(t, encoded, b58CsumEncoded)
+	assert.Equal(t, decoded, b58CsumDecoded)
 }
-func TestBase58Encode(t *testing.T) {
-	input := "0099bc78ba577a95a11f1a344d4d2ae55f2f857b989ea5e5e2"
 
-	inputBytes, _ := hex.DecodeString(input)
-
-	data := Base58Encode(inputBytes)
-
-	expected := "F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX" // Removed the 1 as it is not checkEncoding
-	actual := data
-	assert.Equal(t, expected, actual)
+func TestBase58CheckDecodeFailures(t *testing.T) {
+	badbase58 := "BASE%*"
+	_, err := Base58CheckDecode(badbase58)
+	assert.NotNil(t, err)
+	shortbase58 := "THqY"
+	_, err = Base58CheckDecode(shortbase58)
+	assert.NotNil(t, err)
+	badcsum := "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9A"
+	_, err = Base58CheckDecode(badcsum)
+	assert.NotNil(t, err)
 }
