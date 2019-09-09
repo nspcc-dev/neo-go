@@ -11,8 +11,8 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/pkg/errors"
 )
 
@@ -150,7 +150,7 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 			return err
 		}
 		x = new(big.Int).SetBytes(xbytes)
-		ylsb := uint(prefix&0x1)
+		ylsb := uint(prefix & 0x1)
 		y, err = decodeCompressedY(x, ylsb)
 		if err != nil {
 			return err

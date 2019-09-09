@@ -1,8 +1,8 @@
 package wallet
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Account represents a NEO account. It holds the private and public key

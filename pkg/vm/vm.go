@@ -7,8 +7,8 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"text/tabwriter"
 	"reflect"
+	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -308,7 +308,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		l := int(v.estack.Pop().BigInt().Int64())
 		o := int(v.estack.Pop().BigInt().Int64())
 		s := v.estack.Pop().Bytes()
-		v.estack.PushVal(s[o:o+l])
+		v.estack.PushVal(s[o : o+l])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		s := v.estack.Pop().Bytes()
@@ -416,7 +416,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case EQUAL:
 		b := v.estack.Pop()
 		a := v.estack.Pop()
-		v.estack.PushVal(reflect.DeepEqual(a,b))
+		v.estack.PushVal(reflect.DeepEqual(a, b))
 
 	// Bit operations.
 	case INVERT:

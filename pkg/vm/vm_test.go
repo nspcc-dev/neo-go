@@ -773,9 +773,9 @@ func TestUNPACKGood(t *testing.T) {
 	assert.Equal(t, 5, vm.estack.Len())
 	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).BigInt().Int64())
 	for k, v := range elements {
-		assert.Equal(t, int64(v), vm.estack.Peek(k + 1).BigInt().Int64())
+		assert.Equal(t, int64(v), vm.estack.Peek(k+1).BigInt().Int64())
 	}
-	assert.Equal(t, int64(1), vm.estack.Peek(len(elements) + 1).BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Peek(len(elements)+1).BigInt().Int64())
 }
 
 func TestREVERSEBadNotArray(t *testing.T) {
@@ -817,7 +817,7 @@ func TestREVERSEGood(t *testing.T) {
 		a := vm.estack.Peek(0).Array()
 		assert.Equal(t, len(elements), len(a))
 		for k, v := range elements {
-			e := a[len(a) - 1 - k].Value().(*big.Int)
+			e := a[len(a)-1-k].Value().(*big.Int)
 			assert.Equal(t, int64(v), e.Int64())
 		}
 		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())

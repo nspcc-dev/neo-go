@@ -5,10 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
+	"github.com/stretchr/testify/assert"
 )
-
 
 func TestPrivateKey(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {

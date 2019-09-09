@@ -352,5 +352,5 @@ func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
 }
 
 func init() {
-        rand.Seed(time.Now().UTC().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 }
