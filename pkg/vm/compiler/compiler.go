@@ -112,22 +112,19 @@ func CompileAndInspect(src string) error {
 	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
 	for i := 0; i <= len(b)-1; {
 		instr := vm.Instruction(b[i])
-		if instr >= vm.PUSHBYTES1 && instr <= vm.PUSHBYTES75 {
-			fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], fmt.Sprintf("PUSHBYTES%d", int(instr)))
-			for x := 0; x < int(instr); x++ {
-				fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i+1+x], string(b[i+1+x]))
-			}
-			i += int(instr) + 1
-			continue
-		}
+		paramlength := 0
 		fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], instr)
 		i++
-		if instr == vm.JMP || instr == vm.JMPIF || instr == vm.JMPIFNOT || instr == vm.CALL {
-			for x := 0; x < 2; x++ {
-				fmt.Fprintf(w, "%d\t0x%x\t%d\t\n", i, b[i + x], b[i + x])
-			}
-			i += 2
+		if instr >= vm.PUSHBYTES1 && instr <= vm.PUSHBYTES75 {
+			paramlength = int(instr)
 		}
+		if instr == vm.JMP || instr == vm.JMPIF || instr == vm.JMPIFNOT || instr == vm.CALL {
+			paramlength = 2
+		}
+		for x := 0; x < paramlength; x++ {
+			fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i+1+x], string(b[i+1+x]))
+		}
+		i += paramlength
 	}
 	w.Flush()
 	return nil
