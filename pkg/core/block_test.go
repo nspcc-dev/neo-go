@@ -176,7 +176,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 func TestBlockSizeCalculation(t *testing.T) {
 	// block taken from mainnet: 0006d3ff96e269f599eb1b5c5a527c218439e498dcc65b63794591bbcdc0516b
 	// The Size in golang is given by counting the number of bytes of an object. (len(Bytes))
-	// its implementation is different from the corresponding C# and python implentation. But the result should
+	// its implementation is different from the corresponding C# and python implementations. But the result should
 	// should be the same.In this test we provide more details then necessary because in case of failure we can easily debug the
 	// root cause of the size calculation missmatch.
 
