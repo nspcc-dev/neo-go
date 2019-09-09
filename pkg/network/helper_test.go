@@ -2,6 +2,7 @@ package network
 
 import (
 	"math/rand"
+	"net"
 	"testing"
 	"time"
 
@@ -111,22 +112,23 @@ func (t localTransport) Close()        {}
 var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
 type localPeer struct {
-	endpoint       util.Endpoint
+	netaddr        net.TCPAddr
 	version        *payload.Version
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
 }
 
 func newLocalPeer(t *testing.T) *localPeer {
+	naddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	return &localPeer{
 		t:              t,
-		endpoint:       util.NewEndpoint("0.0.0.0:0"),
+		netaddr:        *naddr,
 		messageHandler: defaultMessageHandler,
 	}
 }
 
-func (p *localPeer) Endpoint() util.Endpoint {
-	return p.endpoint
+func (p *localPeer) NetAddr() *net.TCPAddr {
+	return &p.netaddr
 }
 func (p *localPeer) Disconnect(err error) {}
 func (p *localPeer) WriteMsg(msg *Message) error {

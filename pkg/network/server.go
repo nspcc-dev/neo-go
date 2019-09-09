@@ -133,17 +133,17 @@ func (s *Server) run() {
 			// When a new peer is connected we send out our version immediately.
 			if err := s.sendVersion(p); err != nil {
 				log.WithFields(log.Fields{
-					"endpoint": p.Endpoint(),
+					"addr": p.NetAddr(),
 				}).Error(err)
 			}
 			s.peers[p] = true
 			log.WithFields(log.Fields{
-				"endpoint": p.Endpoint(),
+				"addr": p.NetAddr(),
 			}).Info("new peer connected")
 		case drop := <-s.unregister:
 			delete(s.peers, drop.peer)
 			log.WithFields(log.Fields{
-				"endpoint":  drop.peer.Endpoint(),
+				"addr":      drop.peer.NetAddr(),
 				"reason":    drop.reason,
 				"peerCount": s.PeerCount(),
 			}).Warn("peer disconnected")
@@ -168,7 +168,7 @@ func (s *Server) PeerCount() int {
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
 	log.WithFields(log.Fields{
-		"endpoint":    p.Endpoint(),
+		"addr":        p.NetAddr(),
 		"userAgent":   string(p.Version().UserAgent),
 		"startHeight": p.Version().StartHeight,
 		"id":          p.Version().Nonce,
@@ -207,7 +207,7 @@ func (s *Server) sendVersion(p Peer) error {
 // When a peer sends out his version we reply with verack after validating
 // the version.
 func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
-	if p.Endpoint().Port != version.Port {
+	if p.NetAddr().Port != int(version.Port) {
 		return errPortMismatch
 	}
 	if s.id == version.Nonce {

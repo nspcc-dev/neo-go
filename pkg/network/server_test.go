@@ -1,10 +1,10 @@
 package network
 
 import (
+	"net"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,8 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 		s = newTestServer()
 		p = newLocalPeer(t)
 	)
-	p.endpoint = util.NewEndpoint("0.0.0.0:3000")
+	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
+	p.netaddr = *na
 
 	// Should have a verack
 	p.messageHandler = func(t *testing.T, msg *Message) {
@@ -62,7 +63,8 @@ func TestServerNotSendsVerack(t *testing.T) {
 	s.id = 1
 	go s.run()
 
-	p.endpoint = util.NewEndpoint("0.0.0.0:3000")
+	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
+	p.netaddr = *na
 	s.register <- p
 
 	// Port should mismatch

@@ -2,6 +2,7 @@ package payload
 
 import (
 	"io"
+	"net"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -11,16 +12,19 @@ import (
 type AddressAndTime struct {
 	Timestamp uint32
 	Services  uint64
-	Endpoint  util.Endpoint
+	IP        [16]byte
+	Port      uint16
 }
 
 // NewAddressAndTime creates a new AddressAndTime object.
-func NewAddressAndTime(e util.Endpoint, t time.Time) *AddressAndTime {
-	return &AddressAndTime{
+func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
+	aat := AddressAndTime{
 		Timestamp: uint32(t.UTC().Unix()),
 		Services:  1,
-		Endpoint:  e,
+		Port:      uint16(e.Port),
 	}
+	copy(aat.IP[:], e.IP)
+	return &aat
 }
 
 // DecodeBinary implements the Payload interface.
@@ -28,8 +32,8 @@ func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
 	br := util.BinReader{R: r}
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Services)
-	br.ReadBE(&p.Endpoint.IP)
-	br.ReadBE(&p.Endpoint.Port)
+	br.ReadBE(&p.IP)
+	br.ReadBE(&p.Port)
 	return br.Err
 }
 
@@ -38,8 +42,8 @@ func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
 	bw := util.BinWriter{W: w}
 	bw.WriteLE(p.Timestamp)
 	bw.WriteLE(p.Services)
-	bw.WriteBE(p.Endpoint.IP)
-	bw.WriteBE(p.Endpoint.Port)
+	bw.WriteBE(p.IP)
+	bw.WriteBE(p.Port)
 	return bw.Err
 }
 
