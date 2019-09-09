@@ -60,3 +60,13 @@ test:
 
 vet:
 	@go vet ./...
+
+lint:
+	@go list ./... | xargs -L1 golint -set_exit_status
+
+fmt:
+	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")
+
+cover:
+	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic
+	@go tool cover -html=coverage.txt -o coverage.html

@@ -40,3 +40,7 @@ blockchains/
 # patch
 *.orig
 *.rej
+
+# Coverage
+coverage.txt
+coverage.html
