@@ -60,6 +60,22 @@ func TestPushBytes1to75(t *testing.T) {
 	}
 }
 
+func TestPushBytesNoParam(t *testing.T) {
+	prog := make([]byte, 1)
+	prog[0] = byte(PUSHBYTES1)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushBytesShort(t *testing.T) {
+	prog := make([]byte, 10)
+	prog[0] = byte(PUSHBYTES10) // but only 9 left in the `prog`
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestPushm1to16(t *testing.T) {
 	var prog []byte
 	for i := int(PUSHM1); i <= int(PUSH16); i++ {

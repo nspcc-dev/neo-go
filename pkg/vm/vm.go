@@ -242,6 +242,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	if op >= PUSHBYTES1 && op <= PUSHBYTES75 {
 		b := ctx.readBytes(int(op))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 		return
 	}
