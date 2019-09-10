@@ -63,6 +63,11 @@ func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
 	case *BigIntegerItem:
 		return t.value
+	case *BoolItem:
+		if t.value {
+			return big.NewInt(1)
+		}
+		return big.NewInt(0)
 	default:
 		b := t.Value().([]uint8)
 		return new(big.Int).SetBytes(util.ArrayReverse(b))
