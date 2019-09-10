@@ -111,6 +111,67 @@ func TestPushData4(t *testing.T) {
 
 }
 
+func TestNOTNoArgument(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestNOTBool(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.PushVal(false)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
+func TestNOTNonZeroInt(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
+func TestNOTArray(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
+func TestNOTStruct(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.Push(NewElement(&StructItem{[]StackItem{}}))
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
+func TestNOTByteArray0(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 0})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
+func TestNOTByteArray1(t *testing.T) {
+	prog := makeProgram(NOT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
 func TestAdd(t *testing.T) {
 	prog := makeProgram(ADD)
 	vm := load(prog)
