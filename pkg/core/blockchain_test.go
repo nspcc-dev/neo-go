@@ -6,7 +6,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,7 +129,7 @@ func TestHasBlock(t *testing.T) {
 }
 
 func TestGetTransaction(t *testing.T) {
-	block := getDecodedBlock(t, 1)
+	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
 
 	assert.Nil(t, bc.AddBlock(block))
@@ -142,10 +141,15 @@ func TestGetTransaction(t *testing.T) {
 	}
 	assert.Equal(t, block.Index, height)
 	assert.Equal(t, block.Transactions[0], tx)
+	assert.Equal(t, 10, tx.Size())
+	assert.Equal(t, 1, util.GetVarSize(tx.Attributes))
+	assert.Equal(t, 1, util.GetVarSize(tx.Inputs))
+	assert.Equal(t, 1, util.GetVarSize(tx.Outputs))
+	assert.Equal(t, 1, util.GetVarSize(tx.Scripts))
 }
 
 func newTestChain(t *testing.T) *Blockchain {
-	cfg, err := config.Load("../../config", config.ModePrivNet)
+	cfg, err := config.Load("../../config", config.ModeUnitTestNet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,44 +158,4 @@ func newTestChain(t *testing.T) *Blockchain {
 		t.Fatal(err)
 	}
 	return chain
-}
-
-func TestSize(t *testing.T) {
-	txID := "f999c36145a41306c846ea80290416143e8e856559818065be3f4e143c60e43a"
-	tx := getTestTransaction(txID, t)
-
-	assert.Equal(t, 283, tx.Size())
-	assert.Equal(t, 22, util.GetVarSize(tx.Attributes))
-	assert.Equal(t, 35, util.GetVarSize(tx.Inputs))
-	assert.Equal(t, 121, util.GetVarSize(tx.Outputs))
-	assert.Equal(t, 103, util.GetVarSize(tx.Scripts))
-}
-
-func getTestBlockchain(t *testing.T) *Blockchain {
-	net := config.ModeUnitTestNet
-	configPath := "../../config"
-	cfg, err := config.Load(configPath, net)
-	require.NoError(t, err, "could not create levelDB chain")
-
-	// adjust datadirectory to point to the correct folder
-	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = "../rpc/chains/unit_testnet"
-	store, err := storage.NewLevelDBStore(context.Background(),
-		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions)
-	assert.Nil(t, err)
-	chain, err := NewBlockchain(context.Background(), store, cfg.ProtocolConfiguration)
-	require.NoErrorf(t, err, "could not create levelDB chain")
-
-	return chain
-}
-
-func getTestTransaction(txID string, t *testing.T) *transaction.Transaction {
-	chain := getTestBlockchain(t)
-
-	txHash, err := util.Uint256DecodeReverseString(txID)
-	require.NoErrorf(t, err, "could not decode string %s to Uint256", txID)
-
-	tx, _, err := chain.GetTransaction(txHash)
-	require.NoErrorf(t, err, "could not get transaction with hash=%s", txHash)
-
-	return tx
 }
