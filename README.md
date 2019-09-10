@@ -31,7 +31,7 @@ A complete toolkit for the NEO blockchain, including:
 
 ## Installation
 
-Go: 1.11+
+Go: 1.12+
 
 Install dependencies.
 

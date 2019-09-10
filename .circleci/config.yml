@@ -3,11 +3,6 @@ orbs:
   codecov: codecov/codecov@1.0.5
 
 executors:
-  go1_11:
-    docker:
-      - image: circleci/golang:1.11
-        environment:
-          GO111MODULE: "on"
   go1_12:
     docker:
       - image: circleci/golang:1.12
@@ -53,14 +48,6 @@ jobs:
       - run:
           name: go-vet
           command: go vet ./...
-
-  test_1_11:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
-    executor: go1_11
-    steps:
-      - checkout
-      - gomod
-      - run: go test -v -race ./...
 
   test_1_12:
     working_directory: /go/src/github.com/CityOfZion/neo-go
@@ -120,10 +107,6 @@ workflows:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
       - lint:
-          filters:
-            tags:
-              only: v/[0-9]+\.[0-9]+\.[0-9]+/
-      - test_1_11:
           filters:
             tags:
               only: v/[0-9]+\.[0-9]+\.[0-9]+/
