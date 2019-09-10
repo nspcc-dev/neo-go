@@ -312,6 +312,71 @@ func TestNEWSTRUCTWrongType(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestSIGNNoArgument(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSIGNWrongType(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSIGNBool(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal(false)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BigIntegerItem{big.NewInt(0)}, vm.estack.Pop().value)
+}
+
+func TestSIGNPositiveInt(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BigIntegerItem{big.NewInt(1)}, vm.estack.Pop().value)
+}
+
+func TestSIGNNegativeInt(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BigIntegerItem{big.NewInt(-1)}, vm.estack.Pop().value)
+}
+
+func TestSIGNZero(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BigIntegerItem{big.NewInt(0)}, vm.estack.Pop().value)
+}
+
+func TestSIGNByteArray(t *testing.T) {
+	prog := makeProgram(SIGN)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BigIntegerItem{big.NewInt(1)}, vm.estack.Pop().value)
+}
+
 func TestAppCall(t *testing.T) {
 	prog := []byte{byte(APPCALL)}
 	hash := util.Uint160{}
