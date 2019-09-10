@@ -14,7 +14,15 @@ ProtocolConfiguration:
     RegisterTransaction: 10000
 
 ApplicationConfiguration:
-  DataDirectoryPath: "/chains/privnet"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','redis'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+      DataDirectoryPath: "./chains/privnet"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
   RPCPort: 20334
   NodePort: 20335
   Relay: true

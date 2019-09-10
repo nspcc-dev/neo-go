@@ -1,10 +1,13 @@
 module github.com/CityOfZion/neo-go
 
 require (
+	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
+	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/golang/snappy v0.0.0-20170215233205-553a64147049 // indirect
+	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/mr-tron/base58 v1.1.2
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/onsi/gomega v1.4.2 // indirect
@@ -14,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.2.1
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/urfave/cli v1.20.0
+	github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036 // indirect
 	golang.org/x/crypto v0.0.0-20180316180149-374053ea96cb
 	golang.org/x/text v0.3.0
 	golang.org/x/tools v0.0.0-20180318012157-96caea41033d

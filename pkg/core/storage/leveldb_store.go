@@ -8,6 +8,11 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
+// LevelDBOptions configuration for LevelDB.
+type LevelDBOptions struct {
+	DataDirectoryPath string `yaml:"DataDirectoryPath"`
+}
+
 // LevelDBStore is the official storage implementation for storing and retrieving
 // blockchain data.
 type LevelDBStore struct {
@@ -17,8 +22,10 @@ type LevelDBStore struct {
 
 // NewLevelDBStore return a new LevelDBStore object that will
 // initialize the database found at the given path.
-func NewLevelDBStore(ctx context.Context, path string, opts *opt.Options) (*LevelDBStore, error) {
-	db, err := leveldb.OpenFile(path, opts)
+func NewLevelDBStore(ctx context.Context, cfg LevelDBOptions) (*LevelDBStore, error) {
+	var opts *opt.Options = nil // should be exposed via LevelDBOptions if anything needed
+
+	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +37,7 @@ func NewLevelDBStore(ctx context.Context, path string, opts *opt.Options) (*Leve
 	}()
 
 	return &LevelDBStore{
-		path: path,
+		path: cfg.DataDirectoryPath,
 		db:   db,
 	}, nil
 }

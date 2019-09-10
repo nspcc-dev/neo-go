@@ -19,7 +19,15 @@ ProtocolConfiguration:
     RegisterTransaction: 10000
 
 ApplicationConfiguration:
-  DataDirectoryPath: "./chains/unit_testnet"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','redis'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+        DataDirectoryPath: "./chains/unit_testnet"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
   RPCPort: 20332
   NodePort: 20333
   Relay: true

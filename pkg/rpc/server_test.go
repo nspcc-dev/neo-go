@@ -13,6 +13,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -245,7 +246,10 @@ func TestHandler(t *testing.T) {
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
 
-	chain, err := core.NewBlockchainLevelDB(context.Background(), cfg)
+	store, err := storage.NewLevelDBStore(context.Background(),
+		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions)
+	assert.Nil(t, err)
+	chain, err := core.NewBlockchain(context.Background(), store, cfg.ProtocolConfiguration)
 	require.NoError(t, err, "could not create levelDB chain")
 
 	serverConfig := network.NewServerConfig(cfg)
