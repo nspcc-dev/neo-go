@@ -15,7 +15,14 @@ import (
 	"gopkg.in/abiosoft/ishell.v2"
 )
 
-const vmKey = "vm"
+const (
+	vmKey      = "vm"
+	boolType   = "bool"
+	boolFalse  = "false"
+	boolTrue   = "true"
+	intType    = "int"
+	stringType = "string"
+)
 
 var commands = []*ishell.Cmd{
 	{
@@ -87,12 +94,16 @@ var commands = []*ishell.Cmd{
 
 <operation> is an operation name, passed as a first parameter to Main() (and it
         can't be 'help' at the moment)
-<parameter> is a parameter (can be repeated multiple times) specified
+<parameter> is a parameter (can be repeated multiple times) that can be specified
         as <type>:<value>, where type can be:
-        'bool': supports 'false' and 'true' values
-        'int': supports integers as values
-        'string': supports strings as values (that are pushed as a byte array
-                  values to the stack)
+            '` + boolType + `': supports '` + boolFalse + `' and '` + boolTrue + `' values
+            '` + intType + `': supports integers as values
+            '` + stringType + `': supports strings as values (that are pushed as a byte array
+                      values to the stack)
+       or can be just <value>, for which the type will be detected automatically
+       following these rules: '` + boolTrue + `' and '` + boolFalse + `' are treated as respective
+       boolean values, everything that can be converted to integer is treated as
+       integer and everything else is treated like a string.
 
 Passing parameters without operation is not supported. Parameters are packed
 into array before they're passed to the script, so effectively 'run' only
@@ -100,7 +111,7 @@ supports contracts with signatures like this:
    func Main(operation string, args []interface{}) interface{}
 
 Example:
-> run put string:"Something to put"`,
+> run put ` + stringType + `:"Something to put"`,
 		Func: handleRun,
 	},
 	{
@@ -316,30 +327,38 @@ func isMethodArg(s string) bool {
 func parseArgs(args []string) ([]vm.StackItem, error) {
 	items := make([]vm.StackItem, len(args))
 	for i, arg := range args {
+		var typ, value string
 		typeAndVal := strings.Split(arg, ":")
 		if len(typeAndVal) < 2 {
-			return nil, errors.New("arguments need to be specified as <typ:val>")
+			if typeAndVal[0] == boolFalse || typeAndVal[0] == boolTrue {
+				typ = boolType
+			} else if _, err := strconv.Atoi(typeAndVal[0]); err == nil {
+				typ = intType
+			} else {
+				typ = stringType
+			}
+			value = typeAndVal[0]
+		} else {
+			typ = typeAndVal[0]
+			value = typeAndVal[1]
 		}
 
-		typ := typeAndVal[0]
-		value := typeAndVal[1]
-
 		switch typ {
-		case "bool":
-			if value == "false" {
+		case boolType:
+			if value == boolFalse {
 				items[i] = vm.NewBoolItem(false)
-			} else if value == "true" {
+			} else if value == boolTrue {
 				items[i] = vm.NewBoolItem(true)
 			} else {
 				return nil, errors.New("failed to parse bool parameter")
 			}
-		case "int":
+		case intType:
 			val, err := strconv.Atoi(value)
 			if err != nil {
 				return nil, err
 			}
 			items[i] = vm.NewBigIntegerItem(val)
-		case "string":
+		case stringType:
 			items[i] = vm.NewByteArrayItem([]byte(value))
 		}
 	}
