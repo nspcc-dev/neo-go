@@ -729,6 +729,28 @@ func TestCATGood(t *testing.T) {
 	assert.Equal(t, []byte("abcdef"), vm.estack.Peek(0).Bytes())
 }
 
+func TestCATInt0ByteArray(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal(0)
+	vm.estack.PushVal([]byte{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ByteArrayItem{[]byte{}}, vm.estack.Pop().value)
+}
+
+func TestCATByteArrayInt1(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ByteArrayItem{[]byte{1}}, vm.estack.Pop().value)
+}
+
 func TestSUBSTRBadNoArgs(t *testing.T) {
 	prog := makeProgram(SUBSTR)
 	vm := load(prog)
