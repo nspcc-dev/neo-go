@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 )
@@ -71,4 +72,19 @@ func AppendPrefixInt(k KeyPrefix, n int) []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(n))
 	return AppendPrefix(k, b)
+}
+
+// NewStore creates storage with preselected in configuration database type.
+func NewStore(context context.Context, cfg DBConfiguration) (Store, error) {
+	var store Store
+	var err error
+	switch cfg.Type {
+	case "leveldb":
+		store, err = NewLevelDBStore(context, cfg.LevelDBOptions)
+	case "inmemory":
+		store = NewMemoryStore()
+	case "redis":
+		store, err = NewRedisStore(cfg.RedisDBOptions)
+	}
+	return store, err
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/go-yaml/yaml"
@@ -60,13 +61,13 @@ type (
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
-		DataDirectoryPath string        `yaml:"DataDirectoryPath"`
-		RPCPort           uint16        `yaml:"RPCPort"`
-		NodePort          uint16        `yaml:"NodePort"`
-		Relay             bool          `yaml:"Relay"`
-		DialTimeout       time.Duration `yaml:"DialTimeout"`
-		ProtoTickInterval time.Duration `yaml:"ProtoTickInterval"`
-		MaxPeers          int           `yaml:"MaxPeers"`
+		DBConfiguration   storage.DBConfiguration `yaml:"DBConfiguration"`
+		RPCPort           uint16                  `yaml:"RPCPort"`
+		NodePort          uint16                  `yaml:"NodePort"`
+		Relay             bool                    `yaml:"Relay"`
+		DialTimeout       time.Duration           `yaml:"DialTimeout"`
+		ProtoTickInterval time.Duration           `yaml:"ProtoTickInterval"`
+		MaxPeers          int                     `yaml:"MaxPeers"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.

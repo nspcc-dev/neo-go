@@ -6,6 +6,13 @@ import (
 	"github.com/go-redis/redis"
 )
 
+// RedisDBOptions configuration for RedisDB.
+type RedisDBOptions struct {
+	Addr     string `yaml:"Addr"`
+	Password string `yaml:"Password"`
+	DB       int    `yaml:"DB"`
+}
+
 // RedisStore holds the client and maybe later some more metadata.
 type RedisStore struct {
 	client *redis.Client
@@ -33,19 +40,17 @@ func NewRedisBatch() *RedisBatch {
 	}
 }
 
-// NewRedisStore returns an new initialized - ready to use RedisStore object
-func NewRedisStore() (*RedisStore, error) {
+// NewRedisStore returns an new initialized - ready to use RedisStore object.
+func NewRedisStore(cfg RedisDBOptions) (*RedisStore, error) {
 	c := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     cfg.Addr,
+		Password: cfg.Password,
+		DB:       cfg.DB,
 	})
 	if _, err := c.Ping().Result(); err != nil {
 		return nil, err
 	}
-	return &RedisStore{
-		client: c,
-	}, nil
+	return &RedisStore{client: c}, nil
 }
 
 // Batch implements the Store interface.

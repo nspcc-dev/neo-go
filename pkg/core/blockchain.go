@@ -83,20 +83,6 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 	return bc, nil
 }
 
-// NewBlockchainLevelDB initializes new blockchain DB store based on configuration
-func NewBlockchainLevelDB(ctx context.Context, cfg config.Config) (*Blockchain, error) {
-	store, err := storage.NewLevelDBStore(
-		ctx,
-		cfg.ApplicationConfiguration.DataDirectoryPath,
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewBlockchain(ctx, store, cfg.ProtocolConfiguration)
-}
-
 func (bc *Blockchain) init() error {
 	genesisBlock, err := createGenesisBlock(bc.config)
 	if err != nil {
