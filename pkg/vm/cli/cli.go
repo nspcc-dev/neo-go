@@ -88,12 +88,15 @@ var commands = []*ishell.Cmd{
 <operation> is an operation name, passed as a first parameter to Main() (and it
         can't be 'help' at the moment)
 <parameter> is a parameter (can be repeated multiple times) specified
-        as <type>:<value>, where type can be 'int' or 'string' and value is
-        a value of this type (string is pushed as a byte array value); passing
-        parameters without operation is not supported
+        as <type>:<value>, where type can be:
+        'bool': supports 'false' and 'true' values
+        'int': supports integers as values
+        'string': supports strings as values (that are pushed as a byte array
+                  values to the stack)
 
-Parameters are packed into array before they're passed to the script. so
-effectively 'run' only supports contracts with signatures like this:
+Passing parameters without operation is not supported. Parameters are packed
+into array before they're passed to the script, so effectively 'run' only
+supports contracts with signatures like this:
    func Main(operation string, args []interface{}) interface{}
 
 Example:
@@ -122,7 +125,7 @@ Example:
 	},
 }
 
-// VMCLI object for interacting with the VM.
+ // VMCLI object for interacting with the VM.
 type VMCLI struct {
 	vm    *vm.VM
 	shell *ishell.Shell
@@ -322,6 +325,14 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 		value := typeAndVal[1]
 
 		switch typ {
+		case "bool":
+			if value == "false" {
+				items[i] = vm.NewBoolItem(false)
+			} else if value == "true" {
+				items[i] = vm.NewBoolItem(true)
+			} else {
+				return nil, errors.New("failed to parse bool parameter")
+			}
 		case "int":
 			val, err := strconv.Atoi(value)
 			if err != nil {
