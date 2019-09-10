@@ -83,13 +83,14 @@ var commands = []*ishell.Cmd{
 	{
 		Name: "run",
 		Help: "Execute the current loaded script",
-		LongHelp: `Usage: run [<operation>] [<parameter>...]
+		LongHelp: `Usage: run [<operation> [<parameter>...]]
 
 <operation> is an operation name, passed as a first parameter to Main() (and it
         can't be 'help' at the moment)
 <parameter> is a parameter (can be repeated multiple times) specified
         as <type>:<value>, where type can be 'int' or 'string' and value is
-        a value of this type (string is pushed as a byte array value)
+        a value of this type (string is pushed as a byte array value); passing
+        parameters without operation is not supported
 
 Parameters are packed into array before they're passed to the script. so
 effectively 'run' only supports contracts with signatures like this:
@@ -238,13 +239,9 @@ func handleRun(c *ishell.Context) {
 			method []byte
 			params []vm.StackItem
 			err    error
-			start  int
 		)
-		if isMethodArg(c.Args[0]) {
-			method = []byte(c.Args[0])
-			start = 1
-		}
-		params, err = parseArgs(c.Args[start:])
+		method = []byte(c.Args[0])
+		params, err = parseArgs(c.Args[1:])
 		if err != nil {
 			c.Err(err)
 			return
