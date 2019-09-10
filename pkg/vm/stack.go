@@ -77,10 +77,23 @@ func (e *Element) BigInt() *big.Int {
 // Bool attempts to get the underlying value of the element as a boolean.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bool() bool {
-	if v, ok := e.value.Value().(*big.Int); ok {
-		return v.Int64() == 1
+	switch t := e.value.(type) {
+	case *BigIntegerItem:
+		return t.value.Int64() != 0
+	case *BoolItem:
+		return t.value
+	case *ArrayItem, *StructItem:
+		return true
+	case *ByteArrayItem:
+		for _, b := range t.value {
+			if b != 0 {
+				return true
+			}
+		}
+		return false
+	default:
+		panic("can't convert to bool: " + t.String())
 	}
-	return e.value.Value().(bool)
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.
