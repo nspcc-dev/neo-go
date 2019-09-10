@@ -49,7 +49,7 @@ func (c *Context) LenInstr() int {
 // CurrInstr returns the current instruction and opcode.
 func (c *Context) CurrInstr() (int, Instruction) {
 	if c.ip < 0 {
-		return c.ip, Instruction(0x00)
+		return c.ip, NOP
 	}
 	return c.ip, Instruction(c.prog[c.ip])
 }
