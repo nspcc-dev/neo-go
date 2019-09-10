@@ -86,7 +86,19 @@ func (e *Element) Bool() bool {
 // Bytes attempts to get the underlying value of the element as a byte array.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bytes() []byte {
-	return e.value.Value().([]byte)
+	switch t := e.value.(type) {
+	case *ByteArrayItem:
+		return t.value
+	case *BigIntegerItem:
+		return util.ArrayReverse(t.value.Bytes()) // neoVM returns in LE
+	case *BoolItem:
+		if t.value {
+			return []byte{1}
+		}
+		return []byte{0}
+	default:
+		panic("can't convert to []byte: " + t.String())
+	}
 }
 
 // Array attempts to get the underlying value of the element as an array of
