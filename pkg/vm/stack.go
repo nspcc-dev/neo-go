@@ -63,6 +63,11 @@ func (e *Element) BigInt() *big.Int {
 	switch t := e.value.(type) {
 	case *BigIntegerItem:
 		return t.value
+	case *BoolItem:
+		if t.value {
+			return big.NewInt(1)
+		}
+		return big.NewInt(0)
 	default:
 		b := t.Value().([]uint8)
 		return new(big.Int).SetBytes(util.ArrayReverse(b))
@@ -72,16 +77,41 @@ func (e *Element) BigInt() *big.Int {
 // Bool attempts to get the underlying value of the element as a boolean.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bool() bool {
-	if v, ok := e.value.Value().(*big.Int); ok {
-		return v.Int64() == 1
+	switch t := e.value.(type) {
+	case *BigIntegerItem:
+		return t.value.Int64() != 0
+	case *BoolItem:
+		return t.value
+	case *ArrayItem, *StructItem:
+		return true
+	case *ByteArrayItem:
+		for _, b := range t.value {
+			if b != 0 {
+				return true
+			}
+		}
+		return false
+	default:
+		panic("can't convert to bool: " + t.String())
 	}
-	return e.value.Value().(bool)
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bytes() []byte {
-	return e.value.Value().([]byte)
+	switch t := e.value.(type) {
+	case *ByteArrayItem:
+		return t.value
+	case *BigIntegerItem:
+		return util.ArrayReverse(t.value.Bytes()) // neoVM returns in LE
+	case *BoolItem:
+		if t.value {
+			return []byte{1}
+		}
+		return []byte{0}
+	default:
+		panic("can't convert to []byte: " + t.String())
+	}
 }
 
 // Array attempts to get the underlying value of the element as an array of
