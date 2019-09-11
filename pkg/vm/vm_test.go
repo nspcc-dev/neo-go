@@ -479,6 +479,15 @@ func TestAPPENDBad1Argument(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestAPPENDWrongType(t *testing.T) {
+	prog := makeProgram(APPEND)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestSIGNNoArgument(t *testing.T) {
 	prog := makeProgram(SIGN)
 	vm := load(prog)
