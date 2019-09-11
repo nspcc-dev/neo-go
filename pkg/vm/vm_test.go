@@ -99,16 +99,87 @@ func TestPushm1to16(t *testing.T) {
 	}
 }
 
-func TestPushData1(t *testing.T) {
-
+func TestPushData1BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA1)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestPushData2(t *testing.T) {
-
+func TestPushData1BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA1), 1}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestPushData4(t *testing.T) {
+func TestPushData1Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA1, 3, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
+}
 
+func TestPushData2BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2ShortN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2), 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2), 1, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA2, 3, 0, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
+}
+
+func TestPushData4BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4), 1, 0, 0, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4ShortN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4), 0, 0, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA4, 3, 0, 0, 0, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
 func TestNOTNoArgument(t *testing.T) {
@@ -807,6 +878,38 @@ func TestSUBSTRBadLen(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestSUBSTRBad387(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	b := make([]byte, 6, 20)
+	copy(b, "abcdef")
+	vm.estack.PushVal(b)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(6)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadNegativeOffset(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadNegativeLen(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestLEFTBadNoArgs(t *testing.T) {
 	prog := makeProgram(LEFT)
 	vm := load(prog)
@@ -818,6 +921,15 @@ func TestLEFTBadNoString(t *testing.T) {
 	prog := makeProgram(LEFT)
 	vm := load(prog)
 	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestLEFTBadNegativeLen(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
@@ -855,6 +967,15 @@ func TestRIGHTBadNoString(t *testing.T) {
 	prog := makeProgram(RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestRIGHTBadNegativeLen(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }

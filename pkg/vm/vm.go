@@ -262,16 +262,25 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case PUSHDATA1:
 		n := ctx.readByte()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	case PUSHDATA2:
 		n := ctx.readUint16()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	case PUSHDATA4:
 		n := ctx.readUint32()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	// Stack operations.
@@ -311,9 +320,21 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		l := int(v.estack.Pop().BigInt().Int64())
 		o := int(v.estack.Pop().BigInt().Int64())
 		s := v.estack.Pop().Bytes()
+		if l < 0 {
+			panic("negative length")
+		}
+		if o < 0 {
+			panic("negative index")
+		}
+		if l+o > len(s) {
+			panic("out of bounds access")
+		}
 		v.estack.PushVal(s[o : o+l])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
+		if l < 0 {
+			panic("negative length")
+		}
 		s := v.estack.Pop().Bytes()
 		if t := len(s); l > t {
 			l = t
@@ -321,6 +342,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(s[:l])
 	case RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
+		if l < 0 {
+			panic("negative length")
+		}
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
 	case XDROP:

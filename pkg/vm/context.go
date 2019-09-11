@@ -89,7 +89,7 @@ func (c *Context) String() string {
 func (c *Context) readUint32() uint32 {
 	start, end := c.IP(), c.IP()+4
 	if end > len(c.prog) {
-		return 0
+		panic("failed to read uint32 parameter")
 	}
 	val := binary.LittleEndian.Uint32(c.prog[start:end])
 	c.ip += 4
@@ -99,7 +99,7 @@ func (c *Context) readUint32() uint32 {
 func (c *Context) readUint16() uint16 {
 	start, end := c.IP(), c.IP()+2
 	if end > len(c.prog) {
-		return 0
+		panic("failed to read uint16 parameter")
 	}
 	val := binary.LittleEndian.Uint16(c.prog[start:end])
 	c.ip += 2
