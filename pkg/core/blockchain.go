@@ -409,6 +409,9 @@ func (bc *Blockchain) persist(ctx context.Context) (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
+			} else {
+				// no next block in the cache, no reason to continue looping
+				break
 			}
 		}
 	}
