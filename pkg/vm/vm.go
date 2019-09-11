@@ -320,6 +320,15 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		l := int(v.estack.Pop().BigInt().Int64())
 		o := int(v.estack.Pop().BigInt().Int64())
 		s := v.estack.Pop().Bytes()
+		if l < 0 {
+			panic("negative length")
+		}
+		if o < 0 {
+			panic("negative index")
+		}
+		if l+o > len(s) {
+			panic("out of bounds access")
+		}
 		v.estack.PushVal(s[o : o+l])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())

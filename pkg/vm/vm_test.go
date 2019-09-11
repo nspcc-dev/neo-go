@@ -878,6 +878,38 @@ func TestSUBSTRBadLen(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestSUBSTRBad387(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	b := make([]byte, 6, 20)
+	copy(b, "abcdef")
+	vm.estack.PushVal(b)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(6)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadNegativeOffset(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSUBSTRBadNegativeLen(t *testing.T) {
+	prog := makeProgram(SUBSTR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestLEFTBadNoArgs(t *testing.T) {
 	prog := makeProgram(LEFT)
 	vm := load(prog)
