@@ -262,16 +262,25 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case PUSHDATA1:
 		n := ctx.readByte()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	case PUSHDATA2:
 		n := ctx.readUint16()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	case PUSHDATA4:
 		n := ctx.readUint32()
 		b := ctx.readBytes(int(n))
+		if b == nil {
+			panic("failed to read instruction parameter")
+		}
 		v.estack.PushVal(b)
 
 	// Stack operations.

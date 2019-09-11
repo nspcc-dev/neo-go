@@ -99,16 +99,87 @@ func TestPushm1to16(t *testing.T) {
 	}
 }
 
-func TestPushData1(t *testing.T) {
-
+func TestPushData1BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA1)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestPushData2(t *testing.T) {
-
+func TestPushData1BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA1), 1}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestPushData4(t *testing.T) {
+func TestPushData1Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA1, 3, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
+}
 
+func TestPushData2BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2ShortN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2), 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA2), 1, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData2Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA2, 3, 0, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
+}
+
+func TestPushData4BadNoN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4)}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4BadN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4), 1, 0, 0, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4ShortN(t *testing.T) {
+	prog := []byte{byte(PUSHDATA4), 0, 0, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPushData4Good(t *testing.T) {
+	prog := makeProgram(PUSHDATA4, 3, 0, 0, 0, 1, 2, 3)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
 func TestNOTNoArgument(t *testing.T) {
