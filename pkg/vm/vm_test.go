@@ -444,6 +444,50 @@ func TestNEWSTRUCTWrongType(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestAPPENDArray(t *testing.T) {
+	prog := makeProgram(DUP, PUSH5, APPEND)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: &ArrayItem{}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{[]StackItem{makeStackItem(5)}}, vm.estack.Pop().value)
+}
+
+func TestAPPENDStruct(t *testing.T) {
+	prog := makeProgram(DUP, PUSH5, APPEND)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: &StructItem{}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &StructItem{[]StackItem{makeStackItem(5)}}, vm.estack.Pop().value)
+}
+
+func TestAPPENDBadNoArguments(t *testing.T) {
+	prog := makeProgram(APPEND)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestAPPENDBad1Argument(t *testing.T) {
+	prog := makeProgram(APPEND)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestAPPENDWrongType(t *testing.T) {
+	prog := makeProgram(APPEND)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestSIGNNoArgument(t *testing.T) {
 	prog := makeProgram(SIGN)
 	vm := load(prog)
