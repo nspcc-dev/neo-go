@@ -925,6 +925,15 @@ func TestLEFTBadNoString(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestLEFTBadNegativeLen(t *testing.T) {
+	prog := makeProgram(LEFT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestLEFTGood(t *testing.T) {
 	prog := makeProgram(LEFT)
 	vm := load(prog)
@@ -958,6 +967,15 @@ func TestRIGHTBadNoString(t *testing.T) {
 	prog := makeProgram(RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestRIGHTBadNegativeLen(t *testing.T) {
+	prog := makeProgram(RIGHT)
+	vm := load(prog)
+	vm.estack.PushVal([]byte("abcdef"))
+	vm.estack.PushVal(-1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }

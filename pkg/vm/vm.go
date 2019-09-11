@@ -332,6 +332,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(s[o : o+l])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
+		if l < 0 {
+			panic("negative length")
+		}
 		s := v.estack.Pop().Bytes()
 		if t := len(s); l > t {
 			l = t
@@ -339,6 +342,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(s[:l])
 	case RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
+		if l < 0 {
+			panic("negative length")
+		}
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
 	case XDROP:
