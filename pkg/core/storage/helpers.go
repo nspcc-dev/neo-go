@@ -74,7 +74,7 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 	sort.Sort(uint32Slice(sortedKeys))
 
 	for _, key := range sortedKeys {
-		hashes = append(hashes, hashMap[key]...)
+		hashes = append(hashes[:key], hashMap[key]...)
 	}
 
 	return hashes, nil

@@ -84,12 +84,6 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 }
 
 func (bc *Blockchain) init() error {
-	genesisBlock, err := createGenesisBlock(bc.config)
-	if err != nil {
-		return err
-	}
-	bc.headerList = NewHeaderHashList(genesisBlock.Hash())
-
 	// If we could not find the version in the Store, we know that there is nothing stored.
 	ver, err := storage.Version(bc.Store)
 	if err != nil {
@@ -97,6 +91,11 @@ func (bc *Blockchain) init() error {
 		if err = storage.PutVersion(bc.Store, version); err != nil {
 			return err
 		}
+		genesisBlock, err := createGenesisBlock(bc.config)
+		if err != nil {
+			return err
+		}
+		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 		return bc.persistBlock(genesisBlock)
 	}
 	if ver != version {
@@ -119,12 +118,8 @@ func (bc *Blockchain) init() error {
 		return err
 	}
 
-	for _, hash := range hashes {
-		if !genesisBlock.Hash().Equals(hash) {
-			bc.headerList.Add(hash)
-			bc.storedHeaderCount++
-		}
-	}
+	bc.headerList = NewHeaderHashList(hashes...)
+	bc.storedHeaderCount = uint32(len(hashes))
 
 	currHeaderHeight, currHeaderHash, err := storage.CurrentHeaderHeight(bc.Store)
 	if err != nil {
@@ -414,6 +409,9 @@ func (bc *Blockchain) persist(ctx context.Context) (err error) {
 				}
 				bc.blockCache.Delete(hash)
 				persisted++
+			} else {
+				// no next block in the cache, no reason to continue looping
+				break
 			}
 		}
 	}
