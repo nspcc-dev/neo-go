@@ -12,11 +12,16 @@ ProtocolConfiguration:
   - 02d02b1873a0863cd042cc717da31cea0d7cf9db32b74d4c72c01b0011503e2e22
   - 034ff5ceeac41acf22cd5ed2da17a6df4dd8358fcb2bfb1a43208ad0feaab2746b
   SeedList:
-  - 18.218.97.227:20333
-  - 18.219.30.120:20333
-  - 18.219.13.91:20333
-  - 13.59.116.121:20333
-  - 18.218.255.178:20333
+  - seed1.ngd.network:20333
+  - seed2.ngd.network:20333
+  - seed3.ngd.network:20333
+  - seed4.ngd.network:20333
+  - seed5.ngd.network:20333
+  - seed6.ngd.network:20333
+  - seed7.ngd.network:20333
+  - seed8.ngd.network:20333
+  - seed9.ngd.network:20333
+  - seed10.ngd.network:20333
   SystemFee:
     EnrollmentTransaction: 10
     IssueTransaction: 5
