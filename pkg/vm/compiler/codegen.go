@@ -614,7 +614,17 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			emitOpcode(c.prog, vm.ARRAYSIZE)
 		}
 	case "append":
-		emitOpcode(c.prog, vm.APPEND)
+		arg := expr.Args[0]
+		typ := c.typeInfo.Types[arg].Type
+		if isByteArrayType(typ) {
+			emitOpcode(c.prog, vm.CAT)
+		} else {
+			emitOpcode(c.prog, vm.SWAP)
+			emitOpcode(c.prog, vm.DUP)
+			emitOpcode(c.prog, vm.PUSH2)
+			emitOpcode(c.prog, vm.XSWAP)
+			emitOpcode(c.prog, vm.APPEND)
+		}
 	case "SHA256":
 		emitOpcode(c.prog, vm.SHA256)
 	case "SHA1":
