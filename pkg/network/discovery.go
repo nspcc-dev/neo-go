@@ -6,6 +6,7 @@ import (
 
 const (
 	maxPoolSize = 200
+	connRetries = 3
 )
 
 // Discoverer is an interface that is responsible for maintaining
@@ -25,7 +26,7 @@ type DefaultDiscovery struct {
 	dialTimeout      time.Duration
 	addrs            map[string]bool
 	badAddrs         map[string]bool
-	unconnectedAddrs map[string]bool
+	unconnectedAddrs map[string]int
 	requestCh        chan int
 	connectedCh      chan string
 	backFill         chan string
@@ -40,7 +41,7 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 		dialTimeout:      dt,
 		addrs:            make(map[string]bool),
 		badAddrs:         make(map[string]bool),
-		unconnectedAddrs: make(map[string]bool),
+		unconnectedAddrs: make(map[string]int),
 		requestCh:        make(chan int),
 		connectedCh:      make(chan string),
 		backFill:         make(chan string),
@@ -143,12 +144,17 @@ func (d *DefaultDiscovery) run() {
 			}
 			if _, ok := d.addrs[addr]; !ok {
 				d.addrs[addr] = true
-				d.unconnectedAddrs[addr] = true
+				d.unconnectedAddrs[addr] = connRetries
 				d.pool <- addr
 			}
 		case addr := <-d.badAddrCh:
-			d.badAddrs[addr] = true
-			delete(d.unconnectedAddrs, addr)
+			d.unconnectedAddrs[addr]--
+			if d.unconnectedAddrs[addr] > 0 {
+				d.pool <- addr
+			} else {
+				d.badAddrs[addr] = true
+				delete(d.unconnectedAddrs, addr)
+			}
 			d.RequestRemote(1)
 
 		case addr := <-d.connectedCh:
