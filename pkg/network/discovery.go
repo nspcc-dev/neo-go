@@ -55,9 +55,6 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 // BackFill implements the Discoverer interface and will backfill the
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
-	if len(d.pool) == maxPoolSize {
-		return
-	}
 	for _, addr := range addrs {
 		d.backFill <- addr
 	}
@@ -66,6 +63,17 @@ func (d *DefaultDiscovery) BackFill(addrs ...string) {
 // PoolCount returns the number of available node addresses.
 func (d *DefaultDiscovery) PoolCount() int {
 	return len(d.pool)
+}
+
+// pushToPoolOrDrop tries to push address given into the pool, but if the pool
+// is already full, it just drops it
+func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
+	select {
+	case d.pool <- addr:
+		// ok, queued
+	default:
+		// whatever
+	}
 }
 
 // RequestRemote will try to establish a connection with n nodes.
@@ -145,12 +153,12 @@ func (d *DefaultDiscovery) run() {
 			if _, ok := d.addrs[addr]; !ok {
 				d.addrs[addr] = true
 				d.unconnectedAddrs[addr] = connRetries
-				d.pool <- addr
+				d.pushToPoolOrDrop(addr)
 			}
 		case addr := <-d.badAddrCh:
 			d.unconnectedAddrs[addr]--
 			if d.unconnectedAddrs[addr] > 0 {
-				d.pool <- addr
+				d.pushToPoolOrDrop(addr)
 			} else {
 				d.badAddrs[addr] = true
 				delete(d.unconnectedAddrs, addr)
