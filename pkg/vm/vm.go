@@ -375,7 +375,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case XTUCK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
+		if n <= 0 {
 			panic("XTUCK: invalid length")
 		}
 		a := v.estack.Dup(0)

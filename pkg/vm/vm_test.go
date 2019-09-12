@@ -658,6 +658,15 @@ func TestXTUCKbadNegative(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestXTUCKbadZero(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestXTUCKgood(t *testing.T) {
 	prog := makeProgram(XTUCK)
 	topelement := 5
