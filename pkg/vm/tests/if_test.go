@@ -30,7 +30,7 @@ func TestGT(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, big.NewInt(0))
+	eval(t, src, []byte{})
 }
 
 func TestGTE(t *testing.T) {
@@ -44,7 +44,7 @@ func TestGTE(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, big.NewInt(0))
+	eval(t, src, []byte{})
 }
 
 func TestLAND(t *testing.T) {
@@ -89,5 +89,5 @@ func TestNestedIF(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, big.NewInt(0))
+	eval(t, src, []byte{})
 }

@@ -257,7 +257,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(val)
 
 	case PUSH0:
-		v.estack.PushVal(0)
+		v.estack.PushVal([]byte{})
 
 	case PUSHDATA1:
 		n := ctx.readByte()
