@@ -609,31 +609,27 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case NEWARRAY:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *BigIntegerItem:
-			n := t.value.Int64()
-			items := makeArrayOfFalses(int(n))
-			v.estack.PushVal(&ArrayItem{items})
 		case *StructItem:
 			v.estack.PushVal(&ArrayItem{t.value})
 		case *ArrayItem:
 			v.estack.PushVal(t)
 		default:
-			panic("NEWARRAY: invalid operand")
+			n := item.BigInt()
+			items := makeArrayOfFalses(int(n.Int64()))
+			v.estack.PushVal(&ArrayItem{items})
 		}
 
 	case NEWSTRUCT:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *BigIntegerItem:
-			n := t.value.Int64()
-			items := makeArrayOfFalses(int(n))
-			v.estack.PushVal(&StructItem{items})
 		case *ArrayItem:
 			v.estack.PushVal(&StructItem{t.value})
 		case *StructItem:
 			v.estack.PushVal(t)
 		default:
-			panic("NEWSTRUCT: invalid operand")
+			n := item.BigInt()
+			items := makeArrayOfFalses(int(n.Int64()))
+			v.estack.PushVal(&StructItem{items})
 		}
 
 	case APPEND:
