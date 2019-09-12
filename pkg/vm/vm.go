@@ -728,10 +728,25 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 	case REMOVE:
 		key := int(v.estack.Pop().BigInt().Int64())
-		elem := v.estack.Peek(0)
-		a := elem.Array()
-		a = append(a[:key], a[key+1:]...)
-		elem.value = makeStackItem(a)
+		elem := v.estack.Pop()
+		switch t := elem.value.(type) {
+		case *ArrayItem:
+			a := t.value
+			if key < 0 || key >= len(a) {
+				panic("REMOVE: invalid index")
+			}
+			a = append(a[:key], a[key+1:]...)
+			t.value = a
+		case *StructItem:
+			a := t.value
+			if key < 0 || key >= len(a) {
+				panic("REMOVE: invalid index")
+			}
+			a = append(a[:key], a[key+1:]...)
+			t.value = a
+		default:
+			panic("REMOVE: invalid type")
+		}
 
 	case ARRAYSIZE:
 		elem := v.estack.Pop()

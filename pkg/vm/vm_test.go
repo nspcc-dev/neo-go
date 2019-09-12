@@ -1314,23 +1314,17 @@ func TestREMOVEBadIndex(t *testing.T) {
 }
 
 func TestREMOVEGood(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(DUP, PUSH2, REMOVE)
 	elements := []int{22, 34, 42, 55, 81}
 	reselements := []int{22, 34, 55, 81}
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(elements)
-	vm.estack.PushVal(2)
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 2, vm.estack.Len())
-	a := vm.estack.Peek(0).Array()
-	assert.Equal(t, len(reselements), len(a))
-	for k, v := range reselements {
-		e := a[k].Value().(*big.Int)
-		assert.Equal(t, int64(v), e.Int64())
-	}
-	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, makeStackItem(reselements), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func makeProgram(opcodes ...Instruction) []byte {
