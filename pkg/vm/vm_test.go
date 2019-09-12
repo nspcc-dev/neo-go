@@ -803,6 +803,25 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, 3, vm.estack.Len())
 }
 
+func TestNIPBadNoItem(t *testing.T) {
+	prog := makeProgram(NIP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestNIPGood(t *testing.T) {
+	prog := makeProgram(NIP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
 func TestDROPBadNoItem(t *testing.T) {
 	prog := makeProgram(DROP)
 	vm := load(prog)

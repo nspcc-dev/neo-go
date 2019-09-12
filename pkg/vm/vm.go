@@ -398,9 +398,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(v.estack.Len())
 
 	case NIP:
-		elem := v.estack.Pop()
-		_ = v.estack.Pop()
-		v.estack.Push(elem)
+		elem := v.estack.RemoveAt(1)
+		if elem == nil {
+			panic("no second element found")
+		}
 
 	case OVER:
 		b := v.estack.Pop()
