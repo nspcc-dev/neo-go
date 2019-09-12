@@ -429,6 +429,15 @@ func (bc *Blockchain) persist(ctx context.Context) (err error) {
 			"blockHeight":  bc.BlockHeight(),
 			"took":         time.Since(start),
 		}).Info("blockchain persist completed")
+	} else {
+		// So we have some blocks in cache but can't persist them?
+		// Either there are some stale blocks there or the other way
+		// around (which was seen in practice) --- there are some fresh
+		// blocks that we can't persist yet. Some of the latter can be useful
+		// or can be bogus (higher than the header height we expect at
+		// the moment). So try to reap oldies and strange newbies, if
+		// there are any.
+		bc.blockCache.ReapStrangeBlocks(bc.BlockHeight(), bc.HeaderHeight())
 	}
 
 	return
