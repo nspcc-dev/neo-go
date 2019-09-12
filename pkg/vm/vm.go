@@ -611,7 +611,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		switch t := item.value.(type) {
 		case *BigIntegerItem:
 			n := t.value.Int64()
-			items := make([]StackItem, n)
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&ArrayItem{items})
 		case *StructItem:
 			v.estack.PushVal(&ArrayItem{t.value})
@@ -626,7 +626,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		switch t := item.value.(type) {
 		case *BigIntegerItem:
 			n := t.value.Int64()
-			items := make([]StackItem, n)
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&StructItem{items})
 		case *ArrayItem:
 			v.estack.PushVal(&StructItem{t.value})
@@ -851,6 +851,14 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
+}
+
+func makeArrayOfFalses(n int) []StackItem {
+	items := make([]StackItem, n)
+	for i := range items {
+		items[i] = &BoolItem{false}
+	}
+	return items
 }
 
 func init() {

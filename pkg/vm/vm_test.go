@@ -397,7 +397,7 @@ func TestNEWARRAYInteger(t *testing.T) {
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &ArrayItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+	assert.Equal(t, &ArrayItem{[]StackItem{makeStackItem(false)}}, vm.estack.Pop().value)
 }
 
 func TestNEWARRAYStruct(t *testing.T) {
@@ -437,7 +437,7 @@ func TestNEWSTRUCTInteger(t *testing.T) {
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &StructItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+	assert.Equal(t, &StructItem{[]StackItem{makeStackItem(false)}}, vm.estack.Pop().value)
 }
 
 func TestNEWSTRUCTArray(t *testing.T) {
