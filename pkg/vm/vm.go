@@ -388,13 +388,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.InsertAt(a, n)
 
 	case ROT:
-		c := v.estack.Pop()
-		b := v.estack.Pop()
-		a := v.estack.Pop()
-
-		v.estack.Push(b)
-		v.estack.Push(c)
-		v.estack.Push(a)
+		e := v.estack.RemoveAt(2)
+		if e == nil {
+			panic("no top-level element found")
+		}
+		v.estack.Push(e)
 
 	case DEPTH:
 		v.estack.PushVal(v.estack.Len())

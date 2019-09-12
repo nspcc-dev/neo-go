@@ -659,6 +659,29 @@ func TestPICKgood(t *testing.T) {
 	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestROTBad(t *testing.T) {
+	prog := makeProgram(ROT)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestROTGood(t *testing.T) {
+	prog := makeProgram(ROT)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 3, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
 func TestXTUCKbadNoitem(t *testing.T) {
 	prog := makeProgram(XTUCK)
 	vm := load(prog)
