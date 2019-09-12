@@ -107,8 +107,21 @@ func (d *DefaultDiscovery) work(addrCh chan string) {
 	}
 }
 
-func (d *DefaultDiscovery) next() string {
-	return <-d.pool
+func (d *DefaultDiscovery) requestToWork(workCh chan string) {
+	var requested int
+
+	for {
+		for requested = <-d.requestCh; requested > 0; requested-- {
+			select {
+			case r := <-d.requestCh:
+				if requested < r {
+					requested = r
+				}
+			case addr := <-d.pool:
+				workCh <- addr
+			}
+		}
+	}
 }
 
 func (d *DefaultDiscovery) run() {
@@ -121,6 +134,7 @@ func (d *DefaultDiscovery) run() {
 		go d.work(workCh)
 	}
 
+	go d.requestToWork(workCh)
 	for {
 		select {
 		case addr := <-d.backFill:
@@ -132,18 +146,10 @@ func (d *DefaultDiscovery) run() {
 				d.unconnectedAddrs[addr] = true
 				d.pool <- addr
 			}
-		case n := <-d.requestCh:
-			go func() {
-				for i := 0; i < n; i++ {
-					workCh <- d.next()
-				}
-			}()
 		case addr := <-d.badAddrCh:
 			d.badAddrs[addr] = true
 			delete(d.unconnectedAddrs, addr)
-			go func() {
-				workCh <- d.next()
-			}()
+			d.RequestRemote(1)
 
 		case addr := <-d.connectedCh:
 			delete(d.unconnectedAddrs, addr)

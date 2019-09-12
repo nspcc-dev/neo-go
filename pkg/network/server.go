@@ -15,7 +15,9 @@ import (
 )
 
 const (
+	// peer numbers are arbitrary at the moment
 	minPeers      = 5
+	maxPeers      = 20
 	maxBlockBatch = 200
 	minPoolCount  = 30
 )
@@ -90,12 +92,7 @@ func (s *Server) Start(errChan chan error) {
 		"headerHeight": s.chain.HeaderHeight(),
 	}).Info("node started")
 
-	for _, addr := range s.Seeds {
-		if err := s.transport.Dial(addr, s.DialTimeout); err != nil {
-			log.Warnf("failed to connect to remote node %s", addr)
-			continue
-		}
-	}
+	s.discovery.BackFill(s.Seeds...)
 
 	go s.transport.Accept()
 	s.run()
@@ -122,6 +119,10 @@ func (s *Server) BadPeers() []string {
 
 func (s *Server) run() {
 	for {
+		c := s.PeerCount()
+		if c < minPeers {
+			s.discovery.RequestRemote(maxPeers - c)
+		}
 		select {
 		case <-s.quit:
 			s.transport.Close()
@@ -147,6 +148,7 @@ func (s *Server) run() {
 				"reason":    drop.reason,
 				"peerCount": s.PeerCount(),
 			}).Warn("peer disconnected")
+			s.discovery.BackFill(drop.peer.NetAddr().String())
 		}
 	}
 }
