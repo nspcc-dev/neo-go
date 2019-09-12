@@ -759,10 +759,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case SIZE:
 		elem := v.estack.Pop()
-		arr, ok := elem.value.Value().([]uint8)
-		if !ok {
-			panic("SIZE: item not of type []uint8")
-		}
+		arr := elem.Bytes()
 		v.estack.PushVal(len(arr))
 
 	case JMP, JMPIF, JMPIFNOT:
