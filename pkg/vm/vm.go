@@ -505,11 +505,17 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case SHL:
 		b := v.estack.Pop().BigInt()
+		if b.Int64() == 0 {
+			return
+		}
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
 
 	case SHR:
 		b := v.estack.Pop().BigInt()
+		if b.Int64() == 0 {
+			return
+		}
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 

@@ -283,6 +283,50 @@ func TestSub(t *testing.T) {
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestSHRGood(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+}
+
+func TestSHRZero(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
+func TestSHLGood(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(16), vm.estack.Pop().value)
+}
+
+func TestSHLZero(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
 func TestLT(t *testing.T) {
 	prog := makeProgram(LT)
 	vm := load(prog)
