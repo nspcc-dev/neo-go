@@ -439,6 +439,9 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case DROP:
+		if v.estack.Len() < 1 {
+			panic("stack is too small")
+		}
 		v.estack.Pop()
 
 	case EQUAL:

@@ -803,6 +803,22 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, 3, vm.estack.Len())
 }
 
+func TestDROPBadNoItem(t *testing.T) {
+	prog := makeProgram(DROP)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestDROPGood(t *testing.T) {
+	prog := makeProgram(DROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 0, vm.estack.Len())
+}
+
 func TestXDROPbadNoitem(t *testing.T) {
 	prog := makeProgram(XDROP)
 	vm := load(prog)
