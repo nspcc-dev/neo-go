@@ -514,6 +514,37 @@ func TestAPPENDWrongType(t *testing.T) {
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
+func TestPICKITEMBadIndex(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKITEMArray(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{makeStackItem(1), makeStackItem(2)})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
+func TestPICKITEMByteArray(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{1, 2})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
 func TestSIGNNoArgument(t *testing.T) {
 	prog := makeProgram(SIGN)
 	vm := load(prog)

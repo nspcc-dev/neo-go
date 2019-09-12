@@ -691,7 +691,12 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			item := arr[index]
 			v.estack.PushVal(item)
 		default:
-			panic("PICKITEM: unknown type")
+			arr := obj.Bytes()
+			if index < 0 || index >= len(arr) {
+				panic("PICKITEM: invalid index")
+			}
+			item := arr[index]
+			v.estack.PushVal(int(item))
 		}
 
 	case SETITEM:
