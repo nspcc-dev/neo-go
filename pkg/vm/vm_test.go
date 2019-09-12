@@ -335,6 +335,32 @@ func TestDepth(t *testing.T) {
 	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestEQUALNoArguments(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestEQUALBad1Argument(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestEQUALGoodInteger(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(5)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)

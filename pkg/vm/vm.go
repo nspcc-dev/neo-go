@@ -445,7 +445,13 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case EQUAL:
 		b := v.estack.Pop()
+		if b == nil {
+			panic("no top-level element found")
+		}
 		a := v.estack.Pop()
+		if a == nil {
+			panic("no second-to-the-top element found")
+		}
 		v.estack.PushVal(reflect.DeepEqual(a, b))
 
 	// Bit operations.
