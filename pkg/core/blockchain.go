@@ -357,8 +357,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 				Email:       t.Email,
 				Description: t.Description,
 			}
-
-			fmt.Printf("%+v", contract)
+			_ = contract
 
 		case *transaction.InvocationTX:
 		}
