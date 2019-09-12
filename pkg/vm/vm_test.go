@@ -1331,6 +1331,35 @@ func TestREVERSEGoodOneElem(t *testing.T) {
 	assert.Equal(t, int64(elements[0]), e.Int64())
 }
 
+func TestREVERSEGoodStruct(t *testing.T) {
+	eodd := []int{22, 34, 42, 55, 81}
+	even := []int{22, 34, 42, 55, 81, 99}
+	eall := [][]int{eodd, even}
+
+	for _, elements := range eall {
+		prog := makeProgram(REVERSE)
+		vm := load(prog)
+		vm.estack.PushVal(1)
+
+		arr := make([]StackItem, len(elements))
+		for i := range elements {
+			arr[i] = makeStackItem(elements[i])
+		}
+		vm.estack.Push(&Element{value: &StructItem{arr}})
+
+		vm.Run()
+		assert.Equal(t, false, vm.state.HasFlag(faultState))
+		assert.Equal(t, 2, vm.estack.Len())
+		a := vm.estack.Peek(0).Array()
+		assert.Equal(t, len(elements), len(a))
+		for k, v := range elements {
+			e := a[len(a)-1-k].Value().(*big.Int)
+			assert.Equal(t, int64(v), e.Int64())
+		}
+		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	}
+}
+
 func TestREVERSEGood(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}

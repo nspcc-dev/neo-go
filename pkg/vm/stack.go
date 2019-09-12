@@ -121,6 +121,8 @@ func (e *Element) Array() []StackItem {
 	switch t := e.value.(type) {
 	case *ArrayItem:
 		return t.value
+	case *StructItem:
+		return t.value
 	default:
 		panic("element is not an array")
 	}
