@@ -105,18 +105,15 @@ func (d *DefaultDiscovery) BadPeers() []string {
 	return addrs
 }
 
-func (d *DefaultDiscovery) work(addrCh chan string) {
-	for {
-		addr := <-addrCh
-		if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
-			d.badAddrCh <- addr
-		} else {
-			d.connectedCh <- addr
-		}
+func (d *DefaultDiscovery) tryAddress(addr string) {
+	if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
+		d.badAddrCh <- addr
+	} else {
+		d.connectedCh <- addr
 	}
 }
 
-func (d *DefaultDiscovery) requestToWork(workCh chan string) {
+func (d *DefaultDiscovery) requestToWork() {
 	var requested int
 
 	for {
@@ -127,23 +124,14 @@ func (d *DefaultDiscovery) requestToWork(workCh chan string) {
 					requested = r
 				}
 			case addr := <-d.pool:
-				workCh <- addr
+				go d.tryAddress(addr)
 			}
 		}
 	}
 }
 
 func (d *DefaultDiscovery) run() {
-	var (
-		maxWorkers = 5
-		workCh     = make(chan string)
-	)
-
-	for i := 0; i < maxWorkers; i++ {
-		go d.work(workCh)
-	}
-
-	go d.requestToWork(workCh)
+	go d.requestToWork()
 	for {
 		select {
 		case addr := <-d.backFill:
