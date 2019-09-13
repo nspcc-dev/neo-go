@@ -48,6 +48,7 @@ type (
 		lock  sync.RWMutex
 		peers map[Peer]bool
 
+		addrReq    chan *Message
 		register   chan Peer
 		unregister chan peerDrop
 		quit       chan struct{}
@@ -66,6 +67,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		chain:        chain,
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
+		addrReq:      make(chan *Message, 1),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
@@ -122,6 +124,15 @@ func (s *Server) run() {
 		c := s.PeerCount()
 		if c < minPeers {
 			s.discovery.RequestRemote(maxPeers - c)
+		}
+		if s.discovery.PoolCount() < minPoolCount {
+			select {
+			case s.addrReq <- NewMessage(s.Net, CMDGetAddr, payload.NewNullPayload()):
+				// sent request
+			default:
+				// we have one in the queue already that is
+				// gonna be served by some worker when it's ready
+			}
 		}
 		select {
 		case <-s.quit:
@@ -184,6 +195,8 @@ func (s *Server) startProtocol(p Peer) {
 		case err := <-p.Done():
 			s.unregister <- peerDrop{p, err}
 			return
+		case m := <-s.addrReq:
+			p.WriteMsg(m)
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.Version().StartHeight > s.chain.BlockHeight() {
@@ -253,6 +266,14 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 }
 
+// handleAddrCmd will process received addresses.
+func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
+	for _, a := range addrs.Addrs {
+		s.discovery.BackFill(a.IPPortString())
+	}
+	return nil
+}
+
 // requestHeaders will send a getheaders message to the peer.
 // The peer will respond with headers op to a count of 2000.
 func (s *Server) requestHeaders(p Peer) {
@@ -292,6 +313,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	}
 
 	switch msg.CommandType() {
+	case CMDAddr:
+		addrs := msg.Payload.(*payload.AddressList)
+		return s.handleAddrCmd(peer, addrs)
 	case CMDVersion:
 		version := msg.Payload.(*payload.Version)
 		return s.handleVersionCmd(peer, version)

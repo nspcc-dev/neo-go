@@ -3,6 +3,7 @@ package payload
 import (
 	"io"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -45,6 +46,15 @@ func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
 	bw.WriteBE(p.IP)
 	bw.WriteBE(p.Port)
 	return bw.Err
+}
+
+// IPPortString makes a string from IP and port specified.
+func (p *AddressAndTime) IPPortString() string {
+	var netip net.IP = make(net.IP, 16)
+
+	copy(netip, p.IP[:])
+	port := strconv.Itoa(int(p.Port))
+	return netip.String() + ":" + port
 }
 
 // AddressList is a list with AddrAndTime.
