@@ -203,6 +203,10 @@ func isSyscall(fun *funcScope) bool {
 	return ok
 }
 
+func isByteArrayType(t types.Type) bool {
+	return t.String() == "[]byte"
+}
+
 func isStringType(t types.Type) bool {
 	return t.String() == "string"
 }
