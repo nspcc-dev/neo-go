@@ -114,6 +114,7 @@ var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 type localPeer struct {
 	netaddr        net.TCPAddr
 	version        *payload.Version
+	handshaked     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
 }
@@ -142,8 +143,23 @@ func (p *localPeer) Done() chan error {
 func (p *localPeer) Version() *payload.Version {
 	return p.version
 }
-func (p *localPeer) SetVersion(v *payload.Version) {
+func (p *localPeer) HandleVersion(v *payload.Version) error {
 	p.version = v
+	return nil
+}
+func (p *localPeer) SendVersion(m *Message) error {
+	return p.WriteMsg(m)
+}
+func (p *localPeer) SendVersionAck(m *Message) error {
+	return p.WriteMsg(m)
+}
+func (p *localPeer) HandleVersionAck() error {
+	p.handshaked = true
+	return nil
+}
+
+func (p *localPeer) Handshaked() bool {
+	return p.handshaked
 }
 
 func newTestServer() *Server {

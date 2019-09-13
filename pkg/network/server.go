@@ -216,20 +216,23 @@ func (s *Server) sendVersion(p Peer) error {
 		s.chain.BlockHeight(),
 		s.Relay,
 	)
-	return p.WriteMsg(NewMessage(s.Net, CMDVersion, payload))
+	return p.SendVersion(NewMessage(s.Net, CMDVersion, payload))
 }
 
 // When a peer sends out his version we reply with verack after validating
 // the version.
 func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
-	if p.NetAddr().Port != int(version.Port) {
-		return errPortMismatch
+	err := p.HandleVersion(version)
+	if err != nil {
+		return err
 	}
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
-	p.SetVersion(version)
-	return p.WriteMsg(NewMessage(s.Net, CMDVerack, nil))
+	if p.NetAddr().Port != int(version.Port) {
+		return errPortMismatch
+	}
+	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
 
 // handleHeadersCmd will process the headers it received from its peer.
@@ -312,29 +315,37 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		return errInvalidNetwork
 	}
 
-	switch msg.CommandType() {
-	case CMDAddr:
-		addrs := msg.Payload.(*payload.AddressList)
-		return s.handleAddrCmd(peer, addrs)
-	case CMDVersion:
-		version := msg.Payload.(*payload.Version)
-		return s.handleVersionCmd(peer, version)
-	case CMDHeaders:
-		headers := msg.Payload.(*payload.Headers)
-		go s.handleHeadersCmd(peer, headers)
-	case CMDInv:
-		inventory := msg.Payload.(*payload.Inventory)
-		return s.handleInvCmd(peer, inventory)
-	case CMDBlock:
-		block := msg.Payload.(*core.Block)
-		return s.handleBlockCmd(peer, block)
-	case CMDVerack:
-		// Make sure this peer has send his version before we start the
-		// protocol with that peer.
-		if peer.Version() == nil {
-			return errInvalidHandshake
+	if peer.Handshaked() {
+		switch msg.CommandType() {
+		case CMDAddr:
+			addrs := msg.Payload.(*payload.AddressList)
+			return s.handleAddrCmd(peer, addrs)
+		case CMDHeaders:
+			headers := msg.Payload.(*payload.Headers)
+			go s.handleHeadersCmd(peer, headers)
+		case CMDInv:
+			inventory := msg.Payload.(*payload.Inventory)
+			return s.handleInvCmd(peer, inventory)
+		case CMDBlock:
+			block := msg.Payload.(*core.Block)
+			return s.handleBlockCmd(peer, block)
+		case CMDVersion, CMDVerack:
+			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
 		}
-		go s.startProtocol(peer)
+	} else {
+		switch msg.CommandType() {
+		case CMDVersion:
+			version := msg.Payload.(*payload.Version)
+			return s.handleVersionCmd(peer, version)
+		case CMDVerack:
+			err := peer.HandleVersionAck()
+			if err != nil {
+				return err
+			}
+			go s.startProtocol(peer)
+		default:
+			return fmt.Errorf("received '%s' during handshake", msg.CommandType())
+		}
 	}
 	return nil
 }
