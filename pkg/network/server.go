@@ -23,7 +23,6 @@ const (
 )
 
 var (
-	errPortMismatch     = errors.New("port mismatch")
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
@@ -248,7 +247,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		return errIdenticalID
 	}
 	if p.NetAddr().Port != int(version.Port) {
-		return errPortMismatch
+		return fmt.Errorf("port mismatch: connected to %d and peer sends %d", p.NetAddr().Port, version.Port)
 	}
 	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
