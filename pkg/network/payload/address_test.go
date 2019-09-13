@@ -35,7 +35,7 @@ func TestEncodeDecodeAddress(t *testing.T) {
 
 func TestEncodeDecodeAddressList(t *testing.T) {
 	var lenList uint8 = 4
-	addrList := &AddressList{make([]*AddressAndTime, lenList)}
+	addrList := NewAddressList(int(lenList))
 	for i := 0; i < int(lenList); i++ {
 		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:200%d", i))
 		addrList.Addrs[i] = NewAddressAndTime(e, time.Now())

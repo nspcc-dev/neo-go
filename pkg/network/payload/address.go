@@ -62,6 +62,14 @@ type AddressList struct {
 	Addrs []*AddressAndTime
 }
 
+// NewAddressList creates a list for n AddressAndTime elements.
+func NewAddressList(n int) *AddressList {
+	alist := AddressList{
+		Addrs: make([]*AddressAndTime, n),
+	}
+	return &alist
+}
+
 // DecodeBinary implements the Payload interface.
 func (p *AddressList) DecodeBinary(r io.Reader) error {
 	br := util.BinReader{R: r}

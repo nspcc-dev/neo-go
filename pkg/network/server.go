@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"sync"
 	"time"
 
@@ -16,10 +17,11 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment
-	minPeers      = 5
-	maxPeers      = 20
-	maxBlockBatch = 200
-	minPoolCount  = 30
+	minPeers       = 5
+	maxPeers       = 20
+	maxBlockBatch  = 200
+	maxAddrsToSend = 200
+	minPoolCount   = 30
 )
 
 var (
@@ -294,6 +296,22 @@ func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	return nil
 }
 
+// handleGetAddrCmd sends to the peer some good addresses that we know of.
+func (s *Server) handleGetAddrCmd(p Peer) error {
+	addrs := s.discovery.GoodPeers()
+	if len(addrs) > maxAddrsToSend {
+		addrs = addrs[:maxAddrsToSend]
+	}
+	alist := payload.NewAddressList(len(addrs))
+	ts := time.Now()
+	for i, addr := range addrs {
+		// we know it's a good address, so it can't fail
+		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
+		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
+	}
+	return p.WriteMsg(NewMessage(s.Net, CMDAddr, alist))
+}
+
 // requestHeaders will send a getheaders message to the peer.
 // The peer will respond with headers op to a count of 2000.
 func (s *Server) requestHeaders(p Peer) error {
@@ -338,6 +356,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDAddr:
 			addrs := msg.Payload.(*payload.AddressList)
 			return s.handleAddrCmd(peer, addrs)
+		case CMDGetAddr:
+			// it has no payload
+			return s.handleGetAddrCmd(peer)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
