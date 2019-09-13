@@ -16,22 +16,28 @@ type Discoverer interface {
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
+	RegisterGoodAddr(string)
+	UnregisterConnectedAddr(string)
 	UnconnectedPeers() []string
 	BadPeers() []string
+	GoodPeers() []string
 }
 
 // DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
 	transport        Transporter
 	dialTimeout      time.Duration
-	addrs            map[string]bool
 	badAddrs         map[string]bool
+	connectedAddrs   map[string]bool
+	goodAddrs        map[string]bool
 	unconnectedAddrs map[string]int
 	requestCh        chan int
 	connectedCh      chan string
 	backFill         chan string
 	badAddrCh        chan string
 	pool             chan string
+	goodCh           chan string
+	unconnectedCh    chan string
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
@@ -39,11 +45,14 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 	d := &DefaultDiscovery{
 		transport:        ts,
 		dialTimeout:      dt,
-		addrs:            make(map[string]bool),
 		badAddrs:         make(map[string]bool),
+		connectedAddrs:   make(map[string]bool),
+		goodAddrs:        make(map[string]bool),
 		unconnectedAddrs: make(map[string]int),
 		requestCh:        make(chan int),
 		connectedCh:      make(chan string),
+		goodCh:           make(chan string),
+		unconnectedCh:    make(chan string),
 		backFill:         make(chan string),
 		badAddrCh:        make(chan string),
 		pool:             make(chan string, maxPoolSize),
@@ -105,6 +114,28 @@ func (d *DefaultDiscovery) BadPeers() []string {
 	return addrs
 }
 
+// GoodPeers returns all addresses of known good peers (that at least once
+// succeded handshaking with us).
+func (d *DefaultDiscovery) GoodPeers() []string {
+	addrs := make([]string, 0, len(d.goodAddrs))
+	for addr := range d.goodAddrs {
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+// RegisterGoodAddr registers good known connected address that passed
+// handshake successfuly.
+func (d *DefaultDiscovery) RegisterGoodAddr(s string) {
+	d.goodCh <- s
+}
+
+// UnregisterConnectedAddr tells discoverer that this address is no longer
+// connected, but it still is considered as good one.
+func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
+	d.unconnectedCh <- s
+}
+
 func (d *DefaultDiscovery) tryAddress(addr string) {
 	if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
 		d.badAddrCh <- addr
@@ -124,7 +155,9 @@ func (d *DefaultDiscovery) requestToWork() {
 					requested = r
 				}
 			case addr := <-d.pool:
-				go d.tryAddress(addr)
+				if !d.connectedAddrs[addr] {
+					go d.tryAddress(addr)
+				}
 			}
 		}
 	}
@@ -135,14 +168,12 @@ func (d *DefaultDiscovery) run() {
 	for {
 		select {
 		case addr := <-d.backFill:
-			if _, ok := d.badAddrs[addr]; ok {
+			if d.badAddrs[addr] || d.connectedAddrs[addr] ||
+				d.unconnectedAddrs[addr] > 0 {
 				break
 			}
-			if _, ok := d.addrs[addr]; !ok {
-				d.addrs[addr] = true
-				d.unconnectedAddrs[addr] = connRetries
-				d.pushToPoolOrDrop(addr)
-			}
+			d.unconnectedAddrs[addr] = connRetries
+			d.pushToPoolOrDrop(addr)
 		case addr := <-d.badAddrCh:
 			d.unconnectedAddrs[addr]--
 			if d.unconnectedAddrs[addr] > 0 {
@@ -155,6 +186,15 @@ func (d *DefaultDiscovery) run() {
 
 		case addr := <-d.connectedCh:
 			delete(d.unconnectedAddrs, addr)
+			if !d.connectedAddrs[addr] {
+				d.connectedAddrs[addr] = true
+			}
+		case addr := <-d.goodCh:
+			if !d.goodAddrs[addr] {
+				d.goodAddrs[addr] = true
+			}
+		case addr := <-d.unconnectedCh:
+			delete(d.connectedAddrs, addr)
 		}
 	}
 }

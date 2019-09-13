@@ -93,12 +93,15 @@ func (chain testChain) Verify(*transaction.Transaction) error {
 
 type testDiscovery struct{}
 
-func (d testDiscovery) BackFill(addrs ...string)   {}
-func (d testDiscovery) PoolCount() int             { return 0 }
-func (d testDiscovery) RegisterBadAddr(string)     {}
-func (d testDiscovery) UnconnectedPeers() []string { return []string{} }
-func (d testDiscovery) RequestRemote(n int)        {}
-func (d testDiscovery) BadPeers() []string         { return []string{} }
+func (d testDiscovery) BackFill(addrs ...string)       {}
+func (d testDiscovery) PoolCount() int                 { return 0 }
+func (d testDiscovery) RegisterBadAddr(string)         {}
+func (d testDiscovery) RegisterGoodAddr(string)        {}
+func (d testDiscovery) UnregisterConnectedAddr(string) {}
+func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
+func (d testDiscovery) RequestRemote(n int)            {}
+func (d testDiscovery) BadPeers() []string             { return []string{} }
+func (d testDiscovery) GoodPeers() []string            { return []string{} }
 
 type localTransport struct{}
 

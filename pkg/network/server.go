@@ -160,7 +160,9 @@ func (s *Server) run() {
 					"reason":    drop.reason,
 					"peerCount": s.PeerCount(),
 				}).Warn("peer disconnected")
-				s.discovery.BackFill(drop.peer.NetAddr().String())
+				addr := drop.peer.NetAddr().String()
+				s.discovery.UnregisterConnectedAddr(addr)
+				s.discovery.BackFill(addr)
 			}
 			// else the peer is already gone, which can happen
 			// because we have two goroutines sending signals here
@@ -191,6 +193,7 @@ func (s *Server) startProtocol(p Peer) {
 		"id":          p.Version().Nonce,
 	}).Info("started protocol")
 
+	s.discovery.RegisterGoodAddr(p.NetAddr().String())
 	err := s.requestHeaders(p)
 	if err != nil {
 		p.Disconnect(err)
