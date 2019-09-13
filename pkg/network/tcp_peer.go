@@ -59,6 +59,7 @@ func (p *TCPPeer) Done() chan error {
 
 // Disconnect will fill the peer's done channel with the given error.
 func (p *TCPPeer) Disconnect(err error) {
+	p.conn.Close()
 	p.done <- err
 }
 
