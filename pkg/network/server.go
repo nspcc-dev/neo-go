@@ -67,7 +67,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		chain:        chain,
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
-		addrReq:      make(chan *Message, 1),
+		addrReq:      make(chan *Message, minPeers),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
