@@ -18,7 +18,7 @@ ProtocolConfiguration:
 
 ApplicationConfiguration:
   DBConfiguration:
-    Type: "leveldb" #other options: 'inmemory','redis'.
+    Type: "leveldb" #other options: 'inmemory','redis','boltdb'.
     # DB type options. Uncomment those you need in case you want to switch DB type.
     LevelDBOptions:
       DataDirectoryPath: "./chains/privnet"
@@ -26,6 +26,8 @@ ApplicationConfiguration:
   #      Addr: "localhost:6379"
   #      Password: ""
   #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/privnet.bolt"
   RPCPort: 20336
   NodePort: 20337
   Relay: true
