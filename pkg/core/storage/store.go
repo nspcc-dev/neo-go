@@ -85,6 +85,8 @@ func NewStore(context context.Context, cfg DBConfiguration) (Store, error) {
 		store = NewMemoryStore()
 	case "redis":
 		store, err = NewRedisStore(cfg.RedisDBOptions)
+	case "boltdb":
+		store, err = NewBoltDBStore(context, cfg.BoltDBOptions)
 	}
 	return store, err
 }

@@ -20,7 +20,7 @@ ProtocolConfiguration:
 
 ApplicationConfiguration:
   DBConfiguration:
-    Type: "inmemory" #other options: 'inmemory','redis'.
+    Type: "inmemory" #other options: 'inmemory','redis','boltdb'.
     # DB type options. Uncomment those you need in case you want to switch DB type.
   #    LevelDBOptions:
   #        DataDirectoryPath: "./chains/unit_testnet"
@@ -28,6 +28,8 @@ ApplicationConfiguration:
   #      Addr: "localhost:6379"
   #      Password: ""
   #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/unit_testnet.bolt"
   RPCPort: 20332
   NodePort: 20333
   Relay: true
