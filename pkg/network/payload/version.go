@@ -56,7 +56,7 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements the Payload interface.
 func (p *Version) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&p.Version)
 	br.ReadLE(&p.Services)
 	br.ReadLE(&p.Timestamp)
@@ -70,7 +70,7 @@ func (p *Version) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *Version) EncodeBinary(w io.Writer) error {
-	br := util.BinWriter{W: w}
+	br := util.NewBinWriterFromIO(w)
 	br.WriteLE(p.Version)
 	br.WriteLE(p.Services)
 	br.WriteLE(p.Timestamp)

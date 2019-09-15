@@ -13,7 +13,7 @@ type ClaimTX struct {
 
 // DecodeBinary implements the Payload interface.
 func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	lenClaims := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -30,7 +30,7 @@ func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *ClaimTX) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(tx.Claims)))
 	if bw.Err != nil {
 		return bw.Err

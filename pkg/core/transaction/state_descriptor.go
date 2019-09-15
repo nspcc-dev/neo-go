@@ -25,7 +25,7 @@ type StateDescriptor struct {
 
 // DecodeBinary implements the Payload interface.
 func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&s.Type)
 
 	s.Key = br.ReadBytes()
@@ -37,7 +37,7 @@ func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (s *StateDescriptor) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(s.Type)
 	bw.WriteBytes(s.Key)
 	bw.WriteBytes(s.Value)

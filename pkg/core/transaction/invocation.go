@@ -34,7 +34,7 @@ func NewInvocationTX(script []byte) *Transaction {
 
 // DecodeBinary implements the Payload interface.
 func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	tx.Script = br.ReadBytes()
 	if tx.Version >= 1 {
 		br.ReadLE(&tx.Gas)
@@ -46,7 +46,7 @@ func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteBytes(tx.Script)
 	if tx.Version >= 1 {
 		bw.WriteLE(tx.Gas)

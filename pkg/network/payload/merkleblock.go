@@ -21,7 +21,7 @@ func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
 	if err := m.BlockBase.DecodeBinary(r); err != nil {
 		return err
 	}
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 
 	m.TxCount = int(br.ReadVarUint())
 	n := br.ReadVarUint()

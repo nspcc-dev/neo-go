@@ -68,7 +68,7 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 
 // DecodeBinary decodes AccountState from the given io.Reader.
 func (s *AccountState) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&s.Version)
 	br.ReadLE(&s.ScriptHash)
 	br.ReadLE(&s.IsFrozen)
@@ -96,7 +96,7 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary encode AccountState to the given io.Writer.
 func (s *AccountState) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(s.Version)
 	bw.WriteLE(s.ScriptHash)
 	bw.WriteLE(s.IsFrozen)

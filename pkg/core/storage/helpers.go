@@ -84,7 +84,7 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 // the given byte array.
 func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 	r := bytes.NewReader(b)
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	lenHashes := br.ReadVarUint()
 	hashes := make([]util.Uint256, lenHashes)
 	br.ReadLE(hashes)

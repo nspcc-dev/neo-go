@@ -66,7 +66,7 @@ func (b *BlockBase) DecodeBinary(r io.Reader) error {
 	}
 
 	var padding uint8
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&padding)
 	if br.Err != nil {
 		return br.Err
@@ -84,7 +84,7 @@ func (b *BlockBase) EncodeBinary(w io.Writer) error {
 	if err := b.encodeHashableFields(w); err != nil {
 		return err
 	}
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(uint8(1))
 	if bw.Err != nil {
 		return bw.Err
@@ -111,7 +111,7 @@ func (b *BlockBase) createHash() error {
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(b.Version)
 	bw.WriteLE(b.PrevHash)
 	bw.WriteLE(b.MerkleRoot)
@@ -125,7 +125,7 @@ func (b *BlockBase) encodeHashableFields(w io.Writer) error {
 // decodeHashableFields will only decode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) decodeHashableFields(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&b.Version)
 	br.ReadLE(&b.PrevHash)
 	br.ReadLE(&b.MerkleRoot)

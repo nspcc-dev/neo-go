@@ -67,7 +67,7 @@ func NewSpentCoinState(hash util.Uint256, height uint32) *SpentCoinState {
 
 // DecodeBinary implements the Payload interface.
 func (s *SpentCoinState) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&s.txHash)
 	br.ReadLE(&s.txHeight)
 
@@ -87,7 +87,7 @@ func (s *SpentCoinState) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (s *SpentCoinState) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(s.txHash)
 	bw.WriteLE(s.txHeight)
 	bw.WriteVarUint(uint64(len(s.items)))

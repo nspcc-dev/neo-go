@@ -17,7 +17,7 @@ type Witness struct {
 
 // DecodeBinary implements the payload interface.
 func (w *Witness) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 
 	w.InvocationScript = br.ReadBytes()
 	w.VerificationScript = br.ReadBytes()
@@ -26,7 +26,7 @@ func (w *Witness) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the payload interface.
 func (w *Witness) EncodeBinary(writer io.Writer) error {
-	bw := util.BinWriter{W: writer}
+	bw := util.NewBinWriterFromIO(writer)
 
 	bw.WriteBytes(w.InvocationScript)
 	bw.WriteBytes(w.VerificationScript)

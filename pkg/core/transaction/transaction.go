@@ -78,7 +78,7 @@ func (t *Transaction) AddInput(in *Input) {
 
 // DecodeBinary implements the payload interface.
 func (t *Transaction) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&t.Type)
 	br.ReadLE(&t.Version)
 	if br.Err != nil {
@@ -173,7 +173,7 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 	if err := t.encodeHashableFields(w); err != nil {
 		return err
 	}
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(t.Scripts)))
 	if bw.Err != nil {
 		return bw.Err
@@ -189,7 +189,7 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 // encodeHashableFields will only encode the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 
 	bw.WriteLE(t.Type)
 	bw.WriteLE(t.Version)

@@ -59,7 +59,7 @@ func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
 // WriteTo will write n underlying hashes to the given io.Writer
 // starting from start.
 func (l *HeaderHashList) Write(w io.Writer, start, n int) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(n))
 	hashes := l.Slice(start, start+n)
 	for _, hash := range hashes {

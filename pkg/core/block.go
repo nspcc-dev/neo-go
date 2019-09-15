@@ -78,7 +78,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 		return block, err
 	}
 
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	var padding uint8
 	br.ReadLE(&padding)
 	if br.Err != nil {
@@ -109,7 +109,7 @@ func (b *Block) Trim() ([]byte, error) {
 	if err := b.encodeHashableFields(buf); err != nil {
 		return nil, err
 	}
-	bw := util.BinWriter{W: buf}
+	bw := util.NewBinWriterFromIO(buf)
 	bw.WriteLE(uint8(1))
 	if bw.Err != nil {
 		return nil, bw.Err
@@ -134,7 +134,7 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	lentx := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -156,7 +156,7 @@ func (b *Block) EncodeBinary(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
 	if bw.Err != nil {
 		return err

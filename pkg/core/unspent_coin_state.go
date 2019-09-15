@@ -67,7 +67,7 @@ func (u UnspentCoins) commit(b storage.Batch) error {
 
 // EncodeBinary encodes UnspentCoinState to the given io.Writer.
 func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
 		bw.WriteLE(byte(state))
@@ -77,7 +77,7 @@ func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
 
 // DecodeBinary decodes UnspentCoinState from the given io.Reader.
 func (s *UnspentCoinState) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	lenStates := br.ReadVarUint()
 	s.states = make([]CoinState, lenStates)
 	for i := 0; i < int(lenStates); i++ {

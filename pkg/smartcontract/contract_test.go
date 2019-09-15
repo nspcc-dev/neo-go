@@ -1,7 +1,6 @@
 package smartcontract
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -22,8 +21,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	buf := bytes.NewBuffer(out)
-	br := util.BinReader{R: buf}
+	br := util.NewBinReaderFromBuf(out)
 	var b uint8
 	br.ReadLE(&b)
 	assert.Equal(t, vm.PUSH3, vm.Instruction(b))

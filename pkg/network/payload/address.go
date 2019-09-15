@@ -30,7 +30,7 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 
 // DecodeBinary implements the Payload interface.
 func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Services)
 	br.ReadBE(&p.IP)
@@ -40,7 +40,7 @@ func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(p.Timestamp)
 	bw.WriteLE(p.Services)
 	bw.WriteBE(p.IP)
@@ -72,7 +72,7 @@ func NewAddressList(n int) *AddressList {
 
 // DecodeBinary implements the Payload interface.
 func (p *AddressList) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	listLen := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -90,7 +90,7 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (p *AddressList) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(p.Addrs)))
 	if bw.Err != nil {
 		return bw.Err

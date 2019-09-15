@@ -17,7 +17,7 @@ type Attribute struct {
 
 // DecodeBinary implements the Payload interface.
 func (attr *Attribute) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&attr.Usage)
 
 	// very special case
@@ -54,7 +54,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 
 // EncodeBinary implements the Payload interface.
 func (attr *Attribute) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+	bw := util.NewBinWriterFromIO(w)
 	bw.WriteLE(&attr.Usage)
 	switch attr.Usage {
 	case ECDH02, ECDH03:

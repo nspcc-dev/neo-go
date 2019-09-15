@@ -148,7 +148,7 @@ func (m *Message) CommandType() CommandType {
 
 // Decode a Message from the given reader.
 func (m *Message) Decode(r io.Reader) error {
-	br := util.BinReader{R: r}
+	br := util.NewBinReaderFromIO(r)
 	br.ReadLE(&m.Magic)
 	br.ReadLE(&m.Command)
 	br.ReadLE(&m.Length)
@@ -232,7 +232,7 @@ func (m *Message) decodePayload(r io.Reader) error {
 
 // Encode a Message to any given io.Writer.
 func (m *Message) Encode(w io.Writer) error {
-	br := util.BinWriter{W: w}
+	br := util.NewBinWriterFromIO(w)
 	br.WriteLE(m.Magic)
 	br.WriteLE(m.Command)
 	br.WriteLE(m.Length)
