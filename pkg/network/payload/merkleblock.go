@@ -30,5 +30,13 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
-	return
+	m.BlockBase = &core.BlockBase{}
+	m.BlockBase.EncodeBinary(bw)
+
+	bw.WriteVarUint(uint64(m.TxCount))
+	bw.WriteVarUint(uint64(len(m.Hashes)))
+	for i := 0; i < len(m.Hashes); i++ {
+		bw.WriteLE(m.Hashes[i])
+	}
+	bw.WriteBytes(m.Flags)
 }
