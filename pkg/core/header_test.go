@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHeaderEncodeDecode(t *testing.T) {
@@ -34,28 +35,12 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	if err := headerDecode.DecodeBinary(buf); err != nil {
 		t.Fatal(err)
 	}
-	if header.Version != headerDecode.Version {
-		t.Fatal("expected both versions to be equal")
-	}
-	if !header.PrevHash.Equals(headerDecode.PrevHash) {
-		t.Fatal("expected both prev hashes to be equal")
-	}
-	if !header.MerkleRoot.Equals(headerDecode.MerkleRoot) {
-		t.Fatal("expected both merkle roots to be equal")
-	}
-	if header.Index != headerDecode.Index {
-		t.Fatal("expected both indexes to be equal")
-	}
-	if header.ConsensusData != headerDecode.ConsensusData {
-		t.Fatal("expected both consensus data fields to be equal")
-	}
-	if !header.NextConsensus.Equals(headerDecode.NextConsensus) {
-		t.Fatalf("expected both next consensus fields to be equal")
-	}
-	if !bytes.Equal(header.Script.InvocationScript, headerDecode.Script.InvocationScript) {
-		t.Fatalf("expected equal invocation scripts %v and %v", header.Script.InvocationScript, headerDecode.Script.InvocationScript)
-	}
-	if !bytes.Equal(header.Script.VerificationScript, headerDecode.Script.VerificationScript) {
-		t.Fatalf("expected equal verification scripts %v and %v", header.Script.VerificationScript, headerDecode.Script.VerificationScript)
-	}
+	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")
+	assert.Equal(t, header.PrevHash, headerDecode.PrevHash, "expected both prev hashes to be equal")
+	assert.Equal(t, header.MerkleRoot, headerDecode.MerkleRoot, "expected both merkle roots to be equal")
+	assert.Equal(t, header.Index, headerDecode.Index, "expected both indexes to be equal")
+	assert.Equal(t, header.ConsensusData, headerDecode.ConsensusData, "expected both consensus data fields to be equal")
+	assert.Equal(t, header.NextConsensus, headerDecode.NextConsensus, "expected both next consensus fields to be equal")
+	assert.Equal(t, header.Script.InvocationScript, headerDecode.Script.InvocationScript, "expected equal invocation scripts")
+	assert.Equal(t, header.Script.VerificationScript, headerDecode.Script.VerificationScript, "expected equal verification scripts")
 }
