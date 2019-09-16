@@ -69,17 +69,3 @@ func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteString(tx.Description)
 	return bw.Err
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *PublishTX) Size() int {
-	sz := io.GetVarSize(tx.Script) + io.GetVarSize(uint64(len(tx.ParamList)))
-	sz += 1 * len(tx.ParamList)
-	sz++
-	if tx.Version >= 1 {
-		sz++
-	}
-	sz += io.GetVarSize(tx.Name) + io.GetVarSize(tx.CodeVersion)
-	sz += io.GetVarSize(tx.Author) + io.GetVarSize(tx.Email)
-	sz += io.GetVarSize(tx.Description)
-	return sz
-}

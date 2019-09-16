@@ -22,10 +22,6 @@ func (ss *smthSerializable) EncodeBinary(bw *BinWriter) error {
 	return nil
 }
 
-func (*smthSerializable) Size() int {
-	return 42
-}
-
 func TestVarSize(t *testing.T) {
 	testCases := []struct {
 		variable interface{}

@@ -38,6 +38,3 @@ func (p *GetBlocks) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(p.HashStop)
 	return bw.Err
 }
-
-// Size implements the payload interface.
-func (p *GetBlocks) Size() uint32 { return 0 }

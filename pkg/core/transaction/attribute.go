@@ -74,23 +74,6 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) error {
 	return bw.Err
 }
 
-// Size returns the size in number bytes of the Attribute
-func (attr *Attribute) Size() int {
-	sz := 1 // usage
-	switch attr.Usage {
-	case ContractHash, ECDH02, ECDH03, Vote,
-		Hash1, Hash2, Hash3, Hash4, Hash5, Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
-		sz += 32 // uint8 + 32 = size(attrUsage) + 32
-	case Script:
-		sz += 20 // uint8 + 20 = size(attrUsage) + 20
-	case DescriptionURL:
-		sz += 1 + len(attr.Data)
-	default:
-		sz += io.GetVarSize(attr.Data)
-	}
-	return sz
-}
-
 // MarshalJSON implements the json Marschaller interface
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{

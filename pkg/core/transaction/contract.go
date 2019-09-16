@@ -24,8 +24,3 @@ func (tx *ContractTX) DecodeBinary(r *io.BinReader) error {
 func (tx *ContractTX) EncodeBinary(w *io.BinWriter) error {
 	return nil
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *ContractTX) Size() int {
-	return 0
-}

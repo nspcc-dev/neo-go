@@ -50,12 +50,3 @@ func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) error {
 	}
 	return bw.Err
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *InvocationTX) Size() int {
-	sz := io.GetVarSize(tx.Script)
-	if tx.Version >= 1 {
-		sz += tx.Gas.Size()
-	}
-	return sz
-}

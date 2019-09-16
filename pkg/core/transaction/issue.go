@@ -17,8 +17,3 @@ func (tx *IssueTX) DecodeBinary(r *io.BinReader) error {
 func (tx *IssueTX) EncodeBinary(w *io.BinWriter) error {
 	return nil
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *IssueTX) Size() int {
-	return 0
-}

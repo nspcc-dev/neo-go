@@ -49,11 +49,6 @@ func (out *Output) EncodeBinary(bw *io.BinWriter) error {
 	return bw.Err
 }
 
-// Size returns the size in bytes of the Output
-func (out *Output) Size() int {
-	return out.AssetID.Size() + out.Amount.Size() + out.ScriptHash.Size()
-}
-
 // MarshalJSON implements the Marshaler interface
 func (out *Output) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{

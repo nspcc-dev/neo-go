@@ -7,5 +7,4 @@ import "github.com/CityOfZion/neo-go/pkg/io"
 type TXer interface {
 	DecodeBinary(*io.BinReader) error
 	EncodeBinary(*io.BinWriter) error
-	Size() int
 }

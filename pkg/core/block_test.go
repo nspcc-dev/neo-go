@@ -225,7 +225,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 		txID := tx.Hash()
 		assert.Equal(t, expected[i].ID, txID.ReverseString())
 
-		assert.Equal(t, expected[i].Size, tx.Size())
+		assert.Equal(t, expected[i].Size, io.GetVarSize(tx))
 		assert.Equal(t, expected[i].Type, tx.Type.String())
 		assert.Equal(t, expected[i].Version, int(tx.Version))
 		assert.Equal(t, expected[i].InputsLen, len(tx.Inputs))

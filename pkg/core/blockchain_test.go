@@ -141,7 +141,7 @@ func TestGetTransaction(t *testing.T) {
 	}
 	assert.Equal(t, block.Index, height)
 	assert.Equal(t, block.Transactions[0], tx)
-	assert.Equal(t, 10, tx.Size())
+	assert.Equal(t, 10, io.GetVarSize(tx))
 	assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
 	assert.Equal(t, 1, io.GetVarSize(tx.Inputs))
 	assert.Equal(t, 1, io.GetVarSize(tx.Outputs))

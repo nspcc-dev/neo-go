@@ -25,8 +25,3 @@ func (tx *EnrollmentTX) DecodeBinary(r *io.BinReader) error {
 func (tx *EnrollmentTX) EncodeBinary(w *io.BinWriter) error {
 	return tx.PublicKey.EncodeBinary(w)
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *EnrollmentTX) Size() int {
-	return len(tx.PublicKey.Bytes())
-}

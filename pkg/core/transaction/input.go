@@ -27,8 +27,3 @@ func (in *Input) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(in.PrevIndex)
 	return bw.Err
 }
-
-// Size returns the size in bytes of the Input
-func (in Input) Size() int {
-	return in.PrevHash.Size() + 2 // 2 = sizeOf uint16
-}

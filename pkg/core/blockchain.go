@@ -628,7 +628,7 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*t
 
 // FeePerByte returns network fee divided by the size of the transaction
 func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
-	return bc.NetworkFee(t).Div(int64(t.Size()))
+	return bc.NetworkFee(t).Div(int64(io.GetVarSize(t)))
 }
 
 // NetworkFee returns network fee
@@ -669,8 +669,8 @@ func (bc *Blockchain) GetMemPool() MemPool {
 // Verify verifies whether a transaction is bonafide or not.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
 func (bc *Blockchain) Verify(t *transaction.Transaction) error {
-	if t.Size() > transaction.MaxTransactionSize {
-		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", t.Size(), transaction.MaxTransactionSize)
+	if io.GetVarSize(t) > transaction.MaxTransactionSize {
+		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
 	if ok := bc.verifyInputs(t); !ok {
 		return errors.New("invalid transaction's inputs")

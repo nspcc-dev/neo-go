@@ -79,8 +79,3 @@ func (p *Version) EncodeBinary(br *io.BinWriter) error {
 	br.WriteLE(&p.Relay)
 	return br.Err
 }
-
-// Size implements the payloader interface.
-func (p *Version) Size() uint32 {
-	return uint32(minVersionSize + io.GetVarSize(p.UserAgent))
-}

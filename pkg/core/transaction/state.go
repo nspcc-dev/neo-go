@@ -34,12 +34,3 @@ func (tx *StateTX) EncodeBinary(w *io.BinWriter) error {
 	}
 	return w.Err
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *StateTX) Size() int {
-	sz := io.GetVarSize(uint64(len(tx.Descriptors)))
-	for _, desc := range tx.Descriptors {
-		sz += desc.Size()
-	}
-	return sz
-}

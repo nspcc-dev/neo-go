@@ -40,8 +40,3 @@ func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) error {
 	w.WriteString(s.Field)
 	return w.Err
 }
-
-// Size returns serialized binary size for state descriptor.
-func (s *StateDescriptor) Size() int {
-	return 1 + io.GetVarSize(s.Key) + io.GetVarSize(s.Value) + io.GetVarSize(s.Field)
-}

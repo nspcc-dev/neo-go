@@ -20,7 +20,7 @@ func TestVersionEncodeDecode(t *testing.T) {
 	err := version.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, err)
 	b := buf.Bytes()
-	assert.Equal(t, int(version.Size()), len(b))
+	assert.Equal(t, io.GetVarSize(version), len(b))
 
 	r := io.NewBinReaderFromBuf(b)
 	versionDecoded := &Version{}

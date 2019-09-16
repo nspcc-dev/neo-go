@@ -38,12 +38,3 @@ func (tx *ClaimTX) EncodeBinary(bw *io.BinWriter) error {
 	}
 	return nil
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *ClaimTX) Size() int {
-	sz := io.GetVarSize(uint64(len(tx.Claims)))
-	for _, claim := range tx.Claims {
-		sz += claim.Size()
-	}
-	return sz
-}

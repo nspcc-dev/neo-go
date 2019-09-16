@@ -21,8 +21,3 @@ func (tx *MinerTX) EncodeBinary(w *io.BinWriter) error {
 	w.WriteLE(tx.Nonce)
 	return w.Err
 }
-
-// Size returns serialized binary size for this transaction.
-func (tx *MinerTX) Size() int {
-	return 4 // Nonce
-}

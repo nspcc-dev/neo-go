@@ -40,11 +40,6 @@ func (w *Witness) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-// Size returns the size in bytes of the Witness.
-func (w *Witness) Size() int {
-	return io.GetVarSize(w.InvocationScript) + io.GetVarSize(w.VerificationScript)
-}
-
 // ScriptHash returns the hash of the VerificationScript.
 func (w Witness) ScriptHash() util.Uint160 {
 	return hash.Hash160(w.VerificationScript)
