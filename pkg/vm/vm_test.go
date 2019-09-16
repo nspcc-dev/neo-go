@@ -1317,7 +1317,7 @@ func TestREVERSEBadNotArray(t *testing.T) {
 }
 
 func TestREVERSEGoodOneElem(t *testing.T) {
-	prog := makeProgram(REVERSE)
+	prog := makeProgram(DUP, REVERSE)
 	elements := []int{22}
 	vm := load(prog)
 	vm.estack.PushVal(1)
@@ -1337,7 +1337,7 @@ func TestREVERSEGoodStruct(t *testing.T) {
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(REVERSE)
+		prog := makeProgram(DUP, REVERSE)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 
@@ -1366,7 +1366,7 @@ func TestREVERSEGood(t *testing.T) {
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(REVERSE)
+		prog := makeProgram(DUP, REVERSE)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 		vm.estack.PushVal(elements)

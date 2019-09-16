@@ -722,7 +722,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case REVERSE:
-		a := v.estack.Peek(0).Array()
+		a := v.estack.Pop().Array()
 		if len(a) > 1 {
 			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
