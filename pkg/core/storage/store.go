@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"encoding/binary"
 	"errors"
 )
@@ -37,6 +36,7 @@ type (
 		Put(k, v []byte) error
 		PutBatch(Batch) error
 		Seek(k []byte, f func(k, v []byte))
+		Close() error
 	}
 
 	// Batch represents an abstraction on top of batch operations.
@@ -75,18 +75,18 @@ func AppendPrefixInt(k KeyPrefix, n int) []byte {
 }
 
 // NewStore creates storage with preselected in configuration database type.
-func NewStore(context context.Context, cfg DBConfiguration) (Store, error) {
+func NewStore(cfg DBConfiguration) (Store, error) {
 	var store Store
 	var err error
 	switch cfg.Type {
 	case "leveldb":
-		store, err = NewLevelDBStore(context, cfg.LevelDBOptions)
+		store, err = NewLevelDBStore(cfg.LevelDBOptions)
 	case "inmemory":
 		store = NewMemoryStore()
 	case "redis":
 		store, err = NewRedisStore(cfg.RedisDBOptions)
 	case "boltdb":
-		store, err = NewBoltDBStore(context, cfg.BoltDBOptions)
+		store, err = NewBoltDBStore(cfg.BoltDBOptions)
 	}
 	return store, err
 }

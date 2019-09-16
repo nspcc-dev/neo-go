@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetPut(t *testing.T) {
@@ -22,6 +23,7 @@ func TestGetPut(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, value, newVal)
+	require.NoError(t, s.Close())
 }
 
 func TestKeyNotExist(t *testing.T) {
@@ -33,6 +35,7 @@ func TestKeyNotExist(t *testing.T) {
 	_, err := s.Get(key)
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "key not found")
+	require.NoError(t, s.Close())
 }
 
 func TestPutBatch(t *testing.T) {
@@ -54,4 +57,5 @@ func TestPutBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, value, newVal)
+	require.NoError(t, s.Close())
 }

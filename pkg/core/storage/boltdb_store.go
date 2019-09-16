@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -41,7 +40,7 @@ func (b *BoltDBBatch) Put(k, v []byte) {
 }
 
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
-func NewBoltDBStore(ctx context.Context, cfg BoltDBOptions) (*BoltDBStore, error) {
+func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	var opts *bbolt.Options       // should be exposed via BoltDBOptions if anything needed
 	fileMode := os.FileMode(0600) // should be exposed via BoltDBOptions if anything needed
 	fileName := cfg.FilePath
@@ -61,12 +60,6 @@ func NewBoltDBStore(ctx context.Context, cfg BoltDBOptions) (*BoltDBStore, error
 		}
 		return nil
 	})
-
-	// graceful shutdown
-	go func() {
-		<-ctx.Done()
-		db.Close()
-	}()
 
 	return &BoltDBStore{db: db}, nil
 }

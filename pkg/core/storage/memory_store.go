@@ -76,6 +76,14 @@ func (s *MemoryStore) Batch() Batch {
 	}
 }
 
+// Close implements Store interface and clears up memory.
+func (s *MemoryStore) Close() error {
+	s.Lock()
+	s.mem = nil
+	s.Unlock()
+	return nil
+}
+
 func makeKey(k []byte) string {
 	return hex.EncodeToString(k)
 }

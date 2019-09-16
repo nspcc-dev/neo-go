@@ -154,7 +154,12 @@ func (bc *Blockchain) init() error {
 
 func (bc *Blockchain) run(ctx context.Context) {
 	persistTimer := time.NewTimer(persistInterval)
-	defer persistTimer.Stop()
+	defer func() {
+		persistTimer.Stop()
+		if err := bc.Store.Close(); err != nil {
+			log.Warnf("failed to close db: %s", err)
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():

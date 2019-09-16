@@ -246,8 +246,7 @@ func TestHandler(t *testing.T) {
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
 
-	store, err := storage.NewLevelDBStore(context.Background(),
-		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions)
+	store, err := storage.NewLevelDBStore(cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions)
 	assert.Nil(t, err)
 	chain, err := core.NewBlockchain(context.Background(), store, cfg.ProtocolConfiguration)
 	require.NoError(t, err, "could not create levelDB chain")
