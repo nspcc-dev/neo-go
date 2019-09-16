@@ -10,13 +10,15 @@ import (
 
 // Mock structure to test getting size of an array of serializable things
 type smthSerializable struct {
+	some [42]byte
 }
 
 func (*smthSerializable) DecodeBinary(*BinReader) error {
 	return nil
 }
 
-func (*smthSerializable) EncodeBinary(*BinWriter) error {
+func (ss *smthSerializable) EncodeBinary(bw *BinWriter) error {
+	bw.WriteLE(ss.some)
 	return nil
 }
 
