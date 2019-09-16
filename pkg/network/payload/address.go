@@ -3,6 +3,7 @@ package payload
 import (
 	"io"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -47,9 +48,26 @@ func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
 	return bw.Err
 }
 
+// IPPortString makes a string from IP and port specified.
+func (p *AddressAndTime) IPPortString() string {
+	var netip net.IP = make(net.IP, 16)
+
+	copy(netip, p.IP[:])
+	port := strconv.Itoa(int(p.Port))
+	return netip.String() + ":" + port
+}
+
 // AddressList is a list with AddrAndTime.
 type AddressList struct {
 	Addrs []*AddressAndTime
+}
+
+// NewAddressList creates a list for n AddressAndTime elements.
+func NewAddressList(n int) *AddressList {
+	alist := AddressList{
+		Addrs: make([]*AddressAndTime, n),
+	}
+	return &alist
 }
 
 // DecodeBinary implements the Payload interface.

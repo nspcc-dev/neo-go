@@ -75,21 +75,19 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		err error
 	)
 
-	defer func() {
-		p.Disconnect(err)
-	}()
-
 	t.server.register <- p
 
 	for {
 		msg := &Message{}
 		if err = msg.Decode(p.conn); err != nil {
-			return
+			break
 		}
 		if err = t.server.handleMessage(p, msg); err != nil {
-			return
+			break
 		}
 	}
+	t.server.unregister <- peerDrop{p, err}
+	p.Disconnect(err)
 }
 
 // Close implements the Transporter interface.

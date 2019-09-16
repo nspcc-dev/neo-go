@@ -13,5 +13,9 @@ type Peer interface {
 	WriteMsg(msg *Message) error
 	Done() chan error
 	Version() *payload.Version
-	SetVersion(*payload.Version)
+	Handshaked() bool
+	SendVersion(*Message) error
+	SendVersionAck(*Message) error
+	HandleVersion(*payload.Version) error
+	HandleVersionAck() error
 }

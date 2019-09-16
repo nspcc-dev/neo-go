@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"sync"
 	"time"
 
@@ -15,13 +16,15 @@ import (
 )
 
 const (
-	minPeers      = 5
-	maxBlockBatch = 200
-	minPoolCount  = 30
+	// peer numbers are arbitrary at the moment
+	minPeers       = 5
+	maxPeers       = 20
+	maxBlockBatch  = 200
+	maxAddrsToSend = 200
+	minPoolCount   = 30
 )
 
 var (
-	errPortMismatch     = errors.New("port mismatch")
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
@@ -46,6 +49,7 @@ type (
 		lock  sync.RWMutex
 		peers map[Peer]bool
 
+		addrReq    chan *Message
 		register   chan Peer
 		unregister chan peerDrop
 		quit       chan struct{}
@@ -64,6 +68,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		chain:        chain,
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
+		addrReq:      make(chan *Message, minPeers),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
@@ -90,12 +95,7 @@ func (s *Server) Start(errChan chan error) {
 		"headerHeight": s.chain.HeaderHeight(),
 	}).Info("node started")
 
-	for _, addr := range s.Seeds {
-		if err := s.transport.Dial(addr, s.DialTimeout); err != nil {
-			log.Warnf("failed to connect to remote node %s", addr)
-			continue
-		}
-	}
+	s.discovery.BackFill(s.Seeds...)
 
 	go s.transport.Accept()
 	s.run()
@@ -122,6 +122,19 @@ func (s *Server) BadPeers() []string {
 
 func (s *Server) run() {
 	for {
+		c := s.PeerCount()
+		if c < minPeers {
+			s.discovery.RequestRemote(maxPeers - c)
+		}
+		if s.discovery.PoolCount() < minPoolCount {
+			select {
+			case s.addrReq <- NewMessage(s.Net, CMDGetAddr, payload.NewNullPayload()):
+				// sent request
+			default:
+				// we have one in the queue already that is
+				// gonna be served by some worker when it's ready
+			}
+		}
 		select {
 		case <-s.quit:
 			s.transport.Close()
@@ -141,12 +154,19 @@ func (s *Server) run() {
 				"addr": p.NetAddr(),
 			}).Info("new peer connected")
 		case drop := <-s.unregister:
-			delete(s.peers, drop.peer)
-			log.WithFields(log.Fields{
-				"addr":      drop.peer.NetAddr(),
-				"reason":    drop.reason,
-				"peerCount": s.PeerCount(),
-			}).Warn("peer disconnected")
+			if s.peers[drop.peer] {
+				delete(s.peers, drop.peer)
+				log.WithFields(log.Fields{
+					"addr":      drop.peer.NetAddr(),
+					"reason":    drop.reason,
+					"peerCount": s.PeerCount(),
+				}).Warn("peer disconnected")
+				addr := drop.peer.NetAddr().String()
+				s.discovery.UnregisterConnectedAddr(addr)
+				s.discovery.BackFill(addr)
+			}
+			// else the peer is already gone, which can happen
+			// because we have two goroutines sending signals here
 		}
 	}
 }
@@ -174,20 +194,34 @@ func (s *Server) startProtocol(p Peer) {
 		"id":          p.Version().Nonce,
 	}).Info("started protocol")
 
-	s.requestHeaders(p)
+	s.discovery.RegisterGoodAddr(p.NetAddr().String())
+	err := s.requestHeaders(p)
+	if err != nil {
+		p.Disconnect(err)
+		return
+	}
 
 	timer := time.NewTimer(s.ProtoTickInterval)
 	for {
 		select {
-		case err := <-p.Done():
-			s.unregister <- peerDrop{p, err}
-			return
+		case err = <-p.Done():
+			// time to stop
+		case m := <-s.addrReq:
+			err = p.WriteMsg(m)
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.Version().StartHeight > s.chain.BlockHeight() {
-				s.requestBlocks(p)
+				err = s.requestBlocks(p)
 			}
-			timer.Reset(s.ProtoTickInterval)
+			if err == nil {
+				timer.Reset(s.ProtoTickInterval)
+			}
+		}
+		if err != nil {
+			s.unregister <- peerDrop{p, err}
+			timer.Stop()
+			p.Disconnect(err)
+			return
 		}
 	}
 }
@@ -201,20 +235,23 @@ func (s *Server) sendVersion(p Peer) error {
 		s.chain.BlockHeight(),
 		s.Relay,
 	)
-	return p.WriteMsg(NewMessage(s.Net, CMDVersion, payload))
+	return p.SendVersion(NewMessage(s.Net, CMDVersion, payload))
 }
 
 // When a peer sends out his version we reply with verack after validating
 // the version.
 func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
-	if p.NetAddr().Port != int(version.Port) {
-		return errPortMismatch
+	err := p.HandleVersion(version)
+	if err != nil {
+		return err
 	}
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
-	p.SetVersion(version)
-	return p.WriteMsg(NewMessage(s.Net, CMDVerack, nil))
+	if p.NetAddr().Port != int(version.Port) {
+		return fmt.Errorf("port mismatch: connected to %d and peer sends %d", p.NetAddr().Port, version.Port)
+	}
+	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
 
 // handleHeadersCmd will process the headers it received from its peer.
@@ -251,18 +288,42 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 }
 
+// handleAddrCmd will process received addresses.
+func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
+	for _, a := range addrs.Addrs {
+		s.discovery.BackFill(a.IPPortString())
+	}
+	return nil
+}
+
+// handleGetAddrCmd sends to the peer some good addresses that we know of.
+func (s *Server) handleGetAddrCmd(p Peer) error {
+	addrs := s.discovery.GoodPeers()
+	if len(addrs) > maxAddrsToSend {
+		addrs = addrs[:maxAddrsToSend]
+	}
+	alist := payload.NewAddressList(len(addrs))
+	ts := time.Now()
+	for i, addr := range addrs {
+		// we know it's a good address, so it can't fail
+		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
+		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
+	}
+	return p.WriteMsg(NewMessage(s.Net, CMDAddr, alist))
+}
+
 // requestHeaders will send a getheaders message to the peer.
 // The peer will respond with headers op to a count of 2000.
-func (s *Server) requestHeaders(p Peer) {
+func (s *Server) requestHeaders(p Peer) error {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	p.WriteMsg(NewMessage(s.Net, CMDGetHeaders, payload))
+	return p.WriteMsg(NewMessage(s.Net, CMDGetHeaders, payload))
 }
 
 // requestBlocks will send a getdata message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
-func (s *Server) requestBlocks(p Peer) {
+func (s *Server) requestBlocks(p Peer) error {
 	var (
 		hashes       []util.Uint256
 		hashStart    = s.chain.BlockHeight() + 1
@@ -275,10 +336,11 @@ func (s *Server) requestBlocks(p Peer) {
 	}
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
-		p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+		return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
-		s.requestHeaders(p)
+		return s.requestHeaders(p)
 	}
+	return nil
 }
 
 // handleMessage will process the given message.
@@ -289,26 +351,40 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		return errInvalidNetwork
 	}
 
-	switch msg.CommandType() {
-	case CMDVersion:
-		version := msg.Payload.(*payload.Version)
-		return s.handleVersionCmd(peer, version)
-	case CMDHeaders:
-		headers := msg.Payload.(*payload.Headers)
-		go s.handleHeadersCmd(peer, headers)
-	case CMDInv:
-		inventory := msg.Payload.(*payload.Inventory)
-		return s.handleInvCmd(peer, inventory)
-	case CMDBlock:
-		block := msg.Payload.(*core.Block)
-		return s.handleBlockCmd(peer, block)
-	case CMDVerack:
-		// Make sure this peer has send his version before we start the
-		// protocol with that peer.
-		if peer.Version() == nil {
-			return errInvalidHandshake
+	if peer.Handshaked() {
+		switch msg.CommandType() {
+		case CMDAddr:
+			addrs := msg.Payload.(*payload.AddressList)
+			return s.handleAddrCmd(peer, addrs)
+		case CMDGetAddr:
+			// it has no payload
+			return s.handleGetAddrCmd(peer)
+		case CMDHeaders:
+			headers := msg.Payload.(*payload.Headers)
+			go s.handleHeadersCmd(peer, headers)
+		case CMDInv:
+			inventory := msg.Payload.(*payload.Inventory)
+			return s.handleInvCmd(peer, inventory)
+		case CMDBlock:
+			block := msg.Payload.(*core.Block)
+			return s.handleBlockCmd(peer, block)
+		case CMDVersion, CMDVerack:
+			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
 		}
-		go s.startProtocol(peer)
+	} else {
+		switch msg.CommandType() {
+		case CMDVersion:
+			version := msg.Payload.(*payload.Version)
+			return s.handleVersionCmd(peer, version)
+		case CMDVerack:
+			err := peer.HandleVersionAck()
+			if err != nil {
+				return err
+			}
+			go s.startProtocol(peer)
+		default:
+			return fmt.Errorf("received '%s' during handshake", msg.CommandType())
+		}
 	}
 	return nil
 }

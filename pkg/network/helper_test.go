@@ -93,12 +93,15 @@ func (chain testChain) Verify(*transaction.Transaction) error {
 
 type testDiscovery struct{}
 
-func (d testDiscovery) BackFill(addrs ...string)   {}
-func (d testDiscovery) PoolCount() int             { return 0 }
-func (d testDiscovery) RegisterBadAddr(string)     {}
-func (d testDiscovery) UnconnectedPeers() []string { return []string{} }
-func (d testDiscovery) RequestRemote(n int)        {}
-func (d testDiscovery) BadPeers() []string         { return []string{} }
+func (d testDiscovery) BackFill(addrs ...string)       {}
+func (d testDiscovery) PoolCount() int                 { return 0 }
+func (d testDiscovery) RegisterBadAddr(string)         {}
+func (d testDiscovery) RegisterGoodAddr(string)        {}
+func (d testDiscovery) UnregisterConnectedAddr(string) {}
+func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
+func (d testDiscovery) RequestRemote(n int)            {}
+func (d testDiscovery) BadPeers() []string             { return []string{} }
+func (d testDiscovery) GoodPeers() []string            { return []string{} }
 
 type localTransport struct{}
 
@@ -114,6 +117,7 @@ var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 type localPeer struct {
 	netaddr        net.TCPAddr
 	version        *payload.Version
+	handshaked     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
 }
@@ -142,8 +146,23 @@ func (p *localPeer) Done() chan error {
 func (p *localPeer) Version() *payload.Version {
 	return p.version
 }
-func (p *localPeer) SetVersion(v *payload.Version) {
+func (p *localPeer) HandleVersion(v *payload.Version) error {
 	p.version = v
+	return nil
+}
+func (p *localPeer) SendVersion(m *Message) error {
+	return p.WriteMsg(m)
+}
+func (p *localPeer) SendVersionAck(m *Message) error {
+	return p.WriteMsg(m)
+}
+func (p *localPeer) HandleVersionAck() error {
+	p.handshaked = true
+	return nil
+}
+
+func (p *localPeer) Handshaked() bool {
+	return p.handshaked
 }
 
 func newTestServer() *Server {

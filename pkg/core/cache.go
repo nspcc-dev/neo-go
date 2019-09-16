@@ -71,3 +71,17 @@ func (c *Cache) Delete(h util.Uint256) {
 	defer c.lock.Unlock()
 	delete(c.m, h)
 }
+
+// ReapStrangeBlocks drops blocks from cache that don't fit into the
+// blkHeight-headHeight interval. Cache should only contain blocks that we
+// expect to get and store.
+func (c *Cache) ReapStrangeBlocks(blkHeight, headHeight uint32) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	for i, b := range c.m {
+		block, ok := b.(*Block)
+		if ok && (block.Index < blkHeight || block.Index > headHeight) {
+			delete(c.m, i)
+		}
+	}
+}
