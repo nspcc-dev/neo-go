@@ -53,7 +53,7 @@ func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) error {
 
 // Size returns serialized binary size for this transaction.
 func (tx *InvocationTX) Size() int {
-	sz := util.GetVarSize(tx.Script)
+	sz := io.GetVarSize(tx.Script)
 	if tx.Version >= 1 {
 		sz += tx.Gas.Size()
 	}

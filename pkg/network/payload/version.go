@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Size of the payload not counting UserAgent encoding (which is at least 1 byte
@@ -83,5 +82,5 @@ func (p *Version) EncodeBinary(br *io.BinWriter) error {
 
 // Size implements the payloader interface.
 func (p *Version) Size() uint32 {
-	return uint32(minVersionSize + util.GetVarSize(p.UserAgent))
+	return uint32(minVersionSize + io.GetVarSize(p.UserAgent))
 }

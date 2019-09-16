@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // DescStateType represents the type of StateDescriptor.
@@ -44,5 +43,5 @@ func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) error {
 
 // Size returns serialized binary size for state descriptor.
 func (s *StateDescriptor) Size() int {
-	return 1 + util.GetVarSize(s.Key) + util.GetVarSize(s.Value) + util.GetVarSize(s.Field)
+	return 1 + io.GetVarSize(s.Key) + io.GetVarSize(s.Value) + io.GetVarSize(s.Field)
 }

@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // StateTX represents a state transaction.
@@ -38,7 +37,7 @@ func (tx *StateTX) EncodeBinary(w *io.BinWriter) error {
 
 // Size returns serialized binary size for this transaction.
 func (tx *StateTX) Size() int {
-	sz := util.GetVarSize(uint64(len(tx.Descriptors)))
+	sz := io.GetVarSize(uint64(len(tx.Descriptors)))
 	for _, desc := range tx.Descriptors {
 		sz += desc.Size()
 	}

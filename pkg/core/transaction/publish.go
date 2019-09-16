@@ -3,7 +3,6 @@ package transaction
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // PublishTX represents a publish transaction.
@@ -73,14 +72,14 @@ func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) error {
 
 // Size returns serialized binary size for this transaction.
 func (tx *PublishTX) Size() int {
-	sz := util.GetVarSize(tx.Script) + util.GetVarSize(uint64(len(tx.ParamList)))
+	sz := io.GetVarSize(tx.Script) + io.GetVarSize(uint64(len(tx.ParamList)))
 	sz += 1 * len(tx.ParamList)
 	sz++
 	if tx.Version >= 1 {
 		sz++
 	}
-	sz += util.GetVarSize(tx.Name) + util.GetVarSize(tx.CodeVersion)
-	sz += util.GetVarSize(tx.Author) + util.GetVarSize(tx.Email)
-	sz += util.GetVarSize(tx.Description)
+	sz += io.GetVarSize(tx.Name) + io.GetVarSize(tx.CodeVersion)
+	sz += io.GetVarSize(tx.Author) + io.GetVarSize(tx.Email)
+	sz += io.GetVarSize(tx.Description)
 	return sz
 }

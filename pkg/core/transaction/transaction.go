@@ -265,10 +265,10 @@ func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 
 // Size returns the size of the transaction in term of bytes
 func (t *Transaction) Size() int {
-	attrSize := util.GetVarSize(t.Attributes)
-	inputSize := util.GetVarSize(t.Inputs)
-	outputSize := util.GetVarSize(t.Outputs)
-	witnesSize := util.GetVarSize(t.Scripts)
+	attrSize := io.GetVarSize(t.Attributes)
+	inputSize := io.GetVarSize(t.Inputs)
+	outputSize := io.GetVarSize(t.Outputs)
+	witnesSize := io.GetVarSize(t.Scripts)
 	// uint8 + uint8 + attrSize + inputSize + outputSize + witnesSize
 	return 2 + attrSize + inputSize + outputSize + witnesSize + t.Data.Size()
 }

@@ -1,10 +1,10 @@
-package util
+package io
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,11 +12,11 @@ import (
 type smthSerializable struct {
 }
 
-func (*smthSerializable) DecodeBinary(*io.BinReader) error {
+func (*smthSerializable) DecodeBinary(*BinReader) error {
 	return nil
 }
 
-func (*smthSerializable) EncodeBinary(*io.BinWriter) error {
+func (*smthSerializable) EncodeBinary(*BinWriter) error {
 	return nil
 }
 
@@ -87,7 +87,7 @@ func TestVarSize(t *testing.T) {
 		},
 		{
 			// The neo C# implementation doe not allowed this!
-			Uint160{1, 2, 4, 5, 6},
+			util.Uint160{1, 2, 4, 5, 6},
 			"test_Uint160_1",
 			21,
 		},
@@ -153,7 +153,7 @@ func TestVarSize(t *testing.T) {
 			241,
 		},
 		// The neo C# implementation doe not allowed this!
-		{Uint256{1, 2, 3, 4, 5, 6},
+		{util.Uint256{1, 2, 3, 4, 5, 6},
 			"test_Uint256_1",
 			33,
 		},

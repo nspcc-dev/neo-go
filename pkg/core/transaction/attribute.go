@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Attribute represents a Transaction attribute.
@@ -87,7 +86,7 @@ func (attr *Attribute) Size() int {
 	case DescriptionURL:
 		sz += 1 + len(attr.Data)
 	default:
-		sz += util.GetVarSize(attr.Data)
+		sz += io.GetVarSize(attr.Data)
 	}
 	return sz
 }

@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // ClaimTX represents a claim transaction.
@@ -42,7 +41,7 @@ func (tx *ClaimTX) EncodeBinary(bw *io.BinWriter) error {
 
 // Size returns serialized binary size for this transaction.
 func (tx *ClaimTX) Size() int {
-	sz := util.GetVarSize(uint64(len(tx.Claims)))
+	sz := io.GetVarSize(uint64(len(tx.Claims)))
 	for _, claim := range tx.Claims {
 		sz += claim.Size()
 	}

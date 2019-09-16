@@ -1,10 +1,8 @@
-package util
+package io
 
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 var (
@@ -67,9 +65,9 @@ func GetVarSize(value interface{}) int {
 
 		if valueLength != 0 {
 			switch reflect.ValueOf(value).Index(0).Interface().(type) {
-			case io.Serializable:
+			case Serializable:
 				for i := 0; i < valueLength; i++ {
-					elem := v.Index(i).Interface().(io.Serializable)
+					elem := v.Index(i).Interface().(Serializable)
 					valueSize += elem.Size()
 				}
 			case uint8, int8:
