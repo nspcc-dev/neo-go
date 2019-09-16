@@ -27,22 +27,20 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 	return &aat
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *AddressAndTime) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Services)
 	br.ReadBE(&p.IP)
 	br.ReadBE(&p.Port)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(p.Timestamp)
 	bw.WriteLE(p.Services)
 	bw.WriteBE(p.IP)
 	bw.WriteBE(p.Port)
-	return bw.Err
 }
 
 // IPPortString makes a string from IP and port specified.
@@ -67,33 +65,21 @@ func NewAddressList(n int) *AddressList {
 	return &alist
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *AddressList) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (p *AddressList) DecodeBinary(br *io.BinReader) {
 	listLen := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
 
 	p.Addrs = make([]*AddressAndTime, listLen)
 	for i := 0; i < int(listLen); i++ {
 		p.Addrs[i] = &AddressAndTime{}
-		if err := p.Addrs[i].DecodeBinary(br); err != nil {
-			return err
-		}
+		p.Addrs[i].DecodeBinary(br)
 	}
-	return nil
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *AddressList) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (p *AddressList) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(p.Addrs)))
-	if bw.Err != nil {
-		return bw.Err
-	}
 	for _, addr := range p.Addrs {
-		if err := addr.EncodeBinary(bw); err != nil {
-			return err
-		}
+		addr.EncodeBinary(bw)
 	}
-	return nil
 }

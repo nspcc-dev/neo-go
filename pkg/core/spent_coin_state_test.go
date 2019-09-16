@@ -21,9 +21,12 @@ func TestEncodeDecodeSpentCoinState(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	assert.Nil(t, spent.EncodeBinary(buf.BinWriter))
+	spent.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	spentDecode := new(SpentCoinState)
-	assert.Nil(t, spentDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())))
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	spentDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, spent, spentDecode)
 }
 

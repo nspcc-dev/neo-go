@@ -14,12 +14,10 @@ type MerkleBlock struct {
 	Flags   []byte
 }
 
-// DecodeBinary implements the Payload interface.
-func (m *MerkleBlock) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.BlockBase = &core.BlockBase{}
-	if err := m.BlockBase.DecodeBinary(br); err != nil {
-		return err
-	}
+	m.BlockBase.DecodeBinary(br)
 
 	m.TxCount = int(br.ReadVarUint())
 	n := br.ReadVarUint()
@@ -28,10 +26,9 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) error {
 		br.ReadLE(&m.Hashes[i])
 	}
 	m.Flags = br.ReadBytes()
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) error {
-	return nil
+// EncodeBinary implements Serializable interface.
+func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
+	return
 }

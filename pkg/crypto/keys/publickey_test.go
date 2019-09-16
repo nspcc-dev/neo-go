@@ -11,7 +11,7 @@ import (
 func TestEncodeDecodeInfinity(t *testing.T) {
 	key := &PublicKey{}
 	buf := io.NewBufBinWriter()
-	assert.Nil(t, key.EncodeBinary(buf.BinWriter))
+	key.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
 	b := buf.Bytes()
 	assert.Equal(t, 1, len(b))
@@ -27,7 +27,7 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 		assert.Nil(t, err)
 		p := k.PublicKey()
 		buf := io.NewBufBinWriter()
-		assert.Nil(t, p.EncodeBinary(buf.BinWriter))
+		p.EncodeBinary(buf.BinWriter)
 		assert.Nil(t, buf.Err)
 		b := buf.Bytes()
 

@@ -28,34 +28,27 @@ type RegisterTX struct {
 	Admin util.Uint160
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *RegisterTX) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&tx.AssetType)
 
 	tx.Name = br.ReadString()
 
 	br.ReadLE(&tx.Amount)
 	br.ReadLE(&tx.Precision)
-	if br.Err != nil {
-		return br.Err
-	}
 
 	tx.Owner = &keys.PublicKey{}
-	if err := tx.Owner.DecodeBinary(br); err != nil {
-		return err
-	}
+	tx.Owner.DecodeBinary(br)
 
 	br.ReadLE(&tx.Admin)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(tx.AssetType)
 	bw.WriteString(tx.Name)
 	bw.WriteLE(tx.Amount)
 	bw.WriteLE(tx.Precision)
 	bw.WriteLE(tx.Owner.Bytes())
 	bw.WriteLE(tx.Admin)
-	return bw.Err
 }

@@ -15,19 +15,16 @@ type Witness struct {
 	VerificationScript []byte
 }
 
-// DecodeBinary implements the payload interface.
-func (w *Witness) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (w *Witness) DecodeBinary(br *io.BinReader) {
 	w.InvocationScript = br.ReadBytes()
 	w.VerificationScript = br.ReadBytes()
-	return br.Err
 }
 
-// EncodeBinary implements the payload interface.
-func (w *Witness) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (w *Witness) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(w.InvocationScript)
 	bw.WriteBytes(w.VerificationScript)
-
-	return bw.Err
 }
 
 // MarshalJSON implements the json marshaller interface.

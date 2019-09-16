@@ -14,16 +14,14 @@ type Input struct {
 	PrevIndex uint16 `json:"vout"`
 }
 
-// DecodeBinary implements the Payload interface.
-func (in *Input) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (in *Input) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&in.PrevHash)
 	br.ReadLE(&in.PrevIndex)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (in *Input) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (in *Input) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(in.PrevHash)
 	bw.WriteLE(in.PrevIndex)
-	return bw.Err
 }

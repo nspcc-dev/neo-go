@@ -211,11 +211,10 @@ func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index 
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
 	buf := io.NewBufBinWriter()
 	buf.WriteLE(index)
-	if err := tx.EncodeBinary(buf.BinWriter); err != nil {
-		return err
+	tx.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
 	}
-
 	batch.Put(key, buf.Bytes())
-
 	return nil
 }

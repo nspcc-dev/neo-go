@@ -42,14 +42,14 @@ func TestHeadersEncodeDecode(t *testing.T) {
 	}}
 
 	buf := io.NewBufBinWriter()
-	err := headers.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	headers.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	b := buf.Bytes()
 	r := io.NewBinReaderFromBuf(b)
 	headersDecode := &Headers{}
-	err = headersDecode.DecodeBinary(r)
-	assert.Nil(t, err)
+	headersDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	for i := 0; i < len(headers.Hdrs); i++ {
 		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)
@@ -67,8 +67,8 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	r := io.NewBinReaderFromBuf(rawBlockBytes)
 
-	err := headerMsg.DecodeBinary(r)
-	assert.Nil(t, err)
+	headerMsg.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, 1, len(headerMsg.Hdrs))
 
 	header := headerMsg.Hdrs[0]
@@ -78,7 +78,7 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 
-	err = headerMsg.EncodeBinary(buf.BinWriter)
-	assert.Equal(t, nil, err)
+	headerMsg.EncodeBinary(buf.BinWriter)
+	assert.Equal(t, nil, buf.Err)
 	assert.Equal(t, hex.EncodeToString(rawBlockBytes), hex.EncodeToString(buf.Bytes()))
 }

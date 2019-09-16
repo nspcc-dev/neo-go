@@ -14,8 +14,8 @@ type Attribute struct {
 	Data  []byte
 }
 
-// DecodeBinary implements the Payload interface.
-func (attr *Attribute) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&attr.Usage)
 
 	// very special case
@@ -23,7 +23,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) error {
 		attr.Data = make([]byte, 33)
 		attr.Data[0] = byte(attr.Usage)
 		br.ReadLE(attr.Data[1:])
-		return br.Err
+		return
 	}
 	var datasize uint64
 	switch attr.Usage {
@@ -43,15 +43,15 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) error {
 		Remark12, Remark13, Remark14, Remark15:
 		datasize = br.ReadVarUint()
 	default:
-		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		return
 	}
 	attr.Data = make([]byte, datasize)
 	br.ReadLE(attr.Data)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (attr *Attribute) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(&attr.Usage)
 	switch attr.Usage {
 	case ECDH02, ECDH03:
@@ -68,10 +68,8 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) error {
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
 		bw.WriteLE(attr.Data)
 	default:
-		return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 	}
-
-	return bw.Err
 }
 
 // MarshalJSON implements the json Marschaller interface

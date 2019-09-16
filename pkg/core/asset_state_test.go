@@ -27,8 +27,11 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	assert.Nil(t, asset.EncodeBinary(buf.BinWriter))
+	asset.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	assetDecode := &AssetState{}
-	assert.Nil(t, assetDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())))
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	assetDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, asset, assetDecode)
 }

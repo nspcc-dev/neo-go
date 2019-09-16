@@ -14,28 +14,20 @@ type Header struct {
 	_ uint8
 }
 
-// DecodeBinary implements the Payload interface.
-func (h *Header) DecodeBinary(r *io.BinReader) error {
-	if err := h.BlockBase.DecodeBinary(r); err != nil {
-		return err
-	}
+// DecodeBinary implements Serializable interface.
+func (h *Header) DecodeBinary(r *io.BinReader) {
+	h.BlockBase.DecodeBinary(r)
 
 	var padding uint8
 	r.ReadLE(&padding)
-	if r.Err != nil {
-		return r.Err
-	}
 
 	if padding != 0 {
-		return fmt.Errorf("format error: padding must equal 0 got %d", padding)
+		r.Err = fmt.Errorf("format error: padding must equal 0 got %d", padding)
 	}
-
-	return nil
 }
 
-// EncodeBinary  implements the Payload interface.
-func (h *Header) EncodeBinary(w *io.BinWriter) error {
+// EncodeBinary  implements Serializable interface.
+func (h *Header) EncodeBinary(w *io.BinWriter) {
 	h.BlockBase.EncodeBinary(w)
 	w.WriteLE(uint8(0))
-	return w.Err
 }

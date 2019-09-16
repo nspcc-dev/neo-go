@@ -20,8 +20,8 @@ type PublishTX struct {
 	Version     uint8 // Version of the parent struct Transaction. Used in reading NeedStorage flag.
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *PublishTX) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (tx *PublishTX) DecodeBinary(br *io.BinReader) {
 	tx.Script = br.ReadBytes()
 
 	lenParams := br.ReadVarUint()
@@ -47,12 +47,10 @@ func (tx *PublishTX) DecodeBinary(br *io.BinReader) error {
 	tx.Author = br.ReadString()
 	tx.Email = br.ReadString()
 	tx.Description = br.ReadString()
-
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(tx.Script)
 	bw.WriteVarUint(uint64(len(tx.ParamList)))
 	for _, param := range tx.ParamList {
@@ -67,5 +65,4 @@ func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteString(tx.Author)
 	bw.WriteString(tx.Email)
 	bw.WriteString(tx.Description)
-	return bw.Err
 }

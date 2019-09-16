@@ -19,14 +19,14 @@ func TestGetBlockEncodeDecode(t *testing.T) {
 
 	p := NewGetBlocks(start, util.Uint256{})
 	buf := io.NewBufBinWriter()
-	err := p.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	p.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	b := buf.Bytes()
 	r := io.NewBinReaderFromBuf(b)
 	pDecode := &GetBlocks{}
-	err = pDecode.DecodeBinary(r)
-	assert.Nil(t, err)
+	pDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, p, pDecode)
 }
 
@@ -42,13 +42,13 @@ func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
 	)
 	p := NewGetBlocks(start, stop)
 	buf := io.NewBufBinWriter()
-	err := p.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	p.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	b := buf.Bytes()
 	r := io.NewBinReaderFromBuf(b)
 	pDecode := &GetBlocks{}
-	err = pDecode.DecodeBinary(r)
-	assert.Nil(t, err)
+	pDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, p, pDecode)
 }

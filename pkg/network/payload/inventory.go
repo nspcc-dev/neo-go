@@ -54,8 +54,8 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Inventory) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (p *Inventory) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Type)
 
 	listLen := br.ReadVarUint()
@@ -63,12 +63,10 @@ func (p *Inventory) DecodeBinary(br *io.BinReader) error {
 	for i := 0; i < int(listLen); i++ {
 		br.ReadLE(&p.Hashes[i])
 	}
-
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Inventory) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (p *Inventory) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(p.Type)
 
 	listLen := len(p.Hashes)
@@ -76,6 +74,4 @@ func (p *Inventory) EncodeBinary(bw *io.BinWriter) error {
 	for i := 0; i < listLen; i++ {
 		bw.WriteLE(p.Hashes[i])
 	}
-
-	return bw.Err
 }

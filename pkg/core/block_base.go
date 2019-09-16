@@ -58,35 +58,26 @@ func (b *BlockBase) Hash() util.Uint256 {
 	return b.hash
 }
 
-// DecodeBinary implements the payload interface.
-func (b *BlockBase) DecodeBinary(br *io.BinReader) error {
-	if err := b.decodeHashableFields(br); err != nil {
-		return err
-	}
+// DecodeBinary implements Serializable interface.
+func (b *BlockBase) DecodeBinary(br *io.BinReader) {
+	b.decodeHashableFields(br)
 
 	var padding uint8
 	br.ReadLE(&padding)
-	if br.Err != nil {
-		return br.Err
-	}
 	if padding != 1 {
-		return fmt.Errorf("format error: padding must equal 1 got %d", padding)
+		br.Err = fmt.Errorf("format error: padding must equal 1 got %d", padding)
+		return
 	}
 
 	b.Script = &transaction.Witness{}
-	return b.Script.DecodeBinary(br)
+	b.Script.DecodeBinary(br)
 }
 
-// EncodeBinary implements the Payload interface
-func (b *BlockBase) EncodeBinary(bw *io.BinWriter) error {
-	if err := b.encodeHashableFields(bw); err != nil {
-		return err
-	}
+// EncodeBinary implements Serializable interface
+func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
+	b.encodeHashableFields(bw)
 	bw.WriteLE(uint8(1))
-	if bw.Err != nil {
-		return bw.Err
-	}
-	return b.Script.EncodeBinary(bw)
+	b.Script.EncodeBinary(bw)
 }
 
 // createHash creates the hash of the block.
@@ -97,8 +88,9 @@ func (b *BlockBase) EncodeBinary(bw *io.BinWriter) error {
 // the modification of transaction will influence the hash value of the block.
 func (b *BlockBase) createHash() error {
 	buf := io.NewBufBinWriter()
-	if err := b.encodeHashableFields(buf.BinWriter); err != nil {
-		return err
+	b.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
 	}
 	b.hash = hash.DoubleSha256(buf.Bytes())
 
@@ -107,7 +99,7 @@ func (b *BlockBase) createHash() error {
 
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) error {
+func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteLE(b.Version)
 	bw.WriteLE(b.PrevHash)
 	bw.WriteLE(b.MerkleRoot)
@@ -115,12 +107,11 @@ func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) error {
 	bw.WriteLE(b.Index)
 	bw.WriteLE(b.ConsensusData)
 	bw.WriteLE(b.NextConsensus)
-	return bw.Err
 }
 
 // decodeHashableFields will only decode the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *BlockBase) decodeHashableFields(br *io.BinReader) error {
+func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
 	br.ReadLE(&b.Version)
 	br.ReadLE(&b.PrevHash)
 	br.ReadLE(&b.MerkleRoot)
@@ -129,11 +120,9 @@ func (b *BlockBase) decodeHashableFields(br *io.BinReader) error {
 	br.ReadLE(&b.ConsensusData)
 	br.ReadLE(&b.NextConsensus)
 
-	if br.Err != nil {
-		return br.Err
-	}
-
 	// Make the hash of the block here so we dont need to do this
 	// again.
-	return b.createHash()
+	if br.Err == nil {
+		br.Err = b.createHash()
+	}
 }

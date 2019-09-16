@@ -15,12 +15,10 @@ func NewContractTX() *Transaction {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *ContractTX) DecodeBinary(r *io.BinReader) error {
-	return nil
+// DecodeBinary implements Serializable interface.
+func (tx *ContractTX) DecodeBinary(r *io.BinReader) {
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *ContractTX) EncodeBinary(w *io.BinWriter) error {
-	return nil
+// EncodeBinary implements Serializable interface.
+func (tx *ContractTX) EncodeBinary(w *io.BinWriter) {
 }

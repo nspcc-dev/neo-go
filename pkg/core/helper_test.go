@@ -63,8 +63,10 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	}
 
 	block := &Block{}
-	if err := block.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
-		t.Fatal(err)
+	r := io.NewBinReaderFromBuf(b)
+	block.DecodeBinary(r)
+	if r.Err != nil {
+		t.Fatal(r.Err)
 	}
 
 	return block

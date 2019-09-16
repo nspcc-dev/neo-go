@@ -254,8 +254,9 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	}
 
 	buf.Reset()
-	if err := h.EncodeBinary(buf.BinWriter); err != nil {
-		return err
+	h.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
 	}
 
 	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
@@ -470,14 +471,13 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 
 	var height uint32
 	r.ReadLE(&height)
+
+	tx := &transaction.Transaction{}
+	tx.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, 0, r.Err
 	}
 
-	tx := &transaction.Transaction{}
-	if err := tx.DecodeBinary(r); err != nil {
-		return nil, 0, err
-	}
 	return tx, height, nil
 }
 
@@ -578,7 +578,9 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 	var as *AssetState
 	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
 		var a AssetState
-		if err := a.DecodeBinary(io.NewBinReaderFromBuf(v)); err == nil && a.ID == assetID {
+		r := io.NewBinReaderFromBuf(v)
+		a.DecodeBinary(r)
+		if r.Err == nil && a.ID == assetID {
 			as = &a
 		}
 	})
@@ -591,7 +593,9 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	var as *AccountState
 	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
 		var a AccountState
-		if err := a.DecodeBinary(io.NewBinReaderFromBuf(v)); err == nil && a.ScriptHash == scriptHash {
+		r := io.NewBinReaderFromBuf(v)
+		a.DecodeBinary(r)
+		if r.Err == nil && a.ScriptHash == scriptHash {
 			as = &a
 		}
 	})

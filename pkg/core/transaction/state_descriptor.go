@@ -21,22 +21,19 @@ type StateDescriptor struct {
 	Field string
 }
 
-// DecodeBinary implements the Payload interface.
-func (s *StateDescriptor) DecodeBinary(r *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (s *StateDescriptor) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&s.Type)
 
 	s.Key = r.ReadBytes()
 	s.Value = r.ReadBytes()
 	s.Field = r.ReadString()
-
-	return r.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(s.Type)
 	w.WriteBytes(s.Key)
 	w.WriteBytes(s.Value)
 	w.WriteString(s.Field)
-	return w.Err
 }

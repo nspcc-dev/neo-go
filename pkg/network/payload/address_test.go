@@ -23,14 +23,14 @@ func TestEncodeDecodeAddress(t *testing.T) {
 	copy(aatip, addr.IP[:])
 	assert.Equal(t, e.IP, aatip)
 	assert.Equal(t, e.Port, int(addr.Port))
-	err := addr.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	addr.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	b := buf.Bytes()
 	r := io.NewBinReaderFromBuf(b)
 	addrDecode := &AddressAndTime{}
-	err = addrDecode.DecodeBinary(r)
-	assert.Nil(t, err)
+	addrDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, addr, addrDecode)
 }
@@ -44,14 +44,14 @@ func TestEncodeDecodeAddressList(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	err := addrList.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	addrList.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	b := buf.Bytes()
 	r := io.NewBinReaderFromBuf(b)
 	addrListDecode := &AddressList{}
-	err = addrListDecode.DecodeBinary(r)
-	assert.Nil(t, err)
+	addrListDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, addrList, addrListDecode)
 }

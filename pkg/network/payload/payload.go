@@ -16,12 +16,8 @@ func NewNullPayload() *NullPayload {
 	return &NullPayload{}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *NullPayload) DecodeBinary(r io.Reader) error {
-	return nil
-}
+// DecodeBinary implements Serializable interface.
+func (p *NullPayload) DecodeBinary(r *io.BinReader) {}
 
-// EncodeBinary implements the Payload interface.
-func (p *NullPayload) EncodeBinary(r io.Writer) error {
-	return nil
-}
+// EncodeBinary implements Serializable interface.
+func (p *NullPayload) EncodeBinary(w *io.BinWriter) {}

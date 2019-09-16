@@ -80,9 +80,9 @@ func GetVarSize(value interface{}) int {
 		}
 		cw := counterWriter{}
 		w := NewBinWriterFromIO(&cw)
-		err := vser.EncodeBinary(w)
-		if err != nil {
-			panic(fmt.Sprintf("error serializing %s: %s", reflect.TypeOf(value), err.Error()))
+		vser.EncodeBinary(w)
+		if w.Err != nil {
+			panic(fmt.Sprintf("error serializing %s: %s", reflect.TypeOf(value), w.Err.Error()))
 		}
 		return cw.counter
 	case reflect.Slice, reflect.Array:

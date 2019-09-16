@@ -17,15 +17,15 @@ func TestVersionEncodeDecode(t *testing.T) {
 	version := NewVersion(id, port, useragent, height, relay)
 
 	buf := io.NewBufBinWriter()
-	err := version.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	version.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	b := buf.Bytes()
 	assert.Equal(t, io.GetVarSize(version), len(b))
 
 	r := io.NewBinReaderFromBuf(b)
 	versionDecoded := &Version{}
-	err = versionDecoded.DecodeBinary(r)
-	assert.Nil(t, err)
+	versionDecoded.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, versionDecoded.Nonce, id)
 	assert.Equal(t, versionDecoded.Port, port)
 	assert.Equal(t, versionDecoded.UserAgent, []byte(useragent))

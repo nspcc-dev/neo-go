@@ -10,14 +10,12 @@ type MinerTX struct {
 	Nonce uint32
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *MinerTX) DecodeBinary(r *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (tx *MinerTX) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&tx.Nonce)
-	return r.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *MinerTX) EncodeBinary(w *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (tx *MinerTX) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(tx.Nonce)
-	return w.Err
 }

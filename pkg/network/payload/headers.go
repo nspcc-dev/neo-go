@@ -16,12 +16,10 @@ const (
 	maxHeadersAllowed = 2000
 )
 
-// DecodeBinary implements the Payload interface.
-func (p *Headers) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (p *Headers) DecodeBinary(br *io.BinReader) {
 	lenHeaders := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
+
 	// C# node does it silently
 	if lenHeaders > maxHeadersAllowed {
 		log.Warnf("received %d headers, capping to %d", lenHeaders, maxHeadersAllowed)
@@ -32,26 +30,16 @@ func (p *Headers) DecodeBinary(br *io.BinReader) error {
 
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &core.Header{}
-		if err := header.DecodeBinary(br); err != nil {
-			return err
-		}
+		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}
-
-	return nil
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Headers) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (p *Headers) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(p.Hdrs)))
-	if bw.Err != nil {
-		return bw.Err
-	}
 
 	for _, header := range p.Hdrs {
-		if err := header.EncodeBinary(bw); err != nil {
-			return err
-		}
+		header.EncodeBinary(bw)
 	}
-	return nil
 }

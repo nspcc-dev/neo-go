@@ -21,7 +21,8 @@ func decodeTransaction(rawTX string, t *testing.T) *Transaction {
 	b, err1 := hex.DecodeString(rawTX)
 	assert.Nil(t, err1)
 	tx := &Transaction{}
-	err2 := tx.DecodeBinary(io.NewBinReaderFromBuf(b))
-	assert.Nil(t, err2)
+	r := io.NewBinReaderFromBuf(b)
+	tx.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	return tx
 }

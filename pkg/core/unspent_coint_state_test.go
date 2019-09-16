@@ -20,9 +20,12 @@ func TestDecodeEncodeUnspentCoinState(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	assert.Nil(t, unspent.EncodeBinary(buf.BinWriter))
+	unspent.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	unspentDecode := &UnspentCoinState{}
-	assert.Nil(t, unspentDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())))
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	unspentDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 }
 
 func TestCommitUnspentCoins(t *testing.T) {

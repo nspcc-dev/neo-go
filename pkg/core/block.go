@@ -72,20 +72,13 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	}
 
 	br := io.NewBinReaderFromBuf(b)
-	if err := block.decodeHashableFields(br); err != nil {
-		return block, err
-	}
+	block.decodeHashableFields(br)
 
 	var padding uint8
 	br.ReadLE(&padding)
-	if br.Err != nil {
-		return block, br.Err
-	}
 
 	block.Script = &transaction.Witness{}
-	if err := block.Script.DecodeBinary(br); err != nil {
-		return block, err
-	}
+	block.Script.DecodeBinary(br)
 
 	lenTX := br.ReadVarUint()
 	block.Transactions = make([]*transaction.Transaction, lenTX)
@@ -103,16 +96,9 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
-	if err := b.encodeHashableFields(buf.BinWriter); err != nil {
-		return nil, err
-	}
+	b.encodeHashableFields(buf.BinWriter)
 	buf.WriteLE(uint8(1))
-	if buf.Err != nil {
-		return nil, buf.Err
-	}
-	if err := b.Script.EncodeBinary(buf.BinWriter); err != nil {
-		return nil, err
-	}
+	b.Script.EncodeBinary(buf.BinWriter)
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
@@ -124,42 +110,25 @@ func (b *Block) Trim() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// DecodeBinary decodes the block from the given reader.
-func (b *Block) DecodeBinary(br *io.BinReader) error {
-	if err := b.BlockBase.DecodeBinary(br); err != nil {
-		return err
-	}
+// DecodeBinary decodes the block from the given BinReader, implementing
+// Serializable interface.
+func (b *Block) DecodeBinary(br *io.BinReader) {
+	b.BlockBase.DecodeBinary(br)
 
 	lentx := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
 	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
 		b.Transactions[i] = &transaction.Transaction{}
-		if err := b.Transactions[i].DecodeBinary(br); err != nil {
-			return err
-		}
+		b.Transactions[i].DecodeBinary(br)
 	}
-
-	return nil
 }
 
-// EncodeBinary encodes the block to the given writer.
-func (b *Block) EncodeBinary(bw *io.BinWriter) error {
-	err := b.BlockBase.EncodeBinary(bw)
-	if err != nil {
-		return err
-	}
+// EncodeBinary encodes the block to the given BinWriter, implementing
+// Serializable interface.
+func (b *Block) EncodeBinary(bw *io.BinWriter) {
+	b.BlockBase.EncodeBinary(bw)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
-	if bw.Err != nil {
-		return err
-	}
 	for _, tx := range b.Transactions {
-		err := tx.EncodeBinary(bw)
-		if err != nil {
-			return err
-		}
+		tx.EncodeBinary(bw)
 	}
-	return nil
 }

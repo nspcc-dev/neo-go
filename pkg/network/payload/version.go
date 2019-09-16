@@ -53,8 +53,8 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Version) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (p *Version) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Version)
 	br.ReadLE(&p.Services)
 	br.ReadLE(&p.Timestamp)
@@ -63,11 +63,10 @@ func (p *Version) DecodeBinary(br *io.BinReader) error {
 	p.UserAgent = br.ReadBytes()
 	br.ReadLE(&p.StartHeight)
 	br.ReadLE(&p.Relay)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Version) EncodeBinary(br *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (p *Version) EncodeBinary(br *io.BinWriter) {
 	br.WriteLE(p.Version)
 	br.WriteLE(p.Services)
 	br.WriteLE(p.Timestamp)
@@ -77,5 +76,4 @@ func (p *Version) EncodeBinary(br *io.BinWriter) error {
 	br.WriteBytes(p.UserAgent)
 	br.WriteLE(p.StartHeight)
 	br.WriteLE(&p.Relay)
-	return br.Err
 }

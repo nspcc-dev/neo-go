@@ -24,9 +24,9 @@ func TestDecodeBlock1(t *testing.T) {
 	}
 
 	block := &Block{}
-	if err := block.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
-		t.Fatal(err)
-	}
+	r := io.NewBinReaderFromBuf(b)
+	block.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, uint32(data["index"].(float64)), block.Index)
 	assert.Equal(t, uint32(data["version"].(float64)), block.Version)
@@ -110,8 +110,8 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	b := Block{}
 
 	r := io.NewBinReaderFromBuf(rawtxBytes)
-	err := b.DecodeBinary(r)
-	assert.Nil(t, err)
+	b.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	expected := map[string]bool{ // 18 trans
 
 		"009f61f481f47eb7478e887871e4e744669d461b13d68e04250035260171d706": false,
@@ -167,8 +167,8 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 
-	err = b.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	b.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 }
@@ -186,8 +186,8 @@ func TestBlockSizeCalculation(t *testing.T) {
 	b := Block{}
 
 	r := io.NewBinReaderFromBuf(rawBlockBytes)
-	err := b.DecodeBinary(r)
-	assert.Nil(t, err)
+	b.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	expected := []struct {
 		ID            string
@@ -252,8 +252,8 @@ func TestBlockSizeCalculation(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 
-	err = b.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	b.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, r.Err)
 	benc := buf.Bytes()
 	// test size of the block
 	assert.Equal(t, 7360, len(benc))

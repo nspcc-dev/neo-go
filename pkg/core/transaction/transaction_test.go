@@ -28,13 +28,14 @@ func TestWitnessEncodeDecode(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	err = wit.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	wit.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	benc := buf.Bytes()
 	witDecode := &Witness{}
-	err = witDecode.DecodeBinary(io.NewBinReaderFromBuf(benc))
-	assert.Nil(t, err)
+	encreader := io.NewBinReaderFromBuf(benc)
+	witDecode.DecodeBinary(encreader)
+	assert.Nil(t, encreader.Err)
 	t.Log(len(witDecode.VerificationScript))
 	t.Log(len(witDecode.InvocationScript))
 
@@ -61,8 +62,8 @@ func TestDecodeEncodeClaimTX(t *testing.T) {
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
 	buf := io.NewBufBinWriter()
-	err := tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	tx.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	assert.Equal(t, rawClaimTX, hex.EncodeToString(buf.Bytes()))
 
 	hash := "2c6a45547b3898318e400e541628990a07acb00f3b9a15a8e966ae49525304da"
@@ -89,8 +90,8 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
 	buf := io.NewBufBinWriter()
-	err := tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	tx.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
 }
@@ -144,7 +145,7 @@ func TestDecodePublishTX(t *testing.T) {
 	assert.Equal(t, expectedTX.Version, actualTX.Version)
 
 	buf := io.NewBufBinWriter()
-	err := actualTX.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, err)
+	actualTX.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
 }

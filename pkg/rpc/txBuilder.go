@@ -73,8 +73,9 @@ func GetInvocationScript(tx *transaction.Transaction, wif keys.WIF) ([]byte, err
 		buf       = io.NewBufBinWriter()
 		signature []byte
 	)
-	if err = tx.EncodeBinary(buf.BinWriter); err != nil {
-		return nil, errs.Wrap(err, "Failed to encode transaction to binary")
+	tx.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil, errs.Wrap(buf.Err, "Failed to encode transaction to binary")
 	}
 	data := buf.Bytes()
 	signature, err = wif.PrivateKey.Sign(data[:(len(data) - 1)])

@@ -21,8 +21,10 @@ func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*Unspent
 	unspent := &UnspentCoinState{}
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
 	if b, err := s.Get(key); err == nil {
-		if err := unspent.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
-			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", err)
+		r := io.NewBinReaderFromBuf(b)
+		unspent.DecodeBinary(r)
+		if r.Err != nil {
+			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", r.Err)
 		}
 	} else {
 		unspent = &UnspentCoinState{
@@ -54,8 +56,9 @@ func NewUnspentCoinState(n int) *UnspentCoinState {
 func (u UnspentCoins) commit(b storage.Batch) error {
 	buf := io.NewBufBinWriter()
 	for hash, state := range u {
-		if err := state.EncodeBinary(buf.BinWriter); err != nil {
-			return err
+		state.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			return buf.Err
 		}
 		key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
 		b.Put(key, buf.Bytes())
@@ -65,16 +68,15 @@ func (u UnspentCoins) commit(b storage.Batch) error {
 }
 
 // EncodeBinary encodes UnspentCoinState to the given BinWriter.
-func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) error {
+func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
 		bw.WriteLE(byte(state))
 	}
-	return bw.Err
 }
 
 // DecodeBinary decodes UnspentCoinState from the given BinReader.
-func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) error {
+func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) {
 	lenStates := br.ReadVarUint()
 	s.states = make([]CoinState, lenStates)
 	for i := 0; i < int(lenStates); i++ {
@@ -82,7 +84,6 @@ func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) error {
 		br.ReadLE(&state)
 		s.states[i] = CoinState(state)
 	}
-	return br.Err
 }
 
 // IsDoubleSpend verifies that the input transactions are not double spent.
@@ -95,7 +96,9 @@ func IsDoubleSpend(s storage.Store, tx *transaction.Transaction) bool {
 		unspent := &UnspentCoinState{}
 		key := storage.AppendPrefix(storage.STCoin, prevHash.BytesReverse())
 		if b, err := s.Get(key); err == nil {
-			if err := unspent.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
+			r := io.NewBinReaderFromBuf(b)
+			unspent.DecodeBinary(r)
+			if r.Err != nil {
 				return false
 			}
 			if unspent == nil {

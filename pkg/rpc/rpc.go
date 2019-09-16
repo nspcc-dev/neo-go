@@ -130,8 +130,9 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
-	if err = rawTx.EncodeBinary(buf.BinWriter); err != nil {
-		return nil, errors.Wrap(err, "failed to encode raw transaction to binary for `sendtoaddress`")
+	rawTx.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil, errors.Wrap(buf.Err, "failed to encode raw transaction to binary for `sendtoaddress`")
 	}
 	rawTxStr = hex.EncodeToString(buf.Bytes())
 	if resp, err = c.sendRawTransaction(rawTxStr); err != nil {

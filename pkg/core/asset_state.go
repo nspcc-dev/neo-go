@@ -16,8 +16,9 @@ type Assets map[util.Uint256]*AssetState
 func (a Assets) commit(b storage.Batch) error {
 	buf := io.NewBufBinWriter()
 	for hash, state := range a {
-		if err := state.EncodeBinary(buf.BinWriter); err != nil {
-			return err
+		state.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			return buf.Err
 		}
 		key := storage.AppendPrefix(storage.STAsset, hash.Bytes())
 		b.Put(key, buf.Bytes())
@@ -43,8 +44,8 @@ type AssetState struct {
 	IsFrozen   bool
 }
 
-// DecodeBinary implements the Payload interface.
-func (a *AssetState) DecodeBinary(br *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (a *AssetState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&a.ID)
 	br.ReadLE(&a.AssetType)
 
@@ -56,23 +57,16 @@ func (a *AssetState) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&a.FeeMode)
 	br.ReadLE(&a.FeeAddress)
 
-	if br.Err != nil {
-		return br.Err
-	}
 	a.Owner = &keys.PublicKey{}
-	if err := a.Owner.DecodeBinary(br); err != nil {
-		return err
-	}
+	a.Owner.DecodeBinary(br)
 	br.ReadLE(&a.Admin)
 	br.ReadLE(&a.Issuer)
 	br.ReadLE(&a.Expiration)
 	br.ReadLE(&a.IsFrozen)
-
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (a *AssetState) EncodeBinary(bw *io.BinWriter) error {
+// EncodeBinary implements Serializable interface.
+func (a *AssetState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(a.ID)
 	bw.WriteLE(a.AssetType)
 	bw.WriteString(a.Name)
@@ -82,17 +76,12 @@ func (a *AssetState) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(a.FeeMode)
 	bw.WriteLE(a.FeeAddress)
 
-	if bw.Err != nil {
-		return bw.Err
-	}
-	if err := a.Owner.EncodeBinary(bw); err != nil {
-		return err
-	}
+	a.Owner.EncodeBinary(bw)
+
 	bw.WriteLE(a.Admin)
 	bw.WriteLE(a.Issuer)
 	bw.WriteLE(a.Expiration)
 	bw.WriteLE(a.IsFrozen)
-	return bw.Err
 }
 
 // GetName returns the asset name based on its type.

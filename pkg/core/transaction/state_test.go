@@ -31,9 +31,8 @@ func TestEncodeDecodeState(t *testing.T) {
 
 	// Encode
 	buf := io.NewBufBinWriter()
+	tx.EncodeBinary(buf.BinWriter)
 
-	err := tx.EncodeBinary(buf.BinWriter)
-
-	assert.Equal(t, nil, err)
+	assert.Equal(t, nil, buf.Err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 }

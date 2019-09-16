@@ -13,13 +13,10 @@ type smthSerializable struct {
 	some [42]byte
 }
 
-func (*smthSerializable) DecodeBinary(*BinReader) error {
-	return nil
-}
+func (*smthSerializable) DecodeBinary(*BinReader) {}
 
-func (ss *smthSerializable) EncodeBinary(bw *BinWriter) error {
+func (ss *smthSerializable) EncodeBinary(bw *BinWriter) {
 	bw.WriteLE(ss.some)
-	return nil
 }
 
 func TestVarSize(t *testing.T) {

@@ -27,14 +27,13 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	}}
 
 	buf := io.NewBufBinWriter()
-	if err := header.EncodeBinary(buf.BinWriter); err != nil {
-		t.Fatal(err)
-	}
+	header.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	headerDecode := &Header{}
-	if err := headerDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())); err != nil {
-		t.Fatal(err)
-	}
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	headerDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")
 	assert.Equal(t, header.PrevHash, headerDecode.PrevHash, "expected both prev hashes to be equal")
 	assert.Equal(t, header.MerkleRoot, headerDecode.MerkleRoot, "expected both merkle roots to be equal")

@@ -31,14 +31,13 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	}
 
 	buf := io.NewBufBinWriter()
-	if err := a.EncodeBinary(buf.BinWriter); err != nil {
-		t.Fatal(err)
-	}
+	a.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
 	aDecode := &AccountState{}
-	if err := aDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())); err != nil {
-		t.Fatal(err)
-	}
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	aDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, a.Version, aDecode.Version)
 	assert.Equal(t, a.ScriptHash, aDecode.ScriptHash)

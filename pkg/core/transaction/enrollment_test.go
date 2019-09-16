@@ -17,8 +17,8 @@ func TestEncodeDecodeEnrollment(t *testing.T) {
 	assert.Equal(t, 0, int(tx.Version))
 
 	buf := io.NewBufBinWriter()
-	err := tx.EncodeBinary(buf.BinWriter)
+	tx.EncodeBinary(buf.BinWriter)
 
-	assert.Equal(t, nil, err)
+	assert.Equal(t, nil, buf.Err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
 }

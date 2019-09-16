@@ -15,13 +15,13 @@ type EnrollmentTX struct {
 	PublicKey *keys.PublicKey
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *EnrollmentTX) DecodeBinary(r *io.BinReader) error {
+// DecodeBinary implements Serializable interface.
+func (tx *EnrollmentTX) DecodeBinary(r *io.BinReader) {
 	tx.PublicKey = &keys.PublicKey{}
-	return tx.PublicKey.DecodeBinary(r)
+	tx.PublicKey.DecodeBinary(r)
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *EnrollmentTX) EncodeBinary(w *io.BinWriter) error {
-	return tx.PublicKey.EncodeBinary(w)
+// EncodeBinary implements Serializable interface.
+func (tx *EnrollmentTX) EncodeBinary(w *io.BinWriter) {
+	tx.PublicKey.EncodeBinary(w)
 }

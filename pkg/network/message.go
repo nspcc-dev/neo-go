@@ -78,8 +78,9 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 
 	if p != nil {
 		buf := io.NewBufBinWriter()
-		if err := p.EncodeBinary(buf.BinWriter); err != nil {
-			panic(err)
+		p.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			panic(buf.Err)
 		}
 		b := buf.Bytes()
 		size = uint32(len(b))
@@ -176,46 +177,26 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	switch m.CommandType() {
 	case CMDVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDInv, CMDGetData:
 		p = &payload.Inventory{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDBlock:
 		p = &core.Block{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDGetBlocks:
 		fallthrough
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDHeaders:
 		p = &payload.Headers{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDTX:
 		p = &transaction.Transaction{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
-		if err := p.DecodeBinary(r); err != nil {
-			return err
-		}
+	}
+	p.DecodeBinary(r)
+	if r.Err != nil {
+		return r.Err
 	}
 
 	m.Payload = p
@@ -229,11 +210,12 @@ func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteLE(m.Command)
 	br.WriteLE(m.Length)
 	br.WriteLE(m.Checksum)
+	if m.Payload != nil {
+		m.Payload.EncodeBinary(br)
+
+	}
 	if br.Err != nil {
 		return br.Err
-	}
-	if m.Payload != nil {
-		return m.Payload.EncodeBinary(br)
 	}
 	return nil
 }
