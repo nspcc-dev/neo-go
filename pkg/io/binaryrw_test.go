@@ -1,4 +1,4 @@
-package util
+package io
 
 import (
 	"errors"
@@ -99,6 +99,18 @@ func TestBufBinWriterErr(t *testing.T) {
 	res := bw.Bytes()
 	assert.NotNil(t, bw.Err)
 	assert.Nil(t, res)
+}
+
+func TestBufBinWriterReset(t *testing.T) {
+	bw := NewBufBinWriter()
+	for i := 0; i < 3; i++ {
+		bw.WriteLE(uint32(i))
+		assert.Nil(t, bw.Err)
+		_ = bw.Bytes()
+		assert.NotNil(t, bw.Err)
+		bw.Reset()
+		assert.Nil(t, bw.Err)
+	}
 }
 
 func TestWriteString(t *testing.T) {

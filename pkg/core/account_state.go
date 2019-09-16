@@ -1,12 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -21,7 +20,7 @@ func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountStat
 	account := &AccountState{}
 	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
 	if b, err := s.Get(key); err == nil {
-		if err := account.DecodeBinary(bytes.NewReader(b)); err != nil {
+		if err := account.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 			return nil, fmt.Errorf("failed to decode (AccountState): %s", err)
 		}
 	} else {
@@ -34,9 +33,9 @@ func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountStat
 
 // commit writes all account states to the given Batch.
 func (a Accounts) commit(b storage.Batch) error {
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for hash, state := range a {
-		if err := state.EncodeBinary(buf); err != nil {
+		if err := state.EncodeBinary(buf.BinWriter); err != nil {
 			return err
 		}
 		key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
@@ -66,9 +65,8 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 	}
 }
 
-// DecodeBinary decodes AccountState from the given io.Reader.
-func (s *AccountState) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+// DecodeBinary decodes AccountState from the given BinReader.
+func (s *AccountState) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&s.Version)
 	br.ReadLE(&s.ScriptHash)
 	br.ReadLE(&s.IsFrozen)
@@ -76,7 +74,7 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	s.Votes = make([]*keys.PublicKey, lenVotes)
 	for i := 0; i < int(lenVotes); i++ {
 		s.Votes[i] = &keys.PublicKey{}
-		if err := s.Votes[i].DecodeBinary(r); err != nil {
+		if err := s.Votes[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -94,15 +92,14 @@ func (s *AccountState) DecodeBinary(r io.Reader) error {
 	return br.Err
 }
 
-// EncodeBinary encode AccountState to the given io.Writer.
-func (s *AccountState) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+// EncodeBinary encodes AccountState to the given BinWriter.
+func (s *AccountState) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(s.Version)
 	bw.WriteLE(s.ScriptHash)
 	bw.WriteLE(s.IsFrozen)
 	bw.WriteVarUint(uint64(len(s.Votes)))
 	for _, point := range s.Votes {
-		if err := point.EncodeBinary(w); err != nil {
+		if err := point.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}

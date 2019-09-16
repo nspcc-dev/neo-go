@@ -1,9 +1,9 @@
 package payload
 
 import (
-	"bytes"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,13 +16,15 @@ func TestVersionEncodeDecode(t *testing.T) {
 
 	version := NewVersion(id, port, useragent, height, relay)
 
-	buf := new(bytes.Buffer)
-	err := version.EncodeBinary(buf)
+	buf := io.NewBufBinWriter()
+	err := version.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, err)
-	assert.Equal(t, int(version.Size()), buf.Len())
+	b := buf.Bytes()
+	assert.Equal(t, int(version.Size()), len(b))
 
+	r := io.NewBinReaderFromBuf(b)
 	versionDecoded := &Version{}
-	err = versionDecoded.DecodeBinary(buf)
+	err = versionDecoded.DecodeBinary(r)
 	assert.Nil(t, err)
 	assert.Equal(t, versionDecoded.Nonce, id)
 	assert.Equal(t, versionDecoded.Port, port)

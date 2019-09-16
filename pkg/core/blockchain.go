@@ -1,9 +1,7 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"sync/atomic"
@@ -12,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -243,9 +242,9 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
+		if err := headerList.Write(buf.BinWriter, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
 		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
@@ -255,7 +254,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	}
 
 	buf.Reset()
-	if err := h.EncodeBinary(buf); err != nil {
+	if err := h.EncodeBinary(buf.BinWriter); err != nil {
 		return err
 	}
 
@@ -467,11 +466,12 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	if err != nil {
 		return nil, 0, err
 	}
-	r := bytes.NewReader(b)
+	r := io.NewBinReaderFromBuf(b)
 
 	var height uint32
-	if err := binary.Read(r, binary.LittleEndian, &height); err != nil {
-		return nil, 0, err
+	r.ReadLE(&height)
+	if r.Err != nil {
+		return nil, 0, r.Err
 	}
 
 	tx := &transaction.Transaction{}
@@ -578,7 +578,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 	var as *AssetState
 	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
 		var a AssetState
-		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ID == assetID {
+		if err := a.DecodeBinary(io.NewBinReaderFromBuf(v)); err == nil && a.ID == assetID {
 			as = &a
 		}
 	})
@@ -591,7 +591,7 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	var as *AccountState
 	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
 		var a AccountState
-		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ScriptHash == scriptHash {
+		if err := a.DecodeBinary(io.NewBinReaderFromBuf(v)); err == nil && a.ScriptHash == scriptHash {
 			as = &a
 		}
 	})
@@ -921,9 +921,10 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, index)
-	return append(h.BytesReverse(), buf...)
+	buf := io.NewBufBinWriter()
+	buf.WriteLE(h.BytesReverse())
+	buf.WriteLE(index)
+	return buf.Bytes()
 }
 
 func (bc *Blockchain) secondsPerBlock() int {

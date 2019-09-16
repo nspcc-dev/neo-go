@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"sort"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -84,7 +85,7 @@ func HeaderHashes(s Store) ([]util.Uint256, error) {
 // the given byte array.
 func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 	r := bytes.NewReader(b)
-	br := util.NewBinReaderFromIO(r)
+	br := io.NewBinReaderFromIO(r)
 	lenHashes := br.ReadVarUint()
 	hashes := make([]util.Uint256, lenHashes)
 	br.ReadLE(hashes)

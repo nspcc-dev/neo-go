@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,16 +15,14 @@ type Input struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (in *Input) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (in *Input) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&in.PrevHash)
 	br.ReadLE(&in.PrevIndex)
 	return br.Err
 }
 
 // EncodeBinary implements the Payload interface.
-func (in *Input) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (in *Input) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(in.PrevHash)
 	bw.WriteLE(in.PrevIndex)
 	return bw.Err

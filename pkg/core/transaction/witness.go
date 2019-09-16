@@ -3,9 +3,9 @@ package transaction
 import (
 	"encoding/hex"
 	"encoding/json"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,18 +16,14 @@ type Witness struct {
 }
 
 // DecodeBinary implements the payload interface.
-func (w *Witness) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
-
+func (w *Witness) DecodeBinary(br *io.BinReader) error {
 	w.InvocationScript = br.ReadBytes()
 	w.VerificationScript = br.ReadBytes()
 	return br.Err
 }
 
 // EncodeBinary implements the payload interface.
-func (w *Witness) EncodeBinary(writer io.Writer) error {
-	bw := util.NewBinWriterFromIO(writer)
-
+func (w *Witness) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteBytes(w.InvocationScript)
 	bw.WriteBytes(w.VerificationScript)
 

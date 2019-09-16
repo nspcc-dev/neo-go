@@ -1,12 +1,12 @@
 package core
 
 import (
-	"bytes"
 	"testing"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,13 +26,13 @@ func TestHeaderEncodeDecode(t *testing.T) {
 		},
 	}}
 
-	buf := new(bytes.Buffer)
-	if err := header.EncodeBinary(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	if err := header.EncodeBinary(buf.BinWriter); err != nil {
 		t.Fatal(err)
 	}
 
 	headerDecode := &Header{}
-	if err := headerDecode.DecodeBinary(buf); err != nil {
+	if err := headerDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())); err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")

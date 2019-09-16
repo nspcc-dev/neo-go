@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -24,25 +23,23 @@ type StateDescriptor struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (s *StateDescriptor) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
-	br.ReadLE(&s.Type)
+func (s *StateDescriptor) DecodeBinary(r *io.BinReader) error {
+	r.ReadLE(&s.Type)
 
-	s.Key = br.ReadBytes()
-	s.Value = br.ReadBytes()
-	s.Field = br.ReadString()
+	s.Key = r.ReadBytes()
+	s.Value = r.ReadBytes()
+	s.Field = r.ReadString()
 
-	return br.Err
+	return r.Err
 }
 
 // EncodeBinary implements the Payload interface.
-func (s *StateDescriptor) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
-	bw.WriteLE(s.Type)
-	bw.WriteBytes(s.Key)
-	bw.WriteBytes(s.Value)
-	bw.WriteString(s.Field)
-	return bw.Err
+func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) error {
+	w.WriteLE(s.Type)
+	w.WriteBytes(s.Key)
+	w.WriteBytes(s.Value)
+	w.WriteString(s.Field)
+	return w.Err
 }
 
 // Size returns serialized binary size for state descriptor.

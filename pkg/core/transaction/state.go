@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -12,36 +11,29 @@ type StateTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *StateTX) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
-	lenDesc := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
+func (tx *StateTX) DecodeBinary(r *io.BinReader) error {
+	lenDesc := r.ReadVarUint()
 	tx.Descriptors = make([]*StateDescriptor, lenDesc)
 	for i := 0; i < int(lenDesc); i++ {
 		tx.Descriptors[i] = &StateDescriptor{}
-		if err := tx.Descriptors[i].DecodeBinary(r); err != nil {
+		err := tx.Descriptors[i].DecodeBinary(r)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+	return r.Err
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *StateTX) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
-	bw.WriteVarUint(uint64(len(tx.Descriptors)))
-	if bw.Err != nil {
-		return bw.Err
-	}
+func (tx *StateTX) EncodeBinary(w *io.BinWriter) error {
+	w.WriteVarUint(uint64(len(tx.Descriptors)))
 	for _, desc := range tx.Descriptors {
 		err := desc.EncodeBinary(w)
 		if err != nil {
 			return err
 		}
 	}
-	return nil
+	return w.Err
 }
 
 // Size returns serialized binary size for this transaction.

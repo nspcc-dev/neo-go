@@ -2,9 +2,9 @@ package util
 
 import (
 	"fmt"
-	"io"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,11 +12,11 @@ import (
 type smthSerializable struct {
 }
 
-func (*smthSerializable) DecodeBinary(io.Reader) error {
+func (*smthSerializable) DecodeBinary(*io.BinReader) error {
 	return nil
 }
 
-func (*smthSerializable) EncodeBinary(io.Writer) error {
+func (*smthSerializable) EncodeBinary(*io.BinWriter) error {
 	return nil
 }
 

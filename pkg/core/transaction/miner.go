@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"encoding/binary"
-	"io"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // MinerTX represents a miner transaction.
@@ -12,13 +11,15 @@ type MinerTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *MinerTX) DecodeBinary(r io.Reader) error {
-	return binary.Read(r, binary.LittleEndian, &tx.Nonce)
+func (tx *MinerTX) DecodeBinary(r *io.BinReader) error {
+	r.ReadLE(&tx.Nonce)
+	return r.Err
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *MinerTX) EncodeBinary(w io.Writer) error {
-	return binary.Write(w, binary.LittleEndian, tx.Nonce)
+func (tx *MinerTX) EncodeBinary(w *io.BinWriter) error {
+	w.WriteLE(tx.Nonce)
+	return w.Err
 }
 
 // Size returns serialized binary size for this transaction.

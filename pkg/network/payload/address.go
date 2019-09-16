@@ -1,12 +1,11 @@
 package payload
 
 import (
-	"io"
 	"net"
 	"strconv"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // AddressAndTime payload.
@@ -29,8 +28,7 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 }
 
 // DecodeBinary implements the Payload interface.
-func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (p *AddressAndTime) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Services)
 	br.ReadBE(&p.IP)
@@ -39,8 +37,7 @@ func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(p.Timestamp)
 	bw.WriteLE(p.Services)
 	bw.WriteBE(p.IP)
@@ -71,8 +68,7 @@ func NewAddressList(n int) *AddressList {
 }
 
 // DecodeBinary implements the Payload interface.
-func (p *AddressList) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (p *AddressList) DecodeBinary(br *io.BinReader) error {
 	listLen := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -81,7 +77,7 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 	p.Addrs = make([]*AddressAndTime, listLen)
 	for i := 0; i < int(listLen); i++ {
 		p.Addrs[i] = &AddressAndTime{}
-		if err := p.Addrs[i].DecodeBinary(r); err != nil {
+		if err := p.Addrs[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -89,14 +85,13 @@ func (p *AddressList) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (p *AddressList) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (p *AddressList) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteVarUint(uint64(len(p.Addrs)))
 	if bw.Err != nil {
 		return bw.Err
 	}
 	for _, addr := range p.Addrs {
-		if err := addr.EncodeBinary(w); err != nil {
+		if err := addr.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}

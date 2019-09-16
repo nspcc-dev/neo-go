@@ -1,10 +1,8 @@
 package transaction
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -77,14 +75,13 @@ func (t *Transaction) AddInput(in *Input) {
 }
 
 // DecodeBinary implements the payload interface.
-func (t *Transaction) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (t *Transaction) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&t.Type)
 	br.ReadLE(&t.Version)
 	if br.Err != nil {
 		return br.Err
 	}
-	if err := t.decodeData(r); err != nil {
+	if err := t.decodeData(br); err != nil {
 		return err
 	}
 
@@ -92,7 +89,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	t.Attributes = make([]*Attribute, lenAttrs)
 	for i := 0; i < int(lenAttrs); i++ {
 		t.Attributes[i] = &Attribute{}
-		if err := t.Attributes[i].DecodeBinary(r); err != nil {
+		if err := t.Attributes[i].DecodeBinary(br); err != nil {
 			log.Warnf("failed to decode TX %s", t.hash)
 			return err
 		}
@@ -102,7 +99,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	t.Inputs = make([]*Input, lenInputs)
 	for i := 0; i < int(lenInputs); i++ {
 		t.Inputs[i] = &Input{}
-		if err := t.Inputs[i].DecodeBinary(r); err != nil {
+		if err := t.Inputs[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -111,7 +108,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	t.Outputs = make([]*Output, lenOutputs)
 	for i := 0; i < int(lenOutputs); i++ {
 		t.Outputs[i] = &Output{}
-		if err := t.Outputs[i].DecodeBinary(r); err != nil {
+		if err := t.Outputs[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -120,7 +117,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	t.Scripts = make([]*Witness, lenScripts)
 	for i := 0; i < int(lenScripts); i++ {
 		t.Scripts[i] = &Witness{}
-		if err := t.Scripts[i].DecodeBinary(r); err != nil {
+		if err := t.Scripts[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -133,7 +130,7 @@ func (t *Transaction) DecodeBinary(r io.Reader) error {
 	return t.createHash()
 }
 
-func (t *Transaction) decodeData(r io.Reader) error {
+func (t *Transaction) decodeData(r *io.BinReader) error {
 	switch t.Type {
 	case InvocationType:
 		t.Data = &InvocationTX{Version: t.Version}
@@ -169,17 +166,16 @@ func (t *Transaction) decodeData(r io.Reader) error {
 }
 
 // EncodeBinary implements the payload interface.
-func (t *Transaction) EncodeBinary(w io.Writer) error {
-	if err := t.encodeHashableFields(w); err != nil {
+func (t *Transaction) EncodeBinary(bw *io.BinWriter) error {
+	if err := t.encodeHashableFields(bw); err != nil {
 		return err
 	}
-	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(t.Scripts)))
 	if bw.Err != nil {
 		return bw.Err
 	}
 	for _, s := range t.Scripts {
-		if err := s.EncodeBinary(w); err != nil {
+		if err := s.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}
@@ -188,9 +184,7 @@ func (t *Transaction) EncodeBinary(w io.Writer) error {
 
 // encodeHashableFields will only encode the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
-func (t *Transaction) encodeHashableFields(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
-
+func (t *Transaction) encodeHashableFields(bw *io.BinWriter) error {
 	bw.WriteLE(t.Type)
 	bw.WriteLE(t.Version)
 	if bw.Err != nil {
@@ -199,7 +193,7 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 
 	// Underlying TXer.
 	if t.Data != nil {
-		if err := t.Data.EncodeBinary(w); err != nil {
+		if err := t.Data.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}
@@ -210,7 +204,7 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 		return bw.Err
 	}
 	for _, attr := range t.Attributes {
-		if err := attr.EncodeBinary(w); err != nil {
+		if err := attr.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}
@@ -221,7 +215,7 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 		return bw.Err
 	}
 	for _, in := range t.Inputs {
-		if err := in.EncodeBinary(w); err != nil {
+		if err := in.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}
@@ -232,7 +226,7 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 		return bw.Err
 	}
 	for _, out := range t.Outputs {
-		if err := out.EncodeBinary(w); err != nil {
+		if err := out.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}
@@ -241,8 +235,8 @@ func (t *Transaction) encodeHashableFields(w io.Writer) error {
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
-	buf := new(bytes.Buffer)
-	if err := t.encodeHashableFields(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	if err := t.encodeHashableFields(buf.BinWriter); err != nil {
 		return err
 	}
 
@@ -281,8 +275,8 @@ func (t *Transaction) Size() int {
 
 // Bytes convert the transaction to []byte
 func (t *Transaction) Bytes() []byte {
-	buf := new(bytes.Buffer)
-	if err := t.EncodeBinary(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	if err := t.EncodeBinary(buf.BinWriter); err != nil {
 		return nil
 	}
 	return buf.Bytes()

@@ -1,12 +1,10 @@
 package core
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,9 +14,9 @@ const feeMode = 0x0
 type Assets map[util.Uint256]*AssetState
 
 func (a Assets) commit(b storage.Batch) error {
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for hash, state := range a {
-		if err := state.EncodeBinary(buf); err != nil {
+		if err := state.EncodeBinary(buf.BinWriter); err != nil {
 			return err
 		}
 		key := storage.AppendPrefix(storage.STAsset, hash.Bytes())
@@ -46,8 +44,7 @@ type AssetState struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (a *AssetState) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (a *AssetState) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&a.ID)
 	br.ReadLE(&a.AssetType)
 
@@ -63,7 +60,7 @@ func (a *AssetState) DecodeBinary(r io.Reader) error {
 		return br.Err
 	}
 	a.Owner = &keys.PublicKey{}
-	if err := a.Owner.DecodeBinary(r); err != nil {
+	if err := a.Owner.DecodeBinary(br); err != nil {
 		return err
 	}
 	br.ReadLE(&a.Admin)
@@ -75,8 +72,7 @@ func (a *AssetState) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (a *AssetState) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (a *AssetState) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(a.ID)
 	bw.WriteLE(a.AssetType)
 	bw.WriteString(a.Name)
@@ -89,7 +85,7 @@ func (a *AssetState) EncodeBinary(w io.Writer) error {
 	if bw.Err != nil {
 		return bw.Err
 	}
-	if err := a.Owner.EncodeBinary(w); err != nil {
+	if err := a.Owner.EncodeBinary(bw); err != nil {
 		return err
 	}
 	bw.WriteLE(a.Admin)

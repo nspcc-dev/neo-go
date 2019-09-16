@@ -1,9 +1,8 @@
 package transaction
 
 import (
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // EnrollmentTX transaction represents an enrollment form, which indicates
@@ -17,13 +16,13 @@ type EnrollmentTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *EnrollmentTX) DecodeBinary(r io.Reader) error {
+func (tx *EnrollmentTX) DecodeBinary(r *io.BinReader) error {
 	tx.PublicKey = &keys.PublicKey{}
 	return tx.PublicKey.DecodeBinary(r)
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *EnrollmentTX) EncodeBinary(w io.Writer) error {
+func (tx *EnrollmentTX) EncodeBinary(w *io.BinWriter) error {
 	return tx.PublicKey.EncodeBinary(w)
 }
 

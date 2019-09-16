@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -12,8 +11,7 @@ type ClaimTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (tx *ClaimTX) DecodeBinary(br *io.BinReader) error {
 	lenClaims := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -21,7 +19,7 @@ func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
 	tx.Claims = make([]*Input, lenClaims)
 	for i := 0; i < int(lenClaims); i++ {
 		tx.Claims[i] = &Input{}
-		if err := tx.Claims[i].DecodeBinary(r); err != nil {
+		if err := tx.Claims[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -29,14 +27,13 @@ func (tx *ClaimTX) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *ClaimTX) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (tx *ClaimTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteVarUint(uint64(len(tx.Claims)))
 	if bw.Err != nil {
 		return bw.Err
 	}
 	for _, claim := range tx.Claims {
-		if err := claim.EncodeBinary(w); err != nil {
+		if err := claim.EncodeBinary(bw); err != nil {
 			return err
 		}
 	}

@@ -1,11 +1,11 @@
 package payload
 
-import "io"
+import "github.com/CityOfZion/neo-go/pkg/io"
 
 // Payload is anything that can be binary encoded/decoded.
 type Payload interface {
-	EncodeBinary(io.Writer) error
-	DecodeBinary(io.Reader) error
+	EncodeBinary(*io.BinWriter) error
+	DecodeBinary(*io.BinReader) error
 }
 
 // NullPayload is a dummy payload with no fields.

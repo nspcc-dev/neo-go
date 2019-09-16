@@ -1,8 +1,7 @@
 package payload
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -56,8 +55,7 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 }
 
 // DecodeBinary implements the Payload interface.
-func (p *Inventory) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (p *Inventory) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&p.Type)
 
 	listLen := br.ReadVarUint()
@@ -70,8 +68,7 @@ func (p *Inventory) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (p *Inventory) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (p *Inventory) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(p.Type)
 
 	listLen := len(p.Hashes)

@@ -1,10 +1,10 @@
 package core
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,13 +30,13 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		Balances:   balances,
 	}
 
-	buf := new(bytes.Buffer)
-	if err := a.EncodeBinary(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	if err := a.EncodeBinary(buf.BinWriter); err != nil {
 		t.Fatal(err)
 	}
 
 	aDecode := &AccountState{}
-	if err := aDecode.DecodeBinary(buf); err != nil {
+	if err := aDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -63,7 +63,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	}
 
 	block := &Block{}
-	if err := block.DecodeBinary(bytes.NewReader(b)); err != nil {
+	if err := block.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -33,8 +32,7 @@ func NewInvocationTX(script []byte) *Transaction {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (tx *InvocationTX) DecodeBinary(br *io.BinReader) error {
 	tx.Script = br.ReadBytes()
 	if tx.Version >= 1 {
 		br.ReadLE(&tx.Gas)
@@ -45,8 +43,7 @@ func (tx *InvocationTX) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *InvocationTX) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteBytes(tx.Script)
 	if tx.Version >= 1 {
 		bw.WriteLE(tx.Gas)

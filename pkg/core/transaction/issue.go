@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	"io"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // IssueTX represents a issue transaction.
@@ -9,12 +9,12 @@ import (
 type IssueTX struct{}
 
 // DecodeBinary implements the Payload interface.
-func (tx *IssueTX) DecodeBinary(r io.Reader) error {
+func (tx *IssueTX) DecodeBinary(r *io.BinReader) error {
 	return nil
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *IssueTX) EncodeBinary(w io.Writer) error {
+func (tx *IssueTX) EncodeBinary(w *io.BinWriter) error {
 	return nil
 }
 

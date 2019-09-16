@@ -1,9 +1,8 @@
 package payload
 
 import (
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,12 +15,11 @@ type MerkleBlock struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
+func (m *MerkleBlock) DecodeBinary(br *io.BinReader) error {
 	m.BlockBase = &core.BlockBase{}
-	if err := m.BlockBase.DecodeBinary(r); err != nil {
+	if err := m.BlockBase.DecodeBinary(br); err != nil {
 		return err
 	}
-	br := util.NewBinReaderFromIO(r)
 
 	m.TxCount = int(br.ReadVarUint())
 	n := br.ReadVarUint()
@@ -34,6 +32,6 @@ func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (m *MerkleBlock) EncodeBinary(w io.Writer) error {
+func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) error {
 	return nil
 }

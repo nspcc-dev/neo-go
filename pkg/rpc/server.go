@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
@@ -294,7 +294,7 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 	} else if byteTx, err := hex.DecodeString(param.StringVal); err != nil {
 		resultsErr = errInvalidParams
 	} else {
-		r := bytes.NewReader(byteTx)
+		r := io.NewBinReaderFromBuf(byteTx)
 		tx := &transaction.Transaction{}
 		err = tx.DecodeBinary(r)
 		if err != nil {

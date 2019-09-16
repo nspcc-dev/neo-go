@@ -1,10 +1,10 @@
 package rpc
 
 import (
-	"bytes"
 	"encoding/hex"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
@@ -113,7 +113,7 @@ func (c *Client) sendRawTransaction(rawTX string) (*response, error) {
 func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*SendToAddressResponse, error) {
 	var (
 		err      error
-		buf      = &bytes.Buffer{}
+		buf      = io.NewBufBinWriter()
 		rawTx    *transaction.Transaction
 		rawTxStr string
 		txParams = ContractTxParams{
@@ -130,7 +130,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
-	if err = rawTx.EncodeBinary(buf); err != nil {
+	if err = rawTx.EncodeBinary(buf.BinWriter); err != nil {
 		return nil, errors.Wrap(err, "failed to encode raw transaction to binary for `sendtoaddress`")
 	}
 	rawTxStr = hex.EncodeToString(buf.Bytes())

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +21,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	br := util.NewBinReaderFromBuf(out)
+	br := io.NewBinReaderFromBuf(out)
 	var b uint8
 	br.ReadLE(&b)
 	assert.Equal(t, vm.PUSH3, vm.Instruction(b))

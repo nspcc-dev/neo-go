@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,8 +16,7 @@ type Attribute struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (attr *Attribute) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (attr *Attribute) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&attr.Usage)
 
 	// very special case
@@ -53,8 +52,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (attr *Attribute) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (attr *Attribute) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(&attr.Usage)
 	switch attr.Usage {
 	case ECDH02, ECDH03:

@@ -1,9 +1,8 @@
 package transaction
 
 import (
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -30,8 +29,7 @@ type RegisterTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (tx *RegisterTX) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&tx.AssetType)
 
 	tx.Name = br.ReadString()
@@ -43,7 +41,7 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 	}
 
 	tx.Owner = &keys.PublicKey{}
-	if err := tx.Owner.DecodeBinary(r); err != nil {
+	if err := tx.Owner.DecodeBinary(br); err != nil {
 		return err
 	}
 
@@ -52,8 +50,7 @@ func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(tx.AssetType)
 	bw.WriteString(tx.Name)
 	bw.WriteLE(tx.Amount)

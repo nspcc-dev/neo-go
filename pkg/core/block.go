@@ -1,11 +1,9 @@
 package core
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -73,12 +71,11 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 		Trimmed: true,
 	}
 
-	r := bytes.NewReader(b)
-	if err := block.decodeHashableFields(r); err != nil {
+	br := io.NewBinReaderFromBuf(b)
+	if err := block.decodeHashableFields(br); err != nil {
 		return block, err
 	}
 
-	br := util.NewBinReaderFromIO(r)
 	var padding uint8
 	br.ReadLE(&padding)
 	if br.Err != nil {
@@ -86,7 +83,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	}
 
 	block.Script = &transaction.Witness{}
-	if err := block.Script.DecodeBinary(r); err != nil {
+	if err := block.Script.DecodeBinary(br); err != nil {
 		return block, err
 	}
 
@@ -105,36 +102,34 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 // in storage.
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := b.encodeHashableFields(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	if err := b.encodeHashableFields(buf.BinWriter); err != nil {
 		return nil, err
 	}
-	bw := util.NewBinWriterFromIO(buf)
-	bw.WriteLE(uint8(1))
-	if bw.Err != nil {
-		return nil, bw.Err
+	buf.WriteLE(uint8(1))
+	if buf.Err != nil {
+		return nil, buf.Err
 	}
-	if err := b.Script.EncodeBinary(buf); err != nil {
+	if err := b.Script.EncodeBinary(buf.BinWriter); err != nil {
 		return nil, err
 	}
 
-	bw.WriteVarUint(uint64(len(b.Transactions)))
+	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
-		bw.WriteLE(tx.Hash())
+		buf.WriteLE(tx.Hash())
 	}
-	if bw.Err != nil {
-		return nil, bw.Err
+	if buf.Err != nil {
+		return nil, buf.Err
 	}
 	return buf.Bytes(), nil
 }
 
 // DecodeBinary decodes the block from the given reader.
-func (b *Block) DecodeBinary(r io.Reader) error {
-	if err := b.BlockBase.DecodeBinary(r); err != nil {
+func (b *Block) DecodeBinary(br *io.BinReader) error {
+	if err := b.BlockBase.DecodeBinary(br); err != nil {
 		return err
 	}
 
-	br := util.NewBinReaderFromIO(r)
 	lentx := br.ReadVarUint()
 	if br.Err != nil {
 		return br.Err
@@ -142,7 +137,7 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
 		b.Transactions[i] = &transaction.Transaction{}
-		if err := b.Transactions[i].DecodeBinary(r); err != nil {
+		if err := b.Transactions[i].DecodeBinary(br); err != nil {
 			return err
 		}
 	}
@@ -151,18 +146,17 @@ func (b *Block) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary encodes the block to the given writer.
-func (b *Block) EncodeBinary(w io.Writer) error {
-	err := b.BlockBase.EncodeBinary(w)
+func (b *Block) EncodeBinary(bw *io.BinWriter) error {
+	err := b.BlockBase.EncodeBinary(bw)
 	if err != nil {
 		return err
 	}
-	bw := util.NewBinWriterFromIO(w)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
 	if bw.Err != nil {
 		return err
 	}
 	for _, tx := range b.Transactions {
-		err := tx.EncodeBinary(w)
+		err := tx.EncodeBinary(bw)
 		if err != nil {
 			return err
 		}

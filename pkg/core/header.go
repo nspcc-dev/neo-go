@@ -1,9 +1,9 @@
 package core
 
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
+
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // Header holds the head info of a block.
@@ -15,14 +15,15 @@ type Header struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (h *Header) DecodeBinary(r io.Reader) error {
+func (h *Header) DecodeBinary(r *io.BinReader) error {
 	if err := h.BlockBase.DecodeBinary(r); err != nil {
 		return err
 	}
 
 	var padding uint8
-	if err := binary.Read(r, binary.LittleEndian, &padding); err != nil {
-		return err
+	r.ReadLE(&padding)
+	if r.Err != nil {
+		return r.Err
 	}
 
 	if padding != 0 {
@@ -33,9 +34,8 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary  implements the Payload interface.
-func (h *Header) EncodeBinary(w io.Writer) error {
-	if err := h.BlockBase.EncodeBinary(w); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, uint8(0))
+func (h *Header) EncodeBinary(w *io.BinWriter) error {
+	h.BlockBase.EncodeBinary(w)
+	w.WriteLE(uint8(0))
+	return w.Err
 }

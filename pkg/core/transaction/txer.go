@@ -1,11 +1,11 @@
 package transaction
 
-import "io"
+import "github.com/CityOfZion/neo-go/pkg/io"
 
 // TXer is interface that can act as the underlying data of
 // a transaction.
 type TXer interface {
-	DecodeBinary(io.Reader) error
-	EncodeBinary(io.Writer) error
+	DecodeBinary(*io.BinReader) error
+	EncodeBinary(*io.BinWriter) error
 	Size() int
 }

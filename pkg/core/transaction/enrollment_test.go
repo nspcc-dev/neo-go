@@ -1,10 +1,10 @@
 package transaction
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,8 +16,8 @@ func TestEncodeDecodeEnrollment(t *testing.T) {
 	assert.IsType(t, tx.Data, &EnrollmentTX{})
 	assert.Equal(t, 0, int(tx.Version))
 
-	buf := new(bytes.Buffer)
-	err := tx.EncodeBinary(buf)
+	buf := io.NewBufBinWriter()
+	err := tx.EncodeBinary(buf.BinWriter)
 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))

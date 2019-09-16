@@ -1,8 +1,6 @@
 package core
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
@@ -10,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -181,11 +180,9 @@ func headerSliceReverse(dest []*Header) {
 // storeAsCurrentBlock stores the given block witch prefix
 // SYSCurrentBlock.
 func storeAsCurrentBlock(batch storage.Batch, block *Block) {
-	buf := new(bytes.Buffer)
-	buf.Write(block.Hash().BytesReverse())
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, block.Index)
-	buf.Write(b)
+	buf := io.NewBufBinWriter()
+	buf.WriteLE(block.Hash().BytesReverse())
+	buf.WriteLE(block.Index)
 	batch.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
@@ -193,17 +190,18 @@ func storeAsCurrentBlock(batch storage.Batch, block *Block) {
 func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
-		buf = new(bytes.Buffer)
+		buf = io.NewBufBinWriter()
 	)
-
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, sysFee)
-
+	// sysFee needs to be handled somehow
+	//	buf.WriteLE(sysFee)
 	b, err := block.Trim()
 	if err != nil {
 		return err
 	}
-	buf.Write(b)
+	buf.WriteLE(b)
+	if buf.Err != nil {
+		return buf.Err
+	}
 	batch.Put(key, buf.Bytes())
 	return nil
 }
@@ -211,15 +209,13 @@ func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
 // storeAsTransaction stores the given TX as DataTransaction.
 func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index uint32) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
-	buf := new(bytes.Buffer)
-	if err := tx.EncodeBinary(buf); err != nil {
+	buf := io.NewBufBinWriter()
+	buf.WriteLE(index)
+	if err := tx.EncodeBinary(buf.BinWriter); err != nil {
 		return err
 	}
 
-	dest := make([]byte, buf.Len()+4)
-	binary.LittleEndian.PutUint32(dest[:4], index)
-	copy(dest[4:], buf.Bytes())
-	batch.Put(key, dest)
+	batch.Put(key, buf.Bytes())
 
 	return nil
 }

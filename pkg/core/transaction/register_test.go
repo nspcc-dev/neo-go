@@ -1,12 +1,12 @@
 package transaction
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,11 +26,12 @@ func TestRegisterTX(t *testing.T) {
 		},
 	}
 
-	buf := new(bytes.Buffer)
-	assert.Nil(t, tx.EncodeBinary(buf))
+	buf := io.NewBufBinWriter()
+	assert.Nil(t, tx.EncodeBinary(buf.BinWriter))
 
+	b := buf.Bytes()
 	txDecode := &Transaction{}
-	assert.Nil(t, txDecode.DecodeBinary(buf))
+	assert.Nil(t, txDecode.DecodeBinary(io.NewBinReaderFromBuf(b)))
 	txData := tx.Data.(*RegisterTX)
 	txDecodeData := txDecode.Data.(*RegisterTX)
 	assert.Equal(t, txData, txDecodeData)
@@ -45,7 +46,7 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	}
 
 	tx := &Transaction{}
-	assert.Nil(t, tx.DecodeBinary(bytes.NewReader(b)))
+	assert.Nil(t, tx.DecodeBinary(io.NewBinReaderFromBuf(b)))
 	assert.Equal(t, RegisterType, tx.Type)
 	txData := tx.Data.(*RegisterTX)
 	assert.Equal(t, GoverningToken, txData.AssetType)
@@ -56,10 +57,11 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", crypto.AddressFromUint160(txData.Admin))
 	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().ReverseString())
 
-	buf := new(bytes.Buffer)
-	assert.Nil(t, tx.EncodeBinary(buf))
+	buf := io.NewBufBinWriter()
+	assert.Nil(t, tx.EncodeBinary(buf.BinWriter))
+	benc := buf.Bytes()
 
 	txDecode := &Transaction{}
-	assert.Nil(t, txDecode.DecodeBinary(buf))
+	assert.Nil(t, txDecode.DecodeBinary(io.NewBinReaderFromBuf(benc)))
 	assert.Equal(t, tx, txDecode)
 }

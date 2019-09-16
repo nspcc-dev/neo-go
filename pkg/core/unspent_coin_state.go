@@ -1,12 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -22,7 +21,7 @@ func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*Unspent
 	unspent := &UnspentCoinState{}
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
 	if b, err := s.Get(key); err == nil {
-		if err := unspent.DecodeBinary(bytes.NewReader(b)); err != nil {
+		if err := unspent.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", err)
 		}
 	} else {
@@ -53,9 +52,9 @@ func NewUnspentCoinState(n int) *UnspentCoinState {
 
 // commit writes all unspent coin states to the given Batch.
 func (u UnspentCoins) commit(b storage.Batch) error {
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for hash, state := range u {
-		if err := state.EncodeBinary(buf); err != nil {
+		if err := state.EncodeBinary(buf.BinWriter); err != nil {
 			return err
 		}
 		key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
@@ -65,9 +64,8 @@ func (u UnspentCoins) commit(b storage.Batch) error {
 	return nil
 }
 
-// EncodeBinary encodes UnspentCoinState to the given io.Writer.
-func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+// EncodeBinary encodes UnspentCoinState to the given BinWriter.
+func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
 		bw.WriteLE(byte(state))
@@ -75,9 +73,8 @@ func (s *UnspentCoinState) EncodeBinary(w io.Writer) error {
 	return bw.Err
 }
 
-// DecodeBinary decodes UnspentCoinState from the given io.Reader.
-func (s *UnspentCoinState) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+// DecodeBinary decodes UnspentCoinState from the given BinReader.
+func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) error {
 	lenStates := br.ReadVarUint()
 	s.states = make([]CoinState, lenStates)
 	for i := 0; i < int(lenStates); i++ {
@@ -98,7 +95,7 @@ func IsDoubleSpend(s storage.Store, tx *transaction.Transaction) bool {
 		unspent := &UnspentCoinState{}
 		key := storage.AppendPrefix(storage.STCoin, prevHash.BytesReverse())
 		if b, err := s.Get(key); err == nil {
-			if err := unspent.DecodeBinary(bytes.NewReader(b)); err != nil {
+			if err := unspent.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 				return false
 			}
 			if unspent == nil {

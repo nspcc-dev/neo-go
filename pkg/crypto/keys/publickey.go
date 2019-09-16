@@ -5,14 +5,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/pkg/errors"
 )
 
@@ -51,7 +50,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	}
 
 	pubKey := new(PublicKey)
-	if err := pubKey.DecodeBinary(bytes.NewReader(b)); err != nil {
+	if err := pubKey.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 		return nil, err
 	}
 
@@ -122,20 +121,19 @@ func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
 func (p *PublicKey) DecodeBytes(data []byte) error {
-	var datab []byte
-	copy(datab, data)
-	b := bytes.NewBuffer(datab)
+	b := io.NewBinReaderFromBuf(data)
 	return p.DecodeBinary(b)
 }
 
-// DecodeBinary decodes a PublicKey from the given io.Reader.
-func (p *PublicKey) DecodeBinary(r io.Reader) error {
+// DecodeBinary decodes a PublicKey from the given BinReader.
+func (p *PublicKey) DecodeBinary(r *io.BinReader) error {
 	var prefix uint8
 	var x, y *big.Int
 	var err error
 
-	if err = binary.Read(r, binary.LittleEndian, &prefix); err != nil {
-		return err
+	r.ReadLE(&prefix)
+	if r.Err != nil {
+		return r.Err
 	}
 
 	// Infinity
@@ -146,8 +144,9 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	case 0x02, 0x03:
 		// Compressed public keys
 		xbytes := make([]byte, 32)
-		if _, err := io.ReadFull(r, xbytes); err != nil {
-			return err
+		r.ReadLE(xbytes)
+		if r.Err != nil {
+			return r.Err
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		ylsb := uint(prefix & 0x1)
@@ -158,11 +157,10 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	case 0x04:
 		xbytes := make([]byte, 32)
 		ybytes := make([]byte, 32)
-		if _, err = io.ReadFull(r, xbytes); err != nil {
-			return err
-		}
-		if _, err = io.ReadFull(r, ybytes); err != nil {
-			return err
+		r.ReadLE(xbytes)
+		r.ReadLE(ybytes)
+		if r.Err != nil {
+			return r.Err
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
@@ -182,9 +180,10 @@ func (p *PublicKey) DecodeBinary(r io.Reader) error {
 	return nil
 }
 
-// EncodeBinary encodes a PublicKey to the given io.Writer.
-func (p *PublicKey) EncodeBinary(w io.Writer) error {
-	return binary.Write(w, binary.LittleEndian, p.Bytes())
+// EncodeBinary encodes a PublicKey to the given BinWriter.
+func (p *PublicKey) EncodeBinary(w *io.BinWriter) error {
+	w.WriteLE(p.Bytes())
+	return w.Err
 }
 
 // Signature returns a NEO-specific hash of the key.

@@ -1,11 +1,10 @@
 package rpc
 
 import (
-	"bytes"
-
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	errs "github.com/pkg/errors"
 )
@@ -71,10 +70,10 @@ func GetInvocationScript(tx *transaction.Transaction, wif keys.WIF) ([]byte, err
 	)
 	var (
 		err       error
-		buf       = new(bytes.Buffer)
+		buf       = io.NewBufBinWriter()
 		signature []byte
 	)
-	if err = tx.EncodeBinary(buf); err != nil {
+	if err = tx.EncodeBinary(buf.BinWriter); err != nil {
 		return nil, errs.Wrap(err, "Failed to encode transaction to binary")
 	}
 	data := buf.Bytes()

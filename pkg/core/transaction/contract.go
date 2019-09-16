@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	"io"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // ContractTX represents a contract transaction.
@@ -16,12 +16,12 @@ func NewContractTX() *Transaction {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *ContractTX) DecodeBinary(r io.Reader) error {
+func (tx *ContractTX) DecodeBinary(r *io.BinReader) error {
 	return nil
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *ContractTX) EncodeBinary(w io.Writer) error {
+func (tx *ContractTX) EncodeBinary(w *io.BinWriter) error {
 	return nil
 }
 

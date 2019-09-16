@@ -1,12 +1,12 @@
 package core
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +24,7 @@ func TestDecodeBlock1(t *testing.T) {
 	}
 
 	block := &Block{}
-	if err := block.DecodeBinary(bytes.NewReader(b)); err != nil {
+	if err := block.DecodeBinary(io.NewBinReaderFromBuf(b)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,7 +109,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 
 	b := Block{}
 
-	r := bytes.NewReader(rawtxBytes)
+	r := io.NewBinReaderFromBuf(rawtxBytes)
 	err := b.DecodeBinary(r)
 	assert.Nil(t, err)
 	expected := map[string]bool{ // 18 trans
@@ -165,9 +165,9 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	}
 	assert.Equal(t, true, val)
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 
-	err = b.EncodeBinary(buf)
+	err = b.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, err)
 
 	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
@@ -185,7 +185,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 
 	b := Block{}
 
-	r := bytes.NewReader(rawBlockBytes)
+	r := io.NewBinReaderFromBuf(rawBlockBytes)
 	err := b.DecodeBinary(r)
 	assert.Nil(t, err)
 
@@ -250,11 +250,12 @@ func TestBlockSizeCalculation(t *testing.T) {
 	assert.Equal(t, "552102486fd15702c4490a26703112a5cc1d0923fd697a33406bd5a1c00e0013b09a7021024c7b7fb6c310fccf1ba33b082519d82964ea93868d676662d4a59ad548df0e7d2102aaec38470f6aad0042c6e877cfd8087d2676b0f516fddd362801b9bd3936399e2103b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c2103b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a2102ca0e27697b9c248f6f16e085fd0061e26f44da85b58ee835c110caa5ec3ba5542102df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e89509357ae", hex.EncodeToString(b.Script.VerificationScript))
 	assert.Equal(t, "0006d3ff96e269f599eb1b5c5a527c218439e498dcc65b63794591bbcdc0516b", b.Hash().ReverseString())
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 
-	err = b.EncodeBinary(buf)
+	err = b.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, err)
+	benc := buf.Bytes()
 	// test size of the block
-	assert.Equal(t, 7360, buf.Len())
-	assert.Equal(t, rawBlock, hex.EncodeToString(buf.Bytes()))
+	assert.Equal(t, 7360, len(benc))
+	assert.Equal(t, rawBlock, hex.EncodeToString(benc))
 }

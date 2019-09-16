@@ -2,9 +2,9 @@ package transaction
 
 import (
 	"encoding/json"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -34,8 +34,7 @@ func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160
 }
 
 // DecodeBinary implements the Payload interface.
-func (out *Output) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (out *Output) DecodeBinary(br *io.BinReader) error {
 	br.ReadLE(&out.AssetID)
 	br.ReadLE(&out.Amount)
 	br.ReadLE(&out.ScriptHash)
@@ -43,8 +42,7 @@ func (out *Output) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (out *Output) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (out *Output) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteLE(out.AssetID)
 	bw.WriteLE(out.Amount)
 	bw.WriteLE(out.ScriptHash)

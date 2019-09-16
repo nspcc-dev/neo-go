@@ -1,11 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,9 +26,9 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 		IsFrozen:   false,
 	}
 
-	buf := new(bytes.Buffer)
-	assert.Nil(t, asset.EncodeBinary(buf))
+	buf := io.NewBufBinWriter()
+	assert.Nil(t, asset.EncodeBinary(buf.BinWriter))
 	assetDecode := &AssetState{}
-	assert.Nil(t, assetDecode.DecodeBinary(buf))
+	assert.Nil(t, assetDecode.DecodeBinary(io.NewBinReaderFromBuf(buf.Bytes())))
 	assert.Equal(t, asset, assetDecode)
 }

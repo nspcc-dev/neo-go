@@ -1,8 +1,7 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -23,8 +22,7 @@ type PublishTX struct {
 }
 
 // DecodeBinary implements the Payload interface.
-func (tx *PublishTX) DecodeBinary(r io.Reader) error {
-	br := util.NewBinReaderFromIO(r)
+func (tx *PublishTX) DecodeBinary(br *io.BinReader) error {
 	tx.Script = br.ReadBytes()
 
 	lenParams := br.ReadVarUint()
@@ -55,8 +53,7 @@ func (tx *PublishTX) DecodeBinary(r io.Reader) error {
 }
 
 // EncodeBinary implements the Payload interface.
-func (tx *PublishTX) EncodeBinary(w io.Writer) error {
-	bw := util.NewBinWriterFromIO(w)
+func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) error {
 	bw.WriteBytes(tx.Script)
 	bw.WriteVarUint(uint64(len(tx.ParamList)))
 	for _, param := range tx.ParamList {
