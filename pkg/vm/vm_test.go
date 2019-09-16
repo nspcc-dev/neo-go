@@ -283,6 +283,50 @@ func TestSub(t *testing.T) {
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestSHRGood(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+}
+
+func TestSHRZero(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
+func TestSHLGood(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(16), vm.estack.Pop().value)
+}
+
+func TestSHLZero(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
 func TestLT(t *testing.T) {
 	prog := makeProgram(LT)
 	vm := load(prog)
@@ -335,6 +379,32 @@ func TestDepth(t *testing.T) {
 	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestEQUALNoArguments(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestEQUALBad1Argument(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestEQUALGoodInteger(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(5)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)
@@ -371,7 +441,7 @@ func TestNEWARRAYInteger(t *testing.T) {
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &ArrayItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+	assert.Equal(t, &ArrayItem{[]StackItem{makeStackItem(false)}}, vm.estack.Pop().value)
 }
 
 func TestNEWARRAYStruct(t *testing.T) {
@@ -396,12 +466,14 @@ func TestNEWARRAYArray(t *testing.T) {
 	assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
 }
 
-func TestNEWARRAYWrongType(t *testing.T) {
+func TestNEWARRAYByteArray(t *testing.T) {
 	prog := makeProgram(NEWARRAY)
 	vm := load(prog)
-	vm.estack.Push(NewElement([]byte{}))
+	vm.estack.PushVal([]byte{})
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{[]StackItem{}}, vm.estack.Pop().value)
 }
 
 func TestNEWSTRUCTInteger(t *testing.T) {
@@ -411,7 +483,7 @@ func TestNEWSTRUCTInteger(t *testing.T) {
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &StructItem{make([]StackItem, 1)}, vm.estack.Pop().value)
+	assert.Equal(t, &StructItem{[]StackItem{makeStackItem(false)}}, vm.estack.Pop().value)
 }
 
 func TestNEWSTRUCTArray(t *testing.T) {
@@ -436,12 +508,14 @@ func TestNEWSTRUCTStruct(t *testing.T) {
 	assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
 }
 
-func TestNEWSTRUCTWrongType(t *testing.T) {
+func TestNEWSTRUCTByteArray(t *testing.T) {
 	prog := makeProgram(NEWSTRUCT)
 	vm := load(prog)
-	vm.estack.Push(NewElement([]byte{}))
+	vm.estack.PushVal([]byte{})
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &StructItem{[]StackItem{}}, vm.estack.Pop().value)
 }
 
 func TestAPPENDArray(t *testing.T) {
@@ -486,6 +560,64 @@ func TestAPPENDWrongType(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKITEMBadIndex(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.estack.PushVal(0)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestPICKITEMArray(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{makeStackItem(1), makeStackItem(2)})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
+func TestPICKITEMByteArray(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{1, 2})
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
+func TestSIZENoArgument(t *testing.T) {
+	prog := makeProgram(SIZE)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestSIZEByteArray(t *testing.T) {
+	prog := makeProgram(SIZE)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{0, 1})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
+func TestSIZEBool(t *testing.T) {
+	prog := makeProgram(SIZE)
+	vm := load(prog)
+	vm.estack.PushVal(false)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func TestSIGNNoArgument(t *testing.T) {
@@ -633,6 +765,29 @@ func TestPICKgood(t *testing.T) {
 	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestROTBad(t *testing.T) {
+	prog := makeProgram(ROT)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestROTGood(t *testing.T) {
+	prog := makeProgram(ROT)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 3, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
 func TestXTUCKbadNoitem(t *testing.T) {
 	prog := makeProgram(XTUCK)
 	vm := load(prog)
@@ -654,6 +809,15 @@ func TestXTUCKbadNegative(t *testing.T) {
 	prog := makeProgram(XTUCK)
 	vm := load(prog)
 	vm.estack.PushVal(-1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestXTUCKbadZero(t *testing.T) {
+	prog := makeProgram(XTUCK)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(0)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
@@ -743,6 +907,41 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, int64(34), vm.estack.Peek(1).BigInt().Int64())
 	assert.Equal(t, int64(42), vm.estack.Peek(2).BigInt().Int64())
 	assert.Equal(t, 3, vm.estack.Len())
+}
+
+func TestNIPBadNoItem(t *testing.T) {
+	prog := makeProgram(NIP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestNIPGood(t *testing.T) {
+	prog := makeProgram(NIP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+}
+
+func TestDROPBadNoItem(t *testing.T) {
+	prog := makeProgram(DROP)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
+func TestDROPGood(t *testing.T) {
+	prog := makeProgram(DROP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 0, vm.estack.Len())
 }
 
 func TestXDROPbadNoitem(t *testing.T) {
@@ -1118,7 +1317,7 @@ func TestREVERSEBadNotArray(t *testing.T) {
 }
 
 func TestREVERSEGoodOneElem(t *testing.T) {
-	prog := makeProgram(REVERSE)
+	prog := makeProgram(DUP, REVERSE)
 	elements := []int{22}
 	vm := load(prog)
 	vm.estack.PushVal(1)
@@ -1132,13 +1331,42 @@ func TestREVERSEGoodOneElem(t *testing.T) {
 	assert.Equal(t, int64(elements[0]), e.Int64())
 }
 
+func TestREVERSEGoodStruct(t *testing.T) {
+	eodd := []int{22, 34, 42, 55, 81}
+	even := []int{22, 34, 42, 55, 81, 99}
+	eall := [][]int{eodd, even}
+
+	for _, elements := range eall {
+		prog := makeProgram(DUP, REVERSE)
+		vm := load(prog)
+		vm.estack.PushVal(1)
+
+		arr := make([]StackItem, len(elements))
+		for i := range elements {
+			arr[i] = makeStackItem(elements[i])
+		}
+		vm.estack.Push(&Element{value: &StructItem{arr}})
+
+		vm.Run()
+		assert.Equal(t, false, vm.state.HasFlag(faultState))
+		assert.Equal(t, 2, vm.estack.Len())
+		a := vm.estack.Peek(0).Array()
+		assert.Equal(t, len(elements), len(a))
+		for k, v := range elements {
+			e := a[len(a)-1-k].Value().(*big.Int)
+			assert.Equal(t, int64(v), e.Int64())
+		}
+		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	}
+}
+
 func TestREVERSEGood(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(REVERSE)
+		prog := makeProgram(DUP, REVERSE)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 		vm.estack.PushVal(elements)
@@ -1190,23 +1418,17 @@ func TestREMOVEBadIndex(t *testing.T) {
 }
 
 func TestREMOVEGood(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(DUP, PUSH2, REMOVE)
 	elements := []int{22, 34, 42, 55, 81}
 	reselements := []int{22, 34, 55, 81}
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(elements)
-	vm.estack.PushVal(2)
 	vm.Run()
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 2, vm.estack.Len())
-	a := vm.estack.Peek(0).Array()
-	assert.Equal(t, len(reselements), len(a))
-	for k, v := range reselements {
-		e := a[k].Value().(*big.Int)
-		assert.Equal(t, int64(v), e.Int64())
-	}
-	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, makeStackItem(reselements), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func makeProgram(opcodes ...Instruction) []byte {

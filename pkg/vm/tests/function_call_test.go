@@ -35,7 +35,7 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, big.NewInt(0))
+	eval(t, src, []byte{})
 }
 
 func TestMultipleFunctionCalls(t *testing.T) {

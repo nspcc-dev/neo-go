@@ -257,7 +257,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(val)
 
 	case PUSH0:
-		v.estack.PushVal(0)
+		v.estack.PushVal([]byte{})
 
 	case PUSHDATA1:
 		n := ctx.readByte()
@@ -375,7 +375,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case XTUCK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
+		if n <= 0 {
 			panic("XTUCK: invalid length")
 		}
 		a := v.estack.Dup(0)
@@ -388,21 +388,20 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.InsertAt(a, n)
 
 	case ROT:
-		c := v.estack.Pop()
-		b := v.estack.Pop()
-		a := v.estack.Pop()
-
-		v.estack.Push(b)
-		v.estack.Push(c)
-		v.estack.Push(a)
+		e := v.estack.RemoveAt(2)
+		if e == nil {
+			panic("no top-level element found")
+		}
+		v.estack.Push(e)
 
 	case DEPTH:
 		v.estack.PushVal(v.estack.Len())
 
 	case NIP:
-		elem := v.estack.Pop()
-		_ = v.estack.Pop()
-		v.estack.Push(elem)
+		elem := v.estack.RemoveAt(1)
+		if elem == nil {
+			panic("no second element found")
+		}
 
 	case OVER:
 		b := v.estack.Pop()
@@ -441,11 +440,20 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case DROP:
+		if v.estack.Len() < 1 {
+			panic("stack is too small")
+		}
 		v.estack.Pop()
 
 	case EQUAL:
 		b := v.estack.Pop()
+		if b == nil {
+			panic("no top-level element found")
+		}
 		a := v.estack.Pop()
+		if a == nil {
+			panic("no second-to-the-top element found")
+		}
 		v.estack.PushVal(reflect.DeepEqual(a, b))
 
 	// Bit operations.
@@ -497,11 +505,17 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case SHL:
 		b := v.estack.Pop().BigInt()
+		if b.Int64() == 0 {
+			return
+		}
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
 
 	case SHR:
 		b := v.estack.Pop().BigInt()
+		if b.Int64() == 0 {
+			return
+		}
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 
@@ -601,31 +615,27 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case NEWARRAY:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *BigIntegerItem:
-			n := t.value.Int64()
-			items := make([]StackItem, n)
-			v.estack.PushVal(&ArrayItem{items})
 		case *StructItem:
 			v.estack.PushVal(&ArrayItem{t.value})
 		case *ArrayItem:
 			v.estack.PushVal(t)
 		default:
-			panic("NEWARRAY: invalid operand")
+			n := item.BigInt()
+			items := makeArrayOfFalses(int(n.Int64()))
+			v.estack.PushVal(&ArrayItem{items})
 		}
 
 	case NEWSTRUCT:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *BigIntegerItem:
-			n := t.value.Int64()
-			items := make([]StackItem, n)
-			v.estack.PushVal(&StructItem{items})
 		case *ArrayItem:
 			v.estack.PushVal(&StructItem{t.value})
 		case *StructItem:
 			v.estack.PushVal(t)
 		default:
-			panic("NEWSTRUCT: invalid operand")
+			n := item.BigInt()
+			items := makeArrayOfFalses(int(n.Int64()))
+			v.estack.PushVal(&StructItem{items})
 		}
 
 	case APPEND:
@@ -683,7 +693,12 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			item := arr[index]
 			v.estack.PushVal(item)
 		default:
-			panic("PICKITEM: unknown type")
+			arr := obj.Bytes()
+			if index < 0 || index >= len(arr) {
+				panic("PICKITEM: invalid index")
+			}
+			item := arr[index]
+			v.estack.PushVal(int(item))
 		}
 
 	case SETITEM:
@@ -707,7 +722,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case REVERSE:
-		a := v.estack.Peek(0).Array()
+		a := v.estack.Pop().Array()
 		if len(a) > 1 {
 			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
@@ -715,10 +730,25 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 	case REMOVE:
 		key := int(v.estack.Pop().BigInt().Int64())
-		elem := v.estack.Peek(0)
-		a := elem.Array()
-		a = append(a[:key], a[key+1:]...)
-		elem.value = makeStackItem(a)
+		elem := v.estack.Pop()
+		switch t := elem.value.(type) {
+		case *ArrayItem:
+			a := t.value
+			if key < 0 || key >= len(a) {
+				panic("REMOVE: invalid index")
+			}
+			a = append(a[:key], a[key+1:]...)
+			t.value = a
+		case *StructItem:
+			a := t.value
+			if key < 0 || key >= len(a) {
+				panic("REMOVE: invalid index")
+			}
+			a = append(a[:key], a[key+1:]...)
+			t.value = a
+		default:
+			panic("REMOVE: invalid type")
+		}
 
 	case ARRAYSIZE:
 		elem := v.estack.Pop()
@@ -735,10 +765,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case SIZE:
 		elem := v.estack.Pop()
-		arr, ok := elem.value.Value().([]uint8)
-		if !ok {
-			panic("SIZE: item not of type []uint8")
-		}
+		arr := elem.Bytes()
 		v.estack.PushVal(len(arr))
 
 	case JMP, JMPIF, JMPIFNOT:
@@ -838,6 +865,14 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
+}
+
+func makeArrayOfFalses(n int) []StackItem {
+	items := make([]StackItem, n)
+	for i := range items {
+		items[i] = &BoolItem{false}
+	}
+	return items
 }
 
 func init() {

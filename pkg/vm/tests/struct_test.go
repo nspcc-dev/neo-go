@@ -179,7 +179,7 @@ var structTestCases = []testCase{
 			return t.y
 		}
 		`,
-		big.NewInt(0),
+		[]byte{},
 	},
 	{
 		"test return struct from func",
@@ -209,7 +209,7 @@ var structTestCases = []testCase{
 			vm.NewBigIntegerItem(1),
 			vm.NewBigIntegerItem(2),
 			vm.NewByteArrayItem([]byte("hello")),
-			vm.NewBigIntegerItem(0),
+			vm.NewByteArrayItem([]byte{}),
 		},
 	},
 	{
