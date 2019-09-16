@@ -92,3 +92,8 @@ func (s *RedisStore) Seek(k []byte, f func(k, v []byte)) {
 		f([]byte(key), []byte(val))
 	}
 }
+
+// Close implements the Store interface.
+func (s *RedisStore) Close() error {
+	return s.client.Close()
+}

@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -83,7 +82,7 @@ func openStore(t *testing.T) *BoltDBStore {
 	}()
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
-	boltDBStore, err := NewBoltDBStore(context.Background(), BoltDBOptions{FilePath: testFileName})
+	boltDBStore, err := NewBoltDBStore(BoltDBOptions{FilePath: testFileName})
 	require.NoError(t, err)
 	return boltDBStore
 }

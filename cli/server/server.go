@@ -112,7 +112,7 @@ Main:
 
 // initBlockChain initializes BlockChain with preselected DB.
 func initBlockChain(context context.Context, cfg config.Config) (*core.Blockchain, error) {
-	store, err := storage.NewStore(context, cfg.ApplicationConfiguration.DBConfiguration)
+	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %s", err), 1)
 	}

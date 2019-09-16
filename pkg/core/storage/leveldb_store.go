@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"context"
-
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -22,19 +20,13 @@ type LevelDBStore struct {
 
 // NewLevelDBStore return a new LevelDBStore object that will
 // initialize the database found at the given path.
-func NewLevelDBStore(ctx context.Context, cfg LevelDBOptions) (*LevelDBStore, error) {
+func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
 	var opts *opt.Options = nil // should be exposed via LevelDBOptions if anything needed
 
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	// graceful shutdown
-	go func() {
-		<-ctx.Done()
-		db.Close()
-	}()
 
 	return &LevelDBStore{
 		path: cfg.DataDirectoryPath,
@@ -71,4 +63,9 @@ func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 // compatible Batch.
 func (s *LevelDBStore) Batch() Batch {
 	return new(leveldb.Batch)
+}
+
+// Close implements the Store interface.
+func (s *LevelDBStore) Close() error {
+	return s.db.Close()
 }

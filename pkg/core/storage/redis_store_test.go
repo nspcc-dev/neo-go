@@ -6,6 +6,7 @@ import (
 
 	"github.com/alicebob/miniredis"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewRedisBatch(t *testing.T) {
@@ -26,6 +27,7 @@ func TestNewRedisStore(t *testing.T) {
 	assert.Nil(t, err, "NewRedisStore Get error")
 
 	assert.Equal(t, value, result)
+	require.NoError(t, redisStore.Close())
 	redisMock.Close()
 }
 
@@ -123,6 +125,7 @@ func TestRedisStore_GetAndPut(t *testing.T) {
 			redisMock.FlushDB()
 		})
 	}
+	require.NoError(t, redisStore.Close())
 	redisMock.Close()
 }
 
@@ -134,6 +137,7 @@ func TestRedisStore_PutBatch(t *testing.T) {
 	result, err := redisStore.Get([]byte("foo1"))
 	assert.Nil(t, err)
 	assert.Equal(t, []byte("bar1"), result)
+	require.NoError(t, redisStore.Close())
 	mock.Close()
 }
 
@@ -142,6 +146,7 @@ func TestRedisStore_Seek(t *testing.T) {
 	redisStore.Seek([]byte("foo"), func(k, v []byte) {
 		assert.Equal(t, []byte("bar"), v)
 	})
+	require.NoError(t, redisStore.Close())
 	mock.Close()
 }
 
