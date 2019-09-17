@@ -1,27 +1,31 @@
-package util
+package io
 
 import (
 	"fmt"
-	"io"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
 // Mock structure to test getting size of an array of serializable things
 type smthSerializable struct {
+	some [42]byte
 }
 
-func (*smthSerializable) DecodeBinary(io.Reader) error {
-	return nil
+func (*smthSerializable) DecodeBinary(*BinReader) {}
+
+func (ss *smthSerializable) EncodeBinary(bw *BinWriter) {
+	bw.WriteLE(ss.some)
 }
 
-func (*smthSerializable) EncodeBinary(io.Writer) error {
-	return nil
-}
+// Mock structure that gives error in EncodeBinary().
+type smthNotReallySerializable struct{}
 
-func (*smthSerializable) Size() int {
-	return 42
+func (*smthNotReallySerializable) DecodeBinary(*BinReader) {}
+
+func (*smthNotReallySerializable) EncodeBinary(bw *BinWriter) {
+	bw.Err = fmt.Errorf("smth bad happened in smthNotReallySerializable")
 }
 
 func TestVarSize(t *testing.T) {
@@ -87,7 +91,7 @@ func TestVarSize(t *testing.T) {
 		},
 		{
 			// The neo C# implementation doe not allowed this!
-			Uint160{1, 2, 4, 5, 6},
+			util.Uint160{1, 2, 4, 5, 6},
 			"test_Uint160_1",
 			21,
 		},
@@ -153,7 +157,7 @@ func TestVarSize(t *testing.T) {
 			241,
 		},
 		// The neo C# implementation doe not allowed this!
-		{Uint256{1, 2, 3, 4, 5, 6},
+		{util.Uint256{1, 2, 3, 4, 5, 6},
 			"test_Uint256_1",
 			33,
 		},
@@ -184,11 +188,19 @@ func TestVarSize(t *testing.T) {
 	}
 }
 
-func TestVarSizePanic(t *testing.T) {
+func panicVarSize(t *testing.T, v interface{}) {
 	defer func() {
 		r := recover()
 		assert.NotNil(t, r)
 	}()
 
-	_ = GetVarSize(t)
+	_ = GetVarSize(v)
+	// this should never execute
+	assert.Nil(t, t)
+}
+
+func TestVarSizePanic(t *testing.T) {
+	panicVarSize(t, t)
+	panicVarSize(t, struct{}{})
+	panicVarSize(t, &smthNotReallySerializable{})
 }

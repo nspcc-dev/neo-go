@@ -104,11 +104,6 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Size returns the size in number of bytes of Fixed8.
-func (f *Fixed8) Size() int {
-	return 8
-}
-
 // MarshalJSON implements the json marshaller interface.
 func (f Fixed8) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil

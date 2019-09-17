@@ -1,11 +1,11 @@
 package transaction
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -27,15 +27,15 @@ func TestWitnessEncodeDecode(t *testing.T) {
 		VerificationScript: verif,
 	}
 
-	buf := new(bytes.Buffer)
-	if err := wit.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	buf := io.NewBufBinWriter()
+	wit.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
+	benc := buf.Bytes()
 	witDecode := &Witness{}
-	if err := witDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	encreader := io.NewBinReaderFromBuf(benc)
+	witDecode.DecodeBinary(encreader)
+	assert.Nil(t, encreader.Err)
 	t.Log(len(witDecode.VerificationScript))
 	t.Log(len(witDecode.InvocationScript))
 
@@ -61,10 +61,9 @@ func TestDecodeEncodeClaimTX(t *testing.T) {
 	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
-	buf := new(bytes.Buffer)
-	if err := tx.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	buf := io.NewBufBinWriter()
+	tx.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	assert.Equal(t, rawClaimTX, hex.EncodeToString(buf.Bytes()))
 
 	hash := "2c6a45547b3898318e400e541628990a07acb00f3b9a15a8e966ae49525304da"
@@ -90,10 +89,10 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
-	buf := new(bytes.Buffer)
-	if err := tx.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	buf := io.NewBufBinWriter()
+	tx.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
+
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
 }
 
@@ -145,8 +144,8 @@ func TestDecodePublishTX(t *testing.T) {
 	assert.Equal(t, expectedTX.Type, actualTX.Type)
 	assert.Equal(t, expectedTX.Version, actualTX.Version)
 
-	buf := new(bytes.Buffer)
-	err := actualTX.EncodeBinary(buf)
-	assert.Nil(t, err)
+	buf := io.NewBufBinWriter()
+	actualTX.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
 }

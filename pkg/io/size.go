@@ -1,10 +1,8 @@
-package util
+package io
 
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 var (
@@ -18,6 +16,20 @@ var (
 	i32  int32
 	i64  int64
 )
+
+// This structure is used to calculate the wire size of the serializable
+// structure. It's an io.Writer that doesn't do any real writes, but instead
+// just counts the number of bytes to be written.
+type counterWriter struct {
+	counter int
+}
+
+// Write implements the io.Writer interface
+func (cw *counterWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	cw.counter += n
+	return n, nil
+}
 
 // GetVarIntSize returns the size in number of bytes of a variable integer
 // (reference: GetVarSize(int value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
@@ -61,16 +73,27 @@ func GetVarSize(value interface{}) int {
 		reflect.Uint32,
 		reflect.Uint64:
 		return GetVarIntSize(int(v.Uint()))
+	case reflect.Ptr:
+		vser, ok := v.Interface().(Serializable)
+		if !ok {
+			panic(fmt.Sprintf("unable to calculate GetVarSize for a non-Serializable pointer"))
+		}
+		cw := counterWriter{}
+		w := NewBinWriterFromIO(&cw)
+		vser.EncodeBinary(w)
+		if w.Err != nil {
+			panic(fmt.Sprintf("error serializing %s: %s", reflect.TypeOf(value), w.Err.Error()))
+		}
+		return cw.counter
 	case reflect.Slice, reflect.Array:
 		valueLength := v.Len()
 		valueSize := 0
 
 		if valueLength != 0 {
 			switch reflect.ValueOf(value).Index(0).Interface().(type) {
-			case io.Serializable:
+			case Serializable:
 				for i := 0; i < valueLength; i++ {
-					elem := v.Index(i).Interface().(io.Serializable)
-					valueSize += elem.Size()
+					valueSize += GetVarSize(v.Index(i).Interface())
 				}
 			case uint8, int8:
 				valueSize = valueLength

@@ -6,7 +6,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -141,11 +141,11 @@ func TestGetTransaction(t *testing.T) {
 	}
 	assert.Equal(t, block.Index, height)
 	assert.Equal(t, block.Transactions[0], tx)
-	assert.Equal(t, 10, tx.Size())
-	assert.Equal(t, 1, util.GetVarSize(tx.Attributes))
-	assert.Equal(t, 1, util.GetVarSize(tx.Inputs))
-	assert.Equal(t, 1, util.GetVarSize(tx.Outputs))
-	assert.Equal(t, 1, util.GetVarSize(tx.Scripts))
+	assert.Equal(t, 10, io.GetVarSize(tx))
+	assert.Equal(t, 1, io.GetVarSize(tx.Attributes))
+	assert.Equal(t, 1, io.GetVarSize(tx.Inputs))
+	assert.Equal(t, 1, io.GetVarSize(tx.Outputs))
+	assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 }
 
 func newTestChain(t *testing.T) *Blockchain {

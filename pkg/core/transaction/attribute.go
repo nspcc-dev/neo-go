@@ -4,9 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // Attribute represents a Transaction attribute.
@@ -15,9 +14,8 @@ type Attribute struct {
 	Data  []byte
 }
 
-// DecodeBinary implements the Payload interface.
-func (attr *Attribute) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&attr.Usage)
 
 	// very special case
@@ -25,7 +23,7 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		attr.Data = make([]byte, 33)
 		attr.Data[0] = byte(attr.Usage)
 		br.ReadLE(attr.Data[1:])
-		return br.Err
+		return
 	}
 	var datasize uint64
 	switch attr.Usage {
@@ -45,16 +43,15 @@ func (attr *Attribute) DecodeBinary(r io.Reader) error {
 		Remark12, Remark13, Remark14, Remark15:
 		datasize = br.ReadVarUint()
 	default:
-		return fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		br.Err = fmt.Errorf("failed decoding TX attribute usage: 0x%2x", int(attr.Usage))
+		return
 	}
 	attr.Data = make([]byte, datasize)
 	br.ReadLE(attr.Data)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (attr *Attribute) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(&attr.Usage)
 	switch attr.Usage {
 	case ECDH02, ECDH03:
@@ -71,27 +68,8 @@ func (attr *Attribute) EncodeBinary(w io.Writer) error {
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
 		bw.WriteLE(attr.Data)
 	default:
-		return fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
+		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 	}
-
-	return bw.Err
-}
-
-// Size returns the size in number bytes of the Attribute
-func (attr *Attribute) Size() int {
-	sz := 1 // usage
-	switch attr.Usage {
-	case ContractHash, ECDH02, ECDH03, Vote,
-		Hash1, Hash2, Hash3, Hash4, Hash5, Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
-		sz += 32 // uint8 + 32 = size(attrUsage) + 32
-	case Script:
-		sz += 20 // uint8 + 20 = size(attrUsage) + 20
-	case DescriptionURL:
-		sz += 1 + len(attr.Data)
-	default:
-		sz += util.GetVarSize(attr.Data)
-	}
-	return sz
 }
 
 // MarshalJSON implements the json Marschaller interface

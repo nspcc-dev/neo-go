@@ -82,11 +82,6 @@ func (u *Uint256) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-// Size returns the length of the bytes representation of Uint256
-func (u Uint256) Size() int {
-	return uint256Size
-}
-
 // MarshalJSON implements the json marshaller interface.
 func (u Uint256) MarshalJSON() ([]byte, error) {
 	return []byte(`"0x` + u.ReverseString() + `"`), nil

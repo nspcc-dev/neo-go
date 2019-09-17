@@ -1,10 +1,10 @@
 package core
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,10 +20,13 @@ func TestEncodeDecodeSpentCoinState(t *testing.T) {
 		},
 	}
 
-	buf := new(bytes.Buffer)
-	assert.Nil(t, spent.EncodeBinary(buf))
+	buf := io.NewBufBinWriter()
+	spent.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 	spentDecode := new(SpentCoinState)
-	assert.Nil(t, spentDecode.DecodeBinary(buf))
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	spentDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, spent, spentDecode)
 }
 

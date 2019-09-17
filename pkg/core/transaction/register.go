@@ -1,9 +1,8 @@
 package transaction
 
 import (
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -29,41 +28,27 @@ type RegisterTX struct {
 	Admin util.Uint160
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *RegisterTX) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&tx.AssetType)
 
 	tx.Name = br.ReadString()
 
 	br.ReadLE(&tx.Amount)
 	br.ReadLE(&tx.Precision)
-	if br.Err != nil {
-		return br.Err
-	}
 
 	tx.Owner = &keys.PublicKey{}
-	if err := tx.Owner.DecodeBinary(r); err != nil {
-		return err
-	}
+	tx.Owner.DecodeBinary(br)
 
 	br.ReadLE(&tx.Admin)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *RegisterTX) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(tx.AssetType)
 	bw.WriteString(tx.Name)
 	bw.WriteLE(tx.Amount)
 	bw.WriteLE(tx.Precision)
 	bw.WriteLE(tx.Owner.Bytes())
 	bw.WriteLE(tx.Admin)
-	return bw.Err
-}
-
-// Size returns serialized binary size for this transaction.
-func (tx *RegisterTX) Size() int {
-	return 1 + util.GetVarSize(tx.Name) + tx.Amount.Size() + 1 + len(tx.Owner.Bytes()) + tx.Admin.Size()
 }

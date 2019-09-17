@@ -1,10 +1,8 @@
 package transaction
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // PublishTX represents a publish transaction.
@@ -22,9 +20,8 @@ type PublishTX struct {
 	Version     uint8 // Version of the parent struct Transaction. Used in reading NeedStorage flag.
 }
 
-// DecodeBinary implements the Payload interface.
-func (tx *PublishTX) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (tx *PublishTX) DecodeBinary(br *io.BinReader) {
 	tx.Script = br.ReadBytes()
 
 	lenParams := br.ReadVarUint()
@@ -50,13 +47,10 @@ func (tx *PublishTX) DecodeBinary(r io.Reader) error {
 	tx.Author = br.ReadString()
 	tx.Email = br.ReadString()
 	tx.Description = br.ReadString()
-
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (tx *PublishTX) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(tx.Script)
 	bw.WriteVarUint(uint64(len(tx.ParamList)))
 	for _, param := range tx.ParamList {
@@ -71,19 +65,4 @@ func (tx *PublishTX) EncodeBinary(w io.Writer) error {
 	bw.WriteString(tx.Author)
 	bw.WriteString(tx.Email)
 	bw.WriteString(tx.Description)
-	return bw.Err
-}
-
-// Size returns serialized binary size for this transaction.
-func (tx *PublishTX) Size() int {
-	sz := util.GetVarSize(tx.Script) + util.GetVarSize(uint64(len(tx.ParamList)))
-	sz += 1 * len(tx.ParamList)
-	sz++
-	if tx.Version >= 1 {
-		sz++
-	}
-	sz += util.GetVarSize(tx.Name) + util.GetVarSize(tx.CodeVersion)
-	sz += util.GetVarSize(tx.Author) + util.GetVarSize(tx.Email)
-	sz += util.GetVarSize(tx.Description)
-	return sz
 }

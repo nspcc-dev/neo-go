@@ -1,12 +1,12 @@
 package payload
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,13 +41,15 @@ func TestHeadersEncodeDecode(t *testing.T) {
 			}},
 	}}
 
-	buf := new(bytes.Buffer)
-	err := headers.EncodeBinary(buf)
-	assert.Nil(t, err)
+	buf := io.NewBufBinWriter()
+	headers.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
+	b := buf.Bytes()
+	r := io.NewBinReaderFromBuf(b)
 	headersDecode := &Headers{}
-	err = headersDecode.DecodeBinary(buf)
-	assert.Nil(t, err)
+	headersDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	for i := 0; i < len(headers.Hdrs); i++ {
 		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)
@@ -63,10 +65,10 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	rawBlockBytes, _ := hex.DecodeString(rawBlockHeaders)
 
-	r := bytes.NewReader(rawBlockBytes)
+	r := io.NewBinReaderFromBuf(rawBlockBytes)
 
-	err := headerMsg.DecodeBinary(r)
-	assert.Nil(t, err)
+	headerMsg.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	assert.Equal(t, 1, len(headerMsg.Hdrs))
 
 	header := headerMsg.Hdrs[0]
@@ -74,9 +76,9 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", hash.ReverseString())
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 
-	err = headerMsg.EncodeBinary(buf)
-	assert.Equal(t, nil, err)
+	headerMsg.EncodeBinary(buf.BinWriter)
+	assert.Equal(t, nil, buf.Err)
 	assert.Equal(t, hex.EncodeToString(rawBlockBytes), hex.EncodeToString(buf.Bytes()))
 }

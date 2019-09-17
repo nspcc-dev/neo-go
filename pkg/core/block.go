@@ -1,11 +1,9 @@
 package core
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -73,22 +71,14 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 		Trimmed: true,
 	}
 
-	r := bytes.NewReader(b)
-	if err := block.decodeHashableFields(r); err != nil {
-		return block, err
-	}
+	br := io.NewBinReaderFromBuf(b)
+	block.decodeHashableFields(br)
 
-	br := util.BinReader{R: r}
 	var padding uint8
 	br.ReadLE(&padding)
-	if br.Err != nil {
-		return block, br.Err
-	}
 
 	block.Script = &transaction.Witness{}
-	if err := block.Script.DecodeBinary(r); err != nil {
-		return block, err
-	}
+	block.Script.DecodeBinary(br)
 
 	lenTX := br.ReadVarUint()
 	block.Transactions = make([]*transaction.Transaction, lenTX)
@@ -105,67 +95,40 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 // in storage.
 // Notice that only the hashes of the transactions are stored.
 func (b *Block) Trim() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := b.encodeHashableFields(buf); err != nil {
-		return nil, err
-	}
-	bw := util.BinWriter{W: buf}
-	bw.WriteLE(uint8(1))
-	if bw.Err != nil {
-		return nil, bw.Err
-	}
-	if err := b.Script.EncodeBinary(buf); err != nil {
-		return nil, err
-	}
+	buf := io.NewBufBinWriter()
+	b.encodeHashableFields(buf.BinWriter)
+	buf.WriteLE(uint8(1))
+	b.Script.EncodeBinary(buf.BinWriter)
 
-	bw.WriteVarUint(uint64(len(b.Transactions)))
+	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
-		bw.WriteLE(tx.Hash())
+		buf.WriteLE(tx.Hash())
 	}
-	if bw.Err != nil {
-		return nil, bw.Err
+	if buf.Err != nil {
+		return nil, buf.Err
 	}
 	return buf.Bytes(), nil
 }
 
-// DecodeBinary decodes the block from the given reader.
-func (b *Block) DecodeBinary(r io.Reader) error {
-	if err := b.BlockBase.DecodeBinary(r); err != nil {
-		return err
-	}
+// DecodeBinary decodes the block from the given BinReader, implementing
+// Serializable interface.
+func (b *Block) DecodeBinary(br *io.BinReader) {
+	b.BlockBase.DecodeBinary(br)
 
-	br := util.BinReader{R: r}
 	lentx := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
 	b.Transactions = make([]*transaction.Transaction, lentx)
 	for i := 0; i < int(lentx); i++ {
 		b.Transactions[i] = &transaction.Transaction{}
-		if err := b.Transactions[i].DecodeBinary(r); err != nil {
-			return err
-		}
+		b.Transactions[i].DecodeBinary(br)
 	}
-
-	return nil
 }
 
-// EncodeBinary encodes the block to the given writer.
-func (b *Block) EncodeBinary(w io.Writer) error {
-	err := b.BlockBase.EncodeBinary(w)
-	if err != nil {
-		return err
-	}
-	bw := util.BinWriter{W: w}
+// EncodeBinary encodes the block to the given BinWriter, implementing
+// Serializable interface.
+func (b *Block) EncodeBinary(bw *io.BinWriter) {
+	b.BlockBase.EncodeBinary(bw)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
-	if bw.Err != nil {
-		return err
-	}
 	for _, tx := range b.Transactions {
-		err := tx.EncodeBinary(w)
-		if err != nil {
-			return err
-		}
+		tx.EncodeBinary(bw)
 	}
-	return nil
 }

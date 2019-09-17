@@ -1,9 +1,7 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"sync/atomic"
@@ -12,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -243,9 +242,9 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for int(h.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-		if err := headerList.Write(buf, int(bc.storedHeaderCount), headerBatchCount); err != nil {
+		if err := headerList.Write(buf.BinWriter, int(bc.storedHeaderCount), headerBatchCount); err != nil {
 			return err
 		}
 		key := storage.AppendPrefixInt(storage.IXHeaderHashList, int(bc.storedHeaderCount))
@@ -255,8 +254,9 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	}
 
 	buf.Reset()
-	if err := h.EncodeBinary(buf); err != nil {
-		return err
+	h.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
 	}
 
 	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
@@ -467,17 +467,17 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	if err != nil {
 		return nil, 0, err
 	}
-	r := bytes.NewReader(b)
+	r := io.NewBinReaderFromBuf(b)
 
 	var height uint32
-	if err := binary.Read(r, binary.LittleEndian, &height); err != nil {
-		return nil, 0, err
-	}
+	r.ReadLE(&height)
 
 	tx := &transaction.Transaction{}
-	if err := tx.DecodeBinary(r); err != nil {
-		return nil, 0, err
+	tx.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, 0, r.Err
 	}
+
 	return tx, height, nil
 }
 
@@ -578,7 +578,9 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 	var as *AssetState
 	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
 		var a AssetState
-		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ID == assetID {
+		r := io.NewBinReaderFromBuf(v)
+		a.DecodeBinary(r)
+		if r.Err == nil && a.ID == assetID {
 			as = &a
 		}
 	})
@@ -591,7 +593,9 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	var as *AccountState
 	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
 		var a AccountState
-		if err := a.DecodeBinary(bytes.NewReader(v)); err == nil && a.ScriptHash == scriptHash {
+		r := io.NewBinReaderFromBuf(v)
+		a.DecodeBinary(r)
+		if r.Err == nil && a.ScriptHash == scriptHash {
 			as = &a
 		}
 	})
@@ -628,7 +632,7 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*t
 
 // FeePerByte returns network fee divided by the size of the transaction
 func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
-	return bc.NetworkFee(t).Div(int64(t.Size()))
+	return bc.NetworkFee(t).Div(int64(io.GetVarSize(t)))
 }
 
 // NetworkFee returns network fee
@@ -669,8 +673,8 @@ func (bc *Blockchain) GetMemPool() MemPool {
 // Verify verifies whether a transaction is bonafide or not.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
 func (bc *Blockchain) Verify(t *transaction.Transaction) error {
-	if t.Size() > transaction.MaxTransactionSize {
-		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", t.Size(), transaction.MaxTransactionSize)
+	if io.GetVarSize(t) > transaction.MaxTransactionSize {
+		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
 	if ok := bc.verifyInputs(t); !ok {
 		return errors.New("invalid transaction's inputs")
@@ -921,9 +925,10 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, index)
-	return append(h.BytesReverse(), buf...)
+	buf := io.NewBufBinWriter()
+	buf.WriteLE(h.BytesReverse())
+	buf.WriteLE(index)
+	return buf.Bytes()
 }
 
 func (bc *Blockchain) secondsPerBlock() int {

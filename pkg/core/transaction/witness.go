@@ -3,9 +3,9 @@ package transaction
 import (
 	"encoding/hex"
 	"encoding/json"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -15,23 +15,16 @@ type Witness struct {
 	VerificationScript []byte
 }
 
-// DecodeBinary implements the payload interface.
-func (w *Witness) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
-
+// DecodeBinary implements Serializable interface.
+func (w *Witness) DecodeBinary(br *io.BinReader) {
 	w.InvocationScript = br.ReadBytes()
 	w.VerificationScript = br.ReadBytes()
-	return br.Err
 }
 
-// EncodeBinary implements the payload interface.
-func (w *Witness) EncodeBinary(writer io.Writer) error {
-	bw := util.BinWriter{W: writer}
-
+// EncodeBinary implements Serializable interface.
+func (w *Witness) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(w.InvocationScript)
 	bw.WriteBytes(w.VerificationScript)
-
-	return bw.Err
 }
 
 // MarshalJSON implements the json marshaller interface.
@@ -42,11 +35,6 @@ func (w *Witness) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
-}
-
-// Size returns the size in bytes of the Witness.
-func (w *Witness) Size() int {
-	return util.GetVarSize(w.InvocationScript) + util.GetVarSize(w.VerificationScript)
 }
 
 // ScriptHash returns the hash of the VerificationScript.

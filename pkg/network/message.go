@@ -1,18 +1,15 @@
 package network
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (
@@ -80,12 +77,14 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 	)
 
 	if p != nil {
-		buf := new(bytes.Buffer)
-		if err := p.EncodeBinary(buf); err != nil {
-			panic(err)
+		buf := io.NewBufBinWriter()
+		p.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			panic(buf.Err)
 		}
-		size = uint32(buf.Len())
-		checksum = hash.Checksum(buf.Bytes())
+		b := buf.Bytes()
+		size = uint32(len(b))
+		checksum = hash.Checksum(b)
 	} else {
 		checksum = hash.Checksum([]byte{})
 	}
@@ -147,8 +146,7 @@ func (m *Message) CommandType() CommandType {
 }
 
 // Decode a Message from the given reader.
-func (m *Message) Decode(r io.Reader) error {
-	br := util.BinReader{R: r}
+func (m *Message) Decode(br *io.BinReader) error {
 	br.ReadLE(&m.Magic)
 	br.ReadLE(&m.Command)
 	br.ReadLE(&m.Length)
@@ -160,69 +158,45 @@ func (m *Message) Decode(r io.Reader) error {
 	if m.Length == 0 {
 		return nil
 	}
-	return m.decodePayload(r)
+	return m.decodePayload(br)
 }
 
-func (m *Message) decodePayload(r io.Reader) error {
-	buf := new(bytes.Buffer)
-	n, err := io.CopyN(buf, r, int64(m.Length))
-	if err != nil {
-		return err
+func (m *Message) decodePayload(br *io.BinReader) error {
+	buf := make([]byte, m.Length)
+	br.ReadLE(buf)
+	if br.Err != nil {
+		return br.Err
 	}
-
-	if uint32(n) != m.Length {
-		return fmt.Errorf("expected to have read exactly %d bytes got %d", m.Length, n)
-	}
-
 	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, buf.Bytes()) {
+	if !compareChecksum(m.Checksum, buf) {
 		return errChecksumMismatch
 	}
 
+	r := io.NewBinReaderFromBuf(buf)
 	var p payload.Payload
 	switch m.CommandType() {
 	case CMDVersion:
 		p = &payload.Version{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDInv, CMDGetData:
 		p = &payload.Inventory{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDAddr:
 		p = &payload.AddressList{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDBlock:
 		p = &core.Block{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDGetBlocks:
 		fallthrough
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDHeaders:
 		p = &payload.Headers{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDTX:
 		p = &transaction.Transaction{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
-		if err := p.DecodeBinary(buf); err != nil {
-			return err
-		}
+	}
+	p.DecodeBinary(r)
+	if r.Err != nil {
+		return r.Err
 	}
 
 	m.Payload = p
@@ -230,18 +204,18 @@ func (m *Message) decodePayload(r io.Reader) error {
 	return nil
 }
 
-// Encode a Message to any given io.Writer.
-func (m *Message) Encode(w io.Writer) error {
-	br := util.BinWriter{W: w}
+// Encode a Message to any given BinWriter.
+func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteLE(m.Magic)
 	br.WriteLE(m.Command)
 	br.WriteLE(m.Length)
 	br.WriteLE(m.Checksum)
+	if m.Payload != nil {
+		m.Payload.EncodeBinary(br)
+
+	}
 	if br.Err != nil {
 		return br.Err
-	}
-	if m.Payload != nil {
-		return m.Payload.EncodeBinary(w)
 	}
 	return nil
 }

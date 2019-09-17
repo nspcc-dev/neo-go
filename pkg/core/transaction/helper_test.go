@@ -1,10 +1,10 @@
 package transaction
 
 import (
-	"bytes"
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +21,8 @@ func decodeTransaction(rawTX string, t *testing.T) *Transaction {
 	b, err1 := hex.DecodeString(rawTX)
 	assert.Nil(t, err1)
 	tx := &Transaction{}
-	err2 := tx.DecodeBinary(bytes.NewReader(b))
-	assert.Nil(t, err2)
+	r := io.NewBinReaderFromBuf(b)
+	tx.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 	return tx
 }

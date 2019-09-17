@@ -2,9 +2,9 @@ package transaction
 
 import (
 	"encoding/json"
-	"io"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -33,27 +33,18 @@ func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (out *Output) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (out *Output) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&out.AssetID)
 	br.ReadLE(&out.Amount)
 	br.ReadLE(&out.ScriptHash)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (out *Output) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (out *Output) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(out.AssetID)
 	bw.WriteLE(out.Amount)
 	bw.WriteLE(out.ScriptHash)
-	return bw.Err
-}
-
-// Size returns the size in bytes of the Output
-func (out *Output) Size() int {
-	return out.AssetID.Size() + out.Amount.Size() + out.ScriptHash.Size()
 }
 
 // MarshalJSON implements the Marshaler interface

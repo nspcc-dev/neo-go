@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 )
 
@@ -68,7 +69,8 @@ func (p *TCPPeer) writeMsg(msg *Message) error {
 	case err := <-p.done:
 		return err
 	default:
-		return msg.Encode(p.conn)
+		w := io.NewBinWriterFromIO(p.conn)
+		return msg.Encode(w)
 	}
 }
 

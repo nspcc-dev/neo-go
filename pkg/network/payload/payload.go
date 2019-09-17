@@ -1,11 +1,10 @@
 package payload
 
-import "io"
+import "github.com/CityOfZion/neo-go/pkg/io"
 
 // Payload is anything that can be binary encoded/decoded.
 type Payload interface {
-	EncodeBinary(io.Writer) error
-	DecodeBinary(io.Reader) error
+	io.Serializable
 }
 
 // NullPayload is a dummy payload with no fields.
@@ -17,12 +16,8 @@ func NewNullPayload() *NullPayload {
 	return &NullPayload{}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *NullPayload) DecodeBinary(r io.Reader) error {
-	return nil
-}
+// DecodeBinary implements Serializable interface.
+func (p *NullPayload) DecodeBinary(r *io.BinReader) {}
 
-// EncodeBinary implements the Payload interface.
-func (p *NullPayload) EncodeBinary(r io.Writer) error {
-	return nil
-}
+// EncodeBinary implements Serializable interface.
+func (p *NullPayload) EncodeBinary(w *io.BinWriter) {}

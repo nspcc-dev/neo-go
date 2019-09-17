@@ -3,6 +3,7 @@ package wrappers
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -30,7 +31,7 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *core.Header, c
 	return TransactionOutputRaw{
 		Transaction:   tx,
 		TxHash:        tx.Hash(),
-		Size:          tx.Size(),
+		Size:          io.GetVarSize(tx),
 		SysFee:        chain.SystemFee(tx),
 		NetFee:        chain.NetworkFee(tx),
 		Blockhash:     header.Hash(),

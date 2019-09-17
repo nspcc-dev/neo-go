@@ -1,10 +1,8 @@
 package payload
 
 import (
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,13 +16,10 @@ const (
 	maxHeadersAllowed = 2000
 )
 
-// DecodeBinary implements the Payload interface.
-func (p *Headers) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (p *Headers) DecodeBinary(br *io.BinReader) {
 	lenHeaders := br.ReadVarUint()
-	if br.Err != nil {
-		return br.Err
-	}
+
 	// C# node does it silently
 	if lenHeaders > maxHeadersAllowed {
 		log.Warnf("received %d headers, capping to %d", lenHeaders, maxHeadersAllowed)
@@ -35,27 +30,16 @@ func (p *Headers) DecodeBinary(r io.Reader) error {
 
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &core.Header{}
-		if err := header.DecodeBinary(r); err != nil {
-			return err
-		}
+		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}
-
-	return nil
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Headers) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (p *Headers) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(p.Hdrs)))
-	if bw.Err != nil {
-		return bw.Err
-	}
 
 	for _, header := range p.Hdrs {
-		if err := header.EncodeBinary(w); err != nil {
-			return err
-		}
+		header.EncodeBinary(bw)
 	}
-	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -77,9 +78,10 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 
 	t.server.register <- p
 
+	r := io.NewBinReaderFromIO(p.conn)
 	for {
 		msg := &Message{}
-		if err = msg.Decode(p.conn); err != nil {
+		if err = msg.Decode(r); err != nil {
 			break
 		}
 		if err = t.server.handleMessage(p, msg); err != nil {

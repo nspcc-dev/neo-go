@@ -1,8 +1,7 @@
 package core
 
 import (
-	"io"
-
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -56,10 +55,9 @@ func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
 	return l.hashes[start:end]
 }
 
-// WriteTo will write n underlying hashes to the given io.Writer
+// WriteTo will write n underlying hashes to the given BinWriter
 // starting from start.
-func (l *HeaderHashList) Write(w io.Writer, start, n int) error {
-	bw := util.BinWriter{W: w}
+func (l *HeaderHashList) Write(bw *io.BinWriter, start, n int) error {
 	bw.WriteVarUint(uint64(n))
 	hashes := l.Slice(start, start+n)
 	for _, hash := range hashes {

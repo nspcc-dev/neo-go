@@ -1,12 +1,10 @@
 package core
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -16,10 +14,11 @@ const feeMode = 0x0
 type Assets map[util.Uint256]*AssetState
 
 func (a Assets) commit(b storage.Batch) error {
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for hash, state := range a {
-		if err := state.EncodeBinary(buf); err != nil {
-			return err
+		state.EncodeBinary(buf.BinWriter)
+		if buf.Err != nil {
+			return buf.Err
 		}
 		key := storage.AppendPrefix(storage.STAsset, hash.Bytes())
 		b.Put(key, buf.Bytes())
@@ -45,9 +44,8 @@ type AssetState struct {
 	IsFrozen   bool
 }
 
-// DecodeBinary implements the Payload interface.
-func (a *AssetState) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (a *AssetState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&a.ID)
 	br.ReadLE(&a.AssetType)
 
@@ -59,24 +57,16 @@ func (a *AssetState) DecodeBinary(r io.Reader) error {
 	br.ReadLE(&a.FeeMode)
 	br.ReadLE(&a.FeeAddress)
 
-	if br.Err != nil {
-		return br.Err
-	}
 	a.Owner = &keys.PublicKey{}
-	if err := a.Owner.DecodeBinary(r); err != nil {
-		return err
-	}
+	a.Owner.DecodeBinary(br)
 	br.ReadLE(&a.Admin)
 	br.ReadLE(&a.Issuer)
 	br.ReadLE(&a.Expiration)
 	br.ReadLE(&a.IsFrozen)
-
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (a *AssetState) EncodeBinary(w io.Writer) error {
-	bw := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (a *AssetState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(a.ID)
 	bw.WriteLE(a.AssetType)
 	bw.WriteString(a.Name)
@@ -86,17 +76,12 @@ func (a *AssetState) EncodeBinary(w io.Writer) error {
 	bw.WriteLE(a.FeeMode)
 	bw.WriteLE(a.FeeAddress)
 
-	if bw.Err != nil {
-		return bw.Err
-	}
-	if err := a.Owner.EncodeBinary(w); err != nil {
-		return err
-	}
+	a.Owner.EncodeBinary(bw)
+
 	bw.WriteLE(a.Admin)
 	bw.WriteLE(a.Issuer)
 	bw.WriteLE(a.Expiration)
 	bw.WriteLE(a.IsFrozen)
-	return bw.Err
 }
 
 // GetName returns the asset name based on its type.

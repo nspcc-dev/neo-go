@@ -1,10 +1,9 @@
 package payload
 
 import (
-	"io"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // Size of the payload not counting UserAgent encoding (which is at least 1 byte
@@ -54,9 +53,8 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Version) DecodeBinary(r io.Reader) error {
-	br := util.BinReader{R: r}
+// DecodeBinary implements Serializable interface.
+func (p *Version) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Version)
 	br.ReadLE(&p.Services)
 	br.ReadLE(&p.Timestamp)
@@ -65,12 +63,10 @@ func (p *Version) DecodeBinary(r io.Reader) error {
 	p.UserAgent = br.ReadBytes()
 	br.ReadLE(&p.StartHeight)
 	br.ReadLE(&p.Relay)
-	return br.Err
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Version) EncodeBinary(w io.Writer) error {
-	br := util.BinWriter{W: w}
+// EncodeBinary implements Serializable interface.
+func (p *Version) EncodeBinary(br *io.BinWriter) {
 	br.WriteLE(p.Version)
 	br.WriteLE(p.Services)
 	br.WriteLE(p.Timestamp)
@@ -80,10 +76,4 @@ func (p *Version) EncodeBinary(w io.Writer) error {
 	br.WriteBytes(p.UserAgent)
 	br.WriteLE(p.StartHeight)
 	br.WriteLE(&p.Relay)
-	return br.Err
-}
-
-// Size implements the payloader interface.
-func (p *Version) Size() uint32 {
-	return uint32(minVersionSize + util.GetVarSize(p.UserAgent))
 }

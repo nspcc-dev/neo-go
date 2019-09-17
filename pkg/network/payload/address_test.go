@@ -1,12 +1,12 @@
 package payload
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +15,7 @@ func TestEncodeDecodeAddress(t *testing.T) {
 		e, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:2000")
 		ts   = time.Now()
 		addr = NewAddressAndTime(e, ts)
-		buf  = new(bytes.Buffer)
+		buf  = io.NewBufBinWriter()
 	)
 
 	assert.Equal(t, ts.UTC().Unix(), int64(addr.Timestamp))
@@ -23,12 +23,14 @@ func TestEncodeDecodeAddress(t *testing.T) {
 	copy(aatip, addr.IP[:])
 	assert.Equal(t, e.IP, aatip)
 	assert.Equal(t, e.Port, int(addr.Port))
-	err := addr.EncodeBinary(buf)
-	assert.Nil(t, err)
+	addr.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
+	b := buf.Bytes()
+	r := io.NewBinReaderFromBuf(b)
 	addrDecode := &AddressAndTime{}
-	err = addrDecode.DecodeBinary(buf)
-	assert.Nil(t, err)
+	addrDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, addr, addrDecode)
 }
@@ -41,13 +43,15 @@ func TestEncodeDecodeAddressList(t *testing.T) {
 		addrList.Addrs[i] = NewAddressAndTime(e, time.Now())
 	}
 
-	buf := new(bytes.Buffer)
-	err := addrList.EncodeBinary(buf)
-	assert.Nil(t, err)
+	buf := io.NewBufBinWriter()
+	addrList.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
 
+	b := buf.Bytes()
+	r := io.NewBinReaderFromBuf(b)
 	addrListDecode := &AddressList{}
-	err = addrListDecode.DecodeBinary(buf)
-	assert.Nil(t, err)
+	addrListDecode.DecodeBinary(r)
+	assert.Nil(t, r.Err)
 
 	assert.Equal(t, addrList, addrListDecode)
 }
