@@ -24,7 +24,7 @@ A complete toolkit for the NEO blockchain, including:
 - Consensus node (WIP)
 - [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/pkg/rpc/README.md)
 - [RPC client](https://github.com/nspcc-dev/neo-go/blob/master/pkg/rpc/README.md)
-- [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/cli/README.md)
+- [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/docs/cli.md)
 - [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/compiler/README.md)
 - [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/README.md)
 
