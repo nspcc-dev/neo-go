@@ -19,6 +19,15 @@ func (ss *smthSerializable) EncodeBinary(bw *BinWriter) {
 	bw.WriteLE(ss.some)
 }
 
+// Mock structure that gives error in EncodeBinary().
+type smthNotReallySerializable struct{}
+
+func (*smthNotReallySerializable) DecodeBinary(*BinReader) {}
+
+func (*smthNotReallySerializable) EncodeBinary(bw *BinWriter) {
+	bw.Err = fmt.Errorf("smth bad happened in smthNotReallySerializable")
+}
+
 func TestVarSize(t *testing.T) {
 	testCases := []struct {
 		variable interface{}
@@ -179,11 +188,19 @@ func TestVarSize(t *testing.T) {
 	}
 }
 
-func TestVarSizePanic(t *testing.T) {
+func panicVarSize(t *testing.T, v interface{}) {
 	defer func() {
 		r := recover()
 		assert.NotNil(t, r)
 	}()
 
-	_ = GetVarSize(t)
+	_ = GetVarSize(v)
+	// this should never execute
+	assert.Nil(t, t)
+}
+
+func TestVarSizePanic(t *testing.T) {
+	panicVarSize(t, t)
+	panicVarSize(t, struct{}{})
+	panicVarSize(t, &smthNotReallySerializable{})
 }
