@@ -66,7 +66,7 @@ func startServer(ctx *cli.Context) error {
 
 	serverConfig := network.NewServerConfig(cfg)
 
-	chain, err := initBlockChain(grace, cfg)
+	chain, err := initBlockChain(cfg)
 	if err != nil {
 		return err
 	}
@@ -79,6 +79,7 @@ func startServer(ctx *cli.Context) error {
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
 	errChan := make(chan error)
 
+	go chain.Run(grace)
 	go server.Start(errChan)
 	go rpcServer.Start(errChan)
 
@@ -111,13 +112,13 @@ Main:
 }
 
 // initBlockChain initializes BlockChain with preselected DB.
-func initBlockChain(context context.Context, cfg config.Config) (*core.Blockchain, error) {
+func initBlockChain(cfg config.Config) (*core.Blockchain, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %s", err), 1)
 	}
 
-	chain, err := core.NewBlockchain(context, store, cfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %s", err), 1)
 	}

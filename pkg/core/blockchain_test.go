@@ -153,7 +153,7 @@ func newTestChain(t *testing.T) *Blockchain {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chain, err := NewBlockchain(context.Background(), storage.NewMemoryStore(), cfg.ProtocolConfiguration)
+	chain, err := NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration)
 	if err != nil {
 		t.Fatal(err)
 	}
