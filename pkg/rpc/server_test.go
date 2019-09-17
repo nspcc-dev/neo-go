@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -248,7 +247,7 @@ func TestHandler(t *testing.T) {
 
 	store, err := storage.NewLevelDBStore(cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions)
 	assert.Nil(t, err)
-	chain, err := core.NewBlockchain(context.Background(), store, cfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration)
 	require.NoError(t, err, "could not create levelDB chain")
 
 	serverConfig := network.NewServerConfig(cfg)

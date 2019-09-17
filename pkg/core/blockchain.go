@@ -63,7 +63,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain return a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
 		config:        cfg,
 		Store:         s,
@@ -74,7 +74,6 @@ func NewBlockchain(ctx context.Context, s storage.Store, cfg config.ProtocolConf
 		memPool:       NewMemPool(50000),
 	}
 
-	go bc.run(ctx)
 	if err := bc.init(); err != nil {
 		return nil, err
 	}
@@ -151,7 +150,8 @@ func (bc *Blockchain) init() error {
 	return nil
 }
 
-func (bc *Blockchain) run(ctx context.Context) {
+// Run runs chain loop.
+func (bc *Blockchain) Run(ctx context.Context) {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
