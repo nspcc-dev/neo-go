@@ -59,3 +59,19 @@ func TestPutBatch(t *testing.T) {
 	assert.Equal(t, value, newVal)
 	require.NoError(t, s.Close())
 }
+
+func TestMemoryStore_Seek(t *testing.T) {
+	var (
+		s     = NewMemoryStore()
+		key   = []byte("sparse")
+		value = []byte("rocks")
+	)
+
+	if err := s.Put(key, value); err != nil {
+		t.Fatal(err)
+	}
+
+	s.Seek(key, func(k, v []byte) {
+		assert.Equal(t, value, v)
+	})
+}

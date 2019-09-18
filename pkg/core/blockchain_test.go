@@ -13,6 +13,9 @@ import (
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 	h1 := newBlock(1).Header()
 	h2 := newBlock(2).Header()
 	h3 := newBlock(3).Header()
@@ -38,6 +41,9 @@ func TestAddHeaders(t *testing.T) {
 
 func TestAddBlock(t *testing.T) {
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 	blocks := []*Block{
 		newBlock(1),
 		newBlock(2),
@@ -57,7 +63,7 @@ func TestAddBlock(t *testing.T) {
 
 	t.Log(bc.blockCache)
 
-	if err := bc.persist(context.Background()); err != nil {
+	if err := bc.Persist(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,6 +81,9 @@ func TestAddBlock(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 	block := newBlock(1)
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
@@ -91,6 +100,9 @@ func TestGetHeader(t *testing.T) {
 
 func TestGetBlock(t *testing.T) {
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 	blocks := makeBlocks(100)
 
 	for i := 0; i < len(blocks); i++ {
@@ -111,6 +123,9 @@ func TestGetBlock(t *testing.T) {
 
 func TestHasBlock(t *testing.T) {
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 	blocks := makeBlocks(50)
 
 	for i := 0; i < len(blocks); i++ {
@@ -118,7 +133,7 @@ func TestHasBlock(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	assert.Nil(t, bc.persist(context.Background()))
+	assert.Nil(t, bc.Persist(context.Background()))
 
 	for i := 0; i < len(blocks); i++ {
 		assert.True(t, bc.HasBlock(blocks[i].Hash()))
@@ -131,6 +146,9 @@ func TestHasBlock(t *testing.T) {
 func TestGetTransaction(t *testing.T) {
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
+	defer func() {
+		require.NoError(t, bc.Close())
+	}()
 
 	assert.Nil(t, bc.AddBlock(block))
 	assert.Nil(t, bc.persistBlock(block))
@@ -157,5 +175,6 @@ func newTestChain(t *testing.T) *Blockchain {
 	if err != nil {
 		t.Fatal(err)
 	}
+	go chain.Run(context.Background())
 	return chain
 }

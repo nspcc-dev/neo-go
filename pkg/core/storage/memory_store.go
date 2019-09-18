@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/hex"
+	"strings"
 	"sync"
 )
 
@@ -67,6 +68,12 @@ func (s *MemoryStore) PutBatch(batch Batch) error {
 
 // Seek implements the Store interface.
 func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
+	for k, v := range s.mem {
+		if strings.Contains(k, hex.EncodeToString(key)) {
+			decodeString, _ := hex.DecodeString(k)
+			f(decodeString, v)
+		}
+	}
 }
 
 // Batch implements the Batch interface and returns a compatible Batch.
