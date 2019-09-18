@@ -75,6 +75,21 @@ func (i *StructItem) String() string {
 	return "Struct"
 }
 
+// Clone returns a Struct with all Struct fields copied by value.
+// Array fields are still copied by reference.
+func (i *StructItem) Clone() *StructItem {
+	ret := &StructItem{make([]StackItem, len(i.value))}
+	for j := range i.value {
+		switch t := i.value[j].(type) {
+		case *StructItem:
+			ret.value[j] = t.Clone()
+		default:
+			ret.value[j] = t
+		}
+	}
+	return ret
+}
+
 // BigIntegerItem represents a big integer on the stack.
 type BigIntegerItem struct {
 	value *big.Int

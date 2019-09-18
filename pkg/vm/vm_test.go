@@ -538,6 +538,18 @@ func TestAPPENDStruct(t *testing.T) {
 	assert.Equal(t, &StructItem{[]StackItem{makeStackItem(5)}}, vm.estack.Pop().value)
 }
 
+func TestAPPENDCloneStruct(t *testing.T) {
+	prog := makeProgram(DUP, PUSH0, NEWSTRUCT, TOALTSTACK, DUPFROMALTSTACK, APPEND, FROMALTSTACK, PUSH1, APPEND)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: &ArrayItem{}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{[]StackItem{
+		&StructItem{[]StackItem{}},
+	}}, vm.estack.Pop().value)
+}
+
 func TestAPPENDBadNoArguments(t *testing.T) {
 	prog := makeProgram(APPEND)
 	vm := load(prog)

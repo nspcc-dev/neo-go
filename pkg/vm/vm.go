@@ -642,14 +642,19 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
+		val := itemElem.value
+		if t, ok := itemElem.value.(*StructItem); ok {
+			val = t.Clone()
+		}
+
 		switch t := arrElem.value.(type) {
 		case *ArrayItem:
 			arr := t.Value().([]StackItem)
-			arr = append(arr, itemElem.value)
+			arr = append(arr, val)
 			t.value = arr
 		case *StructItem:
 			arr := t.Value().([]StackItem)
-			arr = append(arr, itemElem.value)
+			arr = append(arr, val)
 			t.value = arr
 		default:
 			panic("APPEND: not of underlying type Array")
