@@ -22,6 +22,11 @@ var (
 	ModeMute Mode = 1 << 0
 )
 
+const (
+	maxSHLArg = 256
+	minSHLArg = -256
+)
+
 // VM represents the virtual machine.
 type VM struct {
 	state State
@@ -508,21 +513,19 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Mod(a, b))
 
-	case SHL:
-		b := v.estack.Pop().BigInt()
-		if b.Int64() == 0 {
+	case SHL, SHR:
+		b := v.estack.Pop().BigInt().Int64()
+		if b == 0 {
 			return
+		} else if b < minSHLArg || b > maxSHLArg {
+			panic(fmt.Sprintf("operand must be between %d and %d", minSHLArg, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
-
-	case SHR:
-		b := v.estack.Pop().BigInt()
-		if b.Int64() == 0 {
-			return
+		if op == SHL {
+			v.estack.PushVal(new(big.Int).Lsh(a, uint(b)))
+		} else {
+			v.estack.PushVal(new(big.Int).Rsh(a, uint(b)))
 		}
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 
 	case BOOLAND:
 		b := v.estack.Pop().Bool()
