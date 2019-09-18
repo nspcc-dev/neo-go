@@ -22,8 +22,7 @@ This project aims to be a full port of the original C# [NEO project](https://git
 A complete toolkit for the NEO blockchain, including:
 
 - Consensus node (WIP)
-- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/pkg/rpc/README.md)
-- [RPC client](https://github.com/nspcc-dev/neo-go/blob/master/pkg/rpc/README.md)
+- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/docs/rpc.md)
 - [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/docs/cli.md)
 - [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/docs/compiler.md)
 - [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/README.md)
