@@ -408,15 +408,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case OVER:
-		b := v.estack.Pop()
-		if b == nil {
-			panic("no top-level element found")
-		}
-		a := v.estack.Peek(0)
+		a := v.estack.Peek(1)
 		if a == nil {
 			panic("no second element found")
 		}
-		v.estack.Push(b)
 		v.estack.Push(a)
 
 	case PICK:

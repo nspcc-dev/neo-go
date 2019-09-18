@@ -920,6 +920,8 @@ func TestOVERbadNoitem(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func TestOVERbadNoitems(t *testing.T) {
