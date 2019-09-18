@@ -12,6 +12,7 @@
 [![codecov](https://codecov.io/gh/nspcc-dev/neo-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-go)
 [![CircleCI](https://circleci.com/gh/nspcc-dev/neo-go/tree/master.svg?style=svg)](https://circleci.com/gh/nspcc-dev/neo-go/tree/master)
 [![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neo-go)](https://goreportcard.com/report/github.com/nspcc-dev/neo-go)
+[![GoDoc](https://godoc.org/github.com/nspcc-dev/neo-go?status.svg)](https://godoc.org/github.com/nspcc-dev/neo-go)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nspcc-dev/neo-go?sort=semver)
 ![License](https://img.shields.io/github/license/nspcc-dev/neo-go.svg?style=popout)
 
@@ -21,11 +22,10 @@ This project aims to be a full port of the original C# [NEO project](https://git
 A complete toolkit for the NEO blockchain, including:
 
 - Consensus node (WIP)
-- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/pkg/rpc/README.md)
-- [RPC client](https://github.com/nspcc-dev/neo-go/blob/master/pkg/rpc/README.md)
-- [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/cli/README.md)
-- [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/compiler/README.md)
-- [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/pkg/vm/README.md)
+- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/docs/rpc.md)
+- [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/docs/cli.md)
+- [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/docs/compiler.md)
+- [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/docs/vm.md)
 
 # Getting started
 

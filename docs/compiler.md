@@ -23,32 +23,41 @@ The neo-go compiler compiles Go programs to bytecode that the NEO virtual machin
 - append
 
 ### VM API (interop layer)
-- storage
-- runtime
-- block
-- header
-- transaction
+Compiler translates interop function calls into NEO VM syscalls or (for custom
+functions) into NEO VM instructions. [Refer to GoDoc](https://godoc.org/github.com/nspcc-dev/neo-go/pkg/interop) for full API documentation.
+
+#### Standard NEO Smart Contract API
+- account
 - asset
+- attribute
+- block
 - blockchain
+- contract
+- engine
+- header
+- input
+- iterator
+- output
+- runtime
+- storage
+- transaction
 
-### VM utility helper functions
-- SHA1
-- SHA256
-- Hash256
-- Hash160
-- other..
-
-### Custom utility functions
-- `FromAddress(address string) []byte`
-
-## Not yet implemented
-- very small part of the interop layer (VM API)
+#### Custom VM utility helper functions
+- crypto:
+  - `SHA1`
+  - `SHA256`
+  - `Hash256`
+  - `Hash160`
+- enumerator
+- util:
+  - `Equals` (to emit `EQUALS` opcode, not needed usually)
+  - `FromAddress(address string) []byte`
 
 ## Not supported
 Due to the limitations of the NEO virtual machine, features listed below will not be supported.
 - channels 
 - goroutines
-- multiple returns 
+- returning multiple values from functions
 
 ## Quick start
 
@@ -125,7 +134,11 @@ Will output something like:
 
 ```
 
+At the moment this is implemented via RPC call to the remote server.
+
 ## Smart contract examples
+
+Some examples are provided in the [examples directory](https://github.com/nspcc-dev/neo-go/tree/master/examples).
 
 ### Check if the invoker of the contract is the owning address
 
@@ -214,4 +227,3 @@ func Main(operation string, args []interface{}) bool {
 2. Create an issue on Github 
 3. Make a PR with a reference to the created issue, containing the testcase that proves the bug
 4. Either you fix the bug yourself or wait for patch that solves the problem
-
