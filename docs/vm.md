@@ -4,28 +4,16 @@ A cross platform virtual machine implementation for `avm` compatible programs.
 
 # Installation
 
-## With neo-go
-Install dependencies.
+VM is provided as part of neo-go binary, so usual neo-go build instructions
+are applicable.
 
-`neo-go` uses [dep](https://github.com/golang/dep) as its dependency manager. After installing `deps` you can run:
-
-```
-make deps
-```
-
-Build the `neo-go` cli:
-
-```
-make build
-```
+# Running the VM
 
 Start the virtual machine:
 
 ```
-./bin/neo-go vm
-```
+$ ./bin/neo-go vm
 
-```
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
   /  |/ / __/ / / / /_____/ / __/ / / /____| | / / /|_/ /
@@ -35,9 +23,6 @@ Start the virtual machine:
 
 NEO-GO-VM >
 ```
-
-## Standalone
-More information about standalone installation coming soon.
 
 # Usage
 
@@ -51,24 +36,39 @@ More information about standalone installation coming soon.
 
 NEO-GO-VM > help
 
-COMMAND    USAGE
-astack     show alt stack details
-break      place a breakpoint (> break 1)
-cont       continue execution of the current loaded script
-estack     show evaluation stack details
-exit       exit the VM prompt
-help       show available commands
-ip         show the current instruction
-istack     show invocation stack details
-loadavm    load an avm script into the VM (> load /path/to/script.avm)
-loadgo     compile and load a .go file into the VM (> load /path/to/file.go)
-loadhex    load a hex string into the VM (> loadhex 006166 )
-ops        show the opcodes of the current loaded program
-run        execute the current loaded script
-step       step (n) instruction in the program (> step 10)
+Commands:
+  astack       Show alt stack contents
+  break        Place a breakpoint
+  clear        clear the screen
+  cont         Continue execution of the current loaded script
+  estack       Show evaluation stack contents
+  exit         Exit the VM prompt
+  help         display help
+  ip           Show current instruction
+  istack       Show invocation stack contents
+  loadavm      Load an avm script into the VM
+  loadgo       Compile and load a Go file into the VM
+  loadhex      Load a hex-encoded script string into the VM
+  ops          Dump opcodes of the current loaded program
+  run          Execute the current loaded script
+  step         Step (n) instruction in the program
+
+
 ```
 
-### Loading in your script
+You can get help for each command and its parameters adding `help` as a
+parameter to the command:
+
+```
+NEO-GO-VM > step help
+
+Usage: step [<n>]
+<n> is optional parameter to specify number of instructions to run, example:
+> step 10
+
+```
+
+## Loading in your script
 
 To load an avm script into the VM:
 
@@ -111,7 +111,7 @@ NEO-GO-VM > run
 
 ```
 
-### Running programs with arguments
+## Running programs with arguments
 You can invoke smart contracts with arguments. Take the following ***roll the dice*** smartcontract as example. 
 
 ```
@@ -146,7 +146,10 @@ func rollDice(number int) {
 
 To invoke this contract we need to specify both the method and the arguments.
 
-The first parameter (called method or operation) is always of type string. Notice that arguments can have different types, to make the VM aware of the type we need to specify it when calling `run`:
+The first parameter (called method or operation) is always of type
+string. Notice that arguments can have different types, they can inferred
+automatically (please refer to the `run` command help), but in you need to
+pass parameter of specific type you can specify it in `run`'s arguments:
 
 ```
 NEO-GO-VM > run rollDice int:1
@@ -154,34 +157,39 @@ NEO-GO-VM > run rollDice int:1
 
 > The method is always of type string, hence we don't need to specify the type.
 
-To add more then 1 argument:
+To add more than 1 argument:
 
 ```
 NEO-GO-VM > run someMethod int:1 int:2 string:foo string:bar
 ```
 
-Current supported types:
+Currently supported types:
+- `bool (bool:false and bool:true)`
 - `int (int:1 int:100)`
 - `string (string:foo string:this is a string)` 
 
-### Debugging
+## Debugging
 The `neo-go-vm` provides a debugger to inspect your program in-depth.
 
+
+### Stepping through the program
 Step 4 instructions.
 
 ```
 NEO-GO-VM > step 4
-at breakpoint 4 (Opush4)
-NEO-GO-VM 4 >
+at breakpoint 3 (DUPFROMALTSTACK)
+NEO-GO-VM 3 >
 ```
 
 Using just `step` will execute 1 instruction at a time.
 
 ```
-NEO-GO-VM > step
-instruction pointer at 5 (Odup)
-NEO-GO-VM 5 >
+NEO-GO-VM 3 > step
+at breakpoint 4 (PUSH0)
+NEO-GO-VM 4 >
 ```
+
+### Breakpoints
 
 To place breakpoints:
 
@@ -189,9 +197,11 @@ To place breakpoints:
 NEO-GO-VM > break 10
 breakpoint added at instruction 10
 NEO-GO-VM > cont
-at breakpoint 10 (Osetitem)
+at breakpoint 10 (SETITEM)
 NEO-GO-VM 10 > cont
 ```
+
+## Inspecting stack
 
 Inspecting the evaluation stack:
 
