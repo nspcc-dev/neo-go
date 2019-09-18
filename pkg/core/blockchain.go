@@ -37,7 +37,7 @@ type Blockchain struct {
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
-	// Write access should only happen in persist().
+	// Write access should only happen in Persist().
 	blockHeight uint32
 
 	// Number of headers stored in the chain file.
@@ -167,7 +167,10 @@ func (bc *Blockchain) Run(ctx context.Context) {
 			op(bc.headerList)
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
-			go bc.persist(ctx)
+			go func() {
+				err := bc.Persist(ctx)
+				log.Warnf("failed to persist blockchain: %s", err)
+			}()
 			persistTimer.Reset(persistInterval)
 		}
 	}
@@ -389,7 +392,8 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	return nil
 }
 
-func (bc *Blockchain) persist(ctx context.Context) (err error) {
+//Persist starts persist loop.
+func (bc *Blockchain) Persist(ctx context.Context) (err error) {
 	var (
 		start     = time.Now()
 		persisted = 0
