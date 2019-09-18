@@ -1138,20 +1138,22 @@ func TestSUBSTRBadOffset(t *testing.T) {
 	prog := makeProgram(SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
-	vm.estack.PushVal(6)
+	vm.estack.PushVal(7)
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestSUBSTRBadLen(t *testing.T) {
+func TestSUBSTRBigLen(t *testing.T) {
 	prog := makeProgram(SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
 }
 
 func TestSUBSTRBad387(t *testing.T) {
@@ -1163,7 +1165,9 @@ func TestSUBSTRBad387(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
 }
 
 func TestSUBSTRBadNegativeOffset(t *testing.T) {

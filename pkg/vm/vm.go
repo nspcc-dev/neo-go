@@ -318,18 +318,22 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(ab)
 	case SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
-		o := int(v.estack.Pop().BigInt().Int64())
-		s := v.estack.Pop().Bytes()
 		if l < 0 {
 			panic("negative length")
 		}
+		o := int(v.estack.Pop().BigInt().Int64())
 		if o < 0 {
 			panic("negative index")
 		}
-		if l+o > len(s) {
-			panic("out of bounds access")
+		s := v.estack.Pop().Bytes()
+		if o > len(s) {
+			panic("invalid offset")
 		}
-		v.estack.PushVal(s[o : o+l])
+		last := l + o
+		if last > len(s) {
+			last = len(s)
+		}
+		v.estack.PushVal(s[o:last])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
