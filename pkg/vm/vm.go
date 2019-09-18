@@ -454,6 +454,12 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		if a == nil {
 			panic("no second-to-the-top element found")
 		}
+		if ta, ok := a.value.(*ArrayItem); ok {
+			if tb, ok := b.value.(*ArrayItem); ok {
+				v.estack.PushVal(ta == tb)
+				break
+			}
+		}
 		v.estack.PushVal(reflect.DeepEqual(a, b))
 
 	// Bit operations.

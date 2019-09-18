@@ -405,6 +405,27 @@ func TestEQUALGoodInteger(t *testing.T) {
 	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
 }
 
+func TestEQUALArrayTrue(t *testing.T) {
+	prog := makeProgram(DUP, EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
+func TestEQUALArrayFalse(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)
