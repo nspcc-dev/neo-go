@@ -46,13 +46,6 @@ func getVarIntSize(value int) int {
 	return int(size)
 }
 
-// getVarStringSize returns the size of a variable string
-// (reference: GetVarSize(this string value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
-func getVarStringSize(value string) int {
-	valueSize := len([]byte(value))
-	return getVarIntSize(valueSize) + valueSize
-}
-
 // GetVarSize returns the number of bytes in a serialized variable. It supports ints/uints (estimating
 // them using variable-length encoding that is used in NEO), strings, pointers to Serializable structures,
 // slices and arrays of ints/uints or Serializable structures. It's similar to GetVarSize<T>(this T[] value)
@@ -61,7 +54,8 @@ func GetVarSize(value interface{}) int {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.String:
-		return getVarStringSize(v.String())
+		valueSize := len([]byte(v.String()))
+		return getVarIntSize(valueSize) + valueSize
 	case reflect.Int,
 		reflect.Int8,
 		reflect.Int16,
