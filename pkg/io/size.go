@@ -53,9 +53,10 @@ func getVarStringSize(value string) int {
 	return getVarIntSize(valueSize) + valueSize
 }
 
-// GetVarSize return the size om bytes of a variable. This implementation is not exactly like the C#
-// (reference: GetVarSize<T>(this T[] value), https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L53) as in the C# variable
-// like Uint160, Uint256 are not supported.
+// GetVarSize returns the number of bytes in a serialized variable. It supports ints/uints (estimating
+// them using variable-length encoding that is used in NEO), strings, pointers to Serializable structures,
+// slices and arrays of ints/uints or Serializable structures. It's similar to GetVarSize<T>(this T[] value)
+// used in C#, but differs in that it also supports things like Uint160 or Uint256.
 func GetVarSize(value interface{}) int {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
