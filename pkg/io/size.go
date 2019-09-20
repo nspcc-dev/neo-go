@@ -31,9 +31,9 @@ func (cw *counterWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-// GetVarIntSize returns the size in number of bytes of a variable integer
+// getVarIntSize returns the size in number of bytes of a variable integer
 // (reference: GetVarSize(int value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
-func GetVarIntSize(value int) int {
+func getVarIntSize(value int) int {
 	var size uintptr
 
 	if value < 0xFD {
@@ -46,33 +46,28 @@ func GetVarIntSize(value int) int {
 	return int(size)
 }
 
-// GetVarStringSize returns the size of a variable string
-// (reference: GetVarSize(this string value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
-func GetVarStringSize(value string) int {
-	valueSize := len([]byte(value))
-	return GetVarIntSize(valueSize) + valueSize
-}
-
-// GetVarSize return the size om bytes of a variable. This implementation is not exactly like the C#
-// (reference: GetVarSize<T>(this T[] value), https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L53) as in the C# variable
-// like Uint160, Uint256 are not supported.
+// GetVarSize returns the number of bytes in a serialized variable. It supports ints/uints (estimating
+// them using variable-length encoding that is used in NEO), strings, pointers to Serializable structures,
+// slices and arrays of ints/uints or Serializable structures. It's similar to GetVarSize<T>(this T[] value)
+// used in C#, but differs in that it also supports things like Uint160 or Uint256.
 func GetVarSize(value interface{}) int {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.String:
-		return GetVarStringSize(v.String())
+		valueSize := len([]byte(v.String()))
+		return getVarIntSize(valueSize) + valueSize
 	case reflect.Int,
 		reflect.Int8,
 		reflect.Int16,
 		reflect.Int32,
 		reflect.Int64:
-		return GetVarIntSize(int(v.Int()))
+		return getVarIntSize(int(v.Int()))
 	case reflect.Uint,
 		reflect.Uint8,
 		reflect.Uint16,
 		reflect.Uint32,
 		reflect.Uint64:
-		return GetVarIntSize(int(v.Uint()))
+		return getVarIntSize(int(v.Uint()))
 	case reflect.Ptr:
 		vser, ok := v.Interface().(Serializable)
 		if !ok {
@@ -106,7 +101,7 @@ func GetVarSize(value interface{}) int {
 			}
 		}
 
-		return GetVarIntSize(valueLength) + valueSize
+		return getVarIntSize(valueLength) + valueSize
 	default:
 		panic(fmt.Sprintf("unable to calculate GetVarSize, %s", reflect.TypeOf(value)))
 	}
