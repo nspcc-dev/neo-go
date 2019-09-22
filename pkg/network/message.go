@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
@@ -193,6 +194,8 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		p = &transaction.Transaction{}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
+	default:
+		return fmt.Errorf("can't decode command %s", cmdByteArrayToString(m.Command))
 	}
 	p.DecodeBinary(r)
 	if r.Err != nil {
