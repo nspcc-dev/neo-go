@@ -169,7 +169,9 @@ func (bc *Blockchain) Run(ctx context.Context) {
 		case <-persistTimer.C:
 			go func() {
 				err := bc.Persist(ctx)
-				log.Warnf("failed to persist blockchain: %s", err)
+				if err != nil {
+					log.Warnf("failed to persist blockchain: %s", err)
+				}
 			}()
 			persistTimer.Reset(persistInterval)
 		}
