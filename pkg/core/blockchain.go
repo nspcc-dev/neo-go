@@ -414,7 +414,6 @@ func (bc *Blockchain) Persist(ctx context.Context) (err error) {
 			hash := headerList.Get(int(bc.BlockHeight() + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
-					log.Warnf("failed to persist blocks: %s", err)
 					return
 				}
 				bc.blockCache.Delete(hash)
