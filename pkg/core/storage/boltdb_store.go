@@ -36,7 +36,11 @@ func (b *BoltDBBatch) Len() int {
 
 // Put implements the Batch interface.
 func (b *BoltDBBatch) Put(k, v []byte) {
-	b.mem[&k] = v
+	vcopy := make([]byte, len(v))
+	copy(vcopy, v)
+	kcopy := make([]byte, len(k))
+	copy(kcopy, k)
+	b.mem[&kcopy] = vcopy
 }
 
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
