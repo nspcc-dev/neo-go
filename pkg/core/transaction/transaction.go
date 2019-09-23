@@ -62,7 +62,9 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 // Hash return the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
 	if t.hash.Equals(util.Uint256{}) {
-		t.createHash()
+		if t.createHash() != nil {
+			panic("failed to compute hash!")
+		}
 	}
 	return t.hash
 }
@@ -70,7 +72,9 @@ func (t *Transaction) Hash() util.Uint256 {
 // VerificationHash returns the hash of the transaction used to verify it.
 func (t *Transaction) VerificationHash() util.Uint256 {
 	if t.verificationHash.Equals(util.Uint256{}) {
-		t.createHash()
+		if t.createHash() != nil {
+			panic("failed to compute hash!")
+		}
 	}
 	return t.verificationHash
 }
