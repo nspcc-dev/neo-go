@@ -233,6 +233,12 @@ func (v *VM) Step() {
 	}
 }
 
+// HasFailed returns whether VM is in the failed state now. Usually used to
+// check status after Run.
+func (v *VM) HasFailed() bool {
+	return v.state.HasFlag(faultState)
+}
+
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
 func (v *VM) execute(ctx *Context, op Instruction) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
