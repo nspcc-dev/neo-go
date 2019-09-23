@@ -26,11 +26,17 @@ func TestBoltDBBatch_Len(t *testing.T) {
 
 func TestBoltDBBatch_PutBatchAndGet(t *testing.T) {
 	key := []byte("foo")
+	keycopy := make([]byte, len(key))
+	copy(keycopy, key)
 	value := []byte("bar")
-	batch := &BoltDBBatch{mem: map[*[]byte][]byte{&key: value}}
-
+	valuecopy := make([]byte, len(value))
+	copy(valuecopy, value)
 	boltDBStore := openStore(t)
+	batch := boltDBStore.Batch()
 
+	batch.Put(keycopy, valuecopy)
+	copy(valuecopy, key)
+	copy(keycopy, value)
 	errPut := boltDBStore.PutBatch(batch)
 	assert.Nil(t, errPut, "Error while PutBatch")
 
