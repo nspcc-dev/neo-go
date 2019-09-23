@@ -305,6 +305,15 @@ func TestSHRZero(t *testing.T) {
 	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
 }
 
+func TestSHRSmallValue(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(-257)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestSHLGood(t *testing.T) {
 	prog := makeProgram(SHL)
 	vm := load(prog)
@@ -325,6 +334,15 @@ func TestSHLZero(t *testing.T) {
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
+func TestSHLBigValue(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(257)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
 func TestLT(t *testing.T) {
@@ -920,6 +938,8 @@ func TestOVERbadNoitem(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func TestOVERbadNoitems(t *testing.T) {
@@ -1138,20 +1158,22 @@ func TestSUBSTRBadOffset(t *testing.T) {
 	prog := makeProgram(SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
-	vm.estack.PushVal(6)
+	vm.estack.PushVal(7)
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
-func TestSUBSTRBadLen(t *testing.T) {
+func TestSUBSTRBigLen(t *testing.T) {
 	prog := makeProgram(SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
 }
 
 func TestSUBSTRBad387(t *testing.T) {
@@ -1163,7 +1185,9 @@ func TestSUBSTRBad387(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
 	vm.Run()
-	assert.Equal(t, true, vm.state.HasFlag(faultState))
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
 }
 
 func TestSUBSTRBadNegativeOffset(t *testing.T) {

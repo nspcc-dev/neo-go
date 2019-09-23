@@ -22,6 +22,11 @@ var (
 	ModeMute Mode = 1 << 0
 )
 
+const (
+	maxSHLArg = 256
+	minSHLArg = -256
+)
+
 // VM represents the virtual machine.
 type VM struct {
 	state State
@@ -318,18 +323,22 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(ab)
 	case SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
-		o := int(v.estack.Pop().BigInt().Int64())
-		s := v.estack.Pop().Bytes()
 		if l < 0 {
 			panic("negative length")
 		}
+		o := int(v.estack.Pop().BigInt().Int64())
 		if o < 0 {
 			panic("negative index")
 		}
-		if l+o > len(s) {
-			panic("out of bounds access")
+		s := v.estack.Pop().Bytes()
+		if o > len(s) {
+			panic("invalid offset")
 		}
-		v.estack.PushVal(s[o : o+l])
+		last := l + o
+		if last > len(s) {
+			last = len(s)
+		}
+		v.estack.PushVal(s[o:last])
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -404,15 +413,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case OVER:
-		b := v.estack.Pop()
-		if b == nil {
-			panic("no top-level element found")
-		}
-		a := v.estack.Peek(0)
+		a := v.estack.Peek(1)
 		if a == nil {
 			panic("no second element found")
 		}
-		v.estack.Push(b)
 		v.estack.Push(a)
 
 	case PICK:
@@ -509,21 +513,19 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Mod(a, b))
 
-	case SHL:
-		b := v.estack.Pop().BigInt()
-		if b.Int64() == 0 {
+	case SHL, SHR:
+		b := v.estack.Pop().BigInt().Int64()
+		if b == 0 {
 			return
+		} else if b < minSHLArg || b > maxSHLArg {
+			panic(fmt.Sprintf("operand must be between %d and %d", minSHLArg, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Lsh(a, uint(b.Int64())))
-
-	case SHR:
-		b := v.estack.Pop().BigInt()
-		if b.Int64() == 0 {
-			return
+		if op == SHL {
+			v.estack.PushVal(new(big.Int).Lsh(a, uint(b)))
+		} else {
+			v.estack.PushVal(new(big.Int).Rsh(a, uint(b)))
 		}
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Rsh(a, uint(b.Int64())))
 
 	case BOOLAND:
 		b := v.estack.Pop().Bool()
