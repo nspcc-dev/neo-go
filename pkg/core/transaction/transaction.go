@@ -39,8 +39,11 @@ type Transaction struct {
 	// and invocation script.
 	Scripts []*Witness `json:"scripts"`
 
-	// hash of the transaction
+	// Hash of the transaction (double SHA256).
 	hash util.Uint256
+
+	// Hash of the transaction used to verify it (single SHA256).
+	verificationHash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
@@ -62,6 +65,14 @@ func (t *Transaction) Hash() util.Uint256 {
 		t.createHash()
 	}
 	return t.hash
+}
+
+// VerificationHash returns the hash of the transaction used to verify it.
+func (t *Transaction) VerificationHash() util.Uint256 {
+	if t.verificationHash.Equals(util.Uint256{}) {
+		t.createHash()
+	}
+	return t.verificationHash
 }
 
 // AddOutput adds the given output to the transaction outputs.
@@ -196,7 +207,9 @@ func (t *Transaction) createHash() error {
 		return buf.Err
 	}
 
-	t.hash = hash.DoubleSha256(buf.Bytes())
+	b := buf.Bytes()
+	t.hash = hash.DoubleSha256(b)
+	t.verificationHash = hash.Sha256(b)
 
 	return nil
 }
