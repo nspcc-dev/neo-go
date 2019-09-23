@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -43,6 +44,8 @@ type VM struct {
 
 	// Mute all output after execution.
 	mute bool
+	// Hash to verify in CHECKSIG/CHECKMULTISIG.
+	checkhash []byte
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
@@ -237,6 +240,12 @@ func (v *VM) Step() {
 // check status after Run.
 func (v *VM) HasFailed() bool {
 	return v.state.HasFlag(faultState)
+}
+
+// SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.
+func (v *VM) SetCheckedHash(h []byte) {
+	v.checkhash = make([]byte, len(h))
+	copy(v.checkhash, h)
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
@@ -848,7 +857,62 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			v.state = haltState
 		}
 
-	case CHECKSIG, VERIFY, CHECKMULTISIG, NEWMAP, HASKEY, KEYS, VALUES:
+	case CHECKSIG, VERIFY:
+		var hashToCheck []byte
+
+		keyb := v.estack.Pop().Bytes()
+		signature := v.estack.Pop().Bytes()
+		if op == CHECKSIG {
+			if v.checkhash == nil {
+				panic("VM is not set up properly for signature checks")
+			}
+			hashToCheck = v.checkhash
+		} else { // VERIFY
+			msg := v.estack.Pop().Bytes()
+			hashToCheck = hash.Sha256(msg).Bytes()
+		}
+		pkey := &keys.PublicKey{}
+		err := pkey.DecodeBytes(keyb)
+		if err != nil {
+			panic(err.Error())
+		}
+		res := pkey.Verify(signature, hashToCheck)
+		v.estack.PushVal(res)
+
+	case CHECKMULTISIG:
+		pkeys, err := v.estack.popSigElements()
+		if err != nil {
+			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
+		}
+		sigs, err := v.estack.popSigElements()
+		if err != nil {
+			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
+		}
+		if len(pkeys) < len(sigs) {
+			panic("more signatures than there are keys")
+		}
+		if v.checkhash == nil {
+			panic("VM is not set up properly for signature checks")
+		}
+		sigok := true
+		j := 0
+		for i := 0; sigok && i < len(pkeys) && j < len(sigs); {
+			pkey := &keys.PublicKey{}
+			err := pkey.DecodeBytes(pkeys[j])
+			if err != nil {
+				panic(err.Error())
+			}
+			if pkey.Verify(sigs[i], v.checkhash) {
+				i++
+			}
+			j++
+			if len(pkeys)-i > len(sigs)-j {
+				sigok = false
+			}
+		}
+		v.estack.PushVal(sigok)
+
+	case NEWMAP, HASKEY, KEYS, VALUES:
 		panic("unimplemented")
 
 	// Cryptographic operations.

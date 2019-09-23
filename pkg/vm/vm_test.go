@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -1486,6 +1488,252 @@ func TestREMOVEGood(t *testing.T) {
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, makeStackItem(reselements), vm.estack.Pop().value)
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+}
+
+func TestCHECKSIGNoArgs(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKSIGOneArg(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKSIGNoSigLoaded(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := "NEO - An Open Network For Smart Economy"
+	sig, err := pk.Sign([]byte(msg))
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.estack.PushVal(sig)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKSIGBadKey(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig, err := pk.Sign(msg)
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()[:4]
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal(sig)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKSIGWrongSig(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig, err := pk.Sign(msg)
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal(util.ArrayReverse(sig))
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestCHECKSIGGood(t *testing.T) {
+	prog := makeProgram(CHECKSIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig, err := pk.Sign(msg)
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal(sig)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestVERIFYGood(t *testing.T) {
+	prog := makeProgram(VERIFY)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig, err := pk.Sign(msg)
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.estack.PushVal(msg)
+	vm.estack.PushVal(sig)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestVERIFYBad(t *testing.T) {
+	prog := makeProgram(VERIFY)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig, err := pk.Sign(msg)
+	assert.Nil(t, err)
+	pbytes := pk.PublicKey().Bytes()
+	vm := load(prog)
+	vm.estack.PushVal(util.ArrayReverse(msg))
+	vm.estack.PushVal(sig)
+	vm.estack.PushVal(pbytes)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestCHECKMULTISIGNoArgs(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKMULTISIGOneArg(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	vm := load(prog)
+	pbytes := pk.PublicKey().Bytes()
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes)})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKMULTISIGNotEnoughKeys(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk1, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pk2, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig1, err := pk1.Sign(msg)
+	assert.Nil(t, err)
+	sig2, err := pk2.Sign(msg)
+	assert.Nil(t, err)
+	pbytes1 := pk1.PublicKey().Bytes()
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(sig1), NewByteArrayItem(sig2)})
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes1)})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKMULTISIGNoHash(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk1, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pk2, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig1, err := pk1.Sign(msg)
+	assert.Nil(t, err)
+	sig2, err := pk2.Sign(msg)
+	assert.Nil(t, err)
+	pbytes1 := pk1.PublicKey().Bytes()
+	pbytes2 := pk2.PublicKey().Bytes()
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(sig1), NewByteArrayItem(sig2)})
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes1), NewByteArrayItem(pbytes2)})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKMULTISIGBadKey(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk1, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pk2, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig1, err := pk1.Sign(msg)
+	assert.Nil(t, err)
+	sig2, err := pk2.Sign(msg)
+	assert.Nil(t, err)
+	pbytes1 := pk1.PublicKey().Bytes()
+	pbytes2 := pk2.PublicKey().Bytes()[:4]
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(sig1), NewByteArrayItem(sig2)})
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes1), NewByteArrayItem(pbytes2)})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCHECKMULTISIGBadSig(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk1, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pk2, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig1, err := pk1.Sign(msg)
+	assert.Nil(t, err)
+	sig2, err := pk2.Sign(msg)
+	assert.Nil(t, err)
+	pbytes1 := pk1.PublicKey().Bytes()
+	pbytes2 := pk2.PublicKey().Bytes()
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(util.ArrayReverse(sig1)), NewByteArrayItem(sig2)})
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes1), NewByteArrayItem(pbytes2)})
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+}
+
+func TestCHECKMULTISIGGood(t *testing.T) {
+	prog := makeProgram(CHECKMULTISIG)
+	pk1, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	pk2, err := keys.NewPrivateKey()
+	assert.Nil(t, err)
+	msg := []byte("NEO - An Open Network For Smart Economy")
+	sig1, err := pk1.Sign(msg)
+	assert.Nil(t, err)
+	sig2, err := pk2.Sign(msg)
+	assert.Nil(t, err)
+	pbytes1 := pk1.PublicKey().Bytes()
+	pbytes2 := pk2.PublicKey().Bytes()
+	vm := load(prog)
+	vm.SetCheckedHash(hash.Sha256(msg).Bytes())
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(sig1), NewByteArrayItem(sig2)})
+	vm.estack.PushVal([]StackItem{NewByteArrayItem(pbytes1), NewByteArrayItem(pbytes2)})
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
 func makeProgram(opcodes ...Instruction) []byte {
