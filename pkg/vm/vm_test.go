@@ -405,6 +405,27 @@ func TestEQUALGoodInteger(t *testing.T) {
 	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
 }
 
+func TestEQUALArrayTrue(t *testing.T) {
+	prog := makeProgram(DUP, EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
+func TestEQUALArrayFalse(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)
@@ -536,6 +557,18 @@ func TestAPPENDStruct(t *testing.T) {
 	assert.Equal(t, false, vm.state.HasFlag(faultState))
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, &StructItem{[]StackItem{makeStackItem(5)}}, vm.estack.Pop().value)
+}
+
+func TestAPPENDCloneStruct(t *testing.T) {
+	prog := makeProgram(DUP, PUSH0, NEWSTRUCT, TOALTSTACK, DUPFROMALTSTACK, APPEND, FROMALTSTACK, PUSH1, APPEND)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: &ArrayItem{}})
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{[]StackItem{
+		&StructItem{[]StackItem{}},
+	}}, vm.estack.Pop().value)
 }
 
 func TestAPPENDBadNoArguments(t *testing.T) {
