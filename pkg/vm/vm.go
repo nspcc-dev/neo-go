@@ -807,10 +807,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		switch t := elem.value.Value().(type) {
 		case []StackItem:
 			v.estack.PushVal(len(t))
-		case []uint8:
+		case map[interface{}]StackItem:
 			v.estack.PushVal(len(t))
 		default:
-			panic("ARRAYSIZE: item not of type []StackItem")
+			v.estack.PushVal(len(elem.Bytes()))
 		}
 
 	case SIZE:
