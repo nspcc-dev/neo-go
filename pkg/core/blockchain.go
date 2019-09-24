@@ -39,8 +39,11 @@ type Blockchain struct {
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
-	// Write access should only happen in Persist().
+	// Write access should only happen in AddBlock().
 	blockHeight uint32
+
+	// Current persisted block count.
+	persistedHeight uint32
 
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
@@ -112,6 +115,7 @@ func (bc *Blockchain) init() error {
 		return err
 	}
 	bc.blockHeight = bHeight
+	bc.persistedHeight = bHeight
 
 	hashes, err := storage.HeaderHashes(bc.Store)
 	if err != nil {
@@ -170,7 +174,7 @@ func (bc *Blockchain) Run(ctx context.Context) {
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go func() {
-				err := bc.Persist(ctx)
+				err := bc.persist(ctx)
 				if err != nil {
 					log.Warnf("failed to persist blockchain: %s", err)
 				}
@@ -195,7 +199,13 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		if bc.verifyBlocks && !block.Verify(false) {
 			return fmt.Errorf("block %s is invalid", block.Hash())
 		}
-		return bc.AddHeaders(block.Header())
+		err := bc.AddHeaders(block.Header())
+		if err != nil {
+			return err
+		}
+	}
+	if bc.BlockHeight()+1 == block.Index {
+		atomic.StoreUint32(&bc.blockHeight, block.Index)
 	}
 	return nil
 }
@@ -392,12 +402,12 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 		return err
 	}
 
-	atomic.StoreUint32(&bc.blockHeight, block.Index)
+	bc.persistedHeight = block.Index
 	return nil
 }
 
-//Persist starts persist loop.
-func (bc *Blockchain) Persist(ctx context.Context) (err error) {
+// persist flushed current block cache to the persistent storage.
+func (bc *Blockchain) persist(ctx context.Context) (err error) {
 	var (
 		start     = time.Now()
 		persisted = 0
@@ -413,7 +423,7 @@ func (bc *Blockchain) Persist(ctx context.Context) (err error) {
 			if uint32(headerList.Len()) <= bc.BlockHeight() {
 				return
 			}
-			hash := headerList.Get(int(bc.BlockHeight() + 1))
+			hash := headerList.Get(int(bc.persistedHeight + 1))
 			if block, ok := bc.blockCache.GetBlock(hash); ok {
 				if err = bc.persistBlock(block); err != nil {
 					return
@@ -465,6 +475,9 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
+	if tx, height, ok := bc.blockCache.GetTransaction(hash); ok {
+		return tx, height, nil
+	}
 	if tx, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
@@ -490,31 +503,36 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
-	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
-	b, err := bc.Get(key)
-	if err != nil {
-		return nil, err
+	block, ok := bc.blockCache.GetBlock(hash)
+	if !ok {
+		key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
+		b, err := bc.Get(key)
+		if err != nil {
+			return nil, err
+		}
+		block, err = NewBlockFromTrimmedBytes(b)
+		if err != nil {
+			return nil, err
+		}
 	}
-	block, err := NewBlockFromTrimmedBytes(b)
-	if err != nil {
-		return nil, err
+	if len(block.Transactions) == 0 {
+		return nil, fmt.Errorf("only header is available")
 	}
-	// TODO: persist TX first before we can handle this logic.
-	// if len(block.Transactions) == 0 {
-	// 	return nil, fmt.Errorf("block has no TX")
-	// }
 	return block, nil
 }
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
-	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
-	if err != nil {
-		return nil, err
-	}
-	block, err := NewBlockFromTrimmedBytes(b)
-	if err != nil {
-		return nil, err
+	block, ok := bc.blockCache.GetBlock(hash)
+	if !ok {
+		b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
+		if err != nil {
+			return nil, err
+		}
+		block, err = NewBlockFromTrimmedBytes(b)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return block.Header(), nil
 }
@@ -522,6 +540,9 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 // HasTransaction return true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
+	if _, _, ok := bc.blockCache.GetTransaction(hash); ok {
+		return true
+	}
 	if bc.memPool.ContainsKey(hash) {
 		return true
 	}
@@ -536,6 +557,10 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock return true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	if bc.blockCache.Has(hash) {
+		return true
+	}
+
 	if header, err := bc.GetHeader(hash); err == nil {
 		return header.Index <= bc.BlockHeight()
 	}

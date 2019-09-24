@@ -3,6 +3,7 @@ package core
 import (
 	"sync"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -13,11 +14,30 @@ type Cache struct {
 	m    map[util.Uint256]interface{}
 }
 
+// txWithHeight is an ugly wrapper to fit the needs of Blockchain's GetTransaction.
+type txWithHeight struct {
+	tx     *transaction.Transaction
+	height uint32
+}
+
 // NewCache returns a ready to use Cache object.
 func NewCache() *Cache {
 	return &Cache{
 		m: make(map[util.Uint256]interface{}),
 	}
+}
+
+// GetTransaction will return a Transaction type from the cache.
+func (c *Cache) GetTransaction(h util.Uint256) (*transaction.Transaction, uint32, bool) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	if v, ok := c.m[h]; ok {
+		txh, ok := v.(txWithHeight)
+		if ok {
+			return txh.tx, txh.height, ok
+		}
+	}
+	return nil, 0, false
 }
 
 // GetBlock will return a Block type from the cache.
@@ -44,6 +64,12 @@ func (c *Cache) Add(h util.Uint256, v interface{}) {
 
 func (c *Cache) add(h util.Uint256, v interface{}) {
 	c.m[h] = v
+	block, ok := v.(*Block)
+	if ok {
+		for _, tx := range block.Transactions {
+			c.m[tx.Hash()] = txWithHeight{tx, block.Index}
+		}
+	}
 }
 
 func (c *Cache) has(h util.Uint256) bool {
@@ -69,6 +95,12 @@ func (c *Cache) Len() int {
 func (c *Cache) Delete(h util.Uint256) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	block, ok := c.m[h].(*Block)
+	if ok {
+		for _, tx := range block.Transactions {
+			delete(c.m, tx.Hash())
+		}
+	}
 	delete(c.m, h)
 }
 
