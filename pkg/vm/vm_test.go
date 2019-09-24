@@ -446,6 +446,27 @@ func TestEQUALArrayFalse(t *testing.T) {
 	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
 }
 
+func TestEQUALMapTrue(t *testing.T) {
+	prog := makeProgram(DUP, EQUAL)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: NewMapItem()})
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
+func TestEQUALMapFalse(t *testing.T) {
+	prog := makeProgram(EQUAL)
+	vm := load(prog)
+	vm.estack.Push(&Element{value: NewMapItem()})
+	vm.estack.Push(&Element{value: NewMapItem()})
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(NUMEQUAL)
 	vm := load(prog)

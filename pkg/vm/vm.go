@@ -478,6 +478,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 				v.estack.PushVal(ta == tb)
 				break
 			}
+		} else if ma, ok := a.value.(*MapItem); ok {
+			if mb, ok := b.value.(*MapItem); ok {
+				v.estack.PushVal(ma == mb)
+				break
+			}
 		}
 		v.estack.PushVal(reflect.DeepEqual(a, b))
 
