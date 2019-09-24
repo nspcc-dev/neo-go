@@ -673,6 +673,40 @@ func TestSIZEBool(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
+func TestKEYSMap(t *testing.T) {
+	prog := makeProgram(KEYS)
+	vm := load(prog)
+
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(6))
+	m.Add(makeStackItem([]byte{0, 1}), makeStackItem(6))
+	vm.estack.Push(&Element{value: m})
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+
+	top := vm.estack.Pop().value.(*ArrayItem)
+	assert.Equal(t, 2, len(top.value))
+	assert.Contains(t, top.value, makeStackItem(5))
+	assert.Contains(t, top.value, makeStackItem([]byte{0, 1}))
+}
+
+func TestKEYSNoArgument(t *testing.T) {
+	prog := makeProgram(KEYS)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestKEYSWrongType(t *testing.T) {
+	prog := makeProgram(KEYS)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
 func TestHASKEYArrayTrue(t *testing.T) {
 	prog := makeProgram(PUSH5, NEWARRAY, PUSH4, HASKEY)
 	vm := load(prog)

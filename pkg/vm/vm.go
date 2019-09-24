@@ -912,11 +912,28 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.PushVal(sigok)
 
-	case KEYS, VALUES:
+	case VALUES:
 		panic("unimplemented")
 
 	case NEWMAP:
 		v.estack.Push(&Element{value: NewMapItem()})
+
+	case KEYS:
+		item := v.estack.Pop()
+		if item == nil {
+			panic("no argument")
+		}
+
+		m, ok := item.value.(*MapItem)
+		if !ok {
+			panic("not a Map")
+		}
+
+		arr := make([]StackItem, 0, len(m.value))
+		for k := range m.value {
+			arr = append(arr, makeStackItem(k))
+		}
+		v.estack.PushVal(arr)
 
 	case HASKEY:
 		key := v.estack.Pop()

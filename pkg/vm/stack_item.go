@@ -19,9 +19,17 @@ func makeStackItem(v interface{}) StackItem {
 		return &BigIntegerItem{
 			value: big.NewInt(int64(val)),
 		}
+	case int64:
+		return &BigIntegerItem{
+			value: big.NewInt(val),
+		}
 	case []byte:
 		return &ByteArrayItem{
 			value: val,
+		}
+	case string:
+		return &ByteArrayItem{
+			value: []byte(val),
 		}
 	case bool:
 		return &BoolItem{
