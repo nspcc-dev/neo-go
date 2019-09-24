@@ -912,9 +912,6 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.PushVal(sigok)
 
-	case VALUES:
-		panic("unimplemented")
-
 	case NEWMAP:
 		v.estack.Push(&Element{value: NewMapItem()})
 
@@ -933,6 +930,31 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		for k := range m.value {
 			arr = append(arr, makeStackItem(k))
 		}
+		v.estack.PushVal(arr)
+
+	case VALUES:
+		item := v.estack.Pop()
+		if item == nil {
+			panic("no argument")
+		}
+
+		var arr []StackItem
+		switch t := item.value.(type) {
+		case *ArrayItem, *StructItem:
+			src := t.Value().([]StackItem)
+			arr = make([]StackItem, len(src))
+			for i := range src {
+				arr[i] = cloneIfStruct(src[i])
+			}
+		case *MapItem:
+			arr = make([]StackItem, 0, len(t.value))
+			for k := range t.value {
+				arr = append(arr, cloneIfStruct(t.value[k]))
+			}
+		default:
+			panic("not a Map, Array or Struct")
+		}
+
 		v.estack.PushVal(arr)
 
 	case HASKEY:
@@ -988,6 +1010,15 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
+	}
+}
+
+func cloneIfStruct(item StackItem) StackItem {
+	switch it := item.(type) {
+	case *StructItem:
+		return it.Clone()
+	default:
+		return it
 	}
 }
 

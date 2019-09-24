@@ -707,6 +707,50 @@ func TestKEYSWrongType(t *testing.T) {
 	assert.Equal(t, true, vm.HasFailed())
 }
 
+func TestVALUESMap(t *testing.T) {
+	prog := makeProgram(VALUES)
+	vm := load(prog)
+
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem([]byte{2, 3}))
+	m.Add(makeStackItem([]byte{0, 1}), makeStackItem([]StackItem{}))
+	vm.estack.Push(&Element{value: m})
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+
+	top := vm.estack.Pop().value.(*ArrayItem)
+	assert.Equal(t, 2, len(top.value))
+	assert.Contains(t, top.value, makeStackItem([]byte{2, 3}))
+	assert.Contains(t, top.value, makeStackItem([]StackItem{}))
+}
+
+func TestVALUESArray(t *testing.T) {
+	prog := makeProgram(VALUES)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{makeStackItem(4)})
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &ArrayItem{[]StackItem{makeStackItem(4)}}, vm.estack.Pop().value)
+}
+
+func TestVALUESNoArgument(t *testing.T) {
+	prog := makeProgram(VALUES)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestVALUESWrongType(t *testing.T) {
+	prog := makeProgram(VALUES)
+	vm := load(prog)
+	vm.estack.PushVal(5)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
 func TestHASKEYArrayTrue(t *testing.T) {
 	prog := makeProgram(PUSH5, NEWARRAY, PUSH4, HASKEY)
 	vm := load(prog)
