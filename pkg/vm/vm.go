@@ -912,11 +912,32 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.PushVal(sigok)
 
-	case HASKEY, KEYS, VALUES:
+	case KEYS, VALUES:
 		panic("unimplemented")
 
 	case NEWMAP:
 		v.estack.Push(&Element{value: NewMapItem()})
+
+	case HASKEY:
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		c := v.estack.Pop()
+		if c == nil {
+			panic("no value found")
+		}
+		switch t := c.value.(type) {
+		case *ArrayItem, *StructItem:
+			index := key.BigInt().Int64()
+			if index < 0 {
+				panic("negative index")
+			}
+			v.estack.PushVal(index < int64(len(c.Array())))
+		case *MapItem:
+			v.estack.PushVal(t.Has(key.value))
+		default:
+			panic("wrong collection type")
+		}
 
 	// Cryptographic operations.
 	case SHA1:
@@ -959,6 +980,16 @@ func makeArrayOfFalses(n int) []StackItem {
 		items[i] = &BoolItem{false}
 	}
 	return items
+}
+
+func validateMapKey(key *Element) {
+	if key == nil {
+		panic("no key found")
+	}
+	switch key.value.(type) {
+	case *ArrayItem, *StructItem, *MapItem:
+		panic("key can't be a collection")
+	}
 }
 
 func init() {

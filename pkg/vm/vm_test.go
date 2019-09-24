@@ -673,6 +673,101 @@ func TestSIZEBool(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
+func TestHASKEYArrayTrue(t *testing.T) {
+	prog := makeProgram(PUSH5, NEWARRAY, PUSH4, HASKEY)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(true), vm.estack.Pop().value)
+}
+
+func TestHASKEYArrayFalse(t *testing.T) {
+	prog := makeProgram(PUSH5, NEWARRAY, PUSH5, HASKEY)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+}
+
+func TestHASKEYStructTrue(t *testing.T) {
+	prog := makeProgram(PUSH5, NEWSTRUCT, PUSH4, HASKEY)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(true), vm.estack.Pop().value)
+}
+
+func TestHASKEYStructFalse(t *testing.T) {
+	prog := makeProgram(PUSH5, NEWSTRUCT, PUSH5, HASKEY)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+}
+
+func TestHASKEYMapTrue(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(6))
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(5)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(true), vm.estack.Pop().value)
+}
+
+func TestHASKEYMapFalse(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(6))
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(6)
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+}
+
+func TestHASKEYNoArguments(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestHASKEY1Argument(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestHASKEYWrongKeyType(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{})
+	vm.estack.PushVal([]StackItem{})
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestHASKEYWrongCollectionType(t *testing.T) {
+	prog := makeProgram(HASKEY)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
 func TestSIGNNoArgument(t *testing.T) {
 	prog := makeProgram(SIGN)
 	vm := load(prog)
