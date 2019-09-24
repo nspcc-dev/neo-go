@@ -193,3 +193,50 @@ func (i *ArrayItem) MarshalJSON() ([]byte, error) {
 func (i *ArrayItem) String() string {
 	return "Array"
 }
+
+// MapItem represents Map object.
+type MapItem struct {
+	value map[interface{}]StackItem
+}
+
+// NewMapItem returns new MapItem object.
+func NewMapItem() *MapItem {
+	return &MapItem{
+		value: make(map[interface{}]StackItem),
+	}
+}
+
+// Value implements StackItem interface.
+func (i *MapItem) Value() interface{} {
+	return i.value
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (i *MapItem) String() string {
+	return "Map"
+}
+
+// Has checks if map has specified key.
+func (i *MapItem) Has(key StackItem) (ok bool) {
+	_, ok = i.value[toMapKey(key)]
+	return
+}
+
+// Add adds key-value pair to the map.
+func (i *MapItem) Add(key, value StackItem) {
+	i.value[toMapKey(key)] = value
+}
+
+// toMapKey converts StackItem so that it can be used as a map key.
+func toMapKey(key StackItem) interface{} {
+	switch t := key.(type) {
+	case *BoolItem:
+		return t.value
+	case *BigIntegerItem:
+		return t.value.Int64()
+	case *ByteArrayItem:
+		return string(t.value)
+	default:
+		panic("wrong key type")
+	}
+}

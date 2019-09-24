@@ -912,8 +912,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.PushVal(sigok)
 
-	case NEWMAP, HASKEY, KEYS, VALUES:
+	case HASKEY, KEYS, VALUES:
 		panic("unimplemented")
+
+	case NEWMAP:
+		v.estack.Push(&Element{value: NewMapItem()})
 
 	// Cryptographic operations.
 	case SHA1:
