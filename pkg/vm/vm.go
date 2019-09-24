@@ -766,23 +766,31 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 		}
 	case REMOVE:
-		key := int(v.estack.Pop().BigInt().Int64())
+		key := v.estack.Pop()
+		validateMapKey(key)
+
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
 		case *ArrayItem:
 			a := t.value
-			if key < 0 || key >= len(a) {
+			k := int(key.BigInt().Int64())
+			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			a = append(a[:key], a[key+1:]...)
+			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *StructItem:
 			a := t.value
-			if key < 0 || key >= len(a) {
+			k := int(key.BigInt().Int64())
+			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			a = append(a[:key], a[key+1:]...)
+			a = append(a[:k], a[k+1:]...)
 			t.value = a
+		case *MapItem:
+			m := t.value
+			k := toMapKey(key.value)
+			delete(m, k)
 		default:
 			panic("REMOVE: invalid type")
 		}

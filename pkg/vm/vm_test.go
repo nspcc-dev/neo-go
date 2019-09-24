@@ -1696,6 +1696,23 @@ func TestREMOVEGood(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
+func TestREMOVEMap(t *testing.T) {
+	prog := makeProgram(REMOVE, PUSH5, HASKEY)
+	vm := load(prog)
+
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(3))
+	m.Add(makeStackItem([]byte{0, 1}), makeStackItem([]byte{2, 3}))
+	vm.estack.Push(&Element{value: m})
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(makeStackItem(5))
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+}
+
 func TestCHECKSIGNoArgs(t *testing.T) {
 	prog := makeProgram(CHECKSIG)
 	vm := load(prog)
