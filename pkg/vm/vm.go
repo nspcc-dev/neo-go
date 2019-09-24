@@ -705,11 +705,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(l)
 
 	case PICKITEM:
-		var (
-			key   = v.estack.Pop()
-			obj   = v.estack.Pop()
-			index = int(key.BigInt().Int64())
-		)
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		obj := v.estack.Pop()
+		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
@@ -720,6 +720,12 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 			item := arr[index]
 			v.estack.PushVal(item)
+		case *MapItem:
+			if !t.Has(key.value) {
+				panic("invalid key")
+			}
+			k := toMapKey(key.value)
+			v.estack.Push(&Element{value: t.value[k]})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -730,21 +736,24 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case SETITEM:
-		var (
-			item  = v.estack.Pop().value
-			key   = v.estack.Pop()
-			obj   = v.estack.Pop()
-			index = int(key.BigInt().Int64())
-		)
+		item := v.estack.Pop().value
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		obj := v.estack.Pop()
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
 		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
+			index := int(key.BigInt().Int64())
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
 			}
 			arr[index] = item
+		case *MapItem:
+			t.Add(key.value, item)
+
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}

@@ -646,6 +646,39 @@ func TestPICKITEMByteArray(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
+func TestPICKITEMMap(t *testing.T) {
+	prog := makeProgram(PICKITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(3))
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(makeStackItem(5))
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
+}
+
+func TestSETITEMMap(t *testing.T) {
+	prog := makeProgram(SETITEM, PICKITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	m.Add(makeStackItem(5), makeStackItem(3))
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(5)
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(5)
+	vm.estack.PushVal([]byte{0, 1})
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
 func TestSIZENoArgument(t *testing.T) {
 	prog := makeProgram(SIZE)
 	vm := load(prog)
