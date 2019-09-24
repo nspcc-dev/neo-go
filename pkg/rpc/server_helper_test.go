@@ -18,6 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ErrorResponse struct represents JSON-RPC error.
+type ErrorResponse struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Error   struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+	ID int `json:"id"`
+}
+
 // SendTXResponse struct for testing.
 type SendTXResponse struct {
 	Jsonrpc string `json:"jsonrpc"`
