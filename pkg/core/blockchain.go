@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -902,28 +904,35 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 		verification := witnesses[i].VerificationScript
 
 		if len(verification) == 0 {
-			/*TODO: replicate following C# code:
-			using (ScriptBuilder sb = new ScriptBuilder())
-			{
-				sb.EmitAppCall(hashes[i].ToArray());
-				verification = sb.ToArray();
+			bb := new(bytes.Buffer)
+			err = vm.EmitAppCall(bb, hashes[i], false)
+			if err != nil {
+				return err
 			}
-			*/
-
+			verification = bb.Bytes()
 		} else {
 			if h := witnesses[i].ScriptHash(); hashes[i] != h {
 				return errors.Errorf("hash mismatch for script #%d", i)
 			}
 		}
 
-		/*TODO: replicate following C# code:
-		using (ApplicationEngine engine = new ApplicationEngine(TriggerType.Verification, verifiable, snapshot, Fixed8.Zero))
-		{
-			engine.LoadScript(verification);
-			engine.LoadScript(verifiable.Witnesses[i].InvocationScript);
-			if (!engine.Execute()) return false;
-			if (engine.ResultStack.Count != 1 || !engine.ResultStack.Pop().GetBoolean()) return false;
-		}*/
+		vm := vm.New(vm.ModeMute)
+		vm.SetCheckedHash(t.VerificationHash().Bytes())
+		vm.LoadScript(verification)
+		vm.LoadScript(witnesses[i].InvocationScript)
+		vm.Run()
+		if vm.HasFailed() {
+			return errors.Errorf("vm failed to execute the script")
+		}
+		res := vm.PopResult()
+		switch res.(type) {
+		case bool:
+			if !(res.(bool)) {
+				return errors.Errorf("signature check failed")
+			}
+		default:
+			return errors.Errorf("vm returned non-boolean result")
+		}
 	}
 
 	return nil

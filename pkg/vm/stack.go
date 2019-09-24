@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -279,4 +280,40 @@ func (s *Stack) Iter(f func(*Element)) {
 	for e := s.Top(); e != nil; e = e.Next() {
 		f(e)
 	}
+}
+
+// popSigElements pops keys or signatures from the stack as needed for
+// CHECKMULTISIG.
+func (s *Stack) popSigElements() ([][]byte, error) {
+	var num int
+	var elems [][]byte
+	item := s.Pop()
+	if item == nil {
+		return nil, fmt.Errorf("nothing on the stack")
+	}
+	switch item.value.(type) {
+	case *ArrayItem:
+		num = len(item.Array())
+		if num < 1 {
+			return nil, fmt.Errorf("less than one element in the array")
+		}
+		elems = make([][]byte, num)
+		for k, v := range item.Array() {
+			b, ok := v.Value().([]byte)
+			if !ok {
+				return nil, fmt.Errorf("bad element %s", v.String())
+			}
+			elems[k] = b
+		}
+	default:
+		num = int(item.BigInt().Int64())
+		if num < 1 || num > s.Len() {
+			return nil, fmt.Errorf("wrong number of elements: %d", num)
+		}
+		elems = make([][]byte, num)
+		for i := 0; i < num; i++ {
+			elems[i] = s.Pop().Bytes()
+		}
+	}
+	return elems, nil
 }

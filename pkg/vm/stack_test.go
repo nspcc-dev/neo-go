@@ -217,6 +217,44 @@ func TestSwapElemValues(t *testing.T) {
 	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
 }
 
+func TestPopSigElements(t *testing.T) {
+	s := NewStack("test")
+
+	_, err := s.popSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal([]StackItem{})
+	_, err = s.popSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal([]StackItem{NewBoolItem(false)})
+	_, err = s.popSigElements()
+	assert.NotNil(t, err)
+
+	b1 := []byte("smth")
+	b2 := []byte("strange")
+	s.PushVal([]StackItem{NewByteArrayItem(b1), NewByteArrayItem(b2)})
+	z, err := s.popSigElements()
+	assert.Nil(t, err)
+	assert.Equal(t, z, [][]byte{b1, b2})
+
+	s.PushVal(2)
+	_, err = s.popSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal(b1)
+	s.PushVal(2)
+	_, err = s.popSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal(b2)
+	s.PushVal(b1)
+	s.PushVal(2)
+	z, err = s.popSigElements()
+	assert.Nil(t, err)
+	assert.Equal(t, z, [][]byte{b1, b2})
+}
+
 func makeElements(n int) []*Element {
 	elems := make([]*Element, n)
 	for i := 0; i < n; i++ {
