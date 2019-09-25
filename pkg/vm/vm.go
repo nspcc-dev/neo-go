@@ -670,10 +670,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val := itemElem.value
-		if t, ok := itemElem.value.(*StructItem); ok {
-			val = t.Clone()
-		}
+		val := cloneIfStruct(itemElem.value)
 
 		switch t := arrElem.value.(type) {
 		case *ArrayItem:
