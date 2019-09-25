@@ -1,6 +1,7 @@
 module github.com/CityOfZion/neo-go
 
 require (
+	github.com/Workiva/go-datastructures v1.0.50
 	github.com/abiosoft/ishell v2.0.0+incompatible // indirect
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
 	github.com/alicebob/gopher-json v0.0.0-20180125190556-5a6b3ba71ee6 // indirect
