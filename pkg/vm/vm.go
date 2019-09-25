@@ -478,6 +478,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 				v.estack.PushVal(ta == tb)
 				break
 			}
+		} else if ma, ok := a.value.(*MapItem); ok {
+			if mb, ok := b.value.(*MapItem); ok {
+				v.estack.PushVal(ma == mb)
+				break
+			}
 		}
 		v.estack.PushVal(reflect.DeepEqual(a, b))
 
@@ -665,10 +670,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		itemElem := v.estack.Pop()
 		arrElem := v.estack.Pop()
 
-		val := itemElem.value
-		if t, ok := itemElem.value.(*StructItem); ok {
-			val = t.Clone()
-		}
+		val := cloneIfStruct(itemElem.value)
 
 		switch t := arrElem.value.(type) {
 		case *ArrayItem:
@@ -705,11 +707,11 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		v.estack.PushVal(l)
 
 	case PICKITEM:
-		var (
-			key   = v.estack.Pop()
-			obj   = v.estack.Pop()
-			index = int(key.BigInt().Int64())
-		)
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		obj := v.estack.Pop()
+		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
@@ -720,6 +722,12 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 			item := arr[index]
 			v.estack.PushVal(item)
+		case *MapItem:
+			if !t.Has(key.value) {
+				panic("invalid key")
+			}
+			k := toMapKey(key.value)
+			v.estack.Push(&Element{value: t.value[k]})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -730,21 +738,24 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case SETITEM:
-		var (
-			item  = v.estack.Pop().value
-			key   = v.estack.Pop()
-			obj   = v.estack.Pop()
-			index = int(key.BigInt().Int64())
-		)
+		item := v.estack.Pop().value
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		obj := v.estack.Pop()
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
 		case *ArrayItem, *StructItem:
 			arr := t.Value().([]StackItem)
+			index := int(key.BigInt().Int64())
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
 			}
 			arr[index] = item
+		case *MapItem:
+			t.Add(key.value, item)
+
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
@@ -757,23 +768,31 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 		}
 	case REMOVE:
-		key := int(v.estack.Pop().BigInt().Int64())
+		key := v.estack.Pop()
+		validateMapKey(key)
+
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
 		case *ArrayItem:
 			a := t.value
-			if key < 0 || key >= len(a) {
+			k := int(key.BigInt().Int64())
+			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			a = append(a[:key], a[key+1:]...)
+			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *StructItem:
 			a := t.value
-			if key < 0 || key >= len(a) {
+			k := int(key.BigInt().Int64())
+			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			a = append(a[:key], a[key+1:]...)
+			a = append(a[:k], a[k+1:]...)
 			t.value = a
+		case *MapItem:
+			m := t.value
+			k := toMapKey(key.value)
+			delete(m, k)
 		default:
 			panic("REMOVE: invalid type")
 		}
@@ -785,10 +804,10 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		switch t := elem.value.Value().(type) {
 		case []StackItem:
 			v.estack.PushVal(len(t))
-		case []uint8:
+		case map[interface{}]StackItem:
 			v.estack.PushVal(len(t))
 		default:
-			panic("ARRAYSIZE: item not of type []StackItem")
+			v.estack.PushVal(len(elem.Bytes()))
 		}
 
 	case SIZE:
@@ -912,8 +931,71 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 		v.estack.PushVal(sigok)
 
-	case NEWMAP, HASKEY, KEYS, VALUES:
-		panic("unimplemented")
+	case NEWMAP:
+		v.estack.Push(&Element{value: NewMapItem()})
+
+	case KEYS:
+		item := v.estack.Pop()
+		if item == nil {
+			panic("no argument")
+		}
+
+		m, ok := item.value.(*MapItem)
+		if !ok {
+			panic("not a Map")
+		}
+
+		arr := make([]StackItem, 0, len(m.value))
+		for k := range m.value {
+			arr = append(arr, makeStackItem(k))
+		}
+		v.estack.PushVal(arr)
+
+	case VALUES:
+		item := v.estack.Pop()
+		if item == nil {
+			panic("no argument")
+		}
+
+		var arr []StackItem
+		switch t := item.value.(type) {
+		case *ArrayItem, *StructItem:
+			src := t.Value().([]StackItem)
+			arr = make([]StackItem, len(src))
+			for i := range src {
+				arr[i] = cloneIfStruct(src[i])
+			}
+		case *MapItem:
+			arr = make([]StackItem, 0, len(t.value))
+			for k := range t.value {
+				arr = append(arr, cloneIfStruct(t.value[k]))
+			}
+		default:
+			panic("not a Map, Array or Struct")
+		}
+
+		v.estack.PushVal(arr)
+
+	case HASKEY:
+		key := v.estack.Pop()
+		validateMapKey(key)
+
+		c := v.estack.Pop()
+		if c == nil {
+			panic("no value found")
+		}
+		switch t := c.value.(type) {
+		case *ArrayItem, *StructItem:
+			index := key.BigInt().Int64()
+			if index < 0 {
+				panic("negative index")
+			}
+			v.estack.PushVal(index < int64(len(c.Array())))
+		case *MapItem:
+			v.estack.PushVal(t.Has(key.value))
+		default:
+			panic("wrong collection type")
+		}
 
 	// Cryptographic operations.
 	case SHA1:
@@ -950,12 +1032,31 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	}
 }
 
+func cloneIfStruct(item StackItem) StackItem {
+	switch it := item.(type) {
+	case *StructItem:
+		return it.Clone()
+	default:
+		return it
+	}
+}
+
 func makeArrayOfFalses(n int) []StackItem {
 	items := make([]StackItem, n)
 	for i := range items {
 		items[i] = &BoolItem{false}
 	}
 	return items
+}
+
+func validateMapKey(key *Element) {
+	if key == nil {
+		panic("no key found")
+	}
+	switch key.value.(type) {
+	case *ArrayItem, *StructItem, *MapItem:
+		panic("key can't be a collection")
+	}
 }
 
 func init() {
