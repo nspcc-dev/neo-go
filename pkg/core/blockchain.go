@@ -148,8 +148,11 @@ func (bc *Blockchain) init() error {
 		}
 
 		headerSliceReverse(headers)
-		if err := bc.AddHeaders(headers...); err != nil {
-			return err
+		for _, h := range headers {
+			if !h.Verify() {
+				return fmt.Errorf("bad header %d/%s in the storage", h.Index, h.Hash())
+			}
+			bc.headerList.Add(h.Hash())
 		}
 	}
 
