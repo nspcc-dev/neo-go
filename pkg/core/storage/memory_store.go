@@ -83,6 +83,28 @@ func (s *MemoryStore) Batch() Batch {
 	}
 }
 
+// Persist flushes all the MemoryStore contents into the (supposedly) persistent
+// store provided via parameter.
+func (s *MemoryStore) Persist(ps Store) (int, error) {
+	s.Lock()
+	defer s.Unlock()
+	batch := ps.Batch()
+	keys := 0
+	for k, v := range s.mem {
+		kb, _ := hex.DecodeString(k)
+		batch.Put(kb, v)
+		keys++
+	}
+	var err error
+	if keys != 0 {
+		err = ps.PutBatch(batch)
+	}
+	if err == nil {
+		s.mem = make(map[string][]byte)
+	}
+	return keys, err
+}
+
 // Close implements Store interface and clears up memory.
 func (s *MemoryStore) Close() error {
 	s.Lock()

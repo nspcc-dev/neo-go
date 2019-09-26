@@ -12,25 +12,46 @@ import (
 // Accounts is mapping between a account address and AccountState.
 type Accounts map[util.Uint160]*AccountState
 
-func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountState, error) {
+// getAndUpdate retrieves AccountState from temporary or persistent Store
+// or creates a new one if it doesn't exist.
+func (a Accounts) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint160) (*AccountState, error) {
 	if account, ok := a[hash]; ok {
 		return account, nil
 	}
 
-	account := &AccountState{}
+	account, err := getAccountStateFromStore(ts, hash)
+	if err != nil {
+		if err != storage.ErrKeyNotFound {
+			return nil, err
+		}
+		account, err = getAccountStateFromStore(ps, hash)
+		if err != nil {
+			if err != storage.ErrKeyNotFound {
+				return nil, err
+			}
+			account = NewAccountState(hash)
+		}
+	}
+
+	a[hash] = account
+	return account, nil
+}
+
+// getAccountStateFromStore returns AccountState from the given Store if it's
+// present there. Returns nil otherwise.
+func getAccountStateFromStore(s storage.Store, hash util.Uint160) (*AccountState, error) {
+	var account *AccountState
 	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
-	if b, err := s.Get(key); err == nil {
+	b, err := s.Get(key)
+	if err == nil {
+		account = new(AccountState)
 		r := io.NewBinReaderFromBuf(b)
 		account.DecodeBinary(r)
 		if r.Err != nil {
 			return nil, fmt.Errorf("failed to decode (AccountState): %s", r.Err)
 		}
-	} else {
-		account = NewAccountState(hash)
 	}
-
-	a[hash] = account
-	return account, nil
+	return account, err
 }
 
 // commit writes all account states to the given Batch.

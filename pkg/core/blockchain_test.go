@@ -24,7 +24,6 @@ func TestAddHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 0, bc.blockCache.Len())
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
@@ -57,11 +56,8 @@ func TestAddBlock(t *testing.T) {
 	}
 
 	lastBlock := blocks[len(blocks)-1]
-	assert.Equal(t, 3, bc.blockCache.Len())
 	assert.Equal(t, lastBlock.Index, bc.HeaderHeight())
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
-
-	t.Log(bc.blockCache)
 
 	// This one tests persisting blocks, so it does need to persist()
 	require.NoError(t, bc.persist(context.Background()))
@@ -75,7 +71,6 @@ func TestAddBlock(t *testing.T) {
 
 	assert.Equal(t, lastBlock.Index, bc.BlockHeight())
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
-	assert.Equal(t, 0, bc.blockCache.Len())
 }
 
 func TestGetHeader(t *testing.T) {
@@ -153,12 +148,14 @@ func TestHasBlock(t *testing.T) {
 }
 
 func TestGetTransaction(t *testing.T) {
+	b1 := getDecodedBlock(t, 1)
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
 	defer func() {
 		require.NoError(t, bc.Close())
 	}()
 
+	assert.Nil(t, bc.AddBlock(b1))
 	assert.Nil(t, bc.AddBlock(block))
 
 	// Test unpersisted and persisted access
