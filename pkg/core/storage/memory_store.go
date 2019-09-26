@@ -47,7 +47,7 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	return nil, ErrKeyNotFound
 }
 
-// Put implements the Store interface.
+// Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
 	s.Lock()
 	s.mem[makeKey(key)] = value
@@ -55,7 +55,7 @@ func (s *MemoryStore) Put(key, value []byte) error {
 	return nil
 }
 
-// PutBatch implements the Store interface.
+// PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
 	for k, v := range b.m {
@@ -105,7 +105,8 @@ func (s *MemoryStore) Persist(ps Store) (int, error) {
 	return keys, err
 }
 
-// Close implements Store interface and clears up memory.
+// Close implements Store interface and clears up memory. Never returns an
+// error.
 func (s *MemoryStore) Close() error {
 	s.Lock()
 	s.mem = nil
