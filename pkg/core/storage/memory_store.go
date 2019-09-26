@@ -9,7 +9,7 @@ import (
 // MemoryStore is an in-memory implementation of a Store, mainly
 // used for testing. Do not use MemoryStore in production.
 type MemoryStore struct {
-	*sync.RWMutex
+	mut sync.RWMutex
 	mem map[string][]byte
 }
 
@@ -35,15 +35,14 @@ func (b *MemoryBatch) Len() int {
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		RWMutex: new(sync.RWMutex),
-		mem:     make(map[string][]byte),
+		mem: make(map[string][]byte),
 	}
 }
 
 // Get implements the Store interface.
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
-	s.RLock()
-	defer s.RUnlock()
+	s.mut.RLock()
+	defer s.mut.RUnlock()
 	if val, ok := s.mem[makeKey(key)]; ok {
 		return val, nil
 	}
@@ -52,9 +51,9 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 
 // Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
-	s.Lock()
+	s.mut.Lock()
 	s.mem[makeKey(key)] = value
-	s.Unlock()
+	s.mut.Unlock()
 	return nil
 }
 
@@ -92,8 +91,8 @@ func newMemoryBatch() *MemoryBatch {
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent
 // store provided via parameter.
 func (s *MemoryStore) Persist(ps Store) (int, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.mut.Lock()
+	defer s.mut.Unlock()
 	batch := ps.Batch()
 	keys := 0
 	for k, v := range s.mem {
@@ -114,9 +113,9 @@ func (s *MemoryStore) Persist(ps Store) (int, error) {
 // Close implements Store interface and clears up memory. Never returns an
 // error.
 func (s *MemoryStore) Close() error {
-	s.Lock()
+	s.mut.Lock()
 	s.mem = nil
-	s.Unlock()
+	s.mut.Unlock()
 	return nil
 }
 
