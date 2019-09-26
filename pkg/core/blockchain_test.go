@@ -13,9 +13,6 @@ import (
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 	h1 := newBlock(1).Header()
 	h2 := newBlock(2).Header()
 	h3 := newBlock(3).Header()
@@ -40,9 +37,6 @@ func TestAddHeaders(t *testing.T) {
 
 func TestAddBlock(t *testing.T) {
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 	blocks := []*Block{
 		newBlock(1),
 		newBlock(2),
@@ -75,9 +69,6 @@ func TestAddBlock(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 	block := newBlock(1)
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
@@ -98,9 +89,6 @@ func TestGetHeader(t *testing.T) {
 
 func TestGetBlock(t *testing.T) {
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 	blocks := makeBlocks(100)
 
 	for i := 0; i < len(blocks); i++ {
@@ -125,9 +113,6 @@ func TestGetBlock(t *testing.T) {
 
 func TestHasBlock(t *testing.T) {
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 	blocks := makeBlocks(50)
 
 	for i := 0; i < len(blocks); i++ {
@@ -151,9 +136,6 @@ func TestGetTransaction(t *testing.T) {
 	b1 := getDecodedBlock(t, 1)
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
-	defer func() {
-		require.NoError(t, bc.Close())
-	}()
 
 	assert.Nil(t, bc.AddBlock(b1))
 	assert.Nil(t, bc.AddBlock(block))
