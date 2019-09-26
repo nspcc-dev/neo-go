@@ -330,7 +330,7 @@ func (s *Server) requestBlocks(p Peer) error {
 		hashStart    = s.chain.BlockHeight() + 1
 		headerHeight = s.chain.HeaderHeight()
 	)
-	for hashStart < headerHeight && len(hashes) < maxBlockBatch {
+	for hashStart <= headerHeight && len(hashes) < maxBlockBatch {
 		hash := s.chain.GetHeaderHash(int(hashStart))
 		hashes = append(hashes, hash)
 		hashStart++
