@@ -18,28 +18,6 @@ type RedisStore struct {
 	client *redis.Client
 }
 
-// RedisBatch simple batch implementation to satisfy the Store interface.
-type RedisBatch struct {
-	mem map[string]string
-}
-
-// Len implements the Batch interface.
-func (b *RedisBatch) Len() int {
-	return len(b.mem)
-}
-
-// Put implements the Batch interface.
-func (b *RedisBatch) Put(k, v []byte) {
-	b.mem[string(k)] = string(v)
-}
-
-// NewRedisBatch returns a new ready to use RedisBatch.
-func NewRedisBatch() *RedisBatch {
-	return &RedisBatch{
-		mem: make(map[string]string),
-	}
-}
-
 // NewRedisStore returns an new initialized - ready to use RedisStore object.
 func NewRedisStore(cfg RedisDBOptions) (*RedisStore, error) {
 	c := redis.NewClient(&redis.Options{
@@ -55,7 +33,7 @@ func NewRedisStore(cfg RedisDBOptions) (*RedisStore, error) {
 
 // Batch implements the Store interface.
 func (s *RedisStore) Batch() Batch {
-	return NewRedisBatch()
+	return newMemoryBatch()
 }
 
 // Get implements the Store interface.
@@ -76,8 +54,8 @@ func (s *RedisStore) Put(k, v []byte) error {
 // PutBatch implements the Store interface.
 func (s *RedisStore) PutBatch(b Batch) error {
 	pipe := s.client.Pipeline()
-	for k, v := range b.(*RedisBatch).mem {
-		pipe.Set(k, v, 0)
+	for k, v := range b.(*MemoryBatch).m {
+		pipe.Set(string(*k), v, 0)
 	}
 	_, err := pipe.Exec()
 	return err
