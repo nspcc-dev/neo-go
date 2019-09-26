@@ -20,8 +20,11 @@ type MemoryBatch struct {
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
-	key := &k
-	b.m[key] = v
+	vcopy := make([]byte, len(v))
+	copy(vcopy, v)
+	kcopy := make([]byte, len(k))
+	copy(kcopy, k)
+	b.m[&kcopy] = vcopy
 }
 
 // Len implements the Batch interface.
@@ -76,6 +79,11 @@ func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
 
 // Batch implements the Batch interface and returns a compatible Batch.
 func (s *MemoryStore) Batch() Batch {
+	return newMemoryBatch()
+}
+
+// newMemoryBatch returns new memory batch.
+func newMemoryBatch() *MemoryBatch {
 	return &MemoryBatch{
 		m: make(map[*[]byte][]byte),
 	}
