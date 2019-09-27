@@ -40,6 +40,9 @@ func (s *RedisStore) Batch() Batch {
 func (s *RedisStore) Get(k []byte) ([]byte, error) {
 	val, err := s.client.Get(string(k)).Result()
 	if err != nil {
+		if err == redis.Nil {
+			err = ErrKeyNotFound
+		}
 		return nil, err
 	}
 	return []byte(val), nil

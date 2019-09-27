@@ -41,7 +41,11 @@ func (s *LevelDBStore) Put(key, value []byte) error {
 
 // Get implements the Store interface.
 func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
-	return s.db.Get(key, nil)
+	value, err := s.db.Get(key, nil)
+	if err == leveldb.ErrNotFound {
+		err = ErrKeyNotFound
+	}
+	return value, err
 }
 
 // PutBatch implements the Store interface.
