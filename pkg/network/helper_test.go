@@ -3,6 +3,7 @@ package network
 import (
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-type testChain struct{}
+type testChain struct {
+	blockheight uint32
+}
 
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
@@ -38,11 +41,14 @@ func (chain testChain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 func (chain testChain) AddHeaders(...*core.Header) error {
 	panic("TODO")
 }
-func (chain testChain) AddBlock(*core.Block) error {
-	panic("TODO")
+func (chain *testChain) AddBlock(block *core.Block) error {
+	if block.Index == chain.blockheight+1 {
+		atomic.StoreUint32(&chain.blockheight, block.Index)
+	}
+	return nil
 }
-func (chain testChain) BlockHeight() uint32 {
-	return 0
+func (chain *testChain) BlockHeight() uint32 {
+	return atomic.LoadUint32(&chain.blockheight)
 }
 func (chain testChain) HeaderHeight() uint32 {
 	return 0
@@ -168,7 +174,7 @@ func (p *localPeer) Handshaked() bool {
 func newTestServer() *Server {
 	return &Server{
 		ServerConfig: ServerConfig{},
-		chain:        testChain{},
+		chain:        &testChain{},
 		transport:    localTransport{},
 		discovery:    testDiscovery{},
 		id:           rand.Uint32(),

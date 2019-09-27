@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRPC(t *testing.T) {
@@ -22,9 +21,6 @@ func TestRPC(t *testing.T) {
 
 	chain, handler := initServerWithInMemoryChain(ctx, t)
 
-	defer func() {
-		require.NoError(t, chain.Close())
-	}()
 	t.Run("getbestblockhash", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getbestblockhash", "params": []}`
 		body := doRPCCall(rpc, handler, t)

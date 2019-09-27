@@ -259,3 +259,12 @@ func TestBlockSizeCalculation(t *testing.T) {
 	assert.Equal(t, 7360, len(benc))
 	assert.Equal(t, rawBlock, hex.EncodeToString(benc))
 }
+
+func TestBlockCompare(t *testing.T) {
+	b1 := Block{BlockBase: BlockBase{Index: 1}}
+	b2 := Block{BlockBase: BlockBase{Index: 2}}
+	b3 := Block{BlockBase: BlockBase{Index: 3}}
+	assert.Equal(t, 1, b2.Compare(&b1))
+	assert.Equal(t, 0, b2.Compare(&b2))
+	assert.Equal(t, -1, b2.Compare(&b3))
+}

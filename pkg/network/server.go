@@ -45,6 +45,7 @@ type (
 		transport Transporter
 		discovery Discoverer
 		chain     core.Blockchainer
+		bQueue    *blockQueue
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -66,6 +67,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
+		bQueue:       newBlockQueue(maxBlockBatch, chain),
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
 		addrReq:      make(chan *Message, minPeers),
@@ -97,6 +99,7 @@ func (s *Server) Start(errChan chan error) {
 
 	s.discovery.BackFill(s.Seeds...)
 
+	go s.bQueue.run()
 	go s.transport.Accept()
 	s.run()
 }
@@ -106,6 +109,7 @@ func (s *Server) Shutdown() {
 	log.WithFields(log.Fields{
 		"peers": s.PeerCount(),
 	}).Info("shutting down server")
+	s.bQueue.discard()
 	close(s.quit)
 }
 
@@ -273,10 +277,7 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
-	if !s.chain.HasBlock(block.Hash()) {
-		return s.chain.AddBlock(block)
-	}
-	return nil
+	return s.bQueue.putBlock(block)
 }
 
 // handleInvCmd will process the received inventory.
@@ -329,7 +330,7 @@ func (s *Server) requestBlocks(p Peer) error {
 		hashStart    = s.chain.BlockHeight() + 1
 		headerHeight = s.chain.HeaderHeight()
 	)
-	for hashStart < headerHeight && len(hashes) < maxBlockBatch {
+	for hashStart <= headerHeight && len(hashes) < maxBlockBatch {
 		hash := s.chain.GetHeaderHash(int(hashStart))
 		hashes = append(hashes, hash)
 		hashStart++

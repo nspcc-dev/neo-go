@@ -5,6 +5,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/Workiva/go-datastructures/queue"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -130,5 +131,18 @@ func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
 		tx.EncodeBinary(bw)
+	}
+}
+
+// Compare implements the queue Item interface.
+func (b *Block) Compare(item queue.Item) int {
+	other := item.(*Block)
+	switch {
+	case b.Index > other.Index:
+		return 1
+	case b.Index == other.Index:
+		return 0
+	default:
+		return -1
 	}
 }

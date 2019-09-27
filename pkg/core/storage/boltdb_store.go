@@ -24,25 +24,6 @@ type BoltDBStore struct {
 	db *bbolt.DB
 }
 
-// BoltDBBatch simple batch implementation to satisfy the Store interface.
-type BoltDBBatch struct {
-	mem map[*[]byte][]byte
-}
-
-// Len implements the Batch interface.
-func (b *BoltDBBatch) Len() int {
-	return len(b.mem)
-}
-
-// Put implements the Batch interface.
-func (b *BoltDBBatch) Put(k, v []byte) {
-	vcopy := make([]byte, len(v))
-	copy(vcopy, v)
-	kcopy := make([]byte, len(k))
-	copy(kcopy, k)
-	b.mem[&kcopy] = vcopy
-}
-
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
 func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	var opts *bbolt.Options       // should be exposed via BoltDBOptions if anything needed
@@ -94,7 +75,7 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 func (s *BoltDBStore) PutBatch(batch Batch) error {
 	return s.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
-		for k, v := range batch.(*BoltDBBatch).mem {
+		for k, v := range batch.(*MemoryBatch).m {
 			err := b.Put(*k, v)
 			if err != nil {
 				return err
@@ -122,9 +103,7 @@ func (s *BoltDBStore) Seek(key []byte, f func(k, v []byte)) {
 // Batch implements the Batch interface and returns a boltdb
 // compatible Batch.
 func (s *BoltDBStore) Batch() Batch {
-	return &BoltDBBatch{
-		mem: make(map[*[]byte][]byte),
-	}
+	return newMemoryBatch()
 }
 
 // Close releases all db resources.

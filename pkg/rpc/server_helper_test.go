@@ -167,7 +167,6 @@ func initBlocks(t *testing.T, chain *core.Blockchain) {
 	for i := 0; i < len(blocks); i++ {
 		require.NoError(t, chain.AddBlock(blocks[i]))
 	}
-	require.NoError(t, chain.Persist(context.Background()))
 }
 
 func makeBlocks(n int) []*core.Block {

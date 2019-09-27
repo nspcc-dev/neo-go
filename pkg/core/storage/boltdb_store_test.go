@@ -12,14 +12,14 @@ import (
 
 func TestBoltDBBatch(t *testing.T) {
 	boltDB := BoltDBStore{}
-	want := &BoltDBBatch{mem: map[*[]byte][]byte{}}
+	want := &MemoryBatch{m: map[*[]byte][]byte{}}
 	if got := boltDB.Batch(); !reflect.DeepEqual(got, want) {
 		t.Errorf("BoltDB Batch() = %v, want %v", got, want)
 	}
 }
 
 func TestBoltDBBatch_Len(t *testing.T) {
-	batch := &BoltDBBatch{mem: map[*[]byte][]byte{}}
+	batch := &MemoryBatch{m: map[*[]byte][]byte{}}
 	want := len(map[*[]byte][]byte{})
 	assert.Equal(t, want, batch.Len())
 }

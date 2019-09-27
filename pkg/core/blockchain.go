@@ -37,15 +37,19 @@ type Blockchain struct {
 	// Any object that satisfies the BlockchainStorer interface.
 	storage.Store
 
+	// In-memory storage to be persisted into the storage.Store
+	memStore *storage.MemoryStore
+
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
-	// Write access should only happen in Persist().
+	// Write access should only happen in storeBlock().
 	blockHeight uint32
+
+	// Current persisted block count.
+	persistedHeight uint32
 
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
-
-	blockCache *Cache
 
 	// All operation on headerList must be called from an
 	// headersOp to be routine safe.
@@ -69,9 +73,9 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 	bc := &Blockchain{
 		config:        cfg,
 		Store:         s,
+		memStore:      storage.NewMemoryStore(),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		blockCache:    NewCache(),
 		verifyBlocks:  false,
 		memPool:       NewMemPool(50000),
 	}
@@ -96,7 +100,7 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
-		return bc.persistBlock(genesisBlock)
+		return bc.storeBlock(genesisBlock)
 	}
 	if ver != version {
 		return fmt.Errorf("storage version mismatch betweeen %s and %s", version, ver)
@@ -112,6 +116,7 @@ func (bc *Blockchain) init() error {
 		return err
 	}
 	bc.blockHeight = bHeight
+	bc.persistedHeight = bHeight
 
 	hashes, err := storage.HeaderHashes(bc.Store)
 	if err != nil {
@@ -144,8 +149,11 @@ func (bc *Blockchain) init() error {
 		}
 
 		headerSliceReverse(headers)
-		if err := bc.AddHeaders(headers...); err != nil {
-			return err
+		for _, h := range headers {
+			if !h.Verify() {
+				return fmt.Errorf("bad header %d/%s in the storage", h.Index, h.Hash())
+			}
+			bc.headerList.Add(h.Hash())
 		}
 	}
 
@@ -157,6 +165,11 @@ func (bc *Blockchain) Run(ctx context.Context) {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
+		if err := bc.persist(ctx); err != nil {
+			log.Warnf("failed to persist: %s", err)
+		}
+		// never fails
+		_ = bc.memStore.Close()
 		if err := bc.Store.Close(); err != nil {
 			log.Warnf("failed to close db: %s", err)
 		}
@@ -170,7 +183,7 @@ func (bc *Blockchain) Run(ctx context.Context) {
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go func() {
-				err := bc.Persist(ctx)
+				err := bc.persist(ctx)
 				if err != nil {
 					log.Warnf("failed to persist blockchain: %s", err)
 				}
@@ -180,24 +193,24 @@ func (bc *Blockchain) Run(ctx context.Context) {
 	}
 }
 
-// AddBlock processes the given block and will add it to the cache so it
-// can be persisted.
+// AddBlock accepts successive block for the Blockchain, verifies it and
+// stores internally. Eventually it will be persisted to the backing storage.
 func (bc *Blockchain) AddBlock(block *Block) error {
-	if !bc.blockCache.Has(block.Hash()) {
-		bc.blockCache.Add(block.Hash(), block)
+	expectedHeight := bc.BlockHeight() + 1
+	if expectedHeight != block.Index {
+		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
-
+	if bc.verifyBlocks && !block.Verify(false) {
+		return fmt.Errorf("block %s is invalid", block.Hash())
+	}
 	headerLen := bc.headerListLen()
-	if int(block.Index-1) >= headerLen {
-		return nil
-	}
 	if int(block.Index) == headerLen {
-		if bc.verifyBlocks && !block.Verify(false) {
-			return fmt.Errorf("block %s is invalid", block.Hash())
+		err := bc.AddHeaders(block.Header())
+		if err != nil {
+			return err
 		}
-		return bc.AddHeaders(block.Header())
 	}
-	return nil
+	return bc.storeBlock(block)
 }
 
 // AddHeaders will process the given headers and add them to the
@@ -205,7 +218,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = bc.Batch()
+		batch = bc.memStore.Batch()
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -230,7 +243,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if batch.Len() > 0 {
-			if err = bc.PutBatch(batch); err != nil {
+			if err = bc.memStore.PutBatch(batch); err != nil {
 				return
 			}
 			log.WithFields(log.Fields{
@@ -273,13 +286,13 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 	return nil
 }
 
-// TODO: persistBlock needs some more love, its implemented as in the original
+// TODO: storeBlock needs some more love, its implemented as in the original
 // project. This for the sake of development speed and understanding of what
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
-func (bc *Blockchain) persistBlock(block *Block) error {
+func (bc *Blockchain) storeBlock(block *Block) error {
 	var (
-		batch        = bc.Batch()
+		batch        = bc.memStore.Batch()
 		unspentCoins = make(UnspentCoins)
 		spentCoins   = make(SpentCoins)
 		accounts     = make(Accounts)
@@ -301,7 +314,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 
 		// Process TX outputs.
 		for _, output := range tx.Outputs {
-			account, err := accounts.getAndUpdate(bc.Store, output.ScriptHash)
+			account, err := accounts.getAndUpdate(bc.memStore, bc.Store, output.ScriptHash)
 			if err != nil {
 				return err
 			}
@@ -319,14 +332,14 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
 			for _, input := range inputs {
-				unspent, err := unspentCoins.getAndUpdate(bc.Store, input.PrevHash)
+				unspent, err := unspentCoins.getAndUpdate(bc.memStore, bc.Store, input.PrevHash)
 				if err != nil {
 					return err
 				}
 				unspent.states[input.PrevIndex] = CoinStateSpent
 
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
-				account, err := accounts.getAndUpdate(bc.Store, prevTXOutput.ScriptHash)
+				account, err := accounts.getAndUpdate(bc.memStore, bc.Store, prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
 				}
@@ -388,7 +401,7 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	if err := assets.commit(batch); err != nil {
 		return err
 	}
-	if err := bc.PutBatch(batch); err != nil {
+	if err := bc.memStore.PutBatch(batch); err != nil {
 		return err
 	}
 
@@ -396,63 +409,37 @@ func (bc *Blockchain) persistBlock(block *Block) error {
 	return nil
 }
 
-//Persist starts persist loop.
-func (bc *Blockchain) Persist(ctx context.Context) (err error) {
+// persist flushes current in-memory store contents to the persistent storage.
+func (bc *Blockchain) persist(ctx context.Context) error {
 	var (
 		start     = time.Now()
 		persisted = 0
-		lenCache  = bc.blockCache.Len()
+		err       error
 	)
 
-	if lenCache == 0 {
-		return nil
+	persisted, err = bc.memStore.Persist(bc.Store)
+	if err != nil {
+		return err
 	}
-
-	bc.headersOp <- func(headerList *HeaderHashList) {
-		for i := 0; i < lenCache; i++ {
-			if uint32(headerList.Len()) <= bc.BlockHeight() {
-				return
-			}
-			hash := headerList.Get(int(bc.BlockHeight() + 1))
-			if block, ok := bc.blockCache.GetBlock(hash); ok {
-				if err = bc.persistBlock(block); err != nil {
-					return
-				}
-				bc.blockCache.Delete(hash)
-				persisted++
-			} else {
-				// no next block in the cache, no reason to continue looping
-				break
-			}
-		}
+	bHeight, err := storage.CurrentBlockHeight(bc.Store)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-ctx.Done():
-		return
-	case <-bc.headersOpDone:
-		//
-	}
+	oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
+	diff := bHeight - oldHeight
 
 	if persisted > 0 {
 		log.WithFields(log.Fields{
-			"persisted":    persisted,
-			"headerHeight": bc.HeaderHeight(),
-			"blockHeight":  bc.BlockHeight(),
-			"took":         time.Since(start),
+			"persistedBlocks": diff,
+			"persistedKeys":   persisted,
+			"headerHeight":    bc.HeaderHeight(),
+			"blockHeight":     bc.BlockHeight(),
+			"persistedHeight": bc.persistedHeight,
+			"took":            time.Since(start),
 		}).Info("blockchain persist completed")
-	} else {
-		// So we have some blocks in cache but can't persist them?
-		// Either there are some stale blocks there or the other way
-		// around (which was seen in practice) --- there are some fresh
-		// blocks that we can't persist yet. Some of the latter can be useful
-		// or can be bogus (higher than the header height we expect at
-		// the moment). So try to reap oldies and strange newbies, if
-		// there are any.
-		bc.blockCache.ReapStrangeBlocks(bc.BlockHeight(), bc.HeaderHeight())
 	}
 
-	return
+	return nil
 }
 
 func (bc *Blockchain) headerListLen() (n int) {
@@ -468,9 +455,18 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	if tx, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
+	tx, height, err := getTransactionFromStore(bc.memStore, hash)
+	if err != nil {
+		tx, height, err = getTransactionFromStore(bc.Store, hash)
+	}
+	return tx, height, err
+}
 
+// getTransactionFromStore returns Transaction and its height by the given hash
+// if it exists in the store.
+func getTransactionFromStore(s storage.Store, hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
-	b, err := bc.Get(key)
+	b, err := s.Get(key)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -490,8 +486,23 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+	block, err := getBlockFromStore(bc.memStore, hash)
+	if err != nil {
+		block, err = getBlockFromStore(bc.Store, hash)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(block.Transactions) == 0 {
+		return nil, fmt.Errorf("only header is available")
+	}
+	return block, nil
+}
+
+// getBlockFromStore returns Block by the given hash if it exists in the store.
+func getBlockFromStore(s storage.Store, hash util.Uint256) (*Block, error) {
 	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
-	b, err := bc.Get(key)
+	b, err := s.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -499,20 +510,24 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: persist TX first before we can handle this logic.
-	// if len(block.Transactions) == 0 {
-	// 	return nil, fmt.Errorf("block has no TX")
-	// }
-	return block, nil
+	return block, err
 }
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
-	b, err := bc.Get(storage.AppendPrefix(storage.DataBlock, hash.BytesReverse()))
+	header, err := getHeaderFromStore(bc.memStore, hash)
 	if err != nil {
-		return nil, err
+		header, err = getHeaderFromStore(bc.Store, hash)
+		if err != nil {
+			return nil, err
+		}
 	}
-	block, err := NewBlockFromTrimmedBytes(b)
+	return header, err
+}
+
+// getHeaderFromStore returns Header by the given hash from the store.
+func getHeaderFromStore(s storage.Store, hash util.Uint256) (*Header, error) {
+	block, err := getBlockFromStore(s, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -522,12 +537,16 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
 // HasTransaction return true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
-	if bc.memPool.ContainsKey(hash) {
-		return true
-	}
+	return bc.memPool.ContainsKey(hash) ||
+		checkTransactionInStore(bc.memStore, hash) ||
+		checkTransactionInStore(bc.Store, hash)
+}
 
+// checkTransactionInStore returns true if the given store contains the given
+// Transaction hash.
+func checkTransactionInStore(s storage.Store, hash util.Uint256) bool {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
-	if _, err := bc.Get(key); err == nil {
+	if _, err := s.Get(key); err == nil {
 		return true
 	}
 	return false
@@ -582,31 +601,43 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 
 // GetAssetState returns asset state from its assetID
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
-	var as *AssetState
-	bc.Store.Seek(storage.STAsset.Bytes(), func(k, v []byte) {
-		var a AssetState
-		r := io.NewBinReaderFromBuf(v)
-		a.DecodeBinary(r)
-		if r.Err == nil && a.ID == assetID {
-			as = &a
-		}
-	})
-
+	as := getAssetStateFromStore(bc.memStore, assetID)
+	if as == nil {
+		as = getAssetStateFromStore(bc.Store, assetID)
+	}
 	return as
+}
+
+// getAssetStateFromStore returns given asset state as recorded in the given
+// store.
+func getAssetStateFromStore(s storage.Store, assetID util.Uint256) *AssetState {
+	key := storage.AppendPrefix(storage.STAsset, assetID.Bytes())
+	asEncoded, err := s.Get(key)
+	if err != nil {
+		return nil
+	}
+	var a AssetState
+	r := io.NewBinReaderFromBuf(asEncoded)
+	a.DecodeBinary(r)
+	if r.Err != nil || a.ID != assetID {
+		return nil
+	}
+
+	return &a
 }
 
 // GetAccountState returns the account state from its script hash
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
-	var as *AccountState
-	bc.Store.Seek(storage.STAccount.Bytes(), func(k, v []byte) {
-		var a AccountState
-		r := io.NewBinReaderFromBuf(v)
-		a.DecodeBinary(r)
-		if r.Err == nil && a.ScriptHash == scriptHash {
-			as = &a
+	as, err := getAccountStateFromStore(bc.memStore, scriptHash)
+	if as == nil {
+		if err != storage.ErrKeyNotFound {
+			log.Warnf("failed to get account state: %s", err)
 		}
-	})
-
+		as, err = getAccountStateFromStore(bc.Store, scriptHash)
+		if as == nil && err != storage.ErrKeyNotFound {
+			log.Warnf("failed to get account state: %s", err)
+		}
+	}
 	return as
 }
 

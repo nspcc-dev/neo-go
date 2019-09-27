@@ -1,20 +1,12 @@
 package storage
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/alicebob/miniredis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestNewRedisBatch(t *testing.T) {
-	want := &RedisBatch{mem: map[string]string{}}
-	if got := NewRedisBatch(); !reflect.DeepEqual(got, want) {
-		t.Errorf("NewRedisBatch() = %v, want %v", got, want)
-	}
-}
 
 func TestNewRedisStore(t *testing.T) {
 	redisMock, redisStore := prepareRedisMock(t)
@@ -33,50 +25,10 @@ func TestNewRedisStore(t *testing.T) {
 
 func TestRedisBatch_Len(t *testing.T) {
 	want := len(map[string]string{})
-	b := &RedisBatch{
-		mem: map[string]string{},
+	b := &MemoryBatch{
+		m: map[*[]byte][]byte{},
 	}
-	assert.Equal(t, len(b.mem), want)
-}
-
-func TestRedisBatch_Put(t *testing.T) {
-	type args struct {
-		k []byte
-		v []byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want *RedisBatch
-	}{
-		{"TestRedisBatch_Put_Strings",
-			args{
-				k: []byte("foo"),
-				v: []byte("bar"),
-			},
-			&RedisBatch{mem: map[string]string{"foo": "bar"}},
-		},
-		{"TestRedisBatch_Put_Numbers",
-			args{
-				k: []byte("123"),
-				v: []byte("456"),
-			},
-			&RedisBatch{mem: map[string]string{"123": "456"}},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := &RedisBatch{mem: map[string]string{}}
-			actual.Put(tt.args.k, tt.args.v)
-			assert.Equal(t, tt.want, actual)
-		})
-	}
-}
-
-func TestRedisStore_Batch(t *testing.T) {
-	want := &RedisBatch{mem: map[string]string{}}
-	actual := NewRedisBatch()
-	assert.Equal(t, want, actual)
+	assert.Equal(t, len(b.m), want)
 }
 
 func TestRedisStore_GetAndPut(t *testing.T) {
@@ -130,7 +82,7 @@ func TestRedisStore_GetAndPut(t *testing.T) {
 }
 
 func TestRedisStore_PutBatch(t *testing.T) {
-	batch := &RedisBatch{mem: map[string]string{"foo1": "bar1"}}
+	batch := &MemoryBatch{m: map[*[]byte][]byte{&[]byte{'f', 'o', 'o', '1'}: []byte("bar1")}}
 	mock, redisStore := prepareRedisMock(t)
 	err := redisStore.PutBatch(batch)
 	assert.Nil(t, err, "Error while PutBatch")

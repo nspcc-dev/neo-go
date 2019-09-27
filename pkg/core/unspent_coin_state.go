@@ -13,11 +13,36 @@ import (
 // coin state.
 type UnspentCoins map[util.Uint256]*UnspentCoinState
 
-func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
+// getAndUpdate retreives UnspentCoinState from temporary or persistent Store
+// and return it. If it's not present in both stores, returns a new
+// UnspentCoinState.
+func (u UnspentCoins) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	if unspent, ok := u[hash]; ok {
 		return unspent, nil
 	}
 
+	unspent, err := getUnspentCoinStateFromStore(ts, hash)
+	if err != nil {
+		if err != storage.ErrKeyNotFound {
+			return nil, err
+		}
+		unspent, err = getUnspentCoinStateFromStore(ps, hash)
+		if err != nil {
+			if err != storage.ErrKeyNotFound {
+				return nil, err
+			}
+			unspent = &UnspentCoinState{
+				states: []CoinState{},
+			}
+		}
+	}
+
+	u[hash] = unspent
+	return unspent, nil
+}
+
+// getUnspentCoinStateFromStore retrieves UnspentCoinState from the given store
+func getUnspentCoinStateFromStore(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	unspent := &UnspentCoinState{}
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
 	if b, err := s.Get(key); err == nil {
@@ -27,12 +52,8 @@ func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*Unspent
 			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", r.Err)
 		}
 	} else {
-		unspent = &UnspentCoinState{
-			states: []CoinState{},
-		}
+		return nil, err
 	}
-
-	u[hash] = unspent
 	return unspent, nil
 }
 
