@@ -207,8 +207,16 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
-	if bc.verifyBlocks && !block.Verify(false) {
-		return fmt.Errorf("block %s is invalid", block.Hash())
+	if bc.verifyBlocks {
+		if !block.Verify(false) {
+			return fmt.Errorf("block %s is invalid", block.Hash())
+		}
+		for _, tx := range block.Transactions {
+			err := bc.Verify(tx)
+			if err != nil {
+				return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+			}
+		}
 	}
 	headerLen := bc.headerListLen()
 	if int(block.Index) == headerLen {
