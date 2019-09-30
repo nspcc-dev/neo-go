@@ -22,7 +22,7 @@ func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
 
-func (chain testChain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
+func (chain testChain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
 	panic("TODO")
 }
 

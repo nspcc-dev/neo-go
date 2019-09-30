@@ -663,20 +663,20 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
 
-// References returns a map with input prevHash as key (util.Uint256)
+// References returns a map with input coin reference (prevhash and index) as key
 // and transaction output as value from a transaction t.
 // @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
-	references := make(map[util.Uint256]*transaction.Output, 0)
+func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
+	references := make(map[transaction.Input]*transaction.Output)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
 		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
 			tx = nil
 		} else if tx != nil {
 			for _, in := range inputs {
-				references[in.PrevHash] = tx.Outputs[in.PrevIndex]
+				references[*in] = tx.Outputs[in.PrevIndex]
 			}
 		} else {
 			references = nil
@@ -925,7 +925,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	}
 	hashes := make(map[util.Uint160]bool)
 	for _, i := range t.Inputs {
-		h := references[i.PrevHash].ScriptHash
+		h := references[*i].ScriptHash
 		if _, ok := hashes[h]; !ok {
 			hashes[h] = true
 		}
