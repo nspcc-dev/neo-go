@@ -883,10 +883,41 @@ func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transa
 	return results
 }
 
+// GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
+// which has a different implementation from generic GetScriptHashesForVerifying.
+func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
+	hashes := make([]util.Uint160, 0)
+
+	claim := t.Data.(*transaction.ClaimTX)
+	clGroups := make(map[util.Uint256][]*transaction.Input)
+	for _, in := range claim.Claims {
+		clGroups[in.PrevHash] = append(clGroups[in.PrevHash], in)
+	}
+	for group, inputs := range clGroups {
+		refTx, _, err := bc.GetTransaction(group)
+		if err != nil {
+			return nil, err
+		}
+		for _, input := range inputs {
+			if len(refTx.Outputs) <= int(input.PrevIndex) {
+				return nil, fmt.Errorf("wrong PrevIndex reference")
+			}
+			hashes = append(hashes, refTx.Outputs[input.PrevIndex].ScriptHash)
+		}
+	}
+	if len(hashes) > 0 {
+		return hashes, nil
+	}
+	return nil, fmt.Errorf("no hashes found")
+}
+
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
+	if t.Type == transaction.ClaimType {
+		return bc.GetScriptHashesForVerifyingClaim(t)
+	}
 	references := bc.References(t)
 	if references == nil {
 		return nil, errors.New("Invalid operation")
