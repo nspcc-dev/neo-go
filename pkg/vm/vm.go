@@ -35,8 +35,8 @@ type VM struct {
 	// registered interop hooks.
 	interop map[string]InteropFunc
 
-	// scripts loaded in memory.
-	scripts map[util.Uint160][]byte
+	// callback to get scripts.
+	getScript func(util.Uint160) []byte
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -51,12 +51,12 @@ type VM struct {
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New(mode Mode) *VM {
 	vm := &VM{
-		interop: make(map[string]InteropFunc),
-		scripts: make(map[util.Uint160][]byte),
-		state:   haltState,
-		istack:  NewStack("invocation"),
-		estack:  NewStack("evaluation"),
-		astack:  NewStack("alt"),
+		interop:   make(map[string]InteropFunc),
+		getScript: nil,
+		state:     haltState,
+		istack:    NewStack("invocation"),
+		estack:    NewStack("evaluation"),
+		astack:    NewStack("alt"),
 	}
 	if mode == ModeMute {
 		vm.mute = true
@@ -246,6 +246,11 @@ func (v *VM) HasFailed() bool {
 func (v *VM) SetCheckedHash(h []byte) {
 	v.checkhash = make([]byte, len(h))
 	copy(v.checkhash, h)
+}
+
+// SetScriptGetter sets the script getter for CALL instructions.
+func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
+	v.getScript = gs
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
@@ -850,8 +855,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		}
 
 	case APPCALL, TAILCALL:
-		if len(v.scripts) == 0 {
-			panic("script table is empty")
+		if v.getScript == nil {
+			panic("no getScript callback is set up")
 		}
 
 		hash, err := util.Uint160DecodeBytes(ctx.readBytes(20))
@@ -859,8 +864,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic(err)
 		}
 
-		script, ok := v.scripts[hash]
-		if !ok {
+		script := v.getScript(hash)
+		if script == nil {
 			panic("could not find script")
 		}
 

@@ -1000,7 +1000,12 @@ func TestAppCall(t *testing.T) {
 	prog = append(prog, byte(RET))
 
 	vm := load(prog)
-	vm.scripts[hash] = makeProgram(DEPTH)
+	vm.SetScriptGetter(func(in util.Uint160) []byte {
+		if in.Equals(hash) {
+			return makeProgram(DEPTH)
+		}
+		return nil
+	})
 	vm.estack.PushVal(2)
 
 	vm.Run()

@@ -313,6 +313,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		spentCoins   = make(SpentCoins)
 		accounts     = make(Accounts)
 		assets       = make(Assets)
+		contracts    = make(Contracts)
 	)
 
 	if err := storeAsBlock(batch, block, 0); err != nil {
@@ -399,7 +400,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				Email:       t.Email,
 				Description: t.Description,
 			}
-			_ = contract
+			contracts[contract.ScriptHash()] = contract
 
 		case *transaction.InvocationTX:
 		}
@@ -416,6 +417,9 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		return err
 	}
 	if err := assets.commit(batch); err != nil {
+		return err
+	}
+	if err := contracts.commit(batch); err != nil {
 		return err
 	}
 	if err := bc.memStore.PutBatch(batch); err != nil {
@@ -641,6 +645,33 @@ func getAssetStateFromStore(s storage.Store, assetID util.Uint256) *AssetState {
 	}
 
 	return &a
+}
+
+// GetContractState returns contract by its script hash.
+func (bc *Blockchain) GetContractState(hash util.Uint160) *ContractState {
+	cs := getContractStateFromStore(bc.memStore, hash)
+	if cs == nil {
+		cs = getContractStateFromStore(bc.Store, hash)
+	}
+	return cs
+}
+
+// getContractStateFromStore returns contract state as recorded in the given
+// store by the given script hash.
+func getContractStateFromStore(s storage.Store, hash util.Uint160) *ContractState {
+	key := storage.AppendPrefix(storage.STContract, hash.Bytes())
+	contractBytes, err := s.Get(key)
+	if err != nil {
+		return nil
+	}
+	var c ContractState
+	r := io.NewBinReaderFromBuf(contractBytes)
+	c.DecodeBinary(r)
+	if r.Err != nil || c.ScriptHash() != hash {
+		return nil
+	}
+
+	return &c
 }
 
 // GetAccountState returns the account state from its script hash
@@ -1001,6 +1032,13 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 
 		vm := vm.New(vm.ModeMute)
 		vm.SetCheckedHash(t.VerificationHash().Bytes())
+		vm.SetScriptGetter(func(hash util.Uint160) []byte {
+			cs := bc.GetContractState(hash)
+			if cs == nil {
+				return nil
+			}
+			return cs.Script
+		})
 		vm.LoadScript(verification)
 		vm.LoadScript(witnesses[i].InvocationScript)
 		vm.Run()
