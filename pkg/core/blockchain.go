@@ -22,6 +22,13 @@ import (
 const (
 	headerBatchCount = 2000
 	version          = "0.0.1"
+
+	// This one comes from C# code and it's different from the constant used
+	// when creating an asset with Neo.Asset.Create interop call. It looks
+	// like 2000000 is coming from the decrementInterval, but C# code doesn't
+	// contain any relationship between the two, so we should follow this
+	// behavior.
+	registeredAssetLifetime = 2 * 2000000
 )
 
 var (
@@ -358,13 +365,14 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		switch t := tx.Data.(type) {
 		case *transaction.RegisterTX:
 			assets[tx.Hash()] = &AssetState{
-				ID:        tx.Hash(),
-				AssetType: t.AssetType,
-				Name:      t.Name,
-				Amount:    t.Amount,
-				Precision: t.Precision,
-				Owner:     t.Owner,
-				Admin:     t.Admin,
+				ID:         tx.Hash(),
+				AssetType:  t.AssetType,
+				Name:       t.Name,
+				Amount:     t.Amount,
+				Precision:  t.Precision,
+				Owner:      t.Owner,
+				Admin:      t.Admin,
+				Expiration: bc.BlockHeight() + registeredAssetLifetime,
 			}
 		case *transaction.IssueTX:
 		case *transaction.ClaimTX:
