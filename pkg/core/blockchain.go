@@ -899,7 +899,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		if as == nil {
 			return nil, errors.New("Invalid operation")
 		}
-		if as.AssetType == transaction.DutyFlag {
+		if as.AssetType&transaction.DutyFlag != 0 {
 			for _, o := range outputs {
 				h := o.ScriptHash
 				if _, ok := hashes[h]; !ok {
