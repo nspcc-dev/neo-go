@@ -46,6 +46,10 @@ func (b *Block) rebuildMerkleRoot() error {
 
 // Verify the integrity of the block.
 func (b *Block) Verify(full bool) bool {
+	// There has to be some transaction inside.
+	if len(b.Transactions) == 0 {
+		return false
+	}
 	// The first TX has to be a miner transaction.
 	if b.Transactions[0].Type != transaction.MinerType {
 		return false
