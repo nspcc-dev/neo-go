@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -965,7 +966,9 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
-// VerifyWitnesses verify the scripts (witnesses) that come with a transactions.
+// VerifyWitnesses verify the scripts (witnesses) that come with a given
+// transaction. It can reorder them by ScriptHash, because that's required to
+// match a slice of script hashes from the Blockchain.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
 func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
@@ -978,6 +981,8 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 	if len(hashes) != len(witnesses) {
 		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
 	}
+	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
+	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	for i := 0; i < len(hashes); i++ {
 		verification := witnesses[i].VerificationScript
 
