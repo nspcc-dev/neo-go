@@ -80,6 +80,15 @@ func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
 	v.interop[name] = InteropFuncPrice{f, price}
 }
 
+// RegisterInteropFuncs will register all interop functions passed in a map in
+// the VM. Effectively it's a batched version of RegisterInteropFunc.
+func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
+	// We allow reregistration here.
+	for name, funPrice := range interops {
+		v.interop[name] = funPrice
+	}
+}
+
 // Estack will return the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
