@@ -907,6 +907,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		if err != nil {
 			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
 		}
+		// It's ok to have more keys than there are signatures (it would
+		// just mean that some keys didn't sign), but not the other way around.
 		if len(pkeys) < len(sigs) {
 			panic("more signatures than there are keys")
 		}
@@ -914,18 +916,24 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("VM is not set up properly for signature checks")
 		}
 		sigok := true
+		// j counts keys and i counts signatures.
 		j := 0
-		for i := 0; sigok && i < len(pkeys) && j < len(sigs); {
+		for i := 0; sigok && j < len(pkeys) && i < len(sigs); {
 			pkey := &keys.PublicKey{}
 			err := pkey.DecodeBytes(pkeys[j])
 			if err != nil {
 				panic(err.Error())
 			}
+			// We only move to the next signature if the check was
+			// successful, but if it's not maybe the next key will
+			// fit, so we always move to the next key.
 			if pkey.Verify(sigs[i], v.checkhash) {
 				i++
 			}
 			j++
-			if len(pkeys)-i > len(sigs)-j {
+			// When there are more signatures left to check than
+			// there are keys the check won't successed for sure.
+			if len(sigs)-i > len(pkeys)-j {
 				sigok = false
 			}
 		}

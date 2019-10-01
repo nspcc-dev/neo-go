@@ -76,6 +76,21 @@ func TestUInt160Equals(t *testing.T) {
 	}
 }
 
+func TestUInt160Less(t *testing.T) {
+	a := "2d3b96ae1bcc5a585e075e3b81920210dec16302"
+	b := "2d3b96ae1bcc5a585e075e3b81920210dec16303"
+
+	ua, err := Uint160DecodeString(a)
+	assert.Nil(t, err)
+	ua2, err := Uint160DecodeString(a)
+	assert.Nil(t, err)
+	ub, err := Uint160DecodeString(b)
+	assert.Nil(t, err)
+	assert.Equal(t, true, ua.Less(ub))
+	assert.Equal(t, false, ua.Less(ua2))
+	assert.Equal(t, false, ub.Less(ua))
+}
+
 func TestUInt160String(t *testing.T) {
 	hexStr := "b28427088a3729b2536d10122960394e8be6721f"
 	hexRevStr := "1f72e68b4e39602912106d53b229378a082784b2"

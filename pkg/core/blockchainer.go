@@ -24,7 +24,7 @@ type Blockchainer interface {
 	GetAssetState(util.Uint256) *AssetState
 	GetAccountState(util.Uint160) *AccountState
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	References(t *transaction.Transaction) map[util.Uint256]*transaction.Output
+	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	Feer // fee interface
 	Verify(t *transaction.Transaction) error
 	GetMemPool() MemPool

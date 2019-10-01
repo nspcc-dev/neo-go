@@ -59,6 +59,18 @@ func (u Uint160) Equals(other Uint160) bool {
 	return u == other
 }
 
+// Less returns true if this value is less than given Uint160 value. It's
+// primarily intended to be used for sorting purposes.
+func (u Uint160) Less(other Uint160) bool {
+	for k := range u {
+		if u[k] == other[k] {
+			continue
+		}
+		return u[k] < other[k]
+	}
+	return false
+}
+
 // UnmarshalJSON implements the json unmarshaller interface.
 func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 	var js string

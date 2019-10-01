@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -22,6 +23,13 @@ import (
 const (
 	headerBatchCount = 2000
 	version          = "0.0.1"
+
+	// This one comes from C# code and it's different from the constant used
+	// when creating an asset with Neo.Asset.Create interop call. It looks
+	// like 2000000 is coming from the decrementInterval, but C# code doesn't
+	// contain any relationship between the two, so we should follow this
+	// behavior.
+	registeredAssetLifetime = 2 * 2000000
 )
 
 var (
@@ -200,8 +208,16 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
-	if bc.verifyBlocks && !block.Verify(false) {
-		return fmt.Errorf("block %s is invalid", block.Hash())
+	if bc.verifyBlocks {
+		if !block.Verify(false) {
+			return fmt.Errorf("block %s is invalid", block.Hash())
+		}
+		for _, tx := range block.Transactions {
+			err := bc.Verify(tx)
+			if err != nil {
+				return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+			}
+		}
 	}
 	headerLen := bc.headerListLen()
 	if int(block.Index) == headerLen {
@@ -358,13 +374,14 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		switch t := tx.Data.(type) {
 		case *transaction.RegisterTX:
 			assets[tx.Hash()] = &AssetState{
-				ID:        tx.Hash(),
-				AssetType: t.AssetType,
-				Name:      t.Name,
-				Amount:    t.Amount,
-				Precision: t.Precision,
-				Owner:     t.Owner,
-				Admin:     t.Admin,
+				ID:         tx.Hash(),
+				AssetType:  t.AssetType,
+				Name:       t.Name,
+				Amount:     t.Amount,
+				Precision:  t.Precision,
+				Owner:      t.Owner,
+				Admin:      t.Admin,
+				Expiration: bc.BlockHeight() + registeredAssetLifetime,
 			}
 		case *transaction.IssueTX:
 		case *transaction.ClaimTX:
@@ -646,20 +663,20 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
 
-// References returns a map with input prevHash as key (util.Uint256)
+// References returns a map with input coin reference (prevhash and index) as key
 // and transaction output as value from a transaction t.
 // @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) map[util.Uint256]*transaction.Output {
-	references := make(map[util.Uint256]*transaction.Output, 0)
+func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
+	references := make(map[transaction.Input]*transaction.Output)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
 		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
 			tx = nil
 		} else if tx != nil {
 			for _, in := range inputs {
-				references[in.PrevHash] = tx.Outputs[in.PrevIndex]
+				references[*in] = tx.Outputs[in.PrevIndex]
 			}
 		} else {
 			references = nil
@@ -867,17 +884,48 @@ func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transa
 	return results
 }
 
+// GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
+// which has a different implementation from generic GetScriptHashesForVerifying.
+func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
+	hashes := make([]util.Uint160, 0)
+
+	claim := t.Data.(*transaction.ClaimTX)
+	clGroups := make(map[util.Uint256][]*transaction.Input)
+	for _, in := range claim.Claims {
+		clGroups[in.PrevHash] = append(clGroups[in.PrevHash], in)
+	}
+	for group, inputs := range clGroups {
+		refTx, _, err := bc.GetTransaction(group)
+		if err != nil {
+			return nil, err
+		}
+		for _, input := range inputs {
+			if len(refTx.Outputs) <= int(input.PrevIndex) {
+				return nil, fmt.Errorf("wrong PrevIndex reference")
+			}
+			hashes = append(hashes, refTx.Outputs[input.PrevIndex].ScriptHash)
+		}
+	}
+	if len(hashes) > 0 {
+		return hashes, nil
+	}
+	return nil, fmt.Errorf("no hashes found")
+}
+
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
+	if t.Type == transaction.ClaimType {
+		return bc.GetScriptHashesForVerifyingClaim(t)
+	}
 	references := bc.References(t)
 	if references == nil {
 		return nil, errors.New("Invalid operation")
 	}
 	hashes := make(map[util.Uint160]bool)
 	for _, i := range t.Inputs {
-		h := references[i.PrevHash].ScriptHash
+		h := references[*i].ScriptHash
 		if _, ok := hashes[h]; !ok {
 			hashes[h] = true
 		}
@@ -899,7 +947,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		if as == nil {
 			return nil, errors.New("Invalid operation")
 		}
-		if as.AssetType == transaction.DutyFlag {
+		if as.AssetType&transaction.DutyFlag != 0 {
 			for _, o := range outputs {
 				h := o.ScriptHash
 				if _, ok := hashes[h]; !ok {
@@ -918,7 +966,9 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
-// VerifyWitnesses verify the scripts (witnesses) that come with a transactions.
+// VerifyWitnesses verify the scripts (witnesses) that come with a given
+// transaction. It can reorder them by ScriptHash, because that's required to
+// match a slice of script hashes from the Blockchain.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
 func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
@@ -931,6 +981,8 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 	if len(hashes) != len(witnesses) {
 		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
 	}
+	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
+	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	for i := 0; i < len(hashes); i++ {
 		verification := witnesses[i].VerificationScript
 
