@@ -33,7 +33,7 @@ type VM struct {
 	state State
 
 	// registered interop hooks.
-	interop map[string]InteropFunc
+	interop map[string]InteropFuncPrice
 
 	// callback to get scripts.
 	getScript func(util.Uint160) []byte
@@ -48,10 +48,16 @@ type VM struct {
 	checkhash []byte
 }
 
+// InteropFuncPrice represents an interop function with a price.
+type InteropFuncPrice struct {
+	Func  InteropFunc
+	Price int
+}
+
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New(mode Mode) *VM {
 	vm := &VM{
-		interop:   make(map[string]InteropFunc),
+		interop:   make(map[string]InteropFuncPrice),
 		getScript: nil,
 		state:     haltState,
 		istack:    NewStack("invocation"),
@@ -63,15 +69,15 @@ func New(mode Mode) *VM {
 	}
 
 	// Register native interop hooks.
-	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog)
-	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify)
+	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog, 1)
+	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify, 1)
 
 	return vm
 }
 
 // RegisterInteropFunc will register the given InteropFunc to the VM.
-func (v *VM) RegisterInteropFunc(name string, f InteropFunc) {
-	v.interop[name] = f
+func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
+	v.interop[name] = InteropFuncPrice{f, price}
 }
 
 // Estack will return the evaluation stack so interop hooks can utilize this.
@@ -850,7 +856,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		if !ok {
 			panic(fmt.Sprintf("interop hook (%s) not registered", api))
 		}
-		if err := ifunc(v); err != nil {
+		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
 

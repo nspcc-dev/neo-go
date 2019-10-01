@@ -18,7 +18,7 @@ func TestInteropHook(t *testing.T) {
 	v.RegisterInteropFunc("foo", func(evm *VM) error {
 		evm.Estack().PushVal(1)
 		return nil
-	})
+	}, 1)
 
 	buf := new(bytes.Buffer)
 	EmitSyscall(buf, "foo")
@@ -33,7 +33,7 @@ func TestInteropHook(t *testing.T) {
 func TestRegisterInterop(t *testing.T) {
 	v := New(ModeMute)
 	currRegistered := len(v.interop)
-	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil })
+	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil }, 1)
 	assert.Equal(t, currRegistered+1, len(v.interop))
 	_, ok := v.interop["foo"]
 	assert.Equal(t, true, ok)
