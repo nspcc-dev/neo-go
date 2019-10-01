@@ -92,6 +92,8 @@ func (e *Element) Bool() bool {
 			}
 		}
 		return false
+	case *InteropItem:
+		return t.value != nil
 	default:
 		panic("can't convert to bool: " + t.String())
 	}
