@@ -1045,14 +1045,17 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 		if vm.HasFailed() {
 			return errors.Errorf("vm failed to execute the script")
 		}
-		res := vm.PopResult()
-		switch res.(type) {
-		case bool:
-			if !(res.(bool)) {
+		resEl := vm.Estack().Pop()
+		if resEl != nil {
+			res, err := resEl.TryBool()
+			if err != nil {
+				return err
+			}
+			if !res {
 				return errors.Errorf("signature check failed")
 			}
-		default:
-			return errors.Errorf("vm returned non-boolean result")
+		} else {
+			return errors.Errorf("no result returned from the script")
 		}
 	}
 
