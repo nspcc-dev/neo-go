@@ -187,7 +187,11 @@ func (v *VM) Context() *Context {
 // PopResult is used to pop the first item of the evaluation stack. This allows
 // us to test compiler and vm in a bi-directional way.
 func (v *VM) PopResult() interface{} {
-	return v.estack.Pop().value.Value()
+	e := v.estack.Pop()
+	if e != nil {
+		return e.Value()
+	}
+	return nil
 }
 
 // Stack returns json formatted representation of the given stack.
