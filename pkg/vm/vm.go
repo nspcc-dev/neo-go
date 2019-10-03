@@ -2,6 +2,7 @@ package vm
 
 import (
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -224,6 +225,11 @@ func (v *VM) Run() {
 
 	v.state = noneState
 	for {
+		// check for breakpoint before executing the next instruction
+		ctx := v.Context()
+		if ctx != nil && ctx.atBreakPoint() {
+			v.state |= breakState
+		}
 		switch {
 		case v.state.HasFlag(faultState):
 			fmt.Println("FAULT")
@@ -247,14 +253,13 @@ func (v *VM) Run() {
 // Step 1 instruction in the program.
 func (v *VM) Step() {
 	ctx := v.Context()
-	op := ctx.Next()
-	v.execute(ctx, op)
-
-	// re-peek the context as it could been changed during execution.
-	cctx := v.Context()
-	if cctx != nil && cctx.atBreakPoint() {
-		v.state = breakState
+	op, param, err := ctx.Next()
+	if err != nil {
+		log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
+		log.Println(err)
+		v.state = faultState
 	}
+	v.execute(ctx, op, param)
 }
 
 // HasFailed returns whether VM is in the failed state now. Usually used to
@@ -275,7 +280,7 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
-func (v *VM) execute(ctx *Context, op Instruction) {
+func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state.
 	defer func() {
@@ -287,11 +292,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	}()
 
 	if op >= PUSHBYTES1 && op <= PUSHBYTES75 {
-		b := ctx.readBytes(int(op))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
+		v.estack.PushVal(parameter)
 		return
 	}
 
@@ -305,29 +306,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case PUSH0:
 		v.estack.PushVal([]byte{})
 
-	case PUSHDATA1:
-		n := ctx.readByte()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
-
-	case PUSHDATA2:
-		n := ctx.readUint16()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
-
-	case PUSHDATA4:
-		n := ctx.readUint32()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
+	case PUSHDATA1, PUSHDATA2, PUSHDATA4:
+		v.estack.PushVal(parameter)
 
 	// Stack operations.
 	case TOALTSTACK:
@@ -843,8 +823,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case JMP, JMPIF, JMPIFNOT:
 		var (
-			rOffset = int16(ctx.readUint16())
-			offset  = ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
+			rOffset = int16(binary.LittleEndian.Uint16(parameter))
+			offset  = ctx.ip + int(rOffset)
 		)
 		if offset < 0 || offset > len(ctx.prog) {
 			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
@@ -857,19 +837,17 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 		}
 		if cond {
-			ctx.ip = offset
+			ctx.nextip = offset
 		}
 
 	case CALL:
 		v.istack.PushVal(ctx.Copy())
-		ctx.ip += 2
-		v.execute(v.Context(), JMP)
+		v.execute(v.Context(), JMP, parameter)
 
 	case SYSCALL:
-		api := ctx.readVarBytes()
-		ifunc, ok := v.interop[string(api)]
+		ifunc, ok := v.interop[string(parameter)]
 		if !ok {
-			panic(fmt.Sprintf("interop hook (%s) not registered", api))
+			panic(fmt.Sprintf("interop hook (%q) not registered", parameter))
 		}
 		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
@@ -880,7 +858,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			panic("no getScript callback is set up")
 		}
 
-		hash, err := util.Uint160DecodeBytes(ctx.readBytes(20))
+		hash, err := util.Uint160DecodeBytes(parameter)
 		if err != nil {
 			panic(err)
 		}

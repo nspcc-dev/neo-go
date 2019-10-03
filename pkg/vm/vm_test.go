@@ -54,7 +54,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		vm.execute(nil, RET)
+		vm.execute(nil, RET, nil)
 
 		assert.Equal(t, 0, vm.astack.Len())
 		assert.Equal(t, 0, vm.istack.Len())
