@@ -24,8 +24,10 @@ var (
 )
 
 const (
-	maxSHLArg = 256
-	minSHLArg = -256
+	// MaxArraySize is the maximum array size allowed in the VM.
+	MaxArraySize = 1024
+	maxSHLArg    = 256
+	minSHLArg    = -256
 )
 
 // VM represents the virtual machine.
