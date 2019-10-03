@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
@@ -108,25 +107,9 @@ func CompileAndInspect(src string) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
-	for i := 0; i <= len(b)-1; {
-		instr := vm.Instruction(b[i])
-		paramlength := 0
-		fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i], instr)
-		i++
-		if instr >= vm.PUSHBYTES1 && instr <= vm.PUSHBYTES75 {
-			paramlength = int(instr)
-		}
-		if instr == vm.JMP || instr == vm.JMPIF || instr == vm.JMPIFNOT || instr == vm.CALL {
-			paramlength = 2
-		}
-		for x := 0; x < paramlength; x++ {
-			fmt.Fprintf(w, "%d\t0x%x\t%s\t\n", i, b[i+1+x], string(b[i+1+x]))
-		}
-		i += paramlength
-	}
-	w.Flush()
+	v := vm.New(0)
+	v.LoadScript(b)
+	v.PrintOps()
 	return nil
 }
 

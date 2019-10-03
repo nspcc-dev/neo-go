@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"text/tabwriter"
+	"unicode/utf8"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -119,19 +120,45 @@ func (v *VM) LoadArgs(method []byte, args []StackItem) {
 
 // PrintOps will print the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps() {
-	prog := v.Context().Program()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
-	cursor := ""
-	ip, _ := v.Context().CurrInstr()
-	for i := 0; i < len(prog); i++ {
-		if i == ip {
+	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
+	realctx := v.Context()
+	ctx := realctx.Copy()
+	ctx.ip = 0
+	ctx.nextip = 0
+	for {
+		cursor := ""
+		instr, parameter, err := ctx.Next()
+		if ctx.ip == realctx.ip {
 			cursor = "<<"
-		} else {
-			cursor = ""
 		}
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Instruction(prog[i]).String(), cursor)
+		if err != nil {
+			fmt.Fprintf(w, "%d\t%s\tERROR: %s\t%s\n", ctx.ip, instr, err, cursor)
+			break
+		}
+		var desc = ""
+		if parameter != nil {
+			switch instr {
+			case JMP, JMPIF, JMPIFNOT, CALL:
+				offset := int16(binary.LittleEndian.Uint16(parameter))
+				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
+			case SYSCALL:
+				desc = fmt.Sprintf("%q", parameter)
+			case APPCALL, TAILCALL:
+				desc = fmt.Sprintf("%x", parameter)
+			default:
+				if utf8.Valid(parameter) {
+					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
+				} else {
+					desc = fmt.Sprintf("%x", parameter)
+				}
+			}
+		}
 
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", ctx.ip, instr, desc, cursor)
+		if ctx.nextip >= len(ctx.prog) {
+			break
+		}
 	}
 	w.Flush()
 }
