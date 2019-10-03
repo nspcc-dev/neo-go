@@ -58,6 +58,11 @@ func (e *Element) Prev() *Element {
 	return nil
 }
 
+// Value returns value of the StackItem contained in the element.
+func (e *Element) Value() interface{} {
+	return e.value.Value()
+}
+
 // BigInt attempts to get the underlying value of the element as a big integer.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) BigInt() *big.Int {

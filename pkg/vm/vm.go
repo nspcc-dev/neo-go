@@ -181,7 +181,7 @@ func (v *VM) Context() *Context {
 	if v.istack.Len() == 0 {
 		return nil
 	}
-	return v.istack.Peek(0).value.Value().(*Context)
+	return v.istack.Peek(0).Value().(*Context)
 }
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
@@ -827,7 +827,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
-		switch t := elem.value.Value().(type) {
+		switch t := elem.Value().(type) {
 		case []StackItem:
 			v.estack.PushVal(len(t))
 		case map[interface{}]StackItem:
