@@ -2,6 +2,7 @@ package vm
 
 import (
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"text/tabwriter"
+	"unicode/utf8"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -24,8 +26,10 @@ var (
 )
 
 const (
-	maxSHLArg = 256
-	minSHLArg = -256
+	// MaxArraySize is the maximum array size allowed in the VM.
+	MaxArraySize = 1024
+	maxSHLArg    = 256
+	minSHLArg    = -256
 )
 
 // VM represents the virtual machine.
@@ -33,10 +37,10 @@ type VM struct {
 	state State
 
 	// registered interop hooks.
-	interop map[string]InteropFunc
+	interop map[string]InteropFuncPrice
 
-	// scripts loaded in memory.
-	scripts map[util.Uint160][]byte
+	// callback to get scripts.
+	getScript func(util.Uint160) []byte
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -48,30 +52,45 @@ type VM struct {
 	checkhash []byte
 }
 
+// InteropFuncPrice represents an interop function with a price.
+type InteropFuncPrice struct {
+	Func  InteropFunc
+	Price int
+}
+
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New(mode Mode) *VM {
 	vm := &VM{
-		interop: make(map[string]InteropFunc),
-		scripts: make(map[util.Uint160][]byte),
-		state:   haltState,
-		istack:  NewStack("invocation"),
-		estack:  NewStack("evaluation"),
-		astack:  NewStack("alt"),
+		interop:   make(map[string]InteropFuncPrice),
+		getScript: nil,
+		state:     haltState,
+		istack:    NewStack("invocation"),
+		estack:    NewStack("evaluation"),
+		astack:    NewStack("alt"),
 	}
 	if mode == ModeMute {
 		vm.mute = true
 	}
 
 	// Register native interop hooks.
-	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog)
-	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify)
+	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog, 1)
+	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify, 1)
 
 	return vm
 }
 
 // RegisterInteropFunc will register the given InteropFunc to the VM.
-func (v *VM) RegisterInteropFunc(name string, f InteropFunc) {
-	v.interop[name] = f
+func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
+	v.interop[name] = InteropFuncPrice{f, price}
+}
+
+// RegisterInteropFuncs will register all interop functions passed in a map in
+// the VM. Effectively it's a batched version of RegisterInteropFunc.
+func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
+	// We allow reregistration here.
+	for name, funPrice := range interops {
+		v.interop[name] = funPrice
+	}
 }
 
 // Estack will return the evaluation stack so interop hooks can utilize this.
@@ -101,19 +120,45 @@ func (v *VM) LoadArgs(method []byte, args []StackItem) {
 
 // PrintOps will print the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps() {
-	prog := v.Context().Program()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(w, "INDEX\tOPCODE\tDESC\t")
-	cursor := ""
-	ip, _ := v.Context().CurrInstr()
-	for i := 0; i < len(prog); i++ {
-		if i == ip {
+	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
+	realctx := v.Context()
+	ctx := realctx.Copy()
+	ctx.ip = 0
+	ctx.nextip = 0
+	for {
+		cursor := ""
+		instr, parameter, err := ctx.Next()
+		if ctx.ip == realctx.ip {
 			cursor = "<<"
-		} else {
-			cursor = ""
 		}
-		fmt.Fprintf(w, "%d\t0x%2x\t%s\t%s\n", i, prog[i], Instruction(prog[i]).String(), cursor)
+		if err != nil {
+			fmt.Fprintf(w, "%d\t%s\tERROR: %s\t%s\n", ctx.ip, instr, err, cursor)
+			break
+		}
+		var desc = ""
+		if parameter != nil {
+			switch instr {
+			case JMP, JMPIF, JMPIFNOT, CALL:
+				offset := int16(binary.LittleEndian.Uint16(parameter))
+				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
+			case SYSCALL:
+				desc = fmt.Sprintf("%q", parameter)
+			case APPCALL, TAILCALL:
+				desc = fmt.Sprintf("%x", parameter)
+			default:
+				if utf8.Valid(parameter) {
+					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
+				} else {
+					desc = fmt.Sprintf("%x", parameter)
+				}
+			}
+		}
 
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", ctx.ip, instr, desc, cursor)
+		if ctx.nextip >= len(ctx.prog) {
+			break
+		}
 	}
 	w.Flush()
 }
@@ -164,13 +209,17 @@ func (v *VM) Context() *Context {
 	if v.istack.Len() == 0 {
 		return nil
 	}
-	return v.istack.Peek(0).value.Value().(*Context)
+	return v.istack.Peek(0).Value().(*Context)
 }
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
 // us to test compiler and vm in a bi-directional way.
 func (v *VM) PopResult() interface{} {
-	return v.estack.Pop().value.Value()
+	e := v.estack.Pop()
+	if e != nil {
+		return e.Value()
+	}
+	return nil
 }
 
 // Stack returns json formatted representation of the given stack.
@@ -203,7 +252,15 @@ func (v *VM) Run() {
 
 	v.state = noneState
 	for {
+		// check for breakpoint before executing the next instruction
+		ctx := v.Context()
+		if ctx != nil && ctx.atBreakPoint() {
+			v.state |= breakState
+		}
 		switch {
+		case v.state.HasFlag(faultState):
+			fmt.Println("FAULT")
+			return
 		case v.state.HasFlag(haltState):
 			if !v.mute {
 				fmt.Println(v.Stack("estack"))
@@ -214,9 +271,6 @@ func (v *VM) Run() {
 			i, op := ctx.CurrInstr()
 			fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
 			return
-		case v.state.HasFlag(faultState):
-			fmt.Println("FAULT")
-			return
 		case v.state == noneState:
 			v.Step()
 		}
@@ -226,14 +280,13 @@ func (v *VM) Run() {
 // Step 1 instruction in the program.
 func (v *VM) Step() {
 	ctx := v.Context()
-	op := ctx.Next()
-	v.execute(ctx, op)
-
-	// re-peek the context as it could been changed during execution.
-	cctx := v.Context()
-	if cctx != nil && cctx.atBreakPoint() {
-		v.state = breakState
+	op, param, err := ctx.Next()
+	if err != nil {
+		log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
+		log.Println(err)
+		v.state = faultState
 	}
+	v.execute(ctx, op, param)
 }
 
 // HasFailed returns whether VM is in the failed state now. Usually used to
@@ -248,8 +301,13 @@ func (v *VM) SetCheckedHash(h []byte) {
 	copy(v.checkhash, h)
 }
 
+// SetScriptGetter sets the script getter for CALL instructions.
+func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
+	v.getScript = gs
+}
+
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
-func (v *VM) execute(ctx *Context, op Instruction) {
+func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
 	// each panic at a central point, putting the VM in a fault state.
 	defer func() {
@@ -261,11 +319,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	}()
 
 	if op >= PUSHBYTES1 && op <= PUSHBYTES75 {
-		b := ctx.readBytes(int(op))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
+		v.estack.PushVal(parameter)
 		return
 	}
 
@@ -279,29 +333,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 	case PUSH0:
 		v.estack.PushVal([]byte{})
 
-	case PUSHDATA1:
-		n := ctx.readByte()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
-
-	case PUSHDATA2:
-		n := ctx.readUint16()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
-
-	case PUSHDATA4:
-		n := ctx.readUint32()
-		b := ctx.readBytes(int(n))
-		if b == nil {
-			panic("failed to read instruction parameter")
-		}
-		v.estack.PushVal(b)
+	case PUSHDATA1, PUSHDATA2, PUSHDATA4:
+		v.estack.PushVal(parameter)
 
 	// Stack operations.
 	case TOALTSTACK:
@@ -801,7 +834,7 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
-		switch t := elem.value.Value().(type) {
+		switch t := elem.Value().(type) {
 		case []StackItem:
 			v.estack.PushVal(len(t))
 		case map[interface{}]StackItem:
@@ -817,8 +850,8 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 
 	case JMP, JMPIF, JMPIFNOT:
 		var (
-			rOffset = int16(ctx.readUint16())
-			offset  = ctx.ip + int(rOffset) - 3 // sizeOf(int16 + uint8)
+			rOffset = int16(binary.LittleEndian.Uint16(parameter))
+			offset  = ctx.ip + int(rOffset)
 		)
 		if offset < 0 || offset > len(ctx.prog) {
 			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
@@ -831,36 +864,34 @@ func (v *VM) execute(ctx *Context, op Instruction) {
 			}
 		}
 		if cond {
-			ctx.ip = offset
+			ctx.nextip = offset
 		}
 
 	case CALL:
 		v.istack.PushVal(ctx.Copy())
-		ctx.ip += 2
-		v.execute(v.Context(), JMP)
+		v.execute(v.Context(), JMP, parameter)
 
 	case SYSCALL:
-		api := ctx.readVarBytes()
-		ifunc, ok := v.interop[string(api)]
+		ifunc, ok := v.interop[string(parameter)]
 		if !ok {
-			panic(fmt.Sprintf("interop hook (%s) not registered", api))
+			panic(fmt.Sprintf("interop hook (%q) not registered", parameter))
 		}
-		if err := ifunc(v); err != nil {
+		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
 
 	case APPCALL, TAILCALL:
-		if len(v.scripts) == 0 {
-			panic("script table is empty")
+		if v.getScript == nil {
+			panic("no getScript callback is set up")
 		}
 
-		hash, err := util.Uint160DecodeBytes(ctx.readBytes(20))
+		hash, err := util.Uint160DecodeBytes(parameter)
 		if err != nil {
 			panic(err)
 		}
 
-		script, ok := v.scripts[hash]
-		if !ok {
+		script := v.getScript(hash)
+		if script == nil {
 			panic("could not find script")
 		}
 

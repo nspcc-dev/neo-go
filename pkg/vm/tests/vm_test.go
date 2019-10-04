@@ -45,9 +45,9 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm := vm.New(vm.ModeMute)
 
 	storePlugin := newStoragePlugin()
-	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get)
-	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put)
-	vm.RegisterInteropFunc("Neo.Storage.GetContext", storePlugin.GetContext)
+	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get, 1)
+	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put, 1)
+	vm.RegisterInteropFunc("Neo.Storage.GetContext", storePlugin.GetContext, 1)
 
 	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
 	if err != nil {

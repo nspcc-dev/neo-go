@@ -18,7 +18,7 @@ func TestInteropHook(t *testing.T) {
 	v.RegisterInteropFunc("foo", func(evm *VM) error {
 		evm.Estack().PushVal(1)
 		return nil
-	})
+	}, 1)
 
 	buf := new(bytes.Buffer)
 	EmitSyscall(buf, "foo")
@@ -33,7 +33,7 @@ func TestInteropHook(t *testing.T) {
 func TestRegisterInterop(t *testing.T) {
 	v := New(ModeMute)
 	currRegistered := len(v.interop)
-	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil })
+	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil }, 1)
 	assert.Equal(t, currRegistered+1, len(v.interop))
 	_, ok := v.interop["foo"]
 	assert.Equal(t, true, ok)
@@ -54,7 +54,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		vm.execute(nil, RET)
+		vm.execute(nil, RET, nil)
 
 		assert.Equal(t, 0, vm.astack.Len())
 		assert.Equal(t, 0, vm.istack.Len())
@@ -1000,7 +1000,12 @@ func TestAppCall(t *testing.T) {
 	prog = append(prog, byte(RET))
 
 	vm := load(prog)
-	vm.scripts[hash] = makeProgram(DEPTH)
+	vm.SetScriptGetter(func(in util.Uint160) []byte {
+		if in.Equals(hash) {
+			return makeProgram(DEPTH)
+		}
+		return nil
+	})
 	vm.estack.PushVal(2)
 
 	vm.Run()

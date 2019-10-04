@@ -23,6 +23,10 @@ func makeStackItem(v interface{}) StackItem {
 		return &BigIntegerItem{
 			value: big.NewInt(val),
 		}
+	case uint32:
+		return &BigIntegerItem{
+			value: big.NewInt(int64(val)),
+		}
 	case []byte:
 		return &ByteArrayItem{
 			value: val,
@@ -247,4 +251,31 @@ func toMapKey(key StackItem) interface{} {
 	default:
 		panic("wrong key type")
 	}
+}
+
+// InteropItem represents interop data on the stack.
+type InteropItem struct {
+	value interface{}
+}
+
+// NewInteropItem returns new InteropItem object.
+func NewInteropItem(value interface{}) *InteropItem {
+	return &InteropItem{
+		value: value,
+	}
+}
+
+// Value implements StackItem interface.
+func (i *InteropItem) Value() interface{} {
+	return i.value
+}
+
+// String implements stringer interface.
+func (i *InteropItem) String() string {
+	return "InteropItem"
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (i *InteropItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.value)
 }

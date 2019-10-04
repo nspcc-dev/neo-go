@@ -1,13 +1,18 @@
 package vm
 
 import (
-	"encoding/binary"
+	"errors"
+
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // Context represent the current execution context of the VM.
 type Context struct {
 	// Instruction pointer.
 	ip int
+
+	// The next instruction pointer.
+	nextip int
 
 	// The raw program script.
 	prog []byte
@@ -19,19 +24,62 @@ type Context struct {
 // NewContext return a new Context object.
 func NewContext(b []byte) *Context {
 	return &Context{
-		ip:          -1,
 		prog:        b,
 		breakPoints: []int{},
 	}
 }
 
-// Next return the next instruction to execute.
-func (c *Context) Next() Instruction {
-	c.ip++
+// Next returns the next instruction to execute with its parameter if any. After
+// its invocation the instruction pointer points to the instruction being
+// returned.
+func (c *Context) Next() (Instruction, []byte, error) {
+	c.ip = c.nextip
 	if c.ip >= len(c.prog) {
-		return RET
+		return RET, nil, nil
 	}
-	return Instruction(c.prog[c.ip])
+	r := io.NewBinReaderFromBuf(c.prog[c.ip:])
+
+	var instrbyte byte
+	r.ReadLE(&instrbyte)
+	instr := Instruction(instrbyte)
+	c.nextip++
+
+	var numtoread int
+	switch instr {
+	case PUSHDATA1, SYSCALL:
+		var n byte
+		r.ReadLE(&n)
+		numtoread = int(n)
+		c.nextip++
+	case PUSHDATA2:
+		var n uint16
+		r.ReadLE(&n)
+		numtoread = int(n)
+		c.nextip += 2
+	case PUSHDATA4:
+		var n uint32
+		r.ReadLE(&n)
+		numtoread = int(n)
+		c.nextip += 4
+	case JMP, JMPIF, JMPIFNOT, CALL:
+		numtoread = 2
+	case APPCALL, TAILCALL:
+		numtoread = 20
+	default:
+		if instr >= PUSHBYTES1 && instr <= PUSHBYTES75 {
+			numtoread = int(instr)
+		} else {
+			// No parameters, can just return.
+			return instr, nil, nil
+		}
+	}
+	parameter := make([]byte, numtoread)
+	r.ReadLE(parameter)
+	if r.Err != nil {
+		return instr, nil, errors.New("failed to read instruction parameter")
+	}
+	c.nextip += numtoread
+	return instr, parameter, nil
 }
 
 // IP returns the absolute instruction without taking 0 into account.
@@ -48,19 +96,14 @@ func (c *Context) LenInstr() int {
 
 // CurrInstr returns the current instruction and opcode.
 func (c *Context) CurrInstr() (int, Instruction) {
-	if c.ip < 0 {
-		return c.ip, NOP
-	}
 	return c.ip, Instruction(c.prog[c.ip])
 }
 
 // Copy returns an new exact copy of c.
 func (c *Context) Copy() *Context {
-	return &Context{
-		ip:          c.ip,
-		prog:        c.prog,
-		breakPoints: c.breakPoints,
-	}
+	ctx := new(Context)
+	*ctx = *c
+	return ctx
 }
 
 // Program returns the loaded program.
@@ -84,45 +127,4 @@ func (c *Context) atBreakPoint() bool {
 
 func (c *Context) String() string {
 	return "execution context"
-}
-
-func (c *Context) readUint32() uint32 {
-	start, end := c.IP(), c.IP()+4
-	if end > len(c.prog) {
-		panic("failed to read uint32 parameter")
-	}
-	val := binary.LittleEndian.Uint32(c.prog[start:end])
-	c.ip += 4
-	return val
-}
-
-func (c *Context) readUint16() uint16 {
-	start, end := c.IP(), c.IP()+2
-	if end > len(c.prog) {
-		panic("failed to read uint16 parameter")
-	}
-	val := binary.LittleEndian.Uint16(c.prog[start:end])
-	c.ip += 2
-	return val
-}
-
-func (c *Context) readByte() byte {
-	return c.readBytes(1)[0]
-}
-
-func (c *Context) readBytes(n int) []byte {
-	start, end := c.IP(), c.IP()+n
-	if end > len(c.prog) {
-		return nil
-	}
-
-	out := make([]byte, n)
-	copy(out, c.prog[start:end])
-	c.ip += n
-	return out
-}
-
-func (c *Context) readVarBytes() []byte {
-	n := c.readByte()
-	return c.readBytes(int(n))
 }
