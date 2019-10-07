@@ -55,22 +55,36 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	return nil, ErrKeyNotFound
 }
 
+// put puts a key-value pair into the store, it's supposed to be called
+// with mutex locked.
+func (s *MemoryStore) put(key string, value []byte) {
+	s.mem[key] = value
+	delete(s.del, key)
+}
+
 // Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
-	s.mut.Lock()
 	newKey := string(key)
-	s.mem[newKey] = value
-	delete(s.del, newKey)
+	vcopy := make([]byte, len(value))
+	copy(vcopy, value)
+	s.mut.Lock()
+	s.put(newKey, vcopy)
 	s.mut.Unlock()
 	return nil
 }
 
+// drop deletes a key-valu pair from the store, it's supposed to be called
+// with mutex locked.
+func (s *MemoryStore) drop(key string) {
+	s.del[key] = true
+	delete(s.mem, key)
+}
+
 // Delete implements Store interface. Never returns an error.
 func (s *MemoryStore) Delete(key []byte) error {
-	s.mut.Lock()
 	newKey := string(key)
-	s.del[newKey] = true
-	delete(s.mem, newKey)
+	s.mut.Lock()
+	s.drop(newKey)
 	s.mut.Unlock()
 	return nil
 }
@@ -78,11 +92,13 @@ func (s *MemoryStore) Delete(key []byte) error {
 // PutBatch implements the Store interface. Never returns an error.
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
+	s.mut.Lock()
+	defer s.mut.Unlock()
 	for k := range b.del {
-		_ = s.Delete([]byte(k))
+		s.drop(k)
 	}
 	for k, v := range b.m {
-		_ = s.Put([]byte(k), v)
+		s.put(k, v)
 	}
 	return nil
 }
