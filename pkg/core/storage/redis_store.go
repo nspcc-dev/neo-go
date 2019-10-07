@@ -63,7 +63,7 @@ func (s *RedisStore) Put(k, v []byte) error {
 // PutBatch implements the Store interface.
 func (s *RedisStore) PutBatch(b Batch) error {
 	pipe := s.client.Pipeline()
-	for k, v := range b.(*MemoryBatch).m {
+	for k, v := range b.(*MemoryBatch).mem {
 		pipe.Set(k, v, 0)
 	}
 	for k := range b.(*MemoryBatch).del {

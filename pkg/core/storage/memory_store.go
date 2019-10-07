@@ -16,25 +16,17 @@ type MemoryStore struct {
 
 // MemoryBatch a in-memory batch compatible with MemoryStore.
 type MemoryBatch struct {
-	m map[string][]byte
-	// A map, not a slice, to avoid duplicates.
-	del map[string]bool
+	MemoryStore
 }
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
-	vcopy := make([]byte, len(v))
-	copy(vcopy, v)
-	kcopy := string(k)
-	b.m[kcopy] = vcopy
-	delete(b.del, kcopy)
+	_ = b.MemoryStore.Put(k, v)
 }
 
 // Delete implements Batch interface.
 func (b *MemoryBatch) Delete(k []byte) {
-	kcopy := string(k)
-	delete(b.m, kcopy)
-	b.del[kcopy] = true
+	_ = b.MemoryStore.Delete(k)
 }
 
 // NewMemoryStore creates a new MemoryStore object.
@@ -97,7 +89,7 @@ func (s *MemoryStore) PutBatch(batch Batch) error {
 	for k := range b.del {
 		s.drop(k)
 	}
-	for k, v := range b.m {
+	for k, v := range b.mem {
 		s.put(k, v)
 	}
 	return nil
@@ -119,10 +111,7 @@ func (s *MemoryStore) Batch() Batch {
 
 // newMemoryBatch returns new memory batch.
 func newMemoryBatch() *MemoryBatch {
-	return &MemoryBatch{
-		m:   make(map[string][]byte),
-		del: make(map[string]bool),
-	}
+	return &MemoryBatch{MemoryStore: *NewMemoryStore()}
 }
 
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent

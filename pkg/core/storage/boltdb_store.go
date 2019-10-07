@@ -83,7 +83,7 @@ func (s *BoltDBStore) Delete(key []byte) error {
 func (s *BoltDBStore) PutBatch(batch Batch) error {
 	return s.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
-		for k, v := range batch.(*MemoryBatch).m {
+		for k, v := range batch.(*MemoryBatch).mem {
 			err := b.Put([]byte(k), v)
 			if err != nil {
 				return err
