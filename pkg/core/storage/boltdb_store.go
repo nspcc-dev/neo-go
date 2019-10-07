@@ -76,7 +76,7 @@ func (s *BoltDBStore) PutBatch(batch Batch) error {
 	return s.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
 		for k, v := range batch.(*MemoryBatch).m {
-			err := b.Put(*k, v)
+			err := b.Put([]byte(k), v)
 			if err != nil {
 				return err
 			}

@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/hex"
 	"strings"
 	"sync"
 )
@@ -15,16 +14,15 @@ type MemoryStore struct {
 
 // MemoryBatch a in-memory batch compatible with MemoryStore.
 type MemoryBatch struct {
-	m map[*[]byte][]byte
+	m map[string][]byte
 }
 
 // Put implements the Batch interface.
 func (b *MemoryBatch) Put(k, v []byte) {
 	vcopy := make([]byte, len(v))
 	copy(vcopy, v)
-	kcopy := make([]byte, len(k))
-	copy(kcopy, k)
-	b.m[&kcopy] = vcopy
+	kcopy := string(k)
+	b.m[kcopy] = vcopy
 }
 
 // Len implements the Batch interface.
@@ -43,7 +41,7 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if val, ok := s.mem[makeKey(key)]; ok {
+	if val, ok := s.mem[string(key)]; ok {
 		return val, nil
 	}
 	return nil, ErrKeyNotFound
@@ -52,7 +50,7 @@ func (s *MemoryStore) Get(key []byte) ([]byte, error) {
 // Put implements the Store interface. Never returns an error.
 func (s *MemoryStore) Put(key, value []byte) error {
 	s.mut.Lock()
-	s.mem[makeKey(key)] = value
+	s.mem[string(key)] = value
 	s.mut.Unlock()
 	return nil
 }
@@ -61,7 +59,7 @@ func (s *MemoryStore) Put(key, value []byte) error {
 func (s *MemoryStore) PutBatch(batch Batch) error {
 	b := batch.(*MemoryBatch)
 	for k, v := range b.m {
-		_ = s.Put(*k, v)
+		_ = s.Put([]byte(k), v)
 	}
 	return nil
 }
@@ -69,9 +67,8 @@ func (s *MemoryStore) PutBatch(batch Batch) error {
 // Seek implements the Store interface.
 func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
 	for k, v := range s.mem {
-		if strings.Contains(k, hex.EncodeToString(key)) {
-			decodeString, _ := hex.DecodeString(k)
-			f(decodeString, v)
+		if strings.HasPrefix(k, string(key)) {
+			f([]byte(k), v)
 		}
 	}
 }
@@ -84,7 +81,7 @@ func (s *MemoryStore) Batch() Batch {
 // newMemoryBatch returns new memory batch.
 func newMemoryBatch() *MemoryBatch {
 	return &MemoryBatch{
-		m: make(map[*[]byte][]byte),
+		m: make(map[string][]byte),
 	}
 }
 
@@ -96,8 +93,7 @@ func (s *MemoryStore) Persist(ps Store) (int, error) {
 	batch := ps.Batch()
 	keys := 0
 	for k, v := range s.mem {
-		kb, _ := hex.DecodeString(k)
-		batch.Put(kb, v)
+		batch.Put([]byte(k), v)
 		keys++
 	}
 	var err error
@@ -117,8 +113,4 @@ func (s *MemoryStore) Close() error {
 	s.mem = nil
 	s.mut.Unlock()
 	return nil
-}
-
-func makeKey(k []byte) string {
-	return hex.EncodeToString(k)
 }

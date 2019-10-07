@@ -58,7 +58,7 @@ func (s *RedisStore) Put(k, v []byte) error {
 func (s *RedisStore) PutBatch(b Batch) error {
 	pipe := s.client.Pipeline()
 	for k, v := range b.(*MemoryBatch).m {
-		pipe.Set(string(*k), v, 0)
+		pipe.Set(k, v, 0)
 	}
 	_, err := pipe.Exec()
 	return err

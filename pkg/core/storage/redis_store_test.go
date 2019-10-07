@@ -23,14 +23,6 @@ func TestNewRedisStore(t *testing.T) {
 	redisMock.Close()
 }
 
-func TestRedisBatch_Len(t *testing.T) {
-	want := len(map[string]string{})
-	b := &MemoryBatch{
-		m: map[*[]byte][]byte{},
-	}
-	assert.Equal(t, len(b.m), want)
-}
-
 func TestRedisStore_GetAndPut(t *testing.T) {
 	prepareRedisMock(t)
 	type args struct {
@@ -82,7 +74,7 @@ func TestRedisStore_GetAndPut(t *testing.T) {
 }
 
 func TestRedisStore_PutBatch(t *testing.T) {
-	batch := &MemoryBatch{m: map[*[]byte][]byte{&[]byte{'f', 'o', 'o', '1'}: []byte("bar1")}}
+	batch := &MemoryBatch{m: map[string][]byte{"foo1": []byte("bar1")}}
 	mock, redisStore := prepareRedisMock(t)
 	err := redisStore.PutBatch(batch)
 	assert.Nil(t, err, "Error while PutBatch")

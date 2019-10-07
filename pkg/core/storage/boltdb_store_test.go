@@ -3,26 +3,11 @@ package storage
 import (
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestBoltDBBatch(t *testing.T) {
-	boltDB := BoltDBStore{}
-	want := &MemoryBatch{m: map[*[]byte][]byte{}}
-	if got := boltDB.Batch(); !reflect.DeepEqual(got, want) {
-		t.Errorf("BoltDB Batch() = %v, want %v", got, want)
-	}
-}
-
-func TestBoltDBBatch_Len(t *testing.T) {
-	batch := &MemoryBatch{m: map[*[]byte][]byte{}}
-	want := len(map[*[]byte][]byte{})
-	assert.Equal(t, want, batch.Len())
-}
 
 func TestBoltDBBatch_PutBatchAndGet(t *testing.T) {
 	key := []byte("foo")
