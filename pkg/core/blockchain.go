@@ -238,6 +238,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
+		oldlen := headerList.Len()
 		for _, h := range headers {
 			if int(h.Index-1) >= headerList.Len() {
 				err = fmt.Errorf(
@@ -258,7 +259,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			}
 		}
 
-		if batch.Len() > 0 {
+		if oldlen != headerList.Len() {
 			if err = bc.memStore.PutBatch(batch); err != nil {
 				return
 			}

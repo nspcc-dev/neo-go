@@ -37,11 +37,6 @@ func (b *MemoryBatch) Delete(k []byte) {
 	b.del[kcopy] = true
 }
 
-// Len implements the Batch interface.
-func (b *MemoryBatch) Len() int {
-	return len(b.m)
-}
-
 // NewMemoryStore creates a new MemoryStore object.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{

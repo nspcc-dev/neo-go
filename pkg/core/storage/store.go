@@ -46,7 +46,6 @@ type (
 	Batch interface {
 		Delete(k []byte)
 		Put(k, v []byte)
-		Len() int
 	}
 
 	// KeyPrefix is a constant byte added as a prefix for each key
