@@ -125,4 +125,16 @@ func TestMemoryStorePersist(t *testing.T) {
 	c, err = ts.Persist(ps)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, c)
+	// test persisting deletions
+	err = ts.Delete([]byte("key"))
+	assert.Equal(t, nil, err)
+	c, err = ts.Persist(ps)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 0, c)
+	v, err = ps.Get([]byte("key"))
+	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, []byte(nil), v)
+	v, err = ps.Get([]byte("key2"))
+	assert.Equal(t, nil, err)
+	assert.Equal(t, []byte("value2"), v)
 }

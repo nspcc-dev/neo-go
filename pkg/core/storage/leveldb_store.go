@@ -48,6 +48,11 @@ func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 	return value, err
 }
 
+// Delete implements the Store interface.
+func (s *LevelDBStore) Delete(key []byte) error {
+	return s.db.Delete(key, nil)
+}
+
 // PutBatch implements the Store interface.
 func (s *LevelDBStore) PutBatch(batch Batch) error {
 	lvldbBatch := batch.(*leveldb.Batch)
