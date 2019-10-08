@@ -23,6 +23,10 @@ func makeStackItem(v interface{}) StackItem {
 		return &BigIntegerItem{
 			value: big.NewInt(val),
 		}
+	case uint16:
+		return &BigIntegerItem{
+			value: big.NewInt(int64(val)),
+		}
 	case uint32:
 		return &BigIntegerItem{
 			value: big.NewInt(int64(val)),
