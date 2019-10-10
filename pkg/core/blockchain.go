@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/pkg/errors"
@@ -390,11 +391,15 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
 		case *transaction.PublishTX:
+			var properties smartcontract.PropertyState
+			if t.NeedStorage {
+				properties |= smartcontract.HasStorage
+			}
 			contract := &ContractState{
 				Script:      t.Script,
 				ParamList:   t.ParamList,
 				ReturnType:  t.ReturnType,
-				HasStorage:  t.NeedStorage,
+				Properties:  properties,
 				Name:        t.Name,
 				CodeVersion: t.CodeVersion,
 				Author:      t.Author,

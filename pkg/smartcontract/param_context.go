@@ -18,6 +18,17 @@ const (
 	ArrayType
 )
 
+// PropertyState represents contract properties (flags).
+type PropertyState byte
+
+// List of supported properties.
+const (
+	NoProperties               = 0
+	HasStorage   PropertyState = 1 << iota
+	HasDynamicInvoke
+	IsPayable
+)
+
 // Parameter represents a smart contract parameter.
 type Parameter struct {
 	// Type of the parameter
