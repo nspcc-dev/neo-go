@@ -78,8 +78,8 @@ func (p *PublicKey) Bytes() []byte {
 	return append([]byte{prefix}, paddedX...)
 }
 
-// NewPublicKeyFromRawBytes returns a NEO PublicKey from the ASN.1 serialized keys.
-func NewPublicKeyFromRawBytes(data []byte) (*PublicKey, error) {
+// NewPublicKeyFromASN1 returns a NEO PublicKey from the ASN.1 serialized key.
+func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	var (
 		err    error
 		pubkey interface{}
