@@ -84,8 +84,8 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := newBlock(
 		0,
-		newTX(transaction.MinerType),
-		newTX(transaction.IssueType),
+		newMinerTX(),
+		newIssueTX(),
 	)
 	assert.True(t, block.Verify(false))
 

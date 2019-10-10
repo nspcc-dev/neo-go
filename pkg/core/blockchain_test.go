@@ -6,7 +6,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,9 +38,9 @@ func TestAddHeaders(t *testing.T) {
 func TestAddBlock(t *testing.T) {
 	bc := newTestChain(t)
 	blocks := []*Block{
-		newBlock(1, newTX(transaction.MinerType)),
-		newBlock(2, newTX(transaction.MinerType)),
-		newBlock(3, newTX(transaction.MinerType)),
+		newBlock(1, newMinerTX()),
+		newBlock(2, newMinerTX()),
+		newBlock(3, newMinerTX()),
 	}
 
 	for i := 0; i < len(blocks); i++ {
@@ -70,7 +69,7 @@ func TestAddBlock(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	block := newBlock(1, newTX(transaction.MinerType))
+	block := newBlock(1, newMinerTX())
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 

@@ -40,14 +40,22 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 func makeBlocks(n int) []*Block {
 	blocks := make([]*Block, n)
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(uint32(i+1), newTX(transaction.MinerType))
+		blocks[i] = newBlock(uint32(i+1), newMinerTX())
 	}
 	return blocks
 }
 
-func newTX(t transaction.TXType) *transaction.Transaction {
+func newMinerTX() *transaction.Transaction {
 	return &transaction.Transaction{
-		Type: t,
+		Type: transaction.MinerType,
+		Data: &transaction.MinerTX{},
+	}
+}
+
+func newIssueTX() *transaction.Transaction {
+	return &transaction.Transaction{
+		Type: transaction.IssueType,
+		Data: &transaction.IssueTX{},
 	}
 }
 

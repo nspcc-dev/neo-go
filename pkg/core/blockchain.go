@@ -523,6 +523,13 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	if len(block.Transactions) == 0 {
 		return nil, fmt.Errorf("only header is available")
 	}
+	for _, tx := range block.Transactions {
+		stx, _, err := bc.GetTransaction(tx.Hash())
+		if err != nil {
+			return nil, err
+		}
+		*tx = *stx
+	}
 	return block, nil
 }
 

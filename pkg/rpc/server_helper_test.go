@@ -172,14 +172,15 @@ func initBlocks(t *testing.T, chain *core.Blockchain) {
 func makeBlocks(n int) []*core.Block {
 	blocks := make([]*core.Block, n)
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(uint32(i+1), newTX(transaction.MinerType))
+		blocks[i] = newBlock(uint32(i+1), newMinerTX())
 	}
 	return blocks
 }
 
-func newTX(t transaction.TXType) *transaction.Transaction {
+func newMinerTX() *transaction.Transaction {
 	return &transaction.Transaction{
-		Type: t,
+		Type: transaction.MinerType,
+		Data: &transaction.MinerTX{},
 	}
 }
 
