@@ -61,7 +61,7 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // Bytes returns the byte array representation of the public key.
 func (p *PublicKey) Bytes() []byte {
-	if p.isInfinity() {
+	if p.IsInfinity() {
 		return []byte{0x00}
 	}
 
@@ -225,14 +225,14 @@ func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 	return ecdsa.Verify(publicKey, hash, rBytes, sBytes)
 }
 
-// isInfinity checks if point P is infinity on EllipticCurve ec.
-func (p *PublicKey) isInfinity() bool {
+// IsInfinity checks if the key is infinite (null, basically).
+func (p *PublicKey) IsInfinity() bool {
 	return p.X == nil && p.Y == nil
 }
 
 // String implements the Stringer interface.
 func (p *PublicKey) String() string {
-	if p.isInfinity() {
+	if p.IsInfinity() {
 		return "00"
 	}
 	bx := hex.EncodeToString(p.X.Bytes())
