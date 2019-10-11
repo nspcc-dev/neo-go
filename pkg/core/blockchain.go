@@ -410,6 +410,32 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			contracts[contract.ScriptHash()] = contract
 
 		case *transaction.InvocationTX:
+			vm := vm.New(vm.ModeMute)
+			vm.SetCheckedHash(tx.VerificationHash().Bytes())
+			vm.SetScriptGetter(func(hash util.Uint160) []byte {
+				cs := bc.GetContractState(hash)
+				if cs == nil {
+					return nil
+				}
+
+				return cs.Script
+			})
+			systemInterop := newInteropContext(0x10, bc, block, tx)
+			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
+			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
+			vm.LoadScript(t.Script)
+			vm.Run()
+			if !vm.HasFailed() {
+				_, err := systemInterop.mem.Persist(bc.memStore)
+				if err != nil {
+					return errors.Wrap(err, "failed to persist invocation results")
+				}
+			} else {
+				log.WithFields(log.Fields{
+					"tx":    tx.Hash().ReverseString(),
+					"block": block.Index,
+				}).Warn("contract invocation failed")
+			}
 		}
 	}
 
