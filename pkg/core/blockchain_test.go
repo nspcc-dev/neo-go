@@ -102,7 +102,7 @@ func TestGetBlock(t *testing.T) {
 		for i := 0; i < len(blocks); i++ {
 			block, err := bc.GetBlock(blocks[i].Hash())
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("can't get block %d: %s, attempt %d", i, err, j)
 			}
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
