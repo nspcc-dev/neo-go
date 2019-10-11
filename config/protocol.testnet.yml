@@ -27,6 +27,8 @@ ProtocolConfiguration:
     IssueTransaction: 5
     PublishTransaction: 5
     RegisterTransaction: 100
+  VerifyBlocks: true
+  VerifyTransactions: false
 
 ApplicationConfiguration:
   DBConfiguration:

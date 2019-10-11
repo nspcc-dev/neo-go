@@ -18,6 +18,8 @@ ProtocolConfiguration:
     IssueTransaction: 500
     PublishTransaction: 500
     RegisterTransaction: 10000
+  VerifyBlocks: true
+  VerifyTransactions: true
 
 ApplicationConfiguration:
   DBConfiguration:

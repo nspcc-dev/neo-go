@@ -68,9 +68,6 @@ type Blockchain struct {
 	headersOp     chan headersOpFunc
 	headersOpDone chan struct{}
 
-	// Whether we will verify received blocks.
-	verifyBlocks bool
-
 	memPool MemPool
 }
 
@@ -85,7 +82,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		memStore:      storage.NewMemoryStore(),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		verifyBlocks:  false,
 		memPool:       NewMemPool(50000),
 	}
 
@@ -209,15 +205,17 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
-	if bc.verifyBlocks {
+	if bc.config.VerifyBlocks {
 		err := block.Verify(false)
 		if err != nil {
 			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
 		}
-		for _, tx := range block.Transactions {
-			err := bc.VerifyTx(tx, block)
-			if err != nil {
-				return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+		if bc.config.VerifyTransactions {
+			for _, tx := range block.Transactions {
+				err := bc.VerifyTx(tx, block)
+				if err != nil {
+					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+				}
 			}
 		}
 	}
