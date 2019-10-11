@@ -56,6 +56,9 @@ func (chain testChain) HeaderHeight() uint32 {
 func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 	panic("TODO")
 }
+func (chain testChain) GetContractState(hash util.Uint160) *core.ContractState {
+	panic("TODO")
+}
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
@@ -67,6 +70,9 @@ func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 	panic("TODO")
 }
 func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
+	panic("TODO")
+}
+func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *core.StorageItem {

@@ -15,6 +15,7 @@ type Blockchainer interface {
 	BlockHeight() uint32
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*Block, error)
+	GetContractState(hash util.Uint160) *ContractState
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*Header, error)
 	CurrentHeaderHash() util.Uint256
@@ -23,6 +24,7 @@ type Blockchainer interface {
 	HasTransaction(util.Uint256) bool
 	GetAssetState(util.Uint256) *AssetState
 	GetAccountState(util.Uint160) *AccountState
+	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
