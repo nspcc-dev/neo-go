@@ -109,7 +109,7 @@ func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
 	panic("TODO")
 }
 
-func (chain testChain) Verify(*transaction.Transaction) error {
+func (chain testChain) VerifyTx(*transaction.Transaction, *core.Block) error {
 	panic("TODO")
 }
 

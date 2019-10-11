@@ -215,7 +215,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
 		}
 		for _, tx := range block.Transactions {
-			err := bc.Verify(tx)
+			err := bc.VerifyTx(tx, block)
 			if err != nil {
 				return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
 			}
@@ -816,9 +816,11 @@ func (bc *Blockchain) GetMemPool() MemPool {
 	return bc.memPool
 }
 
-// Verify verifies whether a transaction is bonafide or not.
+// VerifyTx verifies whether a transaction is bonafide or not. Block parameter
+// is used for easy interop access and can be omitted for transactions that are
+// not yet added into any block.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) Verify(t *transaction.Transaction) error {
+func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
@@ -844,7 +846,7 @@ func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 		}
 	}
 
-	return bc.VerifyWitnesses(t)
+	return bc.VerifyWitnesses(t, block)
 }
 
 func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
@@ -1070,10 +1072,12 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 // VerifyWitnesses verify the scripts (witnesses) that come with a given
 // transaction. It can reorder them by ScriptHash, because that's required to
-// match a slice of script hashes from the Blockchain.
+// match a slice of script hashes from the Blockchain. Block parameter
+// is used for easy interop access and can be omitted for transactions that are
+// not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
-func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
+func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction, block *Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {
 		return err
@@ -1110,6 +1114,9 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 			}
 			return cs.Script
 		})
+		systemInterop := newInteropContext(0, bc, block, t)
+		vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
+		vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
 		vm.LoadScript(verification)
 		vm.LoadScript(witnesses[i].InvocationScript)
 		vm.Run()
