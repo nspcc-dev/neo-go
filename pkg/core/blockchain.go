@@ -785,8 +785,8 @@ func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 	if IsDoubleSpend(bc.Store, t) {
 		return errors.New("invalid transaction caused by double spending")
 	}
-	if ok := bc.verifyOutputs(t); !ok {
-		return errors.New("invalid transaction's outputs")
+	if err := bc.verifyOutputs(t); err != nil {
+		return errors.Wrap(err, "wrong outputs")
 	}
 	if err := bc.verifyResults(t); err != nil {
 		return err
@@ -813,25 +813,25 @@ func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
 	return true
 }
 
-func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
+func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
 	for assetID, outputs := range t.GroupOutputByAssetID() {
 		assetState := bc.GetAssetState(assetID)
 		if assetState == nil {
-			return false
+			return fmt.Errorf("no asset state for %s", assetID.ReverseString())
 		}
 
 		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
-			return false
+			return fmt.Errorf("asset %s expired", assetID.ReverseString())
 		}
 
 		for _, out := range outputs {
 			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
-				return false
+				return fmt.Errorf("output is not compliant with %s asset precision", assetID.ReverseString())
 			}
 		}
 	}
 
-	return true
+	return nil
 }
 
 func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
