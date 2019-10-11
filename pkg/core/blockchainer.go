@@ -26,6 +26,7 @@ type Blockchainer interface {
 	GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+	GetUnspentCoinState(util.Uint256) *UnspentCoinState
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	Feer // fee interface
 	Verify(t *transaction.Transaction) error

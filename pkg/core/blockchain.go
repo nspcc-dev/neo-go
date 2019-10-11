@@ -740,6 +740,15 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	return as
 }
 
+// GetUnspentCoinState returns unspent coin state for given tx hash.
+func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
+	ucs, err := getUnspentCoinStateFromStore(bc.memStore, hash)
+	if err != nil {
+		ucs, _ = getUnspentCoinStateFromStore(bc.Store, hash)
+	}
+	return ucs
+}
+
 // GetConfig returns the config stored in the blockchain
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config

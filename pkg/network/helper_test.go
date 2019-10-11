@@ -91,6 +91,10 @@ func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, u
 	panic("TODO")
 }
 
+func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState {
+	panic("TODO")
+}
+
 func (chain testChain) GetMemPool() core.MemPool {
 	panic("TODO")
 }
