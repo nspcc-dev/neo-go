@@ -87,19 +87,19 @@ func TestBlockVerify(t *testing.T) {
 		newMinerTX(),
 		newIssueTX(),
 	)
-	assert.True(t, block.Verify(false))
+	assert.Nil(t, block.Verify(false))
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.IssueType},
 		{Type: transaction.MinerType},
 	}
-	assert.False(t, block.Verify(false))
+	assert.NotNil(t, block.Verify(false))
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},
 		{Type: transaction.MinerType},
 	}
-	assert.False(t, block.Verify(false))
+	assert.NotNil(t, block.Verify(false))
 }
 
 func TestBinBlockDecodeEncode(t *testing.T) {

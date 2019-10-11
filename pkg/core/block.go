@@ -1,6 +1,9 @@
 package core
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -45,26 +48,26 @@ func (b *Block) rebuildMerkleRoot() error {
 }
 
 // Verify the integrity of the block.
-func (b *Block) Verify(full bool) bool {
+func (b *Block) Verify(full bool) error {
 	// There has to be some transaction inside.
 	if len(b.Transactions) == 0 {
-		return false
+		return errors.New("no transactions")
 	}
 	// The first TX has to be a miner transaction.
 	if b.Transactions[0].Type != transaction.MinerType {
-		return false
+		return fmt.Errorf("the first transaction is %s", b.Transactions[0].Type)
 	}
 	// If the first TX is a minerTX then all others cant.
 	for _, tx := range b.Transactions[1:] {
 		if tx.Type == transaction.MinerType {
-			return false
+			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().ReverseString())
 		}
 	}
 	// TODO: When full is true, do a full verification.
 	if full {
 		log.Warn("full verification of blocks is not yet implemented")
 	}
-	return true
+	return nil
 }
 
 // NewBlockFromTrimmedBytes returns a new block from trimmed data.

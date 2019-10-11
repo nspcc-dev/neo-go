@@ -210,8 +210,9 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
 	if bc.verifyBlocks {
-		if !block.Verify(false) {
-			return fmt.Errorf("block %s is invalid", block.Hash())
+		err := block.Verify(false)
+		if err != nil {
+			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
 		}
 		for _, tx := range block.Transactions {
 			err := bc.Verify(tx)
