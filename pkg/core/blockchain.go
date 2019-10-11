@@ -788,8 +788,8 @@ func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 	if ok := bc.verifyOutputs(t); !ok {
 		return errors.New("invalid transaction's outputs")
 	}
-	if ok := bc.verifyResults(t); !ok {
-		return errors.New("invalid transaction's results")
+	if err := bc.verifyResults(t); err != nil {
+		return err
 	}
 
 	for _, a := range t.Attributes {
@@ -834,10 +834,10 @@ func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
 	return true
 }
 
-func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
+func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	results := bc.GetTransationResults(t)
 	if results == nil {
-		return false
+		return errors.New("tx has no results")
 	}
 	var resultsDestroy []*transaction.Result
 	var resultsIssue []*transaction.Result
@@ -851,38 +851,44 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
 		}
 	}
 	if len(resultsDestroy) > 1 {
-		return false
+		return errors.New("tx has more than 1 destroy output")
 	}
 	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
-		return false
+		return errors.New("tx destroys non-utility token")
 	}
-	if bc.SystemFee(t).GreaterThan(util.Fixed8(0)) && (len(resultsDestroy) == 0 || resultsDestroy[0].Amount.LessThan(bc.SystemFee(t))) {
-		return false
+	sysfee := bc.SystemFee(t)
+	if sysfee.GreaterThan(util.Fixed8(0)) {
+		if len(resultsDestroy) == 0 {
+			return fmt.Errorf("system requires to pay %s fee, but tx pays nothing", sysfee.String())
+		}
+		if resultsDestroy[0].Amount.LessThan(sysfee) {
+			return fmt.Errorf("system requires to pay %s fee, but tx pays %s only", sysfee.String(), resultsDestroy[0].Amount.String())
+		}
 	}
 
 	switch t.Type {
 	case transaction.MinerType, transaction.ClaimType:
 		for _, r := range resultsIssue {
 			if r.AssetID != utilityTokenTX().Hash() {
-				return false
+				return errors.New("miner or claim tx issues non-utility tokens")
 			}
 		}
 		break
 	case transaction.IssueType:
 		for _, r := range resultsIssue {
 			if r.AssetID == utilityTokenTX().Hash() {
-				return false
+				return errors.New("issue tx issues utility tokens")
 			}
 		}
 		break
 	default:
 		if len(resultsIssue) > 0 {
-			return false
+			return errors.New("non issue/miner/claim tx issues tokens")
 		}
 		break
 	}
 
-	return true
+	return nil
 }
 
 // GetTransationResults returns the transaction results aggregate by assetID.
