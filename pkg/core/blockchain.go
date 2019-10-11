@@ -835,7 +835,7 @@ func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
 }
 
 func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
-	results := bc.GetTransationResults(t)
+	results := bc.GetTransactionResults(t)
 	if results == nil {
 		return errors.New("tx has no results")
 	}
@@ -891,9 +891,9 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	return nil
 }
 
-// GetTransationResults returns the transaction results aggregate by assetID.
+// GetTransactionResults returns the transaction results aggregate by assetID.
 // Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
-func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transaction.Result {
+func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
 	var tempResults []*transaction.Result
 	var results []*transaction.Result
 	tempGroupResult := make(map[util.Uint256]util.Fixed8)
