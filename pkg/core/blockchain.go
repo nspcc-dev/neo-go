@@ -512,6 +512,43 @@ func getTransactionFromStore(s storage.Store, hash util.Uint256) (*transaction.T
 	return tx, height, nil
 }
 
+// GetStorageItem returns an item from storage.
+func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem {
+	sItem := getStorageItemFromStore(bc.memStore, scripthash, key)
+	if sItem == nil {
+		sItem = getStorageItemFromStore(bc.Store, scripthash, key)
+	}
+	return sItem
+}
+
+// GetStorageItems returns all storage items for a given scripthash.
+func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error) {
+	var siMap = make(map[string]*StorageItem)
+	var err error
+
+	saveToMap := func(k, v []byte) {
+		if err != nil {
+			return
+		}
+		r := io.NewBinReaderFromBuf(v)
+		si := &StorageItem{}
+		si.DecodeBinary(r)
+		if r.Err != nil {
+			err = r.Err
+			return
+		}
+
+		// Cut prefix and hash.
+		siMap[string(k[21:])] = si
+	}
+	bc.memStore.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	bc.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	if err != nil {
+		return nil, err
+	}
+	return siMap, nil
+}
+
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	block, err := getBlockFromStore(bc.memStore, hash)

@@ -23,6 +23,8 @@ type Blockchainer interface {
 	HasTransaction(util.Uint256) bool
 	GetAssetState(util.Uint256) *AssetState
 	GetAccountState(util.Uint160) *AccountState
+	GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem
+	GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	Feer // fee interface

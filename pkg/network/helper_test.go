@@ -69,6 +69,12 @@ func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
 	panic("TODO")
 }
+func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *core.StorageItem {
+	panic("TODO")
+}
+func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*core.StorageItem, error) {
+	panic("TODO")
+}
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
 }
