@@ -75,6 +75,23 @@ func (a *ContractState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteString(a.Description)
 }
 
+// putContractStateIntoStore puts given contract state into the given store.
+func putContractStateIntoStore(s storage.Store, cs *ContractState) error {
+	buf := io.NewBufBinWriter()
+	cs.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().Bytes())
+	return s.Put(key, buf.Bytes())
+}
+
+// deleteContractStateInStore deletes given contract state in the given store.
+func deleteContractStateInStore(s storage.Store, hash util.Uint160) error {
+	key := storage.AppendPrefix(storage.STContract, hash.Bytes())
+	return s.Delete(key)
+}
+
 // ScriptHash returns a contract script hash.
 func (a *ContractState) ScriptHash() util.Uint160 {
 	if a.scriptHash.Equals(util.Uint160{}) {
