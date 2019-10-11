@@ -938,7 +938,8 @@ func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*trans
 // GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
 // which has a different implementation from generic GetScriptHashesForVerifying.
 func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
-	hashes := make([]util.Uint160, 0)
+	// Avoiding duplicates.
+	hashmap := make(map[util.Uint160]bool)
 
 	claim := t.Data.(*transaction.ClaimTX)
 	clGroups := make(map[util.Uint256][]*transaction.Input)
@@ -954,10 +955,14 @@ func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transactio
 			if len(refTx.Outputs) <= int(input.PrevIndex) {
 				return nil, fmt.Errorf("wrong PrevIndex reference")
 			}
-			hashes = append(hashes, refTx.Outputs[input.PrevIndex].ScriptHash)
+			hashmap[refTx.Outputs[input.PrevIndex].ScriptHash] = true
 		}
 	}
-	if len(hashes) > 0 {
+	if len(hashmap) > 0 {
+		hashes := make([]util.Uint160, 0, len(hashmap))
+		for k := range hashmap {
+			hashes = append(hashes, k)
+		}
 		return hashes, nil
 	}
 	return nil, fmt.Errorf("no hashes found")
