@@ -42,37 +42,37 @@ func (a Contracts) commit(b storage.Batch) error {
 }
 
 // DecodeBinary implements Serializable interface.
-func (a *ContractState) DecodeBinary(br *io.BinReader) {
-	a.Script = br.ReadBytes()
+func (cs *ContractState) DecodeBinary(br *io.BinReader) {
+	cs.Script = br.ReadBytes()
 	paramBytes := br.ReadBytes()
-	a.ParamList = make([]smartcontract.ParamType, len(paramBytes))
+	cs.ParamList = make([]smartcontract.ParamType, len(paramBytes))
 	for k := range paramBytes {
-		a.ParamList[k] = smartcontract.ParamType(paramBytes[k])
+		cs.ParamList[k] = smartcontract.ParamType(paramBytes[k])
 	}
-	br.ReadLE(&a.ReturnType)
-	br.ReadLE(&a.Properties)
-	a.Name = br.ReadString()
-	a.CodeVersion = br.ReadString()
-	a.Author = br.ReadString()
-	a.Email = br.ReadString()
-	a.Description = br.ReadString()
-	a.createHash()
+	br.ReadLE(&cs.ReturnType)
+	br.ReadLE(&cs.Properties)
+	cs.Name = br.ReadString()
+	cs.CodeVersion = br.ReadString()
+	cs.Author = br.ReadString()
+	cs.Email = br.ReadString()
+	cs.Description = br.ReadString()
+	cs.createHash()
 }
 
 // EncodeBinary implements Serializable interface.
-func (a *ContractState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(a.Script)
-	bw.WriteVarUint(uint64(len(a.ParamList)))
-	for k := range a.ParamList {
-		bw.WriteLE(a.ParamList[k])
+func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteBytes(cs.Script)
+	bw.WriteVarUint(uint64(len(cs.ParamList)))
+	for k := range cs.ParamList {
+		bw.WriteLE(cs.ParamList[k])
 	}
-	bw.WriteLE(a.ReturnType)
-	bw.WriteLE(a.Properties)
-	bw.WriteString(a.Name)
-	bw.WriteString(a.CodeVersion)
-	bw.WriteString(a.Author)
-	bw.WriteString(a.Email)
-	bw.WriteString(a.Description)
+	bw.WriteLE(cs.ReturnType)
+	bw.WriteLE(cs.Properties)
+	bw.WriteString(cs.Name)
+	bw.WriteString(cs.CodeVersion)
+	bw.WriteString(cs.Author)
+	bw.WriteString(cs.Email)
+	bw.WriteString(cs.Description)
 }
 
 // putContractStateIntoStore puts given contract state into the given store.
@@ -93,16 +93,16 @@ func deleteContractStateInStore(s storage.Store, hash util.Uint160) error {
 }
 
 // ScriptHash returns a contract script hash.
-func (a *ContractState) ScriptHash() util.Uint160 {
-	if a.scriptHash.Equals(util.Uint160{}) {
-		a.createHash()
+func (cs *ContractState) ScriptHash() util.Uint160 {
+	if cs.scriptHash.Equals(util.Uint160{}) {
+		cs.createHash()
 	}
-	return a.scriptHash
+	return cs.scriptHash
 }
 
 // createHash creates contract script hash.
-func (a *ContractState) createHash() {
-	a.scriptHash = hash.Hash160(a.Script)
+func (cs *ContractState) createHash() {
+	cs.scriptHash = hash.Hash160(cs.Script)
 }
 
 // HasStorage checks whether the contract has storage property set.
