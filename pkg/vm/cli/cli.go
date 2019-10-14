@@ -160,7 +160,7 @@ example:
 	},
 }
 
- // VMCLI object for interacting with the VM.
+// VMCLI object for interacting with the VM.
 type VMCLI struct {
 	vm    *vm.VM
 	shell *ishell.Shell
