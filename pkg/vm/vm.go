@@ -289,10 +289,82 @@ func (v *VM) Step() {
 	v.execute(ctx, op, param)
 }
 
+// StepInto behaves the same as “step over” in case if the line does not contain a function it otherwise
+// the debugger will enter the called function and continue line-by-line debugging there.
+func (v *VM) StepInto() {
+	ctx := v.Context()
+
+	if ctx == nil {
+		v.state |= haltState
+	}
+
+	if v.HasStopped() {
+		return
+	}
+
+	if ctx != nil && ctx.prog != nil {
+		op, param, err := ctx.Next()
+		if err != nil {
+			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
+			log.Println(err)
+			v.state = faultState
+		}
+		v.execute(ctx, op, param)
+		i, op := ctx.CurrInstr()
+		fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
+	}
+
+	cctx := v.Context()
+	if cctx != nil && cctx.atBreakPoint() {
+		v.state = breakState
+	}
+}
+
+// StepOut takes the debugger to the line where the current function was called.
+func (v *VM) StepOut() {
+	if v.state == breakState {
+		v.state = noneState
+	} else {
+		v.state = breakState
+	}
+
+	expSize := v.istack.len
+	for v.state.HasFlag(noneState) && v.istack.len >= expSize {
+		v.StepInto()
+	}
+}
+
+// StepOver takes the debugger to the line that will step over a given line.
+// If the line contains a function the function will be executed and the result returned without debugging each line.
+func (v *VM) StepOver() {
+	if v.HasStopped() {
+		return
+	}
+
+	if v.state == breakState {
+		v.state = noneState
+	} else {
+		v.state = breakState
+	}
+
+	expSize := v.istack.len
+	for {
+		v.StepInto()
+		if !(v.state.HasFlag(noneState) && v.istack.len > expSize) {
+			break
+		}
+	}
+}
+
 // HasFailed returns whether VM is in the failed state now. Usually used to
 // check status after Run.
 func (v *VM) HasFailed() bool {
 	return v.state.HasFlag(faultState)
+}
+
+// HasStopped returns whether VM is in Halt or Failed state.
+func (v *VM) HasStopped() bool {
+	return v.state.HasFlag(haltState) || v.state.HasFlag(faultState)
 }
 
 // SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.

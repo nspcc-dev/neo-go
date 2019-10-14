@@ -129,6 +129,30 @@ Example:
 		Func: handleStep,
 	},
 	{
+		Name: "stepinto",
+		Help: "Stepinto instruction to take in the debugger",
+		LongHelp: `Usage: stepInto
+example:
+> stepinto`,
+		Func: handleStepInto,
+	},
+	{
+		Name: "stepout",
+		Help: "Stepout instruction to take in the debugger",
+		LongHelp: `Usage: stepOut
+example:
+> stepout`,
+		Func: handleStepOut,
+	},
+	{
+		Name: "stepover",
+		Help: "Stepover instruction to take in the debugger",
+		LongHelp: `Usage: stepOver
+example:
+> stepover`,
+		Func: handleStepOver,
+	},
+	{
 		Name:     "ops",
 		Help:     "Dump opcodes of the current loaded program",
 		LongHelp: "Dump opcodes of the current loaded program",
@@ -136,7 +160,7 @@ Example:
 	},
 }
 
- // VMCLI object for interacting with the VM.
+// VMCLI object for interacting with the VM.
 type VMCLI struct {
 	vm    *vm.VM
 	shell *ishell.Shell
@@ -294,6 +318,34 @@ func handleStep(c *ishell.Context) {
 	}
 	v.AddBreakPointRel(n)
 	v.Run()
+	changePrompt(c, v)
+}
+
+func handleStepInto(c *ishell.Context) {
+	handleStepType(c, "into")
+}
+
+func handleStepOut(c *ishell.Context) {
+	handleStepType(c, "out")
+}
+
+func handleStepOver(c *ishell.Context) {
+	handleStepType(c, "over")
+}
+
+func handleStepType(c *ishell.Context, stepType string) {
+	if !checkVMIsReady(c) {
+		return
+	}
+	v := getVMFromContext(c)
+	switch stepType {
+	case "into":
+		v.StepInto()
+	case "out":
+		v.StepOut()
+	case "over":
+		v.StepOver()
+	}
 	changePrompt(c, v)
 }
 
