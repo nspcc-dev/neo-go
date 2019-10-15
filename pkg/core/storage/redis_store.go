@@ -48,6 +48,12 @@ func (s *RedisStore) Get(k []byte) ([]byte, error) {
 	return []byte(val), nil
 }
 
+// Delete implements the Store interface.
+func (s *RedisStore) Delete(k []byte) error {
+	s.client.Del(string(k))
+	return nil
+}
+
 // Put implements the Store interface.
 func (s *RedisStore) Put(k, v []byte) error {
 	s.client.Set(string(k), string(v), 0)
@@ -57,8 +63,11 @@ func (s *RedisStore) Put(k, v []byte) error {
 // PutBatch implements the Store interface.
 func (s *RedisStore) PutBatch(b Batch) error {
 	pipe := s.client.Pipeline()
-	for k, v := range b.(*MemoryBatch).m {
-		pipe.Set(string(*k), v, 0)
+	for k, v := range b.(*MemoryBatch).mem {
+		pipe.Set(k, v, 0)
+	}
+	for k := range b.(*MemoryBatch).del {
+		pipe.Del(k)
 	}
 	_, err := pipe.Exec()
 	return err

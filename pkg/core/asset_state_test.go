@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -34,4 +35,26 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 	assetDecode.DecodeBinary(r)
 	assert.Nil(t, r.Err)
 	assert.Equal(t, asset, assetDecode)
+}
+
+func TestPutGetAssetState(t *testing.T) {
+	s := storage.NewMemoryStore()
+	asset := &AssetState{
+		ID:         randomUint256(),
+		AssetType:  transaction.Token,
+		Name:       "super cool token",
+		Amount:     util.Fixed8(1000000),
+		Available:  util.Fixed8(100),
+		Precision:  8,
+		FeeMode:    feeMode,
+		Owner:      &keys.PublicKey{},
+		Admin:      randomUint160(),
+		Issuer:     randomUint160(),
+		Expiration: 10,
+		IsFrozen:   false,
+	}
+	assert.NoError(t, putAssetStateIntoStore(s, asset))
+	asRead := getAssetStateFromStore(s, asset.ID)
+	assert.NotNil(t, asRead)
+	assert.Equal(t, asset, asRead)
 }

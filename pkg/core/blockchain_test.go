@@ -4,9 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,9 +37,9 @@ func TestAddHeaders(t *testing.T) {
 func TestAddBlock(t *testing.T) {
 	bc := newTestChain(t)
 	blocks := []*Block{
-		newBlock(1, newTX(transaction.MinerType)),
-		newBlock(2, newTX(transaction.MinerType)),
-		newBlock(3, newTX(transaction.MinerType)),
+		newBlock(1, newMinerTX()),
+		newBlock(2, newMinerTX()),
+		newBlock(3, newMinerTX()),
 	}
 
 	for i := 0; i < len(blocks); i++ {
@@ -70,7 +68,7 @@ func TestAddBlock(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	block := newBlock(1, newTX(transaction.MinerType))
+	block := newBlock(1, newMinerTX())
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 
@@ -103,7 +101,7 @@ func TestGetBlock(t *testing.T) {
 		for i := 0; i < len(blocks); i++ {
 			block, err := bc.GetBlock(blocks[i].Hash())
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("can't get block %d: %s, attempt %d", i, err, j)
 			}
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
@@ -138,8 +136,9 @@ func TestGetTransaction(t *testing.T) {
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
 
-	assert.Nil(t, bc.AddBlock(b1))
-	assert.Nil(t, bc.AddBlock(block))
+	// These are from some kind of different chain, so can't be added via AddBlock().
+	assert.Nil(t, bc.storeBlock(b1))
+	assert.Nil(t, bc.storeBlock(block))
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
@@ -154,17 +153,4 @@ func TestGetTransaction(t *testing.T) {
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist(context.Background()))
 	}
-}
-
-func newTestChain(t *testing.T) *Blockchain {
-	cfg, err := config.Load("../../config", config.ModeUnitTestNet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	chain, err := NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go chain.Run(context.Background())
-	return chain
 }

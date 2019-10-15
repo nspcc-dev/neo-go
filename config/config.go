@@ -49,6 +49,10 @@ type (
 		StandbyValidators       []string  `yaml:"StandbyValidators"`
 		SeedList                []string  `yaml:"SeedList"`
 		SystemFee               SystemFee `yaml:"SystemFee"`
+		// Whether to verify received blocks.
+		VerifyBlocks bool `yaml:"VerifyBlocks"`
+		// Whether to verify transactions in received blocks.
+		VerifyTransactions bool `yaml:"VerifyTransactions"`
 	}
 
 	// SystemFee fees related to system.

@@ -32,6 +32,7 @@ type (
 	// information.
 	Store interface {
 		Batch() Batch
+		Delete(k []byte) error
 		Get([]byte) ([]byte, error)
 		Put(k, v []byte) error
 		PutBatch(Batch) error
@@ -43,8 +44,8 @@ type (
 	// Each Store implementation is responsible of casting a Batch
 	// to its appropriate type.
 	Batch interface {
+		Delete(k []byte)
 		Put(k, v []byte)
-		Len() int
 	}
 
 	// KeyPrefix is a constant byte added as a prefix for each key

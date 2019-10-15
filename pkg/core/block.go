@@ -1,12 +1,14 @@
 package core
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/Workiva/go-datastructures/queue"
-	log "github.com/sirupsen/logrus"
 )
 
 // Block represents one block in the chain.
@@ -28,14 +30,18 @@ func (b *Block) Header() *Header {
 	}
 }
 
-// rebuildMerkleRoot rebuild the merkleroot of the block.
-func (b *Block) rebuildMerkleRoot() error {
-	hashes := make([]util.Uint256, len(b.Transactions))
-	for i, tx := range b.Transactions {
+func merkleTreeFromTransactions(txes []*transaction.Transaction) (*crypto.MerkleTree, error) {
+	hashes := make([]util.Uint256, len(txes))
+	for i, tx := range txes {
 		hashes[i] = tx.Hash()
 	}
 
-	merkle, err := crypto.NewMerkleTree(hashes)
+	return crypto.NewMerkleTree(hashes)
+}
+
+// rebuildMerkleRoot rebuild the merkleroot of the block.
+func (b *Block) rebuildMerkleRoot() error {
+	merkle, err := merkleTreeFromTransactions(b.Transactions)
 	if err != nil {
 		return err
 	}
@@ -45,26 +51,29 @@ func (b *Block) rebuildMerkleRoot() error {
 }
 
 // Verify the integrity of the block.
-func (b *Block) Verify(full bool) bool {
+func (b *Block) Verify() error {
 	// There has to be some transaction inside.
 	if len(b.Transactions) == 0 {
-		return false
+		return errors.New("no transactions")
 	}
 	// The first TX has to be a miner transaction.
 	if b.Transactions[0].Type != transaction.MinerType {
-		return false
+		return fmt.Errorf("the first transaction is %s", b.Transactions[0].Type)
 	}
 	// If the first TX is a minerTX then all others cant.
 	for _, tx := range b.Transactions[1:] {
 		if tx.Type == transaction.MinerType {
-			return false
+			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().ReverseString())
 		}
 	}
-	// TODO: When full is true, do a full verification.
-	if full {
-		log.Warn("full verification of blocks is not yet implemented")
+	merkle, err := merkleTreeFromTransactions(b.Transactions)
+	if err != nil {
+		return err
 	}
-	return true
+	if !b.MerkleRoot.Equals(merkle.Root()) {
+		return errors.New("MerkleRoot mismatch")
+	}
+	return nil
 }
 
 // NewBlockFromTrimmedBytes returns a new block from trimmed data.

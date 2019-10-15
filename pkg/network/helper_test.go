@@ -56,6 +56,9 @@ func (chain testChain) HeaderHeight() uint32 {
 func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 	panic("TODO")
 }
+func (chain testChain) GetContractState(hash util.Uint160) *core.ContractState {
+	panic("TODO")
+}
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
@@ -67,6 +70,15 @@ func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 	panic("TODO")
 }
 func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
+	panic("TODO")
+}
+func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
+	panic("TODO")
+}
+func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *core.StorageItem {
+	panic("TODO")
+}
+func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*core.StorageItem, error) {
 	panic("TODO")
 }
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
@@ -85,6 +97,10 @@ func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, u
 	panic("TODO")
 }
 
+func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState {
+	panic("TODO")
+}
+
 func (chain testChain) GetMemPool() core.MemPool {
 	panic("TODO")
 }
@@ -93,7 +109,7 @@ func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
 	panic("TODO")
 }
 
-func (chain testChain) Verify(*transaction.Transaction) error {
+func (chain testChain) VerifyTx(*transaction.Transaction, *core.Block) error {
 	panic("TODO")
 }
 

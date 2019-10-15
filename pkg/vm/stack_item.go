@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -23,9 +24,25 @@ func makeStackItem(v interface{}) StackItem {
 		return &BigIntegerItem{
 			value: big.NewInt(val),
 		}
+	case uint8:
+		return &BigIntegerItem{
+			value: big.NewInt(int64(val)),
+		}
+	case uint16:
+		return &BigIntegerItem{
+			value: big.NewInt(int64(val)),
+		}
 	case uint32:
 		return &BigIntegerItem{
 			value: big.NewInt(int64(val)),
+		}
+	case uint64:
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, val)
+		bigInt := big.NewInt(0)
+		bigInt.SetBytes(b)
+		return &BigIntegerItem{
+			value: bigInt,
 		}
 	case []byte:
 		return &ByteArrayItem{

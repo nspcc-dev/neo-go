@@ -27,6 +27,17 @@ func (a Assets) commit(b storage.Batch) error {
 	return nil
 }
 
+// putAssetStateIntoStore puts given asset state into the given store.
+func putAssetStateIntoStore(s storage.Store, as *AssetState) error {
+	buf := io.NewBufBinWriter()
+	as.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STAsset, as.ID.Bytes())
+	return s.Put(key, buf.Bytes())
+}
+
 // AssetState represents the state of an NEO registered Asset.
 type AssetState struct {
 	ID         util.Uint256

@@ -9,6 +9,21 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
+// CreateSignatureRedeemScript creates a check signature script runnable by VM.
+func CreateSignatureRedeemScript(key *keys.PublicKey) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := vm.EmitBytes(buf, key.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	err = vm.EmitOpcode(buf, vm.CHECKSIG)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
 // CreateMultiSigRedeemScript will create a script runnable by the VM.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m <= 1 {

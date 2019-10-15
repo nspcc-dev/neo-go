@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/pkg/errors"
@@ -67,9 +68,6 @@ type Blockchain struct {
 	headersOp     chan headersOpFunc
 	headersOpDone chan struct{}
 
-	// Whether we will verify received blocks.
-	verifyBlocks bool
-
 	memPool MemPool
 }
 
@@ -84,7 +82,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		memStore:      storage.NewMemoryStore(),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
-		verifyBlocks:  false,
 		memPool:       NewMemPool(50000),
 	}
 
@@ -208,14 +205,20 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
-	if bc.verifyBlocks {
-		if !block.Verify(false) {
-			return fmt.Errorf("block %s is invalid", block.Hash())
+	if bc.config.VerifyBlocks {
+		err := block.Verify()
+		if err == nil {
+			err = bc.VerifyBlock(block)
 		}
-		for _, tx := range block.Transactions {
-			err := bc.Verify(tx)
-			if err != nil {
-				return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+		if err != nil {
+			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
+		}
+		if bc.config.VerifyTransactions {
+			for _, tx := range block.Transactions {
+				err := bc.VerifyTx(tx, block)
+				if err != nil {
+					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+				}
 			}
 		}
 	}
@@ -238,6 +241,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
+		oldlen := headerList.Len()
 		for _, h := range headers {
 			if int(h.Index-1) >= headerList.Len() {
 				err = fmt.Errorf(
@@ -258,7 +262,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			}
 		}
 
-		if batch.Len() > 0 {
+		if oldlen != headerList.Len() {
 			if err = bc.memStore.PutBatch(batch); err != nil {
 				return
 			}
@@ -389,11 +393,15 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
 		case *transaction.PublishTX:
+			var properties smartcontract.PropertyState
+			if t.NeedStorage {
+				properties |= smartcontract.HasStorage
+			}
 			contract := &ContractState{
 				Script:      t.Script,
 				ParamList:   t.ParamList,
 				ReturnType:  t.ReturnType,
-				HasStorage:  t.NeedStorage,
+				Properties:  properties,
 				Name:        t.Name,
 				CodeVersion: t.CodeVersion,
 				Author:      t.Author,
@@ -403,6 +411,32 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			contracts[contract.ScriptHash()] = contract
 
 		case *transaction.InvocationTX:
+			vm := vm.New(vm.ModeMute)
+			vm.SetCheckedHash(tx.VerificationHash().Bytes())
+			vm.SetScriptGetter(func(hash util.Uint160) []byte {
+				cs := bc.GetContractState(hash)
+				if cs == nil {
+					return nil
+				}
+
+				return cs.Script
+			})
+			systemInterop := newInteropContext(0x10, bc, block, tx)
+			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
+			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
+			vm.LoadScript(t.Script)
+			vm.Run()
+			if !vm.HasFailed() {
+				_, err := systemInterop.mem.Persist(bc.memStore)
+				if err != nil {
+					return errors.Wrap(err, "failed to persist invocation results")
+				}
+			} else {
+				log.WithFields(log.Fields{
+					"tx":    tx.Hash().ReverseString(),
+					"block": block.Index,
+				}).Warn("contract invocation failed")
+			}
 		}
 	}
 
@@ -455,7 +489,7 @@ func (bc *Blockchain) persist(ctx context.Context) error {
 			"persistedKeys":   persisted,
 			"headerHeight":    bc.HeaderHeight(),
 			"blockHeight":     bc.BlockHeight(),
-			"persistedHeight": bc.persistedHeight,
+			"persistedHeight": atomic.LoadUint32(&bc.persistedHeight),
 			"took":            time.Since(start),
 		}).Info("blockchain persist completed")
 	}
@@ -505,6 +539,43 @@ func getTransactionFromStore(s storage.Store, hash util.Uint256) (*transaction.T
 	return tx, height, nil
 }
 
+// GetStorageItem returns an item from storage.
+func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem {
+	sItem := getStorageItemFromStore(bc.memStore, scripthash, key)
+	if sItem == nil {
+		sItem = getStorageItemFromStore(bc.Store, scripthash, key)
+	}
+	return sItem
+}
+
+// GetStorageItems returns all storage items for a given scripthash.
+func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error) {
+	var siMap = make(map[string]*StorageItem)
+	var err error
+
+	saveToMap := func(k, v []byte) {
+		if err != nil {
+			return
+		}
+		r := io.NewBinReaderFromBuf(v)
+		si := &StorageItem{}
+		si.DecodeBinary(r)
+		if r.Err != nil {
+			err = r.Err
+			return
+		}
+
+		// Cut prefix and hash.
+		siMap[string(k[21:])] = si
+	}
+	bc.memStore.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	bc.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	if err != nil {
+		return nil, err
+	}
+	return siMap, nil
+}
+
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	block, err := getBlockFromStore(bc.memStore, hash)
@@ -516,6 +587,13 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 	}
 	if len(block.Transactions) == 0 {
 		return nil, fmt.Errorf("only header is available")
+	}
+	for _, tx := range block.Transactions {
+		stx, _, err := bc.GetTransaction(tx.Hash())
+		if err != nil {
+			return nil, err
+		}
+		*tx = *stx
 	}
 	return block, nil
 }
@@ -689,6 +767,15 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	return as
 }
 
+// GetUnspentCoinState returns unspent coin state for given tx hash.
+func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
+	ucs, err := getUnspentCoinStateFromStore(bc.memStore, hash)
+	if err != nil {
+		ucs, _ = getUnspentCoinStateFromStore(bc.Store, hash)
+	}
+	return ucs
+}
+
 // GetConfig returns the config stored in the blockchain
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
@@ -756,9 +843,26 @@ func (bc *Blockchain) GetMemPool() MemPool {
 	return bc.memPool
 }
 
-// Verify verifies whether a transaction is bonafide or not.
+// VerifyBlock verifies block against its current state.
+func (bc *Blockchain) VerifyBlock(block *Block) error {
+	prevHeader, err := bc.GetHeader(block.PrevHash)
+	if err != nil {
+		return errors.Wrap(err, "unable to get previous header")
+	}
+	if prevHeader.Index+1 != block.Index {
+		return errors.New("previous header index doesn't match")
+	}
+	if prevHeader.Timestamp >= block.Timestamp {
+		return errors.New("block is not newer than the previous one")
+	}
+	return bc.verifyBlockWitnesses(block, prevHeader)
+}
+
+// VerifyTx verifies whether a transaction is bonafide or not. Block parameter
+// is used for easy interop access and can be omitted for transactions that are
+// not yet added into any block.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) Verify(t *transaction.Transaction) error {
+func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
@@ -771,11 +875,11 @@ func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 	if IsDoubleSpend(bc.Store, t) {
 		return errors.New("invalid transaction caused by double spending")
 	}
-	if ok := bc.verifyOutputs(t); !ok {
-		return errors.New("invalid transaction's outputs")
+	if err := bc.verifyOutputs(t); err != nil {
+		return errors.Wrap(err, "wrong outputs")
 	}
-	if ok := bc.verifyResults(t); !ok {
-		return errors.New("invalid transaction's results")
+	if err := bc.verifyResults(t); err != nil {
+		return err
 	}
 
 	for _, a := range t.Attributes {
@@ -784,7 +888,7 @@ func (bc *Blockchain) Verify(t *transaction.Transaction) error {
 		}
 	}
 
-	return bc.VerifyWitnesses(t)
+	return bc.verifyTxWitnesses(t, block)
 }
 
 func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
@@ -799,31 +903,31 @@ func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
 	return true
 }
 
-func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) bool {
+func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
 	for assetID, outputs := range t.GroupOutputByAssetID() {
 		assetState := bc.GetAssetState(assetID)
 		if assetState == nil {
-			return false
+			return fmt.Errorf("no asset state for %s", assetID.ReverseString())
 		}
 
 		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
-			return false
+			return fmt.Errorf("asset %s expired", assetID.ReverseString())
 		}
 
 		for _, out := range outputs {
 			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
-				return false
+				return fmt.Errorf("output is not compliant with %s asset precision", assetID.ReverseString())
 			}
 		}
 	}
 
-	return true
+	return nil
 }
 
-func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
-	results := bc.GetTransationResults(t)
+func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
+	results := bc.GetTransactionResults(t)
 	if results == nil {
-		return false
+		return errors.New("tx has no results")
 	}
 	var resultsDestroy []*transaction.Result
 	var resultsIssue []*transaction.Result
@@ -837,43 +941,49 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) bool {
 		}
 	}
 	if len(resultsDestroy) > 1 {
-		return false
+		return errors.New("tx has more than 1 destroy output")
 	}
 	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
-		return false
+		return errors.New("tx destroys non-utility token")
 	}
-	if bc.SystemFee(t).GreaterThan(util.Fixed8(0)) && (len(resultsDestroy) == 0 || resultsDestroy[0].Amount.LessThan(bc.SystemFee(t))) {
-		return false
+	sysfee := bc.SystemFee(t)
+	if sysfee.GreaterThan(util.Fixed8(0)) {
+		if len(resultsDestroy) == 0 {
+			return fmt.Errorf("system requires to pay %s fee, but tx pays nothing", sysfee.String())
+		}
+		if resultsDestroy[0].Amount.LessThan(sysfee) {
+			return fmt.Errorf("system requires to pay %s fee, but tx pays %s only", sysfee.String(), resultsDestroy[0].Amount.String())
+		}
 	}
 
 	switch t.Type {
 	case transaction.MinerType, transaction.ClaimType:
 		for _, r := range resultsIssue {
 			if r.AssetID != utilityTokenTX().Hash() {
-				return false
+				return errors.New("miner or claim tx issues non-utility tokens")
 			}
 		}
 		break
 	case transaction.IssueType:
 		for _, r := range resultsIssue {
 			if r.AssetID == utilityTokenTX().Hash() {
-				return false
+				return errors.New("issue tx issues utility tokens")
 			}
 		}
 		break
 	default:
 		if len(resultsIssue) > 0 {
-			return false
+			return errors.New("non issue/miner/claim tx issues tokens")
 		}
 		break
 	}
 
-	return true
+	return nil
 }
 
-// GetTransationResults returns the transaction results aggregate by assetID.
+// GetTransactionResults returns the transaction results aggregate by assetID.
 // Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
-func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transaction.Result {
+func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
 	var tempResults []*transaction.Result
 	var results []*transaction.Result
 	tempGroupResult := make(map[util.Uint256]util.Fixed8)
@@ -918,7 +1028,8 @@ func (bc *Blockchain) GetTransationResults(t *transaction.Transaction) []*transa
 // GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
 // which has a different implementation from generic GetScriptHashesForVerifying.
 func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
-	hashes := make([]util.Uint160, 0)
+	// Avoiding duplicates.
+	hashmap := make(map[util.Uint160]bool)
 
 	claim := t.Data.(*transaction.ClaimTX)
 	clGroups := make(map[util.Uint256][]*transaction.Input)
@@ -934,10 +1045,14 @@ func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transactio
 			if len(refTx.Outputs) <= int(input.PrevIndex) {
 				return nil, fmt.Errorf("wrong PrevIndex reference")
 			}
-			hashes = append(hashes, refTx.Outputs[input.PrevIndex].ScriptHash)
+			hashmap[refTx.Outputs[input.PrevIndex].ScriptHash] = true
 		}
 	}
-	if len(hashes) > 0 {
+	if len(hashmap) > 0 {
+		hashes := make([]util.Uint160, 0, len(hashmap))
+		for k := range hashmap {
+			hashes = append(hashes, k)
+		}
 		return hashes, nil
 	}
 	return nil, fmt.Errorf("no hashes found")
@@ -997,12 +1112,63 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
-// VerifyWitnesses verify the scripts (witnesses) that come with a given
+// verifyHashAgainstScript verifies given hash against the given witness.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext) error {
+	verification := witness.VerificationScript
+
+	if len(verification) == 0 {
+		bb := new(bytes.Buffer)
+		err := vm.EmitAppCall(bb, hash, false)
+		if err != nil {
+			return err
+		}
+		verification = bb.Bytes()
+	} else {
+		if h := witness.ScriptHash(); hash != h {
+			return errors.New("witness hash mismatch")
+		}
+	}
+
+	vm := vm.New(vm.ModeMute)
+	vm.SetCheckedHash(checkedHash.Bytes())
+	vm.SetScriptGetter(func(hash util.Uint160) []byte {
+		cs := bc.GetContractState(hash)
+		if cs == nil {
+			return nil
+		}
+		return cs.Script
+	})
+	vm.RegisterInteropFuncs(interopCtx.getSystemInteropMap())
+	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
+	vm.LoadScript(verification)
+	vm.LoadScript(witness.InvocationScript)
+	vm.Run()
+	if vm.HasFailed() {
+		return errors.Errorf("vm failed to execute the script")
+	}
+	resEl := vm.Estack().Pop()
+	if resEl != nil {
+		res, err := resEl.TryBool()
+		if err != nil {
+			return err
+		}
+		if !res {
+			return errors.Errorf("signature check failed")
+		}
+	} else {
+		return errors.Errorf("no result returned from the script")
+	}
+	return nil
+}
+
+// verifyTxWitnesses verify the scripts (witnesses) that come with a given
 // transaction. It can reorder them by ScriptHash, because that's required to
-// match a slice of script hashes from the Blockchain.
+// match a slice of script hashes from the Blockchain. Block parameter
+// is used for easy interop access and can be omitted for transactions that are
+// not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
-func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
+func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {
 		return err
@@ -1014,52 +1180,28 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction) error {
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
+	interopCtx := newInteropContext(0, bc, block, t)
 	for i := 0; i < len(hashes); i++ {
-		verification := witnesses[i].VerificationScript
-
-		if len(verification) == 0 {
-			bb := new(bytes.Buffer)
-			err = vm.EmitAppCall(bb, hashes[i], false)
-			if err != nil {
-				return err
-			}
-			verification = bb.Bytes()
-		} else {
-			if h := witnesses[i].ScriptHash(); hashes[i] != h {
-				return errors.Errorf("hash mismatch for script #%d", i)
-			}
-		}
-
-		vm := vm.New(vm.ModeMute)
-		vm.SetCheckedHash(t.VerificationHash().Bytes())
-		vm.SetScriptGetter(func(hash util.Uint160) []byte {
-			cs := bc.GetContractState(hash)
-			if cs == nil {
-				return nil
-			}
-			return cs.Script
-		})
-		vm.LoadScript(verification)
-		vm.LoadScript(witnesses[i].InvocationScript)
-		vm.Run()
-		if vm.HasFailed() {
-			return errors.Errorf("vm failed to execute the script")
-		}
-		resEl := vm.Estack().Pop()
-		if resEl != nil {
-			res, err := resEl.TryBool()
-			if err != nil {
-				return err
-			}
-			if !res {
-				return errors.Errorf("signature check failed")
-			}
-		} else {
-			return errors.Errorf("no result returned from the script")
+		err := bc.verifyHashAgainstScript(hashes[i], witnesses[i], t.VerificationHash(), interopCtx)
+		if err != nil {
+			numStr := fmt.Sprintf("witness #%d", i)
+			return errors.Wrap(err, numStr)
 		}
 	}
 
 	return nil
+}
+
+// verifyBlockWitnesses is a block-specific implementation of VerifyWitnesses logic.
+func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) error {
+	var hash util.Uint160
+	if prevHeader == nil && block.PrevHash.Equals(util.Uint256{}) {
+		hash = block.Script.ScriptHash()
+	} else {
+		hash = prevHeader.NextConsensus
+	}
+	interopCtx := newInteropContext(0, bc, nil, nil)
+	return bc.verifyHashAgainstScript(hash, block.Script, block.VerificationHash(), interopCtx)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

@@ -13,17 +13,15 @@ type Contracts map[util.Uint160]*ContractState
 
 // ContractState holds information about a smart contract in the NEO blockchain.
 type ContractState struct {
-	Script           []byte
-	ParamList        []smartcontract.ParamType
-	ReturnType       smartcontract.ParamType
-	Properties       []byte
-	Name             string
-	CodeVersion      string
-	Author           string
-	Email            string
-	Description      string
-	HasStorage       bool
-	HasDynamicInvoke bool
+	Script      []byte
+	ParamList   []smartcontract.ParamType
+	ReturnType  smartcontract.ParamType
+	Properties  smartcontract.PropertyState
+	Name        string
+	CodeVersion string
+	Author      string
+	Email       string
+	Description string
 
 	scriptHash util.Uint160
 }
@@ -44,52 +42,80 @@ func (a Contracts) commit(b storage.Batch) error {
 }
 
 // DecodeBinary implements Serializable interface.
-func (a *ContractState) DecodeBinary(br *io.BinReader) {
-	a.Script = br.ReadBytes()
+func (cs *ContractState) DecodeBinary(br *io.BinReader) {
+	cs.Script = br.ReadBytes()
 	paramBytes := br.ReadBytes()
-	a.ParamList = make([]smartcontract.ParamType, len(paramBytes))
+	cs.ParamList = make([]smartcontract.ParamType, len(paramBytes))
 	for k := range paramBytes {
-		a.ParamList[k] = smartcontract.ParamType(paramBytes[k])
+		cs.ParamList[k] = smartcontract.ParamType(paramBytes[k])
 	}
-	br.ReadLE(&a.ReturnType)
-	a.Properties = br.ReadBytes()
-	a.Name = br.ReadString()
-	a.CodeVersion = br.ReadString()
-	a.Author = br.ReadString()
-	a.Email = br.ReadString()
-	a.Description = br.ReadString()
-	br.ReadLE(&a.HasStorage)
-	br.ReadLE(&a.HasDynamicInvoke)
-	a.createHash()
+	br.ReadLE(&cs.ReturnType)
+	br.ReadLE(&cs.Properties)
+	cs.Name = br.ReadString()
+	cs.CodeVersion = br.ReadString()
+	cs.Author = br.ReadString()
+	cs.Email = br.ReadString()
+	cs.Description = br.ReadString()
+	cs.createHash()
 }
 
 // EncodeBinary implements Serializable interface.
-func (a *ContractState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(a.Script)
-	bw.WriteVarUint(uint64(len(a.ParamList)))
-	for k := range a.ParamList {
-		bw.WriteLE(a.ParamList[k])
+func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteBytes(cs.Script)
+	bw.WriteVarUint(uint64(len(cs.ParamList)))
+	for k := range cs.ParamList {
+		bw.WriteLE(cs.ParamList[k])
 	}
-	bw.WriteLE(a.ReturnType)
-	bw.WriteBytes(a.Properties)
-	bw.WriteString(a.Name)
-	bw.WriteString(a.CodeVersion)
-	bw.WriteString(a.Author)
-	bw.WriteString(a.Email)
-	bw.WriteString(a.Description)
-	bw.WriteLE(a.HasStorage)
-	bw.WriteLE(a.HasDynamicInvoke)
+	bw.WriteLE(cs.ReturnType)
+	bw.WriteLE(cs.Properties)
+	bw.WriteString(cs.Name)
+	bw.WriteString(cs.CodeVersion)
+	bw.WriteString(cs.Author)
+	bw.WriteString(cs.Email)
+	bw.WriteString(cs.Description)
+}
+
+// putContractStateIntoStore puts given contract state into the given store.
+func putContractStateIntoStore(s storage.Store, cs *ContractState) error {
+	buf := io.NewBufBinWriter()
+	cs.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().Bytes())
+	return s.Put(key, buf.Bytes())
+}
+
+// deleteContractStateInStore deletes given contract state in the given store.
+func deleteContractStateInStore(s storage.Store, hash util.Uint160) error {
+	key := storage.AppendPrefix(storage.STContract, hash.Bytes())
+	return s.Delete(key)
 }
 
 // ScriptHash returns a contract script hash.
-func (a *ContractState) ScriptHash() util.Uint160 {
-	if a.scriptHash.Equals(util.Uint160{}) {
-		a.createHash()
+func (cs *ContractState) ScriptHash() util.Uint160 {
+	if cs.scriptHash.Equals(util.Uint160{}) {
+		cs.createHash()
 	}
-	return a.scriptHash
+	return cs.scriptHash
 }
 
 // createHash creates contract script hash.
-func (a *ContractState) createHash() {
-	a.scriptHash = hash.Hash160(a.Script)
+func (cs *ContractState) createHash() {
+	cs.scriptHash = hash.Hash160(cs.Script)
+}
+
+// HasStorage checks whether the contract has storage property set.
+func (cs *ContractState) HasStorage() bool {
+	return (cs.Properties & smartcontract.HasStorage) != 0
+}
+
+// HasDynamicInvoke checks whether the contract has dynamic invoke property set.
+func (cs *ContractState) HasDynamicInvoke() bool {
+	return (cs.Properties & smartcontract.HasDynamicInvoke) != 0
+}
+
+// IsPayable checks whether the contract has payable property set.
+func (cs *ContractState) IsPayable() bool {
+	return (cs.Properties & smartcontract.IsPayable) != 0
 }
