@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
@@ -137,8 +136,9 @@ func TestGetTransaction(t *testing.T) {
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
 
-	assert.Nil(t, bc.AddBlock(b1))
-	assert.Nil(t, bc.AddBlock(block))
+	// These are from some kind of different chain, so can't be added via AddBlock().
+	assert.Nil(t, bc.storeBlock(b1))
+	assert.Nil(t, bc.storeBlock(block))
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
@@ -153,17 +153,4 @@ func TestGetTransaction(t *testing.T) {
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
 		assert.NoError(t, bc.persist(context.Background()))
 	}
-}
-
-func newTestChain(t *testing.T) *Blockchain {
-	cfg, err := config.Load("../../config", config.ModeUnitTestNet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	chain, err := NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go chain.Run(context.Background())
-	return chain
 }

@@ -40,8 +40,11 @@ type BlockBase struct {
 	// Script used to validate the block
 	Script *transaction.Witness `json:"script"`
 
-	// hash of this block, created when binary encoded.
+	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
+
+	// Hash of the block used to verify it (single SHA256).
+	verificationHash util.Uint256
 }
 
 // Verify verifies the integrity of the BlockBase.
@@ -56,6 +59,16 @@ func (b *BlockBase) Hash() util.Uint256 {
 		b.createHash()
 	}
 	return b.hash
+}
+
+// VerificationHash returns the hash of the block used to verify it.
+func (b *BlockBase) VerificationHash() util.Uint256 {
+	if b.verificationHash.Equals(util.Uint256{}) {
+		if b.createHash() != nil {
+			panic("failed to compute hash!")
+		}
+	}
+	return b.verificationHash
 }
 
 // DecodeBinary implements Serializable interface.
@@ -80,6 +93,16 @@ func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
 	b.Script.EncodeBinary(bw)
 }
 
+// getHashableData returns serialized hashable data of the block.
+func (b *BlockBase) getHashableData() ([]byte, error) {
+	buf := io.NewBufBinWriter()
+	b.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return nil, buf.Err
+	}
+	return buf.Bytes(), nil
+}
+
 // createHash creates the hash of the block.
 // When calculating the hash value of the block, instead of calculating the entire block,
 // only first seven fields in the block head will be calculated, which are
@@ -87,12 +110,12 @@ func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
 func (b *BlockBase) createHash() error {
-	buf := io.NewBufBinWriter()
-	b.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	bb, err := b.getHashableData()
+	if err != nil {
+		return err
 	}
-	b.hash = hash.DoubleSha256(buf.Bytes())
+	b.hash = hash.DoubleSha256(bb)
+	b.verificationHash = hash.Sha256(bb)
 
 	return nil
 }

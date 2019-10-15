@@ -9,7 +9,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/Workiva/go-datastructures/queue"
-	log "github.com/sirupsen/logrus"
 )
 
 // Block represents one block in the chain.
@@ -31,14 +30,18 @@ func (b *Block) Header() *Header {
 	}
 }
 
-// rebuildMerkleRoot rebuild the merkleroot of the block.
-func (b *Block) rebuildMerkleRoot() error {
-	hashes := make([]util.Uint256, len(b.Transactions))
-	for i, tx := range b.Transactions {
+func merkleTreeFromTransactions(txes []*transaction.Transaction) (*crypto.MerkleTree, error) {
+	hashes := make([]util.Uint256, len(txes))
+	for i, tx := range txes {
 		hashes[i] = tx.Hash()
 	}
 
-	merkle, err := crypto.NewMerkleTree(hashes)
+	return crypto.NewMerkleTree(hashes)
+}
+
+// rebuildMerkleRoot rebuild the merkleroot of the block.
+func (b *Block) rebuildMerkleRoot() error {
+	merkle, err := merkleTreeFromTransactions(b.Transactions)
 	if err != nil {
 		return err
 	}
@@ -48,7 +51,7 @@ func (b *Block) rebuildMerkleRoot() error {
 }
 
 // Verify the integrity of the block.
-func (b *Block) Verify(full bool) error {
+func (b *Block) Verify() error {
 	// There has to be some transaction inside.
 	if len(b.Transactions) == 0 {
 		return errors.New("no transactions")
@@ -63,9 +66,12 @@ func (b *Block) Verify(full bool) error {
 			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().ReverseString())
 		}
 	}
-	// TODO: When full is true, do a full verification.
-	if full {
-		log.Warn("full verification of blocks is not yet implemented")
+	merkle, err := merkleTreeFromTransactions(b.Transactions)
+	if err != nil {
+		return err
+	}
+	if !b.MerkleRoot.Equals(merkle.Root()) {
+		return errors.New("MerkleRoot mismatch")
 	}
 	return nil
 }

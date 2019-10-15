@@ -6,6 +6,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
@@ -76,30 +77,59 @@ func TestTrimmedBlock(t *testing.T) {
 	}
 }
 
+func newDumbBlock() *Block {
+	return &Block{
+		BlockBase: BlockBase{
+			Version:       0,
+			PrevHash:      hash.Sha256([]byte("a")),
+			MerkleRoot:    hash.Sha256([]byte("b")),
+			Timestamp:     uint32(100500),
+			Index:         1,
+			ConsensusData: 1111,
+			NextConsensus: hash.Hash160([]byte("a")),
+			Script: &transaction.Witness{
+				VerificationScript: []byte{0x51}, // PUSH1
+				InvocationScript:   []byte{0x61}, // NOP
+			},
+		},
+		Transactions: []*transaction.Transaction{
+			{Type: transaction.MinerType},
+			{Type: transaction.IssueType},
+		},
+	}
+}
+
 func TestHashBlockEqualsHashHeader(t *testing.T) {
-	block := newBlock(0)
+	block := newDumbBlock()
+
 	assert.Equal(t, block.Hash(), block.Header().Hash())
 }
 
 func TestBlockVerify(t *testing.T) {
-	block := newBlock(
-		0,
-		newMinerTX(),
-		newIssueTX(),
-	)
-	assert.Nil(t, block.Verify(false))
+	block := newDumbBlock()
+	assert.NotNil(t, block.Verify())
+	assert.Nil(t, block.rebuildMerkleRoot())
+	assert.Nil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.IssueType},
 		{Type: transaction.MinerType},
 	}
-	assert.NotNil(t, block.Verify(false))
+	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NotNil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},
 		{Type: transaction.MinerType},
 	}
-	assert.NotNil(t, block.Verify(false))
+	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NotNil(t, block.Verify())
+	block.Transactions = []*transaction.Transaction{
+		{Type: transaction.MinerType},
+		{Type: transaction.IssueType},
+		{Type: transaction.IssueType},
+	}
+	assert.NotNil(t, block.Verify())
 }
 
 func TestBinBlockDecodeEncode(t *testing.T) {

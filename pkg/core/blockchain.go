@@ -206,7 +206,10 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
 	if bc.config.VerifyBlocks {
-		err := block.Verify(false)
+		err := block.Verify()
+		if err == nil {
+			err = bc.VerifyBlock(block)
+		}
 		if err != nil {
 			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
 		}
@@ -840,6 +843,21 @@ func (bc *Blockchain) GetMemPool() MemPool {
 	return bc.memPool
 }
 
+// VerifyBlock verifies block against its current state.
+func (bc *Blockchain) VerifyBlock(block *Block) error {
+	prevHeader, err := bc.GetHeader(block.PrevHash)
+	if err != nil {
+		return errors.Wrap(err, "unable to get previous header")
+	}
+	if prevHeader.Index+1 != block.Index {
+		return errors.New("previous header index doesn't match")
+	}
+	if prevHeader.Timestamp >= block.Timestamp {
+		return errors.New("block is not newer than the previous one")
+	}
+	return bc.verifyBlockWitnesses(block, prevHeader)
+}
+
 // VerifyTx verifies whether a transaction is bonafide or not. Block parameter
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
@@ -870,7 +888,7 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
 		}
 	}
 
-	return bc.VerifyWitnesses(t, block)
+	return bc.verifyTxWitnesses(t, block)
 }
 
 func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
@@ -1094,14 +1112,63 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
-// VerifyWitnesses verify the scripts (witnesses) that come with a given
+// verifyHashAgainstScript verifies given hash against the given witness.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext) error {
+	verification := witness.VerificationScript
+
+	if len(verification) == 0 {
+		bb := new(bytes.Buffer)
+		err := vm.EmitAppCall(bb, hash, false)
+		if err != nil {
+			return err
+		}
+		verification = bb.Bytes()
+	} else {
+		if h := witness.ScriptHash(); hash != h {
+			return errors.New("witness hash mismatch")
+		}
+	}
+
+	vm := vm.New(vm.ModeMute)
+	vm.SetCheckedHash(checkedHash.Bytes())
+	vm.SetScriptGetter(func(hash util.Uint160) []byte {
+		cs := bc.GetContractState(hash)
+		if cs == nil {
+			return nil
+		}
+		return cs.Script
+	})
+	vm.RegisterInteropFuncs(interopCtx.getSystemInteropMap())
+	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
+	vm.LoadScript(verification)
+	vm.LoadScript(witness.InvocationScript)
+	vm.Run()
+	if vm.HasFailed() {
+		return errors.Errorf("vm failed to execute the script")
+	}
+	resEl := vm.Estack().Pop()
+	if resEl != nil {
+		res, err := resEl.TryBool()
+		if err != nil {
+			return err
+		}
+		if !res {
+			return errors.Errorf("signature check failed")
+		}
+	} else {
+		return errors.Errorf("no result returned from the script")
+	}
+	return nil
+}
+
+// verifyTxWitnesses verify the scripts (witnesses) that come with a given
 // transaction. It can reorder them by ScriptHash, because that's required to
 // match a slice of script hashes from the Blockchain. Block parameter
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
-func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction, block *Block) error {
+func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {
 		return err
@@ -1113,55 +1180,28 @@ func (bc *Blockchain) VerifyWitnesses(t *transaction.Transaction, block *Block) 
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
+	interopCtx := newInteropContext(0, bc, block, t)
 	for i := 0; i < len(hashes); i++ {
-		verification := witnesses[i].VerificationScript
-
-		if len(verification) == 0 {
-			bb := new(bytes.Buffer)
-			err = vm.EmitAppCall(bb, hashes[i], false)
-			if err != nil {
-				return err
-			}
-			verification = bb.Bytes()
-		} else {
-			if h := witnesses[i].ScriptHash(); hashes[i] != h {
-				return errors.Errorf("hash mismatch for script #%d", i)
-			}
-		}
-
-		vm := vm.New(vm.ModeMute)
-		vm.SetCheckedHash(t.VerificationHash().Bytes())
-		vm.SetScriptGetter(func(hash util.Uint160) []byte {
-			cs := bc.GetContractState(hash)
-			if cs == nil {
-				return nil
-			}
-			return cs.Script
-		})
-		systemInterop := newInteropContext(0, bc, block, t)
-		vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
-		vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
-		vm.LoadScript(verification)
-		vm.LoadScript(witnesses[i].InvocationScript)
-		vm.Run()
-		if vm.HasFailed() {
-			return errors.Errorf("vm failed to execute the script")
-		}
-		resEl := vm.Estack().Pop()
-		if resEl != nil {
-			res, err := resEl.TryBool()
-			if err != nil {
-				return err
-			}
-			if !res {
-				return errors.Errorf("signature check failed")
-			}
-		} else {
-			return errors.Errorf("no result returned from the script")
+		err := bc.verifyHashAgainstScript(hashes[i], witnesses[i], t.VerificationHash(), interopCtx)
+		if err != nil {
+			numStr := fmt.Sprintf("witness #%d", i)
+			return errors.Wrap(err, numStr)
 		}
 	}
 
 	return nil
+}
+
+// verifyBlockWitnesses is a block-specific implementation of VerifyWitnesses logic.
+func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) error {
+	var hash util.Uint160
+	if prevHeader == nil && block.PrevHash.Equals(util.Uint256{}) {
+		hash = block.Script.ScriptHash()
+	} else {
+		hash = prevHeader.NextConsensus
+	}
+	interopCtx := newInteropContext(0, bc, nil, nil)
+	return bc.verifyHashAgainstScript(hash, block.Script, block.VerificationHash(), interopCtx)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

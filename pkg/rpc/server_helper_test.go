@@ -3,18 +3,16 @@ package rpc
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
-	"time"
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -142,6 +140,8 @@ type GetAccountStateResponse struct {
 }
 
 func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Blockchain, http.HandlerFunc) {
+	var nBlocks uint32
+
 	net := config.ModeUnitTestNet
 	configPath := "../../config"
 	cfg, err := config.Load(configPath, net)
@@ -152,7 +152,18 @@ func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Block
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run(ctx)
-	initBlocks(t, chain)
+
+	f, err := os.Open("testdata/50testblocks.acc")
+	require.Nil(t, err)
+	br := io.NewBinReaderFromIO(f)
+	br.ReadLE(&nBlocks)
+	require.Nil(t, br.Err)
+	for i := 0; i < int(nBlocks); i++ {
+		block := &core.Block{}
+		block.DecodeBinary(br)
+		require.Nil(t, br.Err)
+		require.NoError(t, chain.AddBlock(block))
+	}
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
@@ -160,46 +171,4 @@ func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Block
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
 	return chain, handler
-}
-
-func initBlocks(t *testing.T, chain *core.Blockchain) {
-	blocks := makeBlocks(10)
-	for i := 0; i < len(blocks); i++ {
-		require.NoError(t, chain.AddBlock(blocks[i]))
-	}
-}
-
-func makeBlocks(n int) []*core.Block {
-	blocks := make([]*core.Block, n)
-	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(uint32(i+1), newMinerTX())
-	}
-	return blocks
-}
-
-func newMinerTX() *transaction.Transaction {
-	return &transaction.Transaction{
-		Type: transaction.MinerType,
-		Data: &transaction.MinerTX{},
-	}
-}
-
-func newBlock(index uint32, txs ...*transaction.Transaction) *core.Block {
-	b := &core.Block{
-		BlockBase: core.BlockBase{
-			Version:       0,
-			PrevHash:      hash.Sha256([]byte("a")),
-			MerkleRoot:    hash.Sha256([]byte("b")),
-			Timestamp:     uint32(time.Now().UTC().Unix()),
-			Index:         index,
-			ConsensusData: 1111,
-			NextConsensus: util.Uint160{},
-			Script: &transaction.Witness{
-				VerificationScript: []byte{0x0},
-				InvocationScript:   []byte{0x1},
-			},
-		},
-		Transactions: txs,
-	}
-	return b
 }
