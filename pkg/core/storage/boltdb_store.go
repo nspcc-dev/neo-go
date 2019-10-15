@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/etcd-io/bbolt"
+	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -110,7 +111,7 @@ func (s *BoltDBStore) Seek(key []byte, f func(k, v []byte)) {
 		return nil
 	})
 	if err != nil {
-		fmt.Println("error while executing seek in boltDB")
+		log.Error("error while executing seek in boltDB")
 	}
 }
 
