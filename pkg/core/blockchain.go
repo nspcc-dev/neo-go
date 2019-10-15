@@ -489,7 +489,7 @@ func (bc *Blockchain) persist(ctx context.Context) error {
 			"persistedKeys":   persisted,
 			"headerHeight":    bc.HeaderHeight(),
 			"blockHeight":     bc.BlockHeight(),
-			"persistedHeight": bc.persistedHeight,
+			"persistedHeight": atomic.LoadUint32(&bc.persistedHeight),
 			"took":            time.Since(start),
 		}).Info("blockchain persist completed")
 	}
