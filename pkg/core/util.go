@@ -179,15 +179,15 @@ func headerSliceReverse(dest []*Header) {
 
 // storeAsCurrentBlock stores the given block witch prefix
 // SYSCurrentBlock.
-func storeAsCurrentBlock(batch storage.Batch, block *Block) {
+func storeAsCurrentBlock(store storage.Store, block *Block) error {
 	buf := io.NewBufBinWriter()
 	buf.WriteLE(block.Hash().BytesReverse())
 	buf.WriteLE(block.Index)
-	batch.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	return store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // storeAsBlock stores the given block as DataBlock.
-func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
+func storeAsBlock(store storage.Store, block *Block, sysFee uint32) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
 		buf = io.NewBufBinWriter()
@@ -202,12 +202,11 @@ func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	batch.Put(key, buf.Bytes())
-	return nil
+	return store.Put(key, buf.Bytes())
 }
 
 // storeAsTransaction stores the given TX as DataTransaction.
-func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index uint32) error {
+func storeAsTransaction(store storage.Store, tx *transaction.Transaction, index uint32) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
 	buf := io.NewBufBinWriter()
 	buf.WriteLE(index)
@@ -215,6 +214,5 @@ func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index 
 	if buf.Err != nil {
 		return buf.Err
 	}
-	batch.Put(key, buf.Bytes())
-	return nil
+	return store.Put(key, buf.Bytes())
 }

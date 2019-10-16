@@ -306,7 +306,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *Block) error {
 	var (
-		batch        = bc.store.Batch()
+		tmpStore     = storage.NewMemCachedStore(bc.store)
 		unspentCoins = make(UnspentCoins)
 		spentCoins   = make(SpentCoins)
 		accounts     = make(Accounts)
@@ -314,14 +314,16 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		contracts    = make(Contracts)
 	)
 
-	if err := storeAsBlock(batch, block, 0); err != nil {
+	if err := storeAsBlock(tmpStore, block, 0); err != nil {
 		return err
 	}
 
-	storeAsCurrentBlock(batch, block)
+	if err := storeAsCurrentBlock(tmpStore, block); err != nil {
+		return err
+	}
 
 	for _, tx := range block.Transactions {
-		if err := storeAsTransaction(batch, tx, block.Index); err != nil {
+		if err := storeAsTransaction(tmpStore, tx, block.Index); err != nil {
 			return err
 		}
 
@@ -415,7 +417,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 
 				return cs.Script
 			})
-			systemInterop := newInteropContext(0x10, bc, bc.store, block, tx)
+			systemInterop := newInteropContext(0x10, bc, tmpStore, block, tx)
 			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
 			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
 			vm.LoadScript(t.Script)
@@ -435,22 +437,22 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	}
 
 	// Persist all to storage.
-	if err := accounts.commit(batch); err != nil {
+	if err := accounts.commit(tmpStore); err != nil {
 		return err
 	}
-	if err := unspentCoins.commit(batch); err != nil {
+	if err := unspentCoins.commit(tmpStore); err != nil {
 		return err
 	}
-	if err := spentCoins.commit(batch); err != nil {
+	if err := spentCoins.commit(tmpStore); err != nil {
 		return err
 	}
-	if err := assets.commit(batch); err != nil {
+	if err := assets.commit(tmpStore); err != nil {
 		return err
 	}
-	if err := contracts.commit(batch); err != nil {
+	if err := contracts.commit(tmpStore); err != nil {
 		return err
 	}
-	if err := bc.store.PutBatch(batch); err != nil {
+	if _, err := tmpStore.Persist(); err != nil {
 		return err
 	}
 

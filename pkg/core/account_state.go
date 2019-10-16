@@ -48,17 +48,23 @@ func getAccountStateFromStore(s storage.Store, hash util.Uint160) (*AccountState
 	return account, err
 }
 
-// commit writes all account states to the given Batch.
-func (a Accounts) commit(b storage.Batch) error {
+// putAccountStateIntoStore puts given AccountState into the given store.
+func putAccountStateIntoStore(store storage.Store, as *AccountState) error {
 	buf := io.NewBufBinWriter()
-	for hash, state := range a {
-		state.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+	as.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.Bytes())
+	return store.Put(key, buf.Bytes())
+}
+
+// commit writes all account states to the given Batch.
+func (a Accounts) commit(store storage.Store) error {
+	for _, state := range a {
+		if err := putAccountStateIntoStore(store, state); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }

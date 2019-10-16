@@ -35,16 +35,22 @@ func (s SpentCoins) getAndUpdate(store storage.Store, hash util.Uint256) (*Spent
 	return spent, nil
 }
 
-func (s SpentCoins) commit(b storage.Batch) error {
+// putSpentCoinStateIntoStore puts given SpentCoinState into the given store.
+func putSpentCoinStateIntoStore(store storage.Store, hash util.Uint256, scs *SpentCoinState) error {
 	buf := io.NewBufBinWriter()
+	scs.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesReverse())
+	return store.Put(key, buf.Bytes())
+}
+
+func (s SpentCoins) commit(store storage.Store) error {
 	for hash, state := range s {
-		state.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+		if err := putSpentCoinStateIntoStore(store, hash, state); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesReverse())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }
