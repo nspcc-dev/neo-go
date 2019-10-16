@@ -14,23 +14,17 @@ type Accounts map[util.Uint160]*AccountState
 
 // getAndUpdate retrieves AccountState from temporary or persistent Store
 // or creates a new one if it doesn't exist.
-func (a Accounts) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint160) (*AccountState, error) {
+func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountState, error) {
 	if account, ok := a[hash]; ok {
 		return account, nil
 	}
 
-	account, err := getAccountStateFromStore(ts, hash)
+	account, err := getAccountStateFromStore(s, hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		account, err = getAccountStateFromStore(ps, hash)
-		if err != nil {
-			if err != storage.ErrKeyNotFound {
-				return nil, err
-			}
-			account = NewAccountState(hash)
-		}
+		account = NewAccountState(hash)
 	}
 
 	a[hash] = account

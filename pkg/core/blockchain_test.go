@@ -57,7 +57,7 @@ func TestAddBlock(t *testing.T) {
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
-		if _, err := bc.Get(key); err != nil {
+		if _, err := bc.store.Get(key); err != nil {
 			t.Fatalf("block %s not persisted", block.Hash())
 		}
 	}

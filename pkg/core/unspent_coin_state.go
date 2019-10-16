@@ -16,24 +16,18 @@ type UnspentCoins map[util.Uint256]*UnspentCoinState
 // getAndUpdate retreives UnspentCoinState from temporary or persistent Store
 // and return it. If it's not present in both stores, returns a new
 // UnspentCoinState.
-func (u UnspentCoins) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
+func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	if unspent, ok := u[hash]; ok {
 		return unspent, nil
 	}
 
-	unspent, err := getUnspentCoinStateFromStore(ts, hash)
+	unspent, err := getUnspentCoinStateFromStore(s, hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		unspent, err = getUnspentCoinStateFromStore(ps, hash)
-		if err != nil {
-			if err != storage.ErrKeyNotFound {
-				return nil, err
-			}
-			unspent = &UnspentCoinState{
-				states: []CoinState{},
-			}
+		unspent = &UnspentCoinState{
+			states: []CoinState{},
 		}
 	}
 

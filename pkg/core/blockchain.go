@@ -43,11 +43,8 @@ var (
 type Blockchain struct {
 	config config.ProtocolConfiguration
 
-	// Any object that satisfies the BlockchainStorer interface.
-	storage.Store
-
-	// In-memory storage to be persisted into the storage.Store
-	memStore *storage.MemoryStore
+	// Persistent storage wrapped around with a write memory caching layer.
+	store *storage.MemCachedStore
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -78,8 +75,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
 		config:        cfg,
-		Store:         s,
-		memStore:      storage.NewMemoryStore(),
+		store:         storage.NewMemCachedStore(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		memPool:       NewMemPool(50000),
@@ -94,10 +90,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 
 func (bc *Blockchain) init() error {
 	// If we could not find the version in the Store, we know that there is nothing stored.
-	ver, err := storage.Version(bc.Store)
+	ver, err := storage.Version(bc.store)
 	if err != nil {
 		log.Infof("no storage version found! creating genesis block")
-		if err = storage.PutVersion(bc.Store, version); err != nil {
+		if err = storage.PutVersion(bc.store, version); err != nil {
 			return err
 		}
 		genesisBlock, err := createGenesisBlock(bc.config)
@@ -116,14 +112,14 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	log.Infof("restoring blockchain with version: %s", version)
 
-	bHeight, err := storage.CurrentBlockHeight(bc.Store)
+	bHeight, err := storage.CurrentBlockHeight(bc.store)
 	if err != nil {
 		return err
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
 
-	hashes, err := storage.HeaderHashes(bc.Store)
+	hashes, err := storage.HeaderHashes(bc.store)
 	if err != nil {
 		return err
 	}
@@ -131,7 +127,7 @@ func (bc *Blockchain) init() error {
 	bc.headerList = NewHeaderHashList(hashes...)
 	bc.storedHeaderCount = uint32(len(hashes))
 
-	currHeaderHeight, currHeaderHash, err := storage.CurrentHeaderHeight(bc.Store)
+	currHeaderHeight, currHeaderHash, err := storage.CurrentHeaderHeight(bc.store)
 	if err != nil {
 		return err
 	}
@@ -173,9 +169,7 @@ func (bc *Blockchain) Run(ctx context.Context) {
 		if err := bc.persist(ctx); err != nil {
 			log.Warnf("failed to persist: %s", err)
 		}
-		// never fails
-		_ = bc.memStore.Close()
-		if err := bc.Store.Close(); err != nil {
+		if err := bc.store.Close(); err != nil {
 			log.Warnf("failed to close db: %s", err)
 		}
 	}()
@@ -237,7 +231,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
 		start = time.Now()
-		batch = bc.memStore.Batch()
+		batch = bc.store.Batch()
 	)
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -263,7 +257,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if oldlen != headerList.Len() {
-			if err = bc.memStore.PutBatch(batch); err != nil {
+			if err = bc.store.PutBatch(batch); err != nil {
 				return
 			}
 			log.WithFields(log.Fields{
@@ -312,7 +306,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *Block) error {
 	var (
-		batch        = bc.memStore.Batch()
+		batch        = bc.store.Batch()
 		unspentCoins = make(UnspentCoins)
 		spentCoins   = make(SpentCoins)
 		accounts     = make(Accounts)
@@ -335,7 +329,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 
 		// Process TX outputs.
 		for _, output := range tx.Outputs {
-			account, err := accounts.getAndUpdate(bc.memStore, bc.Store, output.ScriptHash)
+			account, err := accounts.getAndUpdate(bc.store, output.ScriptHash)
 			if err != nil {
 				return err
 			}
@@ -353,14 +347,14 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
 			for _, input := range inputs {
-				unspent, err := unspentCoins.getAndUpdate(bc.memStore, bc.Store, input.PrevHash)
+				unspent, err := unspentCoins.getAndUpdate(bc.store, input.PrevHash)
 				if err != nil {
 					return err
 				}
 				unspent.states[input.PrevIndex] = CoinStateSpent
 
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
-				account, err := accounts.getAndUpdate(bc.memStore, bc.Store, prevTXOutput.ScriptHash)
+				account, err := accounts.getAndUpdate(bc.store, prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
 				}
@@ -421,13 +415,13 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 
 				return cs.Script
 			})
-			systemInterop := newInteropContext(0x10, bc, block, tx)
+			systemInterop := newInteropContext(0x10, bc, bc.store, block, tx)
 			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
 			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
 			vm.LoadScript(t.Script)
 			vm.Run()
 			if !vm.HasFailed() {
-				_, err := systemInterop.mem.Persist(bc.memStore)
+				_, err := systemInterop.mem.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
@@ -456,7 +450,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	if err := contracts.commit(batch); err != nil {
 		return err
 	}
-	if err := bc.memStore.PutBatch(batch); err != nil {
+	if err := bc.store.PutBatch(batch); err != nil {
 		return err
 	}
 
@@ -472,11 +466,11 @@ func (bc *Blockchain) persist(ctx context.Context) error {
 		err       error
 	)
 
-	persisted, err = bc.memStore.Persist(bc.Store)
+	persisted, err = bc.store.Persist()
 	if err != nil {
 		return err
 	}
-	bHeight, err := storage.CurrentBlockHeight(bc.Store)
+	bHeight, err := storage.CurrentBlockHeight(bc.store)
 	if err != nil {
 		return err
 	}
@@ -510,11 +504,7 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	if tx, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
-	tx, height, err := getTransactionFromStore(bc.memStore, hash)
-	if err != nil {
-		tx, height, err = getTransactionFromStore(bc.Store, hash)
-	}
-	return tx, height, err
+	return getTransactionFromStore(bc.store, hash)
 }
 
 // getTransactionFromStore returns Transaction and its height by the given hash
@@ -541,11 +531,7 @@ func getTransactionFromStore(s storage.Store, hash util.Uint256) (*transaction.T
 
 // GetStorageItem returns an item from storage.
 func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem {
-	sItem := getStorageItemFromStore(bc.memStore, scripthash, key)
-	if sItem == nil {
-		sItem = getStorageItemFromStore(bc.Store, scripthash, key)
-	}
-	return sItem
+	return getStorageItemFromStore(bc.store, scripthash, key)
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
@@ -568,8 +554,7 @@ func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*StorageIte
 		// Cut prefix and hash.
 		siMap[string(k[21:])] = si
 	}
-	bc.memStore.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
-	bc.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	bc.store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
 	if err != nil {
 		return nil, err
 	}
@@ -578,12 +563,9 @@ func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*StorageIte
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
-	block, err := getBlockFromStore(bc.memStore, hash)
+	block, err := getBlockFromStore(bc.store, hash)
 	if err != nil {
-		block, err = getBlockFromStore(bc.Store, hash)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	if len(block.Transactions) == 0 {
 		return nil, fmt.Errorf("only header is available")
@@ -614,14 +596,7 @@ func getBlockFromStore(s storage.Store, hash util.Uint256) (*Block, error) {
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
-	header, err := getHeaderFromStore(bc.memStore, hash)
-	if err != nil {
-		header, err = getHeaderFromStore(bc.Store, hash)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return header, err
+	return getHeaderFromStore(bc.store, hash)
 }
 
 // getHeaderFromStore returns Header by the given hash from the store.
@@ -637,8 +612,7 @@ func getHeaderFromStore(s storage.Store, hash util.Uint256) (*Header, error) {
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	return bc.memPool.ContainsKey(hash) ||
-		checkTransactionInStore(bc.memStore, hash) ||
-		checkTransactionInStore(bc.Store, hash)
+		checkTransactionInStore(bc.store, hash)
 }
 
 // checkTransactionInStore returns true if the given store contains the given
@@ -700,11 +674,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 
 // GetAssetState returns asset state from its assetID
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
-	as := getAssetStateFromStore(bc.memStore, assetID)
-	if as == nil {
-		as = getAssetStateFromStore(bc.Store, assetID)
-	}
-	return as
+	return getAssetStateFromStore(bc.store, assetID)
 }
 
 // getAssetStateFromStore returns given asset state as recorded in the given
@@ -727,11 +697,7 @@ func getAssetStateFromStore(s storage.Store, assetID util.Uint256) *AssetState {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *ContractState {
-	cs := getContractStateFromStore(bc.memStore, hash)
-	if cs == nil {
-		cs = getContractStateFromStore(bc.Store, hash)
-	}
-	return cs
+	return getContractStateFromStore(bc.store, hash)
 }
 
 // getContractStateFromStore returns contract state as recorded in the given
@@ -754,24 +720,18 @@ func getContractStateFromStore(s storage.Store, hash util.Uint160) *ContractStat
 
 // GetAccountState returns the account state from its script hash
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
-	as, err := getAccountStateFromStore(bc.memStore, scriptHash)
-	if as == nil {
-		if err != storage.ErrKeyNotFound {
-			log.Warnf("failed to get account state: %s", err)
-		}
-		as, err = getAccountStateFromStore(bc.Store, scriptHash)
-		if as == nil && err != storage.ErrKeyNotFound {
-			log.Warnf("failed to get account state: %s", err)
-		}
+	as, err := getAccountStateFromStore(bc.store, scriptHash)
+	if as == nil && err != storage.ErrKeyNotFound {
+		log.Warnf("failed to get account state: %s", err)
 	}
 	return as
 }
 
 // GetUnspentCoinState returns unspent coin state for given tx hash.
 func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
-	ucs, err := getUnspentCoinStateFromStore(bc.memStore, hash)
-	if err != nil {
-		ucs, _ = getUnspentCoinStateFromStore(bc.Store, hash)
+	ucs, err := getUnspentCoinStateFromStore(bc.store, hash)
+	if ucs == nil && err != storage.ErrKeyNotFound {
+		log.Warnf("failed to get unspent coin state: %s", err)
 	}
 	return ucs
 }
@@ -872,7 +832,7 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
 	if ok := bc.memPool.Verify(t); !ok {
 		return errors.New("invalid transaction due to conflicts with the memory pool")
 	}
-	if IsDoubleSpend(bc.Store, t) {
+	if IsDoubleSpend(bc.store, t) {
 		return errors.New("invalid transaction caused by double spending")
 	}
 	if err := bc.verifyOutputs(t); err != nil {
@@ -1180,7 +1140,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
-	interopCtx := newInteropContext(0, bc, block, t)
+	interopCtx := newInteropContext(0, bc, bc.store, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], witnesses[i], t.VerificationHash(), interopCtx)
 		if err != nil {
@@ -1200,7 +1160,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := newInteropContext(0, bc, nil, nil)
+	interopCtx := newInteropContext(0, bc, bc.store, nil, nil)
 	return bc.verifyHashAgainstScript(hash, block.Script, block.VerificationHash(), interopCtx)
 }
 
