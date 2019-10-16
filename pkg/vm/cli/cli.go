@@ -367,7 +367,7 @@ func changePrompt(c ishell.Actions, v *vm.VM) {
 
 // Run waits for user input from Stdin and executes the passed command.
 func (c *VMCLI) Run() error {
-	printLogo()
+	printLogo(c.shell)
 	c.shell.Run()
 	return nil
 }
@@ -418,7 +418,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 	return items, nil
 }
 
-func printLogo() {
+func printLogo(c *ishell.Shell) {
 	logo := `
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
@@ -426,7 +426,7 @@ func printLogo() {
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /  
 /_/ |_/_____/\____/      \____/\____/      |___/_/  /_/   
 `
-	fmt.Print(logo)
-	fmt.Println()
-	fmt.Println()
+	c.Print(logo)
+	c.Println()
+	c.Println()
 }
