@@ -22,7 +22,7 @@ func TestWriteLE(t *testing.T) {
 	var (
 		val     uint32 = 0xdeadbeef
 		readval uint32
-		bin     []byte = []byte{0xef, 0xbe, 0xad, 0xde}
+		bin     = []byte{0xef, 0xbe, 0xad, 0xde}
 	)
 	bw := NewBufBinWriter()
 	bw.WriteLE(val)
@@ -39,7 +39,7 @@ func TestWriteBE(t *testing.T) {
 	var (
 		val     uint32 = 0xdeadbeef
 		readval uint32
-		bin     []byte = []byte{0xde, 0xad, 0xbe, 0xef}
+		bin     = []byte{0xde, 0xad, 0xbe, 0xef}
 	)
 	bw := NewBufBinWriter()
 	bw.WriteBE(val)
@@ -115,7 +115,7 @@ func TestBufBinWriterReset(t *testing.T) {
 
 func TestWriteString(t *testing.T) {
 	var (
-		str string = "teststring"
+		str = "teststring"
 	)
 	bw := NewBufBinWriter()
 	bw.WriteString(str)
