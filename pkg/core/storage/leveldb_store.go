@@ -21,7 +21,7 @@ type LevelDBStore struct {
 // NewLevelDBStore return a new LevelDBStore object that will
 // initialize the database found at the given path.
 func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
-	var opts *opt.Options = nil // should be exposed via LevelDBOptions if anything needed
+	var opts *opt.Options // should be exposed via LevelDBOptions if anything needed
 
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
