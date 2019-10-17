@@ -1413,6 +1413,15 @@ func TestCATBadOneArg(t *testing.T) {
 	assert.Equal(t, true, vm.HasFailed())
 }
 
+func TestCATBadBigItem(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
+	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
 func TestCATGood(t *testing.T) {
 	prog := makeProgram(CAT)
 	vm := load(prog)
