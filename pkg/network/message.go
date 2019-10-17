@@ -184,6 +184,9 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		p = &payload.AddressList{}
 	case CMDBlock:
 		p = &core.Block{}
+	case CMDConsensus:
+		// Stubbed out for now, see #431.
+		return nil
 	case CMDGetBlocks:
 		fallthrough
 	case CMDGetHeaders:
