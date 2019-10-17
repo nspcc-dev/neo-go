@@ -734,6 +734,38 @@ func TestSETITEMMap(t *testing.T) {
 	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
 }
 
+func TestSETITEMBigMapBad(t *testing.T) {
+	prog := makeProgram(SETITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	for i := 0; i < MaxArraySize; i++ {
+		m.Add(makeStackItem(i), makeStackItem(i))
+	}
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(MaxArraySize)
+	vm.estack.PushVal(0)
+
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestSETITEMBigMapGood(t *testing.T) {
+	prog := makeProgram(SETITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	for i := 0; i < MaxArraySize; i++ {
+		m.Add(makeStackItem(i), makeStackItem(i))
+	}
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(0)
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
+}
+
 func TestSIZENoArgument(t *testing.T) {
 	prog := makeProgram(SIZE)
 	vm := load(prog)

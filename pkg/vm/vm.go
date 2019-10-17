@@ -871,6 +871,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			}
 			arr[index] = item
 		case *MapItem:
+			if !t.Has(key.value) && len(t.value) >= MaxArraySize {
+				panic("too big map")
+			}
 			t.Add(key.value, item)
 
 		default:
