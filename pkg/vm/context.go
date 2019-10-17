@@ -59,6 +59,9 @@ func (c *Context) Next() (Instruction, []byte, error) {
 	case PUSHDATA4:
 		var n uint32
 		r.ReadLE(&n)
+		if n > MaxItemSize {
+			return instr, nil, errors.New("parameter is too big")
+		}
 		numtoread = int(n)
 		c.nextip += 4
 	case JMP, JMPIF, JMPIFNOT, CALL:
