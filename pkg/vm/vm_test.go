@@ -652,6 +652,24 @@ func TestAPPENDWrongType(t *testing.T) {
 	assert.Equal(t, true, vm.HasFailed())
 }
 
+func TestAPPENDGoodSizeLimit(t *testing.T) {
+	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize - 1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, MaxArraySize, len(vm.estack.Pop().Array()))
+}
+
+func TestAPPENDBadSizeLimit(t *testing.T) {
+	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestPICKITEMBadIndex(t *testing.T) {
 	prog := makeProgram(PICKITEM)
 	vm := load(prog)

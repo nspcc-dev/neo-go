@@ -786,10 +786,16 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		switch t := arrElem.value.(type) {
 		case *ArrayItem:
 			arr := t.Value().([]StackItem)
+			if len(arr) >= MaxArraySize {
+				panic("too long array")
+			}
 			arr = append(arr, val)
 			t.value = arr
 		case *StructItem:
 			arr := t.Value().([]StackItem)
+			if len(arr) >= MaxArraySize {
+				panic("too long struct")
+			}
 			arr = append(arr, val)
 			t.value = arr
 		default:
