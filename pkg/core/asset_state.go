@@ -13,16 +13,11 @@ const feeMode = 0x0
 // Assets is mapping between AssetID and the AssetState.
 type Assets map[util.Uint256]*AssetState
 
-func (a Assets) commit(b storage.Batch) error {
-	buf := io.NewBufBinWriter()
-	for hash, state := range a {
-		state.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+func (a Assets) commit(store storage.Store) error {
+	for _, state := range a {
+		if err := putAssetStateIntoStore(store, state); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STAsset, hash.Bytes())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }

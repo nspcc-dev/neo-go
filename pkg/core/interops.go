@@ -18,11 +18,11 @@ type interopContext struct {
 	trigger byte
 	block   *Block
 	tx      *transaction.Transaction
-	mem     *storage.MemoryStore
+	mem     *storage.MemCachedStore
 }
 
-func newInteropContext(trigger byte, bc Blockchainer, block *Block, tx *transaction.Transaction) *interopContext {
-	mem := storage.NewMemoryStore()
+func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
+	mem := storage.NewMemCachedStore(s)
 	return &interopContext{bc, trigger, block, tx, mem}
 }
 

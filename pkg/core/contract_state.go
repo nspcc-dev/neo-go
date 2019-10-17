@@ -27,16 +27,11 @@ type ContractState struct {
 }
 
 // commit flushes all contracts to the given storage.Batch.
-func (a Contracts) commit(b storage.Batch) error {
-	buf := io.NewBufBinWriter()
-	for hash, contract := range a {
-		contract.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+func (a Contracts) commit(store storage.Store) error {
+	for _, contract := range a {
+		if err := putContractStateIntoStore(store, contract); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STContract, hash.Bytes())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }

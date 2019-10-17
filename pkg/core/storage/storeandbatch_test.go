@@ -9,6 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// kvSeen is used to test Seek implementations.
+type kvSeen struct {
+	key  []byte
+	val  []byte
+	seen bool
+}
+
 type dbSetup struct {
 	name   string
 	create func(*testing.T) Store
@@ -66,11 +73,6 @@ func testStorePutBatch(t *testing.T, s Store) {
 }
 
 func testStoreSeek(t *testing.T, s Store) {
-	type kvSeen struct {
-		key  []byte
-		val  []byte
-		seen bool
-	}
 	var (
 		// Given this prefix...
 		goodprefix = []byte{'f'}
@@ -219,6 +221,7 @@ func TestAllDBs(t *testing.T) {
 	var DBs = []dbSetup{
 		{"BoltDB", newBoltStoreForTesting},
 		{"LevelDB", newLevelDBForTesting},
+		{"MemCached", newMemCachedStoreForTesting},
 		{"Memory", newMemoryStoreForTesting},
 		{"RedisDB", newRedisStoreForTesting},
 	}

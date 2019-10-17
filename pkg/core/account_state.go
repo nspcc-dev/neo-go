@@ -14,23 +14,17 @@ type Accounts map[util.Uint160]*AccountState
 
 // getAndUpdate retrieves AccountState from temporary or persistent Store
 // or creates a new one if it doesn't exist.
-func (a Accounts) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint160) (*AccountState, error) {
+func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountState, error) {
 	if account, ok := a[hash]; ok {
 		return account, nil
 	}
 
-	account, err := getAccountStateFromStore(ts, hash)
+	account, err := getAccountStateFromStore(s, hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		account, err = getAccountStateFromStore(ps, hash)
-		if err != nil {
-			if err != storage.ErrKeyNotFound {
-				return nil, err
-			}
-			account = NewAccountState(hash)
-		}
+		account = NewAccountState(hash)
 	}
 
 	a[hash] = account
@@ -54,17 +48,23 @@ func getAccountStateFromStore(s storage.Store, hash util.Uint160) (*AccountState
 	return account, err
 }
 
-// commit writes all account states to the given Batch.
-func (a Accounts) commit(b storage.Batch) error {
+// putAccountStateIntoStore puts given AccountState into the given store.
+func putAccountStateIntoStore(store storage.Store, as *AccountState) error {
 	buf := io.NewBufBinWriter()
-	for hash, state := range a {
-		state.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+	as.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.Bytes())
+	return store.Put(key, buf.Bytes())
+}
+
+// commit writes all account states to the given Batch.
+func (a Accounts) commit(store storage.Store) error {
+	for _, state := range a {
+		if err := putAccountStateIntoStore(store, state); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }

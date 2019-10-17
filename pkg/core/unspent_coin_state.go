@@ -16,24 +16,18 @@ type UnspentCoins map[util.Uint256]*UnspentCoinState
 // getAndUpdate retreives UnspentCoinState from temporary or persistent Store
 // and return it. If it's not present in both stores, returns a new
 // UnspentCoinState.
-func (u UnspentCoins) getAndUpdate(ts storage.Store, ps storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
+func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	if unspent, ok := u[hash]; ok {
 		return unspent, nil
 	}
 
-	unspent, err := getUnspentCoinStateFromStore(ts, hash)
+	unspent, err := getUnspentCoinStateFromStore(s, hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		unspent, err = getUnspentCoinStateFromStore(ps, hash)
-		if err != nil {
-			if err != storage.ErrKeyNotFound {
-				return nil, err
-			}
-			unspent = &UnspentCoinState{
-				states: []CoinState{},
-			}
+		unspent = &UnspentCoinState{
+			states: []CoinState{},
 		}
 	}
 
@@ -57,6 +51,17 @@ func getUnspentCoinStateFromStore(s storage.Store, hash util.Uint256) (*UnspentC
 	return unspent, nil
 }
 
+// putUnspentCoinStateIntoStore puts given UnspentCoinState into the given store.
+func putUnspentCoinStateIntoStore(store storage.Store, hash util.Uint256, ucs *UnspentCoinState) error {
+	buf := io.NewBufBinWriter()
+	ucs.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
+	return store.Put(key, buf.Bytes())
+}
+
 // UnspentCoinState hold the state of a unspent coin.
 type UnspentCoinState struct {
 	states []CoinState
@@ -74,16 +79,11 @@ func NewUnspentCoinState(n int) *UnspentCoinState {
 }
 
 // commit writes all unspent coin states to the given Batch.
-func (u UnspentCoins) commit(b storage.Batch) error {
-	buf := io.NewBufBinWriter()
+func (u UnspentCoins) commit(store storage.Store) error {
 	for hash, state := range u {
-		state.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			return buf.Err
+		if err := putUnspentCoinStateIntoStore(store, hash, state); err != nil {
+			return err
 		}
-		key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
-		b.Put(key, buf.Bytes())
-		buf.Reset()
 	}
 	return nil
 }

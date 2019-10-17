@@ -31,7 +31,6 @@ func TestDecodeEncodeUnspentCoinState(t *testing.T) {
 func TestCommitUnspentCoins(t *testing.T) {
 	var (
 		store        = storage.NewMemoryStore()
-		batch        = store.Batch()
 		unspentCoins = make(UnspentCoins)
 	)
 
@@ -56,6 +55,5 @@ func TestCommitUnspentCoins(t *testing.T) {
 		},
 	}
 
-	assert.Nil(t, unspentCoins.commit(batch))
-	assert.Nil(t, store.PutBatch(batch))
+	assert.Nil(t, unspentCoins.commit(store))
 }
