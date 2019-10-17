@@ -28,8 +28,12 @@ var (
 const (
 	// MaxArraySize is the maximum array size allowed in the VM.
 	MaxArraySize = 1024
-	maxSHLArg    = 256
-	minSHLArg    = -256
+
+	// MaxItemSize is the maximum item size allowed in the VM.
+	MaxItemSize = 1024 * 1024
+
+	maxSHLArg = 256
+	minSHLArg = -256
 )
 
 // VM represents the virtual machine.
@@ -439,6 +443,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 	case CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
+		if l := len(a) + len(b); l > MaxItemSize {
+			panic(fmt.Sprintf("too big item: %d", l))
+		}
 		ab := append(a, b...)
 		v.estack.PushVal(ab)
 	case SUBSTR:

@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"math/big"
 	"math/rand"
@@ -170,6 +171,16 @@ func TestPushData4BadN(t *testing.T) {
 
 func TestPushData4ShortN(t *testing.T) {
 	prog := []byte{byte(PUSHDATA4), 0, 0, 0}
+	vm := load(prog)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestPushData4BigN(t *testing.T) {
+	prog := make([]byte, 1+4+MaxItemSize+1)
+	prog[0] = byte(PUSHDATA4)
+	binary.LittleEndian.PutUint32(prog[1:], MaxItemSize+1)
+
 	vm := load(prog)
 	vm.Run()
 	assert.Equal(t, true, vm.HasFailed())
@@ -1409,6 +1420,15 @@ func TestCATBadOneArg(t *testing.T) {
 	prog := makeProgram(CAT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abc"))
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestCATBadBigItem(t *testing.T) {
+	prog := makeProgram(CAT)
+	vm := load(prog)
+	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
+	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
 	vm.Run()
 	assert.Equal(t, true, vm.HasFailed())
 }
