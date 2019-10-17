@@ -804,7 +804,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 
 	case PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() {
+		if n < 0 || n > v.estack.Len() || n > MaxArraySize {
 			panic("OPACK: invalid length")
 		}
 

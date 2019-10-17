@@ -1604,6 +1604,17 @@ func TestPACKBadLen(t *testing.T) {
 	assert.Equal(t, true, vm.HasFailed())
 }
 
+func TestPACKBigLen(t *testing.T) {
+	prog := makeProgram(PACK)
+	vm := load(prog)
+	for i := 0; i <= MaxArraySize; i++ {
+		vm.estack.PushVal(0)
+	}
+	vm.estack.PushVal(MaxArraySize + 1)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
 func TestPACKGoodZeroLen(t *testing.T) {
 	prog := makeProgram(PACK)
 	vm := load(prog)
