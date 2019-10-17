@@ -753,8 +753,11 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		case *ArrayItem:
 			v.estack.PushVal(t)
 		default:
-			n := item.BigInt()
-			items := makeArrayOfFalses(int(n.Int64()))
+			n := item.BigInt().Int64()
+			if n > MaxArraySize {
+				panic("too long array")
+			}
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&ArrayItem{items})
 		}
 
@@ -766,8 +769,11 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		case *StructItem:
 			v.estack.PushVal(t)
 		default:
-			n := item.BigInt()
-			items := makeArrayOfFalses(int(n.Int64()))
+			n := item.BigInt().Int64()
+			if n > MaxArraySize {
+				panic("too long struct")
+			}
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&StructItem{items})
 		}
 

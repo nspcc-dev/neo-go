@@ -538,6 +538,14 @@ func TestNEWARRAYByteArray(t *testing.T) {
 	assert.Equal(t, &ArrayItem{[]StackItem{}}, vm.estack.Pop().value)
 }
 
+func TestNEWARRAYBadSize(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize + 1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestNEWSTRUCTInteger(t *testing.T) {
 	prog := makeProgram(NEWSTRUCT)
 	vm := load(prog)
@@ -578,6 +586,14 @@ func TestNEWSTRUCTByteArray(t *testing.T) {
 	assert.Equal(t, false, vm.HasFailed())
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, &StructItem{[]StackItem{}}, vm.estack.Pop().value)
+}
+
+func TestNEWSTRUCTBadSize(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize + 1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
 func TestAPPENDArray(t *testing.T) {
