@@ -2,6 +2,7 @@ package vm
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
@@ -37,7 +38,7 @@ type VM struct {
 	state State
 
 	// registered interop hooks.
-	interop map[string]InteropFuncPrice
+	interop map[uint32]InteropFuncPrice
 
 	// callback to get scripts.
 	getScript func(util.Uint160) []byte
@@ -61,7 +62,7 @@ type InteropFuncPrice struct {
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New(mode Mode) *VM {
 	vm := &VM{
-		interop:   make(map[string]InteropFuncPrice),
+		interop:   make(map[uint32]InteropFuncPrice),
 		getScript: nil,
 		state:     haltState,
 		istack:    NewStack("invocation"),
@@ -79,9 +80,16 @@ func New(mode Mode) *VM {
 	return vm
 }
 
+// InteropFuncID returns uint32 of the method.
+func InteropFuncID(name string) uint32 {
+	h := sha256.Sum256([]byte(name))
+	return binary.LittleEndian.Uint32(h[:4])
+}
+
 // RegisterInteropFunc will register the given InteropFunc to the VM.
 func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
-	v.interop[name] = InteropFuncPrice{f, price}
+	id := InteropFuncID(name)
+	v.interop[id] = InteropFuncPrice{f, price}
 }
 
 // RegisterInteropFuncs will register all interop functions passed in a map in
@@ -89,7 +97,8 @@ func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
 func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	// We allow reregistration here.
 	for name, funPrice := range interops {
-		v.interop[name] = funPrice
+		id := InteropFuncID(name)
+		v.interop[id] = funPrice
 	}
 }
 
@@ -959,9 +968,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		v.execute(v.Context(), JMP, parameter)
 
 	case SYSCALL:
-		ifunc, ok := v.interop[string(parameter)]
+		id := binary.LittleEndian.Uint32(parameter)
+		ifunc, ok := v.interop[id]
 		if !ok {
-			panic(fmt.Sprintf("interop hook (%q) not registered", parameter))
+			panic(fmt.Sprintf("interop hook (%d) not registered", id))
 		}
 		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))

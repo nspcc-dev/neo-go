@@ -46,7 +46,7 @@ func (c *Context) Next() (Instruction, []byte, error) {
 
 	var numtoread int
 	switch instr {
-	case PUSHDATA1, SYSCALL:
+	case PUSHDATA1:
 		var n byte
 		r.ReadLE(&n)
 		numtoread = int(n)
@@ -61,6 +61,8 @@ func (c *Context) Next() (Instruction, []byte, error) {
 		r.ReadLE(&n)
 		numtoread = int(n)
 		c.nextip += 4
+	case SYSCALL:
+		numtoread = 4
 	case JMP, JMPIF, JMPIFNOT, CALL:
 		numtoread = 2
 	case APPCALL, TAILCALL:

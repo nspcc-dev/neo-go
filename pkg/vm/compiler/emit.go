@@ -83,9 +83,8 @@ func emitSyscall(w *bytes.Buffer, api string) error {
 	if len(api) == 0 {
 		return errors.New("syscall api cannot be of length 0")
 	}
-	buf := make([]byte, len(api)+1)
-	buf[0] = byte(len(api))
-	copy(buf[1:], []byte(api))
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, vm.InteropFuncID(api))
 	return emit(w, vm.SYSCALL, buf)
 }
 

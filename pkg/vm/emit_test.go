@@ -48,9 +48,10 @@ func TestEmitSyscall(t *testing.T) {
 	buf := new(bytes.Buffer)
 	for _, syscall := range syscalls {
 		EmitSyscall(buf, syscall)
-		assert.Equal(t, Instruction(buf.Bytes()[0]), SYSCALL)
-		assert.Equal(t, buf.Bytes()[1], uint8(len(syscall)))
-		assert.Equal(t, buf.Bytes()[2:], []byte(syscall))
+		id := InteropFuncID(syscall)
+		b := buf.Bytes()
+		assert.Equal(t, Instruction(b[0]), SYSCALL)
+		assert.Equal(t, binary.LittleEndian.Uint32(b[1:]), id)
 		buf.Reset()
 	}
 }

@@ -35,7 +35,7 @@ func TestRegisterInterop(t *testing.T) {
 	currRegistered := len(v.interop)
 	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil }, 1)
 	assert.Equal(t, currRegistered+1, len(v.interop))
-	_, ok := v.interop["foo"]
+	_, ok := v.interop[InteropFuncID("foo")]
 	assert.Equal(t, true, ok)
 }
 
