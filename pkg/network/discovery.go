@@ -115,7 +115,7 @@ func (d *DefaultDiscovery) BadPeers() []string {
 }
 
 // GoodPeers returns all addresses of known good peers (that at least once
-// succeded handshaking with us).
+// succeeded handshaking with us).
 func (d *DefaultDiscovery) GoodPeers() []string {
 	addrs := make([]string, 0, len(d.goodAddrs))
 	for addr := range d.goodAddrs {
@@ -125,7 +125,7 @@ func (d *DefaultDiscovery) GoodPeers() []string {
 }
 
 // RegisterGoodAddr registers good known connected address that passed
-// handshake successfuly.
+// handshake successfully.
 func (d *DefaultDiscovery) RegisterGoodAddr(s string) {
 	d.goodCh <- s
 }
