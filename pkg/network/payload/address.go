@@ -45,7 +45,7 @@ func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
 
 // IPPortString makes a string from IP and port specified.
 func (p *AddressAndTime) IPPortString() string {
-	var netip net.IP = make(net.IP, 16)
+	var netip = make(net.IP, 16)
 
 	copy(netip, p.IP[:])
 	port := strconv.Itoa(int(p.Port))

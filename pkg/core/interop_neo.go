@@ -417,7 +417,7 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 */
 // createContractStateFromVM pops all contract state elements from the VM
 // evaluation stack, does a lot of checks and returns ContractState if it
-// succeedes.
+// succeeds.
 func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*ContractState, error) {
 	if ic.trigger != 0x10 {
 		return nil, errors.New("can't create contract when not triggered by an application")

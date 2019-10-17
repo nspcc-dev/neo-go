@@ -464,7 +464,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 func (bc *Blockchain) persist(ctx context.Context) error {
 	var (
 		start     = time.Now()
-		persisted = 0
+		persisted int
 		err       error
 	)
 
