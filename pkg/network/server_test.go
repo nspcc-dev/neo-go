@@ -67,15 +67,9 @@ func TestServerNotSendsVerack(t *testing.T) {
 	p.netaddr = *na
 	s.register <- p
 
-	// Port should mismatch
-	version := payload.NewVersion(1337, 2000, "/NEO-GO/", 0, true)
-	err := s.handleVersionCmd(p, version)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "port mismatch")
-
 	// identical id's
-	version = payload.NewVersion(1, 3000, "/NEO-GO/", 0, true)
-	err = s.handleVersionCmd(p, version)
+	version := payload.NewVersion(1, 3000, "/NEO-GO/", 0, true)
+	err := s.handleVersionCmd(p, version)
 	assert.NotNil(t, err)
 	assert.Equal(t, errIdenticalID, err)
 }
