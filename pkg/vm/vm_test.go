@@ -538,6 +538,14 @@ func TestNEWARRAYByteArray(t *testing.T) {
 	assert.Equal(t, &ArrayItem{[]StackItem{}}, vm.estack.Pop().value)
 }
 
+func TestNEWARRAYBadSize(t *testing.T) {
+	prog := makeProgram(NEWARRAY)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize + 1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
+}
+
 func TestNEWSTRUCTInteger(t *testing.T) {
 	prog := makeProgram(NEWSTRUCT)
 	vm := load(prog)
@@ -578,6 +586,14 @@ func TestNEWSTRUCTByteArray(t *testing.T) {
 	assert.Equal(t, false, vm.HasFailed())
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, &StructItem{[]StackItem{}}, vm.estack.Pop().value)
+}
+
+func TestNEWSTRUCTBadSize(t *testing.T) {
+	prog := makeProgram(NEWSTRUCT)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize + 1)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
 func TestAPPENDArray(t *testing.T) {
@@ -634,6 +650,24 @@ func TestAPPENDWrongType(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestAPPENDGoodSizeLimit(t *testing.T) {
+	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize - 1)
+	vm.Run()
+	assert.Equal(t, false, vm.state.HasFlag(faultState))
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, MaxArraySize, len(vm.estack.Pop().Array()))
+}
+
+func TestAPPENDBadSizeLimit(t *testing.T) {
+	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	vm := load(prog)
+	vm.estack.PushVal(MaxArraySize)
+	vm.Run()
+	assert.Equal(t, true, vm.state.HasFlag(faultState))
 }
 
 func TestPICKITEMBadIndex(t *testing.T) {
@@ -698,6 +732,38 @@ func TestSETITEMMap(t *testing.T) {
 	assert.Equal(t, false, vm.HasFailed())
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
+}
+
+func TestSETITEMBigMapBad(t *testing.T) {
+	prog := makeProgram(SETITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	for i := 0; i < MaxArraySize; i++ {
+		m.Add(makeStackItem(i), makeStackItem(i))
+	}
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(MaxArraySize)
+	vm.estack.PushVal(0)
+
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestSETITEMBigMapGood(t *testing.T) {
+	prog := makeProgram(SETITEM)
+	vm := load(prog)
+
+	m := NewMapItem()
+	for i := 0; i < MaxArraySize; i++ {
+		m.Add(makeStackItem(i), makeStackItem(i))
+	}
+	vm.estack.Push(&Element{value: m})
+	vm.estack.PushVal(0)
+	vm.estack.PushVal(0)
+
+	vm.Run()
+	assert.Equal(t, false, vm.HasFailed())
 }
 
 func TestSIZENoArgument(t *testing.T) {
@@ -1566,6 +1632,17 @@ func TestPACKBadLen(t *testing.T) {
 	prog := makeProgram(PACK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
+	vm.Run()
+	assert.Equal(t, true, vm.HasFailed())
+}
+
+func TestPACKBigLen(t *testing.T) {
+	prog := makeProgram(PACK)
+	vm := load(prog)
+	for i := 0; i <= MaxArraySize; i++ {
+		vm.estack.PushVal(0)
+	}
+	vm.estack.PushVal(MaxArraySize + 1)
 	vm.Run()
 	assert.Equal(t, true, vm.HasFailed())
 }

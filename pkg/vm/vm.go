@@ -753,8 +753,11 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		case *ArrayItem:
 			v.estack.PushVal(t)
 		default:
-			n := item.BigInt()
-			items := makeArrayOfFalses(int(n.Int64()))
+			n := item.BigInt().Int64()
+			if n > MaxArraySize {
+				panic("too long array")
+			}
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&ArrayItem{items})
 		}
 
@@ -766,8 +769,11 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		case *StructItem:
 			v.estack.PushVal(t)
 		default:
-			n := item.BigInt()
-			items := makeArrayOfFalses(int(n.Int64()))
+			n := item.BigInt().Int64()
+			if n > MaxArraySize {
+				panic("too long struct")
+			}
+			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&StructItem{items})
 		}
 
@@ -780,10 +786,16 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		switch t := arrElem.value.(type) {
 		case *ArrayItem:
 			arr := t.Value().([]StackItem)
+			if len(arr) >= MaxArraySize {
+				panic("too long array")
+			}
 			arr = append(arr, val)
 			t.value = arr
 		case *StructItem:
 			arr := t.Value().([]StackItem)
+			if len(arr) >= MaxArraySize {
+				panic("too long struct")
+			}
 			arr = append(arr, val)
 			t.value = arr
 		default:
@@ -792,7 +804,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 
 	case PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() {
+		if n < 0 || n > v.estack.Len() || n > MaxArraySize {
 			panic("OPACK: invalid length")
 		}
 
@@ -859,6 +871,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			}
 			arr[index] = item
 		case *MapItem:
+			if !t.Has(key.value) && len(t.value) >= MaxArraySize {
+				panic("too big map")
+			}
 			t.Add(key.value, item)
 
 		default:
