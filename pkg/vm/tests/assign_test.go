@@ -131,5 +131,5 @@ var assignTestCases = []testCase{
 }
 
 func TestAssignments(t *testing.T) {
-	run_testcases(t, assignTestCases)
+	runTestCases(t, assignTestCases)
 }

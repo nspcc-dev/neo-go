@@ -189,5 +189,5 @@ var binaryExprTestCases = []testCase{
 }
 
 func TestBinaryExprs(t *testing.T) {
-	run_testcases(t, binaryExprTestCases)
+	runTestCases(t, binaryExprTestCases)
 }

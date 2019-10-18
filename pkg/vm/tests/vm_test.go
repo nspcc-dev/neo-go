@@ -16,7 +16,7 @@ type testCase struct {
 	result interface{}
 }
 
-func run_testcases(t *testing.T, tcases []testCase) {
+func runTestCases(t *testing.T, tcases []testCase) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) { eval(t, tcase.src, tcase.result) })
 	}

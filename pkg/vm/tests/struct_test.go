@@ -240,5 +240,5 @@ var structTestCases = []testCase{
 }
 
 func TestStructs(t *testing.T) {
-	run_testcases(t, structTestCases)
+	runTestCases(t, structTestCases)
 }
