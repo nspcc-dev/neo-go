@@ -164,7 +164,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 		"908a398dd65dfd2aad6c06090c5a71d5e5280746577a6ddd5a1f2c1453f71ead": false,
 	}
 
-	hashes := []string{}
+	var hashes []string
 
 	for _, tx := range b.Transactions {
 		switch tx.Type {
