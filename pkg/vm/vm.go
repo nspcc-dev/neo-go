@@ -756,7 +756,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
 		case *StructItem:
-			v.estack.PushVal(&ArrayItem{t.value})
+			arr := make([]StackItem, len(t.value))
+			copy(arr, t.value)
+			v.estack.PushVal(&ArrayItem{arr})
 		case *ArrayItem:
 			v.estack.PushVal(t)
 		default:
@@ -772,7 +774,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
 		case *ArrayItem:
-			v.estack.PushVal(&StructItem{t.value})
+			arr := make([]StackItem, len(t.value))
+			copy(arr, t.value)
+			v.estack.PushVal(&StructItem{arr})
 		case *StructItem:
 			v.estack.PushVal(t)
 		default:

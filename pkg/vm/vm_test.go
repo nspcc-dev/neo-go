@@ -528,6 +528,39 @@ func TestNEWARRAYStruct(t *testing.T) {
 	assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
 }
 
+func testNEWARRAYIssue437(t *testing.T, i1, i2 Instruction, appended bool) {
+	prog := makeProgram(
+		PUSH2, i1,
+		DUP, PUSH3, APPEND,
+		TOALTSTACK, DUPFROMALTSTACK, i2,
+		DUP, PUSH4, APPEND,
+		FROMALTSTACK, PUSH5, APPEND)
+	vm := load(prog)
+	vm.Run()
+
+	arr := makeArrayOfFalses(4)
+	arr[2] = makeStackItem(3)
+	arr[3] = makeStackItem(4)
+	if appended {
+		arr = append(arr, makeStackItem(5))
+	}
+
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	if i2 == NEWARRAY {
+		assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
+	} else {
+		assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
+	}
+}
+
+func TestNEWARRAYIssue437(t *testing.T) {
+	t.Run("Array+Array", func(t *testing.T) { testNEWARRAYIssue437(t, NEWARRAY, NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, NEWSTRUCT, NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, NEWARRAY, NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testNEWARRAYIssue437(t, NEWSTRUCT, NEWARRAY, false) })
+}
+
 func TestNEWARRAYArray(t *testing.T) {
 	prog := makeProgram(NEWARRAY)
 	vm := load(prog)
@@ -1730,6 +1763,39 @@ func TestREVERSEBadNotArray(t *testing.T) {
 	vm.estack.PushVal(1)
 	vm.Run()
 	assert.Equal(t, true, vm.HasFailed())
+}
+
+func testREVERSEIssue437(t *testing.T, i1, i2 Instruction, reversed bool) {
+	prog := makeProgram(
+		PUSH0, i1,
+		DUP, PUSH1, APPEND,
+		DUP, PUSH2, APPEND,
+		DUP, i2, REVERSE)
+	vm := load(prog)
+	vm.Run()
+
+	arr := make([]StackItem, 2)
+	if reversed {
+		arr[0] = makeStackItem(2)
+		arr[1] = makeStackItem(1)
+	} else {
+		arr[0] = makeStackItem(1)
+		arr[1] = makeStackItem(2)
+	}
+	assert.Equal(t, false, vm.HasFailed())
+	assert.Equal(t, 1, vm.estack.Len())
+	if i1 == NEWARRAY {
+		assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
+	} else {
+		assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
+	}
+}
+
+func TestREVERSEIssue437(t *testing.T) {
+	t.Run("Array+Array", func(t *testing.T) { testREVERSEIssue437(t, NEWARRAY, NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEIssue437(t, NEWSTRUCT, NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testREVERSEIssue437(t, NEWARRAY, NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testREVERSEIssue437(t, NEWSTRUCT, NEWARRAY, false) })
 }
 
 func TestREVERSEGoodOneElem(t *testing.T) {
