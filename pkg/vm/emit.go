@@ -91,7 +91,7 @@ func EmitSyscall(w *bytes.Buffer, api string) error {
 	}
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
-	copy(buf[1:], []byte(api))
+	copy(buf[1:], api)
 	return Emit(w, SYSCALL, buf)
 }
 
