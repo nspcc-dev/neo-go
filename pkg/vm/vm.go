@@ -79,12 +79,12 @@ func New(mode Mode) *VM {
 	return vm
 }
 
-// RegisterInteropFunc will register the given InteropFunc to the VM.
+// RegisterInteropFunc registers the given InteropFunc to the VM.
 func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
 	v.interop[name] = InteropFuncPrice{f, price}
 }
 
-// RegisterInteropFuncs will register all interop functions passed in a map in
+// RegisterInteropFuncs registers all interop functions passed in a map in
 // the VM. Effectively it's a batched version of RegisterInteropFunc.
 func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	// We allow reregistration here.
@@ -93,22 +93,22 @@ func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	}
 }
 
-// Estack will return the evaluation stack so interop hooks can utilize this.
+// Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
 }
 
-// Astack will return the alt stack so interop hooks can utilize this.
+// Astack returns the alt stack so interop hooks can utilize this.
 func (v *VM) Astack() *Stack {
 	return v.astack
 }
 
-// Istack will return the invocation stack so interop hooks can utilize this.
+// Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return v.istack
 }
 
-// LoadArgs will load in the arguments used in the Mian entry point.
+// LoadArgs loads in the arguments used in the Mian entry point.
 func (v *VM) LoadArgs(method []byte, args []StackItem) {
 	if len(args) > 0 {
 		v.estack.PushVal(args)
@@ -118,7 +118,7 @@ func (v *VM) LoadArgs(method []byte, args []StackItem) {
 	}
 }
 
-// PrintOps will print the opcodes of the current loaded program to stdout.
+// PrintOps prints the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
@@ -176,7 +176,7 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// LoadFile will load a program from the given path, ready to execute it.
+// LoadFile loads a program from the given path, ready to execute it.
 func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -195,7 +195,7 @@ func (v *VM) Load(prog []byte) {
 	v.istack.PushVal(NewContext(prog))
 }
 
-// LoadScript will load a script from the internal script table. It
+// LoadScript loads a script from the internal script table. It
 // will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
@@ -237,7 +237,7 @@ func (v *VM) Stack(n string) string {
 	return buildStackOutput(s)
 }
 
-// Ready return true if the VM ready to execute the loaded program.
+// Ready returns true if the VM ready to execute the loaded program.
 // Will return false if no program is loaded.
 func (v *VM) Ready() bool {
 	return v.istack.Len() > 0
@@ -289,7 +289,7 @@ func (v *VM) Step() {
 	v.execute(ctx, op, param)
 }
 
-// StepInto behaves the same as “step over” in case if the line does not contain a function it otherwise
+// StepInto behaves the same as “step over” in case if the line does not contain a function. Otherwise
 // the debugger will enter the called function and continue line-by-line debugging there.
 func (v *VM) StepInto() {
 	ctx := v.Context()
@@ -436,11 +436,13 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			panic("can't TUCK with a one-element stack")
 		}
 		v.estack.InsertAt(a, 2)
+
 	case CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
 		ab := append(a, b...)
 		v.estack.PushVal(ab)
+
 	case SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -459,6 +461,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			last = len(s)
 		}
 		v.estack.PushVal(s[o:last])
+
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -469,6 +472,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			l = t
 		}
 		v.estack.PushVal(s[:l])
+
 	case RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -476,6 +480,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		}
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
+
 	case XDROP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
