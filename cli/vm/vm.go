@@ -9,9 +9,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-// NewCommand creates a new VM command.
-func NewCommand() cli.Command {
-	return cli.Command{
+// NewCommands returns 'vm' command.
+func NewCommands() []cli.Command {
+	return []cli.Command{{
 		Name:   "vm",
 		Usage:  "start the virtual machine",
 		Action: startVMPrompt,
@@ -31,7 +31,7 @@ func NewCommand() cli.Command {
 				},
 			},
 		},
-	}
+	}}
 }
 
 func startVMPrompt(ctx *cli.Context) error {

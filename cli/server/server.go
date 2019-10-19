@@ -16,9 +16,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-// NewCommand creates a new Node command.
-func NewCommand() cli.Command {
-	return cli.Command{
+// NewCommands returns 'node' command.
+func NewCommands() []cli.Command {
+	return []cli.Command{{
 		Name:   "node",
 		Usage:  "start a NEO node",
 		Action: startServer,
@@ -29,7 +29,7 @@ func NewCommand() cli.Command {
 			cli.BoolFlag{Name: "testnet, t"},
 			cli.BoolFlag{Name: "debug, d"},
 		},
-	}
+	}}
 }
 
 func newGraceContext() context.Context {

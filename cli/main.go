@@ -17,12 +17,10 @@ func main() {
 	ctl.Version = config.Version
 	ctl.Usage = "Official Go client for Neo"
 
-	ctl.Commands = []cli.Command{
-		server.NewCommand(),
-		smartcontract.NewCommand(),
-		wallet.NewCommand(),
-		vm.NewCommand(),
-	}
+	ctl.Commands = append(ctl.Commands, server.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, smartcontract.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, wallet.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, vm.NewCommands()...)
 
 	if err := ctl.Run(os.Args); err != nil {
 		panic(err)

@@ -16,9 +16,9 @@ var (
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
-// NewCommand creates a new Wallet command.
-func NewCommand() cli.Command {
-	return cli.Command{
+// NewCommands returns 'wallet' command.
+func NewCommands() []cli.Command {
+	return []cli.Command{{
 		Name:  "wallet",
 		Usage: "create, open and manage a NEO wallet",
 		Subcommands: []cli.Command{
@@ -49,7 +49,7 @@ func NewCommand() cli.Command {
 				},
 			},
 		},
-	}
+	}}
 }
 
 func openWallet(ctx *cli.Context) error {
