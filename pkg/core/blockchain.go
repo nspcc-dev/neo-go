@@ -137,7 +137,16 @@ func (bc *Blockchain) init() error {
 	// that with stored blocks.
 	if currHeaderHeight > bc.storedHeaderCount {
 		hash := currHeaderHash
-		targetHash := bc.headerList.Get(bc.headerList.Len() - 1)
+		var targetHash util.Uint256
+		if bc.headerList.Len() > 0 {
+			targetHash = bc.headerList.Get(bc.headerList.Len() - 1)
+		} else {
+			genesisBlock, err := createGenesisBlock(bc.config)
+			if err != nil {
+				return err
+			}
+			targetHash = genesisBlock.Hash()
+		}
 		headers := make([]*Header, 0)
 
 		for hash != targetHash {
