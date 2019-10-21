@@ -122,15 +122,14 @@ func IsDoubleSpend(s storage.Store, tx *transaction.Transaction) bool {
 			if r.Err != nil {
 				return false
 			}
-			if unspent == nil {
-				return true
-			}
 
 			for _, input := range inputs {
 				if int(input.PrevIndex) >= len(unspent.states) || unspent.states[input.PrevIndex] == CoinStateSpent {
 					return true
 				}
 			}
+		} else {
+			return true
 		}
 
 	}
