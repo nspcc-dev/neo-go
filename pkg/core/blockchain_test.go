@@ -134,10 +134,12 @@ func TestGetTransaction(t *testing.T) {
 	b1 := getDecodedBlock(t, 1)
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
+	// Turn verification off, because these blocks are really from some other chain
+	// and can't be verified, but we don't care about that in this test.
+	bc.config.VerifyBlocks = false
 
-	// These are from some kind of different chain, so can't be added via AddBlock().
-	assert.Nil(t, bc.storeBlock(b1))
-	assert.Nil(t, bc.storeBlock(block))
+	assert.Nil(t, bc.AddBlock(b1))
+	assert.Nil(t, bc.AddBlock(block))
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {

@@ -488,13 +488,16 @@ func (bc *Blockchain) persist() error {
 	oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
 	diff := bHeight - oldHeight
 
+	storedHeaderHeight, _, err := storage.CurrentHeaderHeight(bc.store)
+	if err != nil {
+		return err
+	}
 	if persisted > 0 {
 		log.WithFields(log.Fields{
 			"persistedBlocks": diff,
 			"persistedKeys":   persisted,
-			"headerHeight":    bc.HeaderHeight(),
-			"blockHeight":     bc.BlockHeight(),
-			"persistedHeight": atomic.LoadUint32(&bc.persistedHeight),
+			"headerHeight":    storedHeaderHeight,
+			"blockHeight":     bHeight,
 			"took":            time.Since(start),
 		}).Info("blockchain persist completed")
 	}
