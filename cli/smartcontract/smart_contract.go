@@ -35,9 +35,9 @@ func Main(op string, args []interface{}) {
 }`
 )
 
-// NewCommand returns a new contract command.
-func NewCommand() cli.Command {
-	return cli.Command{
+// NewCommands returns 'contract' command.
+func NewCommands() []cli.Command {
+	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
 		Subcommands: []cli.Command{
@@ -98,7 +98,7 @@ func NewCommand() cli.Command {
 				},
 			},
 		},
-	}
+	}}
 }
 
 // initSmartContract initializes a given directory with some boiler plate code.

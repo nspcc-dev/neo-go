@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -53,7 +52,7 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 
 	// This one tests persisting blocks, so it does need to persist()
-	require.NoError(t, bc.persist(context.Background()))
+	require.NoError(t, bc.persist())
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
@@ -82,7 +81,7 @@ func TestGetHeader(t *testing.T) {
 		b2 := newBlock(2)
 		_, err = bc.GetHeader(b2.Hash())
 		assert.Error(t, err)
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -106,7 +105,7 @@ func TestGetBlock(t *testing.T) {
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
 		}
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -127,7 +126,7 @@ func TestHasBlock(t *testing.T) {
 		}
 		newBlock := newBlock(51)
 		assert.False(t, bc.HasBlock(newBlock.Hash()))
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -135,10 +134,12 @@ func TestGetTransaction(t *testing.T) {
 	b1 := getDecodedBlock(t, 1)
 	block := getDecodedBlock(t, 2)
 	bc := newTestChain(t)
+	// Turn verification off, because these blocks are really from some other chain
+	// and can't be verified, but we don't care about that in this test.
+	bc.config.VerifyBlocks = false
 
-	// These are from some kind of different chain, so can't be added via AddBlock().
-	assert.Nil(t, bc.storeBlock(b1))
-	assert.Nil(t, bc.storeBlock(block))
+	assert.Nil(t, bc.AddBlock(b1))
+	assert.Nil(t, bc.AddBlock(block))
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
@@ -151,6 +152,6 @@ func TestGetTransaction(t *testing.T) {
 		assert.Equal(t, 1, io.GetVarSize(tx.Inputs))
 		assert.Equal(t, 1, io.GetVarSize(tx.Outputs))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
