@@ -67,7 +67,7 @@ func makeStackItem(v interface{}) StackItem {
 	case StackItem:
 		return val
 	case []int:
-		a := []StackItem{}
+		var a []StackItem
 		for _, i := range val {
 			a = append(a, makeStackItem(i))
 		}

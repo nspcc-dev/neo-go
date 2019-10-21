@@ -87,7 +87,7 @@ func CompileAndSave(src string, o *Options) error {
 	}
 	b, err = Compile(bytes.NewReader(b), o)
 	if err != nil {
-		return fmt.Errorf("Error while trying to compile smart contract file: %v", err)
+		return fmt.Errorf("error while trying to compile smart contract file: %v", err)
 	}
 
 	log.Println(hex.EncodeToString(b))

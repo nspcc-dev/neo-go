@@ -21,5 +21,5 @@ var numericTestCases = []testCase{
 }
 
 func TestNumericExprs(t *testing.T) {
-	run_testcases(t, numericTestCases)
+	runTestCases(t, numericTestCases)
 }

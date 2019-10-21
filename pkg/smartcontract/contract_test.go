@@ -28,7 +28,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 
 	for i := 0; i < len(validators); i++ {
 		bb := br.ReadBytes()
-		if err != nil {
+		if br.Err != nil {
 			t.Fatal(err)
 		}
 		assert.Equal(t, validators[i].Bytes(), bb)

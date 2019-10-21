@@ -17,7 +17,7 @@ func TestEncodeDecodeContract(t *testing.T) {
 	assert.Equal(t, ContractType, tx.Type)
 	assert.IsType(t, tx.Data, &ContractTX{})
 	assert.Equal(t, 0, int(tx.Version))
-	assert.Equal(t, 1, int(len(tx.Inputs)))
+	assert.Equal(t, 1, len(tx.Inputs))
 
 	input := tx.Inputs[0]
 

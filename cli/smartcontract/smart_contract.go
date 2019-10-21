@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	errNoInput             = errors.New("No input file was found, specify an input file with the '--in or -i' flag")
-	errNoSmartContractName = errors.New("No name was provided, specify the '--name or -n' flag")
+	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
+	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 )
 
