@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
@@ -53,7 +52,7 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 
 	// This one tests persisting blocks, so it does need to persist()
-	require.NoError(t, bc.persist(context.Background()))
+	require.NoError(t, bc.persist())
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
@@ -82,7 +81,7 @@ func TestGetHeader(t *testing.T) {
 		b2 := newBlock(2)
 		_, err = bc.GetHeader(b2.Hash())
 		assert.Error(t, err)
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -106,7 +105,7 @@ func TestGetBlock(t *testing.T) {
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
 		}
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -127,7 +126,7 @@ func TestHasBlock(t *testing.T) {
 		}
 		newBlock := newBlock(51)
 		assert.False(t, bc.HasBlock(newBlock.Hash()))
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }
 
@@ -151,6 +150,6 @@ func TestGetTransaction(t *testing.T) {
 		assert.Equal(t, 1, io.GetVarSize(tx.Inputs))
 		assert.Equal(t, 1, io.GetVarSize(tx.Outputs))
 		assert.Equal(t, 1, io.GetVarSize(tx.Scripts))
-		assert.NoError(t, bc.persist(context.Background()))
+		assert.NoError(t, bc.persist())
 	}
 }

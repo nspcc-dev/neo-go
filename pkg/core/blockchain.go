@@ -175,7 +175,7 @@ func (bc *Blockchain) Run(ctx context.Context) {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
-		if err := bc.persist(ctx); err != nil {
+		if err := bc.persist(); err != nil {
 			log.Warnf("failed to persist: %s", err)
 		}
 		if err := bc.store.Close(); err != nil {
@@ -191,7 +191,7 @@ func (bc *Blockchain) Run(ctx context.Context) {
 			bc.headersOpDone <- struct{}{}
 		case <-persistTimer.C:
 			go func() {
-				err := bc.persist(ctx)
+				err := bc.persist()
 				if err != nil {
 					log.Warnf("failed to persist blockchain: %s", err)
 				}
@@ -470,7 +470,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 }
 
 // persist flushes current in-memory store contents to the persistent storage.
-func (bc *Blockchain) persist(ctx context.Context) error {
+func (bc *Blockchain) persist() error {
 	var (
 		start     = time.Now()
 		persisted int
