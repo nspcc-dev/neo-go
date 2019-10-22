@@ -1,7 +1,5 @@
 <p align="center">
-<img
-    src="https://neo-cdn.azureedge.net/images/neo_logo.svg"
-    width="250px">
+<img src="./.github/neo_color_dark_gopher.png" width="300px" alt="logo">
 </p>
 <p align="center">
   <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
