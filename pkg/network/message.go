@@ -32,11 +32,11 @@ type Message struct {
 	// the extra part is filled with 0.
 	Command [cmdSize]byte
 
-	// Length of the payload
+	// Length of the payload.
 	Length uint32
 
 	// Checksum is the first 4 bytes of the value that two times SHA256
-	// hash of the payload
+	// hash of the payload.
 	Checksum uint32
 
 	// Payload send with the message.
@@ -146,7 +146,7 @@ func (m *Message) CommandType() CommandType {
 	}
 }
 
-// Decode a Message from the given reader.
+// Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
 	br.ReadLE(&m.Magic)
 	br.ReadLE(&m.Command)
@@ -210,7 +210,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	return nil
 }
 
-// Encode a Message to any given BinWriter.
+// Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteLE(m.Magic)
 	br.WriteLE(m.Command)

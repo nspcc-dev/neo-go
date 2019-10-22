@@ -24,7 +24,7 @@ func CreateSignatureRedeemScript(key *keys.PublicKey) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// CreateMultiSigRedeemScript will create a script runnable by the VM.
+// CreateMultiSigRedeemScript creates a script runnable by the VM.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m <= 1 {
 		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)

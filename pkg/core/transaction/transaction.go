@@ -59,7 +59,7 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 	}
 }
 
-// Hash return the hash of the transaction.
+// Hash returns the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
 	if t.hash.Equals(util.Uint256{}) {
 		if t.createHash() != nil {
@@ -173,7 +173,7 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 	}
 }
 
-// encodeHashableFields will only encode the fields that are not used for
+// encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteLE(t.Type)
@@ -236,7 +236,7 @@ func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 	return m
 }
 
-// Bytes convert the transaction to []byte
+// Bytes converts the transaction to []byte
 func (t *Transaction) Bytes() []byte {
 	buf := io.NewBufBinWriter()
 	t.EncodeBinary(buf.BinWriter)

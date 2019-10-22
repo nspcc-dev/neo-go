@@ -164,19 +164,19 @@ func NewStack(n string) *Stack {
 	return s
 }
 
-// Clear will clear all elements on the stack and set its length to 0.
+// Clear clears all elements on the stack and set its length to 0.
 func (s *Stack) Clear() {
 	s.top.next = &s.top
 	s.top.prev = &s.top
 	s.len = 0
 }
 
-// Len return the number of elements that are on the stack.
+// Len returns the number of elements that are on the stack.
 func (s *Stack) Len() int {
 	return s.len
 }
 
-// insert will insert the element after element (at) on the stack.
+// insert inserts the element after element (at) on the stack.
 func (s *Stack) insert(e, at *Element) *Element {
 	// If we insert an element that is already popped from this stack,
 	// we need to clean it up, there are still pointers referencing to it.
@@ -194,7 +194,7 @@ func (s *Stack) insert(e, at *Element) *Element {
 	return e
 }
 
-// InsertAt will insert the given item (n) deep on the stack.
+// InsertAt inserts the given item (n) deep on the stack.
 // Be very careful using it and _always_ check both e and n before invocation
 // as it will silently do wrong things otherwise.
 func (s *Stack) InsertAt(e *Element, n int) *Element {
@@ -210,7 +210,7 @@ func (s *Stack) Push(e *Element) {
 	s.insert(e, &s.top)
 }
 
-// PushVal will push the given value on the stack. It will infer the
+// PushVal pushes the given value on the stack. It will infer the
 // underlying StackItem to its corresponding type.
 func (s *Stack) PushVal(v interface{}) {
 	s.Push(NewElement(v))
@@ -273,7 +273,7 @@ func (s *Stack) Remove(e *Element) *Element {
 	return e
 }
 
-// Dup will duplicate and return the element at position n.
+// Dup duplicates and returns the element at position n.
 // Dup is used for copying elements on to the top of its own stack.
 // 	s.Push(s.Peek(0)) // will result in unexpected behaviour.
 // 	s.Push(s.Dup(0)) // is the correct approach.
@@ -288,7 +288,7 @@ func (s *Stack) Dup(n int) *Element {
 	}
 }
 
-// Iter will iterate over all the elements int the stack, starting from the top
+// Iter iterates over all the elements int the stack, starting from the top
 // of the stack.
 // 	s.Iter(func(elem *Element) {
 //		// do something with the element.

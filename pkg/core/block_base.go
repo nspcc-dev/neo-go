@@ -53,7 +53,7 @@ func (b *BlockBase) Verify() bool {
 	return true
 }
 
-// Hash return the hash of the block.
+// Hash returns the hash of the block.
 func (b *BlockBase) Hash() util.Uint256 {
 	if b.hash.Equals(util.Uint256{}) {
 		b.createHash()
@@ -132,7 +132,7 @@ func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteLE(b.NextConsensus)
 }
 
-// decodeHashableFields will only decode the fields used for hashing.
+// decodeHashableFields decodes the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
 	br.ReadLE(&b.Version)

@@ -18,7 +18,7 @@ type TCPTransport struct {
 
 var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
 
-// NewTCPTransport return a new TCPTransport that will listen for
+// NewTCPTransport returns a new TCPTransport that will listen for
 // new incoming peer connections.
 func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
 	return &TCPTransport{

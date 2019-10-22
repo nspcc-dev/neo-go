@@ -2,7 +2,7 @@ package smartcontract
 
 import "github.com/CityOfZion/neo-go/pkg/util"
 
-// ParamType represent the Type of the contract parameter
+// ParamType represents the Type of the contract parameter.
 type ParamType byte
 
 // A list of supported smart contract parameter types.
@@ -31,7 +31,7 @@ const (
 
 // Parameter represents a smart contract parameter.
 type Parameter struct {
-	// Type of the parameter
+	// Type of the parameter.
 	Type ParamType `json:"type"`
 	// The actual value of the parameter.
 	Value interface{} `json:"value"`

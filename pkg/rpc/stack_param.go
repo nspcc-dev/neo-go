@@ -13,7 +13,7 @@ import (
 // StackParamType represents different types of stack values.
 type StackParamType int
 
-// All possible StackParamType values are listed here
+// All possible StackParamType values are listed here.
 const (
 	Unknown          StackParamType = -1
 	Signature        StackParamType = 0x00
@@ -114,7 +114,7 @@ type rawStackParam struct {
 	Value json.RawMessage `json:"value"`
 }
 
-// UnmarshalJSON implements Unmarshaler interface
+// UnmarshalJSON implements Unmarshaler interface.
 func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 	var (
 		r rawStackParam
@@ -179,7 +179,7 @@ func (p *StackParam) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// StackParams in an array of StackParam (TODO: drop it?).
+// StackParams is an array of StackParam (TODO: drop it?).
 type StackParams []StackParam
 
 // TryParseArray converts an array of StackParam into an array of more appropriate things.

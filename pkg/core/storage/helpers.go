@@ -9,14 +9,14 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// Version will attempt to get the current version stored in the
+// Version attempts to get the current version stored in the
 // underlying Store.
 func Version(s Store) (string, error) {
 	version, err := s.Get(SYSVersion.Bytes())
 	return string(version), err
 }
 
-// PutVersion will store the given version in the underlying Store.
+// PutVersion stores the given version in the underlying Store.
 func PutVersion(s Store, v string) error {
 	return s.Put(SYSVersion.Bytes(), []byte(v))
 }

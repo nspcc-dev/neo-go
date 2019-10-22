@@ -20,7 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// tuning parameters
+// Tuning parameters.
 const (
 	headerBatchCount = 2000
 	version          = "0.0.1"
@@ -57,7 +57,7 @@ type Blockchain struct {
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
-	// All operation on headerList must be called from an
+	// All operations on headerList must be called from an
 	// headersOp to be routine safe.
 	headerList *HeaderHashList
 
@@ -70,7 +70,7 @@ type Blockchain struct {
 
 type headersOpFunc func(headerList *HeaderHashList)
 
-// NewBlockchain return a new blockchain object the will use the
+// NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage.
 func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
@@ -235,7 +235,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 	return bc.storeBlock(block)
 }
 
-// AddHeaders will process the given headers and add them to the
+// AddHeaders processes the given headers and add them to the
 // HeaderHashList.
 func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 	var (
@@ -622,7 +622,7 @@ func getHeaderFromStore(s storage.Store, hash util.Uint256) (*Header, error) {
 	return block.Header(), nil
 }
 
-// HasTransaction return true if the blockchain contains he given
+// HasTransaction returns true if the blockchain contains he given
 // transaction hash.
 func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	return bc.memPool.ContainsKey(hash) ||
@@ -639,7 +639,7 @@ func checkTransactionInStore(s storage.Store, hash util.Uint256) bool {
 	return false
 }
 
-// HasBlock return true if the blockchain contains the given
+// HasBlock returns true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
 	if header, err := bc.GetHeader(hash); err == nil {
@@ -666,7 +666,7 @@ func (bc *Blockchain) CurrentHeaderHash() (hash util.Uint256) {
 	return
 }
 
-// GetHeaderHash return the hash from the headerList by its
+// GetHeaderHash returns the hash from the headerList by its
 // height/index.
 func (bc *Blockchain) GetHeaderHash(i int) (hash util.Uint256) {
 	bc.headersOp <- func(headerList *HeaderHashList) {
@@ -686,7 +686,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
-// GetAssetState returns asset state from its assetID
+// GetAssetState returns asset state from its assetID.
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 	return getAssetStateFromStore(bc.store, assetID)
 }
@@ -732,7 +732,7 @@ func getContractStateFromStore(s storage.Store, hash util.Uint160) *ContractStat
 	return &c
 }
 
-// GetAccountState returns the account state from its script hash
+// GetAccountState returns the account state from its script hash.
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *AccountState {
 	as, err := getAccountStateFromStore(bc.store, scriptHash)
 	if as == nil && err != storage.ErrKeyNotFound {
@@ -750,7 +750,7 @@ func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
 	return ucs
 }
 
-// GetConfig returns the config stored in the blockchain
+// GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
@@ -777,12 +777,12 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Inp
 	return references
 }
 
-// FeePerByte returns network fee divided by the size of the transaction
+// FeePerByte returns network fee divided by the size of the transaction.
 func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 	return bc.NetworkFee(t).Div(int64(io.GetVarSize(t)))
 }
 
-// NetworkFee returns network fee
+// NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	inputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range bc.References(t) {
@@ -801,13 +801,13 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	return inputAmount.Sub(outputAmount).Sub(bc.SystemFee(t))
 }
 
-// SystemFee returns system fee
+// SystemFee returns system fee.
 func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
-// IsLowPriority flags a trnsaction as low priority if the network fee is less than
-// LowPriorityThreshold
+// IsLowPriority flags a transaction as low priority if the network fee is less than
+// LowPriorityThreshold.
 func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
 	return bc.NetworkFee(t) < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
 }
@@ -1135,13 +1135,13 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	return nil
 }
 
-// verifyTxWitnesses verify the scripts (witnesses) that come with a given
+// verifyTxWitnesses verifies the scripts (witnesses) that come with a given
 // transaction. It can reorder them by ScriptHash, because that's required to
 // match a slice of script hashes from the Blockchain. Block parameter
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
-// Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file
+// Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file.
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {

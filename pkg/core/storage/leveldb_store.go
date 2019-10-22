@@ -18,7 +18,7 @@ type LevelDBStore struct {
 	path string
 }
 
-// NewLevelDBStore return a new LevelDBStore object that will
+// NewLevelDBStore returns a new LevelDBStore object that will
 // initialize the database found at the given path.
 func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
 	var opts *opt.Options // should be exposed via LevelDBOptions if anything needed

@@ -7,7 +7,7 @@ import (
 // A funcScope represents the scope within the function context.
 // It holds al the local variables along with the initialized struct positions.
 type funcScope struct {
-	// identifier of the function.
+	// Identifier of the function.
 	name string
 
 	// Selector of the function if there is any. Only functions imported
@@ -31,7 +31,7 @@ type funcScope struct {
 	// return value to the stack size.
 	voidCalls map[*ast.CallExpr]bool
 
-	// local variable counter
+	// Local variable counter.
 	i int
 }
 
@@ -46,7 +46,7 @@ func newFuncScope(decl *ast.FuncDecl, label int) *funcScope {
 	}
 }
 
-// analyzeVoidCalls will check for functions that are not assigned
+// analyzeVoidCalls checks for functions that are not assigned
 // and therefore we need to cleanup the return value from the stack.
 func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 	switch n := node.(type) {

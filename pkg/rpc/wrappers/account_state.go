@@ -19,14 +19,14 @@ type AccountState struct {
 	Balances   []Balance         `json:"balances"`
 }
 
-// Balances type for sorting balances in rpc response
+// Balances type for sorting balances in rpc response.
 type Balances []Balance
 
 func (b Balances) Len() int           { return len(b) }
 func (b Balances) Less(i, j int) bool { return bytes.Compare(b[i].Asset[:], b[j].Asset[:]) != -1 }
 func (b Balances) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-// Balance response wrapper
+// Balance response wrapper.
 type Balance struct {
 	Asset util.Uint256 `json:"asset"`
 	Value util.Fixed8  `json:"value"`

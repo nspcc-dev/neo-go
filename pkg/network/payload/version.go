@@ -7,10 +7,10 @@ import (
 )
 
 // Size of the payload not counting UserAgent encoding (which is at least 1 byte
-// for zero-length string)
+// for zero-length string).
 const minVersionSize = 27
 
-// List of Services offered by the node
+// List of Services offered by the node.
 const (
 	nodePeerService uint64 = 1
 	// BloomFilerService uint64 = 2 // Not implemented

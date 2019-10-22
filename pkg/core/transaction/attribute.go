@@ -72,7 +72,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	}
 }
 
-// MarshalJSON implements the json Marschaller interface
+// MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
 		"usage": attr.Usage.String(),

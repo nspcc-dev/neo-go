@@ -85,7 +85,7 @@ func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 	}
 }
 
-// RequestRemote will try to establish a connection with n nodes.
+// RequestRemote tries to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
 	d.requestCh <- n
 }

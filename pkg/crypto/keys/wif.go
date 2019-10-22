@@ -47,7 +47,7 @@ func WIFEncode(key []byte, version byte, compressed bool) (s string, err error) 
 	return
 }
 
-// WIFDecode decoded the given WIF string into a WIF struct.
+// WIFDecode decodes the given WIF string into a WIF struct.
 func WIFDecode(wif string, version byte) (*WIF, error) {
 	b, err := crypto.Base58CheckDecode(wif)
 	if err != nil {
@@ -72,7 +72,7 @@ func WIFDecode(wif string, version byte) (*WIF, error) {
 		S:          wif,
 	}
 
-	// This is an uncompressed WIF
+	// This is an uncompressed WIF.
 	if len(b) == 33 {
 		w.Compressed = false
 		return w, nil

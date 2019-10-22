@@ -52,7 +52,7 @@ type ClientOptions struct {
 	Version string
 }
 
-// NewClient return a new Client ready to use.
+// NewClient returns a new Client ready to use.
 func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Client, error) {
 	url, err := url.Parse(endpoint)
 	if err != nil {

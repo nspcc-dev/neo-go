@@ -20,7 +20,7 @@ type Output struct {
 	ScriptHash util.Uint160
 
 	// The position of the Output in slice []Output. This is actually set in NewTransactionOutputRaw
-	// and used for diplaying purposes.
+	// and used for displaying purposes.
 	Position int
 }
 
@@ -47,7 +47,7 @@ func (out *Output) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(out.ScriptHash)
 }
 
-// MarshalJSON implements the Marshaler interface
+// MarshalJSON implements the Marshaler interface.
 func (out *Output) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"asset":   out.AssetID,

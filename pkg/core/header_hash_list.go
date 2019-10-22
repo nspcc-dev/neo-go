@@ -6,18 +6,18 @@ import (
 )
 
 // A HeaderHashList represents a list of header hashes.
-// This datastructure in not routine safe and should be
+// This data structure in not routine safe and should be
 // used under some kind of protection against race conditions.
 type HeaderHashList struct {
 	hashes []util.Uint256
 }
 
-// NewHeaderHashListFromBytes return a new hash list from the given bytes.
+// NewHeaderHashListFromBytes returns a new hash list from the given bytes.
 func NewHeaderHashListFromBytes(b []byte) (*HeaderHashList, error) {
 	return nil, nil
 }
 
-// NewHeaderHashList return a new pointer to a HeaderHashList.
+// NewHeaderHashList returns a new pointer to a HeaderHashList.
 func NewHeaderHashList(hashes ...util.Uint256) *HeaderHashList {
 	return &HeaderHashList{
 		hashes: hashes,
@@ -29,7 +29,7 @@ func (l *HeaderHashList) Add(h ...util.Uint256) {
 	l.hashes = append(l.hashes, h...)
 }
 
-// Len return the length of the underlying hashes slice.
+// Len returns the length of the underlying hashes slice.
 func (l *HeaderHashList) Len() int {
 	return len(l.hashes)
 }
@@ -55,7 +55,7 @@ func (l *HeaderHashList) Slice(start, end int) []util.Uint256 {
 	return l.hashes[start:end]
 }
 
-// WriteTo will write n underlying hashes to the given BinWriter
+// WriteTo writes n underlying hashes to the given BinWriter
 // starting from start.
 func (l *HeaderHashList) Write(bw *io.BinWriter, start, n int) error {
 	bw.WriteVarUint(uint64(n))

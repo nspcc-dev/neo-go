@@ -23,10 +23,10 @@ type codegen struct {
 	// Information about the program with all its dependencies.
 	buildInfo *buildInfo
 
-	// prog holds the output buffer
+	// prog holds the output buffer.
 	prog *bytes.Buffer
 
-	// Type information
+	// Type information.
 	typeInfo *types.Info
 
 	// A mapping of func identifiers with their scope.
@@ -50,7 +50,7 @@ func (c *codegen) setLabel(l int) {
 	c.l[l] = c.pc() + 1
 }
 
-// pc return the program offset off the last instruction.
+// pc returns the program offset off the last instruction.
 func (c *codegen) pc() int {
 	return c.prog.Len() - 1
 }
@@ -73,10 +73,10 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 			b := byte(val)
 			emitBytes(c.prog, []byte{b})
 		default:
-			log.Fatalf("compiler don't know how to convert this basic type: %v", t)
+			log.Fatalf("compiler doesn't know how to convert this basic type: %v", t)
 		}
 	default:
-		log.Fatalf("compiler don't know how to convert this constant: %v", t)
+		log.Fatalf("compiler doesn't know how to convert this constant: %v", t)
 	}
 }
 
@@ -118,7 +118,7 @@ func (c *codegen) emitStoreStructField(i int) {
 	emitOpcode(c.prog, vm.SETITEM)
 }
 
-// convertGlobals will traverse the AST and only convert global declarations.
+// convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
 func (c *codegen) convertGlobals(f ast.Node) {
@@ -331,7 +331,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ = c.typeInfo.ObjectOf(t.Sel).Type().Underlying()
 		default:
 			ln := len(n.Elts)
-			// ByteArrays need a different approach then normal arrays.
+			// ByteArrays needs a different approach than normal arrays.
 			if isByteArray(n, c.typeInfo) {
 				c.convertByteArray(n)
 				return nil
@@ -760,7 +760,7 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
-// CodeGen is the function that compiles the program to bytecode.
+// CodeGen compiles the program to bytecode.
 func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 	pkg := info.program.Package(info.initialPackage)
 	c := &codegen{
@@ -771,32 +771,32 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 		typeInfo:  &pkg.Info,
 	}
 
-	// Resolve the entrypoint of the program
+	// Resolve the entrypoint of the program.
 	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
-		log.Fatal("could not find func main. did you forgot to declare it?")
+		log.Fatal("could not find func main. Did you forget to declare it?")
 	}
 
 	funUsage := analyzeFuncUsage(info.program.AllPackages)
 
-	// Bring all imported functions into scope
+	// Bring all imported functions into scope.
 	for _, pkg := range info.program.AllPackages {
 		for _, f := range pkg.Files {
 			c.resolveFuncDecls(f)
 		}
 	}
 
-	// convert the entry point first
+	// convert the entry point first.
 	c.convertFuncDecl(mainFile, main)
 
-	// sort map keys to generate code deterministically
+	// sort map keys to generate code deterministically.
 	keys := make([]*types.Package, 0, len(info.program.AllPackages))
 	for p := range info.program.AllPackages {
 		keys = append(keys, p)
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
 
-	// Generate the code for the program
+	// Generate the code for the program.
 	for _, k := range keys {
 		pkg := info.program.AllPackages[k]
 		c.typeInfo = &pkg.Info
@@ -805,7 +805,7 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 			for _, decl := range f.Decls {
 				switch n := decl.(type) {
 				case *ast.FuncDecl:
-					// Dont convert the function if its not used. This will save a lot
+					// Don't convert the function if it's not used. This will save a lot
 					// of bytecode space.
 					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
 						c.convertFuncDecl(f, n)

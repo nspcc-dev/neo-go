@@ -24,14 +24,14 @@ type counterWriter struct {
 	counter int
 }
 
-// Write implements the io.Writer interface
+// Write implements the io.Writer interface.
 func (cw *counterWriter) Write(p []byte) (int, error) {
 	n := len(p)
 	cw.counter += n
 	return n, nil
 }
 
-// getVarIntSize returns the size in number of bytes of a variable integer
+// getVarIntSize returns the size in number of bytes of a variable integer.
 // (reference: GetVarSize(int value),  https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs)
 func getVarIntSize(value int) int {
 	var size uintptr

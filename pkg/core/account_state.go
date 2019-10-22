@@ -130,7 +130,7 @@ func (s *AccountState) EncodeBinary(bw *io.BinWriter) {
 	}
 }
 
-// Returns only the non-zero balances for the account.
+// nonZeroBalances returns only the non-zero balances for the account.
 func (s *AccountState) nonZeroBalances() map[util.Uint256]util.Fixed8 {
 	b := make(map[util.Uint256]util.Fixed8)
 	for k, v := range s.Balances {

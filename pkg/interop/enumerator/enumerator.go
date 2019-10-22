@@ -23,7 +23,7 @@ func Value(e Enumerator) interface{} {
 	return nil
 }
 
-// Concat concats the 2 given enumerators.
+// Concat concatenates the 2 given enumerators.
 func Concat(a, b Enumerator) Enumerator {
 	return Enumerator{}
 }

@@ -14,7 +14,7 @@ type MemoryStore struct {
 	del map[string]bool
 }
 
-// MemoryBatch a in-memory batch compatible with MemoryStore.
+// MemoryBatch is an in-memory batch compatible with MemoryStore.
 type MemoryBatch struct {
 	MemoryStore
 }
@@ -65,7 +65,7 @@ func (s *MemoryStore) Put(key, value []byte) error {
 	return nil
 }
 
-// drop deletes a key-valu pair from the store, it's supposed to be called
+// drop deletes a key-value pair from the store, it's supposed to be called
 // with mutex locked.
 func (s *MemoryStore) drop(key string) {
 	s.del[key] = true

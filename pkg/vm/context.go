@@ -6,7 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
-// Context represent the current execution context of the VM.
+// Context represents the current execution context of the VM.
 type Context struct {
 	// Instruction pointer.
 	ip int
@@ -17,11 +17,11 @@ type Context struct {
 	// The raw program script.
 	prog []byte
 
-	// Breakpoints
+	// Breakpoints.
 	breakPoints []int
 }
 
-// NewContext return a new Context object.
+// NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
 	return &Context{
 		prog:        b,

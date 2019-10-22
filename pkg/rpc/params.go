@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	// Params represent the JSON-RPC params.
+	// Params represents the JSON-RPC params.
 	Params []Param
 )
 

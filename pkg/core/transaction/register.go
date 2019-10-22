@@ -15,14 +15,14 @@ type RegisterTX struct {
 	// Name of the asset being registered.
 	Name string
 
-	// Amount registered
-	// Unlimited mode -0.00000001
+	// Amount registered.
+	// Unlimited mode -0.00000001.
 	Amount util.Fixed8
 
-	// Decimals
+	// Decimals.
 	Precision uint8
 
-	// Public key of the owner
+	// Public key of the owner.
 	Owner *keys.PublicKey
 
 	Admin util.Uint160

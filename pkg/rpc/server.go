@@ -56,7 +56,7 @@ func (s *Server) Start(errChan chan error) {
 	errChan <- s.ListenAndServe()
 }
 
-// Shutdown override the http.Server Shutdown
+// Shutdown overrides the http.Server Shutdown
 // method.
 func (s *Server) Shutdown() error {
 	log.WithFields(log.Fields{

@@ -6,12 +6,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Headers payload
+// Headers payload.
 type Headers struct {
 	Hdrs []*core.Header
 }
 
-// Users can at most request 2k header
+// Users can at most request 2k header.
 const (
 	maxHeadersAllowed = 2000
 )

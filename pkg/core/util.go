@@ -14,7 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-// Creates a genesis block based on the given configuration.
+// createGenesisBlock creates a genesis block based on the given configuration.
 func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 	validators, err := getValidators(cfg)
 	if err != nil {

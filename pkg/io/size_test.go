@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Mock structure to test getting size of an array of serializable things
+// Mock structure to test getting size of an array of serializable things.
 type smthSerializable struct {
 	some [42]byte
 }

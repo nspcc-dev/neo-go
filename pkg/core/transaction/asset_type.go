@@ -1,6 +1,6 @@
 package transaction
 
-// AssetType represent a NEO asset type
+// AssetType represents a NEO asset type.
 type AssetType uint8
 
 // Valid asset types.
