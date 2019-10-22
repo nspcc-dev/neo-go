@@ -416,7 +416,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			contracts[contract.ScriptHash()] = contract
 
 		case *transaction.InvocationTX:
-			vm := vm.New(vm.ModeMute)
+			vm := vm.New()
 			vm.SetCheckedHash(tx.VerificationHash().Bytes())
 			vm.SetScriptGetter(func(hash util.Uint160) []byte {
 				cs := bc.GetContractState(hash)
@@ -430,7 +430,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
 			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
 			vm.LoadScript(t.Script)
-			vm.Run()
+			err := vm.Run()
 			if !vm.HasFailed() {
 				_, err := systemInterop.mem.Persist()
 				if err != nil {
@@ -440,6 +440,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				log.WithFields(log.Fields{
 					"tx":    tx.Hash().ReverseString(),
 					"block": block.Index,
+					"err":   err,
 				}).Warn("contract invocation failed")
 			}
 		}
@@ -1103,7 +1104,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 	}
 
-	vm := vm.New(vm.ModeMute)
+	vm := vm.New()
 	vm.SetCheckedHash(checkedHash.Bytes())
 	vm.SetScriptGetter(func(hash util.Uint160) []byte {
 		cs := bc.GetContractState(hash)
@@ -1116,9 +1117,9 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
-	vm.Run()
+	err := vm.Run()
 	if vm.HasFailed() {
-		return errors.Errorf("vm failed to execute the script")
+		return errors.Errorf("vm failed to execute the script with error: %s", err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {

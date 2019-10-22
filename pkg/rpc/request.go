@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -114,7 +113,12 @@ func (r Request) writeServerResponse(w http.ResponseWriter, response Response) {
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(response)
 
+	logFields := log.Fields{
+		"err":    err,
+		"method": r.Method,
+	}
+
 	if err != nil {
-		fmt.Println(err)
+		log.WithFields(logFields).Error("Error encountered while encoding response")
 	}
 }

@@ -169,7 +169,7 @@ type VMCLI struct {
 // New returns a new VMCLI object.
 func New() *VMCLI {
 	vmcli := VMCLI{
-		vm:    vm.New(0),
+		vm:    vm.New(),
 		shell: ishell.New(),
 	}
 	vmcli.shell.Set(vmKey, vmcli.vm)
@@ -286,8 +286,32 @@ func handleRun(c *ishell.Context) {
 		}
 		v.LoadArgs(method, params)
 	}
-	v.Run()
+	runVMWithHandling(c, v)
 	changePrompt(c, v)
+}
+
+// runVMWithHandling runs VM with handling errors and additional state messages.
+func runVMWithHandling(c *ishell.Context, v *vm.VM) {
+	err := v.Run()
+	if err != nil {
+		c.Err(err)
+		return
+	}
+
+	var message string
+	switch {
+	case v.HasFailed():
+		message = "FAILED"
+	case v.HasHalted():
+		message = v.Stack("estack")
+	case v.AtBreakpoint():
+		ctx := v.Context()
+		i, op := ctx.CurrInstr()
+		message = fmt.Sprintf("at breakpoint %d (%s)\n", i, op.String())
+	}
+	if message != "" {
+		c.Printf(message)
+	}
 }
 
 func handleCont(c *ishell.Context) {
@@ -295,7 +319,7 @@ func handleCont(c *ishell.Context) {
 		return
 	}
 	v := getVMFromContext(c)
-	v.Run()
+	runVMWithHandling(c, v)
 	changePrompt(c, v)
 }
 
@@ -317,7 +341,7 @@ func handleStep(c *ishell.Context) {
 		}
 	}
 	v.AddBreakPointRel(n)
-	v.Run()
+	runVMWithHandling(c, v)
 	changePrompt(c, v)
 }
 
@@ -338,14 +362,19 @@ func handleStepType(c *ishell.Context, stepType string) {
 		return
 	}
 	v := getVMFromContext(c)
+	var err error
 	switch stepType {
 	case "into":
-		v.StepInto()
+		err = v.StepInto()
 	case "out":
-		v.StepOut()
+		err = v.StepOut()
 	case "over":
-		v.StepOver()
+		err = v.StepOver()
 	}
+	if err != nil {
+		c.Err(err)
+	}
+	handleIP(c)
 	changePrompt(c, v)
 }
 
@@ -367,7 +396,7 @@ func changePrompt(c ishell.Actions, v *vm.VM) {
 
 // Run waits for user input from Stdin and executes the passed command.
 func (c *VMCLI) Run() error {
-	printLogo()
+	printLogo(c.shell)
 	c.shell.Run()
 	return nil
 }
@@ -418,7 +447,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 	return items, nil
 }
 
-func printLogo() {
+func printLogo(c *ishell.Shell) {
 	logo := `
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
@@ -426,7 +455,7 @@ func printLogo() {
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /  
 /_/ |_/_____/\____/      \____/\____/      |___/_/  /_/   
 `
-	fmt.Print(logo)
-	fmt.Println()
-	fmt.Println()
+	c.Print(logo)
+	c.Println()
+	c.Println()
 }

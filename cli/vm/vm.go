@@ -48,7 +48,7 @@ func inspect(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	v := vm.New(0)
+	v := vm.New()
 	v.LoadScript(b)
 	v.PrintOps()
 	return nil

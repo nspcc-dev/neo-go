@@ -107,7 +107,7 @@ func CompileAndInspect(src string) error {
 		return err
 	}
 
-	v := vm.New(0)
+	v := vm.New()
 	v.LoadScript(b)
 	v.PrintOps()
 	return nil

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"os"
 	"reflect"
@@ -15,15 +14,25 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 )
 
-// Mode configures behaviour of the VM.
-type Mode uint
+type errorAtInstruct struct {
+	ip  int
+	op  Instruction
+	err interface{}
+}
 
-// Available VM Modes.
-var (
-	ModeMute Mode = 1 << 0
-)
+func (e *errorAtInstruct) Error() string {
+	return fmt.Sprintf("error encountered at instruction %d (%s): %s", e.ip, e.op, e.err)
+}
+
+func newError(ip int, op Instruction, err interface{}) *errorAtInstruct {
+	return &errorAtInstruct{ip: ip, op: op, err: err}
+}
+
+// StateMessage is a vm state message which could be used as additional info for example by cli.
+type StateMessage string
 
 const (
 	// MaxArraySize is the maximum array size allowed in the VM.
@@ -50,8 +59,6 @@ type VM struct {
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
 
-	// Mute all output after execution.
-	mute bool
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
 }
@@ -63,7 +70,7 @@ type InteropFuncPrice struct {
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
-func New(mode Mode) *VM {
+func New() *VM {
 	vm := &VM{
 		interop:   make(map[string]InteropFuncPrice),
 		getScript: nil,
@@ -71,9 +78,6 @@ func New(mode Mode) *VM {
 		istack:    NewStack("invocation"),
 		estack:    NewStack("evaluation"),
 		astack:    NewStack("alt"),
-	}
-	if mode == ModeMute {
-		vm.mute = true
 	}
 
 	// Register native interop hooks.
@@ -83,12 +87,12 @@ func New(mode Mode) *VM {
 	return vm
 }
 
-// RegisterInteropFunc will register the given InteropFunc to the VM.
+// RegisterInteropFunc registers the given InteropFunc to the VM.
 func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
 	v.interop[name] = InteropFuncPrice{f, price}
 }
 
-// RegisterInteropFuncs will register all interop functions passed in a map in
+// RegisterInteropFuncs registers all interop functions passed in a map in
 // the VM. Effectively it's a batched version of RegisterInteropFunc.
 func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	// We allow reregistration here.
@@ -97,22 +101,22 @@ func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	}
 }
 
-// Estack will return the evaluation stack so interop hooks can utilize this.
+// Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
 }
 
-// Astack will return the alt stack so interop hooks can utilize this.
+// Astack returns the alt stack so interop hooks can utilize this.
 func (v *VM) Astack() *Stack {
 	return v.astack
 }
 
-// Istack will return the invocation stack so interop hooks can utilize this.
+// Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return v.istack
 }
 
-// LoadArgs will load in the arguments used in the Mian entry point.
+// LoadArgs loads in the arguments used in the Mian entry point.
 func (v *VM) LoadArgs(method []byte, args []StackItem) {
 	if len(args) > 0 {
 		v.estack.PushVal(args)
@@ -122,7 +126,7 @@ func (v *VM) LoadArgs(method []byte, args []StackItem) {
 	}
 }
 
-// PrintOps will print the opcodes of the current loaded program to stdout.
+// PrintOps prints the opcodes of the current loaded program to stdout.
 func (v *VM) PrintOps() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER\t")
@@ -180,7 +184,7 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// LoadFile will load a program from the given path, ready to execute it.
+// LoadFile loads a program from the given path, ready to execute it.
 func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -199,7 +203,7 @@ func (v *VM) Load(prog []byte) {
 	v.istack.PushVal(NewContext(prog))
 }
 
-// LoadScript will load a script from the internal script table. It
+// LoadScript loads a script from the internal script table. It
 // will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
@@ -241,17 +245,17 @@ func (v *VM) Stack(n string) string {
 	return buildStackOutput(s)
 }
 
-// Ready return true if the VM ready to execute the loaded program.
+// Ready returns true if the VM ready to execute the loaded program.
 // Will return false if no program is loaded.
 func (v *VM) Ready() bool {
 	return v.istack.Len() > 0
 }
 
 // Run starts the execution of the loaded program.
-func (v *VM) Run() {
+func (v *VM) Run() error {
 	if !v.Ready() {
-		fmt.Println("no program loaded")
-		return
+		v.state = faultState
+		return errors.New("no program loaded")
 	}
 
 	v.state = noneState
@@ -262,40 +266,33 @@ func (v *VM) Run() {
 			v.state |= breakState
 		}
 		switch {
-		case v.state.HasFlag(faultState):
-			fmt.Println("FAULT")
-			return
-		case v.state.HasFlag(haltState):
-			if !v.mute {
-				fmt.Println(v.Stack("estack"))
-			}
-			return
-		case v.state.HasFlag(breakState):
-			ctx := v.Context()
-			i, op := ctx.CurrInstr()
-			fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
-			return
+		case v.state.HasFlag(faultState), v.state.HasFlag(haltState), v.state.HasFlag(breakState):
+			return errors.New("VM stopped")
 		case v.state == noneState:
-			v.Step()
+			if err := v.Step(); err != nil {
+				return err
+			}
+		default:
+			v.state = faultState
+			return errors.New("unknown state")
 		}
 	}
 }
 
 // Step 1 instruction in the program.
-func (v *VM) Step() {
+func (v *VM) Step() error {
 	ctx := v.Context()
 	op, param, err := ctx.Next()
 	if err != nil {
-		log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-		log.Println(err)
 		v.state = faultState
+		return newError(ctx.ip, op, err)
 	}
-	v.execute(ctx, op, param)
+	return v.execute(ctx, op, param)
 }
 
-// StepInto behaves the same as “step over” in case if the line does not contain a function it otherwise
+// StepInto behaves the same as “step over” in case if the line does not contain a function. Otherwise
 // the debugger will enter the called function and continue line-by-line debugging there.
-func (v *VM) StepInto() {
+func (v *VM) StepInto() error {
 	ctx := v.Context()
 
 	if ctx == nil {
@@ -303,29 +300,31 @@ func (v *VM) StepInto() {
 	}
 
 	if v.HasStopped() {
-		return
+		return nil
 	}
 
 	if ctx != nil && ctx.prog != nil {
 		op, param, err := ctx.Next()
 		if err != nil {
-			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-			log.Println(err)
 			v.state = faultState
+			return newError(ctx.ip, op, err)
 		}
-		v.execute(ctx, op, param)
-		i, op := ctx.CurrInstr()
-		fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
+		vErr := v.execute(ctx, op, param)
+		if vErr != nil {
+			return vErr
+		}
 	}
 
 	cctx := v.Context()
 	if cctx != nil && cctx.atBreakPoint() {
 		v.state = breakState
 	}
+	return nil
 }
 
 // StepOut takes the debugger to the line where the current function was called.
-func (v *VM) StepOut() {
+func (v *VM) StepOut() error {
+	var err error
 	if v.state == breakState {
 		v.state = noneState
 	} else {
@@ -334,15 +333,17 @@ func (v *VM) StepOut() {
 
 	expSize := v.istack.len
 	for v.state.HasFlag(noneState) && v.istack.len >= expSize {
-		v.StepInto()
+		err = v.StepInto()
 	}
+	return err
 }
 
 // StepOver takes the debugger to the line that will step over a given line.
 // If the line contains a function the function will be executed and the result returned without debugging each line.
-func (v *VM) StepOver() {
+func (v *VM) StepOver() error {
+	var err error
 	if v.HasStopped() {
-		return
+		return err
 	}
 
 	if v.state == breakState {
@@ -353,11 +354,12 @@ func (v *VM) StepOver() {
 
 	expSize := v.istack.len
 	for {
-		v.StepInto()
+		err = v.StepInto()
 		if !(v.state.HasFlag(noneState) && v.istack.len > expSize) {
 			break
 		}
 	}
+	return err
 }
 
 // HasFailed returns whether VM is in the failed state now. Usually used to
@@ -369,6 +371,16 @@ func (v *VM) HasFailed() bool {
 // HasStopped returns whether VM is in Halt or Failed state.
 func (v *VM) HasStopped() bool {
 	return v.state.HasFlag(haltState) || v.state.HasFlag(faultState)
+}
+
+// HasHalted returns whether VM is in Halt state.
+func (v *VM) HasHalted() bool {
+	return v.state.HasFlag(haltState)
+}
+
+// AtBreakpoint returns whether VM is at breakpoint.
+func (v *VM) AtBreakpoint() bool {
+	return v.state.HasFlag(breakState)
 }
 
 // SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.
@@ -383,14 +395,13 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
-func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
+func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
-	// each panic at a central point, putting the VM in a fault state.
+	// each panic at a central point, putting the VM in a fault state and setting error.
 	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-			log.Println(err)
+		if errRecover := recover(); errRecover != nil {
 			v.state = faultState
+			err = newError(ctx.ip, op, errRecover)
 		}
 	}()
 
@@ -440,6 +451,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			panic("can't TUCK with a one-element stack")
 		}
 		v.estack.InsertAt(a, 2)
+
 	case CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
@@ -448,6 +460,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		}
 		ab := append(a, b...)
 		v.estack.PushVal(ab)
+
 	case SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -466,6 +479,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			last = len(s)
 		}
 		v.estack.PushVal(s[o:last])
+
 	case LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -476,6 +490,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 			l = t
 		}
 		v.estack.PushVal(s[:l])
+
 	case RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
 		if l < 0 {
@@ -483,6 +498,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 		}
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
+
 	case XDROP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 {
@@ -967,7 +983,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 
 	case CALL:
 		v.istack.PushVal(ctx.Copy())
-		v.execute(v.Context(), JMP, parameter)
+		err = v.execute(v.Context(), JMP, parameter)
+		if err != nil {
+			return
+		}
 
 	case SYSCALL:
 		ifunc, ok := v.interop[string(parameter)]
@@ -1167,6 +1186,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
+	return
 }
 
 func cloneIfStruct(item StackItem) StackItem {
@@ -1194,9 +1214,4 @@ func validateMapKey(key *Element) {
 	case *ArrayItem, *StructItem, *MapItem:
 		panic("key can't be a collection")
 	}
-}
-
-func init() {
-	log.SetPrefix("NEO-GO-VM > ")
-	log.SetFlags(0)
 }
