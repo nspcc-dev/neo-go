@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"os"
 	"reflect"
@@ -15,15 +14,25 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/pkg/errors"
 )
 
-// Mode configures behaviour of the VM.
-type Mode uint
+type errorAtInstruct struct {
+	ip  int
+	op  Instruction
+	err interface{}
+}
 
-// Available VM Modes.
-var (
-	ModeMute Mode = 1 << 0
-)
+func (e *errorAtInstruct) Error() string {
+	return fmt.Sprintf("error encountered at instruction %d (%s): %s", e.ip, e.op, e.err)
+}
+
+func newError(ip int, op Instruction, err interface{}) *errorAtInstruct {
+	return &errorAtInstruct{ip: ip, op: op, err: err}
+}
+
+// StateMessage is a vm state message which could be used as additional info for example by cli.
+type StateMessage string
 
 const (
 	// MaxArraySize is the maximum array size allowed in the VM.
@@ -46,8 +55,6 @@ type VM struct {
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
 
-	// Mute all output after execution.
-	mute bool
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
 }
@@ -59,7 +66,7 @@ type InteropFuncPrice struct {
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
-func New(mode Mode) *VM {
+func New() *VM {
 	vm := &VM{
 		interop:   make(map[string]InteropFuncPrice),
 		getScript: nil,
@@ -67,9 +74,6 @@ func New(mode Mode) *VM {
 		istack:    NewStack("invocation"),
 		estack:    NewStack("evaluation"),
 		astack:    NewStack("alt"),
-	}
-	if mode == ModeMute {
-		vm.mute = true
 	}
 
 	// Register native interop hooks.
@@ -244,10 +248,10 @@ func (v *VM) Ready() bool {
 }
 
 // Run starts the execution of the loaded program.
-func (v *VM) Run() {
+func (v *VM) Run() error {
 	if !v.Ready() {
-		fmt.Println("no program loaded")
-		return
+		v.state = faultState
+		return errors.New("no program loaded")
 	}
 
 	v.state = noneState
@@ -258,40 +262,33 @@ func (v *VM) Run() {
 			v.state |= breakState
 		}
 		switch {
-		case v.state.HasFlag(faultState):
-			fmt.Println("FAULT")
-			return
-		case v.state.HasFlag(haltState):
-			if !v.mute {
-				fmt.Println(v.Stack("estack"))
-			}
-			return
-		case v.state.HasFlag(breakState):
-			ctx := v.Context()
-			i, op := ctx.CurrInstr()
-			fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
-			return
+		case v.state.HasFlag(faultState), v.state.HasFlag(haltState), v.state.HasFlag(breakState):
+			return errors.New("VM stopped")
 		case v.state == noneState:
-			v.Step()
+			if err := v.Step(); err != nil {
+				return err
+			}
+		default:
+			v.state = faultState
+			return errors.New("unknown state")
 		}
 	}
 }
 
 // Step 1 instruction in the program.
-func (v *VM) Step() {
+func (v *VM) Step() error {
 	ctx := v.Context()
 	op, param, err := ctx.Next()
 	if err != nil {
-		log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-		log.Println(err)
 		v.state = faultState
+		return newError(ctx.ip, op, err)
 	}
-	v.execute(ctx, op, param)
+	return v.execute(ctx, op, param)
 }
 
 // StepInto behaves the same as “step over” in case if the line does not contain a function. Otherwise
 // the debugger will enter the called function and continue line-by-line debugging there.
-func (v *VM) StepInto() {
+func (v *VM) StepInto() error {
 	ctx := v.Context()
 
 	if ctx == nil {
@@ -299,29 +296,31 @@ func (v *VM) StepInto() {
 	}
 
 	if v.HasStopped() {
-		return
+		return nil
 	}
 
 	if ctx != nil && ctx.prog != nil {
 		op, param, err := ctx.Next()
 		if err != nil {
-			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-			log.Println(err)
 			v.state = faultState
+			return newError(ctx.ip, op, err)
 		}
-		v.execute(ctx, op, param)
-		i, op := ctx.CurrInstr()
-		fmt.Printf("at breakpoint %d (%s)\n", i, op.String())
+		vErr := v.execute(ctx, op, param)
+		if vErr != nil {
+			return vErr
+		}
 	}
 
 	cctx := v.Context()
 	if cctx != nil && cctx.atBreakPoint() {
 		v.state = breakState
 	}
+	return nil
 }
 
 // StepOut takes the debugger to the line where the current function was called.
-func (v *VM) StepOut() {
+func (v *VM) StepOut() error {
+	var err error
 	if v.state == breakState {
 		v.state = noneState
 	} else {
@@ -330,15 +329,17 @@ func (v *VM) StepOut() {
 
 	expSize := v.istack.len
 	for v.state.HasFlag(noneState) && v.istack.len >= expSize {
-		v.StepInto()
+		err = v.StepInto()
 	}
+	return err
 }
 
 // StepOver takes the debugger to the line that will step over a given line.
 // If the line contains a function the function will be executed and the result returned without debugging each line.
-func (v *VM) StepOver() {
+func (v *VM) StepOver() error {
+	var err error
 	if v.HasStopped() {
-		return
+		return err
 	}
 
 	if v.state == breakState {
@@ -349,11 +350,12 @@ func (v *VM) StepOver() {
 
 	expSize := v.istack.len
 	for {
-		v.StepInto()
+		err = v.StepInto()
 		if !(v.state.HasFlag(noneState) && v.istack.len > expSize) {
 			break
 		}
 	}
+	return err
 }
 
 // HasFailed returns whether VM is in the failed state now. Usually used to
@@ -365,6 +367,16 @@ func (v *VM) HasFailed() bool {
 // HasStopped returns whether VM is in Halt or Failed state.
 func (v *VM) HasStopped() bool {
 	return v.state.HasFlag(haltState) || v.state.HasFlag(faultState)
+}
+
+// HasHalted returns whether VM is in Halt state.
+func (v *VM) HasHalted() bool {
+	return v.state.HasFlag(haltState)
+}
+
+// AtBreakpoint returns whether VM is at breakpoint.
+func (v *VM) AtBreakpoint() bool {
+	return v.state.HasFlag(breakState)
 }
 
 // SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.
@@ -379,14 +391,13 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
-func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
+func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
-	// each panic at a central point, putting the VM in a fault state.
+	// each panic at a central point, putting the VM in a fault state and setting error.
 	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("error encountered at instruction %d (%s)", ctx.ip, op)
-			log.Println(err)
+		if errRecover := recover(); errRecover != nil {
 			v.state = faultState
+			err = newError(ctx.ip, op, errRecover)
 		}
 	}()
 
@@ -961,7 +972,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 
 	case CALL:
 		v.istack.PushVal(ctx.Copy())
-		v.execute(v.Context(), JMP, parameter)
+		err = v.execute(v.Context(), JMP, parameter)
+		if err != nil {
+			return
+		}
 
 	case SYSCALL:
 		ifunc, ok := v.interop[string(parameter)]
@@ -1161,6 +1175,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) {
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
+	return
 }
 
 func cloneIfStruct(item StackItem) StackItem {
@@ -1188,9 +1203,4 @@ func validateMapKey(key *Element) {
 	case *ArrayItem, *StructItem, *MapItem:
 		panic("key can't be a collection")
 	}
-}
-
-func init() {
-	log.SetPrefix("NEO-GO-VM > ")
-	log.SetFlags(0)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testCase struct {
@@ -24,14 +25,16 @@ func run_testcases(t *testing.T, tcases []testCase) {
 
 func eval(t *testing.T, src string, result interface{}) {
 	vm := vmAndCompile(t, src)
-	vm.Run()
+	err := vm.Run()
+	require.NoError(t, err)
 	assertResult(t, vm, result)
 }
 
 func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.LoadArgs(op, args)
-	vm.Run()
+	err := vm.Run()
+	require.NoError(t, err)
 	assertResult(t, vm, result)
 }
 
@@ -42,7 +45,7 @@ func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {
-	vm := vm.New(vm.ModeMute)
+	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
 	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get, 1)
