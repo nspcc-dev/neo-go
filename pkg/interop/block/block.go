@@ -8,7 +8,7 @@ import "github.com/CityOfZion/neo-go/pkg/interop/transaction"
 // Block stubs a NEO block type.
 type Block struct{}
 
-// GetTransactionCount return the number of recorded transactions in the given block.
+// GetTransactionCount returns the number of recorded transactions in the given block.
 func GetTransactionCount(b Block) int {
 	return 0
 }

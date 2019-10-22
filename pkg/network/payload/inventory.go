@@ -37,7 +37,7 @@ const (
 	ConsensusType InventoryType = 0xe0 // 224
 )
 
-// Inventory payload
+// Inventory payload.
 type Inventory struct {
 	// Type if the object hash.
 	Type InventoryType

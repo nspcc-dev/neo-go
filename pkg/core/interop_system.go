@@ -316,7 +316,7 @@ func (ic *interopContext) checkKeyedWitness(key *keys.PublicKey) (bool, error) {
 	return ic.checkHashedWitness(hash.Hash160(script))
 }
 
-// runtimeCheckWitness should check witnesses.
+// runtimeCheckWitness checks witnesses.
 func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 	var res bool
 	var err error
@@ -348,7 +348,7 @@ func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 	return nil
 }
 
-// runtimeLog log the message passed.
+// runtimeLog logs the message passed.
 func (ic *interopContext) runtimeLog(v *vm.VM) error {
 	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
 	log.Infof("script %s logs: %s", getContextScriptHash(v, 0), msg)
@@ -373,12 +373,12 @@ func (ic *interopContext) runtimeGetTime(v *vm.VM) error {
 }
 
 /*
-// runtimeSerialize should serialize given stack item.
+// runtimeSerialize serializes given stack item.
 func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
 	panic("TODO")
 }
 
-// runtimeDeserialize should deserialize given stack item.
+// runtimeDeserialize deserializes given stack item.
 func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
 	panic("TODO")
 }

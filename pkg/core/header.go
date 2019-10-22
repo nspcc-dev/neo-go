@@ -10,7 +10,7 @@ import (
 type Header struct {
 	// Base of the block.
 	BlockBase
-	// Padding that is fixed to 0
+	// Padding that is fixed to 0.
 	_ uint8
 }
 
@@ -26,7 +26,7 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// EncodeBinary  implements Serializable interface.
+// EncodeBinary implements Serializable interface.
 func (h *Header) EncodeBinary(w *io.BinWriter) {
 	h.BlockBase.EncodeBinary(w)
 	w.WriteLE(uint8(0))

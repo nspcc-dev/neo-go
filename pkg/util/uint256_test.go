@@ -14,7 +14,7 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// UnmarshalJSON should decode hex-strings
+	// UnmarshalJSON decodes hex-strings
 	var u1, u2 Uint256
 
 	if err = u1.UnmarshalJSON([]byte(`"` + str + `"`)); err != nil {
@@ -27,7 +27,7 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// UnmarshalJSON should decode hex-strings prefixed by 0x
+	// UnmarshalJSON decodes hex-strings prefixed by 0x
 	if err = u2.UnmarshalJSON(s); err != nil {
 		t.Fatal(err)
 	}

@@ -39,7 +39,7 @@ func (u Uint160) Bytes() []byte {
 	return u[:]
 }
 
-// BytesReverse return a reversed byte representation of u.
+// BytesReverse returns a reversed byte representation of u.
 func (u Uint160) BytesReverse() []byte {
 	return ArrayReverse(u.Bytes())
 }
@@ -49,7 +49,7 @@ func (u Uint160) String() string {
 	return hex.EncodeToString(u.Bytes())
 }
 
-// ReverseString is the same as String, but returnes an inversed representation.
+// ReverseString is the same as String, but returns a reversed representation.
 func (u Uint160) ReverseString() string {
 	return hex.EncodeToString(u.BytesReverse())
 }

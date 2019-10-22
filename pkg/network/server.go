@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	// peer numbers are arbitrary at the moment
+	// peer numbers are arbitrary at the moment.
 	minPeers       = 5
 	maxPeers       = 20
 	maxBlockBatch  = 200
@@ -255,8 +255,8 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
 
-// handleHeadersCmd will process the headers it received from its peer.
-// if the headerHeight of the blockchain still smaller then the peer
+// handleHeadersCmd processes the headers received from its peer.
+// If the headerHeight of the blockchain still smaller then the peer
 // the server will request more headers.
 // This method could best be called in a separate routine.
 func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
@@ -277,7 +277,7 @@ func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
 	return s.bQueue.putBlock(block)
 }
 
-// handleInvCmd will process the received inventory.
+// handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
 		return errInvalidInvType
@@ -310,7 +310,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	return p.WriteMsg(NewMessage(s.Net, CMDAddr, alist))
 }
 
-// requestHeaders will send a getheaders message to the peer.
+// requestHeaders sends a getheaders message to the peer.
 // The peer will respond with headers op to a count of 2000.
 func (s *Server) requestHeaders(p Peer) error {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
@@ -318,7 +318,7 @@ func (s *Server) requestHeaders(p Peer) error {
 	return p.WriteMsg(NewMessage(s.Net, CMDGetHeaders, payload))
 }
 
-// requestBlocks will send a getdata message to the peer
+// requestBlocks sends a getdata message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
 func (s *Server) requestBlocks(p Peer) error {
@@ -341,7 +341,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	return nil
 }
 
-// handleMessage will process the given message.
+// handleMessage processes the given message.
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	// Make sure both server and peer are operating on
 	// the same network.
@@ -414,7 +414,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	return RelaySucceed
 }
 
-// RelayDirectly relay directly the inventory to the remote peers.
+// RelayDirectly relays directly the inventory to the remote peers.
 // Reference: the method OnRelayDirectly in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L166
 func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
 	if !p.Version().Relay {

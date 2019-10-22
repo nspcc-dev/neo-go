@@ -6,8 +6,8 @@ import (
 	"io"
 )
 
-//BinReader is a convenient wrapper around a io.Reader and err object
-// Used to simplify error handling when reading into a struct with many fields
+// BinReader is a convenient wrapper around a io.Reader and err object.
+// Used to simplify error handling when reading into a struct with many fields.
 type BinReader struct {
 	r   io.Reader
 	Err error
@@ -25,7 +25,7 @@ func NewBinReaderFromBuf(b []byte) *BinReader {
 }
 
 // ReadLE reads from the underlying io.Reader
-// into the interface v in little-endian format
+// into the interface v in little-endian format.
 func (r *BinReader) ReadLE(v interface{}) {
 	if r.Err != nil {
 		return
@@ -34,7 +34,7 @@ func (r *BinReader) ReadLE(v interface{}) {
 }
 
 // ReadBE reads from the underlying io.Reader
-// into the interface v in big-endian format
+// into the interface v in big-endian format.
 func (r *BinReader) ReadBE(v interface{}) {
 	if r.Err != nil {
 		return
@@ -43,7 +43,7 @@ func (r *BinReader) ReadBE(v interface{}) {
 }
 
 // ReadVarUint reads a variable-length-encoded integer from the
-// underlying reader
+// underlying reader.
 func (r *BinReader) ReadVarUint() uint64 {
 	if r.Err != nil {
 		return 0
@@ -80,7 +80,7 @@ func (r *BinReader) ReadBytes() []byte {
 	return b
 }
 
-// ReadString calls ReadBytes and casts the results as a string
+// ReadString calls ReadBytes and casts the results as a string.
 func (r *BinReader) ReadString() string {
 	b := r.ReadBytes()
 	return string(b)

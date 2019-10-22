@@ -37,7 +37,7 @@ func NewMerkleTree(hashes []util.Uint256) (*MerkleTree, error) {
 	}, nil
 }
 
-// Root return the computed root hash of the MerkleTree.
+// Root returns the computed root hash of the MerkleTree.
 func (t *MerkleTree) Root() util.Uint256 {
 	return t.root.hash
 }

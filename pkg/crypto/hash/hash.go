@@ -8,13 +8,13 @@ import (
 )
 
 // Sha256 hashes the incoming byte slice
-// using the sha256 algorithm
+// using the sha256 algorithm.
 func Sha256(data []byte) util.Uint256 {
 	hash := sha256.Sum256(data)
 	return hash
 }
 
-// DoubleSha256 performs sha256 twice on the given data
+// DoubleSha256 performs sha256 twice on the given data.
 func DoubleSha256(data []byte) util.Uint256 {
 	var hash util.Uint256
 
@@ -24,7 +24,7 @@ func DoubleSha256(data []byte) util.Uint256 {
 }
 
 // RipeMD160 performs the RIPEMD160 hash algorithm
-// on the given data
+// on the given data.
 func RipeMD160(data []byte) util.Uint160 {
 	var hash util.Uint160
 	hasher := ripemd160.New()
@@ -35,7 +35,7 @@ func RipeMD160(data []byte) util.Uint160 {
 }
 
 // Hash160 performs sha256 and then ripemd160
-// on the given data
+// on the given data.
 func Hash160(data []byte) util.Uint160 {
 	var hash util.Uint160
 
@@ -47,7 +47,7 @@ func Hash160(data []byte) util.Uint160 {
 }
 
 // Checksum returns the checksum for a given piece of data
-// using sha256 twice as the hash algorithm
+// using sha256 twice as the hash algorithm.
 func Checksum(data []byte) []byte {
 	hash := DoubleSha256(data)
 	return hash[:4]

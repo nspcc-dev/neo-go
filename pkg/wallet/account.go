@@ -26,7 +26,7 @@ type Account struct {
 	// Label is a label the user had made for this account.
 	Label string `json:"label"`
 
-	// contract is a Contract object which describes the details of the contract.
+	// Contract is a Contract object which describes the details of the contract.
 	// This field can be null (for watch-only address).
 	Contract *Contract `json:"contract"`
 
@@ -60,7 +60,7 @@ func NewAccount() (*Account, error) {
 	return newAccountFromPrivateKey(priv), nil
 }
 
-// DecryptAccount decrypt the encryptedWIF with the given passphrase and
+// DecryptAccount decrypts the encryptedWIF with the given passphrase and
 // return the decrypted Account.
 func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
 	wif, err := keys.NEP2Decrypt(encryptedWIF, passphrase)
@@ -90,7 +90,7 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 	return newAccountFromPrivateKey(privKey), nil
 }
 
-// newAccountFromPrivateKey created a wallet from the given PrivateKey.
+// newAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
 	pubAddr := p.Address()

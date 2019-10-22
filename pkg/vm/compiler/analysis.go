@@ -107,7 +107,7 @@ func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *a
 	return main, file
 }
 
-// indexOfStruct will return the index of the given field inside that struct.
+// indexOfStruct returns the index of the given field inside that struct.
 // If the struct does not contain that field it will return -1.
 func indexOfStruct(strct *types.Struct, fldName string) int {
 	for i := 0; i < strct.NumFields(); i++ {
@@ -125,7 +125,7 @@ func (f funcUsage) funcUsed(name string) bool {
 	return ok
 }
 
-// hasReturnStmt look if the given FuncDecl has a return statement.
+// hasReturnStmt looks if the given FuncDecl has a return statement.
 func hasReturnStmt(decl ast.Node) (b bool) {
 	ast.Inspect(decl, func(node ast.Node) bool {
 		if _, ok := node.(*ast.ReturnStmt); ok {

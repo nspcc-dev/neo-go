@@ -41,7 +41,7 @@ type PublicKey struct {
 	Y *big.Int
 }
 
-// NewPublicKeyFromString return a public key created from the
+// NewPublicKeyFromString returns a public key created from the
 // given hex string.
 func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	b, err := hex.DecodeString(s)
@@ -98,7 +98,7 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	return &key, nil
 }
 
-// decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit
+// decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
 func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
 	c := elliptic.P256()
 	cp := c.Params()
@@ -210,7 +210,7 @@ func (p *PublicKey) Address() string {
 }
 
 // Verify returns true if the signature is valid and corresponds
-// to the hash and public key
+// to the hash and public key.
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
 
 	publicKey := &ecdsa.PublicKey{}

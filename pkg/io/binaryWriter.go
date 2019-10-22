@@ -5,9 +5,9 @@ import (
 	"io"
 )
 
-//BinWriter is a convenient wrapper around a io.Writer and err object
+// BinWriter is a convenient wrapper around a io.Writer and err object.
 // Used to simplify error handling when writing into a io.Writer
-// from a struct with many fields
+// from a struct with many fields.
 type BinWriter struct {
 	w   io.Writer
 	Err error
@@ -18,7 +18,7 @@ func NewBinWriterFromIO(iow io.Writer) *BinWriter {
 	return &BinWriter{w: iow}
 }
 
-// WriteLE writes into the underlying io.Writer from an object v in little-endian format
+// WriteLE writes into the underlying io.Writer from an object v in little-endian format.
 func (w *BinWriter) WriteLE(v interface{}) {
 	if w.Err != nil {
 		return
@@ -26,7 +26,7 @@ func (w *BinWriter) WriteLE(v interface{}) {
 	w.Err = binary.Write(w.w, binary.LittleEndian, v)
 }
 
-// WriteBE writes into the underlying io.Writer from an object v in big-endian format
+// WriteBE writes into the underlying io.Writer from an object v in big-endian format.
 func (w *BinWriter) WriteBE(v interface{}) {
 	if w.Err != nil {
 		return
@@ -34,7 +34,7 @@ func (w *BinWriter) WriteBE(v interface{}) {
 	w.Err = binary.Write(w.w, binary.BigEndian, v)
 }
 
-// WriteVarUint writes a uint64 into the underlying writer using variable-length encoding
+// WriteVarUint writes a uint64 into the underlying writer using variable-length encoding.
 func (w *BinWriter) WriteVarUint(val uint64) {
 	if w.Err != nil {
 		return
@@ -61,13 +61,13 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 
 }
 
-// WriteBytes writes a variable length byte array into the underlying io.Writer
+// WriteBytes writes a variable length byte array into the underlying io.Writer.
 func (w *BinWriter) WriteBytes(b []byte) {
 	w.WriteVarUint(uint64(len(b)))
 	w.WriteLE(b)
 }
 
-// WriteString writes a variable length string into the underlying io.Writer
+// WriteString writes a variable length string into the underlying io.Writer.
 func (w *BinWriter) WriteString(s string) {
 	w.WriteBytes([]byte(s))
 }

@@ -11,7 +11,7 @@ import (
 // and send a deposit to the address of the PublicKey.
 // The way to cancel the registration is: Spend the deposit on the address of the PublicKey.
 type EnrollmentTX struct {
-	// PublicKey of the validator
+	// PublicKey of the validator.
 	PublicKey *keys.PublicKey
 }
 

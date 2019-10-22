@@ -39,7 +39,7 @@ func merkleTreeFromTransactions(txes []*transaction.Transaction) (*crypto.Merkle
 	return crypto.NewMerkleTree(hashes)
 }
 
-// rebuildMerkleRoot rebuild the merkleroot of the block.
+// rebuildMerkleRoot rebuilds the merkleroot of the block.
 func (b *Block) rebuildMerkleRoot() error {
 	merkle, err := merkleTreeFromTransactions(b.Transactions)
 	if err != nil {
@@ -50,7 +50,7 @@ func (b *Block) rebuildMerkleRoot() error {
 	return nil
 }
 
-// Verify the integrity of the block.
+// Verify verifies the integrity of the block.
 func (b *Block) Verify() error {
 	// There has to be some transaction inside.
 	if len(b.Transactions) == 0 {

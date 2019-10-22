@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	// Param represent a param either passed to
+	// Param represents a param either passed to
 	// the server or to send to a server using
 	// the client.
 	Param struct {

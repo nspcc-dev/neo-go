@@ -13,7 +13,7 @@ type GetBlocks struct {
 	HashStop util.Uint256
 }
 
-// NewGetBlocks return a pointer to a GetBlocks object.
+// NewGetBlocks returns a pointer to a GetBlocks object.
 func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
 	return &GetBlocks{
 		HashStart: start,

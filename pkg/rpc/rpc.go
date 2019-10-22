@@ -27,7 +27,7 @@ import (
 // 	return resp, nil
 // }
 
-// GetAccountState will return detailed information about a NEO account.
+// GetAccountState returns detailed information about a NEO account.
 func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) {
 	var (
 		params = newParams(address)
@@ -52,7 +52,7 @@ func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
 	return resp, nil
 }
 
-// InvokeFunction return the results after calling a the smart contract scripthash
+// InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
@@ -66,7 +66,7 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 	return resp, nil
 }
 
-// Invoke returns the results after calling a the smart contract scripthash
+// Invoke returns the results after calling the smart contract scripthash
 // with the given parameters.
 func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
 	var (

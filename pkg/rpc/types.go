@@ -81,7 +81,7 @@ type SendToAddressResponse struct {
 	Result *TxResponse
 }
 
-// GetRawTxResponse struct represents verbose output of `getrawtransaction` RPC call.
+// GetRawTxResponse represents verbose output of `getrawtransaction` RPC call.
 type GetRawTxResponse struct {
 	responseHeader
 	Error  *Error         `json:"error"`

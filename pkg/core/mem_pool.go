@@ -16,7 +16,7 @@ type PoolItem struct {
 	fee       Feer
 }
 
-// PoolItems slice of PoolItem
+// PoolItems slice of PoolItem.
 type PoolItems []*PoolItem
 
 // MemPool stores the unconfirms transactions.
@@ -59,7 +59,7 @@ func (p PoolItem) CompareTo(otherP *PoolItem) int {
 		}
 	}
 
-	// Fees sorted ascending
+	// Fees sorted ascending.
 	pFPB := p.fee.FeePerByte(p.txn)
 	otherFPB := p.fee.FeePerByte(otherP.txn)
 	if ret := pFPB.CompareTo(otherFPB); ret != 0 {
@@ -72,7 +72,7 @@ func (p PoolItem) CompareTo(otherP *PoolItem) int {
 		return ret
 	}
 
-	// Transaction hash sorted descending
+	// Transaction hash sorted descending.
 	return otherP.txn.Hash().CompareTo(p.txn.Hash())
 }
 
@@ -187,7 +187,7 @@ func NewMemPool(capacity int) MemPool {
 	}
 }
 
-// TryGetValue returns a transactions if it esists in the memory pool.
+// TryGetValue returns a transaction if it exists in the memory pool.
 func (mp MemPool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.Lock()
 	defer mp.lock.Unlock()
@@ -220,8 +220,8 @@ func getLowestFeeTransaction(verifiedTxnSorted PoolItems, unverifiedTxnSorted Po
 
 }
 
-// min return the minimum item in a ascending sorted slice of pool items.
-// The  function can't be applied to unsorted slice!
+// min returns the minimum item in a ascending sorted slice of pool items.
+// The function can't be applied to unsorted slice!
 func min(sortedPool PoolItems) *PoolItem {
 	if len(sortedPool) == 0 {
 		return nil
