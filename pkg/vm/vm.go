@@ -258,6 +258,12 @@ func (v *VM) Run() error {
 		return errors.New("no program loaded")
 	}
 
+	if v.state.HasFlag(faultState) {
+		// VM already ran something and failed, in general its state is
+		// undefined in this case so we can't run anything.
+		return errors.New("VM has failed")
+	}
+	// haltState (the default) or breakState are safe to continue.
 	v.state = noneState
 	for {
 		// check for breakpoint before executing the next instruction
@@ -266,8 +272,13 @@ func (v *VM) Run() error {
 			v.state |= breakState
 		}
 		switch {
-		case v.state.HasFlag(faultState), v.state.HasFlag(haltState), v.state.HasFlag(breakState):
-			return errors.New("VM stopped")
+		case v.state.HasFlag(faultState):
+			// Should be caught and reported already by the v.Step(),
+			// but we're checking here anyway just in case.
+			return errors.New("VM has failed")
+		case v.state.HasFlag(haltState), v.state.HasFlag(breakState):
+			// Normal exit from this loop.
+			return nil
 		case v.state == noneState:
 			if err := v.Step(); err != nil {
 				return err
