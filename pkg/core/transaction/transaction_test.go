@@ -96,6 +96,25 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
 }
 
+func TestNewInvocationTX(t *testing.T) {
+	script := []byte{0x51}
+	tx := NewInvocationTX(script)
+	txData := tx.Data.(*InvocationTX)
+	assert.Equal(t, InvocationType, tx.Type)
+	assert.Equal(t, tx.Version, txData.Version)
+	assert.Equal(t, script, txData.Script)
+	buf := io.NewBufBinWriter()
+	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
+	_ = tx.Hash()
+	tx.EncodeBinary(buf.BinWriter)
+	assert.Nil(t, buf.Err)
+	var tx2 Transaction
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	tx2.DecodeBinary(r)
+	assert.Nil(t, r.Err)
+	assert.Equal(t, *tx, tx2)
+}
+
 func TestDecodePublishTX(t *testing.T) {
 	expectedTXData := &PublishTX{}
 	expectedTXData.Name = "Lock"
