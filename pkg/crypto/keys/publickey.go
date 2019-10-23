@@ -100,24 +100,30 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 
 // decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
 func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
-	c := elliptic.P256()
-	cp := c.Params()
-	three := big.NewInt(3)
-	/* y**2 = x**3 + a*x + b  % p */
-	xCubed := new(big.Int).Exp(x, three, cp.P)
-	threeX := new(big.Int).Mul(x, three)
-	threeX.Mod(threeX, cp.P)
-	ySquared := new(big.Int).Sub(xCubed, threeX)
-	ySquared.Add(ySquared, cp.B)
-	ySquared.Mod(ySquared, cp.P)
-	y := new(big.Int).ModSqrt(ySquared, cp.P)
+	cp := elliptic.P256().Params()
+
+	// y² = x³ - 3x + b
+	x3 := new(big.Int).Mul(x, x)
+	x3.Mul(x3, x)
+
+	threeX := new(big.Int).Lsh(x, 1)
+	threeX.Add(threeX, x)
+
+	x3.Sub(x3, threeX)
+	x3.Add(x3, cp.B)
+	x3.Mod(x3, cp.P)
+
+	// y = √(x³ - 3x + b) mod p
+	y := new(big.Int).ModSqrt(x3, cp.P)
+
+	// big.Int.Jacobi(a, b) can return nil
 	if y == nil {
 		return nil, errors.New("error computing Y for compressed point")
-	}
-	if y.Bit(0) != ylsb {
+	} else if y.Bit(0) != ylsb {
 		y.Neg(y)
 		y.Mod(y, cp.P)
 	}
+
 	return y, nil
 }
 
