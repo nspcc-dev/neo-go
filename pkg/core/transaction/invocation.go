@@ -22,7 +22,8 @@ func NewInvocationTX(script []byte) *Transaction {
 		Type:    InvocationType,
 		Version: 1,
 		Data: &InvocationTX{
-			Script: script,
+			Script:  script,
+			Version: 1,
 		},
 		Attributes: []*Attribute{},
 		Inputs:     []*Input{},

@@ -467,6 +467,9 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	}
 
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
+	for _, tx := range block.Transactions {
+		bc.memPool.Remove(tx.Hash())
+	}
 	return nil
 }
 

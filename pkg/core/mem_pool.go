@@ -106,6 +106,7 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 
 	mp.lock.RLock()
 	if _, ok := mp.unsortedTxn[hash]; ok {
+		mp.lock.RUnlock()
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
@@ -129,6 +130,39 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	_, ok := mp.unsortedTxn[hash]
 	mp.lock.RUnlock()
 	return ok
+}
+
+// Remove removes an item from the mempool, if it exists there (and does
+// nothing if it doesn't).
+func (mp *MemPool) Remove(hash util.Uint256) {
+	var mapAndPools = []struct {
+		unsortedMap map[util.Uint256]*PoolItem
+		sortedPools []*PoolItems
+	}{
+		{unsortedMap: mp.unsortedTxn, sortedPools: []*PoolItems{&mp.sortedHighPrioTxn, &mp.sortedLowPrioTxn}},
+		{unsortedMap: mp.unverifiedTxn, sortedPools: []*PoolItems{&mp.unverifiedSortedHighPrioTxn, &mp.unverifiedSortedLowPrioTxn}},
+	}
+	mp.lock.Lock()
+	for _, mapAndPool := range mapAndPools {
+		if _, ok := mapAndPool.unsortedMap[hash]; ok {
+			delete(mapAndPool.unsortedMap, hash)
+			for _, pool := range mapAndPool.sortedPools {
+				var num int
+				var item *PoolItem
+				for num, item = range *pool {
+					if hash.Equals(item.txn.Hash()) {
+						break
+					}
+				}
+				if num < len(*pool)-1 {
+					*pool = append((*pool)[:num], (*pool)[num+1:]...)
+				} else if num == len(*pool)-1 {
+					*pool = (*pool)[:num]
+				}
+			}
+		}
+	}
+	mp.lock.Unlock()
 }
 
 // RemoveOverCapacity removes transactions with lowest fees until the total number of transactions

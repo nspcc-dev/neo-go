@@ -279,11 +279,38 @@ func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
-	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
-		return errInvalidInvType
-	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+}
+
+// handleInvCmd processes the received inventory.
+func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
+	switch inv.Type {
+	case payload.TXType:
+		for _, hash := range inv.Hashes {
+			tx, _, err := s.chain.GetTransaction(hash)
+			if err == nil {
+				err = p.WriteMsg(NewMessage(s.Net, CMDTX, tx))
+				if err != nil {
+					return err
+				}
+
+			}
+		}
+	case payload.BlockType:
+		for _, hash := range inv.Hashes {
+			b, err := s.chain.GetBlock(hash)
+			if err == nil {
+				err = p.WriteMsg(NewMessage(s.Net, CMDBlock, b))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	case payload.ConsensusType:
+		// TODO (#431)
+	}
+	return nil
 }
 
 // handleAddrCmd will process received addresses.
@@ -350,6 +377,11 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	}
 
 	if peer.Handshaked() {
+		if inv, ok := msg.Payload.(*payload.Inventory); ok {
+			if !inv.Type.Valid() || len(inv.Hashes) == 0 {
+				return errInvalidInvType
+			}
+		}
 		switch msg.CommandType() {
 		case CMDAddr:
 			addrs := msg.Payload.(*payload.AddressList)
@@ -357,6 +389,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetAddr:
 			// it has no payload
 			return s.handleGetAddrCmd(peer)
+		case CMDGetData:
+			inv := msg.Payload.(*payload.Inventory)
+			return s.handleGetDataCmd(peer, inv)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
