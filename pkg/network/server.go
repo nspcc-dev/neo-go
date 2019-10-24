@@ -279,18 +279,12 @@ func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
-	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
-		return errInvalidInvType
-	}
 	payload := payload.NewInventory(inv.Type, inv.Hashes)
 	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
 }
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
-	if !inv.Type.Valid() || len(inv.Hashes) == 0 {
-		return errInvalidInvType
-	}
 	switch inv.Type {
 	case payload.TXType:
 		for _, hash := range inv.Hashes {
@@ -383,6 +377,11 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	}
 
 	if peer.Handshaked() {
+		if inv, ok := msg.Payload.(*payload.Inventory); ok {
+			if !inv.Type.Valid() || len(inv.Hashes) == 0 {
+				return errInvalidInvType
+			}
+		}
 		switch msg.CommandType() {
 		case CMDAddr:
 			addrs := msg.Payload.(*payload.AddressList)
