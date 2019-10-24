@@ -106,6 +106,7 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 
 	mp.lock.RLock()
 	if _, ok := mp.unsortedTxn[hash]; ok {
+		mp.lock.RUnlock()
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
