@@ -200,7 +200,7 @@ func (v *VM) Load(prog []byte) {
 	v.istack.Clear()
 	v.estack.Clear()
 	v.astack.Clear()
-	v.istack.PushVal(NewContext(prog))
+	v.LoadScript(prog)
 }
 
 // LoadScript loads a script from the internal script table. It
@@ -208,6 +208,8 @@ func (v *VM) Load(prog []byte) {
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
 	ctx := NewContext(b)
+	ctx.estack = v.estack
+	ctx.astack = v.astack
 	v.istack.PushVal(ctx)
 }
 
@@ -993,7 +995,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		}
 
 	case CALL:
-		v.istack.PushVal(ctx.Copy())
+		newCtx := ctx.Copy()
+		newCtx.rvcount = -1
+		v.istack.PushVal(newCtx)
 		err = v.execute(v.Context(), JMP, parameter)
 		if err != nil {
 			return
@@ -1030,9 +1034,29 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		v.LoadScript(script)
 
 	case RET:
-		_ = v.istack.Pop()
+		oldCtx := v.istack.Pop().Value().(*Context)
+		rvcount := oldCtx.rvcount
+		oldEstack := v.estack
+
+		if rvcount > 0 && oldEstack.Len() < rvcount {
+			panic("missing some return elements")
+		}
 		if v.istack.Len() == 0 {
 			v.state = haltState
+			break
+		}
+
+		newEstack := v.Context().estack
+		if oldEstack != newEstack {
+			if rvcount < 0 {
+				rvcount = oldEstack.Len()
+			}
+			for i := rvcount; i > 0; i-- {
+				elem := oldEstack.RemoveAt(i - 1)
+				newEstack.Push(elem)
+			}
+			v.estack = newEstack
+			v.astack = v.Context().astack
 		}
 
 	case CHECKSIG, VERIFY:
@@ -1185,6 +1209,69 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 
 	case NOP:
 		// unlucky ^^
+
+	case CALLI, CALLE, CALLED, CALLET, CALLEDT:
+		var (
+			tailCall    = (op == CALLET || op == CALLEDT)
+			hashOnStack = (op == CALLED || op == CALLEDT)
+			addElement  int
+			newCtx      *Context
+		)
+
+		if hashOnStack {
+			addElement = 1
+		}
+
+		rvcount := int(parameter[0])
+		pcount := int(parameter[1])
+		if v.estack.Len() < pcount+addElement {
+			panic("missing some parameters")
+		}
+		if tailCall && ctx.rvcount != rvcount {
+			panic("context and parameter rvcount mismatch")
+		}
+
+		if op == CALLI {
+			newCtx = ctx.Copy()
+		} else {
+			var hashBytes []byte
+
+			if hashOnStack {
+				hashBytes = v.estack.Pop().Bytes()
+			} else {
+				hashBytes = parameter[2:]
+			}
+
+			hash, err := util.Uint160DecodeBytes(hashBytes)
+			if err != nil {
+				panic(err)
+			}
+			script := v.getScript(hash)
+			if script == nil {
+				panic(fmt.Sprintf("could not find script %s", hash))
+			}
+			newCtx = NewContext(script)
+		}
+		newCtx.rvcount = rvcount
+		newCtx.estack = NewStack("evaluation")
+		newCtx.astack = NewStack("alt")
+		// Going backwards to naturally push things onto the new stack.
+		for i := pcount; i > 0; i-- {
+			elem := v.estack.RemoveAt(i - 1)
+			newCtx.estack.Push(elem)
+		}
+		if tailCall {
+			_ = v.istack.Pop()
+		}
+		v.istack.PushVal(newCtx)
+		v.estack = newCtx.estack
+		v.astack = newCtx.astack
+		if op == CALLI {
+			err = v.execute(v.Context(), JMP, parameter[2:])
+			if err != nil {
+				return
+			}
+		}
 
 	case THROW:
 		panic("THROW")

@@ -187,68 +187,207 @@ func _() {
 	_ = x[HASKEY-203]
 	_ = x[KEYS-204]
 	_ = x[VALUES-205]
+	_ = x[CALLI-224]
+	_ = x[CALLE-225]
+	_ = x[CALLED-226]
+	_ = x[CALLET-227]
+	_ = x[CALLEDT-228]
 	_ = x[THROW-240]
 	_ = x[THROWIFNOT-241]
 }
 
-const (
-	_Instruction_name_0 = "PUSH0PUSHBYTES1PUSHBYTES2PUSHBYTES3PUSHBYTES4PUSHBYTES5PUSHBYTES6PUSHBYTES7PUSHBYTES8PUSHBYTES9PUSHBYTES10PUSHBYTES11PUSHBYTES12PUSHBYTES13PUSHBYTES14PUSHBYTES15PUSHBYTES16PUSHBYTES17PUSHBYTES18PUSHBYTES19PUSHBYTES20PUSHBYTES21PUSHBYTES22PUSHBYTES23PUSHBYTES24PUSHBYTES25PUSHBYTES26PUSHBYTES27PUSHBYTES28PUSHBYTES29PUSHBYTES30PUSHBYTES31PUSHBYTES32PUSHBYTES33PUSHBYTES34PUSHBYTES35PUSHBYTES36PUSHBYTES37PUSHBYTES38PUSHBYTES39PUSHBYTES40PUSHBYTES41PUSHBYTES42PUSHBYTES43PUSHBYTES44PUSHBYTES45PUSHBYTES46PUSHBYTES47PUSHBYTES48PUSHBYTES49PUSHBYTES50PUSHBYTES51PUSHBYTES52PUSHBYTES53PUSHBYTES54PUSHBYTES55PUSHBYTES56PUSHBYTES57PUSHBYTES58PUSHBYTES59PUSHBYTES60PUSHBYTES61PUSHBYTES62PUSHBYTES63PUSHBYTES64PUSHBYTES65PUSHBYTES66PUSHBYTES67PUSHBYTES68PUSHBYTES69PUSHBYTES70PUSHBYTES71PUSHBYTES72PUSHBYTES73PUSHBYTES74PUSHBYTES75PUSHDATA1PUSHDATA2PUSHDATA4PUSHM1"
-	_Instruction_name_1 = "PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMPIFJMPIFNOTCALLRETAPPCALLSYSCALLTAILCALLDUPFROMALTSTACKTOALTSTACKFROMALTSTACKXDROP"
-	_Instruction_name_2 = "XSWAPXTUCKDEPTHDROPDUPNIPOVERPICKROLLROTSWAPTUCKCATSUBSTRLEFTRIGHTSIZEINVERTANDORXOREQUAL"
-	_Instruction_name_3 = "INCDECSIGN"
-	_Instruction_name_4 = "NEGATEABSNOTNZADDSUBMULDIVMODSHLSHRBOOLANDBOOLORNUMEQUAL"
-	_Instruction_name_5 = "NUMNOTEQUALLTGTLTEGTEMINMAXWITHIN"
-	_Instruction_name_6 = "SHA1SHA256HASH160HASH256"
-	_Instruction_name_7 = "CHECKSIGVERIFYCHECKMULTISIG"
-	_Instruction_name_8 = "ARRAYSIZEPACKUNPACKPICKITEMSETITEMNEWARRAYNEWSTRUCTNEWMAPAPPENDREVERSEREMOVEHASKEYKEYSVALUES"
-	_Instruction_name_9 = "THROWTHROWIFNOT"
-)
+const _Instruction_name = "PUSH0PUSHBYTES1PUSHBYTES2PUSHBYTES3PUSHBYTES4PUSHBYTES5PUSHBYTES6PUSHBYTES7PUSHBYTES8PUSHBYTES9PUSHBYTES10PUSHBYTES11PUSHBYTES12PUSHBYTES13PUSHBYTES14PUSHBYTES15PUSHBYTES16PUSHBYTES17PUSHBYTES18PUSHBYTES19PUSHBYTES20PUSHBYTES21PUSHBYTES22PUSHBYTES23PUSHBYTES24PUSHBYTES25PUSHBYTES26PUSHBYTES27PUSHBYTES28PUSHBYTES29PUSHBYTES30PUSHBYTES31PUSHBYTES32PUSHBYTES33PUSHBYTES34PUSHBYTES35PUSHBYTES36PUSHBYTES37PUSHBYTES38PUSHBYTES39PUSHBYTES40PUSHBYTES41PUSHBYTES42PUSHBYTES43PUSHBYTES44PUSHBYTES45PUSHBYTES46PUSHBYTES47PUSHBYTES48PUSHBYTES49PUSHBYTES50PUSHBYTES51PUSHBYTES52PUSHBYTES53PUSHBYTES54PUSHBYTES55PUSHBYTES56PUSHBYTES57PUSHBYTES58PUSHBYTES59PUSHBYTES60PUSHBYTES61PUSHBYTES62PUSHBYTES63PUSHBYTES64PUSHBYTES65PUSHBYTES66PUSHBYTES67PUSHBYTES68PUSHBYTES69PUSHBYTES70PUSHBYTES71PUSHBYTES72PUSHBYTES73PUSHBYTES74PUSHBYTES75PUSHDATA1PUSHDATA2PUSHDATA4PUSHM1PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMPIFJMPIFNOTCALLRETAPPCALLSYSCALLTAILCALLDUPFROMALTSTACKTOALTSTACKFROMALTSTACKXDROPXSWAPXTUCKDEPTHDROPDUPNIPOVERPICKROLLROTSWAPTUCKCATSUBSTRLEFTRIGHTSIZEINVERTANDORXOREQUALINCDECSIGNNEGATEABSNOTNZADDSUBMULDIVMODSHLSHRBOOLANDBOOLORNUMEQUALNUMNOTEQUALLTGTLTEGTEMINMAXWITHINSHA1SHA256HASH160HASH256CHECKSIGVERIFYCHECKMULTISIGARRAYSIZEPACKUNPACKPICKITEMSETITEMNEWARRAYNEWSTRUCTNEWMAPAPPENDREVERSEREMOVEHASKEYKEYSVALUESCALLICALLECALLEDCALLETCALLEDTTHROWTHROWIFNOT"
 
-var (
-	_Instruction_index_0 = [...]uint16{0, 5, 15, 25, 35, 45, 55, 65, 75, 85, 95, 106, 117, 128, 139, 150, 161, 172, 183, 194, 205, 216, 227, 238, 249, 260, 271, 282, 293, 304, 315, 326, 337, 348, 359, 370, 381, 392, 403, 414, 425, 436, 447, 458, 469, 480, 491, 502, 513, 524, 535, 546, 557, 568, 579, 590, 601, 612, 623, 634, 645, 656, 667, 678, 689, 700, 711, 722, 733, 744, 755, 766, 777, 788, 799, 810, 821, 830, 839, 848, 854}
-	_Instruction_index_1 = [...]uint8{0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 51, 57, 63, 69, 75, 81, 87, 90, 93, 98, 106, 110, 113, 120, 127, 135, 150, 160, 172, 177}
-	_Instruction_index_2 = [...]uint8{0, 5, 10, 15, 19, 22, 25, 29, 33, 37, 40, 44, 48, 51, 57, 61, 66, 70, 76, 79, 81, 84, 89}
-	_Instruction_index_3 = [...]uint8{0, 3, 6, 10}
-	_Instruction_index_4 = [...]uint8{0, 6, 9, 12, 14, 17, 20, 23, 26, 29, 32, 35, 42, 48, 56}
-	_Instruction_index_5 = [...]uint8{0, 11, 13, 15, 18, 21, 24, 27, 33}
-	_Instruction_index_6 = [...]uint8{0, 4, 10, 17, 24}
-	_Instruction_index_7 = [...]uint8{0, 8, 14, 27}
-	_Instruction_index_8 = [...]uint8{0, 9, 13, 19, 27, 34, 42, 51, 57, 63, 70, 76, 82, 86, 92}
-	_Instruction_index_9 = [...]uint8{0, 5, 15}
-)
+var _Instruction_map = map[Instruction]string{
+	0:   _Instruction_name[0:5],
+	1:   _Instruction_name[5:15],
+	2:   _Instruction_name[15:25],
+	3:   _Instruction_name[25:35],
+	4:   _Instruction_name[35:45],
+	5:   _Instruction_name[45:55],
+	6:   _Instruction_name[55:65],
+	7:   _Instruction_name[65:75],
+	8:   _Instruction_name[75:85],
+	9:   _Instruction_name[85:95],
+	10:  _Instruction_name[95:106],
+	11:  _Instruction_name[106:117],
+	12:  _Instruction_name[117:128],
+	13:  _Instruction_name[128:139],
+	14:  _Instruction_name[139:150],
+	15:  _Instruction_name[150:161],
+	16:  _Instruction_name[161:172],
+	17:  _Instruction_name[172:183],
+	18:  _Instruction_name[183:194],
+	19:  _Instruction_name[194:205],
+	20:  _Instruction_name[205:216],
+	21:  _Instruction_name[216:227],
+	22:  _Instruction_name[227:238],
+	23:  _Instruction_name[238:249],
+	24:  _Instruction_name[249:260],
+	25:  _Instruction_name[260:271],
+	26:  _Instruction_name[271:282],
+	27:  _Instruction_name[282:293],
+	28:  _Instruction_name[293:304],
+	29:  _Instruction_name[304:315],
+	30:  _Instruction_name[315:326],
+	31:  _Instruction_name[326:337],
+	32:  _Instruction_name[337:348],
+	33:  _Instruction_name[348:359],
+	34:  _Instruction_name[359:370],
+	35:  _Instruction_name[370:381],
+	36:  _Instruction_name[381:392],
+	37:  _Instruction_name[392:403],
+	38:  _Instruction_name[403:414],
+	39:  _Instruction_name[414:425],
+	40:  _Instruction_name[425:436],
+	41:  _Instruction_name[436:447],
+	42:  _Instruction_name[447:458],
+	43:  _Instruction_name[458:469],
+	44:  _Instruction_name[469:480],
+	45:  _Instruction_name[480:491],
+	46:  _Instruction_name[491:502],
+	47:  _Instruction_name[502:513],
+	48:  _Instruction_name[513:524],
+	49:  _Instruction_name[524:535],
+	50:  _Instruction_name[535:546],
+	51:  _Instruction_name[546:557],
+	52:  _Instruction_name[557:568],
+	53:  _Instruction_name[568:579],
+	54:  _Instruction_name[579:590],
+	55:  _Instruction_name[590:601],
+	56:  _Instruction_name[601:612],
+	57:  _Instruction_name[612:623],
+	58:  _Instruction_name[623:634],
+	59:  _Instruction_name[634:645],
+	60:  _Instruction_name[645:656],
+	61:  _Instruction_name[656:667],
+	62:  _Instruction_name[667:678],
+	63:  _Instruction_name[678:689],
+	64:  _Instruction_name[689:700],
+	65:  _Instruction_name[700:711],
+	66:  _Instruction_name[711:722],
+	67:  _Instruction_name[722:733],
+	68:  _Instruction_name[733:744],
+	69:  _Instruction_name[744:755],
+	70:  _Instruction_name[755:766],
+	71:  _Instruction_name[766:777],
+	72:  _Instruction_name[777:788],
+	73:  _Instruction_name[788:799],
+	74:  _Instruction_name[799:810],
+	75:  _Instruction_name[810:821],
+	76:  _Instruction_name[821:830],
+	77:  _Instruction_name[830:839],
+	78:  _Instruction_name[839:848],
+	79:  _Instruction_name[848:854],
+	81:  _Instruction_name[854:859],
+	82:  _Instruction_name[859:864],
+	83:  _Instruction_name[864:869],
+	84:  _Instruction_name[869:874],
+	85:  _Instruction_name[874:879],
+	86:  _Instruction_name[879:884],
+	87:  _Instruction_name[884:889],
+	88:  _Instruction_name[889:894],
+	89:  _Instruction_name[894:899],
+	90:  _Instruction_name[899:905],
+	91:  _Instruction_name[905:911],
+	92:  _Instruction_name[911:917],
+	93:  _Instruction_name[917:923],
+	94:  _Instruction_name[923:929],
+	95:  _Instruction_name[929:935],
+	96:  _Instruction_name[935:941],
+	97:  _Instruction_name[941:944],
+	98:  _Instruction_name[944:947],
+	99:  _Instruction_name[947:952],
+	100: _Instruction_name[952:960],
+	101: _Instruction_name[960:964],
+	102: _Instruction_name[964:967],
+	103: _Instruction_name[967:974],
+	104: _Instruction_name[974:981],
+	105: _Instruction_name[981:989],
+	106: _Instruction_name[989:1004],
+	107: _Instruction_name[1004:1014],
+	108: _Instruction_name[1014:1026],
+	109: _Instruction_name[1026:1031],
+	114: _Instruction_name[1031:1036],
+	115: _Instruction_name[1036:1041],
+	116: _Instruction_name[1041:1046],
+	117: _Instruction_name[1046:1050],
+	118: _Instruction_name[1050:1053],
+	119: _Instruction_name[1053:1056],
+	120: _Instruction_name[1056:1060],
+	121: _Instruction_name[1060:1064],
+	122: _Instruction_name[1064:1068],
+	123: _Instruction_name[1068:1071],
+	124: _Instruction_name[1071:1075],
+	125: _Instruction_name[1075:1079],
+	126: _Instruction_name[1079:1082],
+	127: _Instruction_name[1082:1088],
+	128: _Instruction_name[1088:1092],
+	129: _Instruction_name[1092:1097],
+	130: _Instruction_name[1097:1101],
+	131: _Instruction_name[1101:1107],
+	132: _Instruction_name[1107:1110],
+	133: _Instruction_name[1110:1112],
+	134: _Instruction_name[1112:1115],
+	135: _Instruction_name[1115:1120],
+	139: _Instruction_name[1120:1123],
+	140: _Instruction_name[1123:1126],
+	141: _Instruction_name[1126:1130],
+	143: _Instruction_name[1130:1136],
+	144: _Instruction_name[1136:1139],
+	145: _Instruction_name[1139:1142],
+	146: _Instruction_name[1142:1144],
+	147: _Instruction_name[1144:1147],
+	148: _Instruction_name[1147:1150],
+	149: _Instruction_name[1150:1153],
+	150: _Instruction_name[1153:1156],
+	151: _Instruction_name[1156:1159],
+	152: _Instruction_name[1159:1162],
+	153: _Instruction_name[1162:1165],
+	154: _Instruction_name[1165:1172],
+	155: _Instruction_name[1172:1178],
+	156: _Instruction_name[1178:1186],
+	158: _Instruction_name[1186:1197],
+	159: _Instruction_name[1197:1199],
+	160: _Instruction_name[1199:1201],
+	161: _Instruction_name[1201:1204],
+	162: _Instruction_name[1204:1207],
+	163: _Instruction_name[1207:1210],
+	164: _Instruction_name[1210:1213],
+	165: _Instruction_name[1213:1219],
+	167: _Instruction_name[1219:1223],
+	168: _Instruction_name[1223:1229],
+	169: _Instruction_name[1229:1236],
+	170: _Instruction_name[1236:1243],
+	172: _Instruction_name[1243:1251],
+	173: _Instruction_name[1251:1257],
+	174: _Instruction_name[1257:1270],
+	192: _Instruction_name[1270:1279],
+	193: _Instruction_name[1279:1283],
+	194: _Instruction_name[1283:1289],
+	195: _Instruction_name[1289:1297],
+	196: _Instruction_name[1297:1304],
+	197: _Instruction_name[1304:1312],
+	198: _Instruction_name[1312:1321],
+	199: _Instruction_name[1321:1327],
+	200: _Instruction_name[1327:1333],
+	201: _Instruction_name[1333:1340],
+	202: _Instruction_name[1340:1346],
+	203: _Instruction_name[1346:1352],
+	204: _Instruction_name[1352:1356],
+	205: _Instruction_name[1356:1362],
+	224: _Instruction_name[1362:1367],
+	225: _Instruction_name[1367:1372],
+	226: _Instruction_name[1372:1378],
+	227: _Instruction_name[1378:1384],
+	228: _Instruction_name[1384:1391],
+	240: _Instruction_name[1391:1396],
+	241: _Instruction_name[1396:1406],
+}
 
 func (i Instruction) String() string {
-	switch {
-	case 0 <= i && i <= 79:
-		return _Instruction_name_0[_Instruction_index_0[i]:_Instruction_index_0[i+1]]
-	case 81 <= i && i <= 109:
-		i -= 81
-		return _Instruction_name_1[_Instruction_index_1[i]:_Instruction_index_1[i+1]]
-	case 114 <= i && i <= 135:
-		i -= 114
-		return _Instruction_name_2[_Instruction_index_2[i]:_Instruction_index_2[i+1]]
-	case 139 <= i && i <= 141:
-		i -= 139
-		return _Instruction_name_3[_Instruction_index_3[i]:_Instruction_index_3[i+1]]
-	case 143 <= i && i <= 156:
-		i -= 143
-		return _Instruction_name_4[_Instruction_index_4[i]:_Instruction_index_4[i+1]]
-	case 158 <= i && i <= 165:
-		i -= 158
-		return _Instruction_name_5[_Instruction_index_5[i]:_Instruction_index_5[i+1]]
-	case 167 <= i && i <= 170:
-		i -= 167
-		return _Instruction_name_6[_Instruction_index_6[i]:_Instruction_index_6[i+1]]
-	case 172 <= i && i <= 174:
-		i -= 172
-		return _Instruction_name_7[_Instruction_index_7[i]:_Instruction_index_7[i+1]]
-	case 192 <= i && i <= 205:
-		i -= 192
-		return _Instruction_name_8[_Instruction_index_8[i]:_Instruction_index_8[i+1]]
-	case 240 <= i && i <= 241:
-		i -= 240
-		return _Instruction_name_9[_Instruction_index_9[i]:_Instruction_index_9[i+1]]
-	default:
-		return "Instruction(" + strconv.FormatInt(int64(i), 10) + ")"
+	if str, ok := _Instruction_map[i]; ok {
+		return str
 	}
+	return "Instruction(" + strconv.FormatInt(int64(i), 10) + ")"
 }

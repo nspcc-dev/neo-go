@@ -2015,7 +2015,7 @@ func makeProgram(opcodes ...Instruction) []byte {
 
 func load(prog []byte) *VM {
 	vm := New()
-	vm.istack.PushVal(NewContext(prog))
+	vm.LoadScript(prog)
 	return vm
 }
 

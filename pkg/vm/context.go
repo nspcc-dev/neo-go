@@ -19,6 +19,15 @@ type Context struct {
 
 	// Breakpoints.
 	breakPoints []int
+
+	// Return value count, -1 is unspecified.
+	rvcount int
+
+	// Evaluation stack pointer.
+	estack *Stack
+
+	// Alt stack pointer.
+	astack *Stack
 }
 
 // NewContext returns a new Context object.
@@ -26,6 +35,7 @@ func NewContext(b []byte) *Context {
 	return &Context{
 		prog:        b,
 		breakPoints: []int{},
+		rvcount:     -1,
 	}
 }
 
@@ -64,10 +74,14 @@ func (c *Context) Next() (Instruction, []byte, error) {
 		}
 		numtoread = int(n)
 		c.nextip += 4
-	case JMP, JMPIF, JMPIFNOT, CALL:
+	case JMP, JMPIF, JMPIFNOT, CALL, CALLED, CALLEDT:
 		numtoread = 2
+	case CALLI:
+		numtoread = 4
 	case APPCALL, TAILCALL:
 		numtoread = 20
+	case CALLE, CALLET:
+		numtoread = 22
 	default:
 		if instr >= PUSHBYTES1 && instr <= PUSHBYTES75 {
 			numtoread = int(instr)
