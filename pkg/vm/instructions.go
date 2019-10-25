@@ -202,12 +202,12 @@ const (
 	KEYS      Instruction = 0xCC
 	VALUES    Instruction = 0xCD
 
-	// Stack isolation (intentionally left out, see #362)
-	// CALL_I   Instruction = 0xE0
-	// CALL_E   Instruction = 0xE1
-	// CALL_ED  Instruction = 0xE2
-	// CALL_ET  Instruction = 0xE3
-	// CALL_EDT Instruction = 0xE4
+	// Stack isolation
+	CALLI   Instruction = 0xE0
+	CALLE   Instruction = 0xE1
+	CALLED  Instruction = 0xE2
+	CALLET  Instruction = 0xE3
+	CALLEDT Instruction = 0xE4
 
 	// Exceptions
 	THROW      Instruction = 0xF0
