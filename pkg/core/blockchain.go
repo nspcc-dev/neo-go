@@ -394,6 +394,21 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				Expiration: bc.BlockHeight() + registeredAssetLifetime,
 			}
 		case *transaction.IssueTX:
+			for _, res := range bc.GetTransactionResults(tx) {
+				if res.Amount < 0 {
+					var asset *AssetState
+
+					asset, ok := assets[res.AssetID]
+					if !ok {
+						asset = bc.GetAssetState(res.AssetID)
+					}
+					if asset == nil {
+						return fmt.Errorf("issue failed: no asset %s", res.AssetID)
+					}
+					asset.Available -= res.Amount
+					assets[res.AssetID] = asset
+				}
+			}
 		case *transaction.ClaimTX:
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
