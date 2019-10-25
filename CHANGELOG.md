@@ -2,6 +2,37 @@
 
 This document outlines major changes between releases.
 
+## 0.60.0 "Cribration" (25 Oct 2019)
+
+Release 0.60.0 brings with it an implementation of all NEO 2.0 VM opcodes,
+full support for transaction relaying, improved logging, a bunch of fixes and
+an updated project logo.
+
+New features:
+ * blocks dumping from DB to file and restoring from file to DB (#436)
+ * new logo (#444)
+ * implemented `getdata` message handling (#448)
+ * issue tx processing (#450)
+ * CALL_I, CALL_E, CALL_ET, CALL_ED, CALL_EDT implementation in the VM (#192)
+
+Internal improvements:
+ * codestyle fixes (#439, #443)
+ * removed spurious prints from all the code, now everything is passed/logged
+   correctly (#247)
+
+Bugs fixed:
+ * missing max size limitation in CAT and PUSHDATA4 opcodes implementation
+   (#435)
+ * wrong interpretation of missing unspent coin state when checking for double
+   spend (#439)
+ * panic on successive node starts when no headers were saved in the DB (#440)
+ * NEWARRAY/NEWSTRUCT opcodes didn't copy operands for array<->struct
+   conversions
+ * deadlock in MemPool on addition (#448)
+ * transactions were not removed from the MemPool when processing new signed
+   block (#446)
+ * wrong contract property constants leading to storage usage failures (#450)
+
 ## 0.51.0 "Confirmation" (17 Oct 2019)
 
 With over a 100 commits made since 0.50.0 release 0.51.0 brings with it full
