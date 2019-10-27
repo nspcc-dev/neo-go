@@ -186,13 +186,9 @@ func (d *DefaultDiscovery) run() {
 
 		case addr := <-d.connectedCh:
 			delete(d.unconnectedAddrs, addr)
-			if !d.connectedAddrs[addr] {
-				d.connectedAddrs[addr] = true
-			}
+			d.connectedAddrs[addr] = true
 		case addr := <-d.goodCh:
-			if !d.goodAddrs[addr] {
-				d.goodAddrs[addr] = true
-			}
+			d.goodAddrs[addr] = true
 		case addr := <-d.unconnectedCh:
 			delete(d.connectedAddrs, addr)
 		}
