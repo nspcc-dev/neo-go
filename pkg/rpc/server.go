@@ -107,9 +107,11 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Pa
 Methods:
 	switch req.Method {
 	case "getbestblockhash":
+		getbestblockhashCalled.Inc()
 		results = s.chain.CurrentBlockHash().ReverseString()
 
 	case "getblock":
+		getbestblockCalled.Inc()
 		var hash util.Uint256
 
 		param, err := reqParams.Value(0)
@@ -145,9 +147,11 @@ Methods:
 
 		results = wrappers.NewBlock(block, s.chain)
 	case "getblockcount":
+		getblockcountCalled.Inc()
 		results = s.chain.BlockHeight()
 
 	case "getblockhash":
+		getblockHashCalled.Inc()
 		param, err := reqParams.ValueWithType(0, "number")
 		if err != nil {
 			resultsErr = err
@@ -160,9 +164,11 @@ Methods:
 		results = s.chain.GetHeaderHash(param.IntVal)
 
 	case "getconnectioncount":
+		getconnectioncountCalled.Inc()
 		results = s.coreServer.PeerCount()
 
 	case "getversion":
+		getversionCalled.Inc()
 		results = result.Version{
 			Port:      s.coreServer.ListenTCP,
 			Nonce:     s.coreServer.ID(),
@@ -170,6 +176,7 @@ Methods:
 		}
 
 	case "getpeers":
+		getpeersCalled.Inc()
 		peers := result.NewPeers()
 		for _, addr := range s.coreServer.UnconnectedPeers() {
 			peers.AddPeer("unconnected", addr)
@@ -190,6 +197,7 @@ Methods:
 		results = "TODO"
 
 	case "validateaddress":
+		validateaddressCalled.Inc()
 		param, err := reqParams.Value(0)
 		if err != nil {
 			resultsErr = err
@@ -198,6 +206,7 @@ Methods:
 		results = wrappers.ValidateAddress(param.RawValue)
 
 	case "getassetstate":
+		getassetstateCalled.Inc()
 		param, err := reqParams.ValueWithType(0, "string")
 		if err != nil {
 			resultsErr = err
@@ -218,6 +227,7 @@ Methods:
 		}
 
 	case "getaccountstate":
+		getaccountstateCalled.Inc()
 		param, err := reqParams.ValueWithType(0, "string")
 		if err != nil {
 			resultsErr = err
@@ -229,9 +239,11 @@ Methods:
 			results = "Invalid public account address"
 		}
 	case "getrawtransaction":
+		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
 
 	case "sendrawtransaction":
+		sendrawtransactionCalled.Inc()
 		results, resultsErr = s.sendrawtransaction(reqParams)
 
 	default:

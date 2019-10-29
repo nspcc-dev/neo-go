@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -101,6 +102,7 @@ func (s *Server) Start(errChan chan error) {
 
 	go s.bQueue.run()
 	go s.transport.Accept()
+	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
 	s.run()
 }
 
@@ -157,6 +159,8 @@ func (s *Server) run() {
 			log.WithFields(log.Fields{
 				"addr": p.NetAddr(),
 			}).Info("new peer connected")
+			updatePeersConnectedMetric(s.PeerCount())
+
 		case drop := <-s.unregister:
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
@@ -168,6 +172,7 @@ func (s *Server) run() {
 				addr := drop.peer.NetAddr().String()
 				s.discovery.UnregisterConnectedAddr(addr)
 				s.discovery.BackFill(addr)
+				updatePeersConnectedMetric(s.PeerCount())
 			}
 			// else the peer is already gone, which can happen
 			// because we have two goroutines sending signals here

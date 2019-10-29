@@ -36,3 +36,6 @@ ApplicationConfiguration:
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
+  Monitoring:
+    Enabled: true
+    Port: 2112
