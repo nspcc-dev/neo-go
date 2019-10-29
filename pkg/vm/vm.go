@@ -199,10 +199,11 @@ func (v *VM) LoadFile(path string) error {
 
 // Load initializes the VM with the program given.
 func (v *VM) Load(prog []byte) {
-	// clear all stacks, it could be a reload.
+	// Clear all stacks and state, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
 	v.astack.Clear()
+	v.state = noneState
 	v.LoadScript(prog)
 }
 
@@ -248,6 +249,11 @@ func (v *VM) Stack(n string) string {
 		s = v.estack
 	}
 	return buildStackOutput(s)
+}
+
+// State returns string representation of the state for the VM.
+func (v *VM) State() string {
+	return v.state.String()
 }
 
 // Ready returns true if the VM ready to execute the loaded program.

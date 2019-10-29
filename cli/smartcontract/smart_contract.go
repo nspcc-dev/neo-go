@@ -6,18 +6,20 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
 var (
+	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
@@ -66,6 +68,10 @@ func NewCommands() []cli.Command {
 				Action: testInvoke,
 				Flags: []cli.Flag{
 					cli.StringFlag{
+						Name:  "endpoint, e",
+						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
+					},
+					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "Input location of the avm file that needs to be invoked",
 					},
@@ -91,6 +97,10 @@ func NewCommands() []cli.Command {
 				Usage:  "creates a user readable dump of the program instructions",
 				Action: inspect,
 				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "compile, c",
+						Usage: "compile input file (it should be go code then)",
+					},
 					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "input file of the program",
@@ -163,16 +173,16 @@ func testInvoke(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
+	endpoint := ctx.String("endpoint")
+	if len(endpoint) == 0 {
+		return cli.NewExitError(errNoEndpoint, 1)
+	}
 
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	// For now we will hardcode the endpoint.
-	// On the long term the internal VM will run the script.
-	// TODO: remove RPC dependency, hardcoded node.
-	endpoint := "http://node1.ams2.bridgeprotocol.io:10332"
 	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -251,12 +261,24 @@ func parseContractDetails() ContractDetails {
 }
 
 func inspect(ctx *cli.Context) error {
-	src := ctx.String("in")
-	if len(src) == 0 {
+	in := ctx.String("in")
+	compile := ctx.Bool("compile")
+	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	if err := compiler.CompileAndInspect(src); err != nil {
+	b, err := ioutil.ReadFile(in)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if compile {
+		b, err = compiler.Compile(bytes.NewReader(b))
+		if err != nil {
+			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
+		}
+	}
+	v := vm.New()
+	v.LoadScript(b)
+	v.PrintOps()
+
 	return nil
 }

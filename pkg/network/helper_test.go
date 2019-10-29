@@ -9,9 +9,11 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 type testChain struct {
@@ -76,6 +78,9 @@ func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]
 	panic("TODO")
 }
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *core.StorageItem {
+	panic("TODO")
+}
+func (chain testChain) GetTestVM() (*vm.VM, storage.Store) {
 	panic("TODO")
 }
 func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*core.StorageItem, error) {

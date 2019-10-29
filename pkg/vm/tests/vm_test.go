@@ -52,7 +52,7 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put, 1)
 	vm.RegisterInteropFunc("Neo.Storage.GetContext", storePlugin.GetContext, 1)
 
-	b, err := compiler.Compile(strings.NewReader(src), &compiler.Options{})
+	b, err := compiler.Compile(strings.NewReader(src))
 	if err != nil {
 		t.Fatal(err)
 	}

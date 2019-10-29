@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -38,7 +37,7 @@ type buildInfo struct {
 }
 
 // Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
-func Compile(r io.Reader, o *Options) ([]byte, error) {
+func Compile(r io.Reader) ([]byte, error) {
 	conf := loader.Config{ParserMode: parser.ParseComments}
 	f, err := conf.ParseFile("", r)
 	if err != nil {
@@ -85,7 +84,7 @@ func CompileAndSave(src string, o *Options) error {
 	if err != nil {
 		return err
 	}
-	b, err = Compile(bytes.NewReader(b), o)
+	b, err = Compile(bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("error while trying to compile smart contract file: %v", err)
 	}
@@ -94,23 +93,6 @@ func CompileAndSave(src string, o *Options) error {
 
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	return ioutil.WriteFile(out, b, os.ModePerm)
-}
-
-// CompileAndInspect compiles the program and dumps the opcode in a user friendly format.
-func CompileAndInspect(src string) error {
-	b, err := ioutil.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	b, err = Compile(bytes.NewReader(b), &Options{})
-	if err != nil {
-		return err
-	}
-
-	v := vm.New()
-	v.LoadScript(b)
-	v.PrintOps()
-	return nil
 }
 
 func gopath() string {

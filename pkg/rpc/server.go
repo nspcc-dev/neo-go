@@ -192,10 +192,6 @@ Methods:
 
 		results = peers
 
-	case "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript":
-
-		results = "TODO"
-
 	case "validateaddress":
 		validateaddressCalled.Inc()
 		param, err := reqParams.Value(0)
@@ -241,6 +237,9 @@ Methods:
 	case "getrawtransaction":
 		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
+
+	case "invokescript":
+		results, resultsErr = s.invokescript(reqParams)
 
 	case "sendrawtransaction":
 		sendrawtransactionCalled.Inc()
@@ -294,6 +293,28 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	}
 
 	return results, resultsErr
+}
+
+// invokescript implements the `invokescript` RPC call.
+func (s *Server) invokescript(reqParams Params) (interface{}, error) {
+	hexScript, err := reqParams.ValueWithType(0, "string")
+	if err != nil {
+		return nil, err
+	}
+	script, err := hex.DecodeString(hexScript.StringVal)
+	if err != nil {
+		return nil, err
+	}
+	vm, _ := s.chain.GetTestVM()
+	vm.LoadScript(script)
+	_ = vm.Run()
+	result := &wrappers.InvokeResult{
+		State:       vm.State(),
+		GasConsumed: "0.1",
+		Script:      hexScript.StringVal,
+		Stack:       vm.Estack(),
+	}
+	return result, nil
 }
 
 func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
