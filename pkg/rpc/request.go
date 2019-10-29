@@ -110,6 +110,7 @@ func (r Request) WriteResponse(w http.ResponseWriter, result interface{}) {
 
 func (r Request) writeServerResponse(w http.ResponseWriter, response Response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(response)
 
