@@ -266,7 +266,7 @@ func inspect(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if compile {
-		b, err = compiler.Compile(bytes.NewReader(b), &compiler.Options{})
+		b, err = compiler.Compile(bytes.NewReader(b))
 		if err != nil {
 			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
 		}

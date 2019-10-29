@@ -44,14 +44,10 @@ func filterFilename(infos []os.FileInfo) string {
 }
 
 func compileFile(src string) error {
-	o := compiler.Options{
-		Outfile: "tmp/contract.avm",
-	}
-
 	file, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	_, err = compiler.Compile(file, &o)
+	_, err = compiler.Compile(file)
 	return err
 }

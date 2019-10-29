@@ -259,7 +259,7 @@ func handleLoadGo(c *ishell.Context) {
 		c.Err(err)
 		return
 	}
-	b, err := compiler.Compile(bytes.NewReader(fb), &compiler.Options{})
+	b, err := compiler.Compile(bytes.NewReader(fb))
 	if err != nil {
 		c.Err(err)
 		return

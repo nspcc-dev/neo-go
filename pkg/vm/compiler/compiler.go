@@ -37,7 +37,7 @@ type buildInfo struct {
 }
 
 // Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
-func Compile(r io.Reader, o *Options) ([]byte, error) {
+func Compile(r io.Reader) ([]byte, error) {
 	conf := loader.Config{ParserMode: parser.ParseComments}
 	f, err := conf.ParseFile("", r)
 	if err != nil {
@@ -84,7 +84,7 @@ func CompileAndSave(src string, o *Options) error {
 	if err != nil {
 		return err
 	}
-	b, err = Compile(bytes.NewReader(b), o)
+	b, err = Compile(bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("error while trying to compile smart contract file: %v", err)
 	}
