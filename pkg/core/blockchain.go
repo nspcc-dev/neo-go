@@ -431,19 +431,9 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			contracts[contract.ScriptHash()] = contract
 
 		case *transaction.InvocationTX:
-			vm := vm.New()
-			vm.SetCheckedHash(tx.VerificationHash().Bytes())
-			vm.SetScriptGetter(func(hash util.Uint160) []byte {
-				cs := bc.GetContractState(hash)
-				if cs == nil {
-					return nil
-				}
-
-				return cs.Script
-			})
 			systemInterop := newInteropContext(0x10, bc, tmpStore, block, tx)
-			vm.RegisterInteropFuncs(systemInterop.getSystemInteropMap())
-			vm.RegisterInteropFuncs(systemInterop.getNeoInteropMap())
+			vm := bc.spawnVMWithInterops(systemInterop)
+			vm.SetCheckedHash(tx.VerificationHash().Bytes())
 			vm.LoadScript(t.Script)
 			err := vm.Run()
 			if !vm.HasFailed() {
@@ -1105,6 +1095,22 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
+// spawnVMWithInterops returns a VM with script getter and interop functions set
+// up for current blockchain.
+func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
+	vm := vm.New()
+	vm.SetScriptGetter(func(hash util.Uint160) []byte {
+		cs := bc.GetContractState(hash)
+		if cs == nil {
+			return nil
+		}
+		return cs.Script
+	})
+	vm.RegisterInteropFuncs(interopCtx.getSystemInteropMap())
+	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
+	return vm
+}
+
 // verifyHashAgainstScript verifies given hash against the given witness.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext) error {
 	verification := witness.VerificationScript
@@ -1122,17 +1128,8 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 	}
 
-	vm := vm.New()
+	vm := bc.spawnVMWithInterops(interopCtx)
 	vm.SetCheckedHash(checkedHash.Bytes())
-	vm.SetScriptGetter(func(hash util.Uint160) []byte {
-		cs := bc.GetContractState(hash)
-		if cs == nil {
-			return nil
-		}
-		return cs.Script
-	})
-	vm.RegisterInteropFuncs(interopCtx.getSystemInteropMap())
-	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
 	err := vm.Run()
