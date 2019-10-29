@@ -128,6 +128,7 @@ func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	}
 	mp.lock.RLock()
 	_, ok := mp.unsortedTxn[hash]
+	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
 	mp.lock.RUnlock()
 	return ok
 }
@@ -162,6 +163,7 @@ func (mp *MemPool) Remove(hash util.Uint256) {
 			}
 		}
 	}
+	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
 	mp.lock.Unlock()
 }
 
@@ -197,6 +199,7 @@ func (mp *MemPool) RemoveOverCapacity() {
 
 			}
 		}
+		updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
 		mp.lock.Unlock()
 	}
 

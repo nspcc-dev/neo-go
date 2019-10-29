@@ -8,6 +8,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/network/metrics"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
@@ -65,13 +66,14 @@ type (
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
-		DBConfiguration   storage.DBConfiguration `yaml:"DBConfiguration"`
-		RPCPort           uint16                  `yaml:"RPCPort"`
-		NodePort          uint16                  `yaml:"NodePort"`
-		Relay             bool                    `yaml:"Relay"`
-		DialTimeout       time.Duration           `yaml:"DialTimeout"`
-		ProtoTickInterval time.Duration           `yaml:"ProtoTickInterval"`
-		MaxPeers          int                     `yaml:"MaxPeers"`
+		DBConfiguration   storage.DBConfiguration  `yaml:"DBConfiguration"`
+		RPCPort           uint16                   `yaml:"RPCPort"`
+		NodePort          uint16                   `yaml:"NodePort"`
+		Relay             bool                     `yaml:"Relay"`
+		DialTimeout       time.Duration            `yaml:"DialTimeout"`
+		ProtoTickInterval time.Duration            `yaml:"ProtoTickInterval"`
+		MaxPeers          int                      `yaml:"MaxPeers"`
+		Monitoring        metrics.PrometheusConfig `yaml:"Monitoring"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.

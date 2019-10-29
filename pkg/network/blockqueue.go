@@ -34,6 +34,7 @@ func (bq *blockQueue) run() {
 			minblock := item.(*core.Block)
 			if minblock.Index <= bq.chain.BlockHeight()+1 {
 				_, _ = bq.queue.Get(1)
+				updateBlockQueueLenMetric(bq.length())
 				if minblock.Index == bq.chain.BlockHeight()+1 {
 					err := bq.chain.AddBlock(minblock)
 					if err != nil {
@@ -58,6 +59,8 @@ func (bq *blockQueue) putBlock(block *core.Block) error {
 		return nil
 	}
 	err := bq.queue.Put(block)
+	// update metrics
+	updateBlockQueueLenMetric(bq.length())
 	select {
 	case bq.checkBlocks <- struct{}{}:
 		// ok, signalled to goroutine processing queue

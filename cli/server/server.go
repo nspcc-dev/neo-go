@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/network/metrics"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -248,10 +249,12 @@ func startServer(ctx *cli.Context) error {
 	server := network.NewServer(serverConfig, chain)
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
 	errChan := make(chan error)
+	monitoring := metrics.NewMetricsService(cfg.ApplicationConfiguration.Monitoring)
 
 	go chain.Run(grace)
 	go server.Start(errChan)
 	go rpcServer.Start(errChan)
+	go monitoring.Start()
 
 	fmt.Println(logo())
 	fmt.Println(server.UserAgent)
@@ -270,6 +273,7 @@ Main:
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
 			}
+			monitoring.ShutDown()
 			break Main
 		}
 	}

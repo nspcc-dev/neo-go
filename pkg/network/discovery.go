@@ -78,6 +78,7 @@ func (d *DefaultDiscovery) PoolCount() int {
 func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 	select {
 	case d.pool <- addr:
+		updatePoolCountMetric(d.PoolCount())
 		// ok, queued
 	default:
 		// whatever
@@ -185,6 +186,7 @@ func (d *DefaultDiscovery) run() {
 				d.lock.RLock()
 				addrIsConnected := d.connectedAddrs[addr]
 				d.lock.RUnlock()
+				updatePoolCountMetric(d.PoolCount())
 				if !addrIsConnected {
 					go d.tryAddress(addr)
 				}

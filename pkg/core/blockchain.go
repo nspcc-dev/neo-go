@@ -266,6 +266,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if oldlen != headerList.Len() {
+			updateHeaderHeightMetric(headerList.Len()-1)
 			if err = bc.store.PutBatch(batch); err != nil {
 				return
 			}
@@ -482,6 +483,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	}
 
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
+	updateBlockHeightMetric(block.Index)
 	for _, tx := range block.Transactions {
 		bc.memPool.Remove(tx.Hash())
 	}
@@ -519,6 +521,9 @@ func (bc *Blockchain) persist() error {
 			"blockHeight":     bHeight,
 			"took":            time.Since(start),
 		}).Info("blockchain persist completed")
+
+		// update monitoring metrics.
+		updatePersistedHeightMetric(bHeight)
 	}
 
 	return nil
