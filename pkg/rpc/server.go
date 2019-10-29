@@ -185,10 +185,6 @@ Methods:
 
 		results = peers
 
-	case "getblocksysfee", "getcontractstate", "getrawmempool", "getstorage", "submitblock", "gettxout", "invoke", "invokefunction", "invokescript":
-
-		results = "TODO"
-
 	case "validateaddress":
 		param, err := reqParams.Value(0)
 		if err != nil {
