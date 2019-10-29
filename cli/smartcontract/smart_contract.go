@@ -6,14 +6,15 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -91,6 +92,10 @@ func NewCommands() []cli.Command {
 				Usage:  "creates a user readable dump of the program instructions",
 				Action: inspect,
 				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "compile, c",
+						Usage: "compile input file (it should be go code then)",
+					},
 					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "input file of the program",
@@ -251,12 +256,24 @@ func parseContractDetails() ContractDetails {
 }
 
 func inspect(ctx *cli.Context) error {
-	src := ctx.String("in")
-	if len(src) == 0 {
+	in := ctx.String("in")
+	compile := ctx.Bool("compile")
+	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	if err := compiler.CompileAndInspect(src); err != nil {
+	b, err := ioutil.ReadFile(in)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if compile {
+		b, err = compiler.Compile(bytes.NewReader(b), &compiler.Options{})
+		if err != nil {
+			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
+		}
+	}
+	v := vm.New()
+	v.LoadScript(b)
+	v.PrintOps()
+
 	return nil
 }

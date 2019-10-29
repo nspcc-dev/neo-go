@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -94,23 +93,6 @@ func CompileAndSave(src string, o *Options) error {
 
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	return ioutil.WriteFile(out, b, os.ModePerm)
-}
-
-// CompileAndInspect compiles the program and dumps the opcode in a user friendly format.
-func CompileAndInspect(src string) error {
-	b, err := ioutil.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	b, err = Compile(bytes.NewReader(b), &Options{})
-	if err != nil {
-		return err
-	}
-
-	v := vm.New()
-	v.LoadScript(b)
-	v.PrintOps()
-	return nil
 }
 
 func gopath() string {
