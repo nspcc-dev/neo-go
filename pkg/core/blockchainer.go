@@ -2,8 +2,10 @@ package core
 
 import (
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 // Blockchainer is an interface that abstract the implementation
@@ -27,6 +29,7 @@ type Blockchainer interface {
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error)
+	GetTestVM() (*vm.VM, storage.Store)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(util.Uint256) *UnspentCoinState
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output

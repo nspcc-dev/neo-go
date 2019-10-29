@@ -1111,6 +1111,14 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 	return vm
 }
 
+// GetTestVM returns a VM and a Store setup for a test run of some sort of code.
+func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
+	tmpStore := storage.NewMemCachedStore(bc.store)
+	systemInterop := newInteropContext(0x10, bc, tmpStore, nil, nil)
+	vm := bc.spawnVMWithInterops(systemInterop)
+	return vm, tmpStore
+}
+
 // verifyHashAgainstScript verifies given hash against the given witness.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext) error {
 	verification := witness.VerificationScript
