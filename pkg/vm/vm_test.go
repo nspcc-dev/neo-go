@@ -197,6 +197,27 @@ func TestPushData4Good(t *testing.T) {
 	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
+func callNTimes(n uint16) []byte {
+	return makeProgram(
+		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian
+		TOALTSTACK, DUPFROMALTSTACK,
+		JMPIF, 0x4, 0, RET,
+		FROMALTSTACK, DEC,
+		CALL, 0xF8, 0xFF) // -8 -> JMP to TOALTSTACK)
+}
+
+func TestInvocationLimitGood(t *testing.T) {
+	prog := callNTimes(MaxInvocationStackSize - 1)
+	v := load(prog)
+	runVM(t, v)
+}
+
+func TestInvocationLimitBad(t *testing.T) {
+	prog := callNTimes(MaxInvocationStackSize)
+	v := load(prog)
+	checkVMFailed(t, v)
+}
+
 func TestNOTNoArgument(t *testing.T) {
 	prog := makeProgram(NOT)
 	vm := load(prog)

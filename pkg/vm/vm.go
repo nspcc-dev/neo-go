@@ -41,6 +41,9 @@ const (
 	// MaxItemSize is the maximum item size allowed in the VM.
 	MaxItemSize = 1024 * 1024
 
+	// MaxInvocationStackSize is the maximum size of an invocation stack.
+	MaxInvocationStackSize = 1024
+
 	maxSHLArg = 256
 	minSHLArg = -256
 )
@@ -995,6 +998,8 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		}
 
 	case CALL:
+		v.checkInvocationStackSize()
+
 		newCtx := ctx.Copy()
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
@@ -1015,6 +1020,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 	case APPCALL, TAILCALL:
 		if v.getScript == nil {
 			panic("no getScript callback is set up")
+		}
+
+		if op == APPCALL {
+			v.checkInvocationStackSize()
 		}
 
 		hash, err := util.Uint160DecodeBytes(parameter)
@@ -1227,8 +1236,12 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		if v.estack.Len() < pcount+addElement {
 			panic("missing some parameters")
 		}
-		if tailCall && ctx.rvcount != rvcount {
-			panic("context and parameter rvcount mismatch")
+		if tailCall {
+			if ctx.rvcount != rvcount {
+				panic("context and parameter rvcount mismatch")
+			}
+		} else {
+			v.checkInvocationStackSize()
 		}
 
 		if op == CALLI {
@@ -1311,5 +1324,11 @@ func validateMapKey(key *Element) {
 	switch key.value.(type) {
 	case *ArrayItem, *StructItem, *MapItem:
 		panic("key can't be a collection")
+	}
+}
+
+func (v *VM) checkInvocationStackSize() {
+	if v.istack.len >= MaxInvocationStackSize {
+		panic("invocation stack is too big")
 	}
 }
