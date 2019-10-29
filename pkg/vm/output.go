@@ -9,7 +9,7 @@ type stackItem struct {
 	Type  string      `json:"type"`
 }
 
-func buildStackOutput(s *Stack) string {
+func stackToArray(s *Stack) []stackItem {
 	items := make([]stackItem, 0, s.Len())
 	s.Iter(func(e *Element) {
 		items = append(items, stackItem{
@@ -17,7 +17,10 @@ func buildStackOutput(s *Stack) string {
 			Type:  e.value.String(),
 		})
 	})
+	return items
+}
 
-	b, _ := json.MarshalIndent(items, "", "    ")
+func buildStackOutput(s *Stack) string {
+	b, _ := json.MarshalIndent(stackToArray(s), "", "    ")
 	return string(b)
 }

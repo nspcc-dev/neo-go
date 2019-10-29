@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -333,4 +334,9 @@ func (s *Stack) popSigElements() ([][]byte, error) {
 		}
 	}
 	return elems, nil
+}
+
+// MarshalJSON implements JSON marshalling interface.
+func (s *Stack) MarshalJSON() ([]byte, error) {
+	return json.Marshal(stackToArray(s))
 }
