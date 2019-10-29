@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
@@ -66,6 +67,10 @@ func NewCommands() []cli.Command {
 				Usage:  "Test an invocation of a smart contract on the blockchain",
 				Action: testInvoke,
 				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "endpoint, e",
+						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
+					},
 					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "Input location of the avm file that needs to be invoked",
@@ -168,16 +173,16 @@ func testInvoke(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
+	endpoint := ctx.String("endpoint")
+	if len(endpoint) == 0 {
+		return cli.NewExitError(errNoEndpoint, 1)
+	}
 
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	// For now we will hardcode the endpoint.
-	// On the long term the internal VM will run the script.
-	// TODO: remove RPC dependency, hardcoded node.
-	endpoint := "http://node1.ams2.bridgeprotocol.io:10332"
 	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
