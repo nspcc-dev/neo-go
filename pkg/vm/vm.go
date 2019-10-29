@@ -248,6 +248,11 @@ func (v *VM) Stack(n string) string {
 	return buildStackOutput(s)
 }
 
+// State returns string representation of the state for the VM.
+func (v *VM) State() string {
+	return v.state.String()
+}
+
 // Ready returns true if the VM ready to execute the loaded program.
 // Will return false if no program is loaded.
 func (v *VM) Ready() bool {
