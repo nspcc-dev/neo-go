@@ -38,6 +38,7 @@ ApplicationConfiguration:
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
+  MinPeers: 1
   Monitoring:
     Enabled: false #since it's not useful for unit tests.
     Port: 2112

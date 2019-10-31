@@ -10,6 +10,11 @@ import (
 type (
 	// ServerConfig holds the server configuration.
 	ServerConfig struct {
+		// MinPeers is the minimum number of peers for normal operation,
+		// when the node has less than this number of peers it tries to
+		// connect with some new ones.
+		MinPeers int
+
 		// MaxPeers it the maximum numbers of peers that can
 		// be connected to the server.
 		MaxPeers int
@@ -59,5 +64,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		DialTimeout:       appConfig.DialTimeout * time.Second,
 		ProtoTickInterval: appConfig.ProtoTickInterval * time.Second,
 		MaxPeers:          appConfig.MaxPeers,
+		MinPeers:          appConfig.MinPeers,
 	}
 }

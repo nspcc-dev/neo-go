@@ -73,6 +73,7 @@ type (
 		DialTimeout       time.Duration            `yaml:"DialTimeout"`
 		ProtoTickInterval time.Duration            `yaml:"ProtoTickInterval"`
 		MaxPeers          int                      `yaml:"MaxPeers"`
+		MinPeers          int                      `yaml:"MinPeers"`
 		Monitoring        metrics.PrometheusConfig `yaml:"Monitoring"`
 	}
 

@@ -18,7 +18,6 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	minPeers       = 5
 	maxPeers       = 20
 	maxBlockBatch  = 200
 	maxAddrsToSend = 200
@@ -71,7 +70,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		bQueue:       newBlockQueue(maxBlockBatch, chain),
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
-		addrReq:      make(chan *Message, minPeers),
+		addrReq:      make(chan *Message, config.MinPeers),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
@@ -129,7 +128,7 @@ func (s *Server) BadPeers() []string {
 func (s *Server) run() {
 	for {
 		c := s.PeerCount()
-		if c < minPeers {
+		if c < s.ServerConfig.MinPeers {
 			s.discovery.RequestRemote(maxPeers - c)
 		}
 		if s.discovery.PoolCount() < minPoolCount {
