@@ -2,6 +2,40 @@
 
 This document outlines major changes between releases.
 
+## 0.61.0 "Cuspidation" (01 Nov 2019)
+
+New features:
+ * Prometheus support for monitoring (#348)
+ * `neo-go contract invoke` now accepts endpoint parameter (`--endpoint` or
+   `-e`) to specify RPC node to be used for invocation (#363)
+ * RPC server now supports `invokescript` method (#348)
+ * minimum peers number can now be configured (#468)
+ * configured CORS workaround implemented in the RPC package (#469)
+
+Behavior changes:
+ * `neo-go contract inspect` now expects avm files in input, but can also
+   compile Go code with `-c` parameter (previously is was done by default),
+   `inspect` subcommand was removed from `neo-go vm` (it dumped avm files in
+   previous release) (#463)
+ * the default minimum peers was reduced to 3 for privnet setups to avoid
+   useless reconnections to only 4 available nodes
+ * RPC service now has its own section in configuration, update your
+   configurations (#469)
+
+Improvements:
+ * VM.Load() now clears the state properly, making VM reusable after the Run()
+   (#463)
+ * Compile() in compiler package no longer accepts Options, they were not used
+   previously anyway (#463)
+ * invocation stack depth is now limited in the VM (#461)
+ * VM got new State() method to get textual state description (#463)
+ * vm's Stack structure can now be marshalled into JSON (#463)
+
+Bugs fixed:
+ * race in discoverer part of the server (#445)
+ * RPC server giving improper (not JSON) respons to unimplemented API requests
+   (#463)
+
 ## 0.60.0 "Cribration" (25 Oct 2019)
 
 Release 0.60.0 brings with it an implementation of all NEO 2.0 VM opcodes,
