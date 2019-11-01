@@ -167,7 +167,7 @@ func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Block
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
-	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
+	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
 	return chain, handler

@@ -247,7 +247,7 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	server := network.NewServer(serverConfig, chain)
-	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPCPort, server)
+	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	errChan := make(chan error)
 	monitoring := metrics.NewMetricsService(cfg.ApplicationConfiguration.Monitoring)
 

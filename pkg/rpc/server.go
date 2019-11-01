@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
@@ -24,6 +25,7 @@ type (
 	Server struct {
 		*http.Server
 		chain      core.Blockchainer
+		config     config.RPCConfig
 		coreServer *network.Server
 	}
 )
@@ -35,12 +37,15 @@ var (
 )
 
 // NewServer creates a new Server struct.
-func NewServer(chain core.Blockchainer, port uint16, coreServer *network.Server) Server {
+func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server) Server {
+	httpServer := &http.Server{
+		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
+	}
+
 	return Server{
-		Server: &http.Server{
-			Addr: ":" + strconv.FormatUint(uint64(port), 10),
-		},
+		Server:     httpServer,
 		chain:      chain,
+		config:     conf,
 		coreServer: coreServer,
 	}
 }
@@ -48,6 +53,10 @@ func NewServer(chain core.Blockchainer, port uint16, coreServer *network.Server)
 // Start creates a new JSON-RPC server
 // listening on the configured port.
 func (s *Server) Start(errChan chan error) {
+	if !s.config.Enabled {
+		log.Info("RPC server is not enabled")
+		return
+	}
 	s.Handler = http.HandlerFunc(s.requestHandler)
 	log.WithFields(log.Fields{
 		"endpoint": s.Addr,
@@ -66,7 +75,7 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request) {
-	req := NewRequest()
+	req := NewRequest(s.config.EnableCORSWorkaround)
 
 	if httpRequest.Method != "POST" {
 		req.WriteErrorResponse(

@@ -67,7 +67,6 @@ type (
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
 		DBConfiguration   storage.DBConfiguration  `yaml:"DBConfiguration"`
-		RPCPort           uint16                   `yaml:"RPCPort"`
 		NodePort          uint16                   `yaml:"NodePort"`
 		Relay             bool                     `yaml:"Relay"`
 		DialTimeout       time.Duration            `yaml:"DialTimeout"`
@@ -75,6 +74,15 @@ type (
 		MaxPeers          int                      `yaml:"MaxPeers"`
 		MinPeers          int                      `yaml:"MinPeers"`
 		Monitoring        metrics.PrometheusConfig `yaml:"Monitoring"`
+		RPC               RPCConfig                `yaml:"RPC"`
+	}
+
+	// RPCConfig is an RPC service configuration information (to be moved to the rpc package, see #423).
+	RPCConfig struct {
+		Enabled              bool   `yaml:"Enabled"`
+		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
+		Address              string `yaml:"Address"`
+		Port                 uint16 `yaml:"Port"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.

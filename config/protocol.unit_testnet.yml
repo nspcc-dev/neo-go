@@ -32,13 +32,16 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/unit_testnet.bolt"
-  RPCPort: 20332
   NodePort: 20333
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
   MinPeers: 1
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 20332
   Monitoring:
     Enabled: false #since it's not useful for unit tests.
     Port: 2112
