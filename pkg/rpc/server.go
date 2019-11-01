@@ -157,7 +157,7 @@ Methods:
 		results = wrappers.NewBlock(block, s.chain)
 	case "getblockcount":
 		getblockcountCalled.Inc()
-		results = s.chain.BlockHeight()
+		results = s.chain.BlockHeight() + 1
 
 	case "getblockhash":
 		getblockHashCalled.Inc()
