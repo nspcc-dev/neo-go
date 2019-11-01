@@ -5,7 +5,7 @@ This document outlines major changes between releases.
 ## 0.61.0 "Cuspidation" (01 Nov 2019)
 
 New features:
- * Prometheus support for monitoring (#348)
+ * Prometheus support for monitoring (#441)
  * `neo-go contract invoke` now accepts endpoint parameter (`--endpoint` or
    `-e`) to specify RPC node to be used for invocation (#363)
  * RPC server now supports `invokescript` method (#348)
