@@ -18,10 +18,11 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	maxPeers       = 20
-	maxBlockBatch  = 200
-	maxAddrsToSend = 200
-	minPoolCount   = 30
+	defaultMinPeers = 5
+	maxPeers        = 20
+	maxBlockBatch   = 200
+	maxAddrsToSend  = 200
+	minPoolCount    = 30
 )
 
 var (
@@ -74,6 +75,14 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
+	}
+
+	if s.MinPeers <= 0 {
+		log.WithFields(log.Fields{
+			"MinPeers configured": s.MinPeers,
+			"MinPeers actual":     defaultMinPeers,
+		}).Info("bad MinPeers configured, using the default value")
+		s.MinPeers = defaultMinPeers
 	}
 
 	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
