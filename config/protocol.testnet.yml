@@ -42,13 +42,16 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/testnet.bolt"
-  RPCPort: 20332
   NodePort: 20333
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
   MinPeers: 5
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 20332
   Monitoring:
     Enabled: true
     Port: 2112

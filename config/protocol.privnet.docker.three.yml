@@ -27,13 +27,16 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
-  RPCPort: 20335
   NodePort: 20336
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
   MinPeers: 3
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 20335
   Monitoring:
     Enabled: true
     Port: 2112
