@@ -28,7 +28,7 @@ func TestRPC(t *testing.T) {
 		var res StringResultResponse
 		err := json.Unmarshal(bytes.TrimSpace(body), &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
-		assert.Equal(t, chain.CurrentBlockHash().ReverseString(), res.Result)
+		assert.Equal(t, "0x"+chain.CurrentBlockHash().ReverseString(), res.Result)
 	})
 
 	t.Run("getblock", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestRPC(t *testing.T) {
 		var res IntResultResponse
 		err := json.Unmarshal(bytes.TrimSpace(body), &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
-		assert.Equal(t, chain.BlockHeight(), uint32(res.Result))
+		assert.Equal(t, chain.BlockHeight()+1, uint32(res.Result))
 	})
 
 	t.Run("getblockhash", func(t *testing.T) {

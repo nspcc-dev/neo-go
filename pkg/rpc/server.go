@@ -117,7 +117,7 @@ Methods:
 	switch req.Method {
 	case "getbestblockhash":
 		getbestblockhashCalled.Inc()
-		results = s.chain.CurrentBlockHash().ReverseString()
+		results = "0x" + s.chain.CurrentBlockHash().ReverseString()
 
 	case "getblock":
 		getbestblockCalled.Inc()
@@ -157,7 +157,7 @@ Methods:
 		results = wrappers.NewBlock(block, s.chain)
 	case "getblockcount":
 		getblockcountCalled.Inc()
-		results = s.chain.BlockHeight()
+		results = s.chain.BlockHeight() + 1
 
 	case "getblockhash":
 		getblockHashCalled.Inc()
