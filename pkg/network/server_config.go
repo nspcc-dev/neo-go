@@ -27,8 +27,11 @@ type (
 		// The user agent of the server.
 		UserAgent string
 
-		// The listen address of the TCP server.
-		ListenTCP uint16
+		// Address. Example: "127.0.0.1".
+		Address string
+
+		// Port. Example: 20332.
+		Port uint16
 
 		// The network mode the server will operate on.
 		// ModePrivNet docker private network.
@@ -62,7 +65,8 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 
 	return ServerConfig{
 		UserAgent:         cfg.GenerateUserAgent(),
-		ListenTCP:         appConfig.NodePort,
+		Address:           appConfig.Address,
+		Port:              appConfig.NodePort,
 		Net:               protoConfig.Magic,
 		Relay:             appConfig.Relay,
 		Seeds:             protoConfig.SeedList,
