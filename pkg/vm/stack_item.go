@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // A StackItem represents the "real" value that is pushed on the stack.
@@ -129,6 +131,11 @@ func NewBigIntegerItem(value int) *BigIntegerItem {
 	return &BigIntegerItem{
 		value: big.NewInt(int64(value)),
 	}
+}
+
+// Bytes converts i to a slice of bytes.
+func (i *BigIntegerItem) Bytes() []byte {
+	return util.ArrayReverse(i.value.Bytes())
 }
 
 // Value implements StackItem interface.
