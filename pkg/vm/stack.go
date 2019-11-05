@@ -122,7 +122,7 @@ func (e *Element) Bytes() []byte {
 	case *ByteArrayItem:
 		return t.value
 	case *BigIntegerItem:
-		return util.ArrayReverse(t.value.Bytes()) // neoVM returns in LE
+		return t.Bytes() // neoVM returns in LE
 	case *BoolItem:
 		if t.value {
 			return []byte{1}

@@ -245,6 +245,17 @@ func TestSerializeByteArray(t *testing.T) {
 	require.Equal(t, value, vm.estack.Top().Bytes())
 }
 
+func TestSerializeInteger(t *testing.T) {
+	vm := load(getSerializeProg())
+	value := int64(123)
+	vm.estack.PushVal(value)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*BigIntegerItem)(nil), vm.estack.Top().value)
+	require.Equal(t, value, vm.estack.Top().BigInt().Int64())
+}
+
 func callNTimes(n uint16) []byte {
 	return makeProgram(
 		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian
