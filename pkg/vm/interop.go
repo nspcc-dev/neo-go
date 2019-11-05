@@ -22,8 +22,8 @@ func runtimeNotify(vm *VM) error {
 	return nil
 }
 
-// runtimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
-func runtimeSerialize(vm *VM) error {
+// RuntimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
+func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
 	data, err := serializeItem(item.value)
 	if err != nil {
@@ -37,8 +37,8 @@ func runtimeSerialize(vm *VM) error {
 	return nil
 }
 
-// runtimeDeserialize handles syscalls System.Runtime.Deserialize and Neo.Runtime.Deserialize.
-func runtimeDeserialize(vm *VM) error {
+// RuntimeDeserialize handles syscalls System.Runtime.Deserialize and Neo.Runtime.Deserialize.
+func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 
 	item, err := deserializeItem(data)

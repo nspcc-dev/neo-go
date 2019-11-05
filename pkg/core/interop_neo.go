@@ -736,3 +736,13 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 	v.Estack().PushVal(expiration)
 	return nil
 }
+
+// runtimeSerialize serializes top stack item into a ByteArray.
+func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
+	return vm.RuntimeSerialize(v)
+}
+
+// runtimeDeserialize deserializes ByteArray from a stack into an item.
+func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
+	return vm.RuntimeDeserialize(v)
+}
