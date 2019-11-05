@@ -197,6 +197,147 @@ func TestPushData4Good(t *testing.T) {
 	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
+func getSyscallProg(name string) (prog []byte) {
+	prog = []byte{byte(SYSCALL)}
+	prog = append(prog, byte(len(name)))
+	prog = append(prog, name...)
+
+	return
+}
+
+func getSerializeProg() (prog []byte) {
+	prog = append(prog, getSyscallProg("Neo.Runtime.Serialize")...)
+	prog = append(prog, getSyscallProg("Neo.Runtime.Deserialize")...)
+	prog = append(prog, byte(RET))
+
+	return
+}
+
+func testSerialize(t *testing.T, vm *VM) {
+	err := vm.Step()
+	require.NoError(t, err)
+	require.Equal(t, 1, vm.estack.Len())
+	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+
+	err = vm.Step()
+	require.NoError(t, err)
+	require.Equal(t, 1, vm.estack.Len())
+}
+
+func TestSerializeBool(t *testing.T) {
+	vm := load(getSerializeProg())
+	vm.estack.PushVal(true)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*BoolItem)(nil), vm.estack.Top().value)
+	require.Equal(t, true, vm.estack.Top().Bool())
+}
+
+func TestSerializeByteArray(t *testing.T) {
+	vm := load(getSerializeProg())
+	value := []byte{1, 2, 3}
+	vm.estack.PushVal(value)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+	require.Equal(t, value, vm.estack.Top().Bytes())
+}
+
+func TestSerializeInteger(t *testing.T) {
+	vm := load(getSerializeProg())
+	value := int64(123)
+	vm.estack.PushVal(value)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*BigIntegerItem)(nil), vm.estack.Top().value)
+	require.Equal(t, value, vm.estack.Top().BigInt().Int64())
+}
+
+func TestSerializeArray(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewArrayItem([]StackItem{
+		makeStackItem(true),
+		makeStackItem(123),
+		NewMapItem(),
+	})
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*ArrayItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().Array())
+}
+
+func TestSerializeArrayBad(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewArrayItem(makeArrayOfFalses(2))
+	item.value[1] = item
+
+	vm.estack.Push(&Element{value: item})
+
+	err := vm.Step()
+	require.Error(t, err)
+	require.True(t, vm.HasFailed())
+}
+
+func TestSerializeStruct(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewStructItem([]StackItem{
+		makeStackItem(true),
+		makeStackItem(123),
+		NewMapItem(),
+	})
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*StructItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().Array())
+}
+
+func TestDeserializeUnknown(t *testing.T) {
+	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(RET))
+	vm := load(prog)
+
+	data, err := serializeItem(NewBigIntegerItem(123))
+	require.NoError(t, err)
+
+	data[0] = 0xFF
+	vm.estack.PushVal(data)
+
+	checkVMFailed(t, vm)
+}
+
+func TestSerializeMap(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewMapItem()
+	item.Add(makeStackItem(true), makeStackItem([]byte{1, 2, 3}))
+	item.Add(makeStackItem([]byte{0}), makeStackItem(false))
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*MapItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().value.(*MapItem).value)
+}
+
+func TestSerializeInterop(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewInteropItem("kek")
+
+	vm.estack.Push(&Element{value: item})
+
+	err := vm.Step()
+	require.Error(t, err)
+	require.True(t, vm.HasFailed())
+}
+
 func callNTimes(n uint16) []byte {
 	return makeProgram(
 		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian

@@ -86,6 +86,10 @@ func New() *VM {
 	// Register native interop hooks.
 	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog, 1)
 	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify, 1)
+	vm.RegisterInteropFunc("Neo.Runtime.Serialize", RuntimeSerialize, 1)
+	vm.RegisterInteropFunc("System.Runtime.Serialize", RuntimeSerialize, 1)
+	vm.RegisterInteropFunc("Neo.Runtime.Deserialize", RuntimeDeserialize, 1)
+	vm.RegisterInteropFunc("System.Runtime.Deserialize", RuntimeDeserialize, 1)
 
 	return vm
 }
