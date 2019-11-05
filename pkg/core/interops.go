@@ -64,8 +64,8 @@ func (ic *interopContext) getSystemInteropMap() map[string]vm.InteropFuncPrice {
 		"System.Storage.PutEx":                          {Func: ic.storagePutEx, Price: 0},
 		"System.StorageContext.AsReadOnly":              {Func: ic.storageContextAsReadOnly, Price: 1},
 		"System.Transaction.GetHash":                    {Func: ic.txGetHash, Price: 1},
-		//		"System.Runtime.Deserialize":                    {Func: ic.runtimeDeserialize, Price: 1},
-		//		"System.Runtime.Serialize":                      {Func: ic.runtimeSerialize, Price: 1},
+		"System.Runtime.Deserialize":                    {Func: ic.runtimeDeserialize, Price: 1},
+		"System.Runtime.Serialize":                      {Func: ic.runtimeSerialize, Price: 1},
 	}
 }
 
@@ -148,8 +148,8 @@ func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
 		//		"Neo.Iterator.Key": {Func: ic.iteratorKey, Price: 1},
 		//		"Neo.Iterator.Keys": {Func: ic.iteratorKeys, Price: 1},
 		//		"Neo.Iterator.Values": {Func: ic.iteratorValues, Price: 1},
-		//		"Neo.Runtime.Deserialize":  {Func: ic.runtimeDeserialize, Price: 1},
-		//		"Neo.Runtime.Serialize":    {Func: ic.runtimeSerialize, Price: 1},
+		"Neo.Runtime.Deserialize": {Func: ic.runtimeDeserialize, Price: 1},
+		"Neo.Runtime.Serialize":   {Func: ic.runtimeSerialize, Price: 1},
 		//		"Neo.Storage.Find":                {Func: ic.storageFind, Price: 1},
 		//		"Neo.Witness.GetVerificationScript": {Func: ic.witnessGetVerificationScript, Price: 100},
 
