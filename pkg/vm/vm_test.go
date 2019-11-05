@@ -197,6 +197,54 @@ func TestPushData4Good(t *testing.T) {
 	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
+func getSyscallProg(name string) (prog []byte) {
+	prog = []byte{byte(SYSCALL)}
+	prog = append(prog, byte(len(name)))
+	prog = append(prog, name...)
+
+	return
+}
+
+func getSerializeProg() (prog []byte) {
+	prog = append(prog, getSyscallProg("Neo.Runtime.Serialize")...)
+	prog = append(prog, getSyscallProg("Neo.Runtime.Deserialize")...)
+	prog = append(prog, byte(RET))
+
+	return
+}
+
+func testSerialize(t *testing.T, vm *VM) {
+	err := vm.Step()
+	require.NoError(t, err)
+	require.Equal(t, 1, vm.estack.Len())
+	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+
+	err = vm.Step()
+	require.NoError(t, err)
+	require.Equal(t, 1, vm.estack.Len())
+}
+
+func TestSerializeBool(t *testing.T) {
+	vm := load(getSerializeProg())
+	vm.estack.PushVal(true)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*BoolItem)(nil), vm.estack.Top().value)
+	require.Equal(t, true, vm.estack.Top().Bool())
+}
+
+func TestSerializeByteArray(t *testing.T) {
+	vm := load(getSerializeProg())
+	value := []byte{1, 2, 3}
+	vm.estack.PushVal(value)
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+	require.Equal(t, value, vm.estack.Top().Bytes())
+}
+
 func callNTimes(n uint16) []byte {
 	return makeProgram(
 		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian

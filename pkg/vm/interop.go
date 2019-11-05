@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -18,5 +19,34 @@ func runtimeLog(vm *VM) error {
 func runtimeNotify(vm *VM) error {
 	item := vm.Estack().Pop()
 	fmt.Printf("NEO-GO-VM (notify) > %s\n", item.Value())
+	return nil
+}
+
+// runtimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
+func runtimeSerialize(vm *VM) error {
+	item := vm.Estack().Pop()
+	data, err := serializeItem(item.value)
+	if err != nil {
+		return err
+	} else if len(data) > MaxItemSize {
+		return errors.New("too big item")
+	}
+
+	vm.Estack().PushVal(data)
+
+	return nil
+}
+
+// runtimeDeserialize handles syscalls System.Runtime.Deserialize and Neo.Runtime.Deserialize.
+func runtimeDeserialize(vm *VM) error {
+	data := vm.Estack().Pop().Bytes()
+
+	item, err := deserializeItem(data)
+	if err != nil {
+		return err
+	}
+
+	vm.Estack().Push(&Element{value: item})
+
 	return nil
 }
