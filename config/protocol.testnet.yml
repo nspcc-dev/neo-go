@@ -31,6 +31,8 @@ ProtocolConfiguration:
   VerifyTransactions: false
 
 ApplicationConfiguration:
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
   DBConfiguration:
     Type: "leveldb" #other options: 'inmemory','redis','boltdb'.
     # DB type options. Uncomment those you need in case you want to switch DB type.
@@ -42,6 +44,8 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/testnet.bolt"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: 127.0.0.1
   NodePort: 20333
   Relay: true
   DialTimeout: 3

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
@@ -107,11 +108,35 @@ func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 	return config.Load(configPath, net)
 }
 
-// handleLoggingParams enables debugging output is that's requested by the user.
-func handleLoggingParams(ctx *cli.Context) {
+// handleLoggingParams reads logging parameters.
+// If user selected debug level -- function enables it.
+// If logPath is configured -- function creates dir and file for logging.
+func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) error {
 	if ctx.Bool("debug") {
 		log.SetLevel(log.DebugLevel)
 	}
+
+	if logPath := cfg.LogPath; logPath != "" {
+		if err := makeDir(logPath); err != nil {
+			return err
+		}
+		f, err := os.Create(logPath)
+		if err != nil {
+			return err
+		}
+		log.SetOutput(f)
+	}
+	return nil
+}
+
+func makeDir(filePath string) error {
+	fileName := filePath
+	dir := path.Dir(fileName)
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create dir for logger: %v", err)
+	}
+	return nil
 }
 
 func getCountAndSkipFromContext(ctx *cli.Context) (uint32, uint32) {
@@ -125,7 +150,9 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	handleLoggingParams(ctx)
+	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	count, skip := getCountAndSkipFromContext(ctx)
 
 	var outStream = os.Stdout
@@ -173,7 +200,9 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	handleLoggingParams(ctx)
+	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	count, skip := getCountAndSkipFromContext(ctx)
 
 	var inStream = os.Stdin
@@ -234,7 +263,9 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	handleLoggingParams(ctx)
+	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+		return err
+	}
 
 	grace, cancel := context.WithCancel(newGraceContext())
 	defer cancel()
@@ -246,6 +277,7 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
+	configureAddresses(cfg.ApplicationConfiguration)
 	server := network.NewServer(serverConfig, chain)
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	errChan := make(chan error)
@@ -283,6 +315,21 @@ Main:
 	}
 
 	return nil
+}
+
+// configureAddresses sets up addresses for RPC and Monitoring depending from the provided config.
+// In case RPC or Monitoring Address provided each of them will use it.
+// In case global Address (of the node) provided and RPC/Monitoring don't have configured addresses they will
+// use global one. So Node and RPC and Monitoring will run on one address.
+func configureAddresses(cfg config.ApplicationConfiguration) {
+	if cfg.Address != "" {
+		if cfg.RPC.Address == "" {
+			cfg.RPC.Address = cfg.Address
+		}
+		if cfg.Monitoring.Address == "" {
+			cfg.Monitoring.Address = cfg.Address
+		}
+	}
 }
 
 // initBlockChain initializes BlockChain with preselected DB.

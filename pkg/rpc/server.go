@@ -179,7 +179,7 @@ Methods:
 	case "getversion":
 		getversionCalled.Inc()
 		results = result.Version{
-			Port:      s.coreServer.ListenTCP,
+			Port:      s.coreServer.Port,
 			Nonce:     s.coreServer.ID(),
 			UserAgent: s.coreServer.UserAgent,
 		}

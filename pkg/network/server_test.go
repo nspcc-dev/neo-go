@@ -14,7 +14,7 @@ func TestSendVersion(t *testing.T) {
 		s = newTestServer()
 		p = newLocalPeer(t)
 	)
-	s.ListenTCP = 3000
+	s.Port = 3000
 	s.UserAgent = "/test/"
 
 	p.messageHandler = func(t *testing.T, msg *Message) {
