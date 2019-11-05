@@ -256,6 +256,20 @@ func TestSerializeInteger(t *testing.T) {
 	require.Equal(t, value, vm.estack.Top().BigInt().Int64())
 }
 
+func TestSerializeMap(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewMapItem()
+	item.Add(makeStackItem(true), makeStackItem([]byte{1, 2, 3}))
+	item.Add(makeStackItem([]byte{0}), makeStackItem(false))
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*MapItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().value.(*MapItem).value)
+}
+
 func callNTimes(n uint16) []byte {
 	return makeProgram(
 		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian
