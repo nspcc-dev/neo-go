@@ -21,14 +21,20 @@ const (
 
 func serializeItem(item StackItem) ([]byte, error) {
 	w := io.NewBufBinWriter()
-	serializeItemTo(item, w.BinWriter)
+	serializeItemTo(item, w.BinWriter, make(map[StackItem]bool))
 	if w.Err != nil {
 		return nil, w.Err
 	}
 	return w.Bytes(), nil
 }
 
-func serializeItemTo(item StackItem, w *io.BinWriter) {
+func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
+	if seen[item] {
+		w.Err = errors.New("recursive structures are not supported")
+		return
+	}
+	seen[item] = true
+
 	switch t := item.(type) {
 	case *ByteArrayItem:
 		w.WriteLE(byte(byteArrayT))
@@ -46,7 +52,12 @@ func serializeItemTo(item StackItem, w *io.BinWriter) {
 	case *StructItem:
 		w.Err = errors.New("not implemented")
 	case *MapItem:
-		w.Err = errors.New("not implemented")
+		w.WriteLE(byte(mapT))
+		w.WriteVarUint(uint64(len(t.value)))
+		for k, v := range t.value {
+			serializeItemTo(v, w, seen)
+			serializeItemTo(makeStackItem(k), w, seen)
+		}
 	}
 }
 
@@ -87,8 +98,17 @@ func deserializeItemFrom(r *io.BinReader) StackItem {
 		r.Err = errors.New("not implemented")
 		return nil
 	case mapT:
-		r.Err = errors.New("not implemented")
-		return nil
+		size := int(r.ReadVarUint())
+		m := NewMapItem()
+		for i := 0; i < size; i++ {
+			value := deserializeItemFrom(r)
+			key := deserializeItemFrom(r)
+			if r.Err != nil {
+				break
+			}
+			m.Add(key, value)
+		}
+		return m
 	default:
 		r.Err = errors.New("unknown type")
 		return nil
