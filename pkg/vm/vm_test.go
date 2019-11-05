@@ -256,6 +256,50 @@ func TestSerializeInteger(t *testing.T) {
 	require.Equal(t, value, vm.estack.Top().BigInt().Int64())
 }
 
+func TestSerializeArray(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewArrayItem([]StackItem{
+		makeStackItem(true),
+		makeStackItem(123),
+		NewMapItem(),
+	})
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*ArrayItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().Array())
+}
+
+func TestSerializeArrayBad(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewArrayItem(makeArrayOfFalses(2))
+	item.value[1] = item
+
+	vm.estack.Push(&Element{value: item})
+
+	err := vm.Step()
+	require.Error(t, err)
+	require.True(t, vm.HasFailed())
+}
+
+func TestSerializeStruct(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewStructItem([]StackItem{
+		makeStackItem(true),
+		makeStackItem(123),
+		NewMapItem(),
+	})
+
+	vm.estack.Push(&Element{value: item})
+
+	testSerialize(t, vm)
+
+	require.IsType(t, (*StructItem)(nil), vm.estack.Top().value)
+	require.Equal(t, item.value, vm.estack.Top().Array())
+}
+
 func TestSerializeMap(t *testing.T) {
 	vm := load(getSerializeProg())
 	item := NewMapItem()

@@ -47,10 +47,19 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBytes(t.Bytes())
 	case *InteropItem:
 		w.Err = errors.New("not supported")
-	case *ArrayItem:
-		w.Err = errors.New("not implemented")
-	case *StructItem:
-		w.Err = errors.New("not implemented")
+	case *ArrayItem, *StructItem:
+		_, isArray := t.(*ArrayItem)
+		if isArray {
+			w.WriteLE(byte(arrayT))
+		} else {
+			w.WriteLE(byte(structT))
+		}
+
+		arr := t.Value().([]StackItem)
+		w.WriteVarUint(uint64(len(arr)))
+		for i := range arr {
+			serializeItemTo(arr[i], w, seen)
+		}
 	case *MapItem:
 		w.WriteLE(byte(mapT))
 		w.WriteVarUint(uint64(len(t.value)))
@@ -91,12 +100,17 @@ func deserializeItemFrom(r *io.BinReader) StackItem {
 		return &BigIntegerItem{
 			value: num,
 		}
-	case arrayT:
-		r.Err = errors.New("not implemented")
-		return nil
-	case structT:
-		r.Err = errors.New("not implemented")
-		return nil
+	case arrayT, structT:
+		size := int(r.ReadVarUint())
+		arr := make([]StackItem, size)
+		for i := 0; i < size; i++ {
+			arr[i] = deserializeItemFrom(r)
+		}
+
+		if stackItemType(t) == arrayT {
+			return &ArrayItem{value: arr}
+		}
+		return &StructItem{value: arr}
 	case mapT:
 		size := int(r.ReadVarUint())
 		m := NewMapItem()
