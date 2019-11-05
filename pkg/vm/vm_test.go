@@ -300,6 +300,19 @@ func TestSerializeStruct(t *testing.T) {
 	require.Equal(t, item.value, vm.estack.Top().Array())
 }
 
+func TestDeserializeUnknown(t *testing.T) {
+	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(RET))
+	vm := load(prog)
+
+	data, err := serializeItem(NewBigIntegerItem(123))
+	require.NoError(t, err)
+
+	data[0] = 0xFF
+	vm.estack.PushVal(data)
+
+	checkVMFailed(t, vm)
+}
+
 func TestSerializeMap(t *testing.T) {
 	vm := load(getSerializeProg())
 	item := NewMapItem()
@@ -312,6 +325,17 @@ func TestSerializeMap(t *testing.T) {
 
 	require.IsType(t, (*MapItem)(nil), vm.estack.Top().value)
 	require.Equal(t, item.value, vm.estack.Top().value.(*MapItem).value)
+}
+
+func TestSerializeInterop(t *testing.T) {
+	vm := load(getSerializeProg())
+	item := NewInteropItem("kek")
+
+	vm.estack.Push(&Element{value: item})
+
+	err := vm.Step()
+	require.Error(t, err)
+	require.True(t, vm.HasFailed())
 }
 
 func callNTimes(n uint16) []byte {
