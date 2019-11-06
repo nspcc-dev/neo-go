@@ -160,12 +160,12 @@ func (s *Server) run() {
 			// When a new peer is connected we send out our version immediately.
 			if err := s.sendVersion(p); err != nil {
 				log.WithFields(log.Fields{
-					"addr": p.NetAddr(),
+					"addr": p.RemoteAddr(),
 				}).Error(err)
 			}
 			s.peers[p] = true
 			log.WithFields(log.Fields{
-				"addr": p.NetAddr(),
+				"addr": p.RemoteAddr(),
 			}).Info("new peer connected")
 			updatePeersConnectedMetric(s.PeerCount())
 
@@ -173,11 +173,11 @@ func (s *Server) run() {
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
 				log.WithFields(log.Fields{
-					"addr":      drop.peer.NetAddr(),
+					"addr":      drop.peer.RemoteAddr(),
 					"reason":    drop.reason,
 					"peerCount": s.PeerCount(),
 				}).Warn("peer disconnected")
-				addr := drop.peer.NetAddr().String()
+				addr := drop.peer.PeerAddr().String()
 				s.discovery.UnregisterConnectedAddr(addr)
 				s.discovery.BackFill(addr)
 				updatePeersConnectedMetric(s.PeerCount())
@@ -205,13 +205,13 @@ func (s *Server) PeerCount() int {
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
 	log.WithFields(log.Fields{
-		"addr":        p.NetAddr(),
+		"addr":        p.RemoteAddr(),
 		"userAgent":   string(p.Version().UserAgent),
 		"startHeight": p.Version().StartHeight,
 		"id":          p.Version().Nonce,
 	}).Info("started protocol")
 
-	s.discovery.RegisterGoodAddr(p.NetAddr().String())
+	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
 	err := s.requestHeaders(p)
 	if err != nil {
 		p.Disconnect(err)

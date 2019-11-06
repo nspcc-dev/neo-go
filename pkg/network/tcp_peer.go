@@ -2,8 +2,8 @@ package network
 
 import (
 	"errors"
-	"fmt"
 	"net"
+	"strconv"
 	"sync"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -30,7 +30,6 @@ var (
 type TCPPeer struct {
 	// underlying TCP connection.
 	conn net.Conn
-	addr net.TCPAddr
 
 	// The version of the peer.
 	version *payload.Version
@@ -44,13 +43,9 @@ type TCPPeer struct {
 
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
 func NewTCPPeer(conn net.Conn) *TCPPeer {
-	raddr := conn.RemoteAddr()
-	// can't fail because raddr is a real connection
-	tcpaddr, _ := net.ResolveTCPAddr(raddr.Network(), raddr.String())
 	return &TCPPeer{
 		conn: conn,
 		done: make(chan error, 1),
-		addr: *tcpaddr,
 	}
 }
 
@@ -123,9 +118,28 @@ func (p *TCPPeer) HandleVersionAck() error {
 	return nil
 }
 
-// NetAddr implements the Peer interface.
-func (p *TCPPeer) NetAddr() *net.TCPAddr {
-	return &p.addr
+// RemoteAddr implements the Peer interface.
+func (p *TCPPeer) RemoteAddr() net.Addr {
+	return p.conn.RemoteAddr()
+}
+
+// PeerAddr implements the Peer interface.
+func (p *TCPPeer) PeerAddr() net.Addr {
+	remote := p.conn.RemoteAddr()
+	// The network can be non-tcp in unit tests.
+	if !p.Handshaked() || remote.Network() != "tcp" {
+		return p.RemoteAddr()
+	}
+	host, _, err := net.SplitHostPort(remote.String())
+	if err != nil {
+		return p.RemoteAddr()
+	}
+	addrString := net.JoinHostPort(host, strconv.Itoa(int(p.version.Port)))
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addrString)
+	if err != nil {
+		return p.RemoteAddr()
+	}
+	return tcpAddr
 }
 
 // Done implements the Peer interface and notifies

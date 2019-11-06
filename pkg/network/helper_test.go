@@ -158,7 +158,10 @@ func newLocalPeer(t *testing.T) *localPeer {
 	}
 }
 
-func (p *localPeer) NetAddr() *net.TCPAddr {
+func (p *localPeer) RemoteAddr() net.Addr {
+	return &p.netaddr
+}
+func (p *localPeer) PeerAddr() net.Addr {
 	return &p.netaddr
 }
 func (p *localPeer) Disconnect(err error) {}
