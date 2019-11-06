@@ -18,11 +18,12 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	defaultMinPeers = 5
-	maxPeers        = 20
-	maxBlockBatch   = 200
-	maxAddrsToSend  = 200
-	minPoolCount    = 30
+	defaultMinPeers         = 5
+	defaultAttemptConnPeers = 20
+	defaultMaxPeers         = 100
+	maxBlockBatch           = 200
+	maxAddrsToSend          = 200
+	minPoolCount            = 30
 )
 
 var (
@@ -30,6 +31,7 @@ var (
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
+	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
 )
@@ -86,6 +88,22 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		s.MinPeers = defaultMinPeers
 	}
 
+	if s.MaxPeers <= 0 {
+		log.WithFields(log.Fields{
+			"MaxPeers configured": s.MaxPeers,
+			"MaxPeers actual":     defaultMaxPeers,
+		}).Info("bad MaxPeers configured, using the default value")
+		s.MaxPeers = defaultMaxPeers
+	}
+
+	if s.AttemptConnPeers <= 0 {
+		log.WithFields(log.Fields{
+			"AttemptConnPeers configured": s.AttemptConnPeers,
+			"AttemptConnPeers actual":     defaultAttemptConnPeers,
+		}).Info("bad AttemptConnPeers configured, using the default value")
+		s.AttemptConnPeers = defaultAttemptConnPeers
+	}
+
 	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
@@ -137,9 +155,8 @@ func (s *Server) BadPeers() []string {
 
 func (s *Server) run() {
 	for {
-		c := s.PeerCount()
-		if c < s.ServerConfig.MinPeers {
-			s.discovery.RequestRemote(maxPeers - c)
+		if s.PeerCount() < s.MinPeers {
+			s.discovery.RequestRemote(s.AttemptConnPeers)
 		}
 		if s.discovery.PoolCount() < minPoolCount {
 			select {
@@ -170,6 +187,16 @@ func (s *Server) run() {
 			log.WithFields(log.Fields{
 				"addr": p.RemoteAddr(),
 			}).Info("new peer connected")
+			peerCount := s.PeerCount()
+			if peerCount > s.MaxPeers {
+				s.lock.RLock()
+				// Pick a random peer and drop connection to it.
+				for peer := range s.peers {
+					peer.Disconnect(errMaxPeers)
+					break
+				}
+				s.lock.RUnlock()
+			}
 			updatePeersConnectedMetric(s.PeerCount())
 
 		case drop := <-s.unregister:
