@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path"
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
@@ -117,7 +116,7 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	}
 
 	if logPath := cfg.LogPath; logPath != "" {
-		if err := makeDir(logPath); err != nil {
+		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
 			return err
 		}
 		f, err := os.Create(logPath)
@@ -125,16 +124,6 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 			return err
 		}
 		log.SetOutput(f)
-	}
-	return nil
-}
-
-func makeDir(filePath string) error {
-	fileName := filePath
-	dir := path.Dir(fileName)
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("could not create dir for logger: %v", err)
 	}
 	return nil
 }
