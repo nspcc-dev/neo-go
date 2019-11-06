@@ -376,7 +376,7 @@ func (v *VM) StepOut() error {
 	}
 
 	expSize := v.istack.len
-	for v.state.HasFlag(noneState) && v.istack.len >= expSize {
+	for v.state == noneState && v.istack.len >= expSize {
 		err = v.StepInto()
 	}
 	return err
@@ -399,10 +399,15 @@ func (v *VM) StepOver() error {
 	expSize := v.istack.len
 	for {
 		err = v.StepInto()
-		if !(v.state.HasFlag(noneState) && v.istack.len > expSize) {
+		if !(v.state == noneState && v.istack.len > expSize) {
 			break
 		}
 	}
+
+	if v.state == noneState {
+		v.state = breakState
+	}
+
 	return err
 }
 
@@ -519,7 +524,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		}
 		s := v.estack.Pop().Bytes()
 		if o > len(s) {
-			panic("invalid offset")
+			// panic("invalid offset")
+			// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
+			v.estack.PushVal("")
+			break
 		}
 		last := l + o
 		if last > len(s) {
