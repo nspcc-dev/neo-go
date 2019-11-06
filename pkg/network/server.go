@@ -26,6 +26,7 @@ const (
 )
 
 var (
+	errAlreadyConnected = errors.New("already connected")
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
@@ -272,6 +273,16 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
+	peerAddr := p.PeerAddr().String()
+	s.lock.RLock()
+	for peer := range s.peers {
+		// Already connected, drop this connection.
+		if peer.Handshaked() && peer.PeerAddr().String() == peerAddr && peer.Version().Nonce == version.Nonce {
+			s.lock.RUnlock()
+			return errAlreadyConnected
+		}
+	}
+	s.lock.RUnlock()
 	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
 
