@@ -46,7 +46,9 @@ func TestPeerHandshake(t *testing.T) {
 	// Now send and handle versions, but in a different order on client and
 	// server.
 	require.NoError(t, tcpC.SendVersion(&Message{}))
+	require.Error(t, tcpC.HandleVersionAck()) // Didn't receive version yet.
 	require.NoError(t, tcpS.HandleVersion(&payload.Version{}))
+	require.Error(t, tcpS.SendVersionAck(&Message{})) // Didn't send version yet.
 	require.NoError(t, tcpC.HandleVersion(&payload.Version{}))
 	require.NoError(t, tcpS.SendVersion(&Message{}))
 
