@@ -108,6 +108,9 @@ func (p *TCPPeer) SendVersionAck(msg *Message) error {
 	if p.handShake&versionReceived == 0 {
 		return errors.New("invalid handshake: tried to send VersionAck, but no version received yet")
 	}
+	if p.handShake&versionSent == 0 {
+		return errors.New("invalid handshake: tried to send VersionAck, but didn't send Version yet")
+	}
 	if p.handShake&verAckSent != 0 {
 		return errors.New("invalid handshake: already sent VersionAck")
 	}
@@ -125,6 +128,9 @@ func (p *TCPPeer) HandleVersionAck() error {
 	defer p.lock.Unlock()
 	if p.handShake&versionSent == 0 {
 		return errors.New("invalid handshake: received VersionAck, but no version sent yet")
+	}
+	if p.handShake&versionReceived == 0 {
+		return errors.New("invalid handshake: received VersionAck, but no version received yet")
 	}
 	if p.handShake&verAckReceived != 0 {
 		return errors.New("invalid handshake: already received VersionAck")
