@@ -104,7 +104,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
+	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port))
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -282,7 +282,7 @@ func (s *Server) startProtocol(p Peer) {
 func (s *Server) sendVersion(p Peer) error {
 	payload := payload.NewVersion(
 		s.id,
-		s.ListenTCP,
+		s.Port,
 		s.UserAgent,
 		s.chain.BlockHeight(),
 		s.Relay,

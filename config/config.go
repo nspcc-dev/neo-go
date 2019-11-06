@@ -66,7 +66,9 @@ type (
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
+		LogPath           string                   `yaml:"LogPath"`
 		DBConfiguration   storage.DBConfiguration  `yaml:"DBConfiguration"`
+		Address           string                   `yaml:"Address"`
 		NodePort          uint16                   `yaml:"NodePort"`
 		Relay             bool                     `yaml:"Relay"`
 		DialTimeout       time.Duration            `yaml:"DialTimeout"`

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/etcd-io/bbolt"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -30,10 +30,8 @@ func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
 	var opts *bbolt.Options       // should be exposed via BoltDBOptions if anything needed
 	fileMode := os.FileMode(0600) // should be exposed via BoltDBOptions if anything needed
 	fileName := cfg.FilePath
-	dir := path.Dir(fileName)
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
-		return nil, fmt.Errorf("could not create dir for BoltDB: %v", err)
+	if err := io.MakeDirForFile(fileName, "BoltDB"); err != nil {
+		return nil, err
 	}
 	db, err := bbolt.Open(fileName, fileMode, opts)
 	if err != nil {

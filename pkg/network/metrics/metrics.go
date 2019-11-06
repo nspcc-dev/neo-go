@@ -18,6 +18,7 @@ type Service struct {
 // Additional information about Prometheus could be found here: https://prometheus.io/docs/guides/go-application.
 type PrometheusConfig struct {
 	Enabled bool   `yaml:"Enabled"`
+	Address string `yaml:"Address"`
 	Port    string `yaml:"Port"`
 }
 
@@ -25,7 +26,7 @@ type PrometheusConfig struct {
 func NewMetricsService(cfg PrometheusConfig) *Service {
 	return &Service{
 		&http.Server{
-			Addr:    ":" + cfg.Port,
+			Addr:   cfg.Address + ":" + cfg.Port,
 			Handler: promhttp.Handler(),
 		}, cfg,
 	}
