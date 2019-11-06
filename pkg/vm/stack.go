@@ -127,7 +127,9 @@ func (e *Element) Bytes() []byte {
 		if t.value {
 			return []byte{1}
 		}
-		return []byte{0}
+		// return []byte{0}
+		// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
+		return []byte{}
 	default:
 		panic("can't convert to []byte: " + t.String())
 	}
