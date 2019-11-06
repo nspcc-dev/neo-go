@@ -266,7 +266,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if oldlen != headerList.Len() {
-			updateHeaderHeightMetric(headerList.Len()-1)
+			updateHeaderHeightMetric(headerList.Len() - 1)
 			if err = bc.store.PutBatch(batch); err != nil {
 				return
 			}
