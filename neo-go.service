@@ -1,0 +1,18 @@
+[Unit]
+Description=Neo Go node
+Requires=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/neo-go node --mainnet --config-path=/etc/neo-go
+User=neo-go
+Group=neo-go
+Restart=always
+RestartSec=5
+StandardError=syslog
+SyslogIdentifier=neo-go
+PrivateTmp=true
+WorkingDirectory=/var/lib/neo-go
+
+[Install]
+WantedBy=multi-user.target

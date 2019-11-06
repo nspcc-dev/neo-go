@@ -19,6 +19,21 @@ build: deps
 		&& export CGO_ENABLED=0 \
 		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
+install: build
+	@echo "=> Preparing directories and configs"
+	@id neo-go || useradd -s /usr/sbin/nologin -d /var/lib/neo-go neo-go \
+		&& mkdir -p /var/lib/neo-go \
+		&& chown -R neo-go:neo-go /var/lib/neo-go
+	@echo "=> Installing systemd service"
+	@mkdir -p /etc/neo-go \
+		&& mkdir -p /etc/systemd/system/ \
+		&& cp ./neo-go.service /etc/systemd/system/ \
+		&& cp ./config/protocol.mainnet.yml /etc/neo-go \
+		&& systemctl enable neo-go.service \
+		&& mv ./bin/neo-go /usr/local/bin/neo-go \
+		&& chown neo-go:neo-go /usr/local/bin/neo-go
+	@echo "Done. Start Neo Go with 'systemctl start neo-go.service'"
+
 image:
 	@echo "=> Building image"
 	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
