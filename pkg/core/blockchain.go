@@ -101,6 +101,10 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
+		err = bc.store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
+		if err != nil {
+			return err
+		}
 		return bc.storeBlock(genesisBlock)
 	}
 	if ver != version {
