@@ -153,6 +153,7 @@ func (bc *Blockchain) init() error {
 				return err
 			}
 			targetHash = genesisBlock.Hash()
+			bc.headerList.Add(targetHash)
 		}
 		headers := make([]*Header, 0)
 
@@ -164,7 +165,6 @@ func (bc *Blockchain) init() error {
 			headers = append(headers, header)
 			hash = header.PrevHash
 		}
-
 		headerSliceReverse(headers)
 		for _, h := range headers {
 			if !h.Verify() {
