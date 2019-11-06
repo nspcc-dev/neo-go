@@ -15,6 +15,11 @@ type (
 		// connect with some new ones.
 		MinPeers int
 
+		// AttemptConnPeers it the number of connection to try to
+		// establish when the connection count drops below the MinPeers
+		// value.
+		AttemptConnPeers int
+
 		// MaxPeers it the maximum numbers of peers that can
 		// be connected to the server.
 		MaxPeers int
@@ -64,6 +69,7 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		DialTimeout:       appConfig.DialTimeout * time.Second,
 		ProtoTickInterval: appConfig.ProtoTickInterval * time.Second,
 		MaxPeers:          appConfig.MaxPeers,
+		AttemptConnPeers:  appConfig.AttemptConnPeers,
 		MinPeers:          appConfig.MinPeers,
 	}
 }
