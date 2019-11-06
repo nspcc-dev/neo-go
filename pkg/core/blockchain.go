@@ -101,6 +101,10 @@ func (bc *Blockchain) init() error {
 			return err
 		}
 		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
+		err = bc.store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
+		if err != nil {
+			return err
+		}
 		return bc.storeBlock(genesisBlock)
 	}
 	if ver != version {
@@ -131,6 +135,9 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
+		bc.headerList.Add(currHeaderHash)
+	}
 
 	// There is a high chance that the Node is stopped before the next
 	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
@@ -146,6 +153,7 @@ func (bc *Blockchain) init() error {
 				return err
 			}
 			targetHash = genesisBlock.Hash()
+			bc.headerList.Add(targetHash)
 		}
 		headers := make([]*Header, 0)
 
@@ -157,7 +165,6 @@ func (bc *Blockchain) init() error {
 			headers = append(headers, header)
 			hash = header.PrevHash
 		}
-
 		headerSliceReverse(headers)
 		for _, h := range headers {
 			if !h.Verify() {
@@ -266,7 +273,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 		}
 
 		if oldlen != headerList.Len() {
-			updateHeaderHeightMetric(headerList.Len()-1)
+			updateHeaderHeightMetric(headerList.Len() - 1)
 			if err = bc.store.PutBatch(batch); err != nil {
 				return
 			}
@@ -492,18 +499,18 @@ func (bc *Blockchain) persist() error {
 	if err != nil {
 		return err
 	}
-	bHeight, err := storage.CurrentBlockHeight(bc.store)
-	if err != nil {
-		return err
-	}
-	oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
-	diff := bHeight - oldHeight
-
-	storedHeaderHeight, _, err := storage.CurrentHeaderHeight(bc.store)
-	if err != nil {
-		return err
-	}
 	if persisted > 0 {
+		bHeight, err := storage.CurrentBlockHeight(bc.store)
+		if err != nil {
+			return err
+		}
+		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
+		diff := bHeight - oldHeight
+
+		storedHeaderHeight, _, err := storage.CurrentHeaderHeight(bc.store)
+		if err != nil {
+			return err
+		}
 		log.WithFields(log.Fields{
 			"persistedBlocks": diff,
 			"persistedKeys":   persisted,
