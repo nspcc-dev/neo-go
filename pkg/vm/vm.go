@@ -519,7 +519,10 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		}
 		s := v.estack.Pop().Bytes()
 		if o > len(s) {
-			panic("invalid offset")
+			// panic("invalid offset")
+			// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
+			v.estack.PushVal("")
+			break
 		}
 		last := l + o
 		if last > len(s) {
