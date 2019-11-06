@@ -135,6 +135,9 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return err
 	}
+	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
+		bc.headerList.Add(currHeaderHash)
+	}
 
 	// There is a high chance that the Node is stopped before the next
 	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
