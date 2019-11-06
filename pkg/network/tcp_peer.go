@@ -12,13 +12,11 @@ import (
 
 type handShakeStage uint8
 
-//go:generate stringer -type=handShakeStage
 const (
-	nothingDone     handShakeStage = 0
-	versionSent     handShakeStage = 1
-	versionReceived handShakeStage = 2
-	verAckSent      handShakeStage = 3
-	verAckReceived  handShakeStage = 4
+	versionSent handShakeStage = 1 << iota
+	versionReceived
+	verAckSent
+	verAckReceived
 )
 
 var (
@@ -34,6 +32,7 @@ type TCPPeer struct {
 	// The version of the peer.
 	version *payload.Version
 
+	lock      sync.RWMutex
 	handShake handShakeStage
 
 	done chan error
@@ -71,39 +70,50 @@ func (p *TCPPeer) writeMsg(msg *Message) error {
 
 // Handshaked returns status of the handshake, whether it's completed or not.
 func (p *TCPPeer) Handshaked() bool {
-	return p.handShake == verAckReceived
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.handShake == (verAckReceived | verAckSent | versionReceived | versionSent)
 }
 
 // SendVersion checks for the handshake state and sends a message to the peer.
 func (p *TCPPeer) SendVersion(msg *Message) error {
-	if p.handShake != nothingDone {
-		return fmt.Errorf("invalid handshake: tried to send Version in %s state", p.handShake.String())
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.handShake&versionSent != 0 {
+		return errors.New("invalid handshake: already sent Version")
 	}
 	err := p.writeMsg(msg)
 	if err == nil {
-		p.handShake = versionSent
+		p.handShake |= versionSent
 	}
 	return err
 }
 
 // HandleVersion checks for the handshake state and version message contents.
 func (p *TCPPeer) HandleVersion(version *payload.Version) error {
-	if p.handShake != versionSent {
-		return fmt.Errorf("invalid handshake: received Version in %s state", p.handShake.String())
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.handShake&versionReceived != 0 {
+		return errors.New("invalid handshake: already received Version")
 	}
 	p.version = version
-	p.handShake = versionReceived
+	p.handShake |= versionReceived
 	return nil
 }
 
 // SendVersionAck checks for the handshake state and sends a message to the peer.
 func (p *TCPPeer) SendVersionAck(msg *Message) error {
-	if p.handShake != versionReceived {
-		return fmt.Errorf("invalid handshake: tried to send VersionAck in %s state", p.handShake.String())
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.handShake&versionReceived == 0 {
+		return errors.New("invalid handshake: tried to send VersionAck, but no version received yet")
+	}
+	if p.handShake&verAckSent != 0 {
+		return errors.New("invalid handshake: already sent VersionAck")
 	}
 	err := p.writeMsg(msg)
 	if err == nil {
-		p.handShake = verAckSent
+		p.handShake |= verAckSent
 	}
 	return err
 }
@@ -111,10 +121,15 @@ func (p *TCPPeer) SendVersionAck(msg *Message) error {
 // HandleVersionAck checks handshake sequence correctness when VerAck message
 // is received.
 func (p *TCPPeer) HandleVersionAck() error {
-	if p.handShake != verAckSent {
-		return fmt.Errorf("invalid handshake: received VersionAck in %s state", p.handShake.String())
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.handShake&versionSent == 0 {
+		return errors.New("invalid handshake: received VersionAck, but no version sent yet")
 	}
-	p.handShake = verAckReceived
+	if p.handShake&verAckReceived != 0 {
+		return errors.New("invalid handshake: already received VersionAck")
+	}
+	p.handShake |= verAckReceived
 	return nil
 }
 
