@@ -163,15 +163,19 @@ func (s *Server) run() {
 					"addr": p.RemoteAddr(),
 				}).Error(err)
 			}
+			s.lock.Lock()
 			s.peers[p] = true
+			s.lock.Unlock()
 			log.WithFields(log.Fields{
 				"addr": p.RemoteAddr(),
 			}).Info("new peer connected")
 			updatePeersConnectedMetric(s.PeerCount())
 
 		case drop := <-s.unregister:
+			s.lock.Lock()
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
+				s.lock.Unlock()
 				log.WithFields(log.Fields{
 					"addr":      drop.peer.RemoteAddr(),
 					"reason":    drop.reason,
@@ -181,9 +185,12 @@ func (s *Server) run() {
 				s.discovery.UnregisterConnectedAddr(addr)
 				s.discovery.BackFill(addr)
 				updatePeersConnectedMetric(s.PeerCount())
+			} else {
+				// else the peer is already gone, which can happen
+				// because we have two goroutines sending signals here
+				s.lock.Unlock()
 			}
-			// else the peer is already gone, which can happen
-			// because we have two goroutines sending signals here
+
 		}
 	}
 }
