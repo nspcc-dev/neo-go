@@ -376,7 +376,7 @@ func (v *VM) StepOut() error {
 	}
 
 	expSize := v.istack.len
-	for v.state.HasFlag(noneState) && v.istack.len >= expSize {
+	for v.state == noneState && v.istack.len >= expSize {
 		err = v.StepInto()
 	}
 	return err
@@ -399,10 +399,15 @@ func (v *VM) StepOver() error {
 	expSize := v.istack.len
 	for {
 		err = v.StepInto()
-		if !(v.state.HasFlag(noneState) && v.istack.len > expSize) {
+		if !(v.state == noneState && v.istack.len > expSize) {
 			break
 		}
 	}
+
+	if v.state == noneState {
+		v.state = breakState
+	}
+
 	return err
 }
 
