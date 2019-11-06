@@ -492,18 +492,18 @@ func (bc *Blockchain) persist() error {
 	if err != nil {
 		return err
 	}
-	bHeight, err := storage.CurrentBlockHeight(bc.store)
-	if err != nil {
-		return err
-	}
-	oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
-	diff := bHeight - oldHeight
-
-	storedHeaderHeight, _, err := storage.CurrentHeaderHeight(bc.store)
-	if err != nil {
-		return err
-	}
 	if persisted > 0 {
+		bHeight, err := storage.CurrentBlockHeight(bc.store)
+		if err != nil {
+			return err
+		}
+		oldHeight := atomic.SwapUint32(&bc.persistedHeight, bHeight)
+		diff := bHeight - oldHeight
+
+		storedHeaderHeight, _, err := storage.CurrentHeaderHeight(bc.store)
+		if err != nil {
+			return err
+		}
 		log.WithFields(log.Fields{
 			"persistedBlocks": diff,
 			"persistedKeys":   persisted,
