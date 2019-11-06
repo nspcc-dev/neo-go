@@ -84,6 +84,101 @@ func checkVMFailed(t *testing.T, vm *VM) {
 	assert.Equal(t, true, vm.HasFailed())
 }
 
+func TestStackLimitPUSH1Good(t *testing.T) {
+	prog := make([]byte, MaxStackSize*2)
+	for i := 0; i < MaxStackSize; i++ {
+		prog[i] = byte(PUSH1)
+	}
+	for i := MaxStackSize; i < MaxStackSize*2; i++ {
+		prog[i] = byte(DROP)
+	}
+
+	v := load(prog)
+	runVM(t, v)
+}
+
+func TestStackLimitPUSH1Bad(t *testing.T) {
+	prog := make([]byte, MaxStackSize+1)
+	for i := range prog {
+		prog[i] = byte(PUSH1)
+	}
+	v := load(prog)
+	checkVMFailed(t, v)
+}
+
+// appendBigStruct returns a program which:
+// 1. pushes size Structs on stack
+// 2. packs them into a new struct
+// 3. appends them to a zero-length array
+// Resulting stack size consists of:
+// - struct (size+1)
+// - array (1) of struct (size+1)
+// which equals to size*2+3 elements in total.
+func appendBigStruct(size uint16) []Instruction {
+	prog := make([]Instruction, size*2)
+	for i := uint16(0); i < size; i++ {
+		prog[i*2] = PUSH0
+		prog[i*2+1] = NEWSTRUCT
+	}
+
+	return append(prog,
+		PUSHBYTES2, Instruction(size), Instruction(size>>8), // LE
+		PACK, NEWSTRUCT,
+		DUP,
+		PUSH0, NEWARRAY, TOALTSTACK, DUPFROMALTSTACK,
+		SWAP,
+		APPEND, RET)
+}
+
+func TestStackLimitAPPENDStructGood(t *testing.T) {
+	prog := makeProgram(appendBigStruct(MaxStackSize/2 - 2)...)
+	v := load(prog)
+	runVM(t, v) // size = 2047 = (Max/2-2)*2+3 = Max-1
+}
+
+func TestStackLimitAPPENDStructBad(t *testing.T) {
+	prog := makeProgram(appendBigStruct(MaxStackSize/2 - 1)...)
+	v := load(prog)
+	checkVMFailed(t, v) // size = 2049 = (Max/2-1)*2+3 = Max+1
+}
+
+func TestStackLimit(t *testing.T) {
+	expected := []struct {
+		inst Instruction
+		size int
+	}{
+		{PUSH2, 1},
+		{NEWARRAY, 3}, // array + 2 items
+		{TOALTSTACK, 3},
+		{DUPFROMALTSTACK, 4},
+		{NEWSTRUCT, 6}, // all items are copied
+		{NEWMAP, 7},
+		{DUP, 8},
+		{PUSH2, 9},
+		{DUPFROMALTSTACK, 10},
+		{SETITEM, 8}, // -3 items and 1 new element in map
+		{DUP, 9},
+		{PUSH2, 10},
+		{DUPFROMALTSTACK, 11},
+		{SETITEM, 8}, // -3 items and no new elements in map
+		{DUP, 9},
+		{PUSH2, 10},
+		{REMOVE, 7}, // as we have right after NEWMAP
+		{DROP, 6},   // DROP map with no elements
+	}
+
+	prog := make([]Instruction, len(expected))
+	for i := range expected {
+		prog[i] = expected[i].inst
+	}
+
+	vm := load(makeProgram(prog...))
+	for i := range expected {
+		require.NoError(t, vm.Step())
+		require.Equal(t, expected[i].size, vm.size)
+	}
+}
+
 func TestPushBytesShort(t *testing.T) {
 	prog := make([]byte, 10)
 	prog[0] = byte(PUSHBYTES10) // but only 9 left in the `prog`

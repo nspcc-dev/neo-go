@@ -152,6 +152,9 @@ type Stack struct {
 	top  Element
 	name string
 	len  int
+
+	itemCount map[StackItem]int
+	size      *int
 }
 
 // NewStack returns a new stack name by the given name.
@@ -162,6 +165,8 @@ func NewStack(n string) *Stack {
 	s.top.next = &s.top
 	s.top.prev = &s.top
 	s.len = 0
+	s.itemCount = make(map[StackItem]int)
+	s.size = new(int)
 	return s
 }
 
@@ -192,7 +197,52 @@ func (s *Stack) insert(e, at *Element) *Element {
 	n.prev = e
 	e.stack = s
 	s.len++
+
+	s.updateSizeAdd(e.value)
+
 	return e
+}
+
+func (s *Stack) updateSizeAdd(item StackItem) {
+	*s.size++
+
+	s.itemCount[item]++
+	if s.itemCount[item] > 1 {
+		return
+	}
+
+	switch t := item.(type) {
+	case *ArrayItem, *StructItem:
+		for _, it := range item.Value().([]StackItem) {
+			s.updateSizeAdd(it)
+		}
+	case *MapItem:
+		for _, v := range t.value {
+			s.updateSizeAdd(v)
+		}
+	}
+}
+
+func (s *Stack) updateSizeRemove(item StackItem) {
+	*s.size--
+
+	if s.itemCount[item] > 1 {
+		s.itemCount[item]--
+		return
+	}
+
+	delete(s.itemCount, item)
+
+	switch t := item.(type) {
+	case *ArrayItem, *StructItem:
+		for _, it := range item.Value().([]StackItem) {
+			s.updateSizeRemove(it)
+		}
+	case *MapItem:
+		for _, v := range t.value {
+			s.updateSizeRemove(v)
+		}
+	}
 }
 
 // InsertAt inserts the given item (n) deep on the stack.
@@ -271,6 +321,9 @@ func (s *Stack) Remove(e *Element) *Element {
 	e.prev = nil // avoid memory leaks.
 	e.stack = nil
 	s.len--
+
+	s.updateSizeRemove(e.value)
+
 	return e
 }
 

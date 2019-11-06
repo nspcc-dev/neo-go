@@ -44,6 +44,10 @@ const (
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
+	// MaxStackSize is the maximum number of items allowed to be
+	// on all stacks at once.
+	MaxStackSize = 2 * 1024
+
 	maxSHLArg = 256
 	minSHLArg = -256
 )
@@ -64,6 +68,9 @@ type VM struct {
 
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
+
+	itemCount map[StackItem]int
+	size      int
 }
 
 // InteropFuncPrice represents an interop function with a price.
@@ -79,9 +86,12 @@ func New() *VM {
 		getScript: nil,
 		state:     haltState,
 		istack:    NewStack("invocation"),
-		estack:    NewStack("evaluation"),
-		astack:    NewStack("alt"),
+
+		itemCount: make(map[StackItem]int),
 	}
+
+	vm.estack = vm.newItemStack("evaluation")
+	vm.astack = vm.newItemStack("alt")
 
 	// Register native interop hooks.
 	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog, 1)
@@ -92,6 +102,14 @@ func New() *VM {
 	vm.RegisterInteropFunc("System.Runtime.Deserialize", RuntimeDeserialize, 1)
 
 	return vm
+}
+
+func (v *VM) newItemStack(n string) *Stack {
+	s := NewStack(n)
+	s.size = &v.size
+	s.itemCount = v.itemCount
+
+	return s
 }
 
 // RegisterInteropFunc registers the given InteropFunc to the VM.
@@ -428,6 +446,9 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 		if errRecover := recover(); errRecover != nil {
 			v.state = faultState
 			err = newError(ctx.ip, op, errRecover)
+		} else if v.size > MaxStackSize {
+			v.state = faultState
+			err = newError(ctx.ip, op, "stack is too big")
 		}
 	}()
 
@@ -855,6 +876,8 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 			panic("APPEND: not of underlying type Array")
 		}
 
+		v.estack.updateSizeAdd(val)
+
 	case PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
 		if n < 0 || n > v.estack.Len() || n > MaxArraySize {
@@ -922,12 +945,17 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
 			}
+			v.estack.updateSizeRemove(arr[index])
 			arr[index] = item
+			v.estack.updateSizeAdd(arr[index])
 		case *MapItem:
-			if !t.Has(key.value) && len(t.value) >= MaxArraySize {
+			if t.Has(key.value) {
+				v.estack.updateSizeRemove(item)
+			} else if len(t.value) >= MaxArraySize {
 				panic("too big map")
 			}
 			t.Add(key.value, item)
+			v.estack.updateSizeAdd(item)
 
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
@@ -952,6 +980,7 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
+			v.estack.updateSizeRemove(a[k])
 			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *StructItem:
@@ -960,11 +989,13 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
+			v.estack.updateSizeRemove(a[k])
 			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *MapItem:
 			m := t.value
 			k := toMapKey(key.value)
+			v.estack.updateSizeRemove(m[k])
 			delete(m, k)
 		default:
 			panic("REMOVE: invalid type")
