@@ -46,7 +46,8 @@ ApplicationConfiguration:
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
-  MaxPeers: 50
+  MaxPeers: 100
+  AttemptConnPeers: 20
   MinPeers: 5
   RPC:
     Enabled: true

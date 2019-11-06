@@ -42,16 +42,17 @@ ApplicationConfiguration:
   #      DB: 0
   #    BoltDBOptions:
   #      FilePath: "./chains/mainnet.bolt"
-  NodePort: 20333
+  NodePort: 10333
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
-  MaxPeers: 50
+  MaxPeers: 100
+  AttemptConnPeers: 20
   MinPeers: 5
   RPC:
     Enabled: true
     EnableCORSWorkaround: false
-    Port: 20332
+    Port: 10332
   Monitoring:
     Enabled: true
     Port: 2112

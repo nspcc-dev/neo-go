@@ -37,6 +37,7 @@ ApplicationConfiguration:
   DialTimeout: 3
   ProtoTickInterval: 2
   MaxPeers: 50
+  AttemptConnPeers: 5
   MinPeers: 1
   RPC:
     Enabled: true

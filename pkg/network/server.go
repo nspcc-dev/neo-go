@@ -18,17 +18,20 @@ import (
 
 const (
 	// peer numbers are arbitrary at the moment.
-	defaultMinPeers = 5
-	maxPeers        = 20
-	maxBlockBatch   = 200
-	maxAddrsToSend  = 200
-	minPoolCount    = 30
+	defaultMinPeers         = 5
+	defaultAttemptConnPeers = 20
+	defaultMaxPeers         = 100
+	maxBlockBatch           = 200
+	maxAddrsToSend          = 200
+	minPoolCount            = 30
 )
 
 var (
+	errAlreadyConnected = errors.New("already connected")
 	errIdenticalID      = errors.New("identical node id")
 	errInvalidHandshake = errors.New("invalid handshake")
 	errInvalidNetwork   = errors.New("invalid network")
+	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
 )
@@ -85,6 +88,22 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		s.MinPeers = defaultMinPeers
 	}
 
+	if s.MaxPeers <= 0 {
+		log.WithFields(log.Fields{
+			"MaxPeers configured": s.MaxPeers,
+			"MaxPeers actual":     defaultMaxPeers,
+		}).Info("bad MaxPeers configured, using the default value")
+		s.MaxPeers = defaultMaxPeers
+	}
+
+	if s.AttemptConnPeers <= 0 {
+		log.WithFields(log.Fields{
+			"AttemptConnPeers configured": s.AttemptConnPeers,
+			"AttemptConnPeers actual":     defaultAttemptConnPeers,
+		}).Info("bad AttemptConnPeers configured, using the default value")
+		s.AttemptConnPeers = defaultAttemptConnPeers
+	}
+
 	s.transport = NewTCPTransport(s, fmt.Sprintf(":%d", config.ListenTCP))
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
@@ -136,9 +155,8 @@ func (s *Server) BadPeers() []string {
 
 func (s *Server) run() {
 	for {
-		c := s.PeerCount()
-		if c < s.ServerConfig.MinPeers {
-			s.discovery.RequestRemote(maxPeers - c)
+		if s.PeerCount() < s.MinPeers {
+			s.discovery.RequestRemote(s.AttemptConnPeers)
 		}
 		if s.discovery.PoolCount() < minPoolCount {
 			select {
@@ -160,30 +178,47 @@ func (s *Server) run() {
 			// When a new peer is connected we send out our version immediately.
 			if err := s.sendVersion(p); err != nil {
 				log.WithFields(log.Fields{
-					"addr": p.NetAddr(),
+					"addr": p.RemoteAddr(),
 				}).Error(err)
 			}
+			s.lock.Lock()
 			s.peers[p] = true
+			s.lock.Unlock()
 			log.WithFields(log.Fields{
-				"addr": p.NetAddr(),
+				"addr": p.RemoteAddr(),
 			}).Info("new peer connected")
+			peerCount := s.PeerCount()
+			if peerCount > s.MaxPeers {
+				s.lock.RLock()
+				// Pick a random peer and drop connection to it.
+				for peer := range s.peers {
+					peer.Disconnect(errMaxPeers)
+					break
+				}
+				s.lock.RUnlock()
+			}
 			updatePeersConnectedMetric(s.PeerCount())
 
 		case drop := <-s.unregister:
+			s.lock.Lock()
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
+				s.lock.Unlock()
 				log.WithFields(log.Fields{
-					"addr":      drop.peer.NetAddr(),
+					"addr":      drop.peer.RemoteAddr(),
 					"reason":    drop.reason,
 					"peerCount": s.PeerCount(),
 				}).Warn("peer disconnected")
-				addr := drop.peer.NetAddr().String()
+				addr := drop.peer.PeerAddr().String()
 				s.discovery.UnregisterConnectedAddr(addr)
 				s.discovery.BackFill(addr)
 				updatePeersConnectedMetric(s.PeerCount())
+			} else {
+				// else the peer is already gone, which can happen
+				// because we have two goroutines sending signals here
+				s.lock.Unlock()
 			}
-			// else the peer is already gone, which can happen
-			// because we have two goroutines sending signals here
+
 		}
 	}
 }
@@ -205,13 +240,13 @@ func (s *Server) PeerCount() int {
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
 	log.WithFields(log.Fields{
-		"addr":        p.NetAddr(),
+		"addr":        p.RemoteAddr(),
 		"userAgent":   string(p.Version().UserAgent),
 		"startHeight": p.Version().StartHeight,
 		"id":          p.Version().Nonce,
 	}).Info("started protocol")
 
-	s.discovery.RegisterGoodAddr(p.NetAddr().String())
+	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
 	err := s.requestHeaders(p)
 	if err != nil {
 		p.Disconnect(err)
@@ -265,6 +300,16 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
+	peerAddr := p.PeerAddr().String()
+	s.lock.RLock()
+	for peer := range s.peers {
+		// Already connected, drop this connection.
+		if peer.Handshaked() && peer.PeerAddr().String() == peerAddr && peer.Version().Nonce == version.Nonce {
+			s.lock.RUnlock()
+			return errAlreadyConnected
+		}
+	}
+	s.lock.RUnlock()
 	return p.SendVersionAck(NewMessage(s.Net, CMDVerack, nil))
 }
 
