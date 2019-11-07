@@ -44,6 +44,9 @@ const (
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
+	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
+	MaxBigIntegerSizeBits = 32 * 8
+
 	// MaxStackSize is the maximum number of items allowed to be
 	// on all stacks at once.
 	MaxStackSize = 2 * 1024
@@ -693,27 +696,48 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 	// Numeric operations.
 	case ADD:
 		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
 		b := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Add(a, b))
+		v.checkBigIntSize(b)
+
+		c := new(big.Int).Add(a, b)
+		v.checkBigIntSize(c)
+		v.estack.PushVal(c)
 
 	case SUB:
 		b := v.estack.Pop().BigInt()
+		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Sub(a, b))
+		v.checkBigIntSize(a)
+
+		c := new(big.Int).Sub(a, b)
+		v.checkBigIntSize(c)
+		v.estack.PushVal(c)
 
 	case DIV:
 		b := v.estack.Pop().BigInt()
+		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
+
 		v.estack.PushVal(new(big.Int).Div(a, b))
 
 	case MUL:
 		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
 		b := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Mul(a, b))
+		v.checkBigIntSize(b)
+
+		c := new(big.Int).Mul(a, b)
+		v.checkBigIntSize(c)
+		v.estack.PushVal(c)
 
 	case MOD:
 		b := v.estack.Pop().BigInt()
+		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
+
 		v.estack.PushVal(new(big.Int).Mod(a, b))
 
 	case SHL, SHR:
@@ -724,11 +748,17 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 			panic(fmt.Sprintf("operand must be between %d and %d", minSHLArg, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
+
+		var item big.Int
 		if op == SHL {
-			v.estack.PushVal(new(big.Int).Lsh(a, uint(b)))
+			item.Lsh(a, uint(b))
 		} else {
-			v.estack.PushVal(new(big.Int).Rsh(a, uint(b)))
+			item.Rsh(a, uint(b))
 		}
+
+		v.checkBigIntSize(&item)
+		v.estack.PushVal(&item)
 
 	case BOOLAND:
 		b := v.estack.Pop().Bool()
@@ -796,11 +826,15 @@ func (v *VM) execute(ctx *Context, op Instruction, parameter []byte) (err error)
 
 	case INC:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Add(x, big.NewInt(1)))
+		a := new(big.Int).Add(x, big.NewInt(1))
+		v.checkBigIntSize(a)
+		v.estack.PushVal(a)
 
 	case DEC:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(new(big.Int).Sub(x, big.NewInt(1)))
+		a := new(big.Int).Sub(x, big.NewInt(1))
+		v.checkBigIntSize(a)
+		v.estack.PushVal(a)
 
 	case SIGN:
 		x := v.estack.Pop().BigInt()
@@ -1379,5 +1413,11 @@ func validateMapKey(key *Element) {
 func (v *VM) checkInvocationStackSize() {
 	if v.istack.len >= MaxInvocationStackSize {
 		panic("invocation stack is too big")
+	}
+}
+
+func (v *VM) checkBigIntSize(a *big.Int) {
+	if a.BitLen() > MaxBigIntegerSizeBits {
+		panic("big integer is too big")
 	}
 }
