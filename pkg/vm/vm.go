@@ -51,8 +51,8 @@ const (
 	// on all stacks at once.
 	MaxStackSize = 2 * 1024
 
-	maxSHLArg = 256
-	minSHLArg = -256
+	maxSHLArg = MaxBigIntegerSizeBits
+	minSHLArg = -MaxBigIntegerSizeBits
 )
 
 // VM represents the virtual machine.
