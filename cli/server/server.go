@@ -154,14 +154,11 @@ func dumpDB(ctx *cli.Context) error {
 	defer outStream.Close()
 	writer := io.NewBinWriterFromIO(outStream)
 
-	grace, cancel := context.WithCancel(newGraceContext())
-	defer cancel()
-
 	chain, err := initBlockChain(cfg)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	go chain.Run(grace)
+	go chain.Run()
 
 	chainHeight := chain.BlockHeight()
 	if skip+count > chainHeight {
@@ -182,6 +179,7 @@ func dumpDB(ctx *cli.Context) error {
 			return cli.NewExitError(err, 1)
 		}
 	}
+	chain.Close()
 	return nil
 }
 func restoreDB(ctx *cli.Context) error {
@@ -204,14 +202,11 @@ func restoreDB(ctx *cli.Context) error {
 	defer inStream.Close()
 	reader := io.NewBinReaderFromIO(inStream)
 
-	grace, cancel := context.WithCancel(newGraceContext())
-	defer cancel()
-
 	chain, err := initBlockChain(cfg)
 	if err != nil {
 		return err
 	}
-	go chain.Run(grace)
+	go chain.Run()
 
 	var allBlocks uint32
 	reader.ReadLE(&allBlocks)
@@ -241,6 +236,7 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, errBlock), 1)
 		}
 	}
+	chain.Close()
 
 	return nil
 }
@@ -281,7 +277,7 @@ func startServer(ctx *cli.Context) error {
 	errChan := make(chan error)
 	monitoring := metrics.NewMetricsService(cfg.ApplicationConfiguration.Monitoring)
 
-	go chain.Run(grace)
+	go chain.Run()
 	go server.Start(errChan)
 	go rpcServer.Start(errChan)
 	go monitoring.Start()
@@ -304,6 +300,7 @@ Main:
 				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
 			}
 			monitoring.ShutDown()
+			chain.Close()
 			break Main
 		}
 	}

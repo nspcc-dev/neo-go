@@ -52,6 +52,9 @@ func (chain *testChain) AddBlock(block *core.Block) error {
 func (chain *testChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.blockheight)
 }
+func (chain *testChain) Close() {
+	panic("TODO")
+}
 func (chain testChain) HeaderHeight() uint32 {
 	return 0
 }

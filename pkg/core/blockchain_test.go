@@ -155,3 +155,23 @@ func TestGetTransaction(t *testing.T) {
 		assert.NoError(t, bc.persist())
 	}
 }
+
+func TestClose(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r)
+	}()
+	bc := newTestChain(t)
+	blocks := makeBlocks(10)
+	for i := 0; i < len(blocks); i++ {
+		require.NoError(t, bc.AddBlock(blocks[i]))
+	}
+	bc.Close()
+	// It's a hack, but we use internal knowledge of MemoryStore
+	// implementation which makes it completely unusable (up to panicing)
+	// after Close().
+	_ = bc.store.Put([]byte{0}, []byte{1})
+
+	// This should never be executed.
+	assert.Nil(t, t)
+}
