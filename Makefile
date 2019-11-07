@@ -2,6 +2,11 @@ BRANCH = "master"
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
 BINARY = "./bin/neo-go"
+DESTDIR = ""
+SYSCONFIGDIR = "/etc"
+BINDIR = "/usr/bin"
+SYSTEMDUNIT_DIR = "/lib/systemd/system"
+UNITWORKDIR = "/var/lib/neo-go"
 
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
@@ -20,19 +25,21 @@ build: deps
 		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
 install: build
-	@echo "=> Preparing directories and configs"
-	@id neo-go || useradd -s /usr/sbin/nologin -d /var/lib/neo-go neo-go \
-		&& mkdir -p /var/lib/neo-go \
-		&& chown -R neo-go:neo-go /var/lib/neo-go
 	@echo "=> Installing systemd service"
-	@mkdir -p /etc/neo-go \
-		&& mkdir -p /etc/systemd/system/ \
-		&& cp ./neo-go.service /etc/systemd/system/ \
-		&& cp ./config/protocol.mainnet.yml /etc/neo-go \
-		&& systemctl enable neo-go.service \
-		&& mv ./bin/neo-go /usr/local/bin/neo-go \
-		&& chown neo-go:neo-go /usr/local/bin/neo-go
-	@echo "Done. Start Neo Go with 'systemctl start neo-go.service'"
+	@mkdir -p $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& mkdir -p $(SYSTEMDUNIT_DIR) \
+		&& cp ./neo-go.service $(SYSTEMDUNIT_DIR) \
+		&& cp ./config/protocol.mainnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& cp ./config/protocol.privnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& cp ./config/protocol.testnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& install -m 0755 -t $(BINDIR) $(BINARY) \
+
+postinst: install
+	@echo "=> Preparing directories and configs"
+	@id neo-go || useradd -s /usr/sbin/nologin -d $(UNITWORKDIR) neo-go \
+		&& mkdir -p $(UNITWORKDIR) \
+		&& chown -R neo-go:neo-go $(UNITWORKDIR) $(BINDIR)/neo-go \
+		&& systemctl enable neo-go.service
 
 image:
 	@echo "=> Building image"
