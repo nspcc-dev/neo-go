@@ -508,6 +508,13 @@ func TestNOTByteArray1(t *testing.T) {
 	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
 }
 
+// getBigInt returns 2^a+b
+func getBigInt(a, b int64) *big.Int {
+	p := new(big.Int).Exp(big.NewInt(2), big.NewInt(a), nil)
+	p.Add(p, big.NewInt(b))
+	return p
+}
+
 func TestAdd(t *testing.T) {
 	prog := makeProgram(ADD)
 	vm := load(prog)
@@ -517,6 +524,39 @@ func TestAdd(t *testing.T) {
 	assert.Equal(t, int64(6), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestADDBigResult(t *testing.T) {
+	prog := makeProgram(ADD)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, -1))
+	vm.estack.PushVal(1)
+	checkVMFailed(t, vm)
+}
+
+func testBigArgument(t *testing.T, inst Instruction) {
+	prog := makeProgram(inst)
+	x := getBigInt(MaxBigIntegerSizeBits, 0)
+	t.Run(inst.String()+" big 1-st argument", func(t *testing.T) {
+		vm := load(prog)
+		vm.estack.PushVal(x)
+		vm.estack.PushVal(0)
+		checkVMFailed(t, vm)
+	})
+	t.Run(inst.String()+" big 2-nd argument", func(t *testing.T) {
+		vm := load(prog)
+		vm.estack.PushVal(0)
+		vm.estack.PushVal(x)
+		checkVMFailed(t, vm)
+	})
+}
+
+func TestArithBigArgument(t *testing.T) {
+	testBigArgument(t, ADD)
+	testBigArgument(t, SUB)
+	testBigArgument(t, MUL)
+	testBigArgument(t, DIV)
+	testBigArgument(t, MOD)
+}
+
 func TestMul(t *testing.T) {
 	prog := makeProgram(MUL)
 	vm := load(prog)
@@ -524,6 +564,14 @@ func TestMul(t *testing.T) {
 	vm.estack.PushVal(2)
 	runVM(t, vm)
 	assert.Equal(t, int64(8), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestMULBigResult(t *testing.T) {
+	prog := makeProgram(MUL)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2+1, 0))
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2+1, 0))
+	checkVMFailed(t, vm)
 }
 
 func TestDiv(t *testing.T) {
@@ -542,6 +590,14 @@ func TestSub(t *testing.T) {
 	vm.estack.PushVal(2)
 	runVM(t, vm)
 	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestSUBBigResult(t *testing.T) {
+	prog := makeProgram(SUB)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, -1))
+	vm.estack.PushVal(-1)
+	checkVMFailed(t, vm)
 }
 
 func TestSHRGood(t *testing.T) {
@@ -568,7 +624,15 @@ func TestSHRSmallValue(t *testing.T) {
 	prog := makeProgram(SHR)
 	vm := load(prog)
 	vm.estack.PushVal(5)
-	vm.estack.PushVal(-257)
+	vm.estack.PushVal(minSHLArg - 1)
+	checkVMFailed(t, vm)
+}
+
+func TestSHRBigArgument(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
+	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
@@ -596,7 +660,23 @@ func TestSHLBigValue(t *testing.T) {
 	prog := makeProgram(SHL)
 	vm := load(prog)
 	vm.estack.PushVal(5)
-	vm.estack.PushVal(257)
+	vm.estack.PushVal(maxSHLArg + 1)
+	checkVMFailed(t, vm)
+}
+
+func TestSHLBigResult(t *testing.T) {
+	prog := makeProgram(SHL)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2, 0))
+	vm.estack.PushVal(MaxBigIntegerSizeBits / 2)
+	checkVMFailed(t, vm)
+}
+
+func TestSHLBigArgument(t *testing.T) {
+	prog := makeProgram(SHR)
+	vm := load(prog)
+	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
+	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
@@ -732,6 +812,35 @@ func TestINC(t *testing.T) {
 	vm.estack.PushVal(1)
 	runVM(t, vm)
 	assert.Equal(t, big.NewInt(2), vm.estack.Pop().BigInt())
+}
+
+func TestINCBigResult(t *testing.T) {
+	prog := makeProgram(INC, INC)
+	vm := load(prog)
+	x := getBigInt(MaxBigIntegerSizeBits, -2)
+	vm.estack.PushVal(x)
+
+	require.NoError(t, vm.Step())
+	require.False(t, vm.HasFailed())
+	require.Equal(t, 1, vm.estack.Len())
+	require.Equal(t, new(big.Int).Add(x, big.NewInt(1)), vm.estack.Top().BigInt())
+
+	checkVMFailed(t, vm)
+}
+
+func TestDECBigResult(t *testing.T) {
+	prog := makeProgram(DEC, DEC)
+	vm := load(prog)
+	x := getBigInt(MaxBigIntegerSizeBits, -2)
+	x.Neg(x)
+	vm.estack.PushVal(x)
+
+	require.NoError(t, vm.Step())
+	require.False(t, vm.HasFailed())
+	require.Equal(t, 1, vm.estack.Len())
+	require.Equal(t, new(big.Int).Sub(x, big.NewInt(1)), vm.estack.Top().BigInt())
+
+	checkVMFailed(t, vm)
 }
 
 func TestNEWARRAYInteger(t *testing.T) {
