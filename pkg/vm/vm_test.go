@@ -624,7 +624,7 @@ func TestSHRSmallValue(t *testing.T) {
 	prog := makeProgram(SHR)
 	vm := load(prog)
 	vm.estack.PushVal(5)
-	vm.estack.PushVal(-257)
+	vm.estack.PushVal(minSHLArg - 1)
 	checkVMFailed(t, vm)
 }
 
@@ -660,7 +660,7 @@ func TestSHLBigValue(t *testing.T) {
 	prog := makeProgram(SHL)
 	vm := load(prog)
 	vm.estack.PushVal(5)
-	vm.estack.PushVal(257)
+	vm.estack.PushVal(maxSHLArg + 1)
 	checkVMFailed(t, vm)
 }
 
