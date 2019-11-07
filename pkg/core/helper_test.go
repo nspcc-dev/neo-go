@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -41,7 +40,7 @@ func newTestChain(t *testing.T) *Blockchain {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go chain.Run(context.Background())
+	go chain.Run()
 	zeroHash, err := chain.GetHeader(chain.GetHeaderHash(0))
 	require.Nil(t, err)
 	newBlockPrevHash = zeroHash.Hash()

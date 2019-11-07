@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -139,7 +138,7 @@ type GetAccountStateResponse struct {
 	ID int `json:"id"`
 }
 
-func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Blockchain, http.HandlerFunc) {
+func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFunc) {
 	var nBlocks uint32
 
 	net := config.ModeUnitTestNet
@@ -151,7 +150,7 @@ func initServerWithInMemoryChain(ctx context.Context, t *testing.T) (*core.Block
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration)
 	require.NoError(t, err, "could not create chain")
 
-	go chain.Run(ctx)
+	go chain.Run()
 
 	f, err := os.Open("testdata/50testblocks.acc")
 	require.Nil(t, err)
