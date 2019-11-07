@@ -2,6 +2,54 @@
 
 This document outlines major changes between releases.
 
+## 0.62.0 "Commotion" (07 Nov 2019)
+
+Release 0.62.0 finishes one very important work some pieces of which were
+gradually rolled out in previous releases --- it integrates all neo-vm project
+JSON-based tests for NEO 2.0 C# VM and runs them successfully against neo-go
+VM. There are also important bug fixes based on mainnet nodes deployment
+experience and additional configuration options.
+
+New Features:
+ * implemented `Runtime.Serialize` and `Runtime.Deserialize` syscalls (#419)
+ * new configuration option -- `AttemptConnPeers` to set the number of
+   connections that the node will try to establish when it goes below the
+   MinPeers setting (#478)
+ * `LogPath` configuration parameter to write logs into some file and not to
+   stdout (#460), not enabled by default
+ * `Address` configuration parameter to specify the address to bind to (#460),
+   not enabled by default
+
+Behavior changes:
+ * mainnet configuration now has correct ports specified (#478)
+ * multiple connections to the same peer are disallowed now (as they are in C#
+   node (#478))
+ * the default MaxPeers setting was increased to 100 for mainnet and testnet
+   configurations and limited to 10 for privnet (#478)
+
+Improvements:
+ * implemented missing VM constraints: stack item number limitation (#462) and
+   integer size checks (#484, #373)
+ * added a framework to run JSON-based neo-vm tests for C# VM and fixed all
+   remaining incompabitibilities (#196)
+ * added wallet unit tests (#475)
+ * network.Peer's NetAddr method was split into RemoteAddr and PeerAddr (#478)
+ * `MakeDirForFile` function was added to the `io` package (#470)
+
+Bugs fixed:
+ * RPC service responded with block height to `getblockcount` request which
+   differs from C# interpretation of `getblockcount` (#471)
+ * `getbestblockhash` RPC method response was not adding leading `0x` prefix
+   to the hash, while C# node does it
+ * inability to correctly handshake clients on the server side (#458, #480)
+ * data race in `Server` structure fields access (#478)
+ * MaxPeers configuration setting was not working properly (#478)
+ * useless DB reads (that failed in some cases) on persist attempt that didn't
+   persist anything (#481)
+ * current header height was not stored in the DB when starting a new
+   blockchain which lead to node failures on restart (#481)
+ * crash on node restart if no header hashes were written into the DB (#481)
+
 ## 0.61.0 "Cuspidation" (01 Nov 2019)
 
 New features:
