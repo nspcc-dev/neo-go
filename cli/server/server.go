@@ -168,7 +168,7 @@ func dumpDB(ctx *cli.Context) error {
 		count = chainHeight - skip
 	}
 	writer.WriteLE(count)
-	for i := skip + 1; i <= count; i++ {
+	for i := skip + 1; i <= skip+count; i++ {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
@@ -227,7 +227,7 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError(err, 1)
 		}
 	}
-	for ; i < count; i++ {
+	for ; i < skip+count; i++ {
 		b := &core.Block{}
 		b.DecodeBinary(reader)
 		if reader.Err != nil {
