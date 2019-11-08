@@ -15,6 +15,7 @@ type Blockchainer interface {
 	AddHeaders(...*Header) error
 	AddBlock(*Block) error
 	BlockHeight() uint32
+	Close()
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*Block, error)
 	GetContractState(hash util.Uint160) *ContractState

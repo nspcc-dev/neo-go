@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,16 +9,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRPC(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
-	chain, handler := initServerWithInMemoryChain(ctx, t)
+	chain, handler := initServerWithInMemoryChain(t)
 
 	t.Run("getbestblockhash", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getbestblockhash", "params": []}`

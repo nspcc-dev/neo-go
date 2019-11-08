@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -65,6 +64,10 @@ type Blockchain struct {
 	headersOp     chan headersOpFunc
 	headersOpDone chan struct{}
 
+	// Stop synchronization mechanisms.
+	stopCh      chan struct{}
+	runToExitCh chan struct{}
+
 	memPool MemPool
 }
 
@@ -78,6 +81,8 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		store:         storage.NewMemCachedStore(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
+		stopCh:        make(chan struct{}),
+		runToExitCh:   make(chan struct{}),
 		memPool:       NewMemPool(50000),
 	}
 
@@ -178,7 +183,7 @@ func (bc *Blockchain) init() error {
 }
 
 // Run runs chain loop.
-func (bc *Blockchain) Run(ctx context.Context) {
+func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
@@ -188,10 +193,11 @@ func (bc *Blockchain) Run(ctx context.Context) {
 		if err := bc.store.Close(); err != nil {
 			log.Warnf("failed to close db: %s", err)
 		}
+		close(bc.runToExitCh)
 	}()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-bc.stopCh:
 			return
 		case op := <-bc.headersOp:
 			op(bc.headerList)
@@ -206,6 +212,13 @@ func (bc *Blockchain) Run(ctx context.Context) {
 			persistTimer.Reset(persistInterval)
 		}
 	}
+}
+
+// Close stops Blockchain's internal loop, syncs changes to persistent storage
+// and closes it. The Blockchain is no longer functional after the call to Close.
+func (bc *Blockchain) Close() {
+	close(bc.stopCh)
+	<-bc.runToExitCh
 }
 
 // AddBlock accepts successive block for the Blockchain, verifies it and
