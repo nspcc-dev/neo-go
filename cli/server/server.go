@@ -168,7 +168,7 @@ func dumpDB(ctx *cli.Context) error {
 		count = chainHeight - skip
 	}
 	writer.WriteLE(count)
-	for i := skip + 1; i <= count; i++ {
+	for i := skip + 1; i <= skip+count; i++ {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
@@ -221,35 +221,26 @@ func restoreDB(ctx *cli.Context) error {
 	}
 	i := uint32(0)
 	for ; i < skip; i++ {
-		_, err := readBlock(reader)
-		if err != nil {
-			return err
+		b := &core.Block{}
+		b.DecodeBinary(reader)
+		if reader.Err != nil {
+			return cli.NewExitError(err, 1)
 		}
 	}
-	for ; i < count; i++ {
-		b, err := readBlock(reader)
-		if err != nil {
-			return err
+	for ; i < skip+count; i++ {
+		b := &core.Block{}
+		b.DecodeBinary(reader)
+		if reader.Err != nil {
+			return cli.NewExitError(err, 1)
 		}
-		errBlock := chain.AddBlock(b)
-		if errBlock != nil {
-			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, errBlock), 1)
+		err := chain.AddBlock(b)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
 		}
 	}
 	chain.Close()
 
 	return nil
-}
-
-func readBlock(reader *io.BinReader) (*core.Block, error) {
-	var size uint32
-	reader.ReadLE(&size)
-	bytes := make([]byte, size)
-	reader.ReadLE(bytes)
-	block := &core.Block{}
-	newReader := io.NewBinReaderFromBuf(bytes)
-	block.DecodeBinary(newReader)
-	return block, nil
 }
 
 func startServer(ctx *cli.Context) error {
