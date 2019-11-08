@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -185,8 +186,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	case CMDBlock:
 		p = &core.Block{}
 	case CMDConsensus:
-		// Stubbed out for now, see #431.
-		return nil
+		p = &consensus.Payload{}
 	case CMDGetBlocks:
 		fallthrough
 	case CMDGetHeaders:

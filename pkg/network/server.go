@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
@@ -50,6 +51,7 @@ type (
 		discovery Discoverer
 		chain     core.Blockchainer
 		bQueue    *blockQueue
+		consensus consensus.Service
 
 		lock  sync.RWMutex
 		peers map[Peer]bool
@@ -78,6 +80,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
+		consensus:    consensus.NewService(),
 	}
 
 	if s.MinPeers <= 0 {
@@ -366,8 +369,21 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			}
 		}
 	case payload.ConsensusType:
-		// TODO (#431)
+		for _, hash := range inv.Hashes {
+			if cp := s.consensus.GetPayload(hash); cp != nil {
+				if err := p.WriteMsg(NewMessage(s.Net, CMDConsensus, cp)); err != nil {
+					return err
+				}
+			}
+		}
 	}
+	return nil
+}
+
+// handleConsensusCmd processes received consensus payload.
+// It never returns an error.
+func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
+	s.consensus.OnPayload(cp)
 	return nil
 }
 
@@ -459,6 +475,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDBlock:
 			block := msg.Payload.(*core.Block)
 			return s.handleBlockCmd(peer, block)
+		case CMDConsensus:
+			cp := msg.Payload.(*consensus.Payload)
+			return s.handleConsensusCmd(cp)
 		case CMDVersion, CMDVerack:
 			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
 		}
