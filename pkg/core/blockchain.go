@@ -431,6 +431,21 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				}
 			}
 		case *transaction.ClaimTX:
+			// Remove claimed NEO from spent coins making it unavalaible for
+			// additional claims.
+			for _, input := range t.Claims {
+				scs, err := spentCoins.getAndUpdate(bc.store, input.PrevHash)
+				if err != nil {
+					return err
+				}
+				if scs.txHash == input.PrevHash {
+					// Existing scs.
+					delete(scs.items, input.PrevIndex)
+				} else {
+					// Uninitialized, new, forget about it.
+					delete(spentCoins, input.PrevHash)
+				}
+			}
 		case *transaction.EnrollmentTX:
 		case *transaction.StateTX:
 		case *transaction.PublishTX:
