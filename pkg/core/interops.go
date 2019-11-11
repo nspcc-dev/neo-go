@@ -101,6 +101,7 @@ func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
 		"Neo.Blockchain.GetHeight":            {Func: ic.bcGetHeight, Price: 1},
 		"Neo.Blockchain.GetTransaction":       {Func: ic.bcGetTransaction, Price: 100},
 		"Neo.Blockchain.GetTransactionHeight": {Func: ic.bcGetTransactionHeight, Price: 100},
+		"Neo.Blockchain.GetValidators":        {Func: ic.bcGetValidators, Price: 200},
 		"Neo.Contract.Create":                 {Func: ic.contractCreate, Price: 0},
 		"Neo.Contract.Destroy":                {Func: ic.contractDestroy, Price: 1},
 		"Neo.Contract.GetScript":              {Func: ic.contractGetScript, Price: 1},
@@ -139,7 +140,6 @@ func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
 		"Neo.Transaction.GetType":             {Func: ic.txGetType, Price: 1},
 		"Neo.Transaction.GetUnspentCoins":     {Func: ic.txGetUnspentCoins, Price: 200},
 		"Neo.Transaction.GetWitnesses":        {Func: ic.txGetWitnesses, Price: 200},
-		//		"Neo.Blockchain.GetValidators":        {Func: ic.bcGetValidators, Price: 200},
 		//		"Neo.Enumerator.Concat": {Func: ic.enumeratorConcat, Price: 1},
 		//		"Neo.Enumerator.Create": {Func: ic.enumeratorCreate, Price: 1},
 		//		"Neo.Enumerator.Next": {Func: ic.enumeratorNext, Price: 1},
@@ -185,6 +185,7 @@ func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
 		"AntShares.Blockchain.GetHeader":       {Func: ic.bcGetHeader, Price: 100},
 		"AntShares.Blockchain.GetHeight":       {Func: ic.bcGetHeight, Price: 1},
 		"AntShares.Blockchain.GetTransaction":  {Func: ic.bcGetTransaction, Price: 100},
+		"AntShares.Blockchain.GetValidators":   {Func: ic.bcGetValidators, Price: 200},
 		"AntShares.Contract.Create":            {Func: ic.contractCreate, Price: 0},
 		"AntShares.Contract.Destroy":           {Func: ic.contractDestroy, Price: 1},
 		"AntShares.Contract.GetScript":         {Func: ic.contractGetScript, Price: 1},
@@ -215,6 +216,5 @@ func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
 		"AntShares.Transaction.GetOutputs":     {Func: ic.txGetOutputs, Price: 1},
 		"AntShares.Transaction.GetReferences":  {Func: ic.txGetReferences, Price: 200},
 		"AntShares.Transaction.GetType":        {Func: ic.txGetType, Price: 1},
-		//		"AntShares.Blockchain.GetValidators": {Func: ic.bcGetValidators, Price: 200},
 	}
 }

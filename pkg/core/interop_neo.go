@@ -196,6 +196,16 @@ func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
 	return nil
 }
 
+// bcGetValidators returns validators.
+func (ic *interopContext) bcGetValidators(v *vm.VM) error {
+	validators, err := ic.bc.GetValidators()
+	if err != nil {
+		return err
+	}
+	v.Estack().PushVal(validators)
+	return nil
+}
+
 // popInputFromVM returns transaction.Input from the first estack element.
 func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
 	inInterface := v.Estack().Pop().Value()
