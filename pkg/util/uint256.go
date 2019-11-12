@@ -8,15 +8,16 @@ import (
 	"strings"
 )
 
-const uint256Size = 32
+// Uint256Size is the size of Uint256 in bytes.
+const Uint256Size = 32
 
 // Uint256 is a 32 byte long unsigned integer.
-type Uint256 [uint256Size]uint8
+type Uint256 [Uint256Size]uint8
 
 // Uint256DecodeReverseString attempts to decode the given string (in LE representation) into an Uint256.
 func Uint256DecodeReverseString(s string) (u Uint256, err error) {
-	if len(s) != uint256Size*2 {
-		return u, fmt.Errorf("expected string size of %d got %d", uint256Size*2, len(s))
+	if len(s) != Uint256Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint256Size*2, len(s))
 	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
@@ -27,8 +28,8 @@ func Uint256DecodeReverseString(s string) (u Uint256, err error) {
 
 // Uint256DecodeBytes attempts to decode the given string (in BE representation) into an Uint256.
 func Uint256DecodeBytes(b []byte) (u Uint256, err error) {
-	if len(b) != uint256Size {
-		return u, fmt.Errorf("expected []byte of size %d got %d", uint256Size, len(b))
+	if len(b) != Uint256Size {
+		return u, fmt.Errorf("expected []byte of size %d got %d", Uint256Size, len(b))
 	}
 	copy(u[:], b)
 	return u, nil
