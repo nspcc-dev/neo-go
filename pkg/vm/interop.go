@@ -40,6 +40,14 @@ var defaultVMInterops = []interopIDFuncPrice{
 		InteropFuncPrice{RuntimeDeserialize, 1}},
 	{InteropNameToID([]byte("System.Runtime.Deserialize")),
 		InteropFuncPrice{RuntimeDeserialize, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Create")),
+		InteropFuncPrice{EnumeratorCreate, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Next")),
+		InteropFuncPrice{EnumeratorNext, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Concat")),
+		InteropFuncPrice{EnumeratorConcat, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Value")),
+		InteropFuncPrice{EnumeratorValue, 1}},
 }
 
 func getDefaultVMInterop(id uint32) *InteropFuncPrice {
@@ -106,4 +114,52 @@ func init() {
 	sort.Slice(defaultVMInterops, func(i, j int) bool {
 		return defaultVMInterops[i].ID < defaultVMInterops[j].ID
 	})
+}
+
+// EnumeratorCreate handles syscall Neo.Enumerator.Create.
+func EnumeratorCreate(v *VM) error {
+	data := v.Estack().Pop().Array()
+	v.Estack().Push(&Element{
+		value: NewInteropItem(&arrayWrapper{
+			index: -1,
+			value: data,
+		}),
+	})
+
+	return nil
+}
+
+// EnumeratorNext handles syscall Neo.Enumerator.Next.
+func EnumeratorNext(v *VM) error {
+	iop := v.Estack().Pop().Interop()
+	arr := iop.value.(enumerator)
+	v.Estack().PushVal(arr.Next())
+
+	return nil
+}
+
+// EnumeratorValue handles syscall Neo.Enumerator.Value.
+func EnumeratorValue(v *VM) error {
+	iop := v.Estack().Pop().Interop()
+	arr := iop.value.(enumerator)
+	v.Estack().Push(&Element{value: arr.Value()})
+
+	return nil
+}
+
+// EnumeratorConcat handles syscall Neo.Enumerator.Concat.
+func EnumeratorConcat(v *VM) error {
+	iop1 := v.Estack().Pop().Interop()
+	arr1 := iop1.value.(enumerator)
+	iop2 := v.Estack().Pop().Interop()
+	arr2 := iop2.value.(enumerator)
+
+	v.Estack().Push(&Element{
+		value: NewInteropItem(&concatEnum{
+			current: arr1,
+			second:  arr2,
+		}),
+	})
+
+	return nil
 }

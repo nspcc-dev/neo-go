@@ -333,6 +333,74 @@ func TestPushData4Good(t *testing.T) {
 	assert.Equal(t, []byte{1, 2, 3}, vm.estack.Pop().Bytes())
 }
 
+func getEnumeratorProg(n int) (prog []byte) {
+	prog = append(prog, byte(opcode.TOALTSTACK))
+	for i := 0; i < n; i++ {
+		prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+		prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
+		prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+		prog = append(prog, getSyscallProg("Neo.Enumerator.Value")...)
+	}
+	prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+	prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
+
+	return
+}
+
+func checkEnumeratorStack(t *testing.T, vm *VM, arr []StackItem) {
+	require.Equal(t, len(arr)+1, vm.estack.Len())
+	require.Equal(t, NewBoolItem(false), vm.estack.Peek(0).value)
+	for i := 0; i < len(arr); i++ {
+		require.Equal(t, arr[i], vm.estack.Peek(i+1).value, "pos: %d", i+1)
+	}
+}
+
+func testIterableCreate(t *testing.T, typ string) {
+	prog := getSyscallProg("Neo." + typ + ".Create")
+	prog = append(prog, getEnumeratorProg(2)...)
+
+	vm := load(prog)
+	arr := []StackItem{
+		NewBigIntegerItem(42),
+		NewByteArrayItem([]byte{3, 2, 1}),
+	}
+	vm.estack.Push(&Element{value: NewArrayItem(arr)})
+
+	runVM(t, vm)
+	checkEnumeratorStack(t, vm, []StackItem{
+		arr[1], NewBoolItem(true),
+		arr[0], NewBoolItem(true),
+	})
+}
+
+func TestEnumeratorCreate(t *testing.T) {
+	testIterableCreate(t, "Enumerator")
+}
+
+func TestEnumeratorConcat(t *testing.T) {
+	prog := getSyscallProg("Neo.Enumerator.Create")
+	prog = append(prog, byte(opcode.SWAP))
+	prog = append(prog, getSyscallProg("Neo.Enumerator.Create")...)
+	prog = append(prog, getSyscallProg("Neo.Enumerator.Concat")...)
+	prog = append(prog, getEnumeratorProg(3)...)
+	vm := load(prog)
+
+	arr := []StackItem{
+		NewBoolItem(false),
+		NewBigIntegerItem(123),
+		NewMapItem(),
+	}
+	vm.estack.Push(&Element{value: NewArrayItem(arr[:1])})
+	vm.estack.Push(&Element{value: NewArrayItem(arr[1:])})
+
+	runVM(t, vm)
+	checkEnumeratorStack(t, vm, []StackItem{
+		arr[2], NewBoolItem(true),
+		arr[1], NewBoolItem(true),
+		arr[0], NewBoolItem(true),
+	})
+}
+
 func getSyscallProg(name string) (prog []byte) {
 	prog = []byte{byte(opcode.SYSCALL)}
 	prog = append(prog, byte(len(name)))

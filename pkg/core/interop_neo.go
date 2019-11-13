@@ -787,3 +787,24 @@ func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
 func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
 	return vm.RuntimeDeserialize(v)
 }
+
+// enumeratorConcat concatenates 2 enumerators into a single one.
+func (ic *interopContext) enumeratorConcat(v *vm.VM) error {
+	return vm.EnumeratorConcat(v)
+}
+
+// enumeratorCreate creates an enumerator from an array-like stack item.
+func (ic *interopContext) enumeratorCreate(v *vm.VM) error {
+	return vm.EnumeratorCreate(v)
+}
+
+// enumeratorNext advances the enumerator, pushes true if is it was successful
+// and false otherwise.
+func (ic *interopContext) enumeratorNext(v *vm.VM) error {
+	return vm.EnumeratorNext(v)
+}
+
+// enumeratorValue returns the current value of the enumerator.
+func (ic *interopContext) enumeratorValue(v *vm.VM) error {
+	return vm.EnumeratorValue(v)
+}

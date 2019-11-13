@@ -155,6 +155,17 @@ func (e *Element) Array() []StackItem {
 	}
 }
 
+// Interop attempts to get the underlying value of the element
+// as an interop item.
+func (e *Element) Interop() *InteropItem {
+	switch t := e.value.(type) {
+	case *InteropItem:
+		return t
+	default:
+		panic("element is not an interop")
+	}
+}
+
 // Stack represents a Stack backed by a double linked list.
 type Stack struct {
 	top  Element
