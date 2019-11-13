@@ -37,9 +37,5 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (p *Headers) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteVarUint(uint64(len(p.Hdrs)))
-
-	for _, header := range p.Hdrs {
-		header.EncodeBinary(bw)
-	}
+	bw.WriteArray(p.Hdrs)
 }

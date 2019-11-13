@@ -3,6 +3,7 @@ package io
 import (
 	"encoding/binary"
 	"io"
+	"reflect"
 )
 
 // BinWriter is a convenient wrapper around a io.Writer and err object.
@@ -32,6 +33,37 @@ func (w *BinWriter) WriteBE(v interface{}) {
 		return
 	}
 	w.Err = binary.Write(w.w, binary.BigEndian, v)
+}
+
+// WriteArray writes a slice or an array arr into w.
+func (w *BinWriter) WriteArray(arr interface{}) {
+	switch val := reflect.ValueOf(arr); val.Kind() {
+	case reflect.Slice, reflect.Array:
+		typ := val.Type().Elem()
+		method, ok := typ.MethodByName("EncodeBinary")
+		if !ok || !isEncodeBinaryMethod(method) {
+			panic(typ.String() + " does not have EncodeBinary(*BinWriter)")
+		}
+
+		if w.Err != nil {
+			return
+		}
+
+		w.WriteVarUint(uint64(val.Len()))
+		for i := 0; i < val.Len(); i++ {
+			method := val.Index(i).MethodByName("EncodeBinary")
+			method.Call([]reflect.Value{reflect.ValueOf(w)})
+		}
+	default:
+		panic("not an array")
+	}
+}
+
+func isEncodeBinaryMethod(method reflect.Method) bool {
+	t := method.Type
+	return t != nil &&
+		t.NumIn() == 2 && t.In(1) == reflect.TypeOf((*BinWriter)(nil)) &&
+		t.NumOut() == 0
 }
 
 // WriteVarUint writes a uint64 into the underlying writer using variable-length encoding.

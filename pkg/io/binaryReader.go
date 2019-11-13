@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"reflect"
 )
 
 // BinReader is a convenient wrapper around a io.Reader and err object.
@@ -31,6 +32,38 @@ func (r *BinReader) ReadLE(v interface{}) {
 		return
 	}
 	r.Err = binary.Read(r.r, binary.LittleEndian, v)
+}
+
+// ReadArray reads a slice or an array of pointer to t from r and returns.
+func (r *BinReader) ReadArray(t interface{}) interface{} {
+	elemType := reflect.ValueOf(t).Type()
+	method, ok := reflect.PtrTo(elemType).MethodByName("DecodeBinary")
+	if !ok || !isDecodeBinaryMethod(method) {
+		panic(elemType.String() + " does not have DecodeBinary(*io.BinReader)")
+	}
+
+	sliceType := reflect.SliceOf(reflect.PtrTo(elemType))
+	if r.Err != nil {
+		return reflect.Zero(sliceType).Interface()
+	}
+
+	l := int(r.ReadVarUint())
+	arr := reflect.MakeSlice(sliceType, l, l)
+	for i := 0; i < l; i++ {
+		elem := arr.Index(i)
+		method := elem.MethodByName("DecodeBinary")
+		elem.Set(reflect.New(elemType))
+		method.Call([]reflect.Value{reflect.ValueOf(r)})
+	}
+
+	return arr.Interface()
+}
+
+func isDecodeBinaryMethod(method reflect.Method) bool {
+	t := method.Type
+	return t != nil &&
+		t.NumIn() == 2 && t.In(1) == reflect.TypeOf((*BinReader)(nil)) &&
+		t.NumOut() == 0
 }
 
 // ReadBE reads from the underlying io.Reader

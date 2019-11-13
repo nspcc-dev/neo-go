@@ -128,13 +128,7 @@ func (b *Block) Trim() ([]byte, error) {
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
 	b.BlockBase.DecodeBinary(br)
-
-	lentx := br.ReadVarUint()
-	b.Transactions = make([]*transaction.Transaction, lentx)
-	for i := 0; i < int(lentx); i++ {
-		b.Transactions[i] = &transaction.Transaction{}
-		b.Transactions[i].DecodeBinary(br)
-	}
+	b.Transactions = br.ReadArray(transaction.Transaction{}).([]*transaction.Transaction)
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing

@@ -94,12 +94,7 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&s.Version)
 	br.ReadLE(&s.ScriptHash)
 	br.ReadLE(&s.IsFrozen)
-	lenVotes := br.ReadVarUint()
-	s.Votes = make([]*keys.PublicKey, lenVotes)
-	for i := 0; i < int(lenVotes); i++ {
-		s.Votes[i] = &keys.PublicKey{}
-		s.Votes[i].DecodeBinary(br)
-	}
+	s.Votes = br.ReadArray(keys.PublicKey{}).([]*keys.PublicKey)
 
 	s.Balances = make(map[util.Uint256]util.Fixed8)
 	lenBalances := br.ReadVarUint()
@@ -117,10 +112,7 @@ func (s *AccountState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(s.Version)
 	bw.WriteLE(s.ScriptHash)
 	bw.WriteLE(s.IsFrozen)
-	bw.WriteVarUint(uint64(len(s.Votes)))
-	for _, point := range s.Votes {
-		point.EncodeBinary(bw)
-	}
+	bw.WriteArray(s.Votes)
 
 	balances := s.nonZeroBalances()
 	bw.WriteVarUint(uint64(len(balances)))
