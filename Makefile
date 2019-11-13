@@ -24,7 +24,10 @@ build: deps
 		&& export CGO_ENABLED=0 \
 		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
-install: build
+neo-go.service: neo-go.service.template
+	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@
+
+install: build neo-go.service
 	@echo "=> Installing systemd service"
 	@mkdir -p $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
 		&& mkdir -p $(SYSTEMDUNIT_DIR) \
