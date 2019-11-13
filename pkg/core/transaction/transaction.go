@@ -95,33 +95,10 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&t.Version)
 	t.decodeData(br)
 
-	lenAttrs := br.ReadVarUint()
-	t.Attributes = make([]*Attribute, lenAttrs)
-	for i := 0; i < int(lenAttrs); i++ {
-		t.Attributes[i] = &Attribute{}
-		t.Attributes[i].DecodeBinary(br)
-	}
-
-	lenInputs := br.ReadVarUint()
-	t.Inputs = make([]*Input, lenInputs)
-	for i := 0; i < int(lenInputs); i++ {
-		t.Inputs[i] = &Input{}
-		t.Inputs[i].DecodeBinary(br)
-	}
-
-	lenOutputs := br.ReadVarUint()
-	t.Outputs = make([]*Output, lenOutputs)
-	for i := 0; i < int(lenOutputs); i++ {
-		t.Outputs[i] = &Output{}
-		t.Outputs[i].DecodeBinary(br)
-	}
-
-	lenScripts := br.ReadVarUint()
-	t.Scripts = make([]*Witness, lenScripts)
-	for i := 0; i < int(lenScripts); i++ {
-		t.Scripts[i] = &Witness{}
-		t.Scripts[i].DecodeBinary(br)
-	}
+	t.Attributes = br.ReadArray(Attribute{}).([]*Attribute)
+	t.Inputs = br.ReadArray(Input{}).([]*Input)
+	t.Outputs = br.ReadArray(Output{}).([]*Output)
+	t.Scripts = br.ReadArray(Witness{}).([]*Witness)
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
@@ -167,10 +144,7 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 	t.encodeHashableFields(bw)
-	bw.WriteVarUint(uint64(len(t.Scripts)))
-	for _, s := range t.Scripts {
-		s.EncodeBinary(bw)
-	}
+	bw.WriteArray(t.Scripts)
 }
 
 // encodeHashableFields encodes the fields that are not used for
@@ -185,22 +159,13 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	}
 
 	// Attributes
-	bw.WriteVarUint(uint64(len(t.Attributes)))
-	for _, attr := range t.Attributes {
-		attr.EncodeBinary(bw)
-	}
+	bw.WriteArray(t.Attributes)
 
 	// Inputs
-	bw.WriteVarUint(uint64(len(t.Inputs)))
-	for _, in := range t.Inputs {
-		in.EncodeBinary(bw)
-	}
+	bw.WriteArray(t.Inputs)
 
 	// Outputs
-	bw.WriteVarUint(uint64(len(t.Outputs)))
-	for _, out := range t.Outputs {
-		out.EncodeBinary(bw)
-	}
+	bw.WriteArray(t.Outputs)
 }
 
 // createHash creates the hash of the transaction.
