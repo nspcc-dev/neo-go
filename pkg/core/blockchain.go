@@ -473,7 +473,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			vm.LoadScript(t.Script)
 			err := vm.Run()
 			if !vm.HasFailed() {
-				_, err := systemInterop.mem.Persist()
+				_, err = systemInterop.mem.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
@@ -483,6 +483,18 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 					"block": block.Index,
 					"err":   err,
 				}).Warn("contract invocation failed")
+			}
+			aer := &AppExecResult{
+				TxHash:      tx.Hash(),
+				Trigger:     0x10,
+				VMState:     vm.State(),
+				GasConsumed: util.Fixed8(0),
+				Stack:       vm.Stack("estack"),
+				Events:      systemInterop.notifications,
+			}
+			err = putAppExecResultIntoStore(tmpStore, aer)
+			if err != nil {
+				return errors.Wrap(err, "failed to store notifications")
 			}
 		}
 	}

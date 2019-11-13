@@ -14,16 +14,18 @@ import (
 )
 
 type interopContext struct {
-	bc      Blockchainer
-	trigger byte
-	block   *Block
-	tx      *transaction.Transaction
-	mem     *storage.MemCachedStore
+	bc            Blockchainer
+	trigger       byte
+	block         *Block
+	tx            *transaction.Transaction
+	mem           *storage.MemCachedStore
+	notifications []NotificationEvent
 }
 
 func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
 	mem := storage.NewMemCachedStore(s)
-	return &interopContext{bc, trigger, block, tx, mem}
+	nes := make([]NotificationEvent, 0)
+	return &interopContext{bc, trigger, block, tx, mem, nes}
 }
 
 // All lists are sorted, keep 'em this way, please.

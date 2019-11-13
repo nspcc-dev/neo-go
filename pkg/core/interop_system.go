@@ -343,8 +343,10 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 // runtimeNotify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
 func (ic *interopContext) runtimeNotify(v *vm.VM) error {
-	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
-	log.Infof("script %s notifies: %s", getContextScriptHash(v, 0), msg)
+	// It can be just about anything.
+	e := v.Estack().Pop()
+	ne := NotificationEvent{getContextScriptHash(v, 0), e.Item()}
+	ic.notifications = append(ic.notifications, ne)
 	return nil
 }
 

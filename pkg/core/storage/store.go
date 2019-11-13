@@ -14,6 +14,7 @@ const (
 	STSpentCoin       KeyPrefix = 0x45
 	STValidator       KeyPrefix = 0x48
 	STAsset           KeyPrefix = 0x4c
+	STNotification    KeyPrefix = 0x4d
 	STContract        KeyPrefix = 0x50
 	STStorage         KeyPrefix = 0x70
 	IXHeaderHashList  KeyPrefix = 0x80
