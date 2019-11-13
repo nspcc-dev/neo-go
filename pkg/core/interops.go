@@ -157,6 +157,11 @@ var neoInterops = []interopedFunction{
 	{Name: "Neo.Input.GetHash", Func: (*interopContext).inputGetHash, Price: 1},
 	{Name: "Neo.Input.GetIndex", Func: (*interopContext).inputGetIndex, Price: 1},
 	{Name: "Neo.InvocationTransaction.GetScript", Func: (*interopContext).invocationTxGetScript, Price: 1},
+	{Name: "Neo.Iterator.Concat", Func: (*interopContext).iteratorConcat, Price: 1},
+	{Name: "Neo.Iterator.Create", Func: (*interopContext).iteratorCreate, Price: 1},
+	{Name: "Neo.Iterator.Key", Func: (*interopContext).iteratorKey, Price: 1},
+	{Name: "Neo.Iterator.Keys", Func: (*interopContext).iteratorKeys, Price: 1},
+	{Name: "Neo.Iterator.Values", Func: (*interopContext).iteratorValues, Price: 1},
 	{Name: "Neo.Output.GetAssetId", Func: (*interopContext).outputGetAssetID, Price: 1},
 	{Name: "Neo.Output.GetScriptHash", Func: (*interopContext).outputGetScriptHash, Price: 1},
 	{Name: "Neo.Output.GetValue", Func: (*interopContext).outputGetValue, Price: 1},
@@ -182,16 +187,11 @@ var neoInterops = []interopedFunction{
 	{Name: "Neo.Transaction.GetUnspentCoins", Func: (*interopContext).txGetUnspentCoins, Price: 200},
 	{Name: "Neo.Transaction.GetWitnesses", Func: (*interopContext).txGetWitnesses, Price: 200},
 	{Name: "Neo.Witness.GetVerificationScript", Func: (*interopContext).witnessGetVerificationScript, Price: 100},
-	//		{Name: "Neo.Iterator.Concat", Func: (*interopContext).iteratorConcat, Price: 1},
-	//		{Name: "Neo.Iterator.Create", Func: (*interopContext).iteratorCreate, Price: 1},
-	//		{Name: "Neo.Iterator.Key", Func: (*interopContext).iteratorKey, Price: 1},
-	//		{Name: "Neo.Iterator.Keys", Func: (*interopContext).iteratorKeys, Price: 1},
-	//		{Name: "Neo.Iterator.Values", Func: (*interopContext).iteratorValues, Price: 1},
 	//		{Name: "Neo.Storage.Find",                Func: (*interopContext).storageFind, Price: 1},
 
 	// Aliases.
-	//		{Name: "Neo.Iterator.Next", Func: (*interopContext).enumeratorNext, Price: 1},
-	//		{Name: "Neo.Iterator.Value", Func: (*interopContext).enumeratorValue, Price: 1},
+	{Name: "Neo.Iterator.Next", Func: (*interopContext).enumeratorNext, Price: 1},
+	{Name: "Neo.Iterator.Value", Func: (*interopContext).enumeratorValue, Price: 1},
 
 	// Old compatibility APIs.
 	{Name: "AntShares.Account.GetBalance", Func: (*interopContext).accountGetBalance, Price: 1},
