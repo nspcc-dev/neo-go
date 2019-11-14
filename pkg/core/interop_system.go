@@ -391,7 +391,7 @@ func (ic *interopContext) checkStorageContext(stc *StorageContext) error {
 		return errors.New("no contract found")
 	}
 	if !contract.HasStorage() {
-		return errors.New("contract can't have storage")
+		return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
 	}
 	return nil
 }
