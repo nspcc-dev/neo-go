@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -197,7 +198,7 @@ func (i *ByteArrayItem) Value() interface{} {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *ByteArrayItem) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(i.value))
+	return json.Marshal(hex.EncodeToString(i.value))
 }
 
 func (i *ByteArrayItem) String() string {
