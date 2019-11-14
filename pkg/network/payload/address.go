@@ -67,7 +67,7 @@ func NewAddressList(n int) *AddressList {
 
 // DecodeBinary implements Serializable interface.
 func (p *AddressList) DecodeBinary(br *io.BinReader) {
-	p.Addrs = br.ReadArray(AddressAndTime{}).([]*AddressAndTime)
+	br.ReadArray(&p.Addrs)
 }
 
 // EncodeBinary implements Serializable interface.

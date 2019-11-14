@@ -11,7 +11,7 @@ type ClaimTX struct {
 
 // DecodeBinary implements Serializable interface.
 func (tx *ClaimTX) DecodeBinary(br *io.BinReader) {
-	tx.Claims = br.ReadArray(Input{}).([]*Input)
+	br.ReadArray(&tx.Claims)
 }
 
 // EncodeBinary implements Serializable interface.
