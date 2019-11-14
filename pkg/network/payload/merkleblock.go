@@ -20,11 +20,7 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.BlockBase.DecodeBinary(br)
 
 	m.TxCount = int(br.ReadVarUint())
-	n := br.ReadVarUint()
-	m.Hashes = make([]util.Uint256, n)
-	for i := 0; i < len(m.Hashes); i++ {
-		br.ReadLE(&m.Hashes[i])
-	}
+	br.ReadArray(&m.Hashes)
 	m.Flags = br.ReadBytes()
 }
 
@@ -34,9 +30,6 @@ func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
 	m.BlockBase.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(m.TxCount))
-	bw.WriteVarUint(uint64(len(m.Hashes)))
-	for i := 0; i < len(m.Hashes); i++ {
-		bw.WriteLE(m.Hashes[i])
-	}
+	bw.WriteArray(m.Hashes)
 	bw.WriteBytes(m.Flags)
 }

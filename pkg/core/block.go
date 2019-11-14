@@ -135,10 +135,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	b.BlockBase.EncodeBinary(bw)
-	bw.WriteVarUint(uint64(len(b.Transactions)))
-	for _, tx := range b.Transactions {
-		tx.EncodeBinary(bw)
-	}
+	bw.WriteArray(b.Transactions)
 }
 
 // Compare implements the queue Item interface.

@@ -4,7 +4,9 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUint256UnmarshalJSON(t *testing.T) {
@@ -74,4 +76,20 @@ func TestUInt256Equals(t *testing.T) {
 	if !ua.Equals(ua) {
 		t.Fatalf("%s and %s must be equal", ua, ua)
 	}
+}
+
+func TestUint256_Serializable(t *testing.T) {
+	a := Uint256{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	}
+
+	w := io.NewBufBinWriter()
+	a.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+
+	var b Uint256
+	r := io.NewBinReaderFromBuf(w.Bytes())
+	b.DecodeBinary(r)
+	require.Equal(t, a, b)
 }

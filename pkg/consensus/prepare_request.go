@@ -20,10 +20,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.Timestamp)
 	w.WriteLE(p.Nonce)
 	w.WriteBE(p.NextConsensus[:])
-	w.WriteVarUint(uint64(len(p.TransactionHashes)))
-	for i := range p.TransactionHashes {
-		w.WriteBE(p.TransactionHashes[i][:])
-	}
+	w.WriteArray(p.TransactionHashes)
 	p.MinerTransaction.EncodeBinary(w)
 }
 
@@ -32,12 +29,6 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.Timestamp)
 	r.ReadLE(&p.Nonce)
 	r.ReadBE(p.NextConsensus[:])
-
-	lenHashes := r.ReadVarUint()
-	p.TransactionHashes = make([]util.Uint256, lenHashes)
-	for i := range p.TransactionHashes {
-		r.ReadBE(p.TransactionHashes[i][:])
-	}
-
+	r.ReadArray(&p.TransactionHashes)
 	p.MinerTransaction.DecodeBinary(r)
 }
