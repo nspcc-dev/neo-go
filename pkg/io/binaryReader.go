@@ -34,29 +34,50 @@ func (r *BinReader) ReadLE(v interface{}) {
 	r.Err = binary.Read(r.r, binary.LittleEndian, v)
 }
 
-// ReadArray reads a slice or an array of pointer to t from r and returns.
-func (r *BinReader) ReadArray(t interface{}) interface{} {
-	elemType := reflect.ValueOf(t).Type()
-	method, ok := reflect.PtrTo(elemType).MethodByName("DecodeBinary")
-	if !ok || !isDecodeBinaryMethod(method) {
-		panic(elemType.String() + " does not have DecodeBinary(*io.BinReader)")
+// ReadArray reads array into value which must be
+// a pointer to a slice.
+func (r *BinReader) ReadArray(t interface{}) {
+	value := reflect.ValueOf(t)
+	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Slice {
+		panic(value.Type().String() + " is not a pointer to a slice")
 	}
 
-	sliceType := reflect.SliceOf(reflect.PtrTo(elemType))
+	sliceType := value.Elem().Type()
+	elemType := sliceType.Elem()
+	isPtr := elemType.Kind() == reflect.Ptr
+	if isPtr {
+		checkHasDecodeBinary(elemType)
+	} else {
+		checkHasDecodeBinary(reflect.PtrTo(elemType))
+	}
+
 	if r.Err != nil {
-		return reflect.Zero(sliceType).Interface()
+		return
 	}
 
 	l := int(r.ReadVarUint())
 	arr := reflect.MakeSlice(sliceType, l, l)
+
 	for i := 0; i < l; i++ {
-		elem := arr.Index(i)
+		var elem reflect.Value
+		if isPtr {
+			elem = reflect.New(elemType.Elem())
+			arr.Index(i).Set(elem)
+		} else {
+			elem = arr.Index(i).Addr()
+		}
 		method := elem.MethodByName("DecodeBinary")
-		elem.Set(reflect.New(elemType))
 		method.Call([]reflect.Value{reflect.ValueOf(r)})
 	}
 
-	return arr.Interface()
+	value.Elem().Set(arr)
+}
+
+func checkHasDecodeBinary(v reflect.Type) {
+	method, ok := v.MethodByName("DecodeBinary")
+	if !ok || !isDecodeBinaryMethod(method) {
+		panic(v.String() + " does not have DecodeBinary(*io.BinReader)")
+	}
 }
 
 func isDecodeBinaryMethod(method reflect.Method) bool {

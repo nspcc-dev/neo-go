@@ -95,10 +95,10 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&t.Version)
 	t.decodeData(br)
 
-	t.Attributes = br.ReadArray(Attribute{}).([]*Attribute)
-	t.Inputs = br.ReadArray(Input{}).([]*Input)
-	t.Outputs = br.ReadArray(Output{}).([]*Output)
-	t.Scripts = br.ReadArray(Witness{}).([]*Witness)
+	br.ReadArray(&t.Attributes)
+	br.ReadArray(&t.Inputs)
+	br.ReadArray(&t.Outputs)
+	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.

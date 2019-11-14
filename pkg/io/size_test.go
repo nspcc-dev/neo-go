@@ -1,9 +1,10 @@
-package io
+package io_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,18 +14,18 @@ type smthSerializable struct {
 	some [42]byte
 }
 
-func (*smthSerializable) DecodeBinary(*BinReader) {}
+func (*smthSerializable) DecodeBinary(*io.BinReader) {}
 
-func (ss *smthSerializable) EncodeBinary(bw *BinWriter) {
+func (ss *smthSerializable) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(ss.some)
 }
 
 // Mock structure that gives error in EncodeBinary().
 type smthNotReallySerializable struct{}
 
-func (*smthNotReallySerializable) DecodeBinary(*BinReader) {}
+func (*smthNotReallySerializable) DecodeBinary(*io.BinReader) {}
 
-func (*smthNotReallySerializable) EncodeBinary(bw *BinWriter) {
+func (*smthNotReallySerializable) EncodeBinary(bw *io.BinWriter) {
 	bw.Err = fmt.Errorf("smth bad happened in smthNotReallySerializable")
 }
 
@@ -182,7 +183,7 @@ func TestVarSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("run: %s", tc.name), func(t *testing.T) {
-			result := GetVarSize(tc.variable)
+			result := io.GetVarSize(tc.variable)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -194,7 +195,7 @@ func panicVarSize(t *testing.T, v interface{}) {
 		assert.NotNil(t, r)
 	}()
 
-	_ = GetVarSize(v)
+	_ = io.GetVarSize(v)
 	// this should never execute
 	assert.Nil(t, t)
 }

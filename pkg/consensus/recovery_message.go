@@ -40,7 +40,7 @@ const uint256size = 32
 
 // DecodeBinary implements io.Serializable interface.
 func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
-	m.ChangeViewPayloads = r.ReadArray(changeViewCompact{}).([]*changeViewCompact)
+	r.ReadArray(&m.ChangeViewPayloads)
 
 	var hasReq bool
 	r.ReadLE(&hasReq)
@@ -61,8 +61,8 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 		}
 	}
 
-	m.PreparationPayloads = r.ReadArray(preparationCompact{}).([]*preparationCompact)
-	m.CommitPayloads = r.ReadArray(commitCompact{}).([]*commitCompact)
+	r.ReadArray(&m.PreparationPayloads)
+	r.ReadArray(&m.CommitPayloads)
 }
 
 // EncodeBinary implements io.Serializable interface.

@@ -39,11 +39,7 @@ func (a Contracts) commit(store storage.Store) error {
 // DecodeBinary implements Serializable interface.
 func (cs *ContractState) DecodeBinary(br *io.BinReader) {
 	cs.Script = br.ReadBytes()
-	paramBytes := br.ReadBytes()
-	cs.ParamList = make([]smartcontract.ParamType, len(paramBytes))
-	for k := range paramBytes {
-		cs.ParamList[k] = smartcontract.ParamType(paramBytes[k])
-	}
+	br.ReadArray(&cs.ParamList)
 	br.ReadLE(&cs.ReturnType)
 	br.ReadLE(&cs.Properties)
 	cs.Name = br.ReadString()
@@ -57,10 +53,7 @@ func (cs *ContractState) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(cs.Script)
-	bw.WriteVarUint(uint64(len(cs.ParamList)))
-	for k := range cs.ParamList {
-		bw.WriteLE(cs.ParamList[k])
-	}
+	bw.WriteArray(cs.ParamList)
 	bw.WriteLE(cs.ReturnType)
 	bw.WriteLE(cs.Properties)
 	bw.WriteString(cs.Name)

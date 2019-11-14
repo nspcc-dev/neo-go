@@ -94,7 +94,7 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&s.Version)
 	br.ReadLE(&s.ScriptHash)
 	br.ReadLE(&s.IsFrozen)
-	s.Votes = br.ReadArray(keys.PublicKey{}).([]*keys.PublicKey)
+	br.ReadArray(&s.Votes)
 
 	s.Balances = make(map[util.Uint256]util.Fixed8)
 	lenBalances := br.ReadVarUint()

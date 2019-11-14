@@ -11,7 +11,7 @@ type StateTX struct {
 
 // DecodeBinary implements Serializable interface.
 func (tx *StateTX) DecodeBinary(r *io.BinReader) {
-	tx.Descriptors = r.ReadArray(StateDescriptor{}).([]*StateDescriptor)
+	r.ReadArray(&tx.Descriptors)
 }
 
 // EncodeBinary implements Serializable interface.

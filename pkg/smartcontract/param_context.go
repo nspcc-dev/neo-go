@@ -1,6 +1,9 @@
 package smartcontract
 
-import "github.com/CityOfZion/neo-go/pkg/util"
+import (
+	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/util"
+)
 
 // ParamType represents the Type of the contract parameter.
 type ParamType byte
@@ -65,6 +68,16 @@ func (pt ParamType) String() string {
 // MarshalJSON implements the json.Marshaler interface.
 func (pt ParamType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + pt.String() + `"`), nil
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (pt ParamType) EncodeBinary(w *io.BinWriter) {
+	w.WriteLE(pt)
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (pt *ParamType) DecodeBinary(r *io.BinReader) {
+	r.ReadLE(pt)
 }
 
 // NewParameter returns a Parameter with proper initialized Value

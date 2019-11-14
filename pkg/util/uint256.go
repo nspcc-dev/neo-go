@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // Uint256Size is the size of Uint256 in bytes.
@@ -93,3 +95,13 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 // -1 implies u < other.
 //  0 implies  u = other.
 func (u Uint256) CompareTo(other Uint256) int { return bytes.Compare(u[:], other[:]) }
+
+// EncodeBinary implements io.Serializable interface.
+func (u Uint256) EncodeBinary(w *io.BinWriter) {
+	w.WriteBE(u)
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (u *Uint256) DecodeBinary(r *io.BinReader) {
+	r.ReadBE(u[:])
+}

@@ -253,22 +253,53 @@ func TestBinWriter_WriteArray(t *testing.T) {
 
 func TestBinReader_ReadArray(t *testing.T) {
 	data := []byte{3, 0, 0, 1, 0, 2, 0}
-	r := NewBinReaderFromBuf(data)
-	result := r.ReadArray(testSerializable(0))
 	elems := []testSerializable{0, 1, 2}
-	require.Equal(t, []*testSerializable{&elems[0], &elems[1], &elems[2]}, result)
+
+	r := NewBinReaderFromBuf(data)
+	arrPtr := []*testSerializable{}
+	r.ReadArray(&arrPtr)
+	require.Equal(t, []*testSerializable{&elems[0], &elems[1], &elems[2]}, arrPtr)
 
 	r = NewBinReaderFromBuf(data)
-	r.Err = errors.New("error")
-	result = r.ReadArray(testSerializable(0))
-	require.Error(t, r.Err)
-	require.Equal(t, ([]*testSerializable)(nil), result)
-
-	r = NewBinReaderFromBuf([]byte{0})
-	result = r.ReadArray(testSerializable(0))
+	arrVal := []testSerializable{}
+	r.ReadArray(&arrVal)
 	require.NoError(t, r.Err)
-	require.Equal(t, []*testSerializable{}, result)
+	require.Equal(t, elems, arrVal)
 
 	r = NewBinReaderFromBuf([]byte{0})
+	r.ReadArray(&arrVal)
+	require.NoError(t, r.Err)
+	require.Equal(t, []testSerializable{}, arrVal)
+
+	r = NewBinReaderFromBuf([]byte{0})
+	r.Err = errors.New("error")
+	arrVal = ([]testSerializable)(nil)
+	r.ReadArray(&arrVal)
+	require.Error(t, r.Err)
+	require.Equal(t, ([]testSerializable)(nil), arrVal)
+
+	r = NewBinReaderFromBuf([]byte{0})
+	r.Err = errors.New("error")
+	arrPtr = ([]*testSerializable)(nil)
+	r.ReadArray(&arrVal)
+	require.Error(t, r.Err)
+	require.Equal(t, ([]*testSerializable)(nil), arrPtr)
+
+	r = NewBinReaderFromBuf([]byte{0})
+	arrVal = []testSerializable{1, 2}
+	r.ReadArray(&arrVal)
+	require.NoError(t, r.Err)
+	require.Equal(t, []testSerializable{}, arrVal)
+
+	r = NewBinReaderFromBuf([]byte{0})
+	r.Err = errors.New("error")
+	require.Panics(t, func() { r.ReadArray(&[]*int{}) })
+
+	r = NewBinReaderFromBuf([]byte{0})
+	r.Err = errors.New("error")
+	require.Panics(t, func() { r.ReadArray(&[]int{}) })
+
+	r = NewBinReaderFromBuf([]byte{0})
+	r.Err = errors.New("error")
 	require.Panics(t, func() { r.ReadArray(0) })
 }

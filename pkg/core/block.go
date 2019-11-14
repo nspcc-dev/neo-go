@@ -128,17 +128,14 @@ func (b *Block) Trim() ([]byte, error) {
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
 	b.BlockBase.DecodeBinary(br)
-	b.Transactions = br.ReadArray(transaction.Transaction{}).([]*transaction.Transaction)
+	br.ReadArray(&b.Transactions)
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	b.BlockBase.EncodeBinary(bw)
-	bw.WriteVarUint(uint64(len(b.Transactions)))
-	for _, tx := range b.Transactions {
-		tx.EncodeBinary(bw)
-	}
+	bw.WriteArray(b.Transactions)
 }
 
 // Compare implements the queue Item interface.
