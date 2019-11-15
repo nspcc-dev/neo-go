@@ -21,11 +21,18 @@ const (
 
 func serializeItem(item StackItem) ([]byte, error) {
 	w := io.NewBufBinWriter()
-	serializeItemTo(item, w.BinWriter, make(map[StackItem]bool))
+	EncodeBinaryStackItem(item, w.BinWriter)
 	if w.Err != nil {
 		return nil, w.Err
 	}
 	return w.Bytes(), nil
+}
+
+// EncodeBinaryStackItem encodes given StackItem into the given BinWriter. It's
+// similar to io.Serializable's EncodeBinary, but works with StackItem
+// interface.
+func EncodeBinaryStackItem(item StackItem, w *io.BinWriter) {
+	serializeItemTo(item, w, make(map[StackItem]bool))
 }
 
 func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
@@ -75,14 +82,18 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 func deserializeItem(data []byte) (StackItem, error) {
 	r := io.NewBinReaderFromBuf(data)
-	item := deserializeItemFrom(r)
+	item := DecodeBinaryStackItem(r)
 	if r.Err != nil {
 		return nil, r.Err
 	}
 	return item, nil
 }
 
-func deserializeItemFrom(r *io.BinReader) StackItem {
+// DecodeBinaryStackItem decodes previously serialized StackItem from the given
+// reader. It's similar to the io.Serializable's DecodeBinary(), but implemented
+// as a function because StackItem itself is an interface. Caveat: always check
+// reader's error value before using the returned StackItem.
+func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 	var t byte
 	r.ReadLE(&t)
 	if r.Err != nil {
@@ -107,7 +118,7 @@ func deserializeItemFrom(r *io.BinReader) StackItem {
 		size := int(r.ReadVarUint())
 		arr := make([]StackItem, size)
 		for i := 0; i < size; i++ {
-			arr[i] = deserializeItemFrom(r)
+			arr[i] = DecodeBinaryStackItem(r)
 		}
 
 		if stackItemType(t) == arrayT {
@@ -118,8 +129,8 @@ func deserializeItemFrom(r *io.BinReader) StackItem {
 		size := int(r.ReadVarUint())
 		m := NewMapItem()
 		for i := 0; i < size; i++ {
-			value := deserializeItemFrom(r)
-			key := deserializeItemFrom(r)
+			value := DecodeBinaryStackItem(r)
+			key := DecodeBinaryStackItem(r)
 			if r.Err != nil {
 				break
 			}

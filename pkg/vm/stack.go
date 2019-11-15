@@ -59,6 +59,11 @@ func (e *Element) Prev() *Element {
 	return nil
 }
 
+// Item returns StackItem contained in the element.
+func (e *Element) Item() StackItem {
+	return e.value
+}
+
 // Value returns value of the StackItem contained in the element.
 func (e *Element) Value() interface{} {
 	return e.value.Value()
