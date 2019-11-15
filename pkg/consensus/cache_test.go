@@ -3,6 +3,7 @@ package consensus
 import (
 	"testing"
 
+	"github.com/nspcc-dev/dbft/payload"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,6 +16,7 @@ func TestRelayCache_Add(t *testing.T) {
 
 	for i := 1; i < capacity; i++ {
 		c.Add(&payloads[i])
+		require.True(t, c.Has(payloads[i].Hash()))
 		require.Equal(t, i, c.queue.Len())
 		require.Equal(t, i, len(c.elems))
 	}
@@ -40,7 +42,7 @@ func TestRelayCache_Add(t *testing.T) {
 	}
 
 	// oldest payload was removed
-	require.Equal(t, (*Payload)(nil), c.Get(payloads[1].Hash()))
+	require.Equal(t, nil, c.Get(payloads[1].Hash()))
 }
 
 func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
@@ -49,10 +51,10 @@ func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
 		var sign [signatureSize]byte
 		fillRandom(t, sign[:])
 
-		payloads[i].ValidatorIndex = uint16(i)
-		payloads[i].Type = commitType
+		payloads[i].SetValidatorIndex(uint16(i))
+		payloads[i].SetType(payload.MessageType(commitType))
 		payloads[i].payload = &commit{
-			Signature: sign,
+			signature: sign,
 		}
 	}
 

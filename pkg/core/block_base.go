@@ -91,8 +91,8 @@ func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
 	b.Script.EncodeBinary(bw)
 }
 
-// getHashableData returns serialized hashable data of the block.
-func (b *BlockBase) getHashableData() []byte {
+// GetHashableData returns serialized hashable data of the block.
+func (b *BlockBase) GetHashableData() []byte {
 	buf := io.NewBufBinWriter()
 	// No error can occure while encoding hashable fields.
 	b.encodeHashableFields(buf.BinWriter)
@@ -107,7 +107,7 @@ func (b *BlockBase) getHashableData() []byte {
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
 func (b *BlockBase) createHash() {
-	bb := b.getHashableData()
+	bb := b.GetHashableData()
 	b.hash = hash.DoubleSha256(bb)
 	b.verificationHash = hash.Sha256(bb)
 }

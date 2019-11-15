@@ -54,6 +54,9 @@ type (
 
 		// Level of the internal logger.
 		LogLevel log.Level
+
+		// Wallet is a wallet configuration.
+		Wallet *config.WalletConfig
 	}
 )
 
@@ -62,6 +65,11 @@ type (
 func NewServerConfig(cfg config.Config) ServerConfig {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
+
+	var wc *config.WalletConfig
+	if appConfig.UnlockWallet.Path != "" {
+		wc = &appConfig.UnlockWallet
+	}
 
 	return ServerConfig{
 		UserAgent:         cfg.GenerateUserAgent(),
@@ -75,5 +83,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		MaxPeers:          appConfig.MaxPeers,
 		AttemptConnPeers:  appConfig.AttemptConnPeers,
 		MinPeers:          appConfig.MinPeers,
+		Wallet:            wc,
 	}
 }

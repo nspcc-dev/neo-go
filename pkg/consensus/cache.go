@@ -17,6 +17,11 @@ type relayCache struct {
 	queue  *list.List
 }
 
+// hashable is a type of items which can be stored in the relayCache.
+type hashable interface {
+	Hash() util.Uint256
+}
+
 func newFIFOCache(capacity int) *relayCache {
 	return &relayCache{
 		RWMutex: new(sync.RWMutex),
@@ -28,7 +33,7 @@ func newFIFOCache(capacity int) *relayCache {
 }
 
 // Add adds payload into a cache if it doesn't already exist.
-func (c *relayCache) Add(p *Payload) {
+func (c *relayCache) Add(p hashable) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -40,21 +45,29 @@ func (c *relayCache) Add(p *Payload) {
 	if c.queue.Len() >= c.maxCap {
 		first := c.queue.Front()
 		c.queue.Remove(first)
-		delete(c.elems, first.Value.(*Payload).Hash())
+		delete(c.elems, first.Value.(hashable).Hash())
 	}
 
 	e := c.queue.PushBack(p)
 	c.elems[h] = e
 }
 
+// Has checks if an item is already in cache.
+func (c *relayCache) Has(h util.Uint256) bool {
+	c.RLock()
+	defer c.RUnlock()
+
+	return c.elems[h] != nil
+}
+
 // Get returns payload with the specified hash from cache.
-func (c *relayCache) Get(h util.Uint256) *Payload {
+func (c *relayCache) Get(h util.Uint256) hashable {
 	c.RLock()
 	defer c.RUnlock()
 
 	e, ok := c.elems[h]
 	if !ok {
-		return nil
+		return hashable(nil)
 	}
-	return e.Value.(*Payload)
+	return e.Value.(hashable)
 }
