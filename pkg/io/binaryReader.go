@@ -3,9 +3,14 @@ package io
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"reflect"
 )
+
+// maxArraySize is a maximums size of an array which can be decoded.
+// It is taken from https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L130
+const maxArraySize = 0x1000000
 
 // BinReader is a convenient wrapper around a io.Reader and err object.
 // Used to simplify error handling when reading into a struct with many fields.
@@ -36,7 +41,7 @@ func (r *BinReader) ReadLE(v interface{}) {
 
 // ReadArray reads array into value which must be
 // a pointer to a slice.
-func (r *BinReader) ReadArray(t interface{}) {
+func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 	value := reflect.ValueOf(t)
 	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Slice {
 		panic(value.Type().String() + " is not a pointer to a slice")
@@ -55,7 +60,18 @@ func (r *BinReader) ReadArray(t interface{}) {
 		return
 	}
 
-	l := int(r.ReadVarUint())
+	ms := maxArraySize
+	if len(maxSize) != 0 {
+		ms = maxSize[0]
+	}
+
+	lu := r.ReadVarUint()
+	if lu > uint64(ms) {
+		r.Err = fmt.Errorf("array is too big (%d)", lu)
+		return
+	}
+
+	l := int(lu)
 	arr := reflect.MakeSlice(sliceType, l, l)
 
 	for i := 0; i < l; i++ {

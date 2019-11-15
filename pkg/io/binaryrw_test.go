@@ -266,6 +266,17 @@ func TestBinReader_ReadArray(t *testing.T) {
 	require.NoError(t, r.Err)
 	require.Equal(t, elems, arrVal)
 
+	r = NewBinReaderFromBuf(data)
+	arrVal = []testSerializable{}
+	r.ReadArray(&arrVal, 3)
+	require.NoError(t, r.Err)
+	require.Equal(t, elems, arrVal)
+
+	r = NewBinReaderFromBuf(data)
+	arrVal = []testSerializable{}
+	r.ReadArray(&arrVal, 2)
+	require.Error(t, r.Err)
+
 	r = NewBinReaderFromBuf([]byte{0})
 	r.ReadArray(&arrVal)
 	require.NoError(t, r.Err)
