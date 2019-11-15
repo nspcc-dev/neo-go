@@ -46,7 +46,7 @@ postinst: install
 		&& chown -R neo-go:neo-go $(UNITWORKDIR) $(BINDIR)/neo-go \
 		&& systemctl enable neo-go.service
 
-image:
+image: deps
 	@echo "=> Building image"
 	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 	@docker build -t cityofzion/neo-go:$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
