@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -468,14 +469,38 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 
 		case *transaction.InvocationTX:
 			systemInterop := newInteropContext(0x10, bc, tmpStore, block, tx)
-			vm := bc.spawnVMWithInterops(systemInterop)
-			vm.SetCheckedHash(tx.VerificationHash().Bytes())
-			vm.LoadScript(t.Script)
-			err := vm.Run()
-			if !vm.HasFailed() {
+			v := bc.spawnVMWithInterops(systemInterop)
+			v.SetCheckedHash(tx.VerificationHash().Bytes())
+			v.LoadScript(t.Script)
+			err := v.Run()
+			if !v.HasFailed() {
 				_, err = systemInterop.mem.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
+				}
+				for _, note := range systemInterop.notifications {
+					arr, ok := note.Item.Value().([]vm.StackItem)
+					if !ok || len(arr) != 4 {
+						continue
+					}
+					op, ok := arr[0].Value().([]byte)
+					if !ok || string(op) != "transfer" {
+						continue
+					}
+					from, ok := arr[1].Value().([]byte)
+					if !ok {
+						continue
+					}
+					to, ok := arr[2].Value().([]byte)
+					if !ok {
+						continue
+					}
+					amount, ok := arr[3].Value().(*big.Int)
+					if !ok {
+						continue
+					}
+					// TODO: #498
+					_, _, _, _ = op, from, to, amount
 				}
 			} else {
 				log.WithFields(log.Fields{
@@ -487,9 +512,9 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			aer := &AppExecResult{
 				TxHash:      tx.Hash(),
 				Trigger:     0x10,
-				VMState:     vm.State(),
+				VMState:     v.State(),
 				GasConsumed: util.Fixed8(0),
-				Stack:       vm.Stack("estack"),
+				Stack:       v.Stack("estack"),
 				Events:      systemInterop.notifications,
 			}
 			err = putAppExecResultIntoStore(tmpStore, aer)
