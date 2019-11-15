@@ -72,9 +72,9 @@ func (a Accounts) commit(store storage.Store) error {
 // UnspentBalance contains input/output transactons that sum up into the
 // account balance for the given asset.
 type UnspentBalance struct {
-	Tx    util.Uint256
-	Index uint16
-	Value util.Fixed8
+	Tx    util.Uint256 `json:"txid"`
+	Index uint16       `json:"n"`
+	Value util.Fixed8  `json:"value"`
 }
 
 // AccountState represents the state of a NEO account.

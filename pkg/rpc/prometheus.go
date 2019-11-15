@@ -92,6 +92,14 @@ var (
 		},
 	)
 
+	getunspentsCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getunspents rpc endpoint",
+			Name:      "getunspents_called",
+			Namespace: "neogo",
+		},
+	)
+
 	sendrawtransactionCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to sendrawtransaction rpc endpoint",
@@ -113,6 +121,7 @@ func init() {
 		validateaddressCalled,
 		getassetstateCalled,
 		getaccountstateCalled,
+		getunspentsCalled,
 		getrawtransactionCalled,
 		sendrawtransactionCalled,
 	)

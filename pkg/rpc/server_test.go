@@ -146,8 +146,29 @@ func TestRPC(t *testing.T) {
 		assert.Equal(t, false, res.Result.Frozen)
 	})
 
+	t.Run("getunspents_positive", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getunspents", "params": ["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]}`
+		body := doRPCCall(rpc, handler, t)
+		checkErrResponse(t, body, false)
+		var res GetUnspents
+		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		assert.NoErrorf(t, err, "could not parse response: %s", body)
+		assert.Equal(t, 1, len(res.Result.Balance))
+		assert.Equal(t, 1, len(res.Result.Balance[0].Unspents))
+	})
+
 	t.Run("getaccountstate_negative", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getaccountstate", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]}`
+		body := doRPCCall(rpc, handler, t)
+		checkErrResponse(t, body, false)
+		var res StringResultResponse
+		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		assert.NoErrorf(t, err, "could not parse response: %s", body)
+		assert.Equal(t, "Invalid public account address", res.Result)
+	})
+
+	t.Run("getunspents_negative", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getunspents", "params": ["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]}`
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse

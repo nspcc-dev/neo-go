@@ -138,6 +138,26 @@ type GetAccountStateResponse struct {
 	ID int `json:"id"`
 }
 
+// GetUnspents struct for testing.
+type GetUnspents struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Balance []struct {
+			Unspents []struct {
+				TxID  string `json:"txid"`
+				Index int    `json:"n"`
+				Value string `json:"value"`
+			} `json:"unspent"`
+			AssetHash   string `json:"asset_hash"`
+			Asset       string `json:"asset"`
+			AssetSymbol string `json:"asset_symbol"`
+			Amount      string `json:"amount"`
+		} `json:"balance"`
+		Address string `json:"address"`
+	} `json:"result"`
+	ID int `json:"id"`
+}
+
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFunc) {
 	var nBlocks uint32
 
