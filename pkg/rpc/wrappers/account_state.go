@@ -35,7 +35,7 @@ type Balance struct {
 // NewAccountState creates a new AccountState wrapper.
 func NewAccountState(a *core.AccountState) AccountState {
 	balances := make(Balances, 0, len(a.Balances))
-	for k, v := range a.Balances {
+	for k, v := range a.GetBalanceValues() {
 		balances = append(balances, Balance{
 			Asset: k,
 			Value: v,

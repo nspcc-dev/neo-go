@@ -23,7 +23,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.1"
+	version          = "0.0.2"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -361,16 +361,16 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		unspentCoins[tx.Hash()] = NewUnspentCoinState(len(tx.Outputs))
 
 		// Process TX outputs.
-		for _, output := range tx.Outputs {
+		for index, output := range tx.Outputs {
 			account, err := accounts.getAndUpdate(bc.store, output.ScriptHash)
 			if err != nil {
 				return err
 			}
-			if _, ok := account.Balances[output.AssetID]; ok {
-				account.Balances[output.AssetID] += output.Amount
-			} else {
-				account.Balances[output.AssetID] = output.Amount
-			}
+			account.Balances[output.AssetID] = append(account.Balances[output.AssetID], UnspentBalance{
+				Tx:    tx.Hash(),
+				Index: uint16(index),
+				Value: output.Amount,
+			})
 		}
 
 		// Process TX inputs that are grouped by previous hash.
@@ -398,7 +398,21 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 					spentCoins[input.PrevHash] = spentCoin
 				}
 
-				account.Balances[prevTXOutput.AssetID] -= prevTXOutput.Amount
+				balancesLen := len(account.Balances[prevTXOutput.AssetID])
+				if balancesLen <= 1 {
+					delete(account.Balances, prevTXOutput.AssetID)
+				} else {
+					var gotTx bool
+					for index, balance := range account.Balances[prevTXOutput.AssetID] {
+						if !gotTx && balance.Tx.Equals(input.PrevHash) && balance.Index == input.PrevIndex {
+							gotTx = true
+						}
+						if gotTx && index+1 < balancesLen {
+							account.Balances[prevTXOutput.AssetID][index] = account.Balances[prevTXOutput.AssetID][index+1]
+						}
+					}
+					account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:balancesLen-1]
+				}
 			}
 		}
 
