@@ -1,9 +1,10 @@
 package network
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -68,13 +69,19 @@ type (
 	}
 )
 
+func randomID() uint32 {
+	buf := make([]byte, 4)
+	_, _ = rand.Read(buf)
+	return binary.BigEndian.Uint32(buf)
+}
+
 // NewServer returns a new Server, initialized with the given configuration.
 func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
 		bQueue:       newBlockQueue(maxBlockBatch, chain),
-		id:           rand.Uint32(),
+		id:           randomID(),
 		quit:         make(chan struct{}),
 		addrReq:      make(chan *Message, config.MinPeers),
 		register:     make(chan Peer),
@@ -535,8 +542,4 @@ func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
 
 	p.WriteMsg(NewMessage(s.Net, CMDInv, inv))
 
-}
-
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
 }
