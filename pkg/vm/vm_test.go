@@ -379,6 +379,17 @@ func TestSerializeArrayBad(t *testing.T) {
 	require.True(t, vm.HasFailed())
 }
 
+func TestSerializeDupInteger(t *testing.T) {
+	prog := []byte{
+		byte(PUSH0), byte(NEWARRAY),
+		byte(DUP), byte(PUSH2), byte(DUP), byte(TOALTSTACK), byte(APPEND),
+		byte(DUP), byte(FROMALTSTACK), byte(APPEND),
+	}
+	vm := load(append(prog, getSerializeProg()...))
+
+	runVM(t, vm)
+}
+
 func TestSerializeStruct(t *testing.T) {
 	vm := load(getSerializeProg())
 	item := NewStructItem([]StackItem{

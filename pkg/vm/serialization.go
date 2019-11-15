@@ -33,7 +33,6 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.Err = errors.New("recursive structures are not supported")
 		return
 	}
-	seen[item] = true
 
 	switch t := item.(type) {
 	case *ByteArrayItem:
@@ -48,6 +47,8 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	case *InteropItem:
 		w.Err = errors.New("not supported")
 	case *ArrayItem, *StructItem:
+		seen[item] = true
+
 		_, isArray := t.(*ArrayItem)
 		if isArray {
 			w.WriteLE(byte(arrayT))
@@ -61,6 +62,8 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 			serializeItemTo(arr[i], w, seen)
 		}
 	case *MapItem:
+		seen[item] = true
+
 		w.WriteLE(byte(mapT))
 		w.WriteVarUint(uint64(len(t.value)))
 		for k, v := range t.value {
