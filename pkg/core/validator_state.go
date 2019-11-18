@@ -107,3 +107,68 @@ func (vs *ValidatorState) DecodeBinary(reader *io.BinReader) {
 	reader.ReadLE(&vs.Registered)
 	reader.ReadLE(&vs.Votes)
 }
+
+// GetValidatorsWeightedAverage applies weighted filter based on votes for validator and returns number of validators.
+// Get back to it with further investigation in https://github.com/nspcc-dev/neo-go/issues/512.
+func GetValidatorsWeightedAverage(validators []*ValidatorState) int {
+	return int(weightedAverage(applyWeightedFilter(validators)))
+}
+
+// applyWeightedFilter is an implementation of the filter for validators votes.
+// C# reference https://github.com/neo-project/neo/blob/41caff115c28d6c7665b2a7ac72967e7ce82e921/neo/Helper.cs#L273
+func applyWeightedFilter(validators []*ValidatorState) map[*ValidatorState]float64 {
+	var validatorsWithVotes []*ValidatorState
+	var amount float64
+
+	weightedVotes := make(map[*ValidatorState]float64)
+	start := 0.25
+	end := 0.75
+	sum := float64(0)
+	current := float64(0)
+
+	for _, validator := range validators {
+		if validator.Votes > util.Fixed8(0) {
+			validatorsWithVotes = append(validatorsWithVotes, validator)
+			amount += validator.Votes.FloatValue()
+		}
+	}
+
+	for _, validator := range validatorsWithVotes {
+		if current >= end {
+			break
+		}
+		weight := validator.Votes.FloatValue()
+		sum += weight
+		old := current
+		current = sum / amount
+
+		if current <= start {
+			continue
+		}
+
+		if old < start {
+			if current > end {
+				weight = (end - start) * amount
+			} else {
+				weight = (current - start) * amount
+			}
+		} else if current > end {
+			weight = (end - old) * amount
+		}
+		weightedVotes[validator] = weight
+	}
+	return weightedVotes
+}
+
+func weightedAverage(weightedVotes map[*ValidatorState]float64) float64 {
+	sumWeight := float64(0)
+	sumValue := float64(0)
+	for vState, weight := range weightedVotes {
+		sumWeight += weight
+		sumValue += vState.Votes.FloatValue() * weight
+	}
+	if sumValue == 0 || sumWeight == 0 {
+		return 0
+	}
+	return sumValue / sumWeight
+}

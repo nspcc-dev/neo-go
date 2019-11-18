@@ -1289,23 +1289,8 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 	}
 
 	validators := getValidatorsFromStore(chainState.store)
-	for _, validator := range validators {
-		if validator.Votes > util.Fixed8(0) {
-			//	Select count of votes with strange logic:
-			//  int count = (int)snapshot.ValidatorsCount.Get().Votes.Select((p, i) => new
-			//            {
-			//                Count = i,
-			//                Votes = p
-			//            }).Where(p => p.Votes > Fixed8.Zero).ToArray().WeightedFilter(0.25, 0.75, p => p.Votes.GetData(), (p, w) => new
-			//            {
-			//                p.Count,
-			//                Weight = w
-			//            }).WeightedAverage(p => p.Count, p => p.Weight);
-			//            count = Math.Max(count, Blockchain.StandbyValidators.Length);
-		}
-	}
-	var count int
-	count = 0
+
+	count := GetValidatorsWeightedAverage(validators)
 	standByValidators, err := bc.GetStandByValidators()
 	if err != nil {
 		return nil, err
