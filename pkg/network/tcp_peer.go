@@ -63,8 +63,14 @@ func (p *TCPPeer) writeMsg(msg *Message) error {
 	case err := <-p.done:
 		return err
 	default:
-		w := io.NewBinWriterFromIO(p.conn)
-		return msg.Encode(w)
+		w := io.NewBufBinWriter()
+		if err := msg.Encode(w.BinWriter); err != nil {
+			return err
+		}
+
+		_, err := p.conn.Write(w.Bytes())
+
+		return err
 	}
 }
 
