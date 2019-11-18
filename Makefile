@@ -8,6 +8,8 @@ BINDIR = "/usr/bin"
 SYSTEMDUNIT_DIR = "/lib/systemd/system"
 UNITWORKDIR = "/var/lib/neo-go"
 
+DC_FILE=.docker/docker-compose.yml
+
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
 BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION)"
@@ -44,19 +46,13 @@ postinst: install
 		&& chown -R neo-go:neo-go $(UNITWORKDIR) $(BINDIR)/neo-go \
 		&& systemctl enable neo-go.service
 
-image:
+image: deps
 	@echo "=> Building image"
 	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 	@docker build -t cityofzion/neo-go:$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
-
-clean-cluster:
-	@echo "=> Removing all containers and chain storage"
-	@rm -rf chains/privnet-docker-one chains/privnet-docker-two chains/privnet-docker-three chains/privnet-docker-four
-	@docker-compose stop
-	@docker-compose rm -f
 
 deps:
 	@go mod tidy -v
@@ -77,14 +73,6 @@ push-to-registry:
 run: build
 	${BINARY} node -config-path ./config -${NETMODE}
 
-run-cluster: build-linux
-	@echo "=> Starting docker-compose cluster"
-	@echo "=> Building container image"
-	@docker-compose build
-	@docker-compose up -d
-	@echo "=> Tailing logs, exiting this prompt will not stop the cluster"
-	@docker-compose logs -f
-
 test:
 	@go test ./... -cover
 
@@ -100,3 +88,30 @@ fmt:
 cover:
 	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic
 	@go tool cover -html=coverage.txt -o coverage.html
+
+# --- Environment ---
+env_vendor:
+	@echo "=> Update vendor"
+	@go mod tidy
+	@go mod download
+	@go mod vendor
+
+env_image: env_vendor
+	@echo "=> Building env image"
+	@docker build \
+		-t env_neo_go_image \
+		--build-arg REPO=$(REPO) \
+		--build-arg VERSION=$(VERSION) .
+
+env_up:
+	@echo "=> Bootup environment"
+	@docker-compose -f $(DC_FILE) up -d node_four
+
+env_down:
+	@echo "=> Stop and cleanup environment"
+	@docker-compose -f $(DC_FILE) down
+
+env_restart:
+	@echo "=> Stop and cleanup environment"
+	@docker-compose -f $(DC_FILE) restart
+

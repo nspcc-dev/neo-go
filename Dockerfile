@@ -1,5 +1,5 @@
 # Builder image
-FROM golang:1.12-alpine3.10 as builder
+FROM golang:1-alpine as builder
 
 RUN set -x \
     && apk add --no-cache git \
@@ -19,22 +19,18 @@ RUN set -x \
     && export GO111MODULE=on \
     && export CGO_ENABLED=0 \
     && export LDFLAGS="-X ${REPO}/config.Version=${VERSION}" \
-    && go mod tidy -v \
-    && go mod vendor \
-    && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli/main.go
+    && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli
 
 # Executable image
-FROM alpine:3.10
+FROM scratch
 
-ENV   NETMODE=testnet
 ARG   VERSION
 LABEL version=$VERSION
 
 WORKDIR /
 
-ENV NETMODE=testnet
-COPY --from=builder /neo-go/config   /config
-COPY --from=builder /go/bin/neo-go     /usr/bin/neo-go
+COPY --from=builder /neo-go/config /config
+COPY --from=builder /go/bin/neo-go /usr/bin/neo-go
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENTRYPOINT ["/usr/bin/neo-go"]

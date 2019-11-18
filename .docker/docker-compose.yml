@@ -1,0 +1,75 @@
+version: '2.4'
+
+networks:
+  neo_go_network:
+    name: neo_go_network
+    ipam:
+      config:
+        - subnet: 172.200.0.0/24
+          gateway: 172.200.0.254
+
+volumes:
+  volume_chain:
+    driver: local
+
+services:
+  node_one:
+    container_name: neo_go_node_one
+    image: env_neo_go_image
+    command: "node --config-path /config --privnet"
+    volumes:
+      - ../config/protocol.privnet.docker.one.yml:/config/protocol.privnet.yml
+      - volume_chain:/chains
+    networks:
+      neo_go_network:
+        ipv4_address: 172.200.0.1
+    ports:
+      -  20331:20331
+      -  20341:20341
+      -  20351:20351
+  node_two:
+    container_name: neo_go_node_two
+    image: env_neo_go_image
+    command: "node --config-path /config --privnet"
+    volumes:
+      - ../config/protocol.privnet.docker.two.yml:/config/protocol.privnet.yml
+      - volume_chain:/chains
+    networks:
+      neo_go_network:
+        ipv4_address: 172.200.0.2
+    ports:
+      -  20332:20332
+      -  20342:20342
+      -  20352:20352
+  node_three:
+    container_name: neo_go_node_three
+    image: env_neo_go_image
+    command: "node --config-path /config --privnet"
+    volumes:
+      - ../config/protocol.privnet.docker.three.yml:/config/protocol.privnet.yml
+      - volume_chain:/chains
+    networks:
+      neo_go_network:
+        ipv4_address: 172.200.0.3
+    ports:
+      -  20333:20333
+      -  20343:20343
+      -  20353:20353
+  node_four:
+    container_name: neo_go_node_four
+    image: env_neo_go_image
+    command: "node --config-path /config --privnet"
+    volumes:
+      - ../config/protocol.privnet.docker.four.yml:/config/protocol.privnet.yml
+      - volume_chain:/chains
+    networks:
+      neo_go_network:
+        ipv4_address: 172.200.0.4
+    ports:
+      -  20334:20334
+      -  20344:20344
+      -  20354:20354
+    depends_on:
+      - node_one
+      - node_two
+      - node_three

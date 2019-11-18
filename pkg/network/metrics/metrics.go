@@ -26,7 +26,7 @@ type PrometheusConfig struct {
 func NewMetricsService(cfg PrometheusConfig) *Service {
 	return &Service{
 		&http.Server{
-			Addr:   cfg.Address + ":" + cfg.Port,
+			Addr:    cfg.Address + ":" + cfg.Port,
 			Handler: promhttp.Handler(),
 		}, cfg,
 	}
