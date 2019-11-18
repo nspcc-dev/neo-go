@@ -233,19 +233,15 @@ Methods:
 
 	case "getaccountstate":
 		getaccountstateCalled.Inc()
-		param, err := reqParams.ValueWithType(0, "string")
-		if err != nil {
-			resultsErr = err
-		} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
-			resultsErr = errInvalidParams
-		} else if as := s.chain.GetAccountState(scriptHash); as != nil {
-			results = wrappers.NewAccountState(as)
-		} else {
-			results = "Invalid public account address"
-		}
+		results, resultsErr = s.getAccountState(reqParams, false)
+
 	case "getrawtransaction":
 		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
+
+	case "getunspents":
+		getunspentsCalled.Inc()
+		results, resultsErr = s.getAccountState(reqParams, true)
 
 	case "invokescript":
 		results, resultsErr = s.invokescript(reqParams)
@@ -301,6 +297,28 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 		results = hex.EncodeToString(tx.Bytes())
 	}
 
+	return results, resultsErr
+}
+
+// getAccountState returns account state either in short or full (unspents included) form.
+func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, error) {
+	var resultsErr error
+	var results interface{}
+
+	param, err := reqParams.ValueWithType(0, "string")
+	if err != nil {
+		resultsErr = err
+	} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
+		resultsErr = errInvalidParams
+	} else if as := s.chain.GetAccountState(scriptHash); as != nil {
+		if unspents {
+			results = wrappers.NewUnspents(as, s.chain, param.StringVal)
+		} else {
+			results = wrappers.NewAccountState(as)
+		}
+	} else {
+		results = "Invalid public account address"
+	}
 	return results, resultsErr
 }
 

@@ -39,12 +39,6 @@ type (
 	}
 )
 
-// GlobalAssets stores a map of asset IDs to user-friendly strings ("NEO"/"GAS").
-var GlobalAssets = map[string]string{
-	"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b": "NEO",
-	"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7": "GAS",
-}
-
 // functions for sorting array of `Unspents`
 func (us Unspents) Len() int           { return len(us) }
 func (us Unspents) Less(i, j int) bool { return us[i].Value < us[j].Value }

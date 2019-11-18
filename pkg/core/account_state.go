@@ -69,13 +69,21 @@ func (a Accounts) commit(store storage.Store) error {
 	return nil
 }
 
+// UnspentBalance contains input/output transactons that sum up into the
+// account balance for the given asset.
+type UnspentBalance struct {
+	Tx    util.Uint256 `json:"txid"`
+	Index uint16       `json:"n"`
+	Value util.Fixed8  `json:"value"`
+}
+
 // AccountState represents the state of a NEO account.
 type AccountState struct {
 	Version    uint8
 	ScriptHash util.Uint160
 	IsFrozen   bool
 	Votes      []*keys.PublicKey
-	Balances   map[util.Uint256]util.Fixed8
+	Balances   map[util.Uint256][]UnspentBalance
 }
 
 // NewAccountState returns a new AccountState object.
@@ -85,7 +93,7 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
 		Votes:      []*keys.PublicKey{},
-		Balances:   make(map[util.Uint256]util.Fixed8),
+		Balances:   make(map[util.Uint256][]UnspentBalance),
 	}
 }
 
@@ -96,14 +104,14 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&s.IsFrozen)
 	br.ReadArray(&s.Votes)
 
-	s.Balances = make(map[util.Uint256]util.Fixed8)
+	s.Balances = make(map[util.Uint256][]UnspentBalance)
 	lenBalances := br.ReadVarUint()
 	for i := 0; i < int(lenBalances); i++ {
 		key := util.Uint256{}
 		br.ReadLE(&key)
-		var val util.Fixed8
-		br.ReadLE(&val)
-		s.Balances[key] = val
+		ubs := make([]UnspentBalance, 0)
+		br.ReadArray(&ubs)
+		s.Balances[key] = ubs
 	}
 }
 
@@ -114,21 +122,37 @@ func (s *AccountState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(s.IsFrozen)
 	bw.WriteArray(s.Votes)
 
-	balances := s.nonZeroBalances()
-	bw.WriteVarUint(uint64(len(balances)))
-	for k, v := range balances {
+	bw.WriteVarUint(uint64(len(s.Balances)))
+	for k, v := range s.Balances {
 		bw.WriteLE(k)
-		bw.WriteLE(v)
+		bw.WriteArray(v)
 	}
 }
 
-// nonZeroBalances returns only the non-zero balances for the account.
-func (s *AccountState) nonZeroBalances() map[util.Uint256]util.Fixed8 {
-	b := make(map[util.Uint256]util.Fixed8)
+// DecodeBinary implements io.Serializable interface.
+func (u *UnspentBalance) DecodeBinary(r *io.BinReader) {
+	u.Tx.DecodeBinary(r)
+	r.ReadLE(&u.Index)
+	r.ReadLE(&u.Value)
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (u UnspentBalance) EncodeBinary(w *io.BinWriter) {
+	u.Tx.EncodeBinary(w)
+	w.WriteLE(u.Index)
+	w.WriteLE(u.Value)
+}
+
+// GetBalanceValues sums all unspent outputs and returns a map of asset IDs to
+// overall balances.
+func (s *AccountState) GetBalanceValues() map[util.Uint256]util.Fixed8 {
+	res := make(map[util.Uint256]util.Fixed8)
 	for k, v := range s.Balances {
-		if v > 0 {
-			b[k] = v
+		balance := util.Fixed8(0)
+		for _, b := range v {
+			balance += b.Value
 		}
+		res[k] = balance
 	}
-	return b
+	return res
 }

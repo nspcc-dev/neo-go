@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	errs "github.com/pkg/errors"
 )
@@ -59,7 +60,7 @@ func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256,
 		selected     = util.Fixed8(0)
 		us           []*Unspent
 		assetUnspent Unspent
-		assetID      = GlobalAssets[assetIDUint.ReverseString()]
+		assetID      = wrappers.GlobalAssets[assetIDUint.ReverseString()]
 	)
 	if us, err = s.GetBalance(address); err != nil {
 		return nil, util.Fixed8(0), errs.Wrapf(err, "Cannot get balance for address %v", address)

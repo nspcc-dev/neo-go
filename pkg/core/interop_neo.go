@@ -338,7 +338,7 @@ func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	balance, ok := acc.Balances[ashash]
+	balance, ok := acc.GetBalanceValues()[ashash]
 	if !ok {
 		balance = util.Fixed8(0)
 	}

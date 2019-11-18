@@ -36,25 +36,29 @@ which would yield the response:
 | Method  | Implemented |
 | ------- | ------------|
 | `getaccountstate` | Yes |
+| `getapplicationlog` | No (#500) |
 | `getassetstate` | Yes |
 | `getbestblockhash` | Yes |
 | `getblock` | Yes |
 | `getblockcount` | Yes |
 | `getblockhash` | Yes |
-| `getblocksysfee` | No |
+| `getblocksysfee` | No (#341) |
 | `getconnectioncount` | Yes |
-| `getcontractstate` | No |
+| `getcontractstate` | No (#342) |
+| `getnep5balances` | No (#498) |
+| `getnep5transfers` | No (#498) |
 | `getpeers` | Yes |
-| `getrawmempool` | No |
-| `getrawtransaction` | No |
-| `getstorage` | No |
-| `gettxout` | No |
+| `getrawmempool` | No (#175) |
+| `getrawtransaction` | Yes |
+| `getstorage` | No (#343) |
+| `gettxout` | No (#345) |
+| `getunspents` | Yes |
 | `getversion` | Yes |
-| `invoke` | No |
-| `invokefunction` | No |
-| `invokescript` | No |
-| `sendrawtransaction` | No |
-| `submitblock` | No |
+| `invoke` | No (#346) |
+| `invokefunction` | No (#347) |
+| `invokescript` | Yes |
+| `sendrawtransaction` | Yes |
+| `submitblock` | No (#344) |
 | `validateaddress` | Yes |
 
 ## Reference

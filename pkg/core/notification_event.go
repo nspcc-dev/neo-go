@@ -56,7 +56,7 @@ func getAppExecResultFromStore(s storage.Store, hash util.Uint256) (*AppExecResu
 }
 
 // EncodeBinary implements the Serializable interface.
-func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
+func (ne NotificationEvent) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(ne.ScriptHash)
 	vm.EncodeBinaryStackItem(ne.Item, w)
 }
