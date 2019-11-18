@@ -356,25 +356,8 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		chainState.unspentCoins[tx.Hash()] = NewUnspentCoinState(len(tx.Outputs))
 
 		// Process TX outputs.
-		for index, output := range tx.Outputs {
-			account, err := chainState.accounts.getAndUpdate(bc.store, output.ScriptHash)
-			if err != nil {
-				return err
-			}
-			account.Balances[output.AssetID] = append(account.Balances[output.AssetID], UnspentBalance{
-				Tx:    tx.Hash(),
-				Index: uint16(index),
-				Value: output.Amount,
-			})
-			if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
-				for _, vote := range account.Votes {
-					validatorState, err := chainState.validators.getAndUpdate(bc.store, vote)
-					if err != nil {
-						return err
-					}
-					validatorState.Votes += output.Amount
-				}
-			}
+		if err := processOutputs(tx, chainState); err != nil {
+			return err
 		}
 
 		// Process TX inputs that are grouped by previous hash.
@@ -479,25 +462,12 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				}
 			}
 		case *transaction.EnrollmentTX:
-			validator, err := chainState.validators.getAndUpdate(bc.store, t.PublicKey)
-			if err != nil {
+			if err := processEnrollmentTX(chainState, t); err != nil {
 				return err
 			}
-			validator.Registered = true
 		case *transaction.StateTX:
-			for _, descriptor := range t.Descriptors {
-				switch descriptor.Type {
-				case transaction.Account:
-					err := processAccountStateDescriptor(descriptor, chainState)
-					if err != nil {
-						return err
-					}
-				case transaction.Validator:
-					err := processValidatorStateDescriptor(descriptor, chainState)
-					if err != nil {
-						return err
-					}
-				}
+			if err := processStateTX(chainState, t); err != nil {
+				return err
 			}
 		case *transaction.PublishTX:
 			var properties smartcontract.PropertyState
@@ -516,7 +486,6 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				Description: t.Description,
 			}
 			chainState.contracts[contract.ScriptHash()] = contract
-
 		case *transaction.InvocationTX:
 			systemInterop := newInteropContext(0x10, bc, chainState.store, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
@@ -582,6 +551,31 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	updateBlockHeightMetric(block.Index)
 	for _, tx := range block.Transactions {
 		bc.memPool.Remove(tx.Hash())
+	}
+	return nil
+}
+
+// processOutputs processes transaction outputs.
+func processOutputs(tx *transaction.Transaction, chainState *BlockChainState) error {
+	for index, output := range tx.Outputs {
+		account, err := chainState.accounts.getAndUpdate(chainState.store, output.ScriptHash)
+		if err != nil {
+			return err
+		}
+		account.Balances[output.AssetID] = append(account.Balances[output.AssetID], UnspentBalance{
+			Tx:    tx.Hash(),
+			Index: uint16(index),
+			Value: output.Amount,
+		})
+		if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+			for _, vote := range account.Votes {
+				validatorState, err := chainState.validators.getAndUpdate(chainState.store, vote)
+				if err != nil {
+					return err
+				}
+				validatorState.Votes += output.Amount
+			}
+		}
 	}
 	return nil
 }
@@ -1254,6 +1248,7 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 				if err != nil {
 					return nil, err
 				}
+				// process inputs
 				for _, input := range inputs {
 					prevOutput := prevTx.Outputs[input.PrevIndex]
 					accountState, err := chainState.accounts.getAndUpdate(chainState.store, prevOutput.ScriptHash)
@@ -1261,6 +1256,7 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 						return nil, err
 					}
 
+					// process account state votes: if there are any -> validators will be updated.
 					if prevOutput.AssetID.Equals(governingTokenTX().Hash()) {
 						if len(accountState.Votes) > 0 {
 							for _, vote := range accountState.Votes {
@@ -1281,26 +1277,12 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 
 			switch t := tx.Data.(type) {
 			case *transaction.EnrollmentTX:
-				validatorState, err := chainState.validators.getAndUpdate(chainState.store, t.PublicKey)
-				if err != nil {
+				if err := processEnrollmentTX(chainState, t); err != nil {
 					return nil, err
 				}
-				validatorState.Registered = true
-
 			case *transaction.StateTX:
-				for _, desc := range t.Descriptors {
-					switch desc.Type {
-					case transaction.Account:
-						err := processAccountStateDescriptor(desc, chainState)
-						if err != nil {
-							return nil, err
-						}
-					case transaction.Validator:
-						err := processValidatorStateDescriptor(desc, chainState)
-						if err != nil {
-							return nil, err
-						}
-					}
+				if err := processStateTX(chainState, t); err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -1349,6 +1331,31 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 		result = append(result, uniqueSBValidators[i])
 	}
 	return result, nil
+}
+
+func processStateTX(chainState *BlockChainState, tx *transaction.StateTX, ) error {
+	for _, desc := range tx.Descriptors {
+		switch desc.Type {
+		case transaction.Account:
+			if err := processAccountStateDescriptor(desc, chainState); err != nil {
+				return err
+			}
+		case transaction.Validator:
+			if err := processValidatorStateDescriptor(desc, chainState); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func processEnrollmentTX(chainState *BlockChainState, tx *transaction.EnrollmentTX) error {
+	validatorState, err := chainState.validators.getAndUpdate(chainState.store, tx.PublicKey)
+	if err != nil {
+		return err
+	}
+	validatorState.Registered = true
+	return nil
 }
 
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
