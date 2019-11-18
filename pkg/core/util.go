@@ -4,11 +4,9 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -175,44 +173,4 @@ func headerSliceReverse(dest []*Header) {
 	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
 		dest[i], dest[j] = dest[j], dest[i]
 	}
-}
-
-// storeAsCurrentBlock stores the given block witch prefix
-// SYSCurrentBlock.
-func storeAsCurrentBlock(store storage.Store, block *Block) error {
-	buf := io.NewBufBinWriter()
-	buf.WriteLE(block.Hash().BytesReverse())
-	buf.WriteLE(block.Index)
-	return store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
-}
-
-// storeAsBlock stores the given block as DataBlock.
-func storeAsBlock(store storage.Store, block *Block, sysFee uint32) error {
-	var (
-		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
-		buf = io.NewBufBinWriter()
-	)
-	// sysFee needs to be handled somehow
-	//	buf.WriteLE(sysFee)
-	b, err := block.Trim()
-	if err != nil {
-		return err
-	}
-	buf.WriteLE(b)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	return store.Put(key, buf.Bytes())
-}
-
-// storeAsTransaction stores the given TX as DataTransaction.
-func storeAsTransaction(store storage.Store, tx *transaction.Transaction, index uint32) error {
-	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
-	buf := io.NewBufBinWriter()
-	buf.WriteLE(index)
-	tx.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	return store.Put(key, buf.Bytes())
 }
