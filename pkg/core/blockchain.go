@@ -943,8 +943,10 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
 	if ok := bc.verifyInputs(t); !ok {
 		return errors.New("invalid transaction's inputs")
 	}
-	if ok := bc.memPool.Verify(t); !ok {
-		return errors.New("invalid transaction due to conflicts with the memory pool")
+	if block == nil {
+		if ok := bc.memPool.Verify(t); !ok {
+			return errors.New("invalid transaction due to conflicts with the memory pool")
+		}
 	}
 	if IsDoubleSpend(bc.store, t) {
 		return errors.New("invalid transaction caused by double spending")
