@@ -39,6 +39,18 @@ func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) 
 	return resp, nil
 }
 
+// GetUnspents returns UTXOs for the given NEO account.
+func (c *Client) GetUnspents(address string) (*UnspentResponse, error) {
+	var (
+		params = newParams(address)
+		resp   = &UnspentResponse{}
+	)
+	if err := c.performRequest("getunspents", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
