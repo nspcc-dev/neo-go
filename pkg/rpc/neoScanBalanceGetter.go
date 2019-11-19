@@ -36,7 +36,6 @@ func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 	if err = json.NewDecoder(res.Body).Decode(&balance); err != nil {
 		return nil, errs.Wrap(err, "Failed to decode HTTP response")
 	}
-
 	return balance.Balance, nil
 }
 
@@ -82,8 +81,8 @@ func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256,
 	inputs := make([]transaction.Input, 0, num)
 	for i = 0; i < num; i++ {
 		inputs = append(inputs, transaction.Input{
-			PrevHash:  assetUnspent.Unspent[i].TxID,
-			PrevIndex: assetUnspent.Unspent[i].N,
+			PrevHash:  assetUnspent.Unspent[i].Tx,
+			PrevIndex: assetUnspent.Unspent[i].Index,
 		})
 	}
 

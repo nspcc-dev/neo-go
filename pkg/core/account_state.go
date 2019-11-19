@@ -77,6 +77,9 @@ type UnspentBalance struct {
 	Value util.Fixed8  `json:"value"`
 }
 
+// UnspentBalances is a slice of UnspentBalance (mostly needed to sort them).
+type UnspentBalances []UnspentBalance
+
 // AccountState represents the state of a NEO account.
 type AccountState struct {
 	Version    uint8
@@ -156,3 +159,12 @@ func (s *AccountState) GetBalanceValues() map[util.Uint256]util.Fixed8 {
 	}
 	return res
 }
+
+// Len returns the length of UnspentBalances (used to sort things).
+func (us UnspentBalances) Len() int { return len(us) }
+
+// Less compares two elements of UnspentBalances (used to sort things).
+func (us UnspentBalances) Less(i, j int) bool { return us[i].Value < us[j].Value }
+
+// Swap swaps two elements of UnspentBalances (used to sort things).
+func (us UnspentBalances) Swap(i, j int) { us[i], us[j] = us[j], us[i] }
