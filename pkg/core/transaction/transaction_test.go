@@ -98,7 +98,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 
 func TestNewInvocationTX(t *testing.T) {
 	script := []byte{0x51}
-	tx := NewInvocationTX(script)
+	tx := NewInvocationTX(script, 1)
 	txData := tx.Data.(*InvocationTX)
 	assert.Equal(t, InvocationType, tx.Type)
 	assert.Equal(t, tx.Version, txData.Version)
