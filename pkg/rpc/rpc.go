@@ -2,9 +2,10 @@ package rpc
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
@@ -108,9 +109,9 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*Invok
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) sendRawTransaction(rawTX string) (*response, error) {
+func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response, error) {
 	var (
-		params = newParams(rawTX)
+		params = newParams(hex.EncodeToString(rawTX.Bytes()))
 		resp   = &response{}
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
@@ -125,9 +126,7 @@ func (c *Client) sendRawTransaction(rawTX string) (*response, error) {
 func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*SendToAddressResponse, error) {
 	var (
 		err      error
-		buf      = io.NewBufBinWriter()
 		rawTx    *transaction.Transaction
-		rawTxStr string
 		txParams = ContractTxParams{
 			assetID:  asset,
 			address:  address,
@@ -142,12 +141,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
-	rawTx.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return nil, errors.Wrap(buf.Err, "failed to encode raw transaction to binary for `sendtoaddress`")
-	}
-	rawTxStr = hex.EncodeToString(buf.Bytes())
-	if resp, err = c.sendRawTransaction(rawTxStr); err != nil {
+	if resp, err = c.sendRawTransaction(rawTx); err != nil {
 		return nil, errors.Wrap(err, "failed to send raw transaction")
 	}
 	response.Error = resp.Error
@@ -157,4 +151,40 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 		TxID: rawTx.Hash().ReverseString(),
 	}
 	return response, nil
+}
+
+// DeployContract deploys given contract to the blockchain using given wif to
+// sign the transaction and spending the amount of gas specified. It returns
+// a hash of the deployment transaction and an error.
+func (c *Client) DeployContract(avm []byte, contract *ContractDetails, wif *keys.WIF, gas util.Fixed8) (util.Uint256, error) {
+	var txHash util.Uint256
+
+	gasIDB, _ := hex.DecodeString("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7")
+	gasID, _ := util.Uint256DecodeReverseBytes(gasIDB)
+
+	txScript, err := CreateDeploymentScript(avm, contract)
+	if err != nil {
+		return txHash, errors.Wrap(err, "failed creating deployment script")
+	}
+	tx := transaction.NewInvocationTX(txScript, gas)
+
+	fromAddress := wif.PrivateKey.Address()
+
+	if err = AddInputsAndUnspentsToTx(tx, fromAddress, gasID, gas, c); err != nil {
+		return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
+	}
+
+	if err = SignTx(tx, wif); err != nil {
+		return txHash, errors.Wrap(err, "failed to sign tx")
+	}
+	txHash = tx.Hash()
+	resp, err := c.sendRawTransaction(tx)
+
+	if err != nil {
+		return txHash, errors.Wrap(err, "failed sendning tx")
+	}
+	if resp.Error != nil {
+		return txHash, fmt.Errorf("remote returned %d: %s", resp.Error.Code, resp.Error.Message)
+	}
+	return txHash, nil
 }

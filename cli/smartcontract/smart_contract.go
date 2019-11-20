@@ -11,7 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/go-yaml/yaml"
@@ -22,6 +25,8 @@ import (
 var (
 	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
+	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoWIF               = errors.New("no WIF parameter found, specify it with the '--wif or -w' flag")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 )
@@ -60,6 +65,33 @@ func NewCommands() []cli.Command {
 					cli.BoolFlag{
 						Name:  "debug, d",
 						Usage: "Debug mode will print out additional information after a compiling",
+					},
+				},
+			},
+			{
+				Name:   "deploy",
+				Usage:  "deploy a smart contract (.avm with description)",
+				Action: contractDeploy,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "in, i",
+						Usage: "Input file for the smart contract (*.avm)",
+					},
+					cli.StringFlag{
+						Name:  "config, c",
+						Usage: "configuration input file (*.yml)",
+					},
+					cli.StringFlag{
+						Name:  "endpoint, e",
+						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
+					},
+					cli.StringFlag{
+						Name:  "wif, w",
+						Usage: "key to sign deployed transaction (in wif format)",
+					},
+					cli.IntFlag{
+						Name:  "gas, g",
+						Usage: "gas to pay for contract deployment",
 					},
 				},
 			},
@@ -218,25 +250,11 @@ func testInvoke(ctx *cli.Context) error {
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
 	Version  uint
-	Contract ContractDetails `yaml:"project"`
+	Contract rpc.ContractDetails `yaml:"project"`
 }
 
-// ContractDetails contains contract metadata.
-type ContractDetails struct {
-	Author               string
-	Email                string
-	Version              string
-	ProjectName          string `yaml:"name"`
-	Description          string
-	HasStorage           bool
-	HasDynamicInvocation bool
-	IsPayable            bool
-	ReturnType           rpc.StackParamType
-	Parameters           []rpc.StackParamType
-}
-
-func parseContractDetails() ContractDetails {
-	details := ContractDetails{}
+func parseContractDetails() rpc.ContractDetails {
+	details := rpc.ContractDetails{}
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Author: ")
@@ -277,5 +295,57 @@ func inspect(ctx *cli.Context) error {
 	v.LoadScript(b)
 	v.PrintOps()
 
+	return nil
+}
+
+// contractDeploy deploys contract.
+func contractDeploy(ctx *cli.Context) error {
+	in := ctx.String("in")
+	if len(in) == 0 {
+		return cli.NewExitError(errNoInput, 1)
+	}
+	confFile := ctx.String("config")
+	if len(confFile) == 0 {
+		return cli.NewExitError(errNoConfFile, 1)
+	}
+	endpoint := ctx.String("endpoint")
+	if len(endpoint) == 0 {
+		return cli.NewExitError(errNoEndpoint, 1)
+	}
+	wifStr := ctx.String("wif")
+	if len(wifStr) == 0 {
+		return cli.NewExitError(errNoWIF, 1)
+	}
+	gas := util.Fixed8FromInt64(int64(ctx.Int("gas")))
+
+	wif, err := keys.WIFDecode(wifStr, 0)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+	}
+	avm, err := ioutil.ReadFile(in)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	confBytes, err := ioutil.ReadFile(confFile)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	conf := ProjectConfig{}
+	err = yaml.Unmarshal(confBytes, &conf)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
+	}
+
+	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	txHash, err := client.DeployContract(avm, &conf.Contract, wif, gas)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to deploy: %v", err), 1)
+	}
+	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.ReverseString(), hash.Hash160(avm).ReverseString())
 	return nil
 }
