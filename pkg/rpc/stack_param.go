@@ -103,6 +103,23 @@ func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// MarshalYAML implements the YAML Marshaler interface.
+func (t *StackParamType) MarshalYAML() (interface{}, error) {
+	return t.String(), nil
+}
+
+// UnmarshalYAML implements the YAML Unmarshaler interface.
+func (t *StackParamType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var name string
+
+	err := unmarshal(&name)
+	if err != nil {
+		return err
+	}
+	*t, err = StackParamTypeFromString(name)
+	return err
+}
+
 // StackParam represent a stack parameter.
 type StackParam struct {
 	Type  StackParamType `json:"type"`
