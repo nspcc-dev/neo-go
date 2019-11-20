@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
+	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -135,7 +136,17 @@ func initSmartContract(ctx *cli.Context) error {
 	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
 	if !ctx.Bool("skip-details") {
 		details := parseContractDetails()
-		if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), details.toStormFile(), 0644); err != nil {
+		details.ReturnType = rpc.ByteArray
+		details.Parameters = make([]rpc.StackParamType, 2)
+		details.Parameters[0] = rpc.String
+		details.Parameters[1] = rpc.Array
+
+		project := &ProjectConfig{Contract: details}
+		b, err := yaml.Marshal(project)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -204,38 +215,24 @@ func testInvoke(ctx *cli.Context) error {
 	return nil
 }
 
-// ContractDetails contains contract metadata.
-type ContractDetails struct {
-	Author      string
-	Email       string
-	Version     string
-	ProjectName string
-	Description string
+// ProjectConfig contains project metadata.
+type ProjectConfig struct {
+	Version  uint
+	Contract ContractDetails `yaml:"project"`
 }
 
-func (d ContractDetails) toStormFile() []byte {
-	buf := new(bytes.Buffer)
-
-	buf.WriteString("# NEO-GO specific configuration. Do not modify this unless you know what you are doing!\n")
-	buf.WriteString("neo-go:\n")
-	buf.WriteString("  version: 1.0\n")
-
-	buf.WriteString("\n")
-
-	buf.WriteString("# Project section contains information about your smart contract\n")
-	buf.WriteString("project:\n")
-	buf.WriteString("  author: " + d.Author)
-	buf.WriteString("  email: " + d.Email)
-	buf.WriteString("  version: " + d.Version)
-	buf.WriteString("  name: " + d.ProjectName)
-	buf.WriteString("  description: " + d.Description)
-
-	buf.WriteString("\n")
-
-	buf.WriteString("# Module section contains a list of imported modules\n")
-	buf.WriteString("# This will be automatically managed by the neo-go package manager\n")
-	buf.WriteString("modules: \n")
-	return buf.Bytes()
+// ContractDetails contains contract metadata.
+type ContractDetails struct {
+	Author               string
+	Email                string
+	Version              string
+	ProjectName          string `yaml:"name"`
+	Description          string
+	HasStorage           bool
+	HasDynamicInvocation bool
+	IsPayable            bool
+	ReturnType           rpc.StackParamType
+	Parameters           []rpc.StackParamType
 }
 
 func parseContractDetails() ContractDetails {
