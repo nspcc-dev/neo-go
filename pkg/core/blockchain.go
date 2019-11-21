@@ -340,7 +340,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 func (bc *Blockchain) storeBlock(block *Block) error {
 	chainState := NewBlockChainState(bc.store)
 
-	if err := chainState.storeAsBlock(block,0); err != nil {
+	if err := chainState.storeAsBlock(block, 0); err != nil {
 		return err
 	}
 
