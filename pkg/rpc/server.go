@@ -30,11 +30,9 @@ type (
 	}
 )
 
-var (
-	invalidBlockHeightError = func(index int, height int) error {
-		return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
-	}
-)
+var invalidBlockHeightError = func(index int, height int) error {
+	return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
+}
 
 // NewServer creates a new Server struct.
 func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server) Server {
@@ -123,27 +121,28 @@ Methods:
 		getbestblockCalled.Inc()
 		var hash util.Uint256
 
-		param, err := reqParams.Value(0)
-		if err != nil {
-			resultsErr = err
+		param, ok := reqParams.Value(0)
+		if !ok {
+			resultsErr = errInvalidParams
 			break Methods
 		}
 
 		switch param.Type {
-		case "string":
-			hash, err = util.Uint256DecodeReverseString(param.StringVal)
+		case stringT:
+			var err error
+			hash, err = param.GetUint256()
 			if err != nil {
 				resultsErr = errInvalidParams
 				break Methods
 			}
-		case "number":
+		case numberT:
 			if !s.validBlockHeight(param) {
 				resultsErr = errInvalidParams
 				break Methods
 			}
 
-			hash = s.chain.GetHeaderHash(param.IntVal)
-		case "default":
+			hash = s.chain.GetHeaderHash(param.GetInt())
+		case defaultT:
 			resultsErr = errInvalidParams
 			break Methods
 		}
@@ -161,16 +160,16 @@ Methods:
 
 	case "getblockhash":
 		getblockHashCalled.Inc()
-		param, err := reqParams.ValueWithType(0, "number")
-		if err != nil {
-			resultsErr = err
+		param, ok := reqParams.ValueWithType(0, numberT)
+		if !ok {
+			resultsErr = errInvalidParams
 			break Methods
 		} else if !s.validBlockHeight(param) {
-			resultsErr = invalidBlockHeightError(0, param.IntVal)
+			resultsErr = invalidBlockHeightError(0, param.GetInt())
 			break Methods
 		}
 
-		results = s.chain.GetHeaderHash(param.IntVal)
+		results = s.chain.GetHeaderHash(param.GetInt())
 
 	case "getconnectioncount":
 		getconnectioncountCalled.Inc()
@@ -203,22 +202,22 @@ Methods:
 
 	case "validateaddress":
 		validateaddressCalled.Inc()
-		param, err := reqParams.Value(0)
-		if err != nil {
-			resultsErr = err
+		param, ok := reqParams.Value(0)
+		if !ok {
+			resultsErr = errInvalidParams
 			break Methods
 		}
-		results = wrappers.ValidateAddress(param.RawValue)
+		results = wrappers.ValidateAddress(param.Value)
 
 	case "getassetstate":
 		getassetstateCalled.Inc()
-		param, err := reqParams.ValueWithType(0, "string")
-		if err != nil {
-			resultsErr = err
+		param, ok := reqParams.ValueWithType(0, stringT)
+		if !ok {
+			resultsErr = errInvalidParams
 			break Methods
 		}
 
-		paramAssetID, err := util.Uint256DecodeReverseString(param.StringVal)
+		paramAssetID, err := param.GetUint256()
 		if err != nil {
 			resultsErr = errInvalidParams
 			break
@@ -266,14 +265,13 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
-	param0, err := reqParams.ValueWithType(0, "string")
-	if err != nil {
-		resultsErr = err
-	} else if txHash, err := util.Uint256DecodeReverseString(param0.StringVal); err != nil {
+	if param0, ok := reqParams.Value(0); !ok {
+		return nil, errInvalidParams
+	} else if txHash, err := param0.GetUint256(); err != nil {
 		resultsErr = errInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
-		resultsErr = NewInvalidParamsError(err.Error(), err)
+		return nil, NewInvalidParamsError(err.Error(), err)
 	} else if len(reqParams) >= 2 {
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
@@ -281,8 +279,8 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 			resultsErr = NewInvalidParamsError(err.Error(), err)
 		}
 
-		param1, _ := reqParams.ValueAt(1)
-		switch v := param1.RawValue.(type) {
+		param1, _ := reqParams.Value(1)
+		switch v := param1.Value.(type) {
 
 		case int, float64, bool, string:
 			if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
@@ -305,14 +303,14 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 	var resultsErr error
 	var results interface{}
 
-	param, err := reqParams.ValueWithType(0, "string")
-	if err != nil {
-		resultsErr = err
-	} else if scriptHash, err := crypto.Uint160DecodeAddress(param.StringVal); err != nil {
-		resultsErr = errInvalidParams
+	param, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	} else if scriptHash, err := crypto.Uint160DecodeAddress(param.GetString()); err != nil {
+		return nil, errInvalidParams
 	} else if as := s.chain.GetAccountState(scriptHash); as != nil {
 		if unspents {
-			results = wrappers.NewUnspents(as, s.chain, param.StringVal)
+			results = wrappers.NewUnspents(as, s.chain, param.GetString())
 		} else {
 			results = wrappers.NewAccountState(as)
 		}
@@ -324,11 +322,11 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 
 // invokescript implements the `invokescript` RPC call.
 func (s *Server) invokescript(reqParams Params) (interface{}, error) {
-	hexScript, err := reqParams.ValueWithType(0, "string")
-	if err != nil {
-		return nil, err
+	hexScript, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
 	}
-	script, err := hex.DecodeString(hexScript.StringVal)
+	script, err := hex.DecodeString(hexScript.GetString())
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +336,7 @@ func (s *Server) invokescript(reqParams Params) (interface{}, error) {
 	result := &wrappers.InvokeResult{
 		State:       vm.State(),
 		GasConsumed: "0.1",
-		Script:      hexScript.StringVal,
+		Script:      hexScript.GetString(),
 		Stack:       vm.Estack(),
 	}
 	return result, nil
@@ -348,10 +346,10 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
-	param, err := reqParams.ValueWithType(0, "string")
-	if err != nil {
-		resultsErr = err
-	} else if byteTx, err := hex.DecodeString(param.StringVal); err != nil {
+	param, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		resultsErr = errInvalidParams
+	} else if byteTx, err := hex.DecodeString(param.GetString()); err != nil {
 		resultsErr = errInvalidParams
 	} else {
 		r := io.NewBinReaderFromBuf(byteTx)
@@ -387,5 +385,5 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 }
 
 func (s Server) validBlockHeight(param *Param) bool {
-	return param.IntVal >= 0 && param.IntVal <= int(s.chain.BlockHeight())
+	return param.GetInt() >= 0 && param.GetInt() <= int(s.chain.BlockHeight())
 }
