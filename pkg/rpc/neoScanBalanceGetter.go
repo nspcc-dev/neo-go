@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -36,7 +37,6 @@ func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 	if err = json.NewDecoder(res.Body).Decode(&balance); err != nil {
 		return nil, errs.Wrap(err, "Failed to decode HTTP response")
 	}
-
 	return balance.Balance, nil
 }
 
@@ -55,9 +55,6 @@ func filterSpecificAsset(asset string, balance []*Unspent, assetBalance *Unspent
 func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
 		err          error
-		num, i       uint16
-		required     = cost
-		selected     = util.Fixed8(0)
 		us           []*Unspent
 		assetUnspent Unspent
 		assetID      = wrappers.GlobalAssets[assetIDUint.ReverseString()]
@@ -66,9 +63,19 @@ func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256,
 		return nil, util.Fixed8(0), errs.Wrapf(err, "Cannot get balance for address %v", address)
 	}
 	filterSpecificAsset(assetID, us, &assetUnspent)
-	sort.Sort(assetUnspent.Unspent)
+	return unspentsToInputs(assetUnspent.Unspent, cost)
+}
 
-	for _, us := range assetUnspent.Unspent {
+// unspentsToInputs uses UnspentBalances to create a slice of inputs for a new
+// transcation containing the required amount of asset.
+func unspentsToInputs(utxos core.UnspentBalances, required util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
+	var (
+		num, i   uint16
+		selected = util.Fixed8(0)
+	)
+	sort.Sort(utxos)
+
+	for _, us := range utxos {
 		if selected >= required {
 			break
 		}
@@ -82,8 +89,8 @@ func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256,
 	inputs := make([]transaction.Input, 0, num)
 	for i = 0; i < num; i++ {
 		inputs = append(inputs, transaction.Input{
-			PrevHash:  assetUnspent.Unspent[i].TxID,
-			PrevIndex: assetUnspent.Unspent[i].N,
+			PrevHash:  utxos[i].Tx,
+			PrevIndex: utxos[i].Index,
 		})
 	}
 

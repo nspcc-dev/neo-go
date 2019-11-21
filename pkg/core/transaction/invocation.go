@@ -17,12 +17,13 @@ type InvocationTX struct {
 }
 
 // NewInvocationTX returns a new invocation transaction.
-func NewInvocationTX(script []byte) *Transaction {
+func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 	return &Transaction{
 		Type:    InvocationType,
 		Version: 1,
 		Data: &InvocationTX{
 			Script:  script,
+			Gas:     gas,
 			Version: 1,
 		},
 		Attributes: []*Attribute{},

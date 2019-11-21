@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
@@ -25,6 +26,13 @@ type InvokeResult struct {
 type AccountStateResponse struct {
 	responseHeader
 	Result *Account `json:"result"`
+}
+
+// UnspentResponse represents server response to the `getunspents` command.
+type UnspentResponse struct {
+	responseHeader
+	Error  *Error             `json:"error,omitempty"`
+	Result *wrappers.Unspents `json:"result,omitempty"`
 }
 
 // Account represents details about a NEO account.

@@ -41,6 +41,7 @@ Supported methods
 
 	getblock
 	getaccountstate
+	getunspents
 	invokescript
 	invokefunction
 	sendrawtransaction
