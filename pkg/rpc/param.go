@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -24,6 +25,7 @@ const (
 	defaultT paramType = iota
 	stringT
 	numberT
+	arrayT
 )
 
 func (p Param) String() string {
@@ -46,6 +48,17 @@ func (p Param) GetUint256() (util.Uint256, error) {
 	return util.Uint256DecodeReverseString(s)
 }
 
+// GetBytesHex returns []byte value of the parameter if
+// it is a hex-encoded string.
+func (p Param) GetBytesHex() ([]byte, error) {
+	s, ok := p.Value.(string)
+	if !ok {
+		return nil, errors.New("must be a string")
+	}
+
+	return hex.DecodeString(s)
+}
+
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (p *Param) UnmarshalJSON(data []byte) error {
 	var s string
@@ -60,6 +73,14 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &num); err == nil {
 		p.Type = numberT
 		p.Value = int(num)
+
+		return nil
+	}
+
+	var ps []Param
+	if err := json.Unmarshal(data, &ps); err == nil {
+		p.Type = arrayT
+		p.Value = ps
 
 		return nil
 	}

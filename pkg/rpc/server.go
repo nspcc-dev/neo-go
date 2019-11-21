@@ -322,21 +322,22 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 
 // invokescript implements the `invokescript` RPC call.
 func (s *Server) invokescript(reqParams Params) (interface{}, error) {
-	hexScript, ok := reqParams.ValueWithType(0, stringT)
-	if !ok {
+	if len(reqParams) < 1 {
 		return nil, errInvalidParams
 	}
-	script, err := hex.DecodeString(hexScript.GetString())
+
+	script, err := reqParams[0].GetBytesHex()
 	if err != nil {
-		return nil, err
+		return nil, errInvalidParams
 	}
+
 	vm, _ := s.chain.GetTestVM()
 	vm.LoadScript(script)
 	_ = vm.Run()
 	result := &wrappers.InvokeResult{
 		State:       vm.State(),
 		GasConsumed: "0.1",
-		Script:      hexScript.GetString(),
+		Script:      reqParams[0].GetString(),
 		Stack:       vm.Estack(),
 	}
 	return result, nil
@@ -346,11 +347,10 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
-	param, ok := reqParams.ValueWithType(0, stringT)
-	if !ok {
-		resultsErr = errInvalidParams
-	} else if byteTx, err := hex.DecodeString(param.GetString()); err != nil {
-		resultsErr = errInvalidParams
+	if len(reqParams) < 1 {
+		return nil, errInvalidParams
+	} else if byteTx, err := reqParams[0].GetBytesHex(); err != nil {
+		return nil, errInvalidParams
 	} else {
 		r := io.NewBinReaderFromBuf(byteTx)
 		tx := &transaction.Transaction{}
