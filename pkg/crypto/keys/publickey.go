@@ -69,6 +69,7 @@ type PublicKey struct {
 	Y *big.Int
 }
 
+// Equal returns true in case public keys are equal.
 func (p *PublicKey) Equal(key *PublicKey) bool {
 	return p.X.Cmp(key.X) == 0 && p.Y.Cmp(key.Y) == 0
 }
