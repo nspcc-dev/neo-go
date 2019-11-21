@@ -21,7 +21,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "0x"+chain.CurrentBlockHash().ReverseString(), res.Result)
 	})
@@ -31,7 +31,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetBlockResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		block, err := chain.GetBlock(chain.GetHeaderHash(1))
 		assert.NoErrorf(t, err, "could not get block")
@@ -44,7 +44,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res IntResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, chain.BlockHeight()+1, uint32(res.Result))
 	})
@@ -54,7 +54,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		block, err := chain.GetBlock(chain.GetHeaderHash(1))
 		assert.NoErrorf(t, err, "could not get block")
@@ -67,7 +67,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res IntResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, 0, res.Result)
 	})
@@ -77,7 +77,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetVersionResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "/NEO-GO:/", res.Result.UserAgent)
 	})
@@ -87,7 +87,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetPeersResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, []int{}, res.Result.Bad)
 		assert.Equal(t, []int{}, res.Result.Unconnected)
@@ -99,7 +99,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res ValidateAddrResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, true, res.Result.IsValid)
 	})
@@ -109,7 +109,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res ValidateAddrResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, false, res.Result.IsValid)
 	})
@@ -119,7 +119,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetAssetResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "00", res.Result.Owner)
 		assert.Equal(t, "AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3", res.Result.Admin)
@@ -130,7 +130,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "Invalid assetid", res.Result)
 	})
@@ -140,7 +140,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetAccountStateResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, 1, len(res.Result.Balances))
 		assert.Equal(t, false, res.Result.Frozen)
@@ -151,7 +151,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res GetUnspents
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, 1, len(res.Result.Balance))
 		assert.Equal(t, 1, len(res.Result.Balance[0].Unspents))
@@ -162,7 +162,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "Invalid public account address", res.Result)
 	})
@@ -172,7 +172,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "Invalid public account address", res.Result)
 	})
@@ -184,7 +184,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res.Result)
 	})
@@ -194,7 +194,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res SendTXResponse
-		err := json.Unmarshal(bytes.TrimSpace(body), &res)
+		err := json.Unmarshal(body, &res)
 		assert.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, true, res.Result)
 	})
@@ -208,7 +208,7 @@ func TestRPC(t *testing.T) {
 
 func checkErrResponse(t *testing.T, body []byte, expectingFail bool) {
 	var errresp ErrorResponse
-	err := json.Unmarshal(bytes.TrimSpace(body), &errresp)
+	err := json.Unmarshal(body, &errresp)
 	assert.Nil(t, err)
 	if expectingFail {
 		assert.NotEqual(t, 0, errresp.Error.Code)
@@ -227,5 +227,5 @@ func doRPCCall(rpcCall string, handler http.HandlerFunc, t *testing.T) []byte {
 	resp := w.Result()
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
-	return body
+	return bytes.TrimSpace(body)
 }
