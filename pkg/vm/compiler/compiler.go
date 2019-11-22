@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -10,7 +9,6 @@ import (
 	"go/types"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 
@@ -69,9 +67,9 @@ type archive struct {
 }
 
 // CompileAndSave will compile and save the file to disk.
-func CompileAndSave(src string, o *Options) error {
+func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if !strings.HasSuffix(src, ".go") {
-		return fmt.Errorf("%s is not a Go file", src)
+		return nil, fmt.Errorf("%s is not a Go file", src)
 	}
 	o.Outfile = strings.TrimSuffix(o.Outfile, fmt.Sprintf(".%s", fileExt))
 	if len(o.Outfile) == 0 {
@@ -82,17 +80,15 @@ func CompileAndSave(src string, o *Options) error {
 	}
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	b, err = Compile(bytes.NewReader(b))
 	if err != nil {
-		return fmt.Errorf("error while trying to compile smart contract file: %v", err)
+		return nil, fmt.Errorf("error while trying to compile smart contract file: %v", err)
 	}
 
-	log.Println(hex.EncodeToString(b))
-
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
-	return ioutil.WriteFile(out, b, os.ModePerm)
+	return b, ioutil.WriteFile(out, b, os.ModePerm)
 }
 
 func gopath() string {
@@ -101,8 +97,4 @@ func gopath() string {
 		gopath = build.Default.GOPATH
 	}
 	return gopath
-}
-
-func init() {
-	log.SetFlags(0)
 }

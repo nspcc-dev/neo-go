@@ -280,9 +280,11 @@ func contractCompile(ctx *cli.Context) error {
 		Debug:   ctx.Bool("debug"),
 	}
 
-	if err := compiler.CompileAndSave(src, o); err != nil {
+	result, err := compiler.CompileAndSave(src, o)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	fmt.Println(hex.EncodeToString(result))
 
 	return nil
 }

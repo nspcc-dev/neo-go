@@ -2,11 +2,11 @@ package compiler
 
 import (
 	"encoding/binary"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,7 +57,6 @@ func (c *codegen) pc() int {
 
 func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	if c.prog.Err != nil {
-		log.Fatal(c.prog.Err)
 		return
 	}
 	switch typ := t.Type.Underlying().(type) {
@@ -77,17 +76,20 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 			b := byte(val)
 			emitBytes(c.prog, []byte{b})
 		default:
-			log.Fatalf("compiler doesn't know how to convert this basic type: %v", t)
+			c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
+			return
 		}
 	default:
-		log.Fatalf("compiler doesn't know how to convert this constant: %v", t)
+		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this constant: %v", t)
+		return
 	}
 }
 
 func (c *codegen) emitLoadLocal(name string) {
 	pos := c.scope.loadLocal(name)
 	if pos < 0 {
-		log.Fatalf("cannot load local variable with position: %d", pos)
+		c.prog.Err = fmt.Errorf("cannot load local variable with position: %d", pos)
+		return
 	}
 	c.emitLoadLocalPos(pos)
 }
@@ -102,7 +104,8 @@ func (c *codegen) emitStoreLocal(pos int) {
 	emitOpcode(c.prog, vm.DUPFROMALTSTACK)
 
 	if pos < 0 {
-		log.Fatalf("invalid position to store local: %d", pos)
+		c.prog.Err = fmt.Errorf("invalid position to store local: %d", pos)
+		return
 	}
 
 	emitInt(c.prog, int64(pos))
@@ -175,7 +178,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 			// Currently only method receives for struct types is supported.
 			_, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
 			if !ok {
-				log.Fatal("method receives for non-struct types is not yet supported")
+				c.prog.Err = fmt.Errorf("method receives for non-struct types is not yet supported")
+				return
 			}
 			l := c.scope.newLocal(ident.Name)
 			c.emitStoreLocal(l)
@@ -206,7 +210,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	if c.prog.Err != nil {
-		log.Fatal(c.prog.Err)
 		return nil
 	}
 	switch n := node.(type) {
@@ -256,7 +259,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						c.emitStoreStructField(i)             // store the field
 					}
 				default:
-					log.Fatal("nested selector assigns not supported yet")
+					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
+					return nil
 				}
 
 			// Assignments to index expressions.
@@ -270,7 +274,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				indexStr := t.Index.(*ast.BasicLit).Value
 				index, err := strconv.Atoi(indexStr)
 				if err != nil {
-					log.Fatal("failed to convert slice index to integer")
+					c.prog.Err = fmt.Errorf("failed to convert slice index to integer")
+					return nil
 				}
 				c.emitStoreStructField(index)
 			}
@@ -279,7 +284,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.ReturnStmt:
 		if len(n.Results) > 1 {
-			log.Fatal("multiple returns not supported.")
+			c.prog.Err = fmt.Errorf("multiple returns not supported")
+			return nil
 		}
 
 		l := c.newLabel()
@@ -323,7 +329,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.Ident:
 		if isIdentBool(n) {
-			c.emitLoadConst(makeBoolFromIdent(n, c.typeInfo))
+			value, err := makeBoolFromIdent(n, c.typeInfo)
+			if err != nil {
+				c.prog.Err = err
+				return nil
+			}
+			c.emitLoadConst(value)
 		} else {
 			c.emitLoadLocal(n.Name)
 		}
@@ -431,7 +442,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
 			if !ok && !isBuiltin {
-				log.Fatalf("could not resolve function %s", fun.Name)
+				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Name)
+				return nil
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
@@ -447,7 +459,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// @FIXME this could cause runtime errors.
 			f.selector = fun.X.(*ast.Ident)
 			if !ok {
-				log.Fatalf("could not resolve function %s", fun.Sel.Name)
+				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
+				return nil
 			}
 		case *ast.ArrayType:
 			// For now we will assume that there is only 1 argument passed which
@@ -501,7 +514,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitLoadField(i) // load the field
 			}
 		default:
-			log.Fatal("nested selectors not supported yet")
+			c.prog.Err = fmt.Errorf("nested selectors not supported yet")
+			return nil
 		}
 		return nil
 
@@ -521,7 +535,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case token.XOR:
 			emitOpcode(c.prog, vm.INVERT)
 		default:
-			log.Fatalf("invalid unary operator: %s", n.Op)
+			c.prog.Err = fmt.Errorf("invalid unary operator: %s", n.Op)
+			return nil
 		}
 		return nil
 
@@ -594,7 +609,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 func (c *codegen) convertSyscall(api, name string) {
 	api, ok := syscalls[api][name]
 	if !ok {
-		log.Fatalf("unknown VM syscall api: %s", name)
+		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
+		return
 	}
 	emitSyscall(c.prog, api)
 
@@ -651,7 +667,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		addressStr = strings.Replace(addressStr, "\"", "", 2)
 		uint160, err := crypto.Uint160DecodeAddress(addressStr)
 		if err != nil {
-			log.Fatal(err)
+			c.prog.Err = err
+			return
 		}
 		bytes := uint160.Bytes()
 		emitBytes(c.prog, bytes)
@@ -673,7 +690,8 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	// the positions of its variables.
 	strct, ok := c.typeInfo.TypeOf(lit).Underlying().(*types.Struct)
 	if !ok {
-		log.Fatalf("the given literal is not of type struct: %v", lit)
+		c.prog.Err = fmt.Errorf("the given literal is not of type struct: %v", lit)
+		return
 	}
 
 	emitOpcode(c.prog, vm.NOP)
@@ -704,7 +722,11 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 			continue
 		}
 
-		typeAndVal := typeAndValueForField(sField)
+		typeAndVal, err := typeAndValueForField(sField)
+		if err != nil {
+			c.prog.Err = err
+			return
+		}
 		c.emitLoadConst(typeAndVal)
 		c.emitStoreLocal(i)
 	}
@@ -758,7 +780,8 @@ func (c *codegen) convertToken(tok token.Token) {
 	case token.XOR:
 		emitOpcode(c.prog, vm.XOR)
 	default:
-		log.Fatalf("compiler could not convert token: %s", tok)
+		c.prog.Err = fmt.Errorf("compiler could not convert token: %s", tok)
+		return
 	}
 }
 
@@ -782,7 +805,8 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 	// Resolve the entrypoint of the program.
 	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
-		log.Fatal("could not find func main. Did you forget to declare it?")
+		c.prog.Err = fmt.Errorf("could not find func main. Did you forget to declare it? ")
+		return []byte{}, c.prog.Err
 	}
 
 	funUsage := analyzeFuncUsage(info.program.AllPackages)
