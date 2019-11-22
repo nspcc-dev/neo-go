@@ -34,11 +34,44 @@ func (keys PublicKeys) Less(i, j int) bool {
 	return keys[i].Y.Cmp(keys[j].Y) == -1
 }
 
+// DecodeBytes decodes a PublicKeys from the given slice of bytes.
+func (keys PublicKeys) DecodeBytes(data []byte) error {
+	b := io.NewBinReaderFromBuf(data)
+	b.ReadArray(keys)
+	return b.Err
+}
+
+// Contains checks whether passed param contained in PublicKeys.
+func (keys PublicKeys) Contains(pKey *PublicKey) bool {
+	for _, key := range keys {
+		if key.Equal(pKey) {
+			return true
+		}
+	}
+	return false
+}
+
+// Unique returns set of public keys.
+func (keys PublicKeys) Unique() PublicKeys {
+	unique := PublicKeys{}
+	for _, publicKey := range keys {
+		if !unique.Contains(publicKey) {
+			unique = append(unique, publicKey)
+		}
+	}
+	return unique
+}
+
 // PublicKey represents a public key and provides a high level
 // API around the X/Y point.
 type PublicKey struct {
 	X *big.Int
 	Y *big.Int
+}
+
+// Equal returns true in case public keys are equal.
+func (p *PublicKey) Equal(key *PublicKey) bool {
+	return p.X.Cmp(key.X) == 0 && p.Y.Cmp(key.Y) == 0
 }
 
 // NewPublicKeyFromString returns a public key created from the

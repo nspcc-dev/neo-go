@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -75,6 +76,9 @@ func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
 	panic("TODO")
 }
 func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
+	panic("TODO")
+}
+func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
