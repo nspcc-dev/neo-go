@@ -13,8 +13,8 @@ import (
 
 // emit a VM Instruction with data to the given buffer.
 func emit(w *io.BufBinWriter, instr vm.Instruction, b []byte) {
-	w.WriteLE(byte(instr))
-	w.WriteVarBytes(b)
+	emitOpcode(w, instr)
+	w.WriteBytes(b)
 }
 
 // emitOpcode emits a single VM Instruction the given buffer.

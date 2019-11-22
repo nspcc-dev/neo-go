@@ -69,7 +69,7 @@ func TestWriterErrHandling(t *testing.T) {
 	bw.WriteLE(uint32(0))
 	bw.WriteBE(uint32(0))
 	bw.WriteVarUint(0)
-	bw.WriteBytes([]byte{0x55, 0xaa})
+	bw.WriteVarBytes([]byte{0x55, 0xaa})
 	bw.WriteString("neo")
 	assert.NotNil(t, bw.Err)
 }

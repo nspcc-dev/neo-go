@@ -73,7 +73,7 @@ func (p *Version) EncodeBinary(br *io.BinWriter) {
 	br.WriteLE(p.Port)
 	br.WriteLE(p.Nonce)
 
-	br.WriteBytes(p.UserAgent)
+	br.WriteVarBytes(p.UserAgent)
 	br.WriteLE(p.StartHeight)
 	br.WriteLE(&p.Relay)
 }

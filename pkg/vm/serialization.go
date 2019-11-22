@@ -44,13 +44,13 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	switch t := item.(type) {
 	case *ByteArrayItem:
 		w.WriteLE(byte(byteArrayT))
-		w.WriteBytes(t.value)
+		w.WriteVarBytes(t.value)
 	case *BoolItem:
 		w.WriteLE(byte(booleanT))
 		w.WriteLE(t.value)
 	case *BigIntegerItem:
 		w.WriteLE(byte(integerT))
-		w.WriteBytes(t.Bytes())
+		w.WriteVarBytes(t.Bytes())
 	case *InteropItem:
 		w.Err = errors.New("not supported")
 	case *ArrayItem, *StructItem:

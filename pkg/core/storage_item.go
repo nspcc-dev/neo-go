@@ -53,7 +53,7 @@ func deleteStorageItemInStore(s storage.Store, scripthash util.Uint160, key []by
 
 // EncodeBinary implements Serializable interface.
 func (si *StorageItem) EncodeBinary(w *io.BinWriter) {
-	w.WriteBytes(si.Value)
+	w.WriteVarBytes(si.Value)
 	w.WriteLE(si.IsConst)
 }
 

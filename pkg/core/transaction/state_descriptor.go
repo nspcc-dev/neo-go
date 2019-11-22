@@ -33,7 +33,7 @@ func (s *StateDescriptor) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(s.Type)
-	w.WriteBytes(s.Key)
-	w.WriteBytes(s.Value)
+	w.WriteVarBytes(s.Key)
+	w.WriteVarBytes(s.Value)
 	w.WriteString(s.Field)
 }

@@ -31,5 +31,5 @@ func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
 
 	bw.WriteVarUint(uint64(m.TxCount))
 	bw.WriteArray(m.Hashes)
-	bw.WriteBytes(m.Flags)
+	bw.WriteVarBytes(m.Flags)
 }

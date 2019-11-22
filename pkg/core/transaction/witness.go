@@ -23,8 +23,8 @@ func (w *Witness) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (w *Witness) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(w.InvocationScript)
-	bw.WriteBytes(w.VerificationScript)
+	bw.WriteVarBytes(w.InvocationScript)
+	bw.WriteVarBytes(w.VerificationScript)
 }
 
 // MarshalJSON implements the json marshaller interface.

@@ -219,7 +219,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary encodes a PublicKey to the given BinWriter.
 func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(p.Bytes())
+	w.WriteBytes(p.Bytes())
 }
 
 // Signature returns a NEO-specific hash of the key.
