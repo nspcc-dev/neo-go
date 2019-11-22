@@ -1,12 +1,12 @@
 package rpc
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 var testCases = []struct {
@@ -41,6 +41,28 @@ var testCases = []struct {
 			},
 		},
 	},
+	{
+		input: `{"type": "Hash160", "value": "0bcd2978634d961c24f5aea0802297ff128724d6"}`,
+		result: StackParam{
+			Type: Hash160,
+			Value: util.Uint160{
+				0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+				0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+			},
+		},
+	},
+	{
+		input: `{"type": "Hash256", "value": "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"}`,
+		result: StackParam{
+			Type: Hash256,
+			Value: util.Uint256{
+				0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
+				0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
+				0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
+				0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
+			},
+		},
+	},
 }
 
 var errorCases = []string{
@@ -55,192 +77,124 @@ var errorCases = []string{
 	`{"type": "Hash160","value": "0bcd"}`,  // incorrect Uint160 value
 	`{"type": "Hash256","value": "0bcd"}`,  // incorrect Uint256 value
 	`{"type": "Stringg","value": ""}`,      // incorrect type
+	`{"type": {},"value": ""}`,             // incorrect value
+
+	`{"type": "InteropInterface","value": ""}`, // ununmarshable type
 }
 
 func TestStackParam_UnmarshalJSON(t *testing.T) {
-	var (
-		err  error
-		r, s StackParam
-	)
+	var s StackParam
 	for _, tc := range testCases {
-		if err = json.Unmarshal([]byte(tc.input), &s); err != nil {
-			t.Errorf("error while unmarhsalling: %v", err)
-		} else if !reflect.DeepEqual(s, tc.result) {
-			t.Errorf("got (%v), expected (%v)", s, tc.result)
-		}
-	}
-
-	// Hash160 unmarshalling
-	err = json.Unmarshal([]byte(`{"type": "Hash160","value": "0bcd2978634d961c24f5aea0802297ff128724d6"}`), &s)
-	if err != nil {
-		t.Errorf("error while unmarhsalling: %v", err)
-	}
-
-	h160, err := util.Uint160DecodeString("0bcd2978634d961c24f5aea0802297ff128724d6")
-	if err != nil {
-		t.Errorf("unmarshal error: %v", err)
-	}
-
-	if r = (StackParam{Type: Hash160, Value: h160}); !reflect.DeepEqual(s, r) {
-		t.Errorf("got (%v), expected (%v)", s, r)
-	}
-
-	// Hash256 unmarshalling
-	err = json.Unmarshal([]byte(`{"type": "Hash256","value": "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"}`), &s)
-	if err != nil {
-		t.Errorf("error while unmarhsalling: %v", err)
-	}
-	h256, err := util.Uint256DecodeReverseString("f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d")
-	if err != nil {
-		t.Errorf("unmarshal error: %v", err)
-	}
-	if r = (StackParam{Type: Hash256, Value: h256}); !reflect.DeepEqual(s, r) {
-		t.Errorf("got (%v), expected (%v)", s, r)
+		assert.NoError(t, json.Unmarshal([]byte(tc.input), &s))
+		assert.Equal(t, s, tc.result)
 	}
 
 	for _, input := range errorCases {
-		if err = json.Unmarshal([]byte(input), &s); err == nil {
-			t.Errorf("expected error, got (nil)")
-		}
+		assert.Error(t, json.Unmarshal([]byte(input), &s))
 	}
 }
 
-const (
-	hash160    = "0bcd2978634d961c24f5aea0802297ff128724d6"
-	hash256    = "7fe610b7c8259ae949accacb091a1bc53219c51a1cb8752fbc6457674c13ec0b"
-	testString = "myteststring"
-)
+var tryParseTestCases = []struct {
+	input    interface{}
+	expected interface{}
+}{
+	{
+		input: []byte{
+			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+		},
+		expected: util.Uint160{
+			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+		},
+	},
+	{
+		input: []byte{
+			0xf0, 0x37, 0x30, 0x8f, 0xa0, 0xab, 0x18, 0x15,
+			0x5b, 0xcc, 0xfc, 0x08, 0x48, 0x54, 0x68, 0xc1,
+			0x12, 0x40, 0x9e, 0xa5, 0x06, 0x45, 0x95, 0x69,
+			0x9e, 0x98, 0xc5, 0x45, 0xf2, 0x45, 0xf3, 0x2d,
+		},
+		expected: util.Uint256{
+			0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
+			0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
+			0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
+			0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
+		},
+	},
+	{
+		input:    []byte{0, 1, 2, 3, 4, 9, 8, 6},
+		expected: []byte{0, 1, 2, 3, 4, 9, 8, 6},
+	},
+	{
+		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
+		expected: int64(50686687331),
+	},
+	{
+		input:    []byte("this is a test string"),
+		expected: "this is a test string",
+	},
+}
 
 func TestStackParam_TryParse(t *testing.T) {
-	// ByteArray to util.Uint160 conversion
-	data, err := hex.DecodeString(hash160)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var (
-		outputUint160, expectedUint160 util.Uint160
-		input                          = StackParam{
-			Type:  ByteArray,
-			Value: data,
-		}
-	)
-	expectedUint160, err = util.Uint160DecodeString(hash160)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = input.TryParse(&outputUint160); err != nil {
-		t.Errorf("failed to parse stackparam to Uint160: %v", err)
-	}
-	if !reflect.DeepEqual(outputUint160, expectedUint160) {
-		t.Errorf("got (%v), expected (%v)", outputUint160, expectedUint160)
-	}
-
-	// ByteArray to util.Uint256 conversion
-	data, err = hex.DecodeString(hash256)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var (
-		outputUint256, expectedUint256 util.Uint256
-		uint256input                   = StackParam{
-			Type:  ByteArray,
-			Value: data,
-		}
-	)
-	expectedUint256, err = util.Uint256DecodeReverseString(hash256)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = uint256input.TryParse(&outputUint256); err != nil {
-		t.Errorf("failed to parse stackparam to []byte: %v", err)
-	}
-	if !reflect.DeepEqual(outputUint256, expectedUint256) {
-		t.Errorf("got (%v), expected (%v)", outputUint256, expectedUint256)
-	}
-
-	// ByteArray to []byte conversion
-	var (
-		outputBytes   []byte
-		expectedBytes = expectedUint160.Bytes()
-	)
-	if err = input.TryParse(&outputBytes); err != nil {
-		t.Errorf("failed to parse stackparam to []byte: %v", err)
-	}
-	if !reflect.DeepEqual(outputBytes, expectedBytes) {
-		t.Errorf("got (%v), expected (%v)", outputBytes, expectedBytes)
-	}
-
-	// ByteArray to int64 conversion
-	data, err = hex.DecodeString("637829cd0b")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var (
-		outputInt, expectedInt int64
-		intinput               = StackParam{
-			Type:  ByteArray,
-			Value: data,
-		}
-	)
-	expectedInt = 50686687331
-	if err = intinput.TryParse(&outputInt); err != nil {
-		t.Errorf("failed to parse stackparam to []byte: %v", err)
-	}
-	if !reflect.DeepEqual(outputInt, expectedInt) {
-		t.Errorf("got (%v), expected (%v)", outputInt, expectedInt)
-	}
-
-	// ByteArray to string conversion
-	data = []byte(testString)
-	var (
-		outputStr, expectedStr string
-		strinput               = StackParam{
-			Type:  ByteArray,
-			Value: data,
-		}
-	)
-	expectedStr = testString
-	if err = strinput.TryParse(&outputStr); err != nil {
-		t.Errorf("failed to parse stackparam to []byte: %v", err)
-	}
-	if !reflect.DeepEqual(outputStr, expectedStr) {
-		t.Errorf("got (%v), expected (%v)", outputStr, expectedStr)
-	}
-
-	// StackParams to []util.Uint160
-	data, err = hex.DecodeString(hash160)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expUint160, err := util.Uint160DecodeString(hash160)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var (
-		params = StackParams{
-			StackParam{
+	for _, tc := range tryParseTestCases {
+		t.Run(reflect.TypeOf(tc.expected).String(), func(t *testing.T) {
+			input := StackParam{
 				Type:  ByteArray,
-				Value: data,
+				Value: tc.input,
+			}
+
+			val := reflect.New(reflect.TypeOf(tc.expected))
+			assert.NoError(t, input.TryParse(val.Interface()))
+			assert.Equal(t, tc.expected, val.Elem().Interface())
+		})
+	}
+
+	t.Run("[]Uint160", func(t *testing.T) {
+		exp1 := util.Uint160{1, 2, 3, 4, 5}
+		exp2 := util.Uint160{9, 8, 7, 6, 5}
+
+		params := StackParams{
+			{
+				Type:  ByteArray,
+				Value: exp1.Bytes(),
 			},
-			StackParam{
+			{
 				Type:  ByteArray,
-				Value: data,
+				Value: exp2.Bytes(),
 			},
 		}
-		expectedArray = []util.Uint160{
-			expUint160,
-			expUint160,
-		}
-		out1, out2 = &util.Uint160{}, &util.Uint160{}
-	)
-	if err = params.TryParseArray(out1, out2); err != nil {
-		t.Errorf("failed to parse stackparam to []byte: %v", err)
-	}
-	outArray := []util.Uint160{*out1, *out2}
-	if !reflect.DeepEqual(outArray, expectedArray) {
-		t.Errorf("got (%v), expected (%v)", outArray, expectedArray)
+
+		var out1, out2 util.Uint160
+
+		assert.NoError(t, params.TryParseArray(&out1, &out2))
+		assert.Equal(t, exp1, out1)
+		assert.Equal(t, exp2, out2)
+	})
+}
+
+func TestStackParamType_String(t *testing.T) {
+	types := []StackParamType{
+		Signature,
+		Boolean,
+		Integer,
+		Hash160,
+		Hash256,
+		ByteArray,
+		PublicKey,
+		String,
+		Array,
+		InteropInterface,
+		Void,
 	}
 
+	for _, exp := range types {
+		actual, err := StackParamTypeFromString(exp.String())
+		assert.NoError(t, err)
+		assert.Equal(t, exp, actual)
+	}
+
+	actual, err := StackParamTypeFromString(Unknown.String())
+	assert.Error(t, err)
+	assert.Equal(t, Unknown, actual)
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
+const (
 	defaultDialTimeout    = 4 * time.Second
 	defaultRequestTimeout = 4 * time.Second
 	defaultClientVersion  = "2.0"
@@ -78,7 +78,6 @@ func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Clien
 
 	// TODO(@antdm): Enable SSL.
 	if opts.Cert != "" && opts.Key != "" {
-
 	}
 
 	if opts.Client.Timeout == 0 {
