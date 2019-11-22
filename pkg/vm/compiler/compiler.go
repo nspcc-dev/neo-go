@@ -60,7 +60,7 @@ func Compile(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return buf, nil
 }
 
 type archive struct {

@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"bytes"
 	"encoding/binary"
 	"go/ast"
 	"go/constant"
@@ -13,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
@@ -24,7 +24,7 @@ type codegen struct {
 	buildInfo *buildInfo
 
 	// prog holds the output buffer.
-	prog *bytes.Buffer
+	prog *io.BufBinWriter
 
 	// Type information.
 	typeInfo *types.Info
@@ -56,6 +56,10 @@ func (c *codegen) pc() int {
 }
 
 func (c *codegen) emitLoadConst(t types.TypeAndValue) {
+	if c.prog.Err != nil {
+		log.Fatal(c.prog.Err)
+		return
+	}
 	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
 		switch typ.Kind() {
@@ -201,6 +205,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
+	if c.prog.Err != nil {
+		log.Fatal(c.prog.Err)
+		return nil
+	}
 	switch n := node.(type) {
 
 	// General declarations.
@@ -761,11 +769,11 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 }
 
 // CodeGen compiles the program to bytecode.
-func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
+func CodeGen(info *buildInfo) ([]byte, error) {
 	pkg := info.program.Package(info.initialPackage)
 	c := &codegen{
 		buildInfo: info,
-		prog:      new(bytes.Buffer),
+		prog:      io.NewBufBinWriter(),
 		l:         []int{},
 		funcs:     map[string]*funcScope{},
 		typeInfo:  &pkg.Info,
@@ -815,9 +823,12 @@ func CodeGen(info *buildInfo) (*bytes.Buffer, error) {
 		}
 	}
 
-	c.writeJumps()
-
-	return c.prog, nil
+	if c.prog.Err != nil {
+		return nil, c.prog.Err
+	}
+	buf := c.prog.Bytes()
+	c.writeJumps(buf)
+	return buf, nil
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File) {
@@ -831,8 +842,7 @@ func (c *codegen) resolveFuncDecls(f *ast.File) {
 	}
 }
 
-func (c *codegen) writeJumps() {
-	b := c.prog.Bytes()
+func (c *codegen) writeJumps(b []byte) {
 	for i, op := range b {
 		j := i + 1
 		switch vm.Instruction(op) {

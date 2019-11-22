@@ -19,6 +19,11 @@ func NewBufBinWriter() *BufBinWriter {
 	return &BufBinWriter{BinWriter: NewBinWriterFromIO(b), buf: b}
 }
 
+// Len returns the number of bytes of the unread portion of the buffer.
+func (bw *BufBinWriter) Len() int {
+	return bw.buf.Len()
+}
+
 // Bytes returns resulting buffer and makes future writes return an error.
 func (bw *BufBinWriter) Bytes() []byte {
 	if bw.Err != nil {
