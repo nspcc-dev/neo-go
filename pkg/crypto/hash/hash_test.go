@@ -1,10 +1,12 @@
 package hash
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSha256(t *testing.T) {
@@ -46,4 +48,19 @@ func TestHash160(t *testing.T) {
 	expected := "c8e2b685cc70ec96743b55beb9449782f8f775d8"
 	actual := hex.EncodeToString(data.Bytes())
 	assert.Equal(t, expected, actual)
+}
+
+func TestChecksum(t *testing.T) {
+	testCases := []struct {
+		data []byte
+		sum  uint32
+	}{
+		{nil, 0xe2e0f65d},
+		{[]byte{}, 0xe2e0f65d},
+		{[]byte{1, 2, 3, 4}, 0xe272e48d},
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.sum, binary.LittleEndian.Uint32(Checksum(tc.data)))
+	}
 }
