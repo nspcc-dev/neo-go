@@ -64,6 +64,15 @@ func TestFixed8FromString(t *testing.T) {
 	n, err = Fixed8FromString(val)
 	assert.Nil(t, err)
 	assert.Equal(t, Fixed8(90123410000), n)
+
+	// Fixed8FromString with errors
+	val = "90n1"
+	_, err = Fixed8FromString(val)
+	assert.Error(t, err)
+
+	val = "90.1s"
+	_, err = Fixed8FromString(val)
+	assert.Error(t, err)
 }
 
 func TestSatoshi(t *testing.T) {
@@ -93,4 +102,35 @@ func TestFixed8UnmarshalJSON(t *testing.T) {
 		assert.Nil(t, json.Unmarshal(s, &u2))
 		assert.Equal(t, expected, u2)
 	}
+
+	errorCases := []string{
+		`"123.u"`,
+		"13.j",
+	}
+
+	for _, tc := range errorCases {
+		var u Fixed8
+		assert.Error(t, u.UnmarshalJSON([]byte(tc)))
+	}
+}
+
+func TestFixed8_MarshalJSON(t *testing.T) {
+	u, err := Fixed8FromString("123.4")
+	assert.NoError(t, err)
+
+	s, err := json.Marshal(u)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`"123.4"`), s)
+}
+
+func TestFixed8_Arith(t *testing.T) {
+	u1 := Fixed8FromInt64(3)
+	u2 := Fixed8FromInt64(8)
+
+	assert.True(t, u1.LessThan(u2))
+	assert.True(t, u2.GreaterThan(u1))
+	assert.True(t, u1.Equal(u1))
+	assert.NotZero(t, u1.CompareTo(u2))
+	assert.Zero(t, u1.CompareTo(u1))
+	assert.EqualValues(t, Fixed8(2), u2.Div(3))
 }
