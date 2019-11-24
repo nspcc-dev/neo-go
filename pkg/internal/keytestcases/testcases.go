@@ -8,6 +8,7 @@ type Ktype struct {
 	Wif,
 	Passphrase,
 	EncryptedWif string
+	Invalid bool
 }
 
 // Arr contains a set of known keys in Ktype format.
@@ -35,5 +36,14 @@ var Arr = []Ktype{
 		Wif:          "KyKvWLZsNwBJx5j9nurHYRwhYfdQUu9tTEDsLCUHDbYBL8cHxMiG",
 		Passphrase:   "MyL33tP@33w0rd",
 		EncryptedWif: "6PYNoc1EG5J38MTqGN9Anphfdd6UwbS4cpFCzHhrkSKBBbV1qkbJJZQnkn",
+	},
+	{
+		Address:      "xdf4UGKevVrMR1j3UkPsuoYKSC4ocoAkKx",
+		PrivateKey:   "zzdee7036b8fd9cef91de47386b191dd76db2888a553e7736bb02808932a915b",
+		PublicKey:    "zz232ce8d2e2063dce0451131851d47421bfc4fc1da4db116fca5302c0756462fa",
+		Wif:          "zzKvWLZsNwBJx5j9nurHYRwhYfdQUu9tTEDsLCUHDbYBL8cHxMiG",
+		Passphrase:   "zzL33tP@33w0rd",
+		EncryptedWif: "6PYNoc1EG5J38MTqGN9Anphfdd6UwbS4cpFCzHhrkSKBBbV1qkbJJZQnkn",
+		Invalid:      true,
 	},
 }

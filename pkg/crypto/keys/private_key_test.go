@@ -12,6 +12,11 @@ import (
 func TestPrivateKey(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
+		}
+
 		assert.Nil(t, err)
 		address := privKey.Address()
 		assert.Equal(t, testCase.Address, address)
@@ -26,6 +31,11 @@ func TestPrivateKey(t *testing.T) {
 func TestPrivateKeyFromWIF(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		key, err := NewPrivateKeyFromWIF(testCase.Wif)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
+		}
+
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.PrivateKey, key.String())
 	}

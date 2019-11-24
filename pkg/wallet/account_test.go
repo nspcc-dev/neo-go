@@ -5,14 +5,18 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewAccount(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		acc, err := NewAccountFromWIF(testCase.Wif)
-		if err != nil {
-			t.Fatal(err)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
 		}
+
+		assert.NoError(t, err)
 		compareFields(t, testCase, acc)
 	}
 }
@@ -20,9 +24,12 @@ func TestNewAccount(t *testing.T) {
 func TestDecryptAccount(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		acc, err := DecryptAccount(testCase.EncryptedWif, testCase.Passphrase)
-		if err != nil {
-			t.Fatal(err)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
 		}
+
+		assert.NoError(t, err)
 		compareFields(t, testCase, acc)
 	}
 }
@@ -30,9 +37,12 @@ func TestDecryptAccount(t *testing.T) {
 func TestNewFromWif(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 		acc, err := NewAccountFromWIF(testCase.Wif)
-		if err != nil {
-			t.Fatal(err)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
 		}
+
+		assert.NoError(t, err)
 		compareFields(t, testCase, acc)
 	}
 }
