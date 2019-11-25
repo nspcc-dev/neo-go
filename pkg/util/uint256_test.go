@@ -26,6 +26,9 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 	// UnmarshalJSON decodes hex-strings prefixed by 0x
 	require.NoError(t, u2.UnmarshalJSON(s))
 	assert.True(t, expected.Equals(u1))
+
+	// UnmarshalJSON does not accepts numbers
+	assert.Error(t, u2.UnmarshalJSON([]byte("123")))
 }
 
 func TestUint256DecodeString(t *testing.T) {
@@ -33,6 +36,21 @@ func TestUint256DecodeString(t *testing.T) {
 	val, err := Uint256DecodeReverseString(hexStr)
 	require.NoError(t, err)
 	assert.Equal(t, hexStr, val.ReverseString())
+
+	bs, err := hex.DecodeString(hexStr)
+	require.NoError(t, err)
+
+	val1, err := Uint256DecodeBytes(bs)
+	assert.NoError(t, err)
+	assert.Equal(t, hexStr, val1.String())
+	assert.Equal(t, val, val1.Reverse())
+
+	_, err = Uint256DecodeReverseString(hexStr[1:])
+	assert.Error(t, err)
+
+	hexStr = "zzz7308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	_, err = Uint256DecodeReverseString(hexStr)
+	assert.Error(t, err)
 }
 
 func TestUint256DecodeBytes(t *testing.T) {
@@ -43,6 +61,9 @@ func TestUint256DecodeBytes(t *testing.T) {
 	val, err := Uint256DecodeReverseBytes(b)
 	require.NoError(t, err)
 	assert.Equal(t, hexStr, val.ReverseString())
+
+	_, err = Uint256DecodeBytes(b[1:])
+	assert.Error(t, err)
 }
 
 func TestUInt256Equals(t *testing.T) {
@@ -56,6 +77,7 @@ func TestUInt256Equals(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ua.Equals(ub), "%s and %s cannot be equal", ua, ub)
 	assert.True(t, ua.Equals(ua), "%s and %s must be equal", ua, ua)
+	assert.Zero(t, ua.CompareTo(ua), "%s and %s must be equal", ua, ua)
 }
 
 func TestUint256_Serializable(t *testing.T) {
