@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -158,7 +158,7 @@ func (c *Client) SetClient(cli *http.Client) {
 // asset belonging to specified address. This implementation uses GetUnspents
 // JSON-RPC call internally, so make sure your RPC server suppors that.
 func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
-	var utxos core.UnspentBalances
+	var utxos entities.UnspentBalances
 
 	resp, err := c.GetUnspents(address)
 	if err != nil || resp.Error != nil {

@@ -1,15 +1,11 @@
-package core
+package entities
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
-
-// Contracts is a mapping between scripthash and ContractState.
-type Contracts map[util.Uint160]*ContractState
 
 // ContractState holds information about a smart contract in the NEO blockchain.
 type ContractState struct {
@@ -24,16 +20,6 @@ type ContractState struct {
 	Description string
 
 	scriptHash util.Uint160
-}
-
-// commit flushes all contracts to the given storage.Batch.
-func (a Contracts) commit(store storage.Store) error {
-	for _, contract := range a {
-		if err := putContractStateIntoStore(store, contract); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // DecodeBinary implements Serializable interface.
@@ -61,23 +47,6 @@ func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteString(cs.Author)
 	bw.WriteString(cs.Email)
 	bw.WriteString(cs.Description)
-}
-
-// putContractStateIntoStore puts given contract state into the given store.
-func putContractStateIntoStore(s storage.Store, cs *ContractState) error {
-	buf := io.NewBufBinWriter()
-	cs.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().BytesBE())
-	return s.Put(key, buf.Bytes())
-}
-
-// deleteContractStateInStore deletes given contract state in the given store.
-func deleteContractStateInStore(s storage.Store, hash util.Uint160) error {
-	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
-	return s.Delete(key)
 }
 
 // ScriptHash returns a contract script hash.

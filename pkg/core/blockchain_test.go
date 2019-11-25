@@ -56,7 +56,7 @@ func TestAddBlock(t *testing.T) {
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
-		if _, err := bc.store.Get(key); err != nil {
+		if _, err := bc.dao.store.Get(key); err != nil {
 			t.Fatalf("block %s not persisted", block.Hash())
 		}
 	}
@@ -170,7 +170,7 @@ func TestClose(t *testing.T) {
 	// It's a hack, but we use internal knowledge of MemoryStore
 	// implementation which makes it completely unusable (up to panicing)
 	// after Close().
-	_ = bc.store.Put([]byte{0}, []byte{1})
+	_ = bc.dao.store.Put([]byte{0}, []byte{1})
 
 	// This should never be executed.
 	assert.Nil(t, t)

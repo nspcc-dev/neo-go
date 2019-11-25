@@ -2,9 +2,9 @@ package wrappers
 
 import (
 	"bytes"
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -33,7 +33,7 @@ type Balance struct {
 }
 
 // NewAccountState creates a new AccountState wrapper.
-func NewAccountState(a *core.AccountState) AccountState {
+func NewAccountState(a *entities.AccountState) AccountState {
 	balances := make(Balances, 0, len(a.Balances))
 	for k, v := range a.GetBalanceValues() {
 		balances = append(balances, Balance{

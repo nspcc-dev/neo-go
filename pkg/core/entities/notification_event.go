@@ -1,11 +1,9 @@
-package core
+package entities
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
-	"github.com/pkg/errors"
 )
 
 // NotificationEvent is a tuple of scripthash that emitted the StackItem as a
@@ -24,35 +22,6 @@ type AppExecResult struct {
 	GasConsumed util.Fixed8
 	Stack       string // JSON
 	Events      []NotificationEvent
-}
-
-// putAppExecResultIntoStore puts given application execution result into the
-// given store.
-func putAppExecResultIntoStore(s storage.Store, aer *AppExecResult) error {
-	buf := io.NewBufBinWriter()
-	aer.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
-	return s.Put(key, buf.Bytes())
-}
-
-// getAppExecResultFromStore gets application execution result from the
-// given store.
-func getAppExecResultFromStore(s storage.Store, hash util.Uint256) (*AppExecResult, error) {
-	aer := &AppExecResult{}
-	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
-	if b, err := s.Get(key); err == nil {
-		r := io.NewBinReaderFromBuf(b)
-		aer.DecodeBinary(r)
-		if r.Err != nil {
-			return nil, errors.Wrap(r.Err, "decoding failure:")
-		}
-	} else {
-		return nil, err
-	}
-	return aer, nil
 }
 
 // EncodeBinary implements the Serializable interface.

@@ -1,4 +1,4 @@
-package core
+package entities
 
 // CoinState represents the state of a coin.
 type CoinState uint8

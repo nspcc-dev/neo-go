@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -341,7 +342,7 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 	// It can be just about anything.
 	e := v.Estack().Pop()
-	ne := NotificationEvent{getContextScriptHash(v, 0), e.Item()}
+	ne := entities.NotificationEvent{ScriptHash:getContextScriptHash(v, 0), Item:e.Item()}
 	ic.notifications = append(ic.notifications, ne)
 	return nil
 }
@@ -410,11 +411,11 @@ func (ic *interopContext) storageDelete(v *vm.VM) error {
 		return err
 	}
 	key := v.Estack().Pop().Bytes()
-	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
+	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
 	if si != nil && si.IsConst {
 		return errors.New("storage item is constant")
 	}
-	return deleteStorageItemInStore(ic.mem, stc.ScriptHash, key)
+	return ic.dao.DeleteStorageItem(stc.ScriptHash, key)
 }
 
 // storageGet returns stored key-value pair.
@@ -429,7 +430,7 @@ func (ic *interopContext) storageGet(v *vm.VM) error {
 		return err
 	}
 	key := v.Estack().Pop().Bytes()
-	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
+	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
 	if si != nil && si.Value != nil {
 		v.Estack().PushVal(si.Value)
 	} else {
@@ -472,16 +473,16 @@ func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte
 	if err != nil {
 		return err
 	}
-	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
+	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
 	if si == nil {
-		si = &StorageItem{}
+		si = &entities.StorageItem{}
 	}
 	if si.IsConst {
 		return errors.New("storage item exists and is read-only")
 	}
 	si.Value = value
 	si.IsConst = isConst
-	return putStorageItemIntoStore(ic.mem, stc.ScriptHash, key, si)
+	return ic.dao.PutStorageItem(stc.ScriptHash, key, si)
 }
 
 // storagePutInternal is a unified implementation of storagePut and storagePutEx.
@@ -538,7 +539,7 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 	if cs == nil {
 		return nil
 	}
-	err := deleteContractStateInStore(ic.mem, hash)
+	err := ic.dao.DeleteContractState(hash)
 	if err != nil {
 		return err
 	}
@@ -548,7 +549,7 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 			return err
 		}
 		for k := range siMap {
-			_ = deleteStorageItemInStore(ic.mem, hash, []byte(k))
+			_ = ic.dao.DeleteStorageItem(hash, []byte(k))
 		}
 	}
 	return nil
@@ -557,11 +558,12 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 // contractGetStorageContext retrieves StorageContext of a contract.
 func (ic *interopContext) contractGetStorageContext(v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*ContractState)
+	cs, ok := csInterface.(*entities.ContractState)
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}
-	if getContractStateFromStore(ic.mem, cs.ScriptHash()) == nil {
+	contractState, err := ic.dao.GetContractState(cs.ScriptHash())
+	if contractState == nil || err != nil {
 		return fmt.Errorf("contract was not created in this transaction")
 	}
 	stc := &StorageContext{

@@ -1,73 +1,10 @@
-package core
+package entities
 
 import (
-	"fmt"
-
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
-
-// Accounts is mapping between a account address and AccountState.
-type Accounts map[util.Uint160]*AccountState
-
-// getAndUpdate retrieves AccountState from temporary or persistent Store
-// or creates a new one if it doesn't exist.
-func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountState, error) {
-	if account, ok := a[hash]; ok {
-		return account, nil
-	}
-
-	account, err := getAccountStateFromStore(s, hash)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
-			return nil, err
-		}
-		account = NewAccountState(hash)
-	}
-
-	a[hash] = account
-	return account, nil
-}
-
-// getAccountStateFromStore returns AccountState from the given Store if it's
-// present there. Returns nil otherwise.
-func getAccountStateFromStore(s storage.Store, hash util.Uint160) (*AccountState, error) {
-	var account *AccountState
-	key := storage.AppendPrefix(storage.STAccount, hash.BytesBE())
-	b, err := s.Get(key)
-	if err == nil {
-		account = new(AccountState)
-		r := io.NewBinReaderFromBuf(b)
-		account.DecodeBinary(r)
-		if r.Err != nil {
-			return nil, fmt.Errorf("failed to decode (AccountState): %s", r.Err)
-		}
-	}
-	return account, err
-}
-
-// putAccountStateIntoStore puts given AccountState into the given store.
-func putAccountStateIntoStore(store storage.Store, as *AccountState) error {
-	buf := io.NewBufBinWriter()
-	as.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
-	return store.Put(key, buf.Bytes())
-}
-
-// commit writes all account states to the given Batch.
-func (a Accounts) commit(store storage.Store) error {
-	for _, state := range a {
-		if err := putAccountStateIntoStore(store, state); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // UnspentBalance contains input/output transactons that sum up into the
 // account balance for the given asset.

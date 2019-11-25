@@ -1,59 +1,9 @@
 package core
 
 import (
-	"fmt"
-
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
-
-// SpentCoins is mapping between transactions and their spent
-// coin state.
-type SpentCoins map[util.Uint256]*SpentCoinState
-
-func (s SpentCoins) getAndUpdate(store storage.Store, hash util.Uint256) (*SpentCoinState, error) {
-	if spent, ok := s[hash]; ok {
-		return spent, nil
-	}
-
-	spent := &SpentCoinState{}
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
-	if b, err := store.Get(key); err == nil {
-		r := io.NewBinReaderFromBuf(b)
-		spent.DecodeBinary(r)
-		if r.Err != nil {
-			return nil, fmt.Errorf("failed to decode (UnspentCoinState): %s", r.Err)
-		}
-	} else {
-		spent = &SpentCoinState{
-			items: make(map[uint16]uint32),
-		}
-	}
-
-	s[hash] = spent
-	return spent, nil
-}
-
-// putSpentCoinStateIntoStore puts given SpentCoinState into the given store.
-func putSpentCoinStateIntoStore(store storage.Store, hash util.Uint256, scs *SpentCoinState) error {
-	buf := io.NewBufBinWriter()
-	scs.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
-	return store.Put(key, buf.Bytes())
-}
-
-func (s SpentCoins) commit(store storage.Store) error {
-	for hash, state := range s {
-		if err := putSpentCoinStateIntoStore(store, hash, state); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // SpentCoinState represents the state of a spent coin.
 type SpentCoinState struct {

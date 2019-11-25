@@ -1,7 +1,7 @@
 package wrappers
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -26,7 +26,7 @@ type AssetState struct {
 }
 
 // NewAssetState creates a new AssetState wrapper.
-func NewAssetState(a *core.AssetState) AssetState {
+func NewAssetState(a *entities.AssetState) AssetState {
 	return AssetState{
 		ID:         a.ID,
 		AssetType:  a.AssetType,

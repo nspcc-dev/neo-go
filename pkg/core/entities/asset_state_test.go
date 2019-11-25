@@ -1,10 +1,11 @@
-package core
+package entities
 
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -12,15 +13,16 @@ import (
 
 func TestEncodeDecodeAssetState(t *testing.T) {
 	asset := &AssetState{
-		ID:         randomUint256(),
+		ID:         testutil.RandomUint256(),
 		AssetType:  transaction.Token,
 		Name:       "super cool token",
 		Amount:     util.Fixed8(1000000),
 		Available:  util.Fixed8(100),
 		Precision:  0,
 		FeeMode:    feeMode,
-		Admin:      randomUint160(),
-		Issuer:     randomUint160(),
+		Owner:      keys.PublicKey{},
+		Admin:      testutil.RandomUint160(),
+		Issuer:     testutil.RandomUint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}
@@ -33,25 +35,4 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 	assetDecode.DecodeBinary(r)
 	assert.Nil(t, r.Err)
 	assert.Equal(t, asset, assetDecode)
-}
-
-func TestPutGetAssetState(t *testing.T) {
-	s := storage.NewMemoryStore()
-	asset := &AssetState{
-		ID:         randomUint256(),
-		AssetType:  transaction.Token,
-		Name:       "super cool token",
-		Amount:     util.Fixed8(1000000),
-		Available:  util.Fixed8(100),
-		Precision:  8,
-		FeeMode:    feeMode,
-		Admin:      randomUint160(),
-		Issuer:     randomUint160(),
-		Expiration: 10,
-		IsFrozen:   false,
-	}
-	assert.NoError(t, putAssetStateIntoStore(s, asset))
-	asRead := getAssetStateFromStore(s, asset.ID)
-	assert.NotNil(t, asRead)
-	assert.Equal(t, asset, asRead)
 }

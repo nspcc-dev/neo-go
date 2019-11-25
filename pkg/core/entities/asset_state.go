@@ -1,7 +1,6 @@
-package core
+package entities
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -9,29 +8,6 @@ import (
 )
 
 const feeMode = 0x0
-
-// Assets is mapping between AssetID and the AssetState.
-type Assets map[util.Uint256]*AssetState
-
-func (a Assets) commit(store storage.Store) error {
-	for _, state := range a {
-		if err := putAssetStateIntoStore(store, state); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// putAssetStateIntoStore puts given asset state into the given store.
-func putAssetStateIntoStore(s storage.Store, as *AssetState) error {
-	buf := io.NewBufBinWriter()
-	as.EncodeBinary(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
-	}
-	key := storage.AppendPrefix(storage.STAsset, as.ID.BytesBE())
-	return s.Put(key, buf.Bytes())
-}
 
 // AssetState represents the state of an NEO registered Asset.
 type AssetState struct {

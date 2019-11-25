@@ -2,17 +2,18 @@ package wrappers
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // UnspentBalanceInfo wrapper is used to represent single unspent asset entry
 // in `getunspents` output.
 type UnspentBalanceInfo struct {
-	Unspents    []core.UnspentBalance `json:"unspent"`
-	AssetHash   util.Uint256          `json:"asset_hash"`
-	Asset       string                `json:"asset"`
-	AssetSymbol string                `json:"asset_symbol"`
-	Amount      util.Fixed8           `json:"amount"`
+	Unspents    []entities.UnspentBalance `json:"unspent"`
+	AssetHash   util.Uint256              `json:"asset_hash"`
+	Asset       string                    `json:"asset"`
+	AssetSymbol string                    `json:"asset_symbol"`
+	Amount      util.Fixed8               `json:"amount"`
 }
 
 // Unspents wrapper is used to represent getunspents return result.
@@ -28,7 +29,7 @@ var GlobalAssets = map[string]string{
 }
 
 // NewUnspents creates a new AccountState wrapper using given Blockchainer.
-func NewUnspents(a *core.AccountState, chain core.Blockchainer, addr string) Unspents {
+func NewUnspents(a *entities.AccountState, chain core.Blockchainer, addr string) Unspents {
 	res := Unspents{
 		Address: addr,
 		Balance: make([]UnspentBalanceInfo, 0, len(a.Balances)),

@@ -4,7 +4,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -337,9 +339,9 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 	return v, tx, context
 }
 
-func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) {
+func createVMAndAssetState(t *testing.T) (*vm.VM, *entities.AssetState, *interopContext) {
 	v := vm.New()
-	assetState := &AssetState{
+	assetState := &entities.AssetState{
 		ID:         util.Uint256{},
 		AssetType:  transaction.GoverningToken,
 		Name:       "TestAsset",
@@ -347,10 +349,10 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 		Available:  2,
 		Precision:  1,
 		FeeMode:    1,
-		FeeAddress: randomUint160(),
+		FeeAddress: testutil.RandomUint160(),
 		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
-		Admin:      randomUint160(),
-		Issuer:     randomUint160(),
+		Admin:      testutil.RandomUint160(),
+		Issuer:     testutil.RandomUint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}
@@ -359,30 +361,29 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 	return v, assetState, context
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *ContractState, *interopContext) {
+func createVMAndContractState(t *testing.T) (*vm.VM, *entities.ContractState, *interopContext) {
 	v := vm.New()
-	contractState := &ContractState{
+	contractState := &entities.ContractState{
 		Script:      []byte("testscript"),
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.ArrayType,
 		Properties:  smartcontract.HasStorage,
-		Name:        randomString(10),
-		CodeVersion: randomString(10),
-		Author:      randomString(10),
-		Email:       randomString(10),
-		Description: randomString(10),
-		scriptHash:  randomUint160(),
+		Name:        testutil.RandomString(10),
+		CodeVersion: testutil.RandomString(10),
+		Author:      testutil.RandomString(10),
+		Email:       testutil.RandomString(10),
+		Description: testutil.RandomString(10),
 	}
 
 	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
 	return v, contractState, context
 }
 
-func createVMAndAccState(t *testing.T) (*vm.VM, *AccountState, *interopContext) {
+func createVMAndAccState(t *testing.T) (*vm.VM, *entities.AccountState, *interopContext) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
-	accountState := NewAccountState(hash)
+	accountState := entities.NewAccountState(hash)
 
 	key := &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)}
 	accountState.Votes = []*keys.PublicKey{key}
@@ -403,14 +404,14 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	})
 
 	inputs := append(tx.Inputs, transaction.Input{
-		PrevHash:  randomUint256(),
+		PrevHash:  testutil.RandomUint256(),
 		PrevIndex: 1,
 	})
 
 	outputs := append(tx.Outputs, transaction.Output{
-		AssetID:    randomUint256(),
+		AssetID:    testutil.RandomUint256(),
 		Amount:     10,
-		ScriptHash: randomUint160(),
+		ScriptHash: testutil.RandomUint160(),
 		Position:   1,
 	})
 

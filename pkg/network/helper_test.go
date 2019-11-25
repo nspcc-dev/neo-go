@@ -9,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/entities"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -62,7 +63,7 @@ func (chain testChain) HeaderHeight() uint32 {
 func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 	panic("TODO")
 }
-func (chain testChain) GetContractState(hash util.Uint160) *core.ContractState {
+func (chain testChain) GetContractState(hash util.Uint160) *entities.ContractState {
 	panic("TODO")
 }
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
@@ -72,10 +73,10 @@ func (chain testChain) GetHeader(hash util.Uint256) (*core.Header, error) {
 	panic("TODO")
 }
 
-func (chain testChain) GetAssetState(util.Uint256) *core.AssetState {
+func (chain testChain) GetAssetState(util.Uint256) *entities.AssetState {
 	panic("TODO")
 }
-func (chain testChain) GetAccountState(util.Uint160) *core.AccountState {
+func (chain testChain) GetAccountState(util.Uint160) *entities.AccountState {
 	panic("TODO")
 }
 func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.PublicKey, error) {
@@ -84,13 +85,13 @@ func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.Publi
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *core.StorageItem {
+func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *entities.StorageItem {
 	panic("TODO")
 }
 func (chain testChain) GetTestVM() (*vm.VM, storage.Store) {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*core.StorageItem, error) {
+func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*entities.StorageItem, error) {
 	panic("TODO")
 }
 func (chain testChain) CurrentHeaderHash() util.Uint256 {

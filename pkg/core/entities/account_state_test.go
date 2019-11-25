@@ -1,8 +1,9 @@
-package core
+package entities
 
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -16,12 +17,12 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		votes    = make([]*keys.PublicKey, n)
 	)
 	for i := 0; i < n; i++ {
-		asset := randomUint256()
+		asset := testutil.RandomUint256()
 		for j := 0; j < i+1; j++ {
 			balances[asset] = append(balances[asset], UnspentBalance{
-				Tx:    randomUint256(),
-				Index: uint16(randomInt(0, 65535)),
-				Value: util.Fixed8(int64(randomInt(1, 10000))),
+				Tx:    testutil.RandomUint256(),
+				Index: uint16(testutil.RandomInt(0, 65535)),
+				Value: util.Fixed8(int64(testutil.RandomInt(1, 10000))),
 			})
 		}
 		k, err := keys.NewPrivateKey()
@@ -31,7 +32,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 
 	a := &AccountState{
 		Version:    0,
-		ScriptHash: randomUint160(),
+		ScriptHash: testutil.RandomUint160(),
 		IsFrozen:   true,
 		Votes:      votes,
 		Balances:   balances,
@@ -57,8 +58,8 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 }
 
 func TestAccountStateBalanceValues(t *testing.T) {
-	asset1 := randomUint256()
-	asset2 := randomUint256()
+	asset1 := testutil.RandomUint256()
+	asset2 := testutil.RandomUint256()
 	as := AccountState{Balances: make(map[util.Uint256][]UnspentBalance)}
 	ref := 0
 	for i := 0; i < 10; i++ {
