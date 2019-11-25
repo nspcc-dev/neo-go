@@ -25,6 +25,8 @@ func TestUint160UnmarshalJSON(t *testing.T) {
 	// UnmarshalJSON decodes hex-strings prefixed by 0x
 	assert.NoError(t, u2.UnmarshalJSON(s))
 	assert.True(t, expected.Equals(u1))
+
+	assert.Error(t, u2.UnmarshalJSON([]byte(`123`)))
 }
 
 func TestUInt160DecodeString(t *testing.T) {
@@ -32,6 +34,13 @@ func TestUInt160DecodeString(t *testing.T) {
 	val, err := Uint160DecodeString(hexStr)
 	assert.NoError(t, err)
 	assert.Equal(t, hexStr, val.String())
+
+	_, err = Uint160DecodeString(hexStr[1:])
+	assert.Error(t, err)
+
+	hexStr = "zz3b96ae1bcc5a585e075e3b81920210dec16302"
+	_, err = Uint160DecodeString(hexStr)
+	assert.Error(t, err)
 }
 
 func TestUint160DecodeBytes(t *testing.T) {
@@ -42,6 +51,9 @@ func TestUint160DecodeBytes(t *testing.T) {
 	val, err := Uint160DecodeBytes(b)
 	assert.NoError(t, err)
 	assert.Equal(t, hexStr, val.String())
+
+	_, err = Uint160DecodeBytes(b[1:])
+	assert.Error(t, err)
 }
 
 func TestUInt160Equals(t *testing.T) {
