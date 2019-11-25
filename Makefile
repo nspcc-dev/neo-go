@@ -105,7 +105,7 @@ env_image: env_vendor
 
 env_up:
 	@echo "=> Bootup environment"
-	@docker-compose -f $(DC_FILE) up -d node_four
+	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
 
 env_down:
 	@echo "=> Stop and cleanup environment"

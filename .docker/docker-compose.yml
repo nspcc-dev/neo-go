@@ -69,7 +69,3 @@ services:
       -  20334:20334
       -  20344:20344
       -  20354:20354
-    depends_on:
-      - node_one
-      - node_two
-      - node_three
