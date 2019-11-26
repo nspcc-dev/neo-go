@@ -27,7 +27,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.2"
+	version          = "0.0.3"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
