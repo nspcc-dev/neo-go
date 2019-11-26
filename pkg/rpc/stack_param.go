@@ -89,6 +89,11 @@ func StackParamTypeFromString(s string) (StackParamType, error) {
 	}
 }
 
+// MarshalJSON implements the json.Marshaler interface.
+func (t *StackParamType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
+}
+
 // UnmarshalJSON sets StackParamType from JSON-encoded data.
 func (t *StackParamType) UnmarshalJSON(data []byte) (err error) {
 	var (
