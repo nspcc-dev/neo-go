@@ -10,7 +10,6 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
@@ -136,12 +135,12 @@ Methods:
 				break Methods
 			}
 		case numberT:
-			if !s.validBlockHeight(param) {
+			num, err := s.blockHeightFromParam(param)
+			if err != nil {
 				resultsErr = errInvalidParams
 				break Methods
 			}
-
-			hash = s.chain.GetHeaderHash(param.GetInt())
+			hash = s.chain.GetHeaderHash(num)
 		case defaultT:
 			resultsErr = errInvalidParams
 			break Methods
@@ -164,12 +163,14 @@ Methods:
 		if !ok {
 			resultsErr = errInvalidParams
 			break Methods
-		} else if !s.validBlockHeight(param) {
-			resultsErr = invalidBlockHeightError(0, param.GetInt())
+		}
+		num, err := s.blockHeightFromParam(param)
+		if err != nil {
+			resultsErr = errInvalidParams
 			break Methods
 		}
 
-		results = s.chain.GetHeaderHash(param.GetInt())
+		results = s.chain.GetHeaderHash(num)
 
 	case "getconnectioncount":
 		getconnectioncountCalled.Inc()
@@ -242,6 +243,9 @@ Methods:
 		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
 
+	case "invokefunction":
+		results, resultsErr = s.invokeFunction(reqParams)
+
 	case "invokescript":
 		results, resultsErr = s.invokescript(reqParams)
 
@@ -306,11 +310,15 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 	param, ok := reqParams.ValueWithType(0, stringT)
 	if !ok {
 		return nil, errInvalidParams
-	} else if scriptHash, err := crypto.Uint160DecodeAddress(param.GetString()); err != nil {
+	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
 		return nil, errInvalidParams
 	} else if as := s.chain.GetAccountState(scriptHash); as != nil {
 		if unspents {
-			results = wrappers.NewUnspents(as, s.chain, param.GetString())
+			str, err := param.GetString()
+			if err != nil {
+				return nil, errInvalidParams
+			}
+			results = wrappers.NewUnspents(as, s.chain, str)
 		} else {
 			results = wrappers.NewAccountState(as)
 		}
@@ -318,6 +326,32 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 		results = "Invalid public account address"
 	}
 	return results, resultsErr
+}
+
+// invokescript implements the `invokescript` RPC call.
+func (s *Server) invokeFunction(reqParams Params) (interface{}, error) {
+	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+	scriptHash, err := scriptHashHex.GetUint160FromHex()
+	if err != nil {
+		return nil, err
+	}
+	script, err := CreateFunctionInvocationScript(scriptHash, reqParams[1:])
+	if err != nil {
+		return nil, err
+	}
+	vm, _ := s.chain.GetTestVM()
+	vm.LoadScript(script)
+	_ = vm.Run()
+	result := &wrappers.InvokeResult{
+		State:       vm.State(),
+		GasConsumed: "0.1",
+		Script:      hex.EncodeToString(script),
+		Stack:       vm.Estack(),
+	}
+	return result, nil
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -334,10 +368,12 @@ func (s *Server) invokescript(reqParams Params) (interface{}, error) {
 	vm, _ := s.chain.GetTestVM()
 	vm.LoadScript(script)
 	_ = vm.Run()
+	// It's already being GetBytesHex'ed, so it's a correct string.
+	echo, _ := reqParams[0].GetString()
 	result := &wrappers.InvokeResult{
 		State:       vm.State(),
 		GasConsumed: "0.1",
-		Script:      reqParams[0].GetString(),
+		Script:      echo,
 		Stack:       vm.Estack(),
 	}
 	return result, nil
@@ -384,6 +420,14 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 	return results, resultsErr
 }
 
-func (s Server) validBlockHeight(param *Param) bool {
-	return param.GetInt() >= 0 && param.GetInt() <= int(s.chain.BlockHeight())
+func (s Server) blockHeightFromParam(param *Param) (int, error) {
+	num, err := param.GetInt()
+	if err != nil {
+		return 0, nil
+	}
+
+	if num < 0 || num > int(s.chain.BlockHeight()) {
+		return 0, invalidBlockHeightError(0, num)
+	}
+	return num, nil
 }

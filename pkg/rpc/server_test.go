@@ -246,6 +246,40 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"invokefunction": {
+		{
+			name:   "positive",
+			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
+			result: func(e *executor) interface{} { return &InvokeFunctionResponse{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*InvokeFunctionResponse)
+				require.True(t, ok)
+				assert.NotEqual(t, "", res.Result.Script)
+				assert.NotEqual(t, "", res.Result.State)
+				assert.NotEqual(t, 0, res.Result.GasConsumed)
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "not a string",
+			params: `[42, "test", []]`,
+			fail:   true,
+		},
+		{
+			name:   "not a scripthash",
+			params: `["qwerty", "test", []]`,
+			fail:   true,
+		},
+		{
+			name:   "bad params",
+			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
+			fail:   true,
+		},
+	},
 	"sendrawtransaction": {
 		{
 			name:   "positive",
