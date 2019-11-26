@@ -36,3 +36,13 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 	assert.Nil(t, r.Err)
 	assert.Equal(t, asset, assetDecode)
 }
+
+func TestAssetState_GetName_NEO(t *testing.T) {
+	asset := &AssetState{AssetType:  transaction.GoverningToken}
+	assert.Equal(t, "NEO", asset.GetName())
+}
+
+func TestAssetState_GetName_NEOGas(t *testing.T) {
+	asset := &AssetState{AssetType:  transaction.UtilityToken}
+	assert.Equal(t, "NEOGas", asset.GetName())
+}
