@@ -35,7 +35,7 @@ func appendToItems(items *[]stackItem, val StackItem, seen map[StackItem]bool) {
 func stackToArray(s *Stack) []stackItem {
 	items := make([]stackItem, 0, s.Len())
 	seen := make(map[StackItem]bool)
-	s.Iter(func(e *Element) {
+	s.IterBack(func(e *Element) {
 		appendToItems(&items, e.value, seen)
 	})
 	return items
