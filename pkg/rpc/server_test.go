@@ -127,6 +127,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 		{
+			name:   "bad params",
+			params: `[[]]`,
+			fail:   true,
+		},
+		{
 			name:   "invalid height",
 			params: `[-1]`,
 			fail:   true,

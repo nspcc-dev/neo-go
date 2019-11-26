@@ -141,7 +141,7 @@ Methods:
 				break Methods
 			}
 			hash = s.chain.GetHeaderHash(num)
-		case defaultT:
+		default:
 			resultsErr = errInvalidParams
 			break Methods
 		}
