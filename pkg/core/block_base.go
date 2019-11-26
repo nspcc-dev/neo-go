@@ -64,9 +64,7 @@ func (b *BlockBase) Hash() util.Uint256 {
 // VerificationHash returns the hash of the block used to verify it.
 func (b *BlockBase) VerificationHash() util.Uint256 {
 	if b.verificationHash.Equals(util.Uint256{}) {
-		if b.createHash() != nil {
-			panic("failed to compute hash!")
-		}
+		b.createHash()
 	}
 	return b.verificationHash
 }
@@ -94,13 +92,12 @@ func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
 }
 
 // getHashableData returns serialized hashable data of the block.
-func (b *BlockBase) getHashableData() ([]byte, error) {
+func (b *BlockBase) getHashableData() []byte {
 	buf := io.NewBufBinWriter()
+	// No error can occure while encoding hashable fields.
 	b.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return nil, buf.Err
-	}
-	return buf.Bytes(), nil
+
+	return buf.Bytes()
 }
 
 // createHash creates the hash of the block.
@@ -109,15 +106,10 @@ func (b *BlockBase) getHashableData() ([]byte, error) {
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
-func (b *BlockBase) createHash() error {
-	bb, err := b.getHashableData()
-	if err != nil {
-		return err
-	}
+func (b *BlockBase) createHash() {
+	bb := b.getHashableData()
 	b.hash = hash.DoubleSha256(bb)
 	b.verificationHash = hash.Sha256(bb)
-
-	return nil
 }
 
 // encodeHashableFields will only encode the fields used for hashing.
@@ -146,6 +138,6 @@ func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
 	// Make the hash of the block here so we dont need to do this
 	// again.
 	if br.Err == nil {
-		br.Err = b.createHash()
+		b.createHash()
 	}
 }
