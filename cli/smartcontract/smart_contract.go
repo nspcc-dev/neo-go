@@ -96,9 +96,9 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "testinvoke",
-				Usage:  "Test an invocation of a smart contract on the blockchain",
-				Action: testInvoke,
+				Name:   "testinvokescript",
+				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				Action: testInvokeScript,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "endpoint, e",
@@ -211,7 +211,7 @@ func contractCompile(ctx *cli.Context) error {
 	return nil
 }
 
-func testInvoke(ctx *cli.Context) error {
+func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
