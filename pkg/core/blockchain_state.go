@@ -19,8 +19,9 @@ type BlockChainState struct {
 
 // NewBlockChainState creates blockchain state with it's memchached store.
 func NewBlockChainState(store *storage.MemCachedStore) *BlockChainState {
+	tmpStore := storage.NewMemCachedStore(store)
 	return &BlockChainState{
-		store:        store,
+		store:        tmpStore,
 		unspentCoins: make(UnspentCoins),
 		spentCoins:   make(SpentCoins),
 		accounts:     make(Accounts),
