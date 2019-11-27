@@ -235,8 +235,12 @@ func (s *Server) run() {
 					"peerCount": s.PeerCount(),
 				}).Warn("peer disconnected")
 				addr := drop.peer.PeerAddr().String()
-				s.discovery.UnregisterConnectedAddr(addr)
-				s.discovery.BackFill(addr)
+				if drop.reason == errIdenticalID {
+					s.discovery.RegisterBadAddr(addr)
+				} else {
+					s.discovery.UnregisterConnectedAddr(addr)
+					s.discovery.BackFill(addr)
+				}
 				updatePeersConnectedMetric(s.PeerCount())
 			} else {
 				// else the peer is already gone, which can happen
