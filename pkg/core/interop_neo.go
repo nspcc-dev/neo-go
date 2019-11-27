@@ -64,7 +64,7 @@ func (ic *interopContext) headerGetMerkleRoot(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.MerkleRoot.BytesReverse())
+	v.Estack().PushVal(header.MerkleRoot.BytesLE())
 	return nil
 }
 
@@ -227,7 +227,7 @@ func (ic *interopContext) inputGetHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(input.PrevHash.Bytes())
+	v.Estack().PushVal(input.PrevHash.BytesBE())
 	return nil
 }
 
@@ -261,7 +261,7 @@ func (ic *interopContext) outputGetAssetID(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(output.AssetID.Bytes())
+	v.Estack().PushVal(output.AssetID.BytesBE())
 	return nil
 }
 
@@ -325,7 +325,7 @@ func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 // bcGetAsset returns an asset.
 func (ic *interopContext) bcGetAsset(v *vm.VM) error {
 	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytes(asbytes)
+	ashash, err := util.Uint256DecodeBytesBE(asbytes)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
 	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytes(asbytes)
+	ashash, err := util.Uint256DecodeBytesBE(asbytes)
 	if err != nil {
 		return err
 	}
@@ -657,7 +657,7 @@ func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
-	v.Estack().PushVal(as.ID.Bytes())
+	v.Estack().PushVal(as.ID.BytesBE())
 	return nil
 }
 

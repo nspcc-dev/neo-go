@@ -65,7 +65,7 @@ func TestHeaderGetMerkleRoot(t *testing.T) {
 	err := context.headerGetMerkleRoot(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value()
-	require.Equal(t, block.MerkleRoot.BytesReverse(), value)
+	require.Equal(t, block.MerkleRoot.BytesLE(), value)
 }
 
 func TestHeaderGetNextConsensus(t *testing.T) {
@@ -129,7 +129,7 @@ func TestInputGetHash(t *testing.T) {
 	err := context.inputGetHash(v)
 	require.NoError(t, err)
 	hash := v.Estack().Pop().Value()
-	require.Equal(t, tx.Inputs[0].PrevHash.Bytes(), hash)
+	require.Equal(t, tx.Inputs[0].PrevHash.BytesBE(), hash)
 }
 
 func TestInputGetIndex(t *testing.T) {
@@ -158,7 +158,7 @@ func TestOutputGetAssetID(t *testing.T) {
 	err := context.outputGetAssetID(v)
 	require.NoError(t, err)
 	assetID := v.Estack().Pop().Value()
-	require.Equal(t, tx.Outputs[0].AssetID.Bytes(), assetID)
+	require.Equal(t, tx.Outputs[0].AssetID.BytesBE(), assetID)
 }
 
 func TestOutputGetScriptHash(t *testing.T) {
@@ -268,7 +268,7 @@ func TestAssetGetAssetID(t *testing.T) {
 	err := context.assetGetAssetID(v)
 	require.NoError(t, err)
 	assetID := v.Estack().Pop().Value()
-	require.Equal(t, assetState.ID.Bytes(), assetID)
+	require.Equal(t, assetState.ID.BytesBE(), assetID)
 }
 
 func TestAssetGetAssetType(t *testing.T) {

@@ -19,7 +19,7 @@ func DoubleSha256(data []byte) util.Uint256 {
 	var hash util.Uint256
 
 	h1 := Sha256(data)
-	hash = Sha256(h1.Bytes())
+	hash = Sha256(h1.BytesBE())
 	return hash
 }
 
@@ -40,7 +40,7 @@ func Hash160(data []byte) util.Uint160 {
 	var hash util.Uint160
 
 	h1 := Sha256(data)
-	h2 := RipeMD160(h1.Bytes())
+	h2 := RipeMD160(h1.BytesBE())
 	hash, _ = util.Uint160DecodeBytesBE(h2.BytesBE())
 
 	return hash

@@ -14,7 +14,7 @@ func TestSha256(t *testing.T) {
 	data := Sha256(input)
 
 	expected := "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 
 	assert.Equal(t, expected, actual)
 }
@@ -24,10 +24,10 @@ func TestHashDoubleSha256(t *testing.T) {
 	data := DoubleSha256(input)
 
 	firstSha := Sha256(input)
-	doubleSha := Sha256(firstSha.Bytes())
-	expected := hex.EncodeToString(doubleSha.Bytes())
+	doubleSha := Sha256(firstSha.BytesBE())
+	expected := hex.EncodeToString(doubleSha.BytesBE())
 
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 

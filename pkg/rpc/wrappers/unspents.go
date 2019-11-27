@@ -35,7 +35,7 @@ func NewUnspents(a *core.AccountState, chain core.Blockchainer, addr string) Uns
 	}
 	balanceValues := a.GetBalanceValues()
 	for k, v := range a.Balances {
-		name, ok := GlobalAssets[k.ReverseString()]
+		name, ok := GlobalAssets[k.StringLE()]
 		if !ok {
 			as := chain.GetAssetState(k)
 			if as != nil {

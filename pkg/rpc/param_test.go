@@ -95,7 +95,7 @@ func TestParamGetArray(t *testing.T) {
 
 func TestParamGetUint256(t *testing.T) {
 	gas := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-	u256, _ := util.Uint256DecodeReverseString(gas)
+	u256, _ := util.Uint256DecodeStringLE(gas)
 	p := Param{stringT, gas}
 	u, err := p.GetUint256()
 	assert.Equal(t, u256, u)

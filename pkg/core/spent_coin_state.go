@@ -18,7 +18,7 @@ func (s SpentCoins) getAndUpdate(store storage.Store, hash util.Uint256) (*Spent
 	}
 
 	spent := &SpentCoinState{}
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
 	if b, err := store.Get(key); err == nil {
 		r := io.NewBinReaderFromBuf(b)
 		spent.DecodeBinary(r)
@@ -42,7 +42,7 @@ func putSpentCoinStateIntoStore(store storage.Store, hash util.Uint256, scs *Spe
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
 	return store.Put(key, buf.Bytes())
 }
 

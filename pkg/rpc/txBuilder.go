@@ -202,7 +202,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+			if err := vm.EmitBytes(script, hash.BytesBE()); err != nil {
 				return err
 			}
 		case PublicKey:

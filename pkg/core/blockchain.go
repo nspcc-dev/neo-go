@@ -238,13 +238,13 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 			err = bc.VerifyBlock(block)
 		}
 		if err != nil {
-			return fmt.Errorf("block %s is invalid: %s", block.Hash().ReverseString(), err)
+			return fmt.Errorf("block %s is invalid: %s", block.Hash().StringLE(), err)
 		}
 		if bc.config.VerifyTransactions {
 			for _, tx := range block.Transactions {
 				err := bc.VerifyTx(tx, block)
 				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().ReverseString(), err)
+					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().StringLE(), err)
 				}
 			}
 		}
@@ -327,7 +327,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 		return buf.Err
 	}
 
-	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesReverse())
+	key := storage.AppendPrefix(storage.DataBlock, h.Hash().BytesLE())
 	batch.Put(key, buf.Bytes())
 	batch.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndexToBytes(h.Hash(), h.Index))
 
@@ -490,7 +490,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		case *transaction.InvocationTX:
 			systemInterop := newInteropContext(trigger.Application, bc, chainState.store, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
-			v.SetCheckedHash(tx.VerificationHash().Bytes())
+			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			err := v.Run()
 			if !v.HasFailed() {
@@ -524,7 +524,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				}
 			} else {
 				log.WithFields(log.Fields{
-					"tx":    tx.Hash().ReverseString(),
+					"tx":    tx.Hash().StringLE(),
 					"block": block.Index,
 					"err":   err,
 				}).Warn("contract invocation failed")
@@ -700,7 +700,7 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 // getTransactionFromStore returns Transaction and its height by the given hash
 // if it exists in the store.
 func getTransactionFromStore(s storage.Store, hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
 	b, err := s.Get(key)
 	if err != nil {
 		return nil, 0, err
@@ -772,7 +772,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 
 // getBlockFromStore returns Block by the given hash if it exists in the store.
 func getBlockFromStore(s storage.Store, hash util.Uint256) (*Block, error) {
-	key := storage.AppendPrefix(storage.DataBlock, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.DataBlock, hash.BytesLE())
 	b, err := s.Get(key)
 	if err != nil {
 		return nil, err
@@ -808,7 +808,7 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // checkTransactionInStore returns true if the given store contains the given
 // Transaction hash.
 func checkTransactionInStore(s storage.Store, hash util.Uint256) bool {
-	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
 	if _, err := s.Get(key); err == nil {
 		return true
 	}
@@ -870,7 +870,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *AssetState {
 // getAssetStateFromStore returns given asset state as recorded in the given
 // store.
 func getAssetStateFromStore(s storage.Store, assetID util.Uint256) *AssetState {
-	key := storage.AppendPrefix(storage.STAsset, assetID.Bytes())
+	key := storage.AppendPrefix(storage.STAsset, assetID.BytesBE())
 	asEncoded, err := s.Get(key)
 	if err != nil {
 		return nil
@@ -1059,16 +1059,16 @@ func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
 	for assetID, outputs := range t.GroupOutputByAssetID() {
 		assetState := bc.GetAssetState(assetID)
 		if assetState == nil {
-			return fmt.Errorf("no asset state for %s", assetID.ReverseString())
+			return fmt.Errorf("no asset state for %s", assetID.StringLE())
 		}
 
 		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
-			return fmt.Errorf("asset %s expired", assetID.ReverseString())
+			return fmt.Errorf("asset %s expired", assetID.StringLE())
 		}
 
 		for _, out := range outputs {
 			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
-				return fmt.Errorf("output is not compliant with %s asset precision", assetID.ReverseString())
+				return fmt.Errorf("output is not compliant with %s asset precision", assetID.StringLE())
 			}
 		}
 	}
@@ -1442,7 +1442,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := bc.spawnVMWithInterops(interopCtx)
-	vm.SetCheckedHash(checkedHash.Bytes())
+	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
 	err := vm.Run()
@@ -1509,7 +1509,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := io.NewBufBinWriter()
-	buf.WriteBytes(h.BytesReverse())
+	buf.WriteBytes(h.BytesLE())
 	buf.WriteLE(index)
 	return buf.Bytes()
 }

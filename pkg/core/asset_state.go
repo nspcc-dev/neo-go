@@ -29,7 +29,7 @@ func putAssetStateIntoStore(s storage.Store, as *AssetState) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STAsset, as.ID.Bytes())
+	key := storage.AppendPrefix(storage.STAsset, as.ID.BytesBE())
 	return s.Put(key, buf.Bytes())
 }
 

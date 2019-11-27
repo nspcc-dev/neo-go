@@ -114,7 +114,7 @@ Methods:
 	switch req.Method {
 	case "getbestblockhash":
 		getbestblockhashCalled.Inc()
-		results = "0x" + s.chain.CurrentBlockHash().ReverseString()
+		results = "0x" + s.chain.CurrentBlockHash().StringLE()
 
 	case "getblock":
 		getbestblockCalled.Inc()

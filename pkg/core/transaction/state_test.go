@@ -14,11 +14,11 @@ func TestEncodeDecodeState(t *testing.T) {
 	tx := decodeTransaction(rawtx, t)
 	assert.Equal(t, StateType, tx.Type)
 	assert.IsType(t, tx.Data, &StateTX{})
-	assert.Equal(t, "8abf5ebdb9a8223b12109513647f45bd3c0a6cf1a6346d56684cff71ba308724", tx.Hash().ReverseString())
+	assert.Equal(t, "8abf5ebdb9a8223b12109513647f45bd3c0a6cf1a6346d56684cff71ba308724", tx.Hash().StringLE())
 
 	assert.Equal(t, 1, len(tx.Inputs))
 	input := tx.Inputs[0]
-	assert.Equal(t, "a192cbabc6d613ecfcce43fd09e9197556ca5cf7d4bd1f6c65726ea9f08441cb", input.PrevHash.ReverseString())
+	assert.Equal(t, "a192cbabc6d613ecfcce43fd09e9197556ca5cf7d4bd1f6c65726ea9f08441cb", input.PrevHash.StringLE())
 	assert.Equal(t, uint16(0), input.PrevIndex)
 
 	s := tx.Data.(*StateTX)

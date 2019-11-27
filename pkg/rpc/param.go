@@ -75,7 +75,7 @@ func (p Param) GetUint256() (util.Uint256, error) {
 		return util.Uint256{}, err
 	}
 
-	return util.Uint256DecodeReverseString(s)
+	return util.Uint256DecodeStringLE(s)
 }
 
 // GetUint160FromHex returns Uint160 value of the parameter encoded in hex.

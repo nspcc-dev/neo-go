@@ -63,8 +63,8 @@ func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 			leaves[i*2+1].parent = parents[i]
 		}
 
-		b1 := parents[i].leftChild.hash.Bytes()
-		b2 := parents[i].rightChild.hash.Bytes()
+		b1 := parents[i].leftChild.hash.BytesBE()
+		b2 := parents[i].rightChild.hash.BytesBE()
 		b1 = append(b1, b2...)
 		parents[i].hash = hash.DoubleSha256(b1)
 	}

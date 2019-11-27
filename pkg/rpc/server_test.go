@@ -97,7 +97,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) interface{} {
-				return "0x" + e.chain.CurrentBlockHash().ReverseString()
+				return "0x" + e.chain.CurrentBlockHash().StringLE()
 			},
 		},
 		{
@@ -117,7 +117,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 				require.NoErrorf(t, err, "could not get block")
 
-				expectedHash := "0x" + block.Hash().ReverseString()
+				expectedHash := "0x" + block.Hash().StringLE()
 				assert.Equal(t, expectedHash, res.Result.Hash)
 			},
 		},
@@ -164,7 +164,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 				require.NoErrorf(t, err, "could not get block")
 
-				expectedHash := "0x" + block.Hash().ReverseString()
+				expectedHash := "0x" + block.Hash().StringLE()
 				assert.Equal(t, expectedHash, res.Result)
 			},
 		},
@@ -447,7 +447,7 @@ func TestRPC(t *testing.T) {
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[1].Hash()
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.ReverseString())
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse
@@ -459,7 +459,7 @@ func TestRPC(t *testing.T) {
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[1].Hash()
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.ReverseString())
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 		var res StringResultResponse

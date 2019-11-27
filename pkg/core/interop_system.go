@@ -40,7 +40,7 @@ func getBlockHashFromElement(bc Blockchainer, element *vm.Element) (util.Uint256
 		}
 		hash = bc.GetHeaderHash(int(hashint))
 	} else {
-		return util.Uint256DecodeReverseBytes(hashbytes)
+		return util.Uint256DecodeBytesLE(hashbytes)
 	}
 	return hash, nil
 }
@@ -101,7 +101,7 @@ func (ic *interopContext) bcGetHeight(v *vm.VM) error {
 // returns transaction and its height if it's present in the blockchain.
 func getTransactionAndHeight(bc Blockchainer, v *vm.VM) (*transaction.Transaction, uint32, error) {
 	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint256DecodeReverseBytes(hashbytes)
+	hash, err := util.Uint256DecodeBytesLE(hashbytes)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -160,7 +160,7 @@ func (ic *interopContext) headerGetHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.Hash().BytesReverse())
+	v.Estack().PushVal(header.Hash().BytesLE())
 	return nil
 }
 
@@ -170,7 +170,7 @@ func (ic *interopContext) headerGetPrevHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.PrevHash.BytesReverse())
+	v.Estack().PushVal(header.PrevHash.BytesLE())
 	return nil
 }
 
@@ -237,7 +237,7 @@ func (ic *interopContext) txGetHash(v *vm.VM) error {
 	if !ok {
 		return errors.New("value is not a transaction")
 	}
-	v.Estack().PushVal(tx.Hash().BytesReverse())
+	v.Estack().PushVal(tx.Hash().BytesLE())
 	return nil
 }
 
