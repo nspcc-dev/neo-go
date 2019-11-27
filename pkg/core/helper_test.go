@@ -79,7 +79,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 		if err != nil {
 			panic(err)
 		}
-		b := b.getHashableData()
+		b := b.GetHashableData()
 		sig, err := pKey.Sign(b)
 		if err != nil || len(sig) != 64 {
 			panic(err)

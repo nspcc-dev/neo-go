@@ -81,6 +81,11 @@ func (a *Account) Encrypt(passphrase string) error {
 	return nil
 }
 
+// PrivateKey returns private key corresponding to the account.
+func (a *Account) PrivateKey() *keys.PrivateKey {
+	return a.privateKey
+}
+
 // NewAccountFromWIF creates a new Account from the given WIF.
 func NewAccountFromWIF(wif string) (*Account, error) {
 	privKey, err := keys.NewPrivateKeyFromWIF(wif)

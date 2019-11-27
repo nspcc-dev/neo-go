@@ -78,6 +78,13 @@ type (
 		MinPeers          int                      `yaml:"MinPeers"`
 		Monitoring        metrics.PrometheusConfig `yaml:"Monitoring"`
 		RPC               RPCConfig                `yaml:"RPC"`
+		UnlockWallet      WalletConfig             `yaml:"UnlockWallet"`
+	}
+
+	// WalletConfig is a wallet info.
+	WalletConfig struct {
+		Path     string `yaml:"Path"`
+		Password string `yaml:"Password"`
 	}
 
 	// RPCConfig is an RPC service configuration information (to be moved to the rpc package, see #423).

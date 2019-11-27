@@ -1,12 +1,16 @@
 package consensus
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/dbft/payload"
 	"github.com/pkg/errors"
 )
 
@@ -24,11 +28,11 @@ type (
 	Payload struct {
 		message
 
-		Version        uint32
-		ValidatorIndex uint16
-		PrevHash       util.Uint256
-		Height         uint32
-		Timestamp      uint32
+		version        uint32
+		validatorIndex uint16
+		prevHash       util.Uint256
+		height         uint32
+		timestamp      uint32
 
 		Witness transaction.Witness
 	}
@@ -43,13 +47,125 @@ const (
 	recoveryMessageType messageType = 0x41
 )
 
+// ViewNumber implements payload.ConsensusPayload interface.
+func (p Payload) ViewNumber() byte {
+	return p.message.ViewNumber
+}
+
+// SetViewNumber implements payload.ConsensusPayload interface.
+func (p *Payload) SetViewNumber(view byte) {
+	p.message.ViewNumber = view
+}
+
+// Type implements payload.ConsensusPayload interface.
+func (p Payload) Type() payload.MessageType {
+	return payload.MessageType(p.message.Type)
+}
+
+// SetType implements payload.ConsensusPayload interface.
+func (p *Payload) SetType(t payload.MessageType) {
+	p.message.Type = messageType(t)
+}
+
+// Payload implements payload.ConsensusPayload interface.
+func (p Payload) Payload() interface{} {
+	return p.payload
+}
+
+// SetPayload implements payload.ConsensusPayload interface.
+func (p *Payload) SetPayload(pl interface{}) {
+	p.payload = pl.(io.Serializable)
+}
+
+// GetChangeView implements payload.ConsensusPayload interface.
+func (p Payload) GetChangeView() payload.ChangeView { return p.payload.(payload.ChangeView) }
+
+// GetPrepareRequest implements payload.ConsensusPayload interface.
+func (p Payload) GetPrepareRequest() payload.PrepareRequest {
+	return p.payload.(payload.PrepareRequest)
+}
+
+// GetPrepareResponse implements payload.ConsensusPayload interface.
+func (p Payload) GetPrepareResponse() payload.PrepareResponse {
+	return p.payload.(payload.PrepareResponse)
+}
+
+// GetCommit implements payload.ConsensusPayload interface.
+func (p Payload) GetCommit() payload.Commit { return p.payload.(payload.Commit) }
+
+// GetRecoveryRequest implements payload.ConsensusPayload interface.
+func (p Payload) GetRecoveryRequest() payload.RecoveryRequest {
+	return p.payload.(payload.RecoveryRequest)
+}
+
+// GetRecoveryMessage implements payload.ConsensusPayload interface.
+func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
+	return p.payload.(payload.RecoveryMessage)
+}
+
+// MarshalUnsigned implements payload.ConsensusPayload interface.
+func (p Payload) MarshalUnsigned() []byte {
+	w := io.NewBufBinWriter()
+	p.EncodeBinaryUnsigned(w.BinWriter)
+
+	return w.Bytes()
+}
+
+// UnmarshalUnsigned implements payload.ConsensusPayload interface.
+func (p *Payload) UnmarshalUnsigned(data []byte) error {
+	r := io.NewBinReaderFromBuf(data)
+	p.DecodeBinaryUnsigned(r)
+
+	return r.Err
+}
+
+// Version implements payload.ConsensusPayload interface.
+func (p Payload) Version() uint32 {
+	return p.version
+}
+
+// SetVersion implements payload.ConsensusPayload interface.
+func (p *Payload) SetVersion(v uint32) {
+	p.version = v
+}
+
+// ValidatorIndex implements payload.ConsensusPayload interface.
+func (p Payload) ValidatorIndex() uint16 {
+	return p.validatorIndex
+}
+
+// SetValidatorIndex implements payload.ConsensusPayload interface.
+func (p *Payload) SetValidatorIndex(i uint16) {
+	p.validatorIndex = i
+}
+
+// PrevHash implements payload.ConsensusPayload interface.
+func (p Payload) PrevHash() util.Uint256 {
+	return p.prevHash
+}
+
+// SetPrevHash implements payload.ConsensusPayload interface.
+func (p *Payload) SetPrevHash(h util.Uint256) {
+	p.prevHash = h
+}
+
+// Height implements payload.ConsensusPayload interface.
+func (p Payload) Height() uint32 {
+	return p.height
+}
+
+// SetHeight implements payload.ConsensusPayload interface.
+func (p *Payload) SetHeight(h uint32) {
+	p.height = h
+}
+
 // EncodeBinaryUnsigned writes payload to w excluding signature.
-func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
-	w.WriteLE(p.Version)
-	w.WriteBE(p.PrevHash[:])
-	w.WriteLE(p.Height)
-	w.WriteLE(p.ValidatorIndex)
-	w.WriteLE(p.Timestamp)
+func (p Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
+	w.WriteLE(p.version)
+	w.WriteBE(p.prevHash[:])
+	w.WriteLE(p.height)
+	w.WriteLE(p.validatorIndex)
+	w.WriteLE(p.timestamp)
 
 	ww := io.NewBufBinWriter()
 	p.message.EncodeBinary(ww.BinWriter)
@@ -64,20 +180,59 @@ func (p *Payload) EncodeBinary(w *io.BinWriter) {
 	p.Witness.EncodeBinary(w)
 }
 
-// DecodeBinaryUnsigned reads payload from w excluding signature.
-func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
-	r.ReadLE(&p.Version)
-	r.ReadBE(p.PrevHash[:])
-	r.ReadLE(&p.Height)
-	r.ReadLE(&p.ValidatorIndex)
-	r.ReadLE(&p.Timestamp)
+// Sign signs payload using the private key.
+// It also sets corresponding verification and invocation scripts.
+func (p *Payload) Sign(key *privateKey) error {
+	sig, err := key.Sign(p.MarshalUnsigned())
+	if err != nil {
+		return err
+	}
 
-	data := r.ReadBytes()
-	rr := io.NewBinReaderFromBuf(data)
-	p.message.DecodeBinary(rr)
+	verif, err := smartcontract.CreateSignatureRedeemScript(key.PublicKey())
+	if err != nil {
+		return err
+	}
+
+	p.Witness.InvocationScript = append([]byte{byte(vm.PUSHBYTES64)}, sig...)
+	p.Witness.VerificationScript = verif
+
+	return nil
 }
 
-// Hash returns 32-byte message hash.
+// Verify verifies payload using provided Witness.
+func (p *Payload) Verify() bool {
+	h := sha256.Sum256(p.MarshalUnsigned())
+	v := vm.New()
+	v.SetCheckedHash(h[:])
+	v.Load(append(p.Witness.InvocationScript, p.Witness.VerificationScript...))
+	if err := v.Run(); err != nil || v.Estack().Len() == 0 {
+		return false
+	}
+
+	result, err := v.Estack().Top().TryBool()
+
+	return err == nil && result
+}
+
+// DecodeBinaryUnsigned reads payload from w excluding signature.
+func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
+	r.ReadLE(&p.version)
+	r.ReadBE(p.prevHash[:])
+	r.ReadLE(&p.height)
+	r.ReadLE(&p.validatorIndex)
+	r.ReadLE(&p.timestamp)
+
+	data := r.ReadBytes()
+	if r.Err != nil {
+		return
+	}
+
+	rr := io.NewBinReaderFromBuf(data)
+	p.message.DecodeBinary(rr)
+	r.Err = rr.Err
+}
+
+// Hash implements payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
 	w := io.NewBufBinWriter()
 	p.EncodeBinaryUnsigned(w.BinWriter)
@@ -88,6 +243,9 @@ func (p *Payload) Hash() util.Uint256 {
 // DecodeBinary implements io.Serializable interface.
 func (p *Payload) DecodeBinary(r *io.BinReader) {
 	p.DecodeBinaryUnsigned(r)
+	if r.Err != nil {
+		return
+	}
 
 	var b byte
 	r.ReadLE(&b)
@@ -114,8 +272,8 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	switch m.Type {
 	case changeViewType:
 		cv := new(changeView)
-		// NewViewNumber is not marshaled
-		cv.NewViewNumber = m.ViewNumber + 1
+		// newViewNumber is not marshaled
+		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
 		m.payload = new(prepareRequest)
