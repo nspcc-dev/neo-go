@@ -1,10 +1,11 @@
 package transaction
 
 import (
+	"fmt"
+
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -137,7 +138,7 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 		t.Data = &StateTX{}
 		t.Data.(*StateTX).DecodeBinary(r)
 	default:
-		log.Warnf("invalid TX type %s", t.Type)
+		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
 }
 
