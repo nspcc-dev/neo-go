@@ -31,7 +31,7 @@ func NewBlockChainState(store *storage.MemCachedStore) *BlockChainState {
 }
 
 // commit commits all the data in current state into storage.
-func (state *BlockChainState) commit() error  {
+func (state *BlockChainState) commit() error {
 	if err := state.accounts.commit(state.store); err != nil {
 		return err
 	}
