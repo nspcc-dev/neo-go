@@ -1216,7 +1216,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
-func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.PublicKey, error) {
+func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
 	chainState := NewBlockChainState(bc.store)
 	if len(txes) > 0 {
 		for _, tx := range txes {
@@ -1320,7 +1320,7 @@ func (bc *Blockchain) GetValidators(txes... *transaction.Transaction) ([]*keys.P
 	return result, nil
 }
 
-func processStateTX(chainState *BlockChainState, tx *transaction.StateTX, ) error {
+func processStateTX(chainState *BlockChainState, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
 		case transaction.Account:
