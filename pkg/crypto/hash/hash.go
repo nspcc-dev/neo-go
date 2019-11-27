@@ -30,7 +30,7 @@ func RipeMD160(data []byte) util.Uint160 {
 	hasher := ripemd160.New()
 	_, _ = hasher.Write(data)
 
-	hash, _ = util.Uint160DecodeBytes(hasher.Sum(nil))
+	hash, _ = util.Uint160DecodeBytesBE(hasher.Sum(nil))
 	return hash
 }
 
@@ -41,7 +41,7 @@ func Hash160(data []byte) util.Uint160 {
 
 	h1 := Sha256(data)
 	h2 := RipeMD160(h1.Bytes())
-	hash, _ = util.Uint160DecodeBytes(h2.Bytes())
+	hash, _ = util.Uint160DecodeBytesBE(h2.BytesBE())
 
 	return hash
 }

@@ -35,7 +35,7 @@ func (a Accounts) getAndUpdate(s storage.Store, hash util.Uint160) (*AccountStat
 // present there. Returns nil otherwise.
 func getAccountStateFromStore(s storage.Store, hash util.Uint160) (*AccountState, error) {
 	var account *AccountState
-	key := storage.AppendPrefix(storage.STAccount, hash.Bytes())
+	key := storage.AppendPrefix(storage.STAccount, hash.BytesBE())
 	b, err := s.Get(key)
 	if err == nil {
 		account = new(AccountState)
@@ -55,7 +55,7 @@ func putAccountStateIntoStore(store storage.Store, as *AccountState) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.Bytes())
+	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
 	return store.Put(key, buf.Bytes())
 }
 

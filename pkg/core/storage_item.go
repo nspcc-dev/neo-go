@@ -14,7 +14,7 @@ type StorageItem struct {
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
 func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
-	return storage.AppendPrefix(storage.STStorage, append(scripthash.BytesReverse(), key...))
+	return storage.AppendPrefix(storage.STStorage, append(scripthash.BytesLE(), key...))
 }
 
 // getStorageItemFromStore returns StorageItem if it exists in the given Store.

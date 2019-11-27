@@ -63,7 +63,7 @@ func (ic *interopContext) bcGetBlock(v *vm.VM) error {
 // bcGetContract returns contract.
 func (ic *interopContext) bcGetContract(v *vm.VM) error {
 	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytes(hashbytes)
+	hash, err := util.Uint160DecodeBytesBE(hashbytes)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
 // invocation stack element number n.
 func pushContextScriptHash(v *vm.VM, n int) error {
 	h := getContextScriptHash(v, n)
-	v.Estack().PushVal(h.Bytes())
+	v.Estack().PushVal(h.BytesBE())
 	return nil
 }
 
@@ -318,7 +318,7 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 	var err error
 
 	hashOrKey := v.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytes(hashOrKey)
+	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		key := &keys.PublicKey{}
 		err = key.DecodeBytes(hashOrKey)

@@ -14,7 +14,7 @@ func TestPutGetDeleteStorageItem(t *testing.T) {
 		Value: []byte("smth"),
 	}
 	key := []byte("key")
-	cHash, err := util.Uint160DecodeBytes([]byte("abcdefghijklmnopqrst"))
+	cHash, err := util.Uint160DecodeBytesBE([]byte("abcdefghijklmnopqrst"))
 	assert.Nil(t, err)
 	assert.NoError(t, putStorageItemIntoStore(s, cHash, key, si))
 	siRead := getStorageItemFromStore(s, cHash, key)

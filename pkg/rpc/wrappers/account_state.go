@@ -45,7 +45,7 @@ func NewAccountState(a *core.AccountState) AccountState {
 	sort.Sort(balances)
 
 	// reverse scriptHash to be consistent with other client
-	scriptHash, err := util.Uint160DecodeBytes(a.ScriptHash.BytesReverse())
+	scriptHash, err := util.Uint160DecodeBytesBE(a.ScriptHash.BytesLE())
 	if err != nil {
 		scriptHash = a.ScriptHash
 	}

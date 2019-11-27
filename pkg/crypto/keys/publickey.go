@@ -237,7 +237,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 func (p *PublicKey) Signature() []byte {
 	sig := hash.Hash160(p.GetVerificationScript())
 
-	return sig.Bytes()
+	return sig.BytesBE()
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.

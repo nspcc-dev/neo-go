@@ -74,7 +74,7 @@ func TestHeaderGetNextConsensus(t *testing.T) {
 	err := context.headerGetNextConsensus(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value()
-	require.Equal(t, block.NextConsensus.BytesReverse(), value)
+	require.Equal(t, block.NextConsensus.BytesLE(), value)
 }
 
 func TestTxGetAttributes(t *testing.T) {
@@ -168,7 +168,7 @@ func TestOutputGetScriptHash(t *testing.T) {
 	err := context.outputGetScriptHash(v)
 	require.NoError(t, err)
 	scriptHash := v.Estack().Pop().Value()
-	require.Equal(t, tx.Outputs[0].ScriptHash.Bytes(), scriptHash)
+	require.Equal(t, tx.Outputs[0].ScriptHash.BytesBE(), scriptHash)
 }
 
 func TestOutputGetValue(t *testing.T) {
@@ -208,7 +208,7 @@ func TestAccountGetScriptHash(t *testing.T) {
 	err := context.accountGetScriptHash(v)
 	require.NoError(t, err)
 	hash := v.Estack().Pop().Value()
-	require.Equal(t, accState.ScriptHash.Bytes(), hash)
+	require.Equal(t, accState.ScriptHash.BytesBE(), hash)
 }
 
 func TestAccountGetVotes(t *testing.T) {
@@ -248,7 +248,7 @@ func TestAssetGetAdmin(t *testing.T) {
 	err := context.assetGetAdmin(v)
 	require.NoError(t, err)
 	admin := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Admin.Bytes(), admin)
+	require.Equal(t, assetState.Admin.BytesBE(), admin)
 }
 
 func TestAssetGetAmount(t *testing.T) {
@@ -298,7 +298,7 @@ func TestAssetGetIssuer(t *testing.T) {
 	err := context.assetGetIssuer(v)
 	require.NoError(t, err)
 	issuer := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Issuer.Bytes(), issuer)
+	require.Equal(t, assetState.Issuer.BytesBE(), issuer)
 }
 
 func TestAssetGetOwner(t *testing.T) {
@@ -381,7 +381,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *ContractState, *interopCon
 func createVMAndAccState(t *testing.T) (*vm.VM, *AccountState, *interopContext) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
-	hash, err := util.Uint160DecodeString(rawHash)
+	hash, err := util.Uint160DecodeStringBE(rawHash)
 	accountState := NewAccountState(hash)
 
 	key := &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)}

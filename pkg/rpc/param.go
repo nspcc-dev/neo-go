@@ -85,11 +85,11 @@ func (p Param) GetUint160FromHex() (util.Uint160, error) {
 		return util.Uint160{}, err
 	}
 
-	scriptHashLE, err := util.Uint160DecodeString(s)
+	scriptHashLE, err := util.Uint160DecodeStringBE(s)
 	if err != nil {
 		return util.Uint160{}, err
 	}
-	return util.Uint160DecodeBytes(scriptHashLE.BytesReverse())
+	return util.Uint160DecodeBytesBE(scriptHashLE.BytesLE())
 }
 
 // GetUint160FromAddress returns Uint160 value of the parameter that was

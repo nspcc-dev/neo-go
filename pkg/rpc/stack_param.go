@@ -236,7 +236,7 @@ func (p StackParam) TryParse(dest interface{}) error {
 		}
 		switch dest := dest.(type) {
 		case *util.Uint160:
-			if *dest, err = util.Uint160DecodeBytes(data); err != nil {
+			if *dest, err = util.Uint160DecodeBytesBE(data); err != nil {
 				return err
 			}
 			return nil

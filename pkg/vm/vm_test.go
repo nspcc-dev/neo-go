@@ -1403,7 +1403,7 @@ func TestSIGNByteArray(t *testing.T) {
 func TestAppCall(t *testing.T) {
 	prog := []byte{byte(opcode.APPCALL)}
 	hash := util.Uint160{}
-	prog = append(prog, hash.Bytes()...)
+	prog = append(prog, hash.BytesBE()...)
 	prog = append(prog, byte(opcode.RET))
 
 	vm := load(prog)

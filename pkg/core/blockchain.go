@@ -602,7 +602,7 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, st
 }
 
 func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, state *BlockChainState) error {
-	hash, err := util.Uint160DecodeBytes(descriptor.Key)
+	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
 	if err != nil {
 		return err
 	}
@@ -744,7 +744,7 @@ func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*StorageIte
 		// Cut prefix and hash.
 		siMap[string(k[21:])] = si
 	}
-	bc.store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesReverse()), saveToMap)
+	bc.store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
 	if err != nil {
 		return nil, err
 	}
@@ -893,7 +893,7 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *ContractState {
 // getContractStateFromStore returns contract state as recorded in the given
 // store by the given script hash.
 func getContractStateFromStore(s storage.Store, hash util.Uint160) *ContractState {
-	key := storage.AppendPrefix(storage.STContract, hash.Bytes())
+	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	contractBytes, err := s.Get(key)
 	if err != nil {
 		return nil
@@ -1366,7 +1366,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	}
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.Script {
-			h, err := util.Uint160DecodeBytes(a.Data)
+			h, err := util.Uint160DecodeBytesBE(a.Data)
 			if err != nil {
 				return nil, err
 			}

@@ -36,7 +36,7 @@ func TestHashRipeMD160(t *testing.T) {
 	data := RipeMD160(input)
 
 	expected := "108f07b8382412612c048d07d13f814118445acd"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 
@@ -46,7 +46,7 @@ func TestHash160(t *testing.T) {
 	data := Hash160(publicKeyBytes)
 
 	expected := "c8e2b685cc70ec96743b55beb9449782f8f775d8"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 

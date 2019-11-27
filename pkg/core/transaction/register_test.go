@@ -12,7 +12,7 @@ import (
 )
 
 func TestRegisterTX(t *testing.T) {
-	someuint160, _ := util.Uint160DecodeString("4d3b96ae1bcc5a585e075e3b81920210dec16302")
+	someuint160, _ := util.Uint160DecodeStringBE("4d3b96ae1bcc5a585e075e3b81920210dec16302")
 	tx := &Transaction{
 		Type:    RegisterType,
 		Version: 0,

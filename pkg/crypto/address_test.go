@@ -29,6 +29,6 @@ func TestUint160DecodeKnownAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "b28427088a3729b2536d10122960394e8be6721f", val.ReverseString())
+	assert.Equal(t, "b28427088a3729b2536d10122960394e8be6721f", val.StringLE())
 	assert.Equal(t, "1f72e68b4e39602912106d53b229378a082784b2", val.String())
 }

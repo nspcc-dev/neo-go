@@ -1112,7 +1112,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.checkInvocationStackSize()
 		}
 
-		hash, err := util.Uint160DecodeBytes(parameter)
+		hash, err := util.Uint160DecodeBytesBE(parameter)
 		if err != nil {
 			panic(err)
 		}
@@ -1296,7 +1296,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.HASH160:
 		b := v.estack.Pop().Bytes()
-		v.estack.PushVal(hash.Hash160(b).Bytes())
+		v.estack.PushVal(hash.Hash160(b).BytesBE())
 
 	case opcode.HASH256:
 		b := v.estack.Pop().Bytes()
@@ -1341,7 +1341,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				hashBytes = parameter[2:]
 			}
 
-			hash, err := util.Uint160DecodeBytes(hashBytes)
+			hash, err := util.Uint160DecodeBytesBE(hashBytes)
 			if err != nil {
 				panic(err)
 			}
