@@ -9,13 +9,34 @@ type stackItem struct {
 	Type  string      `json:"type"`
 }
 
+func appendToItems(items *[]stackItem, val StackItem, seen map[StackItem]bool) {
+	if arr, ok := val.Value().([]StackItem); ok {
+		if seen[val] {
+			return
+		}
+		seen[val] = true
+		intItems := make([]stackItem, 0, len(arr))
+		for _, v := range arr {
+			appendToItems(&intItems, v, seen)
+		}
+		*items = append(*items, stackItem{
+			Value: intItems,
+			Type:  val.String(),
+		})
+
+	} else {
+		*items = append(*items, stackItem{
+			Value: val,
+			Type:  val.String(),
+		})
+	}
+}
+
 func stackToArray(s *Stack) []stackItem {
 	items := make([]stackItem, 0, s.Len())
-	s.Iter(func(e *Element) {
-		items = append(items, stackItem{
-			Value: e.value,
-			Type:  e.value.String(),
-		})
+	seen := make(map[StackItem]bool)
+	s.IterBack(func(e *Element) {
+		appendToItems(&items, e.value, seen)
 	})
 	return items
 }

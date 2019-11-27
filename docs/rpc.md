@@ -55,11 +55,21 @@ which would yield the response:
 | `getunspents` | Yes |
 | `getversion` | Yes |
 | `invoke` | No (#346) |
-| `invokefunction` | No (#347) |
+| `invokefunction` | Yes |
 | `invokescript` | Yes |
 | `sendrawtransaction` | Yes |
 | `submitblock` | No (#344) |
 | `validateaddress` | Yes |
+
+#### Implementation notices
+
+##### `invokefunction`
+
+neo-go's implementation of `invokefunction` does not return `tx` field in the
+answer because that requires signing the transaction with some key in the
+server which doesn't fit the model of our node-client interactions. Lacking
+this signature the transaction is almost useless, so there is no point in
+returning it.
 
 ## Reference
 

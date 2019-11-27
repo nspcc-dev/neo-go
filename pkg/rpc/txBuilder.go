@@ -2,6 +2,9 @@ package rpc
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
@@ -158,6 +161,124 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 		return nil, err
 	}
 	if err := vm.EmitSyscall(script, "Neo.Contract.Create"); err != nil {
+		return nil, err
+	}
+	return script.Bytes(), nil
+}
+
+// CreateFunctionInvocationScript creates a script to invoke given contract with
+// given parameters.
+func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byte, error) {
+	script := new(bytes.Buffer)
+	for i := len(params) - 1; i >= 0; i-- {
+		switch params[i].Type {
+		case stringT:
+			if err := vm.EmitString(script, params[i].String()); err != nil {
+				return nil, err
+			}
+		case numberT:
+			num, err := params[i].GetInt()
+			if err != nil {
+				return nil, err
+			}
+			if err := vm.EmitString(script, strconv.Itoa(num)); err != nil {
+				return nil, err
+			}
+		case arrayT:
+			slice, err := params[i].GetArray()
+			if err != nil {
+				return nil, err
+			}
+			for j := len(slice) - 1; j >= 0; j-- {
+				fp, err := slice[j].GetFuncParam()
+				if err != nil {
+					return nil, err
+				}
+				switch fp.Type {
+				case ByteArray, Signature:
+					str, err := fp.Value.GetBytesHex()
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitBytes(script, str); err != nil {
+						return nil, err
+					}
+				case String:
+					str, err := fp.Value.GetString()
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitString(script, str); err != nil {
+						return nil, err
+					}
+				case Hash160:
+					hash, err := fp.Value.GetUint160FromHex()
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+						return nil, err
+					}
+				case Hash256:
+					hash, err := fp.Value.GetUint256()
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+						return nil, err
+					}
+				case PublicKey:
+					str, err := fp.Value.GetString()
+					if err != nil {
+						return nil, err
+					}
+					key, err := keys.NewPublicKeyFromString(string(str))
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitBytes(script, key.Bytes()); err != nil {
+						return nil, err
+					}
+				case Integer:
+					val, err := fp.Value.GetInt()
+					if err != nil {
+						return nil, err
+					}
+					if err := vm.EmitInt(script, int64(val)); err != nil {
+						return nil, err
+					}
+				case Boolean:
+					str, err := fp.Value.GetString()
+					if err != nil {
+						return nil, err
+					}
+					switch str {
+					case "true":
+						err = vm.EmitInt(script, 1)
+					case "false":
+						err = vm.EmitInt(script, 0)
+					default:
+						err = errors.New("wrong boolean value")
+					}
+					if err != nil {
+						return nil, err
+					}
+				default:
+					return nil, fmt.Errorf("parameter type %v is not supported", fp.Type)
+				}
+			}
+			err = vm.EmitInt(script, int64(len(slice)))
+			if err != nil {
+				return nil, err
+			}
+			err = vm.EmitOpcode(script, vm.PACK)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := vm.EmitAppCall(script, contract, false); err != nil {
 		return nil, err
 	}
 	return script.Bytes(), nil

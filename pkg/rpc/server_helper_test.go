@@ -32,6 +32,19 @@ type SendTXResponse struct {
 	ID      int    `json:"id"`
 }
 
+// InvokeFunctionResponse struct for testing.
+type InvokeFunctionResponse struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Script      string      `json:"script"`
+		State       string      `json:"state"`
+		GasConsumed string      `json:"gas_consumed"`
+		Stack       []FuncParam `json:"stack"`
+		TX          string      `json:"tx,omitempty"`
+	} `json:"result"`
+	ID int `json:"id"`
+}
+
 // ValidateAddrResponse struct for testing.
 type ValidateAddrResponse struct {
 	Jsonrpc string                           `json:"jsonrpc"`

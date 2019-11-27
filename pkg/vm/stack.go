@@ -360,6 +360,17 @@ func (s *Stack) Iter(f func(*Element)) {
 	}
 }
 
+// IterBack iterates over all the elements of the stack, starting from the bottom
+// of the stack.
+// 	s.IterBack(func(elem *Element) {
+//		// do something with the element.
+// 	})
+func (s *Stack) IterBack(f func(*Element)) {
+	for e := s.Back(); e != nil; e = e.Prev() {
+		f(e)
+	}
+}
+
 // popSigElements pops keys or signatures from the stack as needed for
 // CHECKMULTISIG.
 func (s *Stack) popSigElements() ([][]byte, error) {

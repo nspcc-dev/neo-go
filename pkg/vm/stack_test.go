@@ -154,19 +154,46 @@ func TestIterAfterRemove(t *testing.T) {
 
 func TestIteration(t *testing.T) {
 	var (
+		n     = 10
 		s     = NewStack("test")
-		elems = makeElements(10)
+		elems = makeElements(n)
 	)
 	for _, elem := range elems {
 		s.Push(elem)
 	}
 	assert.Equal(t, len(elems), s.Len())
 
-	i := 0
+	iteratedElems := make([]*Element, 0)
+
 	s.Iter(func(elem *Element) {
-		i++
+		iteratedElems = append(iteratedElems, elem)
 	})
-	assert.Equal(t, len(elems), i)
+	// Top to bottom order of iteration.
+	poppedElems := make([]*Element, 0)
+	for elem := s.Pop(); elem != nil; elem = s.Pop() {
+		poppedElems = append(poppedElems, elem)
+	}
+	assert.Equal(t, poppedElems, iteratedElems)
+}
+
+func TestBackIteration(t *testing.T) {
+	var (
+		n     = 10
+		s     = NewStack("test")
+		elems = makeElements(n)
+	)
+	for _, elem := range elems {
+		s.Push(elem)
+	}
+	assert.Equal(t, len(elems), s.Len())
+
+	iteratedElems := make([]*Element, 0)
+
+	s.IterBack(func(elem *Element) {
+		iteratedElems = append(iteratedElems, elem)
+	})
+	// Bottom to the top order of iteration.
+	assert.Equal(t, elems, iteratedElems)
 }
 
 func TestPushVal(t *testing.T) {

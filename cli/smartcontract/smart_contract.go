@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
@@ -27,6 +28,7 @@ var (
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
 	errNoWIF               = errors.New("no WIF parameter found, specify it with the '--wif or -w' flag")
+	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 )
@@ -96,9 +98,83 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "testinvoke",
-				Usage:  "Test an invocation of a smart contract on the blockchain",
-				Action: testInvoke,
+				Name:      "testinvokefunction",
+				Usage:     "invoke deployed contract on the blockchain (test mode)",
+				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given method and
+   arguments. If no method is given "" is passed to the script, if no arguments
+   are given, an empty array is passed. All of the given arguments are
+   encapsulated into array before invoking the script. The script thus should
+   follow the regular convention of smart contract arguments (method string and
+   an array of other arguments).
+
+   Arguments always do have regular Neo smart contract parameter types, either
+   specified explicitly or being inferred from the value. To specify the type
+   manually use "type:value" syntax where the type is one of the following:
+   'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
+   Array types are not currently supported.
+
+   Given values are type-checked against given types with the following
+   restrictions applied:
+    * 'signature' type values should be hex-encoded and have a (decoded)
+      length of 64 bytes.
+    * 'bool' type values are 'true' and 'false'.
+    * 'int' values are decimal integers that can be successfully converted
+      from the string.
+    * 'hash160' values are Neo addresses and hex-encoded 20-bytes long (after
+      decoding) strings.
+    * 'hash256' type values should be hex-encoded and have a (decoded)
+      length of 32 bytes.
+    * 'bytes' type values are any hex-encoded things.
+    * 'key' type values are hex-encoded marshalled public keys.
+    * 'string' type values are any valid UTF-8 strings. In the value's part of
+      the string the colon looses it's special meaning as a separator between
+      type and value and is taken literally.
+
+   If no type is explicitly specified, it is inferred from the value using the
+   following logic:
+    - anything that can be interpreted as a decimal integer gets
+      an 'int' type
+    - 'true' and 'false' strings get 'bool' type
+    - valid Neo addresses and 20 bytes long hex-encoded strings get 'hash160'
+      type
+    - valid hex-encoded public keys get 'key' type
+    - 32 bytes long hex-encoded values get 'hash256' type
+    - 64 bytes long hex-encoded values get 'signature' type
+    - any other valid hex-encoded values get 'bytes' type
+    - anything else is a 'string'
+
+   Backslash character is used as an escape character and allows to use colon in
+   an implicitly typed string. For any other characters it has no special
+   meaning, to get a literal backslash in the string use the '\\' sequence.
+
+   Examples:
+    * 'int:42' is an integer with a value of 42
+    * '42' is an integer with a value of 42
+    * 'bad' is a string with a value of 'bad'
+    * 'dead' is a byte array with a value of 'dead'
+    * 'string:dead' is a string with a value of 'dead'
+    * 'AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y' is a hash160 with a value
+      of '23ba2703c53263e8d6e522dc32203339dcd8eee9'
+    * '\4\2' is an integer with a value of 42
+    * '\\4\2' is a string with a value of '\42'
+    * 'string:string' is a string with a value of 'string'
+    * 'string\:string' is a string with a value of 'string:string'
+    * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
+      key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+`,
+				Action: testInvokeFunction,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "endpoint, e",
+						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
+					},
+				},
+			},
+			{
+				Name:   "testinvokescript",
+				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				Action: testInvokeScript,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "endpoint, e",
@@ -211,7 +287,53 @@ func contractCompile(ctx *cli.Context) error {
 	return nil
 }
 
-func testInvoke(ctx *cli.Context) error {
+func testInvokeFunction(ctx *cli.Context) error {
+	endpoint := ctx.String("endpoint")
+	if len(endpoint) == 0 {
+		return cli.NewExitError(errNoEndpoint, 1)
+	}
+
+	args := ctx.Args()
+	if !args.Present() {
+		return cli.NewExitError(errNoScriptHash, 1)
+	}
+	script := args[0]
+	operation := ""
+	if len(args) > 1 {
+		operation = args[1]
+	}
+	params := make([]smartcontract.Parameter, 0)
+	if len(args) > 2 {
+		for k, s := range args[2:] {
+			param, err := smartcontract.NewParameterFromString(s)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+2+1, err), 1)
+			}
+			params = append(params, *param)
+		}
+	}
+
+	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	resp, err := client.InvokeFunction(script, operation, params)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	b, err := json.MarshalIndent(resp.Result, "", "  ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println(string(b))
+
+	return nil
+}
+
+func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
