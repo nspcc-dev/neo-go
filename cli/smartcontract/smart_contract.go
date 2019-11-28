@@ -98,6 +98,29 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
+				Name:      "testinvoke",
+				Usage:     "invoke deployed contract on the blockchain (test mode)",
+				UsageText: "neo-go contract testinvoke -e endpoint scripthash [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given arguments.
+   It's very similar to the tesinvokefunction command, but differs in the way
+   arguments are being passed. This invoker does not accept method parameter
+   and it passes all given parameters as plain values to the contract, not
+   wrapping them them into array like testinvokefunction does. For arguments
+   syntax please refer to the testinvokefunction command help.
+
+   Most of the time (if your contract follows the standard convention of
+   method with array of values parameters) you want to use testinvokefunction
+   command instead of testinvoke.
+`,
+				Action: testInvoke,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "endpoint, e",
+						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
+					},
+				},
+			},
+			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
 				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...]",
@@ -287,7 +310,20 @@ func contractCompile(ctx *cli.Context) error {
 	return nil
 }
 
+func testInvoke(ctx *cli.Context) error {
+	return testInvokeInternal(ctx, false)
+}
+
 func testInvokeFunction(ctx *cli.Context) error {
+	return testInvokeInternal(ctx, true)
+}
+
+func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
+	var resp *rpc.InvokeScriptResponse
+	var operation string
+	var paramsStart = 1
+	var params = make([]smartcontract.Parameter, 0)
+
 	endpoint := ctx.String("endpoint")
 	if len(endpoint) == 0 {
 		return cli.NewExitError(errNoEndpoint, 1)
@@ -298,16 +334,15 @@ func testInvokeFunction(ctx *cli.Context) error {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
 	script := args[0]
-	operation := ""
-	if len(args) > 1 {
+	if withMethod && len(args) > 1 {
 		operation = args[1]
+		paramsStart++
 	}
-	params := make([]smartcontract.Parameter, 0)
-	if len(args) > 2 {
-		for k, s := range args[2:] {
+	if len(args) > paramsStart {
+		for k, s := range args[paramsStart:] {
 			param, err := smartcontract.NewParameterFromString(s)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+2+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+paramsStart+1, err), 1)
 			}
 			params = append(params, *param)
 		}
@@ -318,7 +353,11 @@ func testInvokeFunction(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	resp, err := client.InvokeFunction(script, operation, params)
+	if withMethod {
+		resp, err = client.InvokeFunction(script, operation, params)
+	} else {
+		resp, err = client.Invoke(script, params)
+	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
