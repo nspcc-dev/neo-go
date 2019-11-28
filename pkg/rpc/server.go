@@ -243,6 +243,9 @@ Methods:
 		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
 
+	case "invoke":
+		results, resultsErr = s.invoke(reqParams)
+
 	case "invokefunction":
 		results, resultsErr = s.invokeFunction(reqParams)
 
@@ -326,6 +329,40 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 		results = "Invalid public account address"
 	}
 	return results, resultsErr
+}
+
+// invoke implements the `invoke` RPC call.
+func (s *Server) invoke(reqParams Params) (interface{}, error) {
+	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+	scriptHash, err := scriptHashHex.GetUint160FromHex()
+	if err != nil {
+		return nil, err
+	}
+	sliceP, ok := reqParams.ValueWithType(1, arrayT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+	slice, err := sliceP.GetArray()
+	if err != nil {
+		return nil, err
+	}
+	script, err := CreateInvocationScript(scriptHash, slice)
+	if err != nil {
+		return nil, err
+	}
+	vm, _ := s.chain.GetTestVM()
+	vm.LoadScript(script)
+	_ = vm.Run()
+	result := &wrappers.InvokeResult{
+		State:       vm.State(),
+		GasConsumed: "0.1",
+		Script:      hex.EncodeToString(script),
+		Stack:       vm.Estack(),
+	}
+	return result, nil
 }
 
 // invokescript implements the `invokescript` RPC call.
