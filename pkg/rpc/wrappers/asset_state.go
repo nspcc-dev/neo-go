@@ -1,14 +1,14 @@
 package wrappers
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // AssetState wrapper used for the representation of
-// core.AssetState on the RPC Server.
+// state.Asset on the RPC Server.
 type AssetState struct {
 	ID         util.Uint256          `json:"assetID"`
 	AssetType  transaction.AssetType `json:"assetType"`
@@ -25,8 +25,8 @@ type AssetState struct {
 	IsFrozen   bool                  `json:"is_frozen"`
 }
 
-// NewAssetState creates a new AssetState wrapper.
-func NewAssetState(a *entities.AssetState) AssetState {
+// NewAssetState creates a new Asset wrapper.
+func NewAssetState(a *state.Asset) AssetState {
 	return AssetState{
 		ID:         a.ID,
 		AssetType:  a.AssetType,

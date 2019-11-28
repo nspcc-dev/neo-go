@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -42,15 +42,15 @@ func (dao *dao) Put(entity io.Serializable, key []byte) error {
 
 // -- start accounts.
 
-// GetAccountStateOrNew retrieves AccountState from temporary or persistent Store
+// GetAccountStateOrNew retrieves Account from temporary or persistent Store
 // or creates a new one if it doesn't exist and persists it.
-func (dao *dao) GetAccountStateOrNew(hash util.Uint160) (*entities.AccountState, error) {
+func (dao *dao) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) {
 	account, err := dao.GetAccountState(hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		account = entities.NewAccountState(hash)
+		account = state.NewAccount(hash)
 		if err = dao.PutAccountState(account); err != nil {
 			return nil, err
 		}
@@ -58,10 +58,10 @@ func (dao *dao) GetAccountStateOrNew(hash util.Uint160) (*entities.AccountState,
 	return account, nil
 }
 
-// GetAccountState returns AccountState from the given Store if it's
+// GetAccountState returns Account from the given Store if it's
 // present there. Returns nil otherwise.
-func (dao *dao) GetAccountState(hash util.Uint160) (*entities.AccountState, error) {
-	account := &entities.AccountState{}
+func (dao *dao) GetAccountState(hash util.Uint160) (*state.Account, error) {
+	account := &state.Account{}
 	key := storage.AppendPrefix(storage.STAccount, hash.BytesBE())
 	err := dao.GetAndDecode(account, key)
 	if err != nil {
@@ -70,8 +70,7 @@ func (dao *dao) GetAccountState(hash util.Uint160) (*entities.AccountState, erro
 	return account, err
 }
 
-// PutAccountState puts given AccountState into the given store.
-func (dao *dao) PutAccountState(as *entities.AccountState) error {
+func (dao *dao) PutAccountState(as *state.Account) error {
 	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
 	return dao.Put(as, key)
 }
@@ -81,8 +80,8 @@ func (dao *dao) PutAccountState(as *entities.AccountState) error {
 // -- start assets.
 
 // GetAssetState returns given asset state as recorded in the given store.
-func (dao *dao) GetAssetState(assetID util.Uint256) (*entities.AssetState, error) {
-	asset := &entities.AssetState{}
+func (dao *dao) GetAssetState(assetID util.Uint256) (*state.Asset, error) {
+	asset := &state.Asset{}
 	key := storage.AppendPrefix(storage.STAsset, assetID.BytesBE())
 	err := dao.GetAndDecode(asset, key)
 	if err != nil {
@@ -95,7 +94,7 @@ func (dao *dao) GetAssetState(assetID util.Uint256) (*entities.AssetState, error
 }
 
 // PutAssetState puts given asset state into the given store.
-func (dao *dao) PutAssetState(as *entities.AssetState) error {
+func (dao *dao) PutAssetState(as *state.Asset) error {
 	key := storage.AppendPrefix(storage.STAsset, as.ID.BytesBE())
 	return dao.Put(as, key)
 }
@@ -106,8 +105,8 @@ func (dao *dao) PutAssetState(as *entities.AssetState) error {
 
 // GetContractState returns contract state as recorded in the given
 // store by the given script hash.
-func (dao *dao) GetContractState(hash util.Uint160) (*entities.ContractState, error) {
-	contract := &entities.ContractState{}
+func (dao *dao) GetContractState(hash util.Uint160) (*state.Contract, error) {
+	contract := &state.Contract{}
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	err := dao.GetAndDecode(contract, key)
 	if err != nil {
@@ -121,7 +120,7 @@ func (dao *dao) GetContractState(hash util.Uint160) (*entities.ContractState, er
 }
 
 // PutContractState puts given contract state into the given store.
-func (dao *dao) PutContractState(cs *entities.ContractState) error {
+func (dao *dao) PutContractState(cs *state.Contract) error {
 	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().BytesBE())
 	return dao.Put(cs, key)
 }
@@ -146,7 +145,7 @@ func (dao *dao) GetUnspentCoinStateOrNew(hash util.Uint256) (*UnspentCoinState, 
 			return nil, err
 		}
 		unspent = &UnspentCoinState{
-			states: []entities.CoinState{},
+			states: []state.Coin{},
 		}
 		if err = dao.PutUnspentCoinState(hash, unspent); err != nil {
 			return nil, err
@@ -221,13 +220,13 @@ func (dao *dao) DeleteSpentCoinState(hash util.Uint256) error {
 // -- start validator.
 
 // GetValidatorStateOrNew gets validator from store or created new one in case of error.
-func (dao *dao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*entities.ValidatorState, error) {
+func (dao *dao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error) {
 	validatorState, err := dao.GetValidatorState(publicKey)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		validatorState = &entities.ValidatorState{PublicKey: publicKey}
+		validatorState = &state.Validator{PublicKey: publicKey}
 		if err = dao.PutValidatorState(validatorState); err != nil {
 			return nil, err
 		}
@@ -237,11 +236,11 @@ func (dao *dao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*entities.Val
 }
 
 // GetValidators returns all validators from store.
-func (dao *dao) GetValidators() []*entities.ValidatorState {
-	var validators []*entities.ValidatorState
+func (dao *dao) GetValidators() []*state.Validator {
+	var validators []*state.Validator
 	dao.store.Seek(storage.STValidator.Bytes(), func(k, v []byte) {
 		r := io.NewBinReaderFromBuf(v)
-		validator := &entities.ValidatorState{}
+		validator := &state.Validator{}
 		validator.DecodeBinary(r)
 		if r.Err != nil {
 			return
@@ -252,8 +251,8 @@ func (dao *dao) GetValidators() []*entities.ValidatorState {
 }
 
 // GetValidatorState returns validator by publicKey.
-func (dao *dao) GetValidatorState(publicKey *keys.PublicKey) (*entities.ValidatorState, error) {
-	validatorState := &entities.ValidatorState{}
+func (dao *dao) GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error) {
+	validatorState := &state.Validator{}
 	key := storage.AppendPrefix(storage.STValidator, publicKey.Bytes())
 	err := dao.GetAndDecode(validatorState, key)
 	if err != nil {
@@ -262,14 +261,14 @@ func (dao *dao) GetValidatorState(publicKey *keys.PublicKey) (*entities.Validato
 	return validatorState, nil
 }
 
-// PutValidatorState puts given ValidatorState into the given store.
-func (dao *dao) PutValidatorState(vs *entities.ValidatorState) error {
+// PutValidatorState puts given Validator into the given store.
+func (dao *dao) PutValidatorState(vs *state.Validator) error {
 	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
 	return dao.Put(vs, key)
 }
 
-// DeleteValidatorState deletes given ValidatorState into the given store.
-func (dao *dao) DeleteValidatorState(vs *entities.ValidatorState) error {
+// DeleteValidatorState deletes given Validator into the given store.
+func (dao *dao) DeleteValidatorState(vs *state.Validator) error {
 	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
 	return dao.store.Delete(key)
 }
@@ -280,8 +279,8 @@ func (dao *dao) DeleteValidatorState(vs *entities.ValidatorState) error {
 
 // GetAppExecResult gets application execution result from the
 // given store.
-func (dao *dao) GetAppExecResult(hash util.Uint256) (*entities.AppExecResult, error) {
-	aer := &entities.AppExecResult{}
+func (dao *dao) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
+	aer := &state.AppExecResult{}
 	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
 	err := dao.GetAndDecode(aer, key)
 	if err != nil {
@@ -292,7 +291,7 @@ func (dao *dao) GetAppExecResult(hash util.Uint256) (*entities.AppExecResult, er
 
 // PutAppExecResult puts given application execution result into the
 // given store.
-func (dao *dao) PutAppExecResult(aer *entities.AppExecResult) error {
+func (dao *dao) PutAppExecResult(aer *state.AppExecResult) error {
 	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
 	return dao.Put(aer, key)
 }
@@ -302,14 +301,14 @@ func (dao *dao) PutAppExecResult(aer *entities.AppExecResult) error {
 // -- start storage item.
 
 // GetStorageItem returns StorageItem if it exists in the given Store.
-func (dao *dao) GetStorageItem(scripthash util.Uint160, key []byte) *entities.StorageItem {
+func (dao *dao) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	b, err := dao.store.Get(makeStorageItemKey(scripthash, key))
 	if err != nil {
 		return nil
 	}
 	r := io.NewBinReaderFromBuf(b)
 
-	si := &entities.StorageItem{}
+	si := &state.StorageItem{}
 	si.DecodeBinary(r)
 	if r.Err != nil {
 		return nil
@@ -320,7 +319,7 @@ func (dao *dao) GetStorageItem(scripthash util.Uint160, key []byte) *entities.St
 
 // PutStorageItem puts given StorageItem for given script with given
 // key into the given Store.
-func (dao *dao) PutStorageItem(scripthash util.Uint160, key []byte, si *entities.StorageItem) error {
+func (dao *dao) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
 	return dao.Put(si, makeStorageItemKey(scripthash, key))
 }
 
@@ -331,8 +330,8 @@ func (dao *dao) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
-func (dao *dao) GetStorageItems(hash util.Uint160) (map[string]*entities.StorageItem, error) {
-	var siMap = make(map[string]*entities.StorageItem)
+func (dao *dao) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
+	var siMap = make(map[string]*state.StorageItem)
 	var err error
 
 	saveToMap := func(k, v []byte) {
@@ -340,7 +339,7 @@ func (dao *dao) GetStorageItems(hash util.Uint160) (map[string]*entities.Storage
 			return
 		}
 		r := io.NewBinReaderFromBuf(v)
-		si := &entities.StorageItem{}
+		si := &state.StorageItem{}
 		si.DecodeBinary(r)
 		if r.Err != nil {
 			err = r.Err
@@ -546,7 +545,7 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 			return false
 		}
 		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.states) || unspent.states[input.PrevIndex] == entities.CoinStateSpent {
+			if int(input.PrevIndex) >= len(unspent.states) || unspent.states[input.PrevIndex] == state.CoinSpent {
 				return true
 			}
 		}

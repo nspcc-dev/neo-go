@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"testing"
@@ -30,7 +30,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		votes[i] = k.PublicKey()
 	}
 
-	a := &AccountState{
+	a := &Account{
 		Version:    0,
 		ScriptHash: testutil.RandomUint160(),
 		IsFrozen:   true,
@@ -42,7 +42,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	a.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
 
-	aDecode := &AccountState{}
+	aDecode := &Account{}
 	r := io.NewBinReaderFromBuf(buf.Bytes())
 	aDecode.DecodeBinary(r)
 	assert.Nil(t, r.Err)
@@ -60,7 +60,7 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 func TestAccountStateBalanceValues(t *testing.T) {
 	asset1 := testutil.RandomUint256()
 	asset2 := testutil.RandomUint256()
-	as := AccountState{Balances: make(map[util.Uint256][]UnspentBalance)}
+	as := Account{Balances: make(map[util.Uint256][]UnspentBalance)}
 	ref := 0
 	for i := 0; i < 10; i++ {
 		ref += i

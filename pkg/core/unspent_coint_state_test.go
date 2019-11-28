@@ -3,19 +3,19 @@ package core
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDecodeEncodeUnspentCoinState(t *testing.T) {
 	unspent := &UnspentCoinState{
-		states: []entities.CoinState{
-			entities.CoinStateConfirmed,
-			entities.CoinStateSpent,
-			entities.CoinStateSpent,
-			entities.CoinStateSpent,
-			entities.CoinStateConfirmed,
+		states: []state.Coin{
+			state.CoinConfirmed,
+			state.CoinSpent,
+			state.CoinSpent,
+			state.CoinSpent,
+			state.CoinConfirmed,
 		},
 	}
 

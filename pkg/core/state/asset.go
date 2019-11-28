@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -9,8 +9,8 @@ import (
 
 const feeMode = 0x0
 
-// AssetState represents the state of an NEO registered Asset.
-type AssetState struct {
+// Asset represents the state of an NEO registered Asset.
+type Asset struct {
 	ID         util.Uint256
 	AssetType  transaction.AssetType
 	Name       string
@@ -27,7 +27,7 @@ type AssetState struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (a *AssetState) DecodeBinary(br *io.BinReader) {
+func (a *Asset) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(a.ID[:])
 	br.ReadLE(&a.AssetType)
 
@@ -47,7 +47,7 @@ func (a *AssetState) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (a *AssetState) EncodeBinary(bw *io.BinWriter) {
+func (a *Asset) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(a.ID[:])
 	bw.WriteLE(a.AssetType)
 	bw.WriteString(a.Name)
@@ -66,7 +66,7 @@ func (a *AssetState) EncodeBinary(bw *io.BinWriter) {
 }
 
 // GetName returns the asset name based on its type.
-func (a *AssetState) GetName() string {
+func (a *Asset) GetName() string {
 
 	if a.AssetType == transaction.GoverningToken {
 		return "NEO"

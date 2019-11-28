@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -17,8 +17,8 @@ type UnspentBalance struct {
 // UnspentBalances is a slice of UnspentBalance (mostly needed to sort them).
 type UnspentBalances []UnspentBalance
 
-// AccountState represents the state of a NEO account.
-type AccountState struct {
+// Account represents the state of a NEO account.
+type Account struct {
 	Version    uint8
 	ScriptHash util.Uint160
 	IsFrozen   bool
@@ -26,9 +26,9 @@ type AccountState struct {
 	Balances   map[util.Uint256][]UnspentBalance
 }
 
-// NewAccountState returns a new AccountState object.
-func NewAccountState(scriptHash util.Uint160) *AccountState {
-	return &AccountState{
+// NewAccount returns a new Account object.
+func NewAccount(scriptHash util.Uint160) *Account {
+	return &Account{
 		Version:    0,
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
@@ -37,8 +37,8 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 	}
 }
 
-// DecodeBinary decodes AccountState from the given BinReader.
-func (s *AccountState) DecodeBinary(br *io.BinReader) {
+// DecodeBinary decodes Account from the given BinReader.
+func (s *Account) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&s.Version)
 	br.ReadBytes(s.ScriptHash[:])
 	br.ReadLE(&s.IsFrozen)
@@ -55,8 +55,8 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// EncodeBinary encodes AccountState to the given BinWriter.
-func (s *AccountState) EncodeBinary(bw *io.BinWriter) {
+// EncodeBinary encodes Account to the given BinWriter.
+func (s *Account) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(s.Version)
 	bw.WriteBytes(s.ScriptHash[:])
 	bw.WriteLE(s.IsFrozen)
@@ -85,7 +85,7 @@ func (u *UnspentBalance) EncodeBinary(w *io.BinWriter) {
 
 // GetBalanceValues sums all unspent outputs and returns a map of asset IDs to
 // overall balances.
-func (s *AccountState) GetBalanceValues() map[util.Uint256]util.Fixed8 {
+func (s *Account) GetBalanceValues() map[util.Uint256]util.Fixed8 {
 	res := make(map[util.Uint256]util.Fixed8)
 	for k, v := range s.Balances {
 		balance := util.Fixed8(0)

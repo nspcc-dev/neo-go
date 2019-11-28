@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"math/big"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestValidatorState_DecodeEncodeBinary(t *testing.T) {
-	state := &ValidatorState{
+	state := &Validator{
 		PublicKey:  &keys.PublicKey{},
 		Registered: false,
 		Votes:      util.Fixed8(10),
@@ -20,7 +20,7 @@ func TestValidatorState_DecodeEncodeBinary(t *testing.T) {
 	state.EncodeBinary(buf.BinWriter)
 	require.NoError(t, buf.Err)
 
-	decodedState := &ValidatorState{}
+	decodedState := &Validator{}
 	reader := io.NewBinReaderFromBuf(buf.Bytes())
 	decodedState.DecodeBinary(reader)
 	require.NoError(t, reader.Err)
@@ -28,7 +28,7 @@ func TestValidatorState_DecodeEncodeBinary(t *testing.T) {
 }
 
 func TestRegisteredAndHasVotes_Registered(t *testing.T) {
-	state := &ValidatorState{
+	state := &Validator{
 		PublicKey: &keys.PublicKey{
 			X: big.NewInt(1),
 			Y: big.NewInt(1),
@@ -40,7 +40,7 @@ func TestRegisteredAndHasVotes_Registered(t *testing.T) {
 }
 
 func TestRegisteredAndHasVotes_RegisteredWithVotes(t *testing.T) {
-	state := &ValidatorState{
+	state := &Validator{
 		PublicKey: &keys.PublicKey{
 			X: big.NewInt(1),
 			Y: big.NewInt(1),
@@ -52,7 +52,7 @@ func TestRegisteredAndHasVotes_RegisteredWithVotes(t *testing.T) {
 }
 
 func TestRegisteredAndHasVotes_NotRegisteredWithVotes(t *testing.T) {
-	state := &ValidatorState{
+	state := &Validator{
 		PublicKey: &keys.PublicKey{
 			X: big.NewInt(1),
 			Y: big.NewInt(1),

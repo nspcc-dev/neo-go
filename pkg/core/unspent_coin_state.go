@@ -1,22 +1,22 @@
 package core
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 // UnspentCoinState hold the state of a unspent coin.
 type UnspentCoinState struct {
-	states []entities.CoinState
+	states []state.Coin
 }
 
 // NewUnspentCoinState returns a new unspent coin state with N confirmed states.
 func NewUnspentCoinState(n int) *UnspentCoinState {
 	u := &UnspentCoinState{
-		states: make([]entities.CoinState, n),
+		states: make([]state.Coin, n),
 	}
 	for i := 0; i < n; i++ {
-		u.states[i] = entities.CoinStateConfirmed
+		u.states[i] = state.CoinConfirmed
 	}
 	return u
 }
@@ -32,10 +32,10 @@ func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) {
 // DecodeBinary decodes UnspentCoinState from the given BinReader.
 func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) {
 	lenStates := br.ReadVarUint()
-	s.states = make([]entities.CoinState, lenStates)
+	s.states = make([]state.Coin, lenStates)
 	for i := 0; i < int(lenStates); i++ {
-		var state uint8
-		br.ReadLE(&state)
-		s.states[i] = entities.CoinState(state)
+		var coinState uint8
+		br.ReadLE(&coinState)
+		s.states[i] = state.Coin(coinState)
 	}
 }

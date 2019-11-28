@@ -8,7 +8,7 @@ package core
 */
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -20,12 +20,12 @@ type interopContext struct {
 	block         *Block
 	tx            *transaction.Transaction
 	dao           *dao
-	notifications []entities.NotificationEvent
+	notifications []state.NotificationEvent
 }
 
 func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
 	dao := &dao{store: storage.NewMemCachedStore(s)}
-	nes := make([]entities.NotificationEvent, 0)
+	nes := make([]state.NotificationEvent, 0)
 	return &interopContext{bc, trigger, block, tx, dao, nes}
 }
 

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -378,7 +378,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				if err != nil {
 					return err
 				}
-				unspent.states[input.PrevIndex] = entities.CoinStateSpent
+				unspent.states[input.PrevIndex] = state.CoinSpent
 				if err = cache.PutUnspentCoinState(input.PrevHash, unspent); err != nil {
 					return err
 				}
@@ -439,7 +439,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		// Process the underlying type of the TX.
 		switch t := tx.Data.(type) {
 		case *transaction.RegisterTX:
-			err := cache.PutAssetState(&entities.AssetState{
+			err := cache.PutAssetState(&state.Asset{
 				ID:         tx.Hash(),
 				AssetType:  t.AssetType,
 				Name:       t.Name,
@@ -499,7 +499,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			if t.NeedStorage {
 				properties |= smartcontract.HasStorage
 			}
-			contract := &entities.ContractState{
+			contract := &state.Contract{
 				Script:      t.Script,
 				ParamList:   t.ParamList,
 				ReturnType:  t.ReturnType,
@@ -555,7 +555,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 					"err":   err,
 				}).Warn("contract invocation failed")
 			}
-			aer := &entities.AppExecResult{
+			aer := &state.AppExecResult{
 				TxHash:      tx.Hash(),
 				Trigger:     trigger.Application,
 				VMState:     v.State(),
@@ -588,7 +588,7 @@ func processOutputs(tx *transaction.Transaction, dao *dao) error {
 		if err != nil {
 			return err
 		}
-		account.Balances[output.AssetID] = append(account.Balances[output.AssetID], entities.UnspentBalance{
+		account.Balances[output.AssetID] = append(account.Balances[output.AssetID], state.UnspentBalance{
 			Tx:    tx.Hash(),
 			Index: uint16(index),
 			Value: output.Amount,
@@ -739,12 +739,12 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 }
 
 // GetStorageItem returns an item from storage.
-func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *entities.StorageItem {
+func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	return bc.dao.GetStorageItem(scripthash, key)
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
-func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*entities.StorageItem, error) {
+func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
 	return bc.dao.GetStorageItems(hash)
 }
 
@@ -830,7 +830,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 }
 
 // GetAssetState returns asset state from its assetID.
-func (bc *Blockchain) GetAssetState(assetID util.Uint256) *entities.AssetState {
+func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
 	asset, err := bc.dao.GetAssetState(assetID)
 	if asset == nil && err != storage.ErrKeyNotFound {
 		log.Warnf("failed to get asset state %s : %s", assetID, err)
@@ -839,7 +839,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *entities.AssetState {
 }
 
 // GetContractState returns contract by its script hash.
-func (bc *Blockchain) GetContractState(hash util.Uint160) *entities.ContractState {
+func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err :=  bc.dao.GetContractState(hash)
 	if contract == nil && err != storage.ErrKeyNotFound {
 		log.Warnf("failed to get contract state: %s", err)
@@ -848,7 +848,7 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *entities.ContractStat
 }
 
 // GetAccountState returns the account state from its script hash.
-func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *entities.AccountState {
+func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 	as, err := bc.dao.GetAccountState(scriptHash)
 	if as == nil && err != storage.ErrKeyNotFound {
 		log.Warnf("failed to get account state: %s", err)
@@ -1166,7 +1166,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 				if err != nil {
 					return nil, err
 				}
-				accountState.Balances[output.AssetID] = append(accountState.Balances[output.AssetID], entities.UnspentBalance{
+				accountState.Balances[output.AssetID] = append(accountState.Balances[output.AssetID], state.UnspentBalance{
 					Tx:    tx.Hash(),
 					Index: uint16(index),
 					Value: output.Amount,
@@ -1250,7 +1250,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 
 	validators := cache.GetValidators()
 
-	count := entities.GetValidatorsWeightedAverage(validators)
+	count := state.GetValidatorsWeightedAverage(validators)
 	standByValidators, err := bc.GetStandByValidators()
 	if err != nil {
 		return nil, err

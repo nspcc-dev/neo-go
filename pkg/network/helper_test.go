@@ -9,7 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -63,7 +63,7 @@ func (chain testChain) HeaderHeight() uint32 {
 func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
 	panic("TODO")
 }
-func (chain testChain) GetContractState(hash util.Uint160) *entities.ContractState {
+func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
 	panic("TODO")
 }
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
@@ -73,10 +73,10 @@ func (chain testChain) GetHeader(hash util.Uint256) (*core.Header, error) {
 	panic("TODO")
 }
 
-func (chain testChain) GetAssetState(util.Uint256) *entities.AssetState {
+func (chain testChain) GetAssetState(util.Uint256) *state.Asset {
 	panic("TODO")
 }
-func (chain testChain) GetAccountState(util.Uint160) *entities.AccountState {
+func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 	panic("TODO")
 }
 func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.PublicKey, error) {
@@ -85,13 +85,13 @@ func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.Publi
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *entities.StorageItem {
+func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	panic("TODO")
 }
 func (chain testChain) GetTestVM() (*vm.VM, storage.Store) {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*entities.StorageItem, error) {
+func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
 	panic("TODO")
 }
 func (chain testChain) CurrentHeaderHash() util.Uint256 {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -342,7 +342,7 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 	// It can be just about anything.
 	e := v.Estack().Pop()
-	ne := entities.NotificationEvent{ScriptHash:getContextScriptHash(v, 0), Item:e.Item()}
+	ne := state.NotificationEvent{ScriptHash: getContextScriptHash(v, 0), Item: e.Item()}
 	ic.notifications = append(ic.notifications, ne)
 	return nil
 }
@@ -475,7 +475,7 @@ func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte
 	}
 	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
 	if si == nil {
-		si = &entities.StorageItem{}
+		si = &state.StorageItem{}
 	}
 	if si.IsConst {
 		return errors.New("storage item exists and is read-only")
@@ -558,7 +558,7 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 // contractGetStorageContext retrieves StorageContext of a contract.
 func (ic *interopContext) contractGetStorageContext(v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*entities.ContractState)
+	cs, ok := csInterface.(*state.Contract)
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}

@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -53,7 +53,7 @@ func TestGetAccountStateOrNew_New(t *testing.T) {
 func TestPutAndGetAccountStateOrNew(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	hash := testutil.RandomUint160()
-	accountState := &entities.AccountState{ScriptHash: hash}
+	accountState := &state.Account{ScriptHash: hash}
 	err := dao.PutAccountState(accountState)
 	require.NoError(t, err)
 	gotAccount, err := dao.GetAccountStateOrNew(hash)
@@ -64,7 +64,7 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 func TestPutAndGetAssetState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	id := testutil.RandomUint256()
-	assetState := &entities.AssetState{ID: id, Owner: keys.PublicKey{}}
+	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
 	err := dao.PutAssetState(assetState)
 	require.NoError(t, err)
 	gotAssetState, err := dao.GetAssetState(id)
@@ -74,7 +74,7 @@ func TestPutAndGetAssetState(t *testing.T) {
 
 func TestPutAndGetContractState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	contractState := &entities.ContractState{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestPutAndGetContractState(t *testing.T) {
 
 func TestDeleteContractState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	contractState := &entities.ContractState{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 func TestPutGetUnspentCoinState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	hash := testutil.RandomUint256()
-	unspentCoinState := &UnspentCoinState{states:[]entities.CoinState{}}
+	unspentCoinState := &UnspentCoinState{states:[]state.Coin{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
@@ -183,7 +183,7 @@ func TestGetValidatorStateOrNew_New(t *testing.T) {
 func TestPutGetValidatorState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	publicKey := &keys.PublicKey{}
-	validatorState := &entities.ValidatorState{
+	validatorState := &state.Validator{
 		PublicKey:  publicKey,
 		Registered: false,
 		Votes:      0,
@@ -198,7 +198,7 @@ func TestPutGetValidatorState(t *testing.T) {
 func TestDeleteValidatorState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	publicKey := &keys.PublicKey{}
-	validatorState := &entities.ValidatorState{
+	validatorState := &state.Validator{
 		PublicKey:  publicKey,
 		Registered: false,
 		Votes:      0,
@@ -215,7 +215,7 @@ func TestDeleteValidatorState(t *testing.T) {
 func TestGetValidators(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	publicKey := &keys.PublicKey{}
-	validatorState := &entities.ValidatorState{
+	validatorState := &state.Validator{
 		PublicKey:  publicKey,
 		Registered: false,
 		Votes:      0,
@@ -230,7 +230,7 @@ func TestGetValidators(t *testing.T) {
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	hash := testutil.RandomUint256()
-	appExecResult := &entities.AppExecResult{TxHash: hash, Events:[]entities.NotificationEvent{}}
+	appExecResult := &state.AppExecResult{TxHash: hash, Events:[]state.NotificationEvent{}}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
 	gotAppExecResult, err := dao.GetAppExecResult(hash)
@@ -242,7 +242,7 @@ func TestPutGetStorageItem(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	hash := testutil.RandomUint160()
 	key := []byte{0}
-	storageItem := &entities.StorageItem{Value:[]uint8{}}
+	storageItem := &state.StorageItem{Value: []uint8{}}
 	err := dao.PutStorageItem(hash, key, storageItem)
 	require.NoError(t, err)
 	gotStorageItem := dao.GetStorageItem(hash, key)
@@ -253,7 +253,7 @@ func TestDeleteStorageItem(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
 	hash := testutil.RandomUint160()
 	key := []byte{0}
-	storageItem := &entities.StorageItem{Value:[]uint8{}}
+	storageItem := &state.StorageItem{Value: []uint8{}}
 	err := dao.PutStorageItem(hash, key, storageItem)
 	require.NoError(t, err)
 	err = dao.DeleteStorageItem(hash, key)

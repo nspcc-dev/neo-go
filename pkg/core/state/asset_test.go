@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"testing"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestEncodeDecodeAssetState(t *testing.T) {
-	asset := &AssetState{
+	asset := &Asset{
 		ID:         testutil.RandomUint256(),
 		AssetType:  transaction.Token,
 		Name:       "super cool token",
@@ -30,7 +30,7 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	asset.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
-	assetDecode := &AssetState{}
+	assetDecode := &Asset{}
 	r := io.NewBinReaderFromBuf(buf.Bytes())
 	assetDecode.DecodeBinary(r)
 	assert.Nil(t, r.Err)
@@ -38,11 +38,11 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 }
 
 func TestAssetState_GetName_NEO(t *testing.T) {
-	asset := &AssetState{AssetType:  transaction.GoverningToken}
+	asset := &Asset{AssetType: transaction.GoverningToken}
 	assert.Equal(t, "NEO", asset.GetName())
 }
 
 func TestAssetState_GetName_NEOGas(t *testing.T) {
-	asset := &AssetState{AssetType:  transaction.UtilityToken}
+	asset := &Asset{AssetType: transaction.UtilityToken}
 	assert.Equal(t, "NEOGas", asset.GetName())
 }

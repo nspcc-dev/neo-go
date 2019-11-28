@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -317,7 +317,7 @@ func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 	}
 	acc := ic.bc.GetAccountState(acchash)
 	if acc == nil {
-		acc = entities.NewAccountState(acchash)
+		acc = state.NewAccount(acchash)
 	}
 	v.Estack().PushVal(vm.NewInteropItem(acc))
 	return nil
@@ -341,7 +341,7 @@ func (ic *interopContext) bcGetAsset(v *vm.VM) error {
 // accountGetBalance returns balance for a given account.
 func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*entities.AccountState)
+	acc, ok := accInterface.(*state.Account)
 	if !ok {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
@@ -361,7 +361,7 @@ func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 // accountGetScriptHash returns script hash of a given account.
 func (ic *interopContext) accountGetScriptHash(v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*entities.AccountState)
+	acc, ok := accInterface.(*state.Account)
 	if !ok {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
@@ -372,7 +372,7 @@ func (ic *interopContext) accountGetScriptHash(v *vm.VM) error {
 // accountGetVotes returns votes of a given account.
 func (ic *interopContext) accountGetVotes(v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*entities.AccountState)
+	acc, ok := accInterface.(*state.Account)
 	if !ok {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
@@ -428,9 +428,9 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 }
 */
 // createContractStateFromVM pops all contract state elements from the VM
-// evaluation stack, does a lot of checks and returns ContractState if it
+// evaluation stack, does a lot of checks and returns Contract if it
 // succeeds.
-func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*entities.ContractState, error) {
+func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, error) {
 	if ic.trigger != trigger.Application {
 		return nil, errors.New("can't create contract when not triggered by an application")
 	}
@@ -468,7 +468,7 @@ func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*entities.Contrac
 	if len(desc) > MaxContractStringLen {
 		return nil, errors.New("too big description")
 	}
-	contract := &entities.ContractState{
+	contract := &state.Contract{
 		Script:      script,
 		ParamList:   paramList,
 		ReturnType:  retType,
@@ -503,7 +503,7 @@ func (ic *interopContext) contractCreate(v *vm.VM) error {
 // contractGetScript returns a script associated with a contract.
 func (ic *interopContext) contractGetScript(v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*entities.ContractState)
+	cs, ok := csInterface.(*state.Contract)
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}
@@ -514,7 +514,7 @@ func (ic *interopContext) contractGetScript(v *vm.VM) error {
 // contractIsPayable returns whether contract is payable.
 func (ic *interopContext) contractIsPayable(v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*entities.ContractState)
+	cs, ok := csInterface.(*state.Contract)
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}
@@ -610,7 +610,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 	if err != nil {
 		return gherr.Wrap(err, "failed to get issuer")
 	}
-	asset := &entities.AssetState{
+	asset := &state.Asset{
 		ID:         ic.tx.Hash(),
 		AssetType:  atype,
 		Name:       name,
@@ -632,7 +632,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 // assetGetAdmin returns asset admin.
 func (ic *interopContext) assetGetAdmin(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -643,7 +643,7 @@ func (ic *interopContext) assetGetAdmin(v *vm.VM) error {
 // assetGetAmount returns the overall amount of asset available.
 func (ic *interopContext) assetGetAmount(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -654,7 +654,7 @@ func (ic *interopContext) assetGetAmount(v *vm.VM) error {
 // assetGetAssetId returns the id of an asset.
 func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -665,7 +665,7 @@ func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
 // assetGetAssetType returns type of an asset.
 func (ic *interopContext) assetGetAssetType(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -676,7 +676,7 @@ func (ic *interopContext) assetGetAssetType(v *vm.VM) error {
 // assetGetAvailable returns available (not yet issued) amount of asset.
 func (ic *interopContext) assetGetAvailable(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -687,7 +687,7 @@ func (ic *interopContext) assetGetAvailable(v *vm.VM) error {
 // assetGetIssuer returns issuer of an asset.
 func (ic *interopContext) assetGetIssuer(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -698,7 +698,7 @@ func (ic *interopContext) assetGetIssuer(v *vm.VM) error {
 // assetGetOwner returns owner of an asset.
 func (ic *interopContext) assetGetOwner(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -709,7 +709,7 @@ func (ic *interopContext) assetGetOwner(v *vm.VM) error {
 // assetGetPrecision returns precision used to measure this asset.
 func (ic *interopContext) assetGetPrecision(v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
@@ -723,7 +723,7 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 		return errors.New("can't create asset when not triggered by an application")
 	}
 	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*entities.AssetState)
+	as, ok := asInterface.(*state.Asset)
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}

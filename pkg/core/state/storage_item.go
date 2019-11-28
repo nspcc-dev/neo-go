@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"

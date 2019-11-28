@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/entities"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -323,7 +323,7 @@ func TestAssetGetPrecision(t *testing.T) {
 	require.Equal(t, big.NewInt(int64(assetState.Precision)), precision)
 }
 
-// Helper functions to create VM, InteropContext, TX, AccountState, ContractState, AssetState.
+// Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext) {
 	v := vm.New()
@@ -339,9 +339,9 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 	return v, tx, context
 }
 
-func createVMAndAssetState(t *testing.T) (*vm.VM, *entities.AssetState, *interopContext) {
+func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext) {
 	v := vm.New()
-	assetState := &entities.AssetState{
+	assetState := &state.Asset{
 		ID:         util.Uint256{},
 		AssetType:  transaction.GoverningToken,
 		Name:       "TestAsset",
@@ -361,9 +361,9 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *entities.AssetState, *interop
 	return v, assetState, context
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *entities.ContractState, *interopContext) {
+func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopContext) {
 	v := vm.New()
-	contractState := &entities.ContractState{
+	contractState := &state.Contract{
 		Script:      []byte("testscript"),
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.ArrayType,
@@ -379,11 +379,11 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *entities.ContractState, *i
 	return v, contractState, context
 }
 
-func createVMAndAccState(t *testing.T) (*vm.VM, *entities.AccountState, *interopContext) {
+func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
-	accountState := entities.NewAccountState(hash)
+	accountState := state.NewAccount(hash)
 
 	key := &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)}
 	accountState.Votes = []*keys.PublicKey{key}

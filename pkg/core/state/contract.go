@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -7,8 +7,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// ContractState holds information about a smart contract in the NEO blockchain.
-type ContractState struct {
+// Contract holds information about a smart contract in the NEO blockchain.
+type Contract struct {
 	Script      []byte
 	ParamList   []smartcontract.ParamType
 	ReturnType  smartcontract.ParamType
@@ -23,7 +23,7 @@ type ContractState struct {
 }
 
 // DecodeBinary implements Serializable interface.
-func (cs *ContractState) DecodeBinary(br *io.BinReader) {
+func (cs *Contract) DecodeBinary(br *io.BinReader) {
 	cs.Script = br.ReadVarBytes()
 	br.ReadArray(&cs.ParamList)
 	br.ReadLE(&cs.ReturnType)
@@ -37,7 +37,7 @@ func (cs *ContractState) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
+func (cs *Contract) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(cs.Script)
 	bw.WriteArray(cs.ParamList)
 	bw.WriteLE(cs.ReturnType)
@@ -50,7 +50,7 @@ func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
 }
 
 // ScriptHash returns a contract script hash.
-func (cs *ContractState) ScriptHash() util.Uint160 {
+func (cs *Contract) ScriptHash() util.Uint160 {
 	if cs.scriptHash.Equals(util.Uint160{}) {
 		cs.createHash()
 	}
@@ -58,21 +58,21 @@ func (cs *ContractState) ScriptHash() util.Uint160 {
 }
 
 // createHash creates contract script hash.
-func (cs *ContractState) createHash() {
+func (cs *Contract) createHash() {
 	cs.scriptHash = hash.Hash160(cs.Script)
 }
 
 // HasStorage checks whether the contract has storage property set.
-func (cs *ContractState) HasStorage() bool {
+func (cs *Contract) HasStorage() bool {
 	return (cs.Properties & smartcontract.HasStorage) != 0
 }
 
 // HasDynamicInvoke checks whether the contract has dynamic invoke property set.
-func (cs *ContractState) HasDynamicInvoke() bool {
+func (cs *Contract) HasDynamicInvoke() bool {
 	return (cs.Properties & smartcontract.HasDynamicInvoke) != 0
 }
 
 // IsPayable checks whether the contract has payable property set.
-func (cs *ContractState) IsPayable() bool {
+func (cs *Contract) IsPayable() bool {
 	return (cs.Properties & smartcontract.IsPayable) != 0
 }

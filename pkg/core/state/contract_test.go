@@ -1,4 +1,4 @@
-package entities
+package state
 
 import (
 	"testing"
@@ -12,7 +12,7 @@ import (
 func TestEncodeDecodeContractState(t *testing.T) {
 	script := []byte("testscript")
 
-	contract := &ContractState{
+	contract := &Contract{
 		Script:      script,
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.BoolType,
@@ -28,7 +28,7 @@ func TestEncodeDecodeContractState(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	contract.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
-	contractDecoded := &ContractState{}
+	contractDecoded := &Contract{}
 	r := io.NewBinReaderFromBuf(buf.Bytes())
 	contractDecoded.DecodeBinary(r)
 	assert.Nil(t, r.Err)
@@ -37,10 +37,10 @@ func TestEncodeDecodeContractState(t *testing.T) {
 }
 
 func TestContractStateProperties(t *testing.T) {
-	flaggedContract := ContractState{
+	flaggedContract := Contract{
 		Properties: smartcontract.HasStorage | smartcontract.HasDynamicInvoke | smartcontract.IsPayable,
 	}
-	nonFlaggedContract := ContractState{
+	nonFlaggedContract := Contract{
 		ReturnType: smartcontract.BoolType,
 	}
 	assert.Equal(t, true, flaggedContract.HasStorage())
