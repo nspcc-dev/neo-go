@@ -24,9 +24,9 @@ services:
       neo_go_network:
         ipv4_address: 172.200.0.1
     ports:
-      -  20331:20331
-      -  20341:20341
-      -  20351:20351
+      -  20333:20333
+      -  30333:30333
+      -  20001:20001
   node_two:
     container_name: neo_go_node_two
     image: env_neo_go_image
@@ -38,9 +38,9 @@ services:
       neo_go_network:
         ipv4_address: 172.200.0.2
     ports:
-      -  20332:20332
-      -  20342:20342
-      -  20352:20352
+      -  20334:20334
+      -  30334:30334
+      -  20002:20002
   node_three:
     container_name: neo_go_node_three
     image: env_neo_go_image
@@ -52,9 +52,9 @@ services:
       neo_go_network:
         ipv4_address: 172.200.0.3
     ports:
-      -  20333:20333
-      -  20343:20343
-      -  20353:20353
+      -  20335:20335
+      -  30335:30335
+      -  20003:20003
   node_four:
     container_name: neo_go_node_four
     image: env_neo_go_image
@@ -66,6 +66,6 @@ services:
       neo_go_network:
         ipv4_address: 172.200.0.4
     ports:
-      -  20334:20334
-      -  20344:20344
-      -  20354:20354
+      -  20336:20336
+      -  30336:30336
+      -  20004:20004
