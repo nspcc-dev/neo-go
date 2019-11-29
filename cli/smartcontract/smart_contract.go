@@ -31,9 +31,22 @@ var (
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
+
+	endpointFlag = cli.StringFlag{
+		Name:  "endpoint, e",
+		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
+	}
+	wifFlag = cli.StringFlag{
+		Name:  "wif, w",
+		Usage: "key to sign deployed transaction (in wif format)",
+	}
+	gasFlag = cli.Float64Flag{
+		Name:  "gas, g",
+		Usage: "gas to pay for transaction",
+	}
 )
 
-var (
+const (
 	// smartContractTmpl is written to a file when used with `init` command.
 	// %s is parsed to be the smartContractName
 	smartContractTmpl = `package %s
@@ -83,18 +96,41 @@ func NewCommands() []cli.Command {
 						Name:  "config, c",
 						Usage: "configuration input file (*.yml)",
 					},
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
-					cli.StringFlag{
-						Name:  "wif, w",
-						Usage: "key to sign deployed transaction (in wif format)",
-					},
-					cli.IntFlag{
-						Name:  "gas, g",
-						Usage: "gas to pay for contract deployment",
-					},
+					endpointFlag,
+					wifFlag,
+					gasFlag,
+				},
+			},
+			{
+				Name:      "invoke",
+				Usage:     "invoke deployed contract on the blockchain",
+				UsageText: "neo-go contract invoke -e endpoint -w wif [-g gas] scripthash [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given arguments.
+   See testinvoke documentation for the details about parameters. It differs
+   from testinvoke in that this command sends an invocation transaction to
+   the network.
+`,
+				Action: invoke,
+				Flags: []cli.Flag{
+					endpointFlag,
+					wifFlag,
+					gasFlag,
+				},
+			},
+			{
+				Name:      "invokefunction",
+				Usage:     "invoke deployed contract on the blockchain",
+				UsageText: "neo-go contract invokefunction -e endpoint -w wif [-g gas] scripthash [method] [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given method and
+   and arguments. See testinvokefunction documentation for the details about
+   parameters. It differs from testinvokefunction in that this command sends an
+   invocation transaction to the network.
+`,
+				Action: invokeFunction,
+				Flags: []cli.Flag{
+					endpointFlag,
+					wifFlag,
+					gasFlag,
 				},
 			},
 			{
@@ -114,10 +150,7 @@ func NewCommands() []cli.Command {
 `,
 				Action: testInvoke,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 				},
 			},
 			{
@@ -188,10 +221,7 @@ func NewCommands() []cli.Command {
 `,
 				Action: testInvokeFunction,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 				},
 			},
 			{
@@ -199,10 +229,7 @@ func NewCommands() []cli.Command {
 				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
 				Action: testInvokeScript,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "Input location of the avm file that needs to be invoked",
@@ -311,18 +338,31 @@ func contractCompile(ctx *cli.Context) error {
 }
 
 func testInvoke(ctx *cli.Context) error {
-	return testInvokeInternal(ctx, false)
+	return invokeInternal(ctx, false, false)
 }
 
 func testInvokeFunction(ctx *cli.Context) error {
-	return testInvokeInternal(ctx, true)
+	return invokeInternal(ctx, true, false)
 }
 
-func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
-	var resp *rpc.InvokeScriptResponse
-	var operation string
-	var paramsStart = 1
-	var params = make([]smartcontract.Parameter, 0)
+func invoke(ctx *cli.Context) error {
+	return invokeInternal(ctx, false, true)
+}
+
+func invokeFunction(ctx *cli.Context) error {
+	return invokeInternal(ctx, true, true)
+}
+
+func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
+	var (
+		err         error
+		gas         util.Fixed8
+		operation   string
+		params      = make([]smartcontract.Parameter, 0)
+		paramsStart = 1
+		resp        *rpc.InvokeScriptResponse
+		wif         *keys.WIF
+	)
 
 	endpoint := ctx.String("endpoint")
 	if len(endpoint) == 0 {
@@ -348,6 +388,14 @@ func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
 		}
 	}
 
+	if signAndPush {
+		gas = util.Fixed8FromFloat(ctx.Float64("gas"))
+
+		wif, err = getWifFromContext(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -361,13 +409,27 @@ func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if signAndPush {
+		if len(resp.Result.Script) == 0 {
+			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+		}
+		script, err := hex.DecodeString(resp.Result.Script)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
+		}
+		txHash, err := client.SignAndPushInvocationTx(script, wif, gas)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
+		}
+		fmt.Printf("Sent invocation transaction %s\n", txHash.ReverseString())
+	} else {
+		b, err := json.MarshalIndent(resp.Result, "", "  ")
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 
-	b, err := json.MarshalIndent(resp.Result, "", "  ")
-	if err != nil {
-		return cli.NewExitError(err, 1)
+		fmt.Println(string(b))
 	}
-
-	fmt.Println(string(b))
 
 	return nil
 }
@@ -459,6 +521,19 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
+func getWifFromContext(ctx *cli.Context) (*keys.WIF, error) {
+	wifStr := ctx.String("wif")
+	if len(wifStr) == 0 {
+		return nil, cli.NewExitError(errNoWIF, 1)
+	}
+
+	wif, err := keys.WIFDecode(wifStr, 0)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+	}
+	return wif, nil
+}
+
 // contractDeploy deploys contract.
 func contractDeploy(ctx *cli.Context) error {
 	in := ctx.String("in")
@@ -473,15 +548,11 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(endpoint) == 0 {
 		return cli.NewExitError(errNoEndpoint, 1)
 	}
-	wifStr := ctx.String("wif")
-	if len(wifStr) == 0 {
-		return cli.NewExitError(errNoWIF, 1)
-	}
-	gas := util.Fixed8FromInt64(int64(ctx.Int("gas")))
+	gas := util.Fixed8FromFloat(ctx.Float64("gas"))
 
-	wif, err := keys.WIFDecode(wifStr, 0)
+	wif, err := getWifFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+		return err
 	}
 	avm, err := ioutil.ReadFile(in)
 	if err != nil {
@@ -503,9 +574,14 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	txHash, err := client.DeployContract(avm, &conf.Contract, wif, gas)
+	txScript, err := rpc.CreateDeploymentScript(avm, &conf.Contract)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to deploy: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
+	}
+
+	txHash, err := client.SignAndPushInvocationTx(txScript, wif, gas)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
 	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.ReverseString(), hash.Hash160(avm).ReverseString())
 	return nil
