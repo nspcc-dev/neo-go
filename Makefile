@@ -108,10 +108,13 @@ env_up:
 	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
 
 env_down:
-	@echo "=> Stop and cleanup environment"
+	@echo "=> Stop environment"
 	@docker-compose -f $(DC_FILE) down
 
 env_restart:
-	@echo "=> Stop and cleanup environment"
+	@echo "=> Stop and start environment"
 	@docker-compose -f $(DC_FILE) restart
 
+env_clean: env_down
+	@echo "=> Cleanup environment"
+	@docker volume rm docker_volume_chain
