@@ -462,6 +462,9 @@ func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.consensus.OnTransaction(tx)
+	// It's OK for it to fail for various reasons like tx already existing
+	// in the pool.
+	_ = s.RelayTxn(tx)
 	return nil
 }
 
