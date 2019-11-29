@@ -91,6 +91,8 @@ func NewService(cfg Config) (Service, error) {
 		cache:    newFIFOCache(cacheMaxCapacity),
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
+
+		transactions: make(chan *transaction.Transaction, 100),
 	}
 
 	if cfg.Wallet == nil {
@@ -302,8 +304,8 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 	txx := pool.GetVerifiedTransactions()
 
 	res := make([]block.Transaction, len(txx)+1)
-	for i := 1; i < len(res); i++ {
-		res[i] = txx[i]
+	for i := range txx {
+		res[i+1] = txx[i]
 	}
 
 	for {
