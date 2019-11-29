@@ -639,10 +639,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 		return RelayOutOfMemory
 	}
 
-	for p := range s.Peers() {
-		payload := payload.NewInventory(payload.TXType, []util.Uint256{t.Hash()})
-		s.RelayDirectly(p, payload)
-	}
+	s.relayInventory(payload.TXType, t.Hash())
 
 	return RelaySucceed
 }
