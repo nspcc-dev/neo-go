@@ -243,6 +243,9 @@ Methods:
 		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
 
+	case "invoke":
+		results, resultsErr = s.invoke(reqParams)
+
 	case "invokefunction":
 		results, resultsErr = s.invokeFunction(reqParams)
 
@@ -328,6 +331,31 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 	return results, resultsErr
 }
 
+// invoke implements the `invoke` RPC call.
+func (s *Server) invoke(reqParams Params) (interface{}, error) {
+	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+	scriptHash, err := scriptHashHex.GetUint160FromHex()
+	if err != nil {
+		return nil, err
+	}
+	sliceP, ok := reqParams.ValueWithType(1, arrayT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+	slice, err := sliceP.GetArray()
+	if err != nil {
+		return nil, err
+	}
+	script, err := CreateInvocationScript(scriptHash, slice)
+	if err != nil {
+		return nil, err
+	}
+	return s.runScriptInVM(script), nil
+}
+
 // invokescript implements the `invokescript` RPC call.
 func (s *Server) invokeFunction(reqParams Params) (interface{}, error) {
 	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
@@ -342,16 +370,7 @@ func (s *Server) invokeFunction(reqParams Params) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm, _ := s.chain.GetTestVM()
-	vm.LoadScript(script)
-	_ = vm.Run()
-	result := &wrappers.InvokeResult{
-		State:       vm.State(),
-		GasConsumed: "0.1",
-		Script:      hex.EncodeToString(script),
-		Stack:       vm.Estack(),
-	}
-	return result, nil
+	return s.runScriptInVM(script), nil
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -365,18 +384,22 @@ func (s *Server) invokescript(reqParams Params) (interface{}, error) {
 		return nil, errInvalidParams
 	}
 
+	return s.runScriptInVM(script), nil
+}
+
+// runScriptInVM runs given script in a new test VM and returns the invocation
+// result.
+func (s *Server) runScriptInVM(script []byte) *wrappers.InvokeResult {
 	vm, _ := s.chain.GetTestVM()
 	vm.LoadScript(script)
 	_ = vm.Run()
-	// It's already being GetBytesHex'ed, so it's a correct string.
-	echo, _ := reqParams[0].GetString()
 	result := &wrappers.InvokeResult{
 		State:       vm.State(),
 		GasConsumed: "0.1",
-		Script:      echo,
+		Script:      hex.EncodeToString(script),
 		Stack:       vm.Estack(),
 	}
-	return result, nil
+	return result
 }
 
 func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {

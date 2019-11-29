@@ -166,6 +166,90 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 	return script.Bytes(), nil
 }
 
+// expandArrayIntoScript pushes all FuncParam parameters from the given array
+// into the given buffer in reverse order.
+func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
+	for j := len(slice) - 1; j >= 0; j-- {
+		fp, err := slice[j].GetFuncParam()
+		if err != nil {
+			return err
+		}
+		switch fp.Type {
+		case ByteArray, Signature:
+			str, err := fp.Value.GetBytesHex()
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitBytes(script, str); err != nil {
+				return err
+			}
+		case String:
+			str, err := fp.Value.GetString()
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitString(script, str); err != nil {
+				return err
+			}
+		case Hash160:
+			hash, err := fp.Value.GetUint160FromHex()
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+				return err
+			}
+		case Hash256:
+			hash, err := fp.Value.GetUint256()
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+				return err
+			}
+		case PublicKey:
+			str, err := fp.Value.GetString()
+			if err != nil {
+				return err
+			}
+			key, err := keys.NewPublicKeyFromString(string(str))
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitBytes(script, key.Bytes()); err != nil {
+				return err
+			}
+		case Integer:
+			val, err := fp.Value.GetInt()
+			if err != nil {
+				return err
+			}
+			if err := vm.EmitInt(script, int64(val)); err != nil {
+				return err
+			}
+		case Boolean:
+			str, err := fp.Value.GetString()
+			if err != nil {
+				return err
+			}
+			switch str {
+			case "true":
+				err = vm.EmitInt(script, 1)
+			case "false":
+				err = vm.EmitInt(script, 0)
+			default:
+				err = errors.New("wrong boolean value")
+			}
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("parameter type %v is not supported", fp.Type)
+		}
+	}
+	return nil
+}
+
 // CreateFunctionInvocationScript creates a script to invoke given contract with
 // given parameters.
 func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byte, error) {
@@ -189,83 +273,9 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 			if err != nil {
 				return nil, err
 			}
-			for j := len(slice) - 1; j >= 0; j-- {
-				fp, err := slice[j].GetFuncParam()
-				if err != nil {
-					return nil, err
-				}
-				switch fp.Type {
-				case ByteArray, Signature:
-					str, err := fp.Value.GetBytesHex()
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitBytes(script, str); err != nil {
-						return nil, err
-					}
-				case String:
-					str, err := fp.Value.GetString()
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitString(script, str); err != nil {
-						return nil, err
-					}
-				case Hash160:
-					hash, err := fp.Value.GetUint160FromHex()
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
-						return nil, err
-					}
-				case Hash256:
-					hash, err := fp.Value.GetUint256()
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
-						return nil, err
-					}
-				case PublicKey:
-					str, err := fp.Value.GetString()
-					if err != nil {
-						return nil, err
-					}
-					key, err := keys.NewPublicKeyFromString(string(str))
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitBytes(script, key.Bytes()); err != nil {
-						return nil, err
-					}
-				case Integer:
-					val, err := fp.Value.GetInt()
-					if err != nil {
-						return nil, err
-					}
-					if err := vm.EmitInt(script, int64(val)); err != nil {
-						return nil, err
-					}
-				case Boolean:
-					str, err := fp.Value.GetString()
-					if err != nil {
-						return nil, err
-					}
-					switch str {
-					case "true":
-						err = vm.EmitInt(script, 1)
-					case "false":
-						err = vm.EmitInt(script, 0)
-					default:
-						err = errors.New("wrong boolean value")
-					}
-					if err != nil {
-						return nil, err
-					}
-				default:
-					return nil, fmt.Errorf("parameter type %v is not supported", fp.Type)
-				}
+			err = expandArrayIntoScript(script, slice)
+			if err != nil {
+				return nil, err
 			}
 			err = vm.EmitInt(script, int64(len(slice)))
 			if err != nil {
@@ -279,6 +289,22 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 	}
 
 	if err := vm.EmitAppCall(script, contract, false); err != nil {
+		return nil, err
+	}
+	return script.Bytes(), nil
+}
+
+// CreateInvocationScript creates a script to invoke given contract with
+// given parameters. It differs from CreateFunctionInvocationScript in that it
+// expects one array of FuncParams and expands it onto the stack as independent
+// elements.
+func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, error) {
+	script := new(bytes.Buffer)
+	err := expandArrayIntoScript(script, funcParams)
+	if err != nil {
+		return nil, err
+	}
+	if err = vm.EmitAppCall(script, contract, false); err != nil {
 		return nil, err
 	}
 	return script.Bytes(), nil

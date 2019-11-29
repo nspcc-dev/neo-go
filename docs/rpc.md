@@ -54,7 +54,7 @@ which would yield the response:
 | `gettxout` | No (#345) |
 | `getunspents` | Yes |
 | `getversion` | Yes |
-| `invoke` | No (#346) |
+| `invoke` | Yes |
 | `invokefunction` | Yes |
 | `invokescript` | Yes |
 | `sendrawtransaction` | Yes |
@@ -63,13 +63,15 @@ which would yield the response:
 
 #### Implementation notices
 
-##### `invokefunction`
+##### `invokefunction` and `invoke`
 
-neo-go's implementation of `invokefunction` does not return `tx` field in the
-answer because that requires signing the transaction with some key in the
-server which doesn't fit the model of our node-client interactions. Lacking
-this signature the transaction is almost useless, so there is no point in
-returning it.
+neo-go's implementation of `invokefunction` and `invoke` does not return `tx`
+field in the answer because that requires signing the transaction with some
+key in the server which doesn't fit the model of our node-client interactions.
+Lacking this signature the transaction is almost useless, so there is no point
+in returning it.
+
+Both methods also don't currently support arrays in function parameters.
 
 ## Reference
 
