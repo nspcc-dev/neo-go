@@ -167,8 +167,10 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 
 	fromAddress := wif.PrivateKey.Address()
 
-	if err = AddInputsAndUnspentsToTx(tx, fromAddress, gasID, gas, c); err != nil {
-		return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
+	if gas > 0 {
+		if err = AddInputsAndUnspentsToTx(tx, fromAddress, gasID, gas, c); err != nil {
+			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
+		}
 	}
 
 	if err = SignTx(tx, wif); err != nil {
