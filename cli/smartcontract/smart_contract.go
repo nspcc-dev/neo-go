@@ -33,7 +33,7 @@ var (
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 )
 
-var (
+const (
 	// smartContractTmpl is written to a file when used with `init` command.
 	// %s is parsed to be the smartContractName
 	smartContractTmpl = `package %s
