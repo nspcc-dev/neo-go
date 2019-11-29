@@ -93,7 +93,7 @@ func NewCommands() []cli.Command {
 						Name:  "wif, w",
 						Usage: "key to sign deployed transaction (in wif format)",
 					},
-					cli.IntFlag{
+					cli.Float64Flag{
 						Name:  "gas, g",
 						Usage: "gas to pay for contract deployment",
 					},
@@ -470,7 +470,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(wifStr) == 0 {
 		return cli.NewExitError(errNoWIF, 1)
 	}
-	gas := util.Fixed8FromInt64(int64(ctx.Int("gas")))
+	gas := util.Fixed8FromFloat(ctx.Float64("gas"))
 
 	wif, err := keys.WIFDecode(wifStr, 0)
 	if err != nil {
