@@ -200,12 +200,6 @@ func (s *Server) run() {
 			}
 			return
 		case p := <-s.register:
-			// When a new peer is connected we send out our version immediately.
-			if err := s.sendVersion(p); err != nil {
-				log.WithFields(log.Fields{
-					"addr": p.RemoteAddr(),
-				}).Error(err)
-			}
 			s.lock.Lock()
 			s.peers[p] = true
 			s.lock.Unlock()

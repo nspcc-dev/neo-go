@@ -78,6 +78,12 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 
 	t.server.register <- p
 
+	// When a new peer is connected we send out our version immediately.
+	if err := t.server.sendVersion(p); err != nil {
+		log.WithFields(log.Fields{
+			"addr": p.RemoteAddr(),
+		}).Error(err)
+	}
 	r := io.NewBinReaderFromIO(p.conn)
 	for {
 		msg := &Message{}
