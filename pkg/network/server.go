@@ -284,6 +284,8 @@ func (s *Server) PeerCount() int {
 // startProtocol starts a long running background loop that interacts
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
+	var err error
+
 	log.WithFields(log.Fields{
 		"addr":        p.RemoteAddr(),
 		"userAgent":   string(p.Version().UserAgent),
@@ -292,10 +294,12 @@ func (s *Server) startProtocol(p Peer) {
 	}).Info("started protocol")
 
 	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
-	err := s.requestHeaders(p)
-	if err != nil {
-		p.Disconnect(err)
-		return
+	if s.chain.HeaderHeight() < p.Version().StartHeight {
+		err = s.requestHeaders(p)
+		if err != nil {
+			p.Disconnect(err)
+			return
+		}
 	}
 
 	timer := time.NewTimer(s.ProtoTickInterval)
