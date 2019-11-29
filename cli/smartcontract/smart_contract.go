@@ -36,6 +36,14 @@ var (
 		Name:  "endpoint, e",
 		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
 	}
+	wifFlag = cli.StringFlag{
+		Name:  "wif, w",
+		Usage: "key to sign deployed transaction (in wif format)",
+	}
+	gasFlag = cli.Float64Flag{
+		Name:  "gas, g",
+		Usage: "gas to pay for transaction",
+	}
 )
 
 const (
@@ -89,14 +97,40 @@ func NewCommands() []cli.Command {
 						Usage: "configuration input file (*.yml)",
 					},
 					endpointFlag,
-					cli.StringFlag{
-						Name:  "wif, w",
-						Usage: "key to sign deployed transaction (in wif format)",
-					},
-					cli.Float64Flag{
-						Name:  "gas, g",
-						Usage: "gas to pay for contract deployment",
-					},
+					wifFlag,
+					gasFlag,
+				},
+			},
+			{
+				Name:      "invoke",
+				Usage:     "invoke deployed contract on the blockchain",
+				UsageText: "neo-go contract invoke -e endpoint -w wif [-g gas] scripthash [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given arguments.
+   See testinvoke documentation for the details about parameters. It differs
+   from testinvoke in that this command sends an invocation transaction to
+   the network.
+`,
+				Action: invoke,
+				Flags: []cli.Flag{
+					endpointFlag,
+					wifFlag,
+					gasFlag,
+				},
+			},
+			{
+				Name:      "invokefunction",
+				Usage:     "invoke deployed contract on the blockchain",
+				UsageText: "neo-go contract invokefunction -e endpoint -w wif [-g gas] scripthash [method] [arguments...]",
+				Description: `Executes given (as a script hash) deployed script with the given method and
+   and arguments. See testinvokefunction documentation for the details about
+   parameters. It differs from testinvokefunction in that this command sends an
+   invocation transaction to the network.
+`,
+				Action: invokeFunction,
+				Flags: []cli.Flag{
+					endpointFlag,
+					wifFlag,
+					gasFlag,
 				},
 			},
 			{
@@ -304,18 +338,31 @@ func contractCompile(ctx *cli.Context) error {
 }
 
 func testInvoke(ctx *cli.Context) error {
-	return testInvokeInternal(ctx, false)
+	return invokeInternal(ctx, false, false)
 }
 
 func testInvokeFunction(ctx *cli.Context) error {
-	return testInvokeInternal(ctx, true)
+	return invokeInternal(ctx, true, false)
 }
 
-func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
-	var resp *rpc.InvokeScriptResponse
-	var operation string
-	var paramsStart = 1
-	var params = make([]smartcontract.Parameter, 0)
+func invoke(ctx *cli.Context) error {
+	return invokeInternal(ctx, false, true)
+}
+
+func invokeFunction(ctx *cli.Context) error {
+	return invokeInternal(ctx, true, true)
+}
+
+func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
+	var (
+		err         error
+		gas         util.Fixed8
+		operation   string
+		params      = make([]smartcontract.Parameter, 0)
+		paramsStart = 1
+		resp        *rpc.InvokeScriptResponse
+		wif         *keys.WIF
+	)
 
 	endpoint := ctx.String("endpoint")
 	if len(endpoint) == 0 {
@@ -341,6 +388,14 @@ func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
 		}
 	}
 
+	if signAndPush {
+		gas = util.Fixed8FromFloat(ctx.Float64("gas"))
+
+		wif, err = getWifFromContext(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -354,13 +409,27 @@ func testInvokeInternal(ctx *cli.Context, withMethod bool) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if signAndPush {
+		if len(resp.Result.Script) == 0 {
+			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+		}
+		script, err := hex.DecodeString(resp.Result.Script)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
+		}
+		txHash, err := client.SignAndPushInvocationTx(script, wif, gas)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
+		}
+		fmt.Printf("Sent invocation transaction %s\n", txHash.ReverseString())
+	} else {
+		b, err := json.MarshalIndent(resp.Result, "", "  ")
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 
-	b, err := json.MarshalIndent(resp.Result, "", "  ")
-	if err != nil {
-		return cli.NewExitError(err, 1)
+		fmt.Println(string(b))
 	}
-
-	fmt.Println(string(b))
 
 	return nil
 }
@@ -452,6 +521,19 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
+func getWifFromContext(ctx *cli.Context) (*keys.WIF, error) {
+	wifStr := ctx.String("wif")
+	if len(wifStr) == 0 {
+		return nil, cli.NewExitError(errNoWIF, 1)
+	}
+
+	wif, err := keys.WIFDecode(wifStr, 0)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+	}
+	return wif, nil
+}
+
 // contractDeploy deploys contract.
 func contractDeploy(ctx *cli.Context) error {
 	in := ctx.String("in")
@@ -466,15 +548,11 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(endpoint) == 0 {
 		return cli.NewExitError(errNoEndpoint, 1)
 	}
-	wifStr := ctx.String("wif")
-	if len(wifStr) == 0 {
-		return cli.NewExitError(errNoWIF, 1)
-	}
 	gas := util.Fixed8FromFloat(ctx.Float64("gas"))
 
-	wif, err := keys.WIFDecode(wifStr, 0)
+	wif, err := getWifFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+		return err
 	}
 	avm, err := ioutil.ReadFile(in)
 	if err != nil {
