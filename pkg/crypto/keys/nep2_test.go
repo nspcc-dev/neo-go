@@ -11,6 +11,11 @@ func TestNEP2Encrypt(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 
 		privKey, err := NewPrivateKeyFromHex(testCase.PrivateKey)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
+		}
+
 		assert.Nil(t, err)
 
 		encryptedWif, err := NEP2Encrypt(privKey, testCase.Passphrase)
@@ -24,6 +29,11 @@ func TestNEP2Decrypt(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
 
 		privKeyString, err := NEP2Decrypt(testCase.EncryptedWif, testCase.Passphrase)
+		if testCase.Invalid {
+			assert.Error(t, err)
+			continue
+		}
+
 		assert.Nil(t, err)
 
 		privKey, err := NewPrivateKeyFromWIF(privKeyString)

@@ -2,6 +2,8 @@ package keys
 
 import (
 	"encoding/hex"
+	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -35,6 +37,16 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 		require.NoError(t, pDecode.DecodeBytes(b))
 		require.Equal(t, p.X, pDecode.X)
 	}
+
+	errCases := [][]byte{{}, {0x02}, {0x04}}
+
+	for _, tc := range errCases {
+		r := io.NewBinReaderFromBuf(tc)
+
+		var pDecode PublicKey
+		pDecode.DecodeBinary(r)
+		require.Error(t, r.Err)
+	}
 }
 
 func TestDecodeFromString(t *testing.T) {
@@ -42,6 +54,13 @@ func TestDecodeFromString(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString(str)
 	require.NoError(t, err)
 	require.Equal(t, str, hex.EncodeToString(pubKey.Bytes()))
+
+	_, err = NewPublicKeyFromString(str[2:])
+	require.Error(t, err)
+
+	str = "zzb209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	_, err = NewPublicKeyFromString(str)
+	require.Error(t, err)
 }
 
 func TestPubkeyToAddress(t *testing.T) {
@@ -58,6 +77,28 @@ func TestDecodeBytes(t *testing.T) {
 	err := decodedPubKey.DecodeBytes(pubKey.Bytes())
 	require.NoError(t, err)
 	require.Equal(t, pubKey,decodedPubKey)
+}
+
+func TestSort(t *testing.T) {
+	pubs1 := make(PublicKeys, 10)
+	for i := range pubs1 {
+		priv, err := NewPrivateKey()
+		require.NoError(t, err)
+		pubs1[i] = priv.PublicKey()
+	}
+
+	pubs2 := make(PublicKeys, len(pubs1))
+	copy(pubs2, pubs1)
+
+	sort.Sort(pubs1)
+
+	rand.Shuffle(len(pubs2), func(i, j int) {
+		pubs2[i], pubs2[j] = pubs2[j], pubs2[i]
+	})
+	sort.Sort(pubs2)
+
+	// Check that sort on the same set of values produce the same result.
+	require.Equal(t, pubs1, pubs2)
 }
 
 func TestContains(t *testing.T) {

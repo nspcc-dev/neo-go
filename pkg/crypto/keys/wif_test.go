@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type wifTestCase struct {
@@ -33,6 +34,12 @@ var wifTestCases = []wifTestCase{
 		privateKey: "2bfe58ab6d9fd575bdc3a624e4825dd2b375d64ac033fbc46ea79dbab4f69a3e",
 		version:    0x80,
 	},
+	{
+		wif:        "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9o",
+		compressed: true,
+		privateKey: "2bfe58ab6d9fd575bdc3a624e4825dd2b375d64ac033fbc46ea79dbab4f69a3e",
+		version:    0x00,
+	},
 }
 
 func TestWIFEncodeDecode(t *testing.T) {
@@ -47,6 +54,14 @@ func TestWIFEncodeDecode(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.privateKey, WIF.PrivateKey.String())
 		assert.Equal(t, testCase.compressed, WIF.Compressed)
-		assert.Equal(t, testCase.version, WIF.Version)
+		if testCase.version != 0 {
+			assert.Equal(t, testCase.version, WIF.Version)
+		} else {
+			assert.EqualValues(t, WIFVersion, WIF.Version)
+		}
 	}
+
+	wifInv := []byte{0, 1, 2}
+	_, err := WIFEncode(wifInv, 0, true)
+	require.Error(t, err)
 }

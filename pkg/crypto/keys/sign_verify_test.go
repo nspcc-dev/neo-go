@@ -19,6 +19,9 @@ func TestPubKeyVerify(t *testing.T) {
 	result := pubKey.Verify(signedData, hashedData.Bytes())
 	expected := true
 	assert.Equal(t, expected, result)
+
+	pubKey = &PublicKey{}
+	assert.False(t, pubKey.Verify(signedData, hashedData.Bytes()))
 }
 
 func TestWrongPubKey(t *testing.T) {
