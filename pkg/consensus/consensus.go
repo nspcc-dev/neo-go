@@ -91,6 +91,8 @@ func NewService(cfg Config) (Service, error) {
 		cache:    newFIFOCache(cacheMaxCapacity),
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
+
+		transactions: make(chan *transaction.Transaction, 100),
 	}
 
 	if cfg.Wallet == nil {
