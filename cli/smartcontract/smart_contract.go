@@ -31,6 +31,11 @@ var (
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
+
+	endpointFlag = cli.StringFlag{
+		Name:  "endpoint, e",
+		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
+	}
 )
 
 const (
@@ -83,10 +88,7 @@ func NewCommands() []cli.Command {
 						Name:  "config, c",
 						Usage: "configuration input file (*.yml)",
 					},
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 					cli.StringFlag{
 						Name:  "wif, w",
 						Usage: "key to sign deployed transaction (in wif format)",
@@ -114,10 +116,7 @@ func NewCommands() []cli.Command {
 `,
 				Action: testInvoke,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 				},
 			},
 			{
@@ -188,10 +187,7 @@ func NewCommands() []cli.Command {
 `,
 				Action: testInvokeFunction,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 				},
 			},
 			{
@@ -199,10 +195,7 @@ func NewCommands() []cli.Command {
 				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
 				Action: testInvokeScript,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "endpoint, e",
-						Usage: "RPC endpoint address (like 'http://seed4.ngd.network:20332')",
-					},
+					endpointFlag,
 					cli.StringFlag{
 						Name:  "in, i",
 						Usage: "Input location of the avm file that needs to be invoked",
