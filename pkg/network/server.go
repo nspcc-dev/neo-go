@@ -95,10 +95,11 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	}
 
 	srv, err := consensus.NewService(consensus.Config{
-		Broadcast: s.handleNewPayload,
-		Chain:     chain,
-		RequestTx: s.requestTx,
-		Wallet:    config.Wallet,
+		Broadcast:  s.handleNewPayload,
+		RelayBlock: s.relayBlock,
+		Chain:      chain,
+		RequestTx:  s.requestTx,
+		Wallet:     config.Wallet,
 	})
 	if err != nil {
 		return nil
@@ -612,6 +613,11 @@ func (s *Server) relayInventory(t payload.InventoryType, hashes ...util.Uint256)
 		payload := payload.NewInventory(t, hashes)
 		s.RelayDirectly(peer, payload)
 	}
+}
+
+// relayBlock tells all the other connected nodes about the given block.
+func (s *Server) relayBlock(b *core.Block) {
+	s.relayInventory(payload.BlockType, b.Hash())
 }
 
 // RelayTxn a new transaction to the local node and the connected peers.
