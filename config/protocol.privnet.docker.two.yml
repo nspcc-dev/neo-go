@@ -9,10 +9,10 @@ ProtocolConfiguration:
     - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
     - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   SeedList:
-    - 172.200.0.1:20331
-    - 172.200.0.2:20332
-    - 172.200.0.3:20333
-    - 172.200.0.4:20334
+    - 172.200.0.1:20333
+    - 172.200.0.2:20334
+    - 172.200.0.3:20335
+    - 172.200.0.4:20336
   SystemFee:
     EnrollmentTransaction: 1000
     IssueTransaction: 500
@@ -37,7 +37,7 @@ ApplicationConfiguration:
   #      FilePath: "./chains/privnet.bolt"
   #  Uncomment in order to set up custom address for node.
   #  Address: 127.0.0.1
-  NodePort: 20332
+  NodePort: 20334
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
@@ -47,10 +47,10 @@ ApplicationConfiguration:
   RPC:
     Enabled: true
     EnableCORSWorkaround: false
-    Port: 20342
+    Port: 30334
   Monitoring:
     Enabled: true
-    Port: 20352
+    Port: 20002
   UnlockWallet:
     Path: "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
     Password: "two"

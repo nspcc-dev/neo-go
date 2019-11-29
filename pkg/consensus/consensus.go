@@ -62,6 +62,9 @@ type Config struct {
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *Payload)
+	// RelayBlock is a callback that is called to notify server
+	// about the new block that needs to be broadcasted.
+	RelayBlock func(b *core.Block)
 	// Chain is a core.Blockchainer instance.
 	Chain core.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -252,6 +255,8 @@ func (s *service) processBlock(b block.Block) {
 
 	if err := s.Chain.AddBlock(bb); err != nil {
 		s.log.Warnf("error on add block: %v", err)
+	} else {
+		s.Config.RelayBlock(bb)
 	}
 }
 

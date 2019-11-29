@@ -22,7 +22,7 @@ RUN set -x \
     && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli
 
 # Executable image
-FROM scratch
+FROM alpine
 
 ARG   VERSION
 LABEL version=$VERSION
@@ -30,9 +30,11 @@ LABEL version=$VERSION
 WORKDIR /
 
 COPY --from=builder /neo-go/config /config
+COPY --from=builder /neo-go/.docker/6000-privnet-blocks.acc.gz /
+COPY --from=builder /neo-go/.docker/privnet-entrypoint.sh /usr/bin/privnet-entrypoint.sh
 COPY --from=builder /go/bin/neo-go /usr/bin/neo-go
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT ["/usr/bin/neo-go"]
+ENTRYPOINT ["/usr/bin/privnet-entrypoint.sh"]
 
-CMD ["node", "--config-path", "/config", "--testnet"]
+CMD ["node", "--config-path", "/config", "--privnet"]

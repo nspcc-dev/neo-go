@@ -37,6 +37,7 @@ var (
 	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
+	errInvalidHashStart = errors.New("invalid requested HashStart")
 )
 
 type (
@@ -94,10 +95,11 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	}
 
 	srv, err := consensus.NewService(consensus.Config{
-		Broadcast: s.handleNewPayload,
-		Chain:     chain,
-		RequestTx: s.requestTx,
-		Wallet:    config.Wallet,
+		Broadcast:  s.handleNewPayload,
+		RelayBlock: s.relayBlock,
+		Chain:      chain,
+		RequestTx:  s.requestTx,
+		Wallet:     config.Wallet,
 	})
 	if err != nil {
 		return nil
@@ -200,12 +202,6 @@ func (s *Server) run() {
 			}
 			return
 		case p := <-s.register:
-			// When a new peer is connected we send out our version immediately.
-			if err := s.sendVersion(p); err != nil {
-				log.WithFields(log.Fields{
-					"addr": p.RemoteAddr(),
-				}).Error(err)
-			}
 			s.lock.Lock()
 			s.peers[p] = true
 			s.lock.Unlock()
@@ -289,6 +285,8 @@ func (s *Server) PeerCount() int {
 // startProtocol starts a long running background loop that interacts
 // every ProtoTickInterval with the peer.
 func (s *Server) startProtocol(p Peer) {
+	var err error
+
 	log.WithFields(log.Fields{
 		"addr":        p.RemoteAddr(),
 		"userAgent":   string(p.Version().UserAgent),
@@ -297,10 +295,12 @@ func (s *Server) startProtocol(p Peer) {
 	}).Info("started protocol")
 
 	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
-	err := s.requestHeaders(p)
-	if err != nil {
-		p.Disconnect(err)
-		return
+	if s.chain.HeaderHeight() < p.Version().StartHeight {
+		err = s.requestHeaders(p)
+		if err != nil {
+			p.Disconnect(err)
+			return
+		}
 	}
 
 	timer := time.NewTimer(s.ProtoTickInterval)
@@ -427,6 +427,35 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	return nil
 }
 
+// handleGetHeadersCmd processes the getheaders request.
+func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
+	if len(gh.HashStart) < 1 {
+		return errInvalidHashStart
+	}
+	startHash := gh.HashStart[0]
+	start, err := s.chain.GetHeader(startHash)
+	if err != nil {
+		return err
+	}
+	resp := payload.Headers{}
+	resp.Hdrs = make([]*core.Header, 0, payload.MaxHeadersAllowed)
+	for i := start.Index + 1; i < start.Index+1+payload.MaxHeadersAllowed; i++ {
+		hash := s.chain.GetHeaderHash(int(i))
+		if hash.Equals(util.Uint256{}) || hash.Equals(gh.HashStop) {
+			break
+		}
+		header, err := s.chain.GetHeader(hash)
+		if err != nil {
+			break
+		}
+		resp.Hdrs = append(resp.Hdrs, header)
+	}
+	if len(resp.Hdrs) == 0 {
+		return nil
+	}
+	return p.WriteMsg(NewMessage(s.Net, CMDHeaders, &resp))
+}
+
 // handleConsensusCmd processes received consensus payload.
 // It never returns an error.
 func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
@@ -438,6 +467,9 @@ func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.consensus.OnTransaction(tx)
+	// It's OK for it to fail for various reasons like tx already existing
+	// in the pool.
+	_ = s.RelayTxn(tx)
 	return nil
 }
 
@@ -520,6 +552,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetData:
 			inv := msg.Payload.(*payload.Inventory)
 			return s.handleGetDataCmd(peer, inv)
+		case CMDGetHeaders:
+			gh := msg.Payload.(*payload.GetBlocks)
+			return s.handleGetHeadersCmd(peer, gh)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
@@ -580,6 +615,11 @@ func (s *Server) relayInventory(t payload.InventoryType, hashes ...util.Uint256)
 	}
 }
 
+// relayBlock tells all the other connected nodes about the given block.
+func (s *Server) relayBlock(b *core.Block) {
+	s.relayInventory(payload.BlockType, b.Hash())
+}
+
 // RelayTxn a new transaction to the local node and the connected peers.
 // Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
 func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
@@ -599,10 +639,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 		return RelayOutOfMemory
 	}
 
-	for p := range s.Peers() {
-		payload := payload.NewInventory(payload.TXType, []util.Uint256{t.Hash()})
-		s.RelayDirectly(p, payload)
-	}
+	s.relayInventory(payload.TXType, t.Hash())
 
 	return RelaySucceed
 }
