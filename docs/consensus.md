@@ -5,6 +5,25 @@ It uses pure Go dBFT implementation from [nspcc-dev/dbft](https://github.com/nsp
 
 ## How to start your own privnet with neo-go nodes
 ### Using existing Dockerfile
+
+neo-go comes with a preconfigured private network setup that consists of four
+consensus nodes and 6000 blocks to make it more usable out of the box. Nodes
+are packed into Docker containers with one shared volume for chain data (they
+don't share actual DB, each node has its own DB in this volume). They use ports
+20333-20336 for P2P communication and ports 30333-30336 for RPC (Prometheus
+monitoring is also available at ports 20001-20004).
+
+On the first container start they import 6K of blocks from a file, these
+blocks contain several transactions that transfer all NEO into one address and
+claim some GAS for it. NEO/GAS owner is:
+ * address: AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
+ * wif: KxDgvEKzgSBPPfuVfw67oPQBSjidEiqTHURKSDL1R7yGaGYAeYnr
+
+and you can use it to make some transactions of your own on this privnet.
+
+Basically, this setup is closely resembling the one `neo-local` had for C# nodes
+before the switch to single-node mode.
+
 #### Prerequisites
 - `docker`
 - `docker-compose`
@@ -27,7 +46,7 @@ make env_down
 
 To remove old blockchain state:
 ```bash
-docker volume prune
+make env_clean
 ``` 
 
 ### Start nodes manually
