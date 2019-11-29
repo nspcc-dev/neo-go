@@ -2,6 +2,85 @@
 
 This document outlines major changes between releases.
 
+## 0.70.0 "Constellation" (29 Nov 2019)
+
+This is a long-awaited and exciting release implementing a full Neo
+consensus node that you can run your own neo-go private net with! It also
+brings with it serious improvements in contract handling, you can now not
+only compile, but also deploy and invoke contracts with neo-go.
+
+New features:
+ * systemd unit file for deployment (#326)
+ * claim transactions processing was added (#489)
+ * Consensus payloads decoding/encoding (#431)
+ * `getunspents` method is RPC server (#473)
+ * updated docker-compose environment for privnet setup (#497, #529)
+ * client-side `getunspents` RPC method support (#511)
+ * contract deployment from the CLI (#474)
+ * enrollment and state transactions processing (#508)
+ * `Neo.Blockchain.GetValidators` interop support (#420)
+ * `invokefunction` RPC method support in the server (#347)
+ * `testinvokefunction` command in the CLI to do test invocations via
+   `invokefunction` RPC method (#521)
+ * consensus node support (#507, #525)
+ * server-side `invoke` RPC method support (#346)
+ * `testinvoke` CLI command to invoke contracts via `invoke` RPC method (#527)
+ * `getheaders` P2P message processing (#529)
+ * relaying was added for transactions coming from P2P network (#529)
+ * `invoke` and `invokefunction` commands to invoke deployed script and send an
+   invocation transaction to the network (#531)
+
+Behavior changes:
+ * db dump/restore format is now compatible with NGD chain dumps (#466)
+ * smart contracts now have a new configuration format that is used to deploy
+   them (#511)
+ * `testinvoke` CLI command was renamed to `testinvokescript` (#521)
+
+Improvements:
+ * `core.Blockchainer` interface now has a `Close` method (#485)
+ * `util.Uint256Size` is now public (#490)
+ * `io` package now has generic functions for array
+   serialization/deserialization (#490)
+ * `util.Uint256` now supports `io.Serializable` interface (#495)
+ * `smartcontract.ParamType` type now supports `io.Serializable` interface
+   (#495)
+ * `vm.ByteArrayItem` now uses hex representation when being marshalled into
+   JSON (#499)
+ * `io` serialization/deserialization for arrays is now restricted in elements
+   count (#503, #505)
+ * `core.AccountState` now stores all UTXOs for the account (#504)
+ * interop functions got some testing coverage (#492)
+ * rpc client now implements `CalculateInputs` method via `getunspents` call
+   for transaction building (#511)
+ * `transaction.NewInvocationTX` now accepts a gas parameter for the
+   corresponding transaction field (#511)
+ * `rpc.StackParamType` now supports YAML marshaling/unmarshaling
+ * `rpc` package now has more fine-grained methods for transaction building
+   (#511, #531)
+ * `Blockchain` now stores and updates validators list (#508)
+ * blockchain state management refactored (#508)
+ * `rpc` invocation parameter management reworked (#513)
+ * `util` test coverage improved (#515)
+ * `invokescript` tests were added to the `rpc` package (#521)
+ * `crypto/keys` and `crypto/hash` packages test coverage improved (#516)
+
+Bugs fixed:
+ * blockchain not persisting the latest changes on exit (#485)
+ * db dump/restore commands incorrectly handled `skip` parameter (#486)
+ * vm failed to serialize duplicating non-reference elements (#496)
+ * improper smartcontract notifications handling (#453)
+ * nondeterministic `GetReferences` interop behaviour leading to contract
+   failures (#454)
+ * writing message to the peer could be interleaved with other messages
+   leading to garbage being sent (#503, #506)
+ * inability to process block with previously relayed transaction (#511)
+ * decoding transaction with invalid type didn't return an error (#522)
+ * attempts to reconnect to the node with the same ID (#507)
+ * peer disconnects during handshake because or code race (#529)
+ * useless header requests from peers with low height (#529)
+ * wrong header hashes initialization from the DB in case there are 2000*N + 1
+   blocks in the chain (#529)
+
 ## 0.62.0 "Commotion" (07 Nov 2019)
 
 Release 0.62.0 finishes one very important work some pieces of which were
