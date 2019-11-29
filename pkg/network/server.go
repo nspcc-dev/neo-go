@@ -37,6 +37,7 @@ var (
 	errMaxPeers         = errors.New("max peers reached")
 	errServerShutdown   = errors.New("server shutdown")
 	errInvalidInvType   = errors.New("invalid inventory type")
+	errInvalidHashStart = errors.New("invalid requested HashStart")
 )
 
 type (
@@ -421,6 +422,35 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	return nil
 }
 
+// handleGetHeadersCmd processes the getheaders request.
+func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
+	if len(gh.HashStart) < 1 {
+		return errInvalidHashStart
+	}
+	startHash := gh.HashStart[0]
+	start, err := s.chain.GetHeader(startHash)
+	if err != nil {
+		return err
+	}
+	resp := payload.Headers{}
+	resp.Hdrs = make([]*core.Header, 0, payload.MaxHeadersAllowed)
+	for i := start.Index + 1; i < start.Index+1+payload.MaxHeadersAllowed; i++ {
+		hash := s.chain.GetHeaderHash(int(i))
+		if hash.Equals(util.Uint256{}) || hash.Equals(gh.HashStop) {
+			break
+		}
+		header, err := s.chain.GetHeader(hash)
+		if err != nil {
+			break
+		}
+		resp.Hdrs = append(resp.Hdrs, header)
+	}
+	if len(resp.Hdrs) == 0 {
+		return nil
+	}
+	return p.WriteMsg(NewMessage(s.Net, CMDHeaders, &resp))
+}
+
 // handleConsensusCmd processes received consensus payload.
 // It never returns an error.
 func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
@@ -514,6 +544,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetData:
 			inv := msg.Payload.(*payload.Inventory)
 			return s.handleGetDataCmd(peer, inv)
+		case CMDGetHeaders:
+			gh := msg.Payload.(*payload.GetBlocks)
+			return s.handleGetHeadersCmd(peer, gh)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
