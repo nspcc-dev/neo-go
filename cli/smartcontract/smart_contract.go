@@ -503,9 +503,14 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	txHash, err := client.DeployContract(avm, &conf.Contract, wif, gas)
+	txScript, err := rpc.CreateDeploymentScript(avm, &conf.Contract)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to deploy: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
+	}
+
+	txHash, err := client.SignAndPushInvocationTx(txScript, wif, gas)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
 	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.ReverseString(), hash.Hash160(avm).ReverseString())
 	return nil

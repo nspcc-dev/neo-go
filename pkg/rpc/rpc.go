@@ -153,20 +153,17 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	return response, nil
 }
 
-// DeployContract deploys given contract to the blockchain using given wif to
-// sign the transaction and spending the amount of gas specified. It returns
-// a hash of the deployment transaction and an error.
-func (c *Client) DeployContract(avm []byte, contract *ContractDetails, wif *keys.WIF, gas util.Fixed8) (util.Uint256, error) {
+// SignAndPushInvocationTx signs and pushes given script as an invocation
+// transaction  using given wif to sign it and spending the amount of gas
+// specified. It returns a hash of the invocation transaction and an error.
+func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.Fixed8) (util.Uint256, error) {
 	var txHash util.Uint256
+	var err error
 
 	gasIDB, _ := hex.DecodeString("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7")
 	gasID, _ := util.Uint256DecodeReverseBytes(gasIDB)
 
-	txScript, err := CreateDeploymentScript(avm, contract)
-	if err != nil {
-		return txHash, errors.Wrap(err, "failed creating deployment script")
-	}
-	tx := transaction.NewInvocationTX(txScript, gas)
+	tx := transaction.NewInvocationTX(script, gas)
 
 	fromAddress := wif.PrivateKey.Address()
 
