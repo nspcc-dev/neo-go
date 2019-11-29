@@ -76,7 +76,7 @@ Bugs fixed:
  * inability to process block with previously relayed transaction (#511)
  * decoding transaction with invalid type didn't return an error (#522)
  * attempts to reconnect to the node with the same ID (#507)
- * peer disconnects during handshake because or code race (#529)
+ * peer disconnects during handshake because of code race (#529)
  * useless header requests from peers with low height (#529)
  * wrong header hashes initialization from the DB in case there are 2000*N + 1
    blocks in the chain (#529)
