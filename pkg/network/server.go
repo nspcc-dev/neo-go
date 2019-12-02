@@ -253,7 +253,7 @@ func (s *Server) tryStartConsensus() {
 		return
 	}
 
-	if s.PeerCount() >= s.MinPeers {
+	if s.HandshakedPeersCount() >= s.MinPeers {
 		log.Info("minimum amount of peers were connected to")
 		if s.connected.CAS(false, true) {
 			s.consensus.Start()
@@ -280,6 +280,23 @@ func (s *Server) PeerCount() int {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return len(s.peers)
+}
+
+// HandshakedPeersCount returns the number of connected peers
+// which have already performed handshake.
+func (s *Server) HandshakedPeersCount() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	var count int
+
+	for p := range s.peers {
+		if p.Handshaked() {
+			count++
+		}
+	}
+
+	return count
 }
 
 // startProtocol starts a long running background loop that interacts
