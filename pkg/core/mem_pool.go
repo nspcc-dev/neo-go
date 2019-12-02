@@ -104,13 +104,13 @@ func (mp MemPool) ContainsKey(hash util.Uint256) bool {
 func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	var pool PoolItems
 
-	mp.lock.RLock()
+	mp.lock.Lock()
 	if _, ok := mp.unsortedTxn[hash]; ok {
-		mp.lock.RUnlock()
+		mp.lock.Unlock()
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
-	mp.lock.RUnlock()
+	mp.lock.Unlock()
 
 	if pItem.fee.IsLowPriority(pItem.txn) {
 		pool = mp.sortedLowPrioTxn
