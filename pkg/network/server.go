@@ -387,8 +387,27 @@ func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
-	payload := payload.NewInventory(inv.Type, inv.Hashes)
-	return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+	reqHashes := make([]util.Uint256, 0)
+	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
+		payload.TXType:    s.chain.HasTransaction,
+		payload.BlockType: s.chain.HasBlock,
+		payload.ConsensusType: func(h util.Uint256) bool {
+			cp := s.consensus.GetPayload(h)
+			return cp != nil
+		},
+	}
+	if exists := typExists[inv.Type]; exists != nil {
+		for _, hash := range inv.Hashes {
+			if !exists(hash) {
+				reqHashes = append(reqHashes, hash)
+			}
+		}
+	}
+	if len(reqHashes) > 0 {
+		payload := payload.NewInventory(inv.Type, reqHashes)
+		return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+	}
+	return nil
 }
 
 // handleInvCmd processes the received inventory.
