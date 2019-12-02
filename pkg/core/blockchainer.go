@@ -28,7 +28,7 @@ type Blockchainer interface {
 	HasTransaction(util.Uint256) bool
 	GetAssetState(util.Uint256) *AssetState
 	GetAccountState(util.Uint160) *AccountState
-	GetValidators(txes... *transaction.Transaction) ([]*keys.PublicKey, error)
+	GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error)
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*StorageItem, error)

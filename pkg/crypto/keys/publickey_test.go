@@ -76,7 +76,7 @@ func TestDecodeBytes(t *testing.T) {
 	decodedPubKey := &PublicKey{}
 	err := decodedPubKey.DecodeBytes(pubKey.Bytes())
 	require.NoError(t, err)
-	require.Equal(t, pubKey,decodedPubKey)
+	require.Equal(t, pubKey, decodedPubKey)
 }
 
 func TestSort(t *testing.T) {

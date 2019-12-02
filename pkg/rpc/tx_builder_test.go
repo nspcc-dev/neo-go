@@ -67,20 +67,20 @@ func TestInvocationScriptCreationBad(t *testing.T) {
 	contract := util.Uint160{}
 
 	var testParams = []Params{
-		Params{{numberT, "qwerty"}},
-		Params{{arrayT, 42}},
-		Params{{arrayT, []Param{{numberT, 42}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{ByteArray, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Signature, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{String, Param{numberT, 42}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Hash160, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Hash256, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{PublicKey, Param{numberT, 42}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{PublicKey, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Integer, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Boolean, Param{numberT, 42}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Boolean, Param{stringT, "qwerty"}}}}}},
-		Params{{arrayT, []Param{{funcParamT, FuncParam{Unknown, Param{}}}}}},
+		{{numberT, "qwerty"}},
+		{{arrayT, 42}},
+		{{arrayT, []Param{{numberT, 42}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{ByteArray, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Signature, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{String, Param{numberT, 42}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Hash160, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Hash256, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{PublicKey, Param{numberT, 42}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{PublicKey, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Integer, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Boolean, Param{numberT, 42}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Boolean, Param{stringT, "qwerty"}}}}}},
+		{{arrayT, []Param{{funcParamT, FuncParam{Unknown, Param{}}}}}},
 	}
 	for _, ps := range testParams {
 		_, err := CreateFunctionInvocationScript(contract, ps)
