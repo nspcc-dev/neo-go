@@ -136,11 +136,18 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 	switch p.Type() {
 	case payload.PrepareRequestType:
 		m.prepareRequest = p.GetPrepareRequest().(*prepareRequest)
+		h := p.Hash()
+		m.preparationHash = &h
 	case payload.PrepareResponseType:
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
 			ValidatorIndex:   p.ValidatorIndex(),
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
+
+		if m.preparationHash == nil {
+			h := p.GetPrepareResponse().PreparationHash()
+			m.preparationHash = &h
+		}
 	case payload.ChangeViewType:
 		m.changeViewPayloads = append(m.changeViewPayloads, &changeViewCompact{
 			ValidatorIndex:     p.ValidatorIndex(),
