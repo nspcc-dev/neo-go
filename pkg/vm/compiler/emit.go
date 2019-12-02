@@ -12,18 +12,18 @@ import (
 )
 
 // emit a VM Instruction with data to the given buffer.
-func emit(w *io.BufBinWriter, instr vm.Instruction, b []byte) {
+func emit(w *io.BinWriter, instr vm.Instruction, b []byte) {
 	emitOpcode(w, instr)
 	w.WriteBytes(b)
 }
 
 // emitOpcode emits a single VM Instruction the given buffer.
-func emitOpcode(w *io.BufBinWriter, instr vm.Instruction) {
+func emitOpcode(w *io.BinWriter, instr vm.Instruction) {
 	w.WriteLE(byte(instr))
 }
 
 // emitBool emits a bool type the given buffer.
-func emitBool(w *io.BufBinWriter, ok bool) {
+func emitBool(w *io.BinWriter, ok bool) {
 	if ok {
 		emitOpcode(w, vm.PUSHT)
 		return
@@ -32,7 +32,7 @@ func emitBool(w *io.BufBinWriter, ok bool) {
 }
 
 // emitInt emits a int type to the given buffer.
-func emitInt(w *io.BufBinWriter, i int64) {
+func emitInt(w *io.BinWriter, i int64) {
 	switch {
 	case i == -1:
 		emitOpcode(w, vm.PUSHM1)
@@ -52,12 +52,12 @@ func emitInt(w *io.BufBinWriter, i int64) {
 }
 
 // emitString emits a string to the given buffer.
-func emitString(w *io.BufBinWriter, s string) {
+func emitString(w *io.BinWriter, s string) {
 	emitBytes(w, []byte(s))
 }
 
 // emitBytes emits a byte array to the given buffer.
-func emitBytes(w *io.BufBinWriter, b []byte) {
+func emitBytes(w *io.BinWriter, b []byte) {
 	n := len(b)
 
 	switch {
@@ -84,7 +84,7 @@ func emitBytes(w *io.BufBinWriter, b []byte) {
 
 // emitSyscall emits the syscall API to the given buffer.
 // Syscall API string cannot be 0.
-func emitSyscall(w *io.BufBinWriter, api string) {
+func emitSyscall(w *io.BinWriter, api string) {
 	if len(api) == 0 {
 		w.Err = errors.New("syscall api cannot be of length 0")
 		return
@@ -96,12 +96,12 @@ func emitSyscall(w *io.BufBinWriter, api string) {
 }
 
 // emitCall emits a call Instruction with label to the given buffer.
-func emitCall(w *io.BufBinWriter, instr vm.Instruction, label int16) {
+func emitCall(w *io.BinWriter, instr vm.Instruction, label int16) {
 	emitJmp(w, instr, label)
 }
 
 // emitJmp emits a jump Instruction along with label to the given buffer.
-func emitJmp(w *io.BufBinWriter, instr vm.Instruction, label int16) {
+func emitJmp(w *io.BinWriter, instr vm.Instruction, label int16) {
 	if !isInstrJmp(instr) {
 		w.Err = fmt.Errorf("opcode %s is not a jump or call type", instr)
 		return
