@@ -200,6 +200,18 @@ func TestWriteVarUint100000000000(t *testing.T) {
 	assert.Equal(t, val, res)
 }
 
+func TestWriteBytes(t *testing.T) {
+	var (
+		bin = []byte{0xde, 0xad, 0xbe, 0xef}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteBytes(bin)
+	assert.Nil(t, bw.Err)
+	buf := bw.Bytes()
+	assert.Equal(t, 4, len(buf))
+	assert.Equal(t, byte(0xde), buf[0])
+}
+
 type testSerializable uint16
 
 // EncodeBinary implements io.Serializable interface.
