@@ -7,7 +7,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
@@ -189,13 +188,8 @@ func (p *Payload) Sign(key *privateKey) error {
 		return err
 	}
 
-	verif, err := smartcontract.CreateSignatureRedeemScript(key.PublicKey())
-	if err != nil {
-		return err
-	}
-
 	p.Witness.InvocationScript = append([]byte{byte(opcode.PUSHBYTES64)}, sig...)
-	p.Witness.VerificationScript = verif
+	p.Witness.VerificationScript = key.PublicKey().GetVerificationScript()
 
 	return nil
 }

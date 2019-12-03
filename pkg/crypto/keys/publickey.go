@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
 
@@ -222,13 +223,19 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.Bytes())
 }
 
+// GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
+// public key.
+func (p *PublicKey) GetVerificationScript() []byte {
+	b := p.Bytes()
+	b = append([]byte{byte(opcode.PUSHBYTES33)}, b...)
+	b = append(b, byte(opcode.CHECKSIG))
+
+	return b
+}
+
 // Signature returns a NEO-specific hash of the key.
 func (p *PublicKey) Signature() []byte {
-	b := p.Bytes()
-	b = append([]byte{0x21}, b...)
-	b = append(b, 0xAC)
-
-	sig := hash.Hash160(b)
+	sig := hash.Hash160(p.GetVerificationScript())
 
 	return sig.Bytes()
 }

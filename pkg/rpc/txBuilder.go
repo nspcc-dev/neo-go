@@ -86,7 +86,7 @@ func SignTx(tx *transaction.Transaction, wif *keys.WIF) error {
 	if witness.InvocationScript, err = GetInvocationScript(tx, wif); err != nil {
 		return errs.Wrap(err, "failed to create invocation script")
 	}
-	witness.VerificationScript = wif.GetVerificationScript()
+	witness.VerificationScript = wif.PrivateKey.PublicKey().GetVerificationScript()
 	tx.Scripts = append(tx.Scripts, &witness)
 	tx.Hash()
 
