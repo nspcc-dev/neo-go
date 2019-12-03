@@ -26,6 +26,22 @@ func Uint160DecodeStringBE(s string) (Uint160, error) {
 	return Uint160DecodeBytesBE(b)
 }
 
+// Uint160DecodeStringLE attempts to decode the given string
+// in little-endian hex encoding into an Uint160.
+func Uint160DecodeStringLE(s string) (Uint160, error) {
+	var u Uint160
+	if len(s) != Uint160Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint160Size*2, len(s))
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return u, err
+	}
+
+	return Uint160DecodeBytesLE(b)
+}
+
 // Uint160DecodeBytesBE attempts to decode the given bytes into an Uint160.
 func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
 	if len(b) != Uint160Size {

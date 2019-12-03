@@ -35,11 +35,21 @@ func TestUInt160DecodeString(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, hexStr, val.String())
 
+	valLE, err := Uint160DecodeStringLE(hexStr)
+	assert.NoError(t, err)
+	assert.Equal(t, val, valLE.Reverse())
+
 	_, err = Uint160DecodeStringBE(hexStr[1:])
+	assert.Error(t, err)
+
+	_, err = Uint160DecodeStringLE(hexStr[1:])
 	assert.Error(t, err)
 
 	hexStr = "zz3b96ae1bcc5a585e075e3b81920210dec16302"
 	_, err = Uint160DecodeStringBE(hexStr)
+	assert.Error(t, err)
+
+	_, err = Uint160DecodeStringLE(hexStr)
 	assert.Error(t, err)
 }
 
