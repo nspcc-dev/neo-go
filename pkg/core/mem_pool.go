@@ -104,13 +104,13 @@ func (mp MemPool) ContainsKey(hash util.Uint256) bool {
 func (mp MemPool) TryAdd(hash util.Uint256, pItem *PoolItem) bool {
 	var pool PoolItems
 
-	mp.lock.RLock()
+	mp.lock.Lock()
 	if _, ok := mp.unsortedTxn[hash]; ok {
-		mp.lock.RUnlock()
+		mp.lock.Unlock()
 		return false
 	}
 	mp.unsortedTxn[hash] = pItem
-	mp.lock.RUnlock()
+	mp.lock.Unlock()
 
 	if pItem.fee.IsLowPriority(pItem.txn) {
 		pool = mp.sortedLowPrioTxn
@@ -226,8 +226,8 @@ func NewMemPool(capacity int) MemPool {
 
 // TryGetValue returns a transaction if it exists in the memory pool.
 func (mp MemPool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
-	mp.lock.Lock()
-	defer mp.lock.Unlock()
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
 	if pItem, ok := mp.unsortedTxn[hash]; ok {
 		return pItem.txn, ok
 	}
@@ -271,8 +271,8 @@ func min(sortedPool PoolItems) *PoolItem {
 func (mp *MemPool) GetVerifiedTransactions() []*transaction.Transaction {
 	var t []*transaction.Transaction
 
-	mp.lock.Lock()
-	defer mp.lock.Unlock()
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
 	for _, p := range mp.unsortedTxn {
 		t = append(t, p.txn)
 	}
