@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CityOfZion/neo-go/pkg/compiler"
 	"github.com/CityOfZion/neo-go/pkg/vm"
-	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"gopkg.in/abiosoft/ishell.v2"
 )
 

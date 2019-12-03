@@ -166,7 +166,7 @@ INDEX    OPCODE    DESC
 ```
 
 In depth documentation about the **neo-go** compiler and smart contract examples can be found inside 
-the [compiler package](https://github.com/nspcc-dev/neo-go/tree/master/pkg/vm/compiler).
+the [compiler package](https://github.com/nspcc-dev/neo-go/tree/master/pkg/compiler).
 
 ## VM run
 To run VM use
@@ -182,8 +182,6 @@ There is a small subset of commands:
 - `ops` -- show the opcodes of currently loaded contract
 - `run` -- executes currently loaded contract
 
-More details can be found in
- [vm package]([compiler package](https://github.com/nspcc-dev/neo-go/tree/master/pkg/vm/compiler))
 ## Wallet operations
 
 - `./bin/neo-go wallet create -p newWallet` to create new wallet in the path `newWallet`

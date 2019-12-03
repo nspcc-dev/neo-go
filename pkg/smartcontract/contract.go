@@ -7,22 +7,8 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
-
-// CreateSignatureRedeemScript creates a check signature script runnable by VM.
-func CreateSignatureRedeemScript(key *keys.PublicKey) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	err := vm.EmitBytes(buf, key.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	err = vm.EmitOpcode(buf, vm.CHECKSIG)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
 
 // CreateMultiSigRedeemScript creates a script runnable by the VM.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
@@ -49,7 +35,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitOpcode(buf, vm.CHECKMULTISIG); err != nil {
+	if err := vm.EmitOpcode(buf, opcode.CHECKMULTISIG); err != nil {
 		return nil, err
 	}
 

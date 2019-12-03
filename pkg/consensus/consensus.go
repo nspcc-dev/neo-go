@@ -12,7 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
@@ -283,7 +283,7 @@ func (s *service) getBlockWitness(b *core.Block) *transaction.Witness {
 	var invoc []byte
 	for i, j := 0, 0; i < len(pubs) && j < m; i++ {
 		if sig, ok := sigs[pubs[i]]; ok {
-			invoc = append(invoc, byte(vm.PUSHBYTES64))
+			invoc = append(invoc, byte(opcode.PUSHBYTES64))
 			invoc = append(invoc, sig...)
 			j++
 		}

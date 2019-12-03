@@ -15,6 +15,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -154,7 +155,7 @@ func testFile(t *testing.T, filename string) {
 							ctx := vm.istack.Peek(i).Value().(*Context)
 							if ctx.nextip < len(ctx.prog) {
 								require.Equal(t, s.InstructionPointer, ctx.nextip)
-								require.Equal(t, s.Instruction, Instruction(ctx.prog[ctx.nextip]).String())
+								require.Equal(t, s.Instruction, opcode.Opcode(ctx.prog[ctx.nextip]).String())
 							}
 							compareStacks(t, s.EStack, vm.estack)
 							compareStacks(t, s.AStack, vm.astack)

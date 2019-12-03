@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
 // Context represents the current execution context of the VM.
@@ -42,31 +43,31 @@ func NewContext(b []byte) *Context {
 // Next returns the next instruction to execute with its parameter if any. After
 // its invocation the instruction pointer points to the instruction being
 // returned.
-func (c *Context) Next() (Instruction, []byte, error) {
+func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	c.ip = c.nextip
 	if c.ip >= len(c.prog) {
-		return RET, nil, nil
+		return opcode.RET, nil, nil
 	}
 	r := io.NewBinReaderFromBuf(c.prog[c.ip:])
 
 	var instrbyte byte
 	r.ReadLE(&instrbyte)
-	instr := Instruction(instrbyte)
+	instr := opcode.Opcode(instrbyte)
 	c.nextip++
 
 	var numtoread int
 	switch instr {
-	case PUSHDATA1, SYSCALL:
+	case opcode.PUSHDATA1, opcode.SYSCALL:
 		var n byte
 		r.ReadLE(&n)
 		numtoread = int(n)
 		c.nextip++
-	case PUSHDATA2:
+	case opcode.PUSHDATA2:
 		var n uint16
 		r.ReadLE(&n)
 		numtoread = int(n)
 		c.nextip += 2
-	case PUSHDATA4:
+	case opcode.PUSHDATA4:
 		var n uint32
 		r.ReadLE(&n)
 		if n > MaxItemSize {
@@ -74,16 +75,16 @@ func (c *Context) Next() (Instruction, []byte, error) {
 		}
 		numtoread = int(n)
 		c.nextip += 4
-	case JMP, JMPIF, JMPIFNOT, CALL, CALLED, CALLEDT:
+	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL, opcode.CALLED, opcode.CALLEDT:
 		numtoread = 2
-	case CALLI:
+	case opcode.CALLI:
 		numtoread = 4
-	case APPCALL, TAILCALL:
+	case opcode.APPCALL, opcode.TAILCALL:
 		numtoread = 20
-	case CALLE, CALLET:
+	case opcode.CALLE, opcode.CALLET:
 		numtoread = 22
 	default:
-		if instr >= PUSHBYTES1 && instr <= PUSHBYTES75 {
+		if instr >= opcode.PUSHBYTES1 && instr <= opcode.PUSHBYTES75 {
 			numtoread = int(instr)
 		} else {
 			// No parameters, can just return.
@@ -112,8 +113,8 @@ func (c *Context) LenInstr() int {
 }
 
 // CurrInstr returns the current instruction and opcode.
-func (c *Context) CurrInstr() (int, Instruction) {
-	return c.ip, Instruction(c.prog[c.ip])
+func (c *Context) CurrInstr() (int, opcode.Opcode) {
+	return c.ip, opcode.Opcode(c.prog[c.ip])
 }
 
 // Copy returns an new exact copy of c.

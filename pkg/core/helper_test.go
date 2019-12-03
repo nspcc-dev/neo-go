@@ -15,6 +15,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -84,8 +85,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 		if err != nil || len(sig) != 64 {
 			panic(err)
 		}
-		// 0x40 is PUSHBYTES64
-		invScript = append(invScript, 0x40)
+		invScript = append(invScript, byte(opcode.PUSHBYTES64))
 		invScript = append(invScript, sig...)
 	}
 	b.Script.InvocationScript = invScript
