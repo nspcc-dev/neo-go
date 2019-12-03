@@ -95,9 +95,6 @@ func SignTx(tx *transaction.Transaction, wif *keys.WIF) error {
 
 // GetInvocationScript returns NEO VM script containing transaction signature.
 func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, error) {
-	const (
-		pushbytes64 = 0x40
-	)
 	var (
 		err       error
 		buf       = io.NewBufBinWriter()
@@ -112,7 +109,7 @@ func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, er
 	if err != nil {
 		return nil, errs.Wrap(err, "Failed ti sign transaction with private key")
 	}
-	return append([]byte{pushbytes64}, signature...), nil
+	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...), nil
 }
 
 // CreateDeploymentScript returns a script that deploys given smart contract
