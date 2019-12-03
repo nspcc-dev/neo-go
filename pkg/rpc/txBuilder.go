@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	errs "github.com/pkg/errors"
 )
 
@@ -281,7 +282,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 			if err != nil {
 				return nil, err
 			}
-			err = vm.EmitOpcode(script, vm.PACK)
+			err = vm.EmitOpcode(script, opcode.PACK)
 			if err != nil {
 				return nil, err
 			}

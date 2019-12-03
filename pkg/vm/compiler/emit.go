@@ -8,40 +8,40 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
 // emit a VM Instruction with data to the given buffer.
-func emit(w *io.BinWriter, instr vm.Instruction, b []byte) {
+func emit(w *io.BinWriter, instr opcode.Opcode, b []byte) {
 	emitOpcode(w, instr)
 	w.WriteBytes(b)
 }
 
 // emitOpcode emits a single VM Instruction the given buffer.
-func emitOpcode(w *io.BinWriter, instr vm.Instruction) {
+func emitOpcode(w *io.BinWriter, instr opcode.Opcode) {
 	w.WriteLE(byte(instr))
 }
 
 // emitBool emits a bool type the given buffer.
 func emitBool(w *io.BinWriter, ok bool) {
 	if ok {
-		emitOpcode(w, vm.PUSHT)
+		emitOpcode(w, opcode.PUSHT)
 		return
 	}
-	emitOpcode(w, vm.PUSHF)
+	emitOpcode(w, opcode.PUSHF)
 }
 
 // emitInt emits a int type to the given buffer.
 func emitInt(w *io.BinWriter, i int64) {
 	switch {
 	case i == -1:
-		emitOpcode(w, vm.PUSHM1)
+		emitOpcode(w, opcode.PUSHM1)
 		return
 	case i == 0:
-		emitOpcode(w, vm.PUSHF)
+		emitOpcode(w, opcode.PUSHF)
 		return
 	case i > 0 && i < 16:
-		val := vm.Instruction(int(vm.PUSH1) - 1 + int(i))
+		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
 		emitOpcode(w, val)
 		return
 	}
@@ -61,19 +61,19 @@ func emitBytes(w *io.BinWriter, b []byte) {
 	n := len(b)
 
 	switch {
-	case n <= int(vm.PUSHBYTES75):
-		emit(w, vm.Instruction(n), b)
+	case n <= int(opcode.PUSHBYTES75):
+		emit(w, opcode.Opcode(n), b)
 		return
 	case n < 0x100:
-		emit(w, vm.PUSHDATA1, []byte{byte(n)})
+		emit(w, opcode.PUSHDATA1, []byte{byte(n)})
 	case n < 0x10000:
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
-		emit(w, vm.PUSHDATA2, buf)
+		emit(w, opcode.PUSHDATA2, buf)
 	default:
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
-		emit(w, vm.PUSHDATA4, buf)
+		emit(w, opcode.PUSHDATA4, buf)
 		if w.Err != nil {
 			return
 		}
@@ -92,16 +92,16 @@ func emitSyscall(w *io.BinWriter, api string) {
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
 	copy(buf[1:], api)
-	emit(w, vm.SYSCALL, buf)
+	emit(w, opcode.SYSCALL, buf)
 }
 
 // emitCall emits a call Instruction with label to the given buffer.
-func emitCall(w *io.BinWriter, instr vm.Instruction, label int16) {
+func emitCall(w *io.BinWriter, instr opcode.Opcode, label int16) {
 	emitJmp(w, instr, label)
 }
 
 // emitJmp emits a jump Instruction along with label to the given buffer.
-func emitJmp(w *io.BinWriter, instr vm.Instruction, label int16) {
+func emitJmp(w *io.BinWriter, instr opcode.Opcode, label int16) {
 	if !isInstrJmp(instr) {
 		w.Err = fmt.Errorf("opcode %s is not a jump or call type", instr)
 		return
@@ -111,8 +111,8 @@ func emitJmp(w *io.BinWriter, instr vm.Instruction, label int16) {
 	emit(w, instr, buf)
 }
 
-func isInstrJmp(instr vm.Instruction) bool {
-	if instr == vm.JMP || instr == vm.JMPIFNOT || instr == vm.JMPIF || instr == vm.CALL {
+func isInstrJmp(instr opcode.Opcode) bool {
+	if instr == opcode.JMP || instr == opcode.JMPIFNOT || instr == opcode.JMPIF || instr == opcode.CALL {
 		return true
 	}
 	return false

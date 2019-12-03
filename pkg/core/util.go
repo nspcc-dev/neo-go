@@ -9,7 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
 // createGenesisBlock creates a genesis block based on the given configuration.
@@ -33,7 +33,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		NextConsensus: nextConsensus,
 		Script: &transaction.Witness{
 			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(vm.PUSHT)},
+			VerificationScript: []byte{byte(opcode.PUSHT)},
 		},
 	}
 
@@ -77,7 +77,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 				Scripts: []*transaction.Witness{
 					{
 						InvocationScript:   []byte{},
-						VerificationScript: []byte{byte(vm.PUSHT)},
+						VerificationScript: []byte{byte(opcode.PUSHT)},
 					},
 				},
 			},
@@ -92,7 +92,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 }
 
 func governingTokenTX() *transaction.Transaction {
-	admin := hash.Hash160([]byte{byte(vm.PUSHT)})
+	admin := hash.Hash160([]byte{byte(opcode.PUSHT)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
@@ -115,7 +115,7 @@ func governingTokenTX() *transaction.Transaction {
 }
 
 func utilityTokenTX() *transaction.Transaction {
-	admin := hash.Hash160([]byte{byte(vm.PUSHF)})
+	admin := hash.Hash160([]byte{byte(opcode.PUSHF)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.UtilityToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",

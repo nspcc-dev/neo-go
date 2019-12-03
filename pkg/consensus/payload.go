@@ -10,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/pkg/errors"
 )
@@ -193,7 +194,7 @@ func (p *Payload) Sign(key *privateKey) error {
 		return err
 	}
 
-	p.Witness.InvocationScript = append([]byte{byte(vm.PUSHBYTES64)}, sig...)
+	p.Witness.InvocationScript = append([]byte{byte(opcode.PUSHBYTES64)}, sig...)
 	p.Witness.VerificationScript = verif
 
 	return nil

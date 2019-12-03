@@ -2,18 +2,22 @@ package vm
 
 import (
 	"encoding/binary"
+
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
-func getNumOfThingsFromInstr(instr Instruction, param []byte) (int, bool) {
+func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 	var nthings int
 
 	switch instr {
-	case PUSH1, PUSH2, PUSH3, PUSH4, PUSH5, PUSH6, PUSH7, PUSH8,
-		PUSH9, PUSH10, PUSH11, PUSH12, PUSH13, PUSH14, PUSH15, PUSH16:
-		nthings = int(instr-PUSH1) + 1
-	case PUSHBYTES1:
+	case opcode.PUSH1, opcode.PUSH2, opcode.PUSH3, opcode.PUSH4,
+		opcode.PUSH5, opcode.PUSH6, opcode.PUSH7, opcode.PUSH8,
+		opcode.PUSH9, opcode.PUSH10, opcode.PUSH11, opcode.PUSH12,
+		opcode.PUSH13, opcode.PUSH14, opcode.PUSH15, opcode.PUSH16:
+		nthings = int(instr-opcode.PUSH1) + 1
+	case opcode.PUSHBYTES1:
 		nthings = int(param[0])
-	case PUSHBYTES2:
+	case opcode.PUSHBYTES2:
 		nthings = int(binary.LittleEndian.Uint16(param))
 	default:
 		return 0, false
@@ -43,7 +47,7 @@ func IsMultiSigContract(script []byte) bool {
 		if err != nil {
 			return false
 		}
-		if instr != PUSHBYTES33 {
+		if instr != opcode.PUSHBYTES33 {
 			break
 		}
 		nkeys++
@@ -62,11 +66,11 @@ func IsMultiSigContract(script []byte) bool {
 		return false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != CHECKMULTISIG {
+	if err != nil || instr != opcode.CHECKMULTISIG {
 		return false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != RET || ctx.ip != len(script) {
+	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
 		return false
 	}
 	return true
@@ -77,15 +81,15 @@ func IsMultiSigContract(script []byte) bool {
 func IsSignatureContract(script []byte) bool {
 	ctx := NewContext(script)
 	instr, _, err := ctx.Next()
-	if err != nil || instr != PUSHBYTES33 {
+	if err != nil || instr != opcode.PUSHBYTES33 {
 		return false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != CHECKSIG {
+	if err != nil || instr != opcode.CHECKSIG {
 		return false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != RET || ctx.ip != len(script) {
+	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
 		return false
 	}
 	return true

@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +25,7 @@ func TestInteropHook(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	EmitSyscall(buf, "foo")
-	EmitOpcode(buf, RET)
+	EmitOpcode(buf, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -56,7 +57,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
-		errExec := vm.execute(nil, RET, nil)
+		errExec := vm.execute(nil, opcode.RET, nil)
 		require.NoError(t, errExec)
 
 		assert.Equal(t, 0, vm.astack.Len())
@@ -67,7 +68,7 @@ func TestPushBytes1to75(t *testing.T) {
 
 func TestPushBytesNoParam(t *testing.T) {
 	prog := make([]byte, 1)
-	prog[0] = byte(PUSHBYTES1)
+	prog[0] = byte(opcode.PUSHBYTES1)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
@@ -87,10 +88,10 @@ func checkVMFailed(t *testing.T, vm *VM) {
 func TestStackLimitPUSH1Good(t *testing.T) {
 	prog := make([]byte, MaxStackSize*2)
 	for i := 0; i < MaxStackSize; i++ {
-		prog[i] = byte(PUSH1)
+		prog[i] = byte(opcode.PUSH1)
 	}
 	for i := MaxStackSize; i < MaxStackSize*2; i++ {
-		prog[i] = byte(DROP)
+		prog[i] = byte(opcode.DROP)
 	}
 
 	v := load(prog)
@@ -100,7 +101,7 @@ func TestStackLimitPUSH1Good(t *testing.T) {
 func TestStackLimitPUSH1Bad(t *testing.T) {
 	prog := make([]byte, MaxStackSize+1)
 	for i := range prog {
-		prog[i] = byte(PUSH1)
+		prog[i] = byte(opcode.PUSH1)
 	}
 	v := load(prog)
 	checkVMFailed(t, v)
@@ -114,20 +115,20 @@ func TestStackLimitPUSH1Bad(t *testing.T) {
 // - struct (size+1)
 // - array (1) of struct (size+1)
 // which equals to size*2+3 elements in total.
-func appendBigStruct(size uint16) []Instruction {
-	prog := make([]Instruction, size*2)
+func appendBigStruct(size uint16) []opcode.Opcode {
+	prog := make([]opcode.Opcode, size*2)
 	for i := uint16(0); i < size; i++ {
-		prog[i*2] = PUSH0
-		prog[i*2+1] = NEWSTRUCT
+		prog[i*2] = opcode.PUSH0
+		prog[i*2+1] = opcode.NEWSTRUCT
 	}
 
 	return append(prog,
-		PUSHBYTES2, Instruction(size), Instruction(size>>8), // LE
-		PACK, NEWSTRUCT,
-		DUP,
-		PUSH0, NEWARRAY, TOALTSTACK, DUPFROMALTSTACK,
-		SWAP,
-		APPEND, RET)
+		opcode.PUSHBYTES2, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
+		opcode.PACK, opcode.NEWSTRUCT,
+		opcode.DUP,
+		opcode.PUSH0, opcode.NEWARRAY, opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
+		opcode.SWAP,
+		opcode.APPEND, opcode.RET)
 }
 
 func TestStackLimitAPPENDStructGood(t *testing.T) {
@@ -144,30 +145,30 @@ func TestStackLimitAPPENDStructBad(t *testing.T) {
 
 func TestStackLimit(t *testing.T) {
 	expected := []struct {
-		inst Instruction
+		inst opcode.Opcode
 		size int
 	}{
-		{PUSH2, 1},
-		{NEWARRAY, 3}, // array + 2 items
-		{TOALTSTACK, 3},
-		{DUPFROMALTSTACK, 4},
-		{NEWSTRUCT, 6}, // all items are copied
-		{NEWMAP, 7},
-		{DUP, 8},
-		{PUSH2, 9},
-		{DUPFROMALTSTACK, 10},
-		{SETITEM, 8}, // -3 items and 1 new element in map
-		{DUP, 9},
-		{PUSH2, 10},
-		{DUPFROMALTSTACK, 11},
-		{SETITEM, 8}, // -3 items and no new elements in map
-		{DUP, 9},
-		{PUSH2, 10},
-		{REMOVE, 7}, // as we have right after NEWMAP
-		{DROP, 6},   // DROP map with no elements
+		{opcode.PUSH2, 1},
+		{opcode.NEWARRAY, 3}, // array + 2 items
+		{opcode.TOALTSTACK, 3},
+		{opcode.DUPFROMALTSTACK, 4},
+		{opcode.NEWSTRUCT, 6}, // all items are copied
+		{opcode.NEWMAP, 7},
+		{opcode.DUP, 8},
+		{opcode.PUSH2, 9},
+		{opcode.DUPFROMALTSTACK, 10},
+		{opcode.SETITEM, 8}, // -3 items and 1 new element in map
+		{opcode.DUP, 9},
+		{opcode.PUSH2, 10},
+		{opcode.DUPFROMALTSTACK, 11},
+		{opcode.SETITEM, 8}, // -3 items and no new elements in map
+		{opcode.DUP, 9},
+		{opcode.PUSH2, 10},
+		{opcode.REMOVE, 7}, // as we have right after NEWMAP
+		{opcode.DROP, 6},   // DROP map with no elements
 	}
 
-	prog := make([]Instruction, len(expected))
+	prog := make([]opcode.Opcode, len(expected))
 	for i := range expected {
 		prog[i] = expected[i].inst
 	}
@@ -181,14 +182,14 @@ func TestStackLimit(t *testing.T) {
 
 func TestPushBytesShort(t *testing.T) {
 	prog := make([]byte, 10)
-	prog[0] = byte(PUSHBYTES10) // but only 9 left in the `prog`
+	prog[0] = byte(opcode.PUSHBYTES10) // but only 9 left in the `prog`
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushm1to16(t *testing.T) {
 	var prog []byte
-	for i := int(PUSHM1); i <= int(PUSH16); i++ {
+	for i := int(opcode.PUSHM1); i <= int(opcode.PUSH16); i++ {
 		if i == 80 {
 			continue // opcode layout we got here.
 		}
@@ -196,7 +197,7 @@ func TestPushm1to16(t *testing.T) {
 	}
 
 	vm := load(prog)
-	for i := int(PUSHM1); i <= int(PUSH16); i++ {
+	for i := int(opcode.PUSHM1); i <= int(opcode.PUSH16); i++ {
 		if i == 80 {
 			continue // nice opcode layout we got here.
 		}
@@ -205,25 +206,25 @@ func TestPushm1to16(t *testing.T) {
 
 		elem := vm.estack.Pop()
 		assert.IsType(t, &BigIntegerItem{}, elem.value)
-		val := i - int(PUSH1) + 1
+		val := i - int(opcode.PUSH1) + 1
 		assert.Equal(t, elem.BigInt().Int64(), int64(val))
 	}
 }
 
 func TestPushData1BadNoN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA1)}
+	prog := []byte{byte(opcode.PUSHDATA1)}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData1BadN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA1), 1}
+	prog := []byte{byte(opcode.PUSHDATA1), 1}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData1Good(t *testing.T) {
-	prog := makeProgram(PUSHDATA1, 3, 1, 2, 3)
+	prog := makeProgram(opcode.PUSHDATA1, 3, 1, 2, 3)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -231,25 +232,25 @@ func TestPushData1Good(t *testing.T) {
 }
 
 func TestPushData2BadNoN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA2)}
+	prog := []byte{byte(opcode.PUSHDATA2)}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData2ShortN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA2), 0}
+	prog := []byte{byte(opcode.PUSHDATA2), 0}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData2BadN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA2), 1, 0}
+	prog := []byte{byte(opcode.PUSHDATA2), 1, 0}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData2Good(t *testing.T) {
-	prog := makeProgram(PUSHDATA2, 3, 0, 1, 2, 3)
+	prog := makeProgram(opcode.PUSHDATA2, 3, 0, 1, 2, 3)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -257,26 +258,26 @@ func TestPushData2Good(t *testing.T) {
 }
 
 func TestPushData4BadNoN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA4)}
+	prog := []byte{byte(opcode.PUSHDATA4)}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData4BadN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA4), 1, 0, 0, 0}
+	prog := []byte{byte(opcode.PUSHDATA4), 1, 0, 0, 0}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData4ShortN(t *testing.T) {
-	prog := []byte{byte(PUSHDATA4), 0, 0, 0}
+	prog := []byte{byte(opcode.PUSHDATA4), 0, 0, 0}
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestPushData4BigN(t *testing.T) {
 	prog := make([]byte, 1+4+MaxItemSize+1)
-	prog[0] = byte(PUSHDATA4)
+	prog[0] = byte(opcode.PUSHDATA4)
 	binary.LittleEndian.PutUint32(prog[1:], MaxItemSize+1)
 
 	vm := load(prog)
@@ -285,7 +286,7 @@ func TestPushData4BigN(t *testing.T) {
 }
 
 func TestPushData4Good(t *testing.T) {
-	prog := makeProgram(PUSHDATA4, 3, 0, 0, 0, 1, 2, 3)
+	prog := makeProgram(opcode.PUSHDATA4, 3, 0, 0, 0, 1, 2, 3)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -293,7 +294,7 @@ func TestPushData4Good(t *testing.T) {
 }
 
 func getSyscallProg(name string) (prog []byte) {
-	prog = []byte{byte(SYSCALL)}
+	prog = []byte{byte(opcode.SYSCALL)}
 	prog = append(prog, byte(len(name)))
 	prog = append(prog, name...)
 
@@ -303,7 +304,7 @@ func getSyscallProg(name string) (prog []byte) {
 func getSerializeProg() (prog []byte) {
 	prog = append(prog, getSyscallProg("Neo.Runtime.Serialize")...)
 	prog = append(prog, getSyscallProg("Neo.Runtime.Deserialize")...)
-	prog = append(prog, byte(RET))
+	prog = append(prog, byte(opcode.RET))
 
 	return
 }
@@ -381,9 +382,9 @@ func TestSerializeArrayBad(t *testing.T) {
 
 func TestSerializeDupInteger(t *testing.T) {
 	prog := []byte{
-		byte(PUSH0), byte(NEWARRAY),
-		byte(DUP), byte(PUSH2), byte(DUP), byte(TOALTSTACK), byte(APPEND),
-		byte(DUP), byte(FROMALTSTACK), byte(APPEND),
+		byte(opcode.PUSH0), byte(opcode.NEWARRAY),
+		byte(opcode.DUP), byte(opcode.PUSH2), byte(opcode.DUP), byte(opcode.TOALTSTACK), byte(opcode.APPEND),
+		byte(opcode.DUP), byte(opcode.FROMALTSTACK), byte(opcode.APPEND),
 	}
 	vm := load(append(prog, getSerializeProg()...))
 
@@ -407,7 +408,7 @@ func TestSerializeStruct(t *testing.T) {
 }
 
 func TestDeserializeUnknown(t *testing.T) {
-	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(RET))
+	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(opcode.RET))
 	vm := load(prog)
 
 	data, err := serializeItem(NewBigIntegerItem(123))
@@ -446,11 +447,11 @@ func TestSerializeInterop(t *testing.T) {
 
 func callNTimes(n uint16) []byte {
 	return makeProgram(
-		PUSHBYTES2, Instruction(n), Instruction(n>>8), // little-endian
-		TOALTSTACK, DUPFROMALTSTACK,
-		JMPIF, 0x4, 0, RET,
-		FROMALTSTACK, DEC,
-		CALL, 0xF8, 0xFF) // -8 -> JMP to TOALTSTACK)
+		opcode.PUSHBYTES2, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
+		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
+		opcode.JMPIF, 0x4, 0, opcode.RET,
+		opcode.FROMALTSTACK, opcode.DEC,
+		opcode.CALL, 0xF8, 0xFF) // -8 -> JMP to TOALTSTACK)
 }
 
 func TestInvocationLimitGood(t *testing.T) {
@@ -466,13 +467,13 @@ func TestInvocationLimitBad(t *testing.T) {
 }
 
 func TestNOTNoArgument(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestNOTBool(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.PushVal(false)
 	runVM(t, vm)
@@ -480,7 +481,7 @@ func TestNOTBool(t *testing.T) {
 }
 
 func TestNOTNonZeroInt(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.PushVal(3)
 	runVM(t, vm)
@@ -488,7 +489,7 @@ func TestNOTNonZeroInt(t *testing.T) {
 }
 
 func TestNOTArray(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	runVM(t, vm)
@@ -496,7 +497,7 @@ func TestNOTArray(t *testing.T) {
 }
 
 func TestNOTStruct(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.Push(NewElement(&StructItem{[]StackItem{}}))
 	runVM(t, vm)
@@ -504,7 +505,7 @@ func TestNOTStruct(t *testing.T) {
 }
 
 func TestNOTByteArray0(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 0})
 	runVM(t, vm)
@@ -512,7 +513,7 @@ func TestNOTByteArray0(t *testing.T) {
 }
 
 func TestNOTByteArray1(t *testing.T) {
-	prog := makeProgram(NOT)
+	prog := makeProgram(opcode.NOT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 1})
 	runVM(t, vm)
@@ -527,7 +528,7 @@ func getBigInt(a, b int64) *big.Int {
 }
 
 func TestAdd(t *testing.T) {
-	prog := makeProgram(ADD)
+	prog := makeProgram(opcode.ADD)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -536,14 +537,14 @@ func TestAdd(t *testing.T) {
 }
 
 func TestADDBigResult(t *testing.T) {
-	prog := makeProgram(ADD)
+	prog := makeProgram(opcode.ADD)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, -1))
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
-func testBigArgument(t *testing.T, inst Instruction) {
+func testBigArgument(t *testing.T, inst opcode.Opcode) {
 	prog := makeProgram(inst)
 	x := getBigInt(MaxBigIntegerSizeBits, 0)
 	t.Run(inst.String()+" big 1-st argument", func(t *testing.T) {
@@ -561,15 +562,15 @@ func testBigArgument(t *testing.T, inst Instruction) {
 }
 
 func TestArithBigArgument(t *testing.T) {
-	testBigArgument(t, ADD)
-	testBigArgument(t, SUB)
-	testBigArgument(t, MUL)
-	testBigArgument(t, DIV)
-	testBigArgument(t, MOD)
+	testBigArgument(t, opcode.ADD)
+	testBigArgument(t, opcode.SUB)
+	testBigArgument(t, opcode.MUL)
+	testBigArgument(t, opcode.DIV)
+	testBigArgument(t, opcode.MOD)
 }
 
 func TestMul(t *testing.T) {
-	prog := makeProgram(MUL)
+	prog := makeProgram(opcode.MUL)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -578,7 +579,7 @@ func TestMul(t *testing.T) {
 }
 
 func TestMULBigResult(t *testing.T) {
-	prog := makeProgram(MUL)
+	prog := makeProgram(opcode.MUL)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2+1, 0))
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2+1, 0))
@@ -586,7 +587,7 @@ func TestMULBigResult(t *testing.T) {
 }
 
 func TestDiv(t *testing.T) {
-	prog := makeProgram(DIV)
+	prog := makeProgram(opcode.DIV)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -595,7 +596,7 @@ func TestDiv(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
-	prog := makeProgram(SUB)
+	prog := makeProgram(opcode.SUB)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -604,7 +605,7 @@ func TestSub(t *testing.T) {
 }
 
 func TestSUBBigResult(t *testing.T) {
-	prog := makeProgram(SUB)
+	prog := makeProgram(opcode.SUB)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, -1))
 	vm.estack.PushVal(-1)
@@ -612,7 +613,7 @@ func TestSUBBigResult(t *testing.T) {
 }
 
 func TestSHRGood(t *testing.T) {
-	prog := makeProgram(SHR)
+	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -622,7 +623,7 @@ func TestSHRGood(t *testing.T) {
 }
 
 func TestSHRZero(t *testing.T) {
-	prog := makeProgram(SHR)
+	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 1})
 	vm.estack.PushVal(0)
@@ -632,7 +633,7 @@ func TestSHRZero(t *testing.T) {
 }
 
 func TestSHRSmallValue(t *testing.T) {
-	prog := makeProgram(SHR)
+	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal(5)
 	vm.estack.PushVal(minSHLArg - 1)
@@ -640,7 +641,7 @@ func TestSHRSmallValue(t *testing.T) {
 }
 
 func TestSHRBigArgument(t *testing.T) {
-	prog := makeProgram(SHR)
+	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
 	vm.estack.PushVal(1)
@@ -648,7 +649,7 @@ func TestSHRBigArgument(t *testing.T) {
 }
 
 func TestSHLGood(t *testing.T) {
-	prog := makeProgram(SHL)
+	prog := makeProgram(opcode.SHL)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(2)
@@ -658,7 +659,7 @@ func TestSHLGood(t *testing.T) {
 }
 
 func TestSHLZero(t *testing.T) {
-	prog := makeProgram(SHL)
+	prog := makeProgram(opcode.SHL)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 1})
 	vm.estack.PushVal(0)
@@ -668,7 +669,7 @@ func TestSHLZero(t *testing.T) {
 }
 
 func TestSHLBigValue(t *testing.T) {
-	prog := makeProgram(SHL)
+	prog := makeProgram(opcode.SHL)
 	vm := load(prog)
 	vm.estack.PushVal(5)
 	vm.estack.PushVal(maxSHLArg + 1)
@@ -676,7 +677,7 @@ func TestSHLBigValue(t *testing.T) {
 }
 
 func TestSHLBigResult(t *testing.T) {
-	prog := makeProgram(SHL)
+	prog := makeProgram(opcode.SHL)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2, 0))
 	vm.estack.PushVal(MaxBigIntegerSizeBits / 2)
@@ -684,7 +685,7 @@ func TestSHLBigResult(t *testing.T) {
 }
 
 func TestSHLBigArgument(t *testing.T) {
-	prog := makeProgram(SHR)
+	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
 	vm.estack.PushVal(1)
@@ -692,7 +693,7 @@ func TestSHLBigArgument(t *testing.T) {
 }
 
 func TestLT(t *testing.T) {
-	prog := makeProgram(LT)
+	prog := makeProgram(opcode.LT)
 	vm := load(prog)
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(3)
@@ -701,7 +702,7 @@ func TestLT(t *testing.T) {
 }
 
 func TestLTE(t *testing.T) {
-	prog := makeProgram(LTE)
+	prog := makeProgram(opcode.LTE)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
@@ -710,7 +711,7 @@ func TestLTE(t *testing.T) {
 }
 
 func TestGT(t *testing.T) {
-	prog := makeProgram(GT)
+	prog := makeProgram(opcode.GT)
 	vm := load(prog)
 	vm.estack.PushVal(9)
 	vm.estack.PushVal(3)
@@ -720,7 +721,7 @@ func TestGT(t *testing.T) {
 }
 
 func TestGTE(t *testing.T) {
-	prog := makeProgram(GTE)
+	prog := makeProgram(opcode.GTE)
 	vm := load(prog)
 	vm.estack.PushVal(3)
 	vm.estack.PushVal(3)
@@ -729,7 +730,7 @@ func TestGTE(t *testing.T) {
 }
 
 func TestDepth(t *testing.T) {
-	prog := makeProgram(DEPTH)
+	prog := makeProgram(opcode.DEPTH)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -739,20 +740,20 @@ func TestDepth(t *testing.T) {
 }
 
 func TestEQUALNoArguments(t *testing.T) {
-	prog := makeProgram(EQUAL)
+	prog := makeProgram(opcode.EQUAL)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestEQUALBad1Argument(t *testing.T) {
-	prog := makeProgram(EQUAL)
+	prog := makeProgram(opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestEQUALGoodInteger(t *testing.T) {
-	prog := makeProgram(EQUAL)
+	prog := makeProgram(opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(5)
 	vm.estack.PushVal(5)
@@ -762,7 +763,7 @@ func TestEQUALGoodInteger(t *testing.T) {
 }
 
 func TestEQUALArrayTrue(t *testing.T) {
-	prog := makeProgram(DUP, EQUAL)
+	prog := makeProgram(opcode.DUP, opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	runVM(t, vm)
@@ -771,7 +772,7 @@ func TestEQUALArrayTrue(t *testing.T) {
 }
 
 func TestEQUALArrayFalse(t *testing.T) {
-	prog := makeProgram(EQUAL)
+	prog := makeProgram(opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	vm.estack.PushVal([]StackItem{})
@@ -781,7 +782,7 @@ func TestEQUALArrayFalse(t *testing.T) {
 }
 
 func TestEQUALMapTrue(t *testing.T) {
-	prog := makeProgram(DUP, EQUAL)
+	prog := makeProgram(opcode.DUP, opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.Push(&Element{value: NewMapItem()})
 	runVM(t, vm)
@@ -790,7 +791,7 @@ func TestEQUALMapTrue(t *testing.T) {
 }
 
 func TestEQUALMapFalse(t *testing.T) {
-	prog := makeProgram(EQUAL)
+	prog := makeProgram(opcode.EQUAL)
 	vm := load(prog)
 	vm.estack.Push(&Element{value: NewMapItem()})
 	vm.estack.Push(&Element{value: NewMapItem()})
@@ -800,7 +801,7 @@ func TestEQUALMapFalse(t *testing.T) {
 }
 
 func TestNumEqual(t *testing.T) {
-	prog := makeProgram(NUMEQUAL)
+	prog := makeProgram(opcode.NUMEQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -809,7 +810,7 @@ func TestNumEqual(t *testing.T) {
 }
 
 func TestNumNotEqual(t *testing.T) {
-	prog := makeProgram(NUMNOTEQUAL)
+	prog := makeProgram(opcode.NUMNOTEQUAL)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(2)
@@ -818,7 +819,7 @@ func TestNumNotEqual(t *testing.T) {
 }
 
 func TestINC(t *testing.T) {
-	prog := makeProgram(INC)
+	prog := makeProgram(opcode.INC)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -826,7 +827,7 @@ func TestINC(t *testing.T) {
 }
 
 func TestINCBigResult(t *testing.T) {
-	prog := makeProgram(INC, INC)
+	prog := makeProgram(opcode.INC, opcode.INC)
 	vm := load(prog)
 	x := getBigInt(MaxBigIntegerSizeBits, -2)
 	vm.estack.PushVal(x)
@@ -840,7 +841,7 @@ func TestINCBigResult(t *testing.T) {
 }
 
 func TestDECBigResult(t *testing.T) {
-	prog := makeProgram(DEC, DEC)
+	prog := makeProgram(opcode.DEC, opcode.DEC)
 	vm := load(prog)
 	x := getBigInt(MaxBigIntegerSizeBits, -2)
 	x.Neg(x)
@@ -855,7 +856,7 @@ func TestDECBigResult(t *testing.T) {
 }
 
 func TestNEWARRAYInteger(t *testing.T) {
-	prog := makeProgram(NEWARRAY)
+	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -864,7 +865,7 @@ func TestNEWARRAYInteger(t *testing.T) {
 }
 
 func TestNEWARRAYStruct(t *testing.T) {
-	prog := makeProgram(NEWARRAY)
+	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
 	arr := []StackItem{makeStackItem(42)}
 	vm.estack.Push(&Element{value: &StructItem{arr}})
@@ -873,13 +874,13 @@ func TestNEWARRAYStruct(t *testing.T) {
 	assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
 }
 
-func testNEWARRAYIssue437(t *testing.T, i1, i2 Instruction, appended bool) {
+func testNEWARRAYIssue437(t *testing.T, i1, i2 opcode.Opcode, appended bool) {
 	prog := makeProgram(
-		PUSH2, i1,
-		DUP, PUSH3, APPEND,
-		TOALTSTACK, DUPFROMALTSTACK, i2,
-		DUP, PUSH4, APPEND,
-		FROMALTSTACK, PUSH5, APPEND)
+		opcode.PUSH2, i1,
+		opcode.DUP, opcode.PUSH3, opcode.APPEND,
+		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK, i2,
+		opcode.DUP, opcode.PUSH4, opcode.APPEND,
+		opcode.FROMALTSTACK, opcode.PUSH5, opcode.APPEND)
 	vm := load(prog)
 	vm.Run()
 
@@ -892,7 +893,7 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 Instruction, appended bool) {
 
 	assert.Equal(t, false, vm.HasFailed())
 	assert.Equal(t, 1, vm.estack.Len())
-	if i2 == NEWARRAY {
+	if i2 == opcode.NEWARRAY {
 		assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
 	} else {
 		assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
@@ -900,14 +901,14 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 Instruction, appended bool) {
 }
 
 func TestNEWARRAYIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testNEWARRAYIssue437(t, NEWARRAY, NEWARRAY, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, NEWSTRUCT, NEWSTRUCT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, NEWARRAY, NEWSTRUCT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testNEWARRAYIssue437(t, NEWSTRUCT, NEWARRAY, false) })
+	t.Run("Array+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
 }
 
 func TestNEWARRAYArray(t *testing.T) {
-	prog := makeProgram(NEWARRAY)
+	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
 	arr := []StackItem{makeStackItem(42)}
 	vm.estack.Push(&Element{value: &ArrayItem{arr}})
@@ -917,7 +918,7 @@ func TestNEWARRAYArray(t *testing.T) {
 }
 
 func TestNEWARRAYByteArray(t *testing.T) {
-	prog := makeProgram(NEWARRAY)
+	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{})
 	runVM(t, vm)
@@ -926,14 +927,14 @@ func TestNEWARRAYByteArray(t *testing.T) {
 }
 
 func TestNEWARRAYBadSize(t *testing.T) {
-	prog := makeProgram(NEWARRAY)
+	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
 	vm.estack.PushVal(MaxArraySize + 1)
 	checkVMFailed(t, vm)
 }
 
 func TestNEWSTRUCTInteger(t *testing.T) {
-	prog := makeProgram(NEWSTRUCT)
+	prog := makeProgram(opcode.NEWSTRUCT)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -942,7 +943,7 @@ func TestNEWSTRUCTInteger(t *testing.T) {
 }
 
 func TestNEWSTRUCTArray(t *testing.T) {
-	prog := makeProgram(NEWSTRUCT)
+	prog := makeProgram(opcode.NEWSTRUCT)
 	vm := load(prog)
 	arr := []StackItem{makeStackItem(42)}
 	vm.estack.Push(&Element{value: &ArrayItem{arr}})
@@ -952,7 +953,7 @@ func TestNEWSTRUCTArray(t *testing.T) {
 }
 
 func TestNEWSTRUCTStruct(t *testing.T) {
-	prog := makeProgram(NEWSTRUCT)
+	prog := makeProgram(opcode.NEWSTRUCT)
 	vm := load(prog)
 	arr := []StackItem{makeStackItem(42)}
 	vm.estack.Push(&Element{value: &StructItem{arr}})
@@ -962,7 +963,7 @@ func TestNEWSTRUCTStruct(t *testing.T) {
 }
 
 func TestNEWSTRUCTByteArray(t *testing.T) {
-	prog := makeProgram(NEWSTRUCT)
+	prog := makeProgram(opcode.NEWSTRUCT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{})
 	runVM(t, vm)
@@ -971,14 +972,14 @@ func TestNEWSTRUCTByteArray(t *testing.T) {
 }
 
 func TestNEWSTRUCTBadSize(t *testing.T) {
-	prog := makeProgram(NEWSTRUCT)
+	prog := makeProgram(opcode.NEWSTRUCT)
 	vm := load(prog)
 	vm.estack.PushVal(MaxArraySize + 1)
 	checkVMFailed(t, vm)
 }
 
 func TestAPPENDArray(t *testing.T) {
-	prog := makeProgram(DUP, PUSH5, APPEND)
+	prog := makeProgram(opcode.DUP, opcode.PUSH5, opcode.APPEND)
 	vm := load(prog)
 	vm.estack.Push(&Element{value: &ArrayItem{}})
 	runVM(t, vm)
@@ -987,7 +988,7 @@ func TestAPPENDArray(t *testing.T) {
 }
 
 func TestAPPENDStruct(t *testing.T) {
-	prog := makeProgram(DUP, PUSH5, APPEND)
+	prog := makeProgram(opcode.DUP, opcode.PUSH5, opcode.APPEND)
 	vm := load(prog)
 	vm.estack.Push(&Element{value: &StructItem{}})
 	runVM(t, vm)
@@ -996,7 +997,8 @@ func TestAPPENDStruct(t *testing.T) {
 }
 
 func TestAPPENDCloneStruct(t *testing.T) {
-	prog := makeProgram(DUP, PUSH0, NEWSTRUCT, TOALTSTACK, DUPFROMALTSTACK, APPEND, FROMALTSTACK, PUSH1, APPEND)
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.NEWSTRUCT, opcode.TOALTSTACK,
+		opcode.DUPFROMALTSTACK, opcode.APPEND, opcode.FROMALTSTACK, opcode.PUSH1, opcode.APPEND)
 	vm := load(prog)
 	vm.estack.Push(&Element{value: &ArrayItem{}})
 	runVM(t, vm)
@@ -1007,20 +1009,20 @@ func TestAPPENDCloneStruct(t *testing.T) {
 }
 
 func TestAPPENDBadNoArguments(t *testing.T) {
-	prog := makeProgram(APPEND)
+	prog := makeProgram(opcode.APPEND)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestAPPENDBad1Argument(t *testing.T) {
-	prog := makeProgram(APPEND)
+	prog := makeProgram(opcode.APPEND)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestAPPENDWrongType(t *testing.T) {
-	prog := makeProgram(APPEND)
+	prog := makeProgram(opcode.APPEND)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{})
 	vm.estack.PushVal(1)
@@ -1028,7 +1030,7 @@ func TestAPPENDWrongType(t *testing.T) {
 }
 
 func TestAPPENDGoodSizeLimit(t *testing.T) {
-	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	prog := makeProgram(opcode.NEWARRAY, opcode.DUP, opcode.PUSH0, opcode.APPEND)
 	vm := load(prog)
 	vm.estack.PushVal(MaxArraySize - 1)
 	runVM(t, vm)
@@ -1037,14 +1039,14 @@ func TestAPPENDGoodSizeLimit(t *testing.T) {
 }
 
 func TestAPPENDBadSizeLimit(t *testing.T) {
-	prog := makeProgram(NEWARRAY, DUP, PUSH0, APPEND)
+	prog := makeProgram(opcode.NEWARRAY, opcode.DUP, opcode.PUSH0, opcode.APPEND)
 	vm := load(prog)
 	vm.estack.PushVal(MaxArraySize)
 	checkVMFailed(t, vm)
 }
 
 func TestPICKITEMBadIndex(t *testing.T) {
-	prog := makeProgram(PICKITEM)
+	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	vm.estack.PushVal(0)
@@ -1052,7 +1054,7 @@ func TestPICKITEMBadIndex(t *testing.T) {
 }
 
 func TestPICKITEMArray(t *testing.T) {
-	prog := makeProgram(PICKITEM)
+	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{makeStackItem(1), makeStackItem(2)})
 	vm.estack.PushVal(1)
@@ -1062,7 +1064,7 @@ func TestPICKITEMArray(t *testing.T) {
 }
 
 func TestPICKITEMByteArray(t *testing.T) {
-	prog := makeProgram(PICKITEM)
+	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{1, 2})
 	vm.estack.PushVal(1)
@@ -1072,7 +1074,7 @@ func TestPICKITEMByteArray(t *testing.T) {
 }
 
 func TestPICKITEMMap(t *testing.T) {
-	prog := makeProgram(PICKITEM)
+	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1086,7 +1088,7 @@ func TestPICKITEMMap(t *testing.T) {
 }
 
 func TestSETITEMMap(t *testing.T) {
-	prog := makeProgram(SETITEM, PICKITEM)
+	prog := makeProgram(opcode.SETITEM, opcode.PICKITEM)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1103,7 +1105,7 @@ func TestSETITEMMap(t *testing.T) {
 }
 
 func TestSETITEMBigMapBad(t *testing.T) {
-	prog := makeProgram(SETITEM)
+	prog := makeProgram(opcode.SETITEM)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1118,7 +1120,7 @@ func TestSETITEMBigMapBad(t *testing.T) {
 }
 
 func TestSETITEMBigMapGood(t *testing.T) {
-	prog := makeProgram(SETITEM)
+	prog := makeProgram(opcode.SETITEM)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1133,13 +1135,13 @@ func TestSETITEMBigMapGood(t *testing.T) {
 }
 
 func TestSIZENoArgument(t *testing.T) {
-	prog := makeProgram(SIZE)
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestSIZEByteArray(t *testing.T) {
-	prog := makeProgram(SIZE)
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 1})
 	runVM(t, vm)
@@ -1148,7 +1150,7 @@ func TestSIZEByteArray(t *testing.T) {
 }
 
 func TestSIZEBool(t *testing.T) {
-	prog := makeProgram(SIZE)
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 	vm.estack.PushVal(false)
 	runVM(t, vm)
@@ -1159,7 +1161,7 @@ func TestSIZEBool(t *testing.T) {
 }
 
 func TestARRAYSIZEArray(t *testing.T) {
-	prog := makeProgram(ARRAYSIZE)
+	prog := makeProgram(opcode.ARRAYSIZE)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{
 		makeStackItem(1),
@@ -1171,7 +1173,7 @@ func TestARRAYSIZEArray(t *testing.T) {
 }
 
 func TestARRAYSIZEMap(t *testing.T) {
-	prog := makeProgram(ARRAYSIZE)
+	prog := makeProgram(opcode.ARRAYSIZE)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1185,7 +1187,7 @@ func TestARRAYSIZEMap(t *testing.T) {
 }
 
 func TestKEYSMap(t *testing.T) {
-	prog := makeProgram(KEYS)
+	prog := makeProgram(opcode.KEYS)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1203,20 +1205,20 @@ func TestKEYSMap(t *testing.T) {
 }
 
 func TestKEYSNoArgument(t *testing.T) {
-	prog := makeProgram(KEYS)
+	prog := makeProgram(opcode.KEYS)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestKEYSWrongType(t *testing.T) {
-	prog := makeProgram(KEYS)
+	prog := makeProgram(opcode.KEYS)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	checkVMFailed(t, vm)
 }
 
 func TestVALUESMap(t *testing.T) {
-	prog := makeProgram(VALUES)
+	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -1234,7 +1236,7 @@ func TestVALUESMap(t *testing.T) {
 }
 
 func TestVALUESArray(t *testing.T) {
-	prog := makeProgram(VALUES)
+	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{makeStackItem(4)})
 	runVM(t, vm)
@@ -1243,20 +1245,20 @@ func TestVALUESArray(t *testing.T) {
 }
 
 func TestVALUESNoArgument(t *testing.T) {
-	prog := makeProgram(VALUES)
+	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestVALUESWrongType(t *testing.T) {
-	prog := makeProgram(VALUES)
+	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
 	vm.estack.PushVal(5)
 	checkVMFailed(t, vm)
 }
 
 func TestHASKEYArrayTrue(t *testing.T) {
-	prog := makeProgram(PUSH5, NEWARRAY, PUSH4, HASKEY)
+	prog := makeProgram(opcode.PUSH5, opcode.NEWARRAY, opcode.PUSH4, opcode.HASKEY)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1264,7 +1266,7 @@ func TestHASKEYArrayTrue(t *testing.T) {
 }
 
 func TestHASKEYArrayFalse(t *testing.T) {
-	prog := makeProgram(PUSH5, NEWARRAY, PUSH5, HASKEY)
+	prog := makeProgram(opcode.PUSH5, opcode.NEWARRAY, opcode.PUSH5, opcode.HASKEY)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1272,7 +1274,7 @@ func TestHASKEYArrayFalse(t *testing.T) {
 }
 
 func TestHASKEYStructTrue(t *testing.T) {
-	prog := makeProgram(PUSH5, NEWSTRUCT, PUSH4, HASKEY)
+	prog := makeProgram(opcode.PUSH5, opcode.NEWSTRUCT, opcode.PUSH4, opcode.HASKEY)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1280,7 +1282,7 @@ func TestHASKEYStructTrue(t *testing.T) {
 }
 
 func TestHASKEYStructFalse(t *testing.T) {
-	prog := makeProgram(PUSH5, NEWSTRUCT, PUSH5, HASKEY)
+	prog := makeProgram(opcode.PUSH5, opcode.NEWSTRUCT, opcode.PUSH5, opcode.HASKEY)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
@@ -1288,7 +1290,7 @@ func TestHASKEYStructFalse(t *testing.T) {
 }
 
 func TestHASKEYMapTrue(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	m := NewMapItem()
 	m.Add(makeStackItem(5), makeStackItem(6))
@@ -1300,7 +1302,7 @@ func TestHASKEYMapTrue(t *testing.T) {
 }
 
 func TestHASKEYMapFalse(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	m := NewMapItem()
 	m.Add(makeStackItem(5), makeStackItem(6))
@@ -1312,20 +1314,20 @@ func TestHASKEYMapFalse(t *testing.T) {
 }
 
 func TestHASKEYNoArguments(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestHASKEY1Argument(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestHASKEYWrongKeyType(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	vm.estack.PushVal([]StackItem{})
@@ -1333,7 +1335,7 @@ func TestHASKEYWrongKeyType(t *testing.T) {
 }
 
 func TestHASKEYWrongCollectionType(t *testing.T) {
-	prog := makeProgram(HASKEY)
+	prog := makeProgram(opcode.HASKEY)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1341,20 +1343,20 @@ func TestHASKEYWrongCollectionType(t *testing.T) {
 }
 
 func TestSIGNNoArgument(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestSIGNWrongType(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{})
 	checkVMFailed(t, vm)
 }
 
 func TestSIGNBool(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal(false)
 	runVM(t, vm)
@@ -1363,7 +1365,7 @@ func TestSIGNBool(t *testing.T) {
 }
 
 func TestSIGNPositiveInt(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -1372,7 +1374,7 @@ func TestSIGNPositiveInt(t *testing.T) {
 }
 
 func TestSIGNNegativeInt(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal(-1)
 	runVM(t, vm)
@@ -1381,7 +1383,7 @@ func TestSIGNNegativeInt(t *testing.T) {
 }
 
 func TestSIGNZero(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	runVM(t, vm)
@@ -1390,7 +1392,7 @@ func TestSIGNZero(t *testing.T) {
 }
 
 func TestSIGNByteArray(t *testing.T) {
-	prog := makeProgram(SIGN)
+	prog := makeProgram(opcode.SIGN)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{0, 1})
 	runVM(t, vm)
@@ -1399,15 +1401,15 @@ func TestSIGNByteArray(t *testing.T) {
 }
 
 func TestAppCall(t *testing.T) {
-	prog := []byte{byte(APPCALL)}
+	prog := []byte{byte(opcode.APPCALL)}
 	hash := util.Uint160{}
 	prog = append(prog, hash.Bytes()...)
-	prog = append(prog, byte(RET))
+	prog = append(prog, byte(opcode.RET))
 
 	vm := load(prog)
 	vm.SetScriptGetter(func(in util.Uint160) []byte {
 		if in.Equals(hash) {
-			return makeProgram(DEPTH)
+			return makeProgram(opcode.DEPTH)
 		}
 		return nil
 	})
@@ -1432,7 +1434,7 @@ func TestSimpleCall(t *testing.T) {
 }
 
 func TestNZtrue(t *testing.T) {
-	prog := makeProgram(NZ)
+	prog := makeProgram(opcode.NZ)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -1440,7 +1442,7 @@ func TestNZtrue(t *testing.T) {
 }
 
 func TestNZfalse(t *testing.T) {
-	prog := makeProgram(NZ)
+	prog := makeProgram(opcode.NZ)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	runVM(t, vm)
@@ -1448,21 +1450,21 @@ func TestNZfalse(t *testing.T) {
 }
 
 func TestPICKbadNoitem(t *testing.T) {
-	prog := makeProgram(PICK)
+	prog := makeProgram(opcode.PICK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestPICKbadNegative(t *testing.T) {
-	prog := makeProgram(PICK)
+	prog := makeProgram(opcode.PICK)
 	vm := load(prog)
 	vm.estack.PushVal(-1)
 	checkVMFailed(t, vm)
 }
 
 func TestPICKgood(t *testing.T) {
-	prog := makeProgram(PICK)
+	prog := makeProgram(opcode.PICK)
 	result := 2
 	vm := load(prog)
 	vm.estack.PushVal(0)
@@ -1477,7 +1479,7 @@ func TestPICKgood(t *testing.T) {
 }
 
 func TestROTBad(t *testing.T) {
-	prog := makeProgram(ROT)
+	prog := makeProgram(opcode.ROT)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1485,7 +1487,7 @@ func TestROTBad(t *testing.T) {
 }
 
 func TestROTGood(t *testing.T) {
-	prog := makeProgram(ROT)
+	prog := makeProgram(opcode.ROT)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1498,14 +1500,14 @@ func TestROTGood(t *testing.T) {
 }
 
 func TestXTUCKbadNoitem(t *testing.T) {
-	prog := makeProgram(XTUCK)
+	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestXTUCKbadNoN(t *testing.T) {
-	prog := makeProgram(XTUCK)
+	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1513,14 +1515,14 @@ func TestXTUCKbadNoN(t *testing.T) {
 }
 
 func TestXTUCKbadNegative(t *testing.T) {
-	prog := makeProgram(XTUCK)
+	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
 	vm.estack.PushVal(-1)
 	checkVMFailed(t, vm)
 }
 
 func TestXTUCKbadZero(t *testing.T) {
-	prog := makeProgram(XTUCK)
+	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(0)
@@ -1528,7 +1530,7 @@ func TestXTUCKbadZero(t *testing.T) {
 }
 
 func TestXTUCKgood(t *testing.T) {
-	prog := makeProgram(XTUCK)
+	prog := makeProgram(opcode.XTUCK)
 	topelement := 5
 	xtuckdepth := 3
 	vm := load(prog)
@@ -1545,20 +1547,20 @@ func TestXTUCKgood(t *testing.T) {
 }
 
 func TestTUCKbadNoitems(t *testing.T) {
-	prog := makeProgram(TUCK)
+	prog := makeProgram(opcode.TUCK)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestTUCKbadNoitem(t *testing.T) {
-	prog := makeProgram(TUCK)
+	prog := makeProgram(opcode.TUCK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestTUCKgood(t *testing.T) {
-	prog := makeProgram(TUCK)
+	prog := makeProgram(opcode.TUCK)
 	vm := load(prog)
 	vm.estack.PushVal(42)
 	vm.estack.PushVal(34)
@@ -1569,7 +1571,7 @@ func TestTUCKgood(t *testing.T) {
 }
 
 func TestTUCKgood2(t *testing.T) {
-	prog := makeProgram(TUCK)
+	prog := makeProgram(opcode.TUCK)
 	vm := load(prog)
 	vm.estack.PushVal(11)
 	vm.estack.PushVal(42)
@@ -1582,7 +1584,7 @@ func TestTUCKgood2(t *testing.T) {
 }
 
 func TestOVERbadNoitem(t *testing.T) {
-	prog := makeProgram(OVER)
+	prog := makeProgram(opcode.OVER)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
@@ -1591,13 +1593,13 @@ func TestOVERbadNoitem(t *testing.T) {
 }
 
 func TestOVERbadNoitems(t *testing.T) {
-	prog := makeProgram(OVER)
+	prog := makeProgram(opcode.OVER)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestOVERgood(t *testing.T) {
-	prog := makeProgram(OVER)
+	prog := makeProgram(opcode.OVER)
 	vm := load(prog)
 	vm.estack.PushVal(42)
 	vm.estack.PushVal(34)
@@ -1609,14 +1611,14 @@ func TestOVERgood(t *testing.T) {
 }
 
 func TestNIPBadNoItem(t *testing.T) {
-	prog := makeProgram(NIP)
+	prog := makeProgram(opcode.NIP)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestNIPGood(t *testing.T) {
-	prog := makeProgram(NIP)
+	prog := makeProgram(opcode.NIP)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1626,13 +1628,13 @@ func TestNIPGood(t *testing.T) {
 }
 
 func TestDROPBadNoItem(t *testing.T) {
-	prog := makeProgram(DROP)
+	prog := makeProgram(opcode.DROP)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestDROPGood(t *testing.T) {
-	prog := makeProgram(DROP)
+	prog := makeProgram(opcode.DROP)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	runVM(t, vm)
@@ -1640,13 +1642,13 @@ func TestDROPGood(t *testing.T) {
 }
 
 func TestXDROPbadNoitem(t *testing.T) {
-	prog := makeProgram(XDROP)
+	prog := makeProgram(opcode.XDROP)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestXDROPbadNoN(t *testing.T) {
-	prog := makeProgram(XDROP)
+	prog := makeProgram(opcode.XDROP)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(2)
@@ -1654,7 +1656,7 @@ func TestXDROPbadNoN(t *testing.T) {
 }
 
 func TestXDROPbadNegative(t *testing.T) {
-	prog := makeProgram(XDROP)
+	prog := makeProgram(opcode.XDROP)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(-1)
@@ -1662,7 +1664,7 @@ func TestXDROPbadNegative(t *testing.T) {
 }
 
 func TestXDROPgood(t *testing.T) {
-	prog := makeProgram(XDROP)
+	prog := makeProgram(opcode.XDROP)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	vm.estack.PushVal(1)
@@ -1675,13 +1677,13 @@ func TestXDROPgood(t *testing.T) {
 }
 
 func TestINVERTbadNoitem(t *testing.T) {
-	prog := makeProgram(INVERT)
+	prog := makeProgram(opcode.INVERT)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestINVERTgood1(t *testing.T) {
-	prog := makeProgram(INVERT)
+	prog := makeProgram(opcode.INVERT)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	runVM(t, vm)
@@ -1689,7 +1691,7 @@ func TestINVERTgood1(t *testing.T) {
 }
 
 func TestINVERTgood2(t *testing.T) {
-	prog := makeProgram(INVERT)
+	prog := makeProgram(opcode.INVERT)
 	vm := load(prog)
 	vm.estack.PushVal(-1)
 	runVM(t, vm)
@@ -1697,7 +1699,7 @@ func TestINVERTgood2(t *testing.T) {
 }
 
 func TestINVERTgood3(t *testing.T) {
-	prog := makeProgram(INVERT)
+	prog := makeProgram(opcode.INVERT)
 	vm := load(prog)
 	vm.estack.PushVal(0x69)
 	runVM(t, vm)
@@ -1705,20 +1707,20 @@ func TestINVERTgood3(t *testing.T) {
 }
 
 func TestCATBadNoArgs(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestCATBadOneArg(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abc"))
 	checkVMFailed(t, vm)
 }
 
 func TestCATBadBigItem(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
 	vm.estack.PushVal(make([]byte, MaxItemSize/2+1))
@@ -1727,7 +1729,7 @@ func TestCATBadBigItem(t *testing.T) {
 }
 
 func TestCATGood(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abc"))
 	vm.estack.PushVal([]byte("def"))
@@ -1737,7 +1739,7 @@ func TestCATGood(t *testing.T) {
 }
 
 func TestCATInt0ByteArray(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	vm.estack.PushVal([]byte{})
@@ -1747,7 +1749,7 @@ func TestCATInt0ByteArray(t *testing.T) {
 }
 
 func TestCATByteArrayInt1(t *testing.T) {
-	prog := makeProgram(CAT)
+	prog := makeProgram(opcode.CAT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte{})
 	vm.estack.PushVal(1)
@@ -1757,20 +1759,20 @@ func TestCATByteArrayInt1(t *testing.T) {
 }
 
 func TestSUBSTRBadNoArgs(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBadOneArg(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBadTwoArgs(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	vm.estack.PushVal(2)
@@ -1778,7 +1780,7 @@ func TestSUBSTRBadTwoArgs(t *testing.T) {
 }
 
 func TestSUBSTRGood(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
@@ -1789,7 +1791,7 @@ func TestSUBSTRGood(t *testing.T) {
 }
 
 func TestSUBSTRBadOffset(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(7)
@@ -1803,7 +1805,7 @@ func TestSUBSTRBadOffset(t *testing.T) {
 }
 
 func TestSUBSTRBigLen(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
@@ -1814,7 +1816,7 @@ func TestSUBSTRBigLen(t *testing.T) {
 }
 
 func TestSUBSTRBad387(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	b := make([]byte, 6, 20)
 	copy(b, "abcdef")
@@ -1827,7 +1829,7 @@ func TestSUBSTRBad387(t *testing.T) {
 }
 
 func TestSUBSTRBadNegativeOffset(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(-1)
@@ -1836,7 +1838,7 @@ func TestSUBSTRBadNegativeOffset(t *testing.T) {
 }
 
 func TestSUBSTRBadNegativeLen(t *testing.T) {
-	prog := makeProgram(SUBSTR)
+	prog := makeProgram(opcode.SUBSTR)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(3)
@@ -1845,20 +1847,20 @@ func TestSUBSTRBadNegativeLen(t *testing.T) {
 }
 
 func TestLEFTBadNoArgs(t *testing.T) {
-	prog := makeProgram(LEFT)
+	prog := makeProgram(opcode.LEFT)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestLEFTBadNoString(t *testing.T) {
-	prog := makeProgram(LEFT)
+	prog := makeProgram(opcode.LEFT)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	checkVMFailed(t, vm)
 }
 
 func TestLEFTBadNegativeLen(t *testing.T) {
-	prog := makeProgram(LEFT)
+	prog := makeProgram(opcode.LEFT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(-1)
@@ -1866,7 +1868,7 @@ func TestLEFTBadNegativeLen(t *testing.T) {
 }
 
 func TestLEFTGood(t *testing.T) {
-	prog := makeProgram(LEFT)
+	prog := makeProgram(opcode.LEFT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(2)
@@ -1876,7 +1878,7 @@ func TestLEFTGood(t *testing.T) {
 }
 
 func TestLEFTGoodLen(t *testing.T) {
-	prog := makeProgram(LEFT)
+	prog := makeProgram(opcode.LEFT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(8)
@@ -1886,20 +1888,20 @@ func TestLEFTGoodLen(t *testing.T) {
 }
 
 func TestRIGHTBadNoArgs(t *testing.T) {
-	prog := makeProgram(RIGHT)
+	prog := makeProgram(opcode.RIGHT)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestRIGHTBadNoString(t *testing.T) {
-	prog := makeProgram(RIGHT)
+	prog := makeProgram(opcode.RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal(2)
 	checkVMFailed(t, vm)
 }
 
 func TestRIGHTBadNegativeLen(t *testing.T) {
-	prog := makeProgram(RIGHT)
+	prog := makeProgram(opcode.RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(-1)
@@ -1907,7 +1909,7 @@ func TestRIGHTBadNegativeLen(t *testing.T) {
 }
 
 func TestRIGHTGood(t *testing.T) {
-	prog := makeProgram(RIGHT)
+	prog := makeProgram(opcode.RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(2)
@@ -1917,7 +1919,7 @@ func TestRIGHTGood(t *testing.T) {
 }
 
 func TestRIGHTBadLen(t *testing.T) {
-	prog := makeProgram(RIGHT)
+	prog := makeProgram(opcode.RIGHT)
 	vm := load(prog)
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(8)
@@ -1925,14 +1927,14 @@ func TestRIGHTBadLen(t *testing.T) {
 }
 
 func TestPACKBadLen(t *testing.T) {
-	prog := makeProgram(PACK)
+	prog := makeProgram(opcode.PACK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestPACKBigLen(t *testing.T) {
-	prog := makeProgram(PACK)
+	prog := makeProgram(opcode.PACK)
 	vm := load(prog)
 	for i := 0; i <= MaxArraySize; i++ {
 		vm.estack.PushVal(0)
@@ -1942,7 +1944,7 @@ func TestPACKBigLen(t *testing.T) {
 }
 
 func TestPACKGoodZeroLen(t *testing.T) {
-	prog := makeProgram(PACK)
+	prog := makeProgram(opcode.PACK)
 	vm := load(prog)
 	vm.estack.PushVal(0)
 	runVM(t, vm)
@@ -1951,7 +1953,7 @@ func TestPACKGoodZeroLen(t *testing.T) {
 }
 
 func TestPACKGood(t *testing.T) {
-	prog := makeProgram(PACK)
+	prog := makeProgram(opcode.PACK)
 	elements := []int{55, 34, 42}
 	vm := load(prog)
 	// canary
@@ -1972,14 +1974,14 @@ func TestPACKGood(t *testing.T) {
 }
 
 func TestUNPACKBadNotArray(t *testing.T) {
-	prog := makeProgram(UNPACK)
+	prog := makeProgram(opcode.UNPACK)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestUNPACKGood(t *testing.T) {
-	prog := makeProgram(UNPACK)
+	prog := makeProgram(opcode.UNPACK)
 	elements := []int{55, 34, 42}
 	vm := load(prog)
 	// canary
@@ -1995,18 +1997,18 @@ func TestUNPACKGood(t *testing.T) {
 }
 
 func TestREVERSEBadNotArray(t *testing.T) {
-	prog := makeProgram(REVERSE)
+	prog := makeProgram(opcode.REVERSE)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
-func testREVERSEIssue437(t *testing.T, i1, i2 Instruction, reversed bool) {
+func testREVERSEIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
 	prog := makeProgram(
-		PUSH0, i1,
-		DUP, PUSH1, APPEND,
-		DUP, PUSH2, APPEND,
-		DUP, i2, REVERSE)
+		opcode.PUSH0, i1,
+		opcode.DUP, opcode.PUSH1, opcode.APPEND,
+		opcode.DUP, opcode.PUSH2, opcode.APPEND,
+		opcode.DUP, i2, opcode.REVERSE)
 	vm := load(prog)
 	vm.Run()
 
@@ -2020,7 +2022,7 @@ func testREVERSEIssue437(t *testing.T, i1, i2 Instruction, reversed bool) {
 	}
 	assert.Equal(t, false, vm.HasFailed())
 	assert.Equal(t, 1, vm.estack.Len())
-	if i1 == NEWARRAY {
+	if i1 == opcode.NEWARRAY {
 		assert.Equal(t, &ArrayItem{arr}, vm.estack.Pop().value)
 	} else {
 		assert.Equal(t, &StructItem{arr}, vm.estack.Pop().value)
@@ -2028,14 +2030,14 @@ func testREVERSEIssue437(t *testing.T, i1, i2 Instruction, reversed bool) {
 }
 
 func TestREVERSEIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testREVERSEIssue437(t, NEWARRAY, NEWARRAY, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEIssue437(t, NEWSTRUCT, NEWSTRUCT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testREVERSEIssue437(t, NEWARRAY, NEWSTRUCT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testREVERSEIssue437(t, NEWSTRUCT, NEWARRAY, false) })
+	t.Run("Array+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
 }
 
 func TestREVERSEGoodOneElem(t *testing.T) {
-	prog := makeProgram(DUP, REVERSE)
+	prog := makeProgram(opcode.DUP, opcode.REVERSE)
 	elements := []int{22}
 	vm := load(prog)
 	vm.estack.PushVal(1)
@@ -2054,7 +2056,7 @@ func TestREVERSEGoodStruct(t *testing.T) {
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(DUP, REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSE)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 
@@ -2082,7 +2084,7 @@ func TestREVERSEGood(t *testing.T) {
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(DUP, REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSE)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 		vm.estack.PushVal(elements)
@@ -2099,20 +2101,20 @@ func TestREVERSEGood(t *testing.T) {
 }
 
 func TestREMOVEBadNoArgs(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(opcode.REMOVE)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestREMOVEBadOneArg(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(opcode.REMOVE)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
 func TestREMOVEBadNotArray(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(opcode.REMOVE)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(1)
@@ -2120,7 +2122,7 @@ func TestREMOVEBadNotArray(t *testing.T) {
 }
 
 func TestREMOVEBadIndex(t *testing.T) {
-	prog := makeProgram(REMOVE)
+	prog := makeProgram(opcode.REMOVE)
 	elements := []int{22, 34, 42, 55, 81}
 	vm := load(prog)
 	vm.estack.PushVal(elements)
@@ -2129,7 +2131,7 @@ func TestREMOVEBadIndex(t *testing.T) {
 }
 
 func TestREMOVEGood(t *testing.T) {
-	prog := makeProgram(DUP, PUSH2, REMOVE)
+	prog := makeProgram(opcode.DUP, opcode.PUSH2, opcode.REMOVE)
 	elements := []int{22, 34, 42, 55, 81}
 	reselements := []int{22, 34, 55, 81}
 	vm := load(prog)
@@ -2142,7 +2144,7 @@ func TestREMOVEGood(t *testing.T) {
 }
 
 func TestREMOVEMap(t *testing.T) {
-	prog := makeProgram(REMOVE, PUSH5, HASKEY)
+	prog := makeProgram(opcode.REMOVE, opcode.PUSH5, opcode.HASKEY)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -2158,13 +2160,13 @@ func TestREMOVEMap(t *testing.T) {
 }
 
 func TestCHECKSIGNoArgs(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestCHECKSIGOneArg(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pbytes := pk.PublicKey().Bytes()
@@ -2174,7 +2176,7 @@ func TestCHECKSIGOneArg(t *testing.T) {
 }
 
 func TestCHECKSIGNoSigLoaded(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := "NEO - An Open Network For Smart Economy"
@@ -2188,7 +2190,7 @@ func TestCHECKSIGNoSigLoaded(t *testing.T) {
 }
 
 func TestCHECKSIGBadKey(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := []byte("NEO - An Open Network For Smart Economy")
@@ -2203,7 +2205,7 @@ func TestCHECKSIGBadKey(t *testing.T) {
 }
 
 func TestCHECKSIGWrongSig(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := []byte("NEO - An Open Network For Smart Economy")
@@ -2220,7 +2222,7 @@ func TestCHECKSIGWrongSig(t *testing.T) {
 }
 
 func TestCHECKSIGGood(t *testing.T) {
-	prog := makeProgram(CHECKSIG)
+	prog := makeProgram(opcode.CHECKSIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := []byte("NEO - An Open Network For Smart Economy")
@@ -2237,7 +2239,7 @@ func TestCHECKSIGGood(t *testing.T) {
 }
 
 func TestVERIFYGood(t *testing.T) {
-	prog := makeProgram(VERIFY)
+	prog := makeProgram(opcode.VERIFY)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := []byte("NEO - An Open Network For Smart Economy")
@@ -2254,7 +2256,7 @@ func TestVERIFYGood(t *testing.T) {
 }
 
 func TestVERIFYBad(t *testing.T) {
-	prog := makeProgram(VERIFY)
+	prog := makeProgram(opcode.VERIFY)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	msg := []byte("NEO - An Open Network For Smart Economy")
@@ -2271,13 +2273,13 @@ func TestVERIFYBad(t *testing.T) {
 }
 
 func TestCHECKMULTISIGNoArgs(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	vm := load(prog)
 	checkVMFailed(t, vm)
 }
 
 func TestCHECKMULTISIGOneArg(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	vm := load(prog)
@@ -2287,7 +2289,7 @@ func TestCHECKMULTISIGOneArg(t *testing.T) {
 }
 
 func TestCHECKMULTISIGNotEnoughKeys(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk1, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pk2, err := keys.NewPrivateKey()
@@ -2306,7 +2308,7 @@ func TestCHECKMULTISIGNotEnoughKeys(t *testing.T) {
 }
 
 func TestCHECKMULTISIGNoHash(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk1, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pk2, err := keys.NewPrivateKey()
@@ -2325,7 +2327,7 @@ func TestCHECKMULTISIGNoHash(t *testing.T) {
 }
 
 func TestCHECKMULTISIGBadKey(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk1, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pk2, err := keys.NewPrivateKey()
@@ -2345,7 +2347,7 @@ func TestCHECKMULTISIGBadKey(t *testing.T) {
 }
 
 func TestCHECKMULTISIGBadSig(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk1, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pk2, err := keys.NewPrivateKey()
@@ -2367,7 +2369,7 @@ func TestCHECKMULTISIGBadSig(t *testing.T) {
 }
 
 func TestCHECKMULTISIGGood(t *testing.T) {
-	prog := makeProgram(CHECKMULTISIG)
+	prog := makeProgram(opcode.CHECKMULTISIG)
 	pk1, err := keys.NewPrivateKey()
 	assert.Nil(t, err)
 	pk2, err := keys.NewPrivateKey()
@@ -2388,12 +2390,12 @@ func TestCHECKMULTISIGGood(t *testing.T) {
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
-func makeProgram(opcodes ...Instruction) []byte {
+func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
 		prog[i] = byte(opcodes[i])
 	}
-	prog[len(prog)-1] = byte(RET)
+	prog[len(prog)-1] = byte(opcode.RET)
 	return prog
 }
 
