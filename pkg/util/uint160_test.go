@@ -52,6 +52,13 @@ func TestUint160DecodeBytes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, hexStr, val.String())
 
+	valLE, err := Uint160DecodeBytesLE(b)
+	assert.NoError(t, err)
+	assert.Equal(t, val, valLE.Reverse())
+
+	_, err = Uint160DecodeBytesLE(b[1:])
+	assert.Error(t, err)
+
 	_, err = Uint160DecodeBytesBE(b[1:])
 	assert.Error(t, err)
 }

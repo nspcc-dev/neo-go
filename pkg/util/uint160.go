@@ -35,6 +35,20 @@ func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
 	return
 }
 
+// Uint160DecodeBytesLE attempts to decode the given bytes in little-endian
+// into an Uint160.
+func Uint160DecodeBytesLE(b []byte) (u Uint160, err error) {
+	if len(b) != Uint160Size {
+		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
+	}
+
+	for i := range b {
+		u[Uint160Size-i-1] = b[i]
+	}
+
+	return
+}
+
 // BytesBE returns a big-endian byte representation of u.
 func (u Uint160) BytesBE() []byte {
 	return u[:]
