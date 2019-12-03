@@ -28,6 +28,21 @@ func Uint256DecodeStringLE(s string) (u Uint256, err error) {
 	return Uint256DecodeBytesLE(b)
 }
 
+// Uint256DecodeStringBE attempts to decode the given string (in BE representation)
+// into an Uint256.
+func Uint256DecodeStringBE(s string) (u Uint256, err error) {
+	if len(s) != Uint256Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint256Size*2, len(s))
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return u, err
+	}
+
+	return Uint256DecodeBytesBE(b)
+}
+
 // Uint256DecodeBytesBE attempts to decode the given string (in BE representation) into an Uint256.
 func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 	if len(b) != Uint256Size {

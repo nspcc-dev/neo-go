@@ -37,6 +37,10 @@ func TestUint256DecodeString(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, hexStr, val.StringLE())
 
+	valBE, err := Uint256DecodeStringBE(hexStr)
+	require.NoError(t, err)
+	assert.Equal(t, val, valBE.Reverse())
+
 	bs, err := hex.DecodeString(hexStr)
 	require.NoError(t, err)
 
@@ -48,8 +52,14 @@ func TestUint256DecodeString(t *testing.T) {
 	_, err = Uint256DecodeStringLE(hexStr[1:])
 	assert.Error(t, err)
 
+	_, err = Uint256DecodeStringBE(hexStr[1:])
+	assert.Error(t, err)
+
 	hexStr = "zzz7308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
 	_, err = Uint256DecodeStringLE(hexStr)
+	assert.Error(t, err)
+
+	_, err = Uint256DecodeStringBE(hexStr)
 	assert.Error(t, err)
 }
 
