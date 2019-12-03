@@ -94,3 +94,12 @@ func TestUInt160String(t *testing.T) {
 	assert.Equal(t, hexStr, val.String())
 	assert.Equal(t, hexRevStr, val.StringLE())
 }
+
+func TestUint160_Reverse(t *testing.T) {
+	hexStr := "b28427088a3729b2536d10122960394e8be6721f"
+	val, err := Uint160DecodeStringBE(hexStr)
+
+	require.NoError(t, err)
+	assert.Equal(t, hexStr, val.Reverse().StringLE())
+	assert.Equal(t, val, val.Reverse().Reverse())
+}

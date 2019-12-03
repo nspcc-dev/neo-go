@@ -60,6 +60,15 @@ func (u Uint160) StringLE() string {
 	return hex.EncodeToString(u.BytesLE())
 }
 
+// Reverse returns reversed representation of u.
+func (u Uint160) Reverse() (r Uint160) {
+	for i := 0; i < Uint160Size; i++ {
+		r[i] = u[Uint160Size-i-1]
+	}
+
+	return
+}
+
 // Equals returns true if both Uint256 values are the same.
 func (u Uint160) Equals(other Uint160) bool {
 	return u == other
