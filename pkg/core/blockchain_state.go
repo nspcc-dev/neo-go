@@ -69,7 +69,7 @@ func (state *BlockChainState) storeAsBlock(block *Block, sysFee uint32) error {
 	if err != nil {
 		return err
 	}
-	buf.WriteLE(b)
+	buf.WriteBytes(b)
 	if buf.Err != nil {
 		return buf.Err
 	}
@@ -79,7 +79,7 @@ func (state *BlockChainState) storeAsBlock(block *Block, sysFee uint32) error {
 // storeAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
 func (state *BlockChainState) storeAsCurrentBlock(block *Block) error {
 	buf := io.NewBufBinWriter()
-	buf.WriteLE(block.Hash().BytesReverse())
+	buf.WriteBytes(block.Hash().BytesReverse())
 	buf.WriteLE(block.Index)
 	return state.store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }

@@ -93,13 +93,18 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 
 }
 
-// WriteBytes writes a variable length byte array into the underlying io.Writer.
+// WriteBytes writes a variable byte into the underlying io.Writer without prefix.
 func (w *BinWriter) WriteBytes(b []byte) {
+	w.WriteLE(b)
+}
+
+// WriteVarBytes writes a variable length byte array into the underlying io.Writer.
+func (w *BinWriter) WriteVarBytes(b []byte) {
 	w.WriteVarUint(uint64(len(b)))
 	w.WriteLE(b)
 }
 
 // WriteString writes a variable length string into the underlying io.Writer.
 func (w *BinWriter) WriteString(s string) {
-	w.WriteBytes([]byte(s))
+	w.WriteVarBytes([]byte(s))
 }

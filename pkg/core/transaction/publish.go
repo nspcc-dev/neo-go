@@ -51,7 +51,7 @@ func (tx *PublishTX) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(tx.Script)
+	bw.WriteVarBytes(tx.Script)
 	bw.WriteVarUint(uint64(len(tx.ParamList)))
 	for _, param := range tx.ParamList {
 		bw.WriteLE(uint8(param))

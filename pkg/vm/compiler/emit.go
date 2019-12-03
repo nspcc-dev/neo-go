@@ -1,105 +1,114 @@
 package compiler
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-func emit(w *bytes.Buffer, instr vm.Instruction, b []byte) error {
-	if err := w.WriteByte(byte(instr)); err != nil {
-		return err
-	}
-	_, err := w.Write(b)
-	return err
+// emit a VM Instruction with data to the given buffer.
+func emit(w *io.BinWriter, instr vm.Instruction, b []byte) {
+	emitOpcode(w, instr)
+	w.WriteBytes(b)
 }
 
-func emitOpcode(w io.ByteWriter, instr vm.Instruction) error {
-	return w.WriteByte(byte(instr))
+// emitOpcode emits a single VM Instruction the given buffer.
+func emitOpcode(w *io.BinWriter, instr vm.Instruction) {
+	w.WriteLE(byte(instr))
 }
 
-func emitBool(w io.ByteWriter, ok bool) error {
+// emitBool emits a bool type the given buffer.
+func emitBool(w *io.BinWriter, ok bool) {
 	if ok {
-		return emitOpcode(w, vm.PUSHT)
+		emitOpcode(w, vm.PUSHT)
+		return
 	}
-	return emitOpcode(w, vm.PUSHF)
+	emitOpcode(w, vm.PUSHF)
 }
 
-func emitInt(w *bytes.Buffer, i int64) error {
-	if i == -1 {
-		return emitOpcode(w, vm.PUSHM1)
-	}
-	if i == 0 {
-		return emitOpcode(w, vm.PUSHF)
-	}
-	if i > 0 && i < 16 {
+// emitInt emits a int type to the given buffer.
+func emitInt(w *io.BinWriter, i int64) {
+	switch {
+	case i == -1:
+		emitOpcode(w, vm.PUSHM1)
+		return
+	case i == 0:
+		emitOpcode(w, vm.PUSHF)
+		return
+	case i > 0 && i < 16:
 		val := vm.Instruction(int(vm.PUSH1) - 1 + int(i))
-		return emitOpcode(w, val)
+		emitOpcode(w, val)
+		return
 	}
 
 	bInt := big.NewInt(i)
 	val := util.ArrayReverse(bInt.Bytes())
-	return emitBytes(w, val)
+	emitBytes(w, val)
 }
 
-func emitString(w *bytes.Buffer, s string) error {
-	return emitBytes(w, []byte(s))
+// emitString emits a string to the given buffer.
+func emitString(w *io.BinWriter, s string) {
+	emitBytes(w, []byte(s))
 }
 
-func emitBytes(w *bytes.Buffer, b []byte) error {
-	var (
-		err error
-		n   = len(b)
-	)
+// emitBytes emits a byte array to the given buffer.
+func emitBytes(w *io.BinWriter, b []byte) {
+	n := len(b)
 
 	switch {
 	case n <= int(vm.PUSHBYTES75):
-		return emit(w, vm.Instruction(n), b)
+		emit(w, vm.Instruction(n), b)
+		return
 	case n < 0x100:
-		err = emit(w, vm.PUSHDATA1, []byte{byte(n)})
+		emit(w, vm.PUSHDATA1, []byte{byte(n)})
 	case n < 0x10000:
 		buf := make([]byte, 2)
 		binary.LittleEndian.PutUint16(buf, uint16(n))
-		err = emit(w, vm.PUSHDATA2, buf)
+		emit(w, vm.PUSHDATA2, buf)
 	default:
 		buf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(buf, uint32(n))
-		err = emit(w, vm.PUSHDATA4, buf)
+		emit(w, vm.PUSHDATA4, buf)
+		if w.Err != nil {
+			return
+		}
 	}
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(b)
-	return err
+
+	w.WriteBytes(b)
 }
 
-func emitSyscall(w *bytes.Buffer, api string) error {
+// emitSyscall emits the syscall API to the given buffer.
+// Syscall API string cannot be 0.
+func emitSyscall(w *io.BinWriter, api string) {
 	if len(api) == 0 {
-		return errors.New("syscall api cannot be of length 0")
+		w.Err = errors.New("syscall api cannot be of length 0")
+		return
 	}
 	buf := make([]byte, len(api)+1)
 	buf[0] = byte(len(api))
 	copy(buf[1:], api)
-	return emit(w, vm.SYSCALL, buf)
+	emit(w, vm.SYSCALL, buf)
 }
 
-func emitCall(w *bytes.Buffer, instr vm.Instruction, label int16) error {
-	return emitJmp(w, instr, label)
+// emitCall emits a call Instruction with label to the given buffer.
+func emitCall(w *io.BinWriter, instr vm.Instruction, label int16) {
+	emitJmp(w, instr, label)
 }
 
-func emitJmp(w *bytes.Buffer, instr vm.Instruction, label int16) error {
+// emitJmp emits a jump Instruction along with label to the given buffer.
+func emitJmp(w *io.BinWriter, instr vm.Instruction, label int16) {
 	if !isInstrJmp(instr) {
-		return fmt.Errorf("opcode %s is not a jump or call type", instr)
+		w.Err = fmt.Errorf("opcode %s is not a jump or call type", instr)
+		return
 	}
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, uint16(label))
-	return emit(w, instr, buf)
+	emit(w, instr, buf)
 }
 
 func isInstrJmp(instr vm.Instruction) bool {

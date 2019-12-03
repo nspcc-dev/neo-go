@@ -45,7 +45,7 @@ func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(tx.Script)
+	bw.WriteVarBytes(tx.Script)
 	if tx.Version >= 1 {
 		bw.WriteLE(tx.Gas)
 	}

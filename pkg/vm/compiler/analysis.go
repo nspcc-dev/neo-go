@@ -1,10 +1,10 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
-	"log"
 
 	"golang.org/x/tools/go/loader"
 )
@@ -19,7 +19,7 @@ var (
 )
 
 // typeAndValueForField returns a zero initialized typeAndValue for the given type.Var.
-func typeAndValueForField(fld *types.Var) types.TypeAndValue {
+func typeAndValueForField(fld *types.Var) (types.TypeAndValue, error) {
 	switch t := fld.Type().(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -27,22 +27,22 @@ func typeAndValueForField(fld *types.Var) types.TypeAndValue {
 			return types.TypeAndValue{
 				Type:  t,
 				Value: constant.MakeInt64(0),
-			}
+			}, nil
 		case types.String:
 			return types.TypeAndValue{
 				Type:  t,
 				Value: constant.MakeString(""),
-			}
+			}, nil
 		case types.Bool, types.UntypedBool:
 			return types.TypeAndValue{
 				Type:  t,
 				Value: constant.MakeBool(false),
-			}
+			}, nil
 		default:
-			log.Fatalf("could not initialize struct field %s to zero, type: %s", fld.Name(), t)
+			return types.TypeAndValue{}, fmt.Errorf("could not initialize struct field %s to zero, type: %s", fld.Name(), t)
 		}
 	}
-	return types.TypeAndValue{}
+	return types.TypeAndValue{}, nil
 }
 
 // countGlobals counts the global variables in the program to add
@@ -69,7 +69,7 @@ func isIdentBool(ident *ast.Ident) bool {
 }
 
 // makeBoolFromIdent creates a bool type from an *ast.Ident.
-func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
+func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) (types.TypeAndValue, error) {
 	var b bool
 	switch ident.Name {
 	case "true":
@@ -77,12 +77,12 @@ func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) types.TypeAndValue {
 	case "false":
 		b = false
 	default:
-		log.Fatalf("givent identifier cannot be converted to a boolean => %s", ident.Name)
+		return types.TypeAndValue{}, fmt.Errorf("givent identifier cannot be converted to a boolean => %s", ident.Name)
 	}
 	return types.TypeAndValue{
 		Type:  tinfo.ObjectOf(ident).Type(),
 		Value: constant.MakeBool(b),
-	}
+	}, nil
 }
 
 // resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.

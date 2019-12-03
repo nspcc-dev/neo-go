@@ -100,7 +100,7 @@ func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.ValidatorIndex)
 	w.WriteLE(p.OriginalViewNumber)
 	w.WriteLE(p.Timestamp)
-	w.WriteBytes(p.InvocationScript)
+	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -116,7 +116,7 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.ViewNumber)
 	w.WriteLE(p.ValidatorIndex)
 	w.WriteBE(p.Signature)
-	w.WriteBytes(p.InvocationScript)
+	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -128,7 +128,7 @@ func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.ValidatorIndex)
-	w.WriteBytes(p.InvocationScript)
+	w.WriteVarBytes(p.InvocationScript)
 }
 
 // AddPayload implements payload.RecoveryMessage interface.

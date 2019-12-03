@@ -52,7 +52,7 @@ func (cs *ContractState) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (cs *ContractState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(cs.Script)
+	bw.WriteVarBytes(cs.Script)
 	bw.WriteArray(cs.ParamList)
 	bw.WriteLE(cs.ReturnType)
 	bw.WriteLE(cs.Properties)

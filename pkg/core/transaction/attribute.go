@@ -55,18 +55,18 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(&attr.Usage)
 	switch attr.Usage {
 	case ECDH02, ECDH03:
-		bw.WriteLE(attr.Data[1:])
+		bw.WriteBytes(attr.Data[1:])
 	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
 		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
 		Remark12, Remark13, Remark14, Remark15:
-		bw.WriteBytes(attr.Data)
+		bw.WriteVarBytes(attr.Data)
 	case DescriptionURL:
 		var urllen = uint8(len(attr.Data))
 		bw.WriteLE(urllen)
 		fallthrough
 	case Script, ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5, Hash6,
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
-		bw.WriteLE(attr.Data)
+		bw.WriteBytes(attr.Data)
 	default:
 		bw.Err = fmt.Errorf("failed encoding TX attribute usage: 0x%2x", attr.Usage)
 	}

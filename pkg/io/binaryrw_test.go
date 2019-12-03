@@ -53,6 +53,13 @@ func TestWriteBE(t *testing.T) {
 	assert.Equal(t, val, readval)
 }
 
+func TestBufBinWriter_Len(t *testing.T) {
+	val := []byte{0xde}
+	bw := NewBufBinWriter()
+	bw.WriteLE(val)
+	require.Equal(t, 1, bw.Len())
+}
+
 func TestWriterErrHandling(t *testing.T) {
 	var badio = &badRW{}
 	bw := NewBinWriterFromIO(badio)
@@ -62,7 +69,7 @@ func TestWriterErrHandling(t *testing.T) {
 	bw.WriteLE(uint32(0))
 	bw.WriteBE(uint32(0))
 	bw.WriteVarUint(0)
-	bw.WriteBytes([]byte{0x55, 0xaa})
+	bw.WriteVarBytes([]byte{0x55, 0xaa})
 	bw.WriteString("neo")
 	assert.NotNil(t, bw.Err)
 }

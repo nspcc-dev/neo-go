@@ -169,7 +169,7 @@ func (p Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 
 	ww := io.NewBufBinWriter()
 	p.message.EncodeBinary(ww.BinWriter)
-	w.WriteBytes(ww.Bytes())
+	w.WriteVarBytes(ww.Bytes())
 }
 
 // EncodeBinary implements io.Serializable interface.
