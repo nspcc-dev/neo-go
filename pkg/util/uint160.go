@@ -7,16 +7,17 @@ import (
 	"strings"
 )
 
-const uint160Size = 20
+// Uint160Size is the size of Uint160 in bytes.
+const Uint160Size = 20
 
 // Uint160 is a 20 byte long unsigned integer.
-type Uint160 [uint160Size]uint8
+type Uint160 [Uint160Size]uint8
 
 // Uint160DecodeStringBE attempts to decode the given string into an Uint160.
 func Uint160DecodeStringBE(s string) (Uint160, error) {
 	var u Uint160
-	if len(s) != uint160Size*2 {
-		return u, fmt.Errorf("expected string size of %d got %d", uint160Size*2, len(s))
+	if len(s) != Uint160Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint160Size*2, len(s))
 	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
@@ -27,8 +28,8 @@ func Uint160DecodeStringBE(s string) (Uint160, error) {
 
 // Uint160DecodeBytesBE attempts to decode the given bytes into an Uint160.
 func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
-	if len(b) != uint160Size {
-		return u, fmt.Errorf("expected byte size of %d got %d", uint160Size, len(b))
+	if len(b) != Uint160Size {
+		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
 	}
 	copy(u[:], b)
 	return
