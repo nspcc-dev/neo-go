@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/compiler"
 	"github.com/CityOfZion/neo-go/pkg/vm"
-	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

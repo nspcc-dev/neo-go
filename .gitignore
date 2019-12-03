@@ -28,9 +28,6 @@ bin/
 *~
 TAGS
 
-# anthdm todolists
-/pkg/vm/compiler/todo.md
-
 # leveldb 
 chains/
 chain/

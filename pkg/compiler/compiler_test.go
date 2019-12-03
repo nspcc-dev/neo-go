@@ -6,10 +6,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
+	"github.com/CityOfZion/neo-go/pkg/compiler"
 )
 
-const examplePath = "../../../examples"
+const examplePath = "../../examples"
 
 func TestExamplesFolder(t *testing.T) {
 	infos, err := ioutil.ReadDir(examplePath)
