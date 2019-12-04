@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,7 @@ func TestHeaderGetVersion(t *testing.T) {
 func TestHeaderGetVersion_Negative(t *testing.T) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), block, nil)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewBoolItem(false))
 
 	err := context.headerGetVersion(v)
@@ -325,7 +326,7 @@ func TestAssetGetPrecision(t *testing.T) {
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), block, nil)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewInteropItem(block))
 	return v, block, context
 }
@@ -354,7 +355,7 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 		IsFrozen:   false,
 	}
 
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
 	return v, assetState, context
 }
 
@@ -373,7 +374,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *ContractState, *interopCon
 		scriptHash:  randomUint160(),
 	}
 
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
 	return v, contractState, context
 }
 
@@ -387,7 +388,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *AccountState, *interopContext) 
 	accountState.Votes = []*keys.PublicKey{key}
 
 	require.NoError(t, err)
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
 	return v, accountState, context
 }
 
@@ -416,6 +417,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	tx.Attributes = attributes
 	tx.Inputs = inputs
 	tx.Outputs = outputs
-	context := newInteropContext(0x10, newTestChain(t), storage.NewMemoryStore(), nil, tx)
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, tx)
 	return v, tx, context
 }

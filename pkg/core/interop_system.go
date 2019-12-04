@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	gherr "github.com/pkg/errors"
@@ -393,7 +394,7 @@ func (ic *interopContext) checkStorageContext(stc *StorageContext) error {
 
 // storageDelete deletes stored key-value pair.
 func (ic *interopContext) storageDelete(v *vm.VM) error {
-	if ic.trigger != 0x10 && ic.trigger != 0x11 {
+	if ic.trigger != trigger.Application && ic.trigger != trigger.ApplicationR {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	stcInterface := v.Estack().Pop().Value()
@@ -464,7 +465,7 @@ func (ic *interopContext) storageGetReadOnlyContext(v *vm.VM) error {
 }
 
 func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte, value []byte, isConst bool) error {
-	if ic.trigger != 0x10 && ic.trigger != 0x11 {
+	if ic.trigger != trigger.Application && ic.trigger != trigger.ApplicationR {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	if len(key) > MaxStorageKeyLen {
@@ -538,7 +539,7 @@ func (ic *interopContext) storageContextAsReadOnly(v *vm.VM) error {
 
 // contractDestroy destroys a contract.
 func (ic *interopContext) contractDestroy(v *vm.VM) error {
-	if ic.trigger != 0x10 {
+	if ic.trigger != trigger.Application {
 		return errors.New("can't destroy contract when not triggered by application")
 	}
 	hash := getContextScriptHash(v, 0)

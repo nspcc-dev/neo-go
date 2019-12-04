@@ -16,6 +16,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/pkg/errors"
@@ -487,7 +488,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			}
 			chainState.contracts[contract.ScriptHash()] = contract
 		case *transaction.InvocationTX:
-			systemInterop := newInteropContext(0x10, bc, chainState.store, block, tx)
+			systemInterop := newInteropContext(trigger.Application, bc, chainState.store, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().Bytes())
 			v.LoadScript(t.Script)
@@ -530,7 +531,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			}
 			aer := &AppExecResult{
 				TxHash:      tx.Hash(),
-				Trigger:     0x10,
+				Trigger:     trigger.Application,
 				VMState:     v.State(),
 				GasConsumed: util.Fixed8(0),
 				Stack:       v.Stack("estack"),
@@ -1418,7 +1419,7 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	tmpStore := storage.NewMemCachedStore(bc.store)
-	systemInterop := newInteropContext(0x10, bc, tmpStore, nil, nil)
+	systemInterop := newInteropContext(trigger.Application, bc, tmpStore, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
 	return vm, tmpStore
 }
@@ -1482,7 +1483,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
-	interopCtx := newInteropContext(0, bc, bc.store, block, t)
+	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], witnesses[i], t.VerificationHash(), interopCtx)
 		if err != nil {
@@ -1502,7 +1503,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := newInteropContext(0, bc, bc.store, nil, nil)
+	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, nil, nil)
 	return bc.verifyHashAgainstScript(hash, block.Script, block.VerificationHash(), interopCtx)
 }
 
