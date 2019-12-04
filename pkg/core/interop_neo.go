@@ -8,6 +8,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	gherr "github.com/pkg/errors"
@@ -429,7 +430,7 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 // evaluation stack, does a lot of checks and returns ContractState if it
 // succeeds.
 func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*ContractState, error) {
-	if ic.trigger != 0x10 {
+	if ic.trigger != trigger.Application {
 		return nil, errors.New("can't create contract when not triggered by an application")
 	}
 	script := v.Estack().Pop().Bytes()
@@ -551,7 +552,7 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 
 // assetCreate creates an asset.
 func (ic *interopContext) assetCreate(v *vm.VM) error {
-	if ic.trigger != 0x10 {
+	if ic.trigger != trigger.Application {
 		return errors.New("can't create asset when not triggered by an application")
 	}
 	atype := transaction.AssetType(v.Estack().Pop().BigInt().Int64())
@@ -717,7 +718,7 @@ func (ic *interopContext) assetGetPrecision(v *vm.VM) error {
 
 // assetRenew updates asset expiration date.
 func (ic *interopContext) assetRenew(v *vm.VM) error {
-	if ic.trigger != 0x10 {
+	if ic.trigger != trigger.Application {
 		return errors.New("can't create asset when not triggered by an application")
 	}
 	asInterface := v.Estack().Pop().Value()
