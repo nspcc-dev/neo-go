@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -90,9 +92,9 @@ func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
 	fmt.Print("Enter the name of the account > ")
 	rawName, _ = buf.ReadBytes('\n')
 	fmt.Print("Enter passphrase > ")
-	rawPhrase, _ = buf.ReadBytes('\n')
-	fmt.Print("Confirm passphrase > ")
-	rawPhraseCheck, _ = buf.ReadBytes('\n')
+	rawPhrase, _ = terminal.ReadPassword(int(syscall.Stdin))
+	fmt.Print("\nConfirm passphrase > ")
+	rawPhraseCheck, _ = terminal.ReadPassword(int(syscall.Stdin))
 
 	// Clean data
 	var (
