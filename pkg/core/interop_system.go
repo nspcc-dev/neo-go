@@ -410,9 +410,6 @@ func (ic *interopContext) storageDelete(v *vm.VM) error {
 	}
 	key := v.Estack().Pop().Bytes()
 	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
-	if si == nil {
-		si = ic.bc.GetStorageItem(stc.ScriptHash, key)
-	}
 	if si != nil && si.IsConst {
 		return errors.New("storage item is constant")
 	}
@@ -432,9 +429,6 @@ func (ic *interopContext) storageGet(v *vm.VM) error {
 	}
 	key := v.Estack().Pop().Bytes()
 	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
-	if si == nil {
-		si = ic.bc.GetStorageItem(stc.ScriptHash, key)
-	}
 	if si != nil && si.Value != nil {
 		v.Estack().PushVal(si.Value)
 	} else {
@@ -479,10 +473,7 @@ func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte
 	}
 	si := getStorageItemFromStore(ic.mem, stc.ScriptHash, key)
 	if si == nil {
-		si = ic.bc.GetStorageItem(stc.ScriptHash, key)
-		if si == nil {
-			si = &StorageItem{}
-		}
+		si = &StorageItem{}
 	}
 	if si.IsConst {
 		return errors.New("storage item exists and is read-only")
