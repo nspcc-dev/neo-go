@@ -89,20 +89,23 @@ const (
 	typeString    vmUTStackItemType = "String"
 	typeStruct    vmUTStackItemType = "Struct"
 
-	testsDir = "neo-vm/tests/neo-vm.Tests/Tests/"
+	testsDir = "testdata/neo-vm/tests/neo-vm.Tests/Tests/"
 )
 
 func TestUT(t *testing.T) {
+	testsRan := false
 	err := filepath.Walk(testsDir, func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 
 		testFile(t, path)
+		testsRan = true
 		return nil
 	})
 
 	require.NoError(t, err)
+	require.Equal(t, true, testsRan, "neo-vm tests should be available (check submodules)")
 }
 
 func testFile(t *testing.T, filename string) {
