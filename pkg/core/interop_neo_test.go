@@ -6,9 +6,9 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -349,10 +349,10 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext)
 		Available:  2,
 		Precision:  1,
 		FeeMode:    1,
-		FeeAddress: testutil.RandomUint160(),
+		FeeAddress: random.Uint160(),
 		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
-		Admin:      testutil.RandomUint160(),
-		Issuer:     testutil.RandomUint160(),
+		Admin:      random.Uint160(),
+		Issuer:     random.Uint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}
@@ -368,11 +368,11 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopCo
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.ArrayType,
 		Properties:  smartcontract.HasStorage,
-		Name:        testutil.RandomString(10),
-		CodeVersion: testutil.RandomString(10),
-		Author:      testutil.RandomString(10),
-		Email:       testutil.RandomString(10),
-		Description: testutil.RandomString(10),
+		Name:        random.String(10),
+		CodeVersion: random.String(10),
+		Author:      random.String(10),
+		Email:       random.String(10),
+		Description: random.String(10),
 	}
 
 	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
@@ -404,14 +404,14 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	})
 
 	inputs := append(tx.Inputs, transaction.Input{
-		PrevHash:  testutil.RandomUint256(),
+		PrevHash:  random.Uint256(),
 		PrevIndex: 1,
 	})
 
 	outputs := append(tx.Outputs, transaction.Output{
-		AssetID:    testutil.RandomUint256(),
+		AssetID:    random.Uint256(),
 		Amount:     10,
-		ScriptHash: testutil.RandomUint160(),
+		ScriptHash: random.Uint160(),
 		Position:   1,
 	})
 

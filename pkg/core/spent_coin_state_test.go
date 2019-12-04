@@ -3,14 +3,14 @@ package core
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/testutil"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeSpentCoinState(t *testing.T) {
 	spent := &SpentCoinState{
-		txHash:   testutil.RandomUint256(),
+		txHash:   random.Uint256(),
 		txHeight: 1001,
 		items: map[uint16]uint32{
 			1: 3,

@@ -5,9 +5,9 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
@@ -16,7 +16,7 @@ import (
 
 func TestPutGetAndDecode(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	serializable := &TestSerializable{field: testutil.RandomString(4)}
+	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	err := dao.Put(serializable, hash)
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 
 func TestGetAccountStateOrNew_New(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint160()
+	hash := random.Uint160()
 	createdAccount, err := dao.GetAccountStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, createdAccount)
@@ -52,7 +52,7 @@ func TestGetAccountStateOrNew_New(t *testing.T) {
 
 func TestPutAndGetAccountStateOrNew(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint160()
+	hash := random.Uint160()
 	accountState := &state.Account{ScriptHash: hash}
 	err := dao.PutAccountState(accountState)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 
 func TestPutAndGetAssetState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	id := testutil.RandomUint256()
+	id := random.Uint256()
 	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
 	err := dao.PutAssetState(assetState)
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestDeleteContractState(t *testing.T) {
 
 func TestGetUnspentCoinStateOrNew_New(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	unspentCoinState, err := dao.GetUnspentCoinStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, unspentCoinState)
@@ -109,7 +109,7 @@ func TestGetUnspentCoinStateOrNew_New(t *testing.T) {
 
 func TestGetUnspentCoinState_Err(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
 	require.Error(t, err)
 	require.Nil(t, gotUnspentCoinState)
@@ -117,7 +117,7 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 
 func TestPutGetUnspentCoinState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	unspentCoinState := &UnspentCoinState{states:[]state.Coin{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
@@ -128,7 +128,7 @@ func TestPutGetUnspentCoinState(t *testing.T) {
 
 func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	spentCoinState, err := dao.GetSpentCoinsOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, spentCoinState)
@@ -139,7 +139,7 @@ func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 
 func TestPutAndGetSpentCoinState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestPutAndGetSpentCoinState(t *testing.T) {
 
 func TestGetSpentCoinState_Err(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	spentCoinState, err := dao.GetSpentCoinState(hash)
 	require.Error(t, err)
 	require.Nil(t, spentCoinState)
@@ -158,7 +158,7 @@ func TestGetSpentCoinState_Err(t *testing.T) {
 
 func TestDeleteSpentCoinState(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestGetValidators(t *testing.T) {
 
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	appExecResult := &state.AppExecResult{TxHash: hash, Events:[]state.NotificationEvent{}}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 
 func TestPutGetStorageItem(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint160()
+	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
 	err := dao.PutStorageItem(hash, key, storageItem)
@@ -251,7 +251,7 @@ func TestPutGetStorageItem(t *testing.T) {
 
 func TestDeleteStorageItem(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint160()
+	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
 	err := dao.PutStorageItem(hash, key, storageItem)
@@ -264,7 +264,7 @@ func TestDeleteStorageItem(t *testing.T) {
 
 func TestGetBlock_NotExists(t *testing.T) {
 	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	hash := testutil.RandomUint256()
+	hash := random.Uint256()
 	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
 	require.Nil(t, block)

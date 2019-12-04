@@ -3,14 +3,14 @@ package state
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/testutil"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeNotificationEvent(t *testing.T) {
 	event := &NotificationEvent{
-		ScriptHash: testutil.RandomUint160(),
+		ScriptHash: random.Uint160(),
 		Item:       nil,
 	}
 
@@ -26,7 +26,7 @@ func TestEncodeDecodeNotificationEvent(t *testing.T) {
 
 func TestEncodeDecodeAppExecResult(t *testing.T) {
 	appExecResult := &AppExecResult{
-		TxHash:      testutil.RandomUint256(),
+		TxHash:      random.Uint256(),
 		Trigger:     1,
 		VMState:     "Hault",
 		GasConsumed: 10,

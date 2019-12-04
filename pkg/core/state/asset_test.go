@@ -3,9 +3,9 @@ package state
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/testutil"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +13,7 @@ import (
 
 func TestEncodeDecodeAssetState(t *testing.T) {
 	asset := &Asset{
-		ID:         testutil.RandomUint256(),
+		ID:         random.Uint256(),
 		AssetType:  transaction.Token,
 		Name:       "super cool token",
 		Amount:     util.Fixed8(1000000),
@@ -21,8 +21,8 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 		Precision:  0,
 		FeeMode:    feeMode,
 		Owner:      keys.PublicKey{},
-		Admin:      testutil.RandomUint160(),
-		Issuer:     testutil.RandomUint160(),
+		Admin:      random.Uint160(),
+		Issuer:     random.Uint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}
