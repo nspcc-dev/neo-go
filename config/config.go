@@ -76,7 +76,8 @@ type (
 		MaxPeers          int                      `yaml:"MaxPeers"`
 		AttemptConnPeers  int                      `yaml:"AttemptConnPeers"`
 		MinPeers          int                      `yaml:"MinPeers"`
-		Monitoring        metrics.PrometheusConfig `yaml:"Monitoring"`
+		Prometheus        metrics.Config           `yaml:"Prometheus"`
+		Pprof             metrics.Config           `yaml:"Pprof"`
 		RPC               RPCConfig                `yaml:"RPC"`
 		UnlockWallet      WalletConfig             `yaml:"UnlockWallet"`
 	}

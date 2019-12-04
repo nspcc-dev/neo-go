@@ -48,9 +48,12 @@ ApplicationConfiguration:
     Enabled: true
     EnableCORSWorkaround: false
     Port: 30334
-  Monitoring:
+  Prometheus:
     Enabled: true
     Port: 20002
+  Pprof:
+    Enabled: false
+    Port: 20012
   UnlockWallet:
     Path: "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
     Password: "two"

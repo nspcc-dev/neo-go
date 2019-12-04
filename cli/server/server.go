@@ -280,12 +280,14 @@ func startServer(ctx *cli.Context) error {
 	server := network.NewServer(serverConfig, chain)
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	errChan := make(chan error)
-	monitoring := metrics.NewMetricsService(cfg.ApplicationConfiguration.Monitoring)
+	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus)
+	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof)
 
 	go chain.Run()
 	go server.Start(errChan)
 	go rpcServer.Start(errChan)
-	go monitoring.Start()
+	go prometheus.Start()
+	go pprof.Start()
 
 	fmt.Println(logo())
 	fmt.Println(server.UserAgent)
@@ -304,7 +306,8 @@ Main:
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
 			}
-			monitoring.ShutDown()
+			prometheus.ShutDown()
+			pprof.ShutDown()
 			chain.Close()
 			break Main
 		}
@@ -317,17 +320,20 @@ Main:
 	return nil
 }
 
-// configureAddresses sets up addresses for RPC and Monitoring depending from the provided config.
-// In case RPC or Monitoring Address provided each of them will use it.
-// In case global Address (of the node) provided and RPC/Monitoring don't have configured addresses they will
-// use global one. So Node and RPC and Monitoring will run on one address.
+// configureAddresses sets up addresses for RPC, Prometheus and Pprof depending from the provided config.
+// In case RPC or Prometheus or Pprof Address provided each of them will use it.
+// In case global Address (of the node) provided and RPC/Prometheus/Pprof don't have configured addresses they will
+// use global one. So Node and RPC and Prometheus and Pprof will run on one address.
 func configureAddresses(cfg config.ApplicationConfiguration) {
 	if cfg.Address != "" {
 		if cfg.RPC.Address == "" {
 			cfg.RPC.Address = cfg.Address
 		}
-		if cfg.Monitoring.Address == "" {
-			cfg.Monitoring.Address = cfg.Address
+		if cfg.Prometheus.Address == "" {
+			cfg.Prometheus.Address = cfg.Address
+		}
+		if cfg.Pprof.Address == "" {
+			cfg.Pprof.Address = cfg.Address
 		}
 	}
 }

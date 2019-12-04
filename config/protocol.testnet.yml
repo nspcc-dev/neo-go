@@ -57,6 +57,9 @@ ApplicationConfiguration:
     Enabled: true
     EnableCORSWorkaround: false
     Port: 20332
-  Monitoring:
+  Prometheus:
     Enabled: true
     Port: 2112
+  Pprof:
+    Enabled: false
+    Port: 2113
