@@ -179,7 +179,10 @@ func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) 
 
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *Payload) {
-	if s.cache.Has(cp.Hash()) {
+	if !cp.Verify() {
+		s.log.Debug("can't verify payload from #%d", cp.validatorIndex)
+		return
+	} else if s.cache.Has(cp.Hash()) {
 		return
 	}
 
@@ -222,6 +225,10 @@ func (s *service) broadcast(p payload.ConsensusPayload) {
 	case payload.PrepareRequestType:
 		pr := p.GetPrepareRequest().(*prepareRequest)
 		pr.minerTx = *s.txx.Get(pr.transactionHashes[0]).(*transaction.Transaction)
+	}
+
+	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
+		s.log.Warnf("can't sign consensus payload: %v", err)
 	}
 
 	s.cache.Add(p)
