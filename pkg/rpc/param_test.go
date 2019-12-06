@@ -112,8 +112,7 @@ func TestParamGetUint256(t *testing.T) {
 
 func TestParamGetUint160FromHex(t *testing.T) {
 	in := "50befd26fdf6e4d957c11e078b24ebce6291456f"
-	u160, _ := util.Uint160DecodeStringBE(in)
-	u160, _ = util.Uint160DecodeBytesBE(util.ArrayReverse(u160[:]))
+	u160, _ := util.Uint160DecodeStringLE(in)
 	p := Param{stringT, in}
 	u, err := p.GetUint160FromHex()
 	assert.Equal(t, u160, u)
