@@ -14,3 +14,7 @@ type Serializable interface {
 type decodable interface {
 	DecodeBinary(*BinReader)
 }
+
+type encodable interface {
+	EncodeBinary(*BinWriter)
+}

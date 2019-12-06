@@ -267,8 +267,7 @@ func TestBinWriter_WriteArray(t *testing.T) {
 	require.Equal(t, w.Bytes(), []byte(nil))
 
 	w.Reset()
-	w.Err = errors.New("error")
-	require.Panics(t, func() { w.WriteArray([]int{}) })
+	require.Panics(t, func() { w.WriteArray([]int{1}) })
 
 	w.Reset()
 	w.Err = errors.New("error")

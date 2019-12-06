@@ -39,31 +39,24 @@ func (w *BinWriter) WriteBE(v interface{}) {
 func (w *BinWriter) WriteArray(arr interface{}) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
 	case reflect.Slice, reflect.Array:
-		typ := val.Type().Elem()
-		method, ok := typ.MethodByName("EncodeBinary")
-		if !ok || !isEncodeBinaryMethod(method) {
-			panic(typ.String() + " does not have EncodeBinary(*BinWriter)")
-		}
-
 		if w.Err != nil {
 			return
 		}
 
+		typ := val.Type().Elem()
+
 		w.WriteVarUint(uint64(val.Len()))
 		for i := 0; i < val.Len(); i++ {
-			method := val.Index(i).MethodByName("EncodeBinary")
-			method.Call([]reflect.Value{reflect.ValueOf(w)})
+			el, ok := val.Index(i).Interface().(encodable)
+			if !ok {
+				panic(typ.String() + "is not encodable")
+			}
+
+			el.EncodeBinary(w)
 		}
 	default:
 		panic("not an array")
 	}
-}
-
-func isEncodeBinaryMethod(method reflect.Method) bool {
-	t := method.Type
-	return t != nil &&
-		t.NumIn() == 2 && t.In(1) == reflect.TypeOf((*BinWriter)(nil)) &&
-		t.NumOut() == 0
 }
 
 // WriteVarUint writes a uint64 into the underlying writer using variable-length encoding.
