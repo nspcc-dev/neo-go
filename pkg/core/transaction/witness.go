@@ -17,8 +17,8 @@ type Witness struct {
 
 // DecodeBinary implements Serializable interface.
 func (w *Witness) DecodeBinary(br *io.BinReader) {
-	w.InvocationScript = br.ReadBytes()
-	w.VerificationScript = br.ReadBytes()
+	w.InvocationScript = br.ReadVarBytes()
+	w.VerificationScript = br.ReadVarBytes()
 }
 
 // EncodeBinary implements Serializable interface.

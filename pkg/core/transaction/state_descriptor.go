@@ -25,8 +25,8 @@ type StateDescriptor struct {
 func (s *StateDescriptor) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&s.Type)
 
-	s.Key = r.ReadBytes()
-	s.Value = r.ReadBytes()
+	s.Key = r.ReadVarBytes()
+	s.Value = r.ReadVarBytes()
 	s.Field = r.ReadString()
 }
 

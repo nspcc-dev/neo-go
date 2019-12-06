@@ -91,7 +91,7 @@ func TestReaderErrHandling(t *testing.T) {
 	assert.Equal(t, i, iorig)
 	val := br.ReadVarUint()
 	assert.Equal(t, val, uint64(0))
-	b := br.ReadBytes()
+	b := br.ReadVarBytes()
 	assert.Equal(t, b, []byte{})
 	s := br.ReadString()
 	assert.Equal(t, s, "")

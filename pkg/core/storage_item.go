@@ -59,6 +59,6 @@ func (si *StorageItem) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements Serializable interface.
 func (si *StorageItem) DecodeBinary(r *io.BinReader) {
-	si.Value = r.ReadBytes()
+	si.Value = r.ReadVarBytes()
 	r.ReadLE(&si.IsConst)
 }

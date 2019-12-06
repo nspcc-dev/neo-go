@@ -60,7 +60,7 @@ func (p *Version) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Port)
 	br.ReadLE(&p.Nonce)
-	p.UserAgent = br.ReadBytes()
+	p.UserAgent = br.ReadVarBytes()
 	br.ReadLE(&p.StartHeight)
 	br.ReadLE(&p.Relay)
 }

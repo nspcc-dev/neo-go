@@ -93,7 +93,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.ValidatorIndex)
 	r.ReadLE(&p.OriginalViewNumber)
 	r.ReadLE(&p.Timestamp)
-	p.InvocationScript = r.ReadBytes()
+	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -109,7 +109,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.ViewNumber)
 	r.ReadLE(&p.ValidatorIndex)
 	r.ReadBE(p.Signature[:])
-	p.InvocationScript = r.ReadBytes()
+	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -123,7 +123,7 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.ValidatorIndex)
-	p.InvocationScript = r.ReadBytes()
+	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.

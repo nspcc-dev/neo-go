@@ -217,7 +217,7 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	r.ReadLE(&p.validatorIndex)
 	r.ReadLE(&p.timestamp)
 
-	data := r.ReadBytes()
+	data := r.ReadVarBytes()
 	if r.Err != nil {
 		return
 	}
