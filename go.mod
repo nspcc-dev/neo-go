@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mr-tron/base58 v1.1.2
-	github.com/nspcc-dev/dbft v0.0.0-20191125155719-1c35ab053055
+	github.com/nspcc-dev/dbft v0.0.0-20191205084618-dacb1a30c254
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/onsi/ginkgo v1.10.3 // indirect
 	github.com/onsi/gomega v1.7.1 // indirect

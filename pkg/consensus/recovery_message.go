@@ -3,6 +3,7 @@ package consensus
 import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/pkg/errors"
 )
@@ -138,6 +139,10 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		m.prepareRequest = p.GetPrepareRequest().(*prepareRequest)
 		h := p.Hash()
 		m.preparationHash = &h
+		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
+			ValidatorIndex:   p.ValidatorIndex(),
+			InvocationScript: p.(*Payload).Witness.InvocationScript,
+		})
 	case payload.PrepareResponseType:
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
 			ValidatorIndex:   p.ValidatorIndex(),
@@ -166,16 +171,33 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 }
 
 // GetPrepareRequest implements payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload) payload.ConsensusPayload {
+func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload, validators []crypto.PublicKey, primary uint16) payload.ConsensusPayload {
 	if m.prepareRequest == nil {
 		return nil
 	}
 
-	return fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest)
+	var compact *preparationCompact
+	for _, p := range m.preparationPayloads {
+		if p != nil && p.ValidatorIndex == primary {
+			compact = p
+			break
+		}
+	}
+
+	if compact == nil {
+		return nil
+	}
+
+	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest)
+	req.SetValidatorIndex(primary)
+	req.Witness.InvocationScript = compact.InvocationScript
+	req.Witness.VerificationScript = getVerificationScript(primary, validators)
+
+	return req
 }
 
 // GetPrepareResponses implements payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload) []payload.ConsensusPayload {
+func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload, validators []crypto.PublicKey) []payload.ConsensusPayload {
 	if m.preparationHash == nil {
 		return nil
 	}
@@ -183,38 +205,49 @@ func (m *recoveryMessage) GetPrepareResponses(p payload.ConsensusPayload) []payl
 	ps := make([]payload.ConsensusPayload, len(m.preparationPayloads))
 
 	for i, resp := range m.preparationPayloads {
-		ps[i] = fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
+		r := fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
 			preparationHash: *m.preparationHash,
 		})
-		ps[i].SetValidatorIndex(resp.ValidatorIndex)
+		r.SetValidatorIndex(resp.ValidatorIndex)
+		r.Witness.InvocationScript = resp.InvocationScript
+		r.Witness.VerificationScript = getVerificationScript(resp.ValidatorIndex, validators)
+
+		ps[i] = r
 	}
 
 	return ps
 }
 
 // GetChangeViews implements payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload) []payload.ConsensusPayload {
+func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload, validators []crypto.PublicKey) []payload.ConsensusPayload {
 	ps := make([]payload.ConsensusPayload, len(m.changeViewPayloads))
 
 	for i, cv := range m.changeViewPayloads {
-		ps[i] = fromPayload(changeViewType, p.(*Payload), &changeView{
+		c := fromPayload(changeViewType, p.(*Payload), &changeView{
 			newViewNumber: cv.OriginalViewNumber + 1,
 			timestamp:     cv.Timestamp,
 		})
-		ps[i].SetValidatorIndex(cv.ValidatorIndex)
+		c.SetValidatorIndex(cv.ValidatorIndex)
+		c.Witness.InvocationScript = cv.InvocationScript
+		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
+
+		ps[i] = c
 	}
 
 	return ps
 }
 
 // GetCommits implements payload.RecoveryMessage interface.
-func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload) []payload.ConsensusPayload {
+func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []crypto.PublicKey) []payload.ConsensusPayload {
 	ps := make([]payload.ConsensusPayload, len(m.commitPayloads))
 
 	for i, c := range m.commitPayloads {
-		cc := commit{signature: c.Signature}
-		ps[i] = fromPayload(commitType, p.(*Payload), &cc)
-		ps[i].SetValidatorIndex(c.ValidatorIndex)
+		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
+		cc.SetValidatorIndex(c.ValidatorIndex)
+		cc.Witness.InvocationScript = c.InvocationScript
+		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
+
+		ps[i] = cc
 	}
 
 	return ps
@@ -228,6 +261,19 @@ func (m *recoveryMessage) PreparationHash() *util.Uint256 {
 // SetPreparationHash implements payload.RecoveryMessage interface.
 func (m *recoveryMessage) SetPreparationHash(h *util.Uint256) {
 	m.preparationHash = h
+}
+
+func getVerificationScript(i uint16, validators []crypto.PublicKey) []byte {
+	if int(i) >= len(validators) {
+		return nil
+	}
+
+	pub, ok := validators[i].(*publicKey)
+	if !ok {
+		return nil
+	}
+
+	return pub.GetVerificationScript()
 }
 
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {

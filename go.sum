@@ -88,8 +88,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/mr-tron/base58 v1.1.2 h1:ZEw4I2EgPKDJ2iEw0cNmLB3ROrEmkOtXIkaG7wZg+78=
 github.com/mr-tron/base58 v1.1.2/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjWI2mNwc=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/nspcc-dev/dbft v0.0.0-20191125155719-1c35ab053055 h1:Rs8zeSFfXOX2RuUjWwsUrQpNbxoWyeXU8lWPlYkxDo0=
-github.com/nspcc-dev/dbft v0.0.0-20191125155719-1c35ab053055/go.mod h1:w1Ln2aT+dBlPhLnuZhBV+DfPEdS2CHWWLp5JTScY3bw=
+github.com/nspcc-dev/dbft v0.0.0-20191205084618-dacb1a30c254 h1:A4OkQDQOSPsJF8qUmqNvFDzmIGALrvOCZrMktllDoKc=
+github.com/nspcc-dev/dbft v0.0.0-20191205084618-dacb1a30c254/go.mod h1:w1Ln2aT+dBlPhLnuZhBV+DfPEdS2CHWWLp5JTScY3bw=
 github.com/nspcc-dev/neofs-crypto v0.2.0 h1:ftN+59WqxSWz/RCgXYOfhmltOOqU+udsNQSvN6wkFck=
 github.com/nspcc-dev/neofs-crypto v0.2.0/go.mod h1:F/96fUzPM3wR+UGsPi3faVNmFlA9KAEAUQR7dMxZmNA=
 github.com/nspcc-dev/rfc6979 v0.1.0 h1:Lwg7esRRoyK1Up/IN1vAef1EmvrBeMHeeEkek2fAJ6c=
