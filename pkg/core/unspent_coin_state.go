@@ -92,7 +92,7 @@ func (u UnspentCoins) commit(store storage.Store) error {
 func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
-		bw.WriteLE(byte(state))
+		bw.WriteBytes([]byte{byte(state)})
 	}
 }
 

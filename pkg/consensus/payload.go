@@ -162,7 +162,7 @@ func (p *Payload) SetHeight(h uint32) {
 // EncodeBinaryUnsigned writes payload to w excluding signature.
 func (p Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteLE(p.version)
-	w.WriteBE(p.prevHash[:])
+	w.WriteBytes(p.prevHash[:])
 	w.WriteLE(p.height)
 	w.WriteLE(p.validatorIndex)
 	w.WriteLE(p.timestamp)
@@ -254,7 +254,7 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable interface.
 func (m *message) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(byte(m.Type))
+	w.WriteBytes([]byte{byte(m.Type)})
 	w.WriteLE(m.ViewNumber)
 	m.payload.EncodeBinary(w)
 }

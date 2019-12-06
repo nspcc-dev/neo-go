@@ -87,7 +87,7 @@ func (b *BlockBase) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface
 func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
-	bw.WriteLE(uint8(1))
+	bw.WriteBytes([]byte{1})
 	b.Script.EncodeBinary(bw)
 }
 
@@ -116,12 +116,12 @@ func (b *BlockBase) createHash() {
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteLE(b.Version)
-	bw.WriteLE(b.PrevHash)
-	bw.WriteLE(b.MerkleRoot)
+	bw.WriteBytes(b.PrevHash[:])
+	bw.WriteBytes(b.MerkleRoot[:])
 	bw.WriteLE(b.Timestamp)
 	bw.WriteLE(b.Index)
 	bw.WriteLE(b.ConsensusData)
-	bw.WriteLE(b.NextConsensus)
+	bw.WriteBytes(b.NextConsensus[:])
 }
 
 // decodeHashableFields decodes the fields used for hashing.

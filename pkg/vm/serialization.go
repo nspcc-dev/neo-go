@@ -43,13 +43,13 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 	switch t := item.(type) {
 	case *ByteArrayItem:
-		w.WriteLE(byte(byteArrayT))
+		w.WriteBytes([]byte{byte(byteArrayT)})
 		w.WriteVarBytes(t.value)
 	case *BoolItem:
-		w.WriteLE(byte(booleanT))
+		w.WriteBytes([]byte{byte(booleanT)})
 		w.WriteLE(t.value)
 	case *BigIntegerItem:
-		w.WriteLE(byte(integerT))
+		w.WriteBytes([]byte{byte(integerT)})
 		w.WriteVarBytes(t.Bytes())
 	case *InteropItem:
 		w.Err = errors.New("not supported")
@@ -58,9 +58,9 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 		_, isArray := t.(*ArrayItem)
 		if isArray {
-			w.WriteLE(byte(arrayT))
+			w.WriteBytes([]byte{byte(arrayT)})
 		} else {
-			w.WriteLE(byte(structT))
+			w.WriteBytes([]byte{byte(structT)})
 		}
 
 		arr := t.Value().([]StackItem)
@@ -71,7 +71,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	case *MapItem:
 		seen[item] = true
 
-		w.WriteLE(byte(mapT))
+		w.WriteBytes([]byte{byte(mapT)})
 		w.WriteVarUint(uint64(len(t.value)))
 		for k, v := range t.value {
 			serializeItemTo(v, w, seen)

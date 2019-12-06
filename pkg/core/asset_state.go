@@ -73,19 +73,19 @@ func (a *AssetState) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (a *AssetState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(a.ID)
+	bw.WriteBytes(a.ID[:])
 	bw.WriteLE(a.AssetType)
 	bw.WriteString(a.Name)
 	bw.WriteLE(a.Amount)
 	bw.WriteLE(a.Available)
 	bw.WriteLE(a.Precision)
 	bw.WriteLE(a.FeeMode)
-	bw.WriteLE(a.FeeAddress)
+	bw.WriteBytes(a.FeeAddress[:])
 
 	a.Owner.EncodeBinary(bw)
 
-	bw.WriteLE(a.Admin)
-	bw.WriteLE(a.Issuer)
+	bw.WriteBytes(a.Admin[:])
+	bw.WriteBytes(a.Issuer[:])
 	bw.WriteLE(a.Expiration)
 	bw.WriteLE(a.IsFrozen)
 }

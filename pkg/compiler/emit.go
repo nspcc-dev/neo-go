@@ -19,7 +19,7 @@ func emit(w *io.BinWriter, instr opcode.Opcode, b []byte) {
 
 // emitOpcode emits a single VM Instruction the given buffer.
 func emitOpcode(w *io.BinWriter, instr opcode.Opcode) {
-	w.WriteLE(byte(instr))
+	w.WriteBytes([]byte{byte(instr)})
 }
 
 // emitBool emits a bool type the given buffer.

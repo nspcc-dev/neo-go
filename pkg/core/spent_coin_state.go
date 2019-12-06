@@ -93,7 +93,7 @@ func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (s *SpentCoinState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(s.txHash)
+	bw.WriteBytes(s.txHash[:])
 	bw.WriteLE(s.txHeight)
 	bw.WriteVarUint(uint64(len(s.items)))
 	for k, v := range s.items {

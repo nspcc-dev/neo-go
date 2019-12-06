@@ -213,7 +213,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteLE(m.Magic)
-	br.WriteLE(m.Command)
+	br.WriteBytes(m.Command[:])
 	br.WriteLE(m.Length)
 	br.WriteLE(m.Checksum)
 	if m.Payload != nil {

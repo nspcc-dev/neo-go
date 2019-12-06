@@ -39,7 +39,7 @@ func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(p.Timestamp)
 	bw.WriteLE(p.Services)
-	bw.WriteBE(p.IP)
+	bw.WriteBytes(p.IP[:])
 	bw.WriteBE(p.Port)
 }
 

@@ -30,5 +30,5 @@ func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (p *GetBlocks) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteArray(p.HashStart)
-	bw.WriteLE(p.HashStop)
+	bw.WriteBytes(p.HashStop[:])
 }

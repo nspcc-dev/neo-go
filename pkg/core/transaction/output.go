@@ -42,9 +42,9 @@ func (out *Output) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (out *Output) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(out.AssetID)
+	bw.WriteBytes(out.AssetID[:])
 	bw.WriteLE(out.Amount)
-	bw.WriteLE(out.ScriptHash)
+	bw.WriteBytes(out.ScriptHash[:])
 }
 
 // MarshalJSON implements the Marshaler interface.

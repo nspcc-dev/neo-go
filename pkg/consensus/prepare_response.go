@@ -15,7 +15,7 @@ var _ payload.PrepareResponse = (*prepareResponse)(nil)
 
 // EncodeBinary implements io.Serializable interface.
 func (p *prepareResponse) EncodeBinary(w *io.BinWriter) {
-	w.WriteBE(p.preparationHash[:])
+	w.WriteBytes(p.preparationHash[:])
 }
 
 // DecodeBinary implements io.Serializable interface.

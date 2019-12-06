@@ -18,7 +18,7 @@ var _ payload.Commit = (*commit)(nil)
 
 // EncodeBinary implements io.Serializable interface.
 func (c *commit) EncodeBinary(w *io.BinWriter) {
-	w.WriteBE(c.signature)
+	w.WriteBytes(c.signature[:])
 }
 
 // DecodeBinary implements io.Serializable interface.
