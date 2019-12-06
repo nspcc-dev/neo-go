@@ -47,18 +47,13 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 		panic(value.Type().String() + " is not a pointer to a slice")
 	}
 
-	sliceType := value.Elem().Type()
-	elemType := sliceType.Elem()
-	isPtr := elemType.Kind() == reflect.Ptr
-	if isPtr {
-		checkHasDecodeBinary(elemType)
-	} else {
-		checkHasDecodeBinary(reflect.PtrTo(elemType))
-	}
-
 	if r.Err != nil {
 		return
 	}
+
+	sliceType := value.Elem().Type()
+	elemType := sliceType.Elem()
+	isPtr := elemType.Kind() == reflect.Ptr
 
 	ms := maxArraySize
 	if len(maxSize) != 0 {
@@ -82,25 +77,16 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 		} else {
 			elem = arr.Index(i).Addr()
 		}
-		method := elem.MethodByName("DecodeBinary")
-		method.Call([]reflect.Value{reflect.ValueOf(r)})
+
+		el, ok := elem.Interface().(decodable)
+		if !ok {
+			panic(elemType.String() + "is not decodable")
+		}
+
+		el.DecodeBinary(r)
 	}
 
 	value.Elem().Set(arr)
-}
-
-func checkHasDecodeBinary(v reflect.Type) {
-	method, ok := v.MethodByName("DecodeBinary")
-	if !ok || !isDecodeBinaryMethod(method) {
-		panic(v.String() + " does not have DecodeBinary(*io.BinReader)")
-	}
-}
-
-func isDecodeBinaryMethod(method reflect.Method) bool {
-	t := method.Type
-	return t != nil &&
-		t.NumIn() == 2 && t.In(1) == reflect.TypeOf((*BinReader)(nil)) &&
-		t.NumOut() == 0
 }
 
 // ReadBE reads from the underlying io.Reader

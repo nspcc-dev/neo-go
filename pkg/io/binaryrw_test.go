@@ -326,15 +326,10 @@ func TestBinReader_ReadArray(t *testing.T) {
 	require.NoError(t, r.Err)
 	require.Equal(t, []testSerializable{}, arrVal)
 
-	r = NewBinReaderFromBuf([]byte{0})
-	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(&[]*int{}) })
+	r = NewBinReaderFromBuf([]byte{1})
+	require.Panics(t, func() { r.ReadArray(&[]int{1}) })
 
 	r = NewBinReaderFromBuf([]byte{0})
 	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(&[]int{}) })
-
-	r = NewBinReaderFromBuf([]byte{0})
-	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(0) })
+	require.Panics(t, func() { r.ReadArray(1) })
 }
