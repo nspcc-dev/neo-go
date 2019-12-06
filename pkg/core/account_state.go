@@ -121,13 +121,13 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 // EncodeBinary encodes AccountState to the given BinWriter.
 func (s *AccountState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(s.Version)
-	bw.WriteLE(s.ScriptHash)
+	bw.WriteBytes(s.ScriptHash[:])
 	bw.WriteLE(s.IsFrozen)
 	bw.WriteArray(s.Votes)
 
 	bw.WriteVarUint(uint64(len(s.Balances)))
 	for k, v := range s.Balances {
-		bw.WriteLE(k)
+		bw.WriteBytes(k[:])
 		bw.WriteArray(v)
 	}
 }

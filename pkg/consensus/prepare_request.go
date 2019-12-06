@@ -22,7 +22,7 @@ var _ payload.PrepareRequest = (*prepareRequest)(nil)
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.timestamp)
 	w.WriteLE(p.nonce)
-	w.WriteBE(p.nextConsensus[:])
+	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
 	p.minerTx.EncodeBinary(w)
 }

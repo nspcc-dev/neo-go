@@ -80,7 +80,7 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 			w.WriteVarUint(0)
 		} else {
 			w.WriteVarUint(util.Uint256Size)
-			w.WriteBE(m.preparationHash[:])
+			w.WriteBytes(m.preparationHash[:])
 		}
 	}
 
@@ -116,7 +116,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteLE(p.ViewNumber)
 	w.WriteLE(p.ValidatorIndex)
-	w.WriteBE(p.Signature)
+	w.WriteBytes(p.Signature[:])
 	w.WriteVarBytes(p.InvocationScript)
 }
 

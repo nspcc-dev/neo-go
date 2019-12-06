@@ -29,5 +29,5 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (h *Header) EncodeBinary(w *io.BinWriter) {
 	h.BlockBase.EncodeBinary(w)
-	w.WriteLE(uint8(0))
+	w.WriteBytes([]byte{0})
 }

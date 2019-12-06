@@ -22,6 +22,6 @@ func (in *Input) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (in *Input) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(in.PrevHash)
+	bw.WriteBytes(in.PrevHash[:])
 	bw.WriteLE(in.PrevIndex)
 }

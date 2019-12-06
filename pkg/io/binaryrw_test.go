@@ -210,6 +210,11 @@ func TestWriteBytes(t *testing.T) {
 	buf := bw.Bytes()
 	assert.Equal(t, 4, len(buf))
 	assert.Equal(t, byte(0xde), buf[0])
+
+	bw = NewBufBinWriter()
+	bw.Err = errors.New("smth bad")
+	bw.WriteBytes(bin)
+	assert.Equal(t, 0, bw.Len())
 }
 
 type testSerializable uint16

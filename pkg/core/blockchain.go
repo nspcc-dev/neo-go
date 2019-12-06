@@ -403,16 +403,17 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				if balancesLen <= 1 {
 					delete(account.Balances, prevTXOutput.AssetID)
 				} else {
-					var gotTx bool
-					for index, balance := range account.Balances[prevTXOutput.AssetID] {
-						if !gotTx && balance.Tx.Equals(input.PrevHash) && balance.Index == input.PrevIndex {
-							gotTx = true
-						}
-						if gotTx && index+1 < balancesLen {
-							account.Balances[prevTXOutput.AssetID][index] = account.Balances[prevTXOutput.AssetID][index+1]
+					var index = -1
+					for i, balance := range account.Balances[prevTXOutput.AssetID] {
+						if balance.Tx.Equals(input.PrevHash) && balance.Index == input.PrevIndex {
+							index = i
+							break
 						}
 					}
-					account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:balancesLen-1]
+					if index >= 0 {
+						copy(account.Balances[prevTXOutput.AssetID][index:], account.Balances[prevTXOutput.AssetID][index+1:])
+						account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:balancesLen-1]
+					}
 				}
 			}
 		}

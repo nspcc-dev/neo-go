@@ -50,5 +50,5 @@ func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteLE(tx.Amount)
 	bw.WriteLE(tx.Precision)
 	bw.WriteBytes(tx.Owner.Bytes())
-	bw.WriteLE(tx.Admin)
+	bw.WriteBytes(tx.Admin[:])
 }

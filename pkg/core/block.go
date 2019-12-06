@@ -111,12 +111,12 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	b.encodeHashableFields(buf.BinWriter)
-	buf.WriteLE(uint8(1))
+	buf.WriteBytes([]byte{1})
 	b.Script.EncodeBinary(buf.BinWriter)
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
-		buf.WriteLE(tx.Hash())
+		tx.Hash().EncodeBinary(buf.BinWriter)
 	}
 	if buf.Err != nil {
 		return nil, buf.Err
