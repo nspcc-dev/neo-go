@@ -52,7 +52,7 @@ type AssetState struct {
 
 // DecodeBinary implements Serializable interface.
 func (a *AssetState) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&a.ID)
+	br.ReadBytes(a.ID[:])
 	br.ReadLE(&a.AssetType)
 
 	a.Name = br.ReadString()
@@ -61,12 +61,12 @@ func (a *AssetState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&a.Available)
 	br.ReadLE(&a.Precision)
 	br.ReadLE(&a.FeeMode)
-	br.ReadLE(&a.FeeAddress)
+	br.ReadBytes(a.FeeAddress[:])
 
 	a.Owner = &keys.PublicKey{}
 	a.Owner.DecodeBinary(br)
-	br.ReadLE(&a.Admin)
-	br.ReadLE(&a.Issuer)
+	br.ReadBytes(a.Admin[:])
+	br.ReadBytes(a.Issuer[:])
 	br.ReadLE(&a.Expiration)
 	br.ReadLE(&a.IsFrozen)
 }

@@ -35,9 +35,9 @@ func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160
 
 // DecodeBinary implements Serializable interface.
 func (out *Output) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&out.AssetID)
+	br.ReadBytes(out.AssetID[:])
 	br.ReadLE(&out.Amount)
-	br.ReadLE(&out.ScriptHash)
+	br.ReadBytes(out.ScriptHash[:])
 }
 
 // EncodeBinary implements Serializable interface.

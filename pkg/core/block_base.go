@@ -73,9 +73,9 @@ func (b *BlockBase) VerificationHash() util.Uint256 {
 func (b *BlockBase) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
 
-	var padding uint8
-	br.ReadLE(&padding)
-	if padding != 1 {
+	padding := []byte{0}
+	br.ReadBytes(padding)
+	if padding[0] != 1 {
 		br.Err = fmt.Errorf("format error: padding must equal 1 got %d", padding)
 		return
 	}
@@ -128,12 +128,12 @@ func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
 // see Hash() for more information about the fields.
 func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
 	br.ReadLE(&b.Version)
-	br.ReadLE(&b.PrevHash)
-	br.ReadLE(&b.MerkleRoot)
+	br.ReadBytes(b.PrevHash[:])
+	br.ReadBytes(b.MerkleRoot[:])
 	br.ReadLE(&b.Timestamp)
 	br.ReadLE(&b.Index)
 	br.ReadLE(&b.ConsensusData)
-	br.ReadLE(&b.NextConsensus)
+	br.ReadBytes(b.NextConsensus[:])
 
 	// Make the hash of the block here so we dont need to do this
 	// again.

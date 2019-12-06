@@ -23,7 +23,7 @@ func (c *commit) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (c *commit) DecodeBinary(r *io.BinReader) {
-	r.ReadBE(&c.signature)
+	r.ReadBytes(c.signature[:])
 }
 
 // Signature implements payload.Commit interface.

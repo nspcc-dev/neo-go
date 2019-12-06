@@ -212,7 +212,7 @@ func (p *Payload) Verify() bool {
 // DecodeBinaryUnsigned reads payload from w excluding signature.
 func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	r.ReadLE(&p.version)
-	r.ReadBE(p.prevHash[:])
+	r.ReadBytes(p.prevHash[:])
 	r.ReadLE(&p.height)
 	r.ReadLE(&p.validatorIndex)
 	r.ReadLE(&p.timestamp)

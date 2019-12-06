@@ -54,7 +54,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 		if l != 0 {
 			if l == util.Uint256Size {
 				m.preparationHash = new(util.Uint256)
-				r.ReadBE(m.preparationHash[:])
+				r.ReadBytes(m.preparationHash[:])
 			} else {
 				r.Err = errors.New("invalid data")
 			}
@@ -108,7 +108,7 @@ func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
 func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.ViewNumber)
 	r.ReadLE(&p.ValidatorIndex)
-	r.ReadBE(p.Signature[:])
+	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes()
 }
 

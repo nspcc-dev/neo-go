@@ -332,3 +332,28 @@ func TestBinReader_ReadArray(t *testing.T) {
 	r.Err = errors.New("error")
 	require.Panics(t, func() { r.ReadArray(1) })
 }
+
+func TestBinReader_ReadBytes(t *testing.T) {
+	data := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	r := NewBinReaderFromBuf(data)
+
+	buf := make([]byte, 4)
+	r.ReadBytes(buf)
+	require.NoError(t, r.Err)
+	require.Equal(t, data[:4], buf)
+
+	r.ReadBytes([]byte{})
+	require.NoError(t, r.Err)
+
+	buf = make([]byte, 3)
+	r.ReadBytes(buf)
+	require.NoError(t, r.Err)
+	require.Equal(t, data[4:7], buf)
+
+	buf = make([]byte, 2)
+	r.ReadBytes(buf)
+	require.Error(t, r.Err)
+
+	r.ReadBytes([]byte{})
+	require.Error(t, r.Err)
+}

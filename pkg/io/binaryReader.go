@@ -132,8 +132,17 @@ func (r *BinReader) ReadVarUint() uint64 {
 func (r *BinReader) ReadVarBytes() []byte {
 	n := r.ReadVarUint()
 	b := make([]byte, n)
-	r.ReadLE(b)
+	r.ReadBytes(b)
 	return b
+}
+
+// ReadBytes copies fixed-size buffer from the reader to provided slice.
+func (r *BinReader) ReadBytes(buf []byte) {
+	if r.Err != nil {
+		return
+	}
+
+	_, r.Err = io.ReadFull(r.r, buf)
 }
 
 // ReadString calls ReadVarBytes and casts the results as a string.

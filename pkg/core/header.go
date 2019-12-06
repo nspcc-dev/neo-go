@@ -18,10 +18,10 @@ type Header struct {
 func (h *Header) DecodeBinary(r *io.BinReader) {
 	h.BlockBase.DecodeBinary(r)
 
-	var padding uint8
-	r.ReadLE(&padding)
+	padding := []byte{0}
+	r.ReadBytes(padding)
 
-	if padding != 0 {
+	if padding[0] != 0 {
 		r.Err = fmt.Errorf("format error: padding must equal 0 got %d", padding)
 	}
 }

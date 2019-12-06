@@ -22,7 +22,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
 		attr.Data = make([]byte, 33)
 		attr.Data[0] = byte(attr.Usage)
-		br.ReadLE(attr.Data[1:])
+		br.ReadBytes(attr.Data[1:])
 		return
 	}
 	var datasize uint64
@@ -47,7 +47,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 		return
 	}
 	attr.Data = make([]byte, datasize)
-	br.ReadLE(attr.Data)
+	br.ReadBytes(attr.Data)
 }
 
 // EncodeBinary implements Serializable interface.

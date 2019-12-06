@@ -123,5 +123,5 @@ func (u Uint256) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (u *Uint256) DecodeBinary(r *io.BinReader) {
-	r.ReadBE(u[:])
+	r.ReadBytes(u[:])
 }
