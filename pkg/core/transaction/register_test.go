@@ -12,7 +12,7 @@ import (
 )
 
 func TestRegisterTX(t *testing.T) {
-	someuint160, _ := util.Uint160DecodeString("4d3b96ae1bcc5a585e075e3b81920210dec16302")
+	someuint160, _ := util.Uint160DecodeStringBE("4d3b96ae1bcc5a585e075e3b81920210dec16302")
 	tx := &Transaction{
 		Type:    RegisterType,
 		Version: 0,
@@ -60,7 +60,7 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	assert.Equal(t, uint8(0), txData.Precision)
 	assert.Equal(t, &keys.PublicKey{}, txData.Owner)
 	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", crypto.AddressFromUint160(txData.Admin))
-	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().ReverseString())
+	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().StringLE())
 
 	buf := io.NewBufBinWriter()
 	tx.EncodeBinary(buf.BinWriter)

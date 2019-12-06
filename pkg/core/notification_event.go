@@ -34,7 +34,7 @@ func putAppExecResultIntoStore(s storage.Store, aer *AppExecResult) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.Bytes())
+	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
 	return s.Put(key, buf.Bytes())
 }
 
@@ -42,7 +42,7 @@ func putAppExecResultIntoStore(s storage.Store, aer *AppExecResult) error {
 // given store.
 func getAppExecResultFromStore(s storage.Store, hash util.Uint256) (*AppExecResult, error) {
 	aer := &AppExecResult{}
-	key := storage.AppendPrefix(storage.STNotification, hash.Bytes())
+	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
 	if b, err := s.Get(key); err == nil {
 		r := io.NewBinReaderFromBuf(b)
 		aer.DecodeBinary(r)

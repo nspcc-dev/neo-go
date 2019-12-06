@@ -41,7 +41,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	tx.Attributes = append(tx.Attributes,
 		&transaction.Attribute{
 			Usage: transaction.Script,
-			Data:  fromAddressHash.Bytes(),
+			Data:  fromAddressHash.BytesBE(),
 		})
 
 	if err = AddInputsAndUnspentsToTx(tx, fromAddress, assetID, amount, balancer); err != nil {
@@ -194,7 +194,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+			if err := vm.EmitBytes(script, hash.BytesBE()); err != nil {
 				return err
 			}
 		case Hash256:
@@ -202,7 +202,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, hash.Bytes()); err != nil {
+			if err := vm.EmitBytes(script, hash.BytesBE()); err != nil {
 				return err
 			}
 		case PublicKey:

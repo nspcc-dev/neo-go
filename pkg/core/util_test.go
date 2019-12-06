@@ -20,7 +20,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	}
 
 	expect := "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"
-	assert.Equal(t, expect, block.Hash().ReverseString())
+	assert.Equal(t, expect, block.Hash().StringLE())
 }
 
 func TestGetConsensusAddressMainNet(t *testing.T) {
@@ -51,11 +51,11 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 func TestUtilityTokenTX(t *testing.T) {
 	expect := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
 	tx := utilityTokenTX()
-	assert.Equal(t, expect, tx.Hash().ReverseString())
+	assert.Equal(t, expect, tx.Hash().StringLE())
 }
 
 func TestGoverningTokenTX(t *testing.T) {
 	expect := "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
 	tx := governingTokenTX()
-	assert.Equal(t, expect, tx.Hash().ReverseString())
+	assert.Equal(t, expect, tx.Hash().StringLE())
 }

@@ -14,7 +14,7 @@ func TestSha256(t *testing.T) {
 	data := Sha256(input)
 
 	expected := "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 
 	assert.Equal(t, expected, actual)
 }
@@ -24,10 +24,10 @@ func TestHashDoubleSha256(t *testing.T) {
 	data := DoubleSha256(input)
 
 	firstSha := Sha256(input)
-	doubleSha := Sha256(firstSha.Bytes())
-	expected := hex.EncodeToString(doubleSha.Bytes())
+	doubleSha := Sha256(firstSha.BytesBE())
+	expected := hex.EncodeToString(doubleSha.BytesBE())
 
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 
@@ -36,7 +36,7 @@ func TestHashRipeMD160(t *testing.T) {
 	data := RipeMD160(input)
 
 	expected := "108f07b8382412612c048d07d13f814118445acd"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 
@@ -46,7 +46,7 @@ func TestHash160(t *testing.T) {
 	data := Hash160(publicKeyBytes)
 
 	expected := "c8e2b685cc70ec96743b55beb9449782f8f775d8"
-	actual := hex.EncodeToString(data.Bytes())
+	actual := hex.EncodeToString(data.BytesBE())
 	assert.Equal(t, expected, actual)
 }
 

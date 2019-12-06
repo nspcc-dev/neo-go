@@ -40,7 +40,7 @@ func getBlockHashFromElement(bc Blockchainer, element *vm.Element) (util.Uint256
 		}
 		hash = bc.GetHeaderHash(int(hashint))
 	} else {
-		return util.Uint256DecodeReverseBytes(hashbytes)
+		return util.Uint256DecodeBytesLE(hashbytes)
 	}
 	return hash, nil
 }
@@ -63,7 +63,7 @@ func (ic *interopContext) bcGetBlock(v *vm.VM) error {
 // bcGetContract returns contract.
 func (ic *interopContext) bcGetContract(v *vm.VM) error {
 	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytes(hashbytes)
+	hash, err := util.Uint160DecodeBytesBE(hashbytes)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (ic *interopContext) bcGetHeight(v *vm.VM) error {
 // returns transaction and its height if it's present in the blockchain.
 func getTransactionAndHeight(bc Blockchainer, v *vm.VM) (*transaction.Transaction, uint32, error) {
 	hashbytes := v.Estack().Pop().Bytes()
-	hash, err := util.Uint256DecodeReverseBytes(hashbytes)
+	hash, err := util.Uint256DecodeBytesLE(hashbytes)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -160,7 +160,7 @@ func (ic *interopContext) headerGetHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.Hash().BytesReverse())
+	v.Estack().PushVal(header.Hash().BytesLE())
 	return nil
 }
 
@@ -170,7 +170,7 @@ func (ic *interopContext) headerGetPrevHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.PrevHash.BytesReverse())
+	v.Estack().PushVal(header.PrevHash.BytesLE())
 	return nil
 }
 
@@ -237,7 +237,7 @@ func (ic *interopContext) txGetHash(v *vm.VM) error {
 	if !ok {
 		return errors.New("value is not a transaction")
 	}
-	v.Estack().PushVal(tx.Hash().BytesReverse())
+	v.Estack().PushVal(tx.Hash().BytesLE())
 	return nil
 }
 
@@ -260,7 +260,7 @@ func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
 // invocation stack element number n.
 func pushContextScriptHash(v *vm.VM, n int) error {
 	h := getContextScriptHash(v, n)
-	v.Estack().PushVal(h.Bytes())
+	v.Estack().PushVal(h.BytesBE())
 	return nil
 }
 
@@ -318,7 +318,7 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 	var err error
 
 	hashOrKey := v.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytes(hashOrKey)
+	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		key := &keys.PublicKey{}
 		err = key.DecodeBytes(hashOrKey)

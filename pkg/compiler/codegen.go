@@ -670,7 +670,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			c.prog.Err = err
 			return
 		}
-		bytes := uint160.Bytes()
+		bytes := uint160.BytesBE()
 		emitBytes(c.prog.BinWriter, bytes)
 	}
 }

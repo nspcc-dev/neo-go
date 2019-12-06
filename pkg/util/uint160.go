@@ -7,51 +7,96 @@ import (
 	"strings"
 )
 
-const uint160Size = 20
+// Uint160Size is the size of Uint160 in bytes.
+const Uint160Size = 20
 
 // Uint160 is a 20 byte long unsigned integer.
-type Uint160 [uint160Size]uint8
+type Uint160 [Uint160Size]uint8
 
-// Uint160DecodeString attempts to decode the given string into an Uint160.
-func Uint160DecodeString(s string) (Uint160, error) {
+// Uint160DecodeStringBE attempts to decode the given string into an Uint160.
+func Uint160DecodeStringBE(s string) (Uint160, error) {
 	var u Uint160
-	if len(s) != uint160Size*2 {
-		return u, fmt.Errorf("expected string size of %d got %d", uint160Size*2, len(s))
+	if len(s) != Uint160Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint160Size*2, len(s))
 	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
 		return u, err
 	}
-	return Uint160DecodeBytes(b)
+	return Uint160DecodeBytesBE(b)
 }
 
-// Uint160DecodeBytes attempts to decode the given bytes into an Uint160.
-func Uint160DecodeBytes(b []byte) (u Uint160, err error) {
-	if len(b) != uint160Size {
-		return u, fmt.Errorf("expected byte size of %d got %d", uint160Size, len(b))
+// Uint160DecodeStringLE attempts to decode the given string
+// in little-endian hex encoding into an Uint160.
+func Uint160DecodeStringLE(s string) (Uint160, error) {
+	var u Uint160
+	if len(s) != Uint160Size*2 {
+		return u, fmt.Errorf("expected string size of %d got %d", Uint160Size*2, len(s))
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return u, err
+	}
+
+	return Uint160DecodeBytesLE(b)
+}
+
+// Uint160DecodeBytesBE attempts to decode the given bytes into an Uint160.
+func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
+	if len(b) != Uint160Size {
+		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
 	}
 	copy(u[:], b)
 	return
 }
 
-// Bytes returns the byte slice representation of u.
-func (u Uint160) Bytes() []byte {
+// Uint160DecodeBytesLE attempts to decode the given bytes in little-endian
+// into an Uint160.
+func Uint160DecodeBytesLE(b []byte) (u Uint160, err error) {
+	if len(b) != Uint160Size {
+		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
+	}
+
+	for i := range b {
+		u[Uint160Size-i-1] = b[i]
+	}
+
+	return
+}
+
+// BytesBE returns a big-endian byte representation of u.
+func (u Uint160) BytesBE() []byte {
 	return u[:]
 }
 
-// BytesReverse returns a reversed byte representation of u.
-func (u Uint160) BytesReverse() []byte {
-	return ArrayReverse(u.Bytes())
+// BytesLE returns a little-endian byte representation of u.
+func (u Uint160) BytesLE() []byte {
+	return ArrayReverse(u.BytesBE())
 }
 
 // String implements the stringer interface.
 func (u Uint160) String() string {
-	return hex.EncodeToString(u.Bytes())
+	return u.StringBE()
 }
 
-// ReverseString is the same as String, but returns a reversed representation.
-func (u Uint160) ReverseString() string {
-	return hex.EncodeToString(u.BytesReverse())
+// StringBE returns string representations of u with big-endian byte order.
+func (u Uint160) StringBE() string {
+	return hex.EncodeToString(u.BytesBE())
+}
+
+// StringLE returns string representations of u with little-endian byte order.
+func (u Uint160) StringLE() string {
+	return hex.EncodeToString(u.BytesLE())
+}
+
+// Reverse returns reversed representation of u.
+func (u Uint160) Reverse() (r Uint160) {
+	for i := 0; i < Uint160Size; i++ {
+		r[i] = u[Uint160Size-i-1]
+	}
+
+	return
 }
 
 // Equals returns true if both Uint256 values are the same.
@@ -78,7 +123,7 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	js = strings.TrimPrefix(js, "0x")
-	*u, err = Uint160DecodeString(js)
+	*u, err = Uint160DecodeStringBE(js)
 	return err
 }
 

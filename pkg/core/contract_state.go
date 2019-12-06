@@ -70,13 +70,13 @@ func putContractStateIntoStore(s storage.Store, cs *ContractState) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().Bytes())
+	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().BytesBE())
 	return s.Put(key, buf.Bytes())
 }
 
 // deleteContractStateInStore deletes given contract state in the given store.
 func deleteContractStateInStore(s storage.Store, hash util.Uint160) error {
-	key := storage.AppendPrefix(storage.STContract, hash.Bytes())
+	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	return s.Delete(key)
 }
 

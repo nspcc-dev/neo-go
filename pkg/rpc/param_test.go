@@ -95,7 +95,7 @@ func TestParamGetArray(t *testing.T) {
 
 func TestParamGetUint256(t *testing.T) {
 	gas := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-	u256, _ := util.Uint256DecodeReverseString(gas)
+	u256, _ := util.Uint256DecodeStringLE(gas)
 	p := Param{stringT, gas}
 	u, err := p.GetUint256()
 	assert.Equal(t, u256, u)
@@ -112,8 +112,8 @@ func TestParamGetUint256(t *testing.T) {
 
 func TestParamGetUint160FromHex(t *testing.T) {
 	in := "50befd26fdf6e4d957c11e078b24ebce6291456f"
-	u160, _ := util.Uint160DecodeString(in)
-	u160, _ = util.Uint160DecodeBytes(util.ArrayReverse(u160[:]))
+	u160, _ := util.Uint160DecodeStringBE(in)
+	u160, _ = util.Uint160DecodeBytesBE(util.ArrayReverse(u160[:]))
 	p := Param{stringT, in}
 	u, err := p.GetUint160FromHex()
 	assert.Equal(t, u160, u)

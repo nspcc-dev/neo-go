@@ -157,11 +157,11 @@ func TestStackParam_TryParse(t *testing.T) {
 		params := StackParams{
 			{
 				Type:  ByteArray,
-				Value: exp1.Bytes(),
+				Value: exp1.BytesBE(),
 			},
 			{
 				Type:  ByteArray,
-				Value: exp2.Bytes(),
+				Value: exp2.BytesBE(),
 			},
 		}
 

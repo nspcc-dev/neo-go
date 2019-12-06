@@ -63,7 +63,7 @@ func (b *Block) Verify() error {
 	// If the first TX is a minerTX then all others cant.
 	for _, tx := range b.Transactions[1:] {
 		if tx.Type == transaction.MinerType {
-			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().ReverseString())
+			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().StringLE())
 		}
 	}
 	merkle, err := merkleTreeFromTransactions(b.Transactions)

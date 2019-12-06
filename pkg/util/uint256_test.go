@@ -11,7 +11,7 @@ import (
 
 func TestUint256UnmarshalJSON(t *testing.T) {
 	str := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
-	expected, err := Uint256DecodeReverseString(str)
+	expected, err := Uint256DecodeStringLE(str)
 	require.NoError(t, err)
 
 	// UnmarshalJSON decodes hex-strings
@@ -33,23 +33,33 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 
 func TestUint256DecodeString(t *testing.T) {
 	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
-	val, err := Uint256DecodeReverseString(hexStr)
+	val, err := Uint256DecodeStringLE(hexStr)
 	require.NoError(t, err)
-	assert.Equal(t, hexStr, val.ReverseString())
+	assert.Equal(t, hexStr, val.StringLE())
+
+	valBE, err := Uint256DecodeStringBE(hexStr)
+	require.NoError(t, err)
+	assert.Equal(t, val, valBE.Reverse())
 
 	bs, err := hex.DecodeString(hexStr)
 	require.NoError(t, err)
 
-	val1, err := Uint256DecodeBytes(bs)
+	val1, err := Uint256DecodeBytesBE(bs)
 	assert.NoError(t, err)
 	assert.Equal(t, hexStr, val1.String())
 	assert.Equal(t, val, val1.Reverse())
 
-	_, err = Uint256DecodeReverseString(hexStr[1:])
+	_, err = Uint256DecodeStringLE(hexStr[1:])
+	assert.Error(t, err)
+
+	_, err = Uint256DecodeStringBE(hexStr[1:])
 	assert.Error(t, err)
 
 	hexStr = "zzz7308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
-	_, err = Uint256DecodeReverseString(hexStr)
+	_, err = Uint256DecodeStringLE(hexStr)
+	assert.Error(t, err)
+
+	_, err = Uint256DecodeStringBE(hexStr)
 	assert.Error(t, err)
 }
 
@@ -58,11 +68,11 @@ func TestUint256DecodeBytes(t *testing.T) {
 	b, err := hex.DecodeString(hexStr)
 	require.NoError(t, err)
 
-	val, err := Uint256DecodeReverseBytes(b)
+	val, err := Uint256DecodeBytesLE(b)
 	require.NoError(t, err)
-	assert.Equal(t, hexStr, val.ReverseString())
+	assert.Equal(t, hexStr, val.StringLE())
 
-	_, err = Uint256DecodeBytes(b[1:])
+	_, err = Uint256DecodeBytesBE(b[1:])
 	assert.Error(t, err)
 }
 
@@ -70,10 +80,10 @@ func TestUInt256Equals(t *testing.T) {
 	a := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
 	b := "e287c5b29a1b66092be6803c59c765308ac20287e1b4977fd399da5fc8f66ab5"
 
-	ua, err := Uint256DecodeReverseString(a)
+	ua, err := Uint256DecodeStringLE(a)
 	require.NoError(t, err)
 
-	ub, err := Uint256DecodeReverseString(b)
+	ub, err := Uint256DecodeStringLE(b)
 	require.NoError(t, err)
 	assert.False(t, ua.Equals(ub), "%s and %s cannot be equal", ua, ub)
 	assert.True(t, ua.Equals(ua), "%s and %s must be equal", ua, ua)

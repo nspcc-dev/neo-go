@@ -148,7 +148,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	response.ID = resp.ID
 	response.JSONRPC = resp.JSONRPC
 	response.Result = &TxResponse{
-		TxID: rawTx.Hash().ReverseString(),
+		TxID: rawTx.Hash().StringLE(),
 	}
 	return response, nil
 }
@@ -161,7 +161,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 	var err error
 
 	gasIDB, _ := hex.DecodeString("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7")
-	gasID, _ := util.Uint256DecodeReverseBytes(gasIDB)
+	gasID, _ := util.Uint256DecodeBytesLE(gasIDB)
 
 	tx := transaction.NewInvocationTX(script, gas)
 

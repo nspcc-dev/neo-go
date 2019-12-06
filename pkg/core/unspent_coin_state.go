@@ -38,7 +38,7 @@ func (u UnspentCoins) getAndUpdate(s storage.Store, hash util.Uint256) (*Unspent
 // getUnspentCoinStateFromStore retrieves UnspentCoinState from the given store
 func getUnspentCoinStateFromStore(s storage.Store, hash util.Uint256) (*UnspentCoinState, error) {
 	unspent := &UnspentCoinState{}
-	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
 	if b, err := s.Get(key); err == nil {
 		r := io.NewBinReaderFromBuf(b)
 		unspent.DecodeBinary(r)
@@ -58,7 +58,7 @@ func putUnspentCoinStateIntoStore(store storage.Store, hash util.Uint256, ucs *U
 	if buf.Err != nil {
 		return buf.Err
 	}
-	key := storage.AppendPrefix(storage.STCoin, hash.BytesReverse())
+	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
 	return store.Put(key, buf.Bytes())
 }
 
@@ -115,7 +115,7 @@ func IsDoubleSpend(s storage.Store, tx *transaction.Transaction) bool {
 
 	for prevHash, inputs := range tx.GroupInputsByPrevHash() {
 		unspent := &UnspentCoinState{}
-		key := storage.AppendPrefix(storage.STCoin, prevHash.BytesReverse())
+		key := storage.AppendPrefix(storage.STCoin, prevHash.BytesLE())
 		if b, err := s.Get(key); err == nil {
 			r := io.NewBinReaderFromBuf(b)
 			unspent.DecodeBinary(r)

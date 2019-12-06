@@ -60,7 +60,7 @@ func (state *BlockChainState) commit() error {
 // storeAsBlock stores the given block as DataBlock.
 func (state *BlockChainState) storeAsBlock(block *Block, sysFee uint32) error {
 	var (
-		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
+		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
 		buf = io.NewBufBinWriter()
 	)
 	// sysFee needs to be handled somehow
@@ -79,14 +79,14 @@ func (state *BlockChainState) storeAsBlock(block *Block, sysFee uint32) error {
 // storeAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
 func (state *BlockChainState) storeAsCurrentBlock(block *Block) error {
 	buf := io.NewBufBinWriter()
-	buf.WriteBytes(block.Hash().BytesReverse())
+	buf.WriteBytes(block.Hash().BytesLE())
 	buf.WriteLE(block.Index)
 	return state.store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // storeAsTransaction stores the given TX as DataTransaction.
 func (state *BlockChainState) storeAsTransaction(tx *transaction.Transaction, index uint32) error {
-	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
+	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesLE())
 	buf := io.NewBufBinWriter()
 	buf.WriteLE(index)
 	tx.EncodeBinary(buf.BinWriter)

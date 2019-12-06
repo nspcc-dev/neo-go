@@ -8,7 +8,7 @@ import (
 // Uint160.
 func AddressFromUint160(u util.Uint160) string {
 	// Dont forget to prepend the Address version 0x17 (23) A
-	b := append([]byte{0x17}, u.Bytes()...)
+	b := append([]byte{0x17}, u.BytesBE()...)
 	return Base58CheckEncode(b)
 }
 
@@ -19,5 +19,5 @@ func Uint160DecodeAddress(s string) (u util.Uint160, err error) {
 	if err != nil {
 		return u, err
 	}
-	return util.Uint160DecodeBytes(b[1:21])
+	return util.Uint160DecodeBytesBE(b[1:21])
 }

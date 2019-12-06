@@ -74,7 +74,7 @@ func TestBinEncodeDecode(t *testing.T) {
 	header := headerMsg.Hdrs[0]
 	hash := header.Hash()
 
-	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", hash.ReverseString())
+	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", hash.StringLE())
 
 	buf := io.NewBufBinWriter()
 

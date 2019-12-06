@@ -158,7 +158,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 	case Hash160Type:
 		u, err := crypto.Uint160DecodeAddress(val)
 		if err == nil {
-			return hex.EncodeToString(u.Bytes()), nil
+			return hex.EncodeToString(u.BytesBE()), nil
 		}
 		b, err := hex.DecodeString(val)
 		if err != nil {

@@ -118,7 +118,7 @@ func EmitAppCall(w *bytes.Buffer, scriptHash util.Uint160, tailCall bool) error 
 	if tailCall {
 		op = opcode.TAILCALL
 	}
-	return Emit(w, op, scriptHash.Bytes())
+	return Emit(w, op, scriptHash.BytesBE())
 }
 
 // EmitAppCallWithOperationAndData emits an appcall with the given operation and data.

@@ -64,7 +64,7 @@ func (ic *interopContext) headerGetMerkleRoot(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.MerkleRoot.BytesReverse())
+	v.Estack().PushVal(header.MerkleRoot.BytesLE())
 	return nil
 }
 
@@ -74,7 +74,7 @@ func (ic *interopContext) headerGetNextConsensus(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.NextConsensus.BytesReverse())
+	v.Estack().PushVal(header.NextConsensus.BytesLE())
 	return nil
 }
 
@@ -227,7 +227,7 @@ func (ic *interopContext) inputGetHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(input.PrevHash.Bytes())
+	v.Estack().PushVal(input.PrevHash.BytesBE())
 	return nil
 }
 
@@ -261,7 +261,7 @@ func (ic *interopContext) outputGetAssetID(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(output.AssetID.Bytes())
+	v.Estack().PushVal(output.AssetID.BytesBE())
 	return nil
 }
 
@@ -271,7 +271,7 @@ func (ic *interopContext) outputGetScriptHash(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(output.ScriptHash.Bytes())
+	v.Estack().PushVal(output.ScriptHash.BytesBE())
 	return nil
 }
 
@@ -310,7 +310,7 @@ func (ic *interopContext) attrGetUsage(v *vm.VM) error {
 // bcGetAccount returns or creates an account.
 func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 	accbytes := v.Estack().Pop().Bytes()
-	acchash, err := util.Uint160DecodeBytes(accbytes)
+	acchash, err := util.Uint160DecodeBytesBE(accbytes)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 // bcGetAsset returns an asset.
 func (ic *interopContext) bcGetAsset(v *vm.VM) error {
 	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytes(asbytes)
+	ashash, err := util.Uint256DecodeBytesBE(asbytes)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
 	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytes(asbytes)
+	ashash, err := util.Uint256DecodeBytesBE(asbytes)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (ic *interopContext) accountGetScriptHash(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
-	v.Estack().PushVal(acc.ScriptHash.Bytes())
+	v.Estack().PushVal(acc.ScriptHash.BytesBE())
 	return nil
 }
 
@@ -389,7 +389,7 @@ func (ic *interopContext) accountGetVotes(v *vm.VM) error {
 // accountIsStandard checks whether given account is standard.
 func (ic *interopContext) accountIsStandard(v *vm.VM) error {
 	accbytes := v.Estack().Pop().Bytes()
-	acchash, err := util.Uint160DecodeBytes(accbytes)
+	acchash, err := util.Uint160DecodeBytesBE(accbytes)
 	if err != nil {
 		return err
 	}
@@ -601,11 +601,11 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 	if !witnessOk {
 		return errors.New("witness check didn't succeed")
 	}
-	admin, err := util.Uint160DecodeBytes(v.Estack().Pop().Bytes())
+	admin, err := util.Uint160DecodeBytesBE(v.Estack().Pop().Bytes())
 	if err != nil {
 		return gherr.Wrap(err, "failed to get admin")
 	}
-	issuer, err := util.Uint160DecodeBytes(v.Estack().Pop().Bytes())
+	issuer, err := util.Uint160DecodeBytesBE(v.Estack().Pop().Bytes())
 	if err != nil {
 		return gherr.Wrap(err, "failed to get issuer")
 	}
@@ -635,7 +635,7 @@ func (ic *interopContext) assetGetAdmin(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
-	v.Estack().PushVal(as.Admin.Bytes())
+	v.Estack().PushVal(as.Admin.BytesBE())
 	return nil
 }
 
@@ -657,7 +657,7 @@ func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
-	v.Estack().PushVal(as.ID.Bytes())
+	v.Estack().PushVal(as.ID.BytesBE())
 	return nil
 }
 
@@ -690,7 +690,7 @@ func (ic *interopContext) assetGetIssuer(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not an asset state", as)
 	}
-	v.Estack().PushVal(as.Issuer.Bytes())
+	v.Estack().PushVal(as.Issuer.BytesBE())
 	return nil
 }
 

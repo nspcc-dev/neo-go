@@ -423,7 +423,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
-		fmt.Printf("Sent invocation transaction %s\n", txHash.ReverseString())
+		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
 		b, err := json.MarshalIndent(resp.Result, "", "  ")
 		if err != nil {
@@ -585,6 +585,6 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
-	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.ReverseString(), hash.Hash160(avm).ReverseString())
+	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), hash.Hash160(avm).StringLE())
 	return nil
 }
