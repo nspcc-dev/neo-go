@@ -49,7 +49,10 @@ func (w *BinWriter) WriteArray(arr interface{}) {
 		for i := 0; i < val.Len(); i++ {
 			el, ok := val.Index(i).Interface().(encodable)
 			if !ok {
-				panic(typ.String() + "is not encodable")
+				el, ok = val.Index(i).Addr().Interface().(encodable)
+				if !ok {
+					panic(typ.String() + " is not encodable")
+				}
 			}
 
 			el.EncodeBinary(w)

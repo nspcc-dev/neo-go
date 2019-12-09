@@ -229,6 +229,18 @@ func (t *testSerializable) DecodeBinary(r *BinReader) {
 	r.ReadLE(t)
 }
 
+type testPtrSerializable uint16
+
+// EncodeBinary implements io.Serializable interface.
+func (t *testPtrSerializable) EncodeBinary(w *BinWriter) {
+	w.WriteLE(t)
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (t *testPtrSerializable) DecodeBinary(r *BinReader) {
+	r.ReadLE(t)
+}
+
 func TestBinWriter_WriteArray(t *testing.T) {
 	var arr [3]testSerializable
 	for i := range arr {
@@ -272,6 +284,16 @@ func TestBinWriter_WriteArray(t *testing.T) {
 	w.Reset()
 	w.Err = errors.New("error")
 	require.Panics(t, func() { w.WriteArray(make(chan testSerializable)) })
+
+	// Ptr receiver test
+	var arrPtr [3]testPtrSerializable
+	for i := range arrPtr {
+		arrPtr[i] = testPtrSerializable(i)
+	}
+	w.Reset()
+	w.WriteArray(arr[:])
+	require.NoError(t, w.Err)
+	require.Equal(t, expected, w.Bytes())
 }
 
 func TestBinReader_ReadArray(t *testing.T) {
