@@ -21,7 +21,6 @@ func TestRegisterTX(t *testing.T) {
 			Name:      "this is some token I created",
 			Amount:    util.Fixed8FromInt64(1000000),
 			Precision: 8,
-			Owner:     &keys.PublicKey{},
 			Admin:     someuint160,
 		},
 	}
@@ -58,7 +57,7 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	assert.Equal(t, "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]", txData.Name)
 	assert.Equal(t, util.Fixed8FromInt64(100000000), txData.Amount)
 	assert.Equal(t, uint8(0), txData.Precision)
-	assert.Equal(t, &keys.PublicKey{}, txData.Owner)
+	assert.Equal(t, keys.PublicKey{}, txData.Owner)
 	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", crypto.AddressFromUint160(txData.Admin))
 	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().StringLE())
 

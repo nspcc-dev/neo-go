@@ -98,7 +98,6 @@ func governingTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
 		Amount:    util.Fixed8FromInt64(100000000),
 		Precision: 0,
-		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 
@@ -121,7 +120,6 @@ func utilityTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
 		Amount:    calculateUtilityAmount(),
 		Precision: 8,
-		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 	tx := &transaction.Transaction{

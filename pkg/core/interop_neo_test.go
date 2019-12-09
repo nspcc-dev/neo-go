@@ -348,7 +348,7 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 		Precision:  1,
 		FeeMode:    1,
 		FeeAddress: randomUint160(),
-		Owner:      &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
+		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
 		Admin:      randomUint160(),
 		Issuer:     randomUint160(),
 		Expiration: 10,

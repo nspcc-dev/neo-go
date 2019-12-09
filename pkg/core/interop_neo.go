@@ -615,7 +615,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 		Name:       name,
 		Amount:     amount,
 		Precision:  precision,
-		Owner:      owner,
+		Owner:      *owner,
 		Admin:      admin,
 		Issuer:     issuer,
 		Expiration: ic.bc.BlockHeight() + DefaultAssetLifetime,

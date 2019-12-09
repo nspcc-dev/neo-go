@@ -1340,7 +1340,7 @@ func processStateTX(chainState *BlockChainState, tx *transaction.StateTX) error 
 }
 
 func processEnrollmentTX(chainState *BlockChainState, tx *transaction.EnrollmentTX) error {
-	validatorState, err := chainState.validators.getAndUpdate(chainState.store, tx.PublicKey)
+	validatorState, err := chainState.validators.getAndUpdate(chainState.store, &tx.PublicKey)
 	if err != nil {
 		return err
 	}

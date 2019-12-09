@@ -12,12 +12,11 @@ import (
 // The way to cancel the registration is: Spend the deposit on the address of the PublicKey.
 type EnrollmentTX struct {
 	// PublicKey of the validator.
-	PublicKey *keys.PublicKey
+	PublicKey keys.PublicKey
 }
 
 // DecodeBinary implements Serializable interface.
 func (tx *EnrollmentTX) DecodeBinary(r *io.BinReader) {
-	tx.PublicKey = &keys.PublicKey{}
 	tx.PublicKey.DecodeBinary(r)
 }
 
