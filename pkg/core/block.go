@@ -115,7 +115,8 @@ func (b *Block) Trim() ([]byte, error) {
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))
 	for _, tx := range b.Transactions {
-		tx.Hash().EncodeBinary(buf.BinWriter)
+		h := tx.Hash()
+		h.EncodeBinary(buf.BinWriter)
 	}
 	if buf.Err != nil {
 		return nil, buf.Err

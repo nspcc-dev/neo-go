@@ -160,7 +160,7 @@ func (p *Payload) SetHeight(h uint32) {
 }
 
 // EncodeBinaryUnsigned writes payload to w excluding signature.
-func (p Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
+func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteLE(p.version)
 	w.WriteBytes(p.prevHash[:])
 	w.WriteLE(p.height)

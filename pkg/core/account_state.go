@@ -140,7 +140,7 @@ func (u *UnspentBalance) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-func (u UnspentBalance) EncodeBinary(w *io.BinWriter) {
+func (u *UnspentBalance) EncodeBinary(w *io.BinWriter) {
 	u.Tx.EncodeBinary(w)
 	w.WriteLE(u.Index)
 	w.WriteLE(u.Value)
