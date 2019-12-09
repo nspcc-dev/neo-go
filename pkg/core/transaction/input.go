@@ -16,7 +16,7 @@ type Input struct {
 
 // DecodeBinary implements Serializable interface.
 func (in *Input) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&in.PrevHash)
+	br.ReadBytes(in.PrevHash[:])
 	br.ReadLE(&in.PrevIndex)
 }
 

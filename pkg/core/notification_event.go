@@ -63,7 +63,7 @@ func (ne NotificationEvent) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&ne.ScriptHash)
+	r.ReadBytes(ne.ScriptHash[:])
 	ne.Item = vm.DecodeBinaryStackItem(r)
 }
 
@@ -75,6 +75,6 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements the Serializable interface.
 func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&aer.TxHash)
+	r.ReadBytes(aer.TxHash[:])
 	r.ReadArray(&aer.Events)
 }

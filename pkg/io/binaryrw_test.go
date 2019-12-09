@@ -91,7 +91,7 @@ func TestReaderErrHandling(t *testing.T) {
 	assert.Equal(t, i, iorig)
 	val := br.ReadVarUint()
 	assert.Equal(t, val, uint64(0))
-	b := br.ReadBytes()
+	b := br.ReadVarBytes()
 	assert.Equal(t, b, []byte{})
 	s := br.ReadString()
 	assert.Equal(t, s, "")
@@ -267,8 +267,7 @@ func TestBinWriter_WriteArray(t *testing.T) {
 	require.Equal(t, w.Bytes(), []byte(nil))
 
 	w.Reset()
-	w.Err = errors.New("error")
-	require.Panics(t, func() { w.WriteArray([]int{}) })
+	require.Panics(t, func() { w.WriteArray([]int{1}) })
 
 	w.Reset()
 	w.Err = errors.New("error")
@@ -326,15 +325,35 @@ func TestBinReader_ReadArray(t *testing.T) {
 	require.NoError(t, r.Err)
 	require.Equal(t, []testSerializable{}, arrVal)
 
-	r = NewBinReaderFromBuf([]byte{0})
-	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(&[]*int{}) })
+	r = NewBinReaderFromBuf([]byte{1})
+	require.Panics(t, func() { r.ReadArray(&[]int{1}) })
 
 	r = NewBinReaderFromBuf([]byte{0})
 	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(&[]int{}) })
+	require.Panics(t, func() { r.ReadArray(1) })
+}
 
-	r = NewBinReaderFromBuf([]byte{0})
-	r.Err = errors.New("error")
-	require.Panics(t, func() { r.ReadArray(0) })
+func TestBinReader_ReadBytes(t *testing.T) {
+	data := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	r := NewBinReaderFromBuf(data)
+
+	buf := make([]byte, 4)
+	r.ReadBytes(buf)
+	require.NoError(t, r.Err)
+	require.Equal(t, data[:4], buf)
+
+	r.ReadBytes([]byte{})
+	require.NoError(t, r.Err)
+
+	buf = make([]byte, 3)
+	r.ReadBytes(buf)
+	require.NoError(t, r.Err)
+	require.Equal(t, data[4:7], buf)
+
+	buf = make([]byte, 2)
+	r.ReadBytes(buf)
+	require.Error(t, r.Err)
+
+	r.ReadBytes([]byte{})
+	require.Error(t, r.Err)
 }

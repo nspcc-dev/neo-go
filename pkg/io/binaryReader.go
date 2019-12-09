@@ -47,18 +47,13 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 		panic(value.Type().String() + " is not a pointer to a slice")
 	}
 
-	sliceType := value.Elem().Type()
-	elemType := sliceType.Elem()
-	isPtr := elemType.Kind() == reflect.Ptr
-	if isPtr {
-		checkHasDecodeBinary(elemType)
-	} else {
-		checkHasDecodeBinary(reflect.PtrTo(elemType))
-	}
-
 	if r.Err != nil {
 		return
 	}
+
+	sliceType := value.Elem().Type()
+	elemType := sliceType.Elem()
+	isPtr := elemType.Kind() == reflect.Ptr
 
 	ms := maxArraySize
 	if len(maxSize) != 0 {
@@ -82,25 +77,16 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 		} else {
 			elem = arr.Index(i).Addr()
 		}
-		method := elem.MethodByName("DecodeBinary")
-		method.Call([]reflect.Value{reflect.ValueOf(r)})
+
+		el, ok := elem.Interface().(decodable)
+		if !ok {
+			panic(elemType.String() + "is not decodable")
+		}
+
+		el.DecodeBinary(r)
 	}
 
 	value.Elem().Set(arr)
-}
-
-func checkHasDecodeBinary(v reflect.Type) {
-	method, ok := v.MethodByName("DecodeBinary")
-	if !ok || !isDecodeBinaryMethod(method) {
-		panic(v.String() + " does not have DecodeBinary(*io.BinReader)")
-	}
-}
-
-func isDecodeBinaryMethod(method reflect.Method) bool {
-	t := method.Type
-	return t != nil &&
-		t.NumIn() == 2 && t.In(1) == reflect.TypeOf((*BinReader)(nil)) &&
-		t.NumOut() == 0
 }
 
 // ReadBE reads from the underlying io.Reader
@@ -141,17 +127,26 @@ func (r *BinReader) ReadVarUint() uint64 {
 	return uint64(b)
 }
 
-// ReadBytes reads the next set of bytes from the underlying reader.
+// ReadVarBytes reads the next set of bytes from the underlying reader.
 // ReadVarUInt() is used to determine how large that slice is
-func (r *BinReader) ReadBytes() []byte {
+func (r *BinReader) ReadVarBytes() []byte {
 	n := r.ReadVarUint()
 	b := make([]byte, n)
-	r.ReadLE(b)
+	r.ReadBytes(b)
 	return b
 }
 
-// ReadString calls ReadBytes and casts the results as a string.
+// ReadBytes copies fixed-size buffer from the reader to provided slice.
+func (r *BinReader) ReadBytes(buf []byte) {
+	if r.Err != nil {
+		return
+	}
+
+	_, r.Err = io.ReadFull(r.r, buf)
+}
+
+// ReadString calls ReadVarBytes and casts the results as a string.
 func (r *BinReader) ReadString() string {
-	b := r.ReadBytes()
+	b := r.ReadVarBytes()
 	return string(b)
 }

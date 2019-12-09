@@ -102,14 +102,14 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 
 	switch stackItemType(t) {
 	case byteArrayT:
-		data := r.ReadBytes()
+		data := r.ReadVarBytes()
 		return NewByteArrayItem(data)
 	case booleanT:
 		var b bool
 		r.ReadLE(&b)
 		return NewBoolItem(b)
 	case integerT:
-		data := r.ReadBytes()
+		data := r.ReadVarBytes()
 		num := new(big.Int).SetBytes(util.ArrayReverse(data))
 		return &BigIntegerItem{
 			value: num,

@@ -38,7 +38,7 @@ func (a Contracts) commit(store storage.Store) error {
 
 // DecodeBinary implements Serializable interface.
 func (cs *ContractState) DecodeBinary(br *io.BinReader) {
-	cs.Script = br.ReadBytes()
+	cs.Script = br.ReadVarBytes()
 	br.ReadArray(&cs.ParamList)
 	br.ReadLE(&cs.ReturnType)
 	br.ReadLE(&cs.Properties)

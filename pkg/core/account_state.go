@@ -103,7 +103,7 @@ func NewAccountState(scriptHash util.Uint160) *AccountState {
 // DecodeBinary decodes AccountState from the given BinReader.
 func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&s.Version)
-	br.ReadLE(&s.ScriptHash)
+	br.ReadBytes(s.ScriptHash[:])
 	br.ReadLE(&s.IsFrozen)
 	br.ReadArray(&s.Votes)
 
@@ -111,7 +111,7 @@ func (s *AccountState) DecodeBinary(br *io.BinReader) {
 	lenBalances := br.ReadVarUint()
 	for i := 0; i < int(lenBalances); i++ {
 		key := util.Uint256{}
-		br.ReadLE(&key)
+		br.ReadBytes(key[:])
 		ubs := make([]UnspentBalance, 0)
 		br.ReadArray(&ubs)
 		s.Balances[key] = ubs

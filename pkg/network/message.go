@@ -150,7 +150,7 @@ func (m *Message) CommandType() CommandType {
 // Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
 	br.ReadLE(&m.Magic)
-	br.ReadLE(&m.Command)
+	br.ReadBytes(m.Command[:])
 	br.ReadLE(&m.Length)
 	br.ReadLE(&m.Checksum)
 	if br.Err != nil {

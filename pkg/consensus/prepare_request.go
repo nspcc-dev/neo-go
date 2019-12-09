@@ -31,7 +31,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadLE(&p.timestamp)
 	r.ReadLE(&p.nonce)
-	r.ReadBE(p.nextConsensus[:])
+	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
 	p.minerTx.DecodeBinary(r)
 }

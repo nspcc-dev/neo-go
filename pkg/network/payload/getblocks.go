@@ -24,7 +24,7 @@ func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
 // DecodeBinary implements Serializable interface.
 func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(&p.HashStart)
-	br.ReadLE(&p.HashStop)
+	br.ReadBytes(p.HashStop[:])
 }
 
 // EncodeBinary implements Serializable interface.

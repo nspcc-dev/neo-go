@@ -35,7 +35,7 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 
 // DecodeBinary implements Serializable interface.
 func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
-	tx.Script = br.ReadBytes()
+	tx.Script = br.ReadVarBytes()
 	if tx.Version >= 1 {
 		br.ReadLE(&tx.Gas)
 	} else {

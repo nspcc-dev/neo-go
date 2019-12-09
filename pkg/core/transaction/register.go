@@ -40,7 +40,7 @@ func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 	tx.Owner = &keys.PublicKey{}
 	tx.Owner.DecodeBinary(br)
 
-	br.ReadLE(&tx.Admin)
+	br.ReadBytes(tx.Admin[:])
 }
 
 // EncodeBinary implements Serializable interface.

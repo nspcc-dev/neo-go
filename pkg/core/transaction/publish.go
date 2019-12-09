@@ -22,7 +22,7 @@ type PublishTX struct {
 
 // DecodeBinary implements Serializable interface.
 func (tx *PublishTX) DecodeBinary(br *io.BinReader) {
-	tx.Script = br.ReadBytes()
+	tx.Script = br.ReadVarBytes()
 
 	lenParams := br.ReadVarUint()
 	tx.ParamList = make([]smartcontract.ParamType, lenParams)

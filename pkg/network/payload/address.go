@@ -31,7 +31,7 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&p.Timestamp)
 	br.ReadLE(&p.Services)
-	br.ReadBE(&p.IP)
+	br.ReadBytes(p.IP[:])
 	br.ReadBE(&p.Port)
 }
 
