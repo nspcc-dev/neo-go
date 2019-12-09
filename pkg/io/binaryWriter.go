@@ -35,7 +35,9 @@ func (w *BinWriter) WriteBE(v interface{}) {
 	w.Err = binary.Write(w.w, binary.BigEndian, v)
 }
 
-// WriteArray writes a slice or an array arr into w.
+// WriteArray writes a slice or an array arr into w. Note that nil slices and
+// empty slices are gonna be treated the same resulting in equal zero-length
+// array encoded.
 func (w *BinWriter) WriteArray(arr interface{}) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
 	case reflect.Slice, reflect.Array:
