@@ -39,7 +39,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", address)
 	}
 	tx.Attributes = append(tx.Attributes,
-		&transaction.Attribute{
+		transaction.Attribute{
 			Usage: transaction.Script,
 			Data:  fromAddressHash.BytesBE(),
 		})
@@ -87,7 +87,7 @@ func SignTx(tx *transaction.Transaction, wif *keys.WIF) error {
 		return errs.Wrap(err, "failed to create invocation script")
 	}
 	witness.VerificationScript = wif.PrivateKey.PublicKey().GetVerificationScript()
-	tx.Scripts = append(tx.Scripts, &witness)
+	tx.Scripts = append(tx.Scripts, witness)
 	tx.Hash()
 
 	return nil

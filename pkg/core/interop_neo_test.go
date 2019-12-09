@@ -92,7 +92,7 @@ func TestTxGetInputs(t *testing.T) {
 	err := context.txGetInputs(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value().([]vm.StackItem)
-	require.Equal(t, tx.Inputs[0], value[0].Value().(*transaction.Input))
+	require.Equal(t, tx.Inputs[0], *value[0].Value().(*transaction.Input))
 }
 
 func TestTxGetOutputs(t *testing.T) {
@@ -101,7 +101,7 @@ func TestTxGetOutputs(t *testing.T) {
 	err := context.txGetOutputs(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value().([]vm.StackItem)
-	require.Equal(t, tx.Outputs[0], value[0].Value().(*transaction.Output))
+	require.Equal(t, tx.Outputs[0], *value[0].Value().(*transaction.Output))
 }
 
 func TestTxGetType(t *testing.T) {
@@ -115,16 +115,16 @@ func TestTxGetType(t *testing.T) {
 
 func TestPopInputFromVM(t *testing.T) {
 	v, tx, _ := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Inputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	input, err := popInputFromVM(v)
 	require.NoError(t, err)
-	require.Equal(t, tx.Inputs[0], input)
+	require.Equal(t, tx.Inputs[0], *input)
 }
 
 func TestInputGetHash(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Inputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	err := context.inputGetHash(v)
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestInputGetHash(t *testing.T) {
 
 func TestInputGetIndex(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Inputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	err := context.inputGetIndex(v)
 	require.NoError(t, err)
@@ -144,16 +144,16 @@ func TestInputGetIndex(t *testing.T) {
 
 func TestPopOutputFromVM(t *testing.T) {
 	v, tx, _ := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Outputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	output, err := popOutputFromVM(v)
 	require.NoError(t, err)
-	require.Equal(t, tx.Outputs[0], output)
+	require.Equal(t, tx.Outputs[0], *output)
 }
 
 func TestOutputGetAssetID(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Outputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetAssetID(v)
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestOutputGetAssetID(t *testing.T) {
 
 func TestOutputGetScriptHash(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Outputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetScriptHash(v)
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestOutputGetScriptHash(t *testing.T) {
 
 func TestOutputGetValue(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Outputs[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetValue(v)
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestOutputGetValue(t *testing.T) {
 
 func TestAttrGetData(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Attributes[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
 
 	err := context.attrGetData(v)
 	require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestAttrGetData(t *testing.T) {
 
 func TestAttrGetUsage(t *testing.T) {
 	v, tx, context := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx.Attributes[0]))
+	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
 
 	err := context.attrGetUsage(v)
 	require.NoError(t, err)
@@ -397,17 +397,17 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	tx := newMinerTX()
 
 	bytes := make([]byte, 1)
-	attributes := append(tx.Attributes, &transaction.Attribute{
+	attributes := append(tx.Attributes, transaction.Attribute{
 		Usage: transaction.Description,
 		Data:  bytes,
 	})
 
-	inputs := append(tx.Inputs, &transaction.Input{
+	inputs := append(tx.Inputs, transaction.Input{
 		PrevHash:  randomUint256(),
 		PrevIndex: 1,
 	})
 
-	outputs := append(tx.Outputs, &transaction.Output{
+	outputs := append(tx.Outputs, transaction.Output{
 		AssetID:    randomUint256(),
 		Amount:     10,
 		ScriptHash: randomUint160(),

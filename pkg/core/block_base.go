@@ -38,7 +38,7 @@ type BlockBase struct {
 	_ uint8
 
 	// Script used to validate the block
-	Script *transaction.Witness `json:"script"`
+	Script transaction.Witness `json:"script"`
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
@@ -80,7 +80,6 @@ func (b *BlockBase) DecodeBinary(br *io.BinReader) {
 		return
 	}
 
-	b.Script = &transaction.Witness{}
 	b.Script.DecodeBinary(br)
 }
 

@@ -945,7 +945,7 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Inp
 			tx = nil
 		} else if tx != nil {
 			for _, in := range inputs {
-				references[*in] = tx.Outputs[in.PrevIndex]
+				references[*in] = &tx.Outputs[in.PrevIndex]
 			}
 		} else {
 			references = nil
@@ -1243,8 +1243,9 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 
 			// group inputs by the same previous hash and iterate through inputs
 			group := make(map[util.Uint256][]*transaction.Input)
-			for _, input := range tx.Inputs {
-				group[input.PrevHash] = append(group[input.PrevHash], input)
+			for i := range tx.Inputs {
+				hash := tx.Inputs[i].PrevHash
+				group[hash] = append(group[hash], &tx.Inputs[i])
 			}
 
 			for hash, inputs := range group {
@@ -1360,7 +1361,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	}
 	hashes := make(map[util.Uint160]bool)
 	for _, i := range t.Inputs {
-		h := references[*i].ScriptHash
+		h := references[i].ScriptHash
 		if _, ok := hashes[h]; !ok {
 			hashes[h] = true
 		}
@@ -1486,7 +1487,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, block, t)
 	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], witnesses[i], t.VerificationHash(), interopCtx)
+		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx)
 		if err != nil {
 			numStr := fmt.Sprintf("witness #%d", i)
 			return errors.Wrap(err, numStr)
@@ -1505,7 +1506,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 		hash = prevHeader.NextConsensus
 	}
 	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, nil, nil)
-	return bc.verifyHashAgainstScript(hash, block.Script, block.VerificationHash(), interopCtx)
+	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

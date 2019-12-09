@@ -27,18 +27,18 @@ type Transaction struct {
 	Data TXer `json:"-"`
 
 	// Transaction attributes.
-	Attributes []*Attribute `json:"attributes"`
+	Attributes []Attribute `json:"attributes"`
 
 	// The inputs of the transaction.
-	Inputs []*Input `json:"vin"`
+	Inputs []Input `json:"vin"`
 
 	// The outputs of the transaction.
-	Outputs []*Output `json:"vout"`
+	Outputs []Output `json:"vout"`
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
-	Scripts []*Witness `json:"scripts"`
+	Scripts []Witness `json:"scripts"`
 
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
@@ -82,12 +82,12 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 
 // AddOutput adds the given output to the transaction outputs.
 func (t *Transaction) AddOutput(out *Output) {
-	t.Outputs = append(t.Outputs, out)
+	t.Outputs = append(t.Outputs, *out)
 }
 
 // AddInput adds the given input to the transaction inputs.
 func (t *Transaction) AddInput(in *Input) {
-	t.Inputs = append(t.Inputs, in)
+	t.Inputs = append(t.Inputs, *in)
 }
 
 // DecodeBinary implements Serializable interface.
@@ -187,8 +187,9 @@ func (t *Transaction) createHash() error {
 // GroupInputsByPrevHash groups all TX inputs by their previous hash.
 func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 	m := make(map[util.Uint256][]*Input)
-	for _, in := range t.Inputs {
-		m[in.PrevHash] = append(m[in.PrevHash], in)
+	for i := range t.Inputs {
+		hash := t.Inputs[i].PrevHash
+		m[hash] = append(m[hash], &t.Inputs[i])
 	}
 	return m
 }
@@ -196,8 +197,9 @@ func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
 // GroupOutputByAssetID groups all TX outputs by their assetID.
 func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 	m := make(map[util.Uint256][]*Output)
-	for _, out := range t.Outputs {
-		m[out.AssetID] = append(m[out.AssetID], out)
+	for i := range t.Outputs {
+		hash := t.Outputs[i].AssetID
+		m[hash] = append(m[hash], &t.Outputs[i])
 	}
 	return m
 }

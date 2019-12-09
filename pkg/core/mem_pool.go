@@ -288,7 +288,9 @@ func (mp MemPool) Verify(tx *transaction.Transaction) bool {
 	inputs := make([]*transaction.Input, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
 		if tx.Hash().Equals(item.Hash()) {
-			inputs = append(inputs, item.Inputs...)
+			for i := range item.Inputs {
+				inputs = append(inputs, &item.Inputs[i])
+			}
 		}
 	}
 

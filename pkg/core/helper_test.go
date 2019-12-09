@@ -55,7 +55,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 		vlen-(vlen-1)/3,
 		validators,
 	)
-	witness := &transaction.Witness{
+	witness := transaction.Witness{
 		VerificationScript: valScript,
 	}
 	b := &Block{

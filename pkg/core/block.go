@@ -91,7 +91,6 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	var padding uint8
 	br.ReadLE(&padding)
 
-	block.Script = &transaction.Witness{}
 	block.Script.DecodeBinary(br)
 
 	lenTX := br.ReadVarUint()
