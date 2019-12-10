@@ -87,7 +87,7 @@ func newDumbBlock() *Block {
 			Index:         1,
 			ConsensusData: 1111,
 			NextConsensus: hash.Hash160([]byte("a")),
-			Script: &transaction.Witness{
+			Script: transaction.Witness{
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},

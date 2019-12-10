@@ -26,10 +26,10 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 			Gas:     gas,
 			Version: 1,
 		},
-		Attributes: []*Attribute{},
-		Inputs:     []*Input{},
-		Outputs:    []*Output{},
-		Scripts:    []*Witness{},
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
 	}
 }
 

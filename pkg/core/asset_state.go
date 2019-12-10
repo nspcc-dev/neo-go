@@ -43,7 +43,7 @@ type AssetState struct {
 	Precision  uint8
 	FeeMode    uint8
 	FeeAddress util.Uint160
-	Owner      *keys.PublicKey
+	Owner      keys.PublicKey
 	Admin      util.Uint160
 	Issuer     util.Uint160
 	Expiration uint32
@@ -63,7 +63,6 @@ func (a *AssetState) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&a.FeeMode)
 	br.ReadBytes(a.FeeAddress[:])
 
-	a.Owner = &keys.PublicKey{}
 	a.Owner.DecodeBinary(br)
 	br.ReadBytes(a.Admin[:])
 	br.ReadBytes(a.Issuer[:])

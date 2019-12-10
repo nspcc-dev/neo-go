@@ -20,7 +20,7 @@ func TestHeaderEncodeDecode(t *testing.T) {
 		Index:         3445,
 		ConsensusData: 394949,
 		NextConsensus: util.Uint160{},
-		Script: &transaction.Witness{
+		Script: transaction.Witness{
 			InvocationScript:   []byte{0x10},
 			VerificationScript: []byte{0x11},
 		},

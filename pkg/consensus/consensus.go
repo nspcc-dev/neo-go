@@ -258,7 +258,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 
 func (s *service) processBlock(b block.Block) {
 	bb := &b.(*neoBlock).Block
-	bb.Script = s.getBlockWitness(bb)
+	bb.Script = *(s.getBlockWitness(bb))
 
 	if err := s.Chain.AddBlock(bb); err != nil {
 		s.log.Warnf("error on add block: %v", err)

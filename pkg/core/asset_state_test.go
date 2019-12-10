@@ -5,7 +5,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,6 @@ func TestEncodeDecodeAssetState(t *testing.T) {
 		Available:  util.Fixed8(100),
 		Precision:  0,
 		FeeMode:    feeMode,
-		Owner:      &keys.PublicKey{},
 		Admin:      randomUint160(),
 		Issuer:     randomUint160(),
 		Expiration: 10,
@@ -47,7 +45,6 @@ func TestPutGetAssetState(t *testing.T) {
 		Available:  util.Fixed8(100),
 		Precision:  8,
 		FeeMode:    feeMode,
-		Owner:      &keys.PublicKey{},
 		Admin:      randomUint160(),
 		Issuer:     randomUint160(),
 		Expiration: 10,

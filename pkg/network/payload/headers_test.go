@@ -16,7 +16,7 @@ func TestHeadersEncodeDecode(t *testing.T) {
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   1,
-				Script: &transaction.Witness{
+				Script: transaction.Witness{
 					InvocationScript:   []byte{0x0},
 					VerificationScript: []byte{0x1},
 				},
@@ -25,7 +25,7 @@ func TestHeadersEncodeDecode(t *testing.T) {
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   2,
-				Script: &transaction.Witness{
+				Script: transaction.Witness{
 					InvocationScript:   []byte{0x0},
 					VerificationScript: []byte{0x1},
 				},
@@ -34,7 +34,7 @@ func TestHeadersEncodeDecode(t *testing.T) {
 			BlockBase: core.BlockBase{
 				Version: 0,
 				Index:   3,
-				Script: &transaction.Witness{
+				Script: transaction.Witness{
 					InvocationScript:   []byte{0x0},
 					VerificationScript: []byte{0x1},
 				},

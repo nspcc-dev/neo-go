@@ -339,10 +339,10 @@ func newMinerTx(nonce uint32) *transaction.Transaction {
 		Data: &transaction.MinerTX{
 			Nonce: rand.Uint32(),
 		},
-		Attributes: []*transaction.Attribute{},
-		Inputs:     []*transaction.Input{},
-		Outputs:    []*transaction.Output{},
-		Scripts:    []*transaction.Witness{},
+		Attributes: []transaction.Attribute{},
+		Inputs:     []transaction.Input{},
+		Outputs:    []transaction.Output{},
+		Scripts:    []transaction.Witness{},
 		Trimmed:    false,
 	}
 }

@@ -23,7 +23,7 @@ type RegisterTX struct {
 	Precision uint8
 
 	// Public key of the owner.
-	Owner *keys.PublicKey
+	Owner keys.PublicKey
 
 	Admin util.Uint160
 }
@@ -37,7 +37,6 @@ func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 	br.ReadLE(&tx.Amount)
 	br.ReadLE(&tx.Precision)
 
-	tx.Owner = &keys.PublicKey{}
 	tx.Owner.DecodeBinary(br)
 
 	br.ReadBytes(tx.Admin[:])

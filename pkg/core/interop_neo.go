@@ -89,8 +89,8 @@ func (ic *interopContext) txGetAttributes(v *vm.VM) error {
 		return errors.New("too many attributes")
 	}
 	attrs := make([]vm.StackItem, 0, len(tx.Attributes))
-	for _, attr := range tx.Attributes {
-		attrs = append(attrs, vm.NewInteropItem(attr))
+	for i := range tx.Attributes {
+		attrs = append(attrs, vm.NewInteropItem(&tx.Attributes[i]))
 	}
 	v.Estack().PushVal(attrs)
 	return nil
@@ -107,8 +107,8 @@ func (ic *interopContext) txGetInputs(v *vm.VM) error {
 		return errors.New("too many inputs")
 	}
 	inputs := make([]vm.StackItem, 0, len(tx.Inputs))
-	for _, input := range tx.Inputs {
-		inputs = append(inputs, vm.NewInteropItem(input))
+	for i := range tx.Inputs {
+		inputs = append(inputs, vm.NewInteropItem(&tx.Inputs[i]))
 	}
 	v.Estack().PushVal(inputs)
 	return nil
@@ -125,8 +125,8 @@ func (ic *interopContext) txGetOutputs(v *vm.VM) error {
 		return errors.New("too many outputs")
 	}
 	outputs := make([]vm.StackItem, 0, len(tx.Outputs))
-	for _, output := range tx.Outputs {
-		outputs = append(outputs, vm.NewInteropItem(output))
+	for i := range tx.Outputs {
+		outputs = append(outputs, vm.NewInteropItem(&tx.Outputs[i]))
 	}
 	v.Estack().PushVal(outputs)
 	return nil
@@ -146,7 +146,7 @@ func (ic *interopContext) txGetReferences(v *vm.VM) error {
 
 	stackrefs := make([]vm.StackItem, 0, len(refs))
 	for _, k := range tx.Inputs {
-		tio := txInOut{*k, *refs[*k]}
+		tio := txInOut{k, *refs[k]}
 		stackrefs = append(stackrefs, vm.NewInteropItem(tio))
 	}
 	v.Estack().PushVal(stackrefs)
@@ -190,8 +190,8 @@ func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
 		return errors.New("too many outputs")
 	}
 	scripts := make([]vm.StackItem, 0, len(tx.Scripts))
-	for _, script := range tx.Scripts {
-		scripts = append(scripts, vm.NewInteropItem(script))
+	for i := range tx.Scripts {
+		scripts = append(scripts, vm.NewInteropItem(&tx.Scripts[i]))
 	}
 	v.Estack().PushVal(scripts)
 	return nil
@@ -615,7 +615,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 		Name:       name,
 		Amount:     amount,
 		Precision:  precision,
-		Owner:      owner,
+		Owner:      *owner,
 		Admin:      admin,
 		Issuer:     issuer,
 		Expiration: ic.bc.BlockHeight() + DefaultAssetLifetime,

@@ -31,7 +31,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		Index:         0,
 		ConsensusData: 2083236893,
 		NextConsensus: nextConsensus,
-		Script: &transaction.Witness{
+		Script: transaction.Witness{
 			InvocationScript:   []byte{},
 			VerificationScript: []byte{byte(opcode.PUSHT)},
 		},
@@ -56,25 +56,25 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 				Data: &transaction.MinerTX{
 					Nonce: 2083236893,
 				},
-				Attributes: []*transaction.Attribute{},
-				Inputs:     []*transaction.Input{},
-				Outputs:    []*transaction.Output{},
-				Scripts:    []*transaction.Witness{},
+				Attributes: []transaction.Attribute{},
+				Inputs:     []transaction.Input{},
+				Outputs:    []transaction.Output{},
+				Scripts:    []transaction.Witness{},
 			},
 			governingTX,
 			utilityTX,
 			{
 				Type:   transaction.IssueType,
 				Data:   &transaction.IssueTX{}, // no fields.
-				Inputs: []*transaction.Input{},
-				Outputs: []*transaction.Output{
+				Inputs: []transaction.Input{},
+				Outputs: []transaction.Output{
 					{
 						AssetID:    governingTX.Hash(),
 						Amount:     governingTX.Data.(*transaction.RegisterTX).Amount,
 						ScriptHash: scriptOut,
 					},
 				},
-				Scripts: []*transaction.Witness{
+				Scripts: []transaction.Witness{
 					{
 						InvocationScript:   []byte{},
 						VerificationScript: []byte{byte(opcode.PUSHT)},
@@ -98,17 +98,16 @@ func governingTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
 		Amount:    util.Fixed8FromInt64(100000000),
 		Precision: 0,
-		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 
 	tx := &transaction.Transaction{
 		Type:       transaction.RegisterType,
 		Data:       registerTX,
-		Attributes: []*transaction.Attribute{},
-		Inputs:     []*transaction.Input{},
-		Outputs:    []*transaction.Output{},
-		Scripts:    []*transaction.Witness{},
+		Attributes: []transaction.Attribute{},
+		Inputs:     []transaction.Input{},
+		Outputs:    []transaction.Output{},
+		Scripts:    []transaction.Witness{},
 	}
 
 	return tx
@@ -121,16 +120,15 @@ func utilityTokenTX() *transaction.Transaction {
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
 		Amount:    calculateUtilityAmount(),
 		Precision: 8,
-		Owner:     &keys.PublicKey{},
 		Admin:     admin,
 	}
 	tx := &transaction.Transaction{
 		Type:       transaction.RegisterType,
 		Data:       registerTX,
-		Attributes: []*transaction.Attribute{},
-		Inputs:     []*transaction.Input{},
-		Outputs:    []*transaction.Output{},
-		Scripts:    []*transaction.Witness{},
+		Attributes: []transaction.Attribute{},
+		Inputs:     []transaction.Input{},
+		Outputs:    []transaction.Output{},
+		Scripts:    []transaction.Witness{},
 	}
 
 	return tx
