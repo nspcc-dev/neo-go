@@ -73,6 +73,9 @@ type Blockchain struct {
 	runToExitCh chan struct{}
 
 	memPool MemPool
+
+	// cache for block verification keys.
+	keyCache map[util.Uint160]map[string]*keys.PublicKey
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -88,6 +91,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
 		memPool:       NewMemPool(50000),
+		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 	}
 
 	if err := bc.init(); err != nil {
@@ -1427,7 +1431,7 @@ func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext, useKeys bool) error {
 	verification := witness.VerificationScript
 
 	if len(verification) == 0 {
@@ -1447,6 +1451,9 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
+	if useKeys && bc.keyCache[hash] != nil {
+		vm.SetPublicKeys(bc.keyCache[hash])
+	}
 	err := vm.Run()
 	if vm.HasFailed() {
 		return errors.Errorf("vm failed to execute the script with error: %s", err)
@@ -1459,6 +1466,9 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		}
 		if !res {
 			return errors.Errorf("signature check failed")
+		}
+		if useKeys && bc.keyCache[hash] == nil {
+			bc.keyCache[hash] = vm.GetPublicKeys()
 		}
 	} else {
 		return errors.Errorf("no result returned from the script")
@@ -1487,7 +1497,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, block, t)
 	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx)
+		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
 		if err != nil {
 			numStr := fmt.Sprintf("witness #%d", i)
 			return errors.Wrap(err, numStr)
@@ -1506,7 +1516,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 		hash = prevHeader.NextConsensus
 	}
 	interopCtx := newInteropContext(trigger.Verification, bc, bc.store, nil, nil)
-	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx)
+	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx, true)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
