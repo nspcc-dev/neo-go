@@ -394,23 +394,8 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
 						return err
 					}
-					if len(account.Votes) > 0 {
-						for _, vote := range account.Votes {
-							validator, err := cache.GetValidatorStateOrNew(vote)
-							if err != nil {
-								return err
-							}
-							validator.Votes -= prevTXOutput.Amount
-							if !validator.RegisteredAndHasVotes() {
-								if err = cache.DeleteValidatorState(validator); err != nil {
-									return err
-								}
-							} else {
-								if err = cache.PutValidatorState(validator); err != nil {
-									return err
-								}
-							}
-						}
+					if err = processTXWithValidatorsSubtract(account, cache, prevTXOutput.Amount); err != nil {
+						return err
 					}
 				}
 
@@ -570,7 +555,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 		}
 	}
 	_, err := cache.store.Persist()
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
@@ -596,16 +581,43 @@ func processOutputs(tx *transaction.Transaction, dao *dao) error {
 		if err = dao.PutAccountState(account); err != nil {
 			return err
 		}
-		if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
-			for _, vote := range account.Votes {
-				validatorState, err := dao.GetValidatorStateOrNew(vote)
-				if err != nil {
-					return err
-				}
-				validatorState.Votes += output.Amount
-				if err = dao.PutValidatorState(validatorState); err != nil {
-					return err
-				}
+		if err = processTXWithValidatorsAdd(&output, account, dao); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *dao) error {
+	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+		for _, vote := range account.Votes {
+			validatorState, err := dao.GetValidatorStateOrNew(vote)
+			if err != nil {
+				return err
+			}
+			validatorState.Votes += output.Amount
+			if err = dao.PutValidatorState(validatorState); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func processTXWithValidatorsSubtract(account *state.Account, dao *dao, toSubtract util.Fixed8) error {
+	for _, vote := range account.Votes {
+		validator, err := dao.GetValidatorStateOrNew(vote)
+		if err != nil {
+			return err
+		}
+		validator.Votes -= toSubtract
+		if !validator.RegisteredAndHasVotes() {
+			if err := dao.DeleteValidatorState(validator); err != nil {
+				return err
+			}
+		} else {
+			if err := dao.PutValidatorState(validator); err != nil {
+				return err
 			}
 		}
 	}
@@ -645,21 +657,8 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 
 	if descriptor.Field == "Votes" {
 		balance := account.GetBalanceValues()[governingTokenTX().Hash()]
-		for _, vote := range account.Votes {
-			validator, err := dao.GetValidatorStateOrNew(vote)
-			if err != nil {
-				return err
-			}
-			validator.Votes -= balance
-			if !validator.RegisteredAndHasVotes() {
-				if err := dao.DeleteValidatorState(validator); err != nil {
-					return err
-				}
-			} else {
-				if err := dao.PutValidatorState(validator); err != nil {
-					return err
-				}
-			}
+		if err = processTXWithValidatorsSubtract(account, dao, balance); err != nil {
+			return err
 		}
 
 		votes := keys.PublicKeys{}
@@ -840,7 +839,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
-	contract, err :=  bc.dao.GetContractState(hash)
+	contract, err := bc.dao.GetContractState(hash)
 	if contract == nil && err != storage.ErrKeyNotFound {
 		log.Warnf("failed to get contract state: %s", err)
 	}
@@ -1174,17 +1173,8 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 				if err := cache.PutAccountState(accountState); err != nil {
 					return nil, err
 				}
-				if output.AssetID.Equals(governingTokenTX().Hash()) && len(accountState.Votes) > 0 {
-					for _, vote := range accountState.Votes {
-						validatorState, err := cache.GetValidatorStateOrNew(vote)
-						if err != nil {
-							return nil, err
-						}
-						validatorState.Votes += output.Amount
-						if err = cache.PutValidatorState(validatorState); err != nil {
-							return nil, err
-						}
-					}
+				if err = processTXWithValidatorsAdd(&output, accountState, cache); err != nil {
+					return nil, err
 				}
 			}
 
@@ -1209,24 +1199,8 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 					}
 
 					// process account state votes: if there are any -> validators will be updated.
-					if prevOutput.AssetID.Equals(governingTokenTX().Hash()) {
-						if len(accountState.Votes) > 0 {
-							for _, vote := range accountState.Votes {
-								validatorState, err := cache.GetValidatorStateOrNew(vote)
-								if err != nil {
-									return nil, err
-								}
-								validatorState.Votes -= prevOutput.Amount
-								if err = cache.PutValidatorState(validatorState); err != nil {
-									return nil, err
-								}
-								if !validatorState.Registered && validatorState.Votes.Equal(util.Fixed8(0)) {
-									if err = cache.DeleteValidatorState(validatorState); err != nil {
-										return nil, err
-									}
-								}
-							}
-						}
+					if err = processTXWithValidatorsSubtract(accountState, cache, prevOutput.Amount); err != nil {
+						return nil, err
 					}
 					delete(accountState.Balances, prevOutput.AssetID)
 					if err = cache.PutAccountState(accountState); err != nil {
