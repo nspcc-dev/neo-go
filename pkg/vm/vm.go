@@ -75,6 +75,9 @@ type VM struct {
 
 	itemCount map[StackItem]int
 	size      int
+
+	// Public keys cache.
+	keys map[string]*keys.PublicKey
 }
 
 // InteropFuncPrice represents an interop function with a price.
@@ -92,6 +95,7 @@ func New() *VM {
 		istack:    NewStack("invocation"),
 
 		itemCount: make(map[StackItem]int),
+		keys:      make(map[string]*keys.PublicKey),
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
@@ -143,6 +147,17 @@ func (v *VM) Astack() *Stack {
 // Istack returns the invocation stack so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return v.istack
+}
+
+// SetPublicKeys sets internal key cache to the specified value (note
+// that it doesn't copy them).
+func (v *VM) SetPublicKeys(keys map[string]*keys.PublicKey) {
+	v.keys = keys
+}
+
+// GetPublicKeys returns internal key cache (note that it doesn't copy it).
+func (v *VM) GetPublicKeys() map[string]*keys.PublicKey {
+	return v.keys
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
@@ -1168,11 +1183,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			msg := v.estack.Pop().Bytes()
 			hashToCheck = hash.Sha256(msg).BytesBE()
 		}
-		pkey := &keys.PublicKey{}
-		err := pkey.DecodeBytes(keyb)
-		if err != nil {
-			panic(err.Error())
-		}
+		pkey := v.bytesToPublicKey(keyb)
 		res := pkey.Verify(signature, hashToCheck)
 		v.estack.PushVal(res)
 
@@ -1197,11 +1208,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// j counts keys and i counts signatures.
 		j := 0
 		for i := 0; sigok && j < len(pkeys) && i < len(sigs); {
-			pkey := &keys.PublicKey{}
-			err := pkey.DecodeBytes(pkeys[j])
-			if err != nil {
-				panic(err.Error())
-			}
+			pkey := v.bytesToPublicKey(pkeys[j])
 			// We only move to the next signature if the check was
 			// successful, but if it's not maybe the next key will
 			// fit, so we always move to the next key.
@@ -1423,4 +1430,22 @@ func (v *VM) checkBigIntSize(a *big.Int) {
 	if a.BitLen() > MaxBigIntegerSizeBits {
 		panic("big integer is too big")
 	}
+}
+
+// bytesToPublicKey is a helper deserializing keys using cache and panicing on
+// error.
+func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
+	var pkey *keys.PublicKey
+	s := string(b)
+	if v.keys[s] != nil {
+		pkey = v.keys[s]
+	} else {
+		pkey = &keys.PublicKey{}
+		err := pkey.DecodeBytes(b)
+		if err != nil {
+			panic(err.Error())
+		}
+		v.keys[s] = pkey
+	}
+	return pkey
 }
