@@ -8,6 +8,7 @@ package core
 */
 
 import (
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -18,14 +19,14 @@ type interopContext struct {
 	trigger       byte
 	block         *Block
 	tx            *transaction.Transaction
-	mem           *storage.MemCachedStore
-	notifications []NotificationEvent
+	dao           *dao
+	notifications []state.NotificationEvent
 }
 
 func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
-	mem := storage.NewMemCachedStore(s)
-	nes := make([]NotificationEvent, 0)
-	return &interopContext{bc, trigger, block, tx, mem, nes}
+	dao := &dao{store: storage.NewMemCachedStore(s)}
+	nes := make([]state.NotificationEvent, 0)
+	return &interopContext{bc, trigger, block, tx, dao, nes}
 }
 
 // All lists are sorted, keep 'em this way, please.

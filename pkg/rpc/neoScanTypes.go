@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -20,7 +20,7 @@ type (
 
 	// Unspent stores Unspents per asset
 	Unspent struct {
-		Unspent core.UnspentBalances
+		Unspent state.UnspentBalances
 		Asset   string      // "NEO" / "GAS"
 		Amount  util.Fixed8 // total unspent of this asset
 	}

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -68,7 +68,7 @@ func (s NeoScanServer) CalculateInputs(address string, assetIDUint util.Uint256,
 
 // unspentsToInputs uses UnspentBalances to create a slice of inputs for a new
 // transcation containing the required amount of asset.
-func unspentsToInputs(utxos core.UnspentBalances, required util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
+func unspentsToInputs(utxos state.UnspentBalances, required util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var (
 		num, i   uint16
 		selected = util.Fixed8(0)

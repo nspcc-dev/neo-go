@@ -1,9 +1,8 @@
-package core
+package state
 
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -13,7 +12,7 @@ import (
 func TestEncodeDecodeContractState(t *testing.T) {
 	script := []byte("testscript")
 
-	contract := &ContractState{
+	contract := &Contract{
 		Script:      script,
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.BoolType,
@@ -29,7 +28,7 @@ func TestEncodeDecodeContractState(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	contract.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
-	contractDecoded := &ContractState{}
+	contractDecoded := &Contract{}
 	r := io.NewBinReaderFromBuf(buf.Bytes())
 	contractDecoded.DecodeBinary(r)
 	assert.Nil(t, r.Err)
@@ -38,10 +37,10 @@ func TestEncodeDecodeContractState(t *testing.T) {
 }
 
 func TestContractStateProperties(t *testing.T) {
-	flaggedContract := ContractState{
+	flaggedContract := Contract{
 		Properties: smartcontract.HasStorage | smartcontract.HasDynamicInvoke | smartcontract.IsPayable,
 	}
-	nonFlaggedContract := ContractState{
+	nonFlaggedContract := Contract{
 		ReturnType: smartcontract.BoolType,
 	}
 	assert.Equal(t, true, flaggedContract.HasStorage())
@@ -50,28 +49,4 @@ func TestContractStateProperties(t *testing.T) {
 	assert.Equal(t, false, nonFlaggedContract.HasStorage())
 	assert.Equal(t, false, nonFlaggedContract.HasDynamicInvoke())
 	assert.Equal(t, false, nonFlaggedContract.IsPayable())
-}
-
-func TestPutGetDeleteContractState(t *testing.T) {
-	s := storage.NewMemoryStore()
-	script := []byte("testscript")
-
-	contract := &ContractState{
-		Script:      script,
-		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
-		ReturnType:  smartcontract.BoolType,
-		Properties:  smartcontract.HasStorage,
-		Name:        "Contrato",
-		CodeVersion: "1.0.0",
-		Author:      "Joe Random",
-		Email:       "joe@example.com",
-		Description: "Test contract",
-	}
-	assert.NoError(t, putContractStateIntoStore(s, contract))
-	csRead := getContractStateFromStore(s, contract.ScriptHash())
-	assert.NotNil(t, csRead)
-	assert.Equal(t, contract, csRead)
-	assert.NoError(t, deleteContractStateInStore(s, contract.ScriptHash()))
-	csRead2 := getContractStateFromStore(s, contract.ScriptHash())
-	assert.Nil(t, csRead2)
 }

@@ -4,9 +4,11 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -321,7 +323,7 @@ func TestAssetGetPrecision(t *testing.T) {
 	require.Equal(t, big.NewInt(int64(assetState.Precision)), precision)
 }
 
-// Helper functions to create VM, InteropContext, TX, AccountState, ContractState, AssetState.
+// Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext) {
 	v := vm.New()
@@ -337,9 +339,9 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 	return v, tx, context
 }
 
-func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) {
+func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext) {
 	v := vm.New()
-	assetState := &AssetState{
+	assetState := &state.Asset{
 		ID:         util.Uint256{},
 		AssetType:  transaction.GoverningToken,
 		Name:       "TestAsset",
@@ -347,10 +349,10 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 		Available:  2,
 		Precision:  1,
 		FeeMode:    1,
-		FeeAddress: randomUint160(),
+		FeeAddress: random.Uint160(),
 		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
-		Admin:      randomUint160(),
-		Issuer:     randomUint160(),
+		Admin:      random.Uint160(),
+		Issuer:     random.Uint160(),
 		Expiration: 10,
 		IsFrozen:   false,
 	}
@@ -359,30 +361,29 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *AssetState, *interopContext) 
 	return v, assetState, context
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *ContractState, *interopContext) {
+func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopContext) {
 	v := vm.New()
-	contractState := &ContractState{
+	contractState := &state.Contract{
 		Script:      []byte("testscript"),
 		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
 		ReturnType:  smartcontract.ArrayType,
 		Properties:  smartcontract.HasStorage,
-		Name:        randomString(10),
-		CodeVersion: randomString(10),
-		Author:      randomString(10),
-		Email:       randomString(10),
-		Description: randomString(10),
-		scriptHash:  randomUint160(),
+		Name:        random.String(10),
+		CodeVersion: random.String(10),
+		Author:      random.String(10),
+		Email:       random.String(10),
+		Description: random.String(10),
 	}
 
 	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
 	return v, contractState, context
 }
 
-func createVMAndAccState(t *testing.T) (*vm.VM, *AccountState, *interopContext) {
+func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
-	accountState := NewAccountState(hash)
+	accountState := state.NewAccount(hash)
 
 	key := &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)}
 	accountState.Votes = []*keys.PublicKey{key}
@@ -403,14 +404,14 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	})
 
 	inputs := append(tx.Inputs, transaction.Input{
-		PrevHash:  randomUint256(),
+		PrevHash:  random.Uint256(),
 		PrevIndex: 1,
 	})
 
 	outputs := append(tx.Outputs, transaction.Output{
-		AssetID:    randomUint256(),
+		AssetID:    random.Uint256(),
 		Amount:     10,
-		ScriptHash: randomUint160(),
+		ScriptHash: random.Uint160(),
 		Position:   1,
 	})
 

@@ -2,15 +2,15 @@ package wrappers
 
 import (
 	"bytes"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // AccountState wrapper used for the representation of
-// core.AccountState on the RPC Server.
+// state.Account on the RPC Server.
 type AccountState struct {
 	Version    uint8             `json:"version"`
 	ScriptHash util.Uint160      `json:"script_hash"`
@@ -32,8 +32,8 @@ type Balance struct {
 	Value util.Fixed8  `json:"value"`
 }
 
-// NewAccountState creates a new AccountState wrapper.
-func NewAccountState(a *core.AccountState) AccountState {
+// NewAccountState creates a new Account wrapper.
+func NewAccountState(a *state.Account) AccountState {
 	balances := make(Balances, 0, len(a.Balances))
 	for k, v := range a.GetBalanceValues() {
 		balances = append(balances, Balance{
