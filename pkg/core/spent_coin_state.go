@@ -26,7 +26,7 @@ func NewSpentCoinState(hash util.Uint256, height uint32) *SpentCoinState {
 // DecodeBinary implements Serializable interface.
 func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(s.txHash[:])
-	br.ReadLE(&s.txHeight)
+	s.txHeight = br.ReadU32LE()
 
 	s.items = make(map[uint16]uint32)
 	lenItems := br.ReadVarUint()
@@ -35,8 +35,8 @@ func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
 			key   uint16
 			value uint32
 		)
-		br.ReadLE(&key)
-		br.ReadLE(&value)
+		key = br.ReadU16LE()
+		value = br.ReadU32LE()
 		s.items[key] = value
 	}
 }
@@ -44,10 +44,10 @@ func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (s *SpentCoinState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(s.txHash[:])
-	bw.WriteLE(s.txHeight)
+	bw.WriteU32LE(s.txHeight)
 	bw.WriteVarUint(uint64(len(s.items)))
 	for k, v := range s.items {
-		bw.WriteLE(k)
-		bw.WriteLE(v)
+		bw.WriteU16LE(k)
+		bw.WriteU32LE(v)
 	}
 }

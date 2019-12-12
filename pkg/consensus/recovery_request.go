@@ -14,12 +14,12 @@ var _ payload.RecoveryRequest = (*recoveryRequest)(nil)
 
 // DecodeBinary implements io.Serializable interface.
 func (m *recoveryRequest) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&m.timestamp)
+	m.timestamp = r.ReadU32LE()
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (m *recoveryRequest) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(m.timestamp)
+	w.WriteU32LE(m.timestamp)
 }
 
 // Timestamp implements payload.RecoveryRequest interface.

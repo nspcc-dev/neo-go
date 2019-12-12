@@ -16,12 +16,20 @@ const maxArraySize = 0x1000000
 // Used to simplify error handling when reading into a struct with many fields.
 type BinReader struct {
 	r   io.Reader
+	u64 []byte
+	u32 []byte
+	u16 []byte
+	u8  []byte
 	Err error
 }
 
 // NewBinReaderFromIO makes a BinReader from io.Reader.
 func NewBinReaderFromIO(ior io.Reader) *BinReader {
-	return &BinReader{r: ior}
+	u64 := make([]byte, 8)
+	u32 := u64[:4]
+	u16 := u64[:2]
+	u8 := u64[:1]
+	return &BinReader{r: ior, u64: u64, u32: u32, u16: u16, u8: u8}
 }
 
 // NewBinReaderFromBuf makes a BinReader from byte buffer.
@@ -37,6 +45,62 @@ func (r *BinReader) ReadLE(v interface{}) {
 		return
 	}
 	r.Err = binary.Read(r.r, binary.LittleEndian, v)
+}
+
+// ReadU64LE reads a little-endian encoded uint64 value from the underlying
+// io.Reader. On read failures it returns zero.
+func (r *BinReader) ReadU64LE() uint64 {
+	r.ReadBytes(r.u64)
+	if r.Err != nil {
+		return 0
+	}
+	return binary.LittleEndian.Uint64(r.u64)
+}
+
+// ReadU32LE reads a little-endian encoded uint32 value from the underlying
+// io.Reader. On read failures it returns zero.
+func (r *BinReader) ReadU32LE() uint32 {
+	r.ReadBytes(r.u32)
+	if r.Err != nil {
+		return 0
+	}
+	return binary.LittleEndian.Uint32(r.u32)
+}
+
+// ReadU16LE reads a little-endian encoded uint16 value from the underlying
+// io.Reader. On read failures it returns zero.
+func (r *BinReader) ReadU16LE() uint16 {
+	r.ReadBytes(r.u16)
+	if r.Err != nil {
+		return 0
+	}
+	return binary.LittleEndian.Uint16(r.u16)
+}
+
+// ReadU16BE reads a big-endian encoded uint16 value from the underlying
+// io.Reader. On read failures it returns zero.
+func (r *BinReader) ReadU16BE() uint16 {
+	r.ReadBytes(r.u16)
+	if r.Err != nil {
+		return 0
+	}
+	return binary.BigEndian.Uint16(r.u16)
+}
+
+// ReadB reads a byte from the underlying io.Reader. On read failures it
+// returns zero.
+func (r *BinReader) ReadB() byte {
+	r.ReadBytes(r.u8)
+	if r.Err != nil {
+		return 0
+	}
+	return r.u8[0]
+}
+
+// ReadBool reads a boolean value encoded in a zero/non-zero byte from the
+// underlying io.Reader. On read failures it returns false.
+func (r *BinReader) ReadBool() bool {
+	return r.ReadB() != 0
 }
 
 // ReadArray reads array into value which must be
@@ -105,23 +169,16 @@ func (r *BinReader) ReadVarUint() uint64 {
 		return 0
 	}
 
-	var b uint8
-	r.Err = binary.Read(r.r, binary.LittleEndian, &b)
+	var b = r.ReadB()
 
 	if b == 0xfd {
-		var v uint16
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return uint64(v)
+		return uint64(r.ReadU16LE())
 	}
 	if b == 0xfe {
-		var v uint32
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return uint64(v)
+		return uint64(r.ReadU32LE())
 	}
 	if b == 0xff {
-		var v uint64
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return v
+		return r.ReadU64LE()
 	}
 
 	return uint64(b)

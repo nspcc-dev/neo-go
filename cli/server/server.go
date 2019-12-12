@@ -167,7 +167,7 @@ func dumpDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = chainHeight - skip
 	}
-	writer.WriteLE(count)
+	writer.WriteU32LE(count)
 	for i := skip + 1; i <= skip+count; i++ {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
@@ -211,8 +211,7 @@ func restoreDB(ctx *cli.Context) error {
 	}
 	go chain.Run()
 
-	var allBlocks uint32
-	reader.ReadLE(&allBlocks)
+	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -249,10 +248,9 @@ func restoreDB(ctx *cli.Context) error {
 
 // readBlock performs reading of block size and then bytes with the length equal to that size.
 func readBlock(reader *io.BinReader) ([]byte, error) {
-	var size uint32
-	reader.ReadLE(&size)
+	var size = reader.ReadU32LE()
 	bytes := make([]byte, size)
-	reader.ReadLE(bytes)
+	reader.ReadBytes(bytes)
 	if reader.Err != nil {
 		return nil, reader.Err
 	}

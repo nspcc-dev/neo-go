@@ -29,40 +29,40 @@ type Asset struct {
 // DecodeBinary implements Serializable interface.
 func (a *Asset) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(a.ID[:])
-	br.ReadLE(&a.AssetType)
+	a.AssetType = transaction.AssetType(br.ReadB())
 
 	a.Name = br.ReadString()
 
-	br.ReadLE(&a.Amount)
-	br.ReadLE(&a.Available)
-	br.ReadLE(&a.Precision)
-	br.ReadLE(&a.FeeMode)
+	a.Amount.DecodeBinary(br)
+	a.Available.DecodeBinary(br)
+	a.Precision = uint8(br.ReadB())
+	a.FeeMode = uint8(br.ReadB())
 	br.ReadBytes(a.FeeAddress[:])
 
 	a.Owner.DecodeBinary(br)
 	br.ReadBytes(a.Admin[:])
 	br.ReadBytes(a.Issuer[:])
-	br.ReadLE(&a.Expiration)
-	br.ReadLE(&a.IsFrozen)
+	a.Expiration = br.ReadU32LE()
+	a.IsFrozen = br.ReadBool()
 }
 
 // EncodeBinary implements Serializable interface.
 func (a *Asset) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(a.ID[:])
-	bw.WriteLE(a.AssetType)
+	bw.WriteB(byte(a.AssetType))
 	bw.WriteString(a.Name)
-	bw.WriteLE(a.Amount)
-	bw.WriteLE(a.Available)
-	bw.WriteLE(a.Precision)
-	bw.WriteLE(a.FeeMode)
+	a.Amount.EncodeBinary(bw)
+	a.Available.EncodeBinary(bw)
+	bw.WriteB(byte(a.Precision))
+	bw.WriteB(byte(a.FeeMode))
 	bw.WriteBytes(a.FeeAddress[:])
 
 	a.Owner.EncodeBinary(bw)
 
 	bw.WriteBytes(a.Admin[:])
 	bw.WriteBytes(a.Issuer[:])
-	bw.WriteLE(a.Expiration)
-	bw.WriteLE(a.IsFrozen)
+	bw.WriteU32LE(a.Expiration)
+	bw.WriteBool(a.IsFrozen)
 }
 
 // GetName returns the asset name based on its type.

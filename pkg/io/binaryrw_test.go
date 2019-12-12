@@ -53,6 +53,123 @@ func TestWriteBE(t *testing.T) {
 	assert.Equal(t, val, readval)
 }
 
+func TestWriteU64LE(t *testing.T) {
+	var (
+		val     uint64 = 0xbadc0de15a11dead
+		readval uint64
+		bin     = []byte{0xad, 0xde, 0x11, 0x5a, 0xe1, 0x0d, 0xdc, 0xba}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteU64LE(val)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	readval = br.ReadU64LE()
+	assert.Nil(t, br.Err)
+	assert.Equal(t, val, readval)
+}
+
+func TestWriteU32LE(t *testing.T) {
+	var (
+		val     uint32 = 0xdeadbeef
+		readval uint32
+		bin     = []byte{0xef, 0xbe, 0xad, 0xde}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteU32LE(val)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	readval = br.ReadU32LE()
+	assert.Nil(t, br.Err)
+	assert.Equal(t, val, readval)
+}
+
+func TestWriteU16LE(t *testing.T) {
+	var (
+		val     uint16 = 0xbabe
+		readval uint16
+		bin     = []byte{0xbe, 0xba}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteU16LE(val)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	readval = br.ReadU16LE()
+	assert.Nil(t, br.Err)
+	assert.Equal(t, val, readval)
+}
+
+func TestWriteU16BE(t *testing.T) {
+	var (
+		val     uint16 = 0xbabe
+		readval uint16
+		bin     = []byte{0xba, 0xbe}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteU16BE(val)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	readval = br.ReadU16BE()
+	assert.Nil(t, br.Err)
+	assert.Equal(t, val, readval)
+}
+
+func TestWriteByte(t *testing.T) {
+	var (
+		val     byte = 0xa5
+		readval byte
+		bin     = []byte{0xa5}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteB(val)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	readval = br.ReadB()
+	assert.Nil(t, br.Err)
+	assert.Equal(t, val, readval)
+}
+
+func TestWriteBool(t *testing.T) {
+	var (
+		bin = []byte{0x01, 0x00}
+	)
+	bw := NewBufBinWriter()
+	bw.WriteBool(true)
+	bw.WriteBool(false)
+	assert.Nil(t, bw.Err)
+	wrotebin := bw.Bytes()
+	assert.Equal(t, wrotebin, bin)
+	br := NewBinReaderFromBuf(bin)
+	assert.Equal(t, true, br.ReadBool())
+	assert.Equal(t, false, br.ReadBool())
+	assert.Nil(t, br.Err)
+}
+
+func TestReadLEErrors(t *testing.T) {
+	bin := []byte{0xad, 0xde, 0x11, 0x5a, 0xe1, 0x0d, 0xdc, 0xba}
+	br := NewBinReaderFromBuf(bin)
+	// Prime the buffers with something.
+	_ = br.ReadU64LE()
+	assert.Nil(t, br.Err)
+
+	assert.Equal(t, uint64(0), br.ReadU64LE())
+	assert.Equal(t, uint32(0), br.ReadU32LE())
+	assert.Equal(t, uint16(0), br.ReadU16LE())
+	assert.Equal(t, uint16(0), br.ReadU16BE())
+	assert.Equal(t, byte(0), br.ReadB())
+	assert.Equal(t, false, br.ReadBool())
+	assert.NotNil(t, br.Err)
+}
+
 func TestBufBinWriter_Len(t *testing.T) {
 	val := []byte{0xde}
 	bw := NewBufBinWriter()

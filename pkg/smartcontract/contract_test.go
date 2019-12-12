@@ -22,9 +22,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	}
 
 	br := io.NewBinReaderFromBuf(out)
-	var b uint8
-	br.ReadLE(&b)
-	assert.Equal(t, opcode.PUSH3, opcode.Opcode(b))
+	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 
 	for i := 0; i < len(validators); i++ {
 		bb := br.ReadVarBytes()
@@ -34,8 +32,6 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 		assert.Equal(t, validators[i].Bytes(), bb)
 	}
 
-	br.ReadLE(&b)
-	assert.Equal(t, opcode.PUSH3, opcode.Opcode(b))
-	br.ReadLE(&b)
-	assert.Equal(t, opcode.CHECKMULTISIG, opcode.Opcode(b))
+	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, opcode.CHECKMULTISIG, opcode.Opcode(br.ReadB()))
 }

@@ -55,25 +55,25 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements Serializable interface.
 func (p *Version) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&p.Version)
-	br.ReadLE(&p.Services)
-	br.ReadLE(&p.Timestamp)
-	br.ReadLE(&p.Port)
-	br.ReadLE(&p.Nonce)
+	p.Version = br.ReadU32LE()
+	p.Services = br.ReadU64LE()
+	p.Timestamp = br.ReadU32LE()
+	p.Port = br.ReadU16LE()
+	p.Nonce = br.ReadU32LE()
 	p.UserAgent = br.ReadVarBytes()
-	br.ReadLE(&p.StartHeight)
-	br.ReadLE(&p.Relay)
+	p.StartHeight = br.ReadU32LE()
+	p.Relay = br.ReadBool()
 }
 
 // EncodeBinary implements Serializable interface.
 func (p *Version) EncodeBinary(br *io.BinWriter) {
-	br.WriteLE(p.Version)
-	br.WriteLE(p.Services)
-	br.WriteLE(p.Timestamp)
-	br.WriteLE(p.Port)
-	br.WriteLE(p.Nonce)
+	br.WriteU32LE(p.Version)
+	br.WriteU64LE(p.Services)
+	br.WriteU32LE(p.Timestamp)
+	br.WriteU16LE(p.Port)
+	br.WriteU32LE(p.Nonce)
 
 	br.WriteVarBytes(p.UserAgent)
-	br.WriteLE(p.StartHeight)
-	br.WriteLE(&p.Relay)
+	br.WriteU32LE(p.StartHeight)
+	br.WriteBool(p.Relay)
 }

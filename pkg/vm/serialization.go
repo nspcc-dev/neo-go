@@ -47,7 +47,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteVarBytes(t.value)
 	case *BoolItem:
 		w.WriteBytes([]byte{byte(booleanT)})
-		w.WriteLE(t.value)
+		w.WriteBool(t.value)
 	case *BigIntegerItem:
 		w.WriteBytes([]byte{byte(integerT)})
 		w.WriteVarBytes(t.Bytes())
@@ -94,8 +94,7 @@ func deserializeItem(data []byte) (StackItem, error) {
 // as a function because StackItem itself is an interface. Caveat: always check
 // reader's error value before using the returned StackItem.
 func DecodeBinaryStackItem(r *io.BinReader) StackItem {
-	var t byte
-	r.ReadLE(&t)
+	var t = r.ReadB()
 	if r.Err != nil {
 		return nil
 	}
@@ -105,8 +104,7 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		data := r.ReadVarBytes()
 		return NewByteArrayItem(data)
 	case booleanT:
-		var b bool
-		r.ReadLE(&b)
+		var b = r.ReadBool()
 		return NewBoolItem(b)
 	case integerT:
 		data := r.ReadVarBytes()

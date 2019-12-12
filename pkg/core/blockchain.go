@@ -1451,7 +1451,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := io.NewBufBinWriter()
 	buf.WriteBytes(h.BytesLE())
-	buf.WriteLE(index)
+	buf.WriteU32LE(index)
 	return buf.Bytes()
 }
 

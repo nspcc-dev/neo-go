@@ -107,31 +107,31 @@ func (b *BlockBase) GetHashableData() []byte {
 // the modification of transaction will influence the hash value of the block.
 func (b *BlockBase) createHash() {
 	bb := b.GetHashableData()
-	b.hash = hash.DoubleSha256(bb)
 	b.verificationHash = hash.Sha256(bb)
+	b.hash = hash.Sha256(b.verificationHash.BytesBE())
 }
 
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
-	bw.WriteLE(b.Version)
+	bw.WriteU32LE(b.Version)
 	bw.WriteBytes(b.PrevHash[:])
 	bw.WriteBytes(b.MerkleRoot[:])
-	bw.WriteLE(b.Timestamp)
-	bw.WriteLE(b.Index)
-	bw.WriteLE(b.ConsensusData)
+	bw.WriteU32LE(b.Timestamp)
+	bw.WriteU32LE(b.Index)
+	bw.WriteU64LE(b.ConsensusData)
 	bw.WriteBytes(b.NextConsensus[:])
 }
 
 // decodeHashableFields decodes the fields used for hashing.
 // see Hash() for more information about the fields.
 func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
-	br.ReadLE(&b.Version)
+	b.Version = br.ReadU32LE()
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])
-	br.ReadLE(&b.Timestamp)
-	br.ReadLE(&b.Index)
-	br.ReadLE(&b.ConsensusData)
+	b.Timestamp = br.ReadU32LE()
+	b.Index = br.ReadU32LE()
+	b.ConsensusData = br.ReadU64LE()
 	br.ReadBytes(b.NextConsensus[:])
 
 	// Make the hash of the block here so we dont need to do this

@@ -449,8 +449,7 @@ func (dao *dao) GetTransaction(hash util.Uint256) (*transaction.Transaction, uin
 	}
 	r := io.NewBinReaderFromBuf(b)
 
-	var height uint32
-	r.ReadLE(&height)
+	var height = r.ReadU32LE()
 
 	tx := &transaction.Transaction{}
 	tx.DecodeBinary(r)
@@ -476,9 +475,8 @@ func (dao *dao) PutCurrentHeader(hashAndIndex []byte) error {
 func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 	r := bytes.NewReader(b)
 	br := io.NewBinReaderFromIO(r)
-	lenHashes := br.ReadVarUint()
-	hashes := make([]util.Uint256, lenHashes)
-	br.ReadLE(hashes)
+	hashes := make([]util.Uint256, 0)
+	br.ReadArray(&hashes)
 	if br.Err != nil {
 		return nil, br.Err
 	}
@@ -502,12 +500,12 @@ func (dao *dao) StoreAsBlock(block *Block, sysFee uint32) error {
 		buf = io.NewBufBinWriter()
 	)
 	// sysFee needs to be handled somehow
-	//	buf.WriteLE(sysFee)
+	//	buf.WriteU32LE(sysFee)
 	b, err := block.Trim()
 	if err != nil {
 		return err
 	}
-	buf.WriteLE(b)
+	buf.WriteBytes(b)
 	if buf.Err != nil {
 		return buf.Err
 	}
@@ -517,8 +515,9 @@ func (dao *dao) StoreAsBlock(block *Block, sysFee uint32) error {
 // StoreAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
 func (dao *dao) StoreAsCurrentBlock(block *Block) error {
 	buf := io.NewBufBinWriter()
-	buf.WriteLE(block.Hash().BytesLE())
-	buf.WriteLE(block.Index)
+	h := block.Hash()
+	h.EncodeBinary(buf.BinWriter)
+	buf.WriteU32LE(block.Index)
 	return dao.store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
@@ -526,7 +525,7 @@ func (dao *dao) StoreAsCurrentBlock(block *Block) error {
 func (dao *dao) StoreAsTransaction(tx *transaction.Transaction, index uint32) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesLE())
 	buf := io.NewBufBinWriter()
-	buf.WriteLE(index)
+	buf.WriteU32LE(index)
 	tx.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err

@@ -16,7 +16,7 @@ type Attribute struct {
 
 // DecodeBinary implements Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&attr.Usage)
+	attr.Usage = AttrUsage(br.ReadB())
 
 	// very special case
 	if attr.Usage == ECDH02 || attr.Usage == ECDH03 {
@@ -35,8 +35,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 		datasize = 20
 	case DescriptionURL:
 		// It's not VarUint as per C# implementation, dunno why
-		var urllen uint8
-		br.ReadLE(&urllen)
+		var urllen = br.ReadB()
 		datasize = uint64(urllen)
 	case Description, Remark, Remark1, Remark2, Remark3, Remark4,
 		Remark5, Remark6, Remark7, Remark8, Remark9, Remark10, Remark11,
@@ -52,7 +51,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(&attr.Usage)
+	bw.WriteB(byte(attr.Usage))
 	switch attr.Usage {
 	case ECDH02, ECDH03:
 		bw.WriteBytes(attr.Data[1:])
@@ -61,8 +60,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 		Remark12, Remark13, Remark14, Remark15:
 		bw.WriteVarBytes(attr.Data)
 	case DescriptionURL:
-		var urllen = uint8(len(attr.Data))
-		bw.WriteLE(urllen)
+		bw.WriteB(byte(len(attr.Data)))
 		fallthrough
 	case Script, ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5, Hash6,
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
