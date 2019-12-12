@@ -74,7 +74,7 @@ func TestPutAndGetAssetState(t *testing.T) {
 
 func TestPutAndGetContractState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
-	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestPutAndGetContractState(t *testing.T) {
 
 func TestDeleteContractState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
-	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 func TestPutGetUnspentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	unspentCoinState := &UnspentCoinState{states:[]state.Coin{}}
+	unspentCoinState := &UnspentCoinState{states: []state.Coin{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
@@ -140,7 +140,7 @@ func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 func TestPutAndGetSpentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
+	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
@@ -159,7 +159,7 @@ func TestGetSpentCoinState_Err(t *testing.T) {
 func TestDeleteSpentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
+	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	err = dao.DeleteSpentCoinState(hash)
@@ -230,7 +230,7 @@ func TestGetValidators(t *testing.T) {
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	appExecResult := &state.AppExecResult{TxHash: hash, Events:[]state.NotificationEvent{}}
+	appExecResult := &state.AppExecResult{TxHash: hash, Events: []state.NotificationEvent{}}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
 	gotAppExecResult, err := dao.GetAppExecResult(hash)
