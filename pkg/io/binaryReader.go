@@ -169,23 +169,16 @@ func (r *BinReader) ReadVarUint() uint64 {
 		return 0
 	}
 
-	var b uint8
-	r.Err = binary.Read(r.r, binary.LittleEndian, &b)
+	var b = r.ReadByte()
 
 	if b == 0xfd {
-		var v uint16
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return uint64(v)
+		return uint64(r.ReadU16LE())
 	}
 	if b == 0xfe {
-		var v uint32
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return uint64(v)
+		return uint64(r.ReadU32LE())
 	}
 	if b == 0xff {
-		var v uint64
-		r.Err = binary.Read(r.r, binary.LittleEndian, &v)
-		return v
+		return r.ReadU64LE()
 	}
 
 	return uint64(b)

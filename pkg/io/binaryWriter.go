@@ -123,24 +123,23 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 	}
 
 	if val < 0xfd {
-		w.Err = binary.Write(w.w, binary.LittleEndian, uint8(val))
+		w.WriteByte(byte(val))
 		return
 	}
 	if val < 0xFFFF {
-		w.Err = binary.Write(w.w, binary.LittleEndian, byte(0xfd))
-		w.Err = binary.Write(w.w, binary.LittleEndian, uint16(val))
+		w.WriteByte(byte(0xfd))
+		w.WriteU16LE(uint16(val))
 		return
 	}
 	if val < 0xFFFFFFFF {
-		w.Err = binary.Write(w.w, binary.LittleEndian, byte(0xfe))
-		w.Err = binary.Write(w.w, binary.LittleEndian, uint32(val))
+		w.WriteByte(byte(0xfe))
+		w.WriteU32LE(uint32(val))
 		return
 
 	}
 
-	w.Err = binary.Write(w.w, binary.LittleEndian, byte(0xff))
-	w.Err = binary.Write(w.w, binary.LittleEndian, val)
-
+	w.WriteByte(byte(0xff))
+	w.WriteU64LE(val)
 }
 
 // WriteBytes writes a variable byte into the underlying io.Writer without prefix.
