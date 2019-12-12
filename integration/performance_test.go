@@ -8,7 +8,10 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,16 +31,46 @@ func BenchmarkTXPerformanceTest(t *testing.B) {
 
 	serverConfig := network.NewServerConfig(cfg)
 	server := network.NewServer(serverConfig, chain)
+	data := prepareData(t)
+	t.ResetTimer()
+
 	for n := 0; n < t.N; n++ {
-		tx := getTX()
-		require.Equal(t, server.RelayTxn(tx), network.RelaySucceed)
-		require.Equal(t, server.RelayTxn(tx), network.RelayAlreadyExists)
+		require.Equal(t, server.RelayTxn(data[n]), network.RelaySucceed)
+		require.Equal(t, server.RelayTxn(data[n]), network.RelayAlreadyExists)
 	}
 	chain.Close()
 }
 
+func prepareData(t *testing.B) []*transaction.Transaction {
+	var data []*transaction.Transaction
+
+	wif := getWif(t)
+
+	for n := 0; n < t.N; n++ {
+		tx := getTX(t, wif)
+		require.NoError(t, rpc.SignTx(tx, wif))
+		data = append(data, tx)
+	}
+	return data
+}
+
+// getWif returns Wif.
+func getWif(t *testing.B) *keys.WIF {
+	var (
+		wifEncoded = "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9o"
+		version    = byte(0x00)
+	)
+	wif, err := keys.WIFDecode(wifEncoded, version)
+	require.NoError(t, err)
+	return wif
+}
+
 // getTX returns Invocation transaction with some random attributes in order to have different hashes.
-func getTX() *transaction.Transaction {
+func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
+	fromAddress := wif.PrivateKey.Address()
+	fromAddressHash, err := crypto.Uint160DecodeAddress(fromAddress)
+	require.NoError(t, err)
+
 	tx := &transaction.Transaction{
 		Type:    transaction.InvocationType,
 		Version: 0,
@@ -56,6 +89,11 @@ func getTX() *transaction.Transaction {
 		transaction.Attribute{
 			Usage: transaction.Description,
 			Data:  []byte(randString(10)),
+		})
+	tx.Attributes = append(tx.Attributes,
+		transaction.Attribute{
+			Usage: transaction.Script,
+			Data:  fromAddressHash.BytesBE(),
 		})
 	return tx
 }
