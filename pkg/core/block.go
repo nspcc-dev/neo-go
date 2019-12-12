@@ -88,8 +88,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	br := io.NewBinReaderFromBuf(b)
 	block.decodeHashableFields(br)
 
-	var padding uint8
-	br.ReadLE(&padding)
+	_ = br.ReadByte()
 
 	block.Script.DecodeBinary(br)
 
@@ -97,7 +96,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	block.Transactions = make([]*transaction.Transaction, lenTX)
 	for i := 0; i < int(lenTX); i++ {
 		var hash util.Uint256
-		br.ReadLE(&hash)
+		hash.DecodeBinary(br)
 		block.Transactions[i] = transaction.NewTrimmedTX(hash)
 	}
 
@@ -110,7 +109,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	b.encodeHashableFields(buf.BinWriter)
-	buf.WriteBytes([]byte{1})
+	buf.WriteByte(1)
 	b.Script.EncodeBinary(buf.BinWriter)
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))

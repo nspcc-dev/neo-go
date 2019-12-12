@@ -39,9 +39,9 @@ func NewAccount(scriptHash util.Uint160) *Account {
 
 // DecodeBinary decodes Account from the given BinReader.
 func (s *Account) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&s.Version)
+	s.Version = uint8(br.ReadByte())
 	br.ReadBytes(s.ScriptHash[:])
-	br.ReadLE(&s.IsFrozen)
+	s.IsFrozen = br.ReadBool()
 	br.ReadArray(&s.Votes)
 
 	s.Balances = make(map[util.Uint256][]UnspentBalance)
@@ -57,9 +57,9 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary encodes Account to the given BinWriter.
 func (s *Account) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(s.Version)
+	bw.WriteByte(byte(s.Version))
 	bw.WriteBytes(s.ScriptHash[:])
-	bw.WriteLE(s.IsFrozen)
+	bw.WriteBool(s.IsFrozen)
 	bw.WriteArray(s.Votes)
 
 	bw.WriteVarUint(uint64(len(s.Balances)))
@@ -72,15 +72,15 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (u *UnspentBalance) DecodeBinary(r *io.BinReader) {
 	u.Tx.DecodeBinary(r)
-	r.ReadLE(&u.Index)
-	r.ReadLE(&u.Value)
+	u.Index = r.ReadU16LE()
+	u.Value.DecodeBinary(r)
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (u *UnspentBalance) EncodeBinary(w *io.BinWriter) {
 	u.Tx.EncodeBinary(w)
-	w.WriteLE(u.Index)
-	w.WriteLE(u.Value)
+	w.WriteU16LE(u.Index)
+	u.Value.EncodeBinary(w)
 }
 
 // GetBalanceValues sums all unspent outputs and returns a map of asset IDs to

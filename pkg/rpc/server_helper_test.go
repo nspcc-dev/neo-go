@@ -188,7 +188,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	f, err := os.Open("testdata/50testblocks.acc")
 	require.Nil(t, err)
 	br := io.NewBinReaderFromIO(f)
-	br.ReadLE(&nBlocks)
+	nBlocks = br.ReadU32LE()
 	require.Nil(t, br.Err)
 	for i := 0; i < int(nBlocks); i++ {
 		block := &core.Block{}

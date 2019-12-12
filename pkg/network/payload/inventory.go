@@ -56,12 +56,12 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 
 // DecodeBinary implements Serializable interface.
 func (p *Inventory) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&p.Type)
+	p.Type = InventoryType(br.ReadByte())
 	br.ReadArray(&p.Hashes)
 }
 
 // EncodeBinary implements Serializable interface.
 func (p *Inventory) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(p.Type)
+	bw.WriteByte(byte(p.Type))
 	bw.WriteArray(p.Hashes)
 }

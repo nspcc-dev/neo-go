@@ -29,18 +29,18 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
 
 // DecodeBinary implements Serializable interface.
 func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
-	br.ReadLE(&p.Timestamp)
-	br.ReadLE(&p.Services)
+	p.Timestamp = br.ReadU32LE()
+	p.Services = br.ReadU64LE()
 	br.ReadBytes(p.IP[:])
-	br.ReadBE(&p.Port)
+	p.Port = br.ReadU16BE()
 }
 
 // EncodeBinary implements Serializable interface.
 func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(p.Timestamp)
-	bw.WriteLE(p.Services)
+	bw.WriteU32LE(p.Timestamp)
+	bw.WriteU64LE(p.Services)
 	bw.WriteBytes(p.IP[:])
-	bw.WriteBE(p.Port)
+	bw.WriteU16BE(p.Port)
 }
 
 // IPPortString makes a string from IP and port specified.

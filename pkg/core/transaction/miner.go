@@ -12,10 +12,10 @@ type MinerTX struct {
 
 // DecodeBinary implements Serializable interface.
 func (tx *MinerTX) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&tx.Nonce)
+	tx.Nonce = r.ReadU32LE()
 }
 
 // EncodeBinary implements Serializable interface.
 func (tx *MinerTX) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(tx.Nonce)
+	w.WriteU32LE(tx.Nonce)
 }

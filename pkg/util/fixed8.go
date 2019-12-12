@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
 const (
@@ -107,6 +109,16 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json marshaller interface.
 func (f Fixed8) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil
+}
+
+// DecodeBinary implements the io.Serializable interface.
+func (f *Fixed8) DecodeBinary(r *io.BinReader) {
+	*f = Fixed8(r.ReadU64LE())
+}
+
+// EncodeBinary implements the io.Serializable interface.
+func (f *Fixed8) EncodeBinary(w *io.BinWriter) {
+	w.WriteU64LE(uint64(*f))
 }
 
 // Satoshi defines the value of a 'Satoshi'.

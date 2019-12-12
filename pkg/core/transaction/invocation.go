@@ -37,7 +37,7 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
 	tx.Script = br.ReadVarBytes()
 	if tx.Version >= 1 {
-		br.ReadLE(&tx.Gas)
+		tx.Gas.DecodeBinary(br)
 	} else {
 		tx.Gas = util.Fixed8FromInt64(0)
 	}
@@ -47,6 +47,6 @@ func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
 func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(tx.Script)
 	if tx.Version >= 1 {
-		bw.WriteLE(tx.Gas)
+		tx.Gas.EncodeBinary(bw)
 	}
 }

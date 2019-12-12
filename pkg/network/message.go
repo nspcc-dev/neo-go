@@ -149,10 +149,10 @@ func (m *Message) CommandType() CommandType {
 
 // Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
-	br.ReadLE(&m.Magic)
+	m.Magic = config.NetMode(br.ReadU32LE())
 	br.ReadBytes(m.Command[:])
-	br.ReadLE(&m.Length)
-	br.ReadLE(&m.Checksum)
+	m.Length = br.ReadU32LE()
+	m.Checksum = br.ReadU32LE()
 	if br.Err != nil {
 		return br.Err
 	}
@@ -165,7 +165,7 @@ func (m *Message) Decode(br *io.BinReader) error {
 
 func (m *Message) decodePayload(br *io.BinReader) error {
 	buf := make([]byte, m.Length)
-	br.ReadLE(buf)
+	br.ReadBytes(buf)
 	if br.Err != nil {
 		return br.Err
 	}
@@ -212,10 +212,10 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
-	br.WriteLE(m.Magic)
+	br.WriteU32LE(uint32(m.Magic))
 	br.WriteBytes(m.Command[:])
-	br.WriteLE(m.Length)
-	br.WriteLE(m.Checksum)
+	br.WriteU32LE(m.Length)
+	br.WriteU32LE(m.Checksum)
 	if m.Payload != nil {
 		m.Payload.EncodeBinary(br)
 

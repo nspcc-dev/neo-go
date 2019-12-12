@@ -161,11 +161,11 @@ func (p *Payload) SetHeight(h uint32) {
 
 // EncodeBinaryUnsigned writes payload to w excluding signature.
 func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
-	w.WriteLE(p.version)
+	w.WriteU32LE(p.version)
 	w.WriteBytes(p.prevHash[:])
-	w.WriteLE(p.height)
-	w.WriteLE(p.validatorIndex)
-	w.WriteLE(p.timestamp)
+	w.WriteU32LE(p.height)
+	w.WriteU16LE(p.validatorIndex)
+	w.WriteU32LE(p.timestamp)
 
 	ww := io.NewBufBinWriter()
 	p.message.EncodeBinary(ww.BinWriter)
@@ -176,7 +176,7 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 func (p *Payload) EncodeBinary(w *io.BinWriter) {
 	p.EncodeBinaryUnsigned(w)
 
-	w.WriteLE(byte(1))
+	w.WriteByte(1)
 	p.Witness.EncodeBinary(w)
 }
 
@@ -211,11 +211,11 @@ func (p *Payload) Verify() bool {
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.
 func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
-	r.ReadLE(&p.version)
+	p.version = r.ReadU32LE()
 	r.ReadBytes(p.prevHash[:])
-	r.ReadLE(&p.height)
-	r.ReadLE(&p.validatorIndex)
-	r.ReadLE(&p.timestamp)
+	p.height = r.ReadU32LE()
+	p.validatorIndex = r.ReadU16LE()
+	p.timestamp = r.ReadU32LE()
 
 	data := r.ReadVarBytes()
 	if r.Err != nil {
@@ -242,8 +242,7 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 		return
 	}
 
-	var b byte
-	r.ReadLE(&b)
+	var b = r.ReadByte()
 	if b != 1 {
 		r.Err = errors.New("invalid format")
 		return
@@ -255,14 +254,14 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (m *message) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes([]byte{byte(m.Type)})
-	w.WriteLE(m.ViewNumber)
+	w.WriteByte(m.ViewNumber)
 	m.payload.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (m *message) DecodeBinary(r *io.BinReader) {
-	r.ReadLE((*byte)(&m.Type))
-	r.ReadLE(&m.ViewNumber)
+	m.Type = messageType(r.ReadByte())
+	m.ViewNumber = r.ReadByte()
 
 	switch m.Type {
 	case changeViewType:

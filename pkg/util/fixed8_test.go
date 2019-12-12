@@ -5,7 +5,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFixed8FromInt64(t *testing.T) {
@@ -133,4 +135,17 @@ func TestFixed8_Arith(t *testing.T) {
 	assert.NotZero(t, u1.CompareTo(u2))
 	assert.Zero(t, u1.CompareTo(u1))
 	assert.EqualValues(t, Fixed8(2), u2.Div(3))
+}
+
+func TestFixed8_Serializable(t *testing.T) {
+	a := Fixed8(0x0102030405060708)
+
+	w := io.NewBufBinWriter()
+	a.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+
+	var b Fixed8
+	r := io.NewBinReaderFromBuf(w.Bytes())
+	b.DecodeBinary(r)
+	require.Equal(t, a, b)
 }

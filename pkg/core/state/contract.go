@@ -26,8 +26,8 @@ type Contract struct {
 func (cs *Contract) DecodeBinary(br *io.BinReader) {
 	cs.Script = br.ReadVarBytes()
 	br.ReadArray(&cs.ParamList)
-	br.ReadLE(&cs.ReturnType)
-	br.ReadLE(&cs.Properties)
+	cs.ReturnType = smartcontract.ParamType(br.ReadByte())
+	cs.Properties = smartcontract.PropertyState(br.ReadByte())
 	cs.Name = br.ReadString()
 	cs.CodeVersion = br.ReadString()
 	cs.Author = br.ReadString()
@@ -40,8 +40,8 @@ func (cs *Contract) DecodeBinary(br *io.BinReader) {
 func (cs *Contract) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(cs.Script)
 	bw.WriteArray(cs.ParamList)
-	bw.WriteLE(cs.ReturnType)
-	bw.WriteLE(cs.Properties)
+	bw.WriteByte(byte(cs.ReturnType))
+	bw.WriteByte(byte(cs.Properties))
 	bw.WriteString(cs.Name)
 	bw.WriteString(cs.CodeVersion)
 	bw.WriteString(cs.Author)

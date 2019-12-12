@@ -20,8 +20,8 @@ var _ payload.PrepareRequest = (*prepareRequest)(nil)
 
 // EncodeBinary implements io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(p.timestamp)
-	w.WriteLE(p.nonce)
+	w.WriteU32LE(p.timestamp)
+	w.WriteU64LE(p.nonce)
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
 	p.minerTx.EncodeBinary(w)
@@ -29,8 +29,8 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&p.timestamp)
-	r.ReadLE(&p.nonce)
+	p.timestamp = r.ReadU32LE()
+	p.nonce = r.ReadU64LE()
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
 	p.minerTx.DecodeBinary(r)

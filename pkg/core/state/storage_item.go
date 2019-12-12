@@ -13,11 +13,11 @@ type StorageItem struct {
 // EncodeBinary implements Serializable interface.
 func (si *StorageItem) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(si.Value)
-	w.WriteLE(si.IsConst)
+	w.WriteBool(si.IsConst)
 }
 
 // DecodeBinary implements Serializable interface.
 func (si *StorageItem) DecodeBinary(r *io.BinReader) {
 	si.Value = r.ReadVarBytes()
-	r.ReadLE(&si.IsConst)
+	si.IsConst = r.ReadBool()
 }

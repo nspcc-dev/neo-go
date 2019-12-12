@@ -44,8 +44,7 @@ var _ payload.RecoveryMessage = (*recoveryMessage)(nil)
 func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 	r.ReadArray(&m.changeViewPayloads)
 
-	var hasReq bool
-	r.ReadLE(&hasReq)
+	var hasReq = r.ReadBool()
 	if hasReq {
 		m.prepareRequest = new(prepareRequest)
 		m.prepareRequest.DecodeBinary(r)
@@ -72,7 +71,7 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 	w.WriteArray(m.changeViewPayloads)
 
 	hasReq := m.prepareRequest != nil
-	w.WriteLE(hasReq)
+	w.WriteBool(hasReq)
 	if hasReq {
 		m.prepareRequest.EncodeBinary(w)
 	} else {
@@ -90,45 +89,45 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&p.ValidatorIndex)
-	r.ReadLE(&p.OriginalViewNumber)
-	r.ReadLE(&p.Timestamp)
+	p.ValidatorIndex = r.ReadU16LE()
+	p.OriginalViewNumber = r.ReadByte()
+	p.Timestamp = r.ReadU32LE()
 	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(p.ValidatorIndex)
-	w.WriteLE(p.OriginalViewNumber)
-	w.WriteLE(p.Timestamp)
+	w.WriteU16LE(p.ValidatorIndex)
+	w.WriteByte(p.OriginalViewNumber)
+	w.WriteU32LE(p.Timestamp)
 	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *commitCompact) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&p.ViewNumber)
-	r.ReadLE(&p.ValidatorIndex)
+	p.ViewNumber = r.ReadByte()
+	p.ValidatorIndex = r.ReadU16LE()
 	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(p.ViewNumber)
-	w.WriteLE(p.ValidatorIndex)
+	w.WriteByte(p.ViewNumber)
+	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
 	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
-	r.ReadLE(&p.ValidatorIndex)
+	p.ValidatorIndex = r.ReadU16LE()
 	p.InvocationScript = r.ReadVarBytes()
 }
 
 // EncodeBinary implements io.Serializable interface.
 func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteLE(p.ValidatorIndex)
+	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteVarBytes(p.InvocationScript)
 }
 

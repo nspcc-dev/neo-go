@@ -17,7 +17,7 @@ type smthSerializable struct {
 func (*smthSerializable) DecodeBinary(*io.BinReader) {}
 
 func (ss *smthSerializable) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteLE(ss.some)
+	bw.WriteBytes(ss.some[:])
 }
 
 // Mock structure that gives error in EncodeBinary().

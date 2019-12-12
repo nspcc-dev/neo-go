@@ -50,26 +50,22 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	}
 	r := io.NewBinReaderFromBuf(c.prog[c.ip:])
 
-	var instrbyte byte
-	r.ReadLE(&instrbyte)
+	var instrbyte = r.ReadByte()
 	instr := opcode.Opcode(instrbyte)
 	c.nextip++
 
 	var numtoread int
 	switch instr {
 	case opcode.PUSHDATA1, opcode.SYSCALL:
-		var n byte
-		r.ReadLE(&n)
+		var n = r.ReadByte()
 		numtoread = int(n)
 		c.nextip++
 	case opcode.PUSHDATA2:
-		var n uint16
-		r.ReadLE(&n)
+		var n = r.ReadU16LE()
 		numtoread = int(n)
 		c.nextip += 2
 	case opcode.PUSHDATA4:
-		var n uint32
-		r.ReadLE(&n)
+		var n = r.ReadU32LE()
 		if n > MaxItemSize {
 			return instr, nil, errors.New("parameter is too big")
 		}
@@ -92,7 +88,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		}
 	}
 	parameter := make([]byte, numtoread)
-	r.ReadLE(parameter)
+	r.ReadBytes(parameter)
 	if r.Err != nil {
 		return instr, nil, errors.New("failed to read instruction parameter")
 	}

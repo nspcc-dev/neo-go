@@ -17,11 +17,11 @@ type Input struct {
 // DecodeBinary implements Serializable interface.
 func (in *Input) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(in.PrevHash[:])
-	br.ReadLE(&in.PrevIndex)
+	in.PrevIndex = br.ReadU16LE()
 }
 
 // EncodeBinary implements Serializable interface.
 func (in *Input) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(in.PrevHash[:])
-	bw.WriteLE(in.PrevIndex)
+	bw.WriteU16LE(in.PrevIndex)
 }

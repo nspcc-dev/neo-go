@@ -21,16 +21,16 @@ func (vs *Validator) RegisteredAndHasVotes() bool {
 // EncodeBinary encodes Validator to the given BinWriter.
 func (vs *Validator) EncodeBinary(bw *io.BinWriter) {
 	vs.PublicKey.EncodeBinary(bw)
-	bw.WriteLE(vs.Registered)
-	bw.WriteLE(vs.Votes)
+	bw.WriteBool(vs.Registered)
+	vs.Votes.EncodeBinary(bw)
 }
 
 // DecodeBinary decodes Validator from the given BinReader.
 func (vs *Validator) DecodeBinary(reader *io.BinReader) {
 	vs.PublicKey = &keys.PublicKey{}
 	vs.PublicKey.DecodeBinary(reader)
-	reader.ReadLE(&vs.Registered)
-	reader.ReadLE(&vs.Votes)
+	vs.Registered = reader.ReadBool()
+	vs.Votes.DecodeBinary(reader)
 }
 
 // GetValidatorsWeightedAverage applies weighted filter based on votes for validator and returns number of validators.
