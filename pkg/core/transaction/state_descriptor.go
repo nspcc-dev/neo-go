@@ -23,7 +23,7 @@ type StateDescriptor struct {
 
 // DecodeBinary implements Serializable interface.
 func (s *StateDescriptor) DecodeBinary(r *io.BinReader) {
-	s.Type = DescStateType(r.ReadByte())
+	s.Type = DescStateType(r.ReadB())
 
 	s.Key = r.ReadVarBytes()
 	s.Value = r.ReadVarBytes()
@@ -32,7 +32,7 @@ func (s *StateDescriptor) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (s *StateDescriptor) EncodeBinary(w *io.BinWriter) {
-	w.WriteByte(byte(s.Type))
+	w.WriteB(byte(s.Type))
 	w.WriteVarBytes(s.Key)
 	w.WriteVarBytes(s.Value)
 	w.WriteString(s.Field)

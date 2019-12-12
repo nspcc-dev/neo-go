@@ -176,7 +176,7 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 func (p *Payload) EncodeBinary(w *io.BinWriter) {
 	p.EncodeBinaryUnsigned(w)
 
-	w.WriteByte(1)
+	w.WriteB(1)
 	p.Witness.EncodeBinary(w)
 }
 
@@ -242,7 +242,7 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 		return
 	}
 
-	var b = r.ReadByte()
+	var b = r.ReadB()
 	if b != 1 {
 		r.Err = errors.New("invalid format")
 		return
@@ -254,14 +254,14 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (m *message) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes([]byte{byte(m.Type)})
-	w.WriteByte(m.ViewNumber)
+	w.WriteB(m.ViewNumber)
 	m.payload.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (m *message) DecodeBinary(r *io.BinReader) {
-	m.Type = messageType(r.ReadByte())
-	m.ViewNumber = r.ReadByte()
+	m.Type = messageType(r.ReadB())
+	m.ViewNumber = r.ReadB()
 
 	switch m.Type {
 	case changeViewType:

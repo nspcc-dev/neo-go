@@ -30,12 +30,12 @@ type RegisterTX struct {
 
 // DecodeBinary implements Serializable interface.
 func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
-	tx.AssetType = AssetType(br.ReadByte())
+	tx.AssetType = AssetType(br.ReadB())
 
 	tx.Name = br.ReadString()
 
 	tx.Amount.DecodeBinary(br)
-	tx.Precision = uint8(br.ReadByte())
+	tx.Precision = uint8(br.ReadB())
 
 	tx.Owner.DecodeBinary(br)
 
@@ -44,10 +44,10 @@ func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteByte(byte(tx.AssetType))
+	bw.WriteB(byte(tx.AssetType))
 	bw.WriteString(tx.Name)
 	tx.Amount.EncodeBinary(bw)
-	bw.WriteByte(byte(tx.Precision))
+	bw.WriteB(byte(tx.Precision))
 	bw.WriteBytes(tx.Owner.Bytes())
 	bw.WriteBytes(tx.Admin[:])
 }

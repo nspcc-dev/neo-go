@@ -94,7 +94,7 @@ func deserializeItem(data []byte) (StackItem, error) {
 // as a function because StackItem itself is an interface. Caveat: always check
 // reader's error value before using the returned StackItem.
 func DecodeBinaryStackItem(r *io.BinReader) StackItem {
-	var t = r.ReadByte()
+	var t = r.ReadB()
 	if r.Err != nil {
 		return nil
 	}

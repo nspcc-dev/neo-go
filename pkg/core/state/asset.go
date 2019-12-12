@@ -29,14 +29,14 @@ type Asset struct {
 // DecodeBinary implements Serializable interface.
 func (a *Asset) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(a.ID[:])
-	a.AssetType = transaction.AssetType(br.ReadByte())
+	a.AssetType = transaction.AssetType(br.ReadB())
 
 	a.Name = br.ReadString()
 
 	a.Amount.DecodeBinary(br)
 	a.Available.DecodeBinary(br)
-	a.Precision = uint8(br.ReadByte())
-	a.FeeMode = uint8(br.ReadByte())
+	a.Precision = uint8(br.ReadB())
+	a.FeeMode = uint8(br.ReadB())
 	br.ReadBytes(a.FeeAddress[:])
 
 	a.Owner.DecodeBinary(br)
@@ -49,12 +49,12 @@ func (a *Asset) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface.
 func (a *Asset) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(a.ID[:])
-	bw.WriteByte(byte(a.AssetType))
+	bw.WriteB(byte(a.AssetType))
 	bw.WriteString(a.Name)
 	a.Amount.EncodeBinary(bw)
 	a.Available.EncodeBinary(bw)
-	bw.WriteByte(byte(a.Precision))
-	bw.WriteByte(byte(a.FeeMode))
+	bw.WriteB(byte(a.Precision))
+	bw.WriteB(byte(a.FeeMode))
 	bw.WriteBytes(a.FeeAddress[:])
 
 	a.Owner.EncodeBinary(bw)

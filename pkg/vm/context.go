@@ -50,14 +50,14 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	}
 	r := io.NewBinReaderFromBuf(c.prog[c.ip:])
 
-	var instrbyte = r.ReadByte()
+	var instrbyte = r.ReadB()
 	instr := opcode.Opcode(instrbyte)
 	c.nextip++
 
 	var numtoread int
 	switch instr {
 	case opcode.PUSHDATA1, opcode.SYSCALL:
-		var n = r.ReadByte()
+		var n = r.ReadB()
 		numtoread = int(n)
 		c.nextip++
 	case opcode.PUSHDATA2:

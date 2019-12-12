@@ -87,9 +87,9 @@ func (r *BinReader) ReadU16BE() uint16 {
 	return binary.BigEndian.Uint16(r.u16)
 }
 
-// ReadByte reads a byte from the underlying io.Reader. On read failures it
+// ReadB reads a byte from the underlying io.Reader. On read failures it
 // returns zero.
-func (r *BinReader) ReadByte() byte {
+func (r *BinReader) ReadB() byte {
 	r.ReadBytes(r.u8)
 	if r.Err != nil {
 		return 0
@@ -100,7 +100,7 @@ func (r *BinReader) ReadByte() byte {
 // ReadBool reads a boolean value encoded in a zero/non-zero byte from the
 // underlying io.Reader. On read failures it returns false.
 func (r *BinReader) ReadBool() bool {
-	return r.ReadByte() != 0
+	return r.ReadB() != 0
 }
 
 // ReadArray reads array into value which must be
@@ -169,7 +169,7 @@ func (r *BinReader) ReadVarUint() uint64 {
 		return 0
 	}
 
-	var b = r.ReadByte()
+	var b = r.ReadB()
 
 	if b == 0xfd {
 		return uint64(r.ReadU16LE())

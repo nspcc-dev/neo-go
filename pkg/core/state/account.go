@@ -39,7 +39,7 @@ func NewAccount(scriptHash util.Uint160) *Account {
 
 // DecodeBinary decodes Account from the given BinReader.
 func (s *Account) DecodeBinary(br *io.BinReader) {
-	s.Version = uint8(br.ReadByte())
+	s.Version = uint8(br.ReadB())
 	br.ReadBytes(s.ScriptHash[:])
 	s.IsFrozen = br.ReadBool()
 	br.ReadArray(&s.Votes)
@@ -57,7 +57,7 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary encodes Account to the given BinWriter.
 func (s *Account) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteByte(byte(s.Version))
+	bw.WriteB(byte(s.Version))
 	bw.WriteBytes(s.ScriptHash[:])
 	bw.WriteBool(s.IsFrozen)
 	bw.WriteArray(s.Votes)

@@ -71,8 +71,8 @@ func (w *BinWriter) WriteU16BE(u16 uint16) {
 	w.WriteBytes(w.u16)
 }
 
-// WriteByte writes a byte into the underlying io.Writer.
-func (w *BinWriter) WriteByte(u8 byte) {
+// WriteB writes a byte into the underlying io.Writer.
+func (w *BinWriter) WriteB(u8 byte) {
 	w.u8[0] = u8
 	w.WriteBytes(w.u8)
 }
@@ -84,7 +84,7 @@ func (w *BinWriter) WriteBool(b bool) {
 	if b {
 		i = 1
 	}
-	w.WriteByte(i)
+	w.WriteB(i)
 }
 
 // WriteArray writes a slice or an array arr into w. Note that nil slices and
@@ -123,22 +123,22 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 	}
 
 	if val < 0xfd {
-		w.WriteByte(byte(val))
+		w.WriteB(byte(val))
 		return
 	}
 	if val < 0xFFFF {
-		w.WriteByte(byte(0xfd))
+		w.WriteB(byte(0xfd))
 		w.WriteU16LE(uint16(val))
 		return
 	}
 	if val < 0xFFFFFFFF {
-		w.WriteByte(byte(0xfe))
+		w.WriteB(byte(0xfe))
 		w.WriteU32LE(uint32(val))
 		return
 
 	}
 
-	w.WriteByte(byte(0xff))
+	w.WriteB(byte(0xff))
 	w.WriteU64LE(val)
 }
 

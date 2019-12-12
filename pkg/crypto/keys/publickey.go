@@ -168,7 +168,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 	var x, y *big.Int
 	var err error
 
-	prefix = uint8(r.ReadByte())
+	prefix = uint8(r.ReadB())
 	if r.Err != nil {
 		return
 	}

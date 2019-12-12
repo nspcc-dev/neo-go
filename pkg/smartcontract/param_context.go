@@ -80,12 +80,12 @@ func (pt ParamType) MarshalJSON() ([]byte, error) {
 
 // EncodeBinary implements io.Serializable interface.
 func (pt ParamType) EncodeBinary(w *io.BinWriter) {
-	w.WriteByte(byte(pt))
+	w.WriteB(byte(pt))
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (pt *ParamType) DecodeBinary(r *io.BinReader) {
-	*pt = ParamType(r.ReadByte())
+	*pt = ParamType(r.ReadB())
 }
 
 // NewParameter returns a Parameter with proper initialized Value

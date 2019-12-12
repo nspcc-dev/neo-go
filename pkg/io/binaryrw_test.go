@@ -128,12 +128,12 @@ func TestWriteByte(t *testing.T) {
 		bin     = []byte{0xa5}
 	)
 	bw := NewBufBinWriter()
-	bw.WriteByte(val)
+	bw.WriteB(val)
 	assert.Nil(t, bw.Err)
 	wrotebin := bw.Bytes()
 	assert.Equal(t, wrotebin, bin)
 	br := NewBinReaderFromBuf(bin)
-	readval = br.ReadByte()
+	readval = br.ReadB()
 	assert.Nil(t, br.Err)
 	assert.Equal(t, val, readval)
 }
@@ -165,7 +165,7 @@ func TestReadLEErrors(t *testing.T) {
 	assert.Equal(t, uint32(0), br.ReadU32LE())
 	assert.Equal(t, uint16(0), br.ReadU16LE())
 	assert.Equal(t, uint16(0), br.ReadU16BE())
-	assert.Equal(t, byte(0), br.ReadByte())
+	assert.Equal(t, byte(0), br.ReadB())
 	assert.Equal(t, false, br.ReadBool())
 	assert.NotNil(t, br.Err)
 }

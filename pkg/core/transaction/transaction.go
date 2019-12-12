@@ -92,8 +92,8 @@ func (t *Transaction) AddInput(in *Input) {
 
 // DecodeBinary implements Serializable interface.
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
-	t.Type = TXType(br.ReadByte())
-	t.Version = uint8(br.ReadByte())
+	t.Type = TXType(br.ReadB())
+	t.Version = uint8(br.ReadB())
 	t.decodeData(br)
 
 	br.ReadArray(&t.Attributes)
@@ -151,8 +151,8 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
-	bw.WriteByte(byte(t.Type))
-	bw.WriteByte(byte(t.Version))
+	bw.WriteB(byte(t.Type))
+	bw.WriteB(byte(t.Version))
 
 	// Underlying TXer.
 	if t.Data != nil {

@@ -88,7 +88,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	br := io.NewBinReaderFromBuf(b)
 	block.decodeHashableFields(br)
 
-	_ = br.ReadByte()
+	_ = br.ReadB()
 
 	block.Script.DecodeBinary(br)
 
@@ -109,7 +109,7 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 func (b *Block) Trim() ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	b.encodeHashableFields(buf.BinWriter)
-	buf.WriteByte(1)
+	buf.WriteB(1)
 	b.Script.EncodeBinary(buf.BinWriter)
 
 	buf.WriteVarUint(uint64(len(b.Transactions)))

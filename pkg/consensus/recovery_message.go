@@ -90,7 +90,7 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadU16LE()
-	p.OriginalViewNumber = r.ReadByte()
+	p.OriginalViewNumber = r.ReadB()
 	p.Timestamp = r.ReadU32LE()
 	p.InvocationScript = r.ReadVarBytes()
 }
@@ -98,14 +98,14 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable interface.
 func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteU16LE(p.ValidatorIndex)
-	w.WriteByte(p.OriginalViewNumber)
+	w.WriteB(p.OriginalViewNumber)
 	w.WriteU32LE(p.Timestamp)
 	w.WriteVarBytes(p.InvocationScript)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *commitCompact) DecodeBinary(r *io.BinReader) {
-	p.ViewNumber = r.ReadByte()
+	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadU16LE()
 	r.ReadBytes(p.Signature[:])
 	p.InvocationScript = r.ReadVarBytes()
@@ -113,7 +113,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable interface.
 func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
-	w.WriteByte(p.ViewNumber)
+	w.WriteB(p.ViewNumber)
 	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
 	w.WriteVarBytes(p.InvocationScript)

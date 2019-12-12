@@ -39,7 +39,7 @@ func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements the Serializable interface.
 func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(aer.TxHash[:])
-	w.WriteByte(aer.Trigger)
+	w.WriteB(aer.Trigger)
 	w.WriteString(aer.VMState)
 	aer.GasConsumed.EncodeBinary(w)
 	w.WriteString(aer.Stack)
@@ -49,7 +49,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements the Serializable interface.
 func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(aer.TxHash[:])
-	aer.Trigger = r.ReadByte()
+	aer.Trigger = r.ReadB()
 	aer.VMState = r.ReadString()
 	aer.GasConsumed.DecodeBinary(r)
 	aer.Stack = r.ReadString()

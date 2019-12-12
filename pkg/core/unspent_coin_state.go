@@ -25,7 +25,7 @@ func NewUnspentCoinState(n int) *UnspentCoinState {
 func (s *UnspentCoinState) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(s.states)))
 	for _, state := range s.states {
-		bw.WriteByte(byte(state))
+		bw.WriteB(byte(state))
 	}
 }
 
@@ -34,6 +34,6 @@ func (s *UnspentCoinState) DecodeBinary(br *io.BinReader) {
 	lenStates := br.ReadVarUint()
 	s.states = make([]state.Coin, lenStates)
 	for i := 0; i < int(lenStates); i++ {
-		s.states[i] = state.Coin(br.ReadByte())
+		s.states[i] = state.Coin(br.ReadB())
 	}
 }

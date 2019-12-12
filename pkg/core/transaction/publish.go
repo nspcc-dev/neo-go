@@ -27,10 +27,10 @@ func (tx *PublishTX) DecodeBinary(br *io.BinReader) {
 	lenParams := br.ReadVarUint()
 	tx.ParamList = make([]smartcontract.ParamType, lenParams)
 	for i := 0; i < int(lenParams); i++ {
-		tx.ParamList[i] = smartcontract.ParamType(br.ReadByte())
+		tx.ParamList[i] = smartcontract.ParamType(br.ReadB())
 	}
 
-	tx.ReturnType = smartcontract.ParamType(br.ReadByte())
+	tx.ReturnType = smartcontract.ParamType(br.ReadB())
 
 	if tx.Version >= 1 {
 		tx.NeedStorage = br.ReadBool()
@@ -50,9 +50,9 @@ func (tx *PublishTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(tx.Script)
 	bw.WriteVarUint(uint64(len(tx.ParamList)))
 	for _, param := range tx.ParamList {
-		bw.WriteByte(byte(param))
+		bw.WriteB(byte(param))
 	}
-	bw.WriteByte(byte(tx.ReturnType))
+	bw.WriteB(byte(tx.ReturnType))
 	if tx.Version >= 1 {
 		bw.WriteBool(tx.NeedStorage)
 	}
