@@ -1249,10 +1249,6 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
 		result = append(result, uniqueSBValidators[i])
 	}
-	_, err = cache.store.Persist()
-	if err != nil {
-		return nil, err
-	}
 	return result, nil
 }
 
