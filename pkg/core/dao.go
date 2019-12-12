@@ -555,3 +555,9 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 	}
 	return false
 }
+
+// Persist flushes all the changes made into the (supposedly) persistent
+// underlying store.
+func (dao *dao) Persist() (int, error) {
+	return dao.store.Persist()
+}

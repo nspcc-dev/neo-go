@@ -505,7 +505,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			v.LoadScript(t.Script)
 			err := v.Run()
 			if !v.HasFailed() {
-				_, err := systemInterop.dao.store.Persist()
+				_, err := systemInterop.dao.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
@@ -554,7 +554,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			}
 		}
 	}
-	_, err := cache.store.Persist()
+	_, err := cache.Persist()
 	if err != nil {
 		return err
 	}
@@ -690,7 +690,7 @@ func (bc *Blockchain) persist() error {
 		err       error
 	)
 
-	persisted, err = bc.dao.store.Persist()
+	persisted, err = bc.dao.Persist()
 	if err != nil {
 		return err
 	}
