@@ -24,7 +24,7 @@ type interopContext struct {
 }
 
 func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
-	dao := &dao{store: storage.NewMemCachedStore(s)}
+	dao := newDao(s)
 	nes := make([]state.NotificationEvent, 0)
 	return &interopContext{bc, trigger, block, tx, dao, nes}
 }

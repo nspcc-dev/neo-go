@@ -86,7 +86,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
 		config:        cfg,
-		dao:           &dao{store: storage.NewMemCachedStore(s)},
+		dao:           newDao(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -344,7 +344,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *Block) error {
-	cache := &dao{store: storage.NewMemCachedStore(bc.dao.store)}
+	cache := newDao(bc.dao.store)
 	if err := cache.StoreAsBlock(block, 0); err != nil {
 		return err
 	}
@@ -1156,7 +1156,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
 func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := &dao{store: storage.NewMemCachedStore(bc.dao.store)}
+	cache := newDao(bc.dao.store)
 	if len(txes) > 0 {
 		for _, tx := range txes {
 			// iterate through outputs

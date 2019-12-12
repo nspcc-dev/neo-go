@@ -19,6 +19,10 @@ type dao struct {
 	store *storage.MemCachedStore
 }
 
+func newDao(backend storage.Store) *dao {
+	return &dao{store: storage.NewMemCachedStore(backend)}
+}
+
 // GetAndDecode performs get operation and decoding with serializable structures.
 func (dao *dao) GetAndDecode(entity io.Serializable, key []byte) error {
 	entityBytes, err := dao.store.Get(key)
