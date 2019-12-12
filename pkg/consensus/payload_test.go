@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -198,7 +199,7 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 		timestamp:      rand.Uint32(),
 		Witness: transaction.Witness{
 			InvocationScript:   fillRandom(t, make([]byte, 3)),
-			VerificationScript: fillRandom(t, make([]byte, 4)),
+			VerificationScript: []byte{byte(opcode.PUSH0)},
 		},
 	}
 	fillRandom(t, p.prevHash[:])
