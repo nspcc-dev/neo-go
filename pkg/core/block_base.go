@@ -107,8 +107,8 @@ func (b *BlockBase) GetHashableData() []byte {
 // the modification of transaction will influence the hash value of the block.
 func (b *BlockBase) createHash() {
 	bb := b.GetHashableData()
-	b.hash = hash.DoubleSha256(bb)
 	b.verificationHash = hash.Sha256(bb)
+	b.hash = hash.Sha256(b.verificationHash.BytesBE())
 }
 
 // encodeHashableFields will only encode the fields used for hashing.

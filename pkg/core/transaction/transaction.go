@@ -178,8 +178,8 @@ func (t *Transaction) createHash() error {
 	}
 
 	b := buf.Bytes()
-	t.hash = hash.DoubleSha256(b)
 	t.verificationHash = hash.Sha256(b)
+	t.hash = hash.Sha256(t.verificationHash.BytesBE())
 
 	return nil
 }
