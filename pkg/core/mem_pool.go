@@ -287,23 +287,17 @@ func (mp *MemPool) GetVerifiedTransactions() []*transaction.Transaction {
 // If yes, the transaction tx is not a valid transaction and the function return false.
 // If no, the transaction tx is a valid transaction and the function return true.
 func (mp MemPool) Verify(tx *transaction.Transaction) bool {
-	count := 0
-	inputs := make([]*transaction.Input, 0)
-	for _, item := range mp.GetVerifiedTransactions() {
-		if tx.Hash().Equals(item.Hash()) {
-			for i := range item.Inputs {
-				inputs = append(inputs, &item.Inputs[i])
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+	for _, item := range mp.unsortedTxn {
+		for i := range item.txn.Inputs {
+			for j := 0; j < len(tx.Inputs); j++ {
+				if item.txn.Inputs[i] == tx.Inputs[j] {
+					return false
+				}
 			}
 		}
 	}
 
-	for i := 0; i < len(inputs); i++ {
-		for j := 0; j < len(tx.Inputs); j++ {
-			if inputs[i].PrevHash.Equals(tx.Inputs[j].PrevHash) {
-				count++
-			}
-		}
-	}
-
-	return count == 0
+	return true
 }
