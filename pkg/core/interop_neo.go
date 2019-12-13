@@ -172,8 +172,8 @@ func (ic *interopContext) txGetUnspentCoins(v *vm.VM) error {
 	if !ok {
 		return errors.New("value is not a transaction")
 	}
-	ucs := ic.bc.GetUnspentCoinState(tx.Hash())
-	if ucs == nil {
+	ucs, err := ic.dao.GetUnspentCoinState(tx.Hash())
+	if err != nil {
 		return errors.New("no unspent coin state found")
 	}
 	v.Estack().PushVal(vm.NewInteropItem(ucs))
@@ -200,10 +200,7 @@ func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
 
 // bcGetValidators returns validators.
 func (ic *interopContext) bcGetValidators(v *vm.VM) error {
-	validators, err := ic.bc.GetValidators()
-	if err != nil {
-		return err
-	}
+	validators := ic.dao.GetValidators()
 	v.Estack().PushVal(validators)
 	return nil
 }
@@ -315,9 +312,9 @@ func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	acc := ic.bc.GetAccountState(acchash)
-	if acc == nil {
-		acc = state.NewAccount(acchash)
+	acc, err := ic.dao.GetAccountStateOrNew(acchash)
+	if err != nil {
+		return err
 	}
 	v.Estack().PushVal(vm.NewInteropItem(acc))
 	return nil
@@ -330,8 +327,8 @@ func (ic *interopContext) bcGetAsset(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	as := ic.bc.GetAssetState(ashash)
-	if as == nil {
+	as, err := ic.dao.GetAssetState(ashash)
+	if err != nil {
 		return errors.New("asset not found")
 	}
 	v.Estack().PushVal(vm.NewInteropItem(as))
@@ -394,8 +391,8 @@ func (ic *interopContext) accountIsStandard(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	contract := ic.bc.GetContractState(acchash)
-	res := contract == nil || vm.IsStandardContract(contract.Script)
+	contract, err := ic.dao.GetContractState(acchash)
+	res := err != nil || vm.IsStandardContract(contract.Script)
 	v.Estack().PushVal(res)
 	return nil
 }
@@ -413,7 +410,7 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 		return err
 	}
 	prefix := string(v.Estack().Pop().Bytes())
-	siMap, err := ic.bc.GetStorageItems(stc.ScriptHash)
+	siMap, err := ic.dao.GetStorageItems(stc.ScriptHash)
 	if err != nil {
 		return err
 	}
@@ -488,8 +485,8 @@ func (ic *interopContext) contractCreate(v *vm.VM) error {
 	if err != nil {
 		return nil
 	}
-	contract := ic.bc.GetContractState(newcontract.ScriptHash())
-	if contract == nil {
+	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
+	if err != nil {
 		contract = newcontract
 		err := ic.dao.PutContractState(contract)
 		if err != nil {
@@ -528,8 +525,8 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 	if err != nil {
 		return nil
 	}
-	contract := ic.bc.GetContractState(newcontract.ScriptHash())
-	if contract == nil {
+	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
+	if err != nil {
 		contract = newcontract
 		err := ic.dao.PutContractState(contract)
 		if err != nil {
@@ -537,7 +534,7 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 		}
 		if contract.HasStorage() {
 			hash := getContextScriptHash(v, 0)
-			siMap, err := ic.bc.GetStorageItems(hash)
+			siMap, err := ic.dao.GetStorageItems(hash)
 			if err != nil {
 				return err
 			}
@@ -729,8 +726,8 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 	}
 	years := byte(v.Estack().Pop().BigInt().Int64())
 	// Not sure why C# code regets an asset from the Store, but we also do it.
-	asset := ic.bc.GetAssetState(as.ID)
-	if asset == nil {
+	asset, err := ic.dao.GetAssetState(as.ID)
+	if err != nil {
 		return errors.New("can't renew non-existent asset")
 	}
 	if asset.Expiration < ic.bc.BlockHeight()+1 {
@@ -741,7 +738,7 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 		expiration = math.MaxUint32
 	}
 	asset.Expiration = uint32(expiration)
-	err := ic.dao.PutAssetState(asset)
+	err = ic.dao.PutAssetState(asset)
 	if err != nil {
 		return gherr.Wrap(err, "failed to store asset")
 	}

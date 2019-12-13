@@ -1336,8 +1336,8 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 	vm := vm.New()
 	vm.SetScriptGetter(func(hash util.Uint160) []byte {
-		cs := bc.GetContractState(hash)
-		if cs == nil {
+		cs, err := interopCtx.dao.GetContractState(hash)
+		if err != nil {
 			return nil
 		}
 		return cs.Script
