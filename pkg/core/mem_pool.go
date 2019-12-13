@@ -269,12 +269,15 @@ func min(sortedPool PoolItems) *PoolItem {
 // GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
 // whose hash is not included in excludedHashes.
 func (mp *MemPool) GetVerifiedTransactions() []*transaction.Transaction {
-	var t []*transaction.Transaction
-
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
+
+	var t = make([]*transaction.Transaction, len(mp.unsortedTxn))
+	var i int
+
 	for _, p := range mp.unsortedTxn {
-		t = append(t, p.txn)
+		t[i] = p.txn
+		i++
 	}
 
 	return t
