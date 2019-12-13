@@ -7,7 +7,7 @@ require (
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/mr-tron/base58 v1.1.2
-	github.com/nspcc-dev/dbft v0.0.0-20191209120240-0d6b7568d9ae
+	github.com/nspcc-dev/dbft v0.0.0-20191213082456-c81c7a796775
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1

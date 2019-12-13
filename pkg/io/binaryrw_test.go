@@ -19,40 +19,6 @@ func (w *badRW) Read(p []byte) (int, error) {
 	return w.Write(p)
 }
 
-func TestWriteLE(t *testing.T) {
-	var (
-		val     uint32 = 0xdeadbeef
-		readval uint32
-		bin     = []byte{0xef, 0xbe, 0xad, 0xde}
-	)
-	bw := NewBufBinWriter()
-	bw.WriteLE(val)
-	assert.Nil(t, bw.Err)
-	wrotebin := bw.Bytes()
-	assert.Equal(t, wrotebin, bin)
-	br := NewBinReaderFromBuf(bin)
-	br.ReadLE(&readval)
-	assert.Nil(t, br.Err)
-	assert.Equal(t, val, readval)
-}
-
-func TestWriteBE(t *testing.T) {
-	var (
-		val     uint32 = 0xdeadbeef
-		readval uint32
-		bin     = []byte{0xde, 0xad, 0xbe, 0xef}
-	)
-	bw := NewBufBinWriter()
-	bw.WriteBE(val)
-	assert.Nil(t, bw.Err)
-	wrotebin := bw.Bytes()
-	assert.Equal(t, wrotebin, bin)
-	br := NewBinReaderFromBuf(bin)
-	br.ReadBE(&readval)
-	assert.Nil(t, br.Err)
-	assert.Equal(t, val, readval)
-}
-
 func TestWriteU64LE(t *testing.T) {
 	var (
 		val     uint64 = 0xbadc0de15a11dead
@@ -173,18 +139,18 @@ func TestReadLEErrors(t *testing.T) {
 func TestBufBinWriter_Len(t *testing.T) {
 	val := []byte{0xde}
 	bw := NewBufBinWriter()
-	bw.WriteLE(val)
+	bw.WriteBytes(val)
 	require.Equal(t, 1, bw.Len())
 }
 
 func TestWriterErrHandling(t *testing.T) {
 	var badio = &badRW{}
 	bw := NewBinWriterFromIO(badio)
-	bw.WriteLE(uint32(0))
+	bw.WriteU32LE(uint32(0))
 	assert.NotNil(t, bw.Err)
 	// these should work (without panic), preserving the Err
-	bw.WriteLE(uint32(0))
-	bw.WriteBE(uint32(0))
+	bw.WriteU32LE(uint32(0))
+	bw.WriteU16BE(uint16(0))
 	bw.WriteVarUint(0)
 	bw.WriteVarBytes([]byte{0x55, 0xaa})
 	bw.WriteString("neo")
@@ -193,19 +159,14 @@ func TestWriterErrHandling(t *testing.T) {
 
 func TestReaderErrHandling(t *testing.T) {
 	var (
-		i     uint32 = 0xdeadbeef
-		iorig        = i
-		badio        = &badRW{}
+		badio = &badRW{}
 	)
 	br := NewBinReaderFromIO(badio)
-	br.ReadLE(&i)
+	br.ReadU32LE()
 	assert.NotNil(t, br.Err)
-	// i shouldn't change
-	assert.Equal(t, i, iorig)
 	// these should work (without panic), preserving the Err
-	br.ReadLE(&i)
-	br.ReadBE(&i)
-	assert.Equal(t, i, iorig)
+	br.ReadU32LE()
+	br.ReadU16BE()
 	val := br.ReadVarUint()
 	assert.Equal(t, val, uint64(0))
 	b := br.ReadVarBytes()
@@ -217,7 +178,7 @@ func TestReaderErrHandling(t *testing.T) {
 
 func TestBufBinWriterErr(t *testing.T) {
 	bw := NewBufBinWriter()
-	bw.WriteLE(uint32(0))
+	bw.WriteU32LE(uint32(0))
 	assert.Nil(t, bw.Err)
 	// inject error
 	bw.Err = errors.New("oopsie")
@@ -229,7 +190,7 @@ func TestBufBinWriterErr(t *testing.T) {
 func TestBufBinWriterReset(t *testing.T) {
 	bw := NewBufBinWriter()
 	for i := 0; i < 3; i++ {
-		bw.WriteLE(uint32(i))
+		bw.WriteU32LE(uint32(i))
 		assert.Nil(t, bw.Err)
 		_ = bw.Bytes()
 		assert.NotNil(t, bw.Err)
@@ -338,24 +299,24 @@ type testSerializable uint16
 
 // EncodeBinary implements io.Serializable interface.
 func (t testSerializable) EncodeBinary(w *BinWriter) {
-	w.WriteLE(t)
+	w.WriteU16LE(uint16(t))
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (t *testSerializable) DecodeBinary(r *BinReader) {
-	r.ReadLE(t)
+	*t = testSerializable(r.ReadU16LE())
 }
 
 type testPtrSerializable uint16
 
 // EncodeBinary implements io.Serializable interface.
 func (t *testPtrSerializable) EncodeBinary(w *BinWriter) {
-	w.WriteLE(t)
+	w.WriteU16LE(uint16(*t))
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (t *testPtrSerializable) DecodeBinary(r *BinReader) {
-	r.ReadLE(t)
+	*t = testPtrSerializable(r.ReadU16LE())
 }
 
 func TestBinWriter_WriteArray(t *testing.T) {

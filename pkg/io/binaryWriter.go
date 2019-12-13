@@ -27,22 +27,6 @@ func NewBinWriterFromIO(iow io.Writer) *BinWriter {
 	return &BinWriter{w: iow, u64: u64, u32: u32, u16: u16, u8: u8}
 }
 
-// WriteLE writes into the underlying io.Writer from an object v in little-endian format.
-func (w *BinWriter) WriteLE(v interface{}) {
-	if w.Err != nil {
-		return
-	}
-	w.Err = binary.Write(w.w, binary.LittleEndian, v)
-}
-
-// WriteBE writes into the underlying io.Writer from an object v in big-endian format.
-func (w *BinWriter) WriteBE(v interface{}) {
-	if w.Err != nil {
-		return
-	}
-	w.Err = binary.Write(w.w, binary.BigEndian, v)
-}
-
 // WriteU64LE writes an uint64 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU64LE(u64 uint64) {
