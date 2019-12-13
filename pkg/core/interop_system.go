@@ -254,7 +254,7 @@ func (ic *interopContext) engineGetScriptContainer(v *vm.VM) error {
 func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
 	ctxIface := v.Istack().Peek(n).Value()
 	ctx := ctxIface.(*vm.Context)
-	return hash.Hash160(ctx.Program())
+	return ctx.ScriptHash()
 }
 
 // pushContextScriptHash pushes to evaluation stack the script hash of the

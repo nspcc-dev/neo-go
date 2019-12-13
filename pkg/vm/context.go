@@ -3,7 +3,9 @@ package vm
 import (
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
@@ -29,6 +31,9 @@ type Context struct {
 
 	// Alt stack pointer.
 	astack *Stack
+
+	// Script hash of the prog.
+	scriptHash util.Uint160
 }
 
 // NewContext returns a new Context object.
@@ -123,6 +128,14 @@ func (c *Context) Copy() *Context {
 // Program returns the loaded program.
 func (c *Context) Program() []byte {
 	return c.prog
+}
+
+// ScriptHash returns a hash of the script in the current context.
+func (c *Context) ScriptHash() util.Uint160 {
+	if c.scriptHash.Equals(util.Uint160{}) {
+		c.scriptHash = hash.Hash160(c.prog)
+	}
+	return c.scriptHash
 }
 
 // Value implements StackItem interface.
