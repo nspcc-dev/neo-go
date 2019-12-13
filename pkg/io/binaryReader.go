@@ -38,15 +38,6 @@ func NewBinReaderFromBuf(b []byte) *BinReader {
 	return NewBinReaderFromIO(r)
 }
 
-// ReadLE reads from the underlying io.Reader
-// into the interface v in little-endian format.
-func (r *BinReader) ReadLE(v interface{}) {
-	if r.Err != nil {
-		return
-	}
-	r.Err = binary.Read(r.r, binary.LittleEndian, v)
-}
-
 // ReadU64LE reads a little-endian encoded uint64 value from the underlying
 // io.Reader. On read failures it returns zero.
 func (r *BinReader) ReadU64LE() uint64 {
@@ -151,15 +142,6 @@ func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 	}
 
 	value.Elem().Set(arr)
-}
-
-// ReadBE reads from the underlying io.Reader
-// into the interface v in big-endian format.
-func (r *BinReader) ReadBE(v interface{}) {
-	if r.Err != nil {
-		return
-	}
-	r.Err = binary.Read(r.r, binary.BigEndian, v)
 }
 
 // ReadVarUint reads a variable-length-encoded integer from the
