@@ -68,8 +68,8 @@ func (ic *interopContext) bcGetContract(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	cs := ic.bc.GetContractState(hash)
-	if cs == nil {
+	cs, err := ic.dao.GetContractState(hash)
+	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
 		v.Estack().PushVal(vm.NewInteropItem(cs))
@@ -100,18 +100,18 @@ func (ic *interopContext) bcGetHeight(v *vm.VM) error {
 
 // getTransactionAndHeight gets parameter from the vm evaluation stack and
 // returns transaction and its height if it's present in the blockchain.
-func getTransactionAndHeight(bc Blockchainer, v *vm.VM) (*transaction.Transaction, uint32, error) {
+func getTransactionAndHeight(cd *cachedDao, v *vm.VM) (*transaction.Transaction, uint32, error) {
 	hashbytes := v.Estack().Pop().Bytes()
 	hash, err := util.Uint256DecodeBytesLE(hashbytes)
 	if err != nil {
 		return nil, 0, err
 	}
-	return bc.GetTransaction(hash)
+	return cd.GetTransaction(hash)
 }
 
 // bcGetTransaction returns transaction.
 func (ic *interopContext) bcGetTransaction(v *vm.VM) error {
-	tx, _, err := getTransactionAndHeight(ic.bc, v)
+	tx, _, err := getTransactionAndHeight(ic.dao, v)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (ic *interopContext) bcGetTransaction(v *vm.VM) error {
 
 // bcGetTransactionHeight returns transaction height.
 func (ic *interopContext) bcGetTransactionHeight(v *vm.VM) error {
-	_, h, err := getTransactionAndHeight(ic.bc, v)
+	_, h, err := getTransactionAndHeight(ic.dao, v)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func (ic *interopContext) engineGetScriptContainer(v *vm.VM) error {
 func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
 	ctxIface := v.Istack().Peek(n).Value()
 	ctx := ctxIface.(*vm.Context)
-	return hash.Hash160(ctx.Program())
+	return ctx.ScriptHash()
 }
 
 // pushContextScriptHash pushes to evaluation stack the script hash of the
@@ -383,8 +383,8 @@ func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
 }
 */
 func (ic *interopContext) checkStorageContext(stc *StorageContext) error {
-	contract := ic.bc.GetContractState(stc.ScriptHash)
-	if contract == nil {
+	contract, err := ic.dao.GetContractState(stc.ScriptHash)
+	if err != nil {
 		return errors.New("no contract found")
 	}
 	if !contract.HasStorage() {
@@ -535,16 +535,16 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 		return errors.New("can't destroy contract when not triggered by application")
 	}
 	hash := getContextScriptHash(v, 0)
-	cs := ic.bc.GetContractState(hash)
-	if cs == nil {
+	cs, err := ic.dao.GetContractState(hash)
+	if err != nil {
 		return nil
 	}
-	err := ic.dao.DeleteContractState(hash)
+	err = ic.dao.DeleteContractState(hash)
 	if err != nil {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.bc.GetStorageItems(hash)
+		siMap, err := ic.dao.GetStorageItems(hash)
 		if err != nil {
 			return err
 		}

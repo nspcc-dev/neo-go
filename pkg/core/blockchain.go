@@ -86,7 +86,7 @@ type headersOpFunc func(headerList *HeaderHashList)
 func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
 	bc := &Blockchain{
 		config:        cfg,
-		dao:           &dao{store: storage.NewMemCachedStore(s)},
+		dao:           newDao(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -344,7 +344,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *Block) error {
-	cache := &dao{store: storage.NewMemCachedStore(bc.dao.store)}
+	cache := newCachedDao(bc.dao.store)
 	if err := cache.StoreAsBlock(block, 0); err != nil {
 		return err
 	}
@@ -505,7 +505,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			v.LoadScript(t.Script)
 			err := v.Run()
 			if !v.HasFailed() {
-				_, err := systemInterop.dao.store.Persist()
+				_, err := systemInterop.dao.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
@@ -554,7 +554,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 			}
 		}
 	}
-	_, err := cache.store.Persist()
+	_, err := cache.Persist()
 	if err != nil {
 		return err
 	}
@@ -567,7 +567,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 }
 
 // processOutputs processes transaction outputs.
-func processOutputs(tx *transaction.Transaction, dao *dao) error {
+func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 	for index, output := range tx.Outputs {
 		account, err := dao.GetAccountStateOrNew(output.ScriptHash)
 		if err != nil {
@@ -588,7 +588,7 @@ func processOutputs(tx *transaction.Transaction, dao *dao) error {
 	return nil
 }
 
-func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *dao) error {
+func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
 	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
 		for _, vote := range account.Votes {
 			validatorState, err := dao.GetValidatorStateOrNew(vote)
@@ -604,7 +604,7 @@ func processTXWithValidatorsAdd(output *transaction.Output, account *state.Accou
 	return nil
 }
 
-func processTXWithValidatorsSubtract(account *state.Account, dao *dao, toSubtract util.Fixed8) error {
+func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toSubtract util.Fixed8) error {
 	for _, vote := range account.Votes {
 		validator, err := dao.GetValidatorStateOrNew(vote)
 		if err != nil {
@@ -624,7 +624,7 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *dao, toSubtrac
 	return nil
 }
 
-func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao) error {
+func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
 	publicKey := &keys.PublicKey{}
 	err := publicKey.DecodeBytes(descriptor.Key)
 	if err != nil {
@@ -645,7 +645,7 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 	return nil
 }
 
-func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao) error {
+func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
 	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
 	if err != nil {
 		return err
@@ -690,7 +690,7 @@ func (bc *Blockchain) persist() error {
 		err       error
 	)
 
-	persisted, err = bc.dao.store.Persist()
+	persisted, err = bc.dao.Persist()
 	if err != nil {
 		return err
 	}
@@ -1156,7 +1156,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
 func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := &dao{store: storage.NewMemCachedStore(bc.dao.store)}
+	cache := newCachedDao(bc.dao.store)
 	if len(txes) > 0 {
 		for _, tx := range txes {
 			// iterate through outputs
@@ -1249,14 +1249,10 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
 		result = append(result, uniqueSBValidators[i])
 	}
-	_, err = cache.store.Persist()
-	if err != nil {
-		return nil, err
-	}
 	return result, nil
 }
 
-func processStateTX(dao *dao, tx *transaction.StateTX) error {
+func processStateTX(dao *cachedDao, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
 		case transaction.Account:
@@ -1272,7 +1268,7 @@ func processStateTX(dao *dao, tx *transaction.StateTX) error {
 	return nil
 }
 
-func processEnrollmentTX(dao *dao, tx *transaction.EnrollmentTX) error {
+func processEnrollmentTX(dao *cachedDao, tx *transaction.EnrollmentTX) error {
 	validatorState, err := dao.GetValidatorStateOrNew(&tx.PublicKey)
 	if err != nil {
 		return err
@@ -1340,8 +1336,8 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 	vm := vm.New()
 	vm.SetScriptGetter(func(hash util.Uint160) []byte {
-		cs := bc.GetContractState(hash)
-		if cs == nil {
+		cs, err := interopCtx.dao.GetContractState(hash)
+		if err != nil {
 			return nil
 		}
 		return cs.Script

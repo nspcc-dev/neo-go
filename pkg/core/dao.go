@@ -19,6 +19,10 @@ type dao struct {
 	store *storage.MemCachedStore
 }
 
+func newDao(backend storage.Store) *dao {
+	return &dao{store: storage.NewMemCachedStore(backend)}
+}
+
 // GetAndDecode performs get operation and decoding with serializable structures.
 func (dao *dao) GetAndDecode(entity io.Serializable, key []byte) error {
 	entityBytes, err := dao.store.Get(key)
@@ -51,9 +55,6 @@ func (dao *dao) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) 
 			return nil, err
 		}
 		account = state.NewAccount(hash)
-		if err = dao.PutAccountState(account); err != nil {
-			return nil, err
-		}
 	}
 	return account, nil
 }
@@ -147,9 +148,6 @@ func (dao *dao) GetUnspentCoinStateOrNew(hash util.Uint256) (*UnspentCoinState, 
 		unspent = &UnspentCoinState{
 			states: []state.Coin{},
 		}
-		if err = dao.PutUnspentCoinState(hash, unspent); err != nil {
-			return nil, err
-		}
 	}
 	return unspent, nil
 }
@@ -184,9 +182,6 @@ func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256) (*SpentCoinState, error) {
 		}
 		spent = &SpentCoinState{
 			items: make(map[uint16]uint32),
-		}
-		if err = dao.PutSpentCoinState(hash, spent); err != nil {
-			return nil, err
 		}
 	}
 	return spent, nil
@@ -227,9 +222,6 @@ func (dao *dao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Valida
 			return nil, err
 		}
 		validatorState = &state.Validator{PublicKey: publicKey}
-		if err = dao.PutValidatorState(validatorState); err != nil {
-			return nil, err
-		}
 	}
 	return validatorState, nil
 
@@ -550,4 +542,10 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 		}
 	}
 	return false
+}
+
+// Persist flushes all the changes made into the (supposedly) persistent
+// underlying store.
+func (dao *dao) Persist() (int, error) {
+	return dao.store.Persist()
 }

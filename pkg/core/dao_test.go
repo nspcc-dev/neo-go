@@ -15,7 +15,7 @@ import (
 )
 
 func TestPutGetAndDecode(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	err := dao.Put(serializable, hash)
@@ -40,18 +40,15 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 }
 
 func TestGetAccountStateOrNew_New(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint160()
 	createdAccount, err := dao.GetAccountStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, createdAccount)
-	gotAccount, err := dao.GetAccountState(hash)
-	require.NoError(t, err)
-	require.Equal(t, createdAccount, gotAccount)
 }
 
 func TestPutAndGetAccountStateOrNew(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint160()
 	accountState := &state.Account{ScriptHash: hash}
 	err := dao.PutAccountState(accountState)
@@ -62,7 +59,7 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 }
 
 func TestPutAndGetAssetState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	id := random.Uint256()
 	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
 	err := dao.PutAssetState(assetState)
@@ -73,8 +70,8 @@ func TestPutAndGetAssetState(t *testing.T) {
 }
 
 func TestPutAndGetContractState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	dao := newDao(storage.NewMemoryStore())
+	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -84,8 +81,8 @@ func TestPutAndGetContractState(t *testing.T) {
 }
 
 func TestDeleteContractState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
-	contractState := &state.Contract{Script: []byte{}, ParamList:[]smartcontract.ParamType{}}
+	dao := newDao(storage.NewMemoryStore())
+	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -97,18 +94,15 @@ func TestDeleteContractState(t *testing.T) {
 }
 
 func TestGetUnspentCoinStateOrNew_New(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
 	unspentCoinState, err := dao.GetUnspentCoinStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, unspentCoinState)
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, unspentCoinState, gotUnspentCoinState)
 }
 
 func TestGetUnspentCoinState_Err(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
 	require.Error(t, err)
@@ -116,9 +110,9 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 }
 
 func TestPutGetUnspentCoinState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	unspentCoinState := &UnspentCoinState{states:[]state.Coin{}}
+	unspentCoinState := &UnspentCoinState{states: []state.Coin{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
@@ -127,20 +121,17 @@ func TestPutGetUnspentCoinState(t *testing.T) {
 }
 
 func TestGetSpentCoinStateOrNew_New(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
 	spentCoinState, err := dao.GetSpentCoinsOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, spentCoinState)
-	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, spentCoinState, gotSpentCoinState)
 }
 
 func TestPutAndGetSpentCoinState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
+	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
@@ -149,7 +140,7 @@ func TestPutAndGetSpentCoinState(t *testing.T) {
 }
 
 func TestGetSpentCoinState_Err(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
 	spentCoinState, err := dao.GetSpentCoinState(hash)
 	require.Error(t, err)
@@ -157,9 +148,9 @@ func TestGetSpentCoinState_Err(t *testing.T) {
 }
 
 func TestDeleteSpentCoinState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items:make(map[uint16]uint32)}
+	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	err = dao.DeleteSpentCoinState(hash)
@@ -170,18 +161,15 @@ func TestDeleteSpentCoinState(t *testing.T) {
 }
 
 func TestGetValidatorStateOrNew_New(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState, err := dao.GetValidatorStateOrNew(publicKey)
 	require.NoError(t, err)
 	require.NotNil(t, validatorState)
-	gotValidatorState, err := dao.GetValidatorState(publicKey)
-	require.NoError(t, err)
-	require.Equal(t, validatorState, gotValidatorState)
 }
 
 func TestPutGetValidatorState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -196,7 +184,7 @@ func TestPutGetValidatorState(t *testing.T) {
 }
 
 func TestDeleteValidatorState(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -213,7 +201,7 @@ func TestDeleteValidatorState(t *testing.T) {
 }
 
 func TestGetValidators(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -228,9 +216,9 @@ func TestGetValidators(t *testing.T) {
 }
 
 func TestPutGetAppExecResult(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	appExecResult := &state.AppExecResult{TxHash: hash, Events:[]state.NotificationEvent{}}
+	appExecResult := &state.AppExecResult{TxHash: hash, Events: []state.NotificationEvent{}}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
 	gotAppExecResult, err := dao.GetAppExecResult(hash)
@@ -239,7 +227,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 }
 
 func TestPutGetStorageItem(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
@@ -250,7 +238,7 @@ func TestPutGetStorageItem(t *testing.T) {
 }
 
 func TestDeleteStorageItem(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
@@ -263,7 +251,7 @@ func TestDeleteStorageItem(t *testing.T) {
 }
 
 func TestGetBlock_NotExists(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
 	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
@@ -271,7 +259,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 }
 
 func TestPutGetBlock(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	block := &Block{
 		BlockBase: BlockBase{
 			Script: transaction.Witness{
@@ -289,14 +277,14 @@ func TestPutGetBlock(t *testing.T) {
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	version, err := dao.GetVersion()
 	require.Error(t, err)
 	require.Equal(t, "", version)
 }
 
 func TestGetVersion(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	err := dao.PutVersion("testVersion")
 	require.NoError(t, err)
 	version, err := dao.GetVersion()
@@ -305,14 +293,14 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	height, err := dao.GetCurrentBlockHeight()
 	require.Error(t, err)
 	require.Equal(t, uint32(0), height)
 }
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	block := &Block{
 		BlockBase: BlockBase{
 			Script: transaction.Witness{
@@ -329,7 +317,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 }
 
 func TestStoreAsTransaction(t *testing.T) {
-	dao := &dao{store: storage.NewMemCachedStore(storage.NewMemoryStore())}
+	dao := newDao(storage.NewMemoryStore())
 	tx := &transaction.Transaction{}
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0)

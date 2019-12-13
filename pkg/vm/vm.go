@@ -129,8 +129,8 @@ func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
 // the VM. Effectively it's a batched version of RegisterInteropFunc.
 func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
 	// We allow reregistration here.
-	for name, funPrice := range interops {
-		v.interop[name] = funPrice
+	for name := range interops {
+		v.interop[name] = interops[name]
 	}
 }
 
