@@ -45,9 +45,6 @@ func TestGetAccountStateOrNew_New(t *testing.T) {
 	createdAccount, err := dao.GetAccountStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, createdAccount)
-	gotAccount, err := dao.GetAccountState(hash)
-	require.NoError(t, err)
-	require.Equal(t, createdAccount, gotAccount)
 }
 
 func TestPutAndGetAccountStateOrNew(t *testing.T) {
@@ -102,9 +99,6 @@ func TestGetUnspentCoinStateOrNew_New(t *testing.T) {
 	unspentCoinState, err := dao.GetUnspentCoinStateOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, unspentCoinState)
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, unspentCoinState, gotUnspentCoinState)
 }
 
 func TestGetUnspentCoinState_Err(t *testing.T) {
@@ -132,9 +126,6 @@ func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 	spentCoinState, err := dao.GetSpentCoinsOrNew(hash)
 	require.NoError(t, err)
 	require.NotNil(t, spentCoinState)
-	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, spentCoinState, gotSpentCoinState)
 }
 
 func TestPutAndGetSpentCoinState(t *testing.T) {
@@ -175,9 +166,6 @@ func TestGetValidatorStateOrNew_New(t *testing.T) {
 	validatorState, err := dao.GetValidatorStateOrNew(publicKey)
 	require.NoError(t, err)
 	require.NotNil(t, validatorState)
-	gotValidatorState, err := dao.GetValidatorState(publicKey)
-	require.NoError(t, err)
-	require.Equal(t, validatorState, gotValidatorState)
 }
 
 func TestPutGetValidatorState(t *testing.T) {

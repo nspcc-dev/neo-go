@@ -55,9 +55,6 @@ func (dao *dao) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) 
 			return nil, err
 		}
 		account = state.NewAccount(hash)
-		if err = dao.PutAccountState(account); err != nil {
-			return nil, err
-		}
 	}
 	return account, nil
 }
@@ -151,9 +148,6 @@ func (dao *dao) GetUnspentCoinStateOrNew(hash util.Uint256) (*UnspentCoinState, 
 		unspent = &UnspentCoinState{
 			states: []state.Coin{},
 		}
-		if err = dao.PutUnspentCoinState(hash, unspent); err != nil {
-			return nil, err
-		}
 	}
 	return unspent, nil
 }
@@ -188,9 +182,6 @@ func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256) (*SpentCoinState, error) {
 		}
 		spent = &SpentCoinState{
 			items: make(map[uint16]uint32),
-		}
-		if err = dao.PutSpentCoinState(hash, spent); err != nil {
-			return nil, err
 		}
 	}
 	return spent, nil
@@ -231,9 +222,6 @@ func (dao *dao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Valida
 			return nil, err
 		}
 		validatorState = &state.Validator{PublicKey: publicKey}
-		if err = dao.PutValidatorState(validatorState); err != nil {
-			return nil, err
-		}
 	}
 	return validatorState, nil
 
