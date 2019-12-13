@@ -344,7 +344,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *Block) error {
-	cache := newDao(bc.dao.store)
+	cache := newCachedDao(bc.dao.store)
 	if err := cache.StoreAsBlock(block, 0); err != nil {
 		return err
 	}
@@ -567,7 +567,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 }
 
 // processOutputs processes transaction outputs.
-func processOutputs(tx *transaction.Transaction, dao *dao) error {
+func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 	for index, output := range tx.Outputs {
 		account, err := dao.GetAccountStateOrNew(output.ScriptHash)
 		if err != nil {
@@ -588,7 +588,7 @@ func processOutputs(tx *transaction.Transaction, dao *dao) error {
 	return nil
 }
 
-func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *dao) error {
+func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
 	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
 		for _, vote := range account.Votes {
 			validatorState, err := dao.GetValidatorStateOrNew(vote)
@@ -604,7 +604,7 @@ func processTXWithValidatorsAdd(output *transaction.Output, account *state.Accou
 	return nil
 }
 
-func processTXWithValidatorsSubtract(account *state.Account, dao *dao, toSubtract util.Fixed8) error {
+func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toSubtract util.Fixed8) error {
 	for _, vote := range account.Votes {
 		validator, err := dao.GetValidatorStateOrNew(vote)
 		if err != nil {
@@ -624,7 +624,7 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *dao, toSubtrac
 	return nil
 }
 
-func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao) error {
+func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
 	publicKey := &keys.PublicKey{}
 	err := publicKey.DecodeBytes(descriptor.Key)
 	if err != nil {
@@ -645,7 +645,7 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 	return nil
 }
 
-func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao) error {
+func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
 	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
 	if err != nil {
 		return err
@@ -1156,7 +1156,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
 func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := newDao(bc.dao.store)
+	cache := newCachedDao(bc.dao.store)
 	if len(txes) > 0 {
 		for _, tx := range txes {
 			// iterate through outputs
@@ -1252,7 +1252,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	return result, nil
 }
 
-func processStateTX(dao *dao, tx *transaction.StateTX) error {
+func processStateTX(dao *cachedDao, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
 		case transaction.Account:
@@ -1268,7 +1268,7 @@ func processStateTX(dao *dao, tx *transaction.StateTX) error {
 	return nil
 }
 
-func processEnrollmentTX(dao *dao, tx *transaction.EnrollmentTX) error {
+func processEnrollmentTX(dao *cachedDao, tx *transaction.EnrollmentTX) error {
 	validatorState, err := dao.GetValidatorStateOrNew(&tx.PublicKey)
 	if err != nil {
 		return err
