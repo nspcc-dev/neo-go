@@ -1,10 +1,10 @@
 package vm
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
@@ -36,6 +36,8 @@ type Context struct {
 	scriptHash util.Uint160
 }
 
+var errNoInstParam = errors.New("failed to read instruction parameter")
+
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
 	return &Context{
@@ -49,33 +51,44 @@ func NewContext(b []byte) *Context {
 // its invocation the instruction pointer points to the instruction being
 // returned.
 func (c *Context) Next() (opcode.Opcode, []byte, error) {
+	var err error
+
 	c.ip = c.nextip
 	if c.ip >= len(c.prog) {
 		return opcode.RET, nil, nil
 	}
-	r := io.NewBinReaderFromBuf(c.prog[c.ip:])
 
-	var instrbyte = r.ReadB()
+	var instrbyte = c.prog[c.ip]
 	instr := opcode.Opcode(instrbyte)
 	c.nextip++
 
 	var numtoread int
 	switch instr {
 	case opcode.PUSHDATA1, opcode.SYSCALL:
-		var n = r.ReadB()
-		numtoread = int(n)
-		c.nextip++
-	case opcode.PUSHDATA2:
-		var n = r.ReadU16LE()
-		numtoread = int(n)
-		c.nextip += 2
-	case opcode.PUSHDATA4:
-		var n = r.ReadU32LE()
-		if n > MaxItemSize {
-			return instr, nil, errors.New("parameter is too big")
+		if c.nextip >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			numtoread = int(c.prog[c.nextip])
+			c.nextip++
 		}
-		numtoread = int(n)
-		c.nextip += 4
+	case opcode.PUSHDATA2:
+		if c.nextip+1 >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			numtoread = int(binary.LittleEndian.Uint16(c.prog[c.nextip : c.nextip+2]))
+			c.nextip += 2
+		}
+	case opcode.PUSHDATA4:
+		if c.nextip+3 >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			var n = binary.LittleEndian.Uint32(c.prog[c.nextip : c.nextip+4])
+			if n > MaxItemSize {
+				return instr, nil, errors.New("parameter is too big")
+			}
+			numtoread = int(n)
+			c.nextip += 4
+		}
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL, opcode.CALLED, opcode.CALLEDT:
 		numtoread = 2
 	case opcode.CALLI:
@@ -92,11 +105,14 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			return instr, nil, nil
 		}
 	}
-	parameter := make([]byte, numtoread)
-	r.ReadBytes(parameter)
-	if r.Err != nil {
-		return instr, nil, errors.New("failed to read instruction parameter")
+	if c.nextip+numtoread-1 >= len(c.prog) {
+		err = errNoInstParam
 	}
+	if err != nil {
+		return instr, nil, err
+	}
+	parameter := make([]byte, numtoread)
+	copy(parameter, c.prog[c.nextip:c.nextip+numtoread])
 	c.nextip += numtoread
 	return instr, parameter, nil
 }
