@@ -35,8 +35,12 @@ func BenchmarkTXPerformanceTest(t *testing.B) {
 	t.ResetTimer()
 
 	for n := 0; n < t.N; n++ {
-		require.Equal(t, server.RelayTxn(data[n]), network.RelaySucceed)
-		require.Equal(t, server.RelayTxn(data[n]), network.RelayAlreadyExists)
+		if server.RelayTxn(data[n]) != network.RelaySucceed {
+			t.Fail()
+		}
+		if server.RelayTxn(data[n]) != network.RelayAlreadyExists {
+			t.Fail()
+		}
 	}
 	chain.Close()
 }
