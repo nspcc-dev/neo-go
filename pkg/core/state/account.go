@@ -49,8 +49,11 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 	for i := 0; i < int(lenBalances); i++ {
 		key := util.Uint256{}
 		br.ReadBytes(key[:])
-		ubs := make([]UnspentBalance, 0)
-		br.ReadArray(&ubs)
+		len := int(br.ReadVarUint())
+		ubs := make([]UnspentBalance, len)
+		for j := 0; j < len; j++ {
+			ubs[j].DecodeBinary(br)
+		}
 		s.Balances[key] = ubs
 	}
 }
@@ -65,7 +68,10 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarUint(uint64(len(s.Balances)))
 	for k, v := range s.Balances {
 		bw.WriteBytes(k[:])
-		bw.WriteArray(v)
+		bw.WriteVarUint(uint64(len(v)))
+		for i := range v {
+			v[i].EncodeBinary(bw)
+		}
 	}
 }
 
