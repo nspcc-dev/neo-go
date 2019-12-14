@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,4 +62,29 @@ func TestMemPoolAddRemove(t *testing.T) {
 	t.Run("low priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
 	fs.lowPriority = true
 	t.Run("high priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
+}
+
+func TestMemPoolVerify(t *testing.T) {
+	mp := NewMemPool(10)
+	tx := newMinerTX()
+	inhash1 := random.Uint256()
+	tx.Inputs = append(tx.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 0})
+	require.Equal(t, true, mp.Verify(tx))
+	item := NewPoolItem(tx, &FeerStub{})
+	require.Equal(t, true, mp.TryAdd(tx.Hash(), item))
+
+	tx2 := newMinerTX()
+	inhash2 := random.Uint256()
+	tx2.Inputs = append(tx2.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
+	require.Equal(t, true, mp.Verify(tx2))
+	item = NewPoolItem(tx2, &FeerStub{})
+	require.Equal(t, true, mp.TryAdd(tx2.Hash(), item))
+
+	tx3 := newMinerTX()
+	// Different index number, but the same PrevHash as in tx1.
+	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 1})
+	require.Equal(t, true, mp.Verify(tx3))
+	// The same input as in tx2.
+	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
+	require.Equal(t, false, mp.Verify(tx3))
 }
