@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -369,6 +370,23 @@ func (s *Stack) IterBack(f func(*Element)) {
 	for e := s.Back(); e != nil; e = e.Prev() {
 		f(e)
 	}
+}
+
+// Swap swaps two elements on the stack without popping and pushing them.
+func (s *Stack) Swap(n1, n2 int) error {
+	if n1 < 0 || n2 < 0 {
+		return errors.New("negative index")
+	}
+	if n1 >= s.len || n2 >= s.len {
+		return errors.New("too big index")
+	}
+	if n1 == n2 {
+		return nil
+	}
+	a := s.Peek(n1)
+	b := s.Peek(n2)
+	a.value, b.value = b.value, a.value
+	return nil
 }
 
 // popSigElements pops keys or signatures from the stack as needed for

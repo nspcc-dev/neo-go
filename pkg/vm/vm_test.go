@@ -2409,6 +2409,68 @@ func TestCHECKMULTISIGGood(t *testing.T) {
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
+func TestSWAPGood(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(4)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestSWAPBad1(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	checkVMFailed(t, vm)
+}
+
+func TestSWAPBad2(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	checkVMFailed(t, vm)
+}
+
+func TestXSWAPGood(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(3)
+	runVM(t, vm)
+	assert.Equal(t, 5, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(5), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestXSWAPBad1(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(-1)
+	checkVMFailed(t, vm)
+}
+
+func TestXSWAPBad2(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(4)
+	checkVMFailed(t, vm)
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
