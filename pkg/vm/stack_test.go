@@ -258,6 +258,46 @@ func TestSwapElemValues(t *testing.T) {
 	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
 }
 
+func TestRoll(t *testing.T) {
+	s := NewStack("test")
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(2))
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(3))
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.Error(t, s.Roll(-1))
+	assert.Error(t, s.Roll(4))
+
+	assert.NoError(t, s.Roll(0))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+}
+
 func TestPopSigElements(t *testing.T) {
 	s := NewStack("test")
 

@@ -607,11 +607,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.InsertAt(a, n)
 
 	case opcode.ROT:
-		e := v.estack.RemoveAt(2)
-		if e == nil {
-			panic("no top-level element found")
+		err := v.estack.Roll(2)
+		if err != nil {
+			panic(err.Error())
 		}
-		v.estack.Push(e)
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
@@ -642,15 +641,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.ROLL:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
-			panic("negative stack item returned")
-		}
-		if n > 0 {
-			e := v.estack.RemoveAt(n)
-			if e == nil {
-				panic("bad index")
-			}
-			v.estack.Push(e)
+		err := v.estack.Roll(n)
+		if err != nil {
+			panic(err.Error())
 		}
 
 	case opcode.DROP:

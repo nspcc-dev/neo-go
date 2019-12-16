@@ -389,6 +389,34 @@ func (s *Stack) Swap(n1, n2 int) error {
 	return nil
 }
 
+// Roll brings an item with the given index to the top of the stack, moving all
+// the other elements down accordingly. It does all of that without popping and
+// pushing elements.
+func (s *Stack) Roll(n int) error {
+	if n < 0 {
+		return errors.New("negative index")
+	}
+	if n >= s.len {
+		return errors.New("too big index")
+	}
+	if n == 0 {
+		return nil
+	}
+	top := s.Peek(0)
+	e := s.Peek(n)
+
+	e.prev.next = e.next
+	e.next.prev = e.prev
+
+	top.prev = e
+	e.next = top
+
+	e.prev = &s.top
+	s.top.next = e
+
+	return nil
+}
+
 // popSigElements pops keys or signatures from the stack as needed for
 // CHECKMULTISIG.
 func (s *Stack) popSigElements() ([][]byte, error) {

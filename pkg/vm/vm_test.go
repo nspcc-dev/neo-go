@@ -1518,6 +1518,40 @@ func TestROTGood(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
+func TestROLLBad1(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(-1)
+	checkVMFailed(t, vm)
+}
+
+func TestROLLBad2(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(3)
+	checkVMFailed(t, vm)
+}
+
+func TestROLLGood(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(1)
+	runVM(t, vm)
+	assert.Equal(t, 4, vm.estack.Len())
+	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(4), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+}
+
 func TestXTUCKbadNoitem(t *testing.T) {
 	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
