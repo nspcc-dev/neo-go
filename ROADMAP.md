@@ -4,9 +4,6 @@ This defines approximate plan of neo-go releases and key features planned for
 them. Things can change if there a need to push a bugfix or some critical
 functionality.
 
-## Version 0.70.1 (first week of December 2019)
-* refactoring and bug fixing
-
 ## Version 0.71.0 (end of December 2019)
 * more user-facing commands for various tasks
 * completing P2P protocol implementation

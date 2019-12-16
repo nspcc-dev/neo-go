@@ -2,6 +2,54 @@
 
 This document outlines major changes between releases.
 
+## 0.70.1 "Centrifugation" (16 Dec 2019)
+
+Release 0.70.1 brings no new functionality focusing on internal node
+improvements instead. Some bugs were fixed, refactoring was done and
+performance was improved substantially.
+
+Behaviour changes:
+ * as with the previous release, this one changes the database format, so you
+   need to resynchronize your nodes
+ * code testing will fail if you're not to checkout submodules (we have one
+   with neo-vm tests, #543)
+
+Improvements:
+ * "inv" command handling was changed to not ask peers of the items we already
+   have (#533)
+ * numerous optimizations across the whole system (#535, #546, #547, #545,
+   #549, #550, #553, #554, #556, #557)
+ * compiler no longer outputs errors by itself, passing them programmatically
+   instead via its API (#457)
+ * VM opcodes were moved into their own package allowing wider reuse (#538)
+ * `compiler` package was moved one level up from `pkg/vm/compiler` to
+   `pkg/compiler` (#538)
+ * proper script trigger constants were added (#509)
+ * consensus payloads are now properly signed and this signature is being
+   checked (#544)
+ * Uint160/Uint256 types were made more consistent and having an explicit
+   LE/BE suffix for conversion functions (#314)
+ * a separate layer based on storage.Store with state item-specific functions
+   was created (#517, #334)
+ * ReadBytes/WriteBytes in io package were renamed into
+   ReadVarBytes/WriteVarBytes to more accurately describe them and be more
+   consistent with C# implementation (#545)
+ * io package was refactored to add type-specific read/write methods to its
+   structures and remove generic (slow) ReadLE/WriteLE (#553, #554)
+ * a simple tx performance benchmark was added (#551)
+
+Bugs fixed:
+ * consensus could start and stall with not-yet-connected peers (#532)
+ * nil pointer dereference in PrepareResponse and PrepareRequest messages
+   handling (#532)
+ * fatal error because of locking problems in mempool (#535)
+ * missing error handling in compiler emitter functions (#297)
+ * wallet opening command now hides the password printed into it (#539)
+ * storage was updated improperly when several transactions in one block were
+   touching the same keys, leading to subsequent transactions failures (#542)
+ * application execution results were not saved in full (#517)
+ * mempool transaction verification was wrong (#557)
+
 ## 0.70.0 "Constellation" (29 Nov 2019)
 
 This is a long-awaited and exciting release implementing a full Neo
