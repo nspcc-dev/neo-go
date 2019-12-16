@@ -50,6 +50,10 @@ that should be `neo-go-linux-amd64`.
 Edit an automatically-created release on Github, copy things from changelog
 there and attach previously downloaded binary. Make a release.
 
+## Close Github milestone
+
+Close corresponding X.Y.Z Github milestone.
+
 ## Announcements
 
 Copy the github release page link to:
