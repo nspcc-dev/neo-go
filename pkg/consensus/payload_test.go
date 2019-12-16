@@ -300,9 +300,9 @@ func TestPayload_Sign(t *testing.T) {
 
 	priv := &privateKey{key}
 	p := randomPayload(t, prepareRequestType)
-	require.False(t, p.Verify())
+	require.False(t, p.Verify(util.Uint160{}))
 	require.NoError(t, p.Sign(priv))
-	require.True(t, p.Verify())
+	require.True(t, p.Verify(p.Witness.ScriptHash()))
 }
 
 func TestMessageType_String(t *testing.T) {
