@@ -226,22 +226,76 @@ func TestSwapElemValues(t *testing.T) {
 	s.PushVal(2)
 	s.PushVal(4)
 
-	a := s.Peek(0)
-	b := s.Peek(1)
-
-	// [ 4 ] -> a
-	// [ 2 ] -> b
-
-	aval := a.value
-	bval := b.value
-	a.value = bval
-	b.value = aval
-
-	// [ 2 ] -> a
-	// [ 4 ] -> b
-
+	assert.NoError(t, s.Swap(0, 1))
 	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
 	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Swap(1, 3))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.Error(t, s.Swap(-1, 0))
+	assert.Error(t, s.Swap(0, -3))
+	assert.Error(t, s.Swap(0, 4))
+	assert.Error(t, s.Swap(5, 0))
+
+	assert.NoError(t, s.Swap(1, 1))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+}
+
+func TestRoll(t *testing.T) {
+	s := NewStack("test")
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(2))
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(3))
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.Error(t, s.Roll(-1))
+	assert.Error(t, s.Roll(4))
+
+	assert.NoError(t, s.Roll(0))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
 }
 
 func TestPopSigElements(t *testing.T) {

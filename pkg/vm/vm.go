@@ -510,10 +510,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.Push(v.estack.Dup(0))
 
 	case opcode.SWAP:
-		a := v.estack.Pop()
-		b := v.estack.Pop()
-		v.estack.Push(a)
-		v.estack.Push(b)
+		err := v.estack.Swap(1, 0)
+		if err != nil {
+			panic(err.Error())
+		}
 
 	case opcode.TUCK:
 		a := v.estack.Dup(0)
@@ -587,18 +587,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.XSWAP:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
-			panic("XSWAP: invalid length")
-		}
-
-		// Swap values of elements instead of reordering stack elements.
-		if n > 0 {
-			a := v.estack.Peek(n)
-			b := v.estack.Peek(0)
-			aval := a.value
-			bval := b.value
-			a.value = bval
-			b.value = aval
+		err := v.estack.Swap(n, 0)
+		if err != nil {
+			panic(err.Error())
 		}
 
 	case opcode.XTUCK:
@@ -616,11 +607,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.InsertAt(a, n)
 
 	case opcode.ROT:
-		e := v.estack.RemoveAt(2)
-		if e == nil {
-			panic("no top-level element found")
+		err := v.estack.Roll(2)
+		if err != nil {
+			panic(err.Error())
 		}
-		v.estack.Push(e)
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
@@ -651,15 +641,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.ROLL:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
-			panic("negative stack item returned")
-		}
-		if n > 0 {
-			e := v.estack.RemoveAt(n)
-			if e == nil {
-				panic("bad index")
-			}
-			v.estack.Push(e)
+		err := v.estack.Roll(n)
+		if err != nil {
+			panic(err.Error())
 		}
 
 	case opcode.DROP:

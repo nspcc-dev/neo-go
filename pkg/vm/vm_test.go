@@ -1518,6 +1518,40 @@ func TestROTGood(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
+func TestROLLBad1(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(-1)
+	checkVMFailed(t, vm)
+}
+
+func TestROLLBad2(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(3)
+	checkVMFailed(t, vm)
+}
+
+func TestROLLGood(t *testing.T) {
+	prog := makeProgram(opcode.ROLL)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(1)
+	runVM(t, vm)
+	assert.Equal(t, 4, vm.estack.Len())
+	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(4), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+}
+
 func TestXTUCKbadNoitem(t *testing.T) {
 	prog := makeProgram(opcode.XTUCK)
 	vm := load(prog)
@@ -2407,6 +2441,68 @@ func TestCHECKMULTISIGGood(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestSWAPGood(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(4)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestSWAPBad1(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	vm.estack.PushVal(4)
+	checkVMFailed(t, vm)
+}
+
+func TestSWAPBad2(t *testing.T) {
+	prog := makeProgram(opcode.SWAP)
+	vm := load(prog)
+	checkVMFailed(t, vm)
+}
+
+func TestXSWAPGood(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(5)
+	vm.estack.PushVal(3)
+	runVM(t, vm)
+	assert.Equal(t, 5, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(5), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestXSWAPBad1(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(-1)
+	checkVMFailed(t, vm)
+}
+
+func TestXSWAPBad2(t *testing.T) {
+	prog := makeProgram(opcode.XSWAP)
+	vm := load(prog)
+	vm.estack.PushVal(1)
+	vm.estack.PushVal(2)
+	vm.estack.PushVal(3)
+	vm.estack.PushVal(4)
+	vm.estack.PushVal(4)
+	checkVMFailed(t, vm)
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {
