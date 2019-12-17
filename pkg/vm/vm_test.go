@@ -1092,6 +1092,30 @@ func TestPICKITEMByteArray(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
+func TestPICKITEMDupArray(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.PICKITEM, opcode.ABS)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{makeStackItem(-1)})
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	items := vm.estack.Pop().Value().([]StackItem)
+	assert.Equal(t, big.NewInt(-1), items[0].Value())
+}
+
+func TestPICKITEMDupMap(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSHBYTES1, 42, opcode.PICKITEM, opcode.ABS)
+	vm := load(prog)
+	m := NewMapItem()
+	m.Add(makeStackItem([]byte{42}), makeStackItem(-1))
+	vm.estack.Push(&Element{value: m})
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	items := vm.estack.Pop().Value().(map[interface{}]StackItem)
+	assert.Equal(t, big.NewInt(-1), items[string([]byte{42})].Value())
+}
+
 func TestPICKITEMMap(t *testing.T) {
 	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)

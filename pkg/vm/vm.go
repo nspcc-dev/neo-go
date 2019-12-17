@@ -958,14 +958,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
 			}
-			item := arr[index]
+			item := arr[index].Dup()
 			v.estack.PushVal(item)
 		case *MapItem:
 			if !t.Has(key.value) {
 				panic("invalid key")
 			}
 			k := toMapKey(key.value)
-			v.estack.Push(&Element{value: t.value[k]})
+			v.estack.Push(&Element{value: t.value[k].Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
