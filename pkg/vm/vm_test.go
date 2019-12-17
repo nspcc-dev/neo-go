@@ -1759,6 +1759,20 @@ func TestINVERTgood3(t *testing.T) {
 	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
 }
 
+func TestINVERTWithConversion1(t *testing.T) {
+	prog := makeProgram(opcode.PUSHDATA2, 0, 0, opcode.INVERT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTWithConversion2(t *testing.T) {
+	prog := makeProgram(opcode.PUSH0, opcode.PUSH1, opcode.NUMEQUAL, opcode.INVERT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+}
+
 func TestCATBadNoArgs(t *testing.T) {
 	prog := makeProgram(opcode.CAT)
 	vm := load(prog)

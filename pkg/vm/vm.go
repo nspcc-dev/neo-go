@@ -677,8 +677,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// Bit operations.
 	case opcode.INVERT:
 		// inplace
-		a := v.estack.Peek(0).BigInt()
-		a.Not(a)
+		e := v.estack.Peek(0)
+		i := e.BigInt()
+		e.value = makeStackItem(i.Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
