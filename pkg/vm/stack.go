@@ -346,7 +346,7 @@ func (s *Stack) Dup(n int) *Element {
 	}
 
 	return &Element{
-		value: e.value,
+		value: e.value.Dup(),
 	}
 }
 

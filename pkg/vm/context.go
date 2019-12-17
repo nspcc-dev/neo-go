@@ -159,6 +159,11 @@ func (c *Context) Value() interface{} {
 	return c
 }
 
+// Dup implements StackItem interface.
+func (c *Context) Dup() StackItem {
+	return c
+}
+
 func (c *Context) atBreakPoint() bool {
 	for _, n := range c.breakPoints {
 		if n == c.ip {

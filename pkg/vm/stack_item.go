@@ -15,6 +15,8 @@ import (
 type StackItem interface {
 	fmt.Stringer
 	Value() interface{}
+	// Dup duplicates current StackItem.
+	Dup() StackItem
 }
 
 func makeStackItem(v interface{}) StackItem {
@@ -107,6 +109,12 @@ func (i *StructItem) String() string {
 	return "Struct"
 }
 
+// Dup implements StackItem interface.
+func (i *StructItem) Dup() StackItem {
+	// it's a reference type, so no copying here.
+	return i
+}
+
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
 func (i *StructItem) Clone() *StructItem {
@@ -148,6 +156,12 @@ func (i *BigIntegerItem) String() string {
 	return "BigInteger"
 }
 
+// Dup implements StackItem interface.
+func (i *BigIntegerItem) Dup() StackItem {
+	n := new(big.Int)
+	return &BigIntegerItem{n.Set(i.value)}
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
@@ -179,6 +193,11 @@ func (i *BoolItem) String() string {
 	return "Bool"
 }
 
+// Dup implements StackItem interface.
+func (i *BoolItem) Dup() StackItem {
+	return &BoolItem{i.value}
+}
+
 // ByteArrayItem represents a byte array on the stack.
 type ByteArrayItem struct {
 	value []byte
@@ -203,6 +222,13 @@ func (i *ByteArrayItem) MarshalJSON() ([]byte, error) {
 
 func (i *ByteArrayItem) String() string {
 	return "ByteArray"
+}
+
+// Dup implements StackItem interface.
+func (i *ByteArrayItem) Dup() StackItem {
+	a := make([]byte, len(i.value))
+	copy(a, i.value)
+	return &ByteArrayItem{a}
 }
 
 // ArrayItem represents a new ArrayItem object.
@@ -231,6 +257,12 @@ func (i *ArrayItem) String() string {
 	return "Array"
 }
 
+// Dup implements StackItem interface.
+func (i *ArrayItem) Dup() StackItem {
+	// reference type
+	return i
+}
+
 // MapItem represents Map object.
 type MapItem struct {
 	value map[interface{}]StackItem
@@ -257,6 +289,12 @@ func (i *MapItem) String() string {
 func (i *MapItem) Has(key StackItem) (ok bool) {
 	_, ok = i.value[toMapKey(key)]
 	return
+}
+
+// Dup implements StackItem interface.
+func (i *MapItem) Dup() StackItem {
+	// reference type
+	return i
 }
 
 // Add adds key-value pair to the map.
@@ -298,6 +336,12 @@ func (i *InteropItem) Value() interface{} {
 // String implements stringer interface.
 func (i *InteropItem) String() string {
 	return "InteropItem"
+}
+
+// Dup implements StackItem interface.
+func (i *InteropItem) Dup() StackItem {
+	// reference type
+	return i
 }
 
 // MarshalJSON implements the json.Marshaler interface.

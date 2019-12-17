@@ -2519,6 +2519,42 @@ func TestXSWAPBad2(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
+func TestDupInt(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.ABS)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestDupByteArray(t *testing.T) {
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.DUP,
+		opcode.PUSH1,
+		opcode.LEFT,
+		opcode.PUSHBYTES1, 2,
+		opcode.CAT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, []byte{0x01, 0x02}, vm.estack.Pop().Bytes())
+	assert.Equal(t, []byte{0x01, 0x00}, vm.estack.Pop().Bytes())
+}
+
+func TestDupBool(t *testing.T) {
+	prog := makeProgram(opcode.PUSH0, opcode.NOT,
+		opcode.DUP,
+		opcode.PUSH1, opcode.NOT,
+		opcode.BOOLAND)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
