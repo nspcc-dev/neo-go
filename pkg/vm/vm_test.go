@@ -1497,6 +1497,21 @@ func TestPICKgood(t *testing.T) {
 	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestPICKDup(t *testing.T) {
+	prog := makeProgram(opcode.PUSHM1, opcode.PUSH0,
+		opcode.PUSH1,
+		opcode.PUSH2,
+		opcode.PICK,
+		opcode.ABS)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 4, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(0), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+}
+
 func TestROTBad(t *testing.T) {
 	prog := makeProgram(opcode.ROT)
 	vm := load(prog)
@@ -1661,6 +1676,22 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, int64(34), vm.estack.Peek(1).BigInt().Int64())
 	assert.Equal(t, int64(42), vm.estack.Peek(2).BigInt().Int64())
 	assert.Equal(t, 3, vm.estack.Len())
+}
+
+func TestOVERDup(t *testing.T) {
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.PUSH1,
+		opcode.OVER,
+		opcode.PUSH1,
+		opcode.LEFT,
+		opcode.PUSHBYTES1, 2,
+		opcode.CAT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 3, vm.estack.Len())
+	assert.Equal(t, []byte{0x01, 0x02}, vm.estack.Pop().Bytes())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, []byte{0x01, 0x00}, vm.estack.Pop().Bytes())
 }
 
 func TestNIPBadNoItem(t *testing.T) {

@@ -622,7 +622,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.OVER:
-		a := v.estack.Peek(1)
+		a := v.estack.Dup(1)
 		if a == nil {
 			panic("no second element found")
 		}
@@ -633,7 +633,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 {
 			panic("negative stack item returned")
 		}
-		a := v.estack.Peek(n)
+		a := v.estack.Dup(n)
 		if a == nil {
 			panic("no nth element found")
 		}
