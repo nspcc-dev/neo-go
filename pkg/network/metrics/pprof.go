@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"net/http/pprof"
 )
+
 // PprofService https://golang.org/pkg/net/http/pprof/.
 type PprofService Service
 
 // NewPprofService created new service for gathering pprof metrics.
 func NewPprofService(cfg Config) *Service {
 	handler := http.NewServeMux()
-	handler.HandleFunc("/debug/pprof", pprof.Index)
+	handler.HandleFunc("/debug/pprof/", pprof.Index)
 	handler.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	handler.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	handler.HandleFunc("/debug/pprof/symbol", pprof.Symbol)

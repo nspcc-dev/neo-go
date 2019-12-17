@@ -66,20 +66,20 @@ type (
 
 	// ApplicationConfiguration config specific to the node.
 	ApplicationConfiguration struct {
-		LogPath           string                   `yaml:"LogPath"`
-		DBConfiguration   storage.DBConfiguration  `yaml:"DBConfiguration"`
-		Address           string                   `yaml:"Address"`
-		NodePort          uint16                   `yaml:"NodePort"`
-		Relay             bool                     `yaml:"Relay"`
-		DialTimeout       time.Duration            `yaml:"DialTimeout"`
-		ProtoTickInterval time.Duration            `yaml:"ProtoTickInterval"`
-		MaxPeers          int                      `yaml:"MaxPeers"`
-		AttemptConnPeers  int                      `yaml:"AttemptConnPeers"`
-		MinPeers          int                      `yaml:"MinPeers"`
-		Prometheus        metrics.Config           `yaml:"Prometheus"`
-		Pprof             metrics.Config           `yaml:"Pprof"`
-		RPC               RPCConfig                `yaml:"RPC"`
-		UnlockWallet      WalletConfig             `yaml:"UnlockWallet"`
+		LogPath           string                  `yaml:"LogPath"`
+		DBConfiguration   storage.DBConfiguration `yaml:"DBConfiguration"`
+		Address           string                  `yaml:"Address"`
+		NodePort          uint16                  `yaml:"NodePort"`
+		Relay             bool                    `yaml:"Relay"`
+		DialTimeout       time.Duration           `yaml:"DialTimeout"`
+		ProtoTickInterval time.Duration           `yaml:"ProtoTickInterval"`
+		MaxPeers          int                     `yaml:"MaxPeers"`
+		AttemptConnPeers  int                     `yaml:"AttemptConnPeers"`
+		MinPeers          int                     `yaml:"MinPeers"`
+		Prometheus        metrics.Config          `yaml:"Prometheus"`
+		Pprof             metrics.Config          `yaml:"Pprof"`
+		RPC               RPCConfig               `yaml:"RPC"`
+		UnlockWallet      WalletConfig            `yaml:"UnlockWallet"`
 	}
 
 	// WalletConfig is a wallet info.
