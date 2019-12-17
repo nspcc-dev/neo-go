@@ -214,19 +214,21 @@ func (s *Stack) insert(e, at *Element) *Element {
 func (s *Stack) updateSizeAdd(item StackItem) {
 	*s.size++
 
-	s.itemCount[item]++
-	if s.itemCount[item] > 1 {
-		return
-	}
-
-	switch t := item.(type) {
-	case *ArrayItem, *StructItem:
-		for _, it := range item.Value().([]StackItem) {
-			s.updateSizeAdd(it)
+	switch item.(type) {
+	case *ArrayItem, *StructItem, *MapItem:
+		if s.itemCount[item]++; s.itemCount[item] > 1 {
+			return
 		}
-	case *MapItem:
-		for _, v := range t.value {
-			s.updateSizeAdd(v)
+
+		switch t := item.(type) {
+		case *ArrayItem, *StructItem:
+			for _, it := range item.Value().([]StackItem) {
+				s.updateSizeAdd(it)
+			}
+		case *MapItem:
+			for _, v := range t.value {
+				s.updateSizeAdd(v)
+			}
 		}
 	}
 }
@@ -234,21 +236,24 @@ func (s *Stack) updateSizeAdd(item StackItem) {
 func (s *Stack) updateSizeRemove(item StackItem) {
 	*s.size--
 
-	if s.itemCount[item] > 1 {
-		s.itemCount[item]--
-		return
-	}
-
-	delete(s.itemCount, item)
-
-	switch t := item.(type) {
-	case *ArrayItem, *StructItem:
-		for _, it := range item.Value().([]StackItem) {
-			s.updateSizeRemove(it)
+	switch item.(type) {
+	case *ArrayItem, *StructItem, *MapItem:
+		if s.itemCount[item] > 1 {
+			s.itemCount[item]--
+			return
 		}
-	case *MapItem:
-		for _, v := range t.value {
-			s.updateSizeRemove(v)
+
+		delete(s.itemCount, item)
+
+		switch t := item.(type) {
+		case *ArrayItem, *StructItem:
+			for _, it := range item.Value().([]StackItem) {
+				s.updateSizeRemove(it)
+			}
+		case *MapItem:
+			for _, v := range t.value {
+				s.updateSizeRemove(v)
+			}
 		}
 	}
 }
