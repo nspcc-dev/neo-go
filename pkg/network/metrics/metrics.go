@@ -4,57 +4,47 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
-// Service serves metrics provided by prometheus.
+// Service serves metrics.
 type Service struct {
 	*http.Server
-	config PrometheusConfig
+	config      Config
+	serviceType string
 }
 
-// PrometheusConfig config for Prometheus used for monitoring.
-// Additional information about Prometheus could be found here: https://prometheus.io/docs/guides/go-application.
-type PrometheusConfig struct {
+// Config config used for monitoring.
+type Config struct {
 	Enabled bool   `yaml:"Enabled"`
 	Address string `yaml:"Address"`
 	Port    string `yaml:"Port"`
 }
 
-// NewMetricsService created new service for gathering metrics.
-func NewMetricsService(cfg PrometheusConfig) *Service {
-	return &Service{
-		&http.Server{
-			Addr:    cfg.Address + ":" + cfg.Port,
-			Handler: promhttp.Handler(),
-		}, cfg,
-	}
-}
-
-// Start runs http service with exposed `/metrics` endpoint on configured port.
+// Start runs http service with exposed endpoint on configured port.
 func (ms *Service) Start() {
 	if ms.config.Enabled {
+		log.WithFields(log.Fields{
+			"endpoint": ms.Addr,
+			"service": ms.serviceType,
+		}).Info("service running")
 		err := ms.ListenAndServe()
-		if err != nil {
-			log.WithFields(log.Fields{
-				"endpoint": ms.Addr,
-			}).Info("metrics service up and running")
-		} else {
-			log.Warn("metrics service couldn't start on configured port")
+		if err != nil && err != http.ErrServerClosed {
+			log.Warnf("%s service couldn't start on configured port", ms.serviceType)
 		}
 	} else {
-		log.Infof("metrics service hasn't started since it's disabled")
+		log.Infof("%s service hasn't started since it's disabled", ms.serviceType)
 	}
 }
 
 // ShutDown stops service.
 func (ms *Service) ShutDown() {
 	log.WithFields(log.Fields{
-		"endpoint": ms.config.Port,
-	}).Info("shutting down monitoring-service")
+		"endpoint": ms.Addr,
+		"service": ms.serviceType,
+	}).Info("shutting down service")
 	err := ms.Shutdown(context.Background())
 	if err != nil {
-		log.Fatal("can't shut down monitoring service")
+		log.Fatalf("can't shut down %s service",  ms.serviceType)
 	}
 }

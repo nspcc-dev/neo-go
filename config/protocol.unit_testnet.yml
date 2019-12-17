@@ -47,6 +47,9 @@ ApplicationConfiguration:
     Enabled: true
     EnableCORSWorkaround: false
     Port: 20332
-  Monitoring:
+  Prometheus:
     Enabled: false #since it's not useful for unit tests.
     Port: 2112
+  Pprof:
+    Enabled: false #since it's not useful for unit tests.
+    Port: 2113

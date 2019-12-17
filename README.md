@@ -85,6 +85,19 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
+#Developer notes
+Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
+[Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
+
+How to configure Prometheus or Pprof:
+In `config/protocol.*.yml` there is 
+```
+  Prometheus:
+    Enabled: true
+    Port: 2112
+```
+where you can switch on/off and define port. Prometheus is enabled and Pprof is disabled by default.
+
 # Contributing
 
 Feel free to contribute to this project after reading the
