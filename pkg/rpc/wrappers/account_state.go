@@ -2,9 +2,9 @@ package wrappers
 
 import (
 	"bytes"
-	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"sort"
 
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )

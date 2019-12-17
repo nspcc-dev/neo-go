@@ -26,7 +26,7 @@ func (ms *Service) Start() {
 	if ms.config.Enabled {
 		log.WithFields(log.Fields{
 			"endpoint": ms.Addr,
-			"service": ms.serviceType,
+			"service":  ms.serviceType,
 		}).Info("service running")
 		err := ms.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -41,10 +41,10 @@ func (ms *Service) Start() {
 func (ms *Service) ShutDown() {
 	log.WithFields(log.Fields{
 		"endpoint": ms.Addr,
-		"service": ms.serviceType,
+		"service":  ms.serviceType,
 	}).Info("shutting down service")
 	err := ms.Shutdown(context.Background())
 	if err != nil {
-		log.Fatalf("can't shut down %s service",  ms.serviceType)
+		log.Fatalf("can't shut down %s service", ms.serviceType)
 	}
 }

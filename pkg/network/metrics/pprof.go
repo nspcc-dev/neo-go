@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 )
+
 // PprofService https://golang.org/pkg/net/http/pprof/.
 type PprofService Service
 
