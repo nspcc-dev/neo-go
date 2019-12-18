@@ -7,7 +7,7 @@ require (
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/mr-tron/base58 v1.1.2
-	github.com/nspcc-dev/dbft v0.0.0-20191213082456-c81c7a796775
+	github.com/nspcc-dev/dbft v0.0.0-20191218095856-a0151004c0e6
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
@@ -15,6 +15,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/urfave/cli v1.20.0
+	go.dedis.ch/kyber/v4 v4.0.0-pre2
 	go.uber.org/atomic v1.4.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4

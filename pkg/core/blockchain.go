@@ -1467,6 +1467,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 		hash = prevHeader.NextConsensus
 	}
 	interopCtx := newInteropContext(trigger.Verification, bc, bc.dao.store, nil, nil)
+	return bc.verifyHashAgainstScript(block.Script.ScriptHash(), &block.Script, block.VerificationHash(), interopCtx, true)
 	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx, true)
 }
 

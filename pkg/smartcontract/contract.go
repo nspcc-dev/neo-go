@@ -41,3 +41,26 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 
 	return buf.Bytes(), nil
 }
+
+func CreateBLSMultisigScript(m int, pubs [][]byte) ([]byte, error) {
+	sort.Slice(pubs, func(i, j int) bool { return bytes.Compare(pubs[i], pubs[j]) == -1 })
+
+	buf := new(bytes.Buffer)
+	if err := vm.EmitInt(buf, int64(m)); err != nil {
+		return nil, err
+	}
+	for i := range pubs {
+		if err := vm.EmitBytes(buf, pubs[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := vm.EmitInt(buf, int64(len(pubs))); err != nil {
+		return nil, err
+	}
+	if err := vm.EmitOpcode(buf, opcode.CHECKBLS); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}

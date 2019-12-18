@@ -1,6 +1,10 @@
 package consensus
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"github.com/nspcc-dev/dbft/crypto"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -40,4 +44,15 @@ func TestCrypt(t *testing.T) {
 
 	sign[0] = ^sign[0]
 	require.Error(t, pub.Verify(data, sign))
+}
+
+func Test1(t *testing.T) {
+	for i := 0; i < 4; i++ {
+		priv, pub := crypto.GenerateWith(crypto.SuiteBLS, rand.Reader)
+		data, _ := priv.MarshalBinary()
+		fmt.Printf("pri %d: %s\n", i, hex.EncodeToString(data))
+
+		data, _ = pub.MarshalBinary()
+		fmt.Printf("pub %d: %s\n", i, hex.EncodeToString(data))
+	}
 }

@@ -94,8 +94,8 @@ github.com/nspcc-dev/dbft v0.0.0-20191205084618-dacb1a30c254 h1:A4OkQDQOSPsJF8qU
 github.com/nspcc-dev/dbft v0.0.0-20191205084618-dacb1a30c254/go.mod h1:w1Ln2aT+dBlPhLnuZhBV+DfPEdS2CHWWLp5JTScY3bw=
 github.com/nspcc-dev/dbft v0.0.0-20191209120240-0d6b7568d9ae h1:T5V1QANlNMKun0EPB3eqg2PTXG4rmLhzDyEiV63kdB0=
 github.com/nspcc-dev/dbft v0.0.0-20191209120240-0d6b7568d9ae/go.mod h1:3FjXOoHmA51EGfb5GS/HOv7VdmngNRTssSeQ729dvGY=
-github.com/nspcc-dev/dbft v0.0.0-20191213082456-c81c7a796775 h1:iqRxuEBrT2QbSdgmvGCwgn+lnOKmx1L5EiVTcOXUYt8=
-github.com/nspcc-dev/dbft v0.0.0-20191213082456-c81c7a796775/go.mod h1:IyIyVYKfi41kAlGWqicz9G8Iyni71Resuhtd9Y5ujJM=
+github.com/nspcc-dev/dbft v0.0.0-20191218095856-a0151004c0e6 h1:x6dNWn3ifNesdN5bW7dQadeZWFNLAaEsQ5L5phCy5Ek=
+github.com/nspcc-dev/dbft v0.0.0-20191218095856-a0151004c0e6/go.mod h1:yEPpS/iA3ZN6yJwq9EbRLVVMK36YR3TuevCjOht+34U=
 github.com/nspcc-dev/neofs-crypto v0.2.0 h1:ftN+59WqxSWz/RCgXYOfhmltOOqU+udsNQSvN6wkFck=
 github.com/nspcc-dev/neofs-crypto v0.2.0/go.mod h1:F/96fUzPM3wR+UGsPi3faVNmFlA9KAEAUQR7dMxZmNA=
 github.com/nspcc-dev/rfc6979 v0.1.0 h1:Lwg7esRRoyK1Up/IN1vAef1EmvrBeMHeeEkek2fAJ6c=
@@ -149,6 +149,15 @@ github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036 h1:1b6PAtenNyhsmo/
 github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036/go.mod h1:gqRgreBUhTSL0GeU64rtZ3Uq3wtjOa/TB2YfrtkCbVQ=
 github.com/yuin/gopher-lua v0.0.0-20191128022950-c6266f4fe8d7 h1:Y17pEjKgx2X0A69WQPGa8hx/Myzu+4NdUxlkZpbAYio=
 github.com/yuin/gopher-lua v0.0.0-20191128022950-c6266f4fe8d7/go.mod h1:gqRgreBUhTSL0GeU64rtZ3Uq3wtjOa/TB2YfrtkCbVQ=
+go.dedis.ch/fixbuf v1.0.3 h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=
+go.dedis.ch/fixbuf v1.0.3/go.mod h1:yzJMt34Wa5xD37V5RTdmp38cz3QhMagdGoem9anUalw=
+go.dedis.ch/kyber/v3 v3.0.4 h1:FDuC/S3STkvwxZ0ooo3gcp56QkUKsN7Jy7cpzBxL+vQ=
+go.dedis.ch/kyber/v3 v3.0.4/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
+go.dedis.ch/kyber/v4 v4.0.0-pre2 h1:+KMfT7P/+KOfeYge3tY3JrnJXka8NwQacaL+BFkRts8=
+go.dedis.ch/kyber/v4 v4.0.0-pre2/go.mod h1:+e66qaKOPauwNsLgvFyoU4n2vj6BMxdvNc/suD72H9g=
+go.dedis.ch/protobuf v1.0.5/go.mod h1:eIV4wicvi6JK0q/QnfIEGeSFNG0ZeB24kzut5+HaRLo=
+go.dedis.ch/protobuf v1.0.7 h1:wRUEiq3u0/vBhLjcw9CmAVrol+BnDyq2M0XLukdphyI=
+go.dedis.ch/protobuf v1.0.7/go.mod h1:pv5ysfkDX/EawiPqcW3ikOxsL5t+BqnV6xHSmE79KI4=
 go.etcd.io/bbolt v1.3.3 h1:MUGmc65QhB3pIlaQ5bB4LwqSj6GIonVJXpZiaKNyaKk=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.uber.org/atomic v1.4.0 h1:cxzIVoETapQEqDhQu3QfnvXAV4AlzcvUCxkVUFw3+EU=
@@ -158,6 +167,7 @@ go.uber.org/multierr v1.1.0/go.mod h1:wR5kodmAFQ0UK8QlbwjlSNy0Z68gJhDJUG5sjR94q/
 go.uber.org/zap v1.10.0 h1:ORx85nbTijNz8ljznvCMR1ZBIPKFn3jQrag10X2AsuM=
 go.uber.org/zap v1.10.0/go.mod h1:vwi/ZaCAaUcBkycHslxD9B2zi4UTXhF60s6SWpuDF0Q=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 h1:VklqNMn3ovrHsnt90PveolxSbWFaJdECFbxSq0Mqo2M=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 h1:HuIa8hRrWRSrqYzx1qI49NNxhdi2PrY7gxVSq1JjLDc=
@@ -176,6 +186,7 @@ golang.org/x/sys v0.0.0-20180905080454-ebe1bf3edb33/go.mod h1:STP8DvDyc/dI5b8T5h
 golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e h1:o3PsSEY8E4eXWkXrIP9YJALUkVZqzHJT5DOasTyn8Vs=
 golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20181116152217-5ac8a444bdc5/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+golang.org/x/sys v0.0.0-20190124100055-b90733256f2e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190204203706-41f3e6584952/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

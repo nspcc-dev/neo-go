@@ -16,6 +16,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/pairing"
+	"go.dedis.ch/kyber/v4/sign/bls"
 )
 
 type errorAtInstruct struct {
@@ -1173,6 +1176,40 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		pkey := v.bytesToPublicKey(keyb)
 		res := pkey.Verify(signature, hashToCheck)
 		v.estack.PushVal(res)
+
+	case opcode.CHECKBLS:
+		pkeys, err := v.estack.popSigElements()
+		if err != nil {
+			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
+		}
+
+		m := v.estack.Pop().BigInt().Int64()
+		mask := v.estack.Pop().BigInt()
+		sig := v.estack.Pop().Bytes()
+
+		s := pairing.NewSuiteBn256()
+		var pubs []kyber.Point
+		for i := range pkeys {
+			if mask.Bit(i) == 1 {
+				m--
+				pub := s.Point()
+				err := pub.UnmarshalBinary(pkeys[i])
+				if err != nil {
+					panic(err)
+				}
+
+				pubs = append(pubs, pub)
+			}
+		}
+
+		if m != 0 {
+			panic("wrong number of signatures")
+		}
+
+		pub := bls.AggregatePublicKeys(s, pubs...)
+		err = bls.Verify(s, pub, v.checkhash, sig)
+
+		v.estack.PushVal(err == nil)
 
 	case opcode.CHECKMULTISIG:
 		pkeys, err := v.estack.popSigElements()

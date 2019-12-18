@@ -1,7 +1,10 @@
 package consensus
 
 import (
+	"bytes"
+	"encoding/hex"
 	"errors"
+	"math/big"
 	"math/rand"
 	"sort"
 	"time"
@@ -19,6 +22,8 @@ import (
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/pairing"
 	"go.uber.org/zap"
 )
 
@@ -56,6 +61,7 @@ type service struct {
 	// everything in single thread.
 	messages     chan Payload
 	transactions chan *transaction.Transaction
+	validators   []crypto.PublicKey
 }
 
 // Config is a configuration for consensus services.
@@ -103,7 +109,17 @@ func NewService(cfg Config) (Service, error) {
 		return srv, nil
 	}
 
-	priv, pub := getKeyPair(cfg.Wallet)
+	priv, pub := getBLSKeyPair(cfg.Wallet)
+
+	for _, s := range cfg.Wallet.BLSValidators {
+		srv.validators = append(srv.validators, crypto.NewBLSPublicKey(getBLSPub(s)))
+	}
+
+	sort.Slice(srv.validators, func(i, j int) bool {
+		pi, _ := srv.validators[i].MarshalBinary()
+		pj, _ := srv.validators[j].MarshalBinary()
+		return bytes.Compare(pi, pj) == -1
+	})
 
 	srv.dbft = dbft.New(
 		dbft.WithLogger(srv.log.Desugar()),
@@ -177,6 +193,45 @@ func (s *service) validatePayload(p *Payload) bool {
 	return p.Verify(h)
 }
 
+var blsSuite = pairing.NewSuiteBn256()
+
+func getBLSPub(s string) kyber.Point {
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return nil
+	}
+
+	pub := blsSuite.Point()
+	err = pub.UnmarshalBinary(data)
+	if err != nil {
+		return nil
+	}
+
+	return pub
+}
+
+func getBLSPriv(s string) kyber.Scalar {
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return nil
+	}
+
+	priv := blsSuite.Scalar()
+	err = priv.UnmarshalBinary(data)
+	if err != nil {
+		return nil
+	}
+
+	return priv
+}
+
+func getBLSKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) {
+	priv := getBLSPriv(cfg.BLS)
+	pub := getBLSPub(cfg.BLSPub)
+
+	return crypto.NewBLSPrivateKey(priv), crypto.NewBLSPublicKey(pub)
+}
+
 func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) {
 	acc, err := wallet.DecryptAccount(cfg.Path, cfg.Password)
 	if err != nil {
@@ -238,9 +293,9 @@ func (s *service) broadcast(p payload.ConsensusPayload) {
 		pr.minerTx = *s.txx.Get(pr.transactionHashes[0]).(*transaction.Transaction)
 	}
 
-	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
-		s.log.Warnf("can't sign consensus payload: %v", err)
-	}
+	// if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
+	// 	s.log.Warnf("can't sign consensus payload: %v", err)
+	// }
 
 	s.cache.Add(p)
 	s.Config.Broadcast(p.(*Payload))
@@ -269,12 +324,74 @@ func (s *service) verifyBlock(b block.Block) bool {
 
 func (s *service) processBlock(b block.Block) {
 	bb := &b.(*neoBlock).Block
-	bb.Script = *(s.getBlockWitness(bb))
+	bb.Script = *(s.getBlockWitnessBLS(bb))
 
 	if err := s.Chain.AddBlock(bb); err != nil {
 		s.log.Warnf("error on add block: %v", err)
 	} else {
 		s.Config.RelayBlock(bb)
+	}
+}
+
+func (s *service) getBlockWitnessBLS(b *core.Block) *transaction.Witness {
+	dctx := s.dbft.Context
+	pubs := dctx.Validators
+	sigs := make(map[crypto.PublicKey][]byte)
+
+	for i := range dctx.Validators {
+		if p := dctx.CommitPayloads[i]; p != nil && p.ViewNumber() == dctx.ViewNumber {
+			sigs[pubs[i]] = p.GetCommit().Signature()
+		}
+	}
+
+	pubKeys := make([][]byte, len(pubs))
+	for i := range pubs {
+		pubKeys[i], _ = pubs[i].MarshalBinary()
+	}
+
+	m := s.dbft.Context.M()
+	verif, err := smartcontract.CreateBLSMultisigScript(m, pubKeys)
+	if err != nil {
+		s.log.Warnf("can't create multisig redeem script: %v", err)
+		return nil
+	}
+
+	var indices []int
+	var sigSlice [][]byte
+	for i := range pubs {
+		if s := sigs[pubs[i]]; s != nil {
+			indices = append(indices, i)
+			sigSlice = append(sigSlice, s)
+		}
+	}
+
+	sig, err := crypto.AggregateBLSSignatures(sigSlice...)
+	if err != nil {
+		return nil
+	}
+
+	pk := make([]crypto.PublicKey, len(sigSlice))
+	mask := big.NewInt(0)
+
+	for i, j := range indices {
+		pk[i] = pubs[j]
+
+		// keys will be pushed in reverse order
+		t := new(big.Int).Lsh(big.NewInt(1), uint(len(pubs)-j-1))
+		mask.Or(mask, t)
+	}
+
+	var invoc []byte
+	invoc = append(invoc, byte(opcode.PUSHBYTES64))
+	invoc = append(invoc, sig...)
+
+	buf := mask.Bytes()
+	invoc = append(invoc, byte(opcode.PUSHBYTES1)+byte(len(buf)-1))
+	invoc = append(invoc, buf...)
+
+	return &transaction.Witness{
+		InvocationScript:   invoc,
+		VerificationScript: verif,
 	}
 }
 
@@ -355,6 +472,8 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 }
 
 func (s *service) getValidators(txx ...block.Transaction) []crypto.PublicKey {
+	return s.validators
+
 	var pKeys []*keys.PublicKey
 	if len(txx) == 0 {
 		pKeys, _ = s.Chain.GetValidators()
@@ -376,9 +495,12 @@ func (s *service) getValidators(txx ...block.Transaction) []crypto.PublicKey {
 }
 
 func (s *service) getConsensusAddress(validators ...crypto.PublicKey) (h util.Uint160) {
-	pubs := convertKeys(validators)
+	pubKeys := make([][]byte, len(validators))
+	for i := range validators {
+		pubKeys[i], _ = validators[i].MarshalBinary()
+	}
 
-	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.M(), pubs)
+	script, err := smartcontract.CreateBLSMultisigScript(s.dbft.M(), pubKeys)
 	if err != nil {
 		return
 	}

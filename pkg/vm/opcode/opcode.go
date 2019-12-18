@@ -185,6 +185,7 @@ const (
 	CHECKSIG      Opcode = 0xAC
 	VERIFY        Opcode = 0xAD
 	CHECKMULTISIG Opcode = 0xAE
+	CHECKBLS      Opcode = 0xAF
 
 	// Advanced data structures (arrays, structures, maps)
 	ARRAYSIZE Opcode = 0xC0

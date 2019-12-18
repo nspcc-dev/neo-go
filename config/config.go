@@ -84,8 +84,12 @@ type (
 
 	// WalletConfig is a wallet info.
 	WalletConfig struct {
+		BLS      string `yaml:"BLS"`
+		BLSPub   string `yaml:"BLSPub"`
 		Path     string `yaml:"Path"`
 		Password string `yaml:"Password"`
+
+		BLSValidators []string  `yaml:"BLSValidators"`
 	}
 
 	// RPCConfig is an RPC service configuration information (to be moved to the rpc package, see #423).
