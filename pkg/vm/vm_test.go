@@ -1092,6 +1092,30 @@ func TestPICKITEMByteArray(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
+func TestPICKITEMDupArray(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.PICKITEM, opcode.ABS)
+	vm := load(prog)
+	vm.estack.PushVal([]StackItem{makeStackItem(-1)})
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	items := vm.estack.Pop().Value().([]StackItem)
+	assert.Equal(t, big.NewInt(-1), items[0].Value())
+}
+
+func TestPICKITEMDupMap(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.PUSHBYTES1, 42, opcode.PICKITEM, opcode.ABS)
+	vm := load(prog)
+	m := NewMapItem()
+	m.Add(makeStackItem([]byte{42}), makeStackItem(-1))
+	vm.estack.Push(&Element{value: m})
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	items := vm.estack.Pop().Value().(map[interface{}]StackItem)
+	assert.Equal(t, big.NewInt(-1), items[string([]byte{42})].Value())
+}
+
 func TestPICKITEMMap(t *testing.T) {
 	prog := makeProgram(opcode.PICKITEM)
 	vm := load(prog)
@@ -1497,6 +1521,21 @@ func TestPICKgood(t *testing.T) {
 	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
 }
 
+func TestPICKDup(t *testing.T) {
+	prog := makeProgram(opcode.PUSHM1, opcode.PUSH0,
+		opcode.PUSH1,
+		opcode.PUSH2,
+		opcode.PICK,
+		opcode.ABS)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 4, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(0), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+}
+
 func TestROTBad(t *testing.T) {
 	prog := makeProgram(opcode.ROT)
 	vm := load(prog)
@@ -1663,6 +1702,22 @@ func TestOVERgood(t *testing.T) {
 	assert.Equal(t, 3, vm.estack.Len())
 }
 
+func TestOVERDup(t *testing.T) {
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.PUSH1,
+		opcode.OVER,
+		opcode.PUSH1,
+		opcode.LEFT,
+		opcode.PUSHBYTES1, 2,
+		opcode.CAT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 3, vm.estack.Len())
+	assert.Equal(t, []byte{0x01, 0x02}, vm.estack.Pop().Bytes())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, []byte{0x01, 0x00}, vm.estack.Pop().Bytes())
+}
+
 func TestNIPBadNoItem(t *testing.T) {
 	prog := makeProgram(opcode.NIP)
 	vm := load(prog)
@@ -1757,6 +1812,20 @@ func TestINVERTgood3(t *testing.T) {
 	vm.estack.PushVal(0x69)
 	runVM(t, vm)
 	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTWithConversion1(t *testing.T) {
+	prog := makeProgram(opcode.PUSHDATA2, 0, 0, opcode.INVERT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+}
+
+func TestINVERTWithConversion2(t *testing.T) {
+	prog := makeProgram(opcode.PUSH0, opcode.PUSH1, opcode.NUMEQUAL, opcode.INVERT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
 }
 
 func TestCATBadNoArgs(t *testing.T) {
@@ -2503,6 +2572,86 @@ func TestXSWAPBad2(t *testing.T) {
 	vm.estack.PushVal(4)
 	vm.estack.PushVal(4)
 	checkVMFailed(t, vm)
+}
+
+func TestDupInt(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.ABS)
+	vm := load(prog)
+	vm.estack.PushVal(-1)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+}
+
+func TestDupByteArray(t *testing.T) {
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.DUP,
+		opcode.PUSH1,
+		opcode.LEFT,
+		opcode.PUSHBYTES1, 2,
+		opcode.CAT)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, []byte{0x01, 0x02}, vm.estack.Pop().Bytes())
+	assert.Equal(t, []byte{0x01, 0x00}, vm.estack.Pop().Bytes())
+}
+
+func TestDupBool(t *testing.T) {
+	prog := makeProgram(opcode.PUSH0, opcode.NOT,
+		opcode.DUP,
+		opcode.PUSH1, opcode.NOT,
+		opcode.BOOLAND)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 2, vm.estack.Len())
+	assert.Equal(t, false, vm.estack.Pop().Bool())
+	assert.Equal(t, true, vm.estack.Pop().Bool())
+}
+
+func TestSHA1(t *testing.T) {
+	// 0x0100 hashes to 0e356ba505631fbf715758bed27d503f8b260e3a
+	res := "0e356ba505631fbf715758bed27d503f8b260e3a"
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.SHA1)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
+}
+
+func TestSHA256(t *testing.T) {
+	// 0x0100 hashes to 47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254
+	res := "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.SHA256)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
+}
+
+func TestHASH160(t *testing.T) {
+	// 0x0100 hashes to fbc22d517f38e7612798ece8e5957cf6c41d8caf
+	res := "fbc22d517f38e7612798ece8e5957cf6c41d8caf"
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.HASH160)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
+}
+
+func TestHASH256(t *testing.T) {
+	// 0x0100 hashes to 677b2d718464ee0121475600b929c0b4155667486577d1320b18c2dc7d4b4f99
+	res := "677b2d718464ee0121475600b929c0b4155667486577d1320b18c2dc7d4b4f99"
+	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+		opcode.HASH256)
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {

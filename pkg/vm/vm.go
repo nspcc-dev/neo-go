@@ -622,7 +622,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.OVER:
-		a := v.estack.Peek(1)
+		a := v.estack.Dup(1)
 		if a == nil {
 			panic("no second element found")
 		}
@@ -633,7 +633,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 {
 			panic("negative stack item returned")
 		}
-		a := v.estack.Peek(n)
+		a := v.estack.Dup(n)
 		if a == nil {
 			panic("no nth element found")
 		}
@@ -677,8 +677,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// Bit operations.
 	case opcode.INVERT:
 		// inplace
-		a := v.estack.Peek(0).BigInt()
-		a.Not(a)
+		e := v.estack.Peek(0)
+		i := e.BigInt()
+		e.value = makeStackItem(i.Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
@@ -957,14 +958,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
 			}
-			item := arr[index]
+			item := arr[index].Dup()
 			v.estack.PushVal(item)
 		case *MapItem:
 			if !t.Has(key.value) {
 				panic("invalid key")
 			}
 			k := toMapKey(key.value)
-			v.estack.Push(&Element{value: t.value[k]})
+			v.estack.Push(&Element{value: t.value[k].Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
