@@ -40,6 +40,17 @@ var binaryExprTestCases = []testCase{
 		big.NewInt(1),
 	},
 	{
+		"simple mod",
+		`
+		package testcase
+		func Main() int {
+			x := 3 % 2
+			return x
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
 		"simple mul",
 		`
 		package testcase
@@ -182,6 +193,66 @@ var binaryExprTestCases = []testCase{
 				return 1
 			}
 			return 0
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"simple add and assign",
+		`
+		package testcase
+		func Main() int {
+			x := 2
+			x += 1
+			return x
+		}
+		`,
+		big.NewInt(3),
+	},
+	{
+		"simple sub and assign",
+		`
+		package testcase
+		func Main() int {
+			x := 2
+			x -= 1
+			return x
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"simple mul and assign",
+		`
+		package testcase
+		func Main() int {
+			x := 2
+			x *= 2
+			return x
+		}
+		`,
+		big.NewInt(4),
+	},
+	{
+		"simple div and assign",
+		`
+		package testcase
+		func Main() int {
+			x := 2
+			x /= 2
+			return x
+		}
+		`,
+		big.NewInt(1),
+	},
+	{
+		"simple mod and assign",
+		`
+		package testcase
+		func Main() int {
+			x := 5
+			x %= 2
+			return x
 		}
 		`,
 		big.NewInt(1),
