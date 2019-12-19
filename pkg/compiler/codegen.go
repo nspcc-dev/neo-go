@@ -236,7 +236,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				switch n.Tok {
-				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN:
+				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
 					c.emitLoadLocal(t.Name)
 					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
 					c.convertToken(n.Tok)
@@ -743,6 +743,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog.BinWriter, opcode.MUL)
 	case token.QUO_ASSIGN:
 		emitOpcode(c.prog.BinWriter, opcode.DIV)
+	case token.REM_ASSIGN:
+		emitOpcode(c.prog.BinWriter, opcode.MOD)
 	case token.ADD:
 		emitOpcode(c.prog.BinWriter, opcode.ADD)
 	case token.SUB:
@@ -751,6 +753,8 @@ func (c *codegen) convertToken(tok token.Token) {
 		emitOpcode(c.prog.BinWriter, opcode.MUL)
 	case token.QUO:
 		emitOpcode(c.prog.BinWriter, opcode.DIV)
+	case token.REM:
+		emitOpcode(c.prog.BinWriter, opcode.MOD)
 	case token.LSS:
 		emitOpcode(c.prog.BinWriter, opcode.LT)
 	case token.LEQ:
