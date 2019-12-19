@@ -269,15 +269,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				ast.Walk(c, n.Rhs[i])
 				name := t.X.(*ast.Ident).Name
 				c.emitLoadLocal(name)
-				// For now storm only supports basic index operations. Hence we
-				// cast this to an *ast.BasicLit (1, 2 , 3)
-				indexStr := t.Index.(*ast.BasicLit).Value
-				index, err := strconv.Atoi(indexStr)
-				if err != nil {
-					c.prog.Err = fmt.Errorf("failed to convert slice index to integer")
+				switch ind := t.Index.(type) {
+				case *ast.BasicLit:
+					indexStr := ind.Value
+					index, err := strconv.Atoi(indexStr)
+					if err != nil {
+						c.prog.Err = fmt.Errorf("failed to convert slice index to integer")
+						return nil
+					}
+					c.emitStoreStructField(index)
+				case *ast.Ident:
+					c.emitLoadLocal(ind.Name)
+					emitOpcode(c.prog.BinWriter, opcode.ROT)
+					emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+				default:
+					c.prog.Err = fmt.Errorf("unsupported index expression")
 					return nil
 				}
-				c.emitStoreStructField(index)
 			}
 		}
 		return nil
