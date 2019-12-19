@@ -8,6 +8,8 @@ package core
 */
 
 import (
+	"sort"
+
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -29,193 +31,240 @@ func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Bl
 	return &interopContext{bc, trigger, block, tx, dao, nes}
 }
 
-// All lists are sorted, keep 'em this way, please.
-
-// getSystemInteropMap returns interop mappings for System namespace.
-func (ic *interopContext) getSystemInteropMap() map[string]vm.InteropFuncPrice {
-	return map[string]vm.InteropFuncPrice{
-		"System.Block.GetTransaction":                   {Func: ic.blockGetTransaction, Price: 1},
-		"System.Block.GetTransactionCount":              {Func: ic.blockGetTransactionCount, Price: 1},
-		"System.Block.GetTransactions":                  {Func: ic.blockGetTransactions, Price: 1},
-		"System.Blockchain.GetBlock":                    {Func: ic.bcGetBlock, Price: 200},
-		"System.Blockchain.GetContract":                 {Func: ic.bcGetContract, Price: 100},
-		"System.Blockchain.GetHeader":                   {Func: ic.bcGetHeader, Price: 100},
-		"System.Blockchain.GetHeight":                   {Func: ic.bcGetHeight, Price: 1},
-		"System.Blockchain.GetTransaction":              {Func: ic.bcGetTransaction, Price: 200},
-		"System.Blockchain.GetTransactionHeight":        {Func: ic.bcGetTransactionHeight, Price: 100},
-		"System.Contract.Destroy":                       {Func: ic.contractDestroy, Price: 1},
-		"System.Contract.GetStorageContext":             {Func: ic.contractGetStorageContext, Price: 1},
-		"System.ExecutionEngine.GetCallingScriptHash":   {Func: ic.engineGetCallingScriptHash, Price: 1},
-		"System.ExecutionEngine.GetEntryScriptHash":     {Func: ic.engineGetEntryScriptHash, Price: 1},
-		"System.ExecutionEngine.GetExecutingScriptHash": {Func: ic.engineGetExecutingScriptHash, Price: 1},
-		"System.ExecutionEngine.GetScriptContainer":     {Func: ic.engineGetScriptContainer, Price: 1},
-		"System.Header.GetHash":                         {Func: ic.headerGetHash, Price: 1},
-		"System.Header.GetIndex":                        {Func: ic.headerGetIndex, Price: 1},
-		"System.Header.GetPrevHash":                     {Func: ic.headerGetPrevHash, Price: 1},
-		"System.Header.GetTimestamp":                    {Func: ic.headerGetTimestamp, Price: 1},
-		"System.Runtime.CheckWitness":                   {Func: ic.runtimeCheckWitness, Price: 200},
-		"System.Runtime.GetTime":                        {Func: ic.runtimeGetTime, Price: 1},
-		"System.Runtime.GetTrigger":                     {Func: ic.runtimeGetTrigger, Price: 1},
-		"System.Runtime.Log":                            {Func: ic.runtimeLog, Price: 1},
-		"System.Runtime.Notify":                         {Func: ic.runtimeNotify, Price: 1},
-		"System.Runtime.Platform":                       {Func: ic.runtimePlatform, Price: 1},
-		"System.Storage.Delete":                         {Func: ic.storageDelete, Price: 100},
-		"System.Storage.Get":                            {Func: ic.storageGet, Price: 100},
-		"System.Storage.GetContext":                     {Func: ic.storageGetContext, Price: 1},
-		"System.Storage.GetReadOnlyContext":             {Func: ic.storageGetReadOnlyContext, Price: 1},
-		"System.Storage.Put":                            {Func: ic.storagePut, Price: 0}, // These don't have static price in C# code.
-		"System.Storage.PutEx":                          {Func: ic.storagePutEx, Price: 0},
-		"System.StorageContext.AsReadOnly":              {Func: ic.storageContextAsReadOnly, Price: 1},
-		"System.Transaction.GetHash":                    {Func: ic.txGetHash, Price: 1},
-		"System.Runtime.Deserialize":                    {Func: ic.runtimeDeserialize, Price: 1},
-		"System.Runtime.Serialize":                      {Func: ic.runtimeSerialize, Price: 1},
-	}
+// interopedFunction binds function name, id with the function itself and price,
+// it's supposed to be inited once for all interopContexts, so it doesn't use
+// vm.InteropFuncPrice directly.
+type interopedFunction struct {
+	ID    uint32
+	Name  string
+	Func  func(*interopContext, *vm.VM) error
+	Price int
 }
 
-// getSystemInteropMap returns interop mappings for Neo and (legacy) AntShares namespaces.
-func (ic *interopContext) getNeoInteropMap() map[string]vm.InteropFuncPrice {
-	return map[string]vm.InteropFuncPrice{
-		"Neo.Account.GetBalance":              {Func: ic.accountGetBalance, Price: 1},
-		"Neo.Account.GetScriptHash":           {Func: ic.accountGetScriptHash, Price: 1},
-		"Neo.Account.GetVotes":                {Func: ic.accountGetVotes, Price: 1},
-		"Neo.Account.IsStandard":              {Func: ic.accountIsStandard, Price: 100},
-		"Neo.Asset.Create":                    {Func: ic.assetCreate, Price: 0},
-		"Neo.Asset.GetAdmin":                  {Func: ic.assetGetAdmin, Price: 1},
-		"Neo.Asset.GetAmount":                 {Func: ic.assetGetAmount, Price: 1},
-		"Neo.Asset.GetAssetId":                {Func: ic.assetGetAssetID, Price: 1},
-		"Neo.Asset.GetAssetType":              {Func: ic.assetGetAssetType, Price: 1},
-		"Neo.Asset.GetAvailable":              {Func: ic.assetGetAvailable, Price: 1},
-		"Neo.Asset.GetIssuer":                 {Func: ic.assetGetIssuer, Price: 1},
-		"Neo.Asset.GetOwner":                  {Func: ic.assetGetOwner, Price: 1},
-		"Neo.Asset.GetPrecision":              {Func: ic.assetGetPrecision, Price: 1},
-		"Neo.Asset.Renew":                     {Func: ic.assetRenew, Price: 0},
-		"Neo.Attribute.GetData":               {Func: ic.attrGetData, Price: 1},
-		"Neo.Attribute.GetUsage":              {Func: ic.attrGetUsage, Price: 1},
-		"Neo.Block.GetTransaction":            {Func: ic.blockGetTransaction, Price: 1},
-		"Neo.Block.GetTransactionCount":       {Func: ic.blockGetTransactionCount, Price: 1},
-		"Neo.Block.GetTransactions":           {Func: ic.blockGetTransactions, Price: 1},
-		"Neo.Blockchain.GetAccount":           {Func: ic.bcGetAccount, Price: 100},
-		"Neo.Blockchain.GetAsset":             {Func: ic.bcGetAsset, Price: 100},
-		"Neo.Blockchain.GetBlock":             {Func: ic.bcGetBlock, Price: 200},
-		"Neo.Blockchain.GetContract":          {Func: ic.bcGetContract, Price: 100},
-		"Neo.Blockchain.GetHeader":            {Func: ic.bcGetHeader, Price: 100},
-		"Neo.Blockchain.GetHeight":            {Func: ic.bcGetHeight, Price: 1},
-		"Neo.Blockchain.GetTransaction":       {Func: ic.bcGetTransaction, Price: 100},
-		"Neo.Blockchain.GetTransactionHeight": {Func: ic.bcGetTransactionHeight, Price: 100},
-		"Neo.Blockchain.GetValidators":        {Func: ic.bcGetValidators, Price: 200},
-		"Neo.Contract.Create":                 {Func: ic.contractCreate, Price: 0},
-		"Neo.Contract.Destroy":                {Func: ic.contractDestroy, Price: 1},
-		"Neo.Contract.GetScript":              {Func: ic.contractGetScript, Price: 1},
-		"Neo.Contract.GetStorageContext":      {Func: ic.contractGetStorageContext, Price: 1},
-		"Neo.Contract.IsPayable":              {Func: ic.contractIsPayable, Price: 1},
-		"Neo.Contract.Migrate":                {Func: ic.contractMigrate, Price: 0},
-		"Neo.Header.GetConsensusData":         {Func: ic.headerGetConsensusData, Price: 1},
-		"Neo.Header.GetHash":                  {Func: ic.headerGetHash, Price: 1},
-		"Neo.Header.GetIndex":                 {Func: ic.headerGetIndex, Price: 1},
-		"Neo.Header.GetMerkleRoot":            {Func: ic.headerGetMerkleRoot, Price: 1},
-		"Neo.Header.GetNextConsensus":         {Func: ic.headerGetNextConsensus, Price: 1},
-		"Neo.Header.GetPrevHash":              {Func: ic.headerGetPrevHash, Price: 1},
-		"Neo.Header.GetTimestamp":             {Func: ic.headerGetTimestamp, Price: 1},
-		"Neo.Header.GetVersion":               {Func: ic.headerGetVersion, Price: 1},
-		"Neo.Input.GetHash":                   {Func: ic.inputGetHash, Price: 1},
-		"Neo.Input.GetIndex":                  {Func: ic.inputGetIndex, Price: 1},
-		"Neo.Output.GetAssetId":               {Func: ic.outputGetAssetID, Price: 1},
-		"Neo.Output.GetScriptHash":            {Func: ic.outputGetScriptHash, Price: 1},
-		"Neo.Output.GetValue":                 {Func: ic.outputGetValue, Price: 1},
-		"Neo.Runtime.CheckWitness":            {Func: ic.runtimeCheckWitness, Price: 200},
-		"Neo.Runtime.GetTime":                 {Func: ic.runtimeGetTime, Price: 1},
-		"Neo.Runtime.GetTrigger":              {Func: ic.runtimeGetTrigger, Price: 1},
-		"Neo.Runtime.Log":                     {Func: ic.runtimeLog, Price: 1},
-		"Neo.Runtime.Notify":                  {Func: ic.runtimeNotify, Price: 1},
-		"Neo.Storage.Delete":                  {Func: ic.storageDelete, Price: 100},
-		"Neo.Storage.Get":                     {Func: ic.storageGet, Price: 100},
-		"Neo.Storage.GetContext":              {Func: ic.storageGetContext, Price: 1},
-		"Neo.Storage.GetReadOnlyContext":      {Func: ic.storageGetReadOnlyContext, Price: 1},
-		"Neo.Storage.Put":                     {Func: ic.storagePut, Price: 0},
-		"Neo.StorageContext.AsReadOnly":       {Func: ic.storageContextAsReadOnly, Price: 1},
-		"Neo.Transaction.GetAttributes":       {Func: ic.txGetAttributes, Price: 1},
-		"Neo.Transaction.GetHash":             {Func: ic.txGetHash, Price: 1},
-		"Neo.Transaction.GetInputs":           {Func: ic.txGetInputs, Price: 1},
-		"Neo.Transaction.GetOutputs":          {Func: ic.txGetOutputs, Price: 1},
-		"Neo.Transaction.GetReferences":       {Func: ic.txGetReferences, Price: 200},
-		"Neo.Transaction.GetType":             {Func: ic.txGetType, Price: 1},
-		"Neo.Transaction.GetUnspentCoins":     {Func: ic.txGetUnspentCoins, Price: 200},
-		"Neo.Transaction.GetWitnesses":        {Func: ic.txGetWitnesses, Price: 200},
-		//		"Neo.Enumerator.Concat": {Func: ic.enumeratorConcat, Price: 1},
-		//		"Neo.Enumerator.Create": {Func: ic.enumeratorCreate, Price: 1},
-		//		"Neo.Enumerator.Next": {Func: ic.enumeratorNext, Price: 1},
-		//		"Neo.Enumerator.Value": {Func: ic.enumeratorValue, Price: 1},
-		//		"Neo.InvocationTransaction.GetScript": {ic.invocationTx_GetScript, 1},
-		//		"Neo.Iterator.Concat": {Func: ic.iteratorConcat, Price: 1},
-		//		"Neo.Iterator.Create": {Func: ic.iteratorCreate, Price: 1},
-		//		"Neo.Iterator.Key": {Func: ic.iteratorKey, Price: 1},
-		//		"Neo.Iterator.Keys": {Func: ic.iteratorKeys, Price: 1},
-		//		"Neo.Iterator.Values": {Func: ic.iteratorValues, Price: 1},
-		"Neo.Runtime.Deserialize": {Func: ic.runtimeDeserialize, Price: 1},
-		"Neo.Runtime.Serialize":   {Func: ic.runtimeSerialize, Price: 1},
-		//		"Neo.Storage.Find":                {Func: ic.storageFind, Price: 1},
-		//		"Neo.Witness.GetVerificationScript": {Func: ic.witnessGetVerificationScript, Price: 100},
+// getSystemInterop returns matching interop function from the System namespace
+// for a given id in the current context.
+func (ic *interopContext) getSystemInterop(id uint32) *vm.InteropFuncPrice {
+	return ic.getInteropFromSlice(id, systemInterops)
+}
 
-		// Aliases.
-		//		"Neo.Iterator.Next": {Func: ic.enumeratorNext, Price: 1},
-		//		"Neo.Iterator.Value": {Func: ic.enumeratorValue, Price: 1},
+// getNeoInterop returns matching interop function from the Neo and AntShares
+// namespaces for a given id in the current context.
+func (ic *interopContext) getNeoInterop(id uint32) *vm.InteropFuncPrice {
+	return ic.getInteropFromSlice(id, neoInterops)
+}
 
-		// Old compatibility APIs.
-		"AntShares.Account.GetBalance":         {Func: ic.accountGetBalance, Price: 1},
-		"AntShares.Account.GetScriptHash":      {Func: ic.accountGetScriptHash, Price: 1},
-		"AntShares.Account.GetVotes":           {Func: ic.accountGetVotes, Price: 1},
-		"AntShares.Asset.Create":               {Func: ic.assetCreate, Price: 0},
-		"AntShares.Asset.GetAdmin":             {Func: ic.assetGetAdmin, Price: 1},
-		"AntShares.Asset.GetAmount":            {Func: ic.assetGetAmount, Price: 1},
-		"AntShares.Asset.GetAssetId":           {Func: ic.assetGetAssetID, Price: 1},
-		"AntShares.Asset.GetAssetType":         {Func: ic.assetGetAssetType, Price: 1},
-		"AntShares.Asset.GetAvailable":         {Func: ic.assetGetAvailable, Price: 1},
-		"AntShares.Asset.GetIssuer":            {Func: ic.assetGetIssuer, Price: 1},
-		"AntShares.Asset.GetOwner":             {Func: ic.assetGetOwner, Price: 1},
-		"AntShares.Asset.GetPrecision":         {Func: ic.assetGetPrecision, Price: 1},
-		"AntShares.Asset.Renew":                {Func: ic.assetRenew, Price: 0},
-		"AntShares.Attribute.GetData":          {Func: ic.attrGetData, Price: 1},
-		"AntShares.Attribute.GetUsage":         {Func: ic.attrGetUsage, Price: 1},
-		"AntShares.Block.GetTransaction":       {Func: ic.blockGetTransaction, Price: 1},
-		"AntShares.Block.GetTransactionCount":  {Func: ic.blockGetTransactionCount, Price: 1},
-		"AntShares.Block.GetTransactions":      {Func: ic.blockGetTransactions, Price: 1},
-		"AntShares.Blockchain.GetAccount":      {Func: ic.bcGetAccount, Price: 100},
-		"AntShares.Blockchain.GetAsset":        {Func: ic.bcGetAsset, Price: 100},
-		"AntShares.Blockchain.GetBlock":        {Func: ic.bcGetBlock, Price: 200},
-		"AntShares.Blockchain.GetContract":     {Func: ic.bcGetContract, Price: 100},
-		"AntShares.Blockchain.GetHeader":       {Func: ic.bcGetHeader, Price: 100},
-		"AntShares.Blockchain.GetHeight":       {Func: ic.bcGetHeight, Price: 1},
-		"AntShares.Blockchain.GetTransaction":  {Func: ic.bcGetTransaction, Price: 100},
-		"AntShares.Blockchain.GetValidators":   {Func: ic.bcGetValidators, Price: 200},
-		"AntShares.Contract.Create":            {Func: ic.contractCreate, Price: 0},
-		"AntShares.Contract.Destroy":           {Func: ic.contractDestroy, Price: 1},
-		"AntShares.Contract.GetScript":         {Func: ic.contractGetScript, Price: 1},
-		"AntShares.Contract.GetStorageContext": {Func: ic.contractGetStorageContext, Price: 1},
-		"AntShares.Contract.Migrate":           {Func: ic.contractMigrate, Price: 0},
-		"AntShares.Header.GetConsensusData":    {Func: ic.headerGetConsensusData, Price: 1},
-		"AntShares.Header.GetHash":             {Func: ic.headerGetHash, Price: 1},
-		"AntShares.Header.GetMerkleRoot":       {Func: ic.headerGetMerkleRoot, Price: 1},
-		"AntShares.Header.GetNextConsensus":    {Func: ic.headerGetNextConsensus, Price: 1},
-		"AntShares.Header.GetPrevHash":         {Func: ic.headerGetPrevHash, Price: 1},
-		"AntShares.Header.GetTimestamp":        {Func: ic.headerGetTimestamp, Price: 1},
-		"AntShares.Header.GetVersion":          {Func: ic.headerGetVersion, Price: 1},
-		"AntShares.Input.GetHash":              {Func: ic.inputGetHash, Price: 1},
-		"AntShares.Input.GetIndex":             {Func: ic.inputGetIndex, Price: 1},
-		"AntShares.Output.GetAssetId":          {Func: ic.outputGetAssetID, Price: 1},
-		"AntShares.Output.GetScriptHash":       {Func: ic.outputGetScriptHash, Price: 1},
-		"AntShares.Output.GetValue":            {Func: ic.outputGetValue, Price: 1},
-		"AntShares.Runtime.CheckWitness":       {Func: ic.runtimeCheckWitness, Price: 200},
-		"AntShares.Runtime.Log":                {Func: ic.runtimeLog, Price: 1},
-		"AntShares.Runtime.Notify":             {Func: ic.runtimeNotify, Price: 1},
-		"AntShares.Storage.Delete":             {Func: ic.storageDelete, Price: 100},
-		"AntShares.Storage.Get":                {Func: ic.storageGet, Price: 100},
-		"AntShares.Storage.GetContext":         {Func: ic.storageGetContext, Price: 1},
-		"AntShares.Storage.Put":                {Func: ic.storagePut, Price: 0},
-		"AntShares.Transaction.GetAttributes":  {Func: ic.txGetAttributes, Price: 1},
-		"AntShares.Transaction.GetHash":        {Func: ic.txGetHash, Price: 1},
-		"AntShares.Transaction.GetInputs":      {Func: ic.txGetInputs, Price: 1},
-		"AntShares.Transaction.GetOutputs":     {Func: ic.txGetOutputs, Price: 1},
-		"AntShares.Transaction.GetReferences":  {Func: ic.txGetReferences, Price: 200},
-		"AntShares.Transaction.GetType":        {Func: ic.txGetType, Price: 1},
+// getInteropFromSlice returns matching interop function from the given slice of
+// interop functions in the current context.
+func (ic *interopContext) getInteropFromSlice(id uint32, slice []interopedFunction) *vm.InteropFuncPrice {
+	n := sort.Search(len(slice), func(i int) bool {
+		return slice[i].ID >= id
+	})
+	if n < len(slice) && slice[n].ID == id {
+		// Currying, yay!
+		return &vm.InteropFuncPrice{Func: func(v *vm.VM) error {
+			return slice[n].Func(ic, v)
+		}, Price: slice[n].Price}
 	}
+	return nil
+}
+
+// All lists are sorted, keep 'em this way, please.
+var systemInterops = []interopedFunction{
+	{Name: "System.Block.GetTransaction", Func: (*interopContext).blockGetTransaction, Price: 1},
+	{Name: "System.Block.GetTransactionCount", Func: (*interopContext).blockGetTransactionCount, Price: 1},
+	{Name: "System.Block.GetTransactions", Func: (*interopContext).blockGetTransactions, Price: 1},
+	{Name: "System.Blockchain.GetBlock", Func: (*interopContext).bcGetBlock, Price: 200},
+	{Name: "System.Blockchain.GetContract", Func: (*interopContext).bcGetContract, Price: 100},
+	{Name: "System.Blockchain.GetHeader", Func: (*interopContext).bcGetHeader, Price: 100},
+	{Name: "System.Blockchain.GetHeight", Func: (*interopContext).bcGetHeight, Price: 1},
+	{Name: "System.Blockchain.GetTransaction", Func: (*interopContext).bcGetTransaction, Price: 200},
+	{Name: "System.Blockchain.GetTransactionHeight", Func: (*interopContext).bcGetTransactionHeight, Price: 100},
+	{Name: "System.Contract.Destroy", Func: (*interopContext).contractDestroy, Price: 1},
+	{Name: "System.Contract.GetStorageContext", Func: (*interopContext).contractGetStorageContext, Price: 1},
+	{Name: "System.ExecutionEngine.GetCallingScriptHash", Func: (*interopContext).engineGetCallingScriptHash, Price: 1},
+	{Name: "System.ExecutionEngine.GetEntryScriptHash", Func: (*interopContext).engineGetEntryScriptHash, Price: 1},
+	{Name: "System.ExecutionEngine.GetExecutingScriptHash", Func: (*interopContext).engineGetExecutingScriptHash, Price: 1},
+	{Name: "System.ExecutionEngine.GetScriptContainer", Func: (*interopContext).engineGetScriptContainer, Price: 1},
+	{Name: "System.Header.GetHash", Func: (*interopContext).headerGetHash, Price: 1},
+	{Name: "System.Header.GetIndex", Func: (*interopContext).headerGetIndex, Price: 1},
+	{Name: "System.Header.GetPrevHash", Func: (*interopContext).headerGetPrevHash, Price: 1},
+	{Name: "System.Header.GetTimestamp", Func: (*interopContext).headerGetTimestamp, Price: 1},
+	{Name: "System.Runtime.CheckWitness", Func: (*interopContext).runtimeCheckWitness, Price: 200},
+	{Name: "System.Runtime.Deserialize", Func: (*interopContext).runtimeDeserialize, Price: 1},
+	{Name: "System.Runtime.GetTime", Func: (*interopContext).runtimeGetTime, Price: 1},
+	{Name: "System.Runtime.GetTrigger", Func: (*interopContext).runtimeGetTrigger, Price: 1},
+	{Name: "System.Runtime.Log", Func: (*interopContext).runtimeLog, Price: 1},
+	{Name: "System.Runtime.Notify", Func: (*interopContext).runtimeNotify, Price: 1},
+	{Name: "System.Runtime.Platform", Func: (*interopContext).runtimePlatform, Price: 1},
+	{Name: "System.Runtime.Serialize", Func: (*interopContext).runtimeSerialize, Price: 1},
+	{Name: "System.Storage.Delete", Func: (*interopContext).storageDelete, Price: 100},
+	{Name: "System.Storage.Get", Func: (*interopContext).storageGet, Price: 100},
+	{Name: "System.Storage.GetContext", Func: (*interopContext).storageGetContext, Price: 1},
+	{Name: "System.Storage.GetReadOnlyContext", Func: (*interopContext).storageGetReadOnlyContext, Price: 1},
+	{Name: "System.Storage.Put", Func: (*interopContext).storagePut, Price: 0}, // These don't have static price in C# code.
+	{Name: "System.Storage.PutEx", Func: (*interopContext).storagePutEx, Price: 0},
+	{Name: "System.StorageContext.AsReadOnly", Func: (*interopContext).storageContextAsReadOnly, Price: 1},
+	{Name: "System.Transaction.GetHash", Func: (*interopContext).txGetHash, Price: 1},
+}
+
+var neoInterops = []interopedFunction{
+	{Name: "Neo.Account.GetBalance", Func: (*interopContext).accountGetBalance, Price: 1},
+	{Name: "Neo.Account.GetScriptHash", Func: (*interopContext).accountGetScriptHash, Price: 1},
+	{Name: "Neo.Account.GetVotes", Func: (*interopContext).accountGetVotes, Price: 1},
+	{Name: "Neo.Account.IsStandard", Func: (*interopContext).accountIsStandard, Price: 100},
+	{Name: "Neo.Asset.Create", Func: (*interopContext).assetCreate, Price: 0},
+	{Name: "Neo.Asset.GetAdmin", Func: (*interopContext).assetGetAdmin, Price: 1},
+	{Name: "Neo.Asset.GetAmount", Func: (*interopContext).assetGetAmount, Price: 1},
+	{Name: "Neo.Asset.GetAssetId", Func: (*interopContext).assetGetAssetID, Price: 1},
+	{Name: "Neo.Asset.GetAssetType", Func: (*interopContext).assetGetAssetType, Price: 1},
+	{Name: "Neo.Asset.GetAvailable", Func: (*interopContext).assetGetAvailable, Price: 1},
+	{Name: "Neo.Asset.GetIssuer", Func: (*interopContext).assetGetIssuer, Price: 1},
+	{Name: "Neo.Asset.GetOwner", Func: (*interopContext).assetGetOwner, Price: 1},
+	{Name: "Neo.Asset.GetPrecision", Func: (*interopContext).assetGetPrecision, Price: 1},
+	{Name: "Neo.Asset.Renew", Func: (*interopContext).assetRenew, Price: 0},
+	{Name: "Neo.Attribute.GetData", Func: (*interopContext).attrGetData, Price: 1},
+	{Name: "Neo.Attribute.GetUsage", Func: (*interopContext).attrGetUsage, Price: 1},
+	{Name: "Neo.Block.GetTransaction", Func: (*interopContext).blockGetTransaction, Price: 1},
+	{Name: "Neo.Block.GetTransactionCount", Func: (*interopContext).blockGetTransactionCount, Price: 1},
+	{Name: "Neo.Block.GetTransactions", Func: (*interopContext).blockGetTransactions, Price: 1},
+	{Name: "Neo.Blockchain.GetAccount", Func: (*interopContext).bcGetAccount, Price: 100},
+	{Name: "Neo.Blockchain.GetAsset", Func: (*interopContext).bcGetAsset, Price: 100},
+	{Name: "Neo.Blockchain.GetBlock", Func: (*interopContext).bcGetBlock, Price: 200},
+	{Name: "Neo.Blockchain.GetContract", Func: (*interopContext).bcGetContract, Price: 100},
+	{Name: "Neo.Blockchain.GetHeader", Func: (*interopContext).bcGetHeader, Price: 100},
+	{Name: "Neo.Blockchain.GetHeight", Func: (*interopContext).bcGetHeight, Price: 1},
+	{Name: "Neo.Blockchain.GetTransaction", Func: (*interopContext).bcGetTransaction, Price: 100},
+	{Name: "Neo.Blockchain.GetTransactionHeight", Func: (*interopContext).bcGetTransactionHeight, Price: 100},
+	{Name: "Neo.Blockchain.GetValidators", Func: (*interopContext).bcGetValidators, Price: 200},
+	{Name: "Neo.Contract.Create", Func: (*interopContext).contractCreate, Price: 0},
+	{Name: "Neo.Contract.Destroy", Func: (*interopContext).contractDestroy, Price: 1},
+	{Name: "Neo.Contract.GetScript", Func: (*interopContext).contractGetScript, Price: 1},
+	{Name: "Neo.Contract.GetStorageContext", Func: (*interopContext).contractGetStorageContext, Price: 1},
+	{Name: "Neo.Contract.IsPayable", Func: (*interopContext).contractIsPayable, Price: 1},
+	{Name: "Neo.Contract.Migrate", Func: (*interopContext).contractMigrate, Price: 0},
+	{Name: "Neo.Header.GetConsensusData", Func: (*interopContext).headerGetConsensusData, Price: 1},
+	{Name: "Neo.Header.GetHash", Func: (*interopContext).headerGetHash, Price: 1},
+	{Name: "Neo.Header.GetIndex", Func: (*interopContext).headerGetIndex, Price: 1},
+	{Name: "Neo.Header.GetMerkleRoot", Func: (*interopContext).headerGetMerkleRoot, Price: 1},
+	{Name: "Neo.Header.GetNextConsensus", Func: (*interopContext).headerGetNextConsensus, Price: 1},
+	{Name: "Neo.Header.GetPrevHash", Func: (*interopContext).headerGetPrevHash, Price: 1},
+	{Name: "Neo.Header.GetTimestamp", Func: (*interopContext).headerGetTimestamp, Price: 1},
+	{Name: "Neo.Header.GetVersion", Func: (*interopContext).headerGetVersion, Price: 1},
+	{Name: "Neo.Input.GetHash", Func: (*interopContext).inputGetHash, Price: 1},
+	{Name: "Neo.Input.GetIndex", Func: (*interopContext).inputGetIndex, Price: 1},
+	{Name: "Neo.Output.GetAssetId", Func: (*interopContext).outputGetAssetID, Price: 1},
+	{Name: "Neo.Output.GetScriptHash", Func: (*interopContext).outputGetScriptHash, Price: 1},
+	{Name: "Neo.Output.GetValue", Func: (*interopContext).outputGetValue, Price: 1},
+	{Name: "Neo.Runtime.CheckWitness", Func: (*interopContext).runtimeCheckWitness, Price: 200},
+	{Name: "Neo.Runtime.GetTime", Func: (*interopContext).runtimeGetTime, Price: 1},
+	{Name: "Neo.Runtime.GetTrigger", Func: (*interopContext).runtimeGetTrigger, Price: 1},
+	{Name: "Neo.Runtime.Log", Func: (*interopContext).runtimeLog, Price: 1},
+	{Name: "Neo.Runtime.Notify", Func: (*interopContext).runtimeNotify, Price: 1},
+	{Name: "Neo.Storage.Delete", Func: (*interopContext).storageDelete, Price: 100},
+	{Name: "Neo.Storage.Get", Func: (*interopContext).storageGet, Price: 100},
+	{Name: "Neo.Storage.GetContext", Func: (*interopContext).storageGetContext, Price: 1},
+	{Name: "Neo.Storage.GetReadOnlyContext", Func: (*interopContext).storageGetReadOnlyContext, Price: 1},
+	{Name: "Neo.Storage.Put", Func: (*interopContext).storagePut, Price: 0},
+	{Name: "Neo.StorageContext.AsReadOnly", Func: (*interopContext).storageContextAsReadOnly, Price: 1},
+	{Name: "Neo.Transaction.GetAttributes", Func: (*interopContext).txGetAttributes, Price: 1},
+	{Name: "Neo.Transaction.GetHash", Func: (*interopContext).txGetHash, Price: 1},
+	{Name: "Neo.Transaction.GetInputs", Func: (*interopContext).txGetInputs, Price: 1},
+	{Name: "Neo.Transaction.GetOutputs", Func: (*interopContext).txGetOutputs, Price: 1},
+	{Name: "Neo.Transaction.GetReferences", Func: (*interopContext).txGetReferences, Price: 200},
+	{Name: "Neo.Transaction.GetType", Func: (*interopContext).txGetType, Price: 1},
+	{Name: "Neo.Transaction.GetUnspentCoins", Func: (*interopContext).txGetUnspentCoins, Price: 200},
+	{Name: "Neo.Transaction.GetWitnesses", Func: (*interopContext).txGetWitnesses, Price: 200},
+	//		{Name: "Neo.Enumerator.Concat", Func: (*interopContext).enumeratorConcat, Price: 1},
+	//		{Name: "Neo.Enumerator.Create", Func: (*interopContext).enumeratorCreate, Price: 1},
+	//		{Name: "Neo.Enumerator.Next", Func: (*interopContext).enumeratorNext, Price: 1},
+	//		{Name: "Neo.Enumerator.Value", Func: (*interopContext).enumeratorValue, Price: 1},
+	//		{Name: "Neo.InvocationTransaction.GetScript", {ic.invocationTx_GetScript, 1},
+	//		{Name: "Neo.Iterator.Concat", Func: (*interopContext).iteratorConcat, Price: 1},
+	//		{Name: "Neo.Iterator.Create", Func: (*interopContext).iteratorCreate, Price: 1},
+	//		{Name: "Neo.Iterator.Key", Func: (*interopContext).iteratorKey, Price: 1},
+	//		{Name: "Neo.Iterator.Keys", Func: (*interopContext).iteratorKeys, Price: 1},
+	//		{Name: "Neo.Iterator.Values", Func: (*interopContext).iteratorValues, Price: 1},
+	{Name: "Neo.Runtime.Deserialize", Func: (*interopContext).runtimeDeserialize, Price: 1},
+	{Name: "Neo.Runtime.Serialize", Func: (*interopContext).runtimeSerialize, Price: 1},
+	//		{Name: "Neo.Storage.Find",                Func: (*interopContext).storageFind, Price: 1},
+	//		{Name: "Neo.Witness.GetVerificationScript", Func: (*interopContext).witnessGetVerificationScript, Price: 100},
+
+	// Aliases.
+	//		{Name: "Neo.Iterator.Next", Func: (*interopContext).enumeratorNext, Price: 1},
+	//		{Name: "Neo.Iterator.Value", Func: (*interopContext).enumeratorValue, Price: 1},
+
+	// Old compatibility APIs.
+	{Name: "AntShares.Account.GetBalance", Func: (*interopContext).accountGetBalance, Price: 1},
+	{Name: "AntShares.Account.GetScriptHash", Func: (*interopContext).accountGetScriptHash, Price: 1},
+	{Name: "AntShares.Account.GetVotes", Func: (*interopContext).accountGetVotes, Price: 1},
+	{Name: "AntShares.Asset.Create", Func: (*interopContext).assetCreate, Price: 0},
+	{Name: "AntShares.Asset.GetAdmin", Func: (*interopContext).assetGetAdmin, Price: 1},
+	{Name: "AntShares.Asset.GetAmount", Func: (*interopContext).assetGetAmount, Price: 1},
+	{Name: "AntShares.Asset.GetAssetId", Func: (*interopContext).assetGetAssetID, Price: 1},
+	{Name: "AntShares.Asset.GetAssetType", Func: (*interopContext).assetGetAssetType, Price: 1},
+	{Name: "AntShares.Asset.GetAvailable", Func: (*interopContext).assetGetAvailable, Price: 1},
+	{Name: "AntShares.Asset.GetIssuer", Func: (*interopContext).assetGetIssuer, Price: 1},
+	{Name: "AntShares.Asset.GetOwner", Func: (*interopContext).assetGetOwner, Price: 1},
+	{Name: "AntShares.Asset.GetPrecision", Func: (*interopContext).assetGetPrecision, Price: 1},
+	{Name: "AntShares.Asset.Renew", Func: (*interopContext).assetRenew, Price: 0},
+	{Name: "AntShares.Attribute.GetData", Func: (*interopContext).attrGetData, Price: 1},
+	{Name: "AntShares.Attribute.GetUsage", Func: (*interopContext).attrGetUsage, Price: 1},
+	{Name: "AntShares.Block.GetTransaction", Func: (*interopContext).blockGetTransaction, Price: 1},
+	{Name: "AntShares.Block.GetTransactionCount", Func: (*interopContext).blockGetTransactionCount, Price: 1},
+	{Name: "AntShares.Block.GetTransactions", Func: (*interopContext).blockGetTransactions, Price: 1},
+	{Name: "AntShares.Blockchain.GetAccount", Func: (*interopContext).bcGetAccount, Price: 100},
+	{Name: "AntShares.Blockchain.GetAsset", Func: (*interopContext).bcGetAsset, Price: 100},
+	{Name: "AntShares.Blockchain.GetBlock", Func: (*interopContext).bcGetBlock, Price: 200},
+	{Name: "AntShares.Blockchain.GetContract", Func: (*interopContext).bcGetContract, Price: 100},
+	{Name: "AntShares.Blockchain.GetHeader", Func: (*interopContext).bcGetHeader, Price: 100},
+	{Name: "AntShares.Blockchain.GetHeight", Func: (*interopContext).bcGetHeight, Price: 1},
+	{Name: "AntShares.Blockchain.GetTransaction", Func: (*interopContext).bcGetTransaction, Price: 100},
+	{Name: "AntShares.Blockchain.GetValidators", Func: (*interopContext).bcGetValidators, Price: 200},
+	{Name: "AntShares.Contract.Create", Func: (*interopContext).contractCreate, Price: 0},
+	{Name: "AntShares.Contract.Destroy", Func: (*interopContext).contractDestroy, Price: 1},
+	{Name: "AntShares.Contract.GetScript", Func: (*interopContext).contractGetScript, Price: 1},
+	{Name: "AntShares.Contract.GetStorageContext", Func: (*interopContext).contractGetStorageContext, Price: 1},
+	{Name: "AntShares.Contract.Migrate", Func: (*interopContext).contractMigrate, Price: 0},
+	{Name: "AntShares.Header.GetConsensusData", Func: (*interopContext).headerGetConsensusData, Price: 1},
+	{Name: "AntShares.Header.GetHash", Func: (*interopContext).headerGetHash, Price: 1},
+	{Name: "AntShares.Header.GetMerkleRoot", Func: (*interopContext).headerGetMerkleRoot, Price: 1},
+	{Name: "AntShares.Header.GetNextConsensus", Func: (*interopContext).headerGetNextConsensus, Price: 1},
+	{Name: "AntShares.Header.GetPrevHash", Func: (*interopContext).headerGetPrevHash, Price: 1},
+	{Name: "AntShares.Header.GetTimestamp", Func: (*interopContext).headerGetTimestamp, Price: 1},
+	{Name: "AntShares.Header.GetVersion", Func: (*interopContext).headerGetVersion, Price: 1},
+	{Name: "AntShares.Input.GetHash", Func: (*interopContext).inputGetHash, Price: 1},
+	{Name: "AntShares.Input.GetIndex", Func: (*interopContext).inputGetIndex, Price: 1},
+	{Name: "AntShares.Output.GetAssetId", Func: (*interopContext).outputGetAssetID, Price: 1},
+	{Name: "AntShares.Output.GetScriptHash", Func: (*interopContext).outputGetScriptHash, Price: 1},
+	{Name: "AntShares.Output.GetValue", Func: (*interopContext).outputGetValue, Price: 1},
+	{Name: "AntShares.Runtime.CheckWitness", Func: (*interopContext).runtimeCheckWitness, Price: 200},
+	{Name: "AntShares.Runtime.Log", Func: (*interopContext).runtimeLog, Price: 1},
+	{Name: "AntShares.Runtime.Notify", Func: (*interopContext).runtimeNotify, Price: 1},
+	{Name: "AntShares.Storage.Delete", Func: (*interopContext).storageDelete, Price: 100},
+	{Name: "AntShares.Storage.Get", Func: (*interopContext).storageGet, Price: 100},
+	{Name: "AntShares.Storage.GetContext", Func: (*interopContext).storageGetContext, Price: 1},
+	{Name: "AntShares.Storage.Put", Func: (*interopContext).storagePut, Price: 0},
+	{Name: "AntShares.Transaction.GetAttributes", Func: (*interopContext).txGetAttributes, Price: 1},
+	{Name: "AntShares.Transaction.GetHash", Func: (*interopContext).txGetHash, Price: 1},
+	{Name: "AntShares.Transaction.GetInputs", Func: (*interopContext).txGetInputs, Price: 1},
+	{Name: "AntShares.Transaction.GetOutputs", Func: (*interopContext).txGetOutputs, Price: 1},
+	{Name: "AntShares.Transaction.GetReferences", Func: (*interopContext).txGetReferences, Price: 200},
+	{Name: "AntShares.Transaction.GetType", Func: (*interopContext).txGetType, Price: 1},
+}
+
+// initIDinInteropsSlice initializes IDs from names in one given
+// interopedFunction slice and then sorts it.
+func initIDinInteropsSlice(iops []interopedFunction) {
+	for i := range iops {
+		iops[i].ID = vm.InteropNameToID([]byte(iops[i].Name))
+	}
+	sort.Slice(iops, func(i, j int) bool {
+		return iops[i].ID < iops[j].ID
+	})
+}
+
+// init initializes IDs in the global interop slices.
+func init() {
+	initIDinInteropsSlice(systemInterops)
+	initIDinInteropsSlice(neoInterops)
 }

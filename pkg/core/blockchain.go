@@ -1342,8 +1342,8 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 		}
 		return cs.Script
 	})
-	vm.RegisterInteropFuncs(interopCtx.getSystemInteropMap())
-	vm.RegisterInteropFuncs(interopCtx.getNeoInteropMap())
+	vm.RegisterInteropGetter(interopCtx.getSystemInterop)
+	vm.RegisterInteropGetter(interopCtx.getNeoInterop)
 	return vm
 }
 

@@ -48,9 +48,7 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
-	vm.RegisterInteropFunc("Neo.Storage.Get", storePlugin.Get, 1)
-	vm.RegisterInteropFunc("Neo.Storage.Put", storePlugin.Put, 1)
-	vm.RegisterInteropFunc("Neo.Storage.GetContext", storePlugin.GetContext, 1)
+	vm.RegisterInteropGetter(storePlugin.getInterop)
 
 	b, err := compiler.Compile(strings.NewReader(src))
 	if err != nil {
@@ -61,13 +59,28 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 }
 
 type storagePlugin struct {
-	mem map[string][]byte
+	mem      map[string][]byte
+	interops map[uint32]vm.InteropFunc
 }
 
 func newStoragePlugin() *storagePlugin {
-	return &storagePlugin{
-		mem: make(map[string][]byte),
+	s := &storagePlugin{
+		mem:      make(map[string][]byte),
+		interops: make(map[uint32]vm.InteropFunc),
 	}
+	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Get"))] = s.Get
+	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Put"))] = s.Put
+	s.interops[vm.InteropNameToID([]byte("Neo.Storage.GetContext"))] = s.GetContext
+	return s
+
+}
+
+func (s *storagePlugin) getInterop(id uint32) *vm.InteropFuncPrice {
+	f := s.interops[id]
+	if f != nil {
+		return &vm.InteropFuncPrice{Func: f, Price: 1}
+	}
+	return nil
 }
 
 func (s *storagePlugin) Delete(vm *vm.VM) error {

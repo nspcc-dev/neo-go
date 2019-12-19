@@ -16,12 +16,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func fooInteropGetter(id uint32) *InteropFuncPrice {
+	if id == InteropNameToID([]byte("foo")) {
+		return &InteropFuncPrice{func(evm *VM) error {
+			evm.Estack().PushVal(1)
+			return nil
+		}, 1}
+	}
+	return nil
+}
+
 func TestInteropHook(t *testing.T) {
 	v := New()
-	v.RegisterInteropFunc("foo", func(evm *VM) error {
-		evm.Estack().PushVal(1)
-		return nil
-	}, 1)
+	v.RegisterInteropGetter(fooInteropGetter)
 
 	buf := new(bytes.Buffer)
 	EmitSyscall(buf, "foo")
@@ -32,13 +39,27 @@ func TestInteropHook(t *testing.T) {
 	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
 }
 
-func TestRegisterInterop(t *testing.T) {
+func TestInteropHookViaID(t *testing.T) {
 	v := New()
-	currRegistered := len(v.interop)
-	v.RegisterInteropFunc("foo", func(evm *VM) error { return nil }, 1)
-	assert.Equal(t, currRegistered+1, len(v.interop))
-	_, ok := v.interop["foo"]
-	assert.Equal(t, true, ok)
+	v.RegisterInteropGetter(fooInteropGetter)
+
+	buf := new(bytes.Buffer)
+	fooid := InteropNameToID([]byte("foo"))
+	var id = make([]byte, 4)
+	binary.LittleEndian.PutUint32(id, fooid)
+	_ = EmitSyscall(buf, string(id))
+	_ = EmitOpcode(buf, opcode.RET)
+	v.Load(buf.Bytes())
+	runVM(t, v)
+	assert.Equal(t, 1, v.estack.Len())
+	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
+}
+
+func TestRegisterInteropGetter(t *testing.T) {
+	v := New()
+	currRegistered := len(v.getInterop)
+	v.RegisterInteropGetter(fooInteropGetter)
+	assert.Equal(t, currRegistered+1, len(v.getInterop))
 }
 
 func TestBytesToPublicKey(t *testing.T) {

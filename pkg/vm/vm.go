@@ -60,8 +60,8 @@ const (
 type VM struct {
 	state State
 
-	// registered interop hooks.
-	interop map[string]InteropFuncPrice
+	// callbacks to get interops.
+	getInterop []InteropGetterFunc
 
 	// callback to get scripts.
 	getScript func(util.Uint160) []byte
@@ -80,19 +80,13 @@ type VM struct {
 	keys map[string]*keys.PublicKey
 }
 
-// InteropFuncPrice represents an interop function with a price.
-type InteropFuncPrice struct {
-	Func  InteropFunc
-	Price int
-}
-
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New() *VM {
 	vm := &VM{
-		interop:   make(map[string]InteropFuncPrice),
-		getScript: nil,
-		state:     haltState,
-		istack:    NewStack("invocation"),
+		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
+		getScript:  nil,
+		state:      haltState,
+		istack:     NewStack("invocation"),
 
 		itemCount: make(map[StackItem]int),
 		keys:      make(map[string]*keys.PublicKey),
@@ -101,14 +95,7 @@ func New() *VM {
 	vm.estack = vm.newItemStack("evaluation")
 	vm.astack = vm.newItemStack("alt")
 
-	// Register native interop hooks.
-	vm.RegisterInteropFunc("Neo.Runtime.Log", runtimeLog, 1)
-	vm.RegisterInteropFunc("Neo.Runtime.Notify", runtimeNotify, 1)
-	vm.RegisterInteropFunc("Neo.Runtime.Serialize", RuntimeSerialize, 1)
-	vm.RegisterInteropFunc("System.Runtime.Serialize", RuntimeSerialize, 1)
-	vm.RegisterInteropFunc("Neo.Runtime.Deserialize", RuntimeDeserialize, 1)
-	vm.RegisterInteropFunc("System.Runtime.Deserialize", RuntimeDeserialize, 1)
-
+	vm.RegisterInteropGetter(getDefaultVMInterop)
 	return vm
 }
 
@@ -120,18 +107,11 @@ func (v *VM) newItemStack(n string) *Stack {
 	return s
 }
 
-// RegisterInteropFunc registers the given InteropFunc to the VM.
-func (v *VM) RegisterInteropFunc(name string, f InteropFunc, price int) {
-	v.interop[name] = InteropFuncPrice{f, price}
-}
-
-// RegisterInteropFuncs registers all interop functions passed in a map in
-// the VM. Effectively it's a batched version of RegisterInteropFunc.
-func (v *VM) RegisterInteropFuncs(interops map[string]InteropFuncPrice) {
-	// We allow reregistration here.
-	for name := range interops {
-		v.interop[name] = interops[name]
-	}
+// RegisterInteropGetter registers the given InteropGetterFunc into VM. There
+// can be many interop getters and they're probed in LIFO order wrt their
+// registration time.
+func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
+	v.getInterop = append(v.getInterop, f)
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -1095,9 +1075,23 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.SYSCALL:
-		ifunc, ok := v.interop[string(parameter)]
-		if !ok {
-			panic(fmt.Sprintf("interop hook (%q) not registered", parameter))
+		var ifunc *InteropFuncPrice
+		var interopID uint32
+
+		if len(parameter) == 4 {
+			interopID = binary.LittleEndian.Uint32(parameter)
+		} else {
+			interopID = InteropNameToID(parameter)
+		}
+		// LIFO interpretation of callbacks.
+		for i := len(v.getInterop) - 1; i >= 0; i-- {
+			ifunc = v.getInterop[i](interopID)
+			if ifunc != nil {
+				break
+			}
+		}
+		if ifunc == nil {
+			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
 		}
 		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
