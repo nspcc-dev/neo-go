@@ -3,10 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/build"
 	"go/parser"
-	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
@@ -61,11 +58,6 @@ func Compile(r io.Reader) ([]byte, error) {
 	return buf, nil
 }
 
-type archive struct {
-	f        *ast.File
-	typeInfo *types.Info
-}
-
 // CompileAndSave will compile and save the file to disk.
 func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if !strings.HasSuffix(src, ".go") {
@@ -89,12 +81,4 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	return b, ioutil.WriteFile(out, b, os.ModePerm)
-}
-
-func gopath() string {
-	gopath := os.Getenv("GOPATH")
-	if len(gopath) == 0 {
-		gopath = build.Default.GOPATH
-	}
-	return gopath
 }
