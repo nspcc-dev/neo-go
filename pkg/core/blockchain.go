@@ -55,6 +55,9 @@ type Blockchain struct {
 	// Write access should only happen in storeBlock().
 	blockHeight uint32
 
+	// Current top Block wrapped in an atomic.Value for safe access.
+	topBlock atomic.Value
+
 	// Current persisted block count.
 	persistedHeight uint32
 
@@ -558,6 +561,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 	if err != nil {
 		return err
 	}
+	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	updateBlockHeightMetric(block.Index)
 	for _, tx := range block.Transactions {
@@ -749,6 +753,13 @@ func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*state.Stor
 
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+	topBlock := bc.topBlock.Load()
+	if topBlock != nil {
+		if tb, ok := topBlock.(*Block); ok && tb.Hash().Equals(hash) {
+			return tb, nil
+		}
+	}
+
 	block, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
@@ -768,6 +779,12 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 
 // GetHeader returns data block header identified with the given hash value.
 func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
+	topBlock := bc.topBlock.Load()
+	if topBlock != nil {
+		if tb, ok := topBlock.(*Block); ok && tb.Hash().Equals(hash) {
+			return tb.Header(), nil
+		}
+	}
 	block, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
