@@ -1,4 +1,4 @@
-package vm_test
+package compiler_test
 
 import "testing"
 
