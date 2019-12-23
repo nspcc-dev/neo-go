@@ -1,4 +1,4 @@
-package vm_test
+package compiler_test
 
 import (
 	"math/big"
@@ -9,7 +9,7 @@ func TestImportFunction(t *testing.T) {
 	src := `
 		package somethingelse
 
-		import "github.com/CityOfZion/neo-go/pkg/vm/tests/foo"
+		import "github.com/CityOfZion/neo-go/pkg/compiler/testdata/foo"
 
 		func Main() int {
 			i := foo.NewBar()
@@ -23,7 +23,7 @@ func TestImportStruct(t *testing.T) {
 	src := `
 	 	package somethingwedontcareabout
 
-		import "github.com/CityOfZion/neo-go/pkg/vm/tests/bar"
+		import "github.com/CityOfZion/neo-go/pkg/compiler/testdata/bar"
 
 	 	func Main() int {
 			 b := bar.Bar{
@@ -39,7 +39,7 @@ func TestMultipleDirFileImport(t *testing.T) {
 	src := `
 		package hello
 
-		import "github.com/CityOfZion/neo-go/pkg/vm/tests/foobar"
+		import "github.com/CityOfZion/neo-go/pkg/compiler/testdata/foobar"
 
 		func Main() bool {
 			ok := foobar.OtherBool()
