@@ -216,6 +216,20 @@ func (ic *interopContext) invocationTxGetScript(v *vm.VM) error {
 	return nil
 }
 
+// witnessGetVerificationScript returns current witness' script.
+func (ic *interopContext) witnessGetVerificationScript(v *vm.VM) error {
+	witInterface := v.Estack().Pop().Value()
+	wit, ok := witInterface.(*transaction.Witness)
+	if !ok {
+		return errors.New("value is not a witness")
+	}
+	// It's important not to share wit.VerificationScript slice with the code running in VM.
+	script := make([]byte, len(wit.VerificationScript))
+	copy(script, wit.VerificationScript)
+	v.Estack().PushVal(script)
+	return nil
+}
+
 // bcGetValidators returns validators.
 func (ic *interopContext) bcGetValidators(v *vm.VM) error {
 	validators := ic.dao.GetValidators()

@@ -175,6 +175,7 @@ var neoInterops = []interopedFunction{
 	{Name: "Neo.Transaction.GetType", Func: (*interopContext).txGetType, Price: 1},
 	{Name: "Neo.Transaction.GetUnspentCoins", Func: (*interopContext).txGetUnspentCoins, Price: 200},
 	{Name: "Neo.Transaction.GetWitnesses", Func: (*interopContext).txGetWitnesses, Price: 200},
+	{Name: "Neo.Witness.GetVerificationScript", Func: (*interopContext).witnessGetVerificationScript, Price: 100},
 	//		{Name: "Neo.Enumerator.Concat", Func: (*interopContext).enumeratorConcat, Price: 1},
 	//		{Name: "Neo.Enumerator.Create", Func: (*interopContext).enumeratorCreate, Price: 1},
 	//		{Name: "Neo.Enumerator.Next", Func: (*interopContext).enumeratorNext, Price: 1},
@@ -187,7 +188,6 @@ var neoInterops = []interopedFunction{
 	{Name: "Neo.Runtime.Deserialize", Func: (*interopContext).runtimeDeserialize, Price: 1},
 	{Name: "Neo.Runtime.Serialize", Func: (*interopContext).runtimeSerialize, Price: 1},
 	//		{Name: "Neo.Storage.Find",                Func: (*interopContext).storageFind, Price: 1},
-	//		{Name: "Neo.Witness.GetVerificationScript", Func: (*interopContext).witnessGetVerificationScript, Price: 100},
 
 	// Aliases.
 	//		{Name: "Neo.Iterator.Next", Func: (*interopContext).enumeratorNext, Price: 1},

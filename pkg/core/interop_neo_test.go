@@ -126,6 +126,19 @@ func TestInvocationTxGetScript(t *testing.T) {
 	require.Equal(t, inv.Script, value)
 }
 
+func TestWitnessGetVerificationScript(t *testing.T) {
+	v := vm.New()
+	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
+	witness := transaction.Witness{InvocationScript: nil, VerificationScript: script}
+
+	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	v.Estack().PushVal(vm.NewInteropItem(&witness))
+	err := context.witnessGetVerificationScript(v)
+	require.NoError(t, err)
+	value := v.Estack().Pop().Value().([]byte)
+	require.Equal(t, witness.VerificationScript, value)
+}
+
 func TestPopInputFromVM(t *testing.T) {
 	v, tx, _ := createVMAndTX(t)
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
