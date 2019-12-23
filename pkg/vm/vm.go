@@ -238,6 +238,14 @@ func (v *VM) LoadScript(b []byte) {
 	v.istack.PushVal(ctx)
 }
 
+// loadScriptWithHash if similar to the LoadScript method, but it also loads
+// given script hash directly into the Context to avoid its recalculations. It's
+// up to user of this function to make sure the script and hash match each other.
+func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160) {
+	v.LoadScript(b)
+	v.istack.Top().Value().(*Context).scriptHash = hash
+}
+
 // Context returns the current executed context. Nil if there is no context,
 // which implies no program is loaded.
 func (v *VM) Context() *Context {
@@ -1120,7 +1128,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			_ = v.istack.Pop()
 		}
 
-		v.LoadScript(script)
+		v.loadScriptWithHash(script, hash)
 
 	case opcode.RET:
 		oldCtx := v.istack.Pop().Value().(*Context)
@@ -1336,6 +1344,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				panic(fmt.Sprintf("could not find script %s", hash))
 			}
 			newCtx = NewContext(script)
+			newCtx.scriptHash = hash
 		}
 		newCtx.rvcount = rvcount
 		newCtx.estack = NewStack("evaluation")
