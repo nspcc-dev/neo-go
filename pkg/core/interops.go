@@ -157,10 +157,12 @@ var neoInterops = []interopedFunction{
 	{Name: "Neo.Output.GetScriptHash", Func: (*interopContext).outputGetScriptHash, Price: 1},
 	{Name: "Neo.Output.GetValue", Func: (*interopContext).outputGetValue, Price: 1},
 	{Name: "Neo.Runtime.CheckWitness", Func: (*interopContext).runtimeCheckWitness, Price: 200},
+	{Name: "Neo.Runtime.Deserialize", Func: (*interopContext).runtimeDeserialize, Price: 1},
 	{Name: "Neo.Runtime.GetTime", Func: (*interopContext).runtimeGetTime, Price: 1},
 	{Name: "Neo.Runtime.GetTrigger", Func: (*interopContext).runtimeGetTrigger, Price: 1},
 	{Name: "Neo.Runtime.Log", Func: (*interopContext).runtimeLog, Price: 1},
 	{Name: "Neo.Runtime.Notify", Func: (*interopContext).runtimeNotify, Price: 1},
+	{Name: "Neo.Runtime.Serialize", Func: (*interopContext).runtimeSerialize, Price: 1},
 	{Name: "Neo.Storage.Delete", Func: (*interopContext).storageDelete, Price: 100},
 	{Name: "Neo.Storage.Get", Func: (*interopContext).storageGet, Price: 100},
 	{Name: "Neo.Storage.GetContext", Func: (*interopContext).storageGetContext, Price: 1},
@@ -185,8 +187,6 @@ var neoInterops = []interopedFunction{
 	//		{Name: "Neo.Iterator.Key", Func: (*interopContext).iteratorKey, Price: 1},
 	//		{Name: "Neo.Iterator.Keys", Func: (*interopContext).iteratorKeys, Price: 1},
 	//		{Name: "Neo.Iterator.Values", Func: (*interopContext).iteratorValues, Price: 1},
-	{Name: "Neo.Runtime.Deserialize", Func: (*interopContext).runtimeDeserialize, Price: 1},
-	{Name: "Neo.Runtime.Serialize", Func: (*interopContext).runtimeSerialize, Price: 1},
 	//		{Name: "Neo.Storage.Find",                Func: (*interopContext).storageFind, Price: 1},
 
 	// Aliases.
