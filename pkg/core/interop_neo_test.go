@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -113,6 +114,16 @@ func TestTxGetType(t *testing.T) {
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value().(*big.Int)
 	require.Equal(t, big.NewInt(int64(tx.Type)), value)
+}
+
+func TestInvocationTxGetScript(t *testing.T) {
+	v, tx, context := createVMAndPushTX(t)
+
+	err := context.invocationTxGetScript(v)
+	require.NoError(t, err)
+	value := v.Estack().Pop().Value().([]byte)
+	inv := tx.Data.(*transaction.InvocationTX)
+	require.Equal(t, inv.Script, value)
 }
 
 func TestPopInputFromVM(t *testing.T) {
@@ -395,7 +406,8 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext)
 
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext) {
 	v := vm.New()
-	tx := newMinerTX()
+	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
+	tx := transaction.NewInvocationTX(script, 0)
 
 	bytes := make([]byte, 1)
 	attributes := append(tx.Attributes, transaction.Attribute{

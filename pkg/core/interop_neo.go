@@ -198,6 +198,24 @@ func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
 	return nil
 }
 
+// invocationTx_GetScript returns invocation script from the current transaction.
+func (ic *interopContext) invocationTxGetScript(v *vm.VM) error {
+	txInterface := v.Estack().Pop().Value()
+	tx, ok := txInterface.(*transaction.Transaction)
+	if !ok {
+		return errors.New("value is not a transaction")
+	}
+	inv, ok := tx.Data.(*transaction.InvocationTX)
+	if tx.Type != transaction.InvocationType || !ok {
+		return errors.New("value is not an invocation transaction")
+	}
+	// It's important not to share inv.Script slice with the code running in VM.
+	script := make([]byte, len(inv.Script))
+	copy(script, inv.Script)
+	v.Estack().PushVal(script)
+	return nil
+}
+
 // bcGetValidators returns validators.
 func (ic *interopContext) bcGetValidators(v *vm.VM) error {
 	validators := ic.dao.GetValidators()
