@@ -40,6 +40,24 @@ var defaultVMInterops = []interopIDFuncPrice{
 		InteropFuncPrice{RuntimeDeserialize, 1}},
 	{InteropNameToID([]byte("System.Runtime.Deserialize")),
 		InteropFuncPrice{RuntimeDeserialize, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Create")),
+		InteropFuncPrice{EnumeratorCreate, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Next")),
+		InteropFuncPrice{EnumeratorNext, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Concat")),
+		InteropFuncPrice{EnumeratorConcat, 1}},
+	{InteropNameToID([]byte("Neo.Enumerator.Value")),
+		InteropFuncPrice{EnumeratorValue, 1}},
+	{InteropNameToID([]byte("Neo.Iterator.Create")),
+		InteropFuncPrice{IteratorCreate, 1}},
+	{InteropNameToID([]byte("Neo.Iterator.Concat")),
+		InteropFuncPrice{IteratorConcat, 1}},
+	{InteropNameToID([]byte("Neo.Iterator.Key")),
+		InteropFuncPrice{IteratorKey, 1}},
+	{InteropNameToID([]byte("Neo.Iterator.Keys")),
+		InteropFuncPrice{IteratorKeys, 1}},
+	{InteropNameToID([]byte("Neo.Iterator.Values")),
+		InteropFuncPrice{IteratorValues, 1}},
 }
 
 func getDefaultVMInterop(id uint32) *InteropFuncPrice {
@@ -106,4 +124,129 @@ func init() {
 	sort.Slice(defaultVMInterops, func(i, j int) bool {
 		return defaultVMInterops[i].ID < defaultVMInterops[j].ID
 	})
+}
+
+// EnumeratorCreate handles syscall Neo.Enumerator.Create.
+func EnumeratorCreate(v *VM) error {
+	data := v.Estack().Pop().Array()
+	v.Estack().Push(&Element{
+		value: NewInteropItem(&arrayWrapper{
+			index: -1,
+			value: data,
+		}),
+	})
+
+	return nil
+}
+
+// EnumeratorNext handles syscall Neo.Enumerator.Next.
+func EnumeratorNext(v *VM) error {
+	iop := v.Estack().Pop().Interop()
+	arr := iop.value.(enumerator)
+	v.Estack().PushVal(arr.Next())
+
+	return nil
+}
+
+// EnumeratorValue handles syscall Neo.Enumerator.Value.
+func EnumeratorValue(v *VM) error {
+	iop := v.Estack().Pop().Interop()
+	arr := iop.value.(enumerator)
+	v.Estack().Push(&Element{value: arr.Value()})
+
+	return nil
+}
+
+// EnumeratorConcat handles syscall Neo.Enumerator.Concat.
+func EnumeratorConcat(v *VM) error {
+	iop1 := v.Estack().Pop().Interop()
+	arr1 := iop1.value.(enumerator)
+	iop2 := v.Estack().Pop().Interop()
+	arr2 := iop2.value.(enumerator)
+
+	v.Estack().Push(&Element{
+		value: NewInteropItem(&concatEnum{
+			current: arr1,
+			second:  arr2,
+		}),
+	})
+
+	return nil
+}
+
+// IteratorCreate handles syscall Neo.Iterator.Create.
+func IteratorCreate(v *VM) error {
+	data := v.Estack().Pop()
+	var item interface{}
+	switch t := data.value.(type) {
+	case *ArrayItem, *StructItem:
+		item = &arrayWrapper{
+			index: -1,
+			value: t.Value().([]StackItem),
+		}
+	case *MapItem:
+		keys := make([]interface{}, 0, len(t.value))
+		for k := range t.value {
+			keys = append(keys, k)
+		}
+
+		item = &mapWrapper{
+			index: -1,
+			keys:  keys,
+			m:     t.value,
+		}
+	default:
+		return errors.New("non-iterable type")
+	}
+
+	v.Estack().Push(&Element{value: NewInteropItem(item)})
+	return nil
+}
+
+// IteratorConcat handles syscall Neo.Iterator.Concat.
+func IteratorConcat(v *VM) error {
+	iop1 := v.Estack().Pop().Interop()
+	iter1 := iop1.value.(iterator)
+	iop2 := v.Estack().Pop().Interop()
+	iter2 := iop2.value.(iterator)
+
+	v.Estack().Push(&Element{value: NewInteropItem(
+		&concatIter{
+			current: iter1,
+			second:  iter2,
+		},
+	)})
+
+	return nil
+}
+
+// IteratorKey handles syscall Neo.Iterator.Key.
+func IteratorKey(v *VM) error {
+	iop := v.estack.Pop().Interop()
+	iter := iop.value.(iterator)
+	v.Estack().Push(&Element{value: iter.Key()})
+
+	return nil
+}
+
+// IteratorKeys handles syscall Neo.Iterator.Keys.
+func IteratorKeys(v *VM) error {
+	iop := v.estack.Pop().Interop()
+	iter := iop.value.(iterator)
+	v.Estack().Push(&Element{value: NewInteropItem(
+		&keysWrapper{iter},
+	)})
+
+	return nil
+}
+
+// IteratorValues handles syscall Neo.Iterator.Values.
+func IteratorValues(v *VM) error {
+	iop := v.estack.Pop().Interop()
+	iter := iop.value.(iterator)
+	v.Estack().Push(&Element{value: NewInteropItem(
+		&valuesWrapper{iter},
+	)})
+
+	return nil
 }

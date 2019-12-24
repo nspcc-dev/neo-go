@@ -787,3 +787,49 @@ func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
 func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
 	return vm.RuntimeDeserialize(v)
 }
+
+// enumeratorConcat concatenates 2 enumerators into a single one.
+func (ic *interopContext) enumeratorConcat(v *vm.VM) error {
+	return vm.EnumeratorConcat(v)
+}
+
+// enumeratorCreate creates an enumerator from an array-like stack item.
+func (ic *interopContext) enumeratorCreate(v *vm.VM) error {
+	return vm.EnumeratorCreate(v)
+}
+
+// enumeratorNext advances the enumerator, pushes true if is it was successful
+// and false otherwise.
+func (ic *interopContext) enumeratorNext(v *vm.VM) error {
+	return vm.EnumeratorNext(v)
+}
+
+// enumeratorValue returns the current value of the enumerator.
+func (ic *interopContext) enumeratorValue(v *vm.VM) error {
+	return vm.EnumeratorValue(v)
+}
+
+// iteratorConcat concatenates 2 iterators into a single one.
+func (ic *interopContext) iteratorConcat(v *vm.VM) error {
+	return vm.IteratorConcat(v)
+}
+
+// iteratorCreate creates an iterator from array-like or map stack item.
+func (ic *interopContext) iteratorCreate(v *vm.VM) error {
+	return vm.IteratorCreate(v)
+}
+
+// iteratorKey returns current iterator key.
+func (ic *interopContext) iteratorKey(v *vm.VM) error {
+	return vm.IteratorKey(v)
+}
+
+// iteratorKeys returns keys of the iterator.
+func (ic *interopContext) iteratorKeys(v *vm.VM) error {
+	return vm.IteratorKeys(v)
+}
+
+// iteratorValues returns values of the iterator.
+func (ic *interopContext) iteratorValues(v *vm.VM) error {
+	return vm.IteratorValues(v)
+}
