@@ -1,5 +1,11 @@
 package transaction
 
+import (
+	"strings"
+
+	"github.com/pkg/errors"
+)
+
 // TXType is the type of a transaction.
 type TXType uint8
 
@@ -51,4 +57,45 @@ func (t TXType) String() string {
 // MarshalJSON implements the json marshaller interface.
 func (t TXType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + t.String() + `"`), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (t *TXType) UnmarshalJSON(data []byte) error {
+	l := len(data)
+	if l < 2 || data[0] != '"' || data[l-1] != '"' {
+		return errors.New("wrong format")
+	}
+	var err error
+	*t, err = TXTypeFromString(string(data[1 : l-1]))
+	return err
+}
+
+// TXTypeFromString searches for TXType by string name.
+func TXTypeFromString(jsonString string) (TXType, error) {
+	switch jsonString = strings.TrimSpace(jsonString); jsonString {
+	case "MinerTransaction":
+		return MinerType, nil
+	case "IssueTransaction":
+		return IssueType, nil
+	case "ClaimTransaction":
+		return ClaimType, nil
+	case "EnrollmentTransaction":
+		return EnrollmentType, nil
+	case "VotingTransaction":
+		return VotingType, nil
+	case "RegisterTransaction":
+		return RegisterType, nil
+	case "ContractTransaction":
+		return ContractType, nil
+	case "StateTransaction":
+		return StateType, nil
+	case "AgencyTransaction":
+		return AgencyType, nil
+	case "PublishTransaction":
+		return PublishType, nil
+	case "InvocationTransaction":
+		return InvocationType, nil
+	default:
+		return 0, errors.New("unknown state")
+	}
 }
