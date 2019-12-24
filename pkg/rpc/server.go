@@ -152,7 +152,14 @@ Methods:
 			break
 		}
 
-		results = wrappers.NewBlock(block, s.chain)
+		if len(reqParams) == 2 && reqParams[1].Value == 1 {
+			results = wrappers.NewBlock(block, s.chain)
+		} else {
+			writer := io.NewBufBinWriter()
+			block.EncodeBinary(writer.BinWriter)
+			results = hex.EncodeToString(writer.Bytes())
+		}
+
 	case "getblockcount":
 		getblockcountCalled.Inc()
 		results = s.chain.BlockHeight() + 1
