@@ -232,6 +232,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.AssignStmt:
+		multiRet := len(n.Rhs) != len(n.Lhs)
+
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
@@ -243,7 +245,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				default:
-					ast.Walk(c, n.Rhs[i])
+					if i == 0 || !multiRet {
+						ast.Walk(c, n.Rhs[i])
+					}
+
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
 				}
@@ -291,16 +296,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.ReturnStmt:
-		if len(n.Results) > 1 {
-			c.prog.Err = fmt.Errorf("multiple returns not supported")
-			return nil
-		}
-
 		l := c.newLabel()
 		c.setLabel(l)
 
-		if len(n.Results) > 0 {
-			ast.Walk(c, n.Results[0])
+		// first result should be on top of the stack
+		for i := len(n.Results) - 1; i >= 0; i-- {
+			ast.Walk(c, n.Results[i])
 		}
 
 		emitOpcode(c.prog.BinWriter, opcode.FROMALTSTACK)
