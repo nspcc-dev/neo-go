@@ -10,7 +10,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
-	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
@@ -242,11 +242,9 @@ func (p *PublicKey) Signature() []byte {
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
-	var b = p.Signature()
+	sig := hash.Hash160(p.GetVerificationScript())
 
-	b = append([]byte{0x17}, b...)
-
-	return base58.CheckEncode(b)
+	return address.EncodeUint160(sig)
 }
 
 // Verify returns true if the signature is valid and corresponds
