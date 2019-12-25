@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/Workiva/go-datastructures/queue"
@@ -30,13 +30,13 @@ func (b *Block) Header() *Header {
 	}
 }
 
-func merkleTreeFromTransactions(txes []*transaction.Transaction) (*crypto.MerkleTree, error) {
+func merkleTreeFromTransactions(txes []*transaction.Transaction) (*hash.MerkleTree, error) {
 	hashes := make([]util.Uint256, len(txes))
 	for i, tx := range txes {
 		hashes[i] = tx.Hash()
 	}
 
-	return crypto.NewMerkleTree(hashes)
+	return hash.NewMerkleTree(hashes)
 }
 
 // rebuildMerkleRoot rebuilds the merkleroot of the block.

@@ -1,9 +1,8 @@
-package crypto
+package hash
 
 import (
 	"errors"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -66,7 +65,7 @@ func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 		b1 := parents[i].leftChild.hash.BytesBE()
 		b2 := parents[i].rightChild.hash.BytesBE()
 		b1 = append(b1, b2...)
-		parents[i].hash = hash.DoubleSha256(b1)
+		parents[i].hash = DoubleSha256(b1)
 	}
 
 	return buildMerkleTree(parents)
