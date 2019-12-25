@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
@@ -674,7 +674,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		// contain double quotes that need to be stripped.
 		addressStr := expr.Args[0].(*ast.BasicLit).Value
 		addressStr = strings.Replace(addressStr, "\"", "", 2)
-		uint160, err := crypto.Uint160DecodeAddress(addressStr)
+		uint160, err := address.StringToUint160(addressStr)
 		if err != nil {
 			c.prog.Err = err
 			return

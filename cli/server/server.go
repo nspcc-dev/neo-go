@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/network/metrics"
@@ -360,6 +361,9 @@ func initBlockChain(cfg config.Config) (*core.Blockchain, error) {
 	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %s", err), 1)
+	}
+	if cfg.ProtocolConfiguration.AddressVersion != 0 {
+		address.Prefix = cfg.ProtocolConfiguration.AddressVersion
 	}
 	return chain, nil
 }

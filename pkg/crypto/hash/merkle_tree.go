@@ -1,9 +1,8 @@
-package crypto
+package hash
 
 import (
 	"errors"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -26,13 +25,8 @@ func NewMerkleTree(hashes []util.Uint256) (*MerkleTree, error) {
 		}
 	}
 
-	root, err := buildMerkleTree(nodes)
-	if err != nil {
-		return nil, err
-	}
-
 	return &MerkleTree{
-		root:  root,
+		root:  buildMerkleTree(nodes),
 		depth: 1,
 	}, nil
 }
@@ -42,12 +36,12 @@ func (t *MerkleTree) Root() util.Uint256 {
 	return t.root.hash
 }
 
-func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
+func buildMerkleTree(leaves []*MerkleTreeNode) *MerkleTreeNode {
 	if len(leaves) == 0 {
-		return nil, errors.New("length of the leaves cannot be zero")
+		panic("length of leaves cannot be zero")
 	}
 	if len(leaves) == 1 {
-		return leaves[0], nil
+		return leaves[0]
 	}
 
 	parents := make([]*MerkleTreeNode, (len(leaves)+1)/2)
@@ -66,7 +60,7 @@ func buildMerkleTree(leaves []*MerkleTreeNode) (*MerkleTreeNode, error) {
 		b1 := parents[i].leftChild.hash.BytesBE()
 		b2 := parents[i].rightChild.hash.BytesBE()
 		b1 = append(b1, b2...)
-		parents[i].hash = hash.DoubleSha256(b1)
+		parents[i].hash = DoubleSha256(b1)
 	}
 
 	return buildMerkleTree(parents)

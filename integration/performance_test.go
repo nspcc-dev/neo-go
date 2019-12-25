@@ -8,8 +8,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
@@ -72,7 +72,7 @@ func getWif(t *testing.B) *keys.WIF {
 // getTX returns Invocation transaction with some random attributes in order to have different hashes.
 func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 	fromAddress := wif.PrivateKey.Address()
-	fromAddressHash, err := crypto.Uint160DecodeAddress(fromAddress)
+	fromAddressHash, err := address.StringToUint160(fromAddress)
 	require.NoError(t, err)
 
 	tx := &transaction.Transaction{

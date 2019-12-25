@@ -63,6 +63,30 @@ func TestDecodeFromString(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDecodeFromStringBadCompressed(t *testing.T) {
+	str := "02ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	_, err := NewPublicKeyFromString(str)
+	require.Error(t, err)
+}
+
+func TestDecodeFromStringBadXMoreThanP(t *testing.T) {
+	str := "02ffffffff00000001000000000000000000000001ffffffffffffffffffffffff"
+	_, err := NewPublicKeyFromString(str)
+	require.Error(t, err)
+}
+
+func TestDecodeFromStringNotOnCurve(t *testing.T) {
+	str := "04ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	_, err := NewPublicKeyFromString(str)
+	require.Error(t, err)
+}
+
+func TestDecodeFromStringUncompressed(t *testing.T) {
+	str := "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"
+	_, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+}
+
 func TestPubkeyToAddress(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)

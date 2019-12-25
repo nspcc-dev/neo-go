@@ -43,7 +43,7 @@ type (
 	// ProtocolConfiguration represents the protocol config.
 	ProtocolConfiguration struct {
 		Magic                   NetMode   `yaml:"Magic"`
-		AddressVersion          int64     `yaml:"AddressVersion"`
+		AddressVersion          byte      `yaml:"AddressVersion"`
 		SecondsPerBlock         int       `yaml:"SecondsPerBlock"`
 		LowPriorityThreshold    float64   `yaml:"LowPriorityThreshold"`
 		MaxTransactionsPerBlock int64     `yaml:"MaxTransactionsPerBlock"`

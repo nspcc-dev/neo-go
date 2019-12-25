@@ -1,4 +1,4 @@
-package crypto
+package base58
 
 import (
 	"bytes"
@@ -8,18 +8,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Base58CheckDecode decodes the given string.
-func Base58CheckDecode(s string) (b []byte, err error) {
+// CheckDecode implements a base58-encoded string decoding with hash-based
+// checksum check.
+func CheckDecode(s string) (b []byte, err error) {
 	b, err = base58.Decode(s)
 	if err != nil {
 		return nil, err
-	}
-
-	for i := 0; i < len(s); i++ {
-		if s[i] != '1' {
-			break
-		}
-		b = append([]byte{0x00}, b...)
 	}
 
 	if len(b) < 5 {
@@ -36,8 +30,9 @@ func Base58CheckDecode(s string) (b []byte, err error) {
 	return b, nil
 }
 
-// Base58CheckEncode encodes b into a base-58 check encoded string.
-func Base58CheckEncode(b []byte) string {
+// CheckEncode encodes given byte slice into a base58 string with hash-based
+// checksum appended to it.
+func CheckEncode(b []byte) string {
 	b = append(b, hash.Checksum(b)...)
 
 	return base58.Encode(b)

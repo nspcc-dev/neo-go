@@ -1,12 +1,12 @@
-package crypto
+package keys
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
 )
 
-// AESEncrypt encrypts the key with the given source.
-func AESEncrypt(src, key []byte) ([]byte, error) {
+// aesEncrypt encrypts the key with the given source.
+func aesEncrypt(src, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -19,8 +19,8 @@ func AESEncrypt(src, key []byte) ([]byte, error) {
 	return out, nil
 }
 
-// AESDecrypt decrypts the encrypted source with the given key.
-func AESDecrypt(crypted, key []byte) ([]byte, error) {
+// aesDecrypt decrypts the encrypted source with the given key.
+func aesDecrypt(crypted, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

@@ -3,7 +3,7 @@ package transaction
 import (
 	"encoding/json"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -52,7 +52,7 @@ func (out *Output) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"asset":   out.AssetID,
 		"value":   out.Amount,
-		"address": crypto.AddressFromUint160(out.ScriptHash),
+		"address": address.Uint160ToString(out.ScriptHash),
 		"n":       out.Position,
 	})
 }

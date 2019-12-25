@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
@@ -173,6 +173,8 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		return
 	}
 
+	p256 := elliptic.P256()
+	p256Params := p256.Params()
 	// Infinity
 	switch prefix {
 	case 0x00:
@@ -189,6 +191,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		ylsb := uint(prefix & 0x1)
 		y, err = decodeCompressedY(x, ylsb)
 		if err != nil {
+			r.Err = err
 			return
 		}
 	case 0x04:
@@ -201,17 +204,15 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
+		if !p256.IsOnCurve(x, y) {
+			r.Err = errors.New("encoded point is not on the P256 curve")
+			return
+		}
 	default:
 		r.Err = errors.Errorf("invalid prefix %d", prefix)
 		return
 	}
-	c := elliptic.P256()
-	cp := c.Params()
-	if !c.IsOnCurve(x, y) {
-		r.Err = errors.New("enccoded point is not on the P256 curve")
-		return
-	}
-	if x.Cmp(cp.P) >= 0 || y.Cmp(cp.P) >= 0 {
+	if x.Cmp(p256Params.P) >= 0 || y.Cmp(p256Params.P) >= 0 {
 		r.Err = errors.New("enccoded point is not correct (X or Y is bigger than P")
 		return
 	}
@@ -242,11 +243,9 @@ func (p *PublicKey) Signature() []byte {
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
-	var b = p.Signature()
+	sig := hash.Hash160(p.GetVerificationScript())
 
-	b = append([]byte{0x17}, b...)
-
-	return crypto.Base58CheckEncode(b)
+	return address.Uint160ToString(sig)
 }
 
 // Verify returns true if the signature is valid and corresponds

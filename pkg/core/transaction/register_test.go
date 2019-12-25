@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -58,7 +58,7 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	assert.Equal(t, util.Fixed8FromInt64(100000000), txData.Amount)
 	assert.Equal(t, uint8(0), txData.Precision)
 	assert.Equal(t, keys.PublicKey{}, txData.Owner)
-	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", crypto.AddressFromUint160(txData.Admin))
+	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", address.Uint160ToString(txData.Admin))
 	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().StringLE())
 
 	buf := io.NewBufBinWriter()

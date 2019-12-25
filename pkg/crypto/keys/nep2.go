@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/text/unicode/norm"
 )
@@ -57,7 +57,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 	derivedKey2 := derivedKey[32:]
 	xr := xor(priv.Bytes(), derivedKey1)
 
-	encrypted, err := crypto.AESEncrypt(xr, derivedKey2)
+	encrypted, err := aesEncrypt(xr, derivedKey2)
 	if err != nil {
 		return s, err
 	}
@@ -72,13 +72,13 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 		return s, fmt.Errorf("invalid buffer length: expecting 39 bytes got %d", buf.Len())
 	}
 
-	return crypto.Base58CheckEncode(buf.Bytes()), nil
+	return base58.CheckEncode(buf.Bytes()), nil
 }
 
 // NEP2Decrypt decrypts an encrypted key using a given passphrase
 // under the NEP-2 standard.
 func NEP2Decrypt(key, passphrase string) (s string, err error) {
-	b, err := crypto.Base58CheckDecode(key)
+	b, err := base58.CheckDecode(key)
 	if err != nil {
 		return s, nil
 	}
@@ -98,7 +98,7 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 	derivedKey2 := derivedKey[32:]
 	encryptedBytes := b[7:]
 
-	decrypted, err := crypto.AESDecrypt(encryptedBytes, derivedKey2)
+	decrypted, err := aesDecrypt(encryptedBytes, derivedKey2)
 	if err != nil {
 		return s, err
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -156,7 +156,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 	case IntegerType:
 		return strconv.Atoi(val)
 	case Hash160Type:
-		u, err := crypto.Uint160DecodeAddress(val)
+		u, err := address.StringToUint160(val)
 		if err == nil {
 			return hex.EncodeToString(u.BytesBE()), nil
 		}
@@ -215,7 +215,7 @@ func inferParamType(val string) ParamType {
 		return BoolType
 	}
 
-	_, err = crypto.Uint160DecodeAddress(val)
+	_, err = address.StringToUint160(val)
 	if err == nil {
 		return Hash160Type
 	}

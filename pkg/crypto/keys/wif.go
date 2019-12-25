@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
 )
 
 const (
@@ -43,13 +43,13 @@ func WIFEncode(key []byte, version byte, compressed bool) (s string, err error) 
 		buf.WriteByte(0x01)
 	}
 
-	s = crypto.Base58CheckEncode(buf.Bytes())
+	s = base58.CheckEncode(buf.Bytes())
 	return
 }
 
 // WIFDecode decodes the given WIF string into a WIF struct.
 func WIFDecode(wif string, version byte) (*WIF, error) {
-	b, err := crypto.Base58CheckDecode(wif)
+	b, err := base58.CheckDecode(wif)
 	if err != nil {
 		return nil, err
 	}
