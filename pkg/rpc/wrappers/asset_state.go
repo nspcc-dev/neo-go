@@ -37,8 +37,8 @@ func NewAssetState(a *state.Asset) AssetState {
 		FeeMode:    a.FeeMode,
 		FeeAddress: a.FeeAddress,
 		Owner:      a.Owner.String(),
-		Admin:      address.EncodeUint160(a.Admin),
-		Issuer:     address.EncodeUint160(a.Issuer),
+		Admin:      address.Uint160ToString(a.Admin),
+		Issuer:     address.Uint160ToString(a.Issuer),
 		Expiration: a.Expiration,
 		IsFrozen:   a.IsFrozen,
 	}

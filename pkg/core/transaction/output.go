@@ -52,7 +52,7 @@ func (out *Output) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"asset":   out.AssetID,
 		"value":   out.Amount,
-		"address": address.EncodeUint160(out.ScriptHash),
+		"address": address.Uint160ToString(out.ScriptHash),
 		"n":       out.Position,
 	})
 }

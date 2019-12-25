@@ -14,18 +14,18 @@ func TestUint160DecodeEncodeAddress(t *testing.T) {
 		"AMxkaxFVG8Q1BhnB4fjTA5ZmUTEnnTMJMa",
 	}
 	for _, addr := range addrs {
-		val, err := DecodeUint160(addr)
+		val, err := StringToUint160(addr)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, addr, EncodeUint160(val))
+		assert.Equal(t, addr, Uint160ToString(val))
 	}
 }
 
 func TestUint160DecodeKnownAddress(t *testing.T) {
 	address := "AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJvP"
 
-	val, err := DecodeUint160(address)
+	val, err := StringToUint160(address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestUint160DecodeKnownAddress(t *testing.T) {
 func TestUint160DecodeBadBase58(t *testing.T) {
 	address := "AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJv@"
 
-	_, err := DecodeUint160(address)
+	_, err := StringToUint160(address)
 	require.Error(t, err)
 }
 
@@ -45,6 +45,6 @@ func TestUint160DecodeBadPrefix(t *testing.T) {
 	// The same AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJvP key encoded with 0x18 prefix.
 	address := "AhymDz4vvHLtvaN36CMbzkki7H2U8ENb8F"
 
-	_, err := DecodeUint160(address)
+	_, err := StringToUint160(address)
 	require.Error(t, err)
 }

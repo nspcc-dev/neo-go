@@ -156,7 +156,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 	case IntegerType:
 		return strconv.Atoi(val)
 	case Hash160Type:
-		u, err := address.DecodeUint160(val)
+		u, err := address.StringToUint160(val)
 		if err == nil {
 			return hex.EncodeToString(u.BytesBE()), nil
 		}
@@ -215,7 +215,7 @@ func inferParamType(val string) ParamType {
 		return BoolType
 	}
 
-	_, err = address.DecodeUint160(val)
+	_, err = address.StringToUint160(val)
 	if err == nil {
 		return Hash160Type
 	}

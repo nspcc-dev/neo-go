@@ -31,11 +31,11 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 
 	fromAddress = wif.PrivateKey.Address()
 
-	if fromAddressHash, err = address.DecodeUint160(fromAddress); err != nil {
+	if fromAddressHash, err = address.StringToUint160(fromAddress); err != nil {
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
 	}
 
-	if toAddressHash, err = address.DecodeUint160(toAddress); err != nil {
+	if toAddressHash, err = address.StringToUint160(toAddress); err != nil {
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", toAddress)
 	}
 	tx.Attributes = append(tx.Attributes,
@@ -59,7 +59,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 // AddInputsAndUnspentsToTx adds inputs needed to transaction and one output
 // with change.
 func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID util.Uint256, amount util.Fixed8, balancer BalanceGetter) error {
-	scriptHash, err := address.DecodeUint160(addr)
+	scriptHash, err := address.StringToUint160(addr)
 	if err != nil {
 		return errs.Wrapf(err, "failed to take script hash from address: %v", addr)
 	}

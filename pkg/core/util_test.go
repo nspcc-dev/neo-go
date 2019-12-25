@@ -45,7 +45,7 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 	}
 
 	assert.Equal(t, consensusScript, script.String())
-	assert.Equal(t, consensusAddr, address.EncodeUint160(script))
+	assert.Equal(t, consensusAddr, address.Uint160ToString(script))
 }
 
 func TestUtilityTokenTX(t *testing.T) {

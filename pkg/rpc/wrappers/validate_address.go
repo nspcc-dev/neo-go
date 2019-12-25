@@ -15,7 +15,7 @@ type ValidateAddressResponse struct {
 func ValidateAddress(addr interface{}) ValidateAddressResponse {
 	resp := ValidateAddressResponse{Address: addr}
 	if addr, ok := addr.(string); ok {
-		_, err := address.DecodeUint160(addr)
+		_, err := address.StringToUint160(addr)
 		resp.IsValid = err == nil
 	}
 	return resp

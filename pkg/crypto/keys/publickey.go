@@ -244,7 +244,7 @@ func (p *PublicKey) Signature() []byte {
 func (p *PublicKey) Address() string {
 	sig := hash.Hash160(p.GetVerificationScript())
 
-	return address.EncodeUint160(sig)
+	return address.Uint160ToString(sig)
 }
 
 // Verify returns true if the signature is valid and corresponds

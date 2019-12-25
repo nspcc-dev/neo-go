@@ -96,7 +96,7 @@ func (p Param) GetUint160FromAddress() (util.Uint160, error) {
 		return util.Uint160{}, err
 	}
 
-	return address.DecodeUint160(s)
+	return address.StringToUint160(s)
 }
 
 // GetFuncParam returns current parameter as a function call parameter.
