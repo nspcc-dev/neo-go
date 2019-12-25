@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
@@ -96,7 +96,7 @@ func (p Param) GetUint160FromAddress() (util.Uint160, error) {
 		return util.Uint160{}, err
 	}
 
-	return crypto.Uint160DecodeAddress(s)
+	return address.DecodeUint160(s)
 }
 
 // GetFuncParam returns current parameter as a function call parameter.

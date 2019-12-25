@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -26,17 +26,17 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		fromAddress                    string
 		receiverOutput                 *transaction.Output
 
-		wif, assetID, address, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
+		wif, assetID, toAddress, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
 	)
 
 	fromAddress = wif.PrivateKey.Address()
 
-	if fromAddressHash, err = crypto.Uint160DecodeAddress(fromAddress); err != nil {
+	if fromAddressHash, err = address.DecodeUint160(fromAddress); err != nil {
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
 	}
 
-	if toAddressHash, err = crypto.Uint160DecodeAddress(address); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", address)
+	if toAddressHash, err = address.DecodeUint160(toAddress); err != nil {
+		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", toAddress)
 	}
 	tx.Attributes = append(tx.Attributes,
 		transaction.Attribute{
@@ -58,12 +58,12 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 
 // AddInputsAndUnspentsToTx adds inputs needed to transaction and one output
 // with change.
-func AddInputsAndUnspentsToTx(tx *transaction.Transaction, address string, assetID util.Uint256, amount util.Fixed8, balancer BalanceGetter) error {
-	scriptHash, err := crypto.Uint160DecodeAddress(address)
+func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID util.Uint256, amount util.Fixed8, balancer BalanceGetter) error {
+	scriptHash, err := address.DecodeUint160(addr)
 	if err != nil {
-		return errs.Wrapf(err, "failed to take script hash from address: %v", address)
+		return errs.Wrapf(err, "failed to take script hash from address: %v", addr)
 	}
-	inputs, spent, err := balancer.CalculateInputs(address, assetID, amount)
+	inputs, spent, err := balancer.CalculateInputs(addr, assetID, amount)
 	if err != nil {
 		return errs.Wrap(err, "failed to get inputs")
 	}

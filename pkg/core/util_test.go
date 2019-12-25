@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/config"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,7 +45,7 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 	}
 
 	assert.Equal(t, consensusScript, script.String())
-	assert.Equal(t, consensusAddr, crypto.AddressFromUint160(script))
+	assert.Equal(t, consensusAddr, address.EncodeUint160(script))
 }
 
 func TestUtilityTokenTX(t *testing.T) {

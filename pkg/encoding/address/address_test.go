@@ -1,4 +1,4 @@
-package crypto
+package address
 
 import (
 	"testing"
@@ -13,18 +13,18 @@ func TestUint160DecodeEncodeAddress(t *testing.T) {
 		"AMxkaxFVG8Q1BhnB4fjTA5ZmUTEnnTMJMa",
 	}
 	for _, addr := range addrs {
-		val, err := Uint160DecodeAddress(addr)
+		val, err := DecodeUint160(addr)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.Equal(t, addr, AddressFromUint160(val))
+		assert.Equal(t, addr, EncodeUint160(val))
 	}
 }
 
 func TestUint160DecodeKnownAddress(t *testing.T) {
 	address := "AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJvP"
 
-	val, err := Uint160DecodeAddress(address)
+	val, err := DecodeUint160(address)
 	if err != nil {
 		t.Fatal(err)
 	}

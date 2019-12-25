@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -129,7 +129,7 @@ func TestParamGetUint160FromHex(t *testing.T) {
 
 func TestParamGetUint160FromAddress(t *testing.T) {
 	in := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
-	u160, _ := crypto.Uint160DecodeAddress(in)
+	u160, _ := address.DecodeUint160(in)
 	p := Param{stringT, in}
 	u, err := p.GetUint160FromAddress()
 	assert.Equal(t, u160, u)

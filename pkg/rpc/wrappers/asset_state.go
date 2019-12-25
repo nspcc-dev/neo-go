@@ -3,7 +3,7 @@ package wrappers
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -37,8 +37,8 @@ func NewAssetState(a *state.Asset) AssetState {
 		FeeMode:    a.FeeMode,
 		FeeAddress: a.FeeAddress,
 		Owner:      a.Owner.String(),
-		Admin:      crypto.AddressFromUint160(a.Admin),
-		Issuer:     crypto.AddressFromUint160(a.Issuer),
+		Admin:      address.EncodeUint160(a.Admin),
+		Issuer:     address.EncodeUint160(a.Issuer),
 		Expiration: a.Expiration,
 		IsFrozen:   a.IsFrozen,
 	}
