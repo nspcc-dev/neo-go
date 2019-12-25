@@ -69,6 +69,12 @@ func TestDecodeFromStringBadCompressed(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDecodeFromStringBadXMoreThanP(t *testing.T) {
+	str := "02ffffffff00000001000000000000000000000001ffffffffffffffffffffffff"
+	_, err := NewPublicKeyFromString(str)
+	require.Error(t, err)
+}
+
 func TestDecodeFromStringNotOnCurve(t *testing.T) {
 	str := "04ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	_, err := NewPublicKeyFromString(str)
