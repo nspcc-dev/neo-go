@@ -189,6 +189,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		ylsb := uint(prefix & 0x1)
 		y, err = decodeCompressedY(x, ylsb)
 		if err != nil {
+			r.Err = err
 			return
 		}
 	case 0x04:
