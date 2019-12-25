@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
@@ -246,7 +246,7 @@ func (p *PublicKey) Address() string {
 
 	b = append([]byte{0x17}, b...)
 
-	return crypto.Base58CheckEncode(b)
+	return base58.CheckEncode(b)
 }
 
 // Verify returns true if the signature is valid and corresponds

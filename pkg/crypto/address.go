@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -9,13 +10,13 @@ import (
 func AddressFromUint160(u util.Uint160) string {
 	// Dont forget to prepend the Address version 0x17 (23) A
 	b := append([]byte{0x17}, u.BytesBE()...)
-	return Base58CheckEncode(b)
+	return base58.CheckEncode(b)
 }
 
 // Uint160DecodeAddress attempts to decode the given NEO address string
 // into an Uint160.
 func Uint160DecodeAddress(s string) (u util.Uint160, err error) {
-	b, err := Base58CheckDecode(s)
+	b, err := base58.CheckDecode(s)
 	if err != nil {
 		return u, err
 	}
