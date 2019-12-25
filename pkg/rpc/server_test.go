@@ -108,7 +108,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblock": {
 		{
 			name:   "positive",
-			params: "[1]",
+			params: "[1, 1]",
 			result: func(e *executor) interface{} { return &GetBlockResponse{} },
 			check: func(t *testing.T, e *executor, result interface{}) {
 				res, ok := result.(*GetBlockResponse)
