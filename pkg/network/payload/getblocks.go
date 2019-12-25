@@ -5,6 +5,11 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
+// Maximum inventory hashes number is limited to 500.
+const (
+	MaxHashesCount = 500
+)
+
 // GetBlocks contains fields and methods to be shared with the
 type GetBlocks struct {
 	// hash of latest block that node requests

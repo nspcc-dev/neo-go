@@ -463,6 +463,35 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	return nil
 }
 
+// handleGetBlocksCmd processes the getblocks request.
+func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
+	if len(gb.HashStart) < 1 {
+		return errInvalidHashStart
+	}
+	startHash := gb.HashStart[0]
+	if startHash.Equals(gb.HashStop) {
+		return nil
+	}
+	start, err := s.chain.GetHeader(startHash)
+	if err != nil {
+		return err
+	}
+	blockHashes := make([]util.Uint256, 0)
+	for i := start.Index + 1; i < start.Index+1+payload.MaxHashesCount; i++ {
+		hash := s.chain.GetHeaderHash(int(i))
+		if hash.Equals(util.Uint256{}) || hash.Equals(gb.HashStop) {
+			break
+		}
+		blockHashes = append(blockHashes, hash)
+	}
+
+	if len(blockHashes) == 0 {
+		return nil
+	}
+	payload := payload.NewInventory(payload.BlockType, blockHashes)
+	return p.WriteMsg(NewMessage(s.Net, CMDInv, payload))
+}
+
 // handleGetHeadersCmd processes the getheaders request.
 func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 	if len(gh.HashStart) < 1 {
@@ -585,6 +614,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetAddr:
 			// it has no payload
 			return s.handleGetAddrCmd(peer)
+		case CMDGetBlocks:
+			gb := msg.Payload.(*payload.GetBlocks)
+			return s.handleGetBlocksCmd(peer, gb)
 		case CMDGetData:
 			inv := msg.Payload.(*payload.Inventory)
 			return s.handleGetDataCmd(peer, inv)
