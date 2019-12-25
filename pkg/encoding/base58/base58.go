@@ -16,13 +16,6 @@ func CheckDecode(s string) (b []byte, err error) {
 		return nil, err
 	}
 
-	for i := 0; i < len(s); i++ {
-		if s[i] != '1' {
-			break
-		}
-		b = append([]byte{0x00}, b...)
-	}
-
 	if len(b) < 5 {
 		return nil, errors.New("invalid base-58 check string: missing checksum")
 	}
