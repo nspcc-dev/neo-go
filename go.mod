@@ -3,6 +3,7 @@ module github.com/CityOfZion/neo-go
 require (
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/alicebob/miniredis v2.5.0+incompatible
+	github.com/docker/go-connections v0.4.0
 	github.com/etcd-io/bbolt v1.3.3
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
