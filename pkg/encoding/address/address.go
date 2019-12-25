@@ -1,6 +1,8 @@
 package address
 
 import (
+	"errors"
+
 	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -22,6 +24,9 @@ func DecodeUint160(s string) (u util.Uint160, err error) {
 	b, err := base58.CheckDecode(s)
 	if err != nil {
 		return u, err
+	}
+	if b[0] != Prefix {
+		return u, errors.New("wrong address prefix")
 	}
 	return util.Uint160DecodeBytesBE(b[1:21])
 }
