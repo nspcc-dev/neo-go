@@ -57,7 +57,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string) (s string, err error) {
 	derivedKey2 := derivedKey[32:]
 	xr := xor(priv.Bytes(), derivedKey1)
 
-	encrypted, err := crypto.AESEncrypt(xr, derivedKey2)
+	encrypted, err := aesEncrypt(xr, derivedKey2)
 	if err != nil {
 		return s, err
 	}
@@ -98,7 +98,7 @@ func NEP2Decrypt(key, passphrase string) (s string, err error) {
 	derivedKey2 := derivedKey[32:]
 	encryptedBytes := b[7:]
 
-	decrypted, err := crypto.AESDecrypt(encryptedBytes, derivedKey2)
+	decrypted, err := aesDecrypt(encryptedBytes, derivedKey2)
 	if err != nil {
 		return s, err
 	}
