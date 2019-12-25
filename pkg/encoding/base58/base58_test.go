@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheckEncodeDecode(t *testing.T) {
@@ -29,4 +30,12 @@ func TestCheckDecodeFailures(t *testing.T) {
 	badcsum := "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9A"
 	_, err = CheckDecode(badcsum)
 	assert.NotNil(t, err)
+}
+
+func TestBase58LeadingZeroes(t *testing.T) {
+	buf := []byte{0, 0, 0, 1}
+	b58 := CheckEncode(buf)
+	dec, err := CheckDecode(b58)
+	require.NoError(t, err)
+	require.Equal(t, buf, dec)
 }
