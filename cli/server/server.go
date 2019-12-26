@@ -193,7 +193,8 @@ func dumpDB(ctx *cli.Context) error {
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
-		writer.WriteVarBytes(bytes)
+		writer.WriteU32LE(uint32(len(bytes)))
+		writer.WriteBytes(bytes)
 		if writer.Err != nil {
 			return cli.NewExitError(err, 1)
 		}
