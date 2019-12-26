@@ -177,30 +177,35 @@ func EnumeratorConcat(v *VM) error {
 // IteratorCreate handles syscall Neo.Iterator.Create.
 func IteratorCreate(v *VM) error {
 	data := v.Estack().Pop()
-	var item interface{}
+	var item StackItem
 	switch t := data.value.(type) {
 	case *ArrayItem, *StructItem:
-		item = &arrayWrapper{
+		item = NewInteropItem(&arrayWrapper{
 			index: -1,
 			value: t.Value().([]StackItem),
-		}
+		})
 	case *MapItem:
-		keys := make([]interface{}, 0, len(t.value))
-		for k := range t.value {
-			keys = append(keys, k)
-		}
-
-		item = &mapWrapper{
-			index: -1,
-			keys:  keys,
-			m:     t.value,
-		}
+		item = NewMapIterator(t.value)
 	default:
 		return errors.New("non-iterable type")
 	}
 
-	v.Estack().Push(&Element{value: NewInteropItem(item)})
+	v.Estack().Push(&Element{value: item})
 	return nil
+}
+
+// NewMapIterator returns new interop item containing iterator over m.
+func NewMapIterator(m map[interface{}]StackItem) *InteropItem {
+	keys := make([]interface{}, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	return NewInteropItem(&mapWrapper{
+		index: -1,
+		keys:  keys,
+		m:     m,
+	})
 }
 
 // IteratorConcat handles syscall Neo.Iterator.Concat.
