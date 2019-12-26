@@ -27,6 +27,35 @@ func TestNewService(t *testing.T) {
 	require.Equal(t, tx, txx[1])
 }
 
+func TestService_ValidatePayload(t *testing.T) {
+	srv := newTestService(t)
+	priv, _ := getTestValidator(1)
+	p := new(Payload)
+
+	p.SetPayload(&prepareRequest{})
+
+	t.Run("invalid validator index", func(t *testing.T) {
+		p.SetValidatorIndex(11)
+		require.NoError(t, p.Sign(priv))
+
+		var ok bool
+		require.NotPanics(t, func() { ok = srv.validatePayload(p) })
+		require.False(t, ok)
+	})
+
+	t.Run("wrong validator index", func(t *testing.T) {
+		p.SetValidatorIndex(2)
+		require.NoError(t, p.Sign(priv))
+		require.False(t, srv.validatePayload(p))
+	})
+
+	t.Run("normal case", func(t *testing.T) {
+		p.SetValidatorIndex(1)
+		require.NoError(t, p.Sign(priv))
+		require.True(t, srv.validatePayload(p))
+	})
+}
+
 func TestService_OnPayload(t *testing.T) {
 	srv := newTestService(t)
 

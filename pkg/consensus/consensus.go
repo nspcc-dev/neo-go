@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -163,6 +164,19 @@ func (s *service) eventLoop() {
 	}
 }
 
+func (s *service) validatePayload(p *Payload) bool {
+	validators := s.getValidators()
+	if int(p.validatorIndex) >= len(validators) {
+		return false
+	}
+
+	pub := validators[p.validatorIndex]
+	vs := pub.(*publicKey).GetVerificationScript()
+	h := hash.Hash160(vs)
+
+	return p.Verify(h)
+}
+
 func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) {
 	acc, err := wallet.DecryptAccount(cfg.Path, cfg.Password)
 	if err != nil {
@@ -179,10 +193,7 @@ func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) 
 
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *Payload) {
-	if !cp.Verify() {
-		s.log.Debug("can't verify payload from #%d", cp.validatorIndex)
-		return
-	} else if s.cache.Has(cp.Hash()) {
+	if !s.validatePayload(cp) || s.cache.Has(cp.Hash()) {
 		return
 	}
 

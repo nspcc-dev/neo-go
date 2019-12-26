@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -195,18 +196,27 @@ func (p *Payload) Sign(key *privateKey) error {
 }
 
 // Verify verifies payload using provided Witness.
-func (p *Payload) Verify() bool {
-	h := sha256.Sum256(p.MarshalUnsigned())
-	v := vm.New()
-	v.SetCheckedHash(h[:])
-	v.Load(append(p.Witness.InvocationScript, p.Witness.VerificationScript...))
-	if err := v.Run(); err != nil || v.Estack().Len() == 0 {
+func (p *Payload) Verify(scriptHash util.Uint160) bool {
+	verification, err := core.ScriptFromWitness(scriptHash, &p.Witness)
+	if err != nil {
 		return false
 	}
 
-	result, err := v.Estack().Top().TryBool()
+	v := vm.New()
+	h := sha256.Sum256(p.MarshalUnsigned())
 
-	return err == nil && result
+	v.SetCheckedHash(h[:])
+	v.LoadScript(verification)
+	v.LoadScript(p.Witness.InvocationScript)
+
+	err = v.Run()
+	if err != nil || v.HasFailed() || v.Estack().Len() != 1 {
+		return false
+	}
+
+	res, err := v.Estack().Pop().TryBool()
+
+	return err == nil && res
 }
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.

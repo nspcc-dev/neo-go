@@ -1372,21 +1372,30 @@ func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	return vm, tmpStore
 }
 
-// verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext, useKeys bool) error {
+// ScriptFromWitness returns verification script for provided witness.
+// If hash is not equal to the witness script hash, error is returned.
+func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte, error) {
 	verification := witness.VerificationScript
 
 	if len(verification) == 0 {
 		bb := new(bytes.Buffer)
 		err := vm.EmitAppCall(bb, hash, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		verification = bb.Bytes()
-	} else {
-		if h := witness.ScriptHash(); hash != h {
-			return errors.New("witness hash mismatch")
-		}
+	} else if h := witness.ScriptHash(); hash != h {
+		return nil, errors.New("witness hash mismatch")
+	}
+
+	return verification, nil
+}
+
+// verifyHashAgainstScript verifies given hash against the given witness.
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext, useKeys bool) error {
+	verification, err := ScriptFromWitness(hash, witness)
+	if err != nil {
+		return err
 	}
 
 	vm := bc.spawnVMWithInterops(interopCtx)
@@ -1396,7 +1405,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	if useKeys && bc.keyCache[hash] != nil {
 		vm.SetPublicKeys(bc.keyCache[hash])
 	}
-	err := vm.Run()
+	err = vm.Run()
 	if vm.HasFailed() {
 		return errors.Errorf("vm failed to execute the script with error: %s", err)
 	}
