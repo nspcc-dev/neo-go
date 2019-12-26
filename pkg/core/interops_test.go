@@ -64,6 +64,7 @@ func TestUnexpectedNonInterops(t *testing.T) {
 		(*interopContext).outputGetValue,
 		(*interopContext).storageContextAsReadOnly,
 		(*interopContext).storageDelete,
+		(*interopContext).storageFind,
 		(*interopContext).storageGet,
 		(*interopContext).storagePut,
 		(*interopContext).storagePutEx,

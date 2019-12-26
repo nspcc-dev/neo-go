@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -429,7 +430,6 @@ func (ic *interopContext) accountIsStandard(v *vm.VM) error {
 	return nil
 }
 
-/*
 // storageFind finds stored key-value pair.
 func (ic *interopContext) storageFind(v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
@@ -446,16 +446,20 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
+
+	filteredMap := make(map[interface{}]vm.StackItem)
 	for k, v := range siMap {
 		if strings.HasPrefix(k, prefix) {
-			_ = v
-			panic("TODO")
+			filteredMap[k] = vm.NewByteArrayItem(v.Value)
 		}
 	}
 
+	item := vm.NewMapIterator(filteredMap)
+	v.Estack().PushVal(item)
+
 	return nil
 }
-*/
+
 // createContractStateFromVM pops all contract state elements from the VM
 // evaluation stack, does a lot of checks and returns Contract if it
 // succeeds.

@@ -34,6 +34,72 @@ import (
  *  TestRuntimeDeserialize
  */
 
+func TestStorageFind(t *testing.T) {
+	v, contractState, context := createVMAndContractState(t)
+
+	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}}
+	items := []*state.StorageItem{
+		{
+			Value: []byte{0x01, 0x02, 0x03, 0x04},
+		},
+		{
+			Value: []byte{0x04, 0x03, 0x02, 0x01},
+		},
+	}
+
+	require.NoError(t, context.dao.PutContractState(contractState))
+
+	scriptHash := contractState.ScriptHash()
+
+	for i := range skeys {
+		err := context.dao.PutStorageItem(scriptHash, skeys[i], items[i])
+		require.NoError(t, err)
+	}
+
+	t.Run("normal invocation", func(t *testing.T) {
+		v.Estack().PushVal([]byte{0x01})
+		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: scriptHash}))
+
+		err := context.storageFind(v)
+		require.NoError(t, err)
+
+		var iter *vm.InteropItem
+		require.NotPanics(t, func() { iter = v.Estack().Top().Interop() })
+
+		require.NoError(t, context.enumeratorNext(v))
+		require.True(t, v.Estack().Pop().Bool())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, context.iteratorKey(v))
+		require.Equal(t, []byte{0x01, 0x02}, v.Estack().Pop().Bytes())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, context.enumeratorValue(v))
+		require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, v.Estack().Pop().Bytes())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, context.enumeratorNext(v))
+		require.False(t, v.Estack().Pop().Bool())
+	})
+
+	t.Run("invalid type for StorageContext", func(t *testing.T) {
+		v.Estack().PushVal([]byte{0x01})
+		v.Estack().PushVal(vm.NewInteropItem(nil))
+
+		require.Error(t, context.storageFind(v))
+	})
+
+	t.Run("invalid script hash", func(t *testing.T) {
+		invalidHash := scriptHash
+		invalidHash[0] = ^invalidHash[0]
+
+		v.Estack().PushVal([]byte{0x01})
+		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: invalidHash}))
+
+		require.Error(t, context.storageFind(v))
+	})
+}
+
 func TestHeaderGetVersion(t *testing.T) {
 	v, block, context := createVMAndPushBlock(t)
 
