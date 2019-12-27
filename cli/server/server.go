@@ -233,6 +233,9 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer chain.Close()
+	defer prometheus.ShutDown()
+	defer pprof.ShutDown()
 
 	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
@@ -271,9 +274,6 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
 		}
 	}
-	pprof.ShutDown()
-	prometheus.ShutDown()
-	chain.Close()
 	return nil
 }
 
