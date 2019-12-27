@@ -259,6 +259,13 @@ func restoreDB(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		if block.Index == 0 && i == 0 && skip == 0 {
+			genesis, err := chain.GetBlock(block.Hash())
+			if err == nil && genesis.Index == 0 {
+				log.Info("skipped genesis block ", block.Hash().StringLE())
+				continue
+			}
+		}
 		err = chain.AddBlock(block)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
