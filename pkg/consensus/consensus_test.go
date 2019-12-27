@@ -56,6 +56,37 @@ func TestService_ValidatePayload(t *testing.T) {
 	})
 }
 
+func TestService_getTx(t *testing.T) {
+	srv := newTestService(t)
+
+	t.Run("transaction in mempool", func(t *testing.T) {
+		tx := newMinerTx(1234)
+		h := tx.Hash()
+
+		require.Equal(t, nil, srv.getTx(h))
+
+		item := core.NewPoolItem(tx, new(feer))
+		srv.Chain.GetMemPool().TryAdd(h, item)
+
+		got := srv.getTx(h)
+		require.NotNil(t, got)
+		require.Equal(t, h, got.Hash())
+	})
+
+	t.Run("transaction in local cache", func(t *testing.T) {
+		tx := newMinerTx(4321)
+		h := tx.Hash()
+
+		require.Equal(t, nil, srv.getTx(h))
+
+		srv.txx.Add(tx)
+
+		got := srv.getTx(h)
+		require.NotNil(t, got)
+		require.Equal(t, h, got.Hash())
+	})
+}
+
 func TestService_OnPayload(t *testing.T) {
 	srv := newTestService(t)
 

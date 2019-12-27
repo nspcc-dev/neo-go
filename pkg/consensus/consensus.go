@@ -253,7 +253,13 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 
 	tx, _, _ := s.Config.Chain.GetTransaction(h)
 
-	return tx
+	// this is needed because in case of absent tx dBFT expects to
+	// get nil interface, not a nil pointer to any concrete type
+	if tx != nil {
+		return tx
+	}
+
+	return nil
 }
 
 func (s *service) verifyBlock(b block.Block) bool {
