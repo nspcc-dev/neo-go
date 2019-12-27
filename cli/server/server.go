@@ -35,23 +35,31 @@ func NewCommands() []cli.Command {
 			Name:  "count, c",
 			Usage: "number of blocks to be processed (default or 0: all chain)",
 		},
+	)
+	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
+	copy(cfgCountOutFlags, cfgWithCountFlags)
+	cfgCountOutFlags = append(cfgCountOutFlags,
+		cli.UintFlag{
+			Name:  "start, s",
+			Usage: "block number to start from (default: 0)",
+		},
+		cli.StringFlag{
+			Name:  "out, o",
+			Usage: "Output file (stdout if not given)",
+		},
+	)
+	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
+	copy(cfgCountInFlags, cfgWithCountFlags)
+	cfgCountInFlags = append(cfgCountInFlags,
 		cli.UintFlag{
 			Name:  "skip, s",
 			Usage: "number of blocks to skip (default: 0)",
 		},
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input file (stdin if not given)",
+		},
 	)
-	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
-	copy(cfgCountOutFlags, cfgWithCountFlags)
-	cfgCountOutFlags = append(cfgCountOutFlags, cli.StringFlag{
-		Name:  "out, o",
-		Usage: "Output file (stdout if not given)",
-	})
-	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
-	copy(cfgCountInFlags, cfgWithCountFlags)
-	cfgCountInFlags = append(cfgCountInFlags, cli.StringFlag{
-		Name:  "in, i",
-		Usage: "Input file (stdin if not given)",
-	})
 	return []cli.Command{
 		{
 			Name:   "node",
@@ -129,12 +137,6 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	return nil
 }
 
-func getCountAndSkipFromContext(ctx *cli.Context) (uint32, uint32) {
-	count := uint32(ctx.Uint("count"))
-	skip := uint32(ctx.Uint("skip"))
-	return count, skip
-}
-
 func initBCWithMetrics(cfg config.Config) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
 	chain, err := initBlockChain(cfg)
 	if err != nil {
@@ -159,7 +161,8 @@ func dumpDB(ctx *cli.Context) error {
 	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	count, skip := getCountAndSkipFromContext(ctx)
+	count := uint32(ctx.Uint("count"))
+	start := uint32(ctx.Uint("start"))
 
 	var outStream = os.Stdout
 	if out := ctx.String("out"); out != "" {
@@ -176,15 +179,15 @@ func dumpDB(ctx *cli.Context) error {
 		return err
 	}
 
-	chainHeight := chain.BlockHeight()
-	if skip+count > chainHeight {
-		return cli.NewExitError(fmt.Errorf("chain is not that high (%d) to dump %d blocks starting from %d", chainHeight, count, skip), 1)
+	chainCount := chain.BlockHeight() + 1
+	if start+count > chainCount {
+		return cli.NewExitError(fmt.Errorf("chain is not that high (%d) to dump %d blocks starting from %d", chainCount-1, count, start), 1)
 	}
 	if count == 0 {
-		count = chainHeight - skip
+		count = chainCount - start
 	}
 	writer.WriteU32LE(count)
-	for i := skip + 1; i <= skip+count; i++ {
+	for i := start; i < start+count; i++ {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
@@ -193,7 +196,8 @@ func dumpDB(ctx *cli.Context) error {
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
-		writer.WriteVarBytes(bytes)
+		writer.WriteU32LE(uint32(len(bytes)))
+		writer.WriteBytes(bytes)
 		if writer.Err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -212,7 +216,8 @@ func restoreDB(ctx *cli.Context) error {
 	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	count, skip := getCountAndSkipFromContext(ctx)
+	count := uint32(ctx.Uint("count"))
+	skip := uint32(ctx.Uint("skip"))
 
 	var inStream = os.Stdin
 	if in := ctx.String("in"); in != "" {
@@ -228,6 +233,9 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer chain.Close()
+	defer prometheus.ShutDown()
+	defer pprof.ShutDown()
 
 	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
@@ -237,7 +245,7 @@ func restoreDB(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
 	}
 	if count == 0 {
-		count = allBlocks
+		count = allBlocks - skip
 	}
 	i := uint32(0)
 	for ; i < skip; i++ {
@@ -254,14 +262,18 @@ func restoreDB(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		if block.Index == 0 && i == 0 && skip == 0 {
+			genesis, err := chain.GetBlock(block.Hash())
+			if err == nil && genesis.Index == 0 {
+				log.Info("skipped genesis block ", block.Hash().StringLE())
+				continue
+			}
+		}
 		err = chain.AddBlock(block)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
 		}
 	}
-	pprof.ShutDown()
-	prometheus.ShutDown()
-	chain.Close()
 	return nil
 }
 
