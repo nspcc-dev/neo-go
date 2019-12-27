@@ -242,7 +242,7 @@ func restoreDB(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
 	}
 	if count == 0 {
-		count = allBlocks
+		count = allBlocks - skip
 	}
 	i := uint32(0)
 	for ; i < skip; i++ {
