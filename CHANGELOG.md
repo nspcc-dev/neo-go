@@ -26,6 +26,8 @@ New features:
  * `getblocks` P2P command implementation (#577)
 
 Behaviour changes:
+ * `Monitoring` config section changed its name to `Prometheus` because of
+   pprof addition (#536)
  * `db dump` command now also writes the block number zero by default to
    comply with ImportBlocks format (#582)
  * `skip` parameter was renamed to `start` in the `db dump` command (#582)
