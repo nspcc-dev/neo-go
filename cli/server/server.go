@@ -15,8 +15,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network/metrics"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // NewCommands returns 'node' command.
@@ -119,32 +120,40 @@ func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 // handleLoggingParams reads logging parameters.
 // If user selected debug level -- function enables it.
 // If logPath is configured -- function creates dir and file for logging.
-func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) error {
+func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, error) {
+	level := zapcore.InfoLevel
 	if ctx.Bool("debug") {
-		log.SetLevel(log.DebugLevel)
+		level = zapcore.DebugLevel
 	}
+
+	cc := zap.NewProductionConfig()
+	cc.DisableCaller = true
+	cc.DisableStacktrace = true
+	cc.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
+	cc.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	cc.Encoding = "console"
+	cc.Level = zap.NewAtomicLevelAt(level)
 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
-			return err
+			return nil, err
 		}
-		f, err := os.Create(logPath)
-		if err != nil {
-			return err
-		}
-		log.SetOutput(f)
+
+		cc.OutputPaths = []string{logPath}
 	}
-	return nil
+
+	return cc.Build()
 }
 
-func initBCWithMetrics(cfg config.Config) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
-	chain, err := initBlockChain(cfg)
+func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
+	chain, err := initBlockChain(cfg, log)
 	if err != nil {
 		return nil, nil, nil, cli.NewExitError(err, 1)
 	}
 	configureAddresses(cfg.ApplicationConfiguration)
-	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus)
-	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof)
+	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus, log)
+	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
 
 	go chain.Run()
 	go prometheus.Start()
@@ -158,7 +167,8 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	count := uint32(ctx.Uint("count"))
@@ -174,7 +184,7 @@ func dumpDB(ctx *cli.Context) error {
 	defer outStream.Close()
 	writer := io.NewBinWriterFromIO(outStream)
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg)
+	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
@@ -213,7 +223,8 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	count := uint32(ctx.Uint("count"))
@@ -229,7 +240,7 @@ func restoreDB(ctx *cli.Context) error {
 	defer inStream.Close()
 	reader := io.NewBinReaderFromIO(inStream)
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg)
+	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
@@ -265,7 +276,7 @@ func restoreDB(ctx *cli.Context) error {
 		if block.Index == 0 && i == 0 && skip == 0 {
 			genesis, err := chain.GetBlock(block.Hash())
 			if err == nil && genesis.Index == 0 {
-				log.Info("skipped genesis block ", block.Hash().StringLE())
+				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
 				continue
 			}
 		}
@@ -293,7 +304,8 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := handleLoggingParams(ctx, cfg.ApplicationConfiguration); err != nil {
+	log, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	if err != nil {
 		return err
 	}
 
@@ -302,12 +314,12 @@ func startServer(ctx *cli.Context) error {
 
 	serverConfig := network.NewServerConfig(cfg)
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg)
+	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
 
-	server := network.NewServer(serverConfig, chain)
+	server := network.NewServer(serverConfig, chain, log)
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	errChan := make(chan error)
 
@@ -364,13 +376,13 @@ func configureAddresses(cfg config.ApplicationConfiguration) {
 }
 
 // initBlockChain initializes BlockChain with preselected DB.
-func initBlockChain(cfg config.Config) (*core.Blockchain, error) {
+func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %s", err), 1)
 	}
 
-	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %s", err), 1)
 	}

@@ -15,8 +15,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
+	"go.uber.org/zap"
 )
 
 const (
@@ -65,6 +65,8 @@ type (
 		quit       chan struct{}
 
 		connected *atomic.Bool
+
+		log *zap.Logger
 	}
 
 	peerDrop struct {
@@ -80,11 +82,15 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
+func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *Server {
+	if log == nil {
+		return nil
+	}
+
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
-		bQueue:       newBlockQueue(maxBlockBatch, chain),
+		bQueue:       newBlockQueue(maxBlockBatch, chain, log),
 		id:           randomID(),
 		quit:         make(chan struct{}),
 		addrReq:      make(chan *Message, config.MinPeers),
@@ -92,9 +98,11 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
 		connected:    atomic.NewBool(false),
+		log:          log,
 	}
 
 	srv, err := consensus.NewService(consensus.Config{
+		Logger:     log,
 		Broadcast:  s.handleNewPayload,
 		RelayBlock: s.relayBlock,
 		Chain:      chain,
@@ -108,30 +116,27 @@ func NewServer(config ServerConfig, chain core.Blockchainer) *Server {
 	s.consensus = srv
 
 	if s.MinPeers <= 0 {
-		log.WithFields(log.Fields{
-			"MinPeers configured": s.MinPeers,
-			"MinPeers actual":     defaultMinPeers,
-		}).Info("bad MinPeers configured, using the default value")
+		s.log.Info("bad MinPeers configured, using the default value",
+			zap.Int("configured", s.MinPeers),
+			zap.Int("actual", defaultMinPeers))
 		s.MinPeers = defaultMinPeers
 	}
 
 	if s.MaxPeers <= 0 {
-		log.WithFields(log.Fields{
-			"MaxPeers configured": s.MaxPeers,
-			"MaxPeers actual":     defaultMaxPeers,
-		}).Info("bad MaxPeers configured, using the default value")
+		s.log.Info("bad MaxPeers configured, using the default value",
+			zap.Int("configured", s.MaxPeers),
+			zap.Int("actual", defaultMaxPeers))
 		s.MaxPeers = defaultMaxPeers
 	}
 
 	if s.AttemptConnPeers <= 0 {
-		log.WithFields(log.Fields{
-			"AttemptConnPeers configured": s.AttemptConnPeers,
-			"AttemptConnPeers actual":     defaultAttemptConnPeers,
-		}).Info("bad AttemptConnPeers configured, using the default value")
+		s.log.Info("bad AttemptConnPeers configured, using the default value",
+			zap.Int("configured", s.AttemptConnPeers),
+			zap.Int("actual", defaultAttemptConnPeers))
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port))
+	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port), s.log)
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -147,10 +152,9 @@ func (s *Server) ID() uint32 {
 
 // Start will start the server and its underlying transport.
 func (s *Server) Start(errChan chan error) {
-	log.WithFields(log.Fields{
-		"blockHeight":  s.chain.BlockHeight(),
-		"headerHeight": s.chain.HeaderHeight(),
-	}).Info("node started")
+	s.log.Info("node started",
+		zap.Uint32("blockHeight", s.chain.BlockHeight()),
+		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
 
 	s.discovery.BackFill(s.Seeds...)
 
@@ -162,9 +166,7 @@ func (s *Server) Start(errChan chan error) {
 
 // Shutdown disconnects all peers and stops listening.
 func (s *Server) Shutdown() {
-	log.WithFields(log.Fields{
-		"peers": s.PeerCount(),
-	}).Info("shutting down server")
+	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.bQueue.discard()
 	close(s.quit)
 }
@@ -205,9 +207,7 @@ func (s *Server) run() {
 			s.lock.Lock()
 			s.peers[p] = true
 			s.lock.Unlock()
-			log.WithFields(log.Fields{
-				"addr": p.RemoteAddr(),
-			}).Info("new peer connected")
+			s.log.Info("new peer connected", zap.Stringer("addr", p.RemoteAddr()))
 			peerCount := s.PeerCount()
 			if peerCount > s.MaxPeers {
 				s.lock.RLock()
@@ -225,11 +225,10 @@ func (s *Server) run() {
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
 				s.lock.Unlock()
-				log.WithFields(log.Fields{
-					"addr":      drop.peer.RemoteAddr(),
-					"reason":    drop.reason,
-					"peerCount": s.PeerCount(),
-				}).Warn("peer disconnected")
+				s.log.Warn("peer disconnected",
+					zap.Stringer("addr", drop.peer.RemoteAddr()),
+					zap.String("reason", drop.reason.Error()),
+					zap.Int("peerCount", s.PeerCount()))
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
@@ -254,7 +253,7 @@ func (s *Server) tryStartConsensus() {
 	}
 
 	if s.HandshakedPeersCount() >= s.MinPeers {
-		log.Info("minimum amount of peers were connected to")
+		s.log.Info("minimum amount of peers were connected to")
 		if s.connected.CAS(false, true) {
 			s.consensus.Start()
 		}
@@ -304,12 +303,11 @@ func (s *Server) HandshakedPeersCount() int {
 func (s *Server) startProtocol(p Peer) {
 	var err error
 
-	log.WithFields(log.Fields{
-		"addr":        p.RemoteAddr(),
-		"userAgent":   string(p.Version().UserAgent),
-		"startHeight": p.Version().StartHeight,
-		"id":          p.Version().Nonce,
-	}).Info("started protocol")
+	s.log.Info("started protocol",
+		zap.Stringer("addr", p.RemoteAddr()),
+		zap.ByteString("userAgent", p.Version().UserAgent),
+		zap.Uint32("startHeight", p.Version().StartHeight),
+		zap.Uint32("id", p.Version().Nonce))
 
 	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
 	if s.chain.HeaderHeight() < p.Version().StartHeight {
@@ -386,7 +384,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 // This method could best be called in a separate routine.
 func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 	if err := s.chain.AddHeaders(headers.Hdrs...); err != nil {
-		log.Warnf("failed processing headers: %s", err)
+		s.log.Warn("failed processing headers", zap.Error(err))
 		return
 	}
 	// The peer will respond with a maximum of 2000 headers in one batch.

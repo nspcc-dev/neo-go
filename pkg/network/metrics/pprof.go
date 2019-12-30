@@ -3,13 +3,19 @@ package metrics
 import (
 	"net/http"
 	"net/http/pprof"
+
+	"go.uber.org/zap"
 )
 
 // PprofService https://golang.org/pkg/net/http/pprof/.
 type PprofService Service
 
 // NewPprofService created new service for gathering pprof metrics.
-func NewPprofService(cfg Config) *Service {
+func NewPprofService(cfg Config, log *zap.Logger) *Service {
+	if log == nil {
+		return nil
+	}
+
 	handler := http.NewServeMux()
 	handler.HandleFunc("/debug/pprof/", pprof.Index)
 	handler.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -18,9 +24,12 @@ func NewPprofService(cfg Config) *Service {
 	handler.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	return &Service{
-		&http.Server{
+		Server: &http.Server{
 			Addr:    cfg.Address + ":" + cfg.Port,
 			Handler: handler,
-		}, cfg, "Pprof",
+		},
+		config:      cfg,
+		serviceType: "Pprof",
+		log:         log.With(zap.String("service", "Pprof")),
 	}
 }

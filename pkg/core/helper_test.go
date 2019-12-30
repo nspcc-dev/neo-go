@@ -17,6 +17,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 var newBlockPrevHash util.Uint256
@@ -37,7 +38,7 @@ func newTestChain(t *testing.T) *Blockchain {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration)
+	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	if err != nil {
 		t.Fatal(err)
 	}

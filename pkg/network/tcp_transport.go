@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // TCPTransport allows network communication over TCP.
 type TCPTransport struct {
+	log      *zap.Logger
 	server   *Server
 	listener net.Listener
 	bindAddr string
@@ -20,8 +21,9 @@ var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
 
 // NewTCPTransport returns a new TCPTransport that will listen for
 // new incoming peer connections.
-func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
+func NewTCPTransport(s *Server, bindAddr string, log *zap.Logger) *TCPTransport {
 	return &TCPTransport{
+		log:      log,
 		server:   s,
 		bindAddr: bindAddr,
 	}
@@ -41,7 +43,7 @@ func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
 func (t *TCPTransport) Accept() {
 	l, err := net.Listen("tcp", t.bindAddr)
 	if err != nil {
-		log.Fatalf("TCP listen error %s", err)
+		t.log.Panic("TCP listen error", zap.Error(err))
 		return
 	}
 
@@ -50,7 +52,7 @@ func (t *TCPTransport) Accept() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Warnf("TCP accept error: %s", err)
+			t.log.Warn("TCP accept error", zap.Error(err))
 			if t.isCloseError(err) {
 				break
 			}
@@ -80,9 +82,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 
 	// When a new peer is connected we send out our version immediately.
 	if err := t.server.sendVersion(p); err != nil {
-		log.WithFields(log.Fields{
-			"addr": p.RemoteAddr(),
-		}).Error(err)
+		t.log.Error("error on sendVersion", zap.Stringer("addr", p.RemoteAddr()), zap.Error(err))
 	}
 	r := io.NewBinReaderFromIO(p.conn)
 	for {

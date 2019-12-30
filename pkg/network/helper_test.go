@@ -16,6 +16,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"go.uber.org/zap/zaptest"
 )
 
 type testChain struct {
@@ -203,7 +204,7 @@ func (p *localPeer) Handshaked() bool {
 	return p.handshaked
 }
 
-func newTestServer() *Server {
+func newTestServer(t *testing.T) *Server {
 	return &Server{
 		ServerConfig: ServerConfig{},
 		chain:        &testChain{},
@@ -214,6 +215,7 @@ func newTestServer() *Server {
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
+		log:          zaptest.NewLogger(t),
 	}
 
 }

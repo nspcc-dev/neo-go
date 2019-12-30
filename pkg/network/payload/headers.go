@@ -3,7 +3,6 @@ package payload
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/io"
-	log "github.com/sirupsen/logrus"
 )
 
 // Headers payload.
@@ -22,7 +21,6 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 
 	// C# node does it silently
 	if lenHeaders > MaxHeadersAllowed {
-		log.Warnf("received %d headers, capping to %d", lenHeaders, MaxHeadersAllowed)
 		lenHeaders = MaxHeadersAllowed
 	}
 

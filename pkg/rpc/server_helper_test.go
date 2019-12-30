@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 // ErrorResponse struct represents JSON-RPC error.
@@ -180,7 +181,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	require.NoError(t, err, "could not load config")
 
 	memoryStore := storage.NewMemoryStore()
-	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run()
@@ -198,7 +199,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	server := network.NewServer(serverConfig, chain)
+	server := network.NewServer(serverConfig, chain, zaptest.NewLogger(t))
 	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 

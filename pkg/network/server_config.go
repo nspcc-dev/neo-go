@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap/zapcore"
 )
 
 type (
@@ -53,7 +53,7 @@ type (
 		ProtoTickInterval time.Duration
 
 		// Level of the internal logger.
-		LogLevel log.Level
+		LogLevel zapcore.Level
 
 		// Wallet is a wallet configuration.
 		Wallet *config.WalletConfig

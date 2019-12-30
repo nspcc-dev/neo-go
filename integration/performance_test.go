@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 // Benchmark test to measure number of processed TX.
@@ -23,14 +24,15 @@ func BenchmarkTXPerformanceTest(t *testing.B) {
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
 
+	logger := zaptest.NewLogger(t)
 	memoryStore := storage.NewMemoryStore()
-	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run()
 
 	serverConfig := network.NewServerConfig(cfg)
-	server := network.NewServer(serverConfig, chain)
+	server := network.NewServer(serverConfig, chain, logger)
 	data := prepareData(t)
 	t.ResetTimer()
 

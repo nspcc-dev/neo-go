@@ -3,17 +3,23 @@ package network
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/Workiva/go-datastructures/queue"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type blockQueue struct {
+	log         *zap.Logger
 	queue       *queue.PriorityQueue
 	checkBlocks chan struct{}
 	chain       core.Blockchainer
 }
 
-func newBlockQueue(capacity int, bc core.Blockchainer) *blockQueue {
+func newBlockQueue(capacity int, bc core.Blockchainer, log *zap.Logger) *blockQueue {
+	if log == nil {
+		return nil
+	}
+
 	return &blockQueue{
+		log:         log,
 		queue:       queue.NewPriorityQueue(capacity, false),
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
@@ -38,11 +44,10 @@ func (bq *blockQueue) run() {
 				if minblock.Index == bq.chain.BlockHeight()+1 {
 					err := bq.chain.AddBlock(minblock)
 					if err != nil {
-						log.WithFields(log.Fields{
-							"error":       err.Error(),
-							"blockHeight": bq.chain.BlockHeight(),
-							"nextIndex":   minblock.Index,
-						}).Warn("blockQueue: failed adding block into the blockchain")
+						bq.log.Warn("blockQueue: failed adding block into the blockchain",
+							zap.String("error", err.Error()),
+							zap.Uint32("blockHeight", bq.chain.BlockHeight()),
+							zap.Uint32("nextIndex", minblock.Index))
 					}
 				}
 			} else {

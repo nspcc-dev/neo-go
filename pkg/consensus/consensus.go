@@ -60,6 +60,8 @@ type service struct {
 
 // Config is a configuration for consensus services.
 type Config struct {
+	// Logger is a logger instance.
+	Logger *zap.Logger
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *Payload)
@@ -79,19 +81,18 @@ type Config struct {
 
 // NewService returns new consensus.Service instance.
 func NewService(cfg Config) (Service, error) {
-	log, err := getLogger()
-	if err != nil {
-		return nil, err
-	}
-
 	if cfg.TimePerBlock <= 0 {
 		cfg.TimePerBlock = defaultTimePerBlock
+	}
+
+	if cfg.Logger == nil {
+		return nil, errors.New("empty logger")
 	}
 
 	srv := &service{
 		Config: cfg,
 
-		log:      log.Sugar(),
+		log:      cfg.Logger.Sugar(),
 		cache:    newFIFOCache(cacheMaxCapacity),
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
