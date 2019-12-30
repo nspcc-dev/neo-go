@@ -2,6 +2,67 @@
 
 This document outlines major changes between releases.
 
+## 0.71.0 "Celebration" (30 Dec 2019)
+
+Version 0.71.0 ends the year 2019 of neo-go development with a solid release
+that adds support for pprof, implements all missing interoperability
+functions, improves performance and as usual fixes some bugs. This is also the
+first release with a test coverage of more than 60% which is a significant
+milestone in our trend to improve code quality and testing. Back in August
+2019 when NSPCC had started neo-go developement the project only had a
+coverage of 45% and even though a lot of code has been added since we're
+improving this metrics with every release.
+
+New features:
+ * pprof support (disabled by default, #536)
+ * compiler now supports assignments to an element of slice using variable
+   index (#564)
+ * hashed 4-byte IDs support for SYSCALL instruction  (#565)
+ * remainder ('%') operator support in compiler (#563)
+ * Neo.Witness.GetVerificationScript and Neo.InvocationTransaction.GetScript
+   interop functions (#421)
+ * Neo.Iterator.*, Neo.Enumerator.* and Neo.Storage.Find interops (#422)
+ * tuple return support in compiler (#562)
+ * `getblocks` P2P command implementation (#577)
+
+Behaviour changes:
+ * `db dump` command now also writes the block number zero by default to
+   comply with ImportBlocks format (#582)
+ * `skip` parameter was renamed to `start` in the `db dump` command (#582)
+ * `db restore` now skips the genesis block in the dump if starting to import
+   into the new DB and if this block matches the one generated on blockchain
+   init (#582)
+
+Improvements:
+ * VM optimizations (#558, #559, #565, #572)
+ * top block caching in core to improve dApps performance (#572)
+ * transaction's TXType can now be JSON-unmarshalled (#575)
+ * `crypto` package no longer exports AES functions (#579)
+ * merkle tree functions and structures were moved into the `hash` package
+   (#579)
+ * base58 functionality was moved into its own package from `crypto` (#579)
+ * `Uint160DecodeAddress` and `AddressFromUint160` functions were moved out of
+   `crypto` into their own package (#579)
+ * `address` package now can be configured to use different prefixes (#579)
+
+Bugs fixed:
+ * wrong INVERT instruction behaviour for converted values (#561)
+ * wrong DUP behaviour when the next instruction doesn't convert the value
+   (#561)
+ * OVER and PICK implementations didn't properly duplicate stack items (#561)
+ * PICKITEM instruction failed to duplicate picked items (#561)
+ * `getblock` RPC call was not answering with full hex-encoded block (#575)
+ * base58.CheckDecode was decoding values with leading zeroes in a wrong way
+   (#579)
+ * decoding wrong public key could succeed (#579)
+ * consensus payload verification was inconsistent with other verification
+   code (#555)
+ * DB dump was using wrong format in release 0.70.1 (#582)
+ * DB restorer was not properly counting skipped blocks which could lead to
+   bogus error being reported (#582)
+ * the DB was not closed properly on error during DB restore (#582)
+ * NPE in consensus (#583)
+
 ## 0.70.1 "Centrifugation" (16 Dec 2019)
 
 Release 0.70.1 brings no new functionality focusing on internal node
