@@ -15,7 +15,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 /*  Missing tests:
@@ -113,7 +112,7 @@ func TestHeaderGetVersion(t *testing.T) {
 func TestHeaderGetVersion_Negative(t *testing.T) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewBoolItem(false))
 
 	err := context.headerGetVersion(v)
@@ -198,7 +197,7 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
 	witness := transaction.Witness{InvocationScript: nil, VerificationScript: script}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	v.Estack().PushVal(vm.NewInteropItem(&witness))
 	err := context.witnessGetVerificationScript(v)
 	require.NoError(t, err)
@@ -419,7 +418,7 @@ func TestAssetGetPrecision(t *testing.T) {
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewInteropItem(block))
 	return v, block, context
 }
@@ -448,7 +447,7 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext)
 		IsFrozen:   false,
 	}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	return v, assetState, context
 }
 
@@ -466,7 +465,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopCo
 		Description: random.String(10),
 	}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	return v, contractState, context
 }
 
@@ -480,7 +479,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext)
 	accountState.Votes = []*keys.PublicKey{key}
 
 	require.NoError(t, err)
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	return v, accountState, context
 }
 
@@ -510,6 +509,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	tx.Attributes = attributes
 	tx.Inputs = inputs
 	tx.Outputs = outputs
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, tx, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, tx)
 	return v, tx, context
 }

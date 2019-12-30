@@ -9,13 +9,12 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 func testNonInterop(t *testing.T, value interface{}, f func(*interopContext, *vm.VM) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil, zaptest.NewLogger(t))
+	context := newTestChain(t).newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	require.Error(t, f(context, v))
 }
 

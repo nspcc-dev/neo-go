@@ -508,7 +508,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				return err
 			}
 		case *transaction.InvocationTX:
-			systemInterop := newInteropContext(trigger.Application, bc, cache.store, block, tx, bc.log)
+			systemInterop := bc.newInteropContext(trigger.Application, cache.store, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
@@ -1373,7 +1373,7 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	tmpStore := storage.NewMemCachedStore(bc.dao.store)
-	systemInterop := newInteropContext(trigger.Application, bc, tmpStore, nil, nil, bc.log)
+	systemInterop := bc.newInteropContext(trigger.Application, tmpStore, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
 	return vm, tmpStore
 }
@@ -1452,7 +1452,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
-	interopCtx := newInteropContext(trigger.Verification, bc, bc.dao.store, block, t, bc.log)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
 		if err != nil {
@@ -1472,7 +1472,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := newInteropContext(trigger.Verification, bc, bc.dao.store, nil, nil, bc.log)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, nil, nil)
 	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx, true)
 }
 
@@ -1485,4 +1485,8 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 
 func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
+}
+
+func (bc *Blockchain) newInteropContext(trigger byte, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
+	return newInteropContext(trigger, bc, s, block, tx, bc.log)
 }
