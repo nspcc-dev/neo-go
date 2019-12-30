@@ -70,7 +70,7 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request) {
-	req := NewRequest(s.config.EnableCORSWorkaround)
+	req := NewRequest()
 
 	if httpRequest.Method != "POST" {
 		s.WriteErrorResponse(

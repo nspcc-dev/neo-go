@@ -17,11 +17,10 @@ type (
 	// Request represents a standard JSON-RPC 2.0
 	// request: http://www.jsonrpc.org/specification#request_object.
 	Request struct {
-		JSONRPC              string          `json:"jsonrpc"`
-		Method               string          `json:"method"`
-		RawParams            json.RawMessage `json:"params,omitempty"`
-		RawID                json.RawMessage `json:"id,omitempty"`
-		enableCORSWorkaround bool
+		JSONRPC   string          `json:"jsonrpc"`
+		Method    string          `json:"method"`
+		RawParams json.RawMessage `json:"params,omitempty"`
+		RawID     json.RawMessage `json:"id,omitempty"`
 	}
 
 	// Response represents a standard JSON-RPC 2.0
@@ -35,10 +34,9 @@ type (
 )
 
 // NewRequest creates a new Request struct.
-func NewRequest(corsWorkaround bool) *Request {
+func NewRequest() *Request {
 	return &Request{
-		JSONRPC:              jsonRPCVersion,
-		enableCORSWorkaround: corsWorkaround,
+		JSONRPC: jsonRPCVersion,
 	}
 }
 
@@ -114,7 +112,7 @@ func (s *Server) WriteResponse(r *Request, w http.ResponseWriter, result interfa
 
 func (s *Server) writeServerResponse(r *Request, w http.ResponseWriter, response Response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if r.enableCORSWorkaround {
+	if s.config.EnableCORSWorkaround {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
 	}
