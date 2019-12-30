@@ -201,13 +201,11 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		return fmt.Errorf("can't decode command %s", cmdByteArrayToString(m.Command))
 	}
 	p.DecodeBinary(r)
-	if r.Err != nil {
-		return r.Err
+	if r.Err == nil || r.Err == payload.ErrTooManyHeaders {
+		m.Payload = p
 	}
 
-	m.Payload = p
-
-	return nil
+	return r.Err
 }
 
 // Encode encodes a Message to any given BinWriter.

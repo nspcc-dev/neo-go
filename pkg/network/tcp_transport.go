@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"go.uber.org/zap"
 )
 
@@ -87,7 +88,12 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	r := io.NewBinReaderFromIO(p.conn)
 	for {
 		msg := &Message{}
-		if err = msg.Decode(r); err != nil {
+		err := msg.Decode(r)
+
+		if err == payload.ErrTooManyHeaders {
+			t.log.Warn("not all headers were processed")
+			r.Err = nil
+		} else if err != nil {
 			break
 		}
 		if err = t.server.handleMessage(p, msg); err != nil {

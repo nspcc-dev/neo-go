@@ -11,36 +11,39 @@ import (
 )
 
 func TestHeadersEncodeDecode(t *testing.T) {
-	headers := &Headers{[]*core.Header{
-		{
-			BlockBase: core.BlockBase{
-				Version: 0,
-				Index:   1,
-				Script: transaction.Witness{
-					InvocationScript:   []byte{0x0},
-					VerificationScript: []byte{0x1},
-				},
-			}},
-		{
-			BlockBase: core.BlockBase{
-				Version: 0,
-				Index:   2,
-				Script: transaction.Witness{
-					InvocationScript:   []byte{0x0},
-					VerificationScript: []byte{0x1},
-				},
-			}},
-		{
-			BlockBase: core.BlockBase{
-				Version: 0,
-				Index:   3,
-				Script: transaction.Witness{
-					InvocationScript:   []byte{0x0},
-					VerificationScript: []byte{0x1},
-				},
-			}},
-	}}
+	t.Run("normal case", func(t *testing.T) {
+		headers := newTestHeaders(3)
 
+		testHeadersEncodeDecode(t, headers, 3, false)
+	})
+
+	t.Run("more than max", func(t *testing.T) {
+		const sent = MaxHeadersAllowed + 1
+		headers := newTestHeaders(sent)
+
+		testHeadersEncodeDecode(t, headers, MaxHeadersAllowed, true)
+	})
+}
+
+func newTestHeaders(n int) *Headers {
+	headers := &Headers{Hdrs: make([]*core.Header, n)}
+
+	for i := range headers.Hdrs {
+		headers.Hdrs[i] = &core.Header{
+			BlockBase: core.BlockBase{
+				Index: uint32(i + 1),
+				Script: transaction.Witness{
+					InvocationScript:   []byte{0x0},
+					VerificationScript: []byte{0x1},
+				},
+			},
+		}
+	}
+
+	return headers
+}
+
+func testHeadersEncodeDecode(t *testing.T, headers *Headers, expected int, limit bool) {
 	buf := io.NewBufBinWriter()
 	headers.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
@@ -49,9 +52,16 @@ func TestHeadersEncodeDecode(t *testing.T) {
 	r := io.NewBinReaderFromBuf(b)
 	headersDecode := &Headers{}
 	headersDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
 
-	for i := 0; i < len(headers.Hdrs); i++ {
+	var err error
+	if limit {
+		err = ErrTooManyHeaders
+	}
+
+	assert.Equal(t, err, r.Err)
+	assert.Equal(t, expected, len(headersDecode.Hdrs))
+
+	for i := 0; i < len(headersDecode.Hdrs); i++ {
 		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)
 		assert.Equal(t, headers.Hdrs[i].Index, headersDecode.Hdrs[i].Index)
 		assert.Equal(t, headers.Hdrs[i].Script, headersDecode.Hdrs[i].Script)

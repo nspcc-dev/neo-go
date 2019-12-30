@@ -3,6 +3,7 @@ package payload
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/pkg/errors"
 )
 
 // Headers payload.
@@ -15,12 +16,17 @@ const (
 	MaxHeadersAllowed = 2000
 )
 
+// ErrTooManyHeaders is an error returned when too many headers were received.
+var ErrTooManyHeaders = errors.Errorf("too many headers were received (max: %d)", MaxHeadersAllowed)
+
 // DecodeBinary implements Serializable interface.
 func (p *Headers) DecodeBinary(br *io.BinReader) {
 	lenHeaders := br.ReadVarUint()
 
+	var limitExceeded bool
+
 	// C# node does it silently
-	if lenHeaders > MaxHeadersAllowed {
+	if limitExceeded = lenHeaders > MaxHeadersAllowed; limitExceeded {
 		lenHeaders = MaxHeadersAllowed
 	}
 
@@ -30,6 +36,10 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 		header := &core.Header{}
 		header.DecodeBinary(br)
 		p.Hdrs[i] = header
+	}
+
+	if br.Err == nil && limitExceeded {
+		br.Err = ErrTooManyHeaders
 	}
 }
 
