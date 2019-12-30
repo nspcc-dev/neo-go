@@ -16,7 +16,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type (
@@ -26,6 +26,7 @@ type (
 		chain      core.Blockchainer
 		config     config.RPCConfig
 		coreServer *network.Server
+		log        *zap.Logger
 	}
 )
 
@@ -34,7 +35,7 @@ var invalidBlockHeightError = func(index int, height int) error {
 }
 
 // NewServer creates a new Server struct.
-func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server) Server {
+func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server, log *zap.Logger) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
@@ -44,6 +45,7 @@ func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *netwo
 		chain:      chain,
 		config:     conf,
 		coreServer: coreServer,
+		log:        log,
 	}
 }
 
@@ -51,13 +53,11 @@ func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *netwo
 // listening on the configured port.
 func (s *Server) Start(errChan chan error) {
 	if !s.config.Enabled {
-		log.Info("RPC server is not enabled")
+		s.log.Info("RPC server is not enabled")
 		return
 	}
 	s.Handler = http.HandlerFunc(s.requestHandler)
-	log.WithFields(log.Fields{
-		"endpoint": s.Addr,
-	}).Info("starting rpc-server")
+	s.log.Info("starting rpc-server", zap.String("endpoint", s.Addr))
 
 	errChan <- s.ListenAndServe()
 }
@@ -65,9 +65,7 @@ func (s *Server) Start(errChan chan error) {
 // Shutdown overrides the http.Server Shutdown
 // method.
 func (s *Server) Shutdown() error {
-	log.WithFields(log.Fields{
-		"endpoint": s.Addr,
-	}).Info("shutting down rpc-server")
+	s.log.Info("shutting down rpc-server", zap.String("endpoint", s.Addr))
 	return s.Server.Shutdown(context.Background())
 }
 
@@ -75,7 +73,8 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 	req := NewRequest(s.config.EnableCORSWorkaround)
 
 	if httpRequest.Method != "POST" {
-		req.WriteErrorResponse(
+		s.WriteErrorResponse(
+			req,
 			w,
 			NewInvalidParamsError(
 				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), nil,
@@ -86,13 +85,13 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		req.WriteErrorResponse(w, NewParseError("Problem parsing JSON-RPC request body", err))
+		s.WriteErrorResponse(req, w, NewParseError("Problem parsing JSON-RPC request body", err))
 		return
 	}
 
 	reqParams, err := req.Params()
 	if err != nil {
-		req.WriteErrorResponse(w, NewInvalidParamsError("Problem parsing request parameters", err))
+		s.WriteErrorResponse(req, w, NewInvalidParamsError("Problem parsing request parameters", err))
 		return
 	}
 
@@ -100,10 +99,9 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 }
 
 func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Params) {
-	log.WithFields(log.Fields{
-		"method": req.Method,
-		"params": fmt.Sprintf("%v", reqParams),
-	}).Info("processing rpc request")
+	s.log.Info("processing rpc request",
+		zap.String("method", req.Method),
+		zap.String("params", fmt.Sprintf("%v", reqParams)))
 
 	var (
 		results    interface{}
@@ -268,11 +266,11 @@ Methods:
 	}
 
 	if resultsErr != nil {
-		req.WriteErrorResponse(w, resultsErr)
+		s.WriteErrorResponse(req, w, resultsErr)
 		return
 	}
 
-	req.WriteResponse(w, results)
+	s.WriteResponse(req, w, results)
 }
 
 func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {

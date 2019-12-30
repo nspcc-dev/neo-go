@@ -181,7 +181,8 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	require.NoError(t, err, "could not load config")
 
 	memoryStore := storage.NewMemoryStore()
-	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	logger := zaptest.NewLogger(t)
+	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run()
@@ -199,8 +200,8 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	server := network.NewServer(serverConfig, chain, zaptest.NewLogger(t))
-	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
+	server := network.NewServer(serverConfig, chain, logger)
+	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server, logger)
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
 	return chain, handler

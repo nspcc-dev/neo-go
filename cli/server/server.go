@@ -320,7 +320,7 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	server := network.NewServer(serverConfig, chain, log)
-	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server)
+	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server, log)
 	errChan := make(chan error)
 
 	go server.Start(errChan)
