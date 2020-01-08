@@ -1467,46 +1467,44 @@ func checkMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
 
 loop:
 	for r := range results {
+		goingForward := true
+
 		taskCount--
-		if r.signum == s1 {
-			if k1+1 == k2 {
-				sigok = r.ok && s1+1 == s2
-				if taskCount != 0 && sigok {
-					continue
-				}
-				break loop
-			} else if r.ok {
-				if s1+1 == s2 {
-					if taskCount != 0 && sigok {
-						continue
-					}
-					break loop
-				}
-				s1++
+		if r.signum == s2 {
+			goingForward = false
+		}
+		if k1+1 == k2 {
+			sigok = r.ok && s1+1 == s2
+			if taskCount != 0 && sigok {
+				continue
 			}
-			k1++
-			taskCount++
-			tasks <- task{pub: v.bytesToPublicKey(pkeys[k1]), signum: s1}
-		} else {
-			if k1+1 == k2 {
-				sigok = r.ok && s1+1 == s2
+			break loop
+		} else if r.ok {
+			if s1+1 == s2 {
 				if taskCount != 0 && sigok {
 					continue
 				}
 				break loop
-			} else if r.ok {
-				if s1+1 == s2 {
-					if taskCount != 0 && sigok {
-						continue
-					}
-					break loop
-				}
+			}
+			if goingForward {
+				s1++
+			} else {
 				s2--
 			}
-			k2--
-			taskCount++
-			tasks <- task{pub: v.bytesToPublicKey(pkeys[k2]), signum: s2}
 		}
+
+		var nextSig, nextKey int
+		if goingForward {
+			k1++
+			nextSig = s1
+			nextKey = k1
+		} else {
+			k2--
+			nextSig = s2
+			nextKey = k2
+		}
+		taskCount++
+		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey]), signum: nextSig}
 	}
 
 	close(tasks)
