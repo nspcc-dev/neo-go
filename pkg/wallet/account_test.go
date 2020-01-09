@@ -10,16 +10,9 @@ import (
 )
 
 func TestNewAccount(t *testing.T) {
-	for _, testCase := range keytestcases.Arr {
-		acc, err := NewAccountFromWIF(testCase.Wif)
-		if testCase.Invalid {
-			assert.Error(t, err)
-			continue
-		}
-
-		assert.NoError(t, err)
-		compareFields(t, testCase, acc)
-	}
+	acc, err := NewAccount()
+	require.NoError(t, err)
+	require.NotNil(t, acc)
 }
 
 func TestDecryptAccount(t *testing.T) {
