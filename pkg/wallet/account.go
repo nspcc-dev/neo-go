@@ -63,11 +63,11 @@ func NewAccount() (*Account, error) {
 // DecryptAccount decrypts the encryptedWIF with the given passphrase and
 // return the decrypted Account.
 func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
-	wif, err := keys.NEP2Decrypt(encryptedWIF, passphrase)
+	key, err := keys.NEP2Decrypt(encryptedWIF, passphrase)
 	if err != nil {
 		return nil, err
 	}
-	return NewAccountFromWIF(wif)
+	return newAccountFromPrivateKey(key), nil
 }
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase

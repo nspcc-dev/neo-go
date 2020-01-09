@@ -27,18 +27,13 @@ func TestNEP2Encrypt(t *testing.T) {
 
 func TestNEP2Decrypt(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
-
-		privKeyString, err := NEP2Decrypt(testCase.EncryptedWif, testCase.Passphrase)
+		privKey, err := NEP2Decrypt(testCase.EncryptedWif, testCase.Passphrase)
 		if testCase.Invalid {
 			assert.Error(t, err)
 			continue
 		}
 
 		assert.Nil(t, err)
-
-		privKey, err := NewPrivateKeyFromWIF(privKeyString)
-		assert.Nil(t, err)
-
 		assert.Equal(t, testCase.PrivateKey, privKey.String())
 
 		wif := privKey.WIF()
