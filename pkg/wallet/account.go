@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"errors"
+
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -60,14 +62,16 @@ func NewAccount() (*Account, error) {
 	return newAccountFromPrivateKey(priv), nil
 }
 
-// DecryptAccount decrypts the encryptedWIF with the given passphrase and
-// return the decrypted Account.
-func DecryptAccount(encryptedWIF, passphrase string) (*Account, error) {
-	key, err := keys.NEP2Decrypt(encryptedWIF, passphrase)
-	if err != nil {
-		return nil, err
+// Decrypt decrypts the EncryptedWIF with the given passphrase returning error
+// if anything goes wrong.
+func (a *Account) Decrypt(passphrase string) error {
+	var err error
+
+	if a.EncryptedWIF == "" {
+		return errors.New("no encrypted wif in the account")
 	}
-	return newAccountFromPrivateKey(key), nil
+	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase)
+	return err
 }
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase

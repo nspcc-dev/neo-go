@@ -6,6 +6,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAccount(t *testing.T) {
@@ -23,15 +24,21 @@ func TestNewAccount(t *testing.T) {
 
 func TestDecryptAccount(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
-		acc, err := DecryptAccount(testCase.EncryptedWif, testCase.Passphrase)
+		acc := &Account{EncryptedWIF: testCase.EncryptedWif}
+		assert.Nil(t, acc.PrivateKey())
+		err := acc.Decrypt(testCase.Passphrase)
 		if testCase.Invalid {
 			assert.Error(t, err)
 			continue
 		}
 
 		assert.NoError(t, err)
-		compareFields(t, testCase, acc)
+		assert.NotNil(t, acc.PrivateKey())
+		assert.Equal(t, testCase.PrivateKey, acc.privateKey.String())
 	}
+	// No encrypted key.
+	acc := &Account{}
+	require.Error(t, acc.Decrypt("qwerty"))
 }
 
 func TestNewFromWif(t *testing.T) {
