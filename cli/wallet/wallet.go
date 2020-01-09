@@ -40,13 +40,17 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "open",
-				Usage:  "open a existing NEO wallet",
-				Action: openWallet,
+				Name:   "dump",
+				Usage:  "check and dump an existing NEO wallet",
+				Action: dumpWallet,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "path, p",
 						Usage: "Target location of the wallet file.",
+					},
+					cli.BoolFlag{
+						Name:  "decrypt, d",
+						Usage: "Decrypt encrypted keys.",
 					},
 				},
 			},
@@ -54,7 +58,30 @@ func NewCommands() []cli.Command {
 	}}
 }
 
-func openWallet(ctx *cli.Context) error {
+func dumpWallet(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errNoPath, 1)
+	}
+	wall, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if ctx.Bool("decrypt") {
+		fmt.Print("Wallet password: ")
+		pass, err := terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		for i := range wall.Accounts {
+			// Just testing the decryption here.
+			err := wall.Accounts[i].Decrypt(string(pass))
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+		}
+	}
+	fmtPrintWallet(wall)
 	return nil
 }
 
@@ -77,7 +104,7 @@ func createWallet(ctx *cli.Context) error {
 		}
 	}
 
-	dumpWallet(wall)
+	fmtPrintWallet(wall)
 	fmt.Printf("wallet successfully created, file location is %s\n", wall.Path())
 	return nil
 }
@@ -110,7 +137,7 @@ func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
 	return wall.CreateAccount(name, phrase)
 }
 
-func dumpWallet(wall *wallet.Wallet) {
+func fmtPrintWallet(wall *wallet.Wallet) {
 	b, _ := wall.JSON()
 	fmt.Println("")
 	fmt.Println(string(b))
