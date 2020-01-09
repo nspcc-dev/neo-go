@@ -549,7 +549,7 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 	return results, resultsErr
 }
 
-func (s Server) blockHeightFromParam(param *Param) (int, error) {
+func (s *Server) blockHeightFromParam(param *Param) (int, error) {
 	num, err := param.GetInt()
 	if err != nil {
 		return 0, nil
