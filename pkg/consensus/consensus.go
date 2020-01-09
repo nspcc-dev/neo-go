@@ -14,7 +14,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
-	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
@@ -178,13 +177,9 @@ func (s *service) validatePayload(p *Payload) bool {
 }
 
 func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) {
-	acc, err := wallet.DecryptAccount(cfg.Path, cfg.Password)
+	// TODO: replace with wallet opening from the given path (#588)
+	key, err := keys.NEP2Decrypt(cfg.Path, cfg.Password)
 	if err != nil {
-		return nil, nil
-	}
-
-	key := acc.PrivateKey()
-	if key == nil {
 		return nil, nil
 	}
 
