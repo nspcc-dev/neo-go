@@ -198,6 +198,19 @@ func (s *Server) BadPeers() []string {
 	return []string{}
 }
 
+// ConnectedPeers returns a list of currently connected peers.
+func (s *Server) ConnectedPeers() []string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	peers := make([]string, 0, len(s.peers))
+	for k := range s.peers {
+		peers = append(peers, k.PeerAddr().String())
+	}
+
+	return peers
+}
+
 // run is a goroutine that starts another goroutine to manage protocol specifics
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {

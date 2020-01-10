@@ -5,12 +5,15 @@ import (
 )
 
 type (
-	// Peers payload for outputting peers in `getpeers` RPC call.
-	Peers struct {
-		Unconnected []Peer `json:"unconnected"`
-		Connected   []Peer `json:"connected"`
-		Bad         []Peer `json:"bad"`
+	// GetPeers payload for outputting peers in `getpeers` RPC call.
+	GetPeers struct {
+		Unconnected Peers `json:"unconnected"`
+		Connected   Peers `json:"connected"`
+		Bad         Peers `json:"bad"`
 	}
+
+	// Peers represent a slice of peers.
+	Peers []Peer
 
 	// Peer represents the peer.
 	Peer struct {
@@ -19,40 +22,39 @@ type (
 	}
 )
 
-// NewPeers creates a new Peers struct.
-func NewPeers() Peers {
-	return Peers{
+// NewGetPeers creates a new GetPeers structure.
+func NewGetPeers() GetPeers {
+	return GetPeers{
 		Unconnected: []Peer{},
 		Connected:   []Peer{},
 		Bad:         []Peer{},
 	}
 }
 
-// AddPeer adds a peer to the given peer type slice.
-func (p *Peers) AddPeer(peerType string, addr string) {
-	addressParts := strings.Split(addr, ":")
-	peer := Peer{
-		Address: addressParts[0],
-		Port:    addressParts[1],
-	}
+// AddUnconnected adds a set of peers to the unconnected peers slice.
+func (g *GetPeers) AddUnconnected(addrs []string) {
+	g.Unconnected.addPeers(addrs)
+}
 
-	switch peerType {
-	case "unconnected":
-		p.Unconnected = append(
-			p.Unconnected,
-			peer,
-		)
+// AddConnected adds a set of peers to the connected peers slice.
+func (g *GetPeers) AddConnected(addrs []string) {
+	g.Connected.addPeers(addrs)
+}
 
-	case "connected":
-		p.Connected = append(
-			p.Connected,
-			peer,
-		)
+// AddBad adds a set of peers to the bad peers slice.
+func (g *GetPeers) AddBad(addrs []string) {
+	g.Bad.addPeers(addrs)
+}
 
-	case "bad":
-		p.Bad = append(
-			p.Bad,
-			peer,
-		)
+// addPeers adds a set of peers to the given peer slice.
+func (p *Peers) addPeers(addrs []string) {
+	for i := range addrs {
+		addressParts := strings.Split(addrs[i], ":")
+		peer := Peer{
+			Address: addressParts[0],
+			Port:    addressParts[1],
+		}
+
+		*p = append(*p, peer)
 	}
 }

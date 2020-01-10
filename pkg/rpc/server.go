@@ -192,19 +192,10 @@ Methods:
 
 	case "getpeers":
 		getpeersCalled.Inc()
-		peers := result.NewPeers()
-		for _, addr := range s.coreServer.UnconnectedPeers() {
-			peers.AddPeer("unconnected", addr)
-		}
-
-		for _, addr := range s.coreServer.BadPeers() {
-			peers.AddPeer("bad", addr)
-		}
-
-		for addr := range s.coreServer.Peers() {
-			peers.AddPeer("connected", addr.PeerAddr().String())
-		}
-
+		peers := result.NewGetPeers()
+		peers.AddUnconnected(s.coreServer.UnconnectedPeers())
+		peers.AddConnected(s.coreServer.ConnectedPeers())
+		peers.AddBad(s.coreServer.BadPeers())
 		results = peers
 
 	case "getstorage":
