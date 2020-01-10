@@ -11,7 +11,7 @@ import (
 
 func TestSendVersion(t *testing.T) {
 	var (
-		s = newTestServer()
+		s = newTestServer(t)
 		p = newLocalPeer(t)
 	)
 	s.Port = 3000
@@ -37,7 +37,7 @@ func TestSendVersion(t *testing.T) {
 // Server should reply with a verack after receiving a valid version.
 func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	var (
-		s = newTestServer()
+		s = newTestServer(t)
 		p = newLocalPeer(t)
 	)
 	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
@@ -58,7 +58,7 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 // invalid version and disconnects the peer.
 func TestServerNotSendsVerack(t *testing.T) {
 	var (
-		s  = newTestServer()
+		s  = newTestServer(t)
 		p  = newLocalPeer(t)
 		p2 = newLocalPeer(t)
 	)
@@ -91,7 +91,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 
 func TestRequestHeaders(t *testing.T) {
 	var (
-		s = newTestServer()
+		s = newTestServer(t)
 		p = newLocalPeer(t)
 	)
 	p.messageHandler = func(t *testing.T, msg *Message) {

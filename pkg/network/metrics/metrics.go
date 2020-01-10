@@ -4,13 +4,14 @@ import (
 	"context"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Service serves metrics.
 type Service struct {
 	*http.Server
 	config      Config
+	log         *zap.Logger
 	serviceType string
 }
 
@@ -24,27 +25,21 @@ type Config struct {
 // Start runs http service with exposed endpoint on configured port.
 func (ms *Service) Start() {
 	if ms.config.Enabled {
-		log.WithFields(log.Fields{
-			"endpoint": ms.Addr,
-			"service":  ms.serviceType,
-		}).Info("service running")
+		ms.log.Info("service is running", zap.String("endpoint", ms.Addr))
 		err := ms.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			log.Warnf("%s service couldn't start on configured port", ms.serviceType)
+			ms.log.Warn("service couldn't start on configured port")
 		}
 	} else {
-		log.Infof("%s service hasn't started since it's disabled", ms.serviceType)
+		ms.log.Info("service hasn't started since it's disabled")
 	}
 }
 
 // ShutDown stops service.
 func (ms *Service) ShutDown() {
-	log.WithFields(log.Fields{
-		"endpoint": ms.Addr,
-		"service":  ms.serviceType,
-	}).Info("shutting down service")
+	ms.log.Info("shutting down service", zap.String("endpoint", ms.Addr))
 	err := ms.Shutdown(context.Background())
 	if err != nil {
-		log.Fatalf("can't shut down %s service", ms.serviceType)
+		ms.log.Panic("can't shut down service")
 	}
 }

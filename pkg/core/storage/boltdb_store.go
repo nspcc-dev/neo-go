@@ -7,7 +7,6 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/etcd-io/bbolt"
-	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -109,7 +108,7 @@ func (s *BoltDBStore) Seek(key []byte, f func(k, v []byte)) {
 		return nil
 	})
 	if err != nil {
-		log.Error("error while executing seek in boltDB")
+		panic(err)
 	}
 }
 

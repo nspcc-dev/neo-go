@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"go.uber.org/zap"
 )
 
 type interopContext struct {
@@ -23,12 +24,13 @@ type interopContext struct {
 	tx            *transaction.Transaction
 	dao           *cachedDao
 	notifications []state.NotificationEvent
+	log           *zap.Logger
 }
 
-func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
+func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
 	dao := newCachedDao(s)
 	nes := make([]state.NotificationEvent, 0)
-	return &interopContext{bc, trigger, block, tx, dao, nes}
+	return &interopContext{bc, trigger, block, tx, dao, nes, log}
 }
 
 // interopedFunction binds function name, id with the function itself and price,

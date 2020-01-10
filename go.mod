@@ -11,7 +11,6 @@ require (
 	github.com/nspcc-dev/rfc6979 v0.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
-	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v0.0.0-20180307113352-169b1b37be73
 	github.com/urfave/cli v1.20.0

@@ -14,7 +14,9 @@ import (
 func testNonInterop(t *testing.T, value interface{}, f func(*interopContext, *vm.VM) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	chain := newTestChain(t)
+	defer chain.Close()
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	require.Error(t, f(context, v))
 }
 

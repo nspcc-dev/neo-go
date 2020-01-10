@@ -13,7 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	gherr "github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -350,7 +350,9 @@ func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 // runtimeLog logs the message passed.
 func (ic *interopContext) runtimeLog(v *vm.VM) error {
 	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
-	log.Infof("script %s logs: %s", getContextScriptHash(v, 0), msg)
+	ic.log.Info("runtime log",
+		zap.Stringer("script", getContextScriptHash(v, 0)),
+		zap.String("logs", msg))
 	return nil
 }
 

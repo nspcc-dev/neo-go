@@ -45,7 +45,7 @@ type Service interface {
 type service struct {
 	Config
 
-	log *zap.SugaredLogger
+	log *zap.Logger
 	// cache is a fifo cache which stores recent payloads.
 	cache *relayCache
 	// txx is a fifo cache which stores miner transactions.
@@ -59,6 +59,8 @@ type service struct {
 
 // Config is a configuration for consensus services.
 type Config struct {
+	// Logger is a logger instance.
+	Logger *zap.Logger
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *Payload)
@@ -78,19 +80,18 @@ type Config struct {
 
 // NewService returns new consensus.Service instance.
 func NewService(cfg Config) (Service, error) {
-	log, err := getLogger()
-	if err != nil {
-		return nil, err
-	}
-
 	if cfg.TimePerBlock <= 0 {
 		cfg.TimePerBlock = defaultTimePerBlock
+	}
+
+	if cfg.Logger == nil {
+		return nil, errors.New("empty logger")
 	}
 
 	srv := &service{
 		Config: cfg,
 
-		log:      log.Sugar(),
+		log:      cfg.Logger,
 		cache:    newFIFOCache(cacheMaxCapacity),
 		txx:      newFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
@@ -105,7 +106,7 @@ func NewService(cfg Config) (Service, error) {
 	priv, pub := getKeyPair(cfg.Wallet)
 
 	srv.dbft = dbft.New(
-		dbft.WithLogger(srv.log.Desugar()),
+		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
 		dbft.WithKeyPair(priv, pub),
 		dbft.WithTxPerBlock(10000),
@@ -152,10 +153,12 @@ func (s *service) eventLoop() {
 	for {
 		select {
 		case hv := <-s.dbft.Timer.C():
-			s.log.Debugf("timer fired (%d,%d)", hv.Height, hv.View)
+			s.log.Debug("timer fired",
+				zap.Uint32("height", hv.Height),
+				zap.Uint("view", uint(hv.View)))
 			s.dbft.OnTimeout(hv)
 		case msg := <-s.messages:
-			s.log.Debugf("received message from %d", msg.validatorIndex)
+			s.log.Debug("received message", zap.Uint16("from", msg.validatorIndex))
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
@@ -234,7 +237,7 @@ func (s *service) broadcast(p payload.ConsensusPayload) {
 	}
 
 	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
-		s.log.Warnf("can't sign consensus payload: %v", err)
+		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
 
 	s.cache.Add(p)
@@ -273,7 +276,7 @@ func (s *service) processBlock(b block.Block) {
 	bb.Script = *(s.getBlockWitness(bb))
 
 	if err := s.Chain.AddBlock(bb); err != nil {
-		s.log.Warnf("error on add block: %v", err)
+		s.log.Warn("error on add block", zap.Error(err))
 	} else {
 		s.Config.RelayBlock(bb)
 	}
@@ -293,7 +296,7 @@ func (s *service) getBlockWitness(b *core.Block) *transaction.Witness {
 	m := s.dbft.Context.M()
 	verif, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
 	if err != nil {
-		s.log.Warnf("can't create multisig redeem script: %v", err)
+		s.log.Warn("can't create multisig redeem script", zap.Error(err))
 		return nil
 	}
 

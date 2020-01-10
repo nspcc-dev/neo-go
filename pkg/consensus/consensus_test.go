@@ -10,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestNewService(t *testing.T) {
@@ -128,6 +129,7 @@ func shouldNotReceive(t *testing.T, ch chan Payload) {
 
 func newTestService(t *testing.T) *service {
 	srv, err := NewService(Config{
+		Logger:    zaptest.NewLogger(t),
 		Broadcast: func(*Payload) {},
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
@@ -177,7 +179,7 @@ func newTestChain(t *testing.T) *core.Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
 	require.NoError(t, err)
 
-	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration)
+	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
 
 	go chain.Run()

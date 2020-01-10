@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -17,11 +17,10 @@ type (
 	// Request represents a standard JSON-RPC 2.0
 	// request: http://www.jsonrpc.org/specification#request_object.
 	Request struct {
-		JSONRPC              string          `json:"jsonrpc"`
-		Method               string          `json:"method"`
-		RawParams            json.RawMessage `json:"params,omitempty"`
-		RawID                json.RawMessage `json:"id,omitempty"`
-		enableCORSWorkaround bool
+		JSONRPC   string          `json:"jsonrpc"`
+		Method    string          `json:"method"`
+		RawParams json.RawMessage `json:"params,omitempty"`
+		RawID     json.RawMessage `json:"id,omitempty"`
 	}
 
 	// Response represents a standard JSON-RPC 2.0
@@ -35,10 +34,9 @@ type (
 )
 
 // NewRequest creates a new Request struct.
-func NewRequest(corsWorkaround bool) *Request {
+func NewRequest() *Request {
 	return &Request{
-		JSONRPC:              jsonRPCVersion,
-		enableCORSWorkaround: corsWorkaround,
+		JSONRPC: jsonRPCVersion,
 	}
 }
 
@@ -73,7 +71,7 @@ func (r *Request) Params() (*Params, error) {
 }
 
 // WriteErrorResponse writes an error response to the ResponseWriter.
-func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
+func (s *Server) WriteErrorResponse(r *Request, w http.ResponseWriter, err error) {
 	jsonErr, ok := err.(*Error)
 	if !ok {
 		jsonErr = NewInternalServerError("Internal server error", err)
@@ -85,34 +83,36 @@ func (r Request) WriteErrorResponse(w http.ResponseWriter, err error) {
 		ID:      r.RawID,
 	}
 
-	logFields := log.Fields{
-		"err":    jsonErr.Cause,
-		"method": r.Method,
-	}
-	params, err := r.Params()
-	if err == nil {
-		logFields["params"] = *params
+	logFields := []zap.Field{
+		zap.Error(jsonErr.Cause),
+		zap.String("method", r.Method),
 	}
 
-	log.WithFields(logFields).Error("Error encountered with rpc request")
+	params, err := r.Params()
+	if err == nil {
+		logFields = append(logFields, zap.Any("params", params))
+	}
+
+	s.log.Error("Error encountered with rpc request", logFields...)
+
 	w.WriteHeader(jsonErr.HTTPCode)
-	r.writeServerResponse(w, response)
+	s.writeServerResponse(r, w, response)
 }
 
 // WriteResponse encodes the response and writes it to the ResponseWriter.
-func (r Request) WriteResponse(w http.ResponseWriter, result interface{}) {
+func (s *Server) WriteResponse(r *Request, w http.ResponseWriter, result interface{}) {
 	response := Response{
 		JSONRPC: r.JSONRPC,
 		Result:  result,
 		ID:      r.RawID,
 	}
 
-	r.writeServerResponse(w, response)
+	s.writeServerResponse(r, w, response)
 }
 
-func (r Request) writeServerResponse(w http.ResponseWriter, response Response) {
+func (s *Server) writeServerResponse(r *Request, w http.ResponseWriter, response Response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if r.enableCORSWorkaround {
+	if s.config.EnableCORSWorkaround {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
 	}
@@ -120,12 +120,9 @@ func (r Request) writeServerResponse(w http.ResponseWriter, response Response) {
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(response)
 
-	logFields := log.Fields{
-		"err":    err,
-		"method": r.Method,
-	}
-
 	if err != nil {
-		log.WithFields(logFields).Error("Error encountered while encoding response")
+		s.log.Error("Error encountered while encoding response",
+			zap.String("err", err.Error()),
+			zap.String("method", r.Method))
 	}
 }

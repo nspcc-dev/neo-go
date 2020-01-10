@@ -35,7 +35,8 @@ import (
  */
 
 func TestStorageFind(t *testing.T) {
-	v, contractState, context := createVMAndContractState(t)
+	v, contractState, context, chain := createVMAndContractState(t)
+	defer chain.Close()
 
 	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}}
 	items := []*state.StorageItem{
@@ -101,7 +102,8 @@ func TestStorageFind(t *testing.T) {
 }
 
 func TestHeaderGetVersion(t *testing.T) {
-	v, block, context := createVMAndPushBlock(t)
+	v, block, context, chain := createVMAndPushBlock(t)
+	defer chain.Close()
 
 	err := context.headerGetVersion(v)
 	require.NoError(t, err)
@@ -112,7 +114,9 @@ func TestHeaderGetVersion(t *testing.T) {
 func TestHeaderGetVersion_Negative(t *testing.T) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil)
+	chain := newTestChain(t)
+	defer chain.Close()
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewBoolItem(false))
 
 	err := context.headerGetVersion(v)
@@ -120,7 +124,8 @@ func TestHeaderGetVersion_Negative(t *testing.T) {
 }
 
 func TestHeaderGetConsensusData(t *testing.T) {
-	v, block, context := createVMAndPushBlock(t)
+	v, block, context, chain := createVMAndPushBlock(t)
+	defer chain.Close()
 
 	err := context.headerGetConsensusData(v)
 	require.NoError(t, err)
@@ -129,7 +134,8 @@ func TestHeaderGetConsensusData(t *testing.T) {
 }
 
 func TestHeaderGetMerkleRoot(t *testing.T) {
-	v, block, context := createVMAndPushBlock(t)
+	v, block, context, chain := createVMAndPushBlock(t)
+	defer chain.Close()
 
 	err := context.headerGetMerkleRoot(v)
 	require.NoError(t, err)
@@ -138,7 +144,8 @@ func TestHeaderGetMerkleRoot(t *testing.T) {
 }
 
 func TestHeaderGetNextConsensus(t *testing.T) {
-	v, block, context := createVMAndPushBlock(t)
+	v, block, context, chain := createVMAndPushBlock(t)
+	defer chain.Close()
 
 	err := context.headerGetNextConsensus(v)
 	require.NoError(t, err)
@@ -147,7 +154,8 @@ func TestHeaderGetNextConsensus(t *testing.T) {
 }
 
 func TestTxGetAttributes(t *testing.T) {
-	v, tx, context := createVMAndPushTX(t)
+	v, tx, context, chain := createVMAndPushTX(t)
+	defer chain.Close()
 
 	err := context.txGetAttributes(v)
 	require.NoError(t, err)
@@ -156,7 +164,8 @@ func TestTxGetAttributes(t *testing.T) {
 }
 
 func TestTxGetInputs(t *testing.T) {
-	v, tx, context := createVMAndPushTX(t)
+	v, tx, context, chain := createVMAndPushTX(t)
+	defer chain.Close()
 
 	err := context.txGetInputs(v)
 	require.NoError(t, err)
@@ -165,7 +174,8 @@ func TestTxGetInputs(t *testing.T) {
 }
 
 func TestTxGetOutputs(t *testing.T) {
-	v, tx, context := createVMAndPushTX(t)
+	v, tx, context, chain := createVMAndPushTX(t)
+	defer chain.Close()
 
 	err := context.txGetOutputs(v)
 	require.NoError(t, err)
@@ -174,7 +184,8 @@ func TestTxGetOutputs(t *testing.T) {
 }
 
 func TestTxGetType(t *testing.T) {
-	v, tx, context := createVMAndPushTX(t)
+	v, tx, context, chain := createVMAndPushTX(t)
+	defer chain.Close()
 
 	err := context.txGetType(v)
 	require.NoError(t, err)
@@ -183,7 +194,8 @@ func TestTxGetType(t *testing.T) {
 }
 
 func TestInvocationTxGetScript(t *testing.T) {
-	v, tx, context := createVMAndPushTX(t)
+	v, tx, context, chain := createVMAndPushTX(t)
+	defer chain.Close()
 
 	err := context.invocationTxGetScript(v)
 	require.NoError(t, err)
@@ -197,7 +209,10 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
 	witness := transaction.Witness{InvocationScript: nil, VerificationScript: script}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 	v.Estack().PushVal(vm.NewInteropItem(&witness))
 	err := context.witnessGetVerificationScript(v)
 	require.NoError(t, err)
@@ -206,7 +221,8 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 }
 
 func TestPopInputFromVM(t *testing.T) {
-	v, tx, _ := createVMAndTX(t)
+	v, tx, _, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	input, err := popInputFromVM(v)
@@ -215,7 +231,8 @@ func TestPopInputFromVM(t *testing.T) {
 }
 
 func TestInputGetHash(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	err := context.inputGetHash(v)
@@ -225,7 +242,8 @@ func TestInputGetHash(t *testing.T) {
 }
 
 func TestInputGetIndex(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
 
 	err := context.inputGetIndex(v)
@@ -235,7 +253,8 @@ func TestInputGetIndex(t *testing.T) {
 }
 
 func TestPopOutputFromVM(t *testing.T) {
-	v, tx, _ := createVMAndTX(t)
+	v, tx, _, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	output, err := popOutputFromVM(v)
@@ -244,7 +263,8 @@ func TestPopOutputFromVM(t *testing.T) {
 }
 
 func TestOutputGetAssetID(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetAssetID(v)
@@ -254,7 +274,8 @@ func TestOutputGetAssetID(t *testing.T) {
 }
 
 func TestOutputGetScriptHash(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetScriptHash(v)
@@ -264,7 +285,8 @@ func TestOutputGetScriptHash(t *testing.T) {
 }
 
 func TestOutputGetValue(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
 
 	err := context.outputGetValue(v)
@@ -274,7 +296,8 @@ func TestOutputGetValue(t *testing.T) {
 }
 
 func TestAttrGetData(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
 
 	err := context.attrGetData(v)
@@ -284,7 +307,8 @@ func TestAttrGetData(t *testing.T) {
 }
 
 func TestAttrGetUsage(t *testing.T) {
-	v, tx, context := createVMAndTX(t)
+	v, tx, context, chain := createVMAndTX(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
 
 	err := context.attrGetUsage(v)
@@ -294,7 +318,8 @@ func TestAttrGetUsage(t *testing.T) {
 }
 
 func TestAccountGetScriptHash(t *testing.T) {
-	v, accState, context := createVMAndAccState(t)
+	v, accState, context, chain := createVMAndAccState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(accState))
 
 	err := context.accountGetScriptHash(v)
@@ -304,7 +329,8 @@ func TestAccountGetScriptHash(t *testing.T) {
 }
 
 func TestAccountGetVotes(t *testing.T) {
-	v, accState, context := createVMAndAccState(t)
+	v, accState, context, chain := createVMAndAccState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(accState))
 
 	err := context.accountGetVotes(v)
@@ -314,7 +340,8 @@ func TestAccountGetVotes(t *testing.T) {
 }
 
 func TestContractGetScript(t *testing.T) {
-	v, contractState, context := createVMAndContractState(t)
+	v, contractState, context, chain := createVMAndContractState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(contractState))
 
 	err := context.contractGetScript(v)
@@ -324,7 +351,8 @@ func TestContractGetScript(t *testing.T) {
 }
 
 func TestContractIsPayable(t *testing.T) {
-	v, contractState, context := createVMAndContractState(t)
+	v, contractState, context, chain := createVMAndContractState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(contractState))
 
 	err := context.contractIsPayable(v)
@@ -334,7 +362,8 @@ func TestContractIsPayable(t *testing.T) {
 }
 
 func TestAssetGetAdmin(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetAdmin(v)
@@ -344,7 +373,8 @@ func TestAssetGetAdmin(t *testing.T) {
 }
 
 func TestAssetGetAmount(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetAmount(v)
@@ -354,7 +384,8 @@ func TestAssetGetAmount(t *testing.T) {
 }
 
 func TestAssetGetAssetID(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetAssetID(v)
@@ -364,7 +395,8 @@ func TestAssetGetAssetID(t *testing.T) {
 }
 
 func TestAssetGetAssetType(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetAssetType(v)
@@ -374,7 +406,8 @@ func TestAssetGetAssetType(t *testing.T) {
 }
 
 func TestAssetGetAvailable(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetAvailable(v)
@@ -384,7 +417,8 @@ func TestAssetGetAvailable(t *testing.T) {
 }
 
 func TestAssetGetIssuer(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetIssuer(v)
@@ -394,7 +428,8 @@ func TestAssetGetIssuer(t *testing.T) {
 }
 
 func TestAssetGetOwner(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetOwner(v)
@@ -404,7 +439,8 @@ func TestAssetGetOwner(t *testing.T) {
 }
 
 func TestAssetGetPrecision(t *testing.T) {
-	v, assetState, context := createVMAndAssetState(t)
+	v, assetState, context, chain := createVMAndAssetState(t)
+	defer chain.Close()
 	v.Estack().PushVal(vm.NewInteropItem(assetState))
 
 	err := context.assetGetPrecision(v)
@@ -415,21 +451,22 @@ func TestAssetGetPrecision(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
 
-func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext) {
+func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext, *Blockchain) {
 	v := vm.New()
 	block := newDumbBlock()
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), block, nil)
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), block, nil)
 	v.Estack().PushVal(vm.NewInteropItem(block))
-	return v, block, context
+	return v, block, context, chain
 }
 
-func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext) {
-	v, tx, context := createVMAndTX(t)
+func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext, *Blockchain) {
+	v, tx, context, chain := createVMAndTX(t)
 	v.Estack().PushVal(vm.NewInteropItem(tx))
-	return v, tx, context
+	return v, tx, context, chain
 }
 
-func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext) {
+func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext, *Blockchain) {
 	v := vm.New()
 	assetState := &state.Asset{
 		ID:         util.Uint256{},
@@ -447,11 +484,12 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext)
 		IsFrozen:   false,
 	}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
-	return v, assetState, context
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
+	return v, assetState, context, chain
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopContext) {
+func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopContext, *Blockchain) {
 	v := vm.New()
 	contractState := &state.Contract{
 		Script:      []byte("testscript"),
@@ -465,11 +503,12 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopCo
 		Description: random.String(10),
 	}
 
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
-	return v, contractState, context
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
+	return v, contractState, context, chain
 }
 
-func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext) {
+func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext, *Blockchain) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
@@ -479,11 +518,12 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext)
 	accountState.Votes = []*keys.PublicKey{key}
 
 	require.NoError(t, err)
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, nil)
-	return v, accountState, context
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
+	return v, accountState, context, chain
 }
 
-func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext) {
+func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext, *Blockchain) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 	tx := transaction.NewInvocationTX(script, 0)
@@ -509,6 +549,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	tx.Attributes = attributes
 	tx.Inputs = inputs
 	tx.Outputs = outputs
-	context := newInteropContext(trigger.Application, newTestChain(t), storage.NewMemoryStore(), nil, tx)
-	return v, tx, context
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, tx)
+	return v, tx, context, chain
 }

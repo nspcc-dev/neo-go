@@ -21,7 +21,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // Tuning parameters.
@@ -80,13 +80,19 @@ type Blockchain struct {
 
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
+
+	log *zap.Logger
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage.
-func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.Logger) (*Blockchain, error) {
+	if log == nil {
+		return nil, errors.New("empty logger")
+	}
+
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           newDao(s),
@@ -96,6 +102,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration) (*Blockcha
 		runToExitCh:   make(chan struct{}),
 		memPool:       NewMemPool(50000),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
+		log:           log,
 	}
 
 	if err := bc.init(); err != nil {
@@ -109,7 +116,7 @@ func (bc *Blockchain) init() error {
 	// If we could not find the version in the Store, we know that there is nothing stored.
 	ver, err := bc.dao.GetVersion()
 	if err != nil {
-		log.Infof("no storage version found! creating genesis block")
+		bc.log.Info("no storage version found! creating genesis block")
 		if err = bc.dao.PutVersion(version); err != nil {
 			return err
 		}
@@ -131,7 +138,7 @@ func (bc *Blockchain) init() error {
 	// At this point there was no version found in the storage which
 	// implies a creating fresh storage with the version specified
 	// and the genesis block as first block.
-	log.Infof("restoring blockchain with version: %s", version)
+	bc.log.Info("restoring blockchain", zap.String("version", version))
 
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
@@ -200,10 +207,10 @@ func (bc *Blockchain) Run() {
 	defer func() {
 		persistTimer.Stop()
 		if err := bc.persist(); err != nil {
-			log.Warnf("failed to persist: %s", err)
+			bc.log.Warn("failed to persist", zap.Error(err))
 		}
 		if err := bc.dao.store.Close(); err != nil {
-			log.Warnf("failed to close db: %s", err)
+			bc.log.Warn("failed to close db", zap.Error(err))
 		}
 		close(bc.runToExitCh)
 	}()
@@ -218,7 +225,7 @@ func (bc *Blockchain) Run() {
 			go func() {
 				err := bc.persist()
 				if err != nil {
-					log.Warnf("failed to persist blockchain: %s", err)
+					bc.log.Warn("failed to persist blockchain", zap.Error(err))
 				}
 			}()
 			persistTimer.Reset(persistInterval)
@@ -302,11 +309,10 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 			if err = bc.dao.store.PutBatch(batch); err != nil {
 				return
 			}
-			log.WithFields(log.Fields{
-				"headerIndex": headerList.Len() - 1,
-				"blockHeight": bc.BlockHeight(),
-				"took":        time.Since(start),
-			}).Debug("done processing headers")
+			bc.log.Debug("done processing headers",
+				zap.Int("headerIndex", headerList.Len()-1),
+				zap.Uint32("blockHeight", bc.BlockHeight()),
+				zap.Duration("took", time.Since(start)))
 		}
 	}
 	<-bc.headersOpDone
@@ -502,7 +508,7 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 				return err
 			}
 		case *transaction.InvocationTX:
-			systemInterop := newInteropContext(trigger.Application, bc, cache.store, block, tx)
+			systemInterop := bc.newInteropContext(trigger.Application, cache.store, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
@@ -537,11 +543,10 @@ func (bc *Blockchain) storeBlock(block *Block) error {
 					_, _, _, _ = op, from, to, amount
 				}
 			} else {
-				log.WithFields(log.Fields{
-					"tx":    tx.Hash().StringLE(),
-					"block": block.Index,
-					"err":   err,
-				}).Warn("contract invocation failed")
+				bc.log.Warn("contract invocation failed",
+					zap.String("tx", tx.Hash().StringLE()),
+					zap.Uint32("block", block.Index),
+					zap.Error(err))
 			}
 			aer := &state.AppExecResult{
 				TxHash:      tx.Hash(),
@@ -710,13 +715,12 @@ func (bc *Blockchain) persist() error {
 		if err != nil {
 			return err
 		}
-		log.WithFields(log.Fields{
-			"persistedBlocks": diff,
-			"persistedKeys":   persisted,
-			"headerHeight":    storedHeaderHeight,
-			"blockHeight":     bHeight,
-			"took":            time.Since(start),
-		}).Info("blockchain persist completed")
+		bc.log.Info("blockchain persist completed",
+			zap.Uint32("persistedBlocks", diff),
+			zap.Int("persistedKeys", persisted),
+			zap.Uint32("headerHeight", storedHeaderHeight),
+			zap.Uint32("blockHeight", bHeight),
+			zap.Duration("took", time.Since(start)))
 
 		// update monitoring metrics.
 		updatePersistedHeightMetric(bHeight)
@@ -849,7 +853,9 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
 	asset, err := bc.dao.GetAssetState(assetID)
 	if asset == nil && err != storage.ErrKeyNotFound {
-		log.Warnf("failed to get asset state %s : %s", assetID, err)
+		bc.log.Warn("failed to get asset state",
+			zap.Stringer("asset", assetID),
+			zap.Error(err))
 	}
 	return asset
 }
@@ -858,7 +864,7 @@ func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err := bc.dao.GetContractState(hash)
 	if contract == nil && err != storage.ErrKeyNotFound {
-		log.Warnf("failed to get contract state: %s", err)
+		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
 	return contract
 }
@@ -867,7 +873,7 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 	as, err := bc.dao.GetAccountState(scriptHash)
 	if as == nil && err != storage.ErrKeyNotFound {
-		log.Warnf("failed to get account state: %s", err)
+		bc.log.Warn("failed to get account state", zap.Error(err))
 	}
 	return as
 }
@@ -876,7 +882,7 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
 	ucs, err := bc.dao.GetUnspentCoinState(hash)
 	if ucs == nil && err != storage.ErrKeyNotFound {
-		log.Warnf("failed to get unspent coin state: %s", err)
+		bc.log.Warn("failed to get unspent coin state", zap.Error(err))
 	}
 	return ucs
 }
@@ -1367,7 +1373,7 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	tmpStore := storage.NewMemCachedStore(bc.dao.store)
-	systemInterop := newInteropContext(trigger.Application, bc, tmpStore, nil, nil)
+	systemInterop := bc.newInteropContext(trigger.Application, tmpStore, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
 	return vm, tmpStore
 }
@@ -1446,7 +1452,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
-	interopCtx := newInteropContext(trigger.Verification, bc, bc.dao.store, block, t)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
 		if err != nil {
@@ -1466,7 +1472,7 @@ func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) err
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := newInteropContext(trigger.Verification, bc, bc.dao.store, nil, nil)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, nil, nil)
 	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx, true)
 }
 
@@ -1479,4 +1485,8 @@ func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 
 func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
+}
+
+func (bc *Blockchain) newInteropContext(trigger byte, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
+	return newInteropContext(trigger, bc, s, block, tx, bc.log)
 }
