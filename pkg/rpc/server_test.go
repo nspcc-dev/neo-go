@@ -417,6 +417,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 func TestRPC(t *testing.T) {
 	chain, handler := initServerWithInMemoryChain(t)
 
+	defer chain.Close()
+
 	e := &executor{chain: chain, handler: handler}
 	for method, cases := range rpcTestCases {
 		t.Run(method, func(t *testing.T) {
