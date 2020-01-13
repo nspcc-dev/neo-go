@@ -12,7 +12,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
-	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -89,9 +88,9 @@ type StringResultResponse struct {
 
 // GetBlockResponse struct for testing.
 type GetBlockResponse struct {
-	Jsonrpc string         `json:"jsonrpc"`
-	Result  wrappers.Block `json:"result"`
-	ID      int            `json:"id"`
+	Jsonrpc string       `json:"jsonrpc"`
+	Result  result.Block `json:"result"`
+	ID      int          `json:"id"`
 }
 
 // GetAssetResponse struct for testing.

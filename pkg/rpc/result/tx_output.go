@@ -1,4 +1,4 @@
-package wrappers
+package result
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"

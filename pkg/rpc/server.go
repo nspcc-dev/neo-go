@@ -15,7 +15,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
-	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -153,7 +152,7 @@ Methods:
 		}
 
 		if len(reqParams) == 2 && reqParams[1].Value == 1 {
-			results = wrappers.NewBlock(block, s.chain)
+			results = result.NewBlock(block, s.chain)
 		} else {
 			writer := io.NewBufBinWriter()
 			block.EncodeBinary(writer.BinWriter)
@@ -228,7 +227,7 @@ Methods:
 
 		as := s.chain.GetAssetState(paramAssetID)
 		if as != nil {
-			results = wrappers.NewAssetState(as)
+			results = result.NewAssetState(as)
 		} else {
 			resultsErr = NewRPCError("Unknown asset", "", nil)
 		}
@@ -334,10 +333,10 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 			if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
 				results = hex.EncodeToString(tx.Bytes())
 			} else {
-				results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+				results = result.NewTransactionOutputRaw(tx, header, s.chain)
 			}
 		default:
-			results = wrappers.NewTransactionOutputRaw(tx, header, s.chain)
+			results = result.NewTransactionOutputRaw(tx, header, s.chain)
 		}
 	} else {
 		results = hex.EncodeToString(tx.Bytes())
@@ -377,7 +376,7 @@ func (s *Server) getTxOut(ps Params) (interface{}, error) {
 	}
 
 	out := tx.Outputs[num]
-	return wrappers.NewTxOutput(&out), nil
+	return result.NewTxOutput(&out), nil
 }
 
 // getContractState returns contract state (contract information, according to the contract script hash).
@@ -392,7 +391,7 @@ func (s *Server) getContractState(reqParams Params) (interface{}, error) {
 	} else {
 		cs := s.chain.GetContractState(scriptHash)
 		if cs != nil {
-			results = wrappers.NewContractState(cs)
+			results = result.NewContractState(cs)
 		} else {
 			return nil, NewRPCError("Unknown contract", "", nil)
 		}
@@ -420,9 +419,9 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 			if err != nil {
 				return nil, errInvalidParams
 			}
-			results = wrappers.NewUnspents(as, s.chain, str)
+			results = result.NewUnspents(as, s.chain, str)
 		} else {
-			results = wrappers.NewAccountState(as)
+			results = result.NewAccountState(as)
 		}
 	}
 	return results, resultsErr

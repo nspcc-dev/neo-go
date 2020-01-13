@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
+	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
@@ -31,8 +31,8 @@ type AccountStateResponse struct {
 // UnspentResponse represents server response to the `getunspents` command.
 type UnspentResponse struct {
 	responseHeader
-	Error  *Error             `json:"error,omitempty"`
-	Result *wrappers.Unspents `json:"result,omitempty"`
+	Error  *Error           `json:"error,omitempty"`
+	Result *result.Unspents `json:"result,omitempty"`
 }
 
 // Account represents details about a NEO account.
@@ -100,7 +100,7 @@ type GetRawTxResponse struct {
 type GetTxOutResponse struct {
 	responseHeader
 	Error  *Error
-	Result *wrappers.TransactionOutput
+	Result *result.TransactionOutput
 }
 
 // RawTxResponse stores transaction with blockchain metadata to be sent as a response.
