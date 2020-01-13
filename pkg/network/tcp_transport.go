@@ -88,7 +88,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	r := io.NewBinReaderFromIO(p.conn)
 	for {
 		msg := &Message{}
-		err := msg.Decode(r)
+		err = msg.Decode(r)
 
 		if err == payload.ErrTooManyHeaders {
 			t.log.Warn("not all headers were processed")
