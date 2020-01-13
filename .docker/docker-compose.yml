@@ -69,3 +69,19 @@ services:
       -  20336:20336
       -  30336:30336
       -  20004:20004
+  node_single:
+    container_name: neo_go_node_single
+    image: env_neo_go_image
+    command: "node --config-path /config --privnet"
+    volumes:
+      - ../config/protocol.privnet.docker.single.yml:/config/protocol.privnet.yml
+      - volume_chain:/chains
+      - ./1600-privnet-blocks-single.acc.gz:/privnet-blocks.acc.gz
+    networks:
+      neo_go_network:
+        ipv4_address: 172.200.0.1
+    ports:
+      -  20333:20333
+      -  30333:30333
+      -  20001:20001
+

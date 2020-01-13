@@ -1,0 +1,53 @@
+ProtocolConfiguration:
+  Magic: 56753
+  AddressVersion: 23
+  SecondsPerBlock: 1
+  LowPriorityThreshold: 0.001
+  StandbyValidators:
+    - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
+  SeedList:
+    - 172.200.0.1:20333
+  SystemFee:
+    EnrollmentTransaction: 1000
+    IssueTransaction: 500
+    PublishTransaction: 500
+    RegisterTransaction: 10000
+  VerifyBlocks: true
+  VerifyTransactions: true
+
+ApplicationConfiguration:
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','redis','boltdb'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+      DataDirectoryPath: "/chains/single"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/privnet.bolt"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: 127.0.0.1
+  NodePort: 20333
+  Relay: true
+  DialTimeout: 3
+  ProtoTickInterval: 2
+  MaxPeers: 10
+  AttemptConnPeers: 5
+  MinPeers: 0
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 30333
+  Prometheus:
+    Enabled: true
+    Port: 20001
+  Pprof:
+    Enabled: false
+    Port: 20011
+  UnlockWallet:
+    Path: "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y"
+    Password: "one"

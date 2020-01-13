@@ -117,7 +117,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 
 	s.consensus = srv
 
-	if s.MinPeers <= 0 {
+	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
 			zap.Int("configured", s.MinPeers),
 			zap.Int("actual", defaultMinPeers))
@@ -157,6 +157,8 @@ func (s *Server) Start(errChan chan error) {
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
+
+	s.tryStartConsensus()
 
 	s.discovery.BackFill(s.Seeds...)
 

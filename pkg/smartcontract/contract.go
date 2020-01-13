@@ -12,7 +12,7 @@ import (
 
 // CreateMultiSigRedeemScript creates a script runnable by the VM.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
-	if m <= 1 {
+	if m < 1 {
 		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)
 	}
 	if m > len(publicKeys) {

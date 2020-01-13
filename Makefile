@@ -107,6 +107,10 @@ env_up:
 	@echo "=> Bootup environment"
 	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
 
+env_single:
+	@echo "=> Bootup environment"
+	@docker-compose -f $(DC_FILE) up -d node_single
+
 env_down:
 	@echo "=> Stop environment"
 	@docker-compose -f $(DC_FILE) down
