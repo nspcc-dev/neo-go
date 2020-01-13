@@ -108,6 +108,8 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		Chain:      chain,
 		RequestTx:  s.requestTx,
 		Wallet:     config.Wallet,
+
+		TimePerBlock: config.TimePerBlock,
 	})
 	if err != nil {
 		return nil

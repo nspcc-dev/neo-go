@@ -57,6 +57,9 @@ type (
 
 		// Wallet is a wallet configuration.
 		Wallet *config.WalletConfig
+
+		// TimePerBlock is an interval which should pass between two successive blocks.
+		TimePerBlock time.Duration
 	}
 )
 
@@ -84,5 +87,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		AttemptConnPeers:  appConfig.AttemptConnPeers,
 		MinPeers:          appConfig.MinPeers,
 		Wallet:            wc,
+		TimePerBlock:      time.Duration(protoConfig.SecondsPerBlock) * time.Second,
 	}
 }
