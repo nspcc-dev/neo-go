@@ -99,7 +99,7 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 }
 
 func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Params) {
-	s.log.Info("processing rpc request",
+	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
 		zap.String("params", fmt.Sprintf("%v", reqParams)))
 

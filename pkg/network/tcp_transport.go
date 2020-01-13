@@ -82,22 +82,22 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	t.server.register <- p
 
 	// When a new peer is connected we send out our version immediately.
-	if err := t.server.sendVersion(p); err != nil {
-		t.log.Error("error on sendVersion", zap.Stringer("addr", p.RemoteAddr()), zap.Error(err))
-	}
-	r := io.NewBinReaderFromIO(p.conn)
-	for {
-		msg := &Message{}
-		err = msg.Decode(r)
+	err = t.server.sendVersion(p)
+	if err == nil {
+		r := io.NewBinReaderFromIO(p.conn)
+		for {
+			msg := &Message{}
+			err = msg.Decode(r)
 
-		if err == payload.ErrTooManyHeaders {
-			t.log.Warn("not all headers were processed")
-			r.Err = nil
-		} else if err != nil {
-			break
-		}
-		if err = t.server.handleMessage(p, msg); err != nil {
-			break
+			if err == payload.ErrTooManyHeaders {
+				t.log.Warn("not all headers were processed")
+				r.Err = nil
+			} else if err != nil {
+				break
+			}
+			if err = t.server.handleMessage(p, msg); err != nil {
+				break
+			}
 		}
 	}
 	t.server.unregister <- peerDrop{p, err}

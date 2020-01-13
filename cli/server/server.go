@@ -134,6 +134,7 @@ func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	cc.Encoding = "console"
 	cc.Level = zap.NewAtomicLevelAt(level)
+	cc.Sampling = nil
 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
