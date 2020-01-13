@@ -14,7 +14,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
+	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -527,7 +527,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			result: func(*executor) interface{} {
 				return &ValidateAddrResponse{
 					Jsonrpc: defaultJSONRPC,
-					Result: wrappers.ValidateAddressResponse{
+					Result: result.ValidateAddress{
 						Address: float64(1),
 						IsValid: false,
 					},

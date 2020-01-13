@@ -50,9 +50,9 @@ type InvokeFunctionResponse struct {
 
 // ValidateAddrResponse struct for testing.
 type ValidateAddrResponse struct {
-	Jsonrpc string                           `json:"jsonrpc"`
-	Result  wrappers.ValidateAddressResponse `json:"result"`
-	ID      int                              `json:"id"`
+	Jsonrpc string                 `json:"jsonrpc"`
+	Result  result.ValidateAddress `json:"result"`
+	ID      int                    `json:"id"`
 }
 
 // GetPeersResponse struct for testing.

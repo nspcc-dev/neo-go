@@ -555,8 +555,8 @@ func (s *Server) blockHeightFromParam(param *Param) (int, error) {
 
 // validateAddress verifies that the address is a correct NEO address
 // see https://docs.neo.org/en-us/node/cli/2.9.4/api/validateaddress.html
-func validateAddress(addr interface{}) wrappers.ValidateAddressResponse {
-	resp := wrappers.ValidateAddressResponse{Address: addr}
+func validateAddress(addr interface{}) result.ValidateAddress {
+	resp := result.ValidateAddress{Address: addr}
 	if addr, ok := addr.(string); ok {
 		_, err := address.StringToUint160(addr)
 		resp.IsValid = (err == nil)
