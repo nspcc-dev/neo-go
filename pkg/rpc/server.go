@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
@@ -209,7 +210,7 @@ Methods:
 			resultsErr = errInvalidParams
 			break Methods
 		}
-		results = wrappers.ValidateAddress(param.Value)
+		results = validateAddress(param.Value)
 
 	case "getassetstate":
 		getassetstateCalled.Inc()
@@ -550,4 +551,15 @@ func (s *Server) blockHeightFromParam(param *Param) (int, error) {
 		return 0, invalidBlockHeightError(0, num)
 	}
 	return num, nil
+}
+
+// validateAddress verifies that the address is a correct NEO address
+// see https://docs.neo.org/en-us/node/cli/2.9.4/api/validateaddress.html
+func validateAddress(addr interface{}) wrappers.ValidateAddressResponse {
+	resp := wrappers.ValidateAddressResponse{Address: addr}
+	if addr, ok := addr.(string); ok {
+		_, err := address.StringToUint160(addr)
+		resp.IsValid = (err == nil)
+	}
+	return resp
 }
