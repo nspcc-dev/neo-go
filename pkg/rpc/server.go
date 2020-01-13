@@ -486,12 +486,12 @@ func (s *Server) invokescript(reqParams Params) (interface{}, error) {
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
-func (s *Server) runScriptInVM(script []byte) *wrappers.InvokeResult {
+func (s *Server) runScriptInVM(script []byte) *result.Invoke {
 	vm, _ := s.chain.GetTestVM()
 	vm.SetGasLimit(s.config.MaxGasInvoke)
 	vm.LoadScript(script)
 	_ = vm.Run()
-	result := &wrappers.InvokeResult{
+	result := &result.Invoke{
 		State:       vm.State(),
 		GasConsumed: vm.GasConsumed().String(),
 		Script:      hex.EncodeToString(script),
