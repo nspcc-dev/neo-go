@@ -8,6 +8,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -67,7 +68,7 @@ type Config struct {
 	Broadcast func(p *Payload)
 	// RelayBlock is a callback that is called to notify server
 	// about the new block that needs to be broadcasted.
-	RelayBlock func(b *core.Block)
+	RelayBlock func(b *coreb.Block)
 	// Chain is a core.Blockchainer instance.
 	Chain core.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -285,7 +286,7 @@ func (s *service) processBlock(b block.Block) {
 	}
 }
 
-func (s *service) getBlockWitness(b *core.Block) *transaction.Witness {
+func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 	dctx := s.dbft.Context
 	pubs := convertKeys(dctx.Validators)
 	sigs := make(map[*keys.PublicKey][]byte)

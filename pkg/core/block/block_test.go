@@ -1,4 +1,4 @@
-package core
+package block
 
 import (
 	"encoding/hex"
@@ -108,21 +108,21 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := newDumbBlock()
 	assert.NotNil(t, block.Verify())
-	assert.Nil(t, block.rebuildMerkleRoot())
+	assert.Nil(t, block.RebuildMerkleRoot())
 	assert.Nil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.IssueType},
 		{Type: transaction.MinerType},
 	}
-	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},
 		{Type: transaction.MinerType},
 	}
-	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},

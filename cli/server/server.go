@@ -8,6 +8,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -268,7 +269,7 @@ func restoreDB(ctx *cli.Context) error {
 	}
 	for ; i < skip+count; i++ {
 		bytes, err := readBlock(reader)
-		block := &core.Block{}
+		block := &block.Block{}
 		newReader := io.NewBinReaderFromBuf(bytes)
 		block.DecodeBinary(newReader)
 		if err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -400,7 +401,7 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 }
 
 // handleBlockCmd processes the received block received from its peer.
-func (s *Server) handleBlockCmd(p Peer, block *core.Block) error {
+func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	return s.bQueue.putBlock(block)
 }
 
@@ -505,7 +506,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 		return err
 	}
 	resp := payload.Headers{}
-	resp.Hdrs = make([]*core.Header, 0, payload.MaxHeadersAllowed)
+	resp.Hdrs = make([]*block.Header, 0, payload.MaxHeadersAllowed)
 	for i := start.Index + 1; i < start.Index+1+payload.MaxHeadersAllowed; i++ {
 		hash := s.chain.GetHeaderHash(int(i))
 		if hash.Equals(util.Uint256{}) || hash.Equals(gh.HashStop) {
@@ -632,7 +633,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			inventory := msg.Payload.(*payload.Inventory)
 			return s.handleInvCmd(peer, inventory)
 		case CMDBlock:
-			block := msg.Payload.(*core.Block)
+			block := msg.Payload.(*block.Block)
 			return s.handleBlockCmd(peer, block)
 		case CMDConsensus:
 			cp := msg.Payload.(*consensus.Payload)
@@ -689,7 +690,7 @@ func (s *Server) relayInventoryCmd(cmd CommandType, t payload.InventoryType, has
 }
 
 // relayBlock tells all the other connected nodes about the given block.
-func (s *Server) relayBlock(b *core.Block) {
+func (s *Server) relayBlock(b *block.Block) {
 	s.relayInventoryCmd(CMDInv, payload.BlockType, b.Hash())
 }
 

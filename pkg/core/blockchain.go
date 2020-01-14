@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -179,7 +180,7 @@ func (bc *Blockchain) init() error {
 			targetHash = genesisBlock.Hash()
 			bc.headerList.Add(targetHash)
 		}
-		headers := make([]*Header, 0)
+		headers := make([]*block.Header, 0)
 
 		for hash != targetHash {
 			header, err := bc.GetHeader(hash)
@@ -242,7 +243,7 @@ func (bc *Blockchain) Close() {
 
 // AddBlock accepts successive block for the Blockchain, verifies it and
 // stores internally. Eventually it will be persisted to the backing storage.
-func (bc *Blockchain) AddBlock(block *Block) error {
+func (bc *Blockchain) AddBlock(block *block.Block) error {
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
@@ -276,7 +277,7 @@ func (bc *Blockchain) AddBlock(block *Block) error {
 
 // AddHeaders processes the given headers and add them to the
 // HeaderHashList.
-func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
+func (bc *Blockchain) AddHeaders(headers ...*block.Header) (err error) {
 	var (
 		start = time.Now()
 		batch = bc.dao.store.Batch()
@@ -321,7 +322,7 @@ func (bc *Blockchain) AddHeaders(headers ...*Header) (err error) {
 
 // processHeader processes the given header. Note that this is only thread safe
 // if executed in headers operation.
-func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *HeaderHashList) error {
+func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, headerList *HeaderHashList) error {
 	headerList.Add(h.Hash())
 
 	buf := io.NewBufBinWriter()
@@ -352,7 +353,7 @@ func (bc *Blockchain) processHeader(h *Header, batch storage.Batch, headerList *
 // project. This for the sake of development speed and understanding of what
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
-func (bc *Blockchain) storeBlock(block *Block) error {
+func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := newCachedDao(bc.dao.store)
 	if err := cache.StoreAsBlock(block, 0); err != nil {
 		return err
@@ -756,10 +757,10 @@ func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*state.Stor
 }
 
 // GetBlock returns a Block by the given hash.
-func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
+func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*Block); ok && tb.Hash().Equals(hash) {
+		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
 			return tb, nil
 		}
 	}
@@ -782,10 +783,10 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*Block, error) {
 }
 
 // GetHeader returns data block header identified with the given hash value.
-func (bc *Blockchain) GetHeader(hash util.Uint256) (*Header, error) {
+func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	topBlock := bc.topBlock.Load()
 	if topBlock != nil {
-		if tb, ok := topBlock.(*Block); ok && tb.Hash().Equals(hash) {
+		if tb, ok := topBlock.(*block.Block); ok && tb.Hash().Equals(hash) {
 			return tb.Header(), nil
 		}
 	}
@@ -955,7 +956,7 @@ func (bc *Blockchain) GetMemPool() MemPool {
 }
 
 // VerifyBlock verifies block against its current state.
-func (bc *Blockchain) VerifyBlock(block *Block) error {
+func (bc *Blockchain) VerifyBlock(block *block.Block) error {
 	prevHeader, err := bc.GetHeader(block.PrevHash)
 	if err != nil {
 		return errors.Wrap(err, "unable to get previous header")
@@ -973,7 +974,7 @@ func (bc *Blockchain) VerifyBlock(block *Block) error {
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *Block) error {
+func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *block.Block) error {
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
@@ -1440,7 +1441,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 // Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file.
-func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block) error {
+func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {
 		return err
@@ -1465,7 +1466,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *Block
 }
 
 // verifyBlockWitnesses is a block-specific implementation of VerifyWitnesses logic.
-func (bc *Blockchain) verifyBlockWitnesses(block *Block, prevHeader *Header) error {
+func (bc *Blockchain) verifyBlockWitnesses(block *block.Block, prevHeader *block.Header) error {
 	var hash util.Uint160
 	if prevHeader == nil && block.PrevHash.Equals(util.Uint256{}) {
 		hash = block.Script.ScriptHash()
@@ -1487,6 +1488,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger byte, s storage.Store, block *Block, tx *transaction.Transaction) *interopContext {
+func (bc *Blockchain) newInteropContext(trigger byte, s storage.Store, block *block.Block, tx *transaction.Transaction) *interopContext {
 	return newInteropContext(trigger, bc, s, block, tx, bc.log)
 }

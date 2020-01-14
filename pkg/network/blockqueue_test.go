@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zaptest"
 )
@@ -13,9 +13,9 @@ func TestBlockQueue(t *testing.T) {
 	chain := &testChain{}
 	// notice, it's not yet running
 	bq := newBlockQueue(0, chain, zaptest.NewLogger(t))
-	blocks := make([]*core.Block, 11)
+	blocks := make([]*block.Block, 11)
 	for i := 1; i < 11; i++ {
-		blocks[i] = &core.Block{BlockBase: core.BlockBase{Index: uint32(i)}}
+		blocks[i] = &block.Block{BlockBase: block.BlockBase{Index: uint32(i)}}
 	}
 	// not the ones expected currently
 	for i := 3; i < 5; i++ {

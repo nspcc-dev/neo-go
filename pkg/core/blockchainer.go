@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -14,15 +15,15 @@ import (
 // of the blockchain.
 type Blockchainer interface {
 	GetConfig() config.ProtocolConfiguration
-	AddHeaders(...*Header) error
-	AddBlock(*Block) error
+	AddHeaders(...*block.Header) error
+	AddBlock(*block.Block) error
 	BlockHeight() uint32
 	Close()
 	HeaderHeight() uint32
-	GetBlock(hash util.Uint256) (*Block, error)
+	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetHeaderHash(int) util.Uint256
-	GetHeader(hash util.Uint256) (*Header, error)
+	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
@@ -38,6 +39,6 @@ type Blockchainer interface {
 	GetUnspentCoinState(util.Uint256) *UnspentCoinState
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	Feer // fee interface
-	VerifyTx(*transaction.Transaction, *Block) error
+	VerifyTx(*transaction.Transaction, *block.Block) error
 	GetMemPool() MemPool
 }

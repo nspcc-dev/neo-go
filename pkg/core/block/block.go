@@ -1,4 +1,4 @@
-package core
+package block
 
 import (
 	"errors"
@@ -39,8 +39,8 @@ func merkleTreeFromTransactions(txes []*transaction.Transaction) (*hash.MerkleTr
 	return hash.NewMerkleTree(hashes)
 }
 
-// rebuildMerkleRoot rebuilds the merkleroot of the block.
-func (b *Block) rebuildMerkleRoot() error {
+// RebuildMerkleRoot rebuilds the merkleroot of the block.
+func (b *Block) RebuildMerkleRoot() error {
 	merkle, err := merkleTreeFromTransactions(b.Transactions)
 	if err != nil {
 		return err

@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core"
+	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/dbft/block"
@@ -11,7 +11,7 @@ import (
 // neoBlock is a wrapper of core.Block which implements
 // methods necessary for dBFT library.
 type neoBlock struct {
-	core.Block
+	coreb.Block
 
 	signature []byte
 }
