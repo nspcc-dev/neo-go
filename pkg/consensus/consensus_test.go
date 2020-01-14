@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/dbft/block"
+	"github.com/nspcc-dev/dbft/payload"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -26,6 +27,53 @@ func TestNewService(t *testing.T) {
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
 	require.Len(t, txx, 2)
 	require.Equal(t, tx, txx[1])
+}
+
+func TestService_GetVerified(t *testing.T) {
+	srv := newTestService(t)
+	txs := []*transaction.Transaction{
+		newMinerTx(1),
+		newMinerTx(2),
+		newMinerTx(3),
+		newMinerTx(4),
+	}
+	pool := srv.Chain.GetMemPool()
+	item := core.NewPoolItem(txs[3], new(feer))
+
+	require.True(t, pool.TryAdd(txs[3].Hash(), item))
+
+	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
+
+	p := new(Payload)
+	p.SetType(payload.PrepareRequestType)
+	p.SetPayload(&prepareRequest{transactionHashes: hashes})
+	p.SetValidatorIndex(1)
+
+	priv, _ := getTestValidator(1)
+	require.NoError(t, p.Sign(priv))
+
+	srv.OnPayload(p)
+	require.Equal(t, hashes, srv.lastProposal)
+
+	srv.dbft.ViewNumber = 1
+
+	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
+		txx := srv.getVerifiedTx(10)
+		require.Equal(t, 2, len(txx), "there is only 1 tx in mempool")
+		require.Equal(t, txs[3], txx[1])
+	})
+
+	t.Run("more than half of the last proposal will be reused", func(t *testing.T) {
+		for _, tx := range txs[:2] {
+			item := core.NewPoolItem(tx, new(feer))
+			require.True(t, pool.TryAdd(tx.Hash(), item))
+		}
+
+		txx := srv.getVerifiedTx(10)
+		require.Contains(t, txx, txs[0])
+		require.Contains(t, txx, txs[1])
+		require.NotContains(t, txx, txs[2])
+	})
 }
 
 func TestService_ValidatePayload(t *testing.T) {

@@ -55,6 +55,7 @@ type service struct {
 	// everything in single thread.
 	messages     chan Payload
 	transactions chan *transaction.Transaction
+	lastProposal []util.Uint256
 }
 
 // Config is a configuration for consensus services.
@@ -205,7 +206,9 @@ func (s *service) OnPayload(cp *Payload) {
 	// we use switch here because other payloads could be possibly added in future
 	switch cp.Type() {
 	case payload.PrepareRequestType:
-		s.txx.Add(&cp.GetPrepareRequest().(*prepareRequest).minerTx)
+		req := cp.GetPrepareRequest().(*prepareRequest)
+		s.txx.Add(&req.minerTx)
+		s.lastProposal = req.transactionHashes
 	}
 
 	s.messages <- *cp
@@ -328,7 +331,23 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 
 func (s *service) getVerifiedTx(count int) []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
-	txx := pool.GetVerifiedTransactions()
+
+	var txx []*transaction.Transaction
+
+	if s.dbft.ViewNumber > 0 {
+		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
+		for i := range s.lastProposal {
+			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+				txx = append(txx, tx)
+			}
+		}
+
+		if len(txx) < len(s.lastProposal)/2 {
+			txx = pool.GetVerifiedTransactions()
+		}
+	} else {
+		txx = pool.GetVerifiedTransactions()
+	}
 
 	res := make([]block.Transaction, len(txx)+1)
 	for i := range txx {
