@@ -7,6 +7,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
@@ -17,11 +19,11 @@ import (
 // missing output wrapper at the moment, thus commented out
 // func (c *Client) getBlock(indexOrHash interface{}, verbose bool) (*response, error) {
 // 	var (
-// 		params = newParams(indexOrHash)
+// 		params = request.NewRawParams(indexOrHash)
 // 		resp   = &response{}
 // 	)
 // 	if verbose {
-// 		params = newParams(indexOrHash, 1)
+// 		params = request.NewRawParams(indexOrHash, 1)
 // 	}
 // 	if err := c.performRequest("getblock", params, resp); err != nil {
 // 		return nil, err
@@ -30,10 +32,10 @@ import (
 // }
 
 // GetAccountState returns detailed information about a NEO account.
-func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) {
+func (c *Client) GetAccountState(address string) (*response.AccountState, error) {
 	var (
-		params = newParams(address)
-		resp   = &AccountStateResponse{}
+		params = request.NewRawParams(address)
+		resp   = &response.AccountState{}
 	)
 	if err := c.performRequest("getaccountstate", params, resp); err != nil {
 		return nil, err
@@ -42,10 +44,10 @@ func (c *Client) GetAccountState(address string) (*AccountStateResponse, error) 
 }
 
 // GetUnspents returns UTXOs for the given NEO account.
-func (c *Client) GetUnspents(address string) (*UnspentResponse, error) {
+func (c *Client) GetUnspents(address string) (*response.Unspent, error) {
 	var (
-		params = newParams(address)
-		resp   = &UnspentResponse{}
+		params = request.NewRawParams(address)
+		resp   = &response.Unspent{}
 	)
 	if err := c.performRequest("getunspents", params, resp); err != nil {
 		return nil, err
@@ -55,10 +57,10 @@ func (c *Client) GetUnspents(address string) (*UnspentResponse, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
+func (c *Client) InvokeScript(script string) (*response.InvokeScript, error) {
 	var (
-		params = newParams(script)
-		resp   = &InvokeScriptResponse{}
+		params = request.NewRawParams(script)
+		resp   = &response.InvokeScript{}
 	)
 	if err := c.performRequest("invokescript", params, resp); err != nil {
 		return nil, err
@@ -69,10 +71,10 @@ func (c *Client) InvokeScript(script string) (*InvokeScriptResponse, error) {
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
+func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*response.InvokeScript, error) {
 	var (
-		p    = newParams(script, operation, params)
-		resp = &InvokeScriptResponse{}
+		p    = request.NewRawParams(script, operation, params)
+		resp = &response.InvokeScript{}
 	)
 	if err := c.performRequest("invokefunction", p, resp); err != nil {
 		return nil, err
@@ -82,10 +84,10 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 
 // Invoke returns the results after calling the smart contract scripthash
 // with the given parameters.
-func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*InvokeScriptResponse, error) {
+func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*response.InvokeScript, error) {
 	var (
-		p    = newParams(script, params)
-		resp = &InvokeScriptResponse{}
+		p    = request.NewRawParams(script, params)
+		resp = &response.InvokeScript{}
 	)
 	if err := c.performRequest("invoke", p, resp); err != nil {
 		return nil, err
@@ -97,7 +99,7 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*Invok
 // missing output wrapper at the moment, thus commented out
 // func (c *Client) getRawTransaction(hash string, verbose bool) (*response, error) {
 // 	var (
-// 		params = newParams(hash, verbose)
+// 		params = request.NewRawParams(hash, verbose)
 // 		resp   = &response{}
 // 	)
 // 	if err := c.performRequest("getrawtransaction", params, resp); err != nil {
@@ -110,10 +112,10 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*Invok
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response, error) {
+func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response.Raw, error) {
 	var (
-		params = newParams(hex.EncodeToString(rawTX.Bytes()))
-		resp   = &response{}
+		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
+		resp   = &response.Raw{}
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
 		return nil, err
@@ -124,7 +126,7 @@ func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response, 
 // SendToAddress sends an amount of specific asset to a given address.
 // This call requires open wallet. (`wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*SendToAddressResponse, error) {
+func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*response.SendToAddress, error) {
 	var (
 		err      error
 		rawTx    *transaction.Transaction
@@ -135,23 +137,23 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 			wif:      c.WIF(),
 			balancer: c.Balancer(),
 		}
-		resp     *response
-		response = &SendToAddressResponse{}
+		respRaw *response.Raw
+		resp    = &response.SendToAddress{}
 	)
 
 	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
-	if resp, err = c.sendRawTransaction(rawTx); err != nil {
+	if respRaw, err = c.sendRawTransaction(rawTx); err != nil {
 		return nil, errors.Wrap(err, "failed to send raw transaction")
 	}
-	response.Error = resp.Error
-	response.ID = resp.ID
-	response.JSONRPC = resp.JSONRPC
-	response.Result = &TxResponse{
+	resp.Error = respRaw.Error
+	resp.ID = respRaw.ID
+	resp.JSONRPC = respRaw.JSONRPC
+	resp.Result = &response.Tx{
 		TxID: rawTx.Hash().StringLE(),
 	}
-	return response, nil
+	return resp, nil
 }
 
 // SignAndPushInvocationTx signs and pushes given script as an invocation

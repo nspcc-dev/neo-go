@@ -14,6 +14,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -602,7 +603,7 @@ func TestRPC(t *testing.T) {
 		body := doRPCCall(rpc, handler, t)
 		checkErrResponse(t, body, false)
 
-		var result GetTxOutResponse
+		var result response.GetTxOut
 		err := json.Unmarshal(body, &result)
 		require.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, 0, result.Result.N)

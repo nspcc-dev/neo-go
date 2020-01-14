@@ -1,15 +1,17 @@
-package rpc
+package response
 
 import (
+	"encoding/json"
+
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-// InvokeScriptResponse stores response for the invoke script call.
-type InvokeScriptResponse struct {
-	responseHeader
-	Error  *Error        `json:"error,omitempty"`
+// InvokeScript stores response for the invoke script call.
+type InvokeScript struct {
+	HeaderAndError
 	Result *InvokeResult `json:"result,omitempty"`
 }
 
@@ -19,19 +21,18 @@ type InvokeResult struct {
 	State       vm.State `json:"state"`
 	GasConsumed string   `json:"gas_consumed"`
 	Script      string   `json:"script"`
-	Stack       []StackParam
+	Stack       []request.StackParam
 }
 
-// AccountStateResponse holds the getaccountstate response.
-type AccountStateResponse struct {
-	responseHeader
+// AccountState holds the getaccountstate response.
+type AccountState struct {
+	Header
 	Result *Account `json:"result"`
 }
 
-// UnspentResponse represents server response to the `getunspents` command.
-type UnspentResponse struct {
-	responseHeader
-	Error  *Error           `json:"error,omitempty"`
+// Unspent represents server response to the `getunspents` command.
+type Unspent struct {
+	HeaderAndError
 	Result *result.Unspents `json:"result,omitempty"`
 }
 
@@ -51,68 +52,54 @@ type Balance struct {
 	Value string `json:"value"`
 }
 
-type params struct {
-	values []interface{}
+// Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
+type Header struct {
+	ID      json.RawMessage `json:"id"`
+	JSONRPC string          `json:"jsonrpc"`
 }
 
-func newParams(vals ...interface{}) params {
-	p := params{}
-	p.values = make([]interface{}, len(vals))
-	for i := 0; i < len(p.values); i++ {
-		p.values[i] = vals[i]
-	}
-	return p
+// HeaderAndError adds an Error (that can be empty) to the Header, it's used
+// to construct type-specific responses.
+type HeaderAndError struct {
+	Header
+	Error *Error `json:"error,omitempty"`
 }
 
-type request struct {
-	JSONRPC string        `json:"jsonrpc"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
-	ID      int           `json:"id"`
+// Raw represents a standard raw JSON-RPC 2.0
+// response: http://www.jsonrpc.org/specification#response_object.
+type Raw struct {
+	HeaderAndError
+	Result interface{} `json:"result,omitempty"`
 }
 
-type responseHeader struct {
-	ID      int    `json:"id"`
-	JSONRPC string `json:"jsonrpc"`
+// SendToAddress stores response for the sendtoaddress call.
+type SendToAddress struct {
+	HeaderAndError
+	Result *Tx
 }
 
-type response struct {
-	responseHeader
-	Error  *Error      `json:"error"`
-	Result interface{} `json:"result"`
-}
-
-// SendToAddressResponse stores response for the sendtoaddress call.
-type SendToAddressResponse struct {
-	responseHeader
-	Error  *Error `json:"error"`
-	Result *TxResponse
-}
-
-// GetRawTxResponse represents verbose output of `getrawtransaction` RPC call.
-type GetRawTxResponse struct {
-	responseHeader
-	Error  *Error         `json:"error"`
-	Result *RawTxResponse `json:"result"`
-}
-
-// GetTxOutResponse represents result of `gettxout` RPC call.
-type GetTxOutResponse struct {
-	responseHeader
-	Error  *Error
+// GetTxOut represents result of `gettxout` RPC call.
+type GetTxOut struct {
+	HeaderAndError
 	Result *result.TransactionOutput
 }
 
-// RawTxResponse stores transaction with blockchain metadata to be sent as a response.
-type RawTxResponse struct {
-	TxResponse
+// GetRawTx represents verbose output of `getrawtransaction` RPC call.
+type GetRawTx struct {
+	HeaderAndError
+	Result *RawTx `json:"result"`
+}
+
+// RawTx stores transaction with blockchain metadata to be sent as a response.
+type RawTx struct {
+	Tx
 	BlockHash     string `json:"blockhash"`
 	Confirmations uint   `json:"confirmations"`
 	BlockTime     uint   `json:"blocktime"`
 }
 
-// TxResponse stores transaction to be sent as a response.
-type TxResponse struct {
+// Tx stores transaction to be sent as a response.
+type Tx struct {
 	TxID       string                  `json:"txid"`
 	Size       int                     `json:"size"`
 	Type       string                  `json:"type"` // todo: convert to TransactionType

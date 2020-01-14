@@ -1,4 +1,4 @@
-package rpc
+package request
 
 type (
 	// Params represents the JSON-RPC params.

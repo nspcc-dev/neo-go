@@ -1,4 +1,4 @@
-package rpc
+package response
 
 import (
 	"fmt"
@@ -18,10 +18,13 @@ type (
 )
 
 var (
-	errInvalidParams = NewInvalidParamsError("", nil)
+	// ErrInvalidParams represents a generic 'invalid parameters' error.
+	ErrInvalidParams = NewInvalidParamsError("", nil)
 )
 
-func newError(code int64, httpCode int, message string, data string, cause error) *Error {
+// NewError is an Error constructor that takes Error contents from its
+// parameters.
+func NewError(code int64, httpCode int, message string, data string, cause error) *Error {
 	return &Error{
 		Code:     code,
 		HTTPCode: httpCode,
@@ -35,40 +38,40 @@ func newError(code int64, httpCode int, message string, data string, cause error
 // NewParseError creates a new error with code
 // -32700.:%s
 func NewParseError(data string, cause error) *Error {
-	return newError(-32700, http.StatusBadRequest, "Parse Error", data, cause)
+	return NewError(-32700, http.StatusBadRequest, "Parse Error", data, cause)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
 func NewInvalidRequestError(data string, cause error) *Error {
-	return newError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data, cause)
+	return NewError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data, cause)
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
 func NewMethodNotFoundError(data string, cause error) *Error {
-	return newError(-32601, http.StatusMethodNotAllowed, "Method not found", data, cause)
+	return NewError(-32601, http.StatusMethodNotAllowed, "Method not found", data, cause)
 }
 
 // NewInvalidParamsError creates a new error with
 // code -32602.
 func NewInvalidParamsError(data string, cause error) *Error {
-	return newError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data, cause)
+	return NewError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data, cause)
 }
 
 // NewInternalServerError creates a new error with
 // code -32603.
 func NewInternalServerError(data string, cause error) *Error {
-	return newError(-32603, http.StatusInternalServerError, "Internal error", data, cause)
+	return NewError(-32603, http.StatusInternalServerError, "Internal error", data, cause)
 }
 
 // NewRPCError creates a new error with
 // code -100
 func NewRPCError(message string, data string, cause error) *Error {
-	return newError(-100, http.StatusUnprocessableEntity, message, data, cause)
+	return NewError(-100, http.StatusUnprocessableEntity, message, data, cause)
 }
 
 // Error implements the error interface.
-func (e Error) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
 }

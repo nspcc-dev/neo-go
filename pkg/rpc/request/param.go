@@ -1,4 +1,4 @@
-package rpc
+package request
 
 import (
 	"bytes"
@@ -29,12 +29,13 @@ type (
 	}
 )
 
+// These are parameter types accepted by RPC server.
 const (
 	defaultT paramType = iota
-	stringT
-	numberT
-	arrayT
-	funcParamT
+	StringT
+	NumberT
+	ArrayT
+	FuncParamT
 )
 
 func (p Param) String() string {
@@ -123,7 +124,7 @@ func (p Param) GetBytesHex() ([]byte, error) {
 func (p *Param) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
-		p.Type = stringT
+		p.Type = StringT
 		p.Value = s
 
 		return nil
@@ -131,7 +132,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 
 	var num float64
 	if err := json.Unmarshal(data, &num); err == nil {
-		p.Type = numberT
+		p.Type = NumberT
 		p.Value = int(num)
 
 		return nil
@@ -142,7 +143,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 	jd.DisallowUnknownFields()
 	var fp FuncParam
 	if err := jd.Decode(&fp); err == nil {
-		p.Type = funcParamT
+		p.Type = FuncParamT
 		p.Value = fp
 
 		return nil
@@ -150,7 +151,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 
 	var ps []Param
 	if err := json.Unmarshal(data, &ps); err == nil {
-		p.Type = arrayT
+		p.Type = ArrayT
 		p.Value = ps
 
 		return nil

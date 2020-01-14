@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,6 +15,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
@@ -71,13 +74,13 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request) {
-	req := NewRequest()
+	req := request.NewIn()
 
 	if httpRequest.Method != "POST" {
 		s.WriteErrorResponse(
 			req,
 			w,
-			NewInvalidParamsError(
+			response.NewInvalidParamsError(
 				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), nil,
 			),
 		)
@@ -86,20 +89,20 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		s.WriteErrorResponse(req, w, NewParseError("Problem parsing JSON-RPC request body", err))
+		s.WriteErrorResponse(req, w, response.NewParseError("Problem parsing JSON-RPC request body", err))
 		return
 	}
 
 	reqParams, err := req.Params()
 	if err != nil {
-		s.WriteErrorResponse(req, w, NewInvalidParamsError("Problem parsing request parameters", err))
+		s.WriteErrorResponse(req, w, response.NewInvalidParamsError("Problem parsing request parameters", err))
 		return
 	}
 
 	s.methodHandler(w, req, *reqParams)
 }
 
-func (s *Server) methodHandler(w http.ResponseWriter, req *Request, reqParams Params) {
+func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams request.Params) {
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
 		zap.String("params", fmt.Sprintf("%v", reqParams)))
@@ -121,33 +124,33 @@ Methods:
 
 		param, ok := reqParams.Value(0)
 		if !ok {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 
 		switch param.Type {
-		case stringT:
+		case request.StringT:
 			var err error
 			hash, err = param.GetUint256()
 			if err != nil {
-				resultsErr = errInvalidParams
+				resultsErr = response.ErrInvalidParams
 				break Methods
 			}
-		case numberT:
+		case request.NumberT:
 			num, err := s.blockHeightFromParam(param)
 			if err != nil {
-				resultsErr = errInvalidParams
+				resultsErr = response.ErrInvalidParams
 				break Methods
 			}
 			hash = s.chain.GetHeaderHash(num)
 		default:
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 
 		block, err := s.chain.GetBlock(hash)
 		if err != nil {
-			resultsErr = NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+			resultsErr = response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
 			break
 		}
 
@@ -165,14 +168,14 @@ Methods:
 
 	case "getblockhash":
 		getblockHashCalled.Inc()
-		param, ok := reqParams.ValueWithType(0, numberT)
+		param, ok := reqParams.ValueWithType(0, request.NumberT)
 		if !ok {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 		num, err := s.blockHeightFromParam(param)
 		if err != nil {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 
@@ -206,22 +209,22 @@ Methods:
 		validateaddressCalled.Inc()
 		param, ok := reqParams.Value(0)
 		if !ok {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 		results = validateAddress(param.Value)
 
 	case "getassetstate":
 		getassetstateCalled.Inc()
-		param, ok := reqParams.ValueWithType(0, stringT)
+		param, ok := reqParams.ValueWithType(0, request.StringT)
 		if !ok {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break Methods
 		}
 
 		paramAssetID, err := param.GetUint256()
 		if err != nil {
-			resultsErr = errInvalidParams
+			resultsErr = response.ErrInvalidParams
 			break
 		}
 
@@ -229,7 +232,7 @@ Methods:
 		if as != nil {
 			results = result.NewAssetState(as)
 		} else {
-			resultsErr = NewRPCError("Unknown asset", "", nil)
+			resultsErr = response.NewRPCError("Unknown asset", "", nil)
 		}
 
 	case "getaccountstate":
@@ -266,7 +269,7 @@ Methods:
 		results, resultsErr = s.sendrawtransaction(reqParams)
 
 	default:
-		resultsErr = NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
+		resultsErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	}
 
 	if resultsErr != nil {
@@ -277,27 +280,27 @@ Methods:
 	s.WriteResponse(req, w, results)
 }
 
-func (s *Server) getStorage(ps Params) (interface{}, error) {
+func (s *Server) getStorage(ps request.Params) (interface{}, error) {
 	param, ok := ps.Value(0)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	scriptHash, err := param.GetUint160FromHex()
 	if err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	scriptHash = scriptHash.Reverse()
 
 	param, ok = ps.Value(1)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	key, err := param.GetBytesHex()
 	if err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	item := s.chain.GetStorageItem(scriptHash.Reverse(), key)
@@ -308,22 +311,22 @@ func (s *Server) getStorage(ps Params) (interface{}, error) {
 	return hex.EncodeToString(item.Value), nil
 }
 
-func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
+func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
 	if param0, ok := reqParams.Value(0); !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else if txHash, err := param0.GetUint256(); err != nil {
-		resultsErr = errInvalidParams
+		resultsErr = response.ErrInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
-		return nil, NewRPCError("Unknown transaction", err.Error(), err)
+		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
 	} else if len(reqParams) >= 2 {
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			resultsErr = NewInvalidParamsError(err.Error(), err)
+			resultsErr = response.NewInvalidParamsError(err.Error(), err)
 		}
 
 		param1, _ := reqParams.Value(1)
@@ -345,34 +348,34 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	return results, resultsErr
 }
 
-func (s *Server) getTxOut(ps Params) (interface{}, error) {
+func (s *Server) getTxOut(ps request.Params) (interface{}, error) {
 	p, ok := ps.Value(0)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	h, err := p.GetUint256()
 	if err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
-	p, ok = ps.ValueWithType(1, numberT)
+	p, ok = ps.ValueWithType(1, request.NumberT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	num, err := p.GetInt()
 	if err != nil || num < 0 {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	tx, _, err := s.chain.GetTransaction(h)
 	if err != nil {
-		return nil, NewInvalidParamsError(err.Error(), err)
+		return nil, response.NewInvalidParamsError(err.Error(), err)
 	}
 
 	if num >= len(tx.Outputs) {
-		return nil, NewInvalidParamsError("invalid index", errors.New("too big index"))
+		return nil, response.NewInvalidParamsError("invalid index", errors.New("too big index"))
 	}
 
 	out := tx.Outputs[num]
@@ -380,35 +383,35 @@ func (s *Server) getTxOut(ps Params) (interface{}, error) {
 }
 
 // getContractState returns contract state (contract information, according to the contract script hash).
-func (s *Server) getContractState(reqParams Params) (interface{}, error) {
+func (s *Server) getContractState(reqParams request.Params) (interface{}, error) {
 	var results interface{}
 
-	param, ok := reqParams.ValueWithType(0, stringT)
+	param, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else if scriptHash, err := param.GetUint160FromHex(); err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else {
 		cs := s.chain.GetContractState(scriptHash)
 		if cs != nil {
 			results = result.NewContractState(cs)
 		} else {
-			return nil, NewRPCError("Unknown contract", "", nil)
+			return nil, response.NewRPCError("Unknown contract", "", nil)
 		}
 	}
 	return results, nil
 }
 
 // getAccountState returns account state either in short or full (unspents included) form.
-func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, error) {
+func (s *Server) getAccountState(reqParams request.Params, unspents bool) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
-	param, ok := reqParams.ValueWithType(0, stringT)
+	param, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else {
 		as := s.chain.GetAccountState(scriptHash)
 		if as == nil {
@@ -417,7 +420,7 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 		if unspents {
 			str, err := param.GetString()
 			if err != nil {
-				return nil, errInvalidParams
+				return nil, response.ErrInvalidParams
 			}
 			results = result.NewUnspents(as, s.chain, str)
 		} else {
@@ -428,18 +431,18 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 }
 
 // invoke implements the `invoke` RPC call.
-func (s *Server) invoke(reqParams Params) (interface{}, error) {
-	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
+func (s *Server) invoke(reqParams request.Params) (interface{}, error) {
+	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 	scriptHash, err := scriptHashHex.GetUint160FromHex()
 	if err != nil {
 		return nil, err
 	}
-	sliceP, ok := reqParams.ValueWithType(1, arrayT)
+	sliceP, ok := reqParams.ValueWithType(1, request.ArrayT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 	slice, err := sliceP.GetArray()
 	if err != nil {
@@ -453,10 +456,10 @@ func (s *Server) invoke(reqParams Params) (interface{}, error) {
 }
 
 // invokescript implements the `invokescript` RPC call.
-func (s *Server) invokeFunction(reqParams Params) (interface{}, error) {
-	scriptHashHex, ok := reqParams.ValueWithType(0, stringT)
+func (s *Server) invokeFunction(reqParams request.Params) (interface{}, error) {
+	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 	scriptHash, err := scriptHashHex.GetUint160FromHex()
 	if err != nil {
@@ -470,14 +473,14 @@ func (s *Server) invokeFunction(reqParams Params) (interface{}, error) {
 }
 
 // invokescript implements the `invokescript` RPC call.
-func (s *Server) invokescript(reqParams Params) (interface{}, error) {
+func (s *Server) invokescript(reqParams request.Params) (interface{}, error) {
 	if len(reqParams) < 1 {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	script, err := reqParams[0].GetBytesHex()
 	if err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	}
 
 	return s.runScriptInVM(script), nil
@@ -499,14 +502,14 @@ func (s *Server) runScriptInVM(script []byte) *result.Invoke {
 	return result
 }
 
-func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
+func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
 	if len(reqParams) < 1 {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else if byteTx, err := reqParams[0].GetBytesHex(); err != nil {
-		return nil, errInvalidParams
+		return nil, response.ErrInvalidParams
 	} else {
 		r := io.NewBinReaderFromBuf(byteTx)
 		tx := &transaction.Transaction{}
@@ -533,14 +536,14 @@ func (s *Server) sendrawtransaction(reqParams Params) (interface{}, error) {
 			}
 		}
 		if err != nil {
-			resultsErr = NewInternalServerError(err.Error(), err)
+			resultsErr = response.NewInternalServerError(err.Error(), err)
 		}
 	}
 
 	return results, resultsErr
 }
 
-func (s *Server) blockHeightFromParam(param *Param) (int, error) {
+func (s *Server) blockHeightFromParam(param *request.Param) (int, error) {
 	num, err := param.GetInt()
 	if err != nil {
 		return 0, nil
@@ -550,6 +553,71 @@ func (s *Server) blockHeightFromParam(param *Param) (int, error) {
 		return 0, invalidBlockHeightError(0, num)
 	}
 	return num, nil
+}
+
+// WriteErrorResponse writes an error response to the ResponseWriter.
+func (s *Server) WriteErrorResponse(r *request.In, w http.ResponseWriter, err error) {
+	jsonErr, ok := err.(*response.Error)
+	if !ok {
+		jsonErr = response.NewInternalServerError("Internal server error", err)
+	}
+
+	resp := response.Raw{
+		HeaderAndError: response.HeaderAndError{
+			Header: response.Header{
+				JSONRPC: r.JSONRPC,
+				ID:      r.RawID,
+			},
+			Error: jsonErr,
+		},
+	}
+
+	logFields := []zap.Field{
+		zap.Error(jsonErr.Cause),
+		zap.String("method", r.Method),
+	}
+
+	params, err := r.Params()
+	if err == nil {
+		logFields = append(logFields, zap.Any("params", params))
+	}
+
+	s.log.Error("Error encountered with rpc request", logFields...)
+
+	w.WriteHeader(jsonErr.HTTPCode)
+	s.writeServerResponse(r, w, resp)
+}
+
+// WriteResponse encodes the response and writes it to the ResponseWriter.
+func (s *Server) WriteResponse(r *request.In, w http.ResponseWriter, result interface{}) {
+	resp := response.Raw{
+		HeaderAndError: response.HeaderAndError{
+			Header: response.Header{
+				JSONRPC: r.JSONRPC,
+				ID:      r.RawID,
+			},
+		},
+		Result: result,
+	}
+
+	s.writeServerResponse(r, w, resp)
+}
+
+func (s *Server) writeServerResponse(r *request.In, w http.ResponseWriter, resp response.Raw) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if s.config.EnableCORSWorkaround {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+	}
+
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(resp)
+
+	if err != nil {
+		s.log.Error("Error encountered while encoding response",
+			zap.String("err", err.Error()),
+			zap.String("method", r.Method))
+	}
 }
 
 // validateAddress verifies that the address is a correct NEO address

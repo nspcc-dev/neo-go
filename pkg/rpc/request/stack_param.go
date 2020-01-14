@@ -1,4 +1,4 @@
-package rpc
+package request
 
 import (
 	"encoding/binary"

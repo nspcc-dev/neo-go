@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -38,11 +39,11 @@ type SendTXResponse struct {
 type InvokeFunctionResponse struct {
 	Jsonrpc string `json:"jsonrpc"`
 	Result  struct {
-		Script      string      `json:"script"`
-		State       string      `json:"state"`
-		GasConsumed string      `json:"gas_consumed"`
-		Stack       []FuncParam `json:"stack"`
-		TX          string      `json:"tx,omitempty"`
+		Script      string              `json:"script"`
+		State       string              `json:"state"`
+		GasConsumed string              `json:"gas_consumed"`
+		Stack       []request.FuncParam `json:"stack"`
+		TX          string              `json:"tx,omitempty"`
 	} `json:"result"`
 	ID int `json:"id"`
 }

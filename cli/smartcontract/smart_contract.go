@@ -15,6 +15,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -294,10 +296,10 @@ func initSmartContract(ctx *cli.Context) error {
 	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
 	if !ctx.Bool("skip-details") {
 		details := parseContractDetails()
-		details.ReturnType = rpc.ByteArray
-		details.Parameters = make([]rpc.StackParamType, 2)
-		details.Parameters[0] = rpc.String
-		details.Parameters[1] = rpc.Array
+		details.ReturnType = request.ByteArray
+		details.Parameters = make([]request.StackParamType, 2)
+		details.Parameters[0] = request.String
+		details.Parameters[1] = request.Array
 
 		project := &ProjectConfig{Contract: details}
 		b, err := yaml.Marshal(project)
@@ -362,7 +364,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		operation   string
 		params      = make([]smartcontract.Parameter, 0)
 		paramsStart = 1
-		resp        *rpc.InvokeScriptResponse
+		resp        *response.InvokeScript
 		wif         *keys.WIF
 	)
 

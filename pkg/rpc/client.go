@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
@@ -177,13 +178,13 @@ func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.F
 
 }
 
-func (c *Client) performRequest(method string, p params, v interface{}) error {
+func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
 	var (
-		r = request{
-			JSONRPC: c.version,
-			Method:  method,
-			Params:  p.values,
-			ID:      1,
+		r = request.Raw{
+			JSONRPC:   c.version,
+			Method:    method,
+			RawParams: p.Values,
+			ID:        1,
 		}
 		buf = new(bytes.Buffer)
 	)
