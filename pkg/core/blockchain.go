@@ -12,6 +12,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -77,7 +78,7 @@ type Blockchain struct {
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
 
-	memPool MemPool
+	memPool mempool.MemPool
 
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
@@ -101,7 +102,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
-		memPool:       NewMemPool(50000),
+		memPool:       mempool.NewMemPool(50000),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		log:           log,
 	}
@@ -951,7 +952,7 @@ func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
 }
 
 // GetMemPool returns the memory pool of the blockchain.
-func (bc *Blockchain) GetMemPool() MemPool {
+func (bc *Blockchain) GetMemPool() mempool.MemPool {
 	return bc.memPool
 }
 

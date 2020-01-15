@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -709,7 +710,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	// TODO: Implement Plugin.CheckPolicy?
 	//if (!Plugin.CheckPolicy(transaction))
 	// return RelayResultReason.PolicyFail;
-	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), core.NewPoolItem(t, s.chain)); !ok {
+	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), mempool.NewPoolItem(t, s.chain)); !ok {
 		return RelayOutOfMemory
 	}
 

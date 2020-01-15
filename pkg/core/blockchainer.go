@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -38,7 +39,7 @@ type Blockchainer interface {
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(util.Uint256) *UnspentCoinState
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
-	Feer // fee interface
+	mempool.Feer // fee interface
 	VerifyTx(*transaction.Transaction, *block.Block) error
-	GetMemPool() MemPool
+	GetMemPool() mempool.MemPool
 }

@@ -30,22 +30,6 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//mempoolUnsortedTx prometheus metric.
-	mempoolUnsortedTx = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Help:      "Mempool Unsorted TXs",
-			Name:      "mempool_unsorted_tx",
-			Namespace: "neogo",
-		},
-	)
-	//mempoolUnverifiedTx prometheus metric.
-	mempoolUnverifiedTx = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Help:      "Mempool Unverified TXs",
-			Name:      "mempool_unverified_tx",
-			Namespace: "neogo",
-		},
-	)
 )
 
 func init() {
@@ -53,8 +37,6 @@ func init() {
 		blockHeight,
 		persistedHeight,
 		headerHeight,
-		mempoolUnsortedTx,
-		mempoolUnverifiedTx,
 	)
 }
 
@@ -68,9 +50,4 @@ func updateHeaderHeightMetric(hHeight int) {
 
 func updateBlockHeightMetric(bHeight uint32) {
 	blockHeight.Set(float64(bHeight))
-}
-
-func updateMempoolMetrics(unsortedTxnLen int, unverifiedTxnLen int) {
-	mempoolUnsortedTx.Set(float64(unsortedTxnLen))
-	mempoolUnverifiedTx.Set(float64(unverifiedTxnLen))
 }

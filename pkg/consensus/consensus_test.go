@@ -5,6 +5,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -20,7 +21,7 @@ func TestNewService(t *testing.T) {
 		Type: transaction.MinerType,
 		Data: &transaction.MinerTX{Nonce: 12345},
 	}
-	item := core.NewPoolItem(tx, new(feer))
+	item := mempool.NewPoolItem(tx, new(feer))
 	srv.Chain.GetMemPool().TryAdd(tx.Hash(), item)
 
 	var txx []block.Transaction
@@ -38,7 +39,7 @@ func TestService_GetVerified(t *testing.T) {
 		newMinerTx(4),
 	}
 	pool := srv.Chain.GetMemPool()
-	item := core.NewPoolItem(txs[3], new(feer))
+	item := mempool.NewPoolItem(txs[3], new(feer))
 
 	require.True(t, pool.TryAdd(txs[3].Hash(), item))
 
@@ -65,7 +66,7 @@ func TestService_GetVerified(t *testing.T) {
 
 	t.Run("more than half of the last proposal will be reused", func(t *testing.T) {
 		for _, tx := range txs[:2] {
-			item := core.NewPoolItem(tx, new(feer))
+			item := mempool.NewPoolItem(tx, new(feer))
 			require.True(t, pool.TryAdd(tx.Hash(), item))
 		}
 
@@ -114,7 +115,7 @@ func TestService_getTx(t *testing.T) {
 
 		require.Equal(t, nil, srv.getTx(h))
 
-		item := core.NewPoolItem(tx, new(feer))
+		item := mempool.NewPoolItem(tx, new(feer))
 		srv.Chain.GetMemPool().TryAdd(h, item)
 
 		got := srv.getTx(h)

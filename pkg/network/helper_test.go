@@ -10,6 +10,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -116,7 +117,7 @@ func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState 
 	panic("TODO")
 }
 
-func (chain testChain) GetMemPool() core.MemPool {
+func (chain testChain) GetMemPool() mempool.MemPool {
 	panic("TODO")
 }
 
