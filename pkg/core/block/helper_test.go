@@ -8,25 +8,20 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/stretchr/testify/require"
 )
 
 func getDecodedBlock(t *testing.T, i int) *Block {
 	data, err := getBlockData(i)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b, err := hex.DecodeString(data["raw"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block := &Block{}
 	r := io.NewBinReaderFromBuf(b)
 	block.DecodeBinary(r)
-	if r.Err != nil {
-		t.Fatal(r.Err)
-	}
+	require.NoError(t, r.Err)
 
 	return block
 }

@@ -9,20 +9,17 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test blocks are blocks from mainnet with their corresponding index.
 
 func TestDecodeBlock1(t *testing.T) {
 	data, err := getBlockData(1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b, err := hex.DecodeString(data["raw"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block := &Block{}
 	r := io.NewBinReaderFromBuf(b)
@@ -51,14 +48,10 @@ func TestTrimmedBlock(t *testing.T) {
 	block := getDecodedBlock(t, 1)
 
 	b, err := block.Trim()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	trimmedBlock, err := NewBlockFromTrimmedBytes(b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.True(t, trimmedBlock.Trimmed)
 	assert.Equal(t, block.Version, trimmedBlock.Version)
