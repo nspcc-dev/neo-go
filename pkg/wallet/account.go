@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Account represents a NEO account. It holds the private and public key
@@ -64,6 +66,11 @@ type contract struct {
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
+}
+
+// ScriptHash returns the hash of contract's script.
+func (c Contract) ScriptHash() util.Uint160 {
+	return hash.Hash160(c.Script)
 }
 
 // MarshalJSON implements json.Marshaler interface.

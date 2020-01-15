@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,13 @@ func TestContract_MarshalJSON(t *testing.T) {
 
 	data = []byte(`{"script":"ERROR","parameters":[1],"deployed":false}`)
 	require.Error(t, json.Unmarshal(data, &c))
+}
+
+func TestContract_ScriptHash(t *testing.T) {
+	script := []byte{0, 1, 2, 3}
+	c := &Contract{Script: script}
+
+	require.Equal(t, hash.Hash160(script), c.ScriptHash())
 }
 
 func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
