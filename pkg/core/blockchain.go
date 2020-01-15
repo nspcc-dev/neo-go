@@ -78,7 +78,7 @@ type Blockchain struct {
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
 
-	memPool mempool.MemPool
+	memPool mempool.Pool
 
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
@@ -952,7 +952,7 @@ func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
 }
 
 // GetMemPool returns the memory pool of the blockchain.
-func (bc *Blockchain) GetMemPool() mempool.MemPool {
+func (bc *Blockchain) GetMemPool() mempool.Pool {
 	return bc.memPool
 }
 

@@ -117,7 +117,7 @@ func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState 
 	panic("TODO")
 }
 
-func (chain testChain) GetMemPool() mempool.MemPool {
+func (chain testChain) GetMemPool() mempool.Pool {
 	panic("TODO")
 }
 
