@@ -183,10 +183,6 @@ func (p *localPeer) WriteMsg(msg *Message) error {
 	p.messageHandler(p.t, msg)
 	return nil
 }
-func (p *localPeer) Done() chan error {
-	done := make(chan error)
-	return done
-}
 func (p *localPeer) Version() *payload.Version {
 	return p.version
 }

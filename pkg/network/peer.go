@@ -19,7 +19,6 @@ type Peer interface {
 	PeerAddr() net.Addr
 	Disconnect(error)
 	WriteMsg(msg *Message) error
-	Done() chan error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	UpdateLastBlockIndex(lbIndex uint32)

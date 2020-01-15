@@ -38,9 +38,10 @@ type TCPPeer struct {
 	lastBlockIndex uint32
 
 	lock      sync.RWMutex
+	finale    sync.Once
 	handShake handShakeStage
 
-	done chan error
+	done chan struct{}
 
 	wg sync.WaitGroup
 
@@ -53,7 +54,7 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	return &TCPPeer{
 		conn:   conn,
 		server: s,
-		done:   make(chan error, 1),
+		done:   make(chan struct{}),
 	}
 }
 
@@ -68,19 +69,14 @@ func (p *TCPPeer) WriteMsg(msg *Message) error {
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
-	select {
-	case err := <-p.done:
-		return err
-	default:
-		w := io.NewBufBinWriter()
-		if err := msg.Encode(w.BinWriter); err != nil {
-			return err
-		}
-
-		_, err := p.conn.Write(w.Bytes())
-
+	w := io.NewBufBinWriter()
+	if err := msg.Encode(w.BinWriter); err != nil {
 		return err
 	}
+
+	_, err := p.conn.Write(w.Bytes())
+
+	return err
 }
 
 // handleConn handles the read side of the connection, it should be started as
@@ -137,8 +133,8 @@ func (p *TCPPeer) StartProtocol() {
 	pingTimer := time.NewTimer(p.server.PingTimeout)
 	for {
 		select {
-		case err = <-p.Done():
-			// time to stop
+		case <-p.done:
+			return
 		case m := <-p.server.addrReq:
 			err = p.WriteMsg(m)
 		case <-timer.C:
@@ -273,23 +269,13 @@ func (p *TCPPeer) PeerAddr() net.Addr {
 	return tcpAddr
 }
 
-// Done implements the Peer interface and notifies
-// all other resources operating on it that this peer
-// is no longer running.
-func (p *TCPPeer) Done() chan error {
-	return p.done
-}
-
 // Disconnect will fill the peer's done channel with the given error.
 func (p *TCPPeer) Disconnect(err error) {
-	p.server.unregister <- peerDrop{p, err}
-	p.conn.Close()
-	select {
-	case p.done <- err:
-		// one message to the queue
-	default:
-		// the other side may already be gone, it's OK
-	}
+	p.finale.Do(func() {
+		p.server.unregister <- peerDrop{p, err}
+		p.conn.Close()
+		close(p.done)
+	})
 }
 
 // Version implements the Peer interface.
