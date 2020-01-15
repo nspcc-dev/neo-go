@@ -664,7 +664,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 }
 
 func (s *Server) handleNewPayload(p *consensus.Payload) {
-	s.relayInventory(payload.ConsensusType, p.Hash())
+	s.relayInventoryCmd(CMDInv, payload.ConsensusType, p.Hash())
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {
@@ -672,22 +672,25 @@ func (s *Server) requestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	s.relayInventory(payload.TXType, hashes...)
+	s.relayInventoryCmd(CMDGetData, payload.TXType, hashes...)
 }
 
-func (s *Server) relayInventory(t payload.InventoryType, hashes ...util.Uint256) {
+func (s *Server) relayInventoryCmd(cmd CommandType, t payload.InventoryType, hashes ...util.Uint256) {
+	payload := payload.NewInventory(t, hashes)
+	msg := NewMessage(s.Net, cmd, payload)
+
 	for peer := range s.Peers() {
-		if !peer.Handshaked() {
+		if !peer.Handshaked() || !peer.Version().Relay {
 			continue
 		}
-		payload := payload.NewInventory(t, hashes)
-		s.RelayDirectly(peer, payload)
+		// Who cares about these messages anyway?
+		_ = peer.WriteMsg(msg)
 	}
 }
 
 // relayBlock tells all the other connected nodes about the given block.
 func (s *Server) relayBlock(b *core.Block) {
-	s.relayInventory(payload.BlockType, b.Hash())
+	s.relayInventoryCmd(CMDInv, payload.BlockType, b.Hash())
 }
 
 // RelayTxn a new transaction to the local node and the connected peers.
@@ -709,18 +712,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 		return RelayOutOfMemory
 	}
 
-	s.relayInventory(payload.TXType, t.Hash())
+	s.relayInventoryCmd(CMDInv, payload.TXType, t.Hash())
 
 	return RelaySucceed
-}
-
-// RelayDirectly relays directly the inventory to the remote peers.
-// Reference: the method OnRelayDirectly in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L166
-func (s *Server) RelayDirectly(p Peer, inv *payload.Inventory) {
-	if !p.Version().Relay {
-		return
-	}
-
-	p.WriteMsg(NewMessage(s.Net, CMDInv, inv))
-
 }
