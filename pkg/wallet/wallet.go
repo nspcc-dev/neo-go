@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 const (
@@ -116,4 +117,15 @@ func (w *Wallet) Close() {
 	if rc, ok := w.rw.(io.ReadCloser); ok {
 		rc.Close()
 	}
+}
+
+// GetAccount returns account corresponding to the provided scripthash.
+func (w *Wallet) GetAccount(h util.Uint160) *Account {
+	for _, acc := range w.Accounts {
+		if c := acc.Contract; c != nil && h.Equals(c.ScriptHash()) {
+			return acc
+		}
+	}
+
+	return nil
 }
