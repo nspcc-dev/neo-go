@@ -109,7 +109,6 @@ func (p *TCPPeer) handleConn() {
 			}
 		}
 	}
-	p.server.unregister <- peerDrop{p, err}
 	p.Disconnect(err)
 }
 
@@ -171,7 +170,6 @@ func (p *TCPPeer) StartProtocol() {
 			}
 		}
 		if err != nil {
-			p.server.unregister <- peerDrop{p, err}
 			timer.Stop()
 			p.Disconnect(err)
 			return
@@ -284,6 +282,7 @@ func (p *TCPPeer) Done() chan error {
 
 // Disconnect will fill the peer's done channel with the given error.
 func (p *TCPPeer) Disconnect(err error) {
+	p.server.unregister <- peerDrop{p, err}
 	p.conn.Close()
 	select {
 	case p.done <- err:
