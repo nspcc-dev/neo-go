@@ -79,7 +79,7 @@ func TestTrimmedBlock(t *testing.T) {
 
 func newDumbBlock() *Block {
 	return &Block{
-		BlockBase: BlockBase{
+		Base: Base{
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
@@ -291,9 +291,9 @@ func TestBlockSizeCalculation(t *testing.T) {
 }
 
 func TestBlockCompare(t *testing.T) {
-	b1 := Block{BlockBase: BlockBase{Index: 1}}
-	b2 := Block{BlockBase: BlockBase{Index: 2}}
-	b3 := Block{BlockBase: BlockBase{Index: 3}}
+	b1 := Block{Base: Base{Index: 1}}
+	b2 := Block{Base: Base{Index: 2}}
+	b3 := Block{Base: Base{Index: 3}}
 	assert.Equal(t, 1, b2.Compare(&b1))
 	assert.Equal(t, 0, b2.Compare(&b2))
 	assert.Equal(t, -1, b2.Compare(&b3))

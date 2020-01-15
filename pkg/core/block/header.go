@@ -9,14 +9,14 @@ import (
 // Header holds the head info of a block.
 type Header struct {
 	// Base of the block.
-	BlockBase
+	Base
 	// Padding that is fixed to 0.
 	_ uint8
 }
 
 // DecodeBinary implements Serializable interface.
 func (h *Header) DecodeBinary(r *io.BinReader) {
-	h.BlockBase.DecodeBinary(r)
+	h.Base.DecodeBinary(r)
 
 	padding := []byte{0}
 	r.ReadBytes(padding)
@@ -28,6 +28,6 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (h *Header) EncodeBinary(w *io.BinWriter) {
-	h.BlockBase.EncodeBinary(w)
+	h.Base.EncodeBinary(w)
 	w.WriteBytes([]byte{0})
 }

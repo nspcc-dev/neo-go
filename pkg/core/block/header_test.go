@@ -12,7 +12,7 @@ import (
 )
 
 func TestHeaderEncodeDecode(t *testing.T) {
-	header := Header{BlockBase: BlockBase{
+	header := Header{Base: Base{
 		Version:       0,
 		PrevHash:      hash.Sha256([]byte("prevhash")),
 		MerkleRoot:    hash.Sha256([]byte("merkleroot")),

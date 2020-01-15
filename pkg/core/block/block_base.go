@@ -9,8 +9,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// BlockBase holds the base info of a block
-type BlockBase struct {
+// Base holds the base info of a block
+type Base struct {
 	// Version of the block.
 	Version uint32 `json:"version"`
 
@@ -47,14 +47,14 @@ type BlockBase struct {
 	verificationHash util.Uint256
 }
 
-// Verify verifies the integrity of the BlockBase.
-func (b *BlockBase) Verify() bool {
+// Verify verifies the integrity of the Base.
+func (b *Base) Verify() bool {
 	// TODO: Need a persisted blockchain for this.
 	return true
 }
 
 // Hash returns the hash of the block.
-func (b *BlockBase) Hash() util.Uint256 {
+func (b *Base) Hash() util.Uint256 {
 	if b.hash.Equals(util.Uint256{}) {
 		b.createHash()
 	}
@@ -62,7 +62,7 @@ func (b *BlockBase) Hash() util.Uint256 {
 }
 
 // VerificationHash returns the hash of the block used to verify it.
-func (b *BlockBase) VerificationHash() util.Uint256 {
+func (b *Base) VerificationHash() util.Uint256 {
 	if b.verificationHash.Equals(util.Uint256{}) {
 		b.createHash()
 	}
@@ -70,7 +70,7 @@ func (b *BlockBase) VerificationHash() util.Uint256 {
 }
 
 // DecodeBinary implements Serializable interface.
-func (b *BlockBase) DecodeBinary(br *io.BinReader) {
+func (b *Base) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
 
 	padding := []byte{0}
@@ -84,14 +84,14 @@ func (b *BlockBase) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface
-func (b *BlockBase) EncodeBinary(bw *io.BinWriter) {
+func (b *Base) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
 	bw.WriteBytes([]byte{1})
 	b.Script.EncodeBinary(bw)
 }
 
 // GetHashableData returns serialized hashable data of the block.
-func (b *BlockBase) GetHashableData() []byte {
+func (b *Base) GetHashableData() []byte {
 	buf := io.NewBufBinWriter()
 	// No error can occure while encoding hashable fields.
 	b.encodeHashableFields(buf.BinWriter)
@@ -105,7 +105,7 @@ func (b *BlockBase) GetHashableData() []byte {
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
 // the modification of transaction will influence the hash value of the block.
-func (b *BlockBase) createHash() {
+func (b *Base) createHash() {
 	bb := b.GetHashableData()
 	b.verificationHash = hash.Sha256(bb)
 	b.hash = hash.Sha256(b.verificationHash.BytesBE())
@@ -113,7 +113,7 @@ func (b *BlockBase) createHash() {
 
 // encodeHashableFields will only encode the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
+func (b *Base) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU32LE(b.Version)
 	bw.WriteBytes(b.PrevHash[:])
 	bw.WriteBytes(b.MerkleRoot[:])
@@ -125,7 +125,7 @@ func (b *BlockBase) encodeHashableFields(bw *io.BinWriter) {
 
 // decodeHashableFields decodes the fields used for hashing.
 // see Hash() for more information about the fields.
-func (b *BlockBase) decodeHashableFields(br *io.BinReader) {
+func (b *Base) decodeHashableFields(br *io.BinReader) {
 	b.Version = br.ReadU32LE()
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])

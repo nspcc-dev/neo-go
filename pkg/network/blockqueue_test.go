@@ -15,7 +15,7 @@ func TestBlockQueue(t *testing.T) {
 	bq := newBlockQueue(0, chain, zaptest.NewLogger(t))
 	blocks := make([]*block.Block, 11)
 	for i := 1; i < 11; i++ {
-		blocks[i] = &block.Block{BlockBase: block.BlockBase{Index: uint32(i)}}
+		blocks[i] = &block.Block{Base: block.Base{Index: uint32(i)}}
 	}
 	// not the ones expected currently
 	for i := 3; i < 5; i++ {

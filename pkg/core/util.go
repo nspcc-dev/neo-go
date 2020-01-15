@@ -25,7 +25,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		return nil, err
 	}
 
-	base := block.BlockBase{
+	base := block.Base{
 		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
@@ -50,7 +50,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	scriptOut := hash.Hash160(rawScript)
 
 	b := &block.Block{
-		BlockBase: base,
+		Base: base,
 		Transactions: []*transaction.Transaction{
 			{
 				Type: transaction.MinerType,

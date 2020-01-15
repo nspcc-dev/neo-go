@@ -30,7 +30,7 @@ func newTestHeaders(n int) *Headers {
 
 	for i := range headers.Hdrs {
 		headers.Hdrs[i] = &block.Header{
-			BlockBase: block.BlockBase{
+			Base: block.Base{
 				Index: uint32(i + 1),
 				Script: transaction.Witness{
 					InvocationScript:   []byte{0x0},

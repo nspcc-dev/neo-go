@@ -8,7 +8,7 @@ import (
 
 type (
 	// Block wrapper used for the representation of
-	// block.Block / block.BlockBase on the RPC Server.
+	// block.Block / block.Base on the RPC Server.
 	Block struct {
 		*block.Block
 		Confirmations uint32       `json:"confirmations"`

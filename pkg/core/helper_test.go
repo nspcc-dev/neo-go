@@ -62,7 +62,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 		VerificationScript: valScript,
 	}
 	b := &block.Block{
-		BlockBase: block.BlockBase{
+		Base: block.Base{
 			Version:       0,
 			PrevHash:      newBlockPrevHash,
 			Timestamp:     uint32(time.Now().UTC().Unix()) + index,
@@ -144,7 +144,7 @@ func getBlockData(i int) (map[string]interface{}, error) {
 
 func newDumbBlock() *block.Block {
 	return &block.Block{
-		BlockBase: block.BlockBase{
+		Base: block.Base{
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
