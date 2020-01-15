@@ -177,6 +177,7 @@ func (p *localPeer) RemoteAddr() net.Addr {
 func (p *localPeer) PeerAddr() net.Addr {
 	return &p.netaddr
 }
+func (p *localPeer) StartProtocol()       {}
 func (p *localPeer) Disconnect(err error) {}
 func (p *localPeer) WriteMsg(msg *Message) error {
 	p.messageHandler(p.t, msg)

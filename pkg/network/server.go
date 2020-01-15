@@ -305,71 +305,6 @@ func (s *Server) HandshakedPeersCount() int {
 	return count
 }
 
-// startProtocol starts a long running background loop that interacts
-// every ProtoTickInterval with the peer.
-func (s *Server) startProtocol(p Peer) {
-	var err error
-
-	s.log.Info("started protocol",
-		zap.Stringer("addr", p.RemoteAddr()),
-		zap.ByteString("userAgent", p.Version().UserAgent),
-		zap.Uint32("startHeight", p.Version().StartHeight),
-		zap.Uint32("id", p.Version().Nonce))
-
-	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
-	if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		err = s.requestHeaders(p)
-		if err != nil {
-			p.Disconnect(err)
-			return
-		}
-	}
-
-	timer := time.NewTimer(s.ProtoTickInterval)
-	pingTimer := time.NewTimer(s.PingTimeout)
-	for {
-		select {
-		case err = <-p.Done():
-			// time to stop
-		case m := <-s.addrReq:
-			err = p.WriteMsg(m)
-		case <-timer.C:
-			// Try to sync in headers and block with the peer if his block height is higher then ours.
-			if p.LastBlockIndex() > s.chain.BlockHeight() {
-				err = s.requestBlocks(p)
-			}
-			if err == nil {
-				timer.Reset(s.ProtoTickInterval)
-			}
-			if s.chain.HeaderHeight() >= p.LastBlockIndex() {
-				block, errGetBlock := s.chain.GetBlock(s.chain.CurrentBlockHash())
-				if errGetBlock != nil {
-					err = errGetBlock
-				} else {
-					diff := uint32(time.Now().UTC().Unix()) - block.Timestamp
-					if diff > uint32(s.PingInterval/time.Second) {
-						p.UpdatePingSent(p.GetPingSent() + 1)
-						err = p.WriteMsg(NewMessage(s.Net, CMDPing, payload.NewPing(s.id, s.chain.HeaderHeight())))
-					}
-				}
-			}
-		case <-pingTimer.C:
-			if p.GetPingSent() > defaultPingLimit {
-				err = errors.New("ping/pong timeout")
-			} else {
-				pingTimer.Reset(s.PingTimeout)
-				p.UpdatePingSent(0)
-			}
-		}
-		if err != nil {
-			s.unregister <- peerDrop{p, err}
-			timer.Stop()
-			p.Disconnect(err)
-			return
-		}
-	}
-}
-
 // When a peer connects to the server, we will send our version immediately.
 func (s *Server) sendVersion(p Peer) error {
 	payload := payload.NewVersion(
@@ -701,7 +636,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			if err != nil {
 				return err
 			}
-			go s.startProtocol(peer)
+			go peer.StartProtocol()
 
 			s.tryStartConsensus()
 		default:

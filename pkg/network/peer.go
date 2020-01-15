@@ -26,6 +26,9 @@ type Peer interface {
 	Handshaked() bool
 	SendVersion(*Message) error
 	SendVersionAck(*Message) error
+	// StartProtocol is a goroutine to be run after the handshake. It
+	// implements basic peer-related protocol handling.
+	StartProtocol()
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
 	GetPingSent() int
