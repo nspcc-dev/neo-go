@@ -7,6 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
@@ -182,7 +183,7 @@ func newTestService(t *testing.T) *service {
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
 		Wallet: &config.WalletConfig{
-			Path:     "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y",
+			Path:     "./testdata/wallet1.json",
 			Password: "one",
 		},
 	})
@@ -192,35 +193,35 @@ func newTestService(t *testing.T) *service {
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {
-	var wallet *config.WalletConfig
+	var wif, password string
+
 	switch i {
 	case 0:
-		wallet = &config.WalletConfig{
-			Path:     "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y",
-			Password: "one",
-		}
+		wif = "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y"
+		password = "one"
+
 	case 1:
-		wallet = &config.WalletConfig{
-			Path:     "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L",
-			Password: "two",
-		}
+		wif = "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
+		password = "two"
+
 	case 2:
-		wallet = &config.WalletConfig{
-			Path:     "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh",
-			Password: "three",
-		}
+		wif = "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh"
+		password = "three"
+
 	case 3:
-		wallet = &config.WalletConfig{
-			Path:     "6PYRXVwHSqFSukL3CuXxdQ75VmsKpjeLgQLEjt83FrtHf1gCVphHzdD4nc",
-			Password: "four",
-		}
+		wif = "6PYRXVwHSqFSukL3CuXxdQ75VmsKpjeLgQLEjt83FrtHf1gCVphHzdD4nc"
+		password = "four"
+
 	default:
 		return nil, nil
 	}
 
-	priv, pub := getKeyPair(wallet)
+	key, err := keys.NEP2Decrypt(wif, password)
+	if err != nil {
+		return nil, nil
+	}
 
-	return priv.(*privateKey), pub.(*publicKey)
+	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
 }
 
 func newTestChain(t *testing.T) *core.Blockchain {
