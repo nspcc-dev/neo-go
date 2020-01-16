@@ -111,10 +111,7 @@ func (p *PrivateKey) Sign(data []byte) ([]byte, error) {
 		digest     = sha256.Sum256(data)
 	)
 
-	r, s, err := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
-	if err != nil {
-		return nil, err
-	}
+	r, s := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
 
 	params := privateKey.Curve.Params()
 	curveOrderByteSize := params.P.BitLen() / 8
