@@ -24,6 +24,11 @@ func (p *privateKey) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+// Sign implements dbft's crypto.PrivateKey interface.
+func (p *privateKey) Sign(data []byte) ([]byte, error) {
+	return p.PrivateKey.Sign(data), nil
+}
+
 // publicKey is a wrapper around keys.PublicKey
 // which implements crypto.PublicKey interface.
 type publicKey struct {
