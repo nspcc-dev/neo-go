@@ -19,6 +19,9 @@ const (
 	versionReceived
 	verAckSent
 	verAckReceived
+
+	requestQueueSize   = 32
+	hpRequestQueueSize = 4
 )
 
 var (
@@ -41,7 +44,9 @@ type TCPPeer struct {
 	finale    sync.Once
 	handShake handShakeStage
 
-	done chan struct{}
+	done    chan struct{}
+	sendQ   chan []byte
+	hpSendQ chan []byte
 
 	wg sync.WaitGroup
 
@@ -52,29 +57,50 @@ type TCPPeer struct {
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
 func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	return &TCPPeer{
-		conn:   conn,
-		server: s,
-		done:   make(chan struct{}),
+		conn:    conn,
+		server:  s,
+		done:    make(chan struct{}),
+		sendQ:   make(chan []byte, requestQueueSize),
+		hpSendQ: make(chan []byte, hpRequestQueueSize),
 	}
 }
 
-// WriteMsg implements the Peer interface. This will write/encode the message
-// to the underlying connection, this only works for messages other than Version
-// or VerAck.
-func (p *TCPPeer) WriteMsg(msg *Message) error {
+// EnqueuePacket implements the Peer interface.
+func (p *TCPPeer) EnqueuePacket(msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
-	return p.writeMsg(msg)
+	p.sendQ <- msg
+	return nil
+}
+
+// EnqueueMessage is a temporary wrapper that sends a message via
+// EnqueuePacket if there is no error in serializing it.
+func (p *TCPPeer) EnqueueMessage(msg *Message) error {
+	b, err := msg.Bytes()
+	if err != nil {
+		return err
+	}
+	return p.EnqueuePacket(b)
+}
+
+// EnqueueHPPacket implements the Peer interface. It the peer is not yet
+// handshaked it's a noop.
+func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
+	if !p.Handshaked() {
+		return errStateMismatch
+	}
+	p.hpSendQ <- msg
+	return nil
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
-	w := io.NewBufBinWriter()
-	if err := msg.Encode(w.BinWriter); err != nil {
+	b, err := msg.Bytes()
+	if err != nil {
 		return err
 	}
 
-	_, err := p.conn.Write(w.Bytes())
+	_, err = p.conn.Write(b)
 
 	return err
 }
@@ -86,6 +112,7 @@ func (p *TCPPeer) handleConn() {
 
 	p.server.register <- p
 
+	go p.handleQueues()
 	// When a new peer is connected we send out our version immediately.
 	err = p.server.sendVersion(p)
 	if err == nil {
@@ -103,6 +130,40 @@ func (p *TCPPeer) handleConn() {
 			if err = p.server.handleMessage(p, msg); err != nil {
 				break
 			}
+		}
+	}
+	p.Disconnect(err)
+}
+
+// handleQueues is a goroutine that is started automatically to handle
+// send queues.
+func (p *TCPPeer) handleQueues() {
+	var err error
+
+	for {
+		var msg []byte
+
+		// This one is to give priority to the hp queue
+		select {
+		case <-p.done:
+			return
+		case msg = <-p.hpSendQ:
+		default:
+		}
+
+		// If there is no message in the hp queue, block until one
+		// appears in any of the queues.
+		if msg == nil {
+			select {
+			case <-p.done:
+				return
+			case msg = <-p.hpSendQ:
+			case msg = <-p.sendQ:
+			}
+		}
+		_, err = p.conn.Write(msg)
+		if err != nil {
+			break
 		}
 	}
 	p.Disconnect(err)
@@ -136,7 +197,12 @@ func (p *TCPPeer) StartProtocol() {
 		case <-p.done:
 			return
 		case m := <-p.server.addrReq:
-			err = p.WriteMsg(m)
+			var pkt []byte
+
+			pkt, err = m.Bytes()
+			if err == nil {
+				err = p.EnqueueHPPacket(pkt)
+			}
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
@@ -153,7 +219,7 @@ func (p *TCPPeer) StartProtocol() {
 					diff := uint32(time.Now().UTC().Unix()) - block.Timestamp
 					if diff > uint32(p.server.PingInterval/time.Second) {
 						p.UpdatePingSent(p.GetPingSent() + 1)
-						err = p.WriteMsg(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+						err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 					}
 				}
 			}

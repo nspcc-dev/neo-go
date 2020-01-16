@@ -15,6 +15,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -179,8 +180,24 @@ func (p *localPeer) PeerAddr() net.Addr {
 }
 func (p *localPeer) StartProtocol()       {}
 func (p *localPeer) Disconnect(err error) {}
-func (p *localPeer) WriteMsg(msg *Message) error {
-	p.messageHandler(p.t, msg)
+
+func (p *localPeer) EnqueueMessage(msg *Message) error {
+	b, err := msg.Bytes()
+	if err != nil {
+		return err
+	}
+	return p.EnqueuePacket(b)
+}
+func (p *localPeer) EnqueuePacket(m []byte) error {
+	return p.EnqueueHPPacket(m)
+}
+func (p *localPeer) EnqueueHPPacket(m []byte) error {
+	msg := &Message{}
+	r := io.NewBinReaderFromBuf(m)
+	err := msg.Decode(r)
+	if err == nil {
+		p.messageHandler(p.t, msg)
+	}
 	return nil
 }
 func (p *localPeer) Version() *payload.Version {
@@ -197,10 +214,12 @@ func (p *localPeer) HandleVersion(v *payload.Version) error {
 	return nil
 }
 func (p *localPeer) SendVersion(m *Message) error {
-	return p.WriteMsg(m)
+	_ = p.EnqueueMessage(m)
+	return nil
 }
 func (p *localPeer) SendVersionAck(m *Message) error {
-	return p.WriteMsg(m)
+	_ = p.EnqueueMessage(m)
+	return nil
 }
 func (p *localPeer) HandleVersionAck() error {
 	p.handshaked = true

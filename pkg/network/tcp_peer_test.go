@@ -30,8 +30,8 @@ func TestPeerHandshake(t *testing.T) {
 	require.Equal(t, false, tcpC.Handshaked())
 
 	// No ordinary messages can be written.
-	require.Error(t, tcpS.WriteMsg(&Message{}))
-	require.Error(t, tcpC.WriteMsg(&Message{}))
+	require.Error(t, tcpS.EnqueueMessage(&Message{}))
+	require.Error(t, tcpC.EnqueueMessage(&Message{}))
 
 	// Try to mess with VersionAck on both client and server, it should fail.
 	require.Error(t, tcpS.SendVersionAck(&Message{}))
@@ -80,6 +80,6 @@ func TestPeerHandshake(t *testing.T) {
 	require.Error(t, tcpS.SendVersionAck(&Message{}))
 
 	// Now regular messaging can proceed.
-	require.NoError(t, tcpS.WriteMsg(&Message{}))
-	require.NoError(t, tcpC.WriteMsg(&Message{}))
+	require.NoError(t, tcpS.EnqueueMessage(&Message{}))
+	require.NoError(t, tcpC.EnqueueMessage(&Message{}))
 }
