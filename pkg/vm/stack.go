@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 // Stack implementation for the neo-go virtual machine. The stack implements
@@ -83,7 +81,7 @@ func (e *Element) BigInt() *big.Int {
 		return big.NewInt(0)
 	default:
 		b := t.Value().([]uint8)
-		return new(big.Int).SetBytes(util.ArrayReverse(b))
+		return bytesToInt(b)
 	}
 }
 
