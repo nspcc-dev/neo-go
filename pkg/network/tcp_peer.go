@@ -31,6 +31,8 @@ type TCPPeer struct {
 
 	// The version of the peer.
 	version *payload.Version
+	// Index of the last block.
+	lastBlockIndex uint32
 
 	lock      sync.RWMutex
 	handShake handShakeStage
@@ -38,6 +40,9 @@ type TCPPeer struct {
 	done chan error
 
 	wg sync.WaitGroup
+
+	// number of sent pings.
+	pingSent int
 }
 
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
@@ -103,6 +108,7 @@ func (p *TCPPeer) HandleVersion(version *payload.Version) error {
 		return errors.New("invalid handshake: already received Version")
 	}
 	p.version = version
+	p.lastBlockIndex = version.StartHeight
 	p.handShake |= versionReceived
 	return nil
 }
@@ -190,4 +196,32 @@ func (p *TCPPeer) Disconnect(err error) {
 // Version implements the Peer interface.
 func (p *TCPPeer) Version() *payload.Version {
 	return p.version
+}
+
+// LastBlockIndex returns last block index.
+func (p *TCPPeer) LastBlockIndex() uint32 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.lastBlockIndex
+}
+
+// UpdateLastBlockIndex updates last block index.
+func (p *TCPPeer) UpdateLastBlockIndex(newIndex uint32) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.lastBlockIndex = newIndex
+}
+
+// GetPingSent returns flag whether ping was sent or not.
+func (p *TCPPeer) GetPingSent() int {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.pingSent
+}
+
+// UpdatePingSent updates pingSent value.
+func (p *TCPPeer) UpdatePingSent(newValue int) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.pingSent = newValue
 }

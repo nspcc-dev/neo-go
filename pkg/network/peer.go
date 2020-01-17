@@ -21,9 +21,13 @@ type Peer interface {
 	WriteMsg(msg *Message) error
 	Done() chan error
 	Version() *payload.Version
+	LastBlockIndex() uint32
+	UpdateLastBlockIndex(lbIndex uint32)
 	Handshaked() bool
 	SendVersion(*Message) error
 	SendVersionAck(*Message) error
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
+	GetPingSent() int
+	UpdatePingSent(int)
 }

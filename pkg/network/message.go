@@ -197,6 +197,8 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		p = &transaction.Transaction{}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
+	case CMDPing, CMDPong:
+		p = &payload.Ping{}
 	default:
 		return fmt.Errorf("can't decode command %s", cmdByteArrayToString(m.Command))
 	}
