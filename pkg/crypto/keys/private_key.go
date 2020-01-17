@@ -105,16 +105,13 @@ func (p *PrivateKey) Signature() []byte {
 }
 
 // Sign signs arbitrary length data using the private key.
-func (p *PrivateKey) Sign(data []byte) ([]byte, error) {
+func (p *PrivateKey) Sign(data []byte) []byte {
 	var (
 		privateKey = p.ecdsa()
 		digest     = sha256.Sum256(data)
 	)
 
-	r, s, err := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
-	if err != nil {
-		return nil, err
-	}
+	r, s := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
 
 	params := privateKey.Curve.Params()
 	curveOrderByteSize := params.P.BitLen() / 8
@@ -123,7 +120,7 @@ func (p *PrivateKey) Sign(data []byte) ([]byte, error) {
 	copy(signature[curveOrderByteSize-len(rBytes):], rBytes)
 	copy(signature[curveOrderByteSize*2-len(sBytes):], sBytes)
 
-	return signature, nil
+	return signature
 }
 
 // ecsda converts the key to a usable ecsda.PrivateKey for signing data.

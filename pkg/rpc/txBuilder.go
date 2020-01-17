@@ -96,7 +96,6 @@ func SignTx(tx *transaction.Transaction, wif *keys.WIF) error {
 // GetInvocationScript returns NEO VM script containing transaction signature.
 func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, error) {
 	var (
-		err       error
 		buf       = io.NewBufBinWriter()
 		signature []byte
 	)
@@ -105,10 +104,7 @@ func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, er
 		return nil, errs.Wrap(buf.Err, "Failed to encode transaction to binary")
 	}
 	data := buf.Bytes()
-	signature, err = wif.PrivateKey.Sign(data[:(len(data) - 1)])
-	if err != nil {
-		return nil, errs.Wrap(err, "Failed ti sign transaction with private key")
-	}
+	signature = wif.PrivateKey.Sign(data[:(len(data) - 1)])
 	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...), nil
 }
 

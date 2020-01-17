@@ -82,9 +82,9 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 			panic(err)
 		}
 		b := b.GetHashableData()
-		sig, err := pKey.Sign(b)
-		if err != nil || len(sig) != 64 {
-			panic(err)
+		sig := pKey.Sign(b)
+		if len(sig) != 64 {
+			panic("wrong signature length")
 		}
 		invScript = append(invScript, byte(opcode.PUSHBYTES64))
 		invScript = append(invScript, sig...)
