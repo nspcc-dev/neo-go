@@ -2,10 +2,8 @@ package vm
 
 import (
 	"errors"
-	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type stackItemType byte
@@ -50,7 +48,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBool(t.value)
 	case *BigIntegerItem:
 		w.WriteBytes([]byte{byte(integerT)})
-		w.WriteVarBytes(t.Bytes())
+		w.WriteVarBytes(intToBytes(t.value))
 	case *InteropItem:
 		w.Err = errors.New("not supported")
 	case *ArrayItem, *StructItem:
@@ -108,7 +106,7 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		return NewBoolItem(b)
 	case integerT:
 		data := r.ReadVarBytes()
-		num := new(big.Int).SetBytes(util.ArrayReverse(data))
+		num := bytesToInt(data)
 		return &BigIntegerItem{
 			value: num,
 		}
