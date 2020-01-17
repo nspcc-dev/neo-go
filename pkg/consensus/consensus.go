@@ -114,12 +114,10 @@ func NewService(cfg Config) (Service, error) {
 
 	defer srv.wallet.Close()
 
-	_, priv, pub := srv.getKeyPair(srv.getValidators())
-
 	srv.dbft = dbft.New(
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
-		dbft.WithKeyPair(priv, pub),
+		dbft.WithGetKeyPair(srv.getKeyPair),
 		dbft.WithTxPerBlock(10000),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithGetTx(srv.getTx),
