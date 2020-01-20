@@ -52,6 +52,11 @@ type (
 		// When this is 0, the default interval of 5 seconds will be used.
 		ProtoTickInterval time.Duration
 
+		// Interval used in pinging mechanism for syncing blocks.
+		PingInterval time.Duration
+		// Time to wait for pong(response for sent ping request).
+		PingTimeout time.Duration
+
 		// Level of the internal logger.
 		LogLevel zapcore.Level
 
@@ -83,6 +88,8 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		Seeds:             protoConfig.SeedList,
 		DialTimeout:       appConfig.DialTimeout * time.Second,
 		ProtoTickInterval: appConfig.ProtoTickInterval * time.Second,
+		PingInterval: 	   appConfig.PingInterval * time.Second,
+		PingTimeout: 	   appConfig.PingTimeout * time.Second,
 		MaxPeers:          appConfig.MaxPeers,
 		AttemptConnPeers:  appConfig.AttemptConnPeers,
 		MinPeers:          appConfig.MinPeers,

@@ -73,6 +73,8 @@ type (
 		Relay             bool                    `yaml:"Relay"`
 		DialTimeout       time.Duration           `yaml:"DialTimeout"`
 		ProtoTickInterval time.Duration           `yaml:"ProtoTickInterval"`
+		PingInterval      time.Duration           `yaml:"PingInterval"`
+		PingTimeout       time.Duration           `yaml:"PingTimeout"`
 		MaxPeers          int                     `yaml:"MaxPeers"`
 		AttemptConnPeers  int                     `yaml:"AttemptConnPeers"`
 		MinPeers          int                     `yaml:"MinPeers"`
