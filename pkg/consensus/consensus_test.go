@@ -29,6 +29,7 @@ func TestNewService(t *testing.T) {
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
 	require.Len(t, txx, 2)
 	require.Equal(t, tx, txx[1])
+	srv.Chain.Close()
 }
 
 func TestService_GetVerified(t *testing.T) {
@@ -76,6 +77,7 @@ func TestService_GetVerified(t *testing.T) {
 		require.Contains(t, txx, txs[1])
 		require.NotContains(t, txx, txs[2])
 	})
+	srv.Chain.Close()
 }
 
 func TestService_ValidatePayload(t *testing.T) {
@@ -105,6 +107,7 @@ func TestService_ValidatePayload(t *testing.T) {
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
 	})
+	srv.Chain.Close()
 }
 
 func TestService_getTx(t *testing.T) {
@@ -136,6 +139,7 @@ func TestService_getTx(t *testing.T) {
 		require.NotNil(t, got)
 		require.Equal(t, h, got.Hash())
 	})
+	srv.Chain.Close()
 }
 
 func TestService_OnPayload(t *testing.T) {
@@ -159,6 +163,7 @@ func TestService_OnPayload(t *testing.T) {
 	// payload has already been received
 	srv.OnPayload(p)
 	shouldNotReceive(t, srv.messages)
+	srv.Chain.Close()
 }
 
 func shouldReceive(t *testing.T, ch chan Payload) {
