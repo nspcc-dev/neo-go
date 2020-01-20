@@ -80,6 +80,7 @@ type VM struct {
 	size      int
 
 	gasConsumed util.Fixed8
+	gasLimit    util.Fixed8
 
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
@@ -128,6 +129,12 @@ func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) util.Fixed8) {
 // GasConsumed returns the amount of GAS consumed during execution.
 func (v *VM) GasConsumed() util.Fixed8 {
 	return v.gasConsumed
+}
+
+// SetGasLimit sets maximum amount of gas which v can spent.
+// If max <= 0, no limit is imposed.
+func (v *VM) SetGasLimit(max util.Fixed8) {
+	v.gasLimit = max
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -483,6 +490,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
 		v.gasConsumed += v.getPrice(v, op, parameter)
+		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
+			panic("gas limit is exceeded")
+		}
 	}
 
 	if op >= opcode.PUSHBYTES1 && op <= opcode.PUSHBYTES75 {

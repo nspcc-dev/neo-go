@@ -92,7 +92,21 @@ func TestVM_SetPriceGetter(t *testing.T) {
 		v.Load(prog)
 		runVM(t, v)
 
-		require.EqualValues(t, 9, v.gasConsumed)
+		require.EqualValues(t, 9, v.GasConsumed())
+	})
+
+	t.Run("with sufficient gas limit", func(t *testing.T) {
+		v.Load(prog)
+		v.SetGasLimit(9)
+		runVM(t, v)
+
+		require.EqualValues(t, 9, v.GasConsumed())
+	})
+
+	t.Run("with small gas limit", func(t *testing.T) {
+		v.Load(prog)
+		v.SetGasLimit(8)
+		checkVMFailed(t, v)
 	})
 }
 
