@@ -63,6 +63,9 @@ type VM struct {
 	// callbacks to get interops.
 	getInterop []InteropGetterFunc
 
+	// callback to get interop price
+	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
+
 	// callback to get scripts.
 	getScript func(util.Uint160) []byte
 
@@ -75,6 +78,8 @@ type VM struct {
 
 	itemCount map[StackItem]int
 	size      int
+
+	gasConsumed util.Fixed8
 
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
@@ -112,6 +117,17 @@ func (v *VM) newItemStack(n string) *Stack {
 // registration time.
 func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
 	v.getInterop = append(v.getInterop, f)
+}
+
+// SetPriceGetter registers the given PriceGetterFunc in v.
+// f accepts vm's Context, current instruction and instruction parameter.
+func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) util.Fixed8) {
+	v.getPrice = f
+}
+
+// GasConsumed returns the amount of GAS consumed during execution.
+func (v *VM) GasConsumed() util.Fixed8 {
+	return v.gasConsumed
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -225,6 +241,7 @@ func (v *VM) Load(prog []byte) {
 	v.estack.Clear()
 	v.astack.Clear()
 	v.state = noneState
+	v.gasConsumed = 0
 	v.LoadScript(prog)
 }
 
@@ -463,6 +480,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			err = newError(ctx.ip, op, "stack is too big")
 		}
 	}()
+
+	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
+		v.gasConsumed += v.getPrice(v, op, parameter)
+	}
 
 	if op >= opcode.PUSHBYTES1 && op <= opcode.PUSHBYTES75 {
 		v.estack.PushVal(parameter)
