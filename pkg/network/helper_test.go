@@ -9,6 +9,8 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -43,10 +45,10 @@ func (chain testChain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	panic("TODO")
 }
 
-func (chain testChain) AddHeaders(...*core.Header) error {
+func (chain testChain) AddHeaders(...*block.Header) error {
 	panic("TODO")
 }
-func (chain *testChain) AddBlock(block *core.Block) error {
+func (chain *testChain) AddBlock(block *block.Block) error {
 	if block.Index == chain.blockheight+1 {
 		atomic.StoreUint32(&chain.blockheight, block.Index)
 	}
@@ -61,7 +63,7 @@ func (chain *testChain) Close() {
 func (chain testChain) HeaderHeight() uint32 {
 	return 0
 }
-func (chain testChain) GetBlock(hash util.Uint256) (*core.Block, error) {
+func (chain testChain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	panic("TODO")
 }
 func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
@@ -70,7 +72,7 @@ func (chain testChain) GetContractState(hash util.Uint160) *state.Contract {
 func (chain testChain) GetHeaderHash(int) util.Uint256 {
 	return util.Uint256{}
 }
-func (chain testChain) GetHeader(hash util.Uint256) (*core.Header, error) {
+func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	panic("TODO")
 }
 
@@ -115,7 +117,7 @@ func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState 
 	panic("TODO")
 }
 
-func (chain testChain) GetMemPool() core.MemPool {
+func (chain testChain) GetMemPool() mempool.Pool {
 	panic("TODO")
 }
 
@@ -123,7 +125,7 @@ func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
 	panic("TODO")
 }
 
-func (chain testChain) VerifyTx(*transaction.Transaction, *core.Block) error {
+func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
 	panic("TODO")
 }
 

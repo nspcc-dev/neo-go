@@ -1,4 +1,4 @@
-package core
+package mempool
 
 import (
 	"testing"
@@ -87,4 +87,11 @@ func TestMemPoolVerify(t *testing.T) {
 	// The same input as in tx2.
 	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
 	require.Equal(t, false, mp.Verify(tx3))
+}
+
+func newMinerTX() *transaction.Transaction {
+	return &transaction.Transaction{
+		Type: transaction.MinerType,
+		Data: &transaction.MinerTX{},
+	}
 }

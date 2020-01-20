@@ -1,4 +1,4 @@
-package core
+package block
 
 import (
 	"encoding/hex"
@@ -9,20 +9,17 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test blocks are blocks from mainnet with their corresponding index.
 
 func TestDecodeBlock1(t *testing.T) {
 	data, err := getBlockData(1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b, err := hex.DecodeString(data["raw"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block := &Block{}
 	r := io.NewBinReaderFromBuf(b)
@@ -51,14 +48,10 @@ func TestTrimmedBlock(t *testing.T) {
 	block := getDecodedBlock(t, 1)
 
 	b, err := block.Trim()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	trimmedBlock, err := NewBlockFromTrimmedBytes(b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.True(t, trimmedBlock.Trimmed)
 	assert.Equal(t, block.Version, trimmedBlock.Version)
@@ -79,7 +72,7 @@ func TestTrimmedBlock(t *testing.T) {
 
 func newDumbBlock() *Block {
 	return &Block{
-		BlockBase: BlockBase{
+		Base: Base{
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
@@ -108,21 +101,21 @@ func TestHashBlockEqualsHashHeader(t *testing.T) {
 func TestBlockVerify(t *testing.T) {
 	block := newDumbBlock()
 	assert.NotNil(t, block.Verify())
-	assert.Nil(t, block.rebuildMerkleRoot())
+	assert.Nil(t, block.RebuildMerkleRoot())
 	assert.Nil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.IssueType},
 		{Type: transaction.MinerType},
 	}
-	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},
 		{Type: transaction.MinerType},
 	}
-	assert.NoError(t, block.rebuildMerkleRoot())
+	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 	block.Transactions = []*transaction.Transaction{
 		{Type: transaction.MinerType},
@@ -291,9 +284,9 @@ func TestBlockSizeCalculation(t *testing.T) {
 }
 
 func TestBlockCompare(t *testing.T) {
-	b1 := Block{BlockBase: BlockBase{Index: 1}}
-	b2 := Block{BlockBase: BlockBase{Index: 2}}
-	b3 := Block{BlockBase: BlockBase{Index: 3}}
+	b1 := Block{Base: Base{Index: 1}}
+	b2 := Block{Base: Base{Index: 2}}
+	b3 := Block{Base: Base{Index: 3}}
 	assert.Equal(t, 1, b2.Compare(&b1))
 	assert.Equal(t, 0, b2.Compare(&b2))
 	assert.Equal(t, -1, b2.Compare(&b3))

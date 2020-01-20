@@ -7,6 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -193,10 +194,10 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	nBlocks = br.ReadU32LE()
 	require.Nil(t, br.Err)
 	for i := 0; i < int(nBlocks); i++ {
-		block := &core.Block{}
-		block.DecodeBinary(br)
+		b := &block.Block{}
+		b.DecodeBinary(br)
 		require.Nil(t, br.Err)
-		require.NoError(t, chain.AddBlock(block))
+		require.NoError(t, chain.AddBlock(b))
 	}
 
 	serverConfig := network.NewServerConfig(cfg)

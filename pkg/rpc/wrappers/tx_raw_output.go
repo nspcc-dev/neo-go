@@ -2,6 +2,7 @@ package wrappers
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -21,9 +22,9 @@ type TransactionOutputRaw struct {
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
-func NewTransactionOutputRaw(tx *transaction.Transaction, header *core.Header, chain core.Blockchainer) TransactionOutputRaw {
+func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain core.Blockchainer) TransactionOutputRaw {
 	// confirmations formula
-	confirmations := int(chain.BlockHeight() - header.BlockBase.Index + 1)
+	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
 	// set index position
 	for i, o := range tx.Outputs {
 		o.Position = i

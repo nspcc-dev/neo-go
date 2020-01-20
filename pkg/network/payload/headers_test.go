@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
@@ -26,11 +26,11 @@ func TestHeadersEncodeDecode(t *testing.T) {
 }
 
 func newTestHeaders(n int) *Headers {
-	headers := &Headers{Hdrs: make([]*core.Header, n)}
+	headers := &Headers{Hdrs: make([]*block.Header, n)}
 
 	for i := range headers.Hdrs {
-		headers.Hdrs[i] = &core.Header{
-			BlockBase: core.BlockBase{
+		headers.Hdrs[i] = &block.Header{
+			Base: block.Base{
 				Index: uint32(i + 1),
 				Script: transaction.Witness{
 					InvocationScript:   []byte{0x0},

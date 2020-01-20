@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -260,16 +261,16 @@ func TestGetBlock_NotExists(t *testing.T) {
 
 func TestPutGetBlock(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
-	block := &Block{
-		BlockBase: BlockBase{
+	b := &block.Block{
+		Base: block.Base{
 			Script: transaction.Witness{
 				VerificationScript: []byte{byte(opcode.PUSH1)},
 				InvocationScript:   []byte{byte(opcode.NOP)},
 			},
 		},
 	}
-	hash := block.Hash()
-	err := dao.StoreAsBlock(block, 0)
+	hash := b.Hash()
+	err := dao.StoreAsBlock(b, 0)
 	require.NoError(t, err)
 	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
@@ -301,15 +302,15 @@ func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
-	block := &Block{
-		BlockBase: BlockBase{
+	b := &block.Block{
+		Base: block.Base{
 			Script: transaction.Witness{
 				VerificationScript: []byte{byte(opcode.PUSH1)},
 				InvocationScript:   []byte{byte(opcode.NOP)},
 			},
 		},
 	}
-	err := dao.StoreAsCurrentBlock(block)
+	err := dao.StoreAsCurrentBlock(b)
 	require.NoError(t, err)
 	height, err := dao.GetCurrentBlockHeight()
 	require.NoError(t, err)

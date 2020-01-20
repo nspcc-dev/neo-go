@@ -1,14 +1,14 @@
 package payload
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/pkg/errors"
 )
 
 // Headers payload.
 type Headers struct {
-	Hdrs []*core.Header
+	Hdrs []*block.Header
 }
 
 // Users can at most request 2k header.
@@ -30,10 +30,10 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 		lenHeaders = MaxHeadersAllowed
 	}
 
-	p.Hdrs = make([]*core.Header, lenHeaders)
+	p.Hdrs = make([]*block.Header, lenHeaders)
 
 	for i := 0; i < int(lenHeaders); i++ {
-		header := &core.Header{}
+		header := &block.Header{}
 		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}

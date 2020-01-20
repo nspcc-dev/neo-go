@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -13,7 +14,7 @@ import (
 )
 
 // createGenesisBlock creates a genesis block based on the given configuration.
-func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
+func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
 	validators, err := getValidators(cfg)
 	if err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		return nil, err
 	}
 
-	base := BlockBase{
+	base := block.Base{
 		Version:       0,
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
@@ -48,8 +49,8 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 	}
 	scriptOut := hash.Hash160(rawScript)
 
-	block := &Block{
-		BlockBase: base,
+	b := &block.Block{
+		Base: base,
 		Transactions: []*transaction.Transaction{
 			{
 				Type: transaction.MinerType,
@@ -84,11 +85,11 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		},
 	}
 
-	if err = block.rebuildMerkleRoot(); err != nil {
+	if err = b.RebuildMerkleRoot(); err != nil {
 		return nil, err
 	}
 
-	return block, nil
+	return b, nil
 }
 
 func governingTokenTX() *transaction.Transaction {
@@ -167,7 +168,7 @@ func calculateUtilityAmount() util.Fixed8 {
 }
 
 // headerSliceReverse reverses the given slice of *Header.
-func headerSliceReverse(dest []*Header) {
+func headerSliceReverse(dest []*block.Header) {
 	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
 		dest[i], dest[j] = dest[j], dest[i]
 	}

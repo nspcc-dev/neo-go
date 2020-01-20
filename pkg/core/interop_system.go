@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -132,11 +133,11 @@ func (ic *interopContext) bcGetTransactionHeight(v *vm.VM) error {
 // popHeaderFromVM returns pointer to Header or error. It's main feature is
 // proper treatment of Block structure, because C# code implicitly assumes
 // that header APIs can also operate on blocks.
-func popHeaderFromVM(v *vm.VM) (*Header, error) {
+func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
 	iface := v.Estack().Pop().Value()
-	header, ok := iface.(*Header)
+	header, ok := iface.(*block.Header)
 	if !ok {
-		block, ok := iface.(*Block)
+		block, ok := iface.(*block.Block)
 		if !ok {
 			return nil, errors.New("value is not a header or block")
 		}
@@ -188,7 +189,7 @@ func (ic *interopContext) headerGetTimestamp(v *vm.VM) error {
 // blockGetTransactionCount returns transactions count in the given block.
 func (ic *interopContext) blockGetTransactionCount(v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*Block)
+	block, ok := blockInterface.(*block.Block)
 	if !ok {
 		return errors.New("value is not a block")
 	}
@@ -199,7 +200,7 @@ func (ic *interopContext) blockGetTransactionCount(v *vm.VM) error {
 // blockGetTransactions returns transactions from the given block.
 func (ic *interopContext) blockGetTransactions(v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*Block)
+	block, ok := blockInterface.(*block.Block)
 	if !ok {
 		return errors.New("value is not a block")
 	}
@@ -218,7 +219,7 @@ func (ic *interopContext) blockGetTransactions(v *vm.VM) error {
 // block.
 func (ic *interopContext) blockGetTransaction(v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*Block)
+	block, ok := blockInterface.(*block.Block)
 	if !ok {
 		return errors.New("value is not a block")
 	}
@@ -359,7 +360,7 @@ func (ic *interopContext) runtimeLog(v *vm.VM) error {
 // runtimeGetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to interopContext.
 func (ic *interopContext) runtimeGetTime(v *vm.VM) error {
-	var header *Header
+	var header *block.Header
 	if ic.block == nil {
 		var err error
 		header, err = ic.bc.GetHeader(ic.bc.CurrentBlockHash())

@@ -1,4 +1,4 @@
-package core
+package block
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 // Block represents one block in the chain.
 type Block struct {
 	// The base of the block.
-	BlockBase
+	Base
 
 	// Transaction list.
 	Transactions []*transaction.Transaction `json:"tx"`
@@ -26,7 +26,7 @@ type Block struct {
 // Header returns the Header of the Block.
 func (b *Block) Header() *Header {
 	return &Header{
-		BlockBase: b.BlockBase,
+		Base: b.Base,
 	}
 }
 
@@ -39,8 +39,8 @@ func merkleTreeFromTransactions(txes []*transaction.Transaction) (*hash.MerkleTr
 	return hash.NewMerkleTree(hashes)
 }
 
-// rebuildMerkleRoot rebuilds the merkleroot of the block.
-func (b *Block) rebuildMerkleRoot() error {
+// RebuildMerkleRoot rebuilds the merkleroot of the block.
+func (b *Block) RebuildMerkleRoot() error {
 	merkle, err := merkleTreeFromTransactions(b.Transactions)
 	if err != nil {
 		return err
@@ -126,14 +126,14 @@ func (b *Block) Trim() ([]byte, error) {
 // DecodeBinary decodes the block from the given BinReader, implementing
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
-	b.BlockBase.DecodeBinary(br)
+	b.Base.DecodeBinary(br)
 	br.ReadArray(&b.Transactions)
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
-	b.BlockBase.EncodeBinary(bw)
+	b.Base.EncodeBinary(bw)
 	bw.WriteArray(b.Transactions)
 }
 

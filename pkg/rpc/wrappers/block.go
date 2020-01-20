@@ -2,14 +2,15 @@ package wrappers
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
 type (
 	// Block wrapper used for the representation of
-	// core.Block / core.BlockBase on the RPC Server.
+	// block.Block / block.Base on the RPC Server.
 	Block struct {
-		*core.Block
+		*block.Block
 		Confirmations uint32       `json:"confirmations"`
 		NextBlockHash util.Uint256 `json:"nextblockhash,omitempty"`
 		Hash          util.Uint256 `json:"hash"`
@@ -17,7 +18,7 @@ type (
 )
 
 // NewBlock creates a new Block wrapper.
-func NewBlock(block *core.Block, chain core.Blockchainer) Block {
+func NewBlock(block *block.Block, chain core.Blockchainer) Block {
 	blockWrapper := Block{
 		Block: block,
 		Hash:  block.Hash(),

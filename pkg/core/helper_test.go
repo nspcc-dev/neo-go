@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/CityOfZion/neo-go/config"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -49,7 +51,7 @@ func newTestChain(t *testing.T) *Blockchain {
 	return chain
 }
 
-func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
+func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 	validators, _ := getValidators(unitTestNetCfg.ProtocolConfiguration)
 	vlen := len(validators)
 	valScript, _ := smartcontract.CreateMultiSigRedeemScript(
@@ -59,8 +61,8 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 	witness := transaction.Witness{
 		VerificationScript: valScript,
 	}
-	b := &Block{
-		BlockBase: BlockBase{
+	b := &block.Block{
+		Base: block.Base{
 			Version:       0,
 			PrevHash:      newBlockPrevHash,
 			Timestamp:     uint32(time.Now().UTC().Unix()) + index,
@@ -71,8 +73,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 		},
 		Transactions: txs,
 	}
-	_ = b.rebuildMerkleRoot()
-	b.createHash()
+	_ = b.RebuildMerkleRoot()
 	newBlockPrevHash = b.Hash()
 
 	invScript := make([]byte, 0)
@@ -93,8 +94,8 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *Block {
 	return b
 }
 
-func makeBlocks(n int) []*Block {
-	blocks := make([]*Block, n)
+func makeBlocks(n int) []*block.Block {
+	blocks := make([]*block.Block, n)
 	for i := 0; i < n; i++ {
 		blocks[i] = newBlock(uint32(i+1), newMinerTX())
 	}
@@ -108,7 +109,7 @@ func newMinerTX() *transaction.Transaction {
 	}
 }
 
-func getDecodedBlock(t *testing.T, i int) *Block {
+func getDecodedBlock(t *testing.T, i int) *block.Block {
 	data, err := getBlockData(i)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +120,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 		t.Fatal(err)
 	}
 
-	block := &Block{}
+	block := &block.Block{}
 	r := io.NewBinReaderFromBuf(b)
 	block.DecodeBinary(r)
 	if r.Err != nil {
@@ -139,4 +140,26 @@ func getBlockData(i int) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return data, err
+}
+
+func newDumbBlock() *block.Block {
+	return &block.Block{
+		Base: block.Base{
+			Version:       0,
+			PrevHash:      hash.Sha256([]byte("a")),
+			MerkleRoot:    hash.Sha256([]byte("b")),
+			Timestamp:     uint32(100500),
+			Index:         1,
+			ConsensusData: 1111,
+			NextConsensus: hash.Hash160([]byte("a")),
+			Script: transaction.Witness{
+				VerificationScript: []byte{0x51}, // PUSH1
+				InvocationScript:   []byte{0x61}, // NOP
+			},
+		},
+		Transactions: []*transaction.Transaction{
+			{Type: transaction.MinerType},
+			{Type: transaction.IssueType},
+		},
+	}
 }

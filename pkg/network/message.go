@@ -7,7 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/consensus"
-	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -184,7 +184,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
-		p = &core.Block{}
+		p = &block.Block{}
 	case CMDConsensus:
 		p = &consensus.Payload{}
 	case CMDGetBlocks:

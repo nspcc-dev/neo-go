@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core"
+	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/dbft/block"
@@ -11,7 +11,7 @@ import (
 // neoBlock is a wrapper of core.Block which implements
 // methods necessary for dBFT library.
 type neoBlock struct {
-	core.Block
+	coreb.Block
 
 	signature []byte
 }
@@ -20,7 +20,7 @@ var _ block.Block = (*neoBlock)(nil)
 
 // Sign implements block.Block interface.
 func (n *neoBlock) Sign(key crypto.PrivateKey) error {
-	data := n.BlockBase.GetHashableData()
+	data := n.Base.GetHashableData()
 	sig, err := key.Sign(data[:])
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (n *neoBlock) Sign(key crypto.PrivateKey) error {
 
 // Verify implements block.Block interface.
 func (n *neoBlock) Verify(key crypto.PublicKey, sign []byte) error {
-	data := n.BlockBase.GetHashableData()
+	data := n.Base.GetHashableData()
 	return key.Verify(data, sign)
 }
 

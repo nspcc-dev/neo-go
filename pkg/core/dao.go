@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -358,13 +359,13 @@ func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
 // -- other.
 
 // GetBlock returns Block by the given hash if it exists in the store.
-func (dao *dao) GetBlock(hash util.Uint256) (*Block, error) {
+func (dao *dao) GetBlock(hash util.Uint256) (*block.Block, error) {
 	key := storage.AppendPrefix(storage.DataBlock, hash.BytesLE())
 	b, err := dao.store.Get(key)
 	if err != nil {
 		return nil, err
 	}
-	block, err := NewBlockFromTrimmedBytes(b)
+	block, err := block.NewBlockFromTrimmedBytes(b)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +487,7 @@ func (dao *dao) HasTransaction(hash util.Uint256) bool {
 }
 
 // StoreAsBlock stores the given block as DataBlock.
-func (dao *dao) StoreAsBlock(block *Block, sysFee uint32) error {
+func (dao *dao) StoreAsBlock(block *block.Block, sysFee uint32) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
 		buf = io.NewBufBinWriter()
@@ -505,7 +506,7 @@ func (dao *dao) StoreAsBlock(block *Block, sysFee uint32) error {
 }
 
 // StoreAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
-func (dao *dao) StoreAsCurrentBlock(block *Block) error {
+func (dao *dao) StoreAsCurrentBlock(block *block.Block) error {
 	buf := io.NewBufBinWriter()
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)

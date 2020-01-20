@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
@@ -451,7 +452,7 @@ func TestAssetGetPrecision(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
 
-func createVMAndPushBlock(t *testing.T) (*vm.VM, *Block, *interopContext, *Blockchain) {
+func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interopContext, *Blockchain) {
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)

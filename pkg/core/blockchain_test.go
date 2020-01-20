@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -38,7 +39,7 @@ func TestAddHeaders(t *testing.T) {
 
 func TestAddBlock(t *testing.T) {
 	bc := newTestChain(t)
-	blocks := []*Block{
+	blocks := []*block.Block{
 		newBlock(1, newMinerTX()),
 		newBlock(2, newMinerTX()),
 		newBlock(3, newMinerTX()),

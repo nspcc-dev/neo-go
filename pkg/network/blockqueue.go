@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/Workiva/go-datastructures/queue"
 	"go.uber.org/zap"
 )
@@ -37,7 +38,7 @@ func (bq *blockQueue) run() {
 			if item == nil {
 				break
 			}
-			minblock := item.(*core.Block)
+			minblock := item.(*block.Block)
 			if minblock.Index <= bq.chain.BlockHeight()+1 {
 				_, _ = bq.queue.Get(1)
 				updateBlockQueueLenMetric(bq.length())
@@ -57,7 +58,7 @@ func (bq *blockQueue) run() {
 	}
 }
 
-func (bq *blockQueue) putBlock(block *core.Block) error {
+func (bq *blockQueue) putBlock(block *block.Block) error {
 	if bq.chain.BlockHeight() >= block.Index {
 		// can easily happen when fetching the same blocks from
 		// different peers, thus not considered as error
