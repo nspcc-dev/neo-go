@@ -575,7 +575,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
 		return p.EnqueueMessage(NewMessage(s.Net, CMDGetData, payload))
-	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
+	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
 		return s.requestHeaders(p)
 	}
 	return nil
