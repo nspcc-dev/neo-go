@@ -208,15 +208,10 @@ func (p *TCPPeer) StartProtocol() {
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
 				err = p.server.requestBlocks(p)
 			} else {
-				block, errGetBlock := p.server.chain.GetBlock(p.server.chain.CurrentBlockHash())
-				if errGetBlock != nil {
-					err = errGetBlock
-				} else {
-					diff := uint32(time.Now().UTC().Unix()) - block.Timestamp
-					if diff > uint32(p.server.PingInterval/time.Second) {
-						p.UpdatePingSent(p.GetPingSent() + 1)
-						err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
-					}
+				diff := time.Now().UTC().Unix() - p.server.getLastBlockTime()
+				if diff > int64(p.server.PingInterval/time.Second) {
+					p.UpdatePingSent(p.GetPingSent() + 1)
+					err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 				}
 			}
 			if err == nil {

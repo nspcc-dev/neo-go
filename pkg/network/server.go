@@ -68,6 +68,8 @@ type (
 		quit       chan struct{}
 
 		connected *atomic.Bool
+		// Time of the last block receival.
+		lastBlockTS *atomic.Int64
 
 		log *zap.Logger
 	}
@@ -101,6 +103,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
 		connected:    atomic.NewBool(false),
+		lastBlockTS:  atomic.NewInt64(0),
 		log:          log,
 	}
 
@@ -359,6 +362,7 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
+	s.lastBlockTS.Store(time.Now().UTC().Unix())
 	return s.bQueue.putBlock(block)
 }
 
@@ -656,6 +660,12 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 
 func (s *Server) handleNewPayload(p *consensus.Payload) {
 	s.relayInventoryCmd(CMDInv, payload.ConsensusType, p.Hash())
+}
+
+// getLastBlockTime returns unix timestamp for the moment when the last block
+// was received.
+func (s *Server) getLastBlockTime() int64 {
+	return s.lastBlockTS.Load()
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {
