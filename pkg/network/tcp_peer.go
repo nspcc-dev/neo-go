@@ -207,11 +207,7 @@ func (p *TCPPeer) StartProtocol() {
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
 				err = p.server.requestBlocks(p)
-			}
-			if err == nil {
-				timer.Reset(p.server.ProtoTickInterval)
-			}
-			if p.server.chain.HeaderHeight() >= p.LastBlockIndex() {
+			} else if p.server.chain.HeaderHeight() >= p.LastBlockIndex() {
 				block, errGetBlock := p.server.chain.GetBlock(p.server.chain.CurrentBlockHash())
 				if errGetBlock != nil {
 					err = errGetBlock
@@ -222,6 +218,9 @@ func (p *TCPPeer) StartProtocol() {
 						err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 					}
 				}
+			}
+			if err == nil {
+				timer.Reset(p.server.ProtoTickInterval)
 			}
 		case <-pingTimer.C:
 			if p.GetPingSent() > defaultPingLimit {
