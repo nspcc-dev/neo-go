@@ -207,7 +207,7 @@ func (p *TCPPeer) StartProtocol() {
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
 				err = p.server.requestBlocks(p)
-			} else if p.server.chain.HeaderHeight() >= p.LastBlockIndex() {
+			} else {
 				block, errGetBlock := p.server.chain.GetBlock(p.server.chain.CurrentBlockHash())
 				if errGetBlock != nil {
 					err = errGetBlock
