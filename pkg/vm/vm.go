@@ -474,6 +474,27 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
 	v.getScript = gs
 }
 
+// GetInteropID converts instruction parameter to an interop ID.
+func GetInteropID(parameter []byte) uint32 {
+	if len(parameter) == 4 {
+		return binary.LittleEndian.Uint32(parameter)
+	}
+
+	return InteropNameToID(parameter)
+}
+
+// GetInteropByID returns interop function together with price.
+// Registered callbacks are checked in LIFO order.
+func (v *VM) GetInteropByID(id uint32) *InteropFuncPrice {
+	for i := len(v.getInterop) - 1; i >= 0; i-- {
+		if ifunc := v.getInterop[i](id); ifunc != nil {
+			return ifunc
+		}
+	}
+
+	return nil
+}
+
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
 func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
@@ -1114,21 +1135,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.SYSCALL:
-		var ifunc *InteropFuncPrice
-		var interopID uint32
+		interopID := GetInteropID(parameter)
+		ifunc := v.GetInteropByID(interopID)
 
-		if len(parameter) == 4 {
-			interopID = binary.LittleEndian.Uint32(parameter)
-		} else {
-			interopID = InteropNameToID(parameter)
-		}
-		// LIFO interpretation of callbacks.
-		for i := len(v.getInterop) - 1; i >= 0; i-- {
-			ifunc = v.getInterop[i](interopID)
-			if ifunc != nil {
-				break
-			}
-		}
 		if ifunc == nil {
 			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
 		}
