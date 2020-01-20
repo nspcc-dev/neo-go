@@ -5,9 +5,11 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"go.uber.org/zap"
 )
 
 type handShakeStage uint8
@@ -17,6 +19,9 @@ const (
 	versionReceived
 	verAckSent
 	verAckReceived
+
+	requestQueueSize   = 32
+	hpRequestQueueSize = 4
 )
 
 var (
@@ -28,16 +33,20 @@ var (
 type TCPPeer struct {
 	// underlying TCP connection.
 	conn net.Conn
-
+	// The server this peer belongs to.
+	server *Server
 	// The version of the peer.
 	version *payload.Version
 	// Index of the last block.
 	lastBlockIndex uint32
 
 	lock      sync.RWMutex
+	finale    sync.Once
 	handShake handShakeStage
 
-	done chan error
+	done    chan struct{}
+	sendQ   chan []byte
+	hpSendQ chan []byte
 
 	wg sync.WaitGroup
 
@@ -46,36 +55,187 @@ type TCPPeer struct {
 }
 
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
-func NewTCPPeer(conn net.Conn) *TCPPeer {
+func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	return &TCPPeer{
-		conn: conn,
-		done: make(chan error, 1),
+		conn:    conn,
+		server:  s,
+		done:    make(chan struct{}),
+		sendQ:   make(chan []byte, requestQueueSize),
+		hpSendQ: make(chan []byte, hpRequestQueueSize),
 	}
 }
 
-// WriteMsg implements the Peer interface. This will write/encode the message
-// to the underlying connection, this only works for messages other than Version
-// or VerAck.
-func (p *TCPPeer) WriteMsg(msg *Message) error {
+// EnqueuePacket implements the Peer interface.
+func (p *TCPPeer) EnqueuePacket(msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
-	return p.writeMsg(msg)
+	p.sendQ <- msg
+	return nil
+}
+
+// EnqueueMessage is a temporary wrapper that sends a message via
+// EnqueuePacket if there is no error in serializing it.
+func (p *TCPPeer) EnqueueMessage(msg *Message) error {
+	b, err := msg.Bytes()
+	if err != nil {
+		return err
+	}
+	return p.EnqueuePacket(b)
+}
+
+// EnqueueHPPacket implements the Peer interface. It the peer is not yet
+// handshaked it's a noop.
+func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
+	if !p.Handshaked() {
+		return errStateMismatch
+	}
+	p.hpSendQ <- msg
+	return nil
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
-	select {
-	case err := <-p.done:
+	b, err := msg.Bytes()
+	if err != nil {
 		return err
-	default:
-		w := io.NewBufBinWriter()
-		if err := msg.Encode(w.BinWriter); err != nil {
-			return err
+	}
+
+	_, err = p.conn.Write(b)
+
+	return err
+}
+
+// handleConn handles the read side of the connection, it should be started as
+// a goroutine right after the new peer setup.
+func (p *TCPPeer) handleConn() {
+	var err error
+
+	p.server.register <- p
+
+	go p.handleQueues()
+	// When a new peer is connected we send out our version immediately.
+	err = p.server.sendVersion(p)
+	if err == nil {
+		r := io.NewBinReaderFromIO(p.conn)
+		for {
+			msg := &Message{}
+			err = msg.Decode(r)
+
+			if err == payload.ErrTooManyHeaders {
+				p.server.log.Warn("not all headers were processed")
+				r.Err = nil
+			} else if err != nil {
+				break
+			}
+			if err = p.server.handleMessage(p, msg); err != nil {
+				break
+			}
+		}
+	}
+	p.Disconnect(err)
+}
+
+// handleQueues is a goroutine that is started automatically to handle
+// send queues.
+func (p *TCPPeer) handleQueues() {
+	var err error
+
+	for {
+		var msg []byte
+
+		// This one is to give priority to the hp queue
+		select {
+		case <-p.done:
+			return
+		case msg = <-p.hpSendQ:
+		default:
 		}
 
-		_, err := p.conn.Write(w.Bytes())
+		// If there is no message in the hp queue, block until one
+		// appears in any of the queues.
+		if msg == nil {
+			select {
+			case <-p.done:
+				return
+			case msg = <-p.hpSendQ:
+			case msg = <-p.sendQ:
+			}
+		}
+		_, err = p.conn.Write(msg)
+		if err != nil {
+			break
+		}
+	}
+	p.Disconnect(err)
+}
 
-		return err
+// StartProtocol starts a long running background loop that interacts
+// every ProtoTickInterval with the peer. It's only good to run after the
+// handshake.
+func (p *TCPPeer) StartProtocol() {
+	var err error
+
+	p.server.log.Info("started protocol",
+		zap.Stringer("addr", p.RemoteAddr()),
+		zap.ByteString("userAgent", p.Version().UserAgent),
+		zap.Uint32("startHeight", p.Version().StartHeight),
+		zap.Uint32("id", p.Version().Nonce))
+
+	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String())
+	if p.server.chain.HeaderHeight() < p.LastBlockIndex() {
+		err = p.server.requestHeaders(p)
+		if err != nil {
+			p.Disconnect(err)
+			return
+		}
+	}
+
+	timer := time.NewTimer(p.server.ProtoTickInterval)
+	pingTimer := time.NewTimer(p.server.PingTimeout)
+	for {
+		select {
+		case <-p.done:
+			return
+		case m := <-p.server.addrReq:
+			var pkt []byte
+
+			pkt, err = m.Bytes()
+			if err == nil {
+				err = p.EnqueueHPPacket(pkt)
+			}
+		case <-timer.C:
+			// Try to sync in headers and block with the peer if his block height is higher then ours.
+			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
+				err = p.server.requestBlocks(p)
+			}
+			if err == nil {
+				timer.Reset(p.server.ProtoTickInterval)
+			}
+			if p.server.chain.HeaderHeight() >= p.LastBlockIndex() {
+				block, errGetBlock := p.server.chain.GetBlock(p.server.chain.CurrentBlockHash())
+				if errGetBlock != nil {
+					err = errGetBlock
+				} else {
+					diff := uint32(time.Now().UTC().Unix()) - block.Timestamp
+					if diff > uint32(p.server.PingInterval/time.Second) {
+						p.UpdatePingSent(p.GetPingSent() + 1)
+						err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+					}
+				}
+			}
+		case <-pingTimer.C:
+			if p.GetPingSent() > defaultPingLimit {
+				err = errors.New("ping/pong timeout")
+			} else {
+				pingTimer.Reset(p.server.PingTimeout)
+				p.UpdatePingSent(0)
+			}
+		}
+		if err != nil {
+			timer.Stop()
+			p.Disconnect(err)
+			return
+		}
 	}
 }
 
@@ -175,22 +335,13 @@ func (p *TCPPeer) PeerAddr() net.Addr {
 	return tcpAddr
 }
 
-// Done implements the Peer interface and notifies
-// all other resources operating on it that this peer
-// is no longer running.
-func (p *TCPPeer) Done() chan error {
-	return p.done
-}
-
 // Disconnect will fill the peer's done channel with the given error.
 func (p *TCPPeer) Disconnect(err error) {
-	p.conn.Close()
-	select {
-	case p.done <- err:
-		// one message to the queue
-	default:
-		// the other side may already be gone, it's OK
-	}
+	p.finale.Do(func() {
+		p.server.unregister <- peerDrop{p, err}
+		p.conn.Close()
+		close(p.done)
+	})
 }
 
 // Version implements the Peer interface.

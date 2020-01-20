@@ -305,71 +305,6 @@ func (s *Server) HandshakedPeersCount() int {
 	return count
 }
 
-// startProtocol starts a long running background loop that interacts
-// every ProtoTickInterval with the peer.
-func (s *Server) startProtocol(p Peer) {
-	var err error
-
-	s.log.Info("started protocol",
-		zap.Stringer("addr", p.RemoteAddr()),
-		zap.ByteString("userAgent", p.Version().UserAgent),
-		zap.Uint32("startHeight", p.Version().StartHeight),
-		zap.Uint32("id", p.Version().Nonce))
-
-	s.discovery.RegisterGoodAddr(p.PeerAddr().String())
-	if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		err = s.requestHeaders(p)
-		if err != nil {
-			p.Disconnect(err)
-			return
-		}
-	}
-
-	timer := time.NewTimer(s.ProtoTickInterval)
-	pingTimer := time.NewTimer(s.PingTimeout)
-	for {
-		select {
-		case err = <-p.Done():
-			// time to stop
-		case m := <-s.addrReq:
-			err = p.WriteMsg(m)
-		case <-timer.C:
-			// Try to sync in headers and block with the peer if his block height is higher then ours.
-			if p.LastBlockIndex() > s.chain.BlockHeight() {
-				err = s.requestBlocks(p)
-			}
-			if err == nil {
-				timer.Reset(s.ProtoTickInterval)
-			}
-			if s.chain.HeaderHeight() >= p.LastBlockIndex() {
-				block, errGetBlock := s.chain.GetBlock(s.chain.CurrentBlockHash())
-				if errGetBlock != nil {
-					err = errGetBlock
-				} else {
-					diff := uint32(time.Now().UTC().Unix()) - block.Timestamp
-					if diff > uint32(s.PingInterval/time.Second) {
-						p.UpdatePingSent(p.GetPingSent() + 1)
-						err = p.WriteMsg(NewMessage(s.Net, CMDPing, payload.NewPing(s.id, s.chain.HeaderHeight())))
-					}
-				}
-			}
-		case <-pingTimer.C:
-			if p.GetPingSent() > defaultPingLimit {
-				err = errors.New("ping/pong timeout")
-			} else {
-				pingTimer.Reset(s.PingTimeout)
-				p.UpdatePingSent(0)
-			}
-		}
-		if err != nil {
-			s.unregister <- peerDrop{p, err}
-			timer.Stop()
-			p.Disconnect(err)
-			return
-		}
-	}
-}
-
 // When a peer connects to the server, we will send our version immediately.
 func (s *Server) sendVersion(p Peer) error {
 	payload := payload.NewVersion(
@@ -429,7 +364,7 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
-	return p.WriteMsg(NewMessage(s.Net, CMDPong, payload.NewPing(s.id, s.chain.BlockHeight())))
+	return p.EnqueueMessage(NewMessage(s.Net, CMDPong, payload.NewPing(s.id, s.chain.BlockHeight())))
 }
 
 // handlePing processes pong request.
@@ -465,43 +400,49 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		}
 	}
 	if len(reqHashes) > 0 {
-		payload := payload.NewInventory(inv.Type, reqHashes)
-		return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+		msg := NewMessage(s.Net, CMDGetData, payload.NewInventory(inv.Type, reqHashes))
+		pkt, err := msg.Bytes()
+		if err != nil {
+			return err
+		}
+		if inv.Type == payload.ConsensusType {
+			return p.EnqueueHPPacket(pkt)
+		}
+		return p.EnqueuePacket(pkt)
 	}
 	return nil
 }
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
-	switch inv.Type {
-	case payload.TXType:
-		for _, hash := range inv.Hashes {
+	for _, hash := range inv.Hashes {
+		var msg *Message
+
+		switch inv.Type {
+		case payload.TXType:
 			tx, _, err := s.chain.GetTransaction(hash)
 			if err == nil {
-				err = p.WriteMsg(NewMessage(s.Net, CMDTX, tx))
-				if err != nil {
-					return err
-				}
-
+				msg = NewMessage(s.Net, CMDTX, tx)
 			}
-		}
-	case payload.BlockType:
-		for _, hash := range inv.Hashes {
+		case payload.BlockType:
 			b, err := s.chain.GetBlock(hash)
 			if err == nil {
-				err = p.WriteMsg(NewMessage(s.Net, CMDBlock, b))
-				if err != nil {
-					return err
-				}
+				msg = NewMessage(s.Net, CMDBlock, b)
+			}
+		case payload.ConsensusType:
+			if cp := s.consensus.GetPayload(hash); cp != nil {
+				msg = NewMessage(s.Net, CMDConsensus, cp)
 			}
 		}
-	case payload.ConsensusType:
-		for _, hash := range inv.Hashes {
-			if cp := s.consensus.GetPayload(hash); cp != nil {
-				if err := p.WriteMsg(NewMessage(s.Net, CMDConsensus, cp)); err != nil {
-					return err
-				}
+		if msg != nil {
+			pkt, err := msg.Bytes()
+			if err != nil {
+				return err
 			}
+			if inv.Type == payload.ConsensusType {
+				return p.EnqueueHPPacket(pkt)
+			}
+			return p.EnqueuePacket(pkt)
 		}
 	}
 	return nil
@@ -533,7 +474,8 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 		return nil
 	}
 	payload := payload.NewInventory(payload.BlockType, blockHashes)
-	return p.WriteMsg(NewMessage(s.Net, CMDInv, payload))
+	msg := NewMessage(s.Net, CMDInv, payload)
+	return p.EnqueueMessage(msg)
 }
 
 // handleGetHeadersCmd processes the getheaders request.
@@ -562,7 +504,8 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 	if len(resp.Hdrs) == 0 {
 		return nil
 	}
-	return p.WriteMsg(NewMessage(s.Net, CMDHeaders, &resp))
+	msg := NewMessage(s.Net, CMDHeaders, &resp)
+	return p.EnqueueMessage(msg)
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -603,7 +546,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
 		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
 	}
-	return p.WriteMsg(NewMessage(s.Net, CMDAddr, alist))
+	return p.EnqueueMessage(NewMessage(s.Net, CMDAddr, alist))
 }
 
 // requestHeaders sends a getheaders message to the peer.
@@ -611,7 +554,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 func (s *Server) requestHeaders(p Peer) error {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	return p.WriteMsg(NewMessage(s.Net, CMDGetHeaders, payload))
+	return p.EnqueueMessage(NewMessage(s.Net, CMDGetHeaders, payload))
 }
 
 // requestBlocks sends a getdata message to the peer
@@ -630,7 +573,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	}
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
-		return p.WriteMsg(NewMessage(s.Net, CMDGetData, payload))
+		return p.EnqueueMessage(NewMessage(s.Net, CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
 		return s.requestHeaders(p)
 	}
@@ -701,7 +644,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			if err != nil {
 				return err
 			}
-			go s.startProtocol(peer)
+			go peer.StartProtocol()
 
 			s.tryStartConsensus()
 		default:
@@ -732,7 +675,7 @@ func (s *Server) relayInventoryCmd(cmd CommandType, t payload.InventoryType, has
 			continue
 		}
 		// Who cares about these messages anyway?
-		_ = peer.WriteMsg(msg)
+		_ = peer.EnqueueMessage(msg)
 	}
 }
 

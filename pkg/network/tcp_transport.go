@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"go.uber.org/zap"
 )
 
@@ -36,7 +34,8 @@ func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	go t.handleConn(conn)
+	p := NewTCPPeer(conn, t.server)
+	go p.handleConn()
 	return nil
 }
 
@@ -59,7 +58,8 @@ func (t *TCPTransport) Accept() {
 			}
 			continue
 		}
-		go t.handleConn(conn)
+		p := NewTCPPeer(conn, t.server)
+		go p.handleConn()
 	}
 }
 
@@ -71,37 +71,6 @@ func (t *TCPTransport) isCloseError(err error) bool {
 	}
 
 	return false
-}
-
-func (t *TCPTransport) handleConn(conn net.Conn) {
-	var (
-		p   = NewTCPPeer(conn)
-		err error
-	)
-
-	t.server.register <- p
-
-	// When a new peer is connected we send out our version immediately.
-	err = t.server.sendVersion(p)
-	if err == nil {
-		r := io.NewBinReaderFromIO(p.conn)
-		for {
-			msg := &Message{}
-			err = msg.Decode(r)
-
-			if err == payload.ErrTooManyHeaders {
-				t.log.Warn("not all headers were processed")
-				r.Err = nil
-			} else if err != nil {
-				break
-			}
-			if err = t.server.handleMessage(p, msg); err != nil {
-				break
-			}
-		}
-	}
-	t.server.unregister <- peerDrop{p, err}
-	p.Disconnect(err)
 }
 
 // Close implements the Transporter interface.

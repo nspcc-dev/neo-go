@@ -226,6 +226,18 @@ func (m *Message) Encode(br *io.BinWriter) error {
 	return nil
 }
 
+// Bytes serializes a Message into the new allocated buffer and returns it.
+func (m *Message) Bytes() ([]byte, error) {
+	w := io.NewBufBinWriter()
+	if err := m.Encode(w.BinWriter); err != nil {
+		return nil, err
+	}
+	if w.Err != nil {
+		return nil, w.Err
+	}
+	return w.Bytes(), nil
+}
+
 // convert a command (string) to a byte slice filled with 0 bytes till
 // size 12.
 func cmdToByteArray(cmd CommandType) [cmdSize]byte {

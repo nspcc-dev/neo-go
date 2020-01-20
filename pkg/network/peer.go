@@ -18,14 +18,31 @@ type Peer interface {
 	// before that it returns the same address as RemoteAddr.
 	PeerAddr() net.Addr
 	Disconnect(error)
-	WriteMsg(msg *Message) error
-	Done() chan error
+
+	// EnqueueMessage is a temporary wrapper that sends a message via
+	// EnqueuePacket if there is no error in serializing it.
+	EnqueueMessage(*Message) error
+
+	// EnqueuePacket is a blocking packet enqueuer, it doesn't return until
+	// it puts given packet into the queue. It accepts a slice of bytes that
+	// can be shared with other queues (so that message marshalling can be
+	// done once for all peers). Does nothing is the peer is not yet
+	// completed handshaking.
+	EnqueuePacket([]byte) error
+
+	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
+	// doesn't return until it puts given packet into the high-priority
+	// queue.
+	EnqueueHPPacket([]byte) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	UpdateLastBlockIndex(lbIndex uint32)
 	Handshaked() bool
 	SendVersion(*Message) error
 	SendVersionAck(*Message) error
+	// StartProtocol is a goroutine to be run after the handshake. It
+	// implements basic peer-related protocol handling.
+	StartProtocol()
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
 	GetPingSent() int
