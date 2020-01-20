@@ -35,8 +35,8 @@ ApplicationConfiguration:
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
-  PingInterval: 60
-  PingTimeout: 60
+  PingInterval: 30
+  PingTimeout: 90
   MaxPeers: 10
   AttemptConnPeers: 5
   MinPeers: 0

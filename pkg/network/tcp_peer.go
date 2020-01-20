@@ -25,7 +25,9 @@ const (
 )
 
 var (
-	errStateMismatch = errors.New("tried to send protocol message before handshake completed")
+	errStateMismatch  = errors.New("tried to send protocol message before handshake completed")
+	errPingPong       = errors.New("ping/pong timeout")
+	errUnexpectedPong = errors.New("pong message wasn't expected")
 )
 
 // TCPPeer represents a connected remote node in the
@@ -51,7 +53,8 @@ type TCPPeer struct {
 	wg sync.WaitGroup
 
 	// number of sent pings.
-	pingSent int
+	pingSent  int
+	pingTimer *time.Timer
 }
 
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
@@ -191,7 +194,6 @@ func (p *TCPPeer) StartProtocol() {
 	}
 
 	timer := time.NewTimer(p.server.ProtoTickInterval)
-	pingTimer := time.NewTimer(p.server.PingTimeout)
 	for {
 		select {
 		case <-p.done:
@@ -210,19 +212,11 @@ func (p *TCPPeer) StartProtocol() {
 			} else {
 				diff := time.Now().UTC().Unix() - p.server.getLastBlockTime()
 				if diff > int64(p.server.PingInterval/time.Second) {
-					p.UpdatePingSent(p.GetPingSent() + 1)
-					err = p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+					err = p.SendPing()
 				}
 			}
 			if err == nil {
 				timer.Reset(p.server.ProtoTickInterval)
-			}
-		case <-pingTimer.C:
-			if p.GetPingSent() > defaultPingLimit {
-				err = errors.New("ping/pong timeout")
-			} else {
-				pingTimer.Reset(p.server.PingTimeout)
-				p.UpdatePingSent(0)
 			}
 		}
 		if err != nil {
@@ -350,23 +344,33 @@ func (p *TCPPeer) LastBlockIndex() uint32 {
 	return p.lastBlockIndex
 }
 
-// UpdateLastBlockIndex updates last block index.
-func (p *TCPPeer) UpdateLastBlockIndex(newIndex uint32) {
+// SendPing sends a ping message to the peer and does appropriate accounting of
+// outstanding pings and timeouts.
+func (p *TCPPeer) SendPing() error {
 	p.lock.Lock()
-	defer p.lock.Unlock()
-	p.lastBlockIndex = newIndex
+	p.pingSent++
+	if p.pingTimer == nil {
+		p.pingTimer = time.AfterFunc(p.server.PingTimeout, func() {
+			p.Disconnect(errPingPong)
+		})
+	}
+	p.lock.Unlock()
+	return p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 }
 
-// GetPingSent returns flag whether ping was sent or not.
-func (p *TCPPeer) GetPingSent() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.pingSent
-}
-
-// UpdatePingSent updates pingSent value.
-func (p *TCPPeer) UpdatePingSent(newValue int) {
+// HandlePong handles a pong message received from the peer and does appropriate
+// accounting of outstanding pings and timeouts.
+func (p *TCPPeer) HandlePong(pong *payload.Ping) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.pingSent = newValue
+	if p.pingTimer != nil && !p.pingTimer.Stop() {
+		return errPingPong
+	}
+	p.pingTimer = nil
+	p.pingSent--
+	if p.pingSent < 0 {
+		return errUnexpectedPong
+	}
+	p.lastBlockIndex = pong.LastBlockIndex
+	return nil
 }

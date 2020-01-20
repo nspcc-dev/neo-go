@@ -29,7 +29,6 @@ const (
 	maxBlockBatch           = 200
 	maxAddrsToSend          = 200
 	minPoolCount            = 30
-	defaultPingLimit        = 4
 )
 
 var (
@@ -373,12 +372,10 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 
 // handlePing processes pong request.
 func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
-	pingSent := p.GetPingSent()
-	if pingSent == 0 {
-		return errors.New("pong message wasn't expected")
+	err := p.HandlePong(pong)
+	if err != nil {
+		return err
 	}
-	p.UpdatePingSent(pingSent - 1)
-	p.UpdateLastBlockIndex(pong.LastBlockIndex)
 	if s.chain.HeaderHeight() < pong.LastBlockIndex {
 		return s.requestHeaders(p)
 	}
