@@ -1,8 +1,11 @@
 package wallet
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -43,14 +46,62 @@ type Account struct {
 // Contract represents a subset of the smartcontract to embed in the
 // Account so it's NEP-6 compliant.
 type Contract struct {
-	// Script hash of the contract deployed on the blockchain.
-	Script util.Uint160 `json:"script"`
+	// Script of the contract deployed on the blockchain.
+	Script []byte `json:"script"`
 
 	// A list of parameters used deploying this contract.
 	Parameters []interface{} `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
+}
+
+// contract is an intermediate struct used for json unmarshalling.
+type contract struct {
+	// Script is a hex-encoded script of the contract.
+	Script string `json:"script"`
+
+	// A list of parameters used deploying this contract.
+	Parameters []interface{} `json:"parameters"`
+
+	// Indicates whether the contract has been deployed to the blockchain.
+	Deployed bool `json:"deployed"`
+}
+
+// ScriptHash returns the hash of contract's script.
+func (c Contract) ScriptHash() util.Uint160 {
+	return hash.Hash160(c.Script)
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (c Contract) MarshalJSON() ([]byte, error) {
+	var cc contract
+
+	cc.Script = hex.EncodeToString(c.Script)
+	cc.Parameters = c.Parameters
+	cc.Deployed = c.Deployed
+
+	return json.Marshal(cc)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (c *Contract) UnmarshalJSON(data []byte) error {
+	var cc contract
+
+	if err := json.Unmarshal(data, &cc); err != nil {
+		return err
+	}
+
+	script, err := hex.DecodeString(cc.Script)
+	if err != nil {
+		return err
+	}
+
+	c.Script = script
+	c.Parameters = cc.Parameters
+	c.Deployed = cc.Deployed
+
+	return nil
 }
 
 // NewAccount creates a new Account with a random generated PrivateKey.

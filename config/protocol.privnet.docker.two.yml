@@ -57,5 +57,5 @@ ApplicationConfiguration:
     Enabled: false
     Port: 20012
   UnlockWallet:
-    Path: "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
+    Path: "/wallet2.json"
     Password: "two"

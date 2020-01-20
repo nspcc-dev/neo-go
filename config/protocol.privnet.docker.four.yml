@@ -57,5 +57,5 @@ ApplicationConfiguration:
     Enabled: false
     Port: 20014
   UnlockWallet:
-    Path: "6PYRXVwHSqFSukL3CuXxdQ75VmsKpjeLgQLEjt83FrtHf1gCVphHzdD4nc"
+    Path: "/wallet4.json"
     Password: "four"

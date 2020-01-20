@@ -57,5 +57,5 @@ ApplicationConfiguration:
     Enabled: false
     Port: 20013
   UnlockWallet:
-    Path: "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh"
+    Path: "/wallet3.json"
     Password: "three"

@@ -14,6 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
@@ -56,6 +57,7 @@ type service struct {
 	messages     chan Payload
 	transactions chan *transaction.Transaction
 	lastProposal []util.Uint256
+	wallet       *wallet.Wallet
 }
 
 // Config is a configuration for consensus services.
@@ -104,12 +106,18 @@ func NewService(cfg Config) (Service, error) {
 		return srv, nil
 	}
 
-	priv, pub := getKeyPair(cfg.Wallet)
+	var err error
+
+	if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {
+		return nil, err
+	}
+
+	defer srv.wallet.Close()
 
 	srv.dbft = dbft.New(
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
-		dbft.WithKeyPair(priv, pub),
+		dbft.WithGetKeyPair(srv.getKeyPair),
 		dbft.WithTxPerBlock(10000),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithGetTx(srv.getTx),
@@ -180,14 +188,23 @@ func (s *service) validatePayload(p *Payload) bool {
 	return p.Verify(h)
 }
 
-func getKeyPair(cfg *config.WalletConfig) (crypto.PrivateKey, crypto.PublicKey) {
-	// TODO: replace with wallet opening from the given path (#588)
-	key, err := keys.NEP2Decrypt(cfg.Path, cfg.Password)
-	if err != nil {
-		return nil, nil
+func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
+	for i := range pubs {
+		script := pubs[i].(*publicKey).GetVerificationScript()
+		acc := s.wallet.GetAccount(hash.Hash160(script))
+		if acc == nil {
+			continue
+		}
+
+		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
+		if err != nil {
+			continue
+		}
+
+		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
 	}
 
-	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
+	return -1, nil, nil
 }
 
 // OnPayload handles Payload receive.

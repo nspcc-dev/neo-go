@@ -2,8 +2,10 @@ package wallet
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/internal/keytestcases"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,6 +47,31 @@ func TestNewFromWif(t *testing.T) {
 		assert.NoError(t, err)
 		compareFields(t, testCase, acc)
 	}
+}
+
+func TestContract_MarshalJSON(t *testing.T) {
+	var c Contract
+
+	data := []byte(`{"script":"0102","parameters":[1],"deployed":false}`)
+	require.NoError(t, json.Unmarshal(data, &c))
+	require.Equal(t, []byte{1, 2}, c.Script)
+
+	result, err := json.Marshal(c)
+	require.NoError(t, err)
+	require.JSONEq(t, string(data), string(result))
+
+	data = []byte(`1`)
+	require.Error(t, json.Unmarshal(data, &c))
+
+	data = []byte(`{"script":"ERROR","parameters":[1],"deployed":false}`)
+	require.Error(t, json.Unmarshal(data, &c))
+}
+
+func TestContract_ScriptHash(t *testing.T) {
+	script := []byte{0, 1, 2, 3}
+	c := &Contract{Script: script}
+
+	require.Equal(t, hash.Hash160(script), c.ScriptHash())
 }
 
 func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {

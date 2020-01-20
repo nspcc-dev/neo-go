@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,4 +119,29 @@ func checkWalletConstructor(t *testing.T) *Wallet {
 func removeWallet(t *testing.T, walletPath string) {
 	err := os.RemoveAll(walletPath)
 	require.NoError(t, err)
+}
+
+func TestWallet_GetAccount(t *testing.T) {
+	wallet := checkWalletConstructor(t)
+	accounts := []*Account{
+		{
+			Contract: &Contract{
+				Script: []byte{0, 1, 2, 3},
+			},
+		},
+		{
+			Contract: &Contract{
+				Script: []byte{3, 2, 1, 0},
+			},
+		},
+	}
+
+	for _, acc := range accounts {
+		wallet.AddAccount(acc)
+	}
+
+	for i, acc := range accounts {
+		h := acc.Contract.ScriptHash()
+		assert.Equal(t, acc, wallet.GetAccount(h), "can't get %d account", i)
+	}
 }
