@@ -160,7 +160,7 @@ type localPeer struct {
 	handshaked     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
-	pingSent int
+	pingSent       int
 }
 
 func newLocalPeer(t *testing.T) *localPeer {
@@ -206,9 +206,6 @@ func (p *localPeer) Version() *payload.Version {
 func (p *localPeer) LastBlockIndex() uint32 {
 	return p.lastBlockIndex
 }
-func (p *localPeer) UpdateLastBlockIndex(newIndex uint32) {
-	p.lastBlockIndex = newIndex
-}
 func (p *localPeer) HandleVersion(v *payload.Version) error {
 	p.version = v
 	return nil
@@ -225,11 +222,14 @@ func (p *localPeer) HandleVersionAck() error {
 	p.handshaked = true
 	return nil
 }
-func (p *localPeer) GetPingSent() int {
-	return p.pingSent
+func (p *localPeer) SendPing() error {
+	p.pingSent++
+	return nil
 }
-func (p *localPeer) UpdatePingSent(newValue int) {
-	p.pingSent = newValue
+func (p *localPeer) HandlePong(pong *payload.Ping) error {
+	p.lastBlockIndex = pong.LastBlockIndex
+	p.pingSent--
+	return nil
 }
 
 func (p *localPeer) Handshaked() bool {

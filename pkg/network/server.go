@@ -29,7 +29,6 @@ const (
 	maxBlockBatch           = 200
 	maxAddrsToSend          = 200
 	minPoolCount            = 30
-	defaultPingLimit        = 4
 )
 
 var (
@@ -68,6 +67,8 @@ type (
 		quit       chan struct{}
 
 		connected *atomic.Bool
+		// Time of the last block receival.
+		lastBlockTS *atomic.Int64
 
 		log *zap.Logger
 	}
@@ -101,6 +102,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
 		connected:    atomic.NewBool(false),
+		lastBlockTS:  atomic.NewInt64(0),
 		log:          log,
 	}
 
@@ -359,6 +361,7 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
+	s.lastBlockTS.Store(time.Now().UTC().Unix())
 	return s.bQueue.putBlock(block)
 }
 
@@ -369,12 +372,10 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 
 // handlePing processes pong request.
 func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
-	pingSent := p.GetPingSent()
-	if pingSent == 0 {
-		return errors.New("pong message wasn't expected")
+	err := p.HandlePong(pong)
+	if err != nil {
+		return err
 	}
-	p.UpdatePingSent(pingSent - 1)
-	p.UpdateLastBlockIndex(pong.LastBlockIndex)
 	if s.chain.HeaderHeight() < pong.LastBlockIndex {
 		return s.requestHeaders(p)
 	}
@@ -574,7 +575,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
 		return p.EnqueueMessage(NewMessage(s.Net, CMDGetData, payload))
-	} else if s.chain.HeaderHeight() < p.Version().StartHeight {
+	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
 		return s.requestHeaders(p)
 	}
 	return nil
@@ -656,6 +657,12 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 
 func (s *Server) handleNewPayload(p *consensus.Payload) {
 	s.relayInventoryCmd(CMDInv, payload.ConsensusType, p.Hash())
+}
+
+// getLastBlockTime returns unix timestamp for the moment when the last block
+// was received.
+func (s *Server) getLastBlockTime() int64 {
+	return s.lastBlockTS.Load()
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {

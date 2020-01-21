@@ -36,8 +36,12 @@ type Peer interface {
 	EnqueueHPPacket([]byte) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
-	UpdateLastBlockIndex(lbIndex uint32)
 	Handshaked() bool
+
+	// SendPing enqueues a ping message to be sent to the peer and does
+	// appropriate protocol handling like timeouts and outstanding pings
+	// management.
+	SendPing() error
 	SendVersion(*Message) error
 	SendVersionAck(*Message) error
 	// StartProtocol is a goroutine to be run after the handshake. It
@@ -45,6 +49,7 @@ type Peer interface {
 	StartProtocol()
 	HandleVersion(*payload.Version) error
 	HandleVersionAck() error
-	GetPingSent() int
-	UpdatePingSent(int)
+
+	// HandlePong checks pong contents against Peer's state and updates it.
+	HandlePong(pong *payload.Ping) error
 }
