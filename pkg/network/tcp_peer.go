@@ -117,7 +117,7 @@ func (p *TCPPeer) handleConn() {
 
 	go p.handleQueues()
 	// When a new peer is connected we send out our version immediately.
-	err = p.server.sendVersion(p)
+	err = p.SendVersion()
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
 		for {
@@ -235,7 +235,8 @@ func (p *TCPPeer) Handshaked() bool {
 }
 
 // SendVersion checks for the handshake state and sends a message to the peer.
-func (p *TCPPeer) SendVersion(msg *Message) error {
+func (p *TCPPeer) SendVersion() error {
+	msg := p.server.getVersionMsg()
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.handShake&versionSent != 0 {

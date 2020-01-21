@@ -307,8 +307,8 @@ func (s *Server) HandshakedPeersCount() int {
 	return count
 }
 
-// When a peer connects to the server, we will send our version immediately.
-func (s *Server) sendVersion(p Peer) error {
+// getVersionMsg returns current version message.
+func (s *Server) getVersionMsg() *Message {
 	payload := payload.NewVersion(
 		s.id,
 		s.Port,
@@ -316,7 +316,7 @@ func (s *Server) sendVersion(p Peer) error {
 		s.chain.BlockHeight(),
 		s.Relay,
 	)
-	return p.SendVersion(NewMessage(s.Net, CMDVersion, payload))
+	return NewMessage(s.Net, CMDVersion, payload)
 }
 
 // When a peer sends out his version we reply with verack after validating

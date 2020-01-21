@@ -12,7 +12,7 @@ import (
 func TestSendVersion(t *testing.T) {
 	var (
 		s = newTestServer(t)
-		p = newLocalPeer(t)
+		p = newLocalPeer(t, s)
 	)
 	s.Port = 3000
 	s.UserAgent = "/test/"
@@ -29,7 +29,7 @@ func TestSendVersion(t *testing.T) {
 		assert.Equal(t, uint32(0), version.StartHeight)
 	}
 
-	if err := s.sendVersion(p); err != nil {
+	if err := p.SendVersion(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -38,7 +38,7 @@ func TestSendVersion(t *testing.T) {
 func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	var (
 		s = newTestServer(t)
-		p = newLocalPeer(t)
+		p = newLocalPeer(t, s)
 	)
 	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
 	p.netaddr = *na
@@ -59,8 +59,8 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 func TestServerNotSendsVerack(t *testing.T) {
 	var (
 		s  = newTestServer(t)
-		p  = newLocalPeer(t)
-		p2 = newLocalPeer(t)
+		p  = newLocalPeer(t, s)
+		p2 = newLocalPeer(t, s)
 	)
 	s.id = 1
 	go s.run()
@@ -92,7 +92,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 func TestRequestHeaders(t *testing.T) {
 	var (
 		s = newTestServer(t)
-		p = newLocalPeer(t)
+		p = newLocalPeer(t, s)
 	)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		assert.IsType(t, &payload.GetBlocks{}, msg.Payload)
