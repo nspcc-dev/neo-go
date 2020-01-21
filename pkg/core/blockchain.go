@@ -1382,6 +1382,7 @@ func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	tmpStore := storage.NewMemCachedStore(bc.dao.store)
 	systemInterop := bc.newInteropContext(trigger.Application, tmpStore, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
+	vm.SetPriceGetter(getPrice)
 	return vm, tmpStore
 }
 
