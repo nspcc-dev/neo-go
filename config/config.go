@@ -54,6 +54,8 @@ type (
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
+		// FreeGasLimit is an amount of GAS which can be spent for free.
+		FreeGasLimit util.Fixed8 `yaml:"FreeGasLimit"`
 	}
 
 	// SystemFee fees related to system.

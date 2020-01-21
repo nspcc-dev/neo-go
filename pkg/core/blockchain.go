@@ -515,9 +515,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
-
-			gasAmount := util.Fixed8FromInt64(10) + t.Gas
-			v.SetGasLimit(gasAmount)
+			if bc.config.FreeGasLimit >= 0 {
+				v.SetGasLimit(bc.config.FreeGasLimit + t.Gas)
+			}
 
 			err := v.Run()
 			if !v.HasFailed() {
