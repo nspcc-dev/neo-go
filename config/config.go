@@ -96,6 +96,9 @@ type (
 		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
 		Address              string `yaml:"Address"`
 		Port                 uint16 `yaml:"Port"`
+		// MaxGasInvoke is a maximum amount of gas which
+		// can be spent during RPC call.
+		MaxGasInvoke util.Fixed8 `yaml:"MaxGasInvoke"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.
