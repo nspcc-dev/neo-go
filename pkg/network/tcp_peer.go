@@ -356,7 +356,7 @@ func (p *TCPPeer) SendPing() error {
 		})
 	}
 	p.lock.Unlock()
-	return p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+	return p.EnqueueMessage(p.server.MkMsg(CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 }
 
 // HandlePong handles a pong message received from the peer and does appropriate
