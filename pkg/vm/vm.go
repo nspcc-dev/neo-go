@@ -1105,23 +1105,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(len(arr))
 
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT:
-		var (
-			rOffset = int16(binary.LittleEndian.Uint16(parameter))
-			offset  = ctx.ip + int(rOffset)
-		)
-		if offset < 0 || offset > len(ctx.prog) {
-			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
-		}
+		offset := v.getJumpOffset(ctx, parameter)
 		cond := true
-		if op > opcode.JMP {
-			cond = v.estack.Pop().Bool()
-			if op == opcode.JMPIFNOT {
-				cond = !cond
-			}
+		if op != opcode.JMP {
+			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF)
 		}
-		if cond {
-			ctx.nextip = offset
-		}
+
+		v.jumpIf(ctx, offset, cond)
 
 	case opcode.CALL:
 		v.checkInvocationStackSize()
@@ -1129,10 +1119,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx := ctx.Copy()
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
-		err = v.execute(v.Context(), opcode.JMP, parameter)
-		if err != nil {
-			return
-		}
+
+		offset := v.getJumpOffset(newCtx, parameter)
+		v.jumpIf(newCtx, offset, true)
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1401,10 +1390,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack = newCtx.estack
 		v.astack = newCtx.astack
 		if op == opcode.CALLI {
-			err = v.execute(v.Context(), opcode.JMP, parameter[2:])
-			if err != nil {
-				return
-			}
+			offset := v.getJumpOffset(newCtx, parameter[2:])
+			v.jumpIf(newCtx, offset, true)
 		}
 
 	case opcode.THROW:
@@ -1419,6 +1406,26 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
 	return
+}
+
+// jumpIf performs jump to offset if cond is true.
+func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
+	if cond {
+		ctx.nextip = offset
+	}
+}
+
+// getJumpOffset returns instruction number in a current context
+// to a which JMP should be performed.
+// parameter is interpreted as little-endian int16.
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
+	rOffset := int16(binary.LittleEndian.Uint16(parameter))
+	offset := ctx.ip + int(rOffset)
+	if offset < 0 || offset > len(ctx.prog) {
+		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
+	}
+
+	return offset
 }
 
 func cloneIfStruct(item StackItem) StackItem {
