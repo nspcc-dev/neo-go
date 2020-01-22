@@ -32,7 +32,8 @@ func BenchmarkTXPerformanceTest(t *testing.B) {
 	go chain.Run()
 
 	serverConfig := network.NewServerConfig(cfg)
-	server := network.NewServer(serverConfig, chain, logger)
+	server, err := network.NewServer(serverConfig, chain, logger)
+	require.NoError(t, err, "could not create server")
 	data := prepareData(t)
 	t.ResetTimer()
 

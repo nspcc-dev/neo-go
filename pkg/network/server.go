@@ -86,9 +86,9 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *Server {
+func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*Server, error) {
 	if log == nil {
-		return nil
+		return nil, errors.New("logger is a required parameter")
 	}
 
 	s := &Server{
@@ -117,7 +117,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		TimePerBlock: config.TimePerBlock,
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	s.consensus = srv
@@ -149,7 +149,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		s.transport,
 	)
 
-	return s
+	return s, nil
 }
 
 // ID returns the servers ID.
