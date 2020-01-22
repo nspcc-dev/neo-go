@@ -62,6 +62,54 @@ func TestRegisterInteropGetter(t *testing.T) {
 	assert.Equal(t, currRegistered+1, len(v.getInterop))
 }
 
+func TestVM_SetPriceGetter(t *testing.T) {
+	v := New()
+	prog := []byte{
+		byte(opcode.PUSH4), byte(opcode.PUSH2),
+		byte(opcode.PUSHDATA1), 0x01, 0x01,
+		byte(opcode.PUSHDATA1), 0x02, 0xCA, 0xFE,
+		byte(opcode.PUSH4), byte(opcode.RET),
+	}
+
+	t.Run("no price getter", func(t *testing.T) {
+		v.Load(prog)
+		runVM(t, v)
+
+		require.EqualValues(t, 0, v.GasConsumed())
+	})
+
+	v.SetPriceGetter(func(_ *VM, op opcode.Opcode, p []byte) util.Fixed8 {
+		if op == opcode.PUSH4 {
+			return 1
+		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {
+			return 7
+		}
+
+		return 0
+	})
+
+	t.Run("with price getter", func(t *testing.T) {
+		v.Load(prog)
+		runVM(t, v)
+
+		require.EqualValues(t, 9, v.GasConsumed())
+	})
+
+	t.Run("with sufficient gas limit", func(t *testing.T) {
+		v.Load(prog)
+		v.SetGasLimit(9)
+		runVM(t, v)
+
+		require.EqualValues(t, 9, v.GasConsumed())
+	})
+
+	t.Run("with small gas limit", func(t *testing.T) {
+		v.Load(prog)
+		v.SetGasLimit(8)
+		checkVMFailed(t, v)
+	})
+}
+
 func TestBytesToPublicKey(t *testing.T) {
 	v := New()
 	cache := v.GetPublicKeys()

@@ -63,6 +63,9 @@ type VM struct {
 	// callbacks to get interops.
 	getInterop []InteropGetterFunc
 
+	// callback to get interop price
+	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
+
 	// callback to get scripts.
 	getScript func(util.Uint160) []byte
 
@@ -75,6 +78,9 @@ type VM struct {
 
 	itemCount map[StackItem]int
 	size      int
+
+	gasConsumed util.Fixed8
+	gasLimit    util.Fixed8
 
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
@@ -112,6 +118,23 @@ func (v *VM) newItemStack(n string) *Stack {
 // registration time.
 func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
 	v.getInterop = append(v.getInterop, f)
+}
+
+// SetPriceGetter registers the given PriceGetterFunc in v.
+// f accepts vm's Context, current instruction and instruction parameter.
+func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) util.Fixed8) {
+	v.getPrice = f
+}
+
+// GasConsumed returns the amount of GAS consumed during execution.
+func (v *VM) GasConsumed() util.Fixed8 {
+	return v.gasConsumed
+}
+
+// SetGasLimit sets maximum amount of gas which v can spent.
+// If max <= 0, no limit is imposed.
+func (v *VM) SetGasLimit(max util.Fixed8) {
+	v.gasLimit = max
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -225,6 +248,7 @@ func (v *VM) Load(prog []byte) {
 	v.estack.Clear()
 	v.astack.Clear()
 	v.state = noneState
+	v.gasConsumed = 0
 	v.LoadScript(prog)
 }
 
@@ -450,6 +474,27 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
 	v.getScript = gs
 }
 
+// GetInteropID converts instruction parameter to an interop ID.
+func GetInteropID(parameter []byte) uint32 {
+	if len(parameter) == 4 {
+		return binary.LittleEndian.Uint32(parameter)
+	}
+
+	return InteropNameToID(parameter)
+}
+
+// GetInteropByID returns interop function together with price.
+// Registered callbacks are checked in LIFO order.
+func (v *VM) GetInteropByID(id uint32) *InteropFuncPrice {
+	for i := len(v.getInterop) - 1; i >= 0; i-- {
+		if ifunc := v.getInterop[i](id); ifunc != nil {
+			return ifunc
+		}
+	}
+
+	return nil
+}
+
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
 func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err error) {
 	// Instead of polluting the whole VM logic with error handling, we will recover
@@ -463,6 +508,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			err = newError(ctx.ip, op, "stack is too big")
 		}
 	}()
+
+	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
+		v.gasConsumed += v.getPrice(v, op, parameter)
+		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
+			panic("gas limit is exceeded")
+		}
+	}
 
 	if op >= opcode.PUSHBYTES1 && op <= opcode.PUSHBYTES75 {
 		v.estack.PushVal(parameter)
@@ -1053,23 +1105,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(len(arr))
 
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT:
-		var (
-			rOffset = int16(binary.LittleEndian.Uint16(parameter))
-			offset  = ctx.ip + int(rOffset)
-		)
-		if offset < 0 || offset > len(ctx.prog) {
-			panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
-		}
+		offset := v.getJumpOffset(ctx, parameter)
 		cond := true
-		if op > opcode.JMP {
-			cond = v.estack.Pop().Bool()
-			if op == opcode.JMPIFNOT {
-				cond = !cond
-			}
+		if op != opcode.JMP {
+			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF)
 		}
-		if cond {
-			ctx.nextip = offset
-		}
+
+		v.jumpIf(ctx, offset, cond)
 
 	case opcode.CALL:
 		v.checkInvocationStackSize()
@@ -1077,27 +1119,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx := ctx.Copy()
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
-		err = v.execute(v.Context(), opcode.JMP, parameter)
-		if err != nil {
-			return
-		}
+
+		offset := v.getJumpOffset(newCtx, parameter)
+		v.jumpIf(newCtx, offset, true)
 
 	case opcode.SYSCALL:
-		var ifunc *InteropFuncPrice
-		var interopID uint32
+		interopID := GetInteropID(parameter)
+		ifunc := v.GetInteropByID(interopID)
 
-		if len(parameter) == 4 {
-			interopID = binary.LittleEndian.Uint32(parameter)
-		} else {
-			interopID = InteropNameToID(parameter)
-		}
-		// LIFO interpretation of callbacks.
-		for i := len(v.getInterop) - 1; i >= 0; i-- {
-			ifunc = v.getInterop[i](interopID)
-			if ifunc != nil {
-				break
-			}
-		}
 		if ifunc == nil {
 			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
 		}
@@ -1361,10 +1390,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack = newCtx.estack
 		v.astack = newCtx.astack
 		if op == opcode.CALLI {
-			err = v.execute(v.Context(), opcode.JMP, parameter[2:])
-			if err != nil {
-				return
-			}
+			offset := v.getJumpOffset(newCtx, parameter[2:])
+			v.jumpIf(newCtx, offset, true)
 		}
 
 	case opcode.THROW:
@@ -1379,6 +1406,26 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
 	return
+}
+
+// jumpIf performs jump to offset if cond is true.
+func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
+	if cond {
+		ctx.nextip = offset
+	}
+}
+
+// getJumpOffset returns instruction number in a current context
+// to a which JMP should be performed.
+// parameter is interpreted as little-endian int16.
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
+	rOffset := int16(binary.LittleEndian.Uint16(parameter))
+	offset := ctx.ip + int(rOffset)
+	if offset < 0 || offset > len(ctx.prog) {
+		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
+	}
+
+	return offset
 }
 
 func cloneIfStruct(item StackItem) StackItem {

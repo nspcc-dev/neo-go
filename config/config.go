@@ -54,6 +54,8 @@ type (
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
+		// FreeGasLimit is an amount of GAS which can be spent for free.
+		FreeGasLimit util.Fixed8 `yaml:"FreeGasLimit"`
 	}
 
 	// SystemFee fees related to system.
@@ -96,6 +98,9 @@ type (
 		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
 		Address              string `yaml:"Address"`
 		Port                 uint16 `yaml:"Port"`
+		// MaxGasInvoke is a maximum amount of gas which
+		// can be spent during RPC call.
+		MaxGasInvoke util.Fixed8 `yaml:"MaxGasInvoke"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.

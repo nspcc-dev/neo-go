@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/go-yaml/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,6 +124,19 @@ func TestFixed8_MarshalJSON(t *testing.T) {
 	s, err := json.Marshal(u)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`"123.4"`), s)
+}
+
+func TestFixed8_UnmarshalYAML(t *testing.T) {
+	u, err := Fixed8FromString("123.4")
+	assert.NoError(t, err)
+
+	s, err := yaml.Marshal(u)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("\"123.4\"\n"), s) // yaml marshaler inserts LF at the end
+
+	var f Fixed8
+	assert.NoError(t, yaml.Unmarshal([]byte(`"123.4"`), &f))
+	assert.Equal(t, u, f)
 }
 
 func TestFixed8_Arith(t *testing.T) {

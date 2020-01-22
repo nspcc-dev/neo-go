@@ -514,6 +514,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			v := bc.spawnVMWithInterops(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
+			v.SetPriceGetter(getPrice)
+			if bc.config.FreeGasLimit >= 0 {
+				v.SetGasLimit(bc.config.FreeGasLimit + t.Gas)
+			}
+
 			err := v.Run()
 			if !v.HasFailed() {
 				_, err := systemInterop.dao.Persist()
@@ -554,7 +559,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				TxHash:      tx.Hash(),
 				Trigger:     trigger.Application,
 				VMState:     v.State(),
-				GasConsumed: util.Fixed8(0),
+				GasConsumed: v.GasConsumed(),
 				Stack:       v.Stack("estack"),
 				Events:      systemInterop.notifications,
 			}
@@ -1377,6 +1382,7 @@ func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
 	tmpStore := storage.NewMemCachedStore(bc.dao.store)
 	systemInterop := bc.newInteropContext(trigger.Application, tmpStore, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
+	vm.SetPriceGetter(getPrice)
 	return vm, tmpStore
 }
 

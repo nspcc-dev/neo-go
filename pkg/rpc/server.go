@@ -396,11 +396,12 @@ func (s *Server) invokescript(reqParams Params) (interface{}, error) {
 // result.
 func (s *Server) runScriptInVM(script []byte) *wrappers.InvokeResult {
 	vm, _ := s.chain.GetTestVM()
+	vm.SetGasLimit(s.config.MaxGasInvoke)
 	vm.LoadScript(script)
 	_ = vm.Run()
 	result := &wrappers.InvokeResult{
 		State:       vm.State(),
-		GasConsumed: "0.1",
+		GasConsumed: vm.GasConsumed().String(),
 		Script:      hex.EncodeToString(script),
 		Stack:       vm.Estack(),
 	}

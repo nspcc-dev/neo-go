@@ -29,6 +29,7 @@ ProtocolConfiguration:
     RegisterTransaction: 10000
   VerifyBlocks: true
   VerifyTransactions: false
+  FreeGasLimit: 10.0
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

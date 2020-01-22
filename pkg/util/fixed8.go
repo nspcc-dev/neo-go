@@ -87,8 +87,20 @@ func Fixed8FromString(s string) (Fixed8, error) {
 
 // UnmarshalJSON implements the json unmarshaller interface.
 func (f *Fixed8) UnmarshalJSON(data []byte) error {
+	return f.unmarshalHelper(func(v interface{}) error {
+		return json.Unmarshal(data, v)
+	})
+}
+
+// UnmarshalYAML implements the yaml unmarshaler interface.
+func (f *Fixed8) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return f.unmarshalHelper(unmarshal)
+}
+
+// unmarshalHelper is an underlying unmarshaller func for JSON and YAML.
+func (f *Fixed8) unmarshalHelper(unmarshal func(interface{}) error) error {
 	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
+	if err := unmarshal(&s); err == nil {
 		p, err := Fixed8FromString(s)
 		if err != nil {
 			return err
@@ -98,7 +110,7 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 	}
 
 	var fl float64
-	if err := json.Unmarshal(data, &fl); err != nil {
+	if err := unmarshal(&fl); err != nil {
 		return err
 	}
 
@@ -109,6 +121,11 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json marshaller interface.
 func (f Fixed8) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil
+}
+
+// MarshalYAML implements the yaml marshaller interface.
+func (f Fixed8) MarshalYAML() (interface{}, error) {
+	return f.String(), nil
 }
 
 // DecodeBinary implements the io.Serializable interface.
