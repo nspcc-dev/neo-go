@@ -61,7 +61,6 @@ type (
 		lock  sync.RWMutex
 		peers map[Peer]bool
 
-		addrReq    chan *Message
 		register   chan Peer
 		unregister chan peerDrop
 		quit       chan struct{}
@@ -97,7 +96,6 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) *S
 		bQueue:       newBlockQueue(maxBlockBatch, chain, log),
 		id:           randomID(),
 		quit:         make(chan struct{}),
-		addrReq:      make(chan *Message, config.MinPeers),
 		register:     make(chan Peer),
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
@@ -203,13 +201,7 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(s.AttemptConnPeers)
 		}
 		if s.discovery.PoolCount() < minPoolCount {
-			select {
-			case s.addrReq <- s.MkMsg(CMDGetAddr, payload.NewNullPayload()):
-				// sent request
-			default:
-				// we have one in the queue already that is
-				// gonna be served by some worker when it's ready
-			}
+			s.broadcastHPMessage(s.MkMsg(CMDGetAddr, payload.NewNullPayload()))
 		}
 		select {
 		case <-s.quit:

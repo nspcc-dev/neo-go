@@ -198,13 +198,6 @@ func (p *TCPPeer) StartProtocol() {
 		select {
 		case <-p.done:
 			return
-		case m := <-p.server.addrReq:
-			var pkt []byte
-
-			pkt, err = m.Bytes()
-			if err == nil {
-				err = p.EnqueueHPPacket(pkt)
-			}
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
