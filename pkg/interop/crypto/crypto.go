@@ -22,3 +22,8 @@ func Hash160(b []byte) []byte {
 func Hash256(b []byte) []byte {
 	return nil
 }
+
+// VerifySignature checks that sig is msg's signature with pub.
+func VerifySignature(msg []byte, sig []byte, pub []byte) bool {
+	return false
+}
