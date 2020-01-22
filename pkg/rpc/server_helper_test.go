@@ -201,7 +201,8 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
-	server := network.NewServer(serverConfig, chain, logger)
+	server, err := network.NewServer(serverConfig, chain, logger)
+	require.NoError(t, err)
 	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server, logger)
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 

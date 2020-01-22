@@ -321,7 +321,10 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
-	server := network.NewServer(serverConfig, chain, log)
+	server, err := network.NewServer(serverConfig, chain, log)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create network server: %v", err), 1)
+	}
 	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server, log)
 	errChan := make(chan error)
 
