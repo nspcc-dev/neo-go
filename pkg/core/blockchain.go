@@ -37,6 +37,8 @@ const (
 	// contain any relationship between the two, so we should follow this
 	// behavior.
 	registeredAssetLifetime = 2 * 2000000
+
+	defaultMemPoolSize = 50000
 )
 
 var (
@@ -95,6 +97,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		return nil, errors.New("empty logger")
 	}
 
+	if cfg.MemPoolSize <= 0 {
+		cfg.MemPoolSize = defaultMemPoolSize
+		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
+	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           newDao(s),
@@ -102,7 +108,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
 		runToExitCh:   make(chan struct{}),
-		memPool:       mempool.NewMemPool(50000),
+		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		log:           log,
 	}
