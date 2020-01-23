@@ -666,6 +666,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog.BinWriter, opcode.HASH256)
 	case "Hash160":
 		emitOpcode(c.prog.BinWriter, opcode.HASH160)
+	case "VerifySignature":
+		emitOpcode(c.prog.BinWriter, opcode.VERIFY)
 	case "Equals":
 		emitOpcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
