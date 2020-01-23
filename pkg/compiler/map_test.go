@@ -39,6 +39,22 @@ var mapTestCases = []testCase{
 	`,
 		big.NewInt(4),
 	},
+	{
+		"map with string index",
+		`
+		package foo
+		func Main() string {
+			t := map[string]string{
+				"name": "Valera",
+				"age": "33",
+			}
+
+			name := t["name"]
+			return name
+		}
+		`,
+		[]byte("Valera"),
+	},
 }
 
 func TestMaps(t *testing.T) {

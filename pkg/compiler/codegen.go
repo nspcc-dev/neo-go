@@ -61,26 +61,30 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	}
 	switch typ := t.Type.Underlying().(type) {
 	case *types.Basic:
-		switch typ.Kind() {
-		case types.Int, types.UntypedInt, types.Uint:
-			val, _ := constant.Int64Val(t.Value)
-			emitInt(c.prog.BinWriter, val)
-		case types.String, types.UntypedString:
-			val := constant.StringVal(t.Value)
-			emitString(c.prog.BinWriter, val)
-		case types.Bool, types.UntypedBool:
-			val := constant.BoolVal(t.Value)
-			emitBool(c.prog.BinWriter, val)
-		case types.Byte:
-			val, _ := constant.Int64Val(t.Value)
-			b := byte(val)
-			emitBytes(c.prog.BinWriter, []byte{b})
-		default:
-			c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
-			return
-		}
+		c.convertBasicType(t, typ)
 	default:
 		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this constant: %v", t)
+		return
+	}
+}
+
+func (c *codegen) convertBasicType(t types.TypeAndValue, typ *types.Basic) {
+	switch typ.Kind() {
+	case types.Int, types.UntypedInt, types.Uint:
+		val, _ := constant.Int64Val(t.Value)
+		emitInt(c.prog.BinWriter, val)
+	case types.String, types.UntypedString:
+		val := constant.StringVal(t.Value)
+		emitString(c.prog.BinWriter, val)
+	case types.Bool, types.UntypedBool:
+		val := constant.BoolVal(t.Value)
+		emitBool(c.prog.BinWriter, val)
+	case types.Byte:
+		val, _ := constant.Int64Val(t.Value)
+		b := byte(val)
+		emitBytes(c.prog.BinWriter, []byte{b})
+	default:
+		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
 		return
 	}
 }
@@ -574,12 +578,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Index.(type) {
 		case *ast.BasicLit:
 			t := c.typeInfo.Types[n.Index]
-			val, _ := constant.Int64Val(t.Value)
-			c.emitLoadField(int(val))
+			switch typ := t.Type.Underlying().(type) {
+			case *types.Basic:
+				c.convertBasicType(t, typ)
+			default:
+				c.prog.Err = fmt.Errorf("compiler can't use following type as an index: %T", typ)
+				return nil
+			}
 		default:
 			ast.Walk(c, n.Index)
-			emitOpcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
 		}
+
+		emitOpcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
+
 		return nil
 
 	case *ast.ForStmt:
