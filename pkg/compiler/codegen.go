@@ -365,7 +365,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 			for i := ln - 1; i >= 0; i-- {
-				c.emitLoadConst(c.typeInfo.Types[n.Elts[i]])
+				ast.Walk(c, n.Elts[i])
 			}
 			emitInt(c.prog.BinWriter, int64(ln))
 			emitOpcode(c.prog.BinWriter, opcode.PACK)
