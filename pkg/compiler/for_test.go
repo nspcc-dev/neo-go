@@ -370,3 +370,30 @@ func TestForLoopBigIter(t *testing.T) {
 	`
 	eval(t, src, big.NewInt(99999))
 }
+
+func TestForLoopNoInit(t *testing.T) {
+	src := `
+	package foo
+		func Main() int {
+			i := 0
+			for ; i < 10; i++ {
+			}
+			return i
+		}
+	`
+	eval(t, src, big.NewInt(10))
+}
+
+func TestForLoopNoPost(t *testing.T) {
+	src := `
+	package foo
+		func Main() int {
+			i := 0
+			for i < 10 {
+				i++
+			}
+			return i
+		}
+	`
+	eval(t, src, big.NewInt(10))
+}

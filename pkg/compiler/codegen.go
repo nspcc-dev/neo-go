@@ -585,7 +585,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		)
 
 		// Walk the initializer and condition.
-		ast.Walk(c, n.Init)
+		if n.Init != nil {
+			ast.Walk(c, n.Init)
+		}
 
 		// Set label and walk the condition.
 		c.setLabel(fstart)
@@ -596,7 +598,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
-		ast.Walk(c, n.Post)
+		if n.Post != nil {
+			ast.Walk(c, n.Post)
+		}
 
 		// Jump back to condition.
 		emitJmp(c.prog.BinWriter, opcode.JMP, int16(fstart))
