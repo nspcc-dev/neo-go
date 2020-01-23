@@ -357,6 +357,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			typ = c.typeInfo.ObjectOf(t).Type().Underlying()
 		case *ast.SelectorExpr:
 			typ = c.typeInfo.ObjectOf(t.Sel).Type().Underlying()
+		case *ast.MapType:
+			typ = c.typeInfo.TypeOf(t)
 		default:
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
@@ -375,6 +377,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch typ.(type) {
 		case *types.Struct:
 			c.convertStruct(n)
+		case *types.Map:
+			c.convertMap(n)
 		}
 
 		return nil
@@ -698,6 +702,17 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 		buf[i] = byte(val)
 	}
 	emitBytes(c.prog.BinWriter, buf)
+}
+
+func (c *codegen) convertMap(lit *ast.CompositeLit) {
+	emitOpcode(c.prog.BinWriter, opcode.NEWMAP)
+	for i := range lit.Elts {
+		elem := lit.Elts[i].(*ast.KeyValueExpr)
+		emitOpcode(c.prog.BinWriter, opcode.DUP)
+		ast.Walk(c, elem.Key)
+		ast.Walk(c, elem.Value)
+		emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+	}
 }
 
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
