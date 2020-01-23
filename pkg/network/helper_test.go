@@ -155,6 +155,7 @@ var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
 type localPeer struct {
 	netaddr        net.TCPAddr
+	server         *Server
 	version        *payload.Version
 	lastBlockIndex uint32
 	handshaked     bool
@@ -163,10 +164,11 @@ type localPeer struct {
 	pingSent       int
 }
 
-func newLocalPeer(t *testing.T) *localPeer {
+func newLocalPeer(t *testing.T, s *Server) *localPeer {
 	naddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	return &localPeer{
 		t:              t,
+		server:         s,
 		netaddr:        *naddr,
 		messageHandler: defaultMessageHandler,
 	}
@@ -210,7 +212,8 @@ func (p *localPeer) HandleVersion(v *payload.Version) error {
 	p.version = v
 	return nil
 }
-func (p *localPeer) SendVersion(m *Message) error {
+func (p *localPeer) SendVersion() error {
+	m := p.server.getVersionMsg()
 	_ = p.EnqueueMessage(m)
 	return nil
 }

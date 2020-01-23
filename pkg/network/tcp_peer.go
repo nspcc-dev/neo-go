@@ -117,7 +117,7 @@ func (p *TCPPeer) handleConn() {
 
 	go p.handleQueues()
 	// When a new peer is connected we send out our version immediately.
-	err = p.server.sendVersion(p)
+	err = p.SendVersion()
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
 		for {
@@ -198,13 +198,6 @@ func (p *TCPPeer) StartProtocol() {
 		select {
 		case <-p.done:
 			return
-		case m := <-p.server.addrReq:
-			var pkt []byte
-
-			pkt, err = m.Bytes()
-			if err == nil {
-				err = p.EnqueueHPPacket(pkt)
-			}
 		case <-timer.C:
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
@@ -235,7 +228,8 @@ func (p *TCPPeer) Handshaked() bool {
 }
 
 // SendVersion checks for the handshake state and sends a message to the peer.
-func (p *TCPPeer) SendVersion(msg *Message) error {
+func (p *TCPPeer) SendVersion() error {
+	msg := p.server.getVersionMsg()
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.handShake&versionSent != 0 {
@@ -355,7 +349,7 @@ func (p *TCPPeer) SendPing() error {
 		})
 	}
 	p.lock.Unlock()
-	return p.EnqueueMessage(NewMessage(p.server.Net, CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+	return p.EnqueueMessage(p.server.MkMsg(CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
 }
 
 // HandlePong handles a pong message received from the peer and does appropriate

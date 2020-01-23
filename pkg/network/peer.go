@@ -42,7 +42,9 @@ type Peer interface {
 	// appropriate protocol handling like timeouts and outstanding pings
 	// management.
 	SendPing() error
-	SendVersion(*Message) error
+	// SendVersion checks handshake status and sends a version message to
+	// the peer.
+	SendVersion() error
 	SendVersionAck(*Message) error
 	// StartProtocol is a goroutine to be run after the handshake. It
 	// implements basic peer-related protocol handling.

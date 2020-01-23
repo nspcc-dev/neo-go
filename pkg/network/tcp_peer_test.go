@@ -18,8 +18,8 @@ func connReadStub(conn net.Conn) {
 func TestPeerHandshake(t *testing.T) {
 	server, client := net.Pipe()
 
-	tcpS := NewTCPPeer(server, nil)
-	tcpC := NewTCPPeer(client, nil)
+	tcpS := NewTCPPeer(server, newTestServer(t))
+	tcpC := NewTCPPeer(client, newTestServer(t))
 
 	// Something should read things written into the pipe.
 	go connReadStub(tcpS.conn)
@@ -45,22 +45,22 @@ func TestPeerHandshake(t *testing.T) {
 
 	// Now send and handle versions, but in a different order on client and
 	// server.
-	require.NoError(t, tcpC.SendVersion(&Message{}))
+	require.NoError(t, tcpC.SendVersion())
 	require.Error(t, tcpC.HandleVersionAck()) // Didn't receive version yet.
 	require.NoError(t, tcpS.HandleVersion(&payload.Version{}))
 	require.Error(t, tcpS.SendVersionAck(&Message{})) // Didn't send version yet.
 	require.NoError(t, tcpC.HandleVersion(&payload.Version{}))
-	require.NoError(t, tcpS.SendVersion(&Message{}))
+	require.NoError(t, tcpS.SendVersion())
 
 	// No handshake yet.
 	require.Equal(t, false, tcpS.Handshaked())
 	require.Equal(t, false, tcpC.Handshaked())
 
 	// These are sent/received and should fail now.
-	require.Error(t, tcpC.SendVersion(&Message{}))
+	require.Error(t, tcpC.SendVersion())
 	require.Error(t, tcpS.HandleVersion(&payload.Version{}))
 	require.Error(t, tcpC.HandleVersion(&payload.Version{}))
-	require.Error(t, tcpS.SendVersion(&Message{}))
+	require.Error(t, tcpS.SendVersion())
 
 	// Now send and handle ACK, again in a different order on client and
 	// server.
