@@ -47,6 +47,7 @@ type (
 		SecondsPerBlock         int       `yaml:"SecondsPerBlock"`
 		LowPriorityThreshold    float64   `yaml:"LowPriorityThreshold"`
 		MaxTransactionsPerBlock int64     `yaml:"MaxTransactionsPerBlock"`
+		MemPoolSize             int       `yaml:"MemPoolSize"`
 		StandbyValidators       []string  `yaml:"StandbyValidators"`
 		SeedList                []string  `yaml:"SeedList"`
 		SystemFee               SystemFee `yaml:"SystemFee"`
