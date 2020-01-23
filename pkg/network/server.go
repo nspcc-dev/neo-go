@@ -388,7 +388,7 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
-	return p.EnqueueMessage(s.MkMsg(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 
 // handlePing processes pong request.
@@ -430,7 +430,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		if inv.Type == payload.ConsensusType {
 			return p.EnqueueHPPacket(pkt)
 		}
-		return p.EnqueuePacket(pkt)
+		return p.EnqueueP2PPacket(pkt)
 	}
 	return nil
 }
@@ -462,7 +462,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				if inv.Type == payload.ConsensusType {
 					err = p.EnqueueHPPacket(pkt)
 				} else {
-					err = p.EnqueuePacket(pkt)
+					err = p.EnqueueP2PPacket(pkt)
 				}
 			}
 			if err != nil {
@@ -500,7 +500,7 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 	}
 	payload := payload.NewInventory(payload.BlockType, blockHashes)
 	msg := s.MkMsg(CMDInv, payload)
-	return p.EnqueueMessage(msg)
+	return p.EnqueueP2PMessage(msg)
 }
 
 // handleGetHeadersCmd processes the getheaders request.
@@ -530,7 +530,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 		return nil
 	}
 	msg := s.MkMsg(CMDHeaders, &resp)
-	return p.EnqueueMessage(msg)
+	return p.EnqueueP2PMessage(msg)
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -571,7 +571,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
 		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
 	}
-	return p.EnqueueMessage(s.MkMsg(CMDAddr, alist))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDAddr, alist))
 }
 
 // requestHeaders sends a getheaders message to the peer.
@@ -579,7 +579,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 func (s *Server) requestHeaders(p Peer) error {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	return p.EnqueueMessage(s.MkMsg(CMDGetHeaders, payload))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDGetHeaders, payload))
 }
 
 // requestBlocks sends a getdata message to the peer
@@ -598,7 +598,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	}
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
-		return p.EnqueueMessage(s.MkMsg(CMDGetData, payload))
+		return p.EnqueueP2PMessage(s.MkMsg(CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
 		return s.requestHeaders(p)
 	}

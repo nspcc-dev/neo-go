@@ -193,6 +193,12 @@ func (p *localPeer) EnqueueMessage(msg *Message) error {
 func (p *localPeer) EnqueuePacket(m []byte) error {
 	return p.EnqueueHPPacket(m)
 }
+func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
+	return p.EnqueueMessage(msg)
+}
+func (p *localPeer) EnqueueP2PPacket(m []byte) error {
+	return p.EnqueueHPPacket(m)
+}
 func (p *localPeer) EnqueueHPPacket(m []byte) error {
 	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
