@@ -41,7 +41,7 @@ type Peer interface {
 	// SendPing enqueues a ping message to be sent to the peer and does
 	// appropriate protocol handling like timeouts and outstanding pings
 	// management.
-	SendPing() error
+	SendPing(*Message) error
 	// SendVersion checks handshake status and sends a version message to
 	// the peer.
 	SendVersion() error
