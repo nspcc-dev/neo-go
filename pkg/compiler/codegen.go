@@ -672,6 +672,13 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 			buf[i] = byte(val)
 		}
 		return buf
+	case *ast.CallExpr:
+		if tv := c.typeInfo.Types[t.Args[0]]; tv.Value != nil {
+			val := constant.StringVal(tv.Value)
+			return []byte(val)
+		}
+
+		return nil
 	default:
 		return nil
 	}

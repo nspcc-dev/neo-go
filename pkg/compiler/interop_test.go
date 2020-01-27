@@ -100,6 +100,27 @@ func TestAppCall(t *testing.T) {
 		_, err := compiler.Compile(strings.NewReader(src))
 		require.Error(t, err)
 	})
+
+	t.Run("convert from string constant", func(t *testing.T) {
+		src := `
+		package foo
+		import "github.com/CityOfZion/neo-go/pkg/interop/engine"
+		const scriptHash = ` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `
+		func Main() int {
+			x := 13
+			y := 29
+			result := engine.AppCall([]byte(scriptHash), []interface{}{x, y})
+			return result.(int)
+		}
+		`
+
+		v := vmAndCompile(t, src)
+		v.SetScriptGetter(getScript)
+
+		require.NoError(t, v.Run())
+
+		assertResult(t, v, big.NewInt(42))
+	})
 }
 
 func getAppCallScript(h string) string {
