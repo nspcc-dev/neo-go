@@ -14,7 +14,7 @@ var (
 	builtinFuncs = []string{
 		"len", "append", "SHA256",
 		"SHA1", "Hash256", "Hash160",
-		"VerifySignature",
+		"VerifySignature", "AppCall",
 		"FromAddress", "Equals",
 	}
 )
@@ -178,6 +178,11 @@ func isBuiltin(expr ast.Expr) bool {
 		}
 	}
 	return false
+}
+
+func isAppCall(expr ast.Expr) bool {
+	t, ok := expr.(*ast.SelectorExpr)
+	return ok && t.Sel.Name == "AppCall"
 }
 
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
