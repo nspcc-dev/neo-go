@@ -435,13 +435,16 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 		}
 		if msg != nil {
 			pkt, err := msg.Bytes()
+			if err == nil {
+				if inv.Type == payload.ConsensusType {
+					err = p.EnqueueHPPacket(pkt)
+				} else {
+					err = p.EnqueuePacket(pkt)
+				}
+			}
 			if err != nil {
 				return err
 			}
-			if inv.Type == payload.ConsensusType {
-				return p.EnqueueHPPacket(pkt)
-			}
-			return p.EnqueuePacket(pkt)
 		}
 	}
 	return nil
