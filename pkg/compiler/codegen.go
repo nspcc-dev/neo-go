@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -488,8 +489,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 
+		args := n.Args
+		isAppCall := isAppCall(n.Fun)
+		isFromAddress := isFromAddress(n.Fun)
+		// There are 2 special cases:
+		// 1. When using APPCALL, script hash is a part of the instruction so
+		//    script hash should be emitted after APPCALL.
+		// 2. With FromAddress, parameter conversion is happening at compile-time
+		//    so there is no need to push parameters on stack and perform an actual call
+		if isAppCall || isFromAddress {
+			args = n.Args[1:]
+		}
+
 		// Handle the arguments
-		for _, arg := range n.Args {
+		for _, arg := range args {
 			ast.Walk(c, arg)
 		}
 		// Do not swap for builtin functions.
@@ -513,6 +526,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
+
+			if isAppCall {
+				buf := c.getByteArray(n.Args[0])
+				if len(buf) != 20 {
+					c.prog.Err = errors.New("invalid script hash")
+					return nil
+				}
+
+				c.prog.WriteBytes(buf)
+			}
 		case isSyscall(f):
 			c.convertSyscall(f.selector.Name, f.name)
 		default:
@@ -634,6 +657,26 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	return c
 }
 
+// getByteArray returns byte array value from constant expr.
+// Only literals are supported.
+func (c *codegen) getByteArray(expr ast.Expr) []byte {
+	switch t := expr.(type) {
+	case *ast.CompositeLit:
+		if !isByteArray(t, c.typeInfo) {
+			return nil
+		}
+		buf := make([]byte, len(t.Elts))
+		for i := 0; i < len(t.Elts); i++ {
+			t := c.typeInfo.Types[t.Elts[i]]
+			val, _ := constant.Int64Val(t.Value)
+			buf[i] = byte(val)
+		}
+		return buf
+	default:
+		return nil
+	}
+}
+
 func (c *codegen) convertSyscall(api, name string) {
 	api, ok := syscalls[api][name]
 	if !ok {
@@ -687,6 +730,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog.BinWriter, opcode.HASH160)
 	case "VerifySignature":
 		emitOpcode(c.prog.BinWriter, opcode.VERIFY)
+	case "AppCall":
+		emitOpcode(c.prog.BinWriter, opcode.APPCALL)
 	case "Equals":
 		emitOpcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":

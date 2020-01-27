@@ -27,3 +27,8 @@ func GetCallingScriptHash() []byte {
 func GetEntryScriptHash() []byte {
 	return nil
 }
+
+// AppCall executes script with specified hash using provided arguments.
+func AppCall(scriptHash []byte, args []interface{}) interface{} {
+	return nil
+}
