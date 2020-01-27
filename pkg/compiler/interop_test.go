@@ -8,9 +8,49 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/compiler"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFromAddress(t *testing.T) {
+	as1 := "Aej1fe4mUgou48Zzup5j8sPrE3973cJ5oz"
+	addr1, err := address.StringToUint160(as1)
+	require.NoError(t, err)
+
+	as2 := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
+	addr2, err := address.StringToUint160(as2)
+	require.NoError(t, err)
+
+	t.Run("append 2 addresses", func(t *testing.T) {
+		src := `
+		package foo
+ 		import "github.com/CityOfZion/neo-go/pkg/interop/util"
+		func Main() []byte {
+			addr1 := util.FromAddress("` + as1 + `")
+			addr2 := util.FromAddress("` + as2 + `")
+			sum := append(addr1, addr2...)
+			return sum
+		}
+		`
+
+		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
+	})
+
+	t.Run("append 2 addresses inline", func(t *testing.T) {
+		src := `
+		package foo
+ 		import "github.com/CityOfZion/neo-go/pkg/interop/util"
+		func Main() []byte {
+			addr1 := util.FromAddress("` + as1 + `")
+			sum := append(addr1, util.FromAddress("` + as2 + `")...)
+			return sum
+		}
+		`
+
+		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
+	})
+}
 
 func TestAppCall(t *testing.T) {
 	srcInner := `

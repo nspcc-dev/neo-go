@@ -491,9 +491,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		args := n.Args
 		isAppCall := isAppCall(n.Fun)
-		// When using APPCALL, script hash is a part of the instruction so
-		// script hash should be emitted after APPCALL.
-		if isAppCall {
+		isFromAddress := isFromAddress(n.Fun)
+		// There are 2 special cases:
+		// 1. When using APPCALL, script hash is a part of the instruction so
+		//    script hash should be emitted after APPCALL.
+		// 2. With FromAddress, parameter conversion is happening at compile-time
+		//    so there is no need to push parameters on stack and perform an actual call
+		if isAppCall || isFromAddress {
 			args = n.Args[1:]
 		}
 
