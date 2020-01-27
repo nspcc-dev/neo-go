@@ -349,6 +349,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 			c.emitLoadConst(value)
+		} else if tv := c.typeInfo.Types[n]; tv.Value != nil {
+			c.emitLoadConst(tv)
 		} else {
 			c.emitLoadLocal(n.Name)
 		}
@@ -481,11 +483,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 		case *ast.ArrayType:
-			// For now we will assume that there is only 1 argument passed which
-			// will be a basic literal (string kind). This only to handle string
-			// to byte slice conversions. E.G. []byte("foobar")
-			arg := n.Args[0].(*ast.BasicLit)
-			c.emitLoadConst(c.typeInfo.Types[arg])
+			// For now we will assume that there are only byte slice conversions.
+			// E.g. []byte("foobar") or []byte(scriptHash).
+			ast.Walk(c, n.Args[0])
 			return nil
 		}
 
@@ -672,6 +672,13 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 			buf[i] = byte(val)
 		}
 		return buf
+	case *ast.CallExpr:
+		if tv := c.typeInfo.Types[t.Args[0]]; tv.Value != nil {
+			val := constant.StringVal(tv.Value)
+			return []byte(val)
+		}
+
+		return nil
 	default:
 		return nil
 	}

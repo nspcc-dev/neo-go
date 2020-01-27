@@ -54,3 +54,28 @@ func TestByteConversionDirectlyInFunctionCall(t *testing.T) {
 	`
 	eval(t, src, []byte("foo"))
 }
+
+func TestByteConversionOfConstant(t *testing.T) {
+	src := `
+	package foo
+	const foo = "foo"
+	func Main() []byte {
+		b := []byte(foo)
+		return b
+	}
+	`
+	eval(t, src, []byte("foo"))
+}
+
+func TestByteConversionOfVariable(t *testing.T) {
+	src := `
+	package foo
+	func Main() []byte {
+		a := "fo"
+		a = a + "o"
+		b := []byte(a)
+		return b
+	}
+	`
+	eval(t, src, []byte("foo"))
+}
