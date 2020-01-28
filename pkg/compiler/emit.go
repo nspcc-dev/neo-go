@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
@@ -47,7 +47,7 @@ func emitInt(w *io.BinWriter, i int64) {
 	}
 
 	bInt := big.NewInt(i)
-	val := util.ArrayReverse(bInt.Bytes())
+	val := vm.IntToBytes(bInt)
 	emitBytes(w, val)
 }
 
