@@ -30,7 +30,8 @@ LABEL version=$VERSION
 WORKDIR /
 
 COPY --from=builder /neo-go/config /config
-COPY --from=builder /neo-go/.docker/6000-privnet-blocks.acc.gz /privnet-blocks.acc.gz
+COPY --from=builder /neo-go/.docker/6000-privnet-blocks.acc.gz /6000-privnet-blocks.acc.gz
+COPY --from=builder /neo-go/.docker/1600-privnet-blocks-single.acc.gz /1600-privnet-blocks-single.acc.gz
 COPY --from=builder /neo-go/.docker/privnet-entrypoint.sh /usr/bin/privnet-entrypoint.sh
 COPY --from=builder /go/bin/neo-go /usr/bin/neo-go
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
