@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -131,6 +132,9 @@ func (p *TCPPeer) handleConn() {
 				break
 			}
 			if err = p.server.handleMessage(p, msg); err != nil {
+				if p.Handshaked() {
+					err = fmt.Errorf("handling %s message: %v", msg.CommandType(), err)
+				}
 				break
 			}
 		}
