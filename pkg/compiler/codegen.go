@@ -114,8 +114,7 @@ func (c *codegen) emitStoreLocal(pos int) {
 	}
 
 	emitInt(c.prog.BinWriter, int64(pos))
-	emitInt(c.prog.BinWriter, 2)
-	emitOpcode(c.prog.BinWriter, opcode.ROLL)
+	emitOpcode(c.prog.BinWriter, opcode.ROT)
 	emitOpcode(c.prog.BinWriter, opcode.SETITEM)
 }
 
