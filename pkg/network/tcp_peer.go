@@ -202,11 +202,6 @@ func (p *TCPPeer) StartProtocol() {
 			// Try to sync in headers and block with the peer if his block height is higher then ours.
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
 				err = p.server.requestBlocks(p)
-			} else {
-				diff := time.Now().UTC().Unix() - p.server.getLastBlockTime()
-				if diff > int64(p.server.PingInterval/time.Second) {
-					err = p.SendPing()
-				}
 			}
 			if err == nil {
 				timer.Reset(p.server.ProtoTickInterval)
@@ -340,7 +335,10 @@ func (p *TCPPeer) LastBlockIndex() uint32 {
 
 // SendPing sends a ping message to the peer and does appropriate accounting of
 // outstanding pings and timeouts.
-func (p *TCPPeer) SendPing() error {
+func (p *TCPPeer) SendPing(msg *Message) error {
+	if !p.Handshaked() {
+		return errStateMismatch
+	}
 	p.lock.Lock()
 	p.pingSent++
 	if p.pingTimer == nil {
@@ -349,7 +347,7 @@ func (p *TCPPeer) SendPing() error {
 		})
 	}
 	p.lock.Unlock()
-	return p.EnqueueMessage(p.server.MkMsg(CMDPing, payload.NewPing(p.server.id, p.server.chain.HeaderHeight())))
+	return p.EnqueueMessage(msg)
 }
 
 // HandlePong handles a pong message received from the peer and does appropriate

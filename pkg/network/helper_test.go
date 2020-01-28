@@ -225,8 +225,9 @@ func (p *localPeer) HandleVersionAck() error {
 	p.handshaked = true
 	return nil
 }
-func (p *localPeer) SendPing() error {
+func (p *localPeer) SendPing(m *Message) error {
 	p.pingSent++
+	_ = p.EnqueueMessage(m)
 	return nil
 }
 func (p *localPeer) HandlePong(pong *payload.Ping) error {

@@ -66,8 +66,6 @@ type (
 		quit       chan struct{}
 
 		connected *atomic.Bool
-		// Time of the last block receival.
-		lastBlockTS *atomic.Int64
 
 		log *zap.Logger
 	}
@@ -100,7 +98,6 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 		unregister:   make(chan peerDrop),
 		peers:        make(map[Peer]bool),
 		connected:    atomic.NewBool(false),
-		lastBlockTS:  atomic.NewInt64(0),
 		log:          log,
 	}
 
@@ -195,7 +192,10 @@ func (s *Server) BadPeers() []string {
 	return []string{}
 }
 
+// run is a goroutine that starts another goroutine to manage protocol specifics
+// while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
+	go s.runProto()
 	for {
 		if s.PeerCount() < s.MinPeers {
 			s.discovery.RequestRemote(s.AttemptConnPeers)
@@ -250,6 +250,26 @@ func (s *Server) run() {
 				s.lock.Unlock()
 			}
 
+		}
+	}
+}
+
+// runProto is a goroutine that manages server-wide protocol events.
+func (s *Server) runProto() {
+	pingTimer := time.NewTimer(s.PingInterval)
+	for {
+		prevHeight := s.chain.BlockHeight()
+		select {
+		case <-s.quit:
+			return
+		case <-pingTimer.C:
+			if s.chain.BlockHeight() == prevHeight {
+				// Get a copy of s.peers to avoid holding a lock while sending.
+				for peer := range s.Peers() {
+					_ = peer.SendPing(s.MkMsg(CMDPing, payload.NewPing(s.id, s.chain.HeaderHeight())))
+				}
+			}
+			pingTimer.Reset(s.PingInterval)
 		}
 	}
 }
@@ -359,7 +379,6 @@ func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
 
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
-	s.lastBlockTS.Store(time.Now().UTC().Unix())
 	return s.bQueue.putBlock(block)
 }
 
@@ -435,13 +454,16 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 		}
 		if msg != nil {
 			pkt, err := msg.Bytes()
+			if err == nil {
+				if inv.Type == payload.ConsensusType {
+					err = p.EnqueueHPPacket(pkt)
+				} else {
+					err = p.EnqueuePacket(pkt)
+				}
+			}
 			if err != nil {
 				return err
 			}
-			if inv.Type == payload.ConsensusType {
-				return p.EnqueueHPPacket(pkt)
-			}
-			return p.EnqueuePacket(pkt)
 		}
 	}
 	return nil
@@ -658,12 +680,6 @@ func (s *Server) handleNewPayload(p *consensus.Payload) {
 	// It's high priority because it directly affects consensus process,
 	// even though it's just an inv.
 	s.broadcastHPMessage(msg)
-}
-
-// getLastBlockTime returns unix timestamp for the moment when the last block
-// was received.
-func (s *Server) getLastBlockTime() int64 {
-	return s.lastBlockTS.Load()
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {
