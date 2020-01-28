@@ -333,7 +333,7 @@ func (p *TCPPeer) RemoteAddr() net.Addr {
 func (p *TCPPeer) PeerAddr() net.Addr {
 	remote := p.conn.RemoteAddr()
 	// The network can be non-tcp in unit tests.
-	if !p.Handshaked() || remote.Network() != "tcp" {
+	if p.version == nil || remote.Network() != "tcp" {
 		return p.RemoteAddr()
 	}
 	host, _, err := net.SplitHostPort(remote.String())
