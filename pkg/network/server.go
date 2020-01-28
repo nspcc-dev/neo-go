@@ -350,8 +350,12 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	peerAddr := p.PeerAddr().String()
 	s.lock.RLock()
 	for peer := range s.peers {
+		if p == peer {
+			continue
+		}
+		ver := peer.Version()
 		// Already connected, drop this connection.
-		if peer.Handshaked() && peer.PeerAddr().String() == peerAddr && peer.Version().Nonce == version.Nonce {
+		if ver != nil && ver.Nonce == version.Nonce && peer.PeerAddr().String() == peerAddr {
 			s.lock.RUnlock()
 			return errAlreadyConnected
 		}
