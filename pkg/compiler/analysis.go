@@ -16,6 +16,7 @@ var (
 		"SHA1", "Hash256", "Hash160",
 		"VerifySignature", "AppCall",
 		"FromAddress", "Equals",
+		"panic",
 	}
 )
 
@@ -67,6 +68,12 @@ func countGlobals(f ast.Node) (i int64) {
 // isIdentBool looks if the given ident is a boolean.
 func isIdentBool(ident *ast.Ident) bool {
 	return ident.Name == "true" || ident.Name == "false"
+}
+
+// isExprNil looks if the given expression is a `nil`.
+func isExprNil(e ast.Expr) bool {
+	v, ok := e.(*ast.Ident)
+	return ok && v.Name == "nil"
 }
 
 // makeBoolFromIdent creates a bool type from an *ast.Ident.

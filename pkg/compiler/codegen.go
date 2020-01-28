@@ -770,6 +770,17 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			emitOpcode(c.prog.BinWriter, opcode.XSWAP)
 			emitOpcode(c.prog.BinWriter, opcode.APPEND)
 		}
+	case "panic":
+		arg := expr.Args[0]
+		if isExprNil(arg) {
+			emitOpcode(c.prog.BinWriter, opcode.DROP)
+			emitOpcode(c.prog.BinWriter, opcode.THROW)
+		} else if isStringType(c.typeInfo.Types[arg].Type) {
+			emitSyscall(c.prog.BinWriter, "Neo.Runtime.Log")
+			emitOpcode(c.prog.BinWriter, opcode.THROW)
+		} else {
+			c.prog.Err = errors.New("panic should have string or nil argument")
+		}
 	case "SHA256":
 		emitOpcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":
