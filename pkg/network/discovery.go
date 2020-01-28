@@ -18,6 +18,7 @@ type Discoverer interface {
 	RequestRemote(int)
 	RegisterBadAddr(string)
 	RegisterGoodAddr(string)
+	RegisterConnectedAddr(string)
 	UnregisterConnectedAddr(string)
 	UnconnectedPeers() []string
 	BadPeers() []string
@@ -153,8 +154,8 @@ func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
 	d.lock.Unlock()
 }
 
-// registerConnectedAddr tells discoverer that given address is now connected.
-func (d *DefaultDiscovery) registerConnectedAddr(addr string) {
+// RegisterConnectedAddr tells discoverer that given address is now connected.
+func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 	d.lock.Lock()
 	delete(d.unconnectedAddrs, addr)
 	d.connectedAddrs[addr] = true
@@ -166,7 +167,7 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 		d.RegisterBadAddr(addr)
 		d.RequestRemote(1)
 	} else {
-		d.registerConnectedAddr(addr)
+		d.RegisterConnectedAddr(addr)
 	}
 }
 

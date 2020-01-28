@@ -136,6 +136,7 @@ func (d testDiscovery) BackFill(addrs ...string)       {}
 func (d testDiscovery) PoolCount() int                 { return 0 }
 func (d testDiscovery) RegisterBadAddr(string)         {}
 func (d testDiscovery) RegisterGoodAddr(string)        {}
+func (d testDiscovery) RegisterConnectedAddr(string)   {}
 func (d testDiscovery) UnregisterConnectedAddr(string) {}
 func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
 func (d testDiscovery) RequestRemote(n int)            {}

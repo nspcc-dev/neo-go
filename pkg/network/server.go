@@ -348,6 +348,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		return errIdenticalID
 	}
 	peerAddr := p.PeerAddr().String()
+	s.discovery.RegisterConnectedAddr(peerAddr)
 	s.lock.RLock()
 	for peer := range s.peers {
 		if p == peer {
