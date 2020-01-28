@@ -106,19 +106,19 @@ var testCases = []struct {
 
 func TestIntToBytes(t *testing.T) {
 	for _, tc := range testCases {
-		buf := intToBytes(big.NewInt(tc.number))
+		buf := IntToBytes(big.NewInt(tc.number))
 		assert.Equal(t, tc.buf, buf, "error while converting %d", tc.number)
 	}
 }
 
 func TestBytesToInt(t *testing.T) {
 	for _, tc := range testCases {
-		num := bytesToInt(tc.buf)
+		num := BytesToInt(tc.buf)
 		assert.Equal(t, tc.number, num.Int64(), "error while converting %d", tc.number)
 	}
 
 	t.Run("empty array", func(t *testing.T) {
-		require.EqualValues(t, 0, bytesToInt([]byte{}).Int64())
+		require.EqualValues(t, 0, BytesToInt([]byte{}).Int64())
 	})
 }
 
@@ -131,7 +131,7 @@ func TestEquivalentRepresentations(t *testing.T) {
 			buf = append(buf, 0xFF, 0xFF, 0xFF)
 		}
 
-		num := bytesToInt(buf)
+		num := BytesToInt(buf)
 		assert.Equal(t, tc.number, num.Int64(), "error while converting %d", tc.number)
 	}
 }
@@ -170,16 +170,16 @@ func TestVeryBigInts(t *testing.T) {
 		num, ok := new(big.Int).SetString(tc.numStr, 10)
 		assert.True(t, ok)
 
-		result := bytesToInt(tc.buf)
+		result := BytesToInt(tc.buf)
 		assert.Equal(t, num, result, "error while converting %s from bytes", tc.numStr)
-		assert.Equal(t, tc.buf, intToBytes(result), "error while converting %s to bytes", tc.numStr)
+		assert.Equal(t, tc.buf, IntToBytes(result), "error while converting %s to bytes", tc.numStr)
 	}
 
 	for _, tc := range stdlibCases {
 		num, ok := new(big.Int).SetString(tc.numStr, 10)
 		assert.True(t, ok)
 
-		result := bytesToInt(util.ArrayReverse(tc.buf))
+		result := BytesToInt(util.ArrayReverse(tc.buf))
 		assert.Equal(t, num, result, "error while converting %s from bytes", tc.numStr)
 	}
 }

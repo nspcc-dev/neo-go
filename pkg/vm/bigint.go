@@ -9,9 +9,9 @@ import (
 // wordSizeBytes is a size of a big.Word (uint) in bytes.`
 const wordSizeBytes = bits.UintSize / 8
 
-// bytesToInt converts data in little-endian format to
+// BytesToInt converts data in little-endian format to
 // an integer.
-func bytesToInt(data []byte) *big.Int {
+func BytesToInt(data []byte) *big.Int {
 	n := new(big.Int)
 	size := len(data)
 	if size == 0 {
@@ -79,8 +79,8 @@ func getEffectiveSize(buf []byte, isNeg bool) int {
 	return size
 }
 
-// intToBytes converts integer to a slice in little-endian format.
-func intToBytes(n *big.Int) []byte {
+// IntToBytes converts integer to a slice in little-endian format.
+func IntToBytes(n *big.Int) []byte {
 	sign := n.Sign()
 	if sign == 0 {
 		return []byte{0}

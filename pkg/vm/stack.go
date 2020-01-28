@@ -81,7 +81,7 @@ func (e *Element) BigInt() *big.Int {
 		return big.NewInt(0)
 	default:
 		b := t.Value().([]uint8)
-		return bytesToInt(b)
+		return BytesToInt(b)
 	}
 }
 

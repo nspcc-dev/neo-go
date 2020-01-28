@@ -142,7 +142,7 @@ func NewBigIntegerItem(value int) *BigIntegerItem {
 
 // Bytes converts i to a slice of bytes.
 func (i *BigIntegerItem) Bytes() []byte {
-	return intToBytes(i.value)
+	return IntToBytes(i.value)
 }
 
 // Value implements StackItem interface.

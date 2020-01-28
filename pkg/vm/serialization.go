@@ -48,7 +48,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBool(t.value)
 	case *BigIntegerItem:
 		w.WriteBytes([]byte{byte(integerT)})
-		w.WriteVarBytes(intToBytes(t.value))
+		w.WriteVarBytes(IntToBytes(t.value))
 	case *InteropItem:
 		w.Err = errors.New("not supported")
 	case *ArrayItem, *StructItem:
@@ -106,7 +106,7 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		return NewBoolItem(b)
 	case integerT:
 		data := r.ReadVarBytes()
-		num := bytesToInt(data)
+		num := BytesToInt(data)
 		return &BigIntegerItem{
 			value: num,
 		}
