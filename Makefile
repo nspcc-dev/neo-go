@@ -14,6 +14,8 @@ REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
 BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION)"
 
+IMAGE_REPO=nspccdev/neo-go
+
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build deps image check-version clean-cluster push-tag push-to-registry \
@@ -48,8 +50,13 @@ postinst: install
 
 image: deps
 	@echo "=> Building image"
-	@docker build -t cityofzion/neo-go:latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
-	@docker build -t cityofzion/neo-go:$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+	@docker build -t $(IMAGE_REPO):$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+
+image-push:
+	@echo "=> Publish image"
+	@docker push $(IMAGE_REPO):latest
+	@docker push $(IMAGE_REPO):$(VERSION)
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
