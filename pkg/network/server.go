@@ -239,7 +239,7 @@ func (s *Server) run() {
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
-				} else {
+				} else if drop.reason != errAlreadyConnected {
 					s.discovery.UnregisterConnectedAddr(addr)
 					s.discovery.BackFill(addr)
 				}
