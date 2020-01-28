@@ -607,6 +607,10 @@ func (s *Server) requestBlocks(p Peer) error {
 
 // handleMessage processes the given message.
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
+	s.log.Debug("got msg",
+		zap.Stringer("addr", peer.RemoteAddr()),
+		zap.String("type", string(msg.CommandType())))
+
 	// Make sure both server and peer are operating on
 	// the same network.
 	if msg.Magic != s.Net {
