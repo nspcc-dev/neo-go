@@ -337,6 +337,44 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(lElseEnd)
 		return nil
 
+	case *ast.SwitchStmt:
+		// fallthrough is not supported
+		ast.Walk(c, n.Tag)
+
+		eqOpcode := c.getEqualityOpcode(n.Tag)
+		switchEnd := c.newLabel()
+
+		for i := range n.Body.List {
+			lEnd := c.newLabel()
+			lStart := c.newLabel()
+			cc := n.Body.List[i].(*ast.CaseClause)
+
+			if l := len(cc.List); l != 0 { // if not `default`
+				for j := range cc.List {
+					emitOpcode(c.prog.BinWriter, opcode.DUP)
+					ast.Walk(c, cc.List[j])
+					emitOpcode(c.prog.BinWriter, eqOpcode)
+					if j == l-1 {
+						emitJmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lEnd))
+					} else {
+						emitJmp(c.prog.BinWriter, opcode.JMPIF, int16(lStart))
+					}
+				}
+			}
+
+			c.setLabel(lStart)
+			for _, stmt := range cc.Body {
+				ast.Walk(c, stmt)
+			}
+			emitJmp(c.prog.BinWriter, opcode.JMP, int16(switchEnd))
+			c.setLabel(lEnd)
+		}
+
+		c.setLabel(switchEnd)
+		emitOpcode(c.prog.BinWriter, opcode.DROP)
+
+		return nil
+
 	case *ast.BasicLit:
 		c.emitLoadConst(c.typeInfo.Types[n])
 		return nil
@@ -431,11 +469,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			case n.Op == token.EQL:
 				// VM has separate opcodes for number and string equality
-				if isStringType(c.typeInfo.Types[n.X].Type) {
-					emitOpcode(c.prog.BinWriter, opcode.EQUAL)
-				} else {
-					emitOpcode(c.prog.BinWriter, opcode.NUMEQUAL)
-				}
+				op := c.getEqualityOpcode(n.X)
+				emitOpcode(c.prog.BinWriter, op)
 			case n.Op == token.NEQ:
 				// VM has separate opcodes for number and string equality
 				if isStringType(c.typeInfo.Types[n.X].Type) {
@@ -655,6 +690,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
+	t, ok := c.typeInfo.Types[expr].Type.Underlying().(*types.Basic)
+	if ok && t.Info()&types.IsNumeric != 0 {
+		return opcode.NUMEQUAL
+	}
+
+	return opcode.EQUAL
 }
 
 // getByteArray returns byte array value from constant expr.
