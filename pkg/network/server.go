@@ -214,8 +214,8 @@ func (s *Server) run() {
 			s.lock.Lock()
 			s.peers[p] = true
 			s.lock.Unlock()
-			s.log.Info("new peer connected", zap.Stringer("addr", p.RemoteAddr()))
 			peerCount := s.PeerCount()
+			s.log.Info("new peer connected", zap.Stringer("addr", p.RemoteAddr()), zap.Int("peerCount", peerCount))
 			if peerCount > s.MaxPeers {
 				s.lock.RLock()
 				// Pick a random peer and drop connection to it.
