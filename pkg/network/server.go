@@ -388,7 +388,7 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
-	return p.EnqueueMessage(s.MkMsg(CMDPong, payload.NewPing(s.id, s.chain.BlockHeight())))
+	return p.EnqueueMessage(s.MkMsg(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 
 // handlePing processes pong request.
