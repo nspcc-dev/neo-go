@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWitnessEncodeDecode(t *testing.T) {
@@ -166,4 +167,11 @@ func TestDecodePublishTX(t *testing.T) {
 	actualTX.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
 	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
+}
+
+func TestEncodingTXWithNoData(t *testing.T) {
+	buf := io.NewBufBinWriter()
+	tx := &Transaction{}
+	tx.EncodeBinary(buf.BinWriter)
+	require.Error(t, buf.Err)
 }

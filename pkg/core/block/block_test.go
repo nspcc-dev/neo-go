@@ -86,8 +86,8 @@ func newDumbBlock() *Block {
 			},
 		},
 		Transactions: []*transaction.Transaction{
-			{Type: transaction.MinerType},
-			{Type: transaction.IssueType},
+			{Type: transaction.MinerType, Data: &transaction.MinerTX{}},
+			{Type: transaction.IssueType, Data: &transaction.IssueTX{}},
 		},
 	}
 }
@@ -105,22 +105,22 @@ func TestBlockVerify(t *testing.T) {
 	assert.Nil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
-		{Type: transaction.IssueType},
-		{Type: transaction.MinerType},
+		{Type: transaction.IssueType, Data: &transaction.IssueTX{}},
+		{Type: transaction.MinerType, Data: &transaction.MinerTX{}},
 	}
 	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 
 	block.Transactions = []*transaction.Transaction{
-		{Type: transaction.MinerType},
-		{Type: transaction.MinerType},
+		{Type: transaction.IssueType, Data: &transaction.IssueTX{}},
+		{Type: transaction.MinerType, Data: &transaction.MinerTX{}},
 	}
 	assert.NoError(t, block.RebuildMerkleRoot())
 	assert.NotNil(t, block.Verify())
 	block.Transactions = []*transaction.Transaction{
-		{Type: transaction.MinerType},
-		{Type: transaction.IssueType},
-		{Type: transaction.IssueType},
+		{Type: transaction.MinerType, Data: &transaction.MinerTX{}},
+		{Type: transaction.IssueType, Data: &transaction.IssueTX{}},
+		{Type: transaction.IssueType, Data: &transaction.IssueTX{}},
 	}
 	assert.NotNil(t, block.Verify())
 }

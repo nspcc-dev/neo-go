@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -151,13 +152,15 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
+	if t.Data == nil {
+		bw.Err = errors.New("transaction has no data")
+		return
+	}
 	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
 
 	// Underlying TXer.
-	if t.Data != nil {
-		t.Data.EncodeBinary(bw)
-	}
+	t.Data.EncodeBinary(bw)
 
 	// Attributes
 	bw.WriteArray(t.Attributes)

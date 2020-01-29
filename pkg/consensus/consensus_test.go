@@ -49,7 +49,7 @@ func TestService_GetVerified(t *testing.T) {
 
 	p := new(Payload)
 	p.SetType(payload.PrepareRequestType)
-	p.SetPayload(&prepareRequest{transactionHashes: hashes})
+	p.SetPayload(&prepareRequest{transactionHashes: hashes, minerTx: *newMinerTx(999)})
 	p.SetValidatorIndex(1)
 
 	priv, _ := getTestValidator(1)
