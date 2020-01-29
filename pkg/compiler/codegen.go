@@ -253,8 +253,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						ast.Walk(c, n.Rhs[i])
 					}
 
-					l := c.scope.loadLocal(t.Name)
-					c.emitStoreLocal(l)
+					if t.Name == "_" {
+						emitOpcode(c.prog.BinWriter, opcode.DROP)
+					} else {
+						l := c.scope.loadLocal(t.Name)
+						c.emitStoreLocal(l)
+					}
 				}
 
 			case *ast.SelectorExpr:
