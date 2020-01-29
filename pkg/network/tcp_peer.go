@@ -167,6 +167,11 @@ func (p *TCPPeer) handleConn() {
 // send queues.
 func (p *TCPPeer) handleQueues() {
 	var err error
+	// p2psend queue shares its time with send queue in around
+	// ((p2pSkipDivisor - 1) * 2 + 1)/1 ratio, ratio because the third
+	// select can still choose p2psend over send.
+	var p2pSkipCounter uint32
+	const p2pSkipDivisor = 4
 
 	for {
 		var msg []byte
@@ -179,7 +184,8 @@ func (p *TCPPeer) handleQueues() {
 		default:
 		}
 
-		if msg == nil {
+		// Skip this select every p2pSkipDivisor iteration.
+		if msg == nil && p2pSkipCounter%p2pSkipDivisor != 0 {
 			// Then look at the p2p queue.
 			select {
 			case <-p.done:
@@ -204,6 +210,7 @@ func (p *TCPPeer) handleQueues() {
 		if err != nil {
 			break
 		}
+		p2pSkipCounter++
 	}
 	p.Disconnect(err)
 }
