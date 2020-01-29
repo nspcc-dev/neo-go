@@ -548,7 +548,7 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	// in the pool.
 	if s.verifyAndPoolTX(tx) == RelaySucceed {
 		s.consensus.OnTransaction(tx)
-		s.broadcastTX(tx)
+		go s.broadcastTX(tx)
 	}
 	return nil
 }
