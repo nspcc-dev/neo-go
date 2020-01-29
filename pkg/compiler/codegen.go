@@ -523,17 +523,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 
-		args := n.Args
-		isAppCall := isAppCall(n.Fun)
-		isFromAddress := isFromAddress(n.Fun)
-		// There are 2 special cases:
-		// 1. When using APPCALL, script hash is a part of the instruction so
-		//    script hash should be emitted after APPCALL.
-		// 2. With FromAddress, parameter conversion is happening at compile-time
-		//    so there is no need to push parameters on stack and perform an actual call
-		if isAppCall || isFromAddress {
-			args = n.Args[1:]
-		}
+		args := transformArgs(n.Fun, n.Args)
 
 		// Handle the arguments
 		for _, arg := range args {
@@ -560,16 +550,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
-
-			if isAppCall {
-				buf := c.getByteArray(n.Args[0])
-				if len(buf) != 20 {
-					c.prog.Err = errors.New("invalid script hash")
-					return nil
-				}
-
-				c.prog.WriteBytes(buf)
-			}
 		case isSyscall(f):
 			c.convertSyscall(f.selector.Name, f.name)
 		default:
@@ -764,11 +744,21 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		if isByteArrayType(typ) {
 			emitOpcode(c.prog.BinWriter, opcode.CAT)
 		} else {
+			emitOpcode(c.prog.BinWriter, opcode.OVER)
 			emitOpcode(c.prog.BinWriter, opcode.SWAP)
-			emitOpcode(c.prog.BinWriter, opcode.DUP)
-			emitOpcode(c.prog.BinWriter, opcode.PUSH2)
-			emitOpcode(c.prog.BinWriter, opcode.XSWAP)
 			emitOpcode(c.prog.BinWriter, opcode.APPEND)
+		}
+	case "panic":
+		arg := expr.Args[0]
+		if isExprNil(arg) {
+			emitOpcode(c.prog.BinWriter, opcode.DROP)
+			emitOpcode(c.prog.BinWriter, opcode.THROW)
+		} else if isStringType(c.typeInfo.Types[arg].Type) {
+			ast.Walk(c, arg)
+			emitSyscall(c.prog.BinWriter, "Neo.Runtime.Log")
+			emitOpcode(c.prog.BinWriter, opcode.THROW)
+		} else {
+			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
 	case "SHA256":
 		emitOpcode(c.prog.BinWriter, opcode.SHA256)
@@ -782,6 +772,12 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emitOpcode(c.prog.BinWriter, opcode.VERIFY)
 	case "AppCall":
 		emitOpcode(c.prog.BinWriter, opcode.APPCALL)
+		buf := c.getByteArray(expr.Args[0])
+		if len(buf) != 20 {
+			c.prog.Err = errors.New("invalid script hash")
+		}
+
+		c.prog.WriteBytes(buf)
 	case "Equals":
 		emitOpcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
@@ -798,6 +794,30 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		bytes := uint160.BytesBE()
 		emitBytes(c.prog.BinWriter, bytes)
 	}
+}
+
+// transformArgs returns a list of function arguments
+// which should be put on stack.
+// There are special cases for builtins:
+// 1. When using AppCall, script hash is a part of the instruction so
+//    it should be emitted after APPCALL.
+// 2. With FromAddress, parameter conversion is happening at compile-time
+//    so there is no need to push parameters on stack and perform an actual call
+// 3. With panic, generated code depends on if argument was nil or a string so
+//    it should be handled accordingly.
+func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
+	switch f := fun.(type) {
+	case *ast.SelectorExpr:
+		if f.Sel.Name == "AppCall" || f.Sel.Name == "FromAddress" {
+			return args[1:]
+		}
+	case *ast.Ident:
+		if f.Name == "panic" {
+			return args[1:]
+		}
+	}
+
+	return args
 }
 
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
