@@ -744,10 +744,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		if isByteArrayType(typ) {
 			emitOpcode(c.prog.BinWriter, opcode.CAT)
 		} else {
+			emitOpcode(c.prog.BinWriter, opcode.OVER)
 			emitOpcode(c.prog.BinWriter, opcode.SWAP)
-			emitOpcode(c.prog.BinWriter, opcode.DUP)
-			emitOpcode(c.prog.BinWriter, opcode.PUSH2)
-			emitOpcode(c.prog.BinWriter, opcode.XSWAP)
 			emitOpcode(c.prog.BinWriter, opcode.APPEND)
 		}
 	case "panic":
