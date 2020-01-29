@@ -37,6 +37,21 @@ func TestMultipleReturn2(t *testing.T) {
 	eval(t, src, big.NewInt(9))
 }
 
+func TestMultipleReturnUnderscore(t *testing.T) {
+	src := `
+		package hello
+		func f3() (int, int, int) {
+			return 5, 6, 7
+		}
+
+		func Main() int {
+			a, _, c := f3()
+			return a+c
+		}
+	`
+	eval(t, src, big.NewInt(12))
+}
+
 func TestMultipleReturnWithArg(t *testing.T) {
 	src := `
 		package hello
