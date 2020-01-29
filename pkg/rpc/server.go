@@ -9,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -320,7 +321,11 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 		return nil, errInvalidParams
 	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
 		return nil, errInvalidParams
-	} else if as := s.chain.GetAccountState(scriptHash); as != nil {
+	} else {
+		as := s.chain.GetAccountState(scriptHash)
+		if as == nil {
+			as = state.NewAccount(scriptHash)
+		}
 		if unspents {
 			str, err := param.GetString()
 			if err != nil {
@@ -330,8 +335,6 @@ func (s *Server) getAccountState(reqParams Params, unspents bool) (interface{}, 
 		} else {
 			results = wrappers.NewAccountState(as)
 		}
-	} else {
-		results = "Invalid public account address"
 	}
 	return results, resultsErr
 }

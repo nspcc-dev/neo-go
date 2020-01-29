@@ -50,9 +50,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "negative",
+			name:   "positive null",
 			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return "Invalid public account address" },
+			result: func(e *executor) interface{} { return &GetAccountStateResponse{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*GetAccountStateResponse)
+				require.True(t, ok)
+				assert.Equal(t, 0, len(res.Result.Balances))
+				assert.Equal(t, false, res.Result.Frozen)
+			},
 		},
 		{
 			name:   "no params",
@@ -235,9 +241,14 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "negative",
+			name:   "positive null",
 			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return "Invalid public account address" },
+			result: func(e *executor) interface{} { return &GetUnspents{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*GetUnspents)
+				require.True(t, ok)
+				require.Equal(t, 0, len(res.Result.Balance))
+			},
 		},
 	},
 	"getversion": {
