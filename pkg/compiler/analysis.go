@@ -187,16 +187,6 @@ func isBuiltin(expr ast.Expr) bool {
 	return false
 }
 
-func isAppCall(expr ast.Expr) bool {
-	t, ok := expr.(*ast.SelectorExpr)
-	return ok && t.Sel.Name == "AppCall"
-}
-
-func isFromAddress(expr ast.Expr) bool {
-	t, ok := expr.(*ast.SelectorExpr)
-	return ok && t.Sel.Name == "FromAddress"
-}
-
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	if len(lit.Elts) == 0 {
 		return false
