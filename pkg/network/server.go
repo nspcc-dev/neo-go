@@ -544,10 +544,12 @@ func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
 // handleTxCmd processes received transaction.
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
-	s.consensus.OnTransaction(tx)
 	// It's OK for it to fail for various reasons like tx already existing
 	// in the pool.
-	_ = s.RelayTxn(tx)
+	if s.verifyAndPoolTX(tx) == RelaySucceed {
+		s.consensus.OnTransaction(tx)
+		s.broadcastTX(tx)
+	}
 	return nil
 }
 
@@ -736,9 +738,8 @@ func (s *Server) relayBlock(b *block.Block) {
 	s.broadcastMessage(msg)
 }
 
-// RelayTxn a new transaction to the local node and the connected peers.
-// Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
-func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
+// verifyAndPoolTX verifies the TX and adds it to the local mempool.
+func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if t.Type == transaction.MinerType {
 		return RelayInvalid
 	}
@@ -754,7 +755,21 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), mempool.NewPoolItem(t, s.chain)); !ok {
 		return RelayOutOfMemory
 	}
+	return RelaySucceed
+}
 
+// RelayTxn a new transaction to the local node and the connected peers.
+// Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
+func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
+	ret := s.verifyAndPoolTX(t)
+	if ret == RelaySucceed {
+		s.broadcastTX(t)
+	}
+	return ret
+}
+
+// broadcastTX broadcasts an inventory message about new transaction.
+func (s *Server) broadcastTX(t *transaction.Transaction) {
 	msg := s.MkMsg(CMDInv, payload.NewInventory(payload.TXType, []util.Uint256{t.Hash()}))
 
 	// We need to filter out non-relaying nodes, so plain broadcast
@@ -762,6 +777,4 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
 		return p.Handshaked() && p.Version().Relay
 	})
-
-	return RelaySucceed
 }
