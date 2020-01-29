@@ -139,6 +139,8 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
 		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
+		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
+		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
 	)
 
 	if srv.dbft == nil {
