@@ -241,6 +241,9 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 func (p *Payload) Hash() util.Uint256 {
 	w := io.NewBufBinWriter()
 	p.EncodeBinaryUnsigned(w.BinWriter)
+	if w.Err != nil {
+		panic("failed to hash payload")
+	}
 
 	return hash.DoubleSha256(w.Bytes())
 }
