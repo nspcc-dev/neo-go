@@ -207,6 +207,10 @@ Methods:
 
 		results = peers
 
+	case "getstorage":
+		getstorageCalled.Inc()
+		results, resultsErr = s.getStorage(reqParams)
+
 	case "validateaddress":
 		validateaddressCalled.Inc()
 		param, ok := reqParams.Value(0)
@@ -280,6 +284,37 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getStorage(ps Params) (interface{}, error) {
+	param, ok := ps.Value(0)
+	if !ok {
+		return nil, errInvalidParams
+	}
+
+	scriptHash, err := param.GetUint160FromHex()
+	if err != nil {
+		return nil, errInvalidParams
+	}
+
+	scriptHash = scriptHash.Reverse()
+
+	param, ok = ps.Value(1)
+	if !ok {
+		return nil, errInvalidParams
+	}
+
+	key, err := param.GetBytesHex()
+	if err != nil {
+		return nil, errInvalidParams
+	}
+
+	item := s.chain.GetStorageItem(scriptHash.Reverse(), key)
+	if item == nil {
+		return nil, nil
+	}
+
+	return hex.EncodeToString(item.Value), nil
 }
 
 func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {

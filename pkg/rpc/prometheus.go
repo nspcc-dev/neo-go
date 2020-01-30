@@ -123,6 +123,14 @@ var (
 			Namespace: "neogo",
 		},
 	)
+
+	getstorageCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getstorage rpc endpoint",
+			Name:      "getstorage_called",
+			Namespace: "neogo",
+		},
+	)
 )
 
 func init() {
@@ -142,5 +150,6 @@ func init() {
 		gettxoutCalled,
 		getrawtransactionCalled,
 		sendrawtransactionCalled,
+		getstorageCalled,
 	)
 }
