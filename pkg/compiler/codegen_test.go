@@ -4,7 +4,6 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,7 +64,7 @@ func TestConvertToken(t *testing.T) {
 }
 
 func eval(t *testing.T, token token.Token, opcode opcode.Opcode) {
-	codegen := &codegen{prog: io.NewBufBinWriter()}
+	codegen := &codegen{prog: newProgram()}
 	codegen.convertToken(token)
 	readOpcode := codegen.prog.Bytes()
 	assert.Equal(t, []byte{byte(opcode)}, readOpcode)
