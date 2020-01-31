@@ -177,6 +177,14 @@ func (s *service) eventLoop() {
 
 			if msg.Type() == payload.RecoveryMessageType {
 				rec := msg.GetRecoveryMessage().(*recoveryMessage)
+				if rec.preparationHash == nil {
+					req := rec.GetPrepareRequest(&msg, s.dbft.Validators, uint16(s.dbft.PrimaryIndex))
+					if req != nil {
+						h := req.Hash()
+						rec.preparationHash = &h
+					}
+				}
+
 				fields = append(fields,
 					zap.Int("#preparation", len(rec.preparationPayloads)),
 					zap.Int("#commit", len(rec.commitPayloads)),
