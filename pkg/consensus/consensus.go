@@ -181,7 +181,8 @@ func (s *service) eventLoop() {
 					zap.Int("#preparation", len(rec.preparationPayloads)),
 					zap.Int("#commit", len(rec.commitPayloads)),
 					zap.Int("#changeview", len(rec.changeViewPayloads)),
-					zap.Bool("#request", rec.prepareRequest != nil))
+					zap.Bool("#request", rec.prepareRequest != nil),
+					zap.Bool("#hash", rec.preparationHash != nil))
 			}
 
 			s.log.Debug("received message", fields...)
