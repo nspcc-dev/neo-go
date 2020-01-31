@@ -168,7 +168,14 @@ func (s *service) eventLoop() {
 			s.log.Debug("timer fired",
 				zap.Uint32("height", hv.Height),
 				zap.Uint("view", uint(hv.View)))
-			s.dbft.OnTimeout(hv)
+			if s.Chain.BlockHeight() >= s.dbft.BlockIndex {
+				s.log.Debug("chain already advanced",
+					zap.Uint32("dbft index", s.dbft.BlockIndex),
+					zap.Uint32("chain index", s.Chain.BlockHeight()))
+				s.dbft.InitializeConsensus(0)
+			} else {
+				s.dbft.OnTimeout(hv)
+			}
 		case msg := <-s.messages:
 			fields := []zap.Field{
 				zap.Uint16("from", msg.validatorIndex),
