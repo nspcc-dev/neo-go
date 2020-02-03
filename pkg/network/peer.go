@@ -30,6 +30,20 @@ type Peer interface {
 	// completed handshaking.
 	EnqueuePacket([]byte) error
 
+	// EnqueueP2PMessage is a temporary wrapper that sends a message via
+	// EnqueueP2PPacket if there is no error in serializing it.
+	EnqueueP2PMessage(*Message) error
+
+	// EnqueueP2PPacket is a blocking packet enqueuer, it doesn't return until
+	// it puts given packet into the queue. It accepts a slice of bytes that
+	// can be shared with other queues (so that message marshalling can be
+	// done once for all peers). Does nothing is the peer is not yet
+	// completed handshaking. This queue is intended to be used for unicast
+	// peer to peer communication that is more important than broadcasts
+	// (handled by EnqueuePacket), but less important than high-priority
+	// messages (handled by EnqueueHPPacket).
+	EnqueueP2PPacket([]byte) error
+
 	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
 	// doesn't return until it puts given packet into the high-priority
 	// queue.

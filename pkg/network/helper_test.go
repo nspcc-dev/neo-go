@@ -136,6 +136,7 @@ func (d testDiscovery) BackFill(addrs ...string)       {}
 func (d testDiscovery) PoolCount() int                 { return 0 }
 func (d testDiscovery) RegisterBadAddr(string)         {}
 func (d testDiscovery) RegisterGoodAddr(string)        {}
+func (d testDiscovery) RegisterConnectedAddr(string)   {}
 func (d testDiscovery) UnregisterConnectedAddr(string) {}
 func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
 func (d testDiscovery) RequestRemote(n int)            {}
@@ -191,6 +192,12 @@ func (p *localPeer) EnqueueMessage(msg *Message) error {
 	return p.EnqueuePacket(b)
 }
 func (p *localPeer) EnqueuePacket(m []byte) error {
+	return p.EnqueueHPPacket(m)
+}
+func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
+	return p.EnqueueMessage(msg)
+}
+func (p *localPeer) EnqueueP2PPacket(m []byte) error {
 	return p.EnqueueHPPacket(m)
 }
 func (p *localPeer) EnqueueHPPacket(m []byte) error {

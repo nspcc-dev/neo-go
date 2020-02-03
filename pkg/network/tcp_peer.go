@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -21,6 +22,7 @@ const (
 	verAckReceived
 
 	requestQueueSize   = 32
+	p2pMsgQueueSize    = 16
 	hpRequestQueueSize = 4
 )
 
@@ -46,9 +48,10 @@ type TCPPeer struct {
 	finale    sync.Once
 	handShake handShakeStage
 
-	done    chan struct{}
-	sendQ   chan []byte
-	hpSendQ chan []byte
+	done     chan struct{}
+	sendQ    chan []byte
+	p2pSendQ chan []byte
+	hpSendQ  chan []byte
 
 	wg sync.WaitGroup
 
@@ -60,41 +63,60 @@ type TCPPeer struct {
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
 func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	return &TCPPeer{
-		conn:    conn,
-		server:  s,
-		done:    make(chan struct{}),
-		sendQ:   make(chan []byte, requestQueueSize),
-		hpSendQ: make(chan []byte, hpRequestQueueSize),
+		conn:     conn,
+		server:   s,
+		done:     make(chan struct{}),
+		sendQ:    make(chan []byte, requestQueueSize),
+		p2pSendQ: make(chan []byte, p2pMsgQueueSize),
+		hpSendQ:  make(chan []byte, hpRequestQueueSize),
 	}
+}
+
+// putPacketIntoQueue puts given message into the given queue if the peer has
+// done handshaking.
+func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, msg []byte) error {
+	if !p.Handshaked() {
+		return errStateMismatch
+	}
+	queue <- msg
+	return nil
 }
 
 // EnqueuePacket implements the Peer interface.
 func (p *TCPPeer) EnqueuePacket(msg []byte) error {
-	if !p.Handshaked() {
-		return errStateMismatch
+	return p.putPacketIntoQueue(p.sendQ, msg)
+}
+
+// putMessageIntoQueue serializes given Message and puts it into given queue if
+// the peer has done handshaking.
+func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
+	b, err := msg.Bytes()
+	if err != nil {
+		return err
 	}
-	p.sendQ <- msg
-	return nil
+	return p.putPacketIntoQueue(queue, b)
 }
 
 // EnqueueMessage is a temporary wrapper that sends a message via
 // EnqueuePacket if there is no error in serializing it.
 func (p *TCPPeer) EnqueueMessage(msg *Message) error {
-	b, err := msg.Bytes()
-	if err != nil {
-		return err
-	}
-	return p.EnqueuePacket(b)
+	return p.putMsgIntoQueue(p.sendQ, msg)
+}
+
+// EnqueueP2PPacket implements the Peer interface.
+func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
+	return p.putPacketIntoQueue(p.p2pSendQ, msg)
+}
+
+// EnqueueP2PMessage implements the Peer interface.
+func (p *TCPPeer) EnqueueP2PMessage(msg *Message) error {
+	return p.putMsgIntoQueue(p.p2pSendQ, msg)
 }
 
 // EnqueueHPPacket implements the Peer interface. It the peer is not yet
 // handshaked it's a noop.
 func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
-	if !p.Handshaked() {
-		return errStateMismatch
-	}
-	p.hpSendQ <- msg
-	return nil
+	return p.putPacketIntoQueue(p.hpSendQ, msg)
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
@@ -131,6 +153,9 @@ func (p *TCPPeer) handleConn() {
 				break
 			}
 			if err = p.server.handleMessage(p, msg); err != nil {
+				if p.Handshaked() {
+					err = fmt.Errorf("handling %s message: %v", msg.CommandType(), err)
+				}
 				break
 			}
 		}
@@ -142,6 +167,11 @@ func (p *TCPPeer) handleConn() {
 // send queues.
 func (p *TCPPeer) handleQueues() {
 	var err error
+	// p2psend queue shares its time with send queue in around
+	// ((p2pSkipDivisor - 1) * 2 + 1)/1 ratio, ratio because the third
+	// select can still choose p2psend over send.
+	var p2pSkipCounter uint32
+	const p2pSkipDivisor = 4
 
 	for {
 		var msg []byte
@@ -154,13 +184,25 @@ func (p *TCPPeer) handleQueues() {
 		default:
 		}
 
-		// If there is no message in the hp queue, block until one
+		// Skip this select every p2pSkipDivisor iteration.
+		if msg == nil && p2pSkipCounter%p2pSkipDivisor != 0 {
+			// Then look at the p2p queue.
+			select {
+			case <-p.done:
+				return
+			case msg = <-p.hpSendQ:
+			case msg = <-p.p2pSendQ:
+			default:
+			}
+		}
+		// If there is no message in HP or P2P queues, block until one
 		// appears in any of the queues.
 		if msg == nil {
 			select {
 			case <-p.done:
 				return
 			case msg = <-p.hpSendQ:
+			case msg = <-p.p2pSendQ:
 			case msg = <-p.sendQ:
 			}
 		}
@@ -168,6 +210,7 @@ func (p *TCPPeer) handleQueues() {
 		if err != nil {
 			break
 		}
+		p2pSkipCounter++
 	}
 	p.Disconnect(err)
 }
@@ -297,7 +340,7 @@ func (p *TCPPeer) RemoteAddr() net.Addr {
 func (p *TCPPeer) PeerAddr() net.Addr {
 	remote := p.conn.RemoteAddr()
 	// The network can be non-tcp in unit tests.
-	if !p.Handshaked() || remote.Network() != "tcp" {
+	if p.version == nil || remote.Network() != "tcp" {
 		return p.RemoteAddr()
 	}
 	host, _, err := net.SplitHostPort(remote.String())

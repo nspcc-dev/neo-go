@@ -214,8 +214,8 @@ func (s *Server) run() {
 			s.lock.Lock()
 			s.peers[p] = true
 			s.lock.Unlock()
-			s.log.Info("new peer connected", zap.Stringer("addr", p.RemoteAddr()))
 			peerCount := s.PeerCount()
+			s.log.Info("new peer connected", zap.Stringer("addr", p.RemoteAddr()), zap.Int("peerCount", peerCount))
 			if peerCount > s.MaxPeers {
 				s.lock.RLock()
 				// Pick a random peer and drop connection to it.
@@ -239,7 +239,7 @@ func (s *Server) run() {
 				addr := drop.peer.PeerAddr().String()
 				if drop.reason == errIdenticalID {
 					s.discovery.RegisterBadAddr(addr)
-				} else {
+				} else if drop.reason != errAlreadyConnected {
 					s.discovery.UnregisterConnectedAddr(addr)
 					s.discovery.BackFill(addr)
 				}
@@ -348,10 +348,15 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		return errIdenticalID
 	}
 	peerAddr := p.PeerAddr().String()
+	s.discovery.RegisterConnectedAddr(peerAddr)
 	s.lock.RLock()
 	for peer := range s.peers {
+		if p == peer {
+			continue
+		}
+		ver := peer.Version()
 		// Already connected, drop this connection.
-		if peer.Handshaked() && peer.PeerAddr().String() == peerAddr && peer.Version().Nonce == version.Nonce {
+		if ver != nil && ver.Nonce == version.Nonce && peer.PeerAddr().String() == peerAddr {
 			s.lock.RUnlock()
 			return errAlreadyConnected
 		}
@@ -384,7 +389,7 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 
 // handlePing processes ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
-	return p.EnqueueMessage(s.MkMsg(CMDPong, payload.NewPing(s.id, s.chain.BlockHeight())))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDPong, payload.NewPing(s.chain.BlockHeight(), s.id)))
 }
 
 // handlePing processes pong request.
@@ -426,7 +431,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 		if inv.Type == payload.ConsensusType {
 			return p.EnqueueHPPacket(pkt)
 		}
-		return p.EnqueuePacket(pkt)
+		return p.EnqueueP2PPacket(pkt)
 	}
 	return nil
 }
@@ -458,7 +463,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				if inv.Type == payload.ConsensusType {
 					err = p.EnqueueHPPacket(pkt)
 				} else {
-					err = p.EnqueuePacket(pkt)
+					err = p.EnqueueP2PPacket(pkt)
 				}
 			}
 			if err != nil {
@@ -496,7 +501,7 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 	}
 	payload := payload.NewInventory(payload.BlockType, blockHashes)
 	msg := s.MkMsg(CMDInv, payload)
-	return p.EnqueueMessage(msg)
+	return p.EnqueueP2PMessage(msg)
 }
 
 // handleGetHeadersCmd processes the getheaders request.
@@ -526,7 +531,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 		return nil
 	}
 	msg := s.MkMsg(CMDHeaders, &resp)
-	return p.EnqueueMessage(msg)
+	return p.EnqueueP2PMessage(msg)
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -539,10 +544,12 @@ func (s *Server) handleConsensusCmd(cp *consensus.Payload) error {
 // handleTxCmd processes received transaction.
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
-	s.consensus.OnTransaction(tx)
 	// It's OK for it to fail for various reasons like tx already existing
 	// in the pool.
-	_ = s.RelayTxn(tx)
+	if s.verifyAndPoolTX(tx) == RelaySucceed {
+		s.consensus.OnTransaction(tx)
+		go s.broadcastTX(tx)
+	}
 	return nil
 }
 
@@ -567,7 +574,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
 		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
 	}
-	return p.EnqueueMessage(s.MkMsg(CMDAddr, alist))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDAddr, alist))
 }
 
 // requestHeaders sends a getheaders message to the peer.
@@ -575,7 +582,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 func (s *Server) requestHeaders(p Peer) error {
 	start := []util.Uint256{s.chain.CurrentHeaderHash()}
 	payload := payload.NewGetBlocks(start, util.Uint256{})
-	return p.EnqueueMessage(s.MkMsg(CMDGetHeaders, payload))
+	return p.EnqueueP2PMessage(s.MkMsg(CMDGetHeaders, payload))
 }
 
 // requestBlocks sends a getdata message to the peer
@@ -594,7 +601,7 @@ func (s *Server) requestBlocks(p Peer) error {
 	}
 	if len(hashes) > 0 {
 		payload := payload.NewInventory(payload.BlockType, hashes)
-		return p.EnqueueMessage(s.MkMsg(CMDGetData, payload))
+		return p.EnqueueP2PMessage(s.MkMsg(CMDGetData, payload))
 	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
 		return s.requestHeaders(p)
 	}
@@ -603,6 +610,10 @@ func (s *Server) requestBlocks(p Peer) error {
 
 // handleMessage processes the given message.
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
+	s.log.Debug("got msg",
+		zap.Stringer("addr", peer.RemoteAddr()),
+		zap.String("type", string(msg.CommandType())))
+
 	// Make sure both server and peer are operating on
 	// the same network.
 	if msg.Magic != s.Net {
@@ -727,9 +738,8 @@ func (s *Server) relayBlock(b *block.Block) {
 	s.broadcastMessage(msg)
 }
 
-// RelayTxn a new transaction to the local node and the connected peers.
-// Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
-func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
+// verifyAndPoolTX verifies the TX and adds it to the local mempool.
+func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if t.Type == transaction.MinerType {
 		return RelayInvalid
 	}
@@ -745,7 +755,21 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), mempool.NewPoolItem(t, s.chain)); !ok {
 		return RelayOutOfMemory
 	}
+	return RelaySucceed
+}
 
+// RelayTxn a new transaction to the local node and the connected peers.
+// Reference: the method OnRelay in C#: https://github.com/neo-project/neo/blob/master/neo/Network/P2P/LocalNode.cs#L159
+func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
+	ret := s.verifyAndPoolTX(t)
+	if ret == RelaySucceed {
+		s.broadcastTX(t)
+	}
+	return ret
+}
+
+// broadcastTX broadcasts an inventory message about new transaction.
+func (s *Server) broadcastTX(t *transaction.Transaction) {
 	msg := s.MkMsg(CMDInv, payload.NewInventory(payload.TXType, []util.Uint256{t.Hash()}))
 
 	// We need to filter out non-relaying nodes, so plain broadcast
@@ -753,6 +777,4 @@ func (s *Server) RelayTxn(t *transaction.Transaction) RelayReason {
 	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
 		return p.Handshaked() && p.Version().Relay
 	})
-
-	return RelaySucceed
 }
