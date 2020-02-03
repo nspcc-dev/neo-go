@@ -138,7 +138,11 @@ func (c *codegen) convertGlobals(f ast.Node) {
 		case *ast.FuncDecl:
 			return false
 		case *ast.GenDecl:
-			ast.Walk(c, n)
+			// constants are loaded directly so there is no need
+			// to store them as a local variables
+			if n.Tok != token.CONST {
+				ast.Walk(c, n)
+			}
 		}
 		return true
 	})
