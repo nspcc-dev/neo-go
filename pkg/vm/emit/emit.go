@@ -48,7 +48,7 @@ func Int(w *bytes.Buffer, i int64) error {
 	}
 
 	bInt := big.NewInt(i)
-	val := util.ArrayReverse(bInt.Bytes())
+	val := IntToBytes(bInt)
 	return Bytes(w, val)
 }
 
