@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
@@ -23,19 +23,19 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 	}
 
 	buf := new(bytes.Buffer)
-	if err := vm.EmitInt(buf, int64(m)); err != nil {
+	if err := emit.Int(buf, int64(m)); err != nil {
 		return nil, err
 	}
 	sort.Sort(publicKeys)
 	for _, pubKey := range publicKeys {
-		if err := vm.EmitBytes(buf, pubKey.Bytes()); err != nil {
+		if err := emit.Bytes(buf, pubKey.Bytes()); err != nil {
 			return nil, err
 		}
 	}
-	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
+	if err := emit.Int(buf, int64(len(publicKeys))); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitOpcode(buf, opcode.CHECKMULTISIG); err != nil {
+	if err := emit.Opcode(buf, opcode.CHECKMULTISIG); err != nil {
 		return nil, err
 	}
 

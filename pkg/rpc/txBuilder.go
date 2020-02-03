@@ -12,7 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	errs "github.com/pkg/errors"
 )
@@ -114,19 +114,19 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 	var props smartcontract.PropertyState
 
 	script := new(bytes.Buffer)
-	if err := vm.EmitBytes(script, []byte(contract.Description)); err != nil {
+	if err := emit.Bytes(script, []byte(contract.Description)); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitBytes(script, []byte(contract.Email)); err != nil {
+	if err := emit.Bytes(script, []byte(contract.Email)); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitBytes(script, []byte(contract.Author)); err != nil {
+	if err := emit.Bytes(script, []byte(contract.Author)); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitBytes(script, []byte(contract.Version)); err != nil {
+	if err := emit.Bytes(script, []byte(contract.Version)); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitBytes(script, []byte(contract.ProjectName)); err != nil {
+	if err := emit.Bytes(script, []byte(contract.ProjectName)); err != nil {
 		return nil, err
 	}
 	if contract.HasStorage {
@@ -138,23 +138,23 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 	if contract.IsPayable {
 		props |= smartcontract.IsPayable
 	}
-	if err := vm.EmitInt(script, int64(props)); err != nil {
+	if err := emit.Int(script, int64(props)); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitInt(script, int64(contract.ReturnType)); err != nil {
+	if err := emit.Int(script, int64(contract.ReturnType)); err != nil {
 		return nil, err
 	}
 	params := make([]byte, len(contract.Parameters))
 	for k := range contract.Parameters {
 		params[k] = byte(contract.Parameters[k])
 	}
-	if err := vm.EmitBytes(script, params); err != nil {
+	if err := emit.Bytes(script, params); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitBytes(script, avm); err != nil {
+	if err := emit.Bytes(script, avm); err != nil {
 		return nil, err
 	}
-	if err := vm.EmitSyscall(script, "Neo.Contract.Create"); err != nil {
+	if err := emit.Syscall(script, "Neo.Contract.Create"); err != nil {
 		return nil, err
 	}
 	return script.Bytes(), nil
@@ -174,7 +174,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, str); err != nil {
+			if err := emit.Bytes(script, str); err != nil {
 				return err
 			}
 		case String:
@@ -182,7 +182,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitString(script, str); err != nil {
+			if err := emit.String(script, str); err != nil {
 				return err
 			}
 		case Hash160:
@@ -190,7 +190,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, hash.BytesBE()); err != nil {
+			if err := emit.Bytes(script, hash.BytesBE()); err != nil {
 				return err
 			}
 		case Hash256:
@@ -198,7 +198,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, hash.BytesBE()); err != nil {
+			if err := emit.Bytes(script, hash.BytesBE()); err != nil {
 				return err
 			}
 		case PublicKey:
@@ -210,7 +210,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitBytes(script, key.Bytes()); err != nil {
+			if err := emit.Bytes(script, key.Bytes()); err != nil {
 				return err
 			}
 		case Integer:
@@ -218,7 +218,7 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := vm.EmitInt(script, int64(val)); err != nil {
+			if err := emit.Int(script, int64(val)); err != nil {
 				return err
 			}
 		case Boolean:
@@ -228,9 +228,9 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			}
 			switch str {
 			case "true":
-				err = vm.EmitInt(script, 1)
+				err = emit.Int(script, 1)
 			case "false":
-				err = vm.EmitInt(script, 0)
+				err = emit.Int(script, 0)
 			default:
 				err = errors.New("wrong boolean value")
 			}
@@ -251,7 +251,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 	for i := len(params) - 1; i >= 0; i-- {
 		switch params[i].Type {
 		case stringT:
-			if err := vm.EmitString(script, params[i].String()); err != nil {
+			if err := emit.String(script, params[i].String()); err != nil {
 				return nil, err
 			}
 		case numberT:
@@ -259,7 +259,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 			if err != nil {
 				return nil, err
 			}
-			if err := vm.EmitString(script, strconv.Itoa(num)); err != nil {
+			if err := emit.String(script, strconv.Itoa(num)); err != nil {
 				return nil, err
 			}
 		case arrayT:
@@ -271,18 +271,18 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 			if err != nil {
 				return nil, err
 			}
-			err = vm.EmitInt(script, int64(len(slice)))
+			err = emit.Int(script, int64(len(slice)))
 			if err != nil {
 				return nil, err
 			}
-			err = vm.EmitOpcode(script, opcode.PACK)
+			err = emit.Opcode(script, opcode.PACK)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	if err := vm.EmitAppCall(script, contract, false); err != nil {
+	if err := emit.AppCall(script, contract, false); err != nil {
 		return nil, err
 	}
 	return script.Bytes(), nil
@@ -298,7 +298,7 @@ func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	if err = vm.EmitAppCall(script, contract, false); err != nil {
+	if err = emit.AppCall(script, contract, false); err != nil {
 		return nil, err
 	}
 	return script.Bytes(), nil

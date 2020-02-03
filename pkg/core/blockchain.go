@@ -23,6 +23,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -1486,7 +1487,7 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 
 	if len(verification) == 0 {
 		bb := new(bytes.Buffer)
-		err := vm.EmitAppCall(bb, hash, false)
+		err := emit.AppCall(bb, hash, false)
 		if err != nil {
 			return nil, err
 		}
