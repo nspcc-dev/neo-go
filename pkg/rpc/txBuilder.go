@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -113,22 +112,12 @@ func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, er
 func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
 	var props smartcontract.PropertyState
 
-	script := new(bytes.Buffer)
-	if err := emit.Bytes(script, []byte(contract.Description)); err != nil {
-		return nil, err
-	}
-	if err := emit.Bytes(script, []byte(contract.Email)); err != nil {
-		return nil, err
-	}
-	if err := emit.Bytes(script, []byte(contract.Author)); err != nil {
-		return nil, err
-	}
-	if err := emit.Bytes(script, []byte(contract.Version)); err != nil {
-		return nil, err
-	}
-	if err := emit.Bytes(script, []byte(contract.ProjectName)); err != nil {
-		return nil, err
-	}
+	script := io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte(contract.Description))
+	emit.Bytes(script.BinWriter, []byte(contract.Email))
+	emit.Bytes(script.BinWriter, []byte(contract.Author))
+	emit.Bytes(script.BinWriter, []byte(contract.Version))
+	emit.Bytes(script.BinWriter, []byte(contract.ProjectName))
 	if contract.HasStorage {
 		props |= smartcontract.HasStorage
 	}
@@ -138,31 +127,21 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 	if contract.IsPayable {
 		props |= smartcontract.IsPayable
 	}
-	if err := emit.Int(script, int64(props)); err != nil {
-		return nil, err
-	}
-	if err := emit.Int(script, int64(contract.ReturnType)); err != nil {
-		return nil, err
-	}
+	emit.Int(script.BinWriter, int64(props))
+	emit.Int(script.BinWriter, int64(contract.ReturnType))
 	params := make([]byte, len(contract.Parameters))
 	for k := range contract.Parameters {
 		params[k] = byte(contract.Parameters[k])
 	}
-	if err := emit.Bytes(script, params); err != nil {
-		return nil, err
-	}
-	if err := emit.Bytes(script, avm); err != nil {
-		return nil, err
-	}
-	if err := emit.Syscall(script, "Neo.Contract.Create"); err != nil {
-		return nil, err
-	}
+	emit.Bytes(script.BinWriter, params)
+	emit.Bytes(script.BinWriter, avm)
+	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
 	return script.Bytes(), nil
 }
 
 // expandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in reverse order.
-func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
+func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	for j := len(slice) - 1; j >= 0; j-- {
 		fp, err := slice[j].GetFuncParam()
 		if err != nil {
@@ -174,33 +153,25 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := emit.Bytes(script, str); err != nil {
-				return err
-			}
+			emit.Bytes(script, str)
 		case String:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
 			}
-			if err := emit.String(script, str); err != nil {
-				return err
-			}
+			emit.String(script, str)
 		case Hash160:
 			hash, err := fp.Value.GetUint160FromHex()
 			if err != nil {
 				return err
 			}
-			if err := emit.Bytes(script, hash.BytesBE()); err != nil {
-				return err
-			}
+			emit.Bytes(script, hash.BytesBE())
 		case Hash256:
 			hash, err := fp.Value.GetUint256()
 			if err != nil {
 				return err
 			}
-			if err := emit.Bytes(script, hash.BytesBE()); err != nil {
-				return err
-			}
+			emit.Bytes(script, hash.BytesBE())
 		case PublicKey:
 			str, err := fp.Value.GetString()
 			if err != nil {
@@ -210,17 +181,13 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			if err := emit.Bytes(script, key.Bytes()); err != nil {
-				return err
-			}
+			emit.Bytes(script, key.Bytes())
 		case Integer:
 			val, err := fp.Value.GetInt()
 			if err != nil {
 				return err
 			}
-			if err := emit.Int(script, int64(val)); err != nil {
-				return err
-			}
+			emit.Int(script, int64(val))
 		case Boolean:
 			str, err := fp.Value.GetString()
 			if err != nil {
@@ -228,14 +195,11 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 			}
 			switch str {
 			case "true":
-				err = emit.Int(script, 1)
+				emit.Int(script, 1)
 			case "false":
-				err = emit.Int(script, 0)
+				emit.Int(script, 0)
 			default:
-				err = errors.New("wrong boolean value")
-			}
-			if err != nil {
-				return err
+				return errors.New("wrong boolean value")
 			}
 		default:
 			return fmt.Errorf("parameter type %v is not supported", fp.Type)
@@ -247,44 +211,32 @@ func expandArrayIntoScript(script *bytes.Buffer, slice []Param) error {
 // CreateFunctionInvocationScript creates a script to invoke given contract with
 // given parameters.
 func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byte, error) {
-	script := new(bytes.Buffer)
+	script := io.NewBufBinWriter()
 	for i := len(params) - 1; i >= 0; i-- {
 		switch params[i].Type {
 		case stringT:
-			if err := emit.String(script, params[i].String()); err != nil {
-				return nil, err
-			}
+			emit.String(script.BinWriter, params[i].String())
 		case numberT:
 			num, err := params[i].GetInt()
 			if err != nil {
 				return nil, err
 			}
-			if err := emit.String(script, strconv.Itoa(num)); err != nil {
-				return nil, err
-			}
+			emit.String(script.BinWriter, strconv.Itoa(num))
 		case arrayT:
 			slice, err := params[i].GetArray()
 			if err != nil {
 				return nil, err
 			}
-			err = expandArrayIntoScript(script, slice)
+			err = expandArrayIntoScript(script.BinWriter, slice)
 			if err != nil {
 				return nil, err
 			}
-			err = emit.Int(script, int64(len(slice)))
-			if err != nil {
-				return nil, err
-			}
-			err = emit.Opcode(script, opcode.PACK)
-			if err != nil {
-				return nil, err
-			}
+			emit.Int(script.BinWriter, int64(len(slice)))
+			emit.Opcode(script.BinWriter, opcode.PACK)
 		}
 	}
 
-	if err := emit.AppCall(script, contract, false); err != nil {
-		return nil, err
-	}
+	emit.AppCall(script.BinWriter, contract, false)
 	return script.Bytes(), nil
 }
 
@@ -293,13 +245,11 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 // expects one array of FuncParams and expands it onto the stack as independent
 // elements.
 func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, error) {
-	script := new(bytes.Buffer)
-	err := expandArrayIntoScript(script, funcParams)
+	script := io.NewBufBinWriter()
+	err := expandArrayIntoScript(script.BinWriter, funcParams)
 	if err != nil {
 		return nil, err
 	}
-	if err = emit.AppCall(script, contract, false); err != nil {
-		return nil, err
-	}
+	emit.AppCall(script.BinWriter, contract, false)
 	return script.Bytes(), nil
 }

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -1486,11 +1485,8 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 	verification := witness.VerificationScript
 
 	if len(verification) == 0 {
-		bb := new(bytes.Buffer)
-		err := emit.AppCall(bb, hash, false)
-		if err != nil {
-			return nil, err
-		}
+		bb := io.NewBufBinWriter()
+		emit.AppCall(bb.BinWriter, hash, false)
 		verification = bb.Bytes()
 	} else if h := witness.ScriptHash(); hash != h {
 		return nil, errors.New("witness hash mismatch")
