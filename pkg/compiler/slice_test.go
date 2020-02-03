@@ -74,3 +74,14 @@ var sliceTestCases = []testCase{
 func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
 }
+
+func TestJumps(t *testing.T) {
+	src := `
+	package foo
+	func Main() []byte {
+		buf := []byte{0x62, 0x01, 0x00}
+		return buf
+	}
+	`
+	eval(t, src, []byte{0x62, 0x01, 0x00})
+}
