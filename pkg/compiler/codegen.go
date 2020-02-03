@@ -14,6 +14,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
@@ -1045,16 +1046,19 @@ func (c *codegen) resolveFuncDecls(f *ast.File) {
 }
 
 func (c *codegen) writeJumps(b []byte) {
-	for i, op := range b {
-		j := i + 1
-		switch opcode.Opcode(op) {
+	ctx := vm.NewContext(b)
+	for op, _, err := ctx.Next(); err == nil && ctx.NextIP() < len(b); op, _, err = ctx.Next() {
+		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL:
-			index := int16(binary.LittleEndian.Uint16(b[j : j+2]))
+			// we can't use arg returned by ctx.Next() because it is copied
+			arg := b[ctx.NextIP()-2:]
+
+			index := int16(binary.LittleEndian.Uint16(arg))
 			if int(index) > len(c.l) || int(index) < 0 {
 				continue
 			}
-			offset := uint16(c.l[index] - i)
-			binary.LittleEndian.PutUint16(b[j:j+2], offset)
+			offset := uint16(c.l[index] - ctx.NextIP() + 3)
+			binary.LittleEndian.PutUint16(arg, offset)
 		}
 	}
 }

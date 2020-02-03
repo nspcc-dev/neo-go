@@ -47,6 +47,11 @@ func NewContext(b []byte) *Context {
 	}
 }
 
+// NextIP returns next instruction pointer.
+func (c *Context) NextIP() int {
+	return c.nextip
+}
+
 // Next returns the next instruction to execute with its parameter if any. After
 // its invocation the instruction pointer points to the instruction being
 // returned.
