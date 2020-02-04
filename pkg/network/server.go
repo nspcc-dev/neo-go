@@ -90,7 +90,6 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
-		bQueue:       newBlockQueue(maxBlockBatch, chain, log),
 		id:           randomID(),
 		quit:         make(chan struct{}),
 		register:     make(chan Peer),
@@ -99,6 +98,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 		connected:    atomic.NewBool(false),
 		log:          log,
 	}
+	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, s.relayBlock)
 
 	srv, err := consensus.NewService(consensus.Config{
 		Logger:     log,
@@ -734,7 +734,11 @@ func (s *Server) broadcastHPMessage(msg *Message) {
 // relayBlock tells all the other connected nodes about the given block.
 func (s *Server) relayBlock(b *block.Block) {
 	msg := s.MkMsg(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
-	s.broadcastMessage(msg)
+	// Filter out nodes that are more current (avoid spamming the network
+	// during initial sync).
+	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
+		return p.Handshaked() && p.LastBlockIndex() < b.Index
+	})
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
