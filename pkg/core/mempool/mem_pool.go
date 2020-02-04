@@ -116,7 +116,13 @@ func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 
 // TryAdd try to add the Item to the Pool.
 func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
-	var pool Items
+	var pool *Items
+
+	if pItem.fee.IsLowPriority(pItem.txn) {
+		pool = &mp.sortedLowPrioTxn
+	} else {
+		pool = &mp.sortedHighPrioTxn
+	}
 
 	mp.lock.Lock()
 	if !mp.verifyInputs(pItem.txn) {
@@ -128,16 +134,8 @@ func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
 		return ErrDup
 	}
 	mp.unsortedTxn[hash] = pItem
-	mp.lock.Unlock()
 
-	if pItem.fee.IsLowPriority(pItem.txn) {
-		pool = mp.sortedLowPrioTxn
-	} else {
-		pool = mp.sortedHighPrioTxn
-	}
-
-	mp.lock.Lock()
-	pool = append(pool, pItem)
+	*pool = append(*pool, pItem)
 	sort.Sort(pool)
 	mp.lock.Unlock()
 
