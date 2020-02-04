@@ -126,6 +126,10 @@ func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
 	panic("TODO")
 }
 
+func (chain testChain) PoolTx(*transaction.Transaction) error {
+	panic("TODO")
+}
+
 func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
 	panic("TODO")
 }

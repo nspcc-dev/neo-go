@@ -43,7 +43,7 @@ func TestService_GetVerified(t *testing.T) {
 	pool := srv.Chain.GetMemPool()
 	item := mempool.NewPoolItem(txs[3], new(feer))
 
-	require.True(t, pool.TryAdd(txs[3].Hash(), item))
+	require.NoError(t, pool.TryAdd(txs[3].Hash(), item))
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
 
@@ -69,7 +69,7 @@ func TestService_GetVerified(t *testing.T) {
 	t.Run("more than half of the last proposal will be reused", func(t *testing.T) {
 		for _, tx := range txs[:2] {
 			item := mempool.NewPoolItem(tx, new(feer))
-			require.True(t, pool.TryAdd(tx.Hash(), item))
+			require.NoError(t, pool.TryAdd(tx.Hash(), item))
 		}
 
 		txx := srv.getVerifiedTx(10)

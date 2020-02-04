@@ -40,6 +40,7 @@ type Blockchainer interface {
 	GetUnspentCoinState(util.Uint256) *UnspentCoinState
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	mempool.Feer // fee interface
+	PoolTx(*transaction.Transaction) error
 	VerifyTx(*transaction.Transaction, *block.Block) error
 	GetMemPool() *mempool.Pool
 }

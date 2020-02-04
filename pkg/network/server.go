@@ -13,7 +13,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
-	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -743,17 +742,18 @@ func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if t.Type == transaction.MinerType {
 		return RelayInvalid
 	}
-	if s.chain.HasTransaction(t.Hash()) {
-		return RelayAlreadyExists
-	}
-	if err := s.chain.VerifyTx(t, nil); err != nil {
-		return RelayInvalid
-	}
 	// TODO: Implement Plugin.CheckPolicy?
 	//if (!Plugin.CheckPolicy(transaction))
 	// return RelayResultReason.PolicyFail;
-	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), mempool.NewPoolItem(t, s.chain)); !ok {
-		return RelayOutOfMemory
+	if err := s.chain.PoolTx(t); err != nil {
+		switch err {
+		case core.ErrAlreadyExists:
+			return RelayAlreadyExists
+		case core.ErrOOM:
+			return RelayOutOfMemory
+		default:
+			return RelayInvalid
+		}
 	}
 	return RelaySucceed
 }

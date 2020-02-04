@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -42,6 +43,15 @@ const (
 )
 
 var (
+	// ErrAlreadyExists is returned when trying to add some already existing
+	// transaction into the pool (not specifying whether it exists in the
+	// chain or mempool).
+	ErrAlreadyExists = errors.New("already exists")
+	// ErrOOM is returned when adding transaction to the memory pool because
+	// it reached its full capacity.
+	ErrOOM = errors.New("no space left in the memory pool")
+)
+var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	decrementInterval = 2000000
 	persistInterval   = 1 * time.Second
@@ -50,6 +60,19 @@ var (
 // Blockchain represents the blockchain.
 type Blockchain struct {
 	config config.ProtocolConfiguration
+
+	// The only way chain state changes is by adding blocks, so we can't
+	// allow concurrent block additions. It differs from the next lock in
+	// that it's only for AddBlock method itself, the chain state is
+	// protected by the lock below, but holding it during all of AddBlock
+	// is too expensive (because the state only changes when persisting
+	// change cache).
+	addLock sync.Mutex
+
+	// This lock ensures blockchain immutability for operations that need
+	// that while performing their tasks. It's mostly used as a read lock
+	// with the only writer being the block addition logic.
+	lock sync.RWMutex
 
 	// Data access object for CRUD operations around storage.
 	dao *dao
@@ -251,6 +274,9 @@ func (bc *Blockchain) Close() {
 // AddBlock accepts successive block for the Blockchain, verifies it and
 // stores internally. Eventually it will be persisted to the backing storage.
 func (bc *Blockchain) AddBlock(block *block.Block) error {
+	bc.addLock.Lock()
+	defer bc.addLock.Unlock()
+
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
@@ -575,6 +601,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		}
 	}
+	bc.lock.Lock()
+	defer bc.lock.Unlock()
+
 	_, err := cache.Persist()
 	if err != nil {
 		return err
@@ -982,11 +1011,8 @@ func (bc *Blockchain) VerifyBlock(block *block.Block) error {
 	return bc.verifyBlockWitnesses(block, prevHeader)
 }
 
-// VerifyTx verifies whether a transaction is bonafide or not. Block parameter
-// is used for easy interop access and can be omitted for transactions that are
-// not yet added into any block.
-// Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
-func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *block.Block) error {
+// verifyTx verifies whether a transaction is bonafide or not.
+func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) error {
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
@@ -1015,6 +1041,40 @@ func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *block.Block) e
 	}
 
 	return bc.verifyTxWitnesses(t, block)
+}
+
+// VerifyTx verifies whether a transaction is bonafide or not. Block parameter
+// is used for easy interop access and can be omitted for transactions that are
+// not yet added into any block.
+// Golang implementation of Verify method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L270).
+func (bc *Blockchain) VerifyTx(t *transaction.Transaction, block *block.Block) error {
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+	return bc.verifyTx(t, block)
+}
+
+// PoolTx verifies and tries to add given transaction into the mempool.
+func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+
+	if bc.HasTransaction(t.Hash()) {
+		return ErrAlreadyExists
+	}
+	if err := bc.verifyTx(t, nil); err != nil {
+		return err
+	}
+	if err := bc.memPool.TryAdd(t.Hash(), mempool.NewPoolItem(t, bc)); err != nil {
+		switch err {
+		case mempool.ErrOOM:
+			return ErrOOM
+		case mempool.ErrConflict:
+			return ErrAlreadyExists
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {

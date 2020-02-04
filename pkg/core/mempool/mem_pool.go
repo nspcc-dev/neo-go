@@ -1,12 +1,26 @@
 package mempool
 
 import (
+	"errors"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/util"
+)
+
+var (
+	// ErrConflict is returned when transaction being added is incompatible
+	// with the contents of the memory pool (using the same inputs as some
+	// other transaction in the pool)
+	ErrConflict = errors.New("conflicts with the memory pool")
+	// ErrDup is returned when transaction being added is already present
+	// in the memory pool.
+	ErrDup = errors.New("already in the memory pool")
+	// ErrOOM is returned when transaction just doesn't fit in the memory
+	// pool because of its capacity constraints.
+	ErrOOM = errors.New("out of memory")
 )
 
 // Item represents a transaction in the the Memory pool.
@@ -101,13 +115,17 @@ func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 }
 
 // TryAdd try to add the Item to the Pool.
-func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
+func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
 	var pool Items
 
 	mp.lock.Lock()
+	if !mp.verifyInputs(pItem.txn) {
+		mp.lock.Unlock()
+		return ErrConflict
+	}
 	if _, ok := mp.unsortedTxn[hash]; ok {
 		mp.lock.Unlock()
-		return false
+		return ErrDup
 	}
 	mp.unsortedTxn[hash] = pItem
 	mp.lock.Unlock()
@@ -130,7 +148,10 @@ func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
 	_, ok := mp.unsortedTxn[hash]
 	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
 	mp.lock.RUnlock()
-	return ok
+	if !ok {
+		return ErrOOM
+	}
+	return nil
 }
 
 // Remove removes an item from the mempool, if it exists there (and does
@@ -283,12 +304,8 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	return t
 }
 
-// Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
-// If yes, the transaction tx is not a valid transaction and the function return false.
-// If no, the transaction tx is a valid transaction and the function return true.
-func (mp *Pool) Verify(tx *transaction.Transaction) bool {
-	mp.lock.RLock()
-	defer mp.lock.RUnlock()
+// verifyInputs is an internal unprotected version of Verify.
+func (mp *Pool) verifyInputs(tx *transaction.Transaction) bool {
 	for _, item := range mp.unsortedTxn {
 		for i := range item.txn.Inputs {
 			for j := 0; j < len(tx.Inputs); j++ {
@@ -300,4 +317,13 @@ func (mp *Pool) Verify(tx *transaction.Transaction) bool {
 	}
 
 	return true
+}
+
+// Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
+// If yes, the transaction tx is not a valid transaction and the function return false.
+// If no, the transaction tx is a valid transaction and the function return true.
+func (mp *Pool) Verify(tx *transaction.Transaction) bool {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+	return mp.verifyInputs(tx)
 }
