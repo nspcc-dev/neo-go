@@ -306,6 +306,9 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 
 // verifyInputs is an internal unprotected version of Verify.
 func (mp *Pool) verifyInputs(tx *transaction.Transaction) bool {
+	if len(tx.Inputs) == 0 {
+		return true
+	}
 	for _, item := range mp.unsortedTxn {
 		for i := range item.txn.Inputs {
 			for j := 0; j < len(tx.Inputs); j++ {
