@@ -41,5 +41,5 @@ type Blockchainer interface {
 	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
 	mempool.Feer // fee interface
 	VerifyTx(*transaction.Transaction, *block.Block) error
-	GetMemPool() mempool.Pool
+	GetMemPool() *mempool.Pool
 }

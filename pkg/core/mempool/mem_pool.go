@@ -77,7 +77,7 @@ func (p Item) CompareTo(otherP *Item) int {
 }
 
 // Count returns the total number of uncofirm transactions.
-func (mp Pool) Count() int {
+func (mp *Pool) Count() int {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
@@ -85,7 +85,7 @@ func (mp Pool) Count() int {
 }
 
 // ContainsKey checks if a transactions hash is in the Pool.
-func (mp Pool) ContainsKey(hash util.Uint256) bool {
+func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
@@ -101,7 +101,7 @@ func (mp Pool) ContainsKey(hash util.Uint256) bool {
 }
 
 // TryAdd try to add the Item to the Pool.
-func (mp Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
+func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
 	var pool Items
 
 	mp.lock.Lock()
@@ -124,7 +124,7 @@ func (mp Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
 	mp.lock.Unlock()
 
 	if mp.Count() > mp.capacity {
-		(&mp).RemoveOverCapacity()
+		mp.RemoveOverCapacity()
 	}
 	mp.lock.RLock()
 	_, ok := mp.unsortedTxn[hash]
@@ -225,7 +225,7 @@ func NewMemPool(capacity int) Pool {
 }
 
 // TryGetValue returns a transaction if it exists in the memory pool.
-func (mp Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
+func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if pItem, ok := mp.unsortedTxn[hash]; ok {
@@ -286,7 +286,7 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 // Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
 // If yes, the transaction tx is not a valid transaction and the function return false.
 // If no, the transaction tx is a valid transaction and the function return true.
-func (mp Pool) Verify(tx *transaction.Transaction) bool {
+func (mp *Pool) Verify(tx *transaction.Transaction) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	for _, item := range mp.unsortedTxn {

@@ -963,8 +963,8 @@ func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
 }
 
 // GetMemPool returns the memory pool of the blockchain.
-func (bc *Blockchain) GetMemPool() mempool.Pool {
-	return bc.memPool
+func (bc *Blockchain) GetMemPool() *mempool.Pool {
+	return &bc.memPool
 }
 
 // VerifyBlock verifies block against its current state.
