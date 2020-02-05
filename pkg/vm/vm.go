@@ -84,8 +84,6 @@ type VM struct {
 
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
-
-	checkMultisig func(*VM, [][]byte, [][]byte) bool
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
@@ -1223,13 +1221,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("VM is not set up properly for signature checks")
 		}
 
-		var sigok bool
-		if v.checkMultisig == nil {
-			sigok = checkMultisigPar(v, pkeys, sigs)
-		} else {
-			sigok = v.checkMultisig(v, pkeys, sigs)
-		}
-
+		sigok := checkMultisigPar(v, pkeys, sigs)
 		v.estack.PushVal(sigok)
 
 	case opcode.NEWMAP:
@@ -1521,30 +1513,6 @@ func checkMultisig1(v *VM, pkeys [][]byte, sig []byte) bool {
 	}
 
 	return false
-}
-
-func checkMultisigSeq(v *VM, pkeys [][]byte, sigs [][]byte) bool {
-	// j counts keys and i counts signatures.
-	j := 0
-	for i := 0; j < len(pkeys) && i < len(sigs); {
-		pkey := v.bytesToPublicKey(pkeys[j])
-
-		// We only move to the next signature if the check was
-		// successful, but if it's not maybe the next key will
-		// fit, so we always move to the next key.
-		if pkey.Verify(sigs[i], v.checkhash) {
-			i++
-		}
-		j++
-
-		// When there are more signatures left to check than
-		// there are keys the check won't successed for sure.
-		if len(sigs)-i > len(pkeys)-j {
-			return false
-		}
-	}
-
-	return true
 }
 
 func cloneIfStruct(item StackItem) StackItem {
