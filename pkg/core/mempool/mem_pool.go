@@ -144,7 +144,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 
 	mp.verifiedMap[t.Hash()] = pItem
 	mp.verifiedTxes = append(mp.verifiedTxes, pItem)
-	sort.Sort(mp.verifiedTxes)
+	sort.Sort(sort.Reverse(mp.verifiedTxes))
 	mp.lock.Unlock()
 
 	if mp.Count() > mp.capacity {
@@ -201,13 +201,12 @@ func (mp *Pool) RemoveOverCapacity() {
 			// minItem belongs to the mp.sortedLowPrioTxn slice.
 			// The corresponding unsorted pool is is mp.unsortedTxn.
 			delete(mp.verifiedMap, minItem.txn.Hash())
-			mp.verifiedTxes = append(mp.verifiedTxes[:0], mp.verifiedTxes[1:]...)
+			mp.verifiedTxes = mp.verifiedTxes[:len(mp.verifiedTxes)-1]
 		} else {
 			// minItem belongs to the mp.unverifiedSortedLowPrioTxn slice.
 			// The corresponding unsorted pool is is mp.unverifiedTxn.
 			delete(mp.unverifiedMap, minItem.txn.Hash())
-			mp.unverifiedTxes = append(mp.unverifiedTxes[:0], mp.unverifiedTxes[1:]...)
-
+			mp.unverifiedTxes = mp.unverifiedTxes[:len(mp.unverifiedTxes)-1]
 		}
 		updateMempoolMetrics(len(mp.verifiedTxes), len(mp.unverifiedTxes))
 		mp.lock.Unlock()
@@ -265,7 +264,7 @@ func min(sortedPool items) *item {
 	if len(sortedPool) == 0 {
 		return nil
 	}
-	return sortedPool[0]
+	return sortedPool[len(sortedPool)-1]
 }
 
 // GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
