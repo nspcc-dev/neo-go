@@ -2,6 +2,7 @@ package emit
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/io"
@@ -67,6 +68,55 @@ func TestEmitSyscall(t *testing.T) {
 		assert.Equal(t, result[2:], []byte(syscall))
 		buf.Reset()
 	}
+
+	t.Run("empty syscall", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Syscall(buf.BinWriter, "")
+		assert.Error(t, buf.Err)
+	})
+
+	t.Run("empty syscall after error", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		err := errors.New("first error")
+
+		buf.Err = err
+		Syscall(buf.BinWriter, "")
+		assert.Equal(t, err, buf.Err)
+	})
+}
+
+func TestJmp(t *testing.T) {
+	const label = 0x23
+
+	t.Run("correct", func(t *testing.T) {
+		ops := []opcode.Opcode{opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL}
+		for i := range ops {
+			t.Run(ops[i].String(), func(t *testing.T) {
+				buf := io.NewBufBinWriter()
+				Jmp(buf.BinWriter, ops[i], label)
+				assert.NoError(t, buf.Err)
+
+				result := buf.Bytes()
+				assert.EqualValues(t, ops[i], result[0])
+				assert.EqualValues(t, 0x23, binary.LittleEndian.Uint16(result[1:]))
+			})
+		}
+	})
+
+	t.Run("not a jump instruction", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Jmp(buf.BinWriter, opcode.ABS, label)
+		assert.Error(t, buf.Err)
+	})
+
+	t.Run("not a jump after error", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		err := errors.New("first error")
+
+		buf.Err = err
+		Jmp(buf.BinWriter, opcode.ABS, label)
+		assert.Error(t, buf.Err)
+	})
 }
 
 func TestEmitCall(t *testing.T) {
