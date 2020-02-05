@@ -11,6 +11,22 @@ import (
 )
 
 func TestEmitInt(t *testing.T) {
+	t.Run("minis one", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Int(buf.BinWriter, -1)
+		result := buf.Bytes()
+		assert.Len(t, result, 1)
+		assert.EqualValues(t, opcode.PUSHM1, result[0])
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Int(buf.BinWriter, 0)
+		result := buf.Bytes()
+		assert.Len(t, result, 1)
+		assert.EqualValues(t, opcode.PUSH0, result[0])
+	})
+
 	t.Run("1-byte int", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		Int(buf.BinWriter, 10)
