@@ -98,7 +98,11 @@ func (p *item) CompareTo(otherP *item) int {
 func (mp *Pool) Count() int {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
+	return mp.count()
+}
 
+// count is an internal unlocked version of Count.
+func (mp *Pool) count() int {
 	return len(mp.verifiedTxes) + len(mp.unverifiedTxes)
 }
 
@@ -143,8 +147,20 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	}
 
 	mp.verifiedMap[t.Hash()] = pItem
+	// Insert into sorted array (from max to min, that could also be done
+	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
+	// also that we're searching for position that is strictly more
+	// prioritized than our new item because we do expect a lot of
+	// transactions with the same priority and appending to the end of the
+	// slice is always more efficient.
+	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
+		return pItem.CompareTo(mp.verifiedTxes[n]) > 0
+	})
 	mp.verifiedTxes = append(mp.verifiedTxes, pItem)
-	sort.Sort(sort.Reverse(mp.verifiedTxes))
+	if n != len(mp.verifiedTxes) {
+		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
+		mp.verifiedTxes[n] = pItem
+	}
 	mp.lock.Unlock()
 
 	if mp.Count() > mp.capacity {
@@ -194,8 +210,8 @@ func (mp *Pool) Remove(hash util.Uint256) {
 // RemoveOverCapacity removes transactions with lowest fees until the total number of transactions
 // in the Pool is within the capacity of the Pool.
 func (mp *Pool) RemoveOverCapacity() {
-	for mp.Count()-mp.capacity > 0 {
-		mp.lock.Lock()
+	mp.lock.Lock()
+	for mp.count()-mp.capacity > 0 {
 		minItem, argPosition := getLowestFeeTransaction(mp.verifiedTxes, mp.unverifiedTxes)
 		if argPosition == 1 {
 			// minItem belongs to the mp.sortedLowPrioTxn slice.
@@ -209,9 +225,8 @@ func (mp *Pool) RemoveOverCapacity() {
 			mp.unverifiedTxes = mp.unverifiedTxes[:len(mp.unverifiedTxes)-1]
 		}
 		updateMempoolMetrics(len(mp.verifiedTxes), len(mp.unverifiedTxes))
-		mp.lock.Unlock()
 	}
-
+	mp.lock.Unlock()
 }
 
 // NewMemPool returns a new Pool struct.
