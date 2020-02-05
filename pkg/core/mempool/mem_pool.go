@@ -35,7 +35,7 @@ type items []*item
 
 // Pool stores the unconfirms transactions.
 type Pool struct {
-	lock                        *sync.RWMutex
+	lock                        sync.RWMutex
 	unsortedTxn                 map[util.Uint256]*item
 	unverifiedTxn               map[util.Uint256]*item
 	sortedHighPrioTxn           items
@@ -232,7 +232,6 @@ func (mp *Pool) RemoveOverCapacity() {
 // NewMemPool returns a new Pool struct.
 func NewMemPool(capacity int) Pool {
 	return Pool{
-		lock:          new(sync.RWMutex),
 		unsortedTxn:   make(map[util.Uint256]*item),
 		unverifiedTxn: make(map[util.Uint256]*item),
 		capacity:      capacity,
