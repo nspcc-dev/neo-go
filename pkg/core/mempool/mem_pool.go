@@ -23,38 +23,38 @@ var (
 	ErrOOM = errors.New("out of memory")
 )
 
-// Item represents a transaction in the the Memory pool.
-type Item struct {
+// item represents a transaction in the the Memory pool.
+type item struct {
 	txn       *transaction.Transaction
 	timeStamp time.Time
 	fee       Feer
 }
 
-// Items is a slice of Item.
-type Items []*Item
+// items is a slice of item.
+type items []*item
 
 // Pool stores the unconfirms transactions.
 type Pool struct {
 	lock                        *sync.RWMutex
-	unsortedTxn                 map[util.Uint256]*Item
-	unverifiedTxn               map[util.Uint256]*Item
-	sortedHighPrioTxn           Items
-	sortedLowPrioTxn            Items
-	unverifiedSortedHighPrioTxn Items
-	unverifiedSortedLowPrioTxn  Items
+	unsortedTxn                 map[util.Uint256]*item
+	unverifiedTxn               map[util.Uint256]*item
+	sortedHighPrioTxn           items
+	sortedLowPrioTxn            items
+	unverifiedSortedHighPrioTxn items
+	unverifiedSortedLowPrioTxn  items
 
 	capacity int
 }
 
-func (p Items) Len() int           { return len(p) }
-func (p Items) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
+func (p items) Len() int           { return len(p) }
+func (p items) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 
-// CompareTo returns the difference between two Items.
+// CompareTo returns the difference between two items.
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p Item) CompareTo(otherP *Item) int {
+func (p item) CompareTo(otherP *item) int {
 	if otherP == nil {
 		return 1
 	}
@@ -114,9 +114,14 @@ func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 	return false
 }
 
-// TryAdd try to add the Item to the Pool.
-func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
-	var pool *Items
+// Add tries to add given transaction to the Pool.
+func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
+	var pool *items
+	var pItem = &item{
+		txn:       t,
+		timeStamp: time.Now().UTC(),
+		fee:       fee,
+	}
 
 	if pItem.fee.IsLowPriority(pItem.txn) {
 		pool = &mp.sortedLowPrioTxn
@@ -129,11 +134,11 @@ func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
 		mp.lock.Unlock()
 		return ErrConflict
 	}
-	if _, ok := mp.unsortedTxn[hash]; ok {
+	if _, ok := mp.unsortedTxn[t.Hash()]; ok {
 		mp.lock.Unlock()
 		return ErrDup
 	}
-	mp.unsortedTxn[hash] = pItem
+	mp.unsortedTxn[t.Hash()] = pItem
 
 	*pool = append(*pool, pItem)
 	sort.Sort(pool)
@@ -143,7 +148,7 @@ func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
 		mp.RemoveOverCapacity()
 	}
 	mp.lock.RLock()
-	_, ok := mp.unsortedTxn[hash]
+	_, ok := mp.unsortedTxn[t.Hash()]
 	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
 	mp.lock.RUnlock()
 	if !ok {
@@ -156,11 +161,11 @@ func (mp *Pool) TryAdd(hash util.Uint256, pItem *Item) error {
 // nothing if it doesn't).
 func (mp *Pool) Remove(hash util.Uint256) {
 	var mapAndPools = []struct {
-		unsortedMap map[util.Uint256]*Item
-		sortedPools []*Items
+		unsortedMap map[util.Uint256]*item
+		sortedPools []*items
 	}{
-		{unsortedMap: mp.unsortedTxn, sortedPools: []*Items{&mp.sortedHighPrioTxn, &mp.sortedLowPrioTxn}},
-		{unsortedMap: mp.unverifiedTxn, sortedPools: []*Items{&mp.unverifiedSortedHighPrioTxn, &mp.unverifiedSortedLowPrioTxn}},
+		{unsortedMap: mp.unsortedTxn, sortedPools: []*items{&mp.sortedHighPrioTxn, &mp.sortedLowPrioTxn}},
+		{unsortedMap: mp.unverifiedTxn, sortedPools: []*items{&mp.unverifiedSortedHighPrioTxn, &mp.unverifiedSortedLowPrioTxn}},
 	}
 	mp.lock.Lock()
 	for _, mapAndPool := range mapAndPools {
@@ -168,7 +173,7 @@ func (mp *Pool) Remove(hash util.Uint256) {
 			delete(mapAndPool.unsortedMap, hash)
 			for _, pool := range mapAndPool.sortedPools {
 				var num int
-				var item *Item
+				var item *item
 				for num, item = range *pool {
 					if hash.Equals(item.txn.Hash()) {
 						break
@@ -224,21 +229,12 @@ func (mp *Pool) RemoveOverCapacity() {
 
 }
 
-// NewPoolItem returns a new Item.
-func NewPoolItem(t *transaction.Transaction, fee Feer) *Item {
-	return &Item{
-		txn:       t,
-		timeStamp: time.Now().UTC(),
-		fee:       fee,
-	}
-}
-
 // NewMemPool returns a new Pool struct.
 func NewMemPool(capacity int) Pool {
 	return Pool{
 		lock:          new(sync.RWMutex),
-		unsortedTxn:   make(map[util.Uint256]*Item),
-		unverifiedTxn: make(map[util.Uint256]*Item),
+		unsortedTxn:   make(map[util.Uint256]*item),
+		unverifiedTxn: make(map[util.Uint256]*item),
 		capacity:      capacity,
 	}
 }
@@ -258,13 +254,13 @@ func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) 
 	return nil, false
 }
 
-// getLowestFeeTransaction returns the Item with the lowest fee amongst the "verifiedTxnSorted"
-// and "unverifiedTxnSorted" Items along with a integer. The integer can assume two values, 1 and 2 which indicate
-// that the Item with the lowest fee was found in "verifiedTxnSorted" respectively in "unverifiedTxnSorted".
+// getLowestFeeTransaction returns the item with the lowest fee amongst the "verifiedTxnSorted"
+// and "unverifiedTxnSorted" items along with a integer. The integer can assume two values, 1 and 2 which indicate
+// that the item with the lowest fee was found in "verifiedTxnSorted" respectively in "unverifiedTxnSorted".
 // "verifiedTxnSorted" and "unverifiedTxnSorted" are sorted slice order by transaction fee ascending. This means that
 // the transaction with lowest fee start at index 0.
 // Reference: GetLowestFeeTransaction method in C# (https://github.com/neo-project/neo/blob/master/neo/Ledger/MemoryPool.cs)
-func getLowestFeeTransaction(verifiedTxnSorted Items, unverifiedTxnSorted Items) (*Item, int) {
+func getLowestFeeTransaction(verifiedTxnSorted items, unverifiedTxnSorted items) (*item, int) {
 	minItem := min(unverifiedTxnSorted)
 	verifiedMin := min(verifiedTxnSorted)
 	if verifiedMin == nil || (minItem != nil && verifiedMin.CompareTo(minItem) >= 0) {
@@ -278,7 +274,7 @@ func getLowestFeeTransaction(verifiedTxnSorted Items, unverifiedTxnSorted Items)
 
 // min returns the minimum item in a ascending sorted slice of pool items.
 // The function can't be applied to unsorted slice!
-func min(sortedPool Items) *Item {
+func min(sortedPool items) *item {
 	if len(sortedPool) == 0 {
 		return nil
 	}

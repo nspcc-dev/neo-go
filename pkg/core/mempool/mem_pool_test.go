@@ -36,12 +36,11 @@ func (fs *FeerStub) SystemFee(*transaction.Transaction) util.Fixed8 {
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := NewMemPool(10)
 	tx := newMinerTX()
-	item := NewPoolItem(tx, fs)
 	_, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
-	require.NoError(t, mp.TryAdd(tx.Hash(), item))
+	require.NoError(t, mp.Add(tx, fs))
 	// Re-adding should fail.
-	require.Error(t, mp.TryAdd(tx.Hash(), item))
+	require.Error(t, mp.Add(tx, fs))
 	tx2, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, true, ok)
 	require.Equal(t, tx, tx2)
@@ -70,15 +69,13 @@ func TestMemPoolVerify(t *testing.T) {
 	inhash1 := random.Uint256()
 	tx.Inputs = append(tx.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 0})
 	require.Equal(t, true, mp.Verify(tx))
-	item := NewPoolItem(tx, &FeerStub{})
-	require.NoError(t, mp.TryAdd(tx.Hash(), item))
+	require.NoError(t, mp.Add(tx, &FeerStub{}))
 
 	tx2 := newMinerTX()
 	inhash2 := random.Uint256()
 	tx2.Inputs = append(tx2.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
 	require.Equal(t, true, mp.Verify(tx2))
-	item = NewPoolItem(tx2, &FeerStub{})
-	require.NoError(t, mp.TryAdd(tx2.Hash(), item))
+	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 
 	tx3 := newMinerTX()
 	// Different index number, but the same PrevHash as in tx1.

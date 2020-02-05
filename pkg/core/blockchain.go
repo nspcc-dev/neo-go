@@ -1064,7 +1064,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
 	}
-	if err := bc.memPool.TryAdd(t.Hash(), mempool.NewPoolItem(t, bc)); err != nil {
+	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:
 			return ErrOOM
