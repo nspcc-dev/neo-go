@@ -48,12 +48,10 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	_, ok = mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
-	assert.Equal(t, 0, len(mp.unsortedTxn))
-	assert.Equal(t, 0, len(mp.unverifiedTxn))
-	assert.Equal(t, 0, len(mp.sortedHighPrioTxn))
-	assert.Equal(t, 0, len(mp.sortedLowPrioTxn))
-	assert.Equal(t, 0, len(mp.unverifiedSortedHighPrioTxn))
-	assert.Equal(t, 0, len(mp.unverifiedSortedLowPrioTxn))
+	assert.Equal(t, 0, len(mp.verifiedMap))
+	assert.Equal(t, 0, len(mp.unverifiedMap))
+	assert.Equal(t, 0, len(mp.verifiedTxes))
+	assert.Equal(t, 0, len(mp.unverifiedTxes))
 }
 
 func TestMemPoolAddRemove(t *testing.T) {
