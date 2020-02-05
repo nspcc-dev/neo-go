@@ -207,6 +207,25 @@ func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Unlock()
 }
 
+// RemoveStale filters verified transactions through the given function keeping
+// only the transactions for which it returns a true result. It's used to quickly
+// drop part of the mempool that is now invalid after the block acceptance.
+func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
+	mp.lock.Lock()
+	// We expect a lot of changes, so it's easier to allocate a new slice
+	// rather than move things in an old one.
+	newVerifiedTxes := make([]*item, 0, mp.capacity)
+	for _, itm := range mp.verifiedTxes {
+		if isOK(itm.txn) {
+			newVerifiedTxes = append(newVerifiedTxes, itm)
+		} else {
+			delete(mp.verifiedMap, itm.txn.Hash())
+		}
+	}
+	mp.verifiedTxes = newVerifiedTxes
+	mp.lock.Unlock()
+}
+
 // RemoveOverCapacity removes transactions with lowest fees until the total number of transactions
 // in the Pool is within the capacity of the Pool.
 func (mp *Pool) RemoveOverCapacity() {

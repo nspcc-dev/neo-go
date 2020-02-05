@@ -611,9 +611,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	updateBlockHeightMetric(block.Index)
-	for _, tx := range block.Transactions {
-		bc.memPool.Remove(tx.Hash())
-	}
+	bc.memPool.RemoveStale(bc.isTxStillRelevant)
 	return nil
 }
 
@@ -1041,6 +1039,35 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	}
 
 	return bc.verifyTxWitnesses(t, block)
+}
+
+// isTxStillRelevant is a callback for mempool transaction filtering after the
+// new block addition. It returns false for transactions already present in the
+// chain (added by the new block), transactions using some inputs that are
+// already used (double spends) and does witness reverification for non-standard
+// contracts. It operates under the assumption that full transaction verification
+// was already done so we don't need to check basic things like size, input/output
+// correctness, etc.
+func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
+	var recheckWitness bool
+
+	if bc.dao.HasTransaction(t.Hash()) {
+		return false
+	}
+	if bc.dao.IsDoubleSpend(t) {
+		return false
+	}
+	for i := range t.Scripts {
+		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {
+			recheckWitness = true
+			break
+		}
+	}
+	if recheckWitness {
+		return bc.verifyTxWitnesses(t, nil) == nil
+	}
+	return true
+
 }
 
 // VerifyTx verifies whether a transaction is bonafide or not. Block parameter
