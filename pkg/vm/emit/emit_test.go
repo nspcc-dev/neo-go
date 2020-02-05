@@ -35,6 +35,62 @@ func TestEmitInt(t *testing.T) {
 	})
 }
 
+func getSlice(n int) []byte {
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(i)
+	}
+
+	return data
+}
+
+func TestBytes(t *testing.T) {
+	t.Run("small slice", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Bytes(buf.BinWriter, []byte{0, 1, 2, 3})
+
+		result := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHBYTES4, result[0])
+		assert.EqualValues(t, []byte{0, 1, 2, 3}, result[1:])
+	})
+
+	t.Run("slice with len <= 255", func(t *testing.T) {
+		const size = 200
+
+		buf := io.NewBufBinWriter()
+		Bytes(buf.BinWriter, getSlice(size))
+
+		result := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHDATA1, result[0])
+		assert.EqualValues(t, size, result[1])
+		assert.Equal(t, getSlice(size), result[2:])
+	})
+
+	t.Run("slice with len <= 65535", func(t *testing.T) {
+		const size = 60000
+
+		buf := io.NewBufBinWriter()
+		Bytes(buf.BinWriter, getSlice(size))
+
+		result := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHDATA2, result[0])
+		assert.EqualValues(t, size, binary.LittleEndian.Uint16(result[1:3]))
+		assert.Equal(t, getSlice(size), result[3:])
+	})
+
+	t.Run("slice with len > 65535", func(t *testing.T) {
+		const size = 100000
+
+		buf := io.NewBufBinWriter()
+		Bytes(buf.BinWriter, getSlice(size))
+
+		result := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHDATA4, result[0])
+		assert.EqualValues(t, size, binary.LittleEndian.Uint32(result[1:5]))
+		assert.Equal(t, getSlice(size), result[5:])
+	})
+}
+
 func TestEmitBool(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	Bool(buf.BinWriter, true)
