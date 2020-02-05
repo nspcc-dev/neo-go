@@ -25,9 +25,11 @@ var (
 
 // item represents a transaction in the the Memory pool.
 type item struct {
-	txn       *transaction.Transaction
-	timeStamp time.Time
-	fee       Feer
+	txn        *transaction.Transaction
+	timeStamp  time.Time
+	perByteFee util.Fixed8
+	netFee     util.Fixed8
+	isLowPrio  bool
 }
 
 // items is a slice of item.
@@ -59,7 +61,7 @@ func (p item) CompareTo(otherP *item) int {
 		return 1
 	}
 
-	if p.fee.IsLowPriority(p.txn) && p.fee.IsLowPriority(otherP.txn) {
+	if p.isLowPrio && otherP.isLowPrio {
 		thisIsClaimTx := p.txn.Type == transaction.ClaimType
 		otherIsClaimTx := otherP.txn.Type == transaction.ClaimType
 
@@ -74,15 +76,11 @@ func (p item) CompareTo(otherP *item) int {
 	}
 
 	// Fees sorted ascending.
-	pFPB := p.fee.FeePerByte(p.txn)
-	otherFPB := p.fee.FeePerByte(otherP.txn)
-	if ret := pFPB.CompareTo(otherFPB); ret != 0 {
+	if ret := p.perByteFee.CompareTo(otherP.perByteFee); ret != 0 {
 		return ret
 	}
 
-	pNF := p.fee.NetworkFee(p.txn)
-	otherNF := p.fee.NetworkFee(otherP.txn)
-	if ret := pNF.CompareTo(otherNF); ret != 0 {
+	if ret := p.netFee.CompareTo(otherP.netFee); ret != 0 {
 		return ret
 	}
 
@@ -118,12 +116,14 @@ func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	var pool *items
 	var pItem = &item{
-		txn:       t,
-		timeStamp: time.Now().UTC(),
-		fee:       fee,
+		txn:        t,
+		timeStamp:  time.Now().UTC(),
+		perByteFee: fee.FeePerByte(t),
+		netFee:     fee.NetworkFee(t),
+		isLowPrio:  fee.IsLowPriority(t),
 	}
 
-	if pItem.fee.IsLowPriority(pItem.txn) {
+	if pItem.isLowPrio {
 		pool = &mp.sortedLowPrioTxn
 	} else {
 		pool = &mp.sortedHighPrioTxn
