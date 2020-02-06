@@ -30,7 +30,16 @@ var testCases = []struct {
 
 func TestArrayReverse(t *testing.T) {
 	for _, tc := range testCases {
-		have := ArrayReverse(tc.arr)
+		arg := make([]byte, len(tc.arr))
+		copy(arg, tc.arr)
+
+		have := ArrayReverse(arg)
 		require.Equal(t, tc.rev, have)
+
+		// test that argument was copied
+		for i := range have {
+			have[i] = ^have[i]
+		}
+		require.Equal(t, tc.arr, arg)
 	}
 }
