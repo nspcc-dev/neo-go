@@ -96,6 +96,13 @@ type GetRawTxResponse struct {
 	Result *RawTxResponse `json:"result"`
 }
 
+// GetTxOutResponse represents result of `gettxout` RPC call.
+type GetTxOutResponse struct {
+	responseHeader
+	Error  *Error
+	Result *wrappers.TransactionOutput
+}
+
 // RawTxResponse stores transaction with blockchain metadata to be sent as a response.
 type RawTxResponse struct {
 	TxResponse

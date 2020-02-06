@@ -112,6 +112,38 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"gettxout": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "missing hash",
+			params: `["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid index",
+			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", "string"]`,
+			fail:   true,
+		},
+		{
+			name:   "negative index",
+			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", -1]`,
+			fail:   true,
+		},
+		{
+			name:   "too big index",
+			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", 100]`,
+			fail:   true,
+		},
+	},
 	"getblock": {
 		{
 			name:   "positive",
@@ -488,6 +520,23 @@ func TestRPC(t *testing.T) {
 		err := json.Unmarshal(body, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", body)
 		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res.Result)
+	})
+
+	t.Run("gettxout", func(t *testing.T) {
+		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
+		tx := block.Transactions[3]
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
+			`"`+tx.Hash().StringLE()+`"`, 0)
+		body := doRPCCall(rpc, handler, t)
+		checkErrResponse(t, body, false)
+
+		var result GetTxOutResponse
+		err := json.Unmarshal(body, &result)
+		require.NoErrorf(t, err, "could not parse response: %s", body)
+		assert.Equal(t, 0, result.Result.N)
+		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", result.Result.Asset)
+		assert.Equal(t, util.Fixed8FromInt64(100000000), result.Result.Value)
+		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", result.Result.Address)
 	})
 }
 

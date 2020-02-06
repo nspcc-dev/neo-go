@@ -51,7 +51,7 @@ which would yield the response:
 | `getrawmempool` | No (#175) |
 | `getrawtransaction` | Yes |
 | `getstorage` | No (#343) |
-| `gettxout` | No (#345) |
+| `gettxout` | Yes |
 | `getunspents` | Yes |
 | `getversion` | Yes |
 | `invoke` | Yes |
