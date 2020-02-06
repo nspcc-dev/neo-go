@@ -80,6 +80,7 @@ func TestMemPoolVerify(t *testing.T) {
 	// The same input as in tx2.
 	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
 	require.Equal(t, false, mp.Verify(tx3))
+	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
 func newMinerTX() *transaction.Transaction {
