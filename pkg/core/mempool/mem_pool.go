@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -9,43 +10,62 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
-// Item represents a transaction in the the Memory pool.
-type Item struct {
-	txn       *transaction.Transaction
-	timeStamp time.Time
-	fee       Feer
+var (
+	// ErrConflict is returned when transaction being added is incompatible
+	// with the contents of the memory pool (using the same inputs as some
+	// other transaction in the pool)
+	ErrConflict = errors.New("conflicts with the memory pool")
+	// ErrDup is returned when transaction being added is already present
+	// in the memory pool.
+	ErrDup = errors.New("already in the memory pool")
+	// ErrOOM is returned when transaction just doesn't fit in the memory
+	// pool because of its capacity constraints.
+	ErrOOM = errors.New("out of memory")
+)
+
+// item represents a transaction in the the Memory pool.
+type item struct {
+	txn        *transaction.Transaction
+	timeStamp  time.Time
+	perByteFee util.Fixed8
+	netFee     util.Fixed8
+	isLowPrio  bool
 }
 
-// Items is a slice of Item.
-type Items []*Item
+// items is a slice of item.
+type items []*item
 
 // Pool stores the unconfirms transactions.
 type Pool struct {
-	lock                        *sync.RWMutex
-	unsortedTxn                 map[util.Uint256]*Item
-	unverifiedTxn               map[util.Uint256]*Item
-	sortedHighPrioTxn           Items
-	sortedLowPrioTxn            Items
-	unverifiedSortedHighPrioTxn Items
-	unverifiedSortedLowPrioTxn  Items
+	lock         sync.RWMutex
+	verifiedMap  map[util.Uint256]*item
+	verifiedTxes items
 
 	capacity int
 }
 
-func (p Items) Len() int           { return len(p) }
-func (p Items) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
+func (p items) Len() int           { return len(p) }
+func (p items) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 
-// CompareTo returns the difference between two Items.
+// CompareTo returns the difference between two items.
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p Item) CompareTo(otherP *Item) int {
+func (p *item) CompareTo(otherP *item) int {
 	if otherP == nil {
 		return 1
 	}
 
-	if p.fee.IsLowPriority(p.txn) && p.fee.IsLowPriority(otherP.txn) {
+	if !p.isLowPrio && otherP.isLowPrio {
+		return 1
+	}
+
+	if p.isLowPrio && !otherP.isLowPrio {
+		return -1
+	}
+
+	if p.isLowPrio && otherP.isLowPrio {
 		thisIsClaimTx := p.txn.Type == transaction.ClaimType
 		otherIsClaimTx := otherP.txn.Type == transaction.ClaimType
 
@@ -60,15 +80,11 @@ func (p Item) CompareTo(otherP *Item) int {
 	}
 
 	// Fees sorted ascending.
-	pFPB := p.fee.FeePerByte(p.txn)
-	otherFPB := p.fee.FeePerByte(otherP.txn)
-	if ret := pFPB.CompareTo(otherFPB); ret != 0 {
+	if ret := p.perByteFee.CompareTo(otherP.perByteFee); ret != 0 {
 		return ret
 	}
 
-	pNF := p.fee.NetworkFee(p.txn)
-	otherNF := p.fee.NetworkFee(otherP.txn)
-	if ret := pNF.CompareTo(otherNF); ret != 0 {
+	if ret := p.netFee.CompareTo(otherP.netFee); ret != 0 {
 		return ret
 	}
 
@@ -77,193 +93,146 @@ func (p Item) CompareTo(otherP *Item) int {
 }
 
 // Count returns the total number of uncofirm transactions.
-func (mp Pool) Count() int {
+func (mp *Pool) Count() int {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
+	return mp.count()
+}
 
-	return len(mp.unsortedTxn) + len(mp.unverifiedTxn)
+// count is an internal unlocked version of Count.
+func (mp *Pool) count() int {
+	return len(mp.verifiedTxes)
 }
 
 // ContainsKey checks if a transactions hash is in the Pool.
-func (mp Pool) ContainsKey(hash util.Uint256) bool {
+func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	if _, ok := mp.unsortedTxn[hash]; ok {
-		return true
-	}
+	return mp.containsKey(hash)
+}
 
-	if _, ok := mp.unverifiedTxn[hash]; ok {
+// containsKey is an internal unlocked version of ContainsKey.
+func (mp *Pool) containsKey(hash util.Uint256) bool {
+	if _, ok := mp.verifiedMap[hash]; ok {
 		return true
 	}
 
 	return false
 }
 
-// TryAdd try to add the Item to the Pool.
-func (mp Pool) TryAdd(hash util.Uint256, pItem *Item) bool {
-	var pool Items
-
+// Add tries to add given transaction to the Pool.
+func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
+	var pItem = &item{
+		txn:        t,
+		timeStamp:  time.Now().UTC(),
+		perByteFee: fee.FeePerByte(t),
+		netFee:     fee.NetworkFee(t),
+		isLowPrio:  fee.IsLowPriority(t),
+	}
 	mp.lock.Lock()
-	if _, ok := mp.unsortedTxn[hash]; ok {
+	if !mp.verifyInputs(t) {
 		mp.lock.Unlock()
-		return false
+		return ErrConflict
 	}
-	mp.unsortedTxn[hash] = pItem
-	mp.lock.Unlock()
+	if mp.containsKey(t.Hash()) {
+		mp.lock.Unlock()
+		return ErrDup
+	}
 
-	if pItem.fee.IsLowPriority(pItem.txn) {
-		pool = mp.sortedLowPrioTxn
+	mp.verifiedMap[t.Hash()] = pItem
+	// Insert into sorted array (from max to min, that could also be done
+	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
+	// also that we're searching for position that is strictly more
+	// prioritized than our new item because we do expect a lot of
+	// transactions with the same priority and appending to the end of the
+	// slice is always more efficient.
+	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
+		return pItem.CompareTo(mp.verifiedTxes[n]) > 0
+	})
+
+	// We've reached our capacity already.
+	if len(mp.verifiedTxes) == mp.capacity {
+		// Less prioritized than the least prioritized we already have, won't fit.
+		if n == len(mp.verifiedTxes) {
+			mp.lock.Unlock()
+			return ErrOOM
+		}
+		// Ditch the last one.
+		unlucky := mp.verifiedTxes[len(mp.verifiedTxes)-1]
+		delete(mp.verifiedMap, unlucky.txn.Hash())
+		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
 	} else {
-		pool = mp.sortedHighPrioTxn
+		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
-
-	mp.lock.Lock()
-	pool = append(pool, pItem)
-	sort.Sort(pool)
+	if n != len(mp.verifiedTxes)-1 {
+		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
+		mp.verifiedTxes[n] = pItem
+	}
+	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
-
-	if mp.Count() > mp.capacity {
-		(&mp).RemoveOverCapacity()
-	}
-	mp.lock.RLock()
-	_, ok := mp.unsortedTxn[hash]
-	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
-	mp.lock.RUnlock()
-	return ok
+	return nil
 }
 
 // Remove removes an item from the mempool, if it exists there (and does
 // nothing if it doesn't).
 func (mp *Pool) Remove(hash util.Uint256) {
-	var mapAndPools = []struct {
-		unsortedMap map[util.Uint256]*Item
-		sortedPools []*Items
-	}{
-		{unsortedMap: mp.unsortedTxn, sortedPools: []*Items{&mp.sortedHighPrioTxn, &mp.sortedLowPrioTxn}},
-		{unsortedMap: mp.unverifiedTxn, sortedPools: []*Items{&mp.unverifiedSortedHighPrioTxn, &mp.unverifiedSortedLowPrioTxn}},
-	}
 	mp.lock.Lock()
-	for _, mapAndPool := range mapAndPools {
-		if _, ok := mapAndPool.unsortedMap[hash]; ok {
-			delete(mapAndPool.unsortedMap, hash)
-			for _, pool := range mapAndPool.sortedPools {
-				var num int
-				var item *Item
-				for num, item = range *pool {
-					if hash.Equals(item.txn.Hash()) {
-						break
-					}
-				}
-				if num < len(*pool)-1 {
-					*pool = append((*pool)[:num], (*pool)[num+1:]...)
-				} else if num == len(*pool)-1 {
-					*pool = (*pool)[:num]
-				}
+	if _, ok := mp.verifiedMap[hash]; ok {
+		var num int
+		delete(mp.verifiedMap, hash)
+		for num := range mp.verifiedTxes {
+			if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
+				break
 			}
 		}
+		if num < len(mp.verifiedTxes)-1 {
+			mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
+		} else if num == len(mp.verifiedTxes)-1 {
+			mp.verifiedTxes = mp.verifiedTxes[:num]
+		}
 	}
-	updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
+	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
 }
 
-// RemoveOverCapacity removes transactions with lowest fees until the total number of transactions
-// in the Pool is within the capacity of the Pool.
-func (mp *Pool) RemoveOverCapacity() {
-	for mp.Count()-mp.capacity > 0 {
-		mp.lock.Lock()
-		if minItem, argPosition := getLowestFeeTransaction(mp.sortedLowPrioTxn, mp.unverifiedSortedLowPrioTxn); minItem != nil {
-			if argPosition == 1 {
-				// minItem belongs to the mp.sortedLowPrioTxn slice.
-				// The corresponding unsorted pool is is mp.unsortedTxn.
-				delete(mp.unsortedTxn, minItem.txn.Hash())
-				mp.sortedLowPrioTxn = append(mp.sortedLowPrioTxn[:0], mp.sortedLowPrioTxn[1:]...)
-			} else {
-				// minItem belongs to the mp.unverifiedSortedLowPrioTxn slice.
-				// The corresponding unsorted pool is is mp.unverifiedTxn.
-				delete(mp.unverifiedTxn, minItem.txn.Hash())
-				mp.unverifiedSortedLowPrioTxn = append(mp.unverifiedSortedLowPrioTxn[:0], mp.unverifiedSortedLowPrioTxn[1:]...)
-
-			}
-		} else if minItem, argPosition := getLowestFeeTransaction(mp.sortedHighPrioTxn, mp.unverifiedSortedHighPrioTxn); minItem != nil {
-			if argPosition == 1 {
-				// minItem belongs to the mp.sortedHighPrioTxn slice.
-				// The corresponding unsorted pool is is mp.unsortedTxn.
-				delete(mp.unsortedTxn, minItem.txn.Hash())
-				mp.sortedHighPrioTxn = append(mp.sortedHighPrioTxn[:0], mp.sortedHighPrioTxn[1:]...)
-			} else {
-				// minItem belongs to the mp.unverifiedSortedHighPrioTxn slice.
-				// The corresponding unsorted pool is is mp.unverifiedTxn.
-				delete(mp.unverifiedTxn, minItem.txn.Hash())
-				mp.unverifiedSortedHighPrioTxn = append(mp.unverifiedSortedHighPrioTxn[:0], mp.unverifiedSortedHighPrioTxn[1:]...)
-
-			}
+// RemoveStale filters verified transactions through the given function keeping
+// only the transactions for which it returns a true result. It's used to quickly
+// drop part of the mempool that is now invalid after the block acceptance.
+func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
+	mp.lock.Lock()
+	// We expect a lot of changes, so it's easier to allocate a new slice
+	// rather than move things in an old one.
+	newVerifiedTxes := make([]*item, 0, mp.capacity)
+	for _, itm := range mp.verifiedTxes {
+		if isOK(itm.txn) {
+			newVerifiedTxes = append(newVerifiedTxes, itm)
+		} else {
+			delete(mp.verifiedMap, itm.txn.Hash())
 		}
-		updateMempoolMetrics(len(mp.unsortedTxn), len(mp.unverifiedTxn))
-		mp.lock.Unlock()
 	}
-
-}
-
-// NewPoolItem returns a new Item.
-func NewPoolItem(t *transaction.Transaction, fee Feer) *Item {
-	return &Item{
-		txn:       t,
-		timeStamp: time.Now().UTC(),
-		fee:       fee,
-	}
+	mp.verifiedTxes = newVerifiedTxes
+	mp.lock.Unlock()
 }
 
 // NewMemPool returns a new Pool struct.
 func NewMemPool(capacity int) Pool {
 	return Pool{
-		lock:          new(sync.RWMutex),
-		unsortedTxn:   make(map[util.Uint256]*Item),
-		unverifiedTxn: make(map[util.Uint256]*Item),
-		capacity:      capacity,
+		verifiedMap:  make(map[util.Uint256]*item),
+		verifiedTxes: make([]*item, 0, capacity),
+		capacity:     capacity,
 	}
 }
 
 // TryGetValue returns a transaction if it exists in the memory pool.
-func (mp Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
+func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
-	if pItem, ok := mp.unsortedTxn[hash]; ok {
-		return pItem.txn, ok
-	}
-
-	if pItem, ok := mp.unverifiedTxn[hash]; ok {
+	if pItem, ok := mp.verifiedMap[hash]; ok {
 		return pItem.txn, ok
 	}
 
 	return nil, false
-}
-
-// getLowestFeeTransaction returns the Item with the lowest fee amongst the "verifiedTxnSorted"
-// and "unverifiedTxnSorted" Items along with a integer. The integer can assume two values, 1 and 2 which indicate
-// that the Item with the lowest fee was found in "verifiedTxnSorted" respectively in "unverifiedTxnSorted".
-// "verifiedTxnSorted" and "unverifiedTxnSorted" are sorted slice order by transaction fee ascending. This means that
-// the transaction with lowest fee start at index 0.
-// Reference: GetLowestFeeTransaction method in C# (https://github.com/neo-project/neo/blob/master/neo/Ledger/MemoryPool.cs)
-func getLowestFeeTransaction(verifiedTxnSorted Items, unverifiedTxnSorted Items) (*Item, int) {
-	minItem := min(unverifiedTxnSorted)
-	verifiedMin := min(verifiedTxnSorted)
-	if verifiedMin == nil || (minItem != nil && verifiedMin.CompareTo(minItem) >= 0) {
-		return minItem, 2
-	}
-
-	minItem = verifiedMin
-	return minItem, 1
-
-}
-
-// min returns the minimum item in a ascending sorted slice of pool items.
-// The function can't be applied to unsorted slice!
-func min(sortedPool Items) *Item {
-	if len(sortedPool) == 0 {
-		return nil
-	}
-	return sortedPool[0]
 }
 
 // GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
@@ -272,10 +241,10 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	var t = make([]*transaction.Transaction, len(mp.unsortedTxn))
+	var t = make([]*transaction.Transaction, len(mp.verifiedTxes))
 	var i int
 
-	for _, p := range mp.unsortedTxn {
+	for _, p := range mp.verifiedTxes {
 		t[i] = p.txn
 		i++
 	}
@@ -283,16 +252,16 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	return t
 }
 
-// Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
-// If yes, the transaction tx is not a valid transaction and the function return false.
-// If no, the transaction tx is a valid transaction and the function return true.
-func (mp Pool) Verify(tx *transaction.Transaction) bool {
-	mp.lock.RLock()
-	defer mp.lock.RUnlock()
-	for _, item := range mp.unsortedTxn {
-		for i := range item.txn.Inputs {
+// verifyInputs is an internal unprotected version of Verify.
+func (mp *Pool) verifyInputs(tx *transaction.Transaction) bool {
+	if len(tx.Inputs) == 0 {
+		return true
+	}
+	for num := range mp.verifiedTxes {
+		txn := mp.verifiedTxes[num].txn
+		for i := range txn.Inputs {
 			for j := 0; j < len(tx.Inputs); j++ {
-				if item.txn.Inputs[i] == tx.Inputs[j] {
+				if txn.Inputs[i] == tx.Inputs[j] {
 					return false
 				}
 			}
@@ -300,4 +269,13 @@ func (mp Pool) Verify(tx *transaction.Transaction) bool {
 	}
 
 	return true
+}
+
+// Verify verifies if the inputs of a transaction tx are already used in any other transaction in the memory pool.
+// If yes, the transaction tx is not a valid transaction and the function return false.
+// If no, the transaction tx is a valid transaction and the function return true.
+func (mp *Pool) Verify(tx *transaction.Transaction) bool {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+	return mp.verifyInputs(tx)
 }

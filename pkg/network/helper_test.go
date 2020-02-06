@@ -118,11 +118,15 @@ func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState 
 	panic("TODO")
 }
 
-func (chain testChain) GetMemPool() mempool.Pool {
+func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
 func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
+	panic("TODO")
+}
+
+func (chain testChain) PoolTx(*transaction.Transaction) error {
 	panic("TODO")
 }
 

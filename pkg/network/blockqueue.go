@@ -12,9 +12,10 @@ type blockQueue struct {
 	queue       *queue.PriorityQueue
 	checkBlocks chan struct{}
 	chain       core.Blockchainer
+	relayF      func(*block.Block)
 }
 
-func newBlockQueue(capacity int, bc core.Blockchainer, log *zap.Logger) *blockQueue {
+func newBlockQueue(capacity int, bc core.Blockchainer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
 	}
@@ -24,6 +25,7 @@ func newBlockQueue(capacity int, bc core.Blockchainer, log *zap.Logger) *blockQu
 		queue:       queue.NewPriorityQueue(capacity, false),
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
+		relayF:      relayer,
 	}
 }
 
@@ -45,10 +47,15 @@ func (bq *blockQueue) run() {
 				if minblock.Index == bq.chain.BlockHeight()+1 {
 					err := bq.chain.AddBlock(minblock)
 					if err != nil {
-						bq.log.Warn("blockQueue: failed adding block into the blockchain",
-							zap.String("error", err.Error()),
-							zap.Uint32("blockHeight", bq.chain.BlockHeight()),
-							zap.Uint32("nextIndex", minblock.Index))
+						// The block might already be added by consensus.
+						if _, errget := bq.chain.GetBlock(minblock.Hash()); errget != nil {
+							bq.log.Warn("blockQueue: failed adding block into the blockchain",
+								zap.String("error", err.Error()),
+								zap.Uint32("blockHeight", bq.chain.BlockHeight()),
+								zap.Uint32("nextIndex", minblock.Index))
+						}
+					} else if bq.relayF != nil {
+						bq.relayF(minblock)
 					}
 				}
 			} else {

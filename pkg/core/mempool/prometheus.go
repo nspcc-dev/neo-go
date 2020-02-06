@@ -11,24 +11,14 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//mempoolUnverifiedTx prometheus metric.
-	mempoolUnverifiedTx = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Help:      "Mempool Unverified TXs",
-			Name:      "mempool_unverified_tx",
-			Namespace: "neogo",
-		},
-	)
 )
 
 func init() {
 	prometheus.MustRegister(
 		mempoolUnsortedTx,
-		mempoolUnverifiedTx,
 	)
 }
 
-func updateMempoolMetrics(unsortedTxnLen int, unverifiedTxnLen int) {
+func updateMempoolMetrics(unsortedTxnLen int) {
 	mempoolUnsortedTx.Set(float64(unsortedTxnLen))
-	mempoolUnverifiedTx.Set(float64(unverifiedTxnLen))
 }

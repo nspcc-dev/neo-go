@@ -335,7 +335,11 @@ func (s *service) processBlock(b block.Block) {
 	bb.Script = *(s.getBlockWitness(bb))
 
 	if err := s.Chain.AddBlock(bb); err != nil {
-		s.log.Warn("error on add block", zap.Error(err))
+		// The block might already be added via the regular network
+		// interaction.
+		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
+			s.log.Warn("error on add block", zap.Error(err))
+		}
 	} else {
 		s.Config.RelayBlock(bb)
 	}

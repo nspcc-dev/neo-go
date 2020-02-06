@@ -13,7 +13,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/consensus"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
-	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/network/payload"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -91,7 +90,6 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 	s := &Server{
 		ServerConfig: config,
 		chain:        chain,
-		bQueue:       newBlockQueue(maxBlockBatch, chain, log),
 		id:           randomID(),
 		quit:         make(chan struct{}),
 		register:     make(chan Peer),
@@ -100,6 +98,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 		connected:    atomic.NewBool(false),
 		log:          log,
 	}
+	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, s.relayBlock)
 
 	srv, err := consensus.NewService(consensus.Config{
 		Logger:     log,
@@ -735,7 +734,11 @@ func (s *Server) broadcastHPMessage(msg *Message) {
 // relayBlock tells all the other connected nodes about the given block.
 func (s *Server) relayBlock(b *block.Block) {
 	msg := s.MkMsg(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
-	s.broadcastMessage(msg)
+	// Filter out nodes that are more current (avoid spamming the network
+	// during initial sync).
+	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
+		return p.Handshaked() && p.LastBlockIndex() < b.Index
+	})
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
@@ -743,17 +746,18 @@ func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if t.Type == transaction.MinerType {
 		return RelayInvalid
 	}
-	if s.chain.HasTransaction(t.Hash()) {
-		return RelayAlreadyExists
-	}
-	if err := s.chain.VerifyTx(t, nil); err != nil {
-		return RelayInvalid
-	}
 	// TODO: Implement Plugin.CheckPolicy?
 	//if (!Plugin.CheckPolicy(transaction))
 	// return RelayResultReason.PolicyFail;
-	if ok := s.chain.GetMemPool().TryAdd(t.Hash(), mempool.NewPoolItem(t, s.chain)); !ok {
-		return RelayOutOfMemory
+	if err := s.chain.PoolTx(t); err != nil {
+		switch err {
+		case core.ErrAlreadyExists:
+			return RelayAlreadyExists
+		case core.ErrOOM:
+			return RelayOutOfMemory
+		default:
+			return RelayInvalid
+		}
 	}
 	return RelaySucceed
 }
