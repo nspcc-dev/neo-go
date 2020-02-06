@@ -9,6 +9,20 @@ type MemCachedStore struct {
 	ps Store
 }
 
+type (
+	// KeyValue represents key-value pair.
+	KeyValue struct {
+		Key   []byte
+		Value []byte
+	}
+
+	// MemBatch represents a changeset to be persisted.
+	MemBatch struct {
+		Put     []KeyValue
+		Deleted []KeyValue
+	}
+)
+
 // NewMemCachedStore creates a new MemCachedStore object.
 func NewMemCachedStore(lower Store) *MemCachedStore {
 	return &MemCachedStore{
@@ -29,6 +43,26 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 		return nil, ErrKeyNotFound
 	}
 	return s.ps.Get(key)
+}
+
+// GetBatch returns currently accumulated changeset.
+func (s *MemCachedStore) GetBatch() *MemBatch {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+
+	var b MemBatch
+
+	b.Put = make([]KeyValue, 0, len(s.mem))
+	for k, v := range s.mem {
+		b.Put = append(b.Put, KeyValue{Key: []byte(k), Value: v})
+	}
+
+	b.Deleted = make([]KeyValue, 0, len(s.del))
+	for k := range s.del {
+		b.Deleted = append(b.Deleted, KeyValue{Key: []byte(k)})
+	}
+
+	return &b
 }
 
 // Seek implements the Store interface.

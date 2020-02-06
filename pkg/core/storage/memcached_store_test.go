@@ -18,7 +18,9 @@ func TestMemCachedStorePersist(t *testing.T) {
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
 	assert.NoError(t, ts.Put([]byte("key"), []byte("value")))
+	checkBatch(t, ts, []KeyValue{{[]byte("key"), []byte("value")}}, nil)
 	c, err = ts.Persist()
+	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, c)
 	v, err := ps.Get([]byte("key"))
@@ -35,9 +37,14 @@ func TestMemCachedStorePersist(t *testing.T) {
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
+	checkBatch(t, ts, []KeyValue{
+		{[]byte("key"), []byte("newvalue")},
+		{[]byte("key2"), []byte("value2")},
+	}, nil)
 	// two keys should be persisted (one overwritten and one new) and
 	// available in the ps
 	c, err = ts.Persist()
+	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 2, c)
 	v, err = ts.MemoryStore.Get([]byte("key"))
@@ -52,6 +59,7 @@ func TestMemCachedStorePersist(t *testing.T) {
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
+	checkBatch(t, ts, nil, nil)
 	// we've persisted some values, make sure successive persist is a no-op
 	c, err = ts.Persist()
 	assert.Equal(t, nil, err)
@@ -59,7 +67,9 @@ func TestMemCachedStorePersist(t *testing.T) {
 	// test persisting deletions
 	err = ts.Delete([]byte("key"))
 	assert.Equal(t, nil, err)
+	checkBatch(t, ts, nil, []KeyValue{{Key: []byte("key")}})
 	c, err = ts.Persist()
+	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 0, c)
 	v, err = ps.Get([]byte("key"))
@@ -68,6 +78,20 @@ func TestMemCachedStorePersist(t *testing.T) {
 	v, err = ps.Get([]byte("key2"))
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []byte("value2"), v)
+}
+
+func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValue, del []KeyValue) {
+	b := ts.GetBatch()
+	assert.Equal(t, len(put), len(b.Put), "wrong number of put elements in a batch")
+	assert.Equal(t, len(del), len(b.Deleted), "wrong number of deleted elements in a batch")
+
+	for i := range put {
+		assert.Contains(t, b.Put, put[i])
+	}
+
+	for i := range del {
+		assert.Contains(t, b.Deleted, del[i])
+	}
 }
 
 func TestCachedGetFromPersistent(t *testing.T) {
