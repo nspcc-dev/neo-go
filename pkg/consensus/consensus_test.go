@@ -21,7 +21,7 @@ func TestNewService(t *testing.T) {
 		Type: transaction.MinerType,
 		Data: &transaction.MinerTX{Nonce: 12345},
 	}
-	srv.Chain.GetMemPool().Add(tx, new(feer))
+	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
@@ -38,9 +38,7 @@ func TestService_GetVerified(t *testing.T) {
 		newMinerTx(3),
 		newMinerTx(4),
 	}
-	pool := srv.Chain.GetMemPool()
-
-	require.NoError(t, pool.Add(txs[3], new(feer)))
+	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
 
@@ -65,7 +63,7 @@ func TestService_GetVerified(t *testing.T) {
 
 	t.Run("more than half of the last proposal will be reused", func(t *testing.T) {
 		for _, tx := range txs[:2] {
-			require.NoError(t, pool.Add(tx, new(feer)))
+			require.NoError(t, srv.Chain.PoolTx(tx))
 		}
 
 		txx := srv.getVerifiedTx(10)
@@ -115,7 +113,7 @@ func TestService_getTx(t *testing.T) {
 
 		require.Equal(t, nil, srv.getTx(h))
 
-		srv.Chain.GetMemPool().Add(tx, new(feer))
+		require.NoError(t, srv.Chain.PoolTx(tx))
 
 		got := srv.getTx(h)
 		require.NotNil(t, got)
