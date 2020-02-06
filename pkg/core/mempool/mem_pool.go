@@ -150,23 +150,27 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
 		return pItem.CompareTo(mp.verifiedTxes[n]) > 0
 	})
-	mp.verifiedTxes = append(mp.verifiedTxes, pItem)
-	if n != len(mp.verifiedTxes) {
+
+	// We've reached our capacity already.
+	if len(mp.verifiedTxes) == mp.capacity {
+		// Less prioritized than the least prioritized we already have, won't fit.
+		if n == len(mp.verifiedTxes) {
+			mp.lock.Unlock()
+			return ErrOOM
+		}
+		// Ditch the last one.
+		unlucky := mp.verifiedTxes[len(mp.verifiedTxes)-1]
+		delete(mp.verifiedMap, unlucky.txn.Hash())
+		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
+	} else {
+		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
+	}
+	if n != len(mp.verifiedTxes)-1 {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
-	mp.lock.Unlock()
-
-	if mp.Count() > mp.capacity {
-		mp.RemoveOverCapacity()
-	}
-	mp.lock.RLock()
-	_, ok := mp.verifiedMap[t.Hash()]
 	updateMempoolMetrics(len(mp.verifiedTxes))
-	mp.lock.RUnlock()
-	if !ok {
-		return ErrOOM
-	}
+	mp.lock.Unlock()
 	return nil
 }
 
@@ -208,20 +212,6 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
 		}
 	}
 	mp.verifiedTxes = newVerifiedTxes
-	mp.lock.Unlock()
-}
-
-// RemoveOverCapacity removes transactions with lowest fees until the total number of transactions
-// in the Pool is within the capacity of the Pool.
-func (mp *Pool) RemoveOverCapacity() {
-	mp.lock.Lock()
-	num := mp.count() - mp.capacity
-	for i := 1; i <= num; i++ {
-		txToDrop := mp.verifiedTxes[len(mp.verifiedTxes)-num].txn
-		delete(mp.verifiedMap, txToDrop.Hash())
-	}
-	mp.verifiedTxes = mp.verifiedTxes[:len(mp.verifiedTxes)-num]
-	updateMempoolMetrics(mp.count())
 	mp.lock.Unlock()
 }
 
