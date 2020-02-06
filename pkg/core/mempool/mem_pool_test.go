@@ -49,9 +49,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
 	assert.Equal(t, 0, len(mp.verifiedMap))
-	assert.Equal(t, 0, len(mp.unverifiedMap))
 	assert.Equal(t, 0, len(mp.verifiedTxes))
-	assert.Equal(t, 0, len(mp.unverifiedTxes))
 }
 
 func TestMemPoolAddRemove(t *testing.T) {
