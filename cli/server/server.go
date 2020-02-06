@@ -61,6 +61,10 @@ func NewCommands() []cli.Command {
 			Name:  "in, i",
 			Usage: "Input file (stdin if not given)",
 		},
+		cli.StringFlag{
+			Name:  "dump",
+			Usage: "directory for storing JSON dumps",
+		},
 	)
 	return []cli.Command{
 		{
@@ -242,6 +246,11 @@ func restoreDB(ctx *cli.Context) error {
 	defer inStream.Close()
 	reader := io.NewBinReaderFromIO(inStream)
 
+	dumpDir := ctx.String("dump")
+	if dumpDir != "" {
+		cfg.ProtocolConfiguration.SaveStorageBatch = true
+	}
+
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
@@ -267,6 +276,9 @@ func restoreDB(ctx *cli.Context) error {
 			return cli.NewExitError(err, 1)
 		}
 	}
+
+	dump := newDump()
+
 	for ; i < skip+count; i++ {
 		bytes, err := readBlock(reader)
 		block := &block.Block{}
@@ -285,6 +297,14 @@ func restoreDB(ctx *cli.Context) error {
 		err = chain.AddBlock(block)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
+		}
+
+		if dumpDir != "" {
+			batch := chain.LastBatch()
+			dump.add(block.Index, batch)
+			if err := dump.tryPersist(dumpDir, block.Index); err != nil {
+				return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+			}
 		}
 	}
 	return nil

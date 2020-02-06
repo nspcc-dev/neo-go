@@ -57,6 +57,8 @@ type (
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
 		// FreeGasLimit is an amount of GAS which can be spent for free.
 		FreeGasLimit util.Fixed8 `yaml:"FreeGasLimit"`
+		// SaveStorageBatch enables storage batch saving before every persist.
+		SaveStorageBatch bool `yaml:"SaveStorageBatch"`
 	}
 
 	// SystemFee fees related to system.

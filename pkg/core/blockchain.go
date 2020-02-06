@@ -109,6 +109,8 @@ type Blockchain struct {
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
 
 	log *zap.Logger
+
+	lastBatch *storage.MemBatch
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -604,6 +606,10 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
 
+	if bc.config.SaveStorageBatch {
+		bc.lastBatch = cache.dao.store.GetBatch()
+	}
+
 	_, err := cache.Persist()
 	if err != nil {
 		return err
@@ -613,6 +619,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	updateBlockHeightMetric(block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant)
 	return nil
+}
+
+// LastBatch returns last persisted storage batch.
+func (bc *Blockchain) LastBatch() *storage.MemBatch {
+	return bc.lastBatch
 }
 
 // processOutputs processes transaction outputs.
