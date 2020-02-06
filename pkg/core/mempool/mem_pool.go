@@ -251,10 +251,10 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	var t = make([]*transaction.Transaction, len(mp.verifiedMap))
+	var t = make([]*transaction.Transaction, len(mp.verifiedTxes))
 	var i int
 
-	for _, p := range mp.verifiedMap {
+	for _, p := range mp.verifiedTxes {
 		t[i] = p.txn
 		i++
 	}
