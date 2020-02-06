@@ -21,20 +21,20 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 
 	switch op {
 	case opcode.APPCALL, opcode.TAILCALL:
-		return util.Fixed8FromInt64(10)
+		return toFixed8(10)
 	case opcode.SYSCALL:
 		interopID := vm.GetInteropID(parameter)
 		return getSyscallPrice(v, interopID)
 	case opcode.SHA1, opcode.SHA256:
-		return util.Fixed8FromInt64(10)
+		return toFixed8(10)
 	case opcode.HASH160, opcode.HASH256:
-		return util.Fixed8FromInt64(20)
+		return toFixed8(20)
 	case opcode.CHECKSIG, opcode.VERIFY:
-		return util.Fixed8FromInt64(100)
+		return toFixed8(100)
 	case opcode.CHECKMULTISIG:
 		estack := v.Estack()
 		if estack.Len() == 0 {
-			return util.Fixed8FromInt64(1)
+			return toFixed8(1)
 		}
 
 		var cost int
@@ -48,13 +48,17 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 		}
 
 		if cost < 1 {
-			return util.Fixed8FromInt64(1)
+			return toFixed8(1)
 		}
 
-		return util.Fixed8FromInt64(int64(100 * cost))
+		return toFixed8(int64(100 * cost))
 	default:
-		return util.Fixed8FromInt64(1)
+		return toFixed8(1)
 	}
+}
+
+func toFixed8(n int64) util.Fixed8 {
+	return util.Fixed8(n * interopGasRatio)
 }
 
 // getSyscallPrice returns cost of executing syscall with provided id.
@@ -62,7 +66,7 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 	ifunc := v.GetInteropByID(id)
 	if ifunc != nil && ifunc.Price > 0 {
-		return util.Fixed8(ifunc.Price) * interopGasRatio
+		return toFixed8(int64(ifunc.Price))
 	}
 
 	const (
