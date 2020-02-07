@@ -35,7 +35,7 @@ func EncodeBinaryStackItem(item StackItem, w *io.BinWriter) {
 
 func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	if seen[item] {
-		w.Err = errors.New("recursive structures are not supported")
+		w.Err = errors.New("recursive structures can't be serialized")
 		return
 	}
 
@@ -50,7 +50,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBytes([]byte{byte(integerT)})
 		w.WriteVarBytes(IntToBytes(t.value))
 	case *InteropItem:
-		w.Err = errors.New("not supported")
+		w.Err = errors.New("interop item can't be serialized")
 	case *ArrayItem, *StructItem:
 		seen[item] = true
 
