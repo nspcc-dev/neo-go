@@ -14,6 +14,8 @@ type (
 	KeyValue struct {
 		Key   []byte
 		Value []byte
+
+		Exists bool
 	}
 
 	// MemBatch represents a changeset to be persisted.
@@ -54,12 +56,16 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 
 	b.Put = make([]KeyValue, 0, len(s.mem))
 	for k, v := range s.mem {
-		b.Put = append(b.Put, KeyValue{Key: []byte(k), Value: v})
+		key := []byte(k)
+		_, err := s.ps.Get(key)
+		b.Put = append(b.Put, KeyValue{Key: key, Value: v, Exists: err == nil})
 	}
 
 	b.Deleted = make([]KeyValue, 0, len(s.del))
 	for k := range s.del {
-		b.Deleted = append(b.Deleted, KeyValue{Key: []byte(k)})
+		key := []byte(k)
+		_, err := s.ps.Get(key)
+		b.Deleted = append(b.Deleted, KeyValue{Key: key, Exists: err == nil})
 	}
 
 	return &b

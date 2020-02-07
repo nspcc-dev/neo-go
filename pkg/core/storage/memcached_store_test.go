@@ -18,7 +18,7 @@ func TestMemCachedStorePersist(t *testing.T) {
 	assert.Equal(t, 0, c)
 	// persisting one key should result in one key in ps and nothing in ts
 	assert.NoError(t, ts.Put([]byte("key"), []byte("value")))
-	checkBatch(t, ts, []KeyValue{{[]byte("key"), []byte("value")}}, nil)
+	checkBatch(t, ts, []KeyValue{{Key: []byte("key"), Value: []byte("value")}}, nil)
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)
@@ -38,8 +38,8 @@ func TestMemCachedStorePersist(t *testing.T) {
 	assert.Equal(t, ErrKeyNotFound, err)
 	assert.Equal(t, []byte(nil), v)
 	checkBatch(t, ts, []KeyValue{
-		{[]byte("key"), []byte("newvalue")},
-		{[]byte("key2"), []byte("value2")},
+		{Key: []byte("key"), Value: []byte("newvalue"), Exists: true},
+		{Key: []byte("key2"), Value: []byte("value2")},
 	}, nil)
 	// two keys should be persisted (one overwritten and one new) and
 	// available in the ps
@@ -67,7 +67,7 @@ func TestMemCachedStorePersist(t *testing.T) {
 	// test persisting deletions
 	err = ts.Delete([]byte("key"))
 	assert.Equal(t, nil, err)
-	checkBatch(t, ts, nil, []KeyValue{{Key: []byte("key")}})
+	checkBatch(t, ts, nil, []KeyValue{{Key: []byte("key"), Exists: true}})
 	c, err = ts.Persist()
 	checkBatch(t, ts, nil, nil)
 	assert.Equal(t, nil, err)

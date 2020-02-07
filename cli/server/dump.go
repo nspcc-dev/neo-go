@@ -68,9 +68,14 @@ func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
 			continue
 		}
 
+		op := "Added"
+		if batch.Put[i].Exists {
+			op = "Changed"
+		}
+
 		key = toNeoStorageKey(key[1:])
 		ops = append(ops, storageOp{
-			State: "Added",
+			State: op,
 			Key:   hex.EncodeToString(key),
 			Value: "00" + hex.EncodeToString(batch.Put[i].Value),
 		})
@@ -78,7 +83,7 @@ func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
 
 	for i := range batch.Deleted {
 		key := batch.Deleted[i].Key
-		if len(key) == 0 || key[0] != byte(storage.STStorage) {
+		if len(key) == 0 || key[0] != byte(storage.STStorage) || !batch.Deleted[i].Exists {
 			continue
 		}
 
