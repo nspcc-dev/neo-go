@@ -17,7 +17,8 @@ const (
 	mapT       stackItemType = 0x82
 )
 
-func serializeItem(item StackItem) ([]byte, error) {
+// SerializeItem encodes given StackItem into the byte slice.
+func SerializeItem(item StackItem) ([]byte, error) {
 	w := io.NewBufBinWriter()
 	EncodeBinaryStackItem(item, w.BinWriter)
 	if w.Err != nil {
@@ -35,7 +36,7 @@ func EncodeBinaryStackItem(item StackItem, w *io.BinWriter) {
 
 func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	if seen[item] {
-		w.Err = errors.New("recursive structures are not supported")
+		w.Err = errors.New("recursive structures can't be serialized")
 		return
 	}
 
@@ -50,7 +51,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBytes([]byte{byte(integerT)})
 		w.WriteVarBytes(IntToBytes(t.value))
 	case *InteropItem:
-		w.Err = errors.New("not supported")
+		w.Err = errors.New("interop item can't be serialized")
 	case *ArrayItem, *StructItem:
 		seen[item] = true
 
@@ -78,7 +79,8 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	}
 }
 
-func deserializeItem(data []byte) (StackItem, error) {
+// DeserializeItem decodes StackItem from the given byte slice.
+func DeserializeItem(data []byte) (StackItem, error) {
 	r := io.NewBinReaderFromBuf(data)
 	item := DecodeBinaryStackItem(r)
 	if r.Err != nil {
