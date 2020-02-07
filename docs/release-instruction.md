@@ -62,7 +62,7 @@ Copy the github release page link to:
 
 ## Deployment
 
-Create an issue in JIRA to deploy new version to the mainnet.
+Deploy updated version to the mainnet/testnet.
 
 ## Post-release
 
