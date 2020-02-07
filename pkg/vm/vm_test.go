@@ -653,7 +653,7 @@ func TestDeserializeUnknown(t *testing.T) {
 	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(opcode.RET))
 	vm := load(prog)
 
-	data, err := serializeItem(NewBigIntegerItem(123))
+	data, err := SerializeItem(NewBigIntegerItem(123))
 	require.NoError(t, err)
 
 	data[0] = 0xFF

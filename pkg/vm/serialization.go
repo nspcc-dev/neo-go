@@ -17,7 +17,8 @@ const (
 	mapT       stackItemType = 0x82
 )
 
-func serializeItem(item StackItem) ([]byte, error) {
+// SerializeItem encodes given StackItem into the byte slice.
+func SerializeItem(item StackItem) ([]byte, error) {
 	w := io.NewBufBinWriter()
 	EncodeBinaryStackItem(item, w.BinWriter)
 	if w.Err != nil {
@@ -78,7 +79,8 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	}
 }
 
-func deserializeItem(data []byte) (StackItem, error) {
+// DeserializeItem decodes StackItem from the given byte slice.
+func DeserializeItem(data []byte) (StackItem, error) {
 	r := io.NewBinReaderFromBuf(data)
 	item := DecodeBinaryStackItem(r)
 	if r.Err != nil {

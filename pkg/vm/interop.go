@@ -93,7 +93,7 @@ func runtimeNotify(vm *VM) error {
 // RuntimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
 func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
-	data, err := serializeItem(item.value)
+	data, err := SerializeItem(item.value)
 	if err != nil {
 		return err
 	} else if len(data) > MaxItemSize {
@@ -109,7 +109,7 @@ func RuntimeSerialize(vm *VM) error {
 func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 
-	item, err := deserializeItem(data)
+	item, err := DeserializeItem(data)
 	if err != nil {
 		return err
 	}
