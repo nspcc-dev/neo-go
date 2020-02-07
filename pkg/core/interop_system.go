@@ -343,7 +343,17 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 	// It can be just about anything.
 	e := v.Estack().Pop()
-	ne := state.NotificationEvent{ScriptHash: getContextScriptHash(v, 0), Item: e.Item()}
+	item := e.Item()
+	// But it has to be serializable, otherwise we either have some broken
+	// (recursive) structure inside or an interop item that can't be used
+	// outside of the interop subsystem anyway. I'd probably fail transactions
+	// that emit such broken notifications, but that might break compatibility
+	// with testnet/mainnet, so we're replacing these with error messages.
+	_, err := vm.SerializeItem(item)
+	if err != nil {
+		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
+	}
+	ne := state.NotificationEvent{ScriptHash: getContextScriptHash(v, 0), Item: item}
 	ic.notifications = append(ic.notifications, ne)
 	return nil
 }
