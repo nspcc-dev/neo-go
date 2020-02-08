@@ -1220,24 +1220,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if v.checkhash == nil {
 			panic("VM is not set up properly for signature checks")
 		}
-		sigok := true
-		// j counts keys and i counts signatures.
-		j := 0
-		for i := 0; sigok && j < len(pkeys) && i < len(sigs); {
-			pkey := v.bytesToPublicKey(pkeys[j])
-			// We only move to the next signature if the check was
-			// successful, but if it's not maybe the next key will
-			// fit, so we always move to the next key.
-			if pkey.Verify(sigs[i], v.checkhash) {
-				i++
-			}
-			j++
-			// When there are more signatures left to check than
-			// there are keys the check won't successed for sure.
-			if len(sigs)-i > len(pkeys)-j {
-				sigok = false
-			}
-		}
+
+		sigok := checkMultisigPar(v, pkeys, sigs)
 		v.estack.PushVal(sigok)
 
 	case opcode.NEWMAP:
@@ -1426,6 +1410,109 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
 	}
 
 	return offset
+}
+
+func checkMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
+	if len(sigs) == 1 {
+		return checkMultisig1(v, pkeys, sigs[0])
+	}
+
+	k1, k2 := 0, len(pkeys)-1
+	s1, s2 := 0, len(sigs)-1
+
+	type task struct {
+		pub    *keys.PublicKey
+		signum int
+	}
+
+	type verify struct {
+		ok     bool
+		signum int
+	}
+
+	worker := func(ch <-chan task, result chan verify) {
+		for {
+			t, ok := <-ch
+			if !ok {
+				return
+			}
+
+			result <- verify{
+				signum: t.signum,
+				ok:     t.pub.Verify(sigs[t.signum], v.checkhash),
+			}
+		}
+	}
+
+	const workerCount = 3
+	tasks := make(chan task, 2)
+	results := make(chan verify, len(sigs))
+	for i := 0; i < workerCount; i++ {
+		go worker(tasks, results)
+	}
+
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1]), signum: s1}
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2]), signum: s2}
+
+	sigok := true
+	taskCount := 2
+
+loop:
+	for r := range results {
+		goingForward := true
+
+		taskCount--
+		if r.signum == s2 {
+			goingForward = false
+		}
+		if k1+1 == k2 {
+			sigok = r.ok && s1+1 == s2
+			if taskCount != 0 && sigok {
+				continue
+			}
+			break loop
+		} else if r.ok {
+			if s1+1 == s2 {
+				if taskCount != 0 && sigok {
+					continue
+				}
+				break loop
+			}
+			if goingForward {
+				s1++
+			} else {
+				s2--
+			}
+		}
+
+		var nextSig, nextKey int
+		if goingForward {
+			k1++
+			nextSig = s1
+			nextKey = k1
+		} else {
+			k2--
+			nextSig = s2
+			nextKey = k2
+		}
+		taskCount++
+		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey]), signum: nextSig}
+	}
+
+	close(tasks)
+
+	return sigok
+}
+
+func checkMultisig1(v *VM, pkeys [][]byte, sig []byte) bool {
+	for i := range pkeys {
+		pkey := v.bytesToPublicKey(pkeys[i])
+		if pkey.Verify(sig, v.checkhash) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func cloneIfStruct(item StackItem) StackItem {
