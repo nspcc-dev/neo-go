@@ -11,9 +11,9 @@ type Ping struct {
 	// Index of the last block.
 	LastBlockIndex uint32
 	// Timestamp.
-	Timestamp      uint32
+	Timestamp uint32
 	// Nonce of the server.
-	Nonce          uint32
+	Nonce uint32
 }
 
 // NewPing creates new Ping payload.
