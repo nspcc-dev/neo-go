@@ -14,6 +14,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
@@ -73,17 +74,17 @@ func (c *codegen) convertBasicType(t types.TypeAndValue, typ *types.Basic) {
 	switch typ.Kind() {
 	case types.Int, types.UntypedInt, types.Uint:
 		val, _ := constant.Int64Val(t.Value)
-		emitInt(c.prog.BinWriter, val)
+		emit.Int(c.prog.BinWriter, val)
 	case types.String, types.UntypedString:
 		val := constant.StringVal(t.Value)
-		emitString(c.prog.BinWriter, val)
+		emit.String(c.prog.BinWriter, val)
 	case types.Bool, types.UntypedBool:
 		val := constant.BoolVal(t.Value)
-		emitBool(c.prog.BinWriter, val)
+		emit.Bool(c.prog.BinWriter, val)
 	case types.Byte:
 		val, _ := constant.Int64Val(t.Value)
 		b := byte(val)
-		emitBytes(c.prog.BinWriter, []byte{b})
+		emit.Bytes(c.prog.BinWriter, []byte{b})
 	default:
 		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
 		return
@@ -100,33 +101,33 @@ func (c *codegen) emitLoadLocal(name string) {
 }
 
 func (c *codegen) emitLoadLocalPos(pos int) {
-	emitOpcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
-	emitInt(c.prog.BinWriter, int64(pos))
-	emitOpcode(c.prog.BinWriter, opcode.PICKITEM)
+	emit.Opcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
+	emit.Int(c.prog.BinWriter, int64(pos))
+	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
 }
 
 func (c *codegen) emitStoreLocal(pos int) {
-	emitOpcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
+	emit.Opcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
 
 	if pos < 0 {
 		c.prog.Err = fmt.Errorf("invalid position to store local: %d", pos)
 		return
 	}
 
-	emitInt(c.prog.BinWriter, int64(pos))
-	emitOpcode(c.prog.BinWriter, opcode.ROT)
-	emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+	emit.Int(c.prog.BinWriter, int64(pos))
+	emit.Opcode(c.prog.BinWriter, opcode.ROT)
+	emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 }
 
 func (c *codegen) emitLoadField(i int) {
-	emitInt(c.prog.BinWriter, int64(i))
-	emitOpcode(c.prog.BinWriter, opcode.PICKITEM)
+	emit.Int(c.prog.BinWriter, int64(i))
+	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
 }
 
 func (c *codegen) emitStoreStructField(i int) {
-	emitInt(c.prog.BinWriter, int64(i))
-	emitOpcode(c.prog.BinWriter, opcode.ROT)
-	emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+	emit.Int(c.prog.BinWriter, int64(i))
+	emit.Opcode(c.prog.BinWriter, opcode.ROT)
+	emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 }
 
 // convertGlobals traverses the AST and only converts global declarations.
@@ -170,9 +171,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
-	emitInt(c.prog.BinWriter, f.stackSize()+countGlobals(file))
-	emitOpcode(c.prog.BinWriter, opcode.NEWARRAY)
-	emitOpcode(c.prog.BinWriter, opcode.TOALTSTACK)
+	emit.Int(c.prog.BinWriter, f.stackSize()+countGlobals(file))
+	emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+	emit.Opcode(c.prog.BinWriter, opcode.TOALTSTACK)
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -210,9 +211,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
 	if !hasReturnStmt(decl) {
-		emitOpcode(c.prog.BinWriter, opcode.FROMALTSTACK)
-		emitOpcode(c.prog.BinWriter, opcode.DROP)
-		emitOpcode(c.prog.BinWriter, opcode.RET)
+		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		emit.Opcode(c.prog.BinWriter, opcode.RET)
 	}
 }
 
@@ -258,7 +259,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					}
 
 					if t.Name == "_" {
-						emitOpcode(c.prog.BinWriter, opcode.DROP)
+						emit.Opcode(c.prog.BinWriter, opcode.DROP)
 					} else {
 						l := c.scope.loadLocal(t.Name)
 						c.emitStoreLocal(l)
@@ -297,8 +298,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emitStoreStructField(index)
 				case *ast.Ident:
 					c.emitLoadLocal(ind.Name)
-					emitOpcode(c.prog.BinWriter, opcode.ROT)
-					emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+					emit.Opcode(c.prog.BinWriter, opcode.ROT)
+					emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 				default:
 					c.prog.Err = fmt.Errorf("unsupported index expression")
 					return nil
@@ -316,9 +317,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Results[i])
 		}
 
-		emitOpcode(c.prog.BinWriter, opcode.FROMALTSTACK)
-		emitOpcode(c.prog.BinWriter, opcode.DROP) // Cleanup the stack.
-		emitOpcode(c.prog.BinWriter, opcode.RET)
+		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
+		emit.Opcode(c.prog.BinWriter, opcode.DROP) // Cleanup the stack.
+		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		return nil
 
 	case *ast.IfStmt:
@@ -328,13 +329,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
-			emitJmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lElse))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lElse))
 		}
 
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
 		if n.Else != nil {
-			emitJmp(c.prog.BinWriter, opcode.JMP, int16(lElseEnd))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(lElseEnd))
 		}
 
 		c.setLabel(lElse)
@@ -358,13 +359,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 			if l := len(cc.List); l != 0 { // if not `default`
 				for j := range cc.List {
-					emitOpcode(c.prog.BinWriter, opcode.DUP)
+					emit.Opcode(c.prog.BinWriter, opcode.DUP)
 					ast.Walk(c, cc.List[j])
-					emitOpcode(c.prog.BinWriter, eqOpcode)
+					emit.Opcode(c.prog.BinWriter, eqOpcode)
 					if j == l-1 {
-						emitJmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lEnd))
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lEnd))
 					} else {
-						emitJmp(c.prog.BinWriter, opcode.JMPIF, int16(lStart))
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(lStart))
 					}
 				}
 			}
@@ -373,12 +374,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for _, stmt := range cc.Body {
 				ast.Walk(c, stmt)
 			}
-			emitJmp(c.prog.BinWriter, opcode.JMP, int16(switchEnd))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(switchEnd))
 			c.setLabel(lEnd)
 		}
 
 		c.setLabel(switchEnd)
-		emitOpcode(c.prog.BinWriter, opcode.DROP)
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 
 		return nil
 
@@ -421,8 +422,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for i := ln - 1; i >= 0; i-- {
 				ast.Walk(c, n.Elts[i])
 			}
-			emitInt(c.prog.BinWriter, int64(ln))
-			emitOpcode(c.prog.BinWriter, opcode.PACK)
+			emit.Int(c.prog.BinWriter, int64(ln))
+			emit.Opcode(c.prog.BinWriter, opcode.PACK)
 			return nil
 		}
 
@@ -439,13 +440,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Op {
 		case token.LAND:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(len(c.l)-1))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(len(c.l)-1))
 			ast.Walk(c, n.Y)
 			return nil
 
 		case token.LOR:
 			ast.Walk(c, n.X)
-			emitJmp(c.prog.BinWriter, opcode.JMPIF, int16(len(c.l)-3))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(len(c.l)-3))
 			ast.Walk(c, n.Y)
 			return nil
 
@@ -470,21 +471,21 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			case n.Op == token.ADD:
 				// VM has separate opcodes for number and string concatenation
 				if isStringType(tinfo.Type) {
-					emitOpcode(c.prog.BinWriter, opcode.CAT)
+					emit.Opcode(c.prog.BinWriter, opcode.CAT)
 				} else {
-					emitOpcode(c.prog.BinWriter, opcode.ADD)
+					emit.Opcode(c.prog.BinWriter, opcode.ADD)
 				}
 			case n.Op == token.EQL:
 				// VM has separate opcodes for number and string equality
 				op := c.getEqualityOpcode(n.X)
-				emitOpcode(c.prog.BinWriter, op)
+				emit.Opcode(c.prog.BinWriter, op)
 			case n.Op == token.NEQ:
 				// VM has separate opcodes for number and string equality
 				if isStringType(c.typeInfo.Types[n.X].Type) {
-					emitOpcode(c.prog.BinWriter, opcode.EQUAL)
-					emitOpcode(c.prog.BinWriter, opcode.NOT)
+					emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
+					emit.Opcode(c.prog.BinWriter, opcode.NOT)
 				} else {
-					emitOpcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
 				}
 			default:
 				c.convertToken(n.Op)
@@ -540,14 +541,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Do not swap for builtin functions.
 		if !isBuiltin {
 			if numArgs == 2 {
-				emitOpcode(c.prog.BinWriter, opcode.SWAP)
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 			} else if numArgs == 3 {
-				emitInt(c.prog.BinWriter, 2)
-				emitOpcode(c.prog.BinWriter, opcode.XSWAP)
+				emit.Int(c.prog.BinWriter, 2)
+				emit.Opcode(c.prog.BinWriter, opcode.XSWAP)
 			} else {
 				for i := 1; i < numArgs; i++ {
-					emitInt(c.prog.BinWriter, int64(i))
-					emitOpcode(c.prog.BinWriter, opcode.ROLL)
+					emit.Int(c.prog.BinWriter, int64(i))
+					emit.Opcode(c.prog.BinWriter, opcode.ROLL)
 				}
 			}
 		}
@@ -561,7 +562,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case isSyscall(f):
 			c.convertSyscall(f.selector.Name, f.name)
 		default:
-			emitCall(c.prog.BinWriter, opcode.CALL, int16(f.label))
+			emit.Call(c.prog.BinWriter, opcode.CALL, int16(f.label))
 		}
 
 		return nil
@@ -591,11 +592,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case token.ADD:
 			// +10 == 10, no need to do anything in this case
 		case token.SUB:
-			emitOpcode(c.prog.BinWriter, opcode.NEGATE)
+			emit.Opcode(c.prog.BinWriter, opcode.NEGATE)
 		case token.NOT:
-			emitOpcode(c.prog.BinWriter, opcode.NOT)
+			emit.Opcode(c.prog.BinWriter, opcode.NOT)
 		case token.XOR:
-			emitOpcode(c.prog.BinWriter, opcode.INVERT)
+			emit.Opcode(c.prog.BinWriter, opcode.INVERT)
 		default:
 			c.prog.Err = fmt.Errorf("invalid unary operator: %s", n.Op)
 			return nil
@@ -634,7 +635,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Index)
 		}
 
-		emitOpcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
+		emit.Opcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
 
 		return nil
 
@@ -654,7 +655,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.Cond)
 
 		// Jump if the condition is false
-		emitJmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(fend))
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(fend))
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
@@ -663,7 +664,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// Jump back to condition.
-		emitJmp(c.prog.BinWriter, opcode.JMP, int16(fstart))
+		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(fstart))
 		c.setLabel(fend)
 
 		return nil
@@ -721,11 +722,11 @@ func (c *codegen) convertSyscall(api, name string) {
 		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
 		return
 	}
-	emitSyscall(c.prog.BinWriter, api)
+	emit.Syscall(c.prog.BinWriter, api)
 
 	// This NOP instruction is basically not needed, but if we do, we have a
 	// one to one matching avm file with neo-python which is very nice for debugging.
-	emitOpcode(c.prog.BinWriter, opcode.NOP)
+	emit.Opcode(c.prog.BinWriter, opcode.NOP)
 }
 
 func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
@@ -742,44 +743,44 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
 		if isStringType(typ) {
-			emitOpcode(c.prog.BinWriter, opcode.SIZE)
+			emit.Opcode(c.prog.BinWriter, opcode.SIZE)
 		} else {
-			emitOpcode(c.prog.BinWriter, opcode.ARRAYSIZE)
+			emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
 		}
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
 		if isByteArrayType(typ) {
-			emitOpcode(c.prog.BinWriter, opcode.CAT)
+			emit.Opcode(c.prog.BinWriter, opcode.CAT)
 		} else {
-			emitOpcode(c.prog.BinWriter, opcode.OVER)
-			emitOpcode(c.prog.BinWriter, opcode.SWAP)
-			emitOpcode(c.prog.BinWriter, opcode.APPEND)
+			emit.Opcode(c.prog.BinWriter, opcode.OVER)
+			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+			emit.Opcode(c.prog.BinWriter, opcode.APPEND)
 		}
 	case "panic":
 		arg := expr.Args[0]
 		if isExprNil(arg) {
-			emitOpcode(c.prog.BinWriter, opcode.DROP)
-			emitOpcode(c.prog.BinWriter, opcode.THROW)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else if isStringType(c.typeInfo.Types[arg].Type) {
 			ast.Walk(c, arg)
-			emitSyscall(c.prog.BinWriter, "Neo.Runtime.Log")
-			emitOpcode(c.prog.BinWriter, opcode.THROW)
+			emit.Syscall(c.prog.BinWriter, "Neo.Runtime.Log")
+			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
 	case "SHA256":
-		emitOpcode(c.prog.BinWriter, opcode.SHA256)
+		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":
-		emitOpcode(c.prog.BinWriter, opcode.SHA1)
+		emit.Opcode(c.prog.BinWriter, opcode.SHA1)
 	case "Hash256":
-		emitOpcode(c.prog.BinWriter, opcode.HASH256)
+		emit.Opcode(c.prog.BinWriter, opcode.HASH256)
 	case "Hash160":
-		emitOpcode(c.prog.BinWriter, opcode.HASH160)
+		emit.Opcode(c.prog.BinWriter, opcode.HASH160)
 	case "VerifySignature":
-		emitOpcode(c.prog.BinWriter, opcode.VERIFY)
+		emit.Opcode(c.prog.BinWriter, opcode.VERIFY)
 	case "AppCall":
-		emitOpcode(c.prog.BinWriter, opcode.APPCALL)
+		emit.Opcode(c.prog.BinWriter, opcode.APPCALL)
 		buf := c.getByteArray(expr.Args[0])
 		if len(buf) != 20 {
 			c.prog.Err = errors.New("invalid script hash")
@@ -787,7 +788,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 
 		c.prog.WriteBytes(buf)
 	case "Equals":
-		emitOpcode(c.prog.BinWriter, opcode.EQUAL)
+		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
 		// We can be sure that this is a ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
@@ -800,7 +801,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			return
 		}
 		bytes := uint160.BytesBE()
-		emitBytes(c.prog.BinWriter, bytes)
+		emit.Bytes(c.prog.BinWriter, bytes)
 	}
 }
 
@@ -835,17 +836,17 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 		val, _ := constant.Int64Val(t.Value)
 		buf[i] = byte(val)
 	}
-	emitBytes(c.prog.BinWriter, buf)
+	emit.Bytes(c.prog.BinWriter, buf)
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
-	emitOpcode(c.prog.BinWriter, opcode.NEWMAP)
+	emit.Opcode(c.prog.BinWriter, opcode.NEWMAP)
 	for i := range lit.Elts {
 		elem := lit.Elts[i].(*ast.KeyValueExpr)
-		emitOpcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		ast.Walk(c, elem.Key)
 		ast.Walk(c, elem.Value)
-		emitOpcode(c.prog.BinWriter, opcode.SETITEM)
+		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }
 
@@ -858,10 +859,10 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		return
 	}
 
-	emitOpcode(c.prog.BinWriter, opcode.NOP)
-	emitInt(c.prog.BinWriter, int64(strct.NumFields()))
-	emitOpcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-	emitOpcode(c.prog.BinWriter, opcode.TOALTSTACK)
+	emit.Opcode(c.prog.BinWriter, opcode.NOP)
+	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
+	emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	emit.Opcode(c.prog.BinWriter, opcode.TOALTSTACK)
 
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
@@ -894,59 +895,59 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 		c.emitLoadConst(typeAndVal)
 		c.emitStoreLocal(i)
 	}
-	emitOpcode(c.prog.BinWriter, opcode.FROMALTSTACK)
+	emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 }
 
 func (c *codegen) convertToken(tok token.Token) {
 	switch tok {
 	case token.ADD_ASSIGN:
-		emitOpcode(c.prog.BinWriter, opcode.ADD)
+		emit.Opcode(c.prog.BinWriter, opcode.ADD)
 	case token.SUB_ASSIGN:
-		emitOpcode(c.prog.BinWriter, opcode.SUB)
+		emit.Opcode(c.prog.BinWriter, opcode.SUB)
 	case token.MUL_ASSIGN:
-		emitOpcode(c.prog.BinWriter, opcode.MUL)
+		emit.Opcode(c.prog.BinWriter, opcode.MUL)
 	case token.QUO_ASSIGN:
-		emitOpcode(c.prog.BinWriter, opcode.DIV)
+		emit.Opcode(c.prog.BinWriter, opcode.DIV)
 	case token.REM_ASSIGN:
-		emitOpcode(c.prog.BinWriter, opcode.MOD)
+		emit.Opcode(c.prog.BinWriter, opcode.MOD)
 	case token.ADD:
-		emitOpcode(c.prog.BinWriter, opcode.ADD)
+		emit.Opcode(c.prog.BinWriter, opcode.ADD)
 	case token.SUB:
-		emitOpcode(c.prog.BinWriter, opcode.SUB)
+		emit.Opcode(c.prog.BinWriter, opcode.SUB)
 	case token.MUL:
-		emitOpcode(c.prog.BinWriter, opcode.MUL)
+		emit.Opcode(c.prog.BinWriter, opcode.MUL)
 	case token.QUO:
-		emitOpcode(c.prog.BinWriter, opcode.DIV)
+		emit.Opcode(c.prog.BinWriter, opcode.DIV)
 	case token.REM:
-		emitOpcode(c.prog.BinWriter, opcode.MOD)
+		emit.Opcode(c.prog.BinWriter, opcode.MOD)
 	case token.LSS:
-		emitOpcode(c.prog.BinWriter, opcode.LT)
+		emit.Opcode(c.prog.BinWriter, opcode.LT)
 	case token.LEQ:
-		emitOpcode(c.prog.BinWriter, opcode.LTE)
+		emit.Opcode(c.prog.BinWriter, opcode.LTE)
 	case token.GTR:
-		emitOpcode(c.prog.BinWriter, opcode.GT)
+		emit.Opcode(c.prog.BinWriter, opcode.GT)
 	case token.GEQ:
-		emitOpcode(c.prog.BinWriter, opcode.GTE)
+		emit.Opcode(c.prog.BinWriter, opcode.GTE)
 	case token.EQL:
-		emitOpcode(c.prog.BinWriter, opcode.NUMEQUAL)
+		emit.Opcode(c.prog.BinWriter, opcode.NUMEQUAL)
 	case token.NEQ:
-		emitOpcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+		emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
 	case token.DEC:
-		emitOpcode(c.prog.BinWriter, opcode.DEC)
+		emit.Opcode(c.prog.BinWriter, opcode.DEC)
 	case token.INC:
-		emitOpcode(c.prog.BinWriter, opcode.INC)
+		emit.Opcode(c.prog.BinWriter, opcode.INC)
 	case token.NOT:
-		emitOpcode(c.prog.BinWriter, opcode.NOT)
+		emit.Opcode(c.prog.BinWriter, opcode.NOT)
 	case token.AND:
-		emitOpcode(c.prog.BinWriter, opcode.AND)
+		emit.Opcode(c.prog.BinWriter, opcode.AND)
 	case token.OR:
-		emitOpcode(c.prog.BinWriter, opcode.OR)
+		emit.Opcode(c.prog.BinWriter, opcode.OR)
 	case token.SHL:
-		emitOpcode(c.prog.BinWriter, opcode.SHL)
+		emit.Opcode(c.prog.BinWriter, opcode.SHL)
 	case token.SHR:
-		emitOpcode(c.prog.BinWriter, opcode.SHR)
+		emit.Opcode(c.prog.BinWriter, opcode.SHR)
 	case token.XOR:
-		emitOpcode(c.prog.BinWriter, opcode.XOR)
+		emit.Opcode(c.prog.BinWriter, opcode.XOR)
 	default:
 		c.prog.Err = fmt.Errorf("compiler could not convert token: %s", tok)
 		return

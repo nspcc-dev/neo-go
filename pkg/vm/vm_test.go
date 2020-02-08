@@ -8,9 +8,12 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/io"
+
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,9 +33,9 @@ func TestInteropHook(t *testing.T) {
 	v := New()
 	v.RegisterInteropGetter(fooInteropGetter)
 
-	buf := new(bytes.Buffer)
-	EmitSyscall(buf, "foo")
-	EmitOpcode(buf, opcode.RET)
+	buf := io.NewBufBinWriter()
+	emit.Syscall(buf.BinWriter, "foo")
+	emit.Opcode(buf.BinWriter, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -43,12 +46,12 @@ func TestInteropHookViaID(t *testing.T) {
 	v := New()
 	v.RegisterInteropGetter(fooInteropGetter)
 
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	fooid := InteropNameToID([]byte("foo"))
 	var id = make([]byte, 4)
 	binary.LittleEndian.PutUint32(id, fooid)
-	_ = EmitSyscall(buf, string(id))
-	_ = EmitOpcode(buf, opcode.RET)
+	emit.Syscall(buf.BinWriter, string(id))
+	emit.Opcode(buf.BinWriter, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
@@ -130,10 +133,10 @@ func TestBytesToPublicKey(t *testing.T) {
 }
 
 func TestPushBytes1to75(t *testing.T) {
-	buf := new(bytes.Buffer)
+	buf := io.NewBufBinWriter()
 	for i := 1; i <= 75; i++ {
 		b := randomBytes(i)
-		EmitBytes(buf, b)
+		emit.Bytes(buf.BinWriter, b)
 		vm := load(buf.Bytes())
 		err := vm.Step()
 		require.NoError(t, err)

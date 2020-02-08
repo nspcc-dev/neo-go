@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
+
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
@@ -196,7 +198,7 @@ func compareItems(t *testing.T, a, b StackItem) {
 		case *BigIntegerItem:
 			require.Equal(t, val, ac.value.Int64())
 		case *ByteArrayItem:
-			require.Equal(t, val, BytesToInt(ac.value).Int64())
+			require.Equal(t, val, emit.BytesToInt(ac.value).Int64())
 		case *BoolItem:
 			if ac.value {
 				require.Equal(t, val, int64(1))

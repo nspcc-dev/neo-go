@@ -1,12 +1,12 @@
 package smartcontract
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
@@ -22,22 +22,14 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 		return nil, fmt.Errorf("public key count %d exceeds maximum of length 1024", len(publicKeys))
 	}
 
-	buf := new(bytes.Buffer)
-	if err := vm.EmitInt(buf, int64(m)); err != nil {
-		return nil, err
-	}
+	buf := io.NewBufBinWriter()
+	emit.Int(buf.BinWriter, int64(m))
 	sort.Sort(publicKeys)
 	for _, pubKey := range publicKeys {
-		if err := vm.EmitBytes(buf, pubKey.Bytes()); err != nil {
-			return nil, err
-		}
+		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}
-	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
-		return nil, err
-	}
-	if err := vm.EmitOpcode(buf, opcode.CHECKMULTISIG); err != nil {
-		return nil, err
-	}
+	emit.Int(buf.BinWriter, int64(len(publicKeys)))
+	emit.Opcode(buf.BinWriter, opcode.CHECKMULTISIG)
 
 	return buf.Bytes(), nil
 }

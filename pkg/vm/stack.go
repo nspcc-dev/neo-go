@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 )
 
 // Stack implementation for the neo-go virtual machine. The stack implements
@@ -81,7 +83,7 @@ func (e *Element) BigInt() *big.Int {
 		return big.NewInt(0)
 	default:
 		b := t.Value().([]uint8)
-		return BytesToInt(b)
+		return emit.BytesToInt(b)
 	}
 }
 

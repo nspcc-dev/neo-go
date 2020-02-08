@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -23,6 +22,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -1485,11 +1485,8 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 	verification := witness.VerificationScript
 
 	if len(verification) == 0 {
-		bb := new(bytes.Buffer)
-		err := vm.EmitAppCall(bb, hash, false)
-		if err != nil {
-			return nil, err
-		}
+		bb := io.NewBufBinWriter()
+		emit.AppCall(bb.BinWriter, hash, false)
 		verification = bb.Bytes()
 	} else if h := witness.ScriptHash(); hash != h {
 		return nil, errors.New("witness hash mismatch")

@@ -3,6 +3,8 @@ package vm
 import (
 	"errors"
 
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
+
 	"github.com/CityOfZion/neo-go/pkg/io"
 )
 
@@ -49,7 +51,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBool(t.value)
 	case *BigIntegerItem:
 		w.WriteBytes([]byte{byte(integerT)})
-		w.WriteVarBytes(IntToBytes(t.value))
+		w.WriteVarBytes(emit.IntToBytes(t.value))
 	case *InteropItem:
 		w.Err = errors.New("interop item can't be serialized")
 	case *ArrayItem, *StructItem:
@@ -108,7 +110,7 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		return NewBoolItem(b)
 	case integerT:
 		data := r.ReadVarBytes()
-		num := BytesToInt(data)
+		num := emit.BytesToInt(data)
 		return &BigIntegerItem{
 			value: num,
 		}
