@@ -55,9 +55,7 @@ func TestFromAddress(t *testing.T) {
 func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
-	func Main(args []interface{}) int {
-		a := args[0].(int)
-		b := args[1].(int)
+	func Main(a int, b int) int {
 		return a + b
 	}
 	`
@@ -109,7 +107,7 @@ func TestAppCall(t *testing.T) {
 		func Main() int {
 			x := 13
 			y := 29
-			result := engine.AppCall([]byte(scriptHash), []interface{}{x, y})
+			result := engine.AppCall([]byte(scriptHash), x, y)
 			return result.(int)
 		}
 		`
@@ -130,7 +128,7 @@ func getAppCallScript(h string) string {
 	func Main() int {
 		x := 13
 		y := 29
-		result := engine.AppCall(` + h + `, []interface{}{x, y})
+		result := engine.AppCall(` + h + `, x, y)
 		return result.(int)
 	}
 	`
