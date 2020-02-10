@@ -786,6 +786,9 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "VerifySignature":
 		emit.Opcode(c.prog.BinWriter, opcode.VERIFY)
 	case "AppCall":
+		numArgs := len(expr.Args) - 1
+		c.emitReverse(numArgs)
+
 		emit.Opcode(c.prog.BinWriter, opcode.APPCALL)
 		buf := c.getByteArray(expr.Args[0])
 		if len(buf) != 20 {
