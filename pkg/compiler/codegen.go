@@ -540,17 +540,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
-			if numArgs == 2 {
-				emit.Opcode(c.prog.BinWriter, opcode.SWAP)
-			} else if numArgs == 3 {
-				emit.Int(c.prog.BinWriter, 2)
-				emit.Opcode(c.prog.BinWriter, opcode.XSWAP)
-			} else {
-				for i := 1; i < numArgs; i++ {
-					emit.Int(c.prog.BinWriter, int64(i))
-					emit.Opcode(c.prog.BinWriter, opcode.ROLL)
-				}
-			}
+			c.emitReverse(numArgs)
 		}
 
 		// Check builtin first to avoid nil pointer on funcScope!
@@ -678,6 +668,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+// emitReverse reverses top num items of the stack.
+func (c *codegen) emitReverse(num int) {
+	switch num {
+	case 2:
+		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+	case 3:
+		emit.Int(c.prog.BinWriter, 2)
+		emit.Opcode(c.prog.BinWriter, opcode.XSWAP)
+	default:
+		for i := 1; i < num; i++ {
+			emit.Int(c.prog.BinWriter, int64(i))
+			emit.Opcode(c.prog.BinWriter, opcode.ROLL)
+		}
+	}
 }
 
 func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
