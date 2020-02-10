@@ -27,6 +27,7 @@ const (
 )
 
 var (
+	errGone           = errors.New("the peer is gone already")
 	errStateMismatch  = errors.New("tried to send protocol message before handshake completed")
 	errPingPong       = errors.New("ping/pong timeout")
 	errUnexpectedPong = errors.New("pong message wasn't expected")
@@ -78,7 +79,11 @@ func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
-	queue <- msg
+	select {
+	case queue <- msg:
+	case <-p.done:
+		return errGone
+	}
 	return nil
 }
 
