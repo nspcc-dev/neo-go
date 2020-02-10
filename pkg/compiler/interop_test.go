@@ -2,7 +2,6 @@ package compiler_test
 
 import (
 	"fmt"
-	"math/big"
 	"strings"
 	"testing"
 
@@ -55,10 +54,8 @@ func TestFromAddress(t *testing.T) {
 func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
-	func Main(args []interface{}) int {
-		a := args[0].(int)
-		b := args[1].(int)
-		return a + b
+	func Main(a []byte, b []byte) []byte {
+		return append(a, b...)
 	}
 	`
 
@@ -80,7 +77,7 @@ func TestAppCall(t *testing.T) {
 
 		require.NoError(t, v.Run())
 
-		assertResult(t, v, big.NewInt(42))
+		assertResult(t, v, []byte{1, 2, 3, 4})
 	})
 
 	t.Run("missing script", func(t *testing.T) {
@@ -106,11 +103,11 @@ func TestAppCall(t *testing.T) {
 		package foo
 		import "github.com/CityOfZion/neo-go/pkg/interop/engine"
 		const scriptHash = ` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `
-		func Main() int {
-			x := 13
-			y := 29
-			result := engine.AppCall([]byte(scriptHash), []interface{}{x, y})
-			return result.(int)
+		func Main() []byte {
+			x := []byte{1, 2}
+			y := []byte{3, 4}
+			result := engine.AppCall([]byte(scriptHash), x, y)
+			return result.([]byte)
 		}
 		`
 
@@ -119,7 +116,7 @@ func TestAppCall(t *testing.T) {
 
 		require.NoError(t, v.Run())
 
-		assertResult(t, v, big.NewInt(42))
+		assertResult(t, v, []byte{1, 2, 3, 4})
 	})
 }
 
@@ -127,11 +124,11 @@ func getAppCallScript(h string) string {
 	return `
 	package foo
 	import "github.com/CityOfZion/neo-go/pkg/interop/engine"
-	func Main() int {
-		x := 13
-		y := 29
-		result := engine.AppCall(` + h + `, []interface{}{x, y})
-		return result.(int)
+	func Main() []byte {
+		x := []byte{1, 2}
+		y := []byte{3, 4}
+		result := engine.AppCall(` + h + `, x, y)
+		return result.([]byte)
 	}
 	`
 }
