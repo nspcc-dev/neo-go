@@ -309,6 +309,29 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		return nil
 
+	case *ast.SliceExpr:
+		name := n.X.(*ast.Ident).Name
+		c.emitLoadLocal(name)
+
+		if n.Low != nil {
+			ast.Walk(c, n.Low)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+		}
+
+		if n.High != nil {
+			ast.Walk(c, n.High)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.OVER)
+			emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
+		}
+
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.SUB)
+		emit.Opcode(c.prog.BinWriter, opcode.SUBSTR)
+
+		return nil
+
 	case *ast.ReturnStmt:
 		l := c.newLabel()
 		c.setLabel(l)

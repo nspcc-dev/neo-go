@@ -69,6 +69,65 @@ var sliceTestCases = []testCase{
 		`,
 		big.NewInt(15),
 	},
+	{
+		"sub-slice with literal bounds",
+		`
+		package foo
+		func Main() []byte {
+			a := []byte{0, 1, 2, 3}
+			b := a[1:3]
+			return b
+		}`,
+		[]byte{1, 2},
+	},
+	{
+		"sub-slice with constant bounds",
+		`
+		package foo
+		const x = 1
+		const y = 3
+		func Main() []byte {
+			a := []byte{0, 1, 2, 3}
+			b := a[x:y]
+			return b
+		}`,
+		[]byte{1, 2},
+	},
+	{
+		"sub-slice with variable bounds",
+		`
+		package foo
+		func Main() []byte {
+			a := []byte{0, 1, 2, 3}
+			x := 1
+			y := 3
+			b := a[x:y]
+			return b
+		}`,
+		[]byte{1, 2},
+	},
+	{
+		"sub-slice with no lower bound",
+		`
+		package foo
+		func Main() []byte {
+			a := []byte{0, 1, 2, 3}
+			b := a[:3]
+			return b
+		}`,
+		[]byte{0, 1, 2},
+	},
+	{
+		"sub-slice with no upper bound",
+		`
+		package foo
+		func Main() []byte {
+			a := []byte{0, 1, 2, 3}
+			b := a[2:]
+			return b
+		}`,
+		[]byte{2, 3},
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
