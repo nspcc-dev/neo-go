@@ -94,6 +94,71 @@ var structTestCases = []testCase{
 		big.NewInt(12),
 	},
 	{
+		"initialize struct field from variable",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+		}
+
+		func Main() int {
+			x := 10
+			t := token {
+				x: x,
+				y: 4,
+			}
+			y := t.x + t.y
+			return y
+		}`,
+		big.NewInt(14),
+	},
+	{
+		"assign a variable to a struct field",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+		}
+
+		func Main() int {
+			ten := 10
+			t := token {
+				x: 2,
+				y: 4,
+			}
+			t.x = ten
+			y := t.y + t.x
+			return y
+		}`,
+		big.NewInt(14),
+	},
+	{
+		"assign a struct field to a struct field",
+		`
+		package foo
+		type token struct {
+			x int
+			y int
+		}
+
+		func Main() int {
+			t1 := token {
+				x: 2,
+				y: 4,
+			}
+			t2 := token {
+				x: 3,
+				y: 5,
+			}
+			t1.x = t2.y
+			y := t1.x + t2.x
+			return y
+		}`,
+		big.NewInt(8),
+	},
+	{
 		"initialize same struct twice",
 		`
 		package foo
