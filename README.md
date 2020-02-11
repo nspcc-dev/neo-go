@@ -109,7 +109,7 @@ describing the feature/topic you are going to implement.
 # Contact
 
 - [@roman-khimov](https://github.com/roman-khimov) on GitHub
-- [@volekerb](https://github.com/volekerb) on Github
+- [@fyrchik](https://github.com/fyrchik) on Github
 - Reach out to us on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
