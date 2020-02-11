@@ -412,7 +412,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 		// Process TX inputs that are grouped by previous hash.
 		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
-			prevTX, prevTXHeight, err := bc.GetTransaction(prevHash)
+			prevTX, prevTXHeight, err := bc.dao.GetTransaction(prevHash)
 			if err != nil {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
@@ -812,7 +812,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, fmt.Errorf("only header is available")
 	}
 	for _, tx := range block.Transactions {
-		stx, _, err := bc.GetTransaction(tx.Hash())
+		stx, _, err := bc.dao.GetTransaction(tx.Hash())
 		if err != nil {
 			return nil, err
 		}
@@ -941,7 +941,7 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Inp
 	references := make(map[transaction.Input]*transaction.Output)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
-		if tx, _, err := bc.GetTransaction(prevHash); err != nil {
+		if tx, _, err := bc.dao.GetTransaction(prevHash); err != nil {
 			tx = nil
 		} else if tx != nil {
 			for _, in := range inputs {
@@ -1250,7 +1250,7 @@ func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transactio
 		clGroups[in.PrevHash] = append(clGroups[in.PrevHash], in)
 	}
 	for group, inputs := range clGroups {
-		refTx, _, err := bc.GetTransaction(group)
+		refTx, _, err := bc.dao.GetTransaction(group)
 		if err != nil {
 			return nil, err
 		}
