@@ -293,6 +293,18 @@ func TestAppendByte(t *testing.T) {
 	eval(t, src, []uint8{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 }
 
+func TestAppendByteToEmpty(t *testing.T) {
+	src := `
+	package foo
+	func Main() []byte {
+		out := []byte{}
+		out = append(out, 1)
+		out = append(out, 2)
+		return out
+	}`
+	eval(t, src, []byte{1, 2})
+}
+
 func TestAppendString(t *testing.T) {
 	src := `
 	package foo
