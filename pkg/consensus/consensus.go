@@ -323,6 +323,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
 	for _, tx := range coreb.Transactions {
 		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
+			s.log.Warn("invalid transaction in proposed block", zap.Stringer("hash", tx.Hash()))
 			return false
 		}
 	}
