@@ -2,6 +2,28 @@
 
 This document outlines major changes between releases.
 
+## 0.72.2 "Confabulation" (11 Feb 2020)
+
+Bugfix and small refactoring release, though it's the first one to include
+improved CHECKMULTISIG implementation that is ~20% faster.
+
+Improvements:
+ * parallel CHECKMULTISIG implementation improving this instruction speed by
+   around 20% (#548)
+ * bytecode emitting functions moved to separate package, avoiding old
+   duplicate code and improving testing (#449, #534, #642)
+ * AppCall interop now accepts variable number of arguments (#651)
+ * more logging and info level from consensus subsystem, following neo-cli
+   behaviour
+
+Bugs fixed:
+ * compiler-emitted integers were using wrong format (#642)
+ * FreeGasLimit configuration set to zero was not really disabling gas limits
+   (#652)
+ * stale disconnected peers could cause networking subsystem deadlock (#653)
+ * transaction reverification (on new block processing) could lead to
+   blockchain deadlock for non-standard verification contracts (#655)
+
 ## 0.72.1 "Contextualization" (07 Feb 2020)
 
 Exactly one bug fixed relative to the 0.72.0:
