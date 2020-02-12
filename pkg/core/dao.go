@@ -266,6 +266,24 @@ func (dao *dao) DeleteValidatorState(vs *state.Validator) error {
 	return dao.store.Delete(key)
 }
 
+// GetValidatorsCount returns current ValidatorsCount or new one if there is none
+// in the DB.
+func (dao *dao) GetValidatorsCount() (*state.ValidatorsCount, error) {
+	vc := &state.ValidatorsCount{}
+	key := []byte{byte(storage.IXValidatorsCount)}
+	err := dao.GetAndDecode(vc, key)
+	if err != nil && err != storage.ErrKeyNotFound {
+		return nil, err
+	}
+	return vc, nil
+}
+
+// PutValidatorsCount put given ValidatorsCount in the store.
+func (dao *dao) PutValidatorsCount(vc *state.ValidatorsCount) error {
+	key := []byte{byte(storage.IXValidatorsCount)}
+	return dao.Put(vc, key)
+}
+
 // -- end validator.
 
 // -- start notification event.

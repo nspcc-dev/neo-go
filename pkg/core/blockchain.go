@@ -648,6 +648,15 @@ func processTXWithValidatorsAdd(output *transaction.Output, account *state.Accou
 				return err
 			}
 		}
+		vc, err := dao.GetValidatorsCount()
+		if err != nil {
+			return err
+		}
+		vc[len(account.Votes)-1] += output.Amount
+		err = dao.PutValidatorsCount(vc)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -667,6 +676,17 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toS
 			if err := dao.PutValidatorState(validator); err != nil {
 				return err
 			}
+		}
+	}
+	if len(account.Votes) > 0 {
+		vc, err := dao.GetValidatorsCount()
+		if err != nil {
+			return err
+		}
+		vc[len(account.Votes)-1] -= toSubtract
+		err = dao.PutValidatorsCount(vc)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -713,16 +733,32 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 		if err != nil {
 			return err
 		}
-		account.Votes = votes
-		for _, vote := range account.Votes {
-			validatorState, err := dao.GetValidatorStateOrNew(vote)
+		if len(votes) > state.MaxValidatorsVoted {
+			return errors.New("voting candidate limit exceeded")
+		}
+		if len(votes) > 0 {
+			account.Votes = votes
+			for _, vote := range account.Votes {
+				validatorState, err := dao.GetValidatorStateOrNew(vote)
+				if err != nil {
+					return err
+				}
+				validatorState.Votes += balance
+				if err = dao.PutValidatorState(validatorState); err != nil {
+					return err
+				}
+			}
+			vc, err := dao.GetValidatorsCount()
 			if err != nil {
 				return err
 			}
-			validatorState.Votes += balance
-			if err = dao.PutValidatorState(validatorState); err != nil {
+			vc[len(account.Votes)-1] += balance
+			err = dao.PutValidatorsCount(vc)
+			if err != nil {
 				return err
 			}
+		} else {
+			account.Votes = nil
 		}
 		return dao.PutAccountState(account)
 	}
@@ -1357,7 +1393,11 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 		return validators[i].PublicKey.Cmp(validators[j].PublicKey) == -1
 	})
 
-	count := state.GetValidatorsWeightedAverage(validators)
+	validatorsCount, err := cache.GetValidatorsCount()
+	if err != nil {
+		return nil, err
+	}
+	count := validatorsCount.GetWeightedAverage()
 	standByValidators, err := bc.GetStandByValidators()
 	if err != nil {
 		return nil, err

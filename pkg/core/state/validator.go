@@ -6,12 +6,19 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
+// MaxValidatorsVoted limits the number of validators that one can vote for.
+const MaxValidatorsVoted = 1024
+
 // Validator holds the state of a validator.
 type Validator struct {
 	PublicKey  *keys.PublicKey
 	Registered bool
 	Votes      util.Fixed8
 }
+
+// ValidatorsCount represents votes with particular number of consensus nodes
+// for this number to be changeable by the voting system.
+type ValidatorsCount [MaxValidatorsVoted]util.Fixed8
 
 // RegisteredAndHasVotes returns true or false whether Validator is registered and has votes.
 func (vs *Validator) RegisteredAndHasVotes() bool {
@@ -38,67 +45,64 @@ func (vs *Validator) DecodeBinary(reader *io.BinReader) {
 	vs.Votes.DecodeBinary(reader)
 }
 
-// GetValidatorsWeightedAverage applies weighted filter based on votes for validator and returns number of validators.
-// Get back to it with further investigation in https://github.com/nspcc-dev/neo-go/issues/512.
-func GetValidatorsWeightedAverage(validators []*Validator) int {
-	return int(weightedAverage(applyWeightedFilter(validators)))
+// EncodeBinary encodes ValidatorCount to the given BinWriter.
+func (vc *ValidatorsCount) EncodeBinary(w *io.BinWriter) {
+	for i := range vc {
+		vc[i].EncodeBinary(w)
+	}
 }
 
-// applyWeightedFilter is an implementation of the filter for validators votes.
-// C# reference https://github.com/neo-project/neo/blob/41caff115c28d6c7665b2a7ac72967e7ce82e921/neo/Helper.cs#L273
-func applyWeightedFilter(validators []*Validator) map[*Validator]float64 {
-	var validatorsWithVotes []*Validator
-	var amount float64
+// DecodeBinary decodes ValidatorCount from the given BinReader.
+func (vc *ValidatorsCount) DecodeBinary(r *io.BinReader) {
+	for i := range vc {
+		vc[i].DecodeBinary(r)
+	}
+}
 
-	weightedVotes := make(map[*Validator]float64)
-	start := 0.25
-	end := 0.75
-	sum := float64(0)
-	current := float64(0)
+// GetWeightedAverage returns an average count of validators that's been voted
+// for not counting 1/4 of minimum and maximum numbers.
+func (vc *ValidatorsCount) GetWeightedAverage() int {
+	const (
+		lowerThreshold = 0.25
+		upperThreshold = 0.75
+	)
+	var (
+		sumWeight, sumValue, overallSum, slidingSum util.Fixed8
+		slidingRatio                                float64
+	)
 
-	for _, validator := range validators {
-		if validator.Votes > util.Fixed8(0) {
-			validatorsWithVotes = append(validatorsWithVotes, validator)
-			amount += validator.Votes.FloatValue()
-		}
+	for i := range vc {
+		overallSum += vc[i]
 	}
 
-	for _, validator := range validatorsWithVotes {
-		if current >= end {
+	for i := range vc {
+		if slidingRatio >= upperThreshold {
 			break
 		}
-		weight := validator.Votes.FloatValue()
-		sum += weight
-		old := current
-		current = sum / amount
+		weight := vc[i]
+		slidingSum += weight
+		previousRatio := slidingRatio
+		slidingRatio = slidingSum.FloatValue() / overallSum.FloatValue()
 
-		if current <= start {
+		if slidingRatio <= lowerThreshold {
 			continue
 		}
 
-		if old < start {
-			if current > end {
-				weight = (end - start) * amount
+		if previousRatio < lowerThreshold {
+			if slidingRatio > upperThreshold {
+				weight = util.Fixed8FromFloat((upperThreshold - lowerThreshold) * overallSum.FloatValue())
 			} else {
-				weight = (current - start) * amount
+				weight = util.Fixed8FromFloat((slidingRatio - lowerThreshold) * overallSum.FloatValue())
 			}
-		} else if current > end {
-			weight = (end - old) * amount
+		} else if slidingRatio > upperThreshold {
+			weight = util.Fixed8FromFloat((upperThreshold - previousRatio) * overallSum.FloatValue())
 		}
-		weightedVotes[validator] = weight
-	}
-	return weightedVotes
-}
-
-func weightedAverage(weightedVotes map[*Validator]float64) float64 {
-	sumWeight := float64(0)
-	sumValue := float64(0)
-	for vState, weight := range weightedVotes {
 		sumWeight += weight
-		sumValue += vState.Votes.FloatValue() * weight
+		// Votes with N values get stored with N-1 index, thus +1 here.
+		sumValue += util.Fixed8(i+1) * weight
 	}
 	if sumValue == 0 || sumWeight == 0 {
 		return 0
 	}
-	return sumValue / sumWeight
+	return int(sumValue / sumWeight)
 }
