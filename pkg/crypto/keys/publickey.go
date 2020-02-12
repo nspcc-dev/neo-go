@@ -22,17 +22,7 @@ type PublicKeys []*PublicKey
 func (keys PublicKeys) Len() int      { return len(keys) }
 func (keys PublicKeys) Swap(i, j int) { keys[i], keys[j] = keys[j], keys[i] }
 func (keys PublicKeys) Less(i, j int) bool {
-	if keys[i].X.Cmp(keys[j].X) == -1 {
-		return true
-	}
-	if keys[i].X.Cmp(keys[j].X) == 1 {
-		return false
-	}
-	if keys[i].X.Cmp(keys[j].X) == 0 {
-		return false
-	}
-
-	return keys[i].Y.Cmp(keys[j].Y) == -1
+	return keys[i].Cmp(keys[j]) == -1
 }
 
 // DecodeBytes decodes a PublicKeys from the given slice of bytes.
@@ -73,6 +63,15 @@ type PublicKey struct {
 // Equal returns true in case public keys are equal.
 func (p *PublicKey) Equal(key *PublicKey) bool {
 	return p.X.Cmp(key.X) == 0 && p.Y.Cmp(key.Y) == 0
+}
+
+// Cmp compares two keys.
+func (p *PublicKey) Cmp(key *PublicKey) int {
+	xCmp := p.X.Cmp(key.X)
+	if xCmp != 0 {
+		return xCmp
+	}
+	return p.Y.Cmp(key.Y)
 }
 
 // NewPublicKeyFromString returns a public key created from the
