@@ -714,15 +714,14 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 			return err
 		}
 		account.Votes = votes
-		if votes.Len() != len(account.Votes) {
-			for _, vote := range votes {
-				validator, err := dao.GetValidatorStateOrNew(vote)
-				if err != nil {
-					return err
-				}
-				if err := dao.PutValidatorState(validator); err != nil {
-					return err
-				}
+		for _, vote := range account.Votes {
+			validatorState, err := dao.GetValidatorStateOrNew(vote)
+			if err != nil {
+				return err
+			}
+			validatorState.Votes += balance
+			if err = dao.PutValidatorState(validatorState); err != nil {
+				return err
 			}
 		}
 		return dao.PutAccountState(account)
