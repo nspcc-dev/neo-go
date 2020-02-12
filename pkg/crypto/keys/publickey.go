@@ -36,7 +36,7 @@ func (keys PublicKeys) Less(i, j int) bool {
 }
 
 // DecodeBytes decodes a PublicKeys from the given slice of bytes.
-func (keys PublicKeys) DecodeBytes(data []byte) error {
+func (keys *PublicKeys) DecodeBytes(data []byte) error {
 	b := io.NewBinReaderFromBuf(data)
 	b.ReadArray(keys)
 	return b.Err
