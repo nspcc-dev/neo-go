@@ -25,8 +25,8 @@ func TestEncodeDecodeState(t *testing.T) {
 	assert.Equal(t, 1, len(s.Descriptors))
 	descriptor := s.Descriptors[0]
 	assert.Equal(t, "03c089d7122b840a4935234e82e26ae5efd0c2acb627239dc9f207311337b6f2c1", hex.EncodeToString(descriptor.Key))
-	assert.Equal(t, "52656769737465726564", hex.EncodeToString(descriptor.Value))
-	assert.Equal(t, "\x01", descriptor.Field)
+	assert.Equal(t, "Registered", descriptor.Field)
+	assert.Equal(t, []byte{0x01}, descriptor.Value)
 	assert.Equal(t, Validator, descriptor.Type)
 
 	// Encode
