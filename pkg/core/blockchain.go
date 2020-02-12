@@ -659,7 +659,7 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toS
 			return err
 		}
 		validator.Votes -= toSubtract
-		if !validator.RegisteredAndHasVotes() {
+		if validator.UnregisteredAndHasNoVotes() {
 			if err := dao.DeleteValidatorState(validator); err != nil {
 				return err
 			}

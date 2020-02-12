@@ -18,6 +18,11 @@ func (vs *Validator) RegisteredAndHasVotes() bool {
 	return vs.Registered && vs.Votes > util.Fixed8(0)
 }
 
+// UnregisteredAndHasNoVotes returns true when Validator is not registered and has no votes.
+func (vs *Validator) UnregisteredAndHasNoVotes() bool {
+	return !vs.Registered && vs.Votes == 0
+}
+
 // EncodeBinary encodes Validator to the given BinWriter.
 func (vs *Validator) EncodeBinary(bw *io.BinWriter) {
 	vs.PublicKey.EncodeBinary(bw)
