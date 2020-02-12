@@ -1379,7 +1379,9 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 
 	result := pubKeys.Unique()
 	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-		result = append(result, uniqueSBValidators[i])
+		if !result.Contains(uniqueSBValidators[i]) {
+			result = append(result, uniqueSBValidators[i])
+		}
 	}
 	return result, nil
 }
