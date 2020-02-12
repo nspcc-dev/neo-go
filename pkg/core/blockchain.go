@@ -1344,6 +1344,18 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	}
 
 	validators := cache.GetValidators()
+	sort.Slice(validators, func(i, j int) bool {
+		// Unregistered validators go to the end of the list.
+		if validators[i].Registered != validators[j].Registered {
+			return validators[i].Registered
+		}
+		// The most-voted validators should end up in the front of the list.
+		if validators[i].Votes != validators[j].Votes {
+			return validators[i].Votes > validators[j].Votes
+		}
+		// Ties are broken with public keys.
+		return validators[i].PublicKey.Cmp(validators[j].PublicKey) == -1
+	})
 
 	count := state.GetValidatorsWeightedAverage(validators)
 	standByValidators, err := bc.GetStandByValidators()
@@ -1361,7 +1373,6 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 			pubKeys = append(pubKeys, validator.PublicKey)
 		}
 	}
-	sort.Sort(sort.Reverse(pubKeys))
 	if pubKeys.Len() >= count {
 		return pubKeys[:count], nil
 	}
