@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -684,12 +683,11 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 		return err
 	}
 	if descriptor.Field == "Registered" {
-		isRegistered, err := strconv.ParseBool(string(descriptor.Value))
-		if err != nil {
-			return err
+		if len(descriptor.Value) == 1 {
+			validatorState.Registered = descriptor.Value[0] != 0
+			return dao.PutValidatorState(validatorState)
 		}
-		validatorState.Registered = isRegistered
-		return dao.PutValidatorState(validatorState)
+		return errors.New("bad descriptor value")
 	}
 	return nil
 }
