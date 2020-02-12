@@ -436,7 +436,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
 						return err
 					}
-					if err = processTXWithValidatorsSubtract(account, cache, prevTXOutput.Amount); err != nil {
+					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
 					}
 				}
@@ -638,36 +638,26 @@ func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 
 func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
 	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
-		for _, vote := range account.Votes {
-			validatorState, err := dao.GetValidatorStateOrNew(vote)
-			if err != nil {
-				return err
-			}
-			validatorState.Votes += output.Amount
-			if err = dao.PutValidatorState(validatorState); err != nil {
-				return err
-			}
-		}
-		vc, err := dao.GetValidatorsCount()
-		if err != nil {
-			return err
-		}
-		vc[len(account.Votes)-1] += output.Amount
-		err = dao.PutValidatorsCount(vc)
-		if err != nil {
-			return err
-		}
+		return modAccountVotes(account, dao, output.Amount)
 	}
 	return nil
 }
 
-func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toSubtract util.Fixed8) error {
+func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *cachedDao) error {
+	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+		return modAccountVotes(account, dao, -output.Amount)
+	}
+	return nil
+}
+
+// modAccountVotes adds given value to given account voted validators.
+func modAccountVotes(account *state.Account, dao *cachedDao, value util.Fixed8) error {
 	for _, vote := range account.Votes {
 		validator, err := dao.GetValidatorStateOrNew(vote)
 		if err != nil {
 			return err
 		}
-		validator.Votes -= toSubtract
+		validator.Votes += value
 		if validator.UnregisteredAndHasNoVotes() {
 			if err := dao.DeleteValidatorState(validator); err != nil {
 				return err
@@ -683,7 +673,7 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toS
 		if err != nil {
 			return err
 		}
-		vc[len(account.Votes)-1] -= toSubtract
+		vc[len(account.Votes)-1] += value
 		err = dao.PutValidatorsCount(vc)
 		if err != nil {
 			return err
@@ -724,7 +714,7 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 
 	if descriptor.Field == "Votes" {
 		balance := account.GetBalanceValues()[governingTokenTX().Hash()]
-		if err = processTXWithValidatorsSubtract(account, dao, balance); err != nil {
+		if err = modAccountVotes(account, dao, -balance); err != nil {
 			return err
 		}
 
@@ -1356,7 +1346,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 					}
 
 					// process account state votes: if there are any -> validators will be updated.
-					if err = processTXWithValidatorsSubtract(accountState, cache, prevOutput.Amount); err != nil {
+					if err = processTXWithValidatorsSubtract(&prevOutput, accountState, cache); err != nil {
 						return nil, err
 					}
 					delete(accountState.Balances, prevOutput.AssetID)
