@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -437,7 +436,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
 						return err
 					}
-					if err = processTXWithValidatorsSubtract(account, cache, prevTXOutput.Amount); err != nil {
+					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
 					}
 				}
@@ -639,28 +638,27 @@ func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 
 func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
 	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
-		for _, vote := range account.Votes {
-			validatorState, err := dao.GetValidatorStateOrNew(vote)
-			if err != nil {
-				return err
-			}
-			validatorState.Votes += output.Amount
-			if err = dao.PutValidatorState(validatorState); err != nil {
-				return err
-			}
-		}
+		return modAccountVotes(account, dao, output.Amount)
 	}
 	return nil
 }
 
-func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toSubtract util.Fixed8) error {
+func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *cachedDao) error {
+	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+		return modAccountVotes(account, dao, -output.Amount)
+	}
+	return nil
+}
+
+// modAccountVotes adds given value to given account voted validators.
+func modAccountVotes(account *state.Account, dao *cachedDao, value util.Fixed8) error {
 	for _, vote := range account.Votes {
 		validator, err := dao.GetValidatorStateOrNew(vote)
 		if err != nil {
 			return err
 		}
-		validator.Votes -= toSubtract
-		if !validator.RegisteredAndHasVotes() {
+		validator.Votes += value
+		if validator.UnregisteredAndHasNoVotes() {
 			if err := dao.DeleteValidatorState(validator); err != nil {
 				return err
 			}
@@ -668,6 +666,17 @@ func processTXWithValidatorsSubtract(account *state.Account, dao *cachedDao, toS
 			if err := dao.PutValidatorState(validator); err != nil {
 				return err
 			}
+		}
+	}
+	if len(account.Votes) > 0 {
+		vc, err := dao.GetValidatorsCount()
+		if err != nil {
+			return err
+		}
+		vc[len(account.Votes)-1] += value
+		err = dao.PutValidatorsCount(vc)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -684,12 +693,11 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 		return err
 	}
 	if descriptor.Field == "Registered" {
-		isRegistered, err := strconv.ParseBool(string(descriptor.Value))
-		if err != nil {
-			return err
+		if len(descriptor.Value) == 1 {
+			validatorState.Registered = descriptor.Value[0] != 0
+			return dao.PutValidatorState(validatorState)
 		}
-		validatorState.Registered = isRegistered
-		return dao.PutValidatorState(validatorState)
+		return errors.New("bad descriptor value")
 	}
 	return nil
 }
@@ -706,7 +714,7 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 
 	if descriptor.Field == "Votes" {
 		balance := account.GetBalanceValues()[governingTokenTX().Hash()]
-		if err = processTXWithValidatorsSubtract(account, dao, balance); err != nil {
+		if err = modAccountVotes(account, dao, -balance); err != nil {
 			return err
 		}
 
@@ -715,18 +723,34 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 		if err != nil {
 			return err
 		}
-		if votes.Len() != len(account.Votes) {
+		if len(votes) > state.MaxValidatorsVoted {
+			return errors.New("voting candidate limit exceeded")
+		}
+		if len(votes) > 0 {
 			account.Votes = votes
-			for _, vote := range votes {
-				validator, err := dao.GetValidatorStateOrNew(vote)
+			for _, vote := range account.Votes {
+				validatorState, err := dao.GetValidatorStateOrNew(vote)
 				if err != nil {
 					return err
 				}
-				if err := dao.PutValidatorState(validator); err != nil {
+				validatorState.Votes += balance
+				if err = dao.PutValidatorState(validatorState); err != nil {
 					return err
 				}
 			}
+			vc, err := dao.GetValidatorsCount()
+			if err != nil {
+				return err
+			}
+			vc[len(account.Votes)-1] += balance
+			err = dao.PutValidatorsCount(vc)
+			if err != nil {
+				return err
+			}
+		} else {
+			account.Votes = nil
 		}
+		return dao.PutAccountState(account)
 	}
 	return nil
 }
@@ -1322,7 +1346,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 					}
 
 					// process account state votes: if there are any -> validators will be updated.
-					if err = processTXWithValidatorsSubtract(accountState, cache, prevOutput.Amount); err != nil {
+					if err = processTXWithValidatorsSubtract(&prevOutput, accountState, cache); err != nil {
 						return nil, err
 					}
 					delete(accountState.Balances, prevOutput.AssetID)
@@ -1346,8 +1370,24 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	}
 
 	validators := cache.GetValidators()
+	sort.Slice(validators, func(i, j int) bool {
+		// Unregistered validators go to the end of the list.
+		if validators[i].Registered != validators[j].Registered {
+			return validators[i].Registered
+		}
+		// The most-voted validators should end up in the front of the list.
+		if validators[i].Votes != validators[j].Votes {
+			return validators[i].Votes > validators[j].Votes
+		}
+		// Ties are broken with public keys.
+		return validators[i].PublicKey.Cmp(validators[j].PublicKey) == -1
+	})
 
-	count := state.GetValidatorsWeightedAverage(validators)
+	validatorsCount, err := cache.GetValidatorsCount()
+	if err != nil {
+		return nil, err
+	}
+	count := validatorsCount.GetWeightedAverage()
 	standByValidators, err := bc.GetStandByValidators()
 	if err != nil {
 		return nil, err
@@ -1363,14 +1403,15 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 			pubKeys = append(pubKeys, validator.PublicKey)
 		}
 	}
-	sort.Sort(sort.Reverse(pubKeys))
 	if pubKeys.Len() >= count {
 		return pubKeys[:count], nil
 	}
 
 	result := pubKeys.Unique()
 	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-		result = append(result, uniqueSBValidators[i])
+		if !result.Contains(uniqueSBValidators[i]) {
+			result = append(result, uniqueSBValidators[i])
+		}
 	}
 	return result, nil
 }
