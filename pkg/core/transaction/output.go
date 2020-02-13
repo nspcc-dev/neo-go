@@ -11,17 +11,17 @@ import (
 // Output represents a Transaction output.
 type Output struct {
 	// The NEO asset id used in the transaction.
-	AssetID util.Uint256
+	AssetID util.Uint256 `json:"asset"`
 
 	// Amount of AssetType send or received.
-	Amount util.Fixed8
+	Amount util.Fixed8 `json:"value"`
 
 	// The address of the recipient.
-	ScriptHash util.Uint160
+	ScriptHash util.Uint160 `json:"address"`
 
 	// The position of the Output in slice []Output. This is actually set in NewTransactionOutputRaw
 	// and used for displaying purposes.
-	Position int
+	Position int `json:"n"`
 }
 
 // NewOutput returns a new transaction output.

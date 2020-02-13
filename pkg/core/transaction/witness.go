@@ -11,8 +11,8 @@ import (
 
 // Witness contains 2 scripts.
 type Witness struct {
-	InvocationScript   []byte
-	VerificationScript []byte
+	InvocationScript   []byte `json:"invocation"`
+	VerificationScript []byte `json:"verification"`
 }
 
 // DecodeBinary implements Serializable interface.
