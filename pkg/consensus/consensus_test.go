@@ -194,22 +194,23 @@ func newTestService(t *testing.T) *service {
 func getTestValidator(i int) (*privateKey, *publicKey) {
 	var wif, password string
 
+	// Sorted by public key.
 	switch i {
 	case 0:
-		wif = "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y"
-		password = "one"
-
-	case 1:
 		wif = "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
 		password = "two"
 
-	case 2:
-		wif = "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh"
-		password = "three"
-
-	case 3:
+	case 1:
 		wif = "6PYRXVwHSqFSukL3CuXxdQ75VmsKpjeLgQLEjt83FrtHf1gCVphHzdD4nc"
 		password = "four"
+
+	case 2:
+		wif = "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y"
+		password = "one"
+
+	case 3:
+		wif = "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh"
+		password = "three"
 
 	default:
 		return nil, nil
