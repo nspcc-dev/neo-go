@@ -363,9 +363,9 @@ func (p *TCPPeer) PeerAddr() net.Addr {
 // Disconnect will fill the peer's done channel with the given error.
 func (p *TCPPeer) Disconnect(err error) {
 	p.finale.Do(func() {
-		p.server.unregister <- peerDrop{p, err}
-		p.conn.Close()
 		close(p.done)
+		p.conn.Close()
+		p.server.unregister <- peerDrop{p, err}
 	})
 }
 
