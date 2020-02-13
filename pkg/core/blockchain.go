@@ -1413,6 +1413,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 			result = append(result, uniqueSBValidators[i])
 		}
 	}
+	sort.Sort(result)
 	return result, nil
 }
 
