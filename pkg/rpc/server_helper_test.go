@@ -88,32 +88,9 @@ type StringResultResponse struct {
 
 // GetBlockResponse struct for testing.
 type GetBlockResponse struct {
-	Jsonrpc string `json:"jsonrpc"`
-	Result  struct {
-		Version           int    `json:"version"`
-		Previousblockhash string `json:"previousblockhash"`
-		Merkleroot        string `json:"merkleroot"`
-		Time              int    `json:"time"`
-		Height            int    `json:"height"`
-		Nonce             int    `json:"nonce"`
-		NextConsensus     string `json:"next_consensus"`
-		Script            struct {
-			Invocation   string `json:"invocation"`
-			Verification string `json:"verification"`
-		} `json:"script"`
-		Tx []struct {
-			Type       string      `json:"type"`
-			Version    int         `json:"version"`
-			Attributes interface{} `json:"attributes"`
-			Vin        interface{} `json:"vin"`
-			Vout       interface{} `json:"vout"`
-			Scripts    interface{} `json:"scripts"`
-		} `json:"tx"`
-		Confirmations int    `json:"confirmations"`
-		Nextblockhash string `json:"nextblockhash"`
-		Hash          string `json:"hash"`
-	} `json:"result"`
-	ID int `json:"id"`
+	Jsonrpc string         `json:"jsonrpc"`
+	Result  wrappers.Block `json:"result"`
+	ID      int            `json:"id"`
 }
 
 // GetAssetResponse struct for testing.

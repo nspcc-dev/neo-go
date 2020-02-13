@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -123,8 +124,16 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 				require.NoErrorf(t, err, "could not get block")
 
-				expectedHash := "0x" + block.Hash().StringLE()
-				assert.Equal(t, expectedHash, res.Result.Hash)
+				assert.Equal(t, block.Hash(), res.Result.Hash)
+				for i := range res.Result.Tx {
+					tx := res.Result.Tx[i]
+					require.Equal(t, transaction.MinerType, tx.Type)
+
+					miner, ok := block.Transactions[i].Data.(*transaction.MinerTX)
+					require.True(t, ok)
+					require.Equal(t, miner.Nonce, tx.Nonce)
+					require.Equal(t, block.Transactions[i].Hash(), tx.TxID)
+				}
 			},
 		},
 		{
