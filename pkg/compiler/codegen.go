@@ -872,7 +872,6 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	emit.Opcode(c.prog.BinWriter, opcode.NOP)
 	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
 	emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-	emit.Opcode(c.prog.BinWriter, opcode.TOALTSTACK)
 
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
@@ -886,9 +885,14 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 			fieldName := f.Key.(*ast.Ident).Name
 
 			if sField.Name() == fieldName {
-				ast.Walk(c, f.Value)
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+
 				pos := indexOfStruct(strct, fieldName)
-				c.emitStoreLocal(pos)
+				emit.Int(c.prog.BinWriter, int64(pos))
+
+				ast.Walk(c, f.Value)
+
+				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 				fieldAdded = true
 				break
 			}
@@ -902,10 +906,12 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 			c.prog.Err = err
 			return
 		}
+
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Int(c.prog.BinWriter, int64(i))
 		c.emitLoadConst(typeAndVal)
-		c.emitStoreLocal(i)
+		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
-	emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 }
 
 func (c *codegen) convertToken(tok token.Token) {
