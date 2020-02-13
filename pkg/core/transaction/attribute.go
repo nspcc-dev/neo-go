@@ -10,8 +10,8 @@ import (
 
 // Attribute represents a Transaction attribute.
 type Attribute struct {
-	Usage AttrUsage
-	Data  []byte
+	Usage AttrUsage `json:"usage"`
+	Data  []byte    `json:"data"`
 }
 
 // DecodeBinary implements Serializable interface.
