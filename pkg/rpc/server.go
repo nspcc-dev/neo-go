@@ -241,6 +241,10 @@ Methods:
 		getaccountstateCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, false)
 
+	case "getcontractstate":
+		getcontractstateCalled.Inc()
+		results, resultsErr = s.getContractState(reqParams)
+
 	case "getrawtransaction":
 		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
@@ -309,6 +313,26 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	}
 
 	return results, resultsErr
+}
+
+// getContractState returns contract state (contract information, according to the contract script hash).
+func (s *Server) getContractState(reqParams Params) (interface{}, error) {
+	var results interface{}
+
+	param, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	} else if scriptHash, err := param.GetUint160FromHex(); err != nil {
+		return nil, errInvalidParams
+	} else {
+		cs := s.chain.GetContractState(scriptHash)
+		if cs != nil {
+			results = wrappers.NewContractState(cs)
+		} else {
+			results = "Unknown contract"
+		}
+	}
+	return results, nil
 }
 
 // getAccountState returns account state either in short or full (unspents included) form.
