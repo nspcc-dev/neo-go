@@ -965,14 +965,15 @@ func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Inp
 	references := make(map[transaction.Input]*transaction.Output)
 
 	for prevHash, inputs := range t.GroupInputsByPrevHash() {
-		if tx, _, err := bc.dao.GetTransaction(prevHash); err != nil {
-			tx = nil
-		} else if tx != nil {
-			for _, in := range inputs {
-				references[*in] = &tx.Outputs[in.PrevIndex]
+		tx, _, err := bc.dao.GetTransaction(prevHash)
+		if err != nil {
+			return nil
+		}
+		for _, in := range inputs {
+			if int(in.PrevIndex) > len(tx.Outputs)-1 {
+				return nil
 			}
-		} else {
-			references = nil
+			references[*in] = &tx.Outputs[in.PrevIndex]
 		}
 	}
 	return references
@@ -1450,7 +1451,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	}
 	references := bc.References(t)
 	if references == nil {
-		return nil, errors.New("Invalid operation")
+		return nil, errors.New("invalid inputs")
 	}
 	hashes := make(map[util.Uint160]bool)
 	for _, i := range t.Inputs {
