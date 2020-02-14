@@ -411,10 +411,25 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 	}
 
 	res := make([]block.Transaction, len(txx)+1)
+	var netFee util.Fixed8
 	for i := range txx {
 		res[i+1] = txx[i]
+		netFee += s.Config.Chain.NetworkFee(txx[i])
 	}
 
+	var txOuts []transaction.Output
+	if netFee != 0 {
+		sh := s.wallet.GetChangeAddress()
+		if sh.Equals(util.Uint160{}) {
+			pk := s.dbft.Pub.(*publicKey)
+			sh = hash.Hash160(pk.GetVerificationScript())
+		}
+		txOuts = []transaction.Output{transaction.Output{
+			AssetID:    core.UtilityTokenID(),
+			Amount:     netFee,
+			ScriptHash: sh,
+		}}
+	}
 	for {
 		nonce := rand.Uint32()
 		res[0] = &transaction.Transaction{
@@ -423,7 +438,7 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 			Data:       &transaction.MinerTX{Nonce: nonce},
 			Attributes: nil,
 			Inputs:     nil,
-			Outputs:    nil,
+			Outputs:    txOuts,
 			Scripts:    nil,
 			Trimmed:    false,
 		}
