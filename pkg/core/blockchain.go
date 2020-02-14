@@ -432,7 +432,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 
-				if prevTXOutput.AssetID.Equals(governingTokenTX().Hash()) {
+				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
 					spentCoin := NewSpentCoinState(input.PrevHash, prevTXHeight)
 					spentCoin.items[input.PrevIndex] = block.Index
 					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
@@ -648,14 +648,14 @@ func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 }
 
 func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
-	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, output.Amount)
 	}
 	return nil
 }
 
 func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *cachedDao) error {
-	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, -output.Amount)
 	}
 	return nil
@@ -724,7 +724,7 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 	}
 
 	if descriptor.Field == "Votes" {
-		balance := account.GetBalanceValues()[governingTokenTX().Hash()]
+		balance := account.GetBalanceValues()[GoverningTokenID()]
 		if err = modAccountVotes(account, dao, -balance); err != nil {
 			return err
 		}
@@ -999,14 +999,14 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	inputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range bc.References(t) {
-		if txOutput.AssetID == utilityTokenTX().Hash() {
+		if txOutput.AssetID == UtilityTokenID() {
 			inputAmount.Add(txOutput.Amount)
 		}
 	}
 
 	outputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range t.Outputs {
-		if txOutput.AssetID == utilityTokenTX().Hash() {
+		if txOutput.AssetID == UtilityTokenID() {
 			outputAmount.Add(txOutput.Amount)
 		}
 	}
@@ -1192,7 +1192,7 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	if len(resultsDestroy) > 1 {
 		return errors.New("tx has more than 1 destroy output")
 	}
-	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
+	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
 		return errors.New("tx destroys non-utility token")
 	}
 	sysfee := bc.SystemFee(t)
@@ -1208,14 +1208,14 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	switch t.Type {
 	case transaction.MinerType, transaction.ClaimType:
 		for _, r := range resultsIssue {
-			if r.AssetID != utilityTokenTX().Hash() {
+			if r.AssetID != UtilityTokenID() {
 				return errors.New("miner or claim tx issues non-utility tokens")
 			}
 		}
 		break
 	case transaction.IssueType:
 		for _, r := range resultsIssue {
-			if r.AssetID == utilityTokenTX().Hash() {
+			if r.AssetID == UtilityTokenID() {
 				return errors.New("issue tx issues utility tokens")
 			}
 		}

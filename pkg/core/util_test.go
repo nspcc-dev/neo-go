@@ -50,12 +50,10 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 
 func TestUtilityTokenTX(t *testing.T) {
 	expect := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-	tx := utilityTokenTX()
-	assert.Equal(t, expect, tx.Hash().StringLE())
+	assert.Equal(t, expect, UtilityTokenID().StringLE())
 }
 
 func TestGoverningTokenTX(t *testing.T) {
 	expect := "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
-	tx := governingTokenTX()
-	assert.Equal(t, expect, tx.Hash().StringLE())
+	assert.Equal(t, expect, GoverningTokenID().StringLE())
 }
