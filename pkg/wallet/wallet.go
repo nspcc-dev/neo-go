@@ -7,6 +7,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 const (
@@ -128,4 +129,25 @@ func (w *Wallet) GetAccount(h util.Uint160) *Account {
 	}
 
 	return nil
+}
+
+// GetChangeAddress returns the default address to send transaction's change to.
+func (w *Wallet) GetChangeAddress() util.Uint160 {
+	var res util.Uint160
+	var acc *Account
+
+	for i := range w.Accounts {
+		if acc == nil || w.Accounts[i].Default {
+			if w.Accounts[i].Contract != nil && vm.IsSignatureContract(w.Accounts[i].Contract.Script) {
+				acc = w.Accounts[i]
+				if w.Accounts[i].Default {
+					break
+				}
+			}
+		}
+	}
+	if acc != nil {
+		res = acc.Contract.ScriptHash()
+	}
+	return res
 }
