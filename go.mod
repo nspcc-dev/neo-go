@@ -16,10 +16,11 @@ require (
 	github.com/urfave/cli v1.20.0
 	go.uber.org/atomic v1.4.0
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/text v0.3.0
-	golang.org/x/tools v0.0.0-20180318012157-96caea41033d
+	golang.org/x/tools v0.0.0-20200213050514-49b8ac185c84
 	gopkg.in/abiosoft/ishell.v2 v2.0.0
+	gopkg.in/yaml.v2 v2.2.4
 )
 
 go 1.12

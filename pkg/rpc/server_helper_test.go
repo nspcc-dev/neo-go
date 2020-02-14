@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/result"
 	"github.com/CityOfZion/neo-go/pkg/rpc/wrappers"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -153,6 +154,29 @@ type GetAccountStateResponse struct {
 	ID int `json:"id"`
 }
 
+// GetContractStateResponse struct for testing.
+type GetContractStateResponce struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Result  struct {
+		Version     byte         `json:"version"`
+		ScriptHash  util.Uint160 `json:"hash"`
+		Script      []byte       `json:"script"`
+		ParamList   interface{}  `json:"parameters"`
+		ReturnType  interface{}  `json:"returntype"`
+		Name        string       `json:"name"`
+		CodeVersion string       `json:"code_version"`
+		Author      string       `json:"author"`
+		Email       string       `json:"email"`
+		Description string       `json:"description"`
+		Properties  struct {
+			HasStorage       bool `json:"storage"`
+			HasDynamicInvoke bool `json:"dynamic_invoke"`
+			IsPayable        bool `json:"is_payable"`
+		} `json:"properties"`
+	} `json:"result"`
+	ID int `json:"id"`
+}
+
 // GetUnspents struct for testing.
 type GetUnspents struct {
 	Jsonrpc string `json:"jsonrpc"`
@@ -188,7 +212,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 
 	go chain.Run()
 
-	f, err := os.Open("testdata/50testblocks.acc")
+	f, err := os.Open("testdata/51testblocks.acc")
 	require.Nil(t, err)
 	br := io.NewBinReaderFromIO(f)
 	nBlocks = br.ReadU32LE()
