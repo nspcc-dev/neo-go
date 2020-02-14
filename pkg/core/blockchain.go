@@ -1409,20 +1409,20 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	}
 
 	uniqueSBValidators := standByValidators.Unique()
-	pubKeys := keys.PublicKeys{}
+	result := keys.PublicKeys{}
 	for _, validator := range validators {
 		if validator.RegisteredAndHasVotes() || uniqueSBValidators.Contains(validator.PublicKey) {
-			pubKeys = append(pubKeys, validator.PublicKey)
+			result = append(result, validator.PublicKey)
 		}
 	}
-	if pubKeys.Len() >= count {
-		return pubKeys[:count], nil
-	}
 
-	result := pubKeys.Unique()
-	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-		if !result.Contains(uniqueSBValidators[i]) {
-			result = append(result, uniqueSBValidators[i])
+	if result.Len() >= count {
+		result = result[:count]
+	} else {
+		for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
+			if !result.Contains(uniqueSBValidators[i]) {
+				result = append(result, uniqueSBValidators[i])
+			}
 		}
 	}
 	sort.Sort(result)
