@@ -31,16 +31,14 @@ type Properties struct {
 
 // NewContractState creates a new Contract wrapper.
 func NewContractState(c *state.Contract) ContractState {
-	scriptHash, err := util.Uint160DecodeBytesBE(c.ScriptHash().BytesLE())
-	if err != nil {
-		scriptHash = c.ScriptHash()
-	}
-
 	properties := Properties{
 		HasStorage:       c.HasStorage(),
 		HasDynamicInvoke: c.HasDynamicInvoke(),
 		IsPayable:        c.IsPayable(),
 	}
+
+	// reverse scriptHash to be consistent with other client
+	scriptHash := c.ScriptHash().Reverse()
 
 	return ContractState{
 		Version:     0,

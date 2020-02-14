@@ -62,6 +62,12 @@ func NewInternalServerError(data string, cause error) *Error {
 	return newError(-32603, http.StatusInternalServerError, "Internal error", data, cause)
 }
 
+// NewRPCError creates a new error with
+// code -100
+func NewRPCError(message string, data string, cause error) *Error {
+	return newError(-100, http.StatusUnprocessableEntity, message, data, cause)
+}
+
 // Error implements the error interface.
 func (e Error) Error() string {
 	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
