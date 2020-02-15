@@ -44,7 +44,7 @@ which would yield the response:
 | `getblockhash` | Yes |
 | `getblocksysfee` | No (#341) |
 | `getconnectioncount` | Yes |
-| `getcontractstate` | No (#342) |
+| `getcontractstate` | Yes |
 | `getnep5balances` | No (#498) |
 | `getnep5transfers` | No (#498) |
 | `getpeers` | Yes |
