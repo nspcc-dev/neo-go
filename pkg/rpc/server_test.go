@@ -87,7 +87,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "negative",
 			params: `["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de2"]`,
-			result: func(e *executor) interface{} { return "Invalid assetid" },
+			fail:   true,
 		},
 		{
 			name:   "no params",

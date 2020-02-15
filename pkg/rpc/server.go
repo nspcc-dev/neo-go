@@ -234,7 +234,7 @@ Methods:
 		if as != nil {
 			results = wrappers.NewAssetState(as)
 		} else {
-			results = "Invalid assetid"
+			resultsErr = NewRPCError("Unknown asset", "", nil)
 		}
 
 	case "getaccountstate":
