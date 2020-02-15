@@ -288,7 +288,7 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 		resultsErr = errInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
-		return nil, NewInvalidParamsError(err.Error(), err)
+		return nil, NewRPCError("Unknown transaction", err.Error(), err)
 	} else if len(reqParams) >= 2 {
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
