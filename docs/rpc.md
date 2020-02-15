@@ -76,4 +76,4 @@ Both methods also don't currently support arrays in function parameters.
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)
-* [NEO JSON-RPC 2.0 docs](https://docs.neo.org/en-us/node/cli/apigen.html)
+* [NEO JSON-RPC 2.0 docs](https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)
