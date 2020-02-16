@@ -2,9 +2,13 @@ package compiler_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/compiler"
+
 	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEntryPointWithMethod(t *testing.T) {
@@ -396,4 +400,83 @@ func TestForLoopNoPost(t *testing.T) {
 		}
 	`
 	eval(t, src, big.NewInt(10))
+}
+
+func TestForLoopRange(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		sum := 0
+		arr := []int{1, 2, 3}
+		for i := range arr {
+			sum += arr[i] 
+		}
+		return sum
+	}`
+
+	eval(t, src, big.NewInt(6))
+}
+
+func TestForLoopRangeGlobalIndex(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		sum := 0
+		i := 0
+		arr := []int{1, 2, 3}
+		for i = range arr {
+			sum += arr[i] 
+		}
+		return sum + i
+	}`
+
+	eval(t, src, big.NewInt(8))
+}
+
+func TestForLoopRangeChangeVariable(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		sum := 0
+		arr := []int{1, 2, 3}
+		for i := range arr {
+			sum += arr[i]
+			i++
+			sum += i
+		}
+		return sum
+	}`
+
+	eval(t, src, big.NewInt(12))
+}
+
+func TestForLoopRangeNoVariable(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		sum := 0
+		arr := []int{1, 2, 3}
+		for range arr {
+			sum += 1
+		}
+		return sum
+	}`
+
+	eval(t, src, big.NewInt(3))
+}
+
+func TestForLoopRangeCompilerError(t *testing.T) {
+	src := `
+	package foo
+	func f(a int) int { return 0 }
+	func Main() int {
+		arr := []int{1, 2, 3}
+		for _, v := range arr {
+			f(v)
+		}
+		return 0
+	}`
+
+	_, err := compiler.Compile(strings.NewReader(src))
+	require.Error(t, err)
 }

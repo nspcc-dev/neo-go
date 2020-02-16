@@ -660,6 +660,45 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.RangeStmt:
+		// currently only simple for-range loops are supported
+		// for i := range ...
+		if n.Value != nil {
+			c.prog.Err = errors.New("range loops with value variable are not supported")
+			return nil
+		}
+
+		start := c.newLabel()
+		end := c.newLabel()
+
+		ast.Walk(c, n.X)
+
+		emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+
+		c.setLabel(start)
+
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.LTE) // finish if len <= i
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(end))
+
+		if n.Key != nil {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+
+			pos := c.scope.loadLocal(n.Key.(*ast.Ident).Name)
+			c.emitStoreLocal(pos)
+		}
+
+		ast.Walk(c, n.Body)
+
+		emit.Opcode(c.prog.BinWriter, opcode.INC)
+		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(start))
+
+		c.setLabel(end)
+
+		return nil
+
 	// We dont really care about assertions for the core logic.
 	// The only thing we need is to please the compiler type checking.
 	// For this to work properly, we only need to walk the expression
