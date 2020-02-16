@@ -189,6 +189,12 @@ func isBuiltin(expr ast.Expr) bool {
 
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	if len(lit.Elts) == 0 {
+		if typ, ok := lit.Type.(*ast.ArrayType); ok {
+			if name, ok := typ.Elt.(*ast.Ident); ok {
+				return name.Name == "byte" || name.Name == "uint8"
+			}
+		}
+
 		return false
 	}
 
