@@ -1,4 +1,4 @@
-package rpc
+package request
 
 /*
 	Definition of types, interfaces and variables
@@ -16,14 +16,14 @@ type (
 	// includes parameters duplication `sendtoaddress` RPC call params
 	// and also some utility data;
 	ContractTxParams struct {
-		assetID util.Uint256
-		address string
-		value   util.Fixed8
-		wif     keys.WIF // a WIF to send the transaction
+		AssetID util.Uint256
+		Address string
+		Value   util.Fixed8
+		WIF     keys.WIF // a WIF to send the transaction
 		// since there are many ways to provide unspents,
 		// transaction composer stays agnostic to that how
 		// unspents was got;
-		balancer BalanceGetter
+		Balancer BalanceGetter
 	}
 
 	// BalanceGetter is an interface supporting CalculateInputs() method.

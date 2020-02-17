@@ -1,4 +1,4 @@
-package rpc
+package request
 
 import (
 	"errors"
@@ -9,7 +9,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
@@ -26,7 +25,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 		fromAddress                    string
 		receiverOutput                 *transaction.Output
 
-		wif, assetID, toAddress, amount, balancer = params.wif, params.assetID, params.address, params.value, params.balancer
+		wif, assetID, toAddress, amount, balancer = params.WIF, params.AssetID, params.Address, params.Value, params.Balancer
 	)
 
 	fromAddress = wif.PrivateKey.Address()
@@ -110,7 +109,7 @@ func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, er
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata.
-func CreateDeploymentScript(avm []byte, contract *request.ContractDetails) ([]byte, error) {
+func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
 	var props smartcontract.PropertyState
 
 	script := io.NewBufBinWriter()
@@ -142,38 +141,38 @@ func CreateDeploymentScript(avm []byte, contract *request.ContractDetails) ([]by
 
 // expandArrayIntoScript pushes all FuncParam parameters from the given array
 // into the given buffer in reverse order.
-func expandArrayIntoScript(script *io.BinWriter, slice []request.Param) error {
+func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	for j := len(slice) - 1; j >= 0; j-- {
 		fp, err := slice[j].GetFuncParam()
 		if err != nil {
 			return err
 		}
 		switch fp.Type {
-		case request.ByteArray, request.Signature:
+		case ByteArray, Signature:
 			str, err := fp.Value.GetBytesHex()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, str)
-		case request.String:
+		case String:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
 			}
 			emit.String(script, str)
-		case request.Hash160:
+		case Hash160:
 			hash, err := fp.Value.GetUint160FromHex()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, hash.BytesBE())
-		case request.Hash256:
+		case Hash256:
 			hash, err := fp.Value.GetUint256()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, hash.BytesBE())
-		case request.PublicKey:
+		case PublicKey:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
@@ -183,13 +182,13 @@ func expandArrayIntoScript(script *io.BinWriter, slice []request.Param) error {
 				return err
 			}
 			emit.Bytes(script, key.Bytes())
-		case request.Integer:
+		case Integer:
 			val, err := fp.Value.GetInt()
 			if err != nil {
 				return err
 			}
 			emit.Int(script, int64(val))
-		case request.Boolean:
+		case Boolean:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
@@ -211,19 +210,19 @@ func expandArrayIntoScript(script *io.BinWriter, slice []request.Param) error {
 
 // CreateFunctionInvocationScript creates a script to invoke given contract with
 // given parameters.
-func CreateFunctionInvocationScript(contract util.Uint160, params request.Params) ([]byte, error) {
+func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	for i := len(params) - 1; i >= 0; i-- {
 		switch params[i].Type {
-		case request.StringT:
+		case StringT:
 			emit.String(script.BinWriter, params[i].String())
-		case request.NumberT:
+		case NumberT:
 			num, err := params[i].GetInt()
 			if err != nil {
 				return nil, err
 			}
 			emit.String(script.BinWriter, strconv.Itoa(num))
-		case request.ArrayT:
+		case ArrayT:
 			slice, err := params[i].GetArray()
 			if err != nil {
 				return nil, err
@@ -245,7 +244,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params request.Params
 // given parameters. It differs from CreateFunctionInvocationScript in that it
 // expects one array of FuncParams and expands it onto the stack as independent
 // elements.
-func CreateInvocationScript(contract util.Uint160, funcParams []request.Param) ([]byte, error) {
+func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	err := expandArrayIntoScript(script.BinWriter, funcParams)
 	if err != nil {

@@ -578,7 +578,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	txScript, err := rpc.CreateDeploymentScript(avm, &conf.Contract)
+	txScript, err := request.CreateDeploymentScript(avm, &conf.Contract)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}

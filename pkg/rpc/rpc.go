@@ -130,18 +130,18 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	var (
 		err      error
 		rawTx    *transaction.Transaction
-		txParams = ContractTxParams{
-			assetID:  asset,
-			address:  address,
-			value:    amount,
-			wif:      c.WIF(),
-			balancer: c.Balancer(),
+		txParams = request.ContractTxParams{
+			AssetID:  asset,
+			Address:  address,
+			Value:    amount,
+			WIF:      c.WIF(),
+			Balancer: c.Balancer(),
 		}
 		respRaw *response.Raw
 		resp    = &response.SendToAddress{}
 	)
 
-	if rawTx, err = CreateRawContractTransaction(txParams); err != nil {
+	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
 		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
 	if respRaw, err = c.sendRawTransaction(rawTx); err != nil {
@@ -168,12 +168,12 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 	fromAddress := wif.PrivateKey.Address()
 
 	if gas > 0 {
-		if err = AddInputsAndUnspentsToTx(tx, fromAddress, core.UtilityTokenID(), gas, c); err != nil {
+		if err = request.AddInputsAndUnspentsToTx(tx, fromAddress, core.UtilityTokenID(), gas, c); err != nil {
 			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
 		}
 	}
 
-	if err = SignTx(tx, wif); err != nil {
+	if err = request.SignTx(tx, wif); err != nil {
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()

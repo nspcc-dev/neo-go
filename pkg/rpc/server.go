@@ -448,7 +448,7 @@ func (s *Server) invoke(reqParams request.Params) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	script, err := CreateInvocationScript(scriptHash, slice)
+	script, err := request.CreateInvocationScript(scriptHash, slice)
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	script, err := CreateFunctionInvocationScript(scriptHash, reqParams[1:])
+	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:])
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ type Client struct {
 	wifMu      *sync.Mutex
 	wif        *keys.WIF
 	balancerMu *sync.Mutex
-	balancer   BalanceGetter
+	balancer   request.BalanceGetter
 }
 
 // ClientOptions defines options for the RPC client.
@@ -122,14 +122,14 @@ func (c *Client) SetWIF(wif string) error {
 }
 
 // Balancer is a getter for balance field.
-func (c *Client) Balancer() BalanceGetter {
+func (c *Client) Balancer() request.BalanceGetter {
 	c.balancerMu.Lock()
 	defer c.balancerMu.Unlock()
 	return c.balancer
 }
 
 // SetBalancer is a setter for balance field.
-func (c *Client) SetBalancer(b BalanceGetter) {
+func (c *Client) SetBalancer(b request.BalanceGetter) {
 	c.balancerMu.Lock()
 	defer c.balancerMu.Unlock()
 
