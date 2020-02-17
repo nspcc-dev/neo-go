@@ -99,7 +99,11 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 		log:              log,
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
-		s.tryStartConsensus()
+		if s.consensusStarted.Load() {
+			s.consensus.OnNewBlock()
+		} else {
+			s.tryStartConsensus()
+		}
 		s.relayBlock(b)
 	})
 
