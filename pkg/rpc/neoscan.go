@@ -13,6 +13,33 @@ import (
 	errs "github.com/pkg/errors"
 )
 
+/*
+	Definition of types, helper functions and variables
+	required for calculation of transaction inputs using
+	NeoScan API.
+*/
+
+type (
+	// NeoScanServer stores NEOSCAN URL and API path.
+	NeoScanServer struct {
+		URL  string // "protocol://host:port/"
+		Path string // path to API endpoint without wallet address
+	}
+
+	// Unspent stores Unspents per asset
+	Unspent struct {
+		Unspent state.UnspentBalances
+		Asset   string      // "NEO" / "GAS"
+		Amount  util.Fixed8 // total unspent of this asset
+	}
+
+	// NeoScanBalance is a struct of NeoScan response to 'get_balance' request
+	NeoScanBalance struct {
+		Balance []*Unspent
+		Address string
+	}
+)
+
 // GetBalance performs a request to get balance for the address specified.
 func (s NeoScanServer) GetBalance(address string) ([]*Unspent, error) {
 	var (
