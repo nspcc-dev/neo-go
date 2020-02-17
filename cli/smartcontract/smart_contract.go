@@ -14,7 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/compiler"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/rpc/client"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -400,15 +400,15 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 			return err
 		}
 	}
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	if withMethod {
-		resp, err = client.InvokeFunction(script, operation, params)
+		resp, err = c.InvokeFunction(script, operation, params)
 	} else {
-		resp, err = client.Invoke(script, params)
+		resp, err = c.Invoke(script, params)
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -421,7 +421,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := client.SignAndPushInvocationTx(script, wif, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, wif, gas)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
@@ -453,13 +453,13 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	scriptHex := hex.EncodeToString(b)
-	resp, err := client.InvokeScript(scriptHex)
+	resp, err := c.InvokeScript(scriptHex)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -573,7 +573,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
 	}
 
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -583,7 +583,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
 
-	txHash, err := client.SignAndPushInvocationTx(txScript, wif, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, wif, gas)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}

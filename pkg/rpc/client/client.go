@@ -1,4 +1,4 @@
-package rpc
+package client
 
 import (
 	"bytes"
@@ -41,10 +41,10 @@ type Client struct {
 	balancer   request.BalanceGetter
 }
 
-// ClientOptions defines options for the RPC client.
+// Options defines options for the RPC client.
 // All Values are optional. If any duration is not specified
 // a default of 3 seconds will be used.
-type ClientOptions struct {
+type Options struct {
 	Cert        string
 	Key         string
 	CACert      string
@@ -56,8 +56,8 @@ type ClientOptions struct {
 	Version string
 }
 
-// NewClient returns a new Client ready to use.
-func NewClient(ctx context.Context, endpoint string, opts ClientOptions) (*Client, error) {
+// New returns a new Client ready to use.
+func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	url, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
