@@ -245,6 +245,10 @@ Methods:
 		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
 
+	case "gettxout":
+		gettxoutCalled.Inc()
+		results, resultsErr = s.getTxOut(reqParams)
+
 	case "getunspents":
 		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
@@ -309,6 +313,40 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 	}
 
 	return results, resultsErr
+}
+
+func (s *Server) getTxOut(ps Params) (interface{}, error) {
+	p, ok := ps.Value(0)
+	if !ok {
+		return nil, errInvalidParams
+	}
+
+	h, err := p.GetUint256()
+	if err != nil {
+		return nil, errInvalidParams
+	}
+
+	p, ok = ps.ValueWithType(1, numberT)
+	if !ok {
+		return nil, errInvalidParams
+	}
+
+	num, err := p.GetInt()
+	if err != nil || num < 0 {
+		return nil, errInvalidParams
+	}
+
+	tx, _, err := s.chain.GetTransaction(h)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error(), err)
+	}
+
+	if num >= len(tx.Outputs) {
+		return nil, NewInvalidParamsError("invalid index", errors.New("too big index"))
+	}
+
+	out := tx.Outputs[num]
+	return wrappers.NewTxOutput(&out), nil
 }
 
 // getAccountState returns account state either in short or full (unspents included) form.
