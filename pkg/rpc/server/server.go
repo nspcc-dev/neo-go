@@ -1,4 +1,4 @@
-package rpc
+package server
 
 import (
 	"context"
@@ -38,8 +38,8 @@ var invalidBlockHeightError = func(index int, height int) error {
 	return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
 }
 
-// NewServer creates a new Server struct.
-func NewServer(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server, log *zap.Logger) Server {
+// New creates a new Server struct.
+func New(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server, log *zap.Logger) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}

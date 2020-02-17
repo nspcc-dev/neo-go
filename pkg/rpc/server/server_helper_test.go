@@ -1,4 +1,4 @@
-package rpc
+package server
 
 import (
 	"net/http"
@@ -178,7 +178,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	var nBlocks uint32
 
 	net := config.ModeUnitTestNet
-	configPath := "../../config"
+	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
 
@@ -210,7 +210,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	serverConfig := network.NewServerConfig(cfg)
 	server, err := network.NewServer(serverConfig, chain, logger)
 	require.NoError(t, err)
-	rpcServer := NewServer(chain, cfg.ApplicationConfiguration.RPC, server, logger)
+	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, logger)
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
 	return chain, handler

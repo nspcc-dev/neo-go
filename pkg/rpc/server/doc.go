@@ -1,5 +1,5 @@
 /*
-Package rpc implements NEO-specific JSON-RPC 2.0 server.
+Package server implements NEO-specific JSON-RPC 2.0 server.
 This package is currently in alpha and is subject to change.
 
 Server
@@ -45,4 +45,4 @@ Unsupported methods
 	submitblock (needs to be implemented in pkg/core/blockchain.go)
 
 */
-package rpc
+package server
