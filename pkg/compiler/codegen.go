@@ -55,6 +55,7 @@ type labelOffsetType byte
 const (
 	labelStart labelOffsetType = iota // labelStart is a default label type
 	labelEnd                          // labelEnd is a type for labels that are targets for break
+	labelPost                         // labelPost is a type for labels that are targets for continue
 )
 
 type labelWithType struct {
@@ -692,7 +693,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			end := c.getLabelOffset(labelEnd, label)
 			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(end))
 		case token.CONTINUE:
-			c.prog.Err = fmt.Errorf("continue statement is not supported yet")
+			post := c.getLabelOffset(labelPost, label)
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(post))
 		}
 
 		return nil
@@ -707,6 +709,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.ForStmt:
 		fstart, label := c.generateLabel(labelStart)
 		fend := c.newNamedLabel(labelEnd, label)
+		fpost := c.newNamedLabel(labelPost, label)
 
 		lastLabel := c.currentFor
 		c.currentFor = label
@@ -725,6 +728,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
+		c.setLabel(fpost)
 		if n.Post != nil {
 			ast.Walk(c, n.Post)
 		}

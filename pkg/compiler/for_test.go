@@ -538,6 +538,84 @@ func TestForLoopNestedBreakLabel(t *testing.T) {
 	eval(t, src, big.NewInt(5))
 }
 
+func TestForLoopContinue(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, j int
+		for i < 10 {
+			i++
+			if i >= 5 {
+				continue
+			}
+			j++
+		}
+		return j
+	}`
+
+	eval(t, src, big.NewInt(4))
+}
+
+func TestForLoopContinueLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, j int
+		loop:
+		for i < 10 {
+			i++
+			if i >= 5 {
+				continue loop
+			}
+			j++
+		}
+		return j
+	}`
+
+	eval(t, src, big.NewInt(4))
+}
+
+func TestForLoopNestedContinue(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, k int
+		for i < 10 {
+			i++
+			for j := 0; j < 3; j++ {
+				if j >= 2 {
+					continue
+				}
+				k++
+			}
+		}
+		return k
+	}`
+
+	eval(t, src, big.NewInt(20))
+}
+
+func TestForLoopNestedContinueLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		loop:
+		for ; i < 10; i += 10 {
+			i++
+			for j := 0; j < 4; j++ {
+				if i == 5 {
+					continue loop
+				}
+				i++
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(15))
+}
+
 func TestForLoopRangeNoVariable(t *testing.T) {
 	src := `
 	package foo
