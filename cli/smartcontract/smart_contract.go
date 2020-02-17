@@ -477,11 +477,11 @@ func testInvokeScript(ctx *cli.Context) error {
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
 	Version  uint
-	Contract rpc.ContractDetails `yaml:"project"`
+	Contract request.ContractDetails `yaml:"project"`
 }
 
-func parseContractDetails() rpc.ContractDetails {
-	details := rpc.ContractDetails{}
+func parseContractDetails() request.ContractDetails {
+	details := request.ContractDetails{}
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Author: ")

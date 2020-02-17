@@ -1,6 +1,4 @@
-package rpc
-
-import "github.com/CityOfZion/neo-go/pkg/rpc/request"
+package request
 
 // ContractDetails contains contract metadata.
 type ContractDetails struct {
@@ -12,6 +10,6 @@ type ContractDetails struct {
 	HasStorage           bool
 	HasDynamicInvocation bool
 	IsPayable            bool
-	ReturnType           request.StackParamType
-	Parameters           []request.StackParamType
+	ReturnType           StackParamType
+	Parameters           []StackParamType
 }

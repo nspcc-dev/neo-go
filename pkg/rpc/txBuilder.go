@@ -110,7 +110,7 @@ func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, er
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata.
-func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
+func CreateDeploymentScript(avm []byte, contract *request.ContractDetails) ([]byte, error) {
 	var props smartcontract.PropertyState
 
 	script := io.NewBufBinWriter()
