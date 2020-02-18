@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -161,5 +163,80 @@ func newDumbBlock() *block.Block {
 			{Type: transaction.MinerType},
 			{Type: transaction.IssueType},
 		},
+	}
+}
+
+// This function generates "../rpc/testdata/testblocks.acc" file which contains data
+// for RPC unit tests.
+// To generate new "../rpc/testdata/testblocks.acc", follow the steps:
+// 		1. Rename the function
+// 		2. Add specific test-case into "neo-go/pkg/core/blockchain_test.go"
+// 		3. Run tests with `$ make test`
+func _(t *testing.T) {
+	bc := newTestChain(t)
+	n := 50
+	blocks := makeBlocks(n)
+
+	for i := 0; i < len(blocks); i++ {
+		if err := bc.AddBlock(blocks[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tx1 := newMinerTX()
+
+	avm, err := ioutil.ReadFile("../rpc/testdata/test_contract.avm")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var props smartcontract.PropertyState
+	script := io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte("Da contract dat hallos u"))
+	emit.Bytes(script.BinWriter, []byte("joe@example.com"))
+	emit.Bytes(script.BinWriter, []byte("Random Guy"))
+	emit.Bytes(script.BinWriter, []byte("0.99"))
+	emit.Bytes(script.BinWriter, []byte("Helloer"))
+	props |= smartcontract.HasStorage
+	emit.Int(script.BinWriter, int64(props))
+	emit.Int(script.BinWriter, int64(5))
+	params := make([]byte, 1)
+	params[0] = byte(7)
+	emit.Bytes(script.BinWriter, params)
+	emit.Bytes(script.BinWriter, avm)
+	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
+	txScript := script.Bytes()
+
+	tx2 := transaction.NewInvocationTX(txScript, util.Fixed8FromFloat(100))
+
+	block := newBlock(uint32(n+1), tx1, tx2)
+	if err := bc.AddBlock(block); err != nil {
+		t.Fatal(err)
+	}
+
+	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer outStream.Close()
+
+	writer := io.NewBinWriterFromIO(outStream)
+
+	count := bc.BlockHeight() + 1
+	writer.WriteU32LE(count - 1)
+
+	for i := 1; i < int(count); i++ {
+		bh := bc.GetHeaderHash(i)
+		b, err := bc.GetBlock(bh)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := io.NewBufBinWriter()
+		b.EncodeBinary(buf.BinWriter)
+		bytes := buf.Bytes()
+		writer.WriteBytes(bytes)
+		if writer.Err != nil {
+			t.Fatal(err)
+		}
 	}
 }

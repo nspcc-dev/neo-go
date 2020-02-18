@@ -72,6 +72,35 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getcontractstate": {
+		{
+			name:   "positive",
+			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6cf"]`,
+			result: func(e *executor) interface{} { return &GetContractStateResponce{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*GetContractStateResponce)
+				require.True(t, ok)
+				assert.Equal(t, byte(0), res.Result.Version)
+				assert.Equal(t, util.Uint160{0x6d, 0x1e, 0xec, 0xa8, 0x91, 0xee, 0x93, 0xde, 0x2b, 0x7a, 0x77, 0xeb, 0x91, 0xc2, 0x6f, 0x3b, 0x3c, 0x4, 0xd6, 0xcf}, res.Result.ScriptHash)
+				assert.Equal(t, "0.99", res.Result.CodeVersion)
+			},
+		},
+		{
+			name:   "negative",
+			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6c3"]`,
+			fail:   true,
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+	},
 	"getassetstate": {
 		{
 			name:   "positive",
@@ -87,7 +116,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "negative",
 			params: `["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de2"]`,
-			result: func(e *executor) interface{} { return "Invalid assetid" },
+			fail:   true,
 		},
 		{
 			name:   "no params",

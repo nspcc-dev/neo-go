@@ -234,12 +234,16 @@ Methods:
 		if as != nil {
 			results = wrappers.NewAssetState(as)
 		} else {
-			results = "Invalid assetid"
+			resultsErr = NewRPCError("Unknown asset", "", nil)
 		}
 
 	case "getaccountstate":
 		getaccountstateCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, false)
+
+	case "getcontractstate":
+		getcontractstateCalled.Inc()
+		results, resultsErr = s.getContractState(reqParams)
 
 	case "getrawtransaction":
 		getrawtransactionCalled.Inc()
@@ -288,7 +292,7 @@ func (s *Server) getrawtransaction(reqParams Params) (interface{}, error) {
 		resultsErr = errInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
-		return nil, NewInvalidParamsError(err.Error(), err)
+		return nil, NewRPCError("Unknown transaction", err.Error(), err)
 	} else if len(reqParams) >= 2 {
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
@@ -347,6 +351,26 @@ func (s *Server) getTxOut(ps Params) (interface{}, error) {
 
 	out := tx.Outputs[num]
 	return wrappers.NewTxOutput(&out), nil
+}
+
+// getContractState returns contract state (contract information, according to the contract script hash).
+func (s *Server) getContractState(reqParams Params) (interface{}, error) {
+	var results interface{}
+
+	param, ok := reqParams.ValueWithType(0, stringT)
+	if !ok {
+		return nil, errInvalidParams
+	} else if scriptHash, err := param.GetUint160FromHex(); err != nil {
+		return nil, errInvalidParams
+	} else {
+		cs := s.chain.GetContractState(scriptHash)
+		if cs != nil {
+			results = wrappers.NewContractState(cs)
+		} else {
+			return nil, NewRPCError("Unknown contract", "", nil)
+		}
+	}
+	return results, nil
 }
 
 // getAccountState returns account state either in short or full (unspents included) form.

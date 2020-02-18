@@ -44,6 +44,14 @@ var (
 		},
 	)
 
+	getcontractstateCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getcontractstate rpc endpoint",
+			Name:      "getcontractstate_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getversionCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getversion rpc endpoint",
@@ -124,6 +132,7 @@ func init() {
 		getblockcountCalled,
 		getblockHashCalled,
 		getconnectioncountCalled,
+		getcontractstateCalled,
 		getversionCalled,
 		getpeersCalled,
 		validateaddressCalled,
