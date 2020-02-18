@@ -128,8 +128,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		timeStamp:  time.Now().UTC(),
 		perByteFee: fee.FeePerByte(t),
 		netFee:     fee.NetworkFee(t),
-		isLowPrio:  fee.IsLowPriority(t),
 	}
+	pItem.isLowPrio = fee.IsLowPriority(pItem.netFee)
 	mp.lock.Lock()
 	if !mp.verifyInputs(t) {
 		mp.lock.Unlock()

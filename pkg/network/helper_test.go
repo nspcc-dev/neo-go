@@ -122,7 +122,7 @@ func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
-func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
+func (chain testChain) IsLowPriority(util.Fixed8) bool {
 	panic("TODO")
 }
 

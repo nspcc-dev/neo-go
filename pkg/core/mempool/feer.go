@@ -8,7 +8,7 @@ import (
 // Feer is an interface that abstract the implementation of the fee calculation.
 type Feer interface {
 	NetworkFee(t *transaction.Transaction) util.Fixed8
-	IsLowPriority(t *transaction.Transaction) bool
+	IsLowPriority(util.Fixed8) bool
 	FeePerByte(t *transaction.Transaction) util.Fixed8
 	SystemFee(t *transaction.Transaction) util.Fixed8
 }

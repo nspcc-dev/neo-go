@@ -22,7 +22,7 @@ func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
 	return fs.netFee
 }
 
-func (fs *FeerStub) IsLowPriority(*transaction.Transaction) bool {
+func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
 	return fs.lowPriority
 }
 

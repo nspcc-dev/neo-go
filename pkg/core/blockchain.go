@@ -1019,10 +1019,10 @@ func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
-// IsLowPriority flags a transaction as low priority if the network fee is less than
+// IsLowPriority checks given fee for being less than configured
 // LowPriorityThreshold.
-func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
-	return bc.NetworkFee(t) < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
+func (bc *Blockchain) IsLowPriority(fee util.Fixed8) bool {
+	return fee < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
 }
 
 // GetMemPool returns the memory pool of the blockchain.
