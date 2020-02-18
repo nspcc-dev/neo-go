@@ -43,6 +43,8 @@ type codegen struct {
 
 	// A label for the for-loop being currently visited.
 	currentFor string
+	// A label for the switch statement being visited.
+	currentSwitch string
 	// A label to be used in the next statement.
 	nextLabel string
 
@@ -403,7 +405,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.Tag)
 
 		eqOpcode := c.getEqualityOpcode(n.Tag)
-		switchEnd := c.newLabel()
+		switchEnd, label := c.generateLabel(labelEnd)
+
+		lastSwitch := c.currentSwitch
+		c.currentSwitch = label
 
 		for i := range n.Body.List {
 			lEnd := c.newLabel()
@@ -433,6 +438,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(switchEnd)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+
+		c.currentSwitch = lastSwitch
 
 		return nil
 
@@ -683,9 +690,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BranchStmt:
-		label := c.currentFor
+		var label string
 		if n.Label != nil {
 			label = n.Label.Name
+		} else if n.Tok == token.BREAK {
+			label = c.currentSwitch
+		} else if n.Tok == token.CONTINUE {
+			label = c.currentFor
 		}
 
 		switch n.Tok {
@@ -712,7 +723,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		fpost := c.newNamedLabel(labelPost, label)
 
 		lastLabel := c.currentFor
+		lastSwitch := c.currentSwitch
 		c.currentFor = label
+		c.currentSwitch = label
 
 		// Walk the initializer and condition.
 		if n.Init != nil {
@@ -738,6 +751,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(fend)
 
 		c.currentFor = lastLabel
+		c.currentSwitch = lastSwitch
 
 		return nil
 
