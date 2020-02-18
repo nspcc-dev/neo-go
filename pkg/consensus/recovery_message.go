@@ -15,7 +15,7 @@ type (
 		preparationPayloads []*preparationCompact
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
-		prepareRequest      *prepareRequest
+		prepareRequest      *message
 	}
 
 	changeViewCompact struct {
@@ -46,8 +46,12 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = new(prepareRequest)
+		m.prepareRequest = new(message)
 		m.prepareRequest.DecodeBinary(r)
+		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
+			r.Err = errors.New("recovery message PrepareRequest has wrong type")
+			return
+		}
 	} else {
 		l := r.ReadVarUint()
 		if l != 0 {
@@ -135,7 +139,11 @@ func (p *preparationCompact) EncodeBinary(w *io.BinWriter) {
 func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 	switch p.Type() {
 	case payload.PrepareRequestType:
-		m.prepareRequest = p.GetPrepareRequest().(*prepareRequest)
+		m.prepareRequest = &message{
+			Type:       prepareRequestType,
+			ViewNumber: p.ViewNumber(),
+			payload:    p.GetPrepareRequest().(*prepareRequest),
+		}
 		h := p.Hash()
 		m.preparationHash = &h
 		m.preparationPayloads = append(m.preparationPayloads, &preparationCompact{
@@ -187,7 +195,7 @@ func (m *recoveryMessage) GetPrepareRequest(p payload.ConsensusPayload, validato
 		return nil
 	}
 
-	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest)
+	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest.payload)
 	req.SetValidatorIndex(primary)
 	req.Witness.InvocationScript = compact.InvocationScript
 	req.Witness.VerificationScript = getVerificationScript(primary, validators)
