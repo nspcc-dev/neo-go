@@ -786,15 +786,14 @@ func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if t.Type == transaction.MinerType {
 		return RelayInvalid
 	}
-	// TODO: Implement Plugin.CheckPolicy?
-	//if (!Plugin.CheckPolicy(transaction))
-	// return RelayResultReason.PolicyFail;
 	if err := s.chain.PoolTx(t); err != nil {
 		switch err {
 		case core.ErrAlreadyExists:
 			return RelayAlreadyExists
 		case core.ErrOOM:
 			return RelayOutOfMemory
+		case core.ErrPolicy:
+			return RelayPolicyFail
 		default:
 			return RelayInvalid
 		}

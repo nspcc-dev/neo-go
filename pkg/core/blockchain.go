@@ -49,6 +49,9 @@ var (
 	// ErrOOM is returned when adding transaction to the memory pool because
 	// it reached its full capacity.
 	ErrOOM = errors.New("no space left in the memory pool")
+	// ErrPolicy is returned on attempt to add transaction that doesn't
+	// comply with node's configured policy into the mempool.
+	ErrPolicy = errors.New("not allowed by policy")
 )
 var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
@@ -124,6 +127,22 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
+	}
+	if cfg.MaxTransactionsPerBlock <= 0 {
+		cfg.MaxTransactionsPerBlock = 0
+		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
+	}
+	if cfg.MaxFreeTransactionsPerBlock <= 0 {
+		cfg.MaxFreeTransactionsPerBlock = 0
+		log.Info("MaxFreeTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionsPerBlock", cfg.MaxFreeTransactionsPerBlock))
+	}
+	if cfg.MaxFreeTransactionSize <= 0 {
+		cfg.MaxFreeTransactionSize = 0
+		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
+	}
+	if cfg.FeePerExtraByte <= 0 {
+		cfg.FeePerExtraByte = 0
+		log.Info("FeePerExtraByte is not set or wrong, setting default value", zap.Float64("FeePerExtraByte", cfg.FeePerExtraByte))
 	}
 	bc := &Blockchain{
 		config:        cfg,
@@ -1030,6 +1049,24 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool
 }
 
+// ApplyPolicyToTxSet applies configured policies to given transaction set. It
+// expects slice to be ordered by fee and returns a subslice of it.
+func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxWithFee {
+	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
+		txes = txes[:bc.config.MaxTransactionsPerBlock]
+	}
+	maxFree := bc.config.MaxFreeTransactionsPerBlock
+	if maxFree != 0 {
+		lowStart := sort.Search(len(txes), func(i int) bool {
+			return bc.IsLowPriority(txes[i].Fee)
+		})
+		if lowStart+maxFree < len(txes) {
+			txes = txes[:lowStart+maxFree]
+		}
+	}
+	return txes
+}
+
 // VerifyBlock verifies block against its current state.
 func (bc *Blockchain) VerifyBlock(block *block.Block) error {
 	prevHeader, err := bc.GetHeader(block.PrevHash)
@@ -1126,6 +1163,18 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	}
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
+	}
+	// Policying.
+	if t.Type != transaction.ClaimType {
+		txSize := io.GetVarSize(t)
+		maxFree := bc.config.MaxFreeTransactionSize
+		if maxFree != 0 && txSize > maxFree {
+			netFee := bc.NetworkFee(t)
+			if bc.IsLowPriority(netFee) ||
+				netFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+				return ErrPolicy
+			}
+		}
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {

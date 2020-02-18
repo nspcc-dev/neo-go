@@ -430,6 +430,10 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 		txx = pool.GetVerifiedTransactions()
 	}
 
+	if len(txx) > 0 {
+		txx = s.Config.Chain.ApplyPolicyToTxSet(txx)
+	}
+
 	res := make([]block.Transaction, len(txx)+1)
 	var netFee util.Fixed8
 	for i := range txx {
