@@ -290,7 +290,10 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				InvocationScript:   fillRandom(t, make([]byte, 4)),
 			},
 		},
-		prepareRequest: prepReq,
+		prepareRequest: &message{
+			Type:    prepareRequestType,
+			payload: prepReq,
+		},
 	}
 }
 
