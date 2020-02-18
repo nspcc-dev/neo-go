@@ -50,7 +50,7 @@ which would yield the response:
 | `getpeers` | Yes |
 | `getrawmempool` | No (#175) |
 | `getrawtransaction` | Yes |
-| `getstorage` | No (#343) |
+| `getstorage` | Yes |
 | `gettxout` | Yes |
 | `getunspents` | Yes |
 | `getversion` | Yes |

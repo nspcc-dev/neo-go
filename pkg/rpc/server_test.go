@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -75,13 +76,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive",
-			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6cf"]`,
+			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
 			result: func(e *executor) interface{} { return &GetContractStateResponce{} },
 			check: func(t *testing.T, e *executor, result interface{}) {
 				res, ok := result.(*GetContractStateResponce)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Result.Version)
-				assert.Equal(t, util.Uint160{0x6d, 0x1e, 0xec, 0xa8, 0x91, 0xee, 0x93, 0xde, 0x2b, 0x7a, 0x77, 0xeb, 0x91, 0xc2, 0x6f, 0x3b, 0x3c, 0x4, 0xd6, 0xcf}, res.Result.ScriptHash)
+				assert.Equal(t, util.Uint160{0x1a, 0x69, 0x6b, 0x32, 0xe2, 0x39, 0xdd, 0x5e, 0xac, 0xe3, 0xf0, 0x25, 0xca, 0xc0, 0xa1, 0x93, 0xa5, 0x74, 0x6a, 0x27}, res.Result.ScriptHash)
 				assert.Equal(t, "0.99", res.Result.CodeVersion)
 			},
 		},
@@ -98,6 +99,48 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "invalid hash",
 			params: `["notahex"]`,
+			fail:   true,
+		},
+	},
+	"getstorage": {
+		{
+			name:   "positive",
+			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "746573746b6579"]`,
+			result: func(e *executor) interface{} { return &StringResultResponse{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*StringResultResponse)
+				require.True(t, ok)
+				assert.Equal(t, hex.EncodeToString([]byte("testvalue")), res.Result)
+			},
+		},
+		{
+			name:   "missing key",
+			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "7465"]`,
+			result: func(e *executor) interface{} { return &StringResultResponse{} },
+			check: func(t *testing.T, e *executor, result interface{}) {
+				res, ok := result.(*StringResultResponse)
+				require.True(t, ok)
+				assert.Equal(t, "", res.Result)
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "no second parameter",
+			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid key",
+			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "notahex"]`,
 			fail:   true,
 		},
 	},
