@@ -35,6 +35,12 @@ type item struct {
 // items is a slice of item.
 type items []*item
 
+// TxWithFee combines transaction and its precalculated network fee.
+type TxWithFee struct {
+	Tx  *transaction.Transaction
+	Fee util.Fixed8
+}
+
 // Pool stores the unconfirms transactions.
 type Pool struct {
 	lock         sync.RWMutex
@@ -224,29 +230,28 @@ func NewMemPool(capacity int) Pool {
 	}
 }
 
-// TryGetValue returns a transaction if it exists in the memory pool.
-func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
+// TryGetValue returns a transaction and its fee if it exists in the memory pool.
+func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, util.Fixed8, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if pItem, ok := mp.verifiedMap[hash]; ok {
-		return pItem.txn, ok
+		return pItem.txn, pItem.netFee, ok
 	}
 
-	return nil, false
+	return nil, 0, false
 }
 
 // GetVerifiedTransactions returns a slice of Input from all the transactions in the memory pool
 // whose hash is not included in excludedHashes.
-func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
+func (mp *Pool) GetVerifiedTransactions() []TxWithFee {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	var t = make([]*transaction.Transaction, len(mp.verifiedTxes))
-	var i int
+	var t = make([]TxWithFee, len(mp.verifiedTxes))
 
-	for _, p := range mp.verifiedTxes {
-		t[i] = p.txn
-		i++
+	for i := range mp.verifiedTxes {
+		t[i].Tx = mp.verifiedTxes[i].txn
+		t[i].Fee = mp.verifiedTxes[i].netFee
 	}
 
 	return t

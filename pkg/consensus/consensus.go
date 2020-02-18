@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
@@ -412,13 +413,13 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 func (s *service) getVerifiedTx(count int) []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
-	var txx []*transaction.Transaction
+	var txx []mempool.TxWithFee
 
 	if s.dbft.ViewNumber > 0 {
-		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
+		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
-				txx = append(txx, tx)
+			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+				txx = append(txx, mempool.TxWithFee{Tx: tx, Fee: fee})
 			}
 		}
 
@@ -432,8 +433,8 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 	res := make([]block.Transaction, len(txx)+1)
 	var netFee util.Fixed8
 	for i := range txx {
-		res[i+1] = txx[i]
-		netFee += s.Config.Chain.NetworkFee(txx[i])
+		res[i+1] = txx[i].Tx
+		netFee += txx[i].Fee
 	}
 
 	var txOuts []transaction.Output
