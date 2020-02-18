@@ -75,13 +75,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive",
-			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6cf"]`,
+			params: `["5ec6b374fd13e53fe60be7901a091695123ea2f0"]`,
 			result: func(e *executor) interface{} { return &GetContractStateResponce{} },
 			check: func(t *testing.T, e *executor, result interface{}) {
 				res, ok := result.(*GetContractStateResponce)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Result.Version)
-				assert.Equal(t, util.Uint160{0x6d, 0x1e, 0xec, 0xa8, 0x91, 0xee, 0x93, 0xde, 0x2b, 0x7a, 0x77, 0xeb, 0x91, 0xc2, 0x6f, 0x3b, 0x3c, 0x4, 0xd6, 0xcf}, res.Result.ScriptHash)
+				assert.Equal(t, util.Uint160{0x5e, 0xc6, 0xb3, 0x74, 0xfd, 0x13, 0xe5, 0x3f, 0xe6, 0x0b, 0xe7, 0x90, 0x1a, 0x09, 0x16, 0x95, 0x12, 0x3e, 0xa2, 0xf0}, res.Result.ScriptHash)
 				assert.Equal(t, "0.99", res.Result.CodeVersion)
 			},
 		},

@@ -214,6 +214,18 @@ func _(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	script = io.NewBufBinWriter()
+	emit.String(script.BinWriter, "testvalue")
+	emit.String(script.BinWriter, "testkey")
+	emit.Int(script.BinWriter, 2)
+	emit.Opcode(script.BinWriter, opcode.PACK)
+	emit.String(script.BinWriter, "Put")
+	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
+
+	tx3 := transaction.NewInvocationTX(script.Bytes(), util.Fixed8FromFloat(100))
+	b := newBlock(uint32(n+2), newMinerTX(), tx3)
+	require.NoError(t, bc.AddBlock(b))
+
 	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
 	if err != nil {
 		t.Fatal(err)
