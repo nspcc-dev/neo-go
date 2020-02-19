@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -144,4 +145,21 @@ func TestWallet_GetAccount(t *testing.T) {
 		h := acc.Contract.ScriptHash()
 		assert.Equal(t, acc, wallet.GetAccount(h), "can't get %d account", i)
 	}
+}
+
+func TestWalletGetChangeAddress(t *testing.T) {
+	w1, err := NewWalletFromFile("testdata/wallet1.json")
+	require.NoError(t, err)
+	sh := w1.GetChangeAddress()
+	// No default address, the first one is used.
+	expected, err := address.StringToUint160("AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs")
+	require.NoError(t, err)
+	require.Equal(t, expected, sh)
+	w2, err := NewWalletFromFile("testdata/wallet2.json")
+	require.NoError(t, err)
+	sh = w2.GetChangeAddress()
+	// Default address.
+	expected, err = address.StringToUint160("AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17")
+	require.NoError(t, err)
+	require.Equal(t, expected, sh)
 }

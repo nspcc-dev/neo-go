@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/nspcc-dev/rfc6979"
 )
 
@@ -98,10 +99,11 @@ func (p *PrivateKey) Address() string {
 	return pk.Address()
 }
 
-// Signature creates the signature using the private key.
-func (p *PrivateKey) Signature() []byte {
+// GetScriptHash returns verification script hash for public key associated with
+// the private key.
+func (p *PrivateKey) GetScriptHash() util.Uint160 {
 	pk := p.PublicKey()
-	return pk.Signature()
+	return pk.GetScriptHash()
 }
 
 // Sign signs arbitrary length data using the private key.

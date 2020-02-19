@@ -31,6 +31,10 @@ ProtocolConfiguration:
   VerifyBlocks: true
   VerifyTransactions: false
   FreeGasLimit: 10.0
+  MaxTransactionsPerBlock: 500
+  MaxFreeTransactionsPerBlock: 20
+  MaxFreeTransactionSize: 1024
+  FeePerExtraByte: 0.00001
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

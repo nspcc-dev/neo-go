@@ -239,6 +239,6 @@ func newTestChain(t *testing.T) *core.Blockchain {
 type feer struct{}
 
 func (fs *feer) NetworkFee(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
-func (fs *feer) IsLowPriority(*transaction.Transaction) bool     { return false }
+func (fs *feer) IsLowPriority(util.Fixed8) bool                  { return false }
 func (fs *feer) FeePerByte(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
 func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.Fixed8(0) }

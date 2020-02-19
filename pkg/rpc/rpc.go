@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
@@ -160,15 +161,12 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 	var txHash util.Uint256
 	var err error
 
-	gasIDB, _ := hex.DecodeString("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7")
-	gasID, _ := util.Uint256DecodeBytesLE(gasIDB)
-
 	tx := transaction.NewInvocationTX(script, gas)
 
 	fromAddress := wif.PrivateKey.Address()
 
 	if gas > 0 {
-		if err = AddInputsAndUnspentsToTx(tx, fromAddress, gasID, gas, c); err != nil {
+		if err = AddInputsAndUnspentsToTx(tx, fromAddress, core.UtilityTokenID(), gas, c); err != nil {
 			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
 		}
 	}

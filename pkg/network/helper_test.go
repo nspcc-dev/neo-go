@@ -26,6 +26,9 @@ type testChain struct {
 	blockheight uint32
 }
 
+func (chain testChain) ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithFee {
+	panic("TODO")
+}
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
@@ -122,7 +125,7 @@ func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
-func (chain testChain) IsLowPriority(*transaction.Transaction) bool {
+func (chain testChain) IsLowPriority(util.Fixed8) bool {
 	panic("TODO")
 }
 

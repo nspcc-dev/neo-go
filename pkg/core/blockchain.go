@@ -49,6 +49,9 @@ var (
 	// ErrOOM is returned when adding transaction to the memory pool because
 	// it reached its full capacity.
 	ErrOOM = errors.New("no space left in the memory pool")
+	// ErrPolicy is returned on attempt to add transaction that doesn't
+	// comply with node's configured policy into the mempool.
+	ErrPolicy = errors.New("not allowed by policy")
 )
 var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
@@ -124,6 +127,22 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
+	}
+	if cfg.MaxTransactionsPerBlock <= 0 {
+		cfg.MaxTransactionsPerBlock = 0
+		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
+	}
+	if cfg.MaxFreeTransactionsPerBlock <= 0 {
+		cfg.MaxFreeTransactionsPerBlock = 0
+		log.Info("MaxFreeTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionsPerBlock", cfg.MaxFreeTransactionsPerBlock))
+	}
+	if cfg.MaxFreeTransactionSize <= 0 {
+		cfg.MaxFreeTransactionSize = 0
+		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
+	}
+	if cfg.FeePerExtraByte <= 0 {
+		cfg.FeePerExtraByte = 0
+		log.Info("FeePerExtraByte is not set or wrong, setting default value", zap.Float64("FeePerExtraByte", cfg.FeePerExtraByte))
 	}
 	bc := &Blockchain{
 		config:        cfg,
@@ -432,7 +451,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 
-				if prevTXOutput.AssetID.Equals(governingTokenTX().Hash()) {
+				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
 					spentCoin := NewSpentCoinState(input.PrevHash, prevTXHeight)
 					spentCoin.items[input.PrevIndex] = block.Index
 					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
@@ -648,14 +667,14 @@ func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 }
 
 func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
-	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, output.Amount)
 	}
 	return nil
 }
 
 func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *cachedDao) error {
-	if output.AssetID.Equals(governingTokenTX().Hash()) && len(account.Votes) > 0 {
+	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, -output.Amount)
 	}
 	return nil
@@ -724,7 +743,7 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 	}
 
 	if descriptor.Field == "Votes" {
-		balance := account.GetBalanceValues()[governingTokenTX().Hash()]
+		balance := account.GetBalanceValues()[GoverningTokenID()]
 		if err = modAccountVotes(account, dao, -balance); err != nil {
 			return err
 		}
@@ -814,7 +833,7 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	if tx, ok := bc.memPool.TryGetValue(hash); ok {
+	if tx, _, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
 	return bc.dao.GetTransaction(hash)
@@ -999,14 +1018,14 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	inputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range bc.References(t) {
-		if txOutput.AssetID == utilityTokenTX().Hash() {
+		if txOutput.AssetID == UtilityTokenID() {
 			inputAmount.Add(txOutput.Amount)
 		}
 	}
 
 	outputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range t.Outputs {
-		if txOutput.AssetID == utilityTokenTX().Hash() {
+		if txOutput.AssetID == UtilityTokenID() {
 			outputAmount.Add(txOutput.Amount)
 		}
 	}
@@ -1019,15 +1038,33 @@ func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
-// IsLowPriority flags a transaction as low priority if the network fee is less than
+// IsLowPriority checks given fee for being less than configured
 // LowPriorityThreshold.
-func (bc *Blockchain) IsLowPriority(t *transaction.Transaction) bool {
-	return bc.NetworkFee(t) < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
+func (bc *Blockchain) IsLowPriority(fee util.Fixed8) bool {
+	return fee < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
 }
 
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool
+}
+
+// ApplyPolicyToTxSet applies configured policies to given transaction set. It
+// expects slice to be ordered by fee and returns a subslice of it.
+func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxWithFee {
+	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
+		txes = txes[:bc.config.MaxTransactionsPerBlock]
+	}
+	maxFree := bc.config.MaxFreeTransactionsPerBlock
+	if maxFree != 0 {
+		lowStart := sort.Search(len(txes), func(i int) bool {
+			return bc.IsLowPriority(txes[i].Fee)
+		})
+		if lowStart+maxFree < len(txes) {
+			txes = txes[:lowStart+maxFree]
+		}
+	}
+	return txes
 }
 
 // VerifyBlock verifies block against its current state.
@@ -1127,6 +1164,18 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
 	}
+	// Policying.
+	if t.Type != transaction.ClaimType {
+		txSize := io.GetVarSize(t)
+		maxFree := bc.config.MaxFreeTransactionSize
+		if maxFree != 0 && txSize > maxFree {
+			netFee := bc.NetworkFee(t)
+			if bc.IsLowPriority(netFee) ||
+				netFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+				return ErrPolicy
+			}
+		}
+	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:
@@ -1192,7 +1241,7 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	if len(resultsDestroy) > 1 {
 		return errors.New("tx has more than 1 destroy output")
 	}
-	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != utilityTokenTX().Hash() {
+	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
 		return errors.New("tx destroys non-utility token")
 	}
 	sysfee := bc.SystemFee(t)
@@ -1208,14 +1257,14 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 	switch t.Type {
 	case transaction.MinerType, transaction.ClaimType:
 		for _, r := range resultsIssue {
-			if r.AssetID != utilityTokenTX().Hash() {
+			if r.AssetID != UtilityTokenID() {
 				return errors.New("miner or claim tx issues non-utility tokens")
 			}
 		}
 		break
 	case transaction.IssueType:
 		for _, r := range resultsIssue {
-			if r.AssetID == utilityTokenTX().Hash() {
+			if r.AssetID == UtilityTokenID() {
 				return errors.New("issue tx issues utility tokens")
 			}
 		}
@@ -1409,20 +1458,20 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	}
 
 	uniqueSBValidators := standByValidators.Unique()
-	pubKeys := keys.PublicKeys{}
+	result := keys.PublicKeys{}
 	for _, validator := range validators {
 		if validator.RegisteredAndHasVotes() || uniqueSBValidators.Contains(validator.PublicKey) {
-			pubKeys = append(pubKeys, validator.PublicKey)
+			result = append(result, validator.PublicKey)
 		}
 	}
-	if pubKeys.Len() >= count {
-		return pubKeys[:count], nil
-	}
 
-	result := pubKeys.Unique()
-	for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-		if !result.Contains(uniqueSBValidators[i]) {
-			result = append(result, uniqueSBValidators[i])
+	if result.Len() >= count {
+		result = result[:count]
+	} else {
+		for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
+			if !result.Contains(uniqueSBValidators[i]) {
+				result = append(result, uniqueSBValidators[i])
+			}
 		}
 	}
 	sort.Sort(result)

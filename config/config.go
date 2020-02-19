@@ -46,7 +46,7 @@ type (
 		AddressVersion          byte      `yaml:"AddressVersion"`
 		SecondsPerBlock         int       `yaml:"SecondsPerBlock"`
 		LowPriorityThreshold    float64   `yaml:"LowPriorityThreshold"`
-		MaxTransactionsPerBlock int64     `yaml:"MaxTransactionsPerBlock"`
+		MaxTransactionsPerBlock int       `yaml:"MaxTransactionsPerBlock"`
 		MemPoolSize             int       `yaml:"MemPoolSize"`
 		StandbyValidators       []string  `yaml:"StandbyValidators"`
 		SeedList                []string  `yaml:"SeedList"`
@@ -59,6 +59,13 @@ type (
 		FreeGasLimit util.Fixed8 `yaml:"FreeGasLimit"`
 		// SaveStorageBatch enables storage batch saving before every persist.
 		SaveStorageBatch bool `yaml:"SaveStorageBatch"`
+		// Maximum number of low priority transactions accepted into block.
+		MaxFreeTransactionsPerBlock int `yaml:"MaxFreeTransactionsPerBlock"`
+		// Maximum size of low priority transaction in bytes.
+		MaxFreeTransactionSize int `yaml:"MaxFreeTransactionSize"`
+		// FeePerExtraByte sets the expected per-byte fee for
+		// transactions exceeding the MaxFreeTransactionSize.
+		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`
 	}
 
 	// SystemFee fees related to system.

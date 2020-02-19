@@ -13,6 +13,17 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
+var (
+	// governingTokenTX represents transaction that is used to create
+	// governing (NEO) token. It's a part of the genesis block.
+	governingTokenTX transaction.Transaction
+
+	// utilityTokenTX represents transaction that is used to create
+	// utility (GAS) token. It's a part of the genesis block. It's mostly
+	// useful for its hash that represents GAS asset ID.
+	utilityTokenTX transaction.Transaction
+)
+
 // createGenesisBlock creates a genesis block based on the given configuration.
 func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
 	validators, err := getValidators(cfg)
@@ -38,8 +49,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		},
 	}
 
-	governingTX := governingTokenTX()
-	utilityTX := utilityTokenTX()
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(
 		len(cfg.StandbyValidators)/2+1,
 		validators,
@@ -62,16 +71,16 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 				Outputs:    []transaction.Output{},
 				Scripts:    []transaction.Witness{},
 			},
-			governingTX,
-			utilityTX,
+			&governingTokenTX,
+			&utilityTokenTX,
 			{
 				Type:   transaction.IssueType,
 				Data:   &transaction.IssueTX{}, // no fields.
 				Inputs: []transaction.Input{},
 				Outputs: []transaction.Output{
 					{
-						AssetID:    governingTX.Hash(),
-						Amount:     governingTX.Data.(*transaction.RegisterTX).Amount,
+						AssetID:    governingTokenTX.Hash(),
+						Amount:     governingTokenTX.Data.(*transaction.RegisterTX).Amount,
 						ScriptHash: scriptOut,
 					},
 				},
@@ -92,7 +101,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	return b, nil
 }
 
-func governingTokenTX() *transaction.Transaction {
+func init() {
 	admin := hash.Hash160([]byte{byte(opcode.PUSHT)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
@@ -102,7 +111,7 @@ func governingTokenTX() *transaction.Transaction {
 		Admin:     admin,
 	}
 
-	tx := &transaction.Transaction{
+	governingTokenTX = transaction.Transaction{
 		Type:       transaction.RegisterType,
 		Data:       registerTX,
 		Attributes: []transaction.Attribute{},
@@ -111,19 +120,15 @@ func governingTokenTX() *transaction.Transaction {
 		Scripts:    []transaction.Witness{},
 	}
 
-	return tx
-}
-
-func utilityTokenTX() *transaction.Transaction {
-	admin := hash.Hash160([]byte{byte(opcode.PUSHF)})
-	registerTX := &transaction.RegisterTX{
+	admin = hash.Hash160([]byte{byte(opcode.PUSHF)})
+	registerTX = &transaction.RegisterTX{
 		AssetType: transaction.UtilityToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
 		Amount:    calculateUtilityAmount(),
 		Precision: 8,
 		Admin:     admin,
 	}
-	tx := &transaction.Transaction{
+	utilityTokenTX = transaction.Transaction{
 		Type:       transaction.RegisterType,
 		Data:       registerTX,
 		Attributes: []transaction.Attribute{},
@@ -131,8 +136,16 @@ func utilityTokenTX() *transaction.Transaction {
 		Outputs:    []transaction.Output{},
 		Scripts:    []transaction.Witness{},
 	}
+}
 
-	return tx
+// GoverningTokenID returns the governing token (NEO) hash.
+func GoverningTokenID() util.Uint256 {
+	return governingTokenTX.Hash()
+}
+
+// UtilityTokenID returns the utility token (GAS) hash.
+func UtilityTokenID() util.Uint256 {
+	return utilityTokenTX.Hash()
 }
 
 func getValidators(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {

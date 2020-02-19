@@ -9,8 +9,8 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/core"
 	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
+	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -42,6 +42,9 @@ type Service interface {
 	OnTransaction(tx *transaction.Transaction)
 	// GetPayload returns Payload with specified hash if it is present in the local cache.
 	GetPayload(h util.Uint256) *Payload
+	// OnNewBlock notifies consensus service that there is a new block in
+	// the chain (without explicitly passing it to the service).
+	OnNewBlock()
 }
 
 type service struct {
@@ -57,6 +60,9 @@ type service struct {
 	// everything in single thread.
 	messages     chan Payload
 	transactions chan *transaction.Transaction
+	// blockEvents is used to pass a new block event to the consensus
+	// process.
+	blockEvents  chan struct{}
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 }
@@ -101,6 +107,7 @@ func NewService(cfg Config) (Service, error) {
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
+		blockEvents:  make(chan struct{}, 1),
 	}
 
 	if cfg.Wallet == nil {
@@ -168,14 +175,7 @@ func (s *service) eventLoop() {
 			s.log.Debug("timer fired",
 				zap.Uint32("height", hv.Height),
 				zap.Uint("view", uint(hv.View)))
-			if s.Chain.BlockHeight() >= s.dbft.BlockIndex {
-				s.log.Debug("chain already advanced",
-					zap.Uint32("dbft index", s.dbft.BlockIndex),
-					zap.Uint32("chain index", s.Chain.BlockHeight()))
-				s.dbft.InitializeConsensus(0)
-			} else {
-				s.dbft.OnTimeout(hv)
-			}
+			s.dbft.OnTimeout(hv)
 		case msg := <-s.messages:
 			fields := []zap.Field{
 				zap.Uint16("from", msg.validatorIndex),
@@ -204,6 +204,11 @@ func (s *service) eventLoop() {
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
+		case <-s.blockEvents:
+			s.log.Debug("new block in the chain",
+				zap.Uint32("dbft index", s.dbft.BlockIndex),
+				zap.Uint32("chain index", s.Chain.BlockHeight()))
+			s.dbft.InitializeConsensus(0)
 		}
 	}
 }
@@ -215,16 +220,15 @@ func (s *service) validatePayload(p *Payload) bool {
 	}
 
 	pub := validators[p.validatorIndex]
-	vs := pub.(*publicKey).GetVerificationScript()
-	h := hash.Hash160(vs)
+	h := pub.(*publicKey).GetScriptHash()
 
 	return p.Verify(h)
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
 	for i := range pubs {
-		script := pubs[i].(*publicKey).GetVerificationScript()
-		acc := s.wallet.GetAccount(hash.Hash160(script))
+		sh := pubs[i].(*publicKey).GetScriptHash()
+		acc := s.wallet.GetAccount(sh)
 		if acc == nil {
 			continue
 		}
@@ -273,6 +277,20 @@ func (s *service) OnPayload(cp *Payload) {
 func (s *service) OnTransaction(tx *transaction.Transaction) {
 	if s.dbft != nil {
 		s.transactions <- tx
+	}
+}
+
+// OnNewBlock notifies consensus process that there is a new block in the chain
+// and dbft should probably be reinitialized.
+func (s *service) OnNewBlock() {
+	if s.dbft != nil {
+		// If there is something in the queue already, the second
+		// consecutive event doesn't make much sense (reinitializing
+		// dbft twice doesn't improve it in any way).
+		select {
+		case s.blockEvents <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -393,13 +411,13 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 func (s *service) getVerifiedTx(count int) []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
-	var txx []*transaction.Transaction
+	var txx []mempool.TxWithFee
 
 	if s.dbft.ViewNumber > 0 {
-		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
+		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
-				txx = append(txx, tx)
+			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+				txx = append(txx, mempool.TxWithFee{Tx: tx, Fee: fee})
 			}
 		}
 
@@ -410,11 +428,30 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 		txx = pool.GetVerifiedTransactions()
 	}
 
-	res := make([]block.Transaction, len(txx)+1)
-	for i := range txx {
-		res[i+1] = txx[i]
+	if len(txx) > 0 {
+		txx = s.Config.Chain.ApplyPolicyToTxSet(txx)
 	}
 
+	res := make([]block.Transaction, len(txx)+1)
+	var netFee util.Fixed8
+	for i := range txx {
+		res[i+1] = txx[i].Tx
+		netFee += txx[i].Fee
+	}
+
+	var txOuts []transaction.Output
+	if netFee != 0 {
+		sh := s.wallet.GetChangeAddress()
+		if sh.Equals(util.Uint160{}) {
+			pk := s.dbft.Pub.(*publicKey)
+			sh = pk.GetScriptHash()
+		}
+		txOuts = []transaction.Output{transaction.Output{
+			AssetID:    core.UtilityTokenID(),
+			Amount:     netFee,
+			ScriptHash: sh,
+		}}
+	}
 	for {
 		nonce := rand.Uint32()
 		res[0] = &transaction.Transaction{
@@ -423,7 +460,7 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 			Data:       &transaction.MinerTX{Nonce: nonce},
 			Attributes: nil,
 			Inputs:     nil,
-			Outputs:    nil,
+			Outputs:    txOuts,
 			Scripts:    nil,
 			Trimmed:    false,
 		}

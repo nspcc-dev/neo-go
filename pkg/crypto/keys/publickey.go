@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
@@ -233,18 +234,14 @@ func (p *PublicKey) GetVerificationScript() []byte {
 	return b
 }
 
-// Signature returns a NEO-specific hash of the key.
-func (p *PublicKey) Signature() []byte {
-	sig := hash.Hash160(p.GetVerificationScript())
-
-	return sig.BytesBE()
+// GetScriptHash returns a Hash160 of verification script for the key.
+func (p *PublicKey) GetScriptHash() util.Uint160 {
+	return hash.Hash160(p.GetVerificationScript())
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
-	sig := hash.Hash160(p.GetVerificationScript())
-
-	return address.Uint160ToString(sig)
+	return address.Uint160ToString(p.GetScriptHash())
 }
 
 // Verify returns true if the signature is valid and corresponds
