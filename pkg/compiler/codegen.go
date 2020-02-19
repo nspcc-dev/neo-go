@@ -763,8 +763,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 
-		start := c.newLabel()
-		end := c.newLabel()
+		start, label := c.generateLabel(labelStart)
+		end := c.newNamedLabel(labelEnd, label)
+		post := c.newNamedLabel(labelPost, label)
+
+		lastFor := c.currentFor
+		lastSwitch := c.currentSwitch
+		c.currentFor = label
+		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
 
@@ -787,10 +793,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		ast.Walk(c, n.Body)
 
+		c.setLabel(post)
+
 		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(start))
 
 		c.setLabel(end)
+
+		c.currentFor = lastFor
+		c.currentSwitch = lastSwitch
 
 		return nil
 
