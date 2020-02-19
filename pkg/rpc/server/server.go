@@ -181,6 +181,10 @@ Methods:
 
 		results = s.chain.GetHeaderHash(num)
 
+	case "getblocksysfee":
+		getblocksysfeeCalled.Inc()
+		results, resultsErr = s.getBlockSysFee(reqParams)
+
 	case "getconnectioncount":
 		getconnectioncountCalled.Inc()
 		results = s.coreServer.PeerCount()
@@ -428,6 +432,32 @@ func (s *Server) getAccountState(reqParams request.Params, unspents bool) (inter
 		}
 	}
 	return results, resultsErr
+}
+
+// getBlockSysFee returns the system fees of the block, based on the specified index.
+func (s *Server) getBlockSysFee(reqParams request.Params) (util.Fixed8, error) {
+	param, ok := reqParams.ValueWithType(0, request.NumberT)
+	if !ok {
+		return 0, response.ErrInvalidParams
+	}
+
+	num, err := s.blockHeightFromParam(param)
+	if err != nil {
+		return 0, response.NewRPCError("Invalid height", "", nil)
+	}
+
+	headerHash := s.chain.GetHeaderHash(num)
+	block, err := s.chain.GetBlock(headerHash)
+	if err != nil {
+		return 0, response.NewRPCError(err.Error(), "", nil)
+	}
+
+	var blockSysFee util.Fixed8
+	for _, tx := range block.Transactions {
+		blockSysFee += s.chain.SystemFee(tx)
+	}
+
+	return blockSysFee, nil
 }
 
 // invoke implements the `invoke` RPC call.

@@ -36,6 +36,14 @@ var (
 		},
 	)
 
+	getblocksysfeeCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getblocksysfee rpc endpoint",
+			Name:      "getblocksysfee_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getconnectioncountCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getconnectioncount rpc endpoint",
@@ -139,6 +147,7 @@ func init() {
 		getbestblockCalled,
 		getblockcountCalled,
 		getblockHashCalled,
+		getblocksysfeeCalled,
 		getconnectioncountCalled,
 		getcontractstateCalled,
 		getversionCalled,
