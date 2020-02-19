@@ -75,7 +75,7 @@ Improvements:
  * bytecode emitting functions moved to separate package, avoiding old
    duplicate code and improving testing (#449, #534, #642)
  * AppCall interop now accepts variable number of arguments (#651)
- * more logging and info level from consensus subsystem, following neo-cli
+ * more logging at info level from consensus subsystem, following neo-cli
    behaviour
 
 Bugs fixed:
