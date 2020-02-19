@@ -11,7 +11,6 @@ import (
 	coreb "github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/mempool"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -221,16 +220,15 @@ func (s *service) validatePayload(p *Payload) bool {
 	}
 
 	pub := validators[p.validatorIndex]
-	vs := pub.(*publicKey).GetVerificationScript()
-	h := hash.Hash160(vs)
+	h := pub.(*publicKey).GetScriptHash()
 
 	return p.Verify(h)
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
 	for i := range pubs {
-		script := pubs[i].(*publicKey).GetVerificationScript()
-		acc := s.wallet.GetAccount(hash.Hash160(script))
+		sh := pubs[i].(*publicKey).GetScriptHash()
+		acc := s.wallet.GetAccount(sh)
 		if acc == nil {
 			continue
 		}
@@ -446,7 +444,7 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 		sh := s.wallet.GetChangeAddress()
 		if sh.Equals(util.Uint160{}) {
 			pk := s.dbft.Pub.(*publicKey)
-			sh = hash.Hash160(pk.GetVerificationScript())
+			sh = pk.GetScriptHash()
 		}
 		txOuts = []transaction.Output{transaction.Output{
 			AssetID:    core.UtilityTokenID(),

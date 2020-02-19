@@ -8,7 +8,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -311,7 +310,7 @@ func (ic *interopContext) checkHashedWitness(hash util.Uint160) (bool, error) {
 // checkKeyedWitness checks hash of signature check contract with a given public
 // key against current list of script hashes for verifying in the interop context.
 func (ic *interopContext) checkKeyedWitness(key *keys.PublicKey) (bool, error) {
-	return ic.checkHashedWitness(hash.Hash160(key.GetVerificationScript()))
+	return ic.checkHashedWitness(key.GetScriptHash())
 }
 
 // runtimeCheckWitness checks witnesses.
