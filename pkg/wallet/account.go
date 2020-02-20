@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -175,6 +177,34 @@ func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
 	a.EncryptedWIF = wif
 
 	return a, nil
+}
+
+// ConvertMultisig sets a's contract to multisig contract with m sufficient signatures.
+func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
+	var found bool
+	for i := range pubs {
+		if bytes.Equal(a.publicKey, pubs[i].Bytes()) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("own public key was not found among multisig keys")
+	}
+
+	script, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
+	if err != nil {
+		return err
+	}
+
+	a.Address = address.Uint160ToString(hash.Hash160(script))
+	a.Contract = &Contract{
+		Script:     script,
+		Parameters: getContractParams(m),
+	}
+
+	return nil
 }
 
 // newAccountFromPrivateKey creates a wallet from the given PrivateKey.
