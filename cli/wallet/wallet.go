@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -72,8 +73,71 @@ func NewCommands() []cli.Command {
 					},
 				},
 			},
+			{
+				Name:  "import-multisig",
+				Usage: "import multisig contract",
+				UsageText: "import-multisig --path <path> --wif <wif> --min <n>" +
+					" [<pubkey1> [<pubkey2> [...]]]",
+				Action: importMultisig,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					wifFlag,
+					cli.StringFlag{
+						Name:  "name, n",
+						Usage: "Optional account name",
+					},
+					cli.IntFlag{
+						Name:  "min, m",
+						Usage: "Minimal number of signatures",
+					},
+				},
+			},
 		},
 	}}
+}
+
+func importMultisig(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errNoPath, 1)
+	}
+
+	wall, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	defer wall.Close()
+
+	m := ctx.Int("min")
+	if ctx.NArg() < m {
+		return cli.NewExitError(errors.New("insufficient number of public keys"), 1)
+	}
+
+	args := []string(ctx.Args())
+	pubs := make([]*keys.PublicKey, len(args))
+
+	for i := range args {
+		pubs[i], err = keys.NewPublicKeyFromString(args[i])
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %v", i, err), 1)
+		}
+	}
+
+	acc, err := newAccountFromWIF(ctx.String("wif"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if err := acc.ConvertMultisig(m, pubs); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if err := addAccountAndSave(wall, acc); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
 }
 
 func importWallet(ctx *cli.Context) error {
