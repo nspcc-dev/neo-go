@@ -27,29 +27,13 @@ type InvokeResult struct {
 // AccountState holds the getaccountstate response.
 type AccountState struct {
 	Header
-	Result *Account `json:"result"`
+	Result *result.AccountState `json:"result"`
 }
 
 // Unspent represents server response to the `getunspents` command.
 type Unspent struct {
 	HeaderAndError
 	Result *result.Unspents `json:"result,omitempty"`
-}
-
-// Account represents details about a NEO account.
-type Account struct {
-	Version    int    `json:"version"`
-	ScriptHash string `json:"script_hash"`
-	Frozen     bool
-	// TODO: need to check this field out.
-	Votes    []interface{}
-	Balances []*Balance
-}
-
-// Balance represents details about a NEO account balance.
-type Balance struct {
-	Asset string `json:"asset"`
-	Value string `json:"value"`
 }
 
 // Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
