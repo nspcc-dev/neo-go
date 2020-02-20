@@ -15,6 +15,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
@@ -162,13 +163,10 @@ func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.F
 	var utxos state.UnspentBalances
 
 	resp, err := c.GetUnspents(address)
-	if err != nil || resp.Error != nil {
-		if err == nil {
-			err = fmt.Errorf("remote returned %d: %s", resp.Error.Code, resp.Error.Message)
-		}
+	if err != nil {
 		return nil, util.Fixed8(0), errors.Wrapf(err, "cannot get balance for address %v", address)
 	}
-	for _, ubi := range resp.Result.Balance {
+	for _, ubi := range resp.Balance {
 		if asset.Equals(ubi.AssetHash) {
 			utxos = ubi.Unspents
 			break
@@ -187,6 +185,7 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 			ID:        1,
 		}
 		buf = new(bytes.Buffer)
+		raw = &response.Raw{}
 	)
 
 	if err := json.NewEncoder(buf).Encode(r); err != nil {
@@ -205,9 +204,17 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 
 	// The node might send us proper JSON anyway, so look there first and if
 	// it parses, then it has more relevant data than HTTP error code.
-	err = json.NewDecoder(resp.Body).Decode(v)
-	if resp.StatusCode != http.StatusOK && err != nil {
+	err = json.NewDecoder(resp.Body).Decode(raw)
+	if err == nil {
+		if raw.Error != nil {
+			err = raw.Error
+		} else {
+			err = json.Unmarshal(raw.Result, v)
+		}
+	} else if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	} else {
+		err = errors.Wrap(err, "JSON decoding")
 	}
 
 	return err

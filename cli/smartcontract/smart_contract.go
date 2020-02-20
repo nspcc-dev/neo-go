@@ -364,7 +364,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		operation   string
 		params      = make([]smartcontract.Parameter, 0)
 		paramsStart = 1
-		resp        *response.InvokeScript
+		resp        *response.InvokeResult
 		wif         *keys.WIF
 	)
 
@@ -414,10 +414,10 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		return cli.NewExitError(err, 1)
 	}
 	if signAndPush {
-		if len(resp.Result.Script) == 0 {
+		if len(resp.Script) == 0 {
 			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		script, err := hex.DecodeString(resp.Result.Script)
+		script, err := hex.DecodeString(resp.Script)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
@@ -427,7 +427,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		}
 		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
-		b, err := json.MarshalIndent(resp.Result, "", "  ")
+		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -464,7 +464,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	b, err = json.MarshalIndent(resp.Result, "", "  ")
+	b, err = json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

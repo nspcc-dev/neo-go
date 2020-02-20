@@ -8,12 +8,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
-// InvokeScript stores response for the invoke script call.
-type InvokeScript struct {
-	HeaderAndError
-	Result *InvokeResult `json:"result,omitempty"`
-}
-
 // InvokeResult represents the outcome of a script that is
 // executed by the NEO VM.
 type InvokeResult struct {
@@ -21,18 +15,6 @@ type InvokeResult struct {
 	GasConsumed string   `json:"gas_consumed"`
 	Script      string   `json:"script"`
 	Stack       []request.StackParam
-}
-
-// AccountState holds the getaccountstate response.
-type AccountState struct {
-	Header
-	Result *result.AccountState `json:"result"`
-}
-
-// Unspent represents server response to the `getunspents` command.
-type Unspent struct {
-	HeaderAndError
-	Result *result.Unspents `json:"result,omitempty"`
 }
 
 // Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
@@ -52,13 +34,7 @@ type HeaderAndError struct {
 // response: http://www.jsonrpc.org/specification#response_object.
 type Raw struct {
 	HeaderAndError
-	Result interface{} `json:"result,omitempty"`
-}
-
-// SendToAddress stores response for the sendtoaddress call.
-type SendToAddress struct {
-	HeaderAndError
-	Result *result.TransactionOutputRaw
+	Result json.RawMessage `json:"result,omitempty"`
 }
 
 // GetTxOut represents result of `gettxout` RPC call.
@@ -71,10 +47,4 @@ type GetTxOut struct {
 type GetRawTx struct {
 	HeaderAndError
 	Result *result.TransactionOutputRaw `json:"result"`
-}
-
-// SendRawTx represents a `sendrawtransaction` RPC call response.
-type SendRawTx struct {
-	HeaderAndError
-	Result bool `json:"result"`
 }

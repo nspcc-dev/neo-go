@@ -590,6 +590,14 @@ func (s *Server) WriteErrorResponse(r *request.In, w http.ResponseWriter, err er
 
 // WriteResponse encodes the response and writes it to the ResponseWriter.
 func (s *Server) WriteResponse(r *request.In, w http.ResponseWriter, result interface{}) {
+	resJSON, err := json.Marshal(result)
+	if err != nil {
+		s.log.Error("Error encountered while encoding response",
+			zap.String("err", err.Error()),
+			zap.String("method", r.Method))
+		return
+	}
+
 	resp := response.Raw{
 		HeaderAndError: response.HeaderAndError{
 			Header: response.Header{
@@ -597,7 +605,7 @@ func (s *Server) WriteResponse(r *request.In, w http.ResponseWriter, result inte
 				ID:      r.RawID,
 			},
 		},
-		Result: result,
+		Result: resJSON,
 	}
 
 	s.writeServerResponse(r, w, resp)
