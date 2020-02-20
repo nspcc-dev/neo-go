@@ -203,11 +203,14 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("remote responded with a non 200 response: %d", resp.StatusCode)
+	// The node might send us proper JSON anyway, so look there first and if
+	// it parses, then it has more relevant data than HTTP error code.
+	err = json.NewDecoder(resp.Body).Decode(v)
+	if resp.StatusCode != http.StatusOK && err != nil {
+		err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
-	return json.NewDecoder(resp.Body).Decode(v)
+	return err
 }
 
 // Ping attempts to create a connection to the endpoint.
