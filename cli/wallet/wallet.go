@@ -69,14 +69,13 @@ func dumpWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("decrypt") {
-		fmt.Print("Wallet password: ")
-		pass, err := terminal.ReadPassword(int(syscall.Stdin))
+		pass, err := readPassword("Enter wallet password > ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
 		for i := range wall.Accounts {
 			// Just testing the decryption here.
-			err := wall.Accounts[i].Decrypt(string(pass))
+			err := wall.Accounts[i].Decrypt(pass)
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
@@ -111,31 +110,34 @@ func createWallet(ctx *cli.Context) error {
 }
 
 func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
-	var (
-		rawName,
-		rawPhrase,
-		rawPhraseCheck []byte
-	)
 	buf := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter the name of the account > ")
-	rawName, _ = buf.ReadBytes('\n')
-	fmt.Print("Enter passphrase > ")
-	rawPhrase, _ = terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Print("\nConfirm passphrase > ")
-	rawPhraseCheck, _ = terminal.ReadPassword(int(syscall.Stdin))
-
-	// Clean data
-	var (
-		name        = strings.TrimRight(string(rawName), "\n")
-		phrase      = strings.TrimRight(string(rawPhrase), "\n")
-		phraseCheck = strings.TrimRight(string(rawPhraseCheck), "\n")
-	)
+	rawName, _ := buf.ReadBytes('\n')
+	phrase, err := readPassword("Enter passphrase > ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	phraseCheck, err := readPassword("Confirm passphrase > ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	if phrase != phraseCheck {
 		return errPhraseMismatch
 	}
 
+	name := strings.TrimRight(string(rawName), "\n")
 	return wall.CreateAccount(name, phrase)
+}
+
+func readPassword(prompt string) (string, error) {
+	fmt.Print(prompt)
+	rawPass, err := terminal.ReadPassword(syscall.Stdin)
+	fmt.Println()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(string(rawPass), "\n"), nil
 }
 
 func fmtPrintWallet(wall *wallet.Wallet) {
