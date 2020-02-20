@@ -112,10 +112,10 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*respo
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response.Raw, error) {
+func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response.SendRawTx, error) {
 	var (
 		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
-		resp   = &response.Raw{}
+		resp   = &response.SendRawTx{}
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) (*response.R
 // SendToAddress sends an amount of specific asset to a given address.
 // This call requires open wallet. (`wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (*response.SendToAddress, error) {
+func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
 	var (
 		err      error
 		rawTx    *transaction.Transaction
@@ -137,23 +137,21 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 			WIF:      c.WIF(),
 			Balancer: c.Balancer(),
 		}
-		respRaw *response.Raw
-		resp    = &response.SendToAddress{}
+		respRaw *response.SendRawTx
+		resp    = util.Uint256{}
 	)
 
 	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
-		return nil, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
+		return resp, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
 	}
 	if respRaw, err = c.sendRawTransaction(rawTx); err != nil {
-		return nil, errors.Wrap(err, "failed to send raw transaction")
+		return resp, errors.Wrap(err, "failed to send raw transaction")
 	}
-	resp.Error = respRaw.Error
-	resp.ID = respRaw.ID
-	resp.JSONRPC = respRaw.JSONRPC
-	resp.Result = &response.Tx{
-		TxID: rawTx.Hash().StringLE(),
+	if respRaw.Result {
+		return rawTx.Hash(), nil
+	} else {
+		return resp, errors.New("failed to send raw transaction")
 	}
-	return resp, nil
 }
 
 // SignAndPushInvocationTx signs and pushes given script as an invocation

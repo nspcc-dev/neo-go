@@ -3,7 +3,6 @@ package response
 import (
 	"encoding/json"
 
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -59,7 +58,7 @@ type Raw struct {
 // SendToAddress stores response for the sendtoaddress call.
 type SendToAddress struct {
 	HeaderAndError
-	Result *Tx
+	Result *result.TransactionOutputRaw
 }
 
 // GetTxOut represents result of `gettxout` RPC call.
@@ -71,41 +70,11 @@ type GetTxOut struct {
 // GetRawTx represents verbose output of `getrawtransaction` RPC call.
 type GetRawTx struct {
 	HeaderAndError
-	Result *RawTx `json:"result"`
+	Result *result.TransactionOutputRaw `json:"result"`
 }
 
-// RawTx stores transaction with blockchain metadata to be sent as a response.
-type RawTx struct {
-	Tx
-	BlockHash     string `json:"blockhash"`
-	Confirmations uint   `json:"confirmations"`
-	BlockTime     uint   `json:"blocktime"`
-}
-
-// Tx stores transaction to be sent as a response.
-type Tx struct {
-	TxID       string                  `json:"txid"`
-	Size       int                     `json:"size"`
-	Type       string                  `json:"type"` // todo: convert to TransactionType
-	Version    int                     `json:"version"`
-	Attributes []transaction.Attribute `json:"attributes"`
-	Vins       []Vin                   `json:"vin"`
-	Vouts      []Vout                  `json:"vout"`
-	SysFee     int                     `json:"sys_fee"`
-	NetFee     int                     `json:"net_fee"`
-	Scripts    []transaction.Witness   `json:"scripts"`
-}
-
-// Vin represents JSON-serializable tx input.
-type Vin struct {
-	TxID string `json:"txid"`
-	Vout int    `json:"vout"`
-}
-
-// Vout represents JSON-serializable tx output.
-type Vout struct {
-	N       int    `json:"n"`
-	Asset   string `json:"asset"`
-	Value   int    `json:"value"`
-	Address string `json:"address"`
+// SendRawTx represents a `sendrawtransaction` RPC call response.
+type SendRawTx struct {
+	HeaderAndError
+	Result bool `json:"result"`
 }
