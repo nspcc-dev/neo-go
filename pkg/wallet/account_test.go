@@ -49,6 +49,19 @@ func TestNewFromWif(t *testing.T) {
 	}
 }
 
+func TestNewAccountFromEncryptedWIF(t *testing.T) {
+	for _, tc := range keytestcases.Arr {
+		acc, err := NewAccountFromEncryptedWIF(tc.EncryptedWif, tc.Passphrase)
+		if tc.Invalid {
+			assert.Error(t, err)
+			continue
+		}
+
+		assert.NoError(t, err)
+		compareFields(t, tc, acc)
+	}
+}
+
 func TestContract_MarshalJSON(t *testing.T) {
 	var c Contract
 

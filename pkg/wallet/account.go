@@ -150,6 +150,19 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 	return newAccountFromPrivateKey(privKey), nil
 }
 
+// NewAccountFromEncryptedWIF creates a new Account from the given encrypted WIF.
+func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
+	priv, err := keys.NEP2Decrypt(wif, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	a := newAccountFromPrivateKey(priv)
+	a.EncryptedWIF = wif
+
+	return a, nil
+}
+
 // newAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
