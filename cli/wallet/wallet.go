@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -27,6 +28,10 @@ var (
 	wifFlag = cli.StringFlag{
 		Name:  "wif",
 		Usage: "WIF to import",
+	}
+	decryptFlag = cli.BoolFlag{
+		Name:  "decrypt, d",
+		Usage: "Decrypt encrypted keys.",
 	}
 )
 
@@ -54,10 +59,17 @@ func NewCommands() []cli.Command {
 				Action: dumpWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
-					cli.BoolFlag{
-						Name:  "decrypt, d",
-						Usage: "Decrypt encrypted keys.",
-					},
+					decryptFlag,
+				},
+			},
+			{
+				Name:      "export",
+				Usage:     "export keys for address",
+				UsageText: "export --path <path> [--decrypt] [<address>]",
+				Action:    exportKeys,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					decryptFlag,
 				},
 			},
 			{
@@ -94,6 +106,69 @@ func NewCommands() []cli.Command {
 			},
 		},
 	}}
+}
+
+func exportKeys(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errNoPath, 1)
+	}
+
+	wall, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	var addr string
+
+	decrypt := ctx.Bool("decrypt")
+	if ctx.NArg() == 0 && decrypt {
+		return cli.NewExitError(errors.New("address must be provided if '--decrypt' flag is used"), 1)
+	} else if ctx.NArg() > 0 {
+		// check address format just to catch possible typos
+		addr = ctx.Args().First()
+		_, err := address.StringToUint160(addr)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("can't parse address: %v", err), 1)
+		}
+	}
+
+	var wifs []string
+
+loop:
+	for _, a := range wall.Accounts {
+		if addr != "" && a.Address != addr {
+			continue
+		}
+
+		for i := range wifs {
+			if a.EncryptedWIF == wifs[i] {
+				continue loop
+			}
+		}
+
+		wifs = append(wifs, a.EncryptedWIF)
+	}
+
+	for _, wif := range wifs {
+		if decrypt {
+			pass, err := readPassword("Enter password > ")
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+
+			pk, err := keys.NEP2Decrypt(wif, pass)
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+
+			wif = pk.WIF()
+		}
+
+		fmt.Println(wif)
+	}
+
+	return nil
 }
 
 func importMultisig(ctx *cli.Context) error {
