@@ -54,6 +54,14 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
+				Name:   "create-account",
+				Usage:  "add an account to the existing wallet",
+				Action: addAccount,
+				Flags: []cli.Flag{
+					walletPathFlag,
+				},
+			},
+			{
 				Name:   "dump",
 				Usage:  "check and dump an existing NEO wallet",
 				Action: dumpWallet,
@@ -106,6 +114,26 @@ func NewCommands() []cli.Command {
 			},
 		},
 	}}
+}
+
+func addAccount(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errNoPath, 1)
+	}
+
+	wall, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	defer wall.Close()
+
+	if err := createAccount(ctx, wall); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
 }
 
 func exportKeys(ctx *cli.Context) error {
