@@ -18,6 +18,13 @@ var (
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
+var (
+	walletPathFlag = cli.StringFlag{
+		Name:  "path, p",
+		Usage: "Target location of the wallet file.",
+	}
+)
+
 // NewCommands returns 'wallet' command.
 func NewCommands() []cli.Command {
 	return []cli.Command{{
@@ -29,10 +36,7 @@ func NewCommands() []cli.Command {
 				Usage:  "create a new wallet",
 				Action: createWallet,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "path, p",
-						Usage: "Target location of the wallet file.",
-					},
+					walletPathFlag,
 					cli.BoolFlag{
 						Name:  "account, a",
 						Usage: "Create a new account",
@@ -44,10 +48,7 @@ func NewCommands() []cli.Command {
 				Usage:  "check and dump an existing NEO wallet",
 				Action: dumpWallet,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "path, p",
-						Usage: "Target location of the wallet file.",
-					},
+					walletPathFlag,
 					cli.BoolFlag{
 						Name:  "decrypt, d",
 						Usage: "Decrypt encrypted keys.",
