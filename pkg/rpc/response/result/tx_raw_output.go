@@ -16,9 +16,9 @@ type TransactionOutputRaw struct {
 	Size          int          `json:"size"`
 	SysFee        util.Fixed8  `json:"sys_fee"`
 	NetFee        util.Fixed8  `json:"net_fee"`
-	Blockhash     util.Uint256 `json:"blockhash"`
-	Confirmations int          `json:"confirmations"`
-	Timestamp     uint32       `json:"blocktime"`
+	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
+	Confirmations int          `json:"confirmations,omitempty"`
+	Timestamp     uint32       `json:"blocktime,omitempty"`
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
