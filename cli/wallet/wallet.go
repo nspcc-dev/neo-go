@@ -23,6 +23,10 @@ var (
 		Name:  "path, p",
 		Usage: "Target location of the wallet file.",
 	}
+	wifFlag = cli.StringFlag{
+		Name:  "wif",
+		Usage: "WIF to import",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -55,8 +59,47 @@ func NewCommands() []cli.Command {
 					},
 				},
 			},
+			{
+				Name:   "import",
+				Usage:  "import WIF",
+				Action: importWallet,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					wifFlag,
+					cli.StringFlag{
+						Name:  "name, n",
+						Usage: "Optional account name",
+					},
+				},
+			},
 		},
 	}}
+}
+
+func importWallet(ctx *cli.Context) error {
+	path := ctx.String("path")
+	if len(path) == 0 {
+		return cli.NewExitError(errNoPath, 1)
+	}
+
+	wall, err := wallet.NewWalletFromFile(path)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	defer wall.Close()
+
+	acc, err := newAccountFromWIF(ctx.String("wif"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	acc.Label = ctx.String("name")
+	if err := addAccountAndSave(wall, acc); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
 }
 
 func dumpWallet(ctx *cli.Context) error {
@@ -109,25 +152,75 @@ func createWallet(ctx *cli.Context) error {
 	return nil
 }
 
-func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
+func readAccountInfo() (string, string, error) {
 	buf := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter the name of the account > ")
 	rawName, _ := buf.ReadBytes('\n')
 	phrase, err := readPassword("Enter passphrase > ")
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return "", "", err
 	}
 	phraseCheck, err := readPassword("Confirm passphrase > ")
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return "", "", err
 	}
 
 	if phrase != phraseCheck {
-		return errPhraseMismatch
+		return "", "", errPhraseMismatch
 	}
 
 	name := strings.TrimRight(string(rawName), "\n")
+	return name, phrase, nil
+}
+
+func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
+	name, phrase, err := readAccountInfo()
+	if err != nil {
+		return err
+	}
 	return wall.CreateAccount(name, phrase)
+}
+
+func newAccountFromWIF(wif string) (*wallet.Account, error) {
+	// note: NEP2 strings always have length of 58 even though
+	// base58 strings can have different lengths even if slice lengths are equal
+	if len(wif) == 58 {
+		pass, err := readPassword("Enter password > ")
+		if err != nil {
+			return nil, err
+		}
+
+		return wallet.NewAccountFromEncryptedWIF(wif, pass)
+	}
+
+	acc, err := wallet.NewAccountFromWIF(wif)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
+	name, pass, err := readAccountInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	acc.Label = name
+	if err := acc.Encrypt(pass); err != nil {
+		return nil, err
+	}
+
+	return acc, nil
+}
+
+func addAccountAndSave(w *wallet.Wallet, acc *wallet.Account) error {
+	for i := range w.Accounts {
+		if w.Accounts[i].Address == acc.Address {
+			return fmt.Errorf("address '%s' is already in wallet", acc.Address)
+		}
+	}
+
+	w.AddAccount(acc)
+	return w.Save()
 }
 
 func readPassword(prompt string) (string, error) {
