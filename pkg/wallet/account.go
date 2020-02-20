@@ -4,9 +4,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -50,7 +52,7 @@ type Contract struct {
 	Script []byte `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []interface{} `json:"parameters"`
+	Parameters []contractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
@@ -62,10 +64,15 @@ type contract struct {
 	Script string `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []interface{} `json:"parameters"`
+	Parameters []contractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
+}
+
+type contractParam struct {
+	Name string                  `json:"name"`
+	Type smartcontract.ParamType `json:"type"`
 }
 
 // ScriptHash returns the hash of contract's script.
@@ -181,7 +188,21 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 		privateKey: p,
 		Address:    pubAddr,
 		wif:        wif,
+		Contract: &Contract{
+			Script:     pubKey.GetVerificationScript(),
+			Parameters: getContractParams(1),
+		},
 	}
 
 	return a
+}
+
+func getContractParams(n int) []contractParam {
+	params := make([]contractParam, n)
+	for i := range params {
+		params[i].Name = fmt.Sprintf("parameter%d", i)
+		params[i].Type = smartcontract.SignatureType
+	}
+
+	return params
 }

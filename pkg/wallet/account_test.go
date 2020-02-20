@@ -65,7 +65,7 @@ func TestNewAccountFromEncryptedWIF(t *testing.T) {
 func TestContract_MarshalJSON(t *testing.T) {
 	var c Contract
 
-	data := []byte(`{"script":"0102","parameters":[1],"deployed":false}`)
+	data := []byte(`{"script":"0102","parameters":[{"name":"name0", "type":"Signature"}],"deployed":false}`)
 	require.NoError(t, json.Unmarshal(data, &c))
 	require.Equal(t, []byte{1, 2}, c.Script)
 
