@@ -122,7 +122,14 @@ func (a *Account) Decrypt(passphrase string) error {
 		return errors.New("no encrypted wif in the account")
 	}
 	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase)
-	return err
+	if err != nil {
+		return err
+	}
+
+	a.publicKey = a.privateKey.PublicKey().Bytes()
+	a.wif = a.privateKey.WIF()
+
+	return nil
 }
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
