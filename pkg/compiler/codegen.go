@@ -1203,7 +1203,9 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 		return nil, c.prog.Err
 	}
 	buf := c.prog.Bytes()
-	c.writeJumps(buf)
+	if err := c.writeJumps(buf); err != nil {
+		return nil, err
+	}
 	return buf, nil
 }
 
@@ -1218,20 +1220,26 @@ func (c *codegen) resolveFuncDecls(f *ast.File) {
 	}
 }
 
-func (c *codegen) writeJumps(b []byte) {
+func (c *codegen) writeJumps(b []byte) error {
 	ctx := vm.NewContext(b)
 	for op, _, err := ctx.Next(); err == nil && ctx.NextIP() < len(b); op, _, err = ctx.Next() {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL:
 			// we can't use arg returned by ctx.Next() because it is copied
-			arg := b[ctx.NextIP()-2:]
+			nextIP := ctx.NextIP()
+			arg := b[nextIP-2:]
 
-			index := int16(binary.LittleEndian.Uint16(arg))
-			if int(index) > len(c.l) || int(index) < 0 {
-				continue
+			index := binary.LittleEndian.Uint16(arg)
+			if int(index) > len(c.l) {
+				return fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
 			}
-			offset := uint16(c.l[index] - ctx.NextIP() + 3)
-			binary.LittleEndian.PutUint16(arg, offset)
+			offset := c.l[index] - nextIP + 3
+			if offset > math.MaxUint16 {
+				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d)",
+					nextIP-3, offset, math.MaxUint16)
+			}
+			binary.LittleEndian.PutUint16(arg, uint16(offset))
 		}
 	}
+	return nil
 }
