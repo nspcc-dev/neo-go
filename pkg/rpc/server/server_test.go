@@ -295,6 +295,36 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getblocksysfee": {
+		{
+			name:   "positive",
+			params: "[1]",
+			result: func(e *executor) interface{} {
+				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
+
+				var expectedBlockSysFee util.Fixed8
+				for _, tx := range block.Transactions {
+					expectedBlockSysFee += e.chain.SystemFee(tx)
+				}
+				return &expectedBlockSysFee
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "string height",
+			params: `["first"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid number height",
+			params: `[-2]`,
+			fail:   true,
+		},
+	},
 	"getconnectioncount": {
 		{
 			params: "[]",

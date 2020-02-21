@@ -42,7 +42,7 @@ which would yield the response:
 | `getblock` | Yes |
 | `getblockcount` | Yes |
 | `getblockhash` | Yes |
-| `getblocksysfee` | No (#341) |
+| `getblocksysfee` | Yes |
 | `getconnectioncount` | Yes |
 | `getcontractstate` | Yes |
 | `getnep5balances` | No (#498) |
