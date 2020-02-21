@@ -1547,6 +1547,10 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 			}
 		}
 	}
+	if t.Type == transaction.EnrollmentType {
+		etx := t.Data.(*transaction.EnrollmentTX)
+		hashes[etx.PublicKey.GetScriptHash()] = true
+	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))
 	for h := range hashes {
