@@ -14,7 +14,9 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/compiler"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/rpc/client"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -294,10 +296,10 @@ func initSmartContract(ctx *cli.Context) error {
 	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
 	if !ctx.Bool("skip-details") {
 		details := parseContractDetails()
-		details.ReturnType = rpc.ByteArray
-		details.Parameters = make([]rpc.StackParamType, 2)
-		details.Parameters[0] = rpc.String
-		details.Parameters[1] = rpc.Array
+		details.ReturnType = request.ByteArray
+		details.Parameters = make([]request.StackParamType, 2)
+		details.Parameters[0] = request.String
+		details.Parameters[1] = request.Array
 
 		project := &ProjectConfig{Contract: details}
 		b, err := yaml.Marshal(project)
@@ -362,7 +364,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		operation   string
 		params      = make([]smartcontract.Parameter, 0)
 		paramsStart = 1
-		resp        *rpc.InvokeScriptResponse
+		resp        *response.InvokeResult
 		wif         *keys.WIF
 	)
 
@@ -398,34 +400,34 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 			return err
 		}
 	}
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	if withMethod {
-		resp, err = client.InvokeFunction(script, operation, params)
+		resp, err = c.InvokeFunction(script, operation, params)
 	} else {
-		resp, err = client.Invoke(script, params)
+		resp, err = c.Invoke(script, params)
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	if signAndPush {
-		if len(resp.Result.Script) == 0 {
+		if len(resp.Script) == 0 {
 			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		script, err := hex.DecodeString(resp.Result.Script)
+		script, err := hex.DecodeString(resp.Script)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := client.SignAndPushInvocationTx(script, wif, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, wif, gas)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
 		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
-		b, err := json.MarshalIndent(resp.Result, "", "  ")
+		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -451,18 +453,18 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	scriptHex := hex.EncodeToString(b)
-	resp, err := client.InvokeScript(scriptHex)
+	resp, err := c.InvokeScript(scriptHex)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	b, err = json.MarshalIndent(resp.Result, "", "  ")
+	b, err = json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -475,11 +477,11 @@ func testInvokeScript(ctx *cli.Context) error {
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
 	Version  uint
-	Contract rpc.ContractDetails `yaml:"project"`
+	Contract request.ContractDetails `yaml:"project"`
 }
 
-func parseContractDetails() rpc.ContractDetails {
-	details := rpc.ContractDetails{}
+func parseContractDetails() request.ContractDetails {
+	details := request.ContractDetails{}
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Author: ")
@@ -571,17 +573,17 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
 	}
 
-	client, err := rpc.NewClient(context.TODO(), endpoint, rpc.ClientOptions{})
+	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	txScript, err := rpc.CreateDeploymentScript(avm, &conf.Contract)
+	txScript, err := request.CreateDeploymentScript(avm, &conf.Contract)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
 
-	txHash, err := client.SignAndPushInvocationTx(txScript, wif, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, wif, gas)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}

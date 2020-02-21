@@ -190,12 +190,25 @@ func (s *Server) Shutdown() {
 // UnconnectedPeers returns a list of peers that are in the discovery peer list
 // but are not connected to the server.
 func (s *Server) UnconnectedPeers() []string {
-	return []string{}
+	return s.discovery.UnconnectedPeers()
 }
 
 // BadPeers returns a list of peers the are flagged as "bad" peers.
 func (s *Server) BadPeers() []string {
-	return []string{}
+	return s.discovery.BadPeers()
+}
+
+// ConnectedPeers returns a list of currently connected peers.
+func (s *Server) ConnectedPeers() []string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	peers := make([]string, 0, len(s.peers))
+	for k := range s.peers {
+		peers = append(peers, k.PeerAddr().String())
+	}
+
+	return peers
 }
 
 // run is a goroutine that starts another goroutine to manage protocol specifics

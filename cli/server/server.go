@@ -14,7 +14,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/network/metrics"
-	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/rpc/server"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -341,18 +341,18 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
-	server, err := network.NewServer(serverConfig, chain, log)
+	serv, err := network.NewServer(serverConfig, chain, log)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create network server: %v", err), 1)
 	}
-	rpcServer := rpc.NewServer(chain, cfg.ApplicationConfiguration.RPC, server, log)
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, log)
 	errChan := make(chan error)
 
-	go server.Start(errChan)
+	go serv.Start(errChan)
 	go rpcServer.Start(errChan)
 
 	fmt.Println(logo())
-	fmt.Println(server.UserAgent)
+	fmt.Println(serv.UserAgent)
 	fmt.Println()
 
 	var shutdownErr error
@@ -364,7 +364,7 @@ Main:
 			cancel()
 
 		case <-grace.Done():
-			server.Shutdown()
+			serv.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
 				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
 			}

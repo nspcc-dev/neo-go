@@ -11,7 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/network"
-	"github.com/CityOfZion/neo-go/pkg/rpc"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -55,7 +55,7 @@ func prepareData(t *testing.B) []*transaction.Transaction {
 
 	for n := 0; n < t.N; n++ {
 		tx := getTX(t, wif)
-		require.NoError(t, rpc.SignTx(tx, wif))
+		require.NoError(t, request.SignTx(tx, wif))
 		data = append(data, tx)
 	}
 	return data
