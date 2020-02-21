@@ -8,6 +8,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,7 +40,7 @@ type codegen struct {
 	scope *funcScope
 
 	// A mapping from label's names to their ids.
-	labels map[labelWithType]int
+	labels map[labelWithType]uint16
 
 	// A label for the for-loop being currently visited.
 	currentFor string
@@ -66,21 +67,26 @@ type labelWithType struct {
 }
 
 // newLabel creates a new label to jump to
-func (c *codegen) newLabel() (l int) {
-	l = len(c.l)
+func (c *codegen) newLabel() (l uint16) {
+	li := len(c.l)
+	if li > math.MaxUint16 {
+		c.prog.Err = errors.New("label number is too big")
+		return
+	}
+	l = uint16(li)
 	c.l = append(c.l, -1)
 	return
 }
 
 // newNamedLabel creates a new label with a specified name.
-func (c *codegen) newNamedLabel(typ labelOffsetType, name string) (l int) {
+func (c *codegen) newNamedLabel(typ labelOffsetType, name string) (l uint16) {
 	l = c.newLabel()
 	lt := labelWithType{name: name, typ: typ}
 	c.labels[lt] = l
 	return
 }
 
-func (c *codegen) setLabel(l int) {
+func (c *codegen) setLabel(l uint16) {
 	c.l[l] = c.pc() + 1
 }
 
@@ -384,13 +390,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lElse))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, lElse)
 		}
 
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
 		if n.Else != nil {
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(lElseEnd))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, lElseEnd)
 		}
 
 		c.setLabel(lElse)
@@ -421,9 +427,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					ast.Walk(c, cc.List[j])
 					emit.Opcode(c.prog.BinWriter, eqOpcode)
 					if j == l-1 {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(lEnd))
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, lEnd)
 					} else {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(lStart))
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIF, lStart)
 					}
 				}
 			}
@@ -432,7 +438,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			for _, stmt := range cc.Body {
 				ast.Walk(c, stmt)
 			}
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(switchEnd))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, switchEnd)
 			c.setLabel(lEnd)
 		}
 
@@ -500,13 +506,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Op {
 		case token.LAND:
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(len(c.l)-1))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, uint16(len(c.l)-1))
 			ast.Walk(c, n.Y)
 			return nil
 
 		case token.LOR:
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(len(c.l)-3))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, uint16(len(c.l)-3))
 			ast.Walk(c, n.Y)
 			return nil
 
@@ -612,7 +618,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case isSyscall(f):
 			c.convertSyscall(f.selector.Name, f.name)
 		default:
-			emit.Call(c.prog.BinWriter, opcode.CALL, int16(f.label))
+			emit.Call(c.prog.BinWriter, opcode.CALL, f.label)
 		}
 
 		return nil
@@ -702,10 +708,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Tok {
 		case token.BREAK:
 			end := c.getLabelOffset(labelEnd, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(end))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
 		case token.CONTINUE:
 			post := c.getLabelOffset(labelPost, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(post))
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, post)
 		}
 
 		return nil
@@ -737,7 +743,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.Cond)
 
 		// Jump if the condition is false
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, int16(fend))
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, fend)
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
@@ -747,7 +753,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// Jump back to condition.
-		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(fstart))
+		emit.Jmp(c.prog.BinWriter, opcode.JMP, fstart)
 		c.setLabel(fend)
 
 		c.currentFor = lastLabel
@@ -782,7 +788,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Opcode(c.prog.BinWriter, opcode.LTE) // finish if len <= i
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIF, int16(end))
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIF, end)
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
@@ -796,7 +802,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(post)
 
 		emit.Opcode(c.prog.BinWriter, opcode.INC)
-		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(start))
+		emit.Jmp(c.prog.BinWriter, opcode.JMP, start)
 
 		c.setLabel(end)
 
@@ -833,7 +839,7 @@ func (c *codegen) emitReverse(num int) {
 }
 
 // generateLabel returns a new label.
-func (c *codegen) generateLabel(typ labelOffsetType) (int, string) {
+func (c *codegen) generateLabel(typ labelOffsetType) (uint16, string) {
 	name := c.nextLabel
 	if name == "" {
 		name = fmt.Sprintf("@%d", len(c.l))
@@ -843,7 +849,7 @@ func (c *codegen) generateLabel(typ labelOffsetType) (int, string) {
 	return c.newNamedLabel(typ, name), name
 }
 
-func (c *codegen) getLabelOffset(typ labelOffsetType, name string) int {
+func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 	return c.labels[labelWithType{name: name, typ: typ}]
 }
 
@@ -1144,7 +1150,7 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 		prog:      io.NewBufBinWriter(),
 		l:         []int{},
 		funcs:     map[string]*funcScope{},
-		labels:    map[labelWithType]int{},
+		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
 	}
 
