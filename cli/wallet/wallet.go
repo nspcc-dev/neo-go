@@ -117,12 +117,7 @@ func NewCommands() []cli.Command {
 }
 
 func addAccount(ctx *cli.Context) error {
-	path := ctx.String("path")
-	if len(path) == 0 {
-		return cli.NewExitError(errNoPath, 1)
-	}
-
-	wall, err := wallet.NewWalletFromFile(path)
+	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -137,12 +132,7 @@ func addAccount(ctx *cli.Context) error {
 }
 
 func exportKeys(ctx *cli.Context) error {
-	path := ctx.String("path")
-	if len(path) == 0 {
-		return cli.NewExitError(errNoPath, 1)
-	}
-
-	wall, err := wallet.NewWalletFromFile(path)
+	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -200,12 +190,7 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
-	path := ctx.String("path")
-	if len(path) == 0 {
-		return cli.NewExitError(errNoPath, 1)
-	}
-
-	wall, err := wallet.NewWalletFromFile(path)
+	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -244,12 +229,7 @@ func importMultisig(ctx *cli.Context) error {
 }
 
 func importWallet(ctx *cli.Context) error {
-	path := ctx.String("path")
-	if len(path) == 0 {
-		return cli.NewExitError(errNoPath, 1)
-	}
-
-	wall, err := wallet.NewWalletFromFile(path)
+	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -270,11 +250,7 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func dumpWallet(ctx *cli.Context) error {
-	path := ctx.String("path")
-	if len(path) == 0 {
-		return cli.NewExitError(errNoPath, 1)
-	}
-	wall, err := wallet.NewWalletFromFile(path)
+	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -346,6 +322,13 @@ func createAccount(ctx *cli.Context, wall *wallet.Wallet) error {
 		return err
 	}
 	return wall.CreateAccount(name, phrase)
+}
+
+func openWallet(path string) (*wallet.Wallet, error) {
+	if len(path) == 0 {
+		return nil, errNoPath
+	}
+	return wallet.NewWalletFromFile(path)
 }
 
 func newAccountFromWIF(wif string) (*wallet.Account, error) {
