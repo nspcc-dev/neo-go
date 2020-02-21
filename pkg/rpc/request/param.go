@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
@@ -24,8 +25,8 @@ type (
 	// FuncParam represents a function argument parameter used in the
 	// invokefunction RPC method.
 	FuncParam struct {
-		Type  StackParamType `json:"type"`
-		Value Param          `json:"value"`
+		Type  smartcontract.ParamType `json:"type"`
+		Value Param                       `json:"value"`
 	}
 )
 

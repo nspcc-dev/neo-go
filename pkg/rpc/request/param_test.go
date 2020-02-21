@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 				{
 					Type: FuncParamT,
 					Value: FuncParam{
-						Type: String,
+						Type: smartcontract.StringType,
 						Value: Param{
 							Type:  StringT,
 							Value: "jajaja",
@@ -146,7 +147,7 @@ func TestParamGetUint160FromAddress(t *testing.T) {
 
 func TestParamGetFuncParam(t *testing.T) {
 	fp := FuncParam{
-		Type: String,
+		Type: smartcontract.StringType,
 		Value: Param{
 			Type:  StringT,
 			Value: "jajaja",

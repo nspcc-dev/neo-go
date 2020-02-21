@@ -1,283 +1,204 @@
 package smartcontract
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseParamType(t *testing.T) {
-	var inouts = []struct {
-		in  string
-		out ParamType
-		err bool
-	}{{
-		in:  "signature",
-		out: SignatureType,
-	}, {
-		in:  "Signature",
-		out: SignatureType,
-	}, {
-		in:  "SiGnAtUrE",
-		out: SignatureType,
-	}, {
-		in:  "bool",
-		out: BoolType,
-	}, {
-		in:  "int",
-		out: IntegerType,
-	}, {
-		in:  "hash160",
-		out: Hash160Type,
-	}, {
-		in:  "hash256",
-		out: Hash256Type,
-	}, {
-		in:  "bytes",
-		out: ByteArrayType,
-	}, {
-		in:  "key",
-		out: PublicKeyType,
-	}, {
-		in:  "string",
-		out: StringType,
-	}, {
-		in:  "array",
-		err: true,
-	}, {
-		in:  "qwerty",
-		err: true,
-	}}
-	for _, inout := range inouts {
-		out, err := parseParamType(inout.in)
-		if inout.err {
-			assert.NotNil(t, err, "should error on '%s' input", inout.in)
-		} else {
-			assert.Nil(t, err, "shouldn't error on '%s' input", inout.in)
-			assert.Equal(t, inout.out, out, "bad output for '%s' input", inout.in)
-		}
+var testCases = []struct {
+	input  string
+	result Parameter
+}{
+	{
+		input:  `{"type":"Integer","value":12345}`,
+		result: Parameter{Type: IntegerType, Value: int64(12345)},
+	},
+	{
+		input:  `{"type":"Integer","value":"12345"}`,
+		result: Parameter{Type: IntegerType, Value: int64(12345)},
+	},
+	{
+		input:  `{"type":"ByteArray","value":"010203"}`,
+		result: Parameter{Type: ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
+	},
+	{
+		input:  `{"type":"String","value":"Some string"}`,
+		result: Parameter{Type: StringType, Value: "Some string"},
+	},
+	{
+		input: `{"type":"Array","value":[
+				{"type": "String", "value": "str 1"},
+				{"type": "Integer", "value": 2}]}`,
+		result: Parameter{
+			Type: ArrayType,
+			Value: []Parameter{
+				{Type: StringType, Value: "str 1"},
+				{Type: IntegerType, Value: int64(2)},
+			},
+		},
+	},
+	{
+		input: `{"type": "Hash160", "value": "0bcd2978634d961c24f5aea0802297ff128724d6"}`,
+		result: Parameter{
+			Type: Hash160Type,
+			Value: util.Uint160{
+				0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+				0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+			},
+		},
+	},
+	{
+		input: `{"type": "Hash256", "value": "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"}`,
+		result: Parameter{
+			Type: Hash256Type,
+			Value: util.Uint256{
+				0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
+				0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
+				0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
+				0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
+			},
+		},
+	},
+}
+
+var errorCases = []string{
+	`{"type": "ByteArray","value":`,        // incorrect JSON
+	`{"type": "ByteArray","value":1}`,      // incorrect Value
+	`{"type": "ByteArray","value":"12zz"}`, // incorrect ByteArray value
+	`{"type": "String","value":`,           // incorrect JSON
+	`{"type": "String","value":1}`,         // incorrect Value
+	`{"type": "Integer","value": "nn"}`,    // incorrect Integer value
+	`{"type": "Integer","value": []}`,      // incorrect Integer value
+	`{"type": "Array","value": 123}`,       // incorrect Array value
+	`{"type": "Hash160","value": "0bcd"}`,  // incorrect Uint160 value
+	`{"type": "Hash256","value": "0bcd"}`,  // incorrect Uint256 value
+	`{"type": "Stringg","value": ""}`,      // incorrect type
+	`{"type": {},"value": ""}`,             // incorrect value
+
+	`{"type": "InteropInterface","value": ""}`, // ununmarshable type
+	`{"type": "Map","value": ""}`,              //unmarshable type
+}
+
+func TestParam_UnmarshalJSON(t *testing.T) {
+	var s Parameter
+	for _, tc := range testCases {
+		assert.NoError(t, json.Unmarshal([]byte(tc.input), &s))
+		assert.Equal(t, s, tc.result)
+	}
+
+	for _, input := range errorCases {
+		assert.Error(t, json.Unmarshal([]byte(input), &s))
 	}
 }
 
-func TestInferParamType(t *testing.T) {
-	var inouts = []struct {
-		in  string
-		out ParamType
-	}{{
-		in:  "42",
-		out: IntegerType,
-	}, {
-		in:  "-42",
-		out: IntegerType,
-	}, {
-		in:  "0",
-		out: IntegerType,
-	}, {
-		in:  "2e10",
-		out: ByteArrayType,
-	}, {
-		in:  "true",
-		out: BoolType,
-	}, {
-		in:  "false",
-		out: BoolType,
-	}, {
-		in:  "truee",
-		out: StringType,
-	}, {
-		in:  "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
-		out: Hash160Type,
-	}, {
-		in:  "ZK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
-		out: StringType,
-	}, {
-		in:  "50befd26fdf6e4d957c11e078b24ebce6291456f",
-		out: Hash160Type,
-	}, {
-		in:  "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-		out: PublicKeyType,
-	}, {
-		in:  "30b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-		out: ByteArrayType,
-	}, {
-		in:  "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-		out: Hash256Type,
-	}, {
-		in:  "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7da",
-		out: ByteArrayType,
-	}, {
-		in:  "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-		out: SignatureType,
-	}, {
-		in:  "qwerty",
-		out: StringType,
-	}, {
-		in:  "ab",
-		out: ByteArrayType,
-	}, {
-		in:  "az",
-		out: StringType,
-	}, {
-		in:  "bad",
-		out: StringType,
-	}, {
-		in:  "фыва",
-		out: StringType,
-	}, {
-		in:  "dead",
-		out: ByteArrayType,
-	}}
-	for _, inout := range inouts {
-		out := inferParamType(inout.in)
-		assert.Equal(t, inout.out, out, "bad output for '%s' input", inout.in)
-	}
+var tryParseTestCases = []struct {
+	input    interface{}
+	expected interface{}
+}{
+	{
+		input: []byte{
+			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+		},
+		expected: util.Uint160{
+			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
+			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
+		},
+	},
+	{
+		input: []byte{
+			0xf0, 0x37, 0x30, 0x8f, 0xa0, 0xab, 0x18, 0x15,
+			0x5b, 0xcc, 0xfc, 0x08, 0x48, 0x54, 0x68, 0xc1,
+			0x12, 0x40, 0x9e, 0xa5, 0x06, 0x45, 0x95, 0x69,
+			0x9e, 0x98, 0xc5, 0x45, 0xf2, 0x45, 0xf3, 0x2d,
+		},
+		expected: util.Uint256{
+			0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
+			0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
+			0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
+			0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
+		},
+	},
+	{
+		input:    []byte{0, 1, 2, 3, 4, 9, 8, 6},
+		expected: []byte{0, 1, 2, 3, 4, 9, 8, 6},
+	},
+	{
+		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
+		expected: int64(50686687331),
+	},
+	{
+		input:    []byte("this is a test string"),
+		expected: "this is a test string",
+	},
 }
 
-func TestAdjustValToType(t *testing.T) {
-	var inouts = []struct {
-		typ ParamType
-		val string
-		out interface{}
-		err bool
-	}{{
-		typ: SignatureType,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-	}, {
-		typ: SignatureType,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c",
-		err: true,
-	}, {
-		typ: SignatureType,
-		val: "qwerty",
-		err: true,
-	}, {
-		typ: BoolType,
-		val: "false",
-		out: false,
-	}, {
-		typ: BoolType,
-		val: "true",
-		out: true,
-	}, {
-		typ: BoolType,
-		val: "qwerty",
-		err: true,
-	}, {
-		typ: BoolType,
-		val: "42",
-		err: true,
-	}, {
-		typ: BoolType,
-		val: "0",
-		err: true,
-	}, {
-		typ: IntegerType,
-		val: "0",
-		out: 0,
-	}, {
-		typ: IntegerType,
-		val: "42",
-		out: 42,
-	}, {
-		typ: IntegerType,
-		val: "-42",
-		out: -42,
-	}, {
-		typ: IntegerType,
-		val: "q",
-		err: true,
-	}, {
-		typ: Hash160Type,
-		val: "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
-		out: "23ba2703c53263e8d6e522dc32203339dcd8eee9",
-	}, {
-		typ: Hash160Type,
-		val: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-		out: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-	}, {
-		typ: Hash160Type,
-		val: "befd26fdf6e4d957c11e078b24ebce6291456f",
-		err: true,
-	}, {
-		typ: Hash160Type,
-		val: "q",
-		err: true,
-	}, {
-		typ: Hash256Type,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-	}, {
-		typ: Hash256Type,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
-		err: true,
-	}, {
-		typ: Hash256Type,
-		val: "q",
-		err: true,
-	}, {
-		typ: ByteArrayType,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
-	}, {
-		typ: ByteArrayType,
-		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-	}, {
-		typ: ByteArrayType,
-		val: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-		out: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-	}, {
-		typ: ByteArrayType,
-		val: "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
-		err: true,
-	}, {
-		typ: ByteArrayType,
-		val: "q",
-		err: true,
-	}, {
-		typ: ByteArrayType,
-		val: "ab",
-		out: "ab",
-	}, {
-		typ: PublicKeyType,
-		val: "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-		out: "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-	}, {
-		typ: PublicKeyType,
-		val: "01b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-		err: true,
-	}, {
-		typ: PublicKeyType,
-		val: "q",
-		err: true,
-	}, {
-		typ: StringType,
-		val: "q",
-		out: "q",
-	}, {
-		typ: StringType,
-		val: "dead",
-		out: "dead",
-	}, {
-		typ: StringType,
-		val: "йцукен",
-		out: "йцукен",
-	}, {
-		typ: ArrayType,
-		val: "",
-		err: true,
-	}}
+func TestParam_TryParse(t *testing.T) {
+	for _, tc := range tryParseTestCases {
+		t.Run(reflect.TypeOf(tc.expected).String(), func(t *testing.T) {
+			input := Parameter{
+				Type:  ByteArrayType,
+				Value: tc.input,
+			}
 
-	for _, inout := range inouts {
-		out, err := adjustValToType(inout.typ, inout.val)
-		if inout.err {
-			assert.NotNil(t, err, "should error on '%s/%s' input", inout.typ, inout.val)
-		} else {
-			assert.Nil(t, err, "shouldn't error on '%s/%s' input", inout.typ, inout.val)
-			assert.Equal(t, inout.out, out, "bad output for '%s/%s' input", inout.typ, inout.val)
-		}
+			val := reflect.New(reflect.TypeOf(tc.expected))
+			assert.NoError(t, input.TryParse(val.Interface()))
+			assert.Equal(t, tc.expected, val.Elem().Interface())
+		})
 	}
+
+	t.Run("[]Uint160", func(t *testing.T) {
+		exp1 := util.Uint160{1, 2, 3, 4, 5}
+		exp2 := util.Uint160{9, 8, 7, 6, 5}
+
+		params := Params{
+			{
+				Type:  ByteArrayType,
+				Value: exp1.BytesBE(),
+			},
+			{
+				Type:  ByteArrayType,
+				Value: exp2.BytesBE(),
+			},
+		}
+
+		var out1, out2 util.Uint160
+
+		assert.NoError(t, params.TryParseArray(&out1, &out2))
+		assert.Equal(t, exp1, out1)
+		assert.Equal(t, exp2, out2)
+	})
+}
+
+func TestParamType_String(t *testing.T) {
+	types := []ParamType{
+		SignatureType,
+		BoolType,
+		IntegerType,
+		Hash160Type,
+		Hash256Type,
+		ByteArrayType,
+		PublicKeyType,
+		StringType,
+		ArrayType,
+		InteropInterfaceType,
+		MapType,
+		VoidType,
+	}
+
+	for _, exp := range types {
+		actual, err := ParseParamType(exp.String())
+		assert.NoError(t, err)
+		assert.Equal(t, exp, actual)
+	}
+
+	actual, err := ParseParamType(UnknownType.String())
+	assert.Error(t, err)
+	assert.Equal(t, UnknownType, actual)
 }
 
 func TestNewParameterFromString(t *testing.T) {
@@ -329,6 +250,12 @@ func TestNewParameterFromString(t *testing.T) {
 		err: true,
 	}, {
 		in:  `bool:asdf`,
+		err: true,
+	}, {
+		in:  `InteropInterface:123`,
+		err: true,
+	}, {
+		in:  `Map:[]`,
 		err: true,
 	}}
 	for _, inout := range inouts {

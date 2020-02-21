@@ -1,5 +1,7 @@
 package request
 
+import "github.com/CityOfZion/neo-go/pkg/smartcontract"
+
 // ContractDetails contains contract metadata.
 type ContractDetails struct {
 	Author               string
@@ -10,6 +12,6 @@ type ContractDetails struct {
 	HasStorage           bool
 	HasDynamicInvocation bool
 	IsPayable            bool
-	ReturnType           StackParamType
-	Parameters           []StackParamType
+	ReturnType           smartcontract.ParamType
+	Parameters           []smartcontract.ParamType
 }
