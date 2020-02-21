@@ -127,6 +127,66 @@ var switchTestCases = []testCase{
 		}`,
 		big.NewInt(4),
 	},
+	{
+		"break from switch",
+		`package main
+		func Main() int {
+			i := 3
+			switch i {
+			case 2: return 2
+			case 3:
+				i = 1
+				break
+				return 3
+			case 4: return 4
+			}
+			return i
+		}`,
+		big.NewInt(1),
+	},
+	{
+		"break from outer for",
+		`package main
+		func Main() int {
+			i := 3
+			loop:
+			for i < 10 {
+				i++
+				switch i {
+				case 5:
+					i = 7
+					break loop
+					return 3
+				case 6: return 4
+				}
+			}
+			return i
+		}`,
+		big.NewInt(7),
+	},
+	{
+		"continue outer for",
+		`package main
+		func Main() int {
+			i := 2
+			for i < 10 {
+				i++
+				switch i {
+				case 3:
+					i = 7
+					continue
+				case 4, 5, 6, 7: return 5
+				case 8: return 2
+				}
+
+				if i == 7 {
+					return 6
+				}
+			}
+			return i
+		}`,
+		big.NewInt(2),
+	},
 }
 
 func TestSwitch(t *testing.T) {

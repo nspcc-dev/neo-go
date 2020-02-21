@@ -38,14 +38,45 @@ type codegen struct {
 	// Current funcScope being converted.
 	scope *funcScope
 
+	// A mapping from label's names to their ids.
+	labels map[labelWithType]int
+
+	// A label for the for-loop being currently visited.
+	currentFor string
+	// A label for the switch statement being visited.
+	currentSwitch string
+	// A label to be used in the next statement.
+	nextLabel string
+
 	// Label table for recording jump destinations.
 	l []int
+}
+
+type labelOffsetType byte
+
+const (
+	labelStart labelOffsetType = iota // labelStart is a default label type
+	labelEnd                          // labelEnd is a type for labels that are targets for break
+	labelPost                         // labelPost is a type for labels that are targets for continue
+)
+
+type labelWithType struct {
+	name string
+	typ  labelOffsetType
 }
 
 // newLabel creates a new label to jump to
 func (c *codegen) newLabel() (l int) {
 	l = len(c.l)
 	c.l = append(c.l, -1)
+	return
+}
+
+// newNamedLabel creates a new label with a specified name.
+func (c *codegen) newNamedLabel(typ labelOffsetType, name string) (l int) {
+	l = c.newLabel()
+	lt := labelWithType{name: name, typ: typ}
+	c.labels[lt] = l
 	return
 }
 
@@ -374,7 +405,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.Tag)
 
 		eqOpcode := c.getEqualityOpcode(n.Tag)
-		switchEnd := c.newLabel()
+		switchEnd, label := c.generateLabel(labelEnd)
+
+		lastSwitch := c.currentSwitch
+		c.currentSwitch = label
 
 		for i := range n.Body.List {
 			lEnd := c.newLabel()
@@ -404,6 +438,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(switchEnd)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+
+		c.currentSwitch = lastSwitch
 
 		return nil
 
@@ -653,11 +689,43 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.BranchStmt:
+		var label string
+		if n.Label != nil {
+			label = n.Label.Name
+		} else if n.Tok == token.BREAK {
+			label = c.currentSwitch
+		} else if n.Tok == token.CONTINUE {
+			label = c.currentFor
+		}
+
+		switch n.Tok {
+		case token.BREAK:
+			end := c.getLabelOffset(labelEnd, label)
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(end))
+		case token.CONTINUE:
+			post := c.getLabelOffset(labelPost, label)
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(post))
+		}
+
+		return nil
+
+	case *ast.LabeledStmt:
+		c.nextLabel = n.Label.Name
+
+		ast.Walk(c, n.Stmt)
+
+		return nil
+
 	case *ast.ForStmt:
-		var (
-			fstart = c.newLabel()
-			fend   = c.newLabel()
-		)
+		fstart, label := c.generateLabel(labelStart)
+		fend := c.newNamedLabel(labelEnd, label)
+		fpost := c.newNamedLabel(labelPost, label)
+
+		lastLabel := c.currentFor
+		lastSwitch := c.currentSwitch
+		c.currentFor = label
+		c.currentSwitch = label
 
 		// Walk the initializer and condition.
 		if n.Init != nil {
@@ -673,6 +741,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
+		c.setLabel(fpost)
 		if n.Post != nil {
 			ast.Walk(c, n.Post)
 		}
@@ -680,6 +749,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Jump back to condition.
 		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(fstart))
 		c.setLabel(fend)
+
+		c.currentFor = lastLabel
+		c.currentSwitch = lastSwitch
 
 		return nil
 
@@ -691,8 +763,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			return nil
 		}
 
-		start := c.newLabel()
-		end := c.newLabel()
+		start, label := c.generateLabel(labelStart)
+		end := c.newNamedLabel(labelEnd, label)
+		post := c.newNamedLabel(labelPost, label)
+
+		lastFor := c.currentFor
+		lastSwitch := c.currentSwitch
+		c.currentFor = label
+		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
 
@@ -715,10 +793,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		ast.Walk(c, n.Body)
 
+		c.setLabel(post)
+
 		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMP, int16(start))
 
 		c.setLabel(end)
+
+		c.currentFor = lastFor
+		c.currentSwitch = lastSwitch
 
 		return nil
 
@@ -747,6 +830,21 @@ func (c *codegen) emitReverse(num int) {
 			emit.Opcode(c.prog.BinWriter, opcode.ROLL)
 		}
 	}
+}
+
+// generateLabel returns a new label.
+func (c *codegen) generateLabel(typ labelOffsetType) (int, string) {
+	name := c.nextLabel
+	if name == "" {
+		name = fmt.Sprintf("@%d", len(c.l))
+	}
+
+	c.nextLabel = ""
+	return c.newNamedLabel(typ, name), name
+}
+
+func (c *codegen) getLabelOffset(typ labelOffsetType, name string) int {
+	return c.labels[labelWithType{name: name, typ: typ}]
 }
 
 func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
@@ -1046,6 +1144,7 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 		prog:      io.NewBufBinWriter(),
 		l:         []int{},
 		funcs:     map[string]*funcScope{},
+		labels:    map[labelWithType]int{},
 		typeInfo:  &pkg.Info,
 	}
 

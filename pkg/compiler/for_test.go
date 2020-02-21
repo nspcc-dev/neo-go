@@ -462,6 +462,218 @@ func TestForLoopRangeChangeVariable(t *testing.T) {
 	eval(t, src, big.NewInt(12))
 }
 
+func TestForLoopBreak(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		for i < 10 {
+			i++
+			if i == 5 {
+				break
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(5))
+}
+
+func TestForLoopBreakLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		loop:
+		for i < 10 {
+			i++
+			if i == 5 {
+				break loop
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(5))
+}
+
+func TestForLoopNestedBreak(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		for i < 10 {
+			i++
+			for j := 0; j < 2; j++ {
+				i++
+				if i == 5 {
+					break
+				}
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(11))
+}
+
+func TestForLoopNestedBreakLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		loop:
+		for i < 10 {
+			i++
+			for j := 0; j < 2; j++ {
+				if i == 5 {
+					break loop
+				}
+				i++
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(5))
+}
+
+func TestForLoopContinue(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, j int
+		for i < 10 {
+			i++
+			if i >= 5 {
+				continue
+			}
+			j++
+		}
+		return j
+	}`
+
+	eval(t, src, big.NewInt(4))
+}
+
+func TestForLoopContinueLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, j int
+		loop:
+		for i < 10 {
+			i++
+			if i >= 5 {
+				continue loop
+			}
+			j++
+		}
+		return j
+	}`
+
+	eval(t, src, big.NewInt(4))
+}
+
+func TestForLoopNestedContinue(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i, k int
+		for i < 10 {
+			i++
+			for j := 0; j < 3; j++ {
+				if j >= 2 {
+					continue
+				}
+				k++
+			}
+		}
+		return k
+	}`
+
+	eval(t, src, big.NewInt(20))
+}
+
+func TestForLoopNestedContinueLabel(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		loop:
+		for ; i < 10; i += 10 {
+			i++
+			for j := 0; j < 4; j++ {
+				if i == 5 {
+					continue loop
+				}
+				i++
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(15))
+}
+
+func TestForLoopRangeBreak(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var i int
+		arr := []int{1, 2, 3}
+		for i = range arr {
+			if arr[i] == 2 {
+				break
+			}
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(1))
+}
+
+func TestForLoopRangeNestedBreak(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		k := 5
+		arr := []int{1, 2, 3}
+		urr := []int{4, 5, 6, 7}
+		loop:
+		for range arr {
+			k++
+			for j := range urr {
+				k++
+				if j == 3 {
+					break loop
+				}
+			}
+		}
+		return k
+	}`
+
+	eval(t, src, big.NewInt(10))
+}
+
+func TestForLoopRangeContinue(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		i := 6
+		arr := []int{1, 2, 3}
+		for j := range arr {
+			if arr[j] < 2 {
+				continue
+			}
+			i++
+		}
+		return i
+	}`
+
+	eval(t, src, big.NewInt(8))
+}
+
 func TestForLoopRangeNoVariable(t *testing.T) {
 	src := `
 	package foo
