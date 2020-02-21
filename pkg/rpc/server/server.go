@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
@@ -114,6 +115,10 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 
 Methods:
 	switch req.Method {
+	case "getapplicationlog":
+		getapplicationlogCalled.Inc()
+		results, resultsErr = s.getApplicationLog(reqParams)
+
 	case "getbestblockhash":
 		getbestblockhashCalled.Inc()
 		results = "0x" + s.chain.CurrentBlockHash().StringLE()
@@ -282,6 +287,39 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+// getApplicationLog returns the contract log based on the specified txid.
+func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	txHash, err := param.GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	appExecResult, err := s.chain.GetAppExecResult(txHash)
+	if err != nil {
+		return nil, response.NewRPCError("Unknown transaction", "", nil)
+	}
+
+	tx, _, err := s.chain.GetTransaction(txHash)
+	if err != nil {
+		return nil, response.NewRPCError("Error while getting transaction", "", nil)
+	}
+
+	var scriptHash util.Uint160
+	switch t := tx.Data.(type) {
+	case *transaction.InvocationTX:
+		scriptHash = hash.Hash160(t.Script)
+	default:
+		return nil, response.NewRPCError("Invalid transaction type", "", nil)
+	}
+
+	return result.NewApplicationLog(appExecResult, scriptHash), nil
 }
 
 func (s *Server) getStorage(ps request.Params) (interface{}, error) {

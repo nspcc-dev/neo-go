@@ -839,6 +839,12 @@ func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	return bc.dao.GetTransaction(hash)
 }
 
+// GetAppExecResult returns application execution result by the given
+// tx hash.
+func (bc *Blockchain) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
+	return bc.dao.GetAppExecResult(hash)
+}
+
 // GetStorageItem returns an item from storage.
 func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	return bc.dao.GetStorageItem(scripthash, key)

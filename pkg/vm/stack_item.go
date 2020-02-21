@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"reflect"
 
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 )
 
@@ -17,6 +18,8 @@ type StackItem interface {
 	Value() interface{}
 	// Dup duplicates current StackItem.
 	Dup() StackItem
+	// ToContractParameter converts StackItem to smartcontract.Parameter
+	ToContractParameter() smartcontract.Parameter
 }
 
 func makeStackItem(v interface{}) StackItem {
@@ -115,6 +118,19 @@ func (i *StructItem) Dup() StackItem {
 	return i
 }
 
+// ToContractParameter implements StackItem interface.
+func (i *StructItem) ToContractParameter() smartcontract.Parameter {
+	var value []smartcontract.Parameter
+	for _, stackItem := range i.value {
+		parameter := stackItem.ToContractParameter()
+		value = append(value, parameter)
+	}
+	return smartcontract.Parameter{
+		Type:  smartcontract.ArrayType,
+		Value: value,
+	}
+}
+
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
 func (i *StructItem) Clone() *StructItem {
@@ -162,6 +178,14 @@ func (i *BigIntegerItem) Dup() StackItem {
 	return &BigIntegerItem{n.Set(i.value)}
 }
 
+// ToContractParameter implements StackItem interface.
+func (i *BigIntegerItem) ToContractParameter() smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.IntegerType,
+		Value: i.value.Int64(),
+	}
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
@@ -198,6 +222,14 @@ func (i *BoolItem) Dup() StackItem {
 	return &BoolItem{i.value}
 }
 
+// ToContractParameter implements StackItem interface.
+func (i *BoolItem) ToContractParameter() smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.BoolType,
+		Value: i.value,
+	}
+}
+
 // ByteArrayItem represents a byte array on the stack.
 type ByteArrayItem struct {
 	value []byte
@@ -229,6 +261,14 @@ func (i *ByteArrayItem) Dup() StackItem {
 	a := make([]byte, len(i.value))
 	copy(a, i.value)
 	return &ByteArrayItem{a}
+}
+
+// ToContractParameter implements StackItem interface.
+func (i *ByteArrayItem) ToContractParameter() smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.ByteArrayType,
+		Value: i.value,
+	}
 }
 
 // ArrayItem represents a new ArrayItem object.
@@ -263,6 +303,19 @@ func (i *ArrayItem) Dup() StackItem {
 	return i
 }
 
+// ToContractParameter implements StackItem interface.
+func (i *ArrayItem) ToContractParameter() smartcontract.Parameter {
+	var value []smartcontract.Parameter
+	for _, stackItem := range i.value {
+		parameter := stackItem.ToContractParameter()
+		value = append(value, parameter)
+	}
+	return smartcontract.Parameter{
+		Type:  smartcontract.ArrayType,
+		Value: value,
+	}
+}
+
 // MapItem represents Map object.
 type MapItem struct {
 	value map[interface{}]StackItem
@@ -280,7 +333,6 @@ func (i *MapItem) Value() interface{} {
 	return i.value
 }
 
-// MarshalJSON implements the json.Marshaler interface.
 func (i *MapItem) String() string {
 	return "Map"
 }
@@ -297,6 +349,23 @@ func (i *MapItem) Dup() StackItem {
 	return i
 }
 
+// ToContractParameter implements StackItem interface.
+func (i *MapItem) ToContractParameter() smartcontract.Parameter {
+	value := make(map[smartcontract.Parameter]smartcontract.Parameter)
+	for key, val := range i.value {
+		pValue := val.ToContractParameter()
+		pKey := fromMapKey(key).ToContractParameter()
+		if pKey.Type == smartcontract.ByteArrayType {
+			pKey.Value = string(pKey.Value.([]byte))
+		}
+		value[pKey] = pValue
+	}
+	return smartcontract.Parameter{
+		Type:  smartcontract.MapType,
+		Value: value,
+	}
+}
+
 // Add adds key-value pair to the map.
 func (i *MapItem) Add(key, value StackItem) {
 	i.value[toMapKey(key)] = value
@@ -311,6 +380,20 @@ func toMapKey(key StackItem) interface{} {
 		return t.value.Int64()
 	case *ByteArrayItem:
 		return string(t.value)
+	default:
+		panic("wrong key type")
+	}
+}
+
+// fromMapKey converts map key to StackItem
+func fromMapKey(key interface{}) StackItem {
+	switch t := key.(type) {
+	case bool:
+		return &BoolItem{value: t}
+	case int64:
+		return &BigIntegerItem{value: big.NewInt(t)}
+	case string:
+		return &ByteArrayItem{value: []byte(t)}
 	default:
 		panic("wrong key type")
 	}
@@ -342,6 +425,14 @@ func (i *InteropItem) String() string {
 func (i *InteropItem) Dup() StackItem {
 	// reference type
 	return i
+}
+
+// ToContractParameter implements StackItem interface.
+func (i *InteropItem) ToContractParameter() smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.InteropInterfaceType,
+		Value: nil,
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

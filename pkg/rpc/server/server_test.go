@@ -40,6 +40,44 @@ type rpcTestCase struct {
 }
 
 var rpcTestCases = map[string][]rpcTestCase{
+	"getapplicationlog": {
+		{
+			name:   "positive",
+			params: `["d5cf936296de912aa4d051531bd8d25c7a58fb68fc7f87c8d3e6e85475187c08"]`,
+			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.ApplicationLog)
+
+				require.True(t, ok)
+
+				expectedTxHash := util.Uint256{0x8, 0x7c, 0x18, 0x75, 0x54, 0xe8, 0xe6, 0xd3, 0xc8, 0x87, 0x7f, 0xfc, 0x68, 0xfb, 0x58, 0x7a, 0x5c, 0xd2, 0xd8, 0x1b, 0x53, 0x51, 0xd0, 0xa4, 0x2a, 0x91, 0xde, 0x96, 0x62, 0x93, 0xcf, 0xd5}
+				assert.Equal(t, expectedTxHash, res.TxHash)
+				assert.Equal(t, 1, len(res.Executions))
+				assert.Equal(t, "Application", res.Executions[0].Trigger)
+				assert.Equal(t, "HALT", res.Executions[0].VMState)
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahash"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid tx hash",
+			params: `["d24cc1d52b5c0216cbf3835bb5bac8ccf32639fa1ab6627ec4e2b9f33f7ec02f"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid tx type",
+			params: `["f9adfde059810f37b3d0686d67f6b29034e0c669537df7e59b40c14a0508b9ed"]`,
+			fail:   true,
+		},
+	},
 	"getaccountstate": {
 		{
 			name:   "positive",
