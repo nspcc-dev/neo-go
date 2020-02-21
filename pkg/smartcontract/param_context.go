@@ -2,6 +2,7 @@ package smartcontract
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -76,6 +77,22 @@ func (pt ParamType) String() string {
 // MarshalJSON implements the json.Marshaler interface.
 func (pt ParamType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + pt.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (pt *ParamType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	p, err := parseParamType(s)
+	if err != nil {
+		return err
+	}
+
+	*pt = p
+	return nil
 }
 
 // EncodeBinary implements io.Serializable interface.

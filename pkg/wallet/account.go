@@ -1,12 +1,16 @@
 package wallet
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/CityOfZion/neo-go/pkg/encoding/address"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
 
@@ -50,7 +54,7 @@ type Contract struct {
 	Script []byte `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []interface{} `json:"parameters"`
+	Parameters []contractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
@@ -62,10 +66,15 @@ type contract struct {
 	Script string `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []interface{} `json:"parameters"`
+	Parameters []contractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
+}
+
+type contractParam struct {
+	Name string                  `json:"name"`
+	Type smartcontract.ParamType `json:"type"`
 }
 
 // ScriptHash returns the hash of contract's script.
@@ -122,7 +131,14 @@ func (a *Account) Decrypt(passphrase string) error {
 		return errors.New("no encrypted wif in the account")
 	}
 	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase)
-	return err
+	if err != nil {
+		return err
+	}
+
+	a.publicKey = a.privateKey.PublicKey().Bytes()
+	a.wif = a.privateKey.WIF()
+
+	return nil
 }
 
 // Encrypt encrypts the wallet's PrivateKey with the given passphrase
@@ -150,6 +166,47 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 	return newAccountFromPrivateKey(privKey), nil
 }
 
+// NewAccountFromEncryptedWIF creates a new Account from the given encrypted WIF.
+func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
+	priv, err := keys.NEP2Decrypt(wif, pass)
+	if err != nil {
+		return nil, err
+	}
+
+	a := newAccountFromPrivateKey(priv)
+	a.EncryptedWIF = wif
+
+	return a, nil
+}
+
+// ConvertMultisig sets a's contract to multisig contract with m sufficient signatures.
+func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
+	var found bool
+	for i := range pubs {
+		if bytes.Equal(a.publicKey, pubs[i].Bytes()) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("own public key was not found among multisig keys")
+	}
+
+	script, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
+	if err != nil {
+		return err
+	}
+
+	a.Address = address.Uint160ToString(hash.Hash160(script))
+	a.Contract = &Contract{
+		Script:     script,
+		Parameters: getContractParams(m),
+	}
+
+	return nil
+}
+
 // newAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
@@ -161,7 +218,21 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 		privateKey: p,
 		Address:    pubAddr,
 		wif:        wif,
+		Contract: &Contract{
+			Script:     pubKey.GetVerificationScript(),
+			Parameters: getContractParams(1),
+		},
 	}
 
 	return a
+}
+
+func getContractParams(n int) []contractParam {
+	params := make([]contractParam, n)
+	for i := range params {
+		params[i].Name = fmt.Sprintf("parameter%d", i)
+		params[i].Type = smartcontract.SignatureType
+	}
+
+	return params
 }

@@ -90,6 +90,17 @@ func TestSave(t *testing.T) {
 	openedWallet, err := NewWalletFromFile(wallet.path)
 	require.NoError(t, err)
 	require.Equal(t, wallet.Accounts, openedWallet.Accounts)
+
+	t.Run("change and rewrite", func(t *testing.T) {
+		err := openedWallet.CreateAccount("test", "pass")
+		require.NoError(t, err)
+
+		w2, err := NewWalletFromFile(openedWallet.path)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(w2.Accounts))
+		require.NoError(t, w2.Accounts[1].Decrypt("pass"))
+		require.Equal(t, openedWallet.Accounts, w2.Accounts)
+	})
 }
 
 func TestJSONMarshallUnmarshal(t *testing.T) {

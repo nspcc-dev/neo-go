@@ -105,6 +105,11 @@ func (w *Wallet) Path() string {
 // that is responsible for saving the data. This can
 // be a buffer, file, etc..
 func (w *Wallet) Save() error {
+	if s, ok := w.rw.(io.Seeker); ok {
+		if _, err := s.Seek(0, 0); err != nil {
+			return err
+		}
+	}
 	return json.NewEncoder(w.rw).Encode(w)
 }
 
