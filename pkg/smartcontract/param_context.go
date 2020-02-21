@@ -137,7 +137,7 @@ func parseParamType(typ string) (ParamType, error) {
 		return Hash160Type, nil
 	case "hash256":
 		return Hash256Type, nil
-	case "bytes":
+	case "bytes", "bytearray":
 		return ByteArrayType, nil
 	case "key":
 		return PublicKeyType, nil
