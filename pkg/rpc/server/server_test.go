@@ -44,23 +44,23 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]`,
-			result: func(e *executor) interface{} { return &GetAccountStateResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetAccountStateResponse)
+			result: func(e *executor) interface{} { return &result.AccountState{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.AccountState)
 				require.True(t, ok)
-				assert.Equal(t, 1, len(res.Result.Balances))
-				assert.Equal(t, false, res.Result.Frozen)
+				assert.Equal(t, 1, len(res.Balances))
+				assert.Equal(t, false, res.IsFrozen)
 			},
 		},
 		{
 			name:   "positive null",
 			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return &GetAccountStateResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetAccountStateResponse)
+			result: func(e *executor) interface{} { return &result.AccountState{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.AccountState)
 				require.True(t, ok)
-				assert.Equal(t, 0, len(res.Result.Balances))
-				assert.Equal(t, false, res.Result.Frozen)
+				assert.Equal(t, 0, len(res.Balances))
+				assert.Equal(t, false, res.IsFrozen)
 			},
 		},
 		{
@@ -78,13 +78,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
-			result: func(e *executor) interface{} { return &GetContractStateResponce{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetContractStateResponce)
+			result: func(e *executor) interface{} { return &result.ContractState{} },
+			check: func(t *testing.T, e *executor, cs interface{}) {
+				res, ok := cs.(*result.ContractState)
 				require.True(t, ok)
-				assert.Equal(t, byte(0), res.Result.Version)
-				assert.Equal(t, util.Uint160{0x1a, 0x69, 0x6b, 0x32, 0xe2, 0x39, 0xdd, 0x5e, 0xac, 0xe3, 0xf0, 0x25, 0xca, 0xc0, 0xa1, 0x93, 0xa5, 0x74, 0x6a, 0x27}, res.Result.ScriptHash)
-				assert.Equal(t, "0.99", res.Result.CodeVersion)
+				assert.Equal(t, byte(0), res.Version)
+				assert.Equal(t, util.Uint160{0x1a, 0x69, 0x6b, 0x32, 0xe2, 0x39, 0xdd, 0x5e, 0xac, 0xe3, 0xf0, 0x25, 0xca, 0xc0, 0xa1, 0x93, 0xa5, 0x74, 0x6a, 0x27}, res.ScriptHash)
+				assert.Equal(t, "0.99", res.CodeVersion)
 			},
 		},
 		{
@@ -107,21 +107,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "746573746b6579"]`,
-			result: func(e *executor) interface{} { return &StringResultResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*StringResultResponse)
-				require.True(t, ok)
-				assert.Equal(t, hex.EncodeToString([]byte("testvalue")), res.Result)
+			result: func(e *executor) interface{} {
+				v := hex.EncodeToString([]byte("testvalue"))
+				return &v
 			},
 		},
 		{
 			name:   "missing key",
 			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "7465"]`,
-			result: func(e *executor) interface{} { return &StringResultResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*StringResultResponse)
-				require.True(t, ok)
-				assert.Equal(t, "", res.Result)
+			result: func(e *executor) interface{} {
+				v := ""
+				return &v
 			},
 		},
 		{
@@ -149,12 +145,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"]`,
-			result: func(e *executor) interface{} { return &GetAssetResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetAssetResponse)
+			result: func(e *executor) interface{} { return &result.AssetState{} },
+			check: func(t *testing.T, e *executor, as interface{}) {
+				res, ok := as.(*result.AssetState)
 				require.True(t, ok)
-				assert.Equal(t, "00", res.Result.Owner)
-				assert.Equal(t, "AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3", res.Result.Admin)
+				assert.Equal(t, "00", res.Owner)
+				assert.Equal(t, "AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3", res.Admin)
 			},
 		},
 		{
@@ -177,7 +173,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) interface{} {
-				return "0x" + e.chain.CurrentBlockHash().StringLE()
+				v := "0x" + e.chain.CurrentBlockHash().StringLE()
+				return &v
 			},
 		},
 		{
@@ -221,17 +218,17 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: "[1, 1]",
-			result: func(e *executor) interface{} { return &GetBlockResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetBlockResponse)
+			result: func(e *executor) interface{} { return &result.Block{} },
+			check: func(t *testing.T, e *executor, blockRes interface{}) {
+				res, ok := blockRes.(*result.Block)
 				require.True(t, ok)
 
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 				require.NoErrorf(t, err, "could not get block")
 
-				assert.Equal(t, block.Hash(), res.Result.Hash)
-				for i := range res.Result.Tx {
-					tx := res.Result.Tx[i]
+				assert.Equal(t, block.Hash(), res.Hash)
+				for i := range res.Tx {
+					tx := res.Tx[i]
 					require.Equal(t, transaction.MinerType, tx.Type)
 
 					miner, ok := block.Transactions[i].Data.(*transaction.MinerTX)
@@ -270,22 +267,21 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockcount": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} { return int(e.chain.BlockHeight() + 1) },
+			result: func(e *executor) interface{} {
+				v := int(e.chain.BlockHeight() + 1)
+				return &v
+			},
 		},
 	},
 	"getblockhash": {
 		{
 			params: "[1]",
-			result: func(e *executor) interface{} { return "" },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*StringResultResponse)
-				require.True(t, ok)
-
-				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-				require.NoErrorf(t, err, "could not get block")
-
+			result: func(e *executor) interface{} {
+				// We don't have `t` here for proper handling, but
+				// error here would lead to panic down below.
+				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 				expectedHash := "0x" + block.Hash().StringLE()
-				assert.Equal(t, expectedHash, res.Result)
+				return &expectedHash
 			},
 		},
 		{
@@ -302,25 +298,20 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getconnectioncount": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} { return 0 },
+			result: func(*executor) interface{} {
+				v := 0
+				return &v
+			},
 		},
 	},
 	"getpeers": {
 		{
 			params: "[]",
 			result: func(*executor) interface{} {
-				return &GetPeersResponse{
-					Jsonrpc: defaultJSONRPC,
-					Result: struct {
-						Unconnected []int `json:"unconnected"`
-						Connected   []int `json:"connected"`
-						Bad         []int `json:"bad"`
-					}{
-						Unconnected: []int{},
-						Connected:   []int{},
-						Bad:         []int{},
-					},
-					ID: defaultID,
+				return &result.GetPeers{
+					Unconnected: []result.Peer{},
+					Connected:   []result.Peer{},
+					Bad:         []result.Peer{},
 				}
 			},
 		},
@@ -346,33 +337,33 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]`,
-			result: func(e *executor) interface{} { return &GetUnspents{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetUnspents)
+			result: func(e *executor) interface{} { return &result.Unspents{} },
+			check: func(t *testing.T, e *executor, unsp interface{}) {
+				res, ok := unsp.(*result.Unspents)
 				require.True(t, ok)
-				require.Equal(t, 1, len(res.Result.Balance))
-				assert.Equal(t, 1, len(res.Result.Balance[0].Unspents))
+				require.Equal(t, 1, len(res.Balance))
+				assert.Equal(t, 1, len(res.Balance[0].Unspents))
 			},
 		},
 		{
 			name:   "positive null",
 			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return &GetUnspents{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*GetUnspents)
+			result: func(e *executor) interface{} { return &result.Unspents{} },
+			check: func(t *testing.T, e *executor, unsp interface{}) {
+				res, ok := unsp.(*result.Unspents)
 				require.True(t, ok)
-				require.Equal(t, 0, len(res.Result.Balance))
+				require.Equal(t, 0, len(res.Balance))
 			},
 		},
 	},
 	"getversion": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} { return &GetVersionResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				resp, ok := result.(*GetVersionResponse)
+			result: func(*executor) interface{} { return &result.Version{} },
+			check: func(t *testing.T, e *executor, ver interface{}) {
+				resp, ok := ver.(*result.Version)
 				require.True(t, ok)
-				require.Equal(t, "/NEO-GO:/", resp.Result.UserAgent)
+				require.Equal(t, "/NEO-GO:/", resp.UserAgent)
 			},
 		},
 	},
@@ -380,13 +371,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "String", "value": "qwerty"}]]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*InvokeFunctionResponse)
+			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*InvokeFunctionResult)
 				require.True(t, ok)
-				assert.Equal(t, "06717765727479676f459162ceeb248b071ec157d9e4f6fd26fdbe50", res.Result.Script)
-				assert.NotEqual(t, "", res.Result.State)
-				assert.NotEqual(t, 0, res.Result.GasConsumed)
+				assert.Equal(t, "06717765727479676f459162ceeb248b071ec157d9e4f6fd26fdbe50", res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
 			},
 		},
 		{
@@ -419,13 +410,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*InvokeFunctionResponse)
+			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*InvokeFunctionResult)
 				require.True(t, ok)
-				assert.NotEqual(t, "", res.Result.Script)
-				assert.NotEqual(t, "", res.Result.State)
-				assert.NotEqual(t, 0, res.Result.GasConsumed)
+				assert.NotEqual(t, "", res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
 			},
 		},
 		{
@@ -453,13 +444,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["51c56b0d48656c6c6f2c20776f726c6421680f4e656f2e52756e74696d652e4c6f67616c7566"]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*InvokeFunctionResponse)
+			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*InvokeFunctionResult)
 				require.True(t, ok)
-				assert.NotEqual(t, "", res.Result.Script)
-				assert.NotEqual(t, "", res.Result.State)
-				assert.NotEqual(t, 0, res.Result.GasConsumed)
+				assert.NotEqual(t, "", res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
 			},
 		},
 		{
@@ -482,11 +473,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["d1001b00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c733101201cc9c05cefffe6cdd7b182816a9152ec218d2ec000000141403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"]`,
-			result: func(e *executor) interface{} { return &SendTXResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*SendTXResponse)
-				require.True(t, ok)
-				assert.True(t, res.Result)
+			result: func(e *executor) interface{} {
+				v := true
+				return &v
 			},
 		},
 		{
@@ -514,25 +503,21 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i"]`,
-			result: func(*executor) interface{} { return &ValidateAddrResponse{} },
-			check: func(t *testing.T, e *executor, result interface{}) {
-				res, ok := result.(*ValidateAddrResponse)
+			result: func(*executor) interface{} { return &result.ValidateAddress{} },
+			check: func(t *testing.T, e *executor, va interface{}) {
+				res, ok := va.(*result.ValidateAddress)
 				require.True(t, ok)
-				assert.Equal(t, "AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i", res.Result.Address)
-				assert.True(t, res.Result.IsValid)
+				assert.Equal(t, "AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i", res.Address)
+				assert.True(t, res.IsValid)
 			},
 		},
 		{
 			name:   "negative",
 			params: "[1]",
 			result: func(*executor) interface{} {
-				return &ValidateAddrResponse{
-					Jsonrpc: defaultJSONRPC,
-					Result: result.ValidateAddress{
-						Address: float64(1),
-						IsValid: false,
-					},
-					ID: defaultID,
+				return &result.ValidateAddress{
+					Address: float64(1),
+					IsValid: false,
 				}
 			},
 		},
@@ -552,14 +537,14 @@ func TestRPC(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
 					body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), handler, t)
-					checkErrResponse(t, body, tc.fail)
+					result := checkErrGetResult(t, body, tc.fail)
 					if tc.fail {
 						return
 					}
 
 					expected, res := tc.getResultPair(e)
-					err := json.Unmarshal(body, res)
-					require.NoErrorf(t, err, "could not parse response: %s", body)
+					err := json.Unmarshal(result, res)
+					require.NoErrorf(t, err, "could not parse response: %s", result)
 
 					if tc.check == nil {
 						assert.Equal(t, expected, res)
@@ -576,11 +561,11 @@ func TestRPC(t *testing.T) {
 		TXHash := block.Transactions[1].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
-		checkErrResponse(t, body, false)
-		var res StringResultResponse
-		err := json.Unmarshal(body, &res)
-		require.NoErrorf(t, err, "could not parse response: %s", body)
-		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res.Result)
+		result := checkErrGetResult(t, body, false)
+		var res string
+		err := json.Unmarshal(result, &res)
+		require.NoErrorf(t, err, "could not parse response: %s", result)
+		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
 	})
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
@@ -588,11 +573,11 @@ func TestRPC(t *testing.T) {
 		TXHash := block.Transactions[1].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
-		checkErrResponse(t, body, false)
-		var res StringResultResponse
-		err := json.Unmarshal(body, &res)
-		require.NoErrorf(t, err, "could not parse response: %s", body)
-		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res.Result)
+		result := checkErrGetResult(t, body, false)
+		var res string
+		err := json.Unmarshal(result, &res)
+		require.NoErrorf(t, err, "could not parse response: %s", result)
+		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
 	})
 
 	t.Run("gettxout", func(t *testing.T) {
@@ -601,54 +586,35 @@ func TestRPC(t *testing.T) {
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
 			`"`+tx.Hash().StringLE()+`"`, 0)
 		body := doRPCCall(rpc, handler, t)
-		checkErrResponse(t, body, false)
+		res := checkErrGetResult(t, body, false)
 
-		var result response.GetTxOut
-		err := json.Unmarshal(body, &result)
-		require.NoErrorf(t, err, "could not parse response: %s", body)
-		assert.Equal(t, 0, result.Result.N)
-		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", result.Result.Asset)
-		assert.Equal(t, util.Fixed8FromInt64(100000000), result.Result.Value)
-		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", result.Result.Address)
+		var txOut result.TransactionOutput
+		err := json.Unmarshal(res, &txOut)
+		require.NoErrorf(t, err, "could not parse response: %s", res)
+		assert.Equal(t, 0, txOut.N)
+		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
+		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
+		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
 	})
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
 	expected = tc.result(e)
-	switch exp := expected.(type) {
-	case string:
-		res = new(StringResultResponse)
-		expected = &StringResultResponse{
-			Jsonrpc: defaultJSONRPC,
-			Result:  exp,
-			ID:      defaultID,
-		}
-	case int:
-		res = new(IntResultResponse)
-		expected = &IntResultResponse{
-			Jsonrpc: defaultJSONRPC,
-			Result:  exp,
-			ID:      defaultID,
-		}
-	default:
-		resVal := reflect.New(reflect.TypeOf(expected).Elem())
-		res = resVal.Interface()
-	}
-
-	return
+	resVal := reflect.New(reflect.TypeOf(expected).Elem())
+	return expected, resVal.Interface()
 }
 
-func checkErrResponse(t *testing.T, body []byte, expectingFail bool) {
-	var errresp ErrorResponse
-	err := json.Unmarshal(body, &errresp)
+func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {
+	var resp response.Raw
+	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	if expectingFail {
-		assert.NotEqual(t, 0, errresp.Error.Code)
-		assert.NotEqual(t, "", errresp.Error.Message)
+		assert.NotEqual(t, 0, resp.Error.Code)
+		assert.NotEqual(t, "", resp.Error.Message)
 	} else {
-		assert.Equal(t, 0, errresp.Error.Code)
-		assert.Equal(t, "", errresp.Error.Message)
+		assert.Nil(t, resp.Error)
 	}
+	return resp.Result
 }
 
 func doRPCCall(rpcCall string, handler http.HandlerFunc, t *testing.T) []byte {
