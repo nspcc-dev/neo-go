@@ -1331,8 +1331,8 @@ func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transactio
 
 	claim := t.Data.(*transaction.ClaimTX)
 	clGroups := make(map[util.Uint256][]*transaction.Input)
-	for _, in := range claim.Claims {
-		clGroups[in.PrevHash] = append(clGroups[in.PrevHash], in)
+	for i := range claim.Claims {
+		clGroups[claim.Claims[i].PrevHash] = append(clGroups[claim.Claims[i].PrevHash], &claim.Claims[i])
 	}
 	for group, inputs := range clGroups {
 		refTx, _, err := bc.dao.GetTransaction(group)
