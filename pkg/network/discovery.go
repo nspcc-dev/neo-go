@@ -14,6 +14,7 @@ const (
 // a healthy connection pool.
 type Discoverer interface {
 	BackFill(...string)
+	Close()
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
@@ -34,6 +35,7 @@ type DefaultDiscovery struct {
 	connectedAddrs   map[string]bool
 	goodAddrs        map[string]bool
 	unconnectedAddrs map[string]int
+	isDead           bool
 	requestCh        chan int
 	pool             chan string
 }
@@ -88,7 +90,11 @@ func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 
 // RequestRemote tries to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
-	d.requestCh <- n
+	d.lock.RLock()
+	if !d.isDead {
+		d.requestCh <- n
+	}
+	d.lock.RUnlock()
 }
 
 // RegisterBadAddr registers the given address as a bad address.
@@ -171,15 +177,28 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 	}
 }
 
+// Close stops discoverer pool processing making discoverer almost useless.
+func (d *DefaultDiscovery) Close() {
+	d.lock.Lock()
+	d.isDead = true
+	d.lock.Unlock()
+	select {
+	case <-d.requestCh: // Drain the channel if there is anything there.
+	default:
+	}
+	close(d.requestCh)
+}
+
 // run is a goroutine that makes DefaultDiscovery process its queue to connect
 // to other nodes.
 func (d *DefaultDiscovery) run() {
-	var requested int
+	var requested, r int
+	var ok bool
 
 	for {
-		for requested = <-d.requestCh; requested > 0; requested-- {
+		for requested, ok = <-d.requestCh; ok && requested > 0; requested-- {
 			select {
-			case r := <-d.requestCh:
+			case r, ok = <-d.requestCh:
 				if requested <= r {
 					requested = r + 1
 				}
@@ -192,6 +211,9 @@ func (d *DefaultDiscovery) run() {
 					go d.tryAddress(addr)
 				}
 			}
+		}
+		if !ok {
+			return
 		}
 	}
 }

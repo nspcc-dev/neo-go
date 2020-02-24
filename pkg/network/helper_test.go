@@ -140,6 +140,7 @@ func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
 type testDiscovery struct{}
 
 func (d testDiscovery) BackFill(addrs ...string)       {}
+func (d testDiscovery) Close()                         {}
 func (d testDiscovery) PoolCount() int                 { return 0 }
 func (d testDiscovery) RegisterBadAddr(string)         {}
 func (d testDiscovery) RegisterGoodAddr(string)        {}

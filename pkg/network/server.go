@@ -184,6 +184,7 @@ func (s *Server) Start(errChan chan error) {
 func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.bQueue.discard()
+	s.discovery.Close()
 	close(s.quit)
 }
 
