@@ -183,8 +183,12 @@ func (s *Server) Start(errChan chan error) {
 // Shutdown disconnects all peers and stops listening.
 func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
-	s.bQueue.discard()
+	s.transport.Close()
 	s.discovery.Close()
+	for p := range s.peers {
+		p.Disconnect(errServerShutdown)
+	}
+	s.bQueue.discard()
 	close(s.quit)
 }
 
@@ -212,10 +216,6 @@ func (s *Server) run() {
 		}
 		select {
 		case <-s.quit:
-			s.transport.Close()
-			for p := range s.peers {
-				p.Disconnect(errServerShutdown)
-			}
 			return
 		case p := <-s.register:
 			s.lock.Lock()
