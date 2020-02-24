@@ -440,6 +440,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return err
 			}
+			spentCoin, err := cache.GetSpentCoinsOrNew(prevHash, prevTXHeight)
+			if err != nil {
+				return err
+			}
+			oldSpentCoinLen := len(spentCoin.items)
 			for _, input := range inputs {
 				unspent.states[input.PrevIndex] = state.CoinSpent
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
@@ -449,11 +454,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
-					spentCoin := NewSpentCoinState(input.PrevHash, prevTXHeight)
 					spentCoin.items[input.PrevIndex] = block.Index
-					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
-						return err
-					}
 					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
 					}
@@ -481,6 +482,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
 				return err
+			}
+			if oldSpentCoinLen != len(spentCoin.items) {
+				if err = cache.PutSpentCoinState(prevHash, spentCoin); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -517,18 +523,34 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			// Remove claimed NEO from spent coins making it unavalaible for
 			// additional claims.
 			for _, input := range t.Claims {
-				scs, err := cache.GetSpentCoinsOrNew(input.PrevHash)
-				if err != nil {
-					return err
+				scs, err := cache.GetSpentCoinState(input.PrevHash)
+				if err == nil {
+					_, ok := scs.items[input.PrevIndex]
+					if !ok {
+						err = errors.New("no spent coin state")
+					}
 				}
-				if scs.txHash == input.PrevHash {
-					// Existing scs.
-					delete(scs.items, input.PrevIndex)
+				if err != nil {
+					// We can't really do anything about it
+					// as it's a transaction in a signed block.
+					bc.log.Warn("DOUBLE CLAIM",
+						zap.String("PrevHash", input.PrevHash.StringLE()),
+						zap.Uint16("PrevIndex", input.PrevIndex),
+						zap.String("tx", tx.Hash().StringLE()),
+						zap.Uint32("block", block.Index),
+					)
+					// "Strict" mode.
+					if bc.config.VerifyTransactions {
+						return err
+					}
+					break
+				}
+				delete(scs.items, input.PrevIndex)
+				if len(scs.items) > 0 {
 					if err = cache.PutSpentCoinState(input.PrevHash, scs); err != nil {
 						return err
 					}
 				} else {
-					// Uninitialized, new, forget about it.
 					if err = cache.DeleteSpentCoinState(input.PrevHash); err != nil {
 						return err
 					}

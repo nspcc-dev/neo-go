@@ -124,7 +124,7 @@ func TestPutGetUnspentCoinState(t *testing.T) {
 func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState, err := dao.GetSpentCoinsOrNew(hash)
+	spentCoinState, err := dao.GetSpentCoinsOrNew(hash, 1)
 	require.NoError(t, err)
 	require.NotNil(t, spentCoinState)
 }

@@ -175,15 +175,13 @@ func (dao *dao) PutUnspentCoinState(hash util.Uint256, ucs *UnspentCoinState) er
 // -- start spent coins.
 
 // GetSpentCoinsOrNew returns spent coins from store.
-func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256) (*SpentCoinState, error) {
+func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256, height uint32) (*SpentCoinState, error) {
 	spent, err := dao.GetSpentCoinState(hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		spent = &SpentCoinState{
-			items: make(map[uint16]uint32),
-		}
+		spent = NewSpentCoinState(hash, height)
 	}
 	return spent, nil
 }
