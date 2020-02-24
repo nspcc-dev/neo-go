@@ -75,7 +75,7 @@ func (s *MemCachedStore) GetBatch() *MemBatch {
 func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	s.MemoryStore.Seek(key, f)
+	s.MemoryStore.seek(key, f)
 	s.ps.Seek(key, func(k, v []byte) {
 		elem := string(k)
 		// If it's in mem, we already called f() for it in MemoryStore.Seek().
