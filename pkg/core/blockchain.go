@@ -278,8 +278,8 @@ func (bc *Blockchain) Run() {
 				if err != nil {
 					bc.log.Warn("failed to persist blockchain", zap.Error(err))
 				}
+				persistTimer.Reset(persistInterval)
 			}()
-			persistTimer.Reset(persistInterval)
 		}
 	}
 }
