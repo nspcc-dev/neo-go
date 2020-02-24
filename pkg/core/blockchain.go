@@ -436,15 +436,12 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
+			unspent, err := cache.GetUnspentCoinStateOrNew(prevHash)
+			if err != nil {
+				return err
+			}
 			for _, input := range inputs {
-				unspent, err := cache.GetUnspentCoinStateOrNew(input.PrevHash)
-				if err != nil {
-					return err
-				}
 				unspent.states[input.PrevIndex] = state.CoinSpent
-				if err = cache.PutUnspentCoinState(input.PrevHash, unspent); err != nil {
-					return err
-				}
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
@@ -481,6 +478,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				if err = cache.PutAccountState(account); err != nil {
 					return err
 				}
+			}
+			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
+				return err
 			}
 		}
 
