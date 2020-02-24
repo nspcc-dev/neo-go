@@ -226,7 +226,8 @@ func (s *Server) run() {
 				s.lock.RLock()
 				// Pick a random peer and drop connection to it.
 				for peer := range s.peers {
-					peer.Disconnect(errMaxPeers)
+					// It will send us unregister signal.
+					go peer.Disconnect(errMaxPeers)
 					break
 				}
 				s.lock.RUnlock()
