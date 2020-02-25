@@ -93,6 +93,9 @@ type Blockchain struct {
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
+	generationAmount  []int
+	decrementInterval int
+
 	// All operations on headerList must be called from an
 	// headersOp to be routine safe.
 	headerList *HeaderHashList
@@ -154,6 +157,9 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		log:           log,
+
+		generationAmount:  genAmount,
+		decrementInterval: decrementInterval,
 	}
 
 	if err := bc.init(); err != nil {
@@ -1031,6 +1037,55 @@ func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
 // GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
+}
+
+// CalculateClaimable calculates the amount of GAS which can be claimed for a transaction with value.
+// First return value is GAS generated between startHeight and endHeight.
+// Second return value is GAS returned from accumulated SystemFees between startHeight and endHeight.
+func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error) {
+	var amount util.Fixed8
+	di := uint32(bc.decrementInterval)
+
+	ustart := startHeight / di
+	if genSize := uint32(len(bc.generationAmount)); ustart < genSize {
+		uend := endHeight / di
+		iend := endHeight % di
+		if uend >= genSize {
+			uend = genSize - 1
+			iend = di
+		} else if iend == 0 {
+			uend--
+			iend = di
+		}
+
+		istart := startHeight % di
+		for ustart < uend {
+			amount += util.Fixed8(di-istart) * util.Fixed8(bc.generationAmount[ustart])
+			ustart++
+			istart = 0
+		}
+
+		amount += util.Fixed8(iend-istart) * util.Fixed8(bc.generationAmount[ustart])
+	}
+
+	var sysFeeTotal util.Fixed8
+	if startHeight == 0 {
+		startHeight++
+	}
+	for i := startHeight; i < endHeight; i++ {
+		h := bc.GetHeaderHash(int(i))
+		b, err := bc.GetBlock(h)
+		if err != nil {
+			return 0, 0, err
+		}
+		for _, tx := range b.Transactions {
+			sysFeeTotal += bc.SystemFee(tx)
+		}
+	}
+
+	sysFeeTotal /= 100000000
+	ratio := value / 100000000
+	return amount * ratio, sysFeeTotal * ratio, nil
 }
 
 // References maps transaction's inputs into a slice of InOuts, effectively

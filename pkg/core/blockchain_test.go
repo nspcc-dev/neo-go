@@ -175,6 +175,46 @@ func TestGetTransaction(t *testing.T) {
 	}
 }
 
+func TestGetClaimable(t *testing.T) {
+	bc := newTestChain(t)
+
+	_, _, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 2)
+	require.Error(t, err)
+
+	bc.generationAmount = []int{4, 3, 2, 1}
+	bc.decrementInterval = 2
+	_, err = bc.genBlocks(10)
+	require.NoError(t, err)
+
+	t.Run("first generation period", func(t *testing.T) {
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 2)
+		require.NoError(t, err)
+		require.EqualValues(t, 8, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("a number of full periods", func(t *testing.T) {
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 6)
+		require.NoError(t, err)
+		require.EqualValues(t, 4+4+3+3+2+2, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("start from the 2-nd block", func(t *testing.T) {
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 7)
+		require.NoError(t, err)
+		require.EqualValues(t, 4+3+3+2+2+1, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+
+	t.Run("end height after generation has ended", func(t *testing.T) {
+		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
+		require.NoError(t, err)
+		require.EqualValues(t, 4+3+3+2+2+1+1, amount)
+		require.EqualValues(t, 0, sysfee)
+	})
+}
+
 func TestClose(t *testing.T) {
 	defer func() {
 		r := recover()
