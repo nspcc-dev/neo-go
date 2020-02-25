@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.3"
+	version          = "0.0.4"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -479,6 +479,13 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
+					account.Unclaimed = append(account.Unclaimed, state.UnclaimedBalance{
+						Tx:    prevTX.Hash(),
+						Index: input.PrevIndex,
+						Start: prevTXHeight,
+						End:   block.Index,
+						Value: prevTXOutput.Amount,
+					})
 					spentCoin.items[input.PrevIndex] = block.Index
 					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
@@ -570,6 +577,37 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					}
 					break
 				}
+
+				prevTx, _, err := cache.GetTransaction(input.PrevHash)
+				if err != nil {
+					return err
+				} else if int(input.PrevIndex) > len(prevTx.Outputs) {
+					return errors.New("invalid input in claim")
+				}
+				acc, err := cache.GetAccountState(prevTx.Outputs[input.PrevIndex].ScriptHash)
+				if err != nil {
+					return err
+				}
+
+				var changed bool
+				for i := range acc.Unclaimed {
+					if acc.Unclaimed[i].Tx == input.PrevHash && acc.Unclaimed[i].Index == input.PrevIndex {
+						copy(acc.Unclaimed[i:], acc.Unclaimed[i+1:])
+						acc.Unclaimed = acc.Unclaimed[:len(acc.Unclaimed)-1]
+						changed = true
+						break
+					}
+				}
+
+				if !changed {
+					bc.log.Warn("no spent coin in the account",
+						zap.String("tx", tx.Hash().StringLE()),
+						zap.String("input", input.PrevHash.StringLE()),
+						zap.String("account", acc.ScriptHash.String()))
+				} else if err := cache.PutAccountState(acc); err != nil {
+					return err
+				}
+
 				delete(scs.items, input.PrevIndex)
 				if len(scs.items) > 0 {
 					if err = cache.PutSpentCoinState(input.PrevHash, scs); err != nil {
