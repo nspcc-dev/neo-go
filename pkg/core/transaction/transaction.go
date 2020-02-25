@@ -187,16 +187,6 @@ func (t *Transaction) createHash() error {
 	return nil
 }
 
-// GroupInputsByPrevHash groups all TX inputs by their previous hash.
-func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
-	m := make(map[util.Uint256][]*Input)
-	for i := range t.Inputs {
-		hash := t.Inputs[i].PrevHash
-		m[hash] = append(m[hash], &t.Inputs[i])
-	}
-	return m
-}
-
 // GroupOutputByAssetID groups all TX outputs by their assetID.
 func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 	m := make(map[util.Uint256][]*Output)

@@ -547,7 +547,8 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 	if len(tx.Inputs) == 0 {
 		return false
 	}
-	for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+	for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
+		prevHash := inputs[0].PrevHash
 		unspent, err := dao.GetUnspentCoinState(prevHash)
 		if err != nil {
 			return false

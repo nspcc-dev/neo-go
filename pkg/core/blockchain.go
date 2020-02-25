@@ -431,7 +431,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 
 		// Process TX inputs that are grouped by previous hash.
-		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
+			prevHash := inputs[0].PrevHash
 			prevTX, prevTXHeight, err := bc.dao.GetTransaction(prevHash)
 			if err != nil {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
@@ -1016,7 +1017,8 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
 	references := make(map[transaction.Input]*transaction.Output)
 
-	for prevHash, inputs := range t.GroupInputsByPrevHash() {
+	for _, inputs := range transaction.GroupInputsByPrevHash(t.Inputs) {
+		prevHash := inputs[0].PrevHash
 		tx, _, err := bc.dao.GetTransaction(prevHash)
 		if err != nil {
 			return nil
