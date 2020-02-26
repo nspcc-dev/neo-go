@@ -1150,6 +1150,9 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if transaction.HaveDuplicateInputs(claim.Claims) {
 			return errors.New("duplicate claims")
 		}
+		if bc.dao.IsDoubleClaim(claim) {
+			return errors.New("double claim")
+		}
 	}
 
 	return bc.verifyTxWitnesses(t, block)
@@ -1170,6 +1173,12 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 	}
 	if bc.dao.IsDoubleSpend(t) {
 		return false
+	}
+	if t.Type == transaction.ClaimType {
+		claim := t.Data.(*transaction.ClaimTX)
+		if bc.dao.IsDoubleClaim(claim) {
+			return false
+		}
 	}
 	for i := range t.Scripts {
 		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {

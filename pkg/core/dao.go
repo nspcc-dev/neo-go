@@ -562,6 +562,27 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 	return false
 }
 
+// IsDoubleClaim verifies that given claim inputs are not already claimed by another tx.
+func (dao *dao) IsDoubleClaim(claim *transaction.ClaimTX) bool {
+	if len(claim.Claims) == 0 {
+		return false
+	}
+	for _, inputs := range transaction.GroupInputsByPrevHash(claim.Claims) {
+		prevHash := inputs[0].PrevHash
+		scs, err := dao.GetSpentCoinState(prevHash)
+		if err != nil {
+			return true
+		}
+		for _, input := range inputs {
+			_, ok := scs.items[input.PrevIndex]
+			if !ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (dao *dao) Persist() (int, error) {
