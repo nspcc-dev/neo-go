@@ -1121,7 +1121,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
-	if ok := bc.verifyInputs(t); !ok {
+	if transaction.HaveDuplicateInputs(t.Inputs) {
 		return errors.New("invalid transaction's inputs")
 	}
 	if block == nil {
@@ -1142,6 +1142,13 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.ECDH02 || a.Usage == transaction.ECDH03 {
 			return errors.Errorf("invalid attribute's usage = %s ", a.Usage)
+		}
+	}
+
+	if t.Type == transaction.ClaimType {
+		claim := t.Data.(*transaction.ClaimTX)
+		if transaction.HaveDuplicateInputs(claim.Claims) {
+			return errors.New("duplicate claims")
 		}
 	}
 
@@ -1221,18 +1228,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		}
 	}
 	return nil
-}
-
-func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
-	for i := 1; i < len(t.Inputs); i++ {
-		for j := 0; j < i; j++ {
-			if t.Inputs[i].PrevHash == t.Inputs[j].PrevHash && t.Inputs[i].PrevIndex == t.Inputs[j].PrevIndex {
-				return false
-			}
-		}
-	}
-
-	return true
 }
 
 func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {

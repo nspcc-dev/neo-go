@@ -73,3 +73,72 @@ func TestGroupInputsByPrevHashMany(t *testing.T) {
 		seen[res[2][i].PrevIndex] = true
 	}
 }
+
+func TestHaveDuplicateInputs0(t *testing.T) {
+	inputs := make([]Input, 0)
+	require.False(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputs1(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash, err := util.Uint256DecodeStringLE("46168f963d6d8168a870405f66cc9e13a235791013b8ee2f90cc20a8293bd1af")
+	require.NoError(t, err)
+	inputs = append(inputs, Input{PrevHash: hash, PrevIndex: 42})
+	require.False(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputs2True(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash, err := util.Uint256DecodeStringLE("46168f963d6d8168a870405f66cc9e13a235791013b8ee2f90cc20a8293bd1af")
+	require.NoError(t, err)
+	inputs = append(inputs, Input{PrevHash: hash, PrevIndex: 42})
+	inputs = append(inputs, Input{PrevHash: hash, PrevIndex: 42})
+	require.True(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputs2FalseInd(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash, err := util.Uint256DecodeStringLE("46168f963d6d8168a870405f66cc9e13a235791013b8ee2f90cc20a8293bd1af")
+	require.NoError(t, err)
+	inputs = append(inputs, Input{PrevHash: hash, PrevIndex: 42})
+	inputs = append(inputs, Input{PrevHash: hash, PrevIndex: 41})
+	require.False(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputs2FalseHash(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
+	require.NoError(t, err)
+	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
+	require.NoError(t, err)
+	inputs = append(inputs, Input{PrevHash: hash1, PrevIndex: 42})
+	inputs = append(inputs, Input{PrevHash: hash2, PrevIndex: 42})
+	require.False(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputsMFalse(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
+	require.NoError(t, err)
+	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
+	require.NoError(t, err)
+	for i := 0; i < 10; i++ {
+		inputs = append(inputs, Input{PrevHash: hash1, PrevIndex: uint16(i)})
+		inputs = append(inputs, Input{PrevHash: hash2, PrevIndex: uint16(i)})
+	}
+	require.False(t, HaveDuplicateInputs(inputs))
+}
+
+func TestHaveDuplicateInputsMTrue(t *testing.T) {
+	inputs := make([]Input, 0)
+	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
+	require.NoError(t, err)
+	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
+	require.NoError(t, err)
+	for i := 0; i < 10; i++ {
+		inputs = append(inputs, Input{PrevHash: hash1, PrevIndex: uint16(i)})
+		inputs = append(inputs, Input{PrevHash: hash2, PrevIndex: uint16(i)})
+	}
+	inputs = append(inputs, Input{PrevHash: hash1, PrevIndex: 0})
+	require.True(t, HaveDuplicateInputs(inputs))
+}
