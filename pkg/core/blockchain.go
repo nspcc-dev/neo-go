@@ -1009,28 +1009,28 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
 
-// References returns a map with input coin reference (prevhash and index) as key
-// and transaction output as value from a transaction t.
+// References maps transaction's inputs into a slice of InOuts, effectively
+// joining each Input with the corresponding Output.
 // @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
-	references := make(map[transaction.Input]*transaction.Output)
+func (bc *Blockchain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
+	references := make([]transaction.InOut, 0, len(t.Inputs))
 
 	for _, inputs := range transaction.GroupInputsByPrevHash(t.Inputs) {
 		prevHash := inputs[0].PrevHash
 		tx, _, err := bc.dao.GetTransaction(prevHash)
 		if err != nil {
-			return nil
+			return nil, errors.New("bad input reference")
 		}
 		for _, in := range inputs {
 			if int(in.PrevIndex) > len(tx.Outputs)-1 {
-				return nil
+				return nil, errors.New("bad input reference")
 			}
-			references[*in] = &tx.Outputs[in.PrevIndex]
+			references = append(references, transaction.InOut{In: *in, Out: tx.Outputs[in.PrevIndex]})
 		}
 	}
-	return references
+	return references, nil
 }
 
 // FeePerByte returns network fee divided by the size of the transaction.
@@ -1041,9 +1041,13 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 // NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	inputAmount := util.Fixed8FromInt64(0)
-	for _, txOutput := range bc.References(t) {
-		if txOutput.AssetID == UtilityTokenID() {
-			inputAmount.Add(txOutput.Amount)
+	refs, err := bc.References(t)
+	if err != nil {
+		return inputAmount
+	}
+	for i := range refs {
+		if refs[i].Out.AssetID == UtilityTokenID() {
+			inputAmount.Add(refs[i].Out.Amount)
 		}
 	}
 
@@ -1310,14 +1314,14 @@ func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*trans
 	var results []*transaction.Result
 	tempGroupResult := make(map[util.Uint256]util.Fixed8)
 
-	references := bc.References(t)
-	if references == nil {
+	references, err := bc.References(t)
+	if err != nil {
 		return nil
 	}
-	for _, output := range references {
+	for _, inout := range references {
 		tempResults = append(tempResults, &transaction.Result{
-			AssetID: output.AssetID,
-			Amount:  output.Amount,
+			AssetID: inout.Out.AssetID,
+			Amount:  inout.Out.Amount,
 		})
 	}
 	for _, output := range t.Outputs {
@@ -1534,16 +1538,13 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	if t.Type == transaction.ClaimType {
 		return bc.GetScriptHashesForVerifyingClaim(t)
 	}
-	references := bc.References(t)
-	if references == nil {
-		return nil, errors.New("invalid inputs")
+	references, err := bc.References(t)
+	if err != nil {
+		return nil, err
 	}
 	hashes := make(map[util.Uint160]bool)
-	for _, i := range t.Inputs {
-		h := references[i].ScriptHash
-		if _, ok := hashes[h]; !ok {
-			hashes[h] = true
-		}
+	for i := range references {
+		hashes[references[i].Out.ScriptHash] = true
 	}
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.Script {

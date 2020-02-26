@@ -39,7 +39,7 @@ type Blockchainer interface {
 	GetTestVM() (*vm.VM, storage.Store)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(util.Uint256) *UnspentCoinState
-	References(t *transaction.Transaction) map[transaction.Input]*transaction.Output
+	References(t *transaction.Transaction) ([]transaction.InOut, error)
 	mempool.Feer // fee interface
 	PoolTx(*transaction.Transaction) error
 	VerifyTx(*transaction.Transaction, *block.Block) error
