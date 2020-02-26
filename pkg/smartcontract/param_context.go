@@ -370,19 +370,3 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	}
 	return res, nil
 }
-
-// ContextItem represents a transaction context item.
-type ContextItem struct {
-	Script     util.Uint160
-	Parameters []Parameter
-	Signatures []Signature
-}
-
-// Signature represents a transaction signature.
-type Signature struct {
-	Data      []byte
-	PublicKey []byte
-}
-
-// ParameterContext holds the parameter context.
-type ParameterContext struct{}
