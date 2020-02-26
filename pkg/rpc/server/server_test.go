@@ -363,6 +363,40 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getclaimable": {
+		{
+			name:   "no params",
+			params: "[]",
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["invalid"]`,
+			fail:   true,
+		},
+		{
+			name:   "normal address",
+			params: `["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]`,
+			result: func(*executor) interface{} {
+				// hash of the issueTx
+				h, _ := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+				amount := util.Fixed8FromInt64(52 * 8) // (endHeight - startHeight) * genAmount[0]
+				return &result.ClaimableInfo{
+					Spents: []result.Claimable{
+						{
+							Tx:        h,
+							Value:     util.Fixed8FromInt64(100000000),
+							EndHeight: 52,
+							Generated: amount,
+							Unclaimed: amount,
+						},
+					},
+					Address:   "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU",
+					Unclaimed: amount,
+				}
+			},
+		},
+	},
 	"getconnectioncount": {
 		{
 			params: "[]",

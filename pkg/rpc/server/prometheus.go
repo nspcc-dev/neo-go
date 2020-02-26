@@ -51,6 +51,14 @@ var (
 		},
 	)
 
+	getclaimableCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getclaimable rpc endpoint",
+			Name:      "getclaimable_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getconnectioncountCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getconnectioncount rpc endpoint",
