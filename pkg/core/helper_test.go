@@ -165,6 +165,8 @@ func newDumbBlock() *block.Block {
 // 		2. Add specific test-case into "neo-go/pkg/core/blockchain_test.go"
 // 		3. Run tests with `$ make test`
 func _(t *testing.T) {
+	const prefix = "../rpc/server/testdata/"
+
 	bc := newTestChain(t)
 	n := 50
 	_, err := bc.genBlocks(n)
@@ -172,7 +174,7 @@ func _(t *testing.T) {
 
 	tx1 := newMinerTX()
 
-	avm, err := ioutil.ReadFile("../rpc/testdata/test_contract.avm")
+	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
 	require.NoError(t, err)
 
 	var props smartcontract.PropertyState
@@ -206,10 +208,58 @@ func _(t *testing.T) {
 	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
 
 	tx3 := transaction.NewInvocationTX(script.Bytes(), util.Fixed8FromFloat(100))
-	b := bc.newBlock(newMinerTX(), tx3)
+
+	tx4 := transaction.NewContractTX()
+	h, err := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+	require.NoError(t, err)
+	tx4.AddInput(&transaction.Input{
+		PrevHash:  h,
+		PrevIndex: 0,
+	})
+
+	// multisig address which possess all NEO
+	scriptHash, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
+	require.NoError(t, err)
+	priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
+	require.NoError(t, err)
+	tx4.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(1000),
+		ScriptHash: priv.GetScriptHash(),
+		Position:   0,
+	})
+	tx4.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(99999000),
+		ScriptHash: scriptHash,
+		Position:   1,
+	})
+	tx4.Data = new(transaction.ContractTX)
+
+	validators, err := getValidators(bc.config)
+	require.NoError(t, err)
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
+	require.NoError(t, err)
+	data := tx4.GetSignedPart()
+
+	var invoc []byte
+	for i := range privNetKeys {
+		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
+		require.NoError(t, err)
+		signature := priv.Sign(data)
+		invoc = append(invoc, byte(opcode.PUSHBYTES64))
+		invoc = append(invoc, signature...)
+	}
+
+	tx4.Scripts = []transaction.Witness{{
+		InvocationScript:   invoc,
+		VerificationScript: rawScript,
+	}}
+
+	b := bc.newBlock(newMinerTX(), tx3, tx4)
 	require.NoError(t, bc.AddBlock(b))
 
-	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
+	outStream, err := os.Create(prefix + "testblocks.acc")
 	require.NoError(t, err)
 	defer outStream.Close()
 
