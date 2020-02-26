@@ -97,6 +97,13 @@ func (s *MemoryStore) PutBatch(batch Batch) error {
 
 // Seek implements the Store interface.
 func (s *MemoryStore) Seek(key []byte, f func(k, v []byte)) {
+	s.mut.RLock()
+	s.seek(key, f)
+	s.mut.RUnlock()
+}
+
+// seek is an internal unlocked implementation of Seek.
+func (s *MemoryStore) seek(key []byte, f func(k, v []byte)) {
 	for k, v := range s.mem {
 		if strings.HasPrefix(k, string(key)) {
 			f([]byte(k), v)
