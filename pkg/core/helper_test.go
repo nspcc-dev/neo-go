@@ -275,6 +275,7 @@ func _(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
+		writer.WriteU32LE(uint32(len(bytes)))
 		writer.WriteBytes(bytes)
 		require.NoError(t, writer.Err)
 	}
