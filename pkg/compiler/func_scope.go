@@ -18,7 +18,7 @@ type funcScope struct {
 	decl *ast.FuncDecl
 
 	// Program label of the scope
-	label int
+	label uint16
 
 	// Local variables
 	locals map[string]int
@@ -35,7 +35,7 @@ type funcScope struct {
 	i int
 }
 
-func newFuncScope(decl *ast.FuncDecl, label int) *funcScope {
+func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 	return &funcScope{
 		name:      decl.Name.Name,
 		decl:      decl,

@@ -91,12 +91,12 @@ func Syscall(w *io.BinWriter, api string) {
 }
 
 // Call emits a call Instruction with label to the given buffer.
-func Call(w *io.BinWriter, op opcode.Opcode, label int16) {
+func Call(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	Jmp(w, op, label)
 }
 
 // Jmp emits a jump Instruction along with label to the given buffer.
-func Jmp(w *io.BinWriter, op opcode.Opcode, label int16) {
+func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	if w.Err != nil {
 		return
 	} else if !isInstructionJmp(op) {
@@ -104,7 +104,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label int16) {
 		return
 	}
 	buf := make([]byte, 2)
-	binary.LittleEndian.PutUint16(buf, uint16(label))
+	binary.LittleEndian.PutUint16(buf, label)
 	Instruction(w, op, buf)
 }
 
