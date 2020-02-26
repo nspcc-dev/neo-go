@@ -1688,6 +1688,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger byte, s storage.Store, block *block.Block, tx *transaction.Transaction) *interopContext {
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, s storage.Store, block *block.Block, tx *transaction.Transaction) *interopContext {
 	return newInteropContext(trigger, bc, s, block, tx, bc.log)
 }
