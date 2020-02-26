@@ -1015,9 +1015,15 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
 func (bc *Blockchain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
-	references := make([]transaction.InOut, 0, len(t.Inputs))
+	return bc.references(t.Inputs)
+}
 
-	for _, inputs := range transaction.GroupInputsByPrevHash(t.Inputs) {
+// references is an internal implementation of References that operates directly
+// on a slice of Input.
+func (bc *Blockchain) references(ins []transaction.Input) ([]transaction.InOut, error) {
+	references := make([]transaction.InOut, 0, len(ins))
+
+	for _, inputs := range transaction.GroupInputsByPrevHash(ins) {
 		prevHash := inputs[0].PrevHash
 		tx, _, err := bc.dao.GetTransaction(prevHash)
 		if err != nil {
@@ -1351,39 +1357,6 @@ func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*trans
 	return results
 }
 
-// GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
-// which has a different implementation from generic GetScriptHashesForVerifying.
-func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
-	// Avoiding duplicates.
-	hashmap := make(map[util.Uint160]bool)
-
-	claim := t.Data.(*transaction.ClaimTX)
-	clGroups := make(map[util.Uint256][]*transaction.Input)
-	for i := range claim.Claims {
-		clGroups[claim.Claims[i].PrevHash] = append(clGroups[claim.Claims[i].PrevHash], &claim.Claims[i])
-	}
-	for group, inputs := range clGroups {
-		refTx, _, err := bc.dao.GetTransaction(group)
-		if err != nil {
-			return nil, err
-		}
-		for _, input := range inputs {
-			if len(refTx.Outputs) <= int(input.PrevIndex) {
-				return nil, fmt.Errorf("wrong PrevIndex reference")
-			}
-			hashmap[refTx.Outputs[input.PrevIndex].ScriptHash] = true
-		}
-	}
-	if len(hashmap) > 0 {
-		hashes := make([]util.Uint160, 0, len(hashmap))
-		for k := range hashmap {
-			hashes = append(hashes, k)
-		}
-		return hashes, nil
-	}
-	return nil, fmt.Errorf("no hashes found")
-}
-
 //GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 	return getValidators(bc.config)
@@ -1535,9 +1508,6 @@ func processEnrollmentTX(dao *cachedDao, tx *transaction.EnrollmentTX) error {
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	if t.Type == transaction.ClaimType {
-		return bc.GetScriptHashesForVerifyingClaim(t)
-	}
 	references, err := bc.References(t)
 	if err != nil {
 		return nil, err
@@ -1572,7 +1542,17 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 			}
 		}
 	}
-	if t.Type == transaction.EnrollmentType {
+	switch t.Type {
+	case transaction.ClaimType:
+		claim := t.Data.(*transaction.ClaimTX)
+		refs, err := bc.references(claim.Claims)
+		if err != nil {
+			return nil, err
+		}
+		for i := range refs {
+			hashes[refs[i].Out.ScriptHash] = true
+		}
+	case transaction.EnrollmentType:
 		etx := t.Data.(*transaction.EnrollmentTX)
 		hashes[etx.PublicKey.GetScriptHash()] = true
 	}
