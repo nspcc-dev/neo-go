@@ -375,17 +375,18 @@ func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
 // -- other.
 
 // GetBlock returns Block by the given hash if it exists in the store.
-func (dao *dao) GetBlock(hash util.Uint256) (*block.Block, error) {
+func (dao *dao) GetBlock(hash util.Uint256) (*block.Block, uint32, error) {
 	key := storage.AppendPrefix(storage.DataBlock, hash.BytesLE())
 	b, err := dao.store.Get(key)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	block, err := block.NewBlockFromTrimmedBytes(b)
+
+	block, err := block.NewBlockFromTrimmedBytes(b[4:])
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return block, err
+	return block, binary.LittleEndian.Uint32(b[:4]), nil
 }
 
 // GetVersion attempts to get the current version stored in the
@@ -508,8 +509,7 @@ func (dao *dao) StoreAsBlock(block *block.Block, sysFee uint32) error {
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
 		buf = io.NewBufBinWriter()
 	)
-	// sysFee needs to be handled somehow
-	//	buf.WriteU32LE(sysFee)
+	buf.WriteU32LE(sysFee)
 	b, err := block.Trim()
 	if err != nil {
 		return err

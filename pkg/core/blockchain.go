@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.4"
+	version          = "0.0.5"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -414,6 +414,7 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	}
 
 	buf.Reset()
+	buf.BinWriter.WriteU32LE(0) // sys fee is yet to be calculated
 	h.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
@@ -949,7 +950,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		}
 	}
 
-	block, err := bc.dao.GetBlock(hash)
+	block, _, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -974,7 +975,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 			return tb.Header(), nil
 		}
 	}
-	block, err := bc.dao.GetBlock(hash)
+	block, _, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
