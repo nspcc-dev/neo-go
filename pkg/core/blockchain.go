@@ -1053,14 +1053,14 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	}
 	for i := range refs {
 		if refs[i].Out.AssetID == UtilityTokenID() {
-			inputAmount.Add(refs[i].Out.Amount)
+			inputAmount = inputAmount.Add(refs[i].Out.Amount)
 		}
 	}
 
 	outputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range t.Outputs {
 		if txOutput.AssetID == UtilityTokenID() {
-			outputAmount.Add(txOutput.Amount)
+			outputAmount = outputAmount.Add(txOutput.Amount)
 		}
 	}
 
