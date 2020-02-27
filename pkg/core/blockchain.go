@@ -1118,22 +1118,15 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 		amount += util.Fixed8(iend-istart) * util.Fixed8(bc.generationAmount[ustart])
 	}
 
-	var sysFeeTotal util.Fixed8
 	if startHeight == 0 {
 		startHeight++
 	}
-	for i := startHeight; i < endHeight; i++ {
-		h := bc.GetHeaderHash(int(i))
-		b, err := bc.GetBlock(h)
-		if err != nil {
-			return 0, 0, err
-		}
-		for _, tx := range b.Transactions {
-			sysFeeTotal += bc.SystemFee(tx)
-		}
-	}
+	h := bc.GetHeaderHash(int(startHeight - 1))
+	feeStart := bc.getSystemFeeAmount(h)
+	h = bc.GetHeaderHash(int(endHeight - 1))
+	feeEnd := bc.getSystemFeeAmount(h)
 
-	sysFeeTotal /= 100000000
+	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
 	ratio := value / 100000000
 	return amount * ratio, sysFeeTotal * ratio, nil
 }

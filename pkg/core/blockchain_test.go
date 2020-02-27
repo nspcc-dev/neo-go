@@ -178,12 +178,9 @@ func TestGetTransaction(t *testing.T) {
 func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
 
-	_, _, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 2)
-	require.Error(t, err)
-
 	bc.generationAmount = []int{4, 3, 2, 1}
 	bc.decrementInterval = 2
-	_, err = bc.genBlocks(10)
+	_, err := bc.genBlocks(10)
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
