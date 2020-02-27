@@ -187,7 +187,7 @@ func (mp *Pool) Remove(hash util.Uint256) {
 	if _, ok := mp.verifiedMap[hash]; ok {
 		var num int
 		delete(mp.verifiedMap, hash)
-		for num := range mp.verifiedTxes {
+		for num = range mp.verifiedTxes {
 			if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
 				break
 			}
