@@ -43,6 +43,16 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 	return resp, nil
 }
 
+// GetClaimable returns tx outputs which can be claimed.
+func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
+	params := request.NewRawParams(address)
+	resp := new(result.ClaimableInfo)
+	if err := c.performRequest("getclaimable", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetUnspents returns UTXOs for the given NEO account.
 func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 	var (
