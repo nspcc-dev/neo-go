@@ -1268,9 +1268,95 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if bc.dao.IsDoubleClaim(claim) {
 			return errors.New("double claim")
 		}
+		if err := bc.verifyClaims(t); err != nil {
+			return err
+		}
 	}
 
 	return bc.verifyTxWitnesses(t, block)
+}
+
+func (bc *Blockchain) verifyClaims(tx *transaction.Transaction) (err error) {
+	t := tx.Data.(*transaction.ClaimTX)
+	var result *transaction.Result
+	results := bc.GetTransactionResults(tx)
+	for i := range results {
+		if results[i].AssetID == UtilityTokenID() {
+			result = results[i]
+			break
+		}
+	}
+
+	if result == nil || result.Amount.GreaterThan(0) {
+		return errors.New("invalid output in claim tx")
+	}
+
+	bonus, err := bc.calculateBonus(t.Claims)
+	if err == nil && bonus != -result.Amount {
+		return fmt.Errorf("wrong bonus calculated in claim tx: %s != %s",
+			bonus.String(), (-result.Amount).String())
+	}
+
+	return err
+}
+
+func (bc *Blockchain) calculateBonus(claims []transaction.Input) (util.Fixed8, error) {
+	unclaimed := []*spentCoin{}
+	inputs := transaction.GroupInputsByPrevHash(claims)
+
+	for _, group := range inputs {
+		h := group[0].PrevHash
+		claimable, err := bc.getUnclaimed(h)
+		if err != nil || len(claimable) == 0 {
+			return 0, errors.New("no unclaimed inputs")
+		}
+
+		for _, c := range group {
+			s, ok := claimable[c.PrevIndex]
+			if !ok {
+				return 0, fmt.Errorf("can't find spent coins for %s (%d)", c.PrevHash.StringLE(), c.PrevIndex)
+			}
+			unclaimed = append(unclaimed, s)
+		}
+	}
+
+	return bc.calculateBonusInternal(unclaimed)
+}
+
+func (bc *Blockchain) calculateBonusInternal(scs []*spentCoin) (util.Fixed8, error) {
+	var claimed util.Fixed8
+	for _, sc := range scs {
+		gen, sys, err := bc.CalculateClaimable(sc.Output.Amount, sc.StartHeight, sc.EndHeight)
+		if err != nil {
+			return 0, err
+		}
+		claimed += gen + sys
+	}
+
+	return claimed, nil
+}
+
+func (bc *Blockchain) getUnclaimed(h util.Uint256) (map[uint16]*spentCoin, error) {
+	tx, txHeight, err := bc.GetTransaction(h)
+	if err != nil {
+		return nil, err
+	}
+
+	scs, err := bc.dao.GetSpentCoinState(h)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint16]*spentCoin)
+	for i, height := range scs.items {
+		result[i] = &spentCoin{
+			Output:      &tx.Outputs[i],
+			StartHeight: txHeight,
+			EndHeight:   height,
+		}
+	}
+
+	return result, nil
 }
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the

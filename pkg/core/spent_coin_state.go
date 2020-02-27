@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 )
@@ -12,6 +13,13 @@ type SpentCoinState struct {
 
 	// A mapping between the index of the prevIndex and block height.
 	items map[uint16]uint32
+}
+
+// spentCoin represents the state of a single spent coin output.
+type spentCoin struct {
+	Output      *transaction.Output
+	StartHeight uint32
+	EndHeight   uint32
 }
 
 // NewSpentCoinState returns a new SpentCoinState object.
