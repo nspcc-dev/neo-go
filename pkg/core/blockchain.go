@@ -427,13 +427,24 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
+// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// and 0 if no such block exists.
+func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
+	_, sf, _ := bc.dao.GetBlock(h)
+	return sf
+}
+
 // TODO: storeBlock needs some more love, its implemented as in the original
 // project. This for the sake of development speed and understanding of what
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := newCachedDao(bc.dao.store)
-	if err := cache.StoreAsBlock(block, 0); err != nil {
+	fee := bc.getSystemFeeAmount(block.PrevHash)
+	for _, tx := range block.Transactions {
+		fee += uint32(bc.SystemFee(tx).Int64Value())
+	}
+	if err := cache.StoreAsBlock(block, fee); err != nil {
 		return err
 	}
 
