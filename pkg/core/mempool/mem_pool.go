@@ -46,6 +46,8 @@ type Pool struct {
 	lock         sync.RWMutex
 	verifiedMap  map[util.Uint256]*item
 	verifiedTxes items
+	inputs       []*transaction.Input
+	claims       []*transaction.Input
 
 	capacity int
 }
@@ -127,6 +129,35 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 	return false
 }
 
+// findIndexForInput finds an index in a sorted Input pointers slice that is
+// appropriate to place this input into (or which contains an identical Input).
+func findIndexForInput(slice []*transaction.Input, input *transaction.Input) int {
+	return sort.Search(len(slice), func(n int) bool {
+		return input.Cmp(slice[n]) <= 0
+	})
+}
+
+// pushInputToSortedSlice pushes new Input into the given slice.
+func pushInputToSortedSlice(slice *[]*transaction.Input, input *transaction.Input) {
+	n := findIndexForInput(*slice, input)
+	*slice = append(*slice, input)
+	if n != len(*slice)-1 {
+		copy((*slice)[n+1:], (*slice)[n:])
+		(*slice)[n] = input
+	}
+}
+
+// dropInputFromSortedSlice removes given input from the given slice.
+func dropInputFromSortedSlice(slice *[]*transaction.Input, input *transaction.Input) {
+	n := findIndexForInput(*slice, input)
+	if n == len(*slice) || *input != *(*slice)[n] {
+		// Not present.
+		return
+	}
+	copy((*slice)[n:], (*slice)[n+1:])
+	*slice = (*slice)[:len(*slice)-1]
+}
+
 // Add tries to add given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	var pItem = &item{
@@ -175,6 +206,19 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
+
+	// For lots of inputs it might be easier to push them all and sort
+	// afterwards, but that requires benchmarking.
+	for i := range t.Inputs {
+		pushInputToSortedSlice(&mp.inputs, &t.Inputs[i])
+	}
+	if t.Type == transaction.ClaimType {
+		claim := t.Data.(*transaction.ClaimTX)
+		for i := range claim.Claims {
+			pushInputToSortedSlice(&mp.claims, &claim.Claims[i])
+		}
+	}
+
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
 	return nil
@@ -184,7 +228,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 // nothing if it doesn't).
 func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()
-	if _, ok := mp.verifiedMap[hash]; ok {
+	if it, ok := mp.verifiedMap[hash]; ok {
 		var num int
 		delete(mp.verifiedMap, hash)
 		for num = range mp.verifiedTxes {
@@ -196,6 +240,15 @@ func (mp *Pool) Remove(hash util.Uint256) {
 			mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
 		} else if num == len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
+		}
+		for i := range it.txn.Inputs {
+			dropInputFromSortedSlice(&mp.inputs, &it.txn.Inputs[i])
+		}
+		if it.txn.Type == transaction.ClaimType {
+			claim := it.txn.Data.(*transaction.ClaimTX)
+			for i := range claim.Claims {
+				dropInputFromSortedSlice(&mp.claims, &claim.Claims[i])
+			}
 		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
@@ -210,14 +263,33 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
 	// We expect a lot of changes, so it's easier to allocate a new slice
 	// rather than move things in an old one.
 	newVerifiedTxes := make([]*item, 0, mp.capacity)
+	newInputs := mp.inputs[:0]
+	newClaims := mp.claims[:0]
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
+			for i := range itm.txn.Inputs {
+				newInputs = append(newInputs, &itm.txn.Inputs[i])
+			}
+			if itm.txn.Type == transaction.ClaimType {
+				claim := itm.txn.Data.(*transaction.ClaimTX)
+				for i := range claim.Claims {
+					newClaims = append(newClaims, &claim.Claims[i])
+				}
+			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
 		}
 	}
+	sort.Slice(newInputs, func(i, j int) bool {
+		return newInputs[i].Cmp(newInputs[j]) < 0
+	})
+	sort.Slice(newClaims, func(i, j int) bool {
+		return newClaims[i].Cmp(newClaims[j]) < 0
+	})
 	mp.verifiedTxes = newVerifiedTxes
+	mp.inputs = newInputs
+	mp.claims = newClaims
 	mp.lock.Unlock()
 }
 
@@ -259,16 +331,18 @@ func (mp *Pool) GetVerifiedTransactions() []TxWithFee {
 
 // verifyInputs is an internal unprotected version of Verify.
 func (mp *Pool) verifyInputs(tx *transaction.Transaction) bool {
-	if len(tx.Inputs) == 0 {
-		return true
+	for i := range tx.Inputs {
+		n := findIndexForInput(mp.inputs, &tx.Inputs[i])
+		if n < len(mp.inputs) && *mp.inputs[n] == tx.Inputs[i] {
+			return false
+		}
 	}
-	for num := range mp.verifiedTxes {
-		txn := mp.verifiedTxes[num].txn
-		for i := range txn.Inputs {
-			for j := 0; j < len(tx.Inputs); j++ {
-				if txn.Inputs[i] == tx.Inputs[j] {
-					return false
-				}
+	if tx.Type == transaction.ClaimType {
+		claim := tx.Data.(*transaction.ClaimTX)
+		for i := range claim.Claims {
+			n := findIndexForInput(mp.claims, &claim.Claims[i])
+			if n < len(mp.claims) && *mp.claims[n] == claim.Claims[i] {
+				return false
 			}
 		}
 	}

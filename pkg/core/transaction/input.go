@@ -28,6 +28,16 @@ func (in *Input) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU16LE(in.PrevIndex)
 }
 
+// Cmp compares two Inputs by their hash and index allowing to make a set of
+// transactions ordered.
+func (in *Input) Cmp(other *Input) int {
+	hashcmp := in.PrevHash.CompareTo(other.PrevHash)
+	if hashcmp == 0 {
+		return int(in.PrevIndex) - int(other.PrevIndex)
+	}
+	return hashcmp
+}
+
 // MapInputsToSorted maps given slice of inputs into a new slice of pointers
 // to inputs sorted by their PrevHash and PrevIndex.
 func MapInputsToSorted(ins []Input) []*Input {
@@ -36,11 +46,7 @@ func MapInputsToSorted(ins []Input) []*Input {
 		ptrs[i] = &ins[i]
 	}
 	sort.Slice(ptrs, func(i, j int) bool {
-		hashcmp := ptrs[i].PrevHash.CompareTo(ptrs[j].PrevHash)
-		if hashcmp == 0 {
-			return ptrs[i].PrevIndex < ptrs[j].PrevIndex
-		}
-		return hashcmp < 0
+		return ptrs[i].Cmp(ptrs[j]) < 0
 	})
 	return ptrs
 }

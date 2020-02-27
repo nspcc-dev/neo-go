@@ -60,7 +60,73 @@ func TestMemPoolAddRemove(t *testing.T) {
 	t.Run("high priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
 }
 
-func TestMemPoolVerify(t *testing.T) {
+func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
+	mp := NewMemPool(50)
+	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
+	require.NoError(t, err)
+	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
+	require.NoError(t, err)
+	mpLessInputs := func(i, j int) bool {
+		return mp.inputs[i].Cmp(mp.inputs[j]) < 0
+	}
+	mpLessClaims := func(i, j int) bool {
+		return mp.claims[i].Cmp(mp.claims[j]) < 0
+	}
+
+	txm1 := newMinerTX(1)
+	txc1, claim1 := newClaimTX()
+	for i := 0; i < 5; i++ {
+		txm1.Inputs = append(txm1.Inputs, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
+		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
+	}
+	require.NoError(t, mp.Add(txm1, &FeerStub{}))
+	require.NoError(t, mp.Add(txc1, &FeerStub{}))
+	// Look inside.
+	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
+	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
+	assert.Equal(t, len(claim1.Claims), len(mp.claims))
+	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
+
+	txm2 := newMinerTX(1)
+	txc2, claim2 := newClaimTX()
+	for i := 0; i < 10; i++ {
+		txm2.Inputs = append(txm2.Inputs, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
+		claim2.Claims = append(claim2.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
+	}
+	require.NoError(t, mp.Add(txm2, &FeerStub{}))
+	require.NoError(t, mp.Add(txc2, &FeerStub{}))
+	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
+	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
+	assert.Equal(t, len(claim1.Claims)+len(claim2.Claims), len(mp.claims))
+	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
+
+	mp.Remove(txm1.Hash())
+	mp.Remove(txc2.Hash())
+	assert.Equal(t, len(txm2.Inputs), len(mp.inputs))
+	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
+	assert.Equal(t, len(claim1.Claims), len(mp.claims))
+	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
+
+	require.NoError(t, mp.Add(txm1, &FeerStub{}))
+	require.NoError(t, mp.Add(txc2, &FeerStub{}))
+	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
+	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
+	assert.Equal(t, len(claim1.Claims)+len(claim2.Claims), len(mp.claims))
+	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
+
+	mp.RemoveStale(func(t *transaction.Transaction) bool {
+		if t.Hash() == txc1.Hash() || t.Hash() == txm2.Hash() {
+			return false
+		}
+		return true
+	})
+	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
+	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
+	assert.Equal(t, len(claim2.Claims), len(mp.claims))
+	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
+}
+
+func TestMemPoolVerifyInputs(t *testing.T) {
 	mp := NewMemPool(10)
 	tx := newMinerTX(1)
 	inhash1 := random.Uint256()
@@ -84,11 +150,46 @@ func TestMemPoolVerify(t *testing.T) {
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
+func TestMemPoolVerifyClaims(t *testing.T) {
+	mp := NewMemPool(50)
+	tx1, claim1 := newClaimTX()
+	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
+	require.NoError(t, err)
+	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
+	require.NoError(t, err)
+	for i := 0; i < 10; i++ {
+		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash1, PrevIndex: uint16(i)})
+		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
+	}
+	require.Equal(t, true, mp.Verify(tx1))
+	require.NoError(t, mp.Add(tx1, &FeerStub{}))
+
+	tx2, claim2 := newClaimTX()
+	for i := 0; i < 10; i++ {
+		claim2.Claims = append(claim2.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i + 10)})
+	}
+	require.Equal(t, true, mp.Verify(tx2))
+	require.NoError(t, mp.Add(tx2, &FeerStub{}))
+
+	tx3, claim3 := newClaimTX()
+	claim3.Claims = append(claim3.Claims, transaction.Input{PrevHash: hash1, PrevIndex: 0})
+	require.Equal(t, false, mp.Verify(tx3))
+	require.Error(t, mp.Add(tx3, &FeerStub{}))
+}
+
 func newMinerTX(i uint32) *transaction.Transaction {
 	return &transaction.Transaction{
 		Type: transaction.MinerType,
 		Data: &transaction.MinerTX{Nonce: i},
 	}
+}
+
+func newClaimTX() (*transaction.Transaction, *transaction.ClaimTX) {
+	cl := &transaction.ClaimTX{}
+	return &transaction.Transaction{
+		Type: transaction.ClaimType,
+		Data: cl,
+	}, cl
 }
 
 func TestOverCapacity(t *testing.T) {
