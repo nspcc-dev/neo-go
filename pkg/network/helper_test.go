@@ -33,7 +33,7 @@ func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
 
-func (chain testChain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
+func (chain testChain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
 	panic("TODO")
 }
 

@@ -431,20 +431,23 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 
 		// Process TX inputs that are grouped by previous hash.
-		for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
+			prevHash := inputs[0].PrevHash
 			prevTX, prevTXHeight, err := bc.dao.GetTransaction(prevHash)
 			if err != nil {
 				return fmt.Errorf("could not find previous TX: %s", prevHash)
 			}
+			unspent, err := cache.GetUnspentCoinStateOrNew(prevHash)
+			if err != nil {
+				return err
+			}
+			spentCoin, err := cache.GetSpentCoinsOrNew(prevHash, prevTXHeight)
+			if err != nil {
+				return err
+			}
+			oldSpentCoinLen := len(spentCoin.items)
 			for _, input := range inputs {
-				unspent, err := cache.GetUnspentCoinStateOrNew(input.PrevHash)
-				if err != nil {
-					return err
-				}
 				unspent.states[input.PrevIndex] = state.CoinSpent
-				if err = cache.PutUnspentCoinState(input.PrevHash, unspent); err != nil {
-					return err
-				}
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
@@ -452,11 +455,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
-					spentCoin := NewSpentCoinState(input.PrevHash, prevTXHeight)
 					spentCoin.items[input.PrevIndex] = block.Index
-					if err = cache.PutSpentCoinState(input.PrevHash, spentCoin); err != nil {
-						return err
-					}
 					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
 					}
@@ -479,6 +478,14 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					}
 				}
 				if err = cache.PutAccountState(account); err != nil {
+					return err
+				}
+			}
+			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
+				return err
+			}
+			if oldSpentCoinLen != len(spentCoin.items) {
+				if err = cache.PutSpentCoinState(prevHash, spentCoin); err != nil {
 					return err
 				}
 			}
@@ -517,18 +524,34 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			// Remove claimed NEO from spent coins making it unavalaible for
 			// additional claims.
 			for _, input := range t.Claims {
-				scs, err := cache.GetSpentCoinsOrNew(input.PrevHash)
-				if err != nil {
-					return err
+				scs, err := cache.GetSpentCoinState(input.PrevHash)
+				if err == nil {
+					_, ok := scs.items[input.PrevIndex]
+					if !ok {
+						err = errors.New("no spent coin state")
+					}
 				}
-				if scs.txHash == input.PrevHash {
-					// Existing scs.
-					delete(scs.items, input.PrevIndex)
+				if err != nil {
+					// We can't really do anything about it
+					// as it's a transaction in a signed block.
+					bc.log.Warn("DOUBLE CLAIM",
+						zap.String("PrevHash", input.PrevHash.StringLE()),
+						zap.Uint16("PrevIndex", input.PrevIndex),
+						zap.String("tx", tx.Hash().StringLE()),
+						zap.Uint32("block", block.Index),
+					)
+					// "Strict" mode.
+					if bc.config.VerifyTransactions {
+						return err
+					}
+					break
+				}
+				delete(scs.items, input.PrevIndex)
+				if len(scs.items) > 0 {
 					if err = cache.PutSpentCoinState(input.PrevHash, scs); err != nil {
 						return err
 					}
 				} else {
-					// Uninitialized, new, forget about it.
 					if err = cache.DeleteSpentCoinState(input.PrevHash); err != nil {
 						return err
 					}
@@ -986,27 +1009,34 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
 
-// References returns a map with input coin reference (prevhash and index) as key
-// and transaction output as value from a transaction t.
+// References maps transaction's inputs into a slice of InOuts, effectively
+// joining each Input with the corresponding Output.
 // @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
 // transaction package because of a import cycle problem. Perhaps we should think to re-design
 // the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) map[transaction.Input]*transaction.Output {
-	references := make(map[transaction.Input]*transaction.Output)
+func (bc *Blockchain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
+	return bc.references(t.Inputs)
+}
 
-	for prevHash, inputs := range t.GroupInputsByPrevHash() {
+// references is an internal implementation of References that operates directly
+// on a slice of Input.
+func (bc *Blockchain) references(ins []transaction.Input) ([]transaction.InOut, error) {
+	references := make([]transaction.InOut, 0, len(ins))
+
+	for _, inputs := range transaction.GroupInputsByPrevHash(ins) {
+		prevHash := inputs[0].PrevHash
 		tx, _, err := bc.dao.GetTransaction(prevHash)
 		if err != nil {
-			return nil
+			return nil, errors.New("bad input reference")
 		}
 		for _, in := range inputs {
 			if int(in.PrevIndex) > len(tx.Outputs)-1 {
-				return nil
+				return nil, errors.New("bad input reference")
 			}
-			references[*in] = &tx.Outputs[in.PrevIndex]
+			references = append(references, transaction.InOut{In: *in, Out: tx.Outputs[in.PrevIndex]})
 		}
 	}
-	return references
+	return references, nil
 }
 
 // FeePerByte returns network fee divided by the size of the transaction.
@@ -1017,16 +1047,20 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 // NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	inputAmount := util.Fixed8FromInt64(0)
-	for _, txOutput := range bc.References(t) {
-		if txOutput.AssetID == UtilityTokenID() {
-			inputAmount.Add(txOutput.Amount)
+	refs, err := bc.References(t)
+	if err != nil {
+		return inputAmount
+	}
+	for i := range refs {
+		if refs[i].Out.AssetID == UtilityTokenID() {
+			inputAmount = inputAmount.Add(refs[i].Out.Amount)
 		}
 	}
 
 	outputAmount := util.Fixed8FromInt64(0)
 	for _, txOutput := range t.Outputs {
 		if txOutput.AssetID == UtilityTokenID() {
-			outputAmount.Add(txOutput.Amount)
+			outputAmount = outputAmount.Add(txOutput.Amount)
 		}
 	}
 
@@ -1087,7 +1121,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
-	if ok := bc.verifyInputs(t); !ok {
+	if transaction.HaveDuplicateInputs(t.Inputs) {
 		return errors.New("invalid transaction's inputs")
 	}
 	if block == nil {
@@ -1111,6 +1145,16 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
+	if t.Type == transaction.ClaimType {
+		claim := t.Data.(*transaction.ClaimTX)
+		if transaction.HaveDuplicateInputs(claim.Claims) {
+			return errors.New("duplicate claims")
+		}
+		if bc.dao.IsDoubleClaim(claim) {
+			return errors.New("double claim")
+		}
+	}
+
 	return bc.verifyTxWitnesses(t, block)
 }
 
@@ -1129,6 +1173,12 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 	}
 	if bc.dao.IsDoubleSpend(t) {
 		return false
+	}
+	if t.Type == transaction.ClaimType {
+		claim := t.Data.(*transaction.ClaimTX)
+		if bc.dao.IsDoubleClaim(claim) {
+			return false
+		}
 	}
 	for i := range t.Scripts {
 		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {
@@ -1187,18 +1237,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		}
 	}
 	return nil
-}
-
-func (bc *Blockchain) verifyInputs(t *transaction.Transaction) bool {
-	for i := 1; i < len(t.Inputs); i++ {
-		for j := 0; j < i; j++ {
-			if t.Inputs[i].PrevHash == t.Inputs[j].PrevHash && t.Inputs[i].PrevIndex == t.Inputs[j].PrevIndex {
-				return false
-			}
-		}
-	}
-
-	return true
 }
 
 func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
@@ -1286,14 +1324,14 @@ func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*trans
 	var results []*transaction.Result
 	tempGroupResult := make(map[util.Uint256]util.Fixed8)
 
-	references := bc.References(t)
-	if references == nil {
+	references, err := bc.References(t)
+	if err != nil {
 		return nil
 	}
-	for _, output := range references {
+	for _, inout := range references {
 		tempResults = append(tempResults, &transaction.Result{
-			AssetID: output.AssetID,
-			Amount:  output.Amount,
+			AssetID: inout.Out.AssetID,
+			Amount:  inout.Out.Amount,
 		})
 	}
 	for _, output := range t.Outputs {
@@ -1321,39 +1359,6 @@ func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*trans
 	}
 
 	return results
-}
-
-// GetScriptHashesForVerifyingClaim returns all ScriptHashes of Claim transaction
-// which has a different implementation from generic GetScriptHashesForVerifying.
-func (bc *Blockchain) GetScriptHashesForVerifyingClaim(t *transaction.Transaction) ([]util.Uint160, error) {
-	// Avoiding duplicates.
-	hashmap := make(map[util.Uint160]bool)
-
-	claim := t.Data.(*transaction.ClaimTX)
-	clGroups := make(map[util.Uint256][]*transaction.Input)
-	for _, in := range claim.Claims {
-		clGroups[in.PrevHash] = append(clGroups[in.PrevHash], in)
-	}
-	for group, inputs := range clGroups {
-		refTx, _, err := bc.dao.GetTransaction(group)
-		if err != nil {
-			return nil, err
-		}
-		for _, input := range inputs {
-			if len(refTx.Outputs) <= int(input.PrevIndex) {
-				return nil, fmt.Errorf("wrong PrevIndex reference")
-			}
-			hashmap[refTx.Outputs[input.PrevIndex].ScriptHash] = true
-		}
-	}
-	if len(hashmap) > 0 {
-		hashes := make([]util.Uint160, 0, len(hashmap))
-		for k := range hashmap {
-			hashes = append(hashes, k)
-		}
-		return hashes, nil
-	}
-	return nil, fmt.Errorf("no hashes found")
 }
 
 //GetStandByValidators returns validators from the configuration.
@@ -1507,19 +1512,13 @@ func processEnrollmentTX(dao *cachedDao, tx *transaction.EnrollmentTX) error {
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	if t.Type == transaction.ClaimType {
-		return bc.GetScriptHashesForVerifyingClaim(t)
-	}
-	references := bc.References(t)
-	if references == nil {
-		return nil, errors.New("invalid inputs")
+	references, err := bc.References(t)
+	if err != nil {
+		return nil, err
 	}
 	hashes := make(map[util.Uint160]bool)
-	for _, i := range t.Inputs {
-		h := references[i].ScriptHash
-		if _, ok := hashes[h]; !ok {
-			hashes[h] = true
-		}
+	for i := range references {
+		hashes[references[i].Out.ScriptHash] = true
 	}
 	for _, a := range t.Attributes {
 		if a.Usage == transaction.Script {
@@ -1546,6 +1545,20 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 				}
 			}
 		}
+	}
+	switch t.Type {
+	case transaction.ClaimType:
+		claim := t.Data.(*transaction.ClaimTX)
+		refs, err := bc.references(claim.Claims)
+		if err != nil {
+			return nil, err
+		}
+		for i := range refs {
+			hashes[refs[i].Out.ScriptHash] = true
+		}
+	case transaction.EnrollmentType:
+		etx := t.Data.(*transaction.EnrollmentTX)
+		hashes[etx.PublicKey.GetScriptHash()] = true
 	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))

@@ -175,15 +175,13 @@ func (dao *dao) PutUnspentCoinState(hash util.Uint256, ucs *UnspentCoinState) er
 // -- start spent coins.
 
 // GetSpentCoinsOrNew returns spent coins from store.
-func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256) (*SpentCoinState, error) {
+func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256, height uint32) (*SpentCoinState, error) {
 	spent, err := dao.GetSpentCoinState(hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		spent = &SpentCoinState{
-			items: make(map[uint16]uint32),
-		}
+		spent = NewSpentCoinState(hash, height)
 	}
 	return spent, nil
 }
@@ -549,13 +547,35 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 	if len(tx.Inputs) == 0 {
 		return false
 	}
-	for prevHash, inputs := range tx.GroupInputsByPrevHash() {
+	for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
+		prevHash := inputs[0].PrevHash
 		unspent, err := dao.GetUnspentCoinState(prevHash)
 		if err != nil {
 			return false
 		}
 		for _, input := range inputs {
 			if int(input.PrevIndex) >= len(unspent.states) || unspent.states[input.PrevIndex] == state.CoinSpent {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IsDoubleClaim verifies that given claim inputs are not already claimed by another tx.
+func (dao *dao) IsDoubleClaim(claim *transaction.ClaimTX) bool {
+	if len(claim.Claims) == 0 {
+		return false
+	}
+	for _, inputs := range transaction.GroupInputsByPrevHash(claim.Claims) {
+		prevHash := inputs[0].PrevHash
+		scs, err := dao.GetSpentCoinState(prevHash)
+		if err != nil {
+			return true
+		}
+		for _, input := range inputs {
+			_, ok := scs.items[input.PrevIndex]
+			if !ok {
 				return true
 			}
 		}

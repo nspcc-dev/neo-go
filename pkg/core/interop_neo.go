@@ -34,12 +34,6 @@ const (
 	DefaultAssetLifetime = 1 + BlocksPerYear
 )
 
-// txInOut is used to pushed one key-value pair from References() onto the stack.
-type txInOut struct {
-	in  transaction.Input
-	out transaction.Output
-}
-
 // headerGetVersion returns version from the header.
 func (ic *interopContext) headerGetVersion(v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
@@ -141,14 +135,16 @@ func (ic *interopContext) txGetReferences(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("type mismatch: %T is not a Transaction", txInterface)
 	}
-	refs := ic.bc.References(tx)
+	refs, err := ic.bc.References(tx)
+	if err != nil {
+		return err
+	}
 	if len(refs) > vm.MaxArraySize {
 		return errors.New("too many references")
 	}
 
 	stackrefs := make([]vm.StackItem, 0, len(refs))
-	for _, k := range tx.Inputs {
-		tio := txInOut{k, *refs[k]}
+	for _, tio := range refs {
 		stackrefs = append(stackrefs, vm.NewInteropItem(tio))
 	}
 	v.Estack().PushVal(stackrefs)
@@ -243,11 +239,11 @@ func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
 	inInterface := v.Estack().Pop().Value()
 	input, ok := inInterface.(*transaction.Input)
 	if !ok {
-		txio, ok := inInterface.(txInOut)
+		txio, ok := inInterface.(transaction.InOut)
 		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Input or txInOut", inInterface)
+			return nil, fmt.Errorf("type mismatch: %T is not an Input or InOut", inInterface)
 		}
-		input = &txio.in
+		input = &txio.In
 	}
 	return input, nil
 }
@@ -277,11 +273,11 @@ func popOutputFromVM(v *vm.VM) (*transaction.Output, error) {
 	outInterface := v.Estack().Pop().Value()
 	output, ok := outInterface.(*transaction.Output)
 	if !ok {
-		txio, ok := outInterface.(txInOut)
+		txio, ok := outInterface.(transaction.InOut)
 		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Output or txInOut", outInterface)
+			return nil, fmt.Errorf("type mismatch: %T is not an Output or InOut", outInterface)
 		}
-		output = &txio.out
+		output = &txio.Out
 	}
 	return output, nil
 }

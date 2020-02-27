@@ -6,7 +6,7 @@ import (
 
 // ClaimTX represents a claim transaction.
 type ClaimTX struct {
-	Claims []*Input
+	Claims []Input
 }
 
 // DecodeBinary implements Serializable interface.
