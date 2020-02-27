@@ -2,14 +2,19 @@ package wallet
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/CityOfZion/neo-go/pkg/core"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
+	"github.com/CityOfZion/neo-go/pkg/rpc/client"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -33,6 +38,14 @@ var (
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
 	}
+	rpcFlag = cli.StringFlag{
+		Name:  "rpc, r",
+		Usage: "RPC node address",
+	}
+	timeoutFlag = cli.DurationFlag{
+		Name:  "timeout, t",
+		Usage: "Timeout for the operation",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -41,6 +54,20 @@ func NewCommands() []cli.Command {
 		Name:  "wallet",
 		Usage: "create, open and manage a NEO wallet",
 		Subcommands: []cli.Command{
+			{
+				Name:   "claim",
+				Usage:  "claim GAS",
+				Action: claimGas,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					rpcFlag,
+					timeoutFlag,
+					cli.StringFlag{
+						Name:  "address, a",
+						Usage: "Address to claim GAS for",
+					},
+				},
+			},
 			{
 				Name:   "create",
 				Usage:  "create a new wallet",
@@ -114,6 +141,74 @@ func NewCommands() []cli.Command {
 			},
 		},
 	}}
+}
+
+func claimGas(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	addr := ctx.String("address")
+	scriptHash, err := address.StringToUint160(addr)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	acc := wall.GetAccount(scriptHash)
+	if acc == nil {
+		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addr), 1)
+	}
+
+	pass, err := readPassword("Enter password > ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err := acc.Decrypt(pass); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	gctx, cancel := getGoContext(ctx)
+	defer cancel()
+
+	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	info, err := c.GetClaimable(addr)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {
+		fmt.Println("Nothing to claim")
+		return nil
+	}
+
+	var claim transaction.ClaimTX
+	for i := range info.Spents {
+		claim.Claims = append(claim.Claims, transaction.Input{
+			PrevHash:  info.Spents[i].Tx,
+			PrevIndex: uint16(info.Spents[i].N),
+		})
+	}
+
+	tx := &transaction.Transaction{
+		Type: transaction.ClaimType,
+		Data: &claim,
+	}
+
+	tx.AddOutput(&transaction.Output{
+		AssetID:    core.UtilityTokenID(),
+		Amount:     info.Unclaimed,
+		ScriptHash: scriptHash,
+	})
+
+	signTx(tx, acc)
+	if err := c.SendRawTransaction(tx); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println(tx.Hash().StringLE())
+	return nil
 }
 
 func addAccount(ctx *cli.Context) error {
@@ -249,6 +344,13 @@ func importWallet(ctx *cli.Context) error {
 	return nil
 }
 
+func getGoContext(ctx *cli.Context) (context.Context, func()) {
+	if dur := ctx.Duration("timeout"); dur != 0 {
+		return context.WithTimeout(context.Background(), dur)
+	}
+	return context.Background(), func() {}
+}
+
 func dumpWallet(ctx *cli.Context) error {
 	wall, err := openWallet(ctx.String("path"))
 	if err != nil {
@@ -293,6 +395,23 @@ func createWallet(ctx *cli.Context) error {
 	fmtPrintWallet(wall)
 	fmt.Printf("wallet successfully created, file location is %s\n", wall.Path())
 	return nil
+}
+
+func signTx(tx *transaction.Transaction, acc *wallet.Account) {
+	priv := acc.PrivateKey()
+	sign := priv.Sign(tx.GetSignedPart())
+	invoc := append([]byte{byte(opcode.PUSHBYTES64)}, sign...)
+	tx.Scripts = []transaction.Witness{{
+		InvocationScript:   invoc,
+		VerificationScript: getVerificationScript(acc),
+	}}
+}
+
+func getVerificationScript(acc *wallet.Account) []byte {
+	if acc.Contract != nil {
+		return acc.Contract.Script
+	}
+	return acc.PrivateKey().PublicKey().GetVerificationScript()
 }
 
 func readAccountInfo() (string, string, error) {
