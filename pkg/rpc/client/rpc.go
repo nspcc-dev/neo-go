@@ -108,11 +108,11 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*respo
 // 	return resp, nil
 // }
 
-// sendRawTransaction broadcasts a transaction over the NEO network.
+// SendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) error {
+func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) error {
 	var (
 		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
 		resp   bool
@@ -146,7 +146,7 @@ func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.F
 	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
 		return resp, errors.Wrap(err, "failed to create raw transaction")
 	}
-	if err = c.sendRawTransaction(rawTx); err != nil {
+	if err = c.SendRawTransaction(rawTx); err != nil {
 		return resp, errors.Wrap(err, "failed to send raw transaction")
 	}
 	return rawTx.Hash(), nil
@@ -173,7 +173,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()
-	err = c.sendRawTransaction(tx)
+	err = c.SendRawTransaction(tx)
 
 	if err != nil {
 		return txHash, errors.Wrap(err, "failed sendning tx")
