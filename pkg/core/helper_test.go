@@ -158,6 +158,11 @@ func newDumbBlock() *block.Block {
 	}
 }
 
+func getInvocationScript(data []byte, priv *keys.PrivateKey) []byte {
+	signature := priv.Sign(data)
+	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...)
+}
+
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data
 // for RPC unit tests.
 // To generate new "../rpc/testdata/testblocks.acc", follow the steps:
@@ -246,9 +251,7 @@ func _(t *testing.T) {
 	for i := range privNetKeys {
 		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
 		require.NoError(t, err)
-		signature := priv.Sign(data)
-		invoc = append(invoc, byte(opcode.PUSHBYTES64))
-		invoc = append(invoc, signature...)
+		invoc = append(invoc, getInvocationScript(data, priv)...)
 	}
 
 	tx4.Scripts = []transaction.Witness{{
@@ -257,6 +260,28 @@ func _(t *testing.T) {
 	}}
 
 	b := bc.newBlock(newMinerTX(), tx3, tx4)
+	require.NoError(t, bc.AddBlock(b))
+
+	priv1, err := keys.NewPrivateKeyFromWIF(privNetKeys[1])
+	require.NoError(t, err)
+	tx5 := transaction.NewContractTX()
+	tx5.Data = new(transaction.ContractTX)
+	tx5.AddInput(&transaction.Input{
+		PrevHash:  tx4.Hash(),
+		PrevIndex: 0,
+	})
+	tx5.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(1000),
+		ScriptHash: priv1.GetScriptHash(),
+	})
+
+	tx5.Scripts = []transaction.Witness{{
+		InvocationScript:   getInvocationScript(tx5.GetSignedPart(), priv),
+		VerificationScript: priv.PublicKey().GetVerificationScript(),
+	}}
+
+	b = bc.newBlock(newMinerTX(), tx5)
 	require.NoError(t, bc.AddBlock(b))
 
 	outStream, err := os.Create(prefix + "testblocks.acc")
