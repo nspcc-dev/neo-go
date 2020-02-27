@@ -46,21 +46,94 @@ type rawParameter struct {
 	Value json.RawMessage `json:"value"`
 }
 
+type keyValuePair struct {
+	Key   rawParameter `json:"key"`
+	Value rawParameter `json:"value"`
+}
+
+type rawKeyValuePair struct {
+	Key   json.RawMessage `json:"key"`
+	Value json.RawMessage `json:"value"`
+}
+
+// MarshalJSON implements Marshaler interface.
+func (p *Parameter) MarshalJSON() ([]byte, error) {
+	var (
+		resultRawValue json.RawMessage
+		resultErr            error
+	)
+	switch p.Type {
+	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:
+		resultRawValue, resultErr = json.Marshal(p.Value)
+	case PublicKeyType, ByteArrayType, SignatureType:
+		resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+	case ArrayType:
+		var value = make([]rawParameter, 0)
+		for _, parameter := range p.Value.([]Parameter) {
+			rawValue, err := json.Marshal(parameter.Value)
+			if err != nil {
+				return nil, err
+			}
+			value = append(value, rawParameter{
+				Type:  parameter.Type,
+				Value: rawValue,
+			})
+		}
+		resultRawValue, resultErr = json.Marshal(value)
+	case MapType:
+		var value []keyValuePair
+		for key, val := range p.Value.(map[Parameter]Parameter) {
+			rawKey, err := json.Marshal(key.Value)
+			if err != nil {
+				return nil, err
+			}
+			rawValue, err := json.Marshal(val.Value)
+			if err != nil {
+				return nil, err
+			}
+			value = append(value, keyValuePair{
+				Key: rawParameter{
+					Type:  key.Type,
+					Value: rawKey,
+				},
+				Value: rawParameter{
+					Type:  val.Type,
+					Value: rawValue,
+				},
+			})
+		}
+		resultRawValue, resultErr = json.Marshal(value)
+	default:
+		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
+	}
+	if resultErr != nil {
+		return nil, resultErr
+	}
+	return json.Marshal(rawParameter{
+		Type:  p.Type,
+		Value: resultRawValue,
+	})
+}
+
 // UnmarshalJSON implements Unmarshaler interface.
 func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 	var (
-		r rawParameter
-		i int64
-		s string
-		b []byte
+		r       rawParameter
+		i       int64
+		s       string
+		b       []byte
+		boolean bool
 	)
-
 	if err = json.Unmarshal(data, &r); err != nil {
 		return
 	}
-
 	switch p.Type = r.Type; r.Type {
-	case ByteArrayType:
+	case BoolType:
+		if err = json.Unmarshal(r.Value, &boolean); err != nil {
+			return
+		}
+		p.Value = boolean
+	case ByteArrayType, PublicKeyType:
 		if err = json.Unmarshal(r.Value, &s); err != nil {
 			return
 		}
@@ -93,6 +166,23 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 			return
 		}
 		p.Value = rs
+	case MapType:
+		var rawMap []rawKeyValuePair
+		if err = json.Unmarshal(r.Value, &rawMap); err != nil {
+			return
+		}
+		rs := make(map[Parameter]Parameter)
+		for _, p := range rawMap {
+			var key, value Parameter
+			if err = json.Unmarshal(p.Key, &key); err != nil {
+				return
+			}
+			if err = json.Unmarshal(p.Value, &value); err != nil {
+				return
+			}
+			rs[key] = value
+		}
+		p.Value = rs
 	case Hash160Type:
 		var h util.Uint160
 		if err = json.Unmarshal(r.Value, &h); err != nil {
@@ -106,7 +196,7 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		}
 		p.Value = h
 	default:
-		return errors.New("not implemented")
+		return errors.Errorf("Unmarshaller for type %s not implemented", p.Type)
 	}
 	return
 }
