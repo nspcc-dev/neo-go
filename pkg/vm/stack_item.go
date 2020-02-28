@@ -214,7 +214,7 @@ func (i *BoolItem) MarshalJSON() ([]byte, error) {
 }
 
 func (i *BoolItem) String() string {
-	return "Bool"
+	return "Boolean"
 }
 
 // Dup implements StackItem interface.
