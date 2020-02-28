@@ -13,6 +13,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	errs "github.com/pkg/errors"
 )
 
@@ -48,7 +49,9 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	}
 	receiverOutput = transaction.NewOutput(assetID, amount, toAddressHash)
 	tx.AddOutput(receiverOutput)
-	if err = SignTx(tx, &wif); err != nil {
+	if acc, err := wallet.NewAccountFromWIF(wif.S); err != nil {
+		return nil, err
+	} else if err = acc.SignTx(tx); err != nil {
 		return nil, errs.Wrap(err, "failed to sign tx")
 	}
 
@@ -75,27 +78,6 @@ func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID 
 		tx.AddOutput(senderOutput)
 	}
 	return nil
-}
-
-// SignTx signs given transaction in-place using given key.
-func SignTx(tx *transaction.Transaction, wif *keys.WIF) error {
-	var witness transaction.Witness
-	var err error
-
-	if witness.InvocationScript, err = GetInvocationScript(tx, wif); err != nil {
-		return errs.Wrap(err, "failed to create invocation script")
-	}
-	witness.VerificationScript = wif.PrivateKey.PublicKey().GetVerificationScript()
-	tx.Scripts = append(tx.Scripts, witness)
-	tx.Hash()
-
-	return nil
-}
-
-// GetInvocationScript returns NEO VM script containing transaction signature.
-func GetInvocationScript(tx *transaction.Transaction, wif *keys.WIF) ([]byte, error) {
-	signature := wif.PrivateKey.Sign(tx.GetSignedPart())
-	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...), nil
 }
 
 // CreateDeploymentScript returns a script that deploys given smart contract

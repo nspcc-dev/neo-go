@@ -20,6 +20,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -276,11 +277,9 @@ func _(t *testing.T) {
 		ScriptHash: priv1.GetScriptHash(),
 	})
 
-	tx5.Scripts = []transaction.Witness{{
-		InvocationScript:   getInvocationScript(tx5.GetSignedPart(), priv),
-		VerificationScript: priv.PublicKey().GetVerificationScript(),
-	}}
-
+	acc, err := wallet.NewAccountFromWIF(priv.WIF())
+	require.NoError(t, err)
+	require.NoError(t, acc.SignTx(tx5))
 	b = bc.newBlock(newMinerTX(), tx5)
 	require.NoError(t, bc.AddBlock(b))
 

@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/pkg/errors"
 )
 
@@ -179,7 +180,10 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 		}
 	}
 
-	if err = request.SignTx(tx, wif); err != nil {
+	acc, err := wallet.NewAccountFromWIF(wif.S)
+	if err != nil {
+		return txHash, err
+	} else if err = acc.SignTx(tx); err != nil {
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()

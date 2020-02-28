@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
 
 // Account represents a NEO account. It holds the private and public key
@@ -120,6 +122,29 @@ func NewAccount() (*Account, error) {
 		return nil, err
 	}
 	return newAccountFromPrivateKey(priv), nil
+}
+
+// SignTx signs transaction t and updates it's Witnesses.
+func (a *Account) SignTx(t *transaction.Transaction) error {
+	if a.privateKey == nil {
+		return errors.New("account is not unlocked")
+	}
+	data := t.GetSignedPart()
+	sign := a.privateKey.Sign(data)
+
+	t.Scripts = append(t.Scripts, transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHBYTES64)}, sign...),
+		VerificationScript: a.getVerificationScript(),
+	})
+
+	return nil
+}
+
+func (a *Account) getVerificationScript() []byte {
+	if a.Contract != nil {
+		return a.Contract.Script
+	}
+	return a.PrivateKey().PublicKey().GetVerificationScript()
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error

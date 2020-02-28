@@ -16,7 +16,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/client"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -232,7 +231,7 @@ func claimGas(ctx *cli.Context) error {
 		ScriptHash: scriptHash,
 	})
 
-	signTx(tx, acc)
+	_ = acc.SignTx(tx)
 	if err := c.SendRawTransaction(tx); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -433,7 +432,7 @@ func transferAsset(ctx *cli.Context) error {
 		Position:   1,
 	})
 
-	signTx(tx, acc)
+	_ = acc.SignTx(tx)
 	if err := c.SendRawTransaction(tx); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -493,23 +492,6 @@ func createWallet(ctx *cli.Context) error {
 	fmtPrintWallet(wall)
 	fmt.Printf("wallet successfully created, file location is %s\n", wall.Path())
 	return nil
-}
-
-func signTx(tx *transaction.Transaction, acc *wallet.Account) {
-	priv := acc.PrivateKey()
-	sign := priv.Sign(tx.GetSignedPart())
-	invoc := append([]byte{byte(opcode.PUSHBYTES64)}, sign...)
-	tx.Scripts = []transaction.Witness{{
-		InvocationScript:   invoc,
-		VerificationScript: getVerificationScript(acc),
-	}}
-}
-
-func getVerificationScript(acc *wallet.Account) []byte {
-	if acc.Contract != nil {
-		return acc.Contract.Script
-	}
-	return acc.PrivateKey().PublicKey().GetVerificationScript()
 }
 
 func readAccountInfo() (string, string, error) {
