@@ -1168,6 +1168,11 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 
 // NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	// https://github.com/neo-project/neo/blob/master-2.x/neo/Network/P2P/Payloads/ClaimTransaction.cs#L16
+	if t.Type == transaction.ClaimType || t.Type == transaction.MinerType {
+		return 0
+	}
+
 	inputAmount := util.Fixed8FromInt64(0)
 	refs, err := bc.References(t)
 	if err != nil {
