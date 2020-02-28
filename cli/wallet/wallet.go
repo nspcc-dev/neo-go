@@ -14,6 +14,8 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/rpc/client"
+	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -136,6 +138,34 @@ func NewCommands() []cli.Command {
 					cli.IntFlag{
 						Name:  "min, m",
 						Usage: "Minimal number of signatures",
+					},
+				},
+			},
+			{
+				Name:  "transfer",
+				Usage: "transfer NEO/GAS",
+				UsageText: "transfer --path <path> --from <addr> --to <addr>" +
+					" --amount <amount> --asset [NEO|GAS|<hex-id>]",
+				Action: transferAsset,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					rpcFlag,
+					timeoutFlag,
+					cli.StringFlag{
+						Name:  "from",
+						Usage: "Address to send an asset from",
+					},
+					cli.StringFlag{
+						Name:  "to",
+						Usage: "Address to send an asset to",
+					},
+					cli.StringFlag{
+						Name:  "amount",
+						Usage: "Amount of asset to send",
+					},
+					cli.StringFlag{
+						Name:  "asset",
+						Usage: "Asset ID",
 					},
 				},
 			},
@@ -344,6 +374,74 @@ func importWallet(ctx *cli.Context) error {
 	return nil
 }
 
+func transferAsset(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	from := ctx.String("from")
+	addr, err := address.StringToUint160(from)
+	if err != nil {
+		return cli.NewExitError("invalid address", 1)
+	}
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addr), 1)
+	}
+
+	asset, err := getAssetID(ctx.String("asset"))
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid asset id: %v", err), 1)
+	}
+
+	amount, err := util.Fixed8FromString(ctx.String("amount"))
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
+	}
+
+	pass, err := readPassword("Enter wallet password > ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err := acc.Decrypt(pass); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	gctx, cancel := getGoContext(ctx)
+	defer cancel()
+
+	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	tx := transaction.NewContractTX()
+	tx.Data = new(transaction.ContractTX)
+	if err := request.AddInputsAndUnspentsToTx(tx, from, asset, amount, c); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	toAddr, err := address.StringToUint160(ctx.String("to"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	tx.AddOutput(&transaction.Output{
+		AssetID:    asset,
+		Amount:     amount,
+		ScriptHash: toAddr,
+		Position:   1,
+	})
+
+	signTx(tx, acc)
+	if err := c.SendRawTransaction(tx); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println(tx.Hash().StringLE())
+	return nil
+}
+
 func getGoContext(ctx *cli.Context) (context.Context, func()) {
 	if dur := ctx.Duration("timeout"); dur != 0 {
 		return context.WithTimeout(context.Background(), dur)
@@ -448,6 +546,18 @@ func openWallet(path string) (*wallet.Wallet, error) {
 		return nil, errNoPath
 	}
 	return wallet.NewWalletFromFile(path)
+}
+
+func getAssetID(s string) (util.Uint256, error) {
+	s = strings.ToLower(s)
+	switch {
+	case s == "neo":
+		return core.GoverningTokenID(), nil
+	case s == "gas":
+		return core.UtilityTokenID(), nil
+	default:
+		return util.Uint256DecodeStringLE(s)
+	}
 }
 
 func newAccountFromWIF(wif string) (*wallet.Account, error) {
