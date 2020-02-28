@@ -143,4 +143,8 @@ func TestDefaultDiscoverer(t *testing.T) {
 	assert.Equal(t, len(set1), len(d.BadPeers()))
 	assert.Equal(t, len(set1), len(d.GoodPeers()))
 	require.Equal(t, 0, d.PoolCount())
+
+	// Close should work and subsequent RequestRemote is a no-op.
+	d.Close()
+	d.RequestRemote(42)
 }
