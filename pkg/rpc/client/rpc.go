@@ -126,10 +126,10 @@ func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) error {
 	return nil
 }
 
-// SendToAddress sends an amount of specific asset to a given address.
+// TransferAsset sends an amount of specific asset to a given address.
 // This call requires open wallet. (`wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
+func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
 	var (
 		err      error
 		rawTx    *transaction.Transaction
@@ -144,7 +144,7 @@ func (c *Client) SendToAddress(asset util.Uint256, address string, amount util.F
 	)
 
 	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
-		return resp, errors.Wrap(err, "failed to create raw transaction for `sendtoaddress`")
+		return resp, errors.Wrap(err, "failed to create raw transaction")
 	}
 	if err = c.sendRawTransaction(rawTx); err != nil {
 		return resp, errors.Wrap(err, "failed to send raw transaction")

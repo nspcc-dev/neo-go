@@ -12,9 +12,8 @@ import (
 )
 
 type (
-	// ContractTxParams contains parameters for tx to transfer assets;
-	// includes parameters duplication `sendtoaddress` RPC call params
-	// and also some utility data;
+	// ContractTxParams contains parameters for tx to transfer assets.
+	// It includes (*Client).TransferAsset call params and utility data.
 	ContractTxParams struct {
 		AssetID util.Uint256
 		Address string
