@@ -197,6 +197,16 @@ func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 	return m
 }
 
+// GetSignedPart returns a part of the transaction which must be signed.
+func (t *Transaction) GetSignedPart() []byte {
+	buf := io.NewBufBinWriter()
+	t.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
 // Bytes converts the transaction to []byte
 func (t *Transaction) Bytes() []byte {
 	buf := io.NewBufBinWriter()
