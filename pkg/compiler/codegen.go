@@ -505,15 +505,27 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.BinaryExpr:
 		switch n.Op {
 		case token.LAND:
+			next := c.newLabel()
+			end := c.newLabel()
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, uint16(len(c.l)-1))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, next)
+			emit.Opcode(c.prog.BinWriter, opcode.PUSHF)
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
+			c.setLabel(next)
 			ast.Walk(c, n.Y)
+			c.setLabel(end)
 			return nil
 
 		case token.LOR:
+			next := c.newLabel()
+			end := c.newLabel()
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, uint16(len(c.l)-3))
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, next)
+			emit.Opcode(c.prog.BinWriter, opcode.PUSHT)
+			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
+			c.setLabel(next)
 			ast.Walk(c, n.Y)
+			c.setLabel(end)
 			return nil
 
 		default:

@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -703,4 +704,53 @@ func TestForLoopRangeCompilerError(t *testing.T) {
 
 	_, err := compiler.Compile(strings.NewReader(src))
 	require.Error(t, err)
+}
+
+func TestForLoopComplexConditions(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		var ok bool
+		_ = ok
+		i := 0
+		j := 0
+		%s
+		for %s {
+			i++
+			j++
+			%s
+		}
+		return i
+	}`
+
+	tests := []struct {
+		Name   string
+		Cond   string
+		Assign string
+		Result int64
+	}{
+		{Cond: "i < 3 && j < 2", Result: 2},
+		{Cond: "i < 3 || j < 2", Result: 3},
+		{Cond: "i < 3 && (j < 2 || i < 1)", Result: 2},
+		{Cond: "i < 3 && (j < 2 && i < 1)", Result: 1},
+		{Cond: "(i < 1 || j < 3) && (i < 3 || j < 1)", Result: 3},
+		{Cond: "(i < 2 && j < 4) || (i < 4 && j < 2)", Result: 2},
+		{Cond: "ok", Assign: "ok = i < 3 && j < 2", Result: 2},
+		{Cond: "ok", Assign: "ok = i < 3 || j < 2", Result: 3},
+		{Cond: "ok", Assign: "ok = i < 3 && (j < 2 || i < 1)", Result: 2},
+		{Cond: "ok", Assign: "ok = i < 3 && (j < 2 && i < 1)", Result: 1},
+		{Cond: "ok", Assign: "ok = (i < 1 || j < 3) && (i < 3 || j < 1)", Result: 3},
+		{Cond: "ok", Assign: "ok = (i < 2 && j < 4) || (i < 4 && j < 2)", Result: 2},
+	}
+
+	for _, tc := range tests {
+		name := tc.Cond
+		if tc.Assign != "" {
+			name = tc.Assign
+		}
+		t.Run(name, func(t *testing.T) {
+			s := fmt.Sprintf(src, tc.Assign, tc.Cond, tc.Assign)
+			eval(t, s, big.NewInt(tc.Result))
+		})
+	}
 }
