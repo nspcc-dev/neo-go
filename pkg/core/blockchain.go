@@ -1580,7 +1580,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 		for _, tx := range txes {
 			// iterate through outputs
 			for index, output := range tx.Outputs {
-				accountState, err := cache.GetAccountState(output.ScriptHash)
+				accountState, err := cache.GetAccountStateOrNew(output.ScriptHash)
 				if err != nil {
 					return nil, err
 				}
