@@ -20,19 +20,32 @@ func TestAddHeaders(t *testing.T) {
 	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
 	h3 := newBlock(bc.config, 3, h2.Hash()).Header()
 
-	if err := bc.AddHeaders(h1, h2, h3); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, bc.AddHeaders())
+	require.NoError(t, bc.AddHeaders(h1, h2))
+	require.NoError(t, bc.AddHeaders(h2, h3))
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
 	// Add them again, they should not be added.
-	if err := bc.AddHeaders(h3, h2, h1); err != nil {
-		t.Fatal(err)
-	}
+	require.Error(t, bc.AddHeaders(h3, h2, h1))
 
+	assert.Equal(t, h3.Index, bc.HeaderHeight())
+	assert.Equal(t, uint32(0), bc.BlockHeight())
+	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
+
+	h4 := newBlock(bc.config, 4, h3.Hash().Reverse()).Header()
+	h5 := newBlock(bc.config, 5, h4.Hash()).Header()
+
+	assert.Error(t, bc.AddHeaders(h4, h5))
+	assert.Equal(t, h3.Index, bc.HeaderHeight())
+	assert.Equal(t, uint32(0), bc.BlockHeight())
+	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
+
+	h6 := newBlock(bc.config, 4, h3.Hash()).Header()
+	h6.Script.InvocationScript = nil
+	assert.Error(t, bc.AddHeaders(h6))
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
