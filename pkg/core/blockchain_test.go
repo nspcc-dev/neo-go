@@ -15,6 +15,7 @@ import (
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
+	defer bc.Close()
 	lastBlock := bc.topBlock.Load().(*block.Block)
 	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header()
 	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
