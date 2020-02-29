@@ -15,9 +15,7 @@ func TestUint160DecodeEncodeAddress(t *testing.T) {
 	}
 	for _, addr := range addrs {
 		val, err := StringToUint160(addr)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		assert.Equal(t, addr, Uint160ToString(val))
 	}
 }
@@ -26,9 +24,7 @@ func TestUint160DecodeKnownAddress(t *testing.T) {
 	address := "AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJvP"
 
 	val, err := StringToUint160(address)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, "b28427088a3729b2536d10122960394e8be6721f", val.StringLE())
 	assert.Equal(t, "1f72e68b4e39602912106d53b229378a082784b2", val.String())

@@ -67,9 +67,8 @@ func TestAddBlock(t *testing.T) {
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
-		if _, err := bc.dao.store.Get(key); err != nil {
-			t.Fatalf("block %s not persisted", block.Hash())
-		}
+		_, err := bc.dao.store.Get(key)
+		require.NoErrorf(t, err, "block %s not persisted", block.Hash())
 	}
 
 	assert.Equal(t, lastBlock.Index, bc.BlockHeight())
@@ -126,9 +125,7 @@ func TestGetBlock(t *testing.T) {
 	for j := 0; j < 2; j++ {
 		for i := 0; i < len(blocks); i++ {
 			block, err := bc.GetBlock(blocks[i].Hash())
-			if err != nil {
-				t.Fatalf("can't get block %d: %s, attempt %d", i, err, j)
-			}
+			require.NoErrorf(t, err, "can't get block %d: %s, attempt %d", i, err, j)
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
 		}

@@ -51,9 +51,7 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	vm.RegisterInteropGetter(storePlugin.getInterop)
 
 	b, err := compiler.Compile(strings.NewReader(src))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	vm.Load(b)
 	return vm
 }

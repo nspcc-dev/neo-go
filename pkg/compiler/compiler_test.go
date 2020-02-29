@@ -16,42 +16,37 @@ const exampleSavePath = exampleCompilePath + "/save"
 
 type compilerTestCase struct {
 	name     string
-	function func()
+	function func(*testing.T)
 }
 
 func TestCompiler(t *testing.T) {
 	testCases := []compilerTestCase{
 		{
 			name: "TestCompile",
-			function: func() {
+			function: func(t *testing.T) {
 				infos, err := ioutil.ReadDir(examplePath)
 				require.NoError(t, err)
 				for _, info := range infos {
 					infos, err := ioutil.ReadDir(path.Join(examplePath, info.Name()))
 					require.NoError(t, err)
-					if len(infos) == 0 {
-						t.Fatal("detected smart contract folder with no contract in it")
-					}
+					require.False(t, len(infos) == 0, "detected smart contract folder with no contract in it")
 
 					filename := filterFilename(infos)
 					targetPath := path.Join(examplePath, info.Name(), filename)
-					if err := compileFile(targetPath); err != nil {
-						t.Fatal(err)
-					}
+					require.NoError(t, compileFile(targetPath))
 				}
 			},
 		},
 		{
 			name: "TestCompileAndSave",
-			function: func() {
+			function: func(t *testing.T) {
 				infos, err := ioutil.ReadDir(exampleCompilePath)
 				require.NoError(t, err)
 				err = os.MkdirAll(exampleSavePath, os.ModePerm)
 				require.NoError(t, err)
 				outfile := exampleSavePath + "/test.avm"
-				if _, err := compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile}); err != nil {
-					t.Fatal(err)
-				}
+				_, err = compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile})
+				require.NoError(t, err)
 				defer func() {
 					err := os.RemoveAll(exampleSavePath)
 					require.NoError(t, err)
@@ -61,9 +56,7 @@ func TestCompiler(t *testing.T) {
 	}
 
 	for _, tcase := range testCases {
-		t.Run(tcase.name, func(t *testing.T) {
-			tcase.function()
-		})
+		t.Run(tcase.name, tcase.function)
 	}
 }
 

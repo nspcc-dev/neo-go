@@ -17,9 +17,7 @@ func testComputeMerkleTree(t *testing.T, hexHashes []string, result string) {
 	}
 
 	merkle, err := NewMerkleTree(hashes)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, result, merkle.Root().StringLE())
 	assert.Equal(t, true, merkle.root.IsRoot())
 	assert.Equal(t, false, merkle.root.IsLeaf())

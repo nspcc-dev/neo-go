@@ -124,9 +124,7 @@ func getTestingInterop(id uint32) *InteropFuncPrice {
 
 func testFile(t *testing.T, filename string) {
 	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// FIXME remove when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
 	if len(data) > 2 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
@@ -134,9 +132,7 @@ func testFile(t *testing.T, filename string) {
 	}
 
 	ut := new(vmUT)
-	if err = json.Unmarshal(data, ut); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, json.Unmarshal(data, ut))
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
 		for i := range ut.Tests {

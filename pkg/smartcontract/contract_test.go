@@ -7,6 +7,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateMultiSigRedeemScript(t *testing.T) {
@@ -17,18 +18,14 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	validators := []*keys.PublicKey{val1, val2, val3}
 
 	out, err := CreateMultiSigRedeemScript(3, validators)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	br := io.NewBinReaderFromBuf(out)
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 
 	for i := 0; i < len(validators); i++ {
 		bb := br.ReadVarBytes()
-		if br.Err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, br.Err)
 		assert.Equal(t, validators[i].Bytes(), bb)
 	}
 

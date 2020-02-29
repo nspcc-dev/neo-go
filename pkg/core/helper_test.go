@@ -35,13 +35,9 @@ var privNetKeys = []string{
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
 	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	go chain.Run()
 	return chain
 }
@@ -115,21 +111,15 @@ func newMinerTX() *transaction.Transaction {
 
 func getDecodedBlock(t *testing.T, i int) *block.Block {
 	data, err := getBlockData(i)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b, err := hex.DecodeString(data["raw"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block := &block.Block{}
 	r := io.NewBinReaderFromBuf(b)
 	block.DecodeBinary(r)
-	if r.Err != nil {
-		t.Fatal(r.Err)
-	}
+	require.NoError(t, r.Err)
 
 	return block
 }
@@ -183,9 +173,7 @@ func _(t *testing.T) {
 	tx1 := newMinerTX()
 
 	avm, err := ioutil.ReadFile("../rpc/testdata/test_contract.avm")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	var props smartcontract.PropertyState
 	script := io.NewBufBinWriter()
@@ -207,9 +195,7 @@ func _(t *testing.T) {
 	tx2 := transaction.NewInvocationTX(txScript, util.Fixed8FromFloat(100))
 
 	block := bc.newBlock(tx1, tx2)
-	if err := bc.AddBlock(block); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, bc.AddBlock(block))
 
 	script = io.NewBufBinWriter()
 	emit.String(script.BinWriter, "testvalue")
@@ -224,9 +210,7 @@ func _(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 
 	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer outStream.Close()
 
 	writer := io.NewBinWriterFromIO(outStream)
@@ -237,15 +221,11 @@ func _(t *testing.T) {
 	for i := 1; i < int(count); i++ {
 		bh := bc.GetHeaderHash(i)
 		b, err := bc.GetBlock(bh)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
 		writer.WriteBytes(bytes)
-		if writer.Err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, writer.Err)
 	}
 }

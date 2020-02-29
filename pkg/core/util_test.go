@@ -6,18 +6,15 @@ import (
 	"github.com/CityOfZion/neo-go/config"
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenesisBlockMainNet(t *testing.T) {
 	cfg, err := config.Load("../../config", config.ModeMainNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	expect := "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"
 	assert.Equal(t, expect, block.Hash().StringLE())
@@ -30,19 +27,13 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 	)
 
 	cfg, err := config.Load("../../config", config.ModeMainNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	validators, err := getValidators(cfg.ProtocolConfiguration)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	script, err := getNextConsensusAddress(validators)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, consensusScript, script.String())
 	assert.Equal(t, consensusAddr, address.Uint160ToString(script))
