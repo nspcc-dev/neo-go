@@ -3,7 +3,6 @@ package core
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -38,18 +37,10 @@ func TestAddHeaders(t *testing.T) {
 }
 
 func TestAddBlock(t *testing.T) {
+	const size = 3
 	bc := newTestChain(t)
-	blocks := []*block.Block{
-		newBlock(1, newMinerTX()),
-		newBlock(2, newMinerTX()),
-		newBlock(3, newMinerTX()),
-	}
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(size)
+	require.NoError(t, err)
 
 	lastBlock := blocks[len(blocks)-1]
 	assert.Equal(t, lastBlock.Index, bc.HeaderHeight())
@@ -112,13 +103,8 @@ func TestGetHeader(t *testing.T) {
 
 func TestGetBlock(t *testing.T) {
 	bc := newTestChain(t)
-	blocks := makeBlocks(100)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(100)
+	require.NoError(t, err)
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
@@ -136,13 +122,8 @@ func TestGetBlock(t *testing.T) {
 
 func TestHasBlock(t *testing.T) {
 	bc := newTestChain(t)
-	blocks := makeBlocks(50)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(50)
+	require.NoError(t, err)
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
@@ -187,10 +168,8 @@ func TestClose(t *testing.T) {
 		assert.NotNil(t, r)
 	}()
 	bc := newTestChain(t)
-	blocks := makeBlocks(10)
-	for i := 0; i < len(blocks); i++ {
-		require.NoError(t, bc.AddBlock(blocks[i]))
-	}
+	_, err := bc.genBlocks(10)
+	require.NoError(t, err)
 	bc.Close()
 	// It's a hack, but we use internal knowledge of MemoryStore
 	// implementation which makes it completely unusable (up to panicing)

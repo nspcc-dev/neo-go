@@ -96,12 +96,15 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 	return b
 }
 
-func makeBlocks(n int) []*block.Block {
+func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	blocks := make([]*block.Block, n)
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(uint32(i+1), newMinerTX())
+		blocks[i] = newBlock(uint32(i)+1, newMinerTX())
+		if err := bc.AddBlock(blocks[i]); err != nil {
+			return blocks, err
+		}
 	}
-	return blocks
+	return blocks, nil
 }
 
 func newMinerTX() *transaction.Transaction {
@@ -175,13 +178,8 @@ func newDumbBlock() *block.Block {
 func _(t *testing.T) {
 	bc := newTestChain(t)
 	n := 50
-	blocks := makeBlocks(n)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	_, err := bc.genBlocks(n)
+	require.NoError(t, err)
 
 	tx1 := newMinerTX()
 
