@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
@@ -14,9 +15,10 @@ import (
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
-	h1 := newBlock(1).Header()
-	h2 := newBlock(2).Header()
-	h3 := newBlock(3).Header()
+	lastBlock := bc.topBlock.Load().(*block.Block)
+	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header()
+	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
+	h3 := newBlock(bc.config, 3, h2.Hash()).Header()
 
 	if err := bc.AddHeaders(h1, h2, h3); err != nil {
 		t.Fatal(err)
@@ -83,7 +85,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	block := newBlock(1, newMinerTX())
+	block := bc.newBlock(newMinerTX())
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 
@@ -94,7 +96,7 @@ func TestGetHeader(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, block.Header(), header)
 
-		b2 := newBlock(2)
+		b2 := bc.newBlock()
 		_, err = bc.GetHeader(b2.Hash())
 		assert.Error(t, err)
 		assert.NoError(t, bc.persist())
@@ -130,7 +132,7 @@ func TestHasBlock(t *testing.T) {
 		for i := 0; i < len(blocks); i++ {
 			assert.True(t, bc.HasBlock(blocks[i].Hash()))
 		}
-		newBlock := newBlock(51)
+		newBlock := bc.newBlock()
 		assert.False(t, bc.HasBlock(newBlock.Hash()))
 		assert.NoError(t, bc.persist())
 	}
