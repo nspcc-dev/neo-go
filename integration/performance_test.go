@@ -12,6 +12,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/encoding/address"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -38,12 +39,8 @@ func BenchmarkTXPerformanceTest(t *testing.B) {
 	t.ResetTimer()
 
 	for n := 0; n < t.N; n++ {
-		if server.RelayTxn(data[n]) != network.RelaySucceed {
-			t.Fail()
-		}
-		if server.RelayTxn(data[n]) != network.RelayAlreadyExists {
-			t.Fail()
-		}
+		assert.Equal(t, network.RelaySucceed, server.RelayTxn(data[n]))
+		assert.Equal(t, network.RelayAlreadyExists, server.RelayTxn(data[n]))
 	}
 	chain.Close()
 }

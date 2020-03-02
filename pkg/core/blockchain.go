@@ -301,11 +301,16 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
 	}
+
+	headerLen := bc.headerListLen()
+	if int(block.Index) == headerLen {
+		err := bc.addHeaders(bc.config.VerifyBlocks, block.Header())
+		if err != nil {
+			return err
+		}
+	}
 	if bc.config.VerifyBlocks {
 		err := block.Verify()
-		if err == nil {
-			err = bc.VerifyBlock(block)
-		}
 		if err != nil {
 			return fmt.Errorf("block %s is invalid: %s", block.Hash().StringLE(), err)
 		}
@@ -318,23 +323,36 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			}
 		}
 	}
-	headerLen := bc.headerListLen()
-	if int(block.Index) == headerLen {
-		err := bc.AddHeaders(block.Header())
-		if err != nil {
-			return err
-		}
-	}
 	return bc.storeBlock(block)
 }
 
 // AddHeaders processes the given headers and add them to the
 // HeaderHashList.
-func (bc *Blockchain) AddHeaders(headers ...*block.Header) (err error) {
+func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
+	return bc.addHeaders(bc.config.VerifyBlocks, headers...)
+}
+
+func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err error) {
 	var (
 		start = time.Now()
 		batch = bc.dao.store.Batch()
 	)
+
+	if len(headers) == 0 {
+		return nil
+	} else if verify {
+		// Verify that the chain of the headers is consistent.
+		var lastHeader *block.Header
+		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
+			return fmt.Errorf("previous header was not found: %v", err)
+		}
+		for _, h := range headers {
+			if err = bc.verifyHeader(h, lastHeader); err != nil {
+				return
+			}
+			lastHeader = h
+		}
+	}
 
 	bc.headersOp <- func(headerList *HeaderHashList) {
 		oldlen := headerList.Len()
@@ -1101,19 +1119,17 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxW
 	return txes
 }
 
-// VerifyBlock verifies block against its current state.
-func (bc *Blockchain) VerifyBlock(block *block.Block) error {
-	prevHeader, err := bc.GetHeader(block.PrevHash)
-	if err != nil {
-		return errors.Wrap(err, "unable to get previous header")
+func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
+	if prevHeader.Hash() != currHeader.PrevHash {
+		return errors.New("previous header hash doesn't match")
 	}
-	if prevHeader.Index+1 != block.Index {
+	if prevHeader.Index+1 != currHeader.Index {
 		return errors.New("previous header index doesn't match")
 	}
-	if prevHeader.Timestamp >= block.Timestamp {
+	if prevHeader.Timestamp >= currHeader.Timestamp {
 		return errors.New("block is not newer than the previous one")
 	}
-	return bc.verifyBlockWitnesses(block, prevHeader)
+	return bc.verifyHeaderWitnesses(currHeader, prevHeader)
 }
 
 // verifyTx verifies whether a transaction is bonafide or not.
@@ -1678,16 +1694,16 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	return nil
 }
 
-// verifyBlockWitnesses is a block-specific implementation of VerifyWitnesses logic.
-func (bc *Blockchain) verifyBlockWitnesses(block *block.Block, prevHeader *block.Header) error {
+// verifyHeaderWitnesses is a block-specific implementation of VerifyWitnesses logic.
+func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header) error {
 	var hash util.Uint160
-	if prevHeader == nil && block.PrevHash.Equals(util.Uint256{}) {
-		hash = block.Script.ScriptHash()
+	if prevHeader == nil && currHeader.PrevHash.Equals(util.Uint256{}) {
+		hash = currHeader.Script.ScriptHash()
 	} else {
 		hash = prevHeader.NextConsensus
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, nil, nil)
-	return bc.verifyHashAgainstScript(hash, &block.Script, block.VerificationHash(), interopCtx, true)
+	return bc.verifyHashAgainstScript(hash, &currHeader.Script, currHeader.VerificationHash(), interopCtx, true)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

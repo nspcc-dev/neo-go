@@ -24,9 +24,6 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-var newBlockPrevHash util.Uint256
-var unitTestNetCfg config.Config
-
 var privNetKeys = []string{
 	"KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY",
 	"KzfPUYDC9n2yf4fK5ro4C8KMcdeXtFuEnStycbZgX3GomiUsvX6W",
@@ -37,24 +34,21 @@ var privNetKeys = []string{
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
-	var err error
-	unitTestNetCfg, err = config.Load("../../config", config.ModeUnitTestNet)
-	if err != nil {
-		t.Fatal(err)
-	}
+	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
+	require.NoError(t, err)
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	go chain.Run()
-	zeroHash, err := chain.GetHeader(chain.GetHeaderHash(0))
-	require.Nil(t, err)
-	newBlockPrevHash = zeroHash.Hash()
 	return chain
 }
 
-func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
-	validators, _ := getValidators(unitTestNetCfg.ProtocolConfiguration)
+func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
+	lastBlock := bc.topBlock.Load().(*block.Block)
+	return newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), txs...)
+}
+
+func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
+	validators, _ := getValidators(cfg)
 	vlen := len(validators)
 	valScript, _ := smartcontract.CreateMultiSigRedeemScript(
 		vlen-(vlen-1)/3,
@@ -66,7 +60,7 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 	b := &block.Block{
 		Base: block.Base{
 			Version:       0,
-			PrevHash:      newBlockPrevHash,
+			PrevHash:      prev,
 			Timestamp:     uint32(time.Now().UTC().Unix()) + index,
 			Index:         index,
 			ConsensusData: 1111,
@@ -76,7 +70,6 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 		Transactions: txs,
 	}
 	_ = b.RebuildMerkleRoot()
-	newBlockPrevHash = b.Hash()
 
 	invScript := make([]byte, 0)
 	for _, wif := range privNetKeys {
@@ -96,12 +89,17 @@ func newBlock(index uint32, txs ...*transaction.Transaction) *block.Block {
 	return b
 }
 
-func makeBlocks(n int) []*block.Block {
+func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	blocks := make([]*block.Block, n)
+	lastHash := bc.topBlock.Load().(*block.Block).Hash()
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(uint32(i+1), newMinerTX())
+		blocks[i] = newBlock(bc.config, uint32(i)+1, lastHash, newMinerTX())
+		if err := bc.AddBlock(blocks[i]); err != nil {
+			return blocks, err
+		}
+		lastHash = blocks[i].Hash()
 	}
-	return blocks
+	return blocks, nil
 }
 
 func newMinerTX() *transaction.Transaction {
@@ -113,21 +111,15 @@ func newMinerTX() *transaction.Transaction {
 
 func getDecodedBlock(t *testing.T, i int) *block.Block {
 	data, err := getBlockData(i)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b, err := hex.DecodeString(data["raw"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	block := &block.Block{}
 	r := io.NewBinReaderFromBuf(b)
 	block.DecodeBinary(r)
-	if r.Err != nil {
-		t.Fatal(r.Err)
-	}
+	require.NoError(t, r.Err)
 
 	return block
 }
@@ -175,20 +167,13 @@ func newDumbBlock() *block.Block {
 func _(t *testing.T) {
 	bc := newTestChain(t)
 	n := 50
-	blocks := makeBlocks(n)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	_, err := bc.genBlocks(n)
+	require.NoError(t, err)
 
 	tx1 := newMinerTX()
 
 	avm, err := ioutil.ReadFile("../rpc/testdata/test_contract.avm")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	var props smartcontract.PropertyState
 	script := io.NewBufBinWriter()
@@ -209,10 +194,8 @@ func _(t *testing.T) {
 
 	tx2 := transaction.NewInvocationTX(txScript, util.Fixed8FromFloat(100))
 
-	block := newBlock(uint32(n+1), tx1, tx2)
-	if err := bc.AddBlock(block); err != nil {
-		t.Fatal(err)
-	}
+	block := bc.newBlock(tx1, tx2)
+	require.NoError(t, bc.AddBlock(block))
 
 	script = io.NewBufBinWriter()
 	emit.String(script.BinWriter, "testvalue")
@@ -223,13 +206,11 @@ func _(t *testing.T) {
 	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
 
 	tx3 := transaction.NewInvocationTX(script.Bytes(), util.Fixed8FromFloat(100))
-	b := newBlock(uint32(n+2), newMinerTX(), tx3)
+	b := bc.newBlock(newMinerTX(), tx3)
 	require.NoError(t, bc.AddBlock(b))
 
 	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer outStream.Close()
 
 	writer := io.NewBinWriterFromIO(outStream)
@@ -240,15 +221,11 @@ func _(t *testing.T) {
 	for i := 1; i < int(count); i++ {
 		bh := bc.GetHeaderHash(i)
 		b, err := bc.GetBlock(bh)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
 		writer.WriteBytes(bytes)
-		if writer.Err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, writer.Err)
 	}
 }

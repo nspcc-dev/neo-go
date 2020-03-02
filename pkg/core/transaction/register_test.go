@@ -9,6 +9,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRegisterTX(t *testing.T) {
@@ -43,9 +44,7 @@ func TestRegisterTX(t *testing.T) {
 func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	rawTX := "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000"
 	b, err := hex.DecodeString(rawTX)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)

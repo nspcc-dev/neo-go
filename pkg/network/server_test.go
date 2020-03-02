@@ -29,9 +29,7 @@ func TestSendVersion(t *testing.T) {
 		assert.Equal(t, uint32(0), version.StartHeight)
 	}
 
-	if err := p.SendVersion(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, p.SendVersion())
 }
 
 // Server should reply with a verack after receiving a valid version.
@@ -49,9 +47,7 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	}
 	version := payload.NewVersion(1337, 3000, "/NEO-GO/", 0, true)
 
-	if err := s.handleVersionCmd(p, version); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, s.handleVersionCmd(p, version))
 }
 
 // Server should not reply with a verack after receiving a

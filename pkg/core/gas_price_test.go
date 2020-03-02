@@ -14,6 +14,7 @@ import (
 // https://github.com/neo-project/neo/blob/master-2.x/neo.UnitTests/UT_InteropPrices.cs#L245
 func TestGetPrice(t *testing.T) {
 	bc := newTestChain(t)
+	defer bc.Close()
 	systemInterop := bc.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
 
 	v := bc.spawnVMWithInterops(systemInterop)

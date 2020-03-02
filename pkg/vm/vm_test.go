@@ -1694,9 +1694,7 @@ func TestSimpleCall(t *testing.T) {
 	result := 12
 
 	prog, err := hex.DecodeString(progStr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))

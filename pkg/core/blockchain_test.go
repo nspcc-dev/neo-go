@@ -15,41 +15,48 @@ import (
 
 func TestAddHeaders(t *testing.T) {
 	bc := newTestChain(t)
-	h1 := newBlock(1).Header()
-	h2 := newBlock(2).Header()
-	h3 := newBlock(3).Header()
+	defer bc.Close()
+	lastBlock := bc.topBlock.Load().(*block.Block)
+	h1 := newBlock(bc.config, 1, lastBlock.Hash()).Header()
+	h2 := newBlock(bc.config, 2, h1.Hash()).Header()
+	h3 := newBlock(bc.config, 3, h2.Hash()).Header()
 
-	if err := bc.AddHeaders(h1, h2, h3); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, bc.AddHeaders())
+	require.NoError(t, bc.AddHeaders(h1, h2))
+	require.NoError(t, bc.AddHeaders(h2, h3))
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
 	// Add them again, they should not be added.
-	if err := bc.AddHeaders(h3, h2, h1); err != nil {
-		t.Fatal(err)
-	}
+	require.Error(t, bc.AddHeaders(h3, h2, h1))
 
+	assert.Equal(t, h3.Index, bc.HeaderHeight())
+	assert.Equal(t, uint32(0), bc.BlockHeight())
+	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
+
+	h4 := newBlock(bc.config, 4, h3.Hash().Reverse()).Header()
+	h5 := newBlock(bc.config, 5, h4.Hash()).Header()
+
+	assert.Error(t, bc.AddHeaders(h4, h5))
+	assert.Equal(t, h3.Index, bc.HeaderHeight())
+	assert.Equal(t, uint32(0), bc.BlockHeight())
+	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
+
+	h6 := newBlock(bc.config, 4, h3.Hash()).Header()
+	h6.Script.InvocationScript = nil
+	assert.Error(t, bc.AddHeaders(h6))
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 }
 
 func TestAddBlock(t *testing.T) {
+	const size = 3
 	bc := newTestChain(t)
-	blocks := []*block.Block{
-		newBlock(1, newMinerTX()),
-		newBlock(2, newMinerTX()),
-		newBlock(3, newMinerTX()),
-	}
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(size)
+	require.NoError(t, err)
 
 	lastBlock := blocks[len(blocks)-1]
 	assert.Equal(t, lastBlock.Index, bc.HeaderHeight())
@@ -60,9 +67,8 @@ func TestAddBlock(t *testing.T) {
 
 	for _, block := range blocks {
 		key := storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
-		if _, err := bc.dao.store.Get(key); err != nil {
-			t.Fatalf("block %s not persisted", block.Hash())
-		}
+		_, err := bc.dao.store.Get(key)
+		require.NoErrorf(t, err, "block %s not persisted", block.Hash())
 	}
 
 	assert.Equal(t, lastBlock.Index, bc.BlockHeight())
@@ -92,7 +98,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	block := newBlock(1, newMinerTX())
+	block := bc.newBlock(newMinerTX())
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 
@@ -103,7 +109,7 @@ func TestGetHeader(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, block.Header(), header)
 
-		b2 := newBlock(2)
+		b2 := bc.newBlock()
 		_, err = bc.GetHeader(b2.Hash())
 		assert.Error(t, err)
 		assert.NoError(t, bc.persist())
@@ -112,21 +118,14 @@ func TestGetHeader(t *testing.T) {
 
 func TestGetBlock(t *testing.T) {
 	bc := newTestChain(t)
-	blocks := makeBlocks(100)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(100)
+	require.NoError(t, err)
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
 		for i := 0; i < len(blocks); i++ {
 			block, err := bc.GetBlock(blocks[i].Hash())
-			if err != nil {
-				t.Fatalf("can't get block %d: %s, attempt %d", i, err, j)
-			}
+			require.NoErrorf(t, err, "can't get block %d: %s, attempt %d", i, err, j)
 			assert.Equal(t, blocks[i].Index, block.Index)
 			assert.Equal(t, blocks[i].Hash(), block.Hash())
 		}
@@ -136,20 +135,15 @@ func TestGetBlock(t *testing.T) {
 
 func TestHasBlock(t *testing.T) {
 	bc := newTestChain(t)
-	blocks := makeBlocks(50)
-
-	for i := 0; i < len(blocks); i++ {
-		if err := bc.AddBlock(blocks[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
+	blocks, err := bc.genBlocks(50)
+	require.NoError(t, err)
 
 	// Test unpersisted and persisted access
 	for j := 0; j < 2; j++ {
 		for i := 0; i < len(blocks); i++ {
 			assert.True(t, bc.HasBlock(blocks[i].Hash()))
 		}
-		newBlock := newBlock(51)
+		newBlock := bc.newBlock()
 		assert.False(t, bc.HasBlock(newBlock.Hash()))
 		assert.NoError(t, bc.persist())
 	}
@@ -187,10 +181,8 @@ func TestClose(t *testing.T) {
 		assert.NotNil(t, r)
 	}()
 	bc := newTestChain(t)
-	blocks := makeBlocks(10)
-	for i := 0; i < len(blocks); i++ {
-		require.NoError(t, bc.AddBlock(blocks[i]))
-	}
+	_, err := bc.genBlocks(10)
+	require.NoError(t, err)
 	bc.Close()
 	// It's a hack, but we use internal knowledge of MemoryStore
 	// implementation which makes it completely unusable (up to panicing)
