@@ -190,6 +190,10 @@ Methods:
 		getblocksysfeeCalled.Inc()
 		results, resultsErr = s.getBlockSysFee(reqParams)
 
+	case "getclaimable":
+		getclaimableCalled.Inc()
+		results, resultsErr = s.getClaimable(reqParams)
+
 	case "getconnectioncount":
 		getconnectioncountCalled.Inc()
 		results = s.coreServer.PeerCount()
@@ -320,6 +324,52 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, error
 	}
 
 	return result.NewApplicationLog(appExecResult, scriptHash), nil
+}
+
+func (s *Server) getClaimable(ps request.Params) (interface{}, error) {
+	p, ok := ps.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	u, err := p.GetUint160FromAddress()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	var unclaimed []state.UnclaimedBalance
+	if acc := s.chain.GetAccountState(u); acc != nil {
+		unclaimed = acc.Unclaimed
+	}
+
+	var sum util.Fixed8
+	claimable := make([]result.Claimable, 0, len(unclaimed))
+	for _, ub := range unclaimed {
+		gen, sys, err := s.chain.CalculateClaimable(ub.Value, ub.Start, ub.End)
+		if err != nil {
+			s.log.Info("error while calculating claim bonus", zap.Error(err))
+			continue
+		}
+
+		uc := gen.Add(sys)
+		sum += uc
+
+		claimable = append(claimable, result.Claimable{
+			Tx:          ub.Tx,
+			N:           int(ub.Index),
+			Value:       ub.Value,
+			StartHeight: ub.Start,
+			EndHeight:   ub.End,
+			Generated:   gen,
+			SysFee:      sys,
+			Unclaimed:   uc,
+		})
+	}
+
+	return result.ClaimableInfo{
+		Spents:    claimable,
+		Address:   p.String(),
+		Unclaimed: sum,
+	}, nil
 }
 
 func (s *Server) getStorage(ps request.Params) (interface{}, error) {

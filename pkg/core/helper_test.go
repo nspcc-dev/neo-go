@@ -20,6 +20,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -158,6 +159,11 @@ func newDumbBlock() *block.Block {
 	}
 }
 
+func getInvocationScript(data []byte, priv *keys.PrivateKey) []byte {
+	signature := priv.Sign(data)
+	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...)
+}
+
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data
 // for RPC unit tests.
 // To generate new "../rpc/testdata/testblocks.acc", follow the steps:
@@ -165,6 +171,8 @@ func newDumbBlock() *block.Block {
 // 		2. Add specific test-case into "neo-go/pkg/core/blockchain_test.go"
 // 		3. Run tests with `$ make test`
 func _(t *testing.T) {
+	const prefix = "../rpc/server/testdata/"
+
 	bc := newTestChain(t)
 	n := 50
 	_, err := bc.genBlocks(n)
@@ -172,7 +180,7 @@ func _(t *testing.T) {
 
 	tx1 := newMinerTX()
 
-	avm, err := ioutil.ReadFile("../rpc/testdata/test_contract.avm")
+	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
 	require.NoError(t, err)
 
 	var props smartcontract.PropertyState
@@ -206,10 +214,76 @@ func _(t *testing.T) {
 	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
 
 	tx3 := transaction.NewInvocationTX(script.Bytes(), util.Fixed8FromFloat(100))
-	b := bc.newBlock(newMinerTX(), tx3)
+
+	tx4 := transaction.NewContractTX()
+	h, err := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+	require.NoError(t, err)
+	tx4.AddInput(&transaction.Input{
+		PrevHash:  h,
+		PrevIndex: 0,
+	})
+
+	// multisig address which possess all NEO
+	scriptHash, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
+	require.NoError(t, err)
+	priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
+	require.NoError(t, err)
+	tx4.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(1000),
+		ScriptHash: priv.GetScriptHash(),
+		Position:   0,
+	})
+	tx4.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(99999000),
+		ScriptHash: scriptHash,
+		Position:   1,
+	})
+	tx4.Data = new(transaction.ContractTX)
+
+	validators, err := getValidators(bc.config)
+	require.NoError(t, err)
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
+	require.NoError(t, err)
+	data := tx4.GetSignedPart()
+
+	var invoc []byte
+	for i := range privNetKeys {
+		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
+		require.NoError(t, err)
+		invoc = append(invoc, getInvocationScript(data, priv)...)
+	}
+
+	tx4.Scripts = []transaction.Witness{{
+		InvocationScript:   invoc,
+		VerificationScript: rawScript,
+	}}
+
+	b := bc.newBlock(newMinerTX(), tx3, tx4)
 	require.NoError(t, bc.AddBlock(b))
 
-	outStream, err := os.Create("../rpc/testdata/testblocks.acc")
+	priv1, err := keys.NewPrivateKeyFromWIF(privNetKeys[1])
+	require.NoError(t, err)
+	tx5 := transaction.NewContractTX()
+	tx5.Data = new(transaction.ContractTX)
+	tx5.AddInput(&transaction.Input{
+		PrevHash:  tx4.Hash(),
+		PrevIndex: 0,
+	})
+	tx5.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     util.Fixed8FromInt64(1000),
+		ScriptHash: priv1.GetScriptHash(),
+	})
+
+	acc, err := wallet.NewAccountFromWIF(priv.WIF())
+	require.NoError(t, err)
+	require.NoError(t, acc.SignTx(tx5))
+	b = bc.newBlock(newMinerTX(), tx5)
+	require.NoError(t, bc.AddBlock(b))
+
+	outStream, err := os.Create(prefix + "testblocks.acc")
 	require.NoError(t, err)
 	defer outStream.Close()
 
@@ -225,6 +299,7 @@ func _(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
+		writer.WriteU32LE(uint32(len(bytes)))
 		writer.WriteBytes(bytes)
 		require.NoError(t, writer.Err)
 	}

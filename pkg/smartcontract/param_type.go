@@ -122,7 +122,7 @@ func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 //     bytes, bytearray -> ByteArrayType
 //     key, publickey -> PublicKeyType
 //     string -> StringType
-//     array -> ArrayType
+//     array, struct -> ArrayType
 //     map -> MapType
 //     interopinterface -> InteropInterfaceType
 //     void -> VoidType
@@ -145,7 +145,7 @@ func ParseParamType(typ string) (ParamType, error) {
 		return PublicKeyType, nil
 	case "string":
 		return StringType, nil
-	case "array":
+	case "array", "struct":
 		return ArrayType, nil
 	case "map":
 		return MapType, nil

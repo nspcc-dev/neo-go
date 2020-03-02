@@ -11,6 +11,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/wallet"
 	"github.com/pkg/errors"
 )
 
@@ -38,6 +39,16 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 		resp   = &result.AccountState{}
 	)
 	if err := c.performRequest("getaccountstate", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetClaimable returns tx outputs which can be claimed.
+func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
+	params := request.NewRawParams(address)
+	resp := new(result.ClaimableInfo)
+	if err := c.performRequest("getclaimable", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -108,11 +119,11 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*respo
 // 	return resp, nil
 // }
 
-// sendRawTransaction broadcasts a transaction over the NEO network.
+// SendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) sendRawTransaction(rawTX *transaction.Transaction) error {
+func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) error {
 	var (
 		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
 		resp   bool
@@ -146,7 +157,7 @@ func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.F
 	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
 		return resp, errors.Wrap(err, "failed to create raw transaction")
 	}
-	if err = c.sendRawTransaction(rawTx); err != nil {
+	if err = c.SendRawTransaction(rawTx); err != nil {
 		return resp, errors.Wrap(err, "failed to send raw transaction")
 	}
 	return rawTx.Hash(), nil
@@ -169,11 +180,14 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 		}
 	}
 
-	if err = request.SignTx(tx, wif); err != nil {
+	acc, err := wallet.NewAccountFromWIF(wif.S)
+	if err != nil {
+		return txHash, err
+	} else if err = acc.SignTx(tx); err != nil {
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()
-	err = c.sendRawTransaction(tx)
+	err = c.SendRawTransaction(tx)
 
 	if err != nil {
 		return txHash, errors.Wrap(err, "failed sendning tx")

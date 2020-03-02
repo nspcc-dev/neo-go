@@ -32,6 +32,9 @@ func (chain testChain) ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithF
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
+func (chain testChain) CalculateClaimable(util.Fixed8, uint32, uint32) (util.Fixed8, util.Fixed8, error) {
+	panic("TODO")
+}
 
 func (chain testChain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
 	panic("TODO")

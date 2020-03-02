@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.3"
+	version          = "0.0.5"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -93,6 +93,9 @@ type Blockchain struct {
 	// Number of headers stored in the chain file.
 	storedHeaderCount uint32
 
+	generationAmount  []int
+	decrementInterval int
+
 	// All operations on headerList must be called from an
 	// headersOp to be routine safe.
 	headerList *HeaderHashList
@@ -154,6 +157,9 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
 		log:           log,
+
+		generationAmount:  genAmount,
+		decrementInterval: decrementInterval,
 	}
 
 	if err := bc.init(); err != nil {
@@ -408,6 +414,7 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	}
 
 	buf.Reset()
+	buf.BinWriter.WriteU32LE(0) // sys fee is yet to be calculated
 	h.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
@@ -420,13 +427,24 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
+// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// and 0 if no such block exists.
+func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
+	_, sf, _ := bc.dao.GetBlock(h)
+	return sf
+}
+
 // TODO: storeBlock needs some more love, its implemented as in the original
 // project. This for the sake of development speed and understanding of what
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := newCachedDao(bc.dao.store)
-	if err := cache.StoreAsBlock(block, 0); err != nil {
+	fee := bc.getSystemFeeAmount(block.PrevHash)
+	for _, tx := range block.Transactions {
+		fee += uint32(bc.SystemFee(tx).Int64Value())
+	}
+	if err := cache.StoreAsBlock(block, fee); err != nil {
 		return err
 	}
 
@@ -473,6 +491,13 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
+					account.Unclaimed = append(account.Unclaimed, state.UnclaimedBalance{
+						Tx:    prevTX.Hash(),
+						Index: input.PrevIndex,
+						Start: prevTXHeight,
+						End:   block.Index,
+						Value: prevTXOutput.Amount,
+					})
 					spentCoin.items[input.PrevIndex] = block.Index
 					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
@@ -564,6 +589,37 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					}
 					break
 				}
+
+				prevTx, _, err := cache.GetTransaction(input.PrevHash)
+				if err != nil {
+					return err
+				} else if int(input.PrevIndex) > len(prevTx.Outputs) {
+					return errors.New("invalid input in claim")
+				}
+				acc, err := cache.GetAccountState(prevTx.Outputs[input.PrevIndex].ScriptHash)
+				if err != nil {
+					return err
+				}
+
+				var changed bool
+				for i := range acc.Unclaimed {
+					if acc.Unclaimed[i].Tx == input.PrevHash && acc.Unclaimed[i].Index == input.PrevIndex {
+						copy(acc.Unclaimed[i:], acc.Unclaimed[i+1:])
+						acc.Unclaimed = acc.Unclaimed[:len(acc.Unclaimed)-1]
+						changed = true
+						break
+					}
+				}
+
+				if !changed {
+					bc.log.Warn("no spent coin in the account",
+						zap.String("tx", tx.Hash().StringLE()),
+						zap.String("input", input.PrevHash.StringLE()),
+						zap.String("account", acc.ScriptHash.String()))
+				} else if err := cache.PutAccountState(acc); err != nil {
+					return err
+				}
+
 				delete(scs.items, input.PrevIndex)
 				if len(scs.items) > 0 {
 					if err = cache.PutSpentCoinState(input.PrevHash, scs); err != nil {
@@ -905,7 +961,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		}
 	}
 
-	block, err := bc.dao.GetBlock(hash)
+	block, _, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -930,7 +986,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 			return tb.Header(), nil
 		}
 	}
-	block, err := bc.dao.GetBlock(hash)
+	block, _, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1033,6 +1089,48 @@ func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
 }
 
+// CalculateClaimable calculates the amount of GAS which can be claimed for a transaction with value.
+// First return value is GAS generated between startHeight and endHeight.
+// Second return value is GAS returned from accumulated SystemFees between startHeight and endHeight.
+func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error) {
+	var amount util.Fixed8
+	di := uint32(bc.decrementInterval)
+
+	ustart := startHeight / di
+	if genSize := uint32(len(bc.generationAmount)); ustart < genSize {
+		uend := endHeight / di
+		iend := endHeight % di
+		if uend >= genSize {
+			uend = genSize - 1
+			iend = di
+		} else if iend == 0 {
+			uend--
+			iend = di
+		}
+
+		istart := startHeight % di
+		for ustart < uend {
+			amount += util.Fixed8(di-istart) * util.Fixed8(bc.generationAmount[ustart])
+			ustart++
+			istart = 0
+		}
+
+		amount += util.Fixed8(iend-istart) * util.Fixed8(bc.generationAmount[ustart])
+	}
+
+	if startHeight == 0 {
+		startHeight++
+	}
+	h := bc.GetHeaderHash(int(startHeight - 1))
+	feeStart := bc.getSystemFeeAmount(h)
+	h = bc.GetHeaderHash(int(endHeight - 1))
+	feeEnd := bc.getSystemFeeAmount(h)
+
+	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
+	ratio := value / 100000000
+	return amount * ratio, sysFeeTotal * ratio, nil
+}
+
 // References maps transaction's inputs into a slice of InOuts, effectively
 // joining each Input with the corresponding Output.
 // @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
@@ -1070,6 +1168,11 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 
 // NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+	// https://github.com/neo-project/neo/blob/master-2.x/neo/Network/P2P/Payloads/ClaimTransaction.cs#L16
+	if t.Type == transaction.ClaimType || t.Type == transaction.MinerType {
+		return 0
+	}
+
 	inputAmount := util.Fixed8FromInt64(0)
 	refs, err := bc.References(t)
 	if err != nil {
@@ -1175,9 +1278,95 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if bc.dao.IsDoubleClaim(claim) {
 			return errors.New("double claim")
 		}
+		if err := bc.verifyClaims(t); err != nil {
+			return err
+		}
 	}
 
 	return bc.verifyTxWitnesses(t, block)
+}
+
+func (bc *Blockchain) verifyClaims(tx *transaction.Transaction) (err error) {
+	t := tx.Data.(*transaction.ClaimTX)
+	var result *transaction.Result
+	results := bc.GetTransactionResults(tx)
+	for i := range results {
+		if results[i].AssetID == UtilityTokenID() {
+			result = results[i]
+			break
+		}
+	}
+
+	if result == nil || result.Amount.GreaterThan(0) {
+		return errors.New("invalid output in claim tx")
+	}
+
+	bonus, err := bc.calculateBonus(t.Claims)
+	if err == nil && bonus != -result.Amount {
+		return fmt.Errorf("wrong bonus calculated in claim tx: %s != %s",
+			bonus.String(), (-result.Amount).String())
+	}
+
+	return err
+}
+
+func (bc *Blockchain) calculateBonus(claims []transaction.Input) (util.Fixed8, error) {
+	unclaimed := []*spentCoin{}
+	inputs := transaction.GroupInputsByPrevHash(claims)
+
+	for _, group := range inputs {
+		h := group[0].PrevHash
+		claimable, err := bc.getUnclaimed(h)
+		if err != nil || len(claimable) == 0 {
+			return 0, errors.New("no unclaimed inputs")
+		}
+
+		for _, c := range group {
+			s, ok := claimable[c.PrevIndex]
+			if !ok {
+				return 0, fmt.Errorf("can't find spent coins for %s (%d)", c.PrevHash.StringLE(), c.PrevIndex)
+			}
+			unclaimed = append(unclaimed, s)
+		}
+	}
+
+	return bc.calculateBonusInternal(unclaimed)
+}
+
+func (bc *Blockchain) calculateBonusInternal(scs []*spentCoin) (util.Fixed8, error) {
+	var claimed util.Fixed8
+	for _, sc := range scs {
+		gen, sys, err := bc.CalculateClaimable(sc.Output.Amount, sc.StartHeight, sc.EndHeight)
+		if err != nil {
+			return 0, err
+		}
+		claimed += gen + sys
+	}
+
+	return claimed, nil
+}
+
+func (bc *Blockchain) getUnclaimed(h util.Uint256) (map[uint16]*spentCoin, error) {
+	tx, txHeight, err := bc.GetTransaction(h)
+	if err != nil {
+		return nil, err
+	}
+
+	scs, err := bc.dao.GetSpentCoinState(h)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint16]*spentCoin)
+	for i, height := range scs.items {
+		result[i] = &spentCoin{
+			Output:      &tx.Outputs[i],
+			StartHeight: txHeight,
+			EndHeight:   height,
+		}
+	}
+
+	return result, nil
 }
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
@@ -1396,7 +1585,7 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 		for _, tx := range txes {
 			// iterate through outputs
 			for index, output := range tx.Outputs {
-				accountState, err := cache.GetAccountState(output.ScriptHash)
+				accountState, err := cache.GetAccountStateOrNew(output.ScriptHash)
 				if err != nil {
 					return nil, err
 				}

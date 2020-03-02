@@ -52,6 +52,7 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	nBlocks = br.ReadU32LE()
 	require.Nil(t, br.Err)
 	for i := 0; i < int(nBlocks); i++ {
+		_ = br.ReadU32LE()
 		b := &block.Block{}
 		b.DecodeBinary(br)
 		require.Nil(t, br.Err)

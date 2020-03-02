@@ -476,16 +476,23 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 }
 
 func (s *service) getValidators(txx ...block.Transaction) []crypto.PublicKey {
-	var pKeys []*keys.PublicKey
+	var (
+		pKeys []*keys.PublicKey
+		err   error
+	)
 	if len(txx) == 0 {
-		pKeys, _ = s.Chain.GetValidators()
+		pKeys, err = s.Chain.GetValidators()
 	} else {
 		ntxx := make([]*transaction.Transaction, len(txx))
 		for i := range ntxx {
 			ntxx[i] = txx[i].(*transaction.Transaction)
 		}
 
-		pKeys, _ = s.Chain.GetValidators(ntxx...)
+		pKeys, err = s.Chain.GetValidators(ntxx...)
+	}
+
+	if err != nil {
+		s.log.Error("error while trying to get validators", zap.Error(err))
 	}
 
 	pubs := make([]crypto.PublicKey, len(pKeys))

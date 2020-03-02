@@ -100,6 +100,12 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(&t.Attributes)
 	br.ReadArray(&t.Inputs)
 	br.ReadArray(&t.Outputs)
+	for i := range t.Outputs {
+		if t.Outputs[i].Amount.LessThan(0) {
+			br.Err = errors.New("negative output")
+			return
+		}
+	}
 	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
@@ -195,6 +201,16 @@ func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
 		m[hash] = append(m[hash], &t.Outputs[i])
 	}
 	return m
+}
+
+// GetSignedPart returns a part of the transaction which must be signed.
+func (t *Transaction) GetSignedPart() []byte {
+	buf := io.NewBufBinWriter()
+	t.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 // Bytes converts the transaction to []byte
