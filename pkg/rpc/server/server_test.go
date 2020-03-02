@@ -14,6 +14,7 @@ import (
 
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/internal/random"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -663,6 +664,35 @@ func TestRPC(t *testing.T) {
 		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
 		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
+	})
+
+	t.Run("getrawmempool", func(t *testing.T) {
+		mp := chain.GetMemPool()
+		// `expected` stores hashes of previously added txs
+		expected := make([]util.Uint256, 0)
+		for _, tx := range mp.GetVerifiedTransactions() {
+			expected = append(expected, tx.Tx.Hash())
+		}
+		for i := 0; i < 5; i++ {
+			tx := &transaction.Transaction{
+				Type: transaction.MinerType,
+				Data: &transaction.MinerTX{
+					Nonce: uint32(random.Int(0, 1000000000)),
+				},
+			}
+			assert.NoError(t, mp.Add(tx, &FeerStub{}))
+			expected = append(expected, tx.Hash())
+		}
+
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getrawmempool", "params": []}`
+		body := doRPCCall(rpc, handler, t)
+		res := checkErrGetResult(t, body, false)
+
+		var actual []util.Uint256
+		err := json.Unmarshal(res, &actual)
+		require.NoErrorf(t, err, "could not parse response: %s", res)
+
+		assert.ElementsMatch(t, expected, actual)
 	})
 }
 

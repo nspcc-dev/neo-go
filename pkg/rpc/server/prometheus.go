@@ -83,6 +83,14 @@ var (
 		},
 	)
 
+	getrawmempoolCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getrawmempool rpc endpoint",
+			Name:      "getrawmempool_called",
+			Namespace: "neogo",
+		},
+	)
+
 	validateaddressCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to validateaddress rpc endpoint",
@@ -160,6 +168,7 @@ func init() {
 		getcontractstateCalled,
 		getversionCalled,
 		getpeersCalled,
+		getrawmempoolCalled,
 		validateaddressCalled,
 		getassetstateCalled,
 		getaccountstateCalled,

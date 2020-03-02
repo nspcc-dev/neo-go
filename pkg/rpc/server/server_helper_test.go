@@ -9,9 +9,11 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core"
 	"github.com/CityOfZion/neo-go/pkg/core/block"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
+	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
+	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -65,4 +67,22 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	handler := http.HandlerFunc(rpcServer.requestHandler)
 
 	return chain, handler
+}
+
+type FeerStub struct{}
+
+func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
+	return 0
+}
+
+func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
+	return false
+}
+
+func (fs *FeerStub) FeePerByte(*transaction.Transaction) util.Fixed8 {
+	return 0
+}
+
+func (fs *FeerStub) SystemFee(*transaction.Transaction) util.Fixed8 {
+	return 0
 }
