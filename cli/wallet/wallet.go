@@ -54,6 +54,10 @@ var (
 		Name:  "out",
 		Usage: "file to put JSON transaction to",
 	}
+	inFlag = cli.StringFlag{
+		Name:  "in",
+		Usage: "file with JSON transaction",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -175,6 +179,11 @@ func NewCommands() []cli.Command {
 						Usage: "Asset ID",
 					},
 				},
+			},
+			{
+				Name:        "multisig",
+				Usage:       "work with multisig address",
+				Subcommands: newMultisigCommands(),
 			},
 		},
 	}}
