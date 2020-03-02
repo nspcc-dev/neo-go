@@ -214,6 +214,15 @@ Methods:
 		peers.AddBad(s.coreServer.BadPeers())
 		results = peers
 
+	case "getrawmempool":
+		getrawmempoolCalled.Inc()
+		mp := s.chain.GetMemPool()
+		hashList := make([]util.Uint256, 0)
+		for _, item := range mp.GetVerifiedTransactions() {
+			hashList = append(hashList, item.Tx.Hash())
+		}
+		results = hashList
+
 	case "getstorage":
 		getstorageCalled.Inc()
 		results, resultsErr = s.getStorage(reqParams)

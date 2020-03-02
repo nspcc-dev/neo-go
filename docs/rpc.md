@@ -48,7 +48,7 @@ which would yield the response:
 | `getnep5balances` | No (#498) |
 | `getnep5transfers` | No (#498) |
 | `getpeers` | Yes |
-| `getrawmempool` | No (#175) |
+| `getrawmempool` | Yes |
 | `getrawtransaction` | Yes |
 | `getstorage` | Yes |
 | `gettxout` | Yes |
