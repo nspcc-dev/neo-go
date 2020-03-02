@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -301,6 +302,10 @@ Methods:
 
 	case "invokescript":
 		results, resultsErr = s.invokescript(reqParams)
+
+	case "submitblock":
+		submitblockCalled.Inc()
+		results, resultsErr = s.submitBlock(reqParams)
 
 	case "sendrawtransaction":
 		sendrawtransactionCalled.Inc()
@@ -806,6 +811,34 @@ func (s *Server) runScriptInVM(script []byte) *result.Invoke {
 		Stack:       vm.Estack().ToContractParameters(),
 	}
 	return result
+}
+
+// submitBlock broadcasts a raw block over the NEO network.
+func (s *Server) submitBlock(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	blockBytes, err := param.GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	b := block.Block{}
+	r := io.NewBinReaderFromBuf(blockBytes)
+	b.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	err = s.chain.AddBlock(&b)
+	if err != nil {
+		switch err {
+		case core.ErrInvalidBlockIndex, core.ErrAlreadyExists:
+			return nil, response.ErrAlreadyExists
+		default:
+			return nil, response.ErrValidationFailed
+		}
+	}
+	return true, nil
 }
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, error) {
