@@ -14,13 +14,14 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/core/storage"
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
 	"github.com/CityOfZion/neo-go/pkg/vm"
 	"go.uber.org/zap"
 )
 
 type interopContext struct {
 	bc            Blockchainer
-	trigger       byte
+	trigger       trigger.Type
 	block         *block.Block
 	tx            *transaction.Transaction
 	dao           *cachedDao
@@ -28,7 +29,7 @@ type interopContext struct {
 	log           *zap.Logger
 }
 
-func newInteropContext(trigger byte, bc Blockchainer, s storage.Store, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
+func newInteropContext(trigger trigger.Type, bc Blockchainer, s storage.Store, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
 	dao := newCachedDao(s)
 	nes := make([]state.NotificationEvent, 0)
 	return &interopContext{bc, trigger, block, tx, dao, nes, log}

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm/opcode"
 )
@@ -167,6 +168,11 @@ func (c *Context) Value() interface{} {
 // Dup implements StackItem interface.
 func (c *Context) Dup() StackItem {
 	return c
+}
+
+// ToContractParameter implements StackItem interface.
+func (c *Context) ToContractParameter() smartcontract.Parameter {
+	panic("Not implemented")
 }
 
 func (c *Context) atBreakPoint() bool {

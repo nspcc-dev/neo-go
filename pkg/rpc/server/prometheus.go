@@ -4,6 +4,13 @@ import "github.com/prometheus/client_golang/prometheus"
 
 // Metrics used in monitoring service.
 var (
+	getapplicationlogCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getapplicationlog rpc endpoint",
+			Name:      "getapplicationlog_called",
+			Namespace: "neogo",
+		},
+	)
 	getbestblockhashCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getbestblockhash rpc endpoint",
@@ -143,6 +150,7 @@ var (
 
 func init() {
 	prometheus.MustRegister(
+		getapplicationlogCalled,
 		getbestblockhashCalled,
 		getbestblockCalled,
 		getblockcountCalled,

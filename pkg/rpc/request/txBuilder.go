@@ -148,31 +148,31 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			return err
 		}
 		switch fp.Type {
-		case ByteArray, Signature:
+		case smartcontract.ByteArrayType, smartcontract.SignatureType:
 			str, err := fp.Value.GetBytesHex()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, str)
-		case String:
+		case smartcontract.StringType:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
 			}
 			emit.String(script, str)
-		case Hash160:
+		case smartcontract.Hash160Type:
 			hash, err := fp.Value.GetUint160FromHex()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, hash.BytesBE())
-		case Hash256:
+		case smartcontract.Hash256Type:
 			hash, err := fp.Value.GetUint256()
 			if err != nil {
 				return err
 			}
 			emit.Bytes(script, hash.BytesBE())
-		case PublicKey:
+		case smartcontract.PublicKeyType:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err
@@ -182,13 +182,13 @@ func expandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 				return err
 			}
 			emit.Bytes(script, key.Bytes())
-		case Integer:
+		case smartcontract.IntegerType:
 			val, err := fp.Value.GetInt()
 			if err != nil {
 				return err
 			}
 			emit.Int(script, int64(val))
-		case Boolean:
+		case smartcontract.BoolType:
 			str, err := fp.Value.GetString()
 			if err != nil {
 				return err

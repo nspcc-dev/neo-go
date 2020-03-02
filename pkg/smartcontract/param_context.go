@@ -1,33 +1,16 @@
 package smartcontract
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"math/bits"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/encoding/address"
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/util"
-)
-
-// ParamType represents the Type of the contract parameter.
-type ParamType byte
-
-// A list of supported smart contract parameter types.
-const (
-	SignatureType ParamType = iota
-	BoolType
-	IntegerType
-	Hash160Type
-	Hash256Type
-	ByteArrayType
-	PublicKeyType
-	StringType
-	ArrayType
+	"github.com/pkg/errors"
 )
 
 // PropertyState represents contract properties (flags).
@@ -49,62 +32,6 @@ type Parameter struct {
 	Value interface{} `json:"value"`
 }
 
-func (pt ParamType) String() string {
-	switch pt {
-	case SignatureType:
-		return "Signature"
-	case BoolType:
-		return "Boolean"
-	case IntegerType:
-		return "Integer"
-	case Hash160Type:
-		return "Hash160"
-	case Hash256Type:
-		return "Hash256"
-	case ByteArrayType:
-		return "ByteArray"
-	case PublicKeyType:
-		return "PublicKey"
-	case StringType:
-		return "String"
-	case ArrayType:
-		return "Array"
-	default:
-		return ""
-	}
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (pt ParamType) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + pt.String() + `"`), nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler interface.
-func (pt *ParamType) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-
-	p, err := parseParamType(s)
-	if err != nil {
-		return err
-	}
-
-	*pt = p
-	return nil
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (pt ParamType) EncodeBinary(w *io.BinWriter) {
-	w.WriteB(byte(pt))
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (pt *ParamType) DecodeBinary(r *io.BinReader) {
-	*pt = ParamType(r.ReadB())
-}
-
 // NewParameter returns a Parameter with proper initialized Value
 // of the given ParamType.
 func NewParameter(t ParamType) Parameter {
@@ -114,149 +41,278 @@ func NewParameter(t ParamType) Parameter {
 	}
 }
 
-// parseParamType is a user-friendly string to ParamType converter, it's
-// case-insensitive and makes the following conversions:
-//     signature -> SignatureType
-//     bool -> BoolType
-//     int -> IntegerType
-//     hash160 -> Hash160Type
-//     hash256 -> Hash256Type
-//     bytes -> ByteArrayType
-//     key -> PublicKeyType
-//     string -> StringType
-// anything else generates an error.
-func parseParamType(typ string) (ParamType, error) {
-	switch strings.ToLower(typ) {
-	case "signature":
-		return SignatureType, nil
-	case "bool":
-		return BoolType, nil
-	case "int":
-		return IntegerType, nil
-	case "hash160":
-		return Hash160Type, nil
-	case "hash256":
-		return Hash256Type, nil
-	case "bytes", "bytearray":
-		return ByteArrayType, nil
-	case "key":
-		return PublicKeyType, nil
-	case "string":
-		return StringType, nil
-	default:
-		// We deliberately don't support array here.
-		return 0, errors.New("wrong or unsupported parameter type")
-	}
+type rawParameter struct {
+	Type  ParamType       `json:"type"`
+	Value json.RawMessage `json:"value"`
 }
 
-// adjustValToType is a value type-checker and converter.
-func adjustValToType(typ ParamType, val string) (interface{}, error) {
-	switch typ {
-	case SignatureType:
-		b, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
+type keyValuePair struct {
+	Key   rawParameter `json:"key"`
+	Value rawParameter `json:"value"`
+}
+
+type rawKeyValuePair struct {
+	Key   json.RawMessage `json:"key"`
+	Value json.RawMessage `json:"value"`
+}
+
+// MarshalJSON implements Marshaler interface.
+func (p *Parameter) MarshalJSON() ([]byte, error) {
+	var (
+		resultRawValue json.RawMessage
+		resultErr            error
+	)
+	switch p.Type {
+	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:
+		resultRawValue, resultErr = json.Marshal(p.Value)
+	case PublicKeyType, ByteArrayType, SignatureType:
+		resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+	case ArrayType:
+		var value = make([]rawParameter, 0)
+		for _, parameter := range p.Value.([]Parameter) {
+			rawValue, err := json.Marshal(parameter.Value)
+			if err != nil {
+				return nil, err
+			}
+			value = append(value, rawParameter{
+				Type:  parameter.Type,
+				Value: rawValue,
+			})
 		}
-		if len(b) != 64 {
-			return nil, errors.New("not a signature")
+		resultRawValue, resultErr = json.Marshal(value)
+	case MapType:
+		var value []keyValuePair
+		for key, val := range p.Value.(map[Parameter]Parameter) {
+			rawKey, err := json.Marshal(key.Value)
+			if err != nil {
+				return nil, err
+			}
+			rawValue, err := json.Marshal(val.Value)
+			if err != nil {
+				return nil, err
+			}
+			value = append(value, keyValuePair{
+				Key: rawParameter{
+					Type:  key.Type,
+					Value: rawKey,
+				},
+				Value: rawParameter{
+					Type:  val.Type,
+					Value: rawValue,
+				},
+			})
 		}
-		return val, nil
+		resultRawValue, resultErr = json.Marshal(value)
+	default:
+		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
+	}
+	if resultErr != nil {
+		return nil, resultErr
+	}
+	return json.Marshal(rawParameter{
+		Type:  p.Type,
+		Value: resultRawValue,
+	})
+}
+
+// UnmarshalJSON implements Unmarshaler interface.
+func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
+	var (
+		r       rawParameter
+		i       int64
+		s       string
+		b       []byte
+		boolean bool
+	)
+	if err = json.Unmarshal(data, &r); err != nil {
+		return
+	}
+	switch p.Type = r.Type; r.Type {
 	case BoolType:
-		switch val {
-		case "true":
-			return true, nil
-		case "false":
-			return false, nil
-		default:
-			return nil, errors.New("invalid boolean value")
+		if err = json.Unmarshal(r.Value, &boolean); err != nil {
+			return
 		}
-	case IntegerType:
-		return strconv.Atoi(val)
-	case Hash160Type:
-		u, err := address.StringToUint160(val)
-		if err == nil {
-			return hex.EncodeToString(u.BytesBE()), nil
+		p.Value = boolean
+	case ByteArrayType, PublicKeyType:
+		if err = json.Unmarshal(r.Value, &s); err != nil {
+			return
 		}
-		b, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
+		if b, err = hex.DecodeString(s); err != nil {
+			return
 		}
-		if len(b) != 20 {
-			return nil, errors.New("not a hash160")
-		}
-		return val, nil
-	case Hash256Type:
-		b, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
-		}
-		if len(b) != 32 {
-			return nil, errors.New("not a hash256")
-		}
-		return val, nil
-	case ByteArrayType:
-		_, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
-		}
-		return val, nil
-	case PublicKeyType:
-		_, err := keys.NewPublicKeyFromString(val)
-		if err != nil {
-			return nil, err
-		}
-		return val, nil
+		p.Value = b
 	case StringType:
-		return val, nil
+		if err = json.Unmarshal(r.Value, &s); err != nil {
+			return
+		}
+		p.Value = s
+	case IntegerType:
+		if err = json.Unmarshal(r.Value, &i); err == nil {
+			p.Value = i
+			return
+		}
+		// sometimes integer comes as string
+		if err = json.Unmarshal(r.Value, &s); err != nil {
+			return
+		}
+		if i, err = strconv.ParseInt(s, 10, 64); err != nil {
+			return
+		}
+		p.Value = i
+	case ArrayType:
+		// https://github.com/neo-project/neo/blob/3d59ecca5a8deb057bdad94b3028a6d5e25ac088/neo/Network/RPC/RpcServer.cs#L67
+		var rs []Parameter
+		if err = json.Unmarshal(r.Value, &rs); err != nil {
+			return
+		}
+		p.Value = rs
+	case MapType:
+		var rawMap []rawKeyValuePair
+		if err = json.Unmarshal(r.Value, &rawMap); err != nil {
+			return
+		}
+		rs := make(map[Parameter]Parameter)
+		for _, p := range rawMap {
+			var key, value Parameter
+			if err = json.Unmarshal(p.Key, &key); err != nil {
+				return
+			}
+			if err = json.Unmarshal(p.Value, &value); err != nil {
+				return
+			}
+			rs[key] = value
+		}
+		p.Value = rs
+	case Hash160Type:
+		var h util.Uint160
+		if err = json.Unmarshal(r.Value, &h); err != nil {
+			return
+		}
+		p.Value = h
+	case Hash256Type:
+		var h util.Uint256
+		if err = json.Unmarshal(r.Value, &h); err != nil {
+			return
+		}
+		p.Value = h
 	default:
-		return nil, errors.New("unsupported parameter type")
+		return errors.Errorf("Unmarshaller for type %s not implemented", p.Type)
 	}
+	return
 }
 
-// inferParamType tries to infer the value type from its contents. It returns
-// IntegerType for anything that looks like decimal integer (can be converted
-// with strconv.Atoi), BoolType for true and false values, Hash160Type for
-// addresses and hex strings encoding 20 bytes long values, PublicKeyType for
-// valid hex-encoded public keys, Hash256Type for hex-encoded 32 bytes values,
-// SignatureType for hex-encoded 64 bytes values, ByteArrayType for any other
-// valid hex-encoded values and StringType for anything else.
-func inferParamType(val string) ParamType {
-	var err error
+// Params is an array of Parameter (TODO: drop it?).
+type Params []Parameter
 
-	_, err = strconv.Atoi(val)
-	if err == nil {
-		return IntegerType
+// TryParseArray converts an array of Parameter into an array of more appropriate things.
+func (p Params) TryParseArray(vals ...interface{}) error {
+	var (
+		err error
+		i   int
+		par Parameter
+	)
+	if len(p) != len(vals) {
+		return errors.New("receiver array doesn't fit the Params length")
 	}
-
-	if val == "true" || val == "false" {
-		return BoolType
-	}
-
-	_, err = address.StringToUint160(val)
-	if err == nil {
-		return Hash160Type
-	}
-
-	_, err = keys.NewPublicKeyFromString(val)
-	if err == nil {
-		return PublicKeyType
-	}
-
-	unhexed, err := hex.DecodeString(val)
-	if err == nil {
-		switch len(unhexed) {
-		case 20:
-			return Hash160Type
-		case 32:
-			return Hash256Type
-		case 64:
-			return SignatureType
-		default:
-			return ByteArrayType
+	for i, par = range p {
+		if err = par.TryParse(vals[i]); err != nil {
+			return err
 		}
 	}
-	// Anything can be a string.
-	return StringType
+	return nil
+}
+
+// TryParse converts one Parameter into something more appropriate.
+func (p Parameter) TryParse(dest interface{}) error {
+	var (
+		err  error
+		ok   bool
+		data []byte
+	)
+	switch p.Type {
+	case ByteArrayType:
+		if data, ok = p.Value.([]byte); !ok {
+			return errors.Errorf("failed to cast %s to []byte", p.Value)
+		}
+		switch dest := dest.(type) {
+		case *util.Uint160:
+			if *dest, err = util.Uint160DecodeBytesBE(data); err != nil {
+				return err
+			}
+			return nil
+		case *[]byte:
+			*dest = data
+			return nil
+		case *util.Uint256:
+			if *dest, err = util.Uint256DecodeBytesLE(data); err != nil {
+				return err
+			}
+			return nil
+		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
+			var size int
+			switch dest.(type) {
+			case *int64, *uint64:
+				size = 64
+			case *int32, *uint32:
+				size = 32
+			case *int16, *uint16:
+				size = 16
+			case *int8, *uint8:
+				size = 8
+			case *int, *uint:
+				size = bits.UintSize
+			}
+
+			i, err := bytesToUint64(data, size)
+			if err != nil {
+				return err
+			}
+
+			switch dest := dest.(type) {
+			case *int64:
+				*dest = int64(i)
+			case *int32:
+				*dest = int32(i)
+			case *int16:
+				*dest = int16(i)
+			case *int8:
+				*dest = int8(i)
+			case *int:
+				*dest = int(i)
+			case *uint64:
+				*dest = i
+			case *uint32:
+				*dest = uint32(i)
+			case *uint16:
+				*dest = uint16(i)
+			case *uint8:
+				*dest = uint8(i)
+			case *uint:
+				*dest = uint(i)
+			}
+		case *string:
+			*dest = string(data)
+			return nil
+		default:
+			return errors.Errorf("cannot cast param of type %s to type %s", p.Type, dest)
+		}
+	default:
+		return errors.New("cannot define param type")
+	}
+	return nil
+}
+
+func bytesToUint64(b []byte, size int) (uint64, error) {
+	var length = size / 8
+	if len(b) > length {
+		return 0, errors.Errorf("input doesn't fit into %d bits", size)
+	}
+	if len(b) < length {
+		data := make([]byte, length)
+		copy(data, b)
+		return binary.LittleEndian.Uint64(data), nil
+	}
+	return binary.LittleEndian.Uint64(b), nil
 }
 
 // NewParameterFromString returns a new Parameter initialized from the given
@@ -282,9 +338,13 @@ func NewParameterFromString(in string) (*Parameter, error) {
 		}
 		if char == ':' && !escaped && !hadType {
 			typStr := buf.String()
-			res.Type, err = parseParamType(typStr)
+			res.Type, err = ParseParamType(typStr)
 			if err != nil {
 				return nil, err
+			}
+			// We currently do not support following types:
+			if res.Type == ArrayType || res.Type == MapType || res.Type == InteropInterfaceType || res.Type == VoidType {
+				return nil, errors.Errorf("Unsupported contract parameter type: %s", res.Type)
 			}
 			buf.Reset()
 			hadType = true
@@ -310,19 +370,3 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	}
 	return res, nil
 }
-
-// ContextItem represents a transaction context item.
-type ContextItem struct {
-	Script     util.Uint160
-	Parameters []Parameter
-	Signatures []Signature
-}
-
-// Signature represents a transaction signature.
-type Signature struct {
-	Data      []byte
-	PublicKey []byte
-}
-
-// ParameterContext holds the parameter context.
-type ParameterContext struct{}

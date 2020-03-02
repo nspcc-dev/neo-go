@@ -296,10 +296,10 @@ func initSmartContract(ctx *cli.Context) error {
 	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
 	if !ctx.Bool("skip-details") {
 		details := parseContractDetails()
-		details.ReturnType = request.ByteArray
-		details.Parameters = make([]request.StackParamType, 2)
-		details.Parameters[0] = request.String
-		details.Parameters[1] = request.Array
+		details.ReturnType = smartcontract.ByteArrayType
+		details.Parameters = make([]smartcontract.ParamType, 2)
+		details.Parameters[0] = smartcontract.StringType
+		details.Parameters[1] = smartcontract.ArrayType
 
 		project := &ProjectConfig{Contract: details}
 		b, err := yaml.Marshal(project)

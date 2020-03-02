@@ -36,7 +36,7 @@ which would yield the response:
 | Method  | Implemented |
 | ------- | ------------|
 | `getaccountstate` | Yes |
-| `getapplicationlog` | No (#500) |
+| `getapplicationlog` | Yes |
 | `getassetstate` | Yes |
 | `getbestblockhash` | Yes |
 | `getblock` | Yes |
