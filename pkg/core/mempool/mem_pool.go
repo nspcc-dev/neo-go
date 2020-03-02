@@ -260,9 +260,9 @@ func (mp *Pool) Remove(hash util.Uint256) {
 // drop part of the mempool that is now invalid after the block acceptance.
 func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool) {
 	mp.lock.Lock()
-	// We expect a lot of changes, so it's easier to allocate a new slice
-	// rather than move things in an old one.
-	newVerifiedTxes := make([]*item, 0, mp.capacity)
+	// We can reuse already allocated slice
+	// because items are iterated one-by-one in increasing order.
+	newVerifiedTxes := mp.verifiedTxes[:0]
 	newInputs := mp.inputs[:0]
 	newClaims := mp.claims[:0]
 	for _, itm := range mp.verifiedTxes {
