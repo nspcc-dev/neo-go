@@ -30,7 +30,7 @@ func TestAddHeaders(t *testing.T) {
 	assert.Equal(t, h3.Hash(), bc.CurrentHeaderHash())
 
 	// Add them again, they should not be added.
-	require.Error(t, bc.AddHeaders(h3, h2, h1))
+	require.NoError(t, bc.AddHeaders(h3, h2, h1))
 
 	assert.Equal(t, h3.Index, bc.HeaderHeight())
 	assert.Equal(t, uint32(0), bc.BlockHeight())
