@@ -474,9 +474,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "String", "value": "qwerty"}]]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
-				res, ok := inv.(*InvokeFunctionResult)
+				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "06717765727479676f459162ceeb248b071ec157d9e4f6fd26fdbe50", res.Script)
 				assert.NotEqual(t, "", res.State)
@@ -513,9 +513,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
-				res, ok := inv.(*InvokeFunctionResult)
+				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotEqual(t, "", res.Script)
 				assert.NotEqual(t, "", res.State)
@@ -547,9 +547,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["51c56b0d48656c6c6f2c20776f726c6421680f4e656f2e52756e74696d652e4c6f67616c7566"]`,
-			result: func(e *executor) interface{} { return &InvokeFunctionResult{} },
+			result: func(e *executor) interface{} { return &result.Invoke{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
-				res, ok := inv.(*InvokeFunctionResult)
+				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotEqual(t, "", res.Script)
 				assert.NotEqual(t, "", res.State)

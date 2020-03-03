@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/vm/emit"
 )
 
@@ -469,7 +470,18 @@ func (s *Stack) popSigElements() ([][]byte, error) {
 	return elems, nil
 }
 
+// ToContractParameters converts Stack to slice of smartcontract.Parameter.
+func (s *Stack) ToContractParameters() []smartcontract.Parameter {
+	items := make([]smartcontract.Parameter, 0, s.Len())
+	s.IterBack(func(e *Element) {
+		// Each item is independent.
+		seen := make(map[StackItem]bool)
+		items = append(items, e.value.ToContractParameter(seen))
+	})
+	return items
+}
+
 // MarshalJSON implements JSON marshalling interface.
 func (s *Stack) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stackToArray(s))
+	return json.Marshal(s.ToContractParameters())
 }

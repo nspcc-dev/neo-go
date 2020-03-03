@@ -16,7 +16,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc/client"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
-	"github.com/CityOfZion/neo-go/pkg/rpc/response"
+	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/CityOfZion/neo-go/pkg/vm"
@@ -364,7 +364,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		operation   string
 		params      = make([]smartcontract.Parameter, 0)
 		paramsStart = 1
-		resp        *response.InvokeResult
+		resp        *result.Invoke
 		wif         *keys.WIF
 	)
 

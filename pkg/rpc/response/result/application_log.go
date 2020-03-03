@@ -6,6 +6,7 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/state"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/CityOfZion/neo-go/pkg/vm"
 )
 
 // ApplicationLog wrapper used for the representation of the
@@ -35,7 +36,8 @@ type NotificationEvent struct {
 func NewApplicationLog(appExecRes *state.AppExecResult, scriptHash util.Uint160) ApplicationLog {
 	events := make([]NotificationEvent, 0, len(appExecRes.Events))
 	for _, e := range appExecRes.Events {
-		item := e.Item.ToContractParameter()
+		seen := make(map[vm.StackItem]bool)
+		item := e.Item.ToContractParameter(seen)
 		events = append(events, NotificationEvent{
 			Contract: e.ScriptHash,
 			Item:     item,

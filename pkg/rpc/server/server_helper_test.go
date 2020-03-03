@@ -12,20 +12,10 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/CityOfZion/neo-go/pkg/network"
-	"github.com/CityOfZion/neo-go/pkg/rpc/request"
 	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
-
-// InvokeFunctionResult struct for testing.
-type InvokeFunctionResult struct {
-	Script      string              `json:"script"`
-	State       string              `json:"state"`
-	GasConsumed string              `json:"gas_consumed"`
-	Stack       []request.FuncParam `json:"stack"`
-	TX          string              `json:"tx,omitempty"`
-}
 
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFunc) {
 	var nBlocks uint32

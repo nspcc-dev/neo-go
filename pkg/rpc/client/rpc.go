@@ -7,7 +7,6 @@ import (
 	"github.com/CityOfZion/neo-go/pkg/core/transaction"
 	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
 	"github.com/CityOfZion/neo-go/pkg/rpc/request"
-	"github.com/CityOfZion/neo-go/pkg/rpc/response"
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
 	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 	"github.com/CityOfZion/neo-go/pkg/util"
@@ -68,10 +67,10 @@ func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script string) (*response.InvokeResult, error) {
+func (c *Client) InvokeScript(script string) (*result.Invoke, error) {
 	var (
 		params = request.NewRawParams(script)
-		resp   = &response.InvokeResult{}
+		resp   = &result.Invoke{}
 	)
 	if err := c.performRequest("invokescript", params, resp); err != nil {
 		return nil, err
@@ -82,10 +81,10 @@ func (c *Client) InvokeScript(script string) (*response.InvokeResult, error) {
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*response.InvokeResult, error) {
+func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*result.Invoke, error) {
 	var (
 		p    = request.NewRawParams(script, operation, params)
-		resp = &response.InvokeResult{}
+		resp = &result.Invoke{}
 	)
 	if err := c.performRequest("invokefunction", p, resp); err != nil {
 		return nil, err
@@ -95,10 +94,10 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 
 // Invoke returns the results after calling the smart contract scripthash
 // with the given parameters.
-func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*response.InvokeResult, error) {
+func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*result.Invoke, error) {
 	var (
 		p    = request.NewRawParams(script, params)
-		resp = &response.InvokeResult{}
+		resp = &result.Invoke{}
 	)
 	if err := c.performRequest("invoke", p, resp); err != nil {
 		return nil, err
