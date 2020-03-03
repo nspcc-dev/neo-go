@@ -3,7 +3,7 @@ package payload
 import (
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // Size of the payload not counting UserAgent encoding (which is at least 1 byte

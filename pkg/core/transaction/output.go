@@ -3,9 +3,9 @@ package transaction
 import (
 	"encoding/json"
 
-	"github.com/CityOfZion/neo-go/pkg/encoding/address"
-	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // Output represents a Transaction output.

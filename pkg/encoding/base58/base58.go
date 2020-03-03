@@ -3,8 +3,8 @@ package base58
 import (
 	"bytes"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/pkg/errors"
 )
 

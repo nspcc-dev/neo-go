@@ -1,8 +1,8 @@
 package transaction
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 )
 
 // PublishTX represents a publish transaction.

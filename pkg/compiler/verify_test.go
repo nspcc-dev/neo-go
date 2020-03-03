@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +43,7 @@ func getVerifyProg(pub, sig, msg []byte) string {
 	return `
 		package hello
 
-		import "github.com/CityOfZion/neo-go/pkg/interop/crypto"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/crypto"
 
 		func Main() bool {
 			pub := ` + pubS + `

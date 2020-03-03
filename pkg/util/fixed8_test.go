@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/go-yaml/yaml"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

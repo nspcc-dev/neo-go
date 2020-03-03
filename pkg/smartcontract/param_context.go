@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -60,7 +60,7 @@ type rawKeyValuePair struct {
 func (p *Parameter) MarshalJSON() ([]byte, error) {
 	var (
 		resultRawValue json.RawMessage
-		resultErr            error
+		resultErr      error
 	)
 	switch p.Type {
 	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:

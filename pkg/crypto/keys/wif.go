@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/encoding/base58"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 )
 
 const (

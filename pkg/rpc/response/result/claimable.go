@@ -1,6 +1,6 @@
 package result
 
-import "github.com/CityOfZion/neo-go/pkg/util"
+import "github.com/nspcc-dev/neo-go/pkg/util"
 
 // ClaimableInfo is a result of a getclaimable RPC call.
 type ClaimableInfo struct {

@@ -146,8 +146,8 @@ Some examples are provided in the [examples directory](https://github.com/nspcc-
 package mycontract
 
 import (
-    "github.com/CityOfZion/neo-go/pkg/interop/runtime"
-    "github.com/CityOfZion/neo-go/pkg/interop/util"
+    "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+    "github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg") 
@@ -170,8 +170,8 @@ func Main() bool {
 package mytoken
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
-	"github.com/CityOfZion/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
 var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg") 

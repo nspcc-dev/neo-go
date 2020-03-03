@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // relayCache is a payload cache which is used to store

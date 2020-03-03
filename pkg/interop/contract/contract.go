@@ -1,6 +1,6 @@
 package contract
 
-import "github.com/CityOfZion/neo-go/pkg/interop/storage"
+import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 
 // Package contract provides function signatures that can be used inside
 // smart contracts that are written in the neo-go framework.

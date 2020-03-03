@@ -117,7 +117,7 @@ You can invoke smart contracts with arguments. Take the following ***roll the di
 ```
 package rollthedice
 
-import "github.com/CityOfZion/neo-go/pkg/interop/runtime"
+import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
 func Main(method string, args []interface{}) int {
     if method == "rollDice" {

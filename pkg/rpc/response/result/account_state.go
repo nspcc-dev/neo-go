@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core/state"
-	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // AccountState wrapper used for the representation of

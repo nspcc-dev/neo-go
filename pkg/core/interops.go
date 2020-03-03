@@ -10,12 +10,12 @@ package core
 import (
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/core/block"
-	"github.com/CityOfZion/neo-go/pkg/core/state"
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
 )
 

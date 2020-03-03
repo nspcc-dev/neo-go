@@ -3,7 +3,7 @@ package response
 import (
 	"encoding/json"
 
-	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 )
 
 // Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).

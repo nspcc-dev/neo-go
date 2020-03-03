@@ -1,7 +1,7 @@
 package storagecontract
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
 // Main is a very useful function.

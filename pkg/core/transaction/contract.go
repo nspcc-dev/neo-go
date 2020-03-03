@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // ContractTX represents a contract transaction.

@@ -1,8 +1,8 @@
 package transaction
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // InvocationTX represents a invocation transaction and is used to

@@ -28,7 +28,7 @@ commands:
 
 jobs:
   lint:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_13
     steps:
       - checkout
@@ -40,7 +40,7 @@ jobs:
             golint -set_exit_status ./...
 
   vet:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_13
     steps:
       - checkout
@@ -50,7 +50,7 @@ jobs:
           command: go vet ./...
 
   test_1_12:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_12
     steps:
       - checkout
@@ -60,7 +60,7 @@ jobs:
       - run: go test -v -race ./...
 
   test_1_13:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_13
     steps:
       - checkout
@@ -72,7 +72,7 @@ jobs:
           file: coverage.txt
 
   build_cli:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_12
     steps:
       - checkout
@@ -83,7 +83,7 @@ jobs:
           destination: /
 
   build_image:
-    working_directory: /go/src/github.com/CityOfZion/neo-go
+    working_directory: /go/src/github.com/nspcc-dev/neo-go
     executor: go1_12
     docker:
       - image: golang:1-alpine

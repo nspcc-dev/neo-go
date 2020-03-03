@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/state"
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,6 +1,6 @@
 package block
 
-import "github.com/CityOfZion/neo-go/pkg/interop/transaction"
+import "github.com/nspcc-dev/neo-go/pkg/interop/transaction"
 
 // Package block provides function signatures that can be used inside
 // smart contracts that are written in the neo-go framework.

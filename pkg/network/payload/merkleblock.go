@@ -1,9 +1,9 @@
 package payload
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/core/block"
-	"github.com/CityOfZion/neo-go/pkg/io"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // MerkleBlock represents a merkle block packet payload.

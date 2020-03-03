@@ -5,9 +5,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract/trigger"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 

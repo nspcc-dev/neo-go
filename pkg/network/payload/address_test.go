@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/network/metrics"
-	"github.com/CityOfZion/neo-go/pkg/util"
 	"github.com/go-yaml/yaml"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
 

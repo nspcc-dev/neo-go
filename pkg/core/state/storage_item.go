@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // StorageItem is the value to be stored with read-only flag.
