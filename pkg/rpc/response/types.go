@@ -4,18 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
-	"github.com/CityOfZion/neo-go/pkg/vm"
 )
-
-// InvokeResult represents the outcome of a script that is
-// executed by the NEO VM.
-type InvokeResult struct {
-	State       vm.State `json:"state"`
-	GasConsumed string   `json:"gas_consumed"`
-	Script      string   `json:"script"`
-	Stack       []smartcontract.Parameter
-}
 
 // Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
 type Header struct {

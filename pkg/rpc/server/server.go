@@ -624,7 +624,7 @@ func (s *Server) runScriptInVM(script []byte) *result.Invoke {
 		State:       vm.State(),
 		GasConsumed: vm.GasConsumed().String(),
 		Script:      hex.EncodeToString(script),
-		Stack:       vm.Estack(),
+		Stack:       vm.Estack().ToContractParameters(),
 	}
 	return result
 }
