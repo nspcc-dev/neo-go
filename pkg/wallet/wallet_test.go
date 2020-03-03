@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

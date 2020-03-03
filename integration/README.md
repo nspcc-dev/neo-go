@@ -13,7 +13,7 @@ Result:
 ```
 10000            402421 ns/op          177370 B/op         90 allocs/op
 PASS
-ok      github.com/CityOfZion/neo-go/integration        4.360s
+ok      github.com/nspcc-dev/neo-go/integration        4.360s
 
 ```
 

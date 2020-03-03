@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
 	"github.com/etcd-io/bbolt"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 

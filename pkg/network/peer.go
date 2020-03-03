@@ -3,7 +3,7 @@ package network
 import (
 	"net"
 
-	"github.com/CityOfZion/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
 // Peer represents a network node neo-go is connected to.

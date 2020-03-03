@@ -1,9 +1,9 @@
 package iteratorcontract
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/interop/iterator"
-	"github.com/CityOfZion/neo-go/pkg/interop/runtime"
-	"github.com/CityOfZion/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
 // Main is Main(), really.

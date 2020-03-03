@@ -1,12 +1,12 @@
 package blockchain
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/interop/account"
-	"github.com/CityOfZion/neo-go/pkg/interop/asset"
-	"github.com/CityOfZion/neo-go/pkg/interop/block"
-	"github.com/CityOfZion/neo-go/pkg/interop/contract"
-	"github.com/CityOfZion/neo-go/pkg/interop/header"
-	"github.com/CityOfZion/neo-go/pkg/interop/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/interop/account"
+	"github.com/nspcc-dev/neo-go/pkg/interop/asset"
+	"github.com/nspcc-dev/neo-go/pkg/interop/block"
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/header"
+	"github.com/nspcc-dev/neo-go/pkg/interop/transaction"
 )
 
 // Package blockchain provides function signatures that can be used inside

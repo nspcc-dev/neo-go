@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/stretchr/testify/require"
 )
 

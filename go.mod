@@ -1,4 +1,4 @@
-module github.com/CityOfZion/neo-go
+module github.com/nspcc-dev/neo-go
 
 require (
 	github.com/Workiva/go-datastructures v1.0.50

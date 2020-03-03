@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 

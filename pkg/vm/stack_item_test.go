@@ -3,9 +3,8 @@ package vm
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
 )
 
 var toContractParameterTestCases = []struct {

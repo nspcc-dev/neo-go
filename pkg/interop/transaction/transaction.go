@@ -1,9 +1,9 @@
 package transaction
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/interop/attribute"
-	"github.com/CityOfZion/neo-go/pkg/interop/input"
-	"github.com/CityOfZion/neo-go/pkg/interop/output"
+	"github.com/nspcc-dev/neo-go/pkg/interop/attribute"
+	"github.com/nspcc-dev/neo-go/pkg/interop/input"
+	"github.com/nspcc-dev/neo-go/pkg/interop/output"
 )
 
 // Package transaction provides function signatures that can be used inside

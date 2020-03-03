@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/CityOfZion/neo-go/pkg/interop/iterator"
+import "github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 
 // Package storage provides function signatures that can be used inside
 // smart contracts that are written in the neo-go framework.

@@ -3,11 +3,11 @@ package main
 import (
 	"os"
 
-	"github.com/CityOfZion/neo-go/cli/server"
-	"github.com/CityOfZion/neo-go/cli/smartcontract"
-	"github.com/CityOfZion/neo-go/cli/vm"
-	"github.com/CityOfZion/neo-go/cli/wallet"
-	"github.com/CityOfZion/neo-go/config"
+	"github.com/nspcc-dev/neo-go/cli/server"
+	"github.com/nspcc-dev/neo-go/cli/smartcontract"
+	"github.com/nspcc-dev/neo-go/cli/vm"
+	"github.com/nspcc-dev/neo-go/cli/wallet"
+	"github.com/nspcc-dev/neo-go/config"
 	"github.com/urfave/cli"
 )
 

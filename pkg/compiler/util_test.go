@@ -8,7 +8,7 @@ func TestSHA256(t *testing.T) {
 	src := `
 		package foo
 		 import (
-			"github.com/CityOfZion/neo-go/pkg/interop/crypto"
+			"github.com/nspcc-dev/neo-go/pkg/interop/crypto"
 		 )
 		func Main() []byte {
 			src := []byte{0x97}
@@ -23,7 +23,7 @@ func TestSHA1(t *testing.T) {
 	src := `
 		package foo
 		 import (
-			"github.com/CityOfZion/neo-go/pkg/interop/crypto"
+			"github.com/nspcc-dev/neo-go/pkg/interop/crypto"
 		 )
 		func Main() []byte {
 			src := []byte{0x97}
@@ -38,7 +38,7 @@ func TestHash160(t *testing.T) {
 	src := `
 		package foo
 		 import (
-			"github.com/CityOfZion/neo-go/pkg/interop/crypto"
+			"github.com/nspcc-dev/neo-go/pkg/interop/crypto"
 		 )
 		func Main() []byte {
 			src := []byte{0x97}
@@ -53,7 +53,7 @@ func TestHash256(t *testing.T) {
 	src := `
 		package foo
 		 import (
-			"github.com/CityOfZion/neo-go/pkg/interop/crypto"
+			"github.com/nspcc-dev/neo-go/pkg/interop/crypto"
 		 )
 		func Main() []byte {
 			src := []byte{0x97}

@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // String returns a random string with the n as its length.

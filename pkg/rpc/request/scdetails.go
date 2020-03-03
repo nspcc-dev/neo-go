@@ -1,6 +1,6 @@
 package request
 
-import "github.com/CityOfZion/neo-go/pkg/smartcontract"
+import "github.com/nspcc-dev/neo-go/pkg/smartcontract"
 
 // ContractDetails contains contract metadata.
 type ContractDetails struct {

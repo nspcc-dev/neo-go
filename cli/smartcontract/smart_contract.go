@@ -11,16 +11,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/CityOfZion/neo-go/pkg/compiler"
-	"github.com/CityOfZion/neo-go/pkg/crypto/hash"
-	"github.com/CityOfZion/neo-go/pkg/crypto/keys"
-	"github.com/CityOfZion/neo-go/pkg/rpc/client"
-	"github.com/CityOfZion/neo-go/pkg/rpc/request"
-	"github.com/CityOfZion/neo-go/pkg/rpc/response/result"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
-	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
 	"github.com/go-yaml/yaml"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -53,7 +53,7 @@ const (
 	// %s is parsed to be the smartContractName
 	smartContractTmpl = `package %s
 
-import "github.com/CityOfZion/neo-go/pkg/interop/runtime"
+import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
 func Main(op string, args []interface{}) {
     runtime.Notify("Hello world!")

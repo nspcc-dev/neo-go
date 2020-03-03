@@ -3,7 +3,7 @@ package block
 import (
 	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // Header holds the head info of a block.

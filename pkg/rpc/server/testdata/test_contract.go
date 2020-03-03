@@ -1,6 +1,6 @@
 package testdata
 
-import "github.com/CityOfZion/neo-go/pkg/interop/storage"
+import "github.com/nspcc-dev/neo-go/pkg/interop/storage"
 
 func Main(operation string, args []interface{}) interface{} {
 	ctx := storage.GetContext()

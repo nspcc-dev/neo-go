@@ -1,7 +1,7 @@
 package result
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 )
 
 // Invoke represents code invocation result and is used by several RPC calls
