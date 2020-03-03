@@ -3,6 +3,7 @@ package vm
 import (
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -301,7 +302,8 @@ func (v *VM) Stack(n string) string {
 	if n == "estack" {
 		s = v.estack
 	}
-	return buildStackOutput(s)
+	b, _ := json.MarshalIndent(s.ToContractParameters(), "", "    ")
+	return string(b)
 }
 
 // State returns string representation of the state for the VM.
