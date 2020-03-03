@@ -26,7 +26,7 @@ type (
 	// invokefunction RPC method.
 	FuncParam struct {
 		Type  smartcontract.ParamType `json:"type"`
-		Value Param                       `json:"value"`
+		Value Param                   `json:"value"`
 	}
 )
 

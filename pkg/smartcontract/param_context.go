@@ -60,7 +60,7 @@ type rawKeyValuePair struct {
 func (p *Parameter) MarshalJSON() ([]byte, error) {
 	var (
 		resultRawValue json.RawMessage
-		resultErr            error
+		resultErr      error
 	)
 	switch p.Type {
 	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:

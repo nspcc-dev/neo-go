@@ -446,7 +446,7 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 			pk := s.dbft.Pub.(*publicKey)
 			sh = pk.GetScriptHash()
 		}
-		txOuts = []transaction.Output{transaction.Output{
+		txOuts = []transaction.Output{{
 			AssetID:    core.UtilityTokenID(),
 			Amount:     netFee,
 			ScriptHash: sh,
