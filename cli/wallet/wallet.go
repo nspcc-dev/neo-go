@@ -416,7 +416,6 @@ func transferAsset(ctx *cli.Context) error {
 	}
 
 	tx := transaction.NewContractTX()
-	tx.Data = new(transaction.ContractTX)
 	if err := request.AddInputsAndUnspentsToTx(tx, from, asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
 	}
