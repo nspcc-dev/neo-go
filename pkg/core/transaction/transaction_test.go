@@ -185,6 +185,10 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		ScriptHash: util.Uint160{7, 8, 9, 10},
 		Position:   13,
 	}}
+	tx.Scripts = []Witness{{
+		InvocationScript:   []byte{5, 3, 1},
+		VerificationScript: []byte{2, 4, 6},
+	}}
 	data, err := json.Marshal(tx)
 	require.NoError(t, err)
 

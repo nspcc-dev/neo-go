@@ -28,13 +28,27 @@ func (w *Witness) EncodeBinary(bw *io.BinWriter) {
 }
 
 // MarshalJSON implements the json marshaller interface.
-func (w *Witness) MarshalJSON() ([]byte, error) {
+func (w Witness) MarshalJSON() ([]byte, error) {
 	data := map[string]string{
 		"invocation":   hex.EncodeToString(w.InvocationScript),
 		"verification": hex.EncodeToString(w.VerificationScript),
 	}
 
 	return json.Marshal(data)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (w *Witness) UnmarshalJSON(data []byte) error {
+	m := map[string]string{}
+	err := json.Unmarshal(data, &m)
+	if err != nil {
+		return err
+	}
+	if w.InvocationScript, err = hex.DecodeString(m["invocation"]); err != nil {
+		return err
+	}
+	w.VerificationScript, err = hex.DecodeString(m["verification"])
+	return err
 }
 
 // ScriptHash returns the hash of the VerificationScript.
