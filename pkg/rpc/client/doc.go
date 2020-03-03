@@ -19,6 +19,7 @@ TODO:
 Supported methods
 
 	getaccountstate
+	getblock
 	getclaimable
 	getunspents
 	invoke
@@ -34,7 +35,6 @@ Unsupported methods
 	getassetstate
 	getbalance
 	getbestblockhash
-	getblock
 	getblockcount
 	getblockhash
 	getblockheader

@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -14,23 +16,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// getBlock returns a block by its hash or index/height. If verbose is true
-// the response will contain a pretty Block object instead of the raw hex string.
-// missing output wrapper at the moment, thus commented out
-// func (c *Client) getBlock(indexOrHash interface{}, verbose bool) (*response, error) {
-// 	var (
-// 		params = request.NewRawParams(indexOrHash)
-// 		resp   = &response{}
-// 	)
-// 	if verbose {
-// 		params = request.NewRawParams(indexOrHash, 1)
-// 	}
-// 	if err := c.performRequest("getblock", params, resp); err != nil {
-// 		return nil, err
-// 	}
-// 	return resp, nil
-// }
-
 // GetAccountState returns detailed information about a NEO account.
 func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 	var (
@@ -38,6 +23,61 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 		resp   = &result.AccountState{}
 	)
 	if err := c.performRequest("getaccountstate", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetBlockByIndex returns a block by its height.
+func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
+	return c.getBlock(request.NewRawParams(index))
+}
+
+// GetBlockByHash returns a block by its hash.
+func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
+	return c.getBlock(request.NewRawParams(hash.StringLE()))
+}
+
+func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
+	var (
+		resp string
+		err  error
+		b    *block.Block
+	)
+	if err = c.performRequest("getblock", params, &resp); err != nil {
+		return nil, err
+	}
+	blockBytes, err := hex.DecodeString(resp)
+	if err != nil {
+		return nil, err
+	}
+	r := io.NewBinReaderFromBuf(blockBytes)
+	b = new(block.Block)
+	b.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return b, nil
+}
+
+// GetBlockByIndexVerbose returns a block wrapper with additional metadata by
+// its height.
+func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
+	return c.getBlockVerbose(request.NewRawParams(index, 1))
+}
+
+// GetBlockByHashVerbose returns a block wrapper with additional metadata by
+// its hash.
+func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
+	return c.getBlockVerbose(request.NewRawParams(hash.StringLE(), 1))
+}
+
+func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error) {
+	var (
+		resp = &result.Block{}
+		err  error
+	)
+	if err = c.performRequest("getblock", params, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
