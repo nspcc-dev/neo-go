@@ -288,7 +288,7 @@ func (ic *interopContext) runtimePlatform(v *vm.VM) error {
 
 // runtimeGetTrigger returns the script trigger.
 func (ic *interopContext) runtimeGetTrigger(v *vm.VM) error {
-	v.Estack().PushVal(ic.trigger)
+	v.Estack().PushVal(byte(ic.trigger))
 	return nil
 }
 

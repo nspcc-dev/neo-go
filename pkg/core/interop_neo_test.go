@@ -35,6 +35,12 @@ import (
  *  TestRuntimeDeserialize
  */
 
+func TestGetTrigger(t *testing.T) {
+	v, _, context, chain := createVMAndPushBlock(t)
+	defer chain.Close()
+	require.NoError(t, context.runtimeGetTrigger(v))
+}
+
 func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
