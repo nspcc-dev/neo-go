@@ -19,7 +19,7 @@ type StackItem interface {
 	// Dup duplicates current StackItem.
 	Dup() StackItem
 	// ToContractParameter converts StackItem to smartcontract.Parameter
-	ToContractParameter() smartcontract.Parameter
+	ToContractParameter(map[StackItem]bool) smartcontract.Parameter
 }
 
 func makeStackItem(v interface{}) StackItem {
@@ -119,11 +119,15 @@ func (i *StructItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *StructItem) ToContractParameter() smartcontract.Parameter {
+func (i *StructItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
 	var value []smartcontract.Parameter
-	for _, stackItem := range i.value {
-		parameter := stackItem.ToContractParameter()
-		value = append(value, parameter)
+
+	if !seen[i] {
+		seen[i] = true
+		for _, stackItem := range i.value {
+			parameter := stackItem.ToContractParameter(seen)
+			value = append(value, parameter)
+		}
 	}
 	return smartcontract.Parameter{
 		Type:  smartcontract.ArrayType,
@@ -179,7 +183,7 @@ func (i *BigIntegerItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *BigIntegerItem) ToContractParameter() smartcontract.Parameter {
+func (i *BigIntegerItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
 		Type:  smartcontract.IntegerType,
 		Value: i.value.Int64(),
@@ -223,7 +227,7 @@ func (i *BoolItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *BoolItem) ToContractParameter() smartcontract.Parameter {
+func (i *BoolItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
 		Type:  smartcontract.BoolType,
 		Value: i.value,
@@ -264,7 +268,7 @@ func (i *ByteArrayItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *ByteArrayItem) ToContractParameter() smartcontract.Parameter {
+func (i *ByteArrayItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
 		Type:  smartcontract.ByteArrayType,
 		Value: i.value,
@@ -304,11 +308,15 @@ func (i *ArrayItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *ArrayItem) ToContractParameter() smartcontract.Parameter {
+func (i *ArrayItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
 	var value []smartcontract.Parameter
-	for _, stackItem := range i.value {
-		parameter := stackItem.ToContractParameter()
-		value = append(value, parameter)
+
+	if !seen[i] {
+		seen[i] = true
+		for _, stackItem := range i.value {
+			parameter := stackItem.ToContractParameter(seen)
+			value = append(value, parameter)
+		}
 	}
 	return smartcontract.Parameter{
 		Type:  smartcontract.ArrayType,
@@ -350,15 +358,18 @@ func (i *MapItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *MapItem) ToContractParameter() smartcontract.Parameter {
+func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
 	value := make(map[smartcontract.Parameter]smartcontract.Parameter)
-	for key, val := range i.value {
-		pValue := val.ToContractParameter()
-		pKey := fromMapKey(key).ToContractParameter()
-		if pKey.Type == smartcontract.ByteArrayType {
-			pKey.Value = string(pKey.Value.([]byte))
+	if !seen[i] {
+		seen[i] = true
+		for key, val := range i.value {
+			pValue := val.ToContractParameter(seen)
+			pKey := fromMapKey(key).ToContractParameter(seen)
+			if pKey.Type == smartcontract.ByteArrayType {
+				pKey.Value = string(pKey.Value.([]byte))
+			}
+			value[pKey] = pValue
 		}
-		value[pKey] = pValue
 	}
 	return smartcontract.Parameter{
 		Type:  smartcontract.MapType,
@@ -428,7 +439,7 @@ func (i *InteropItem) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (i *InteropItem) ToContractParameter() smartcontract.Parameter {
+func (i *InteropItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
 		Type:  smartcontract.InteropInterfaceType,
 		Value: nil,

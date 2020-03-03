@@ -60,7 +60,8 @@ var toContractParameterTestCases = []struct {
 
 func TestToContractParameter(t *testing.T) {
 	for _, tc := range toContractParameterTestCases {
-		res := tc.input.ToContractParameter()
+		seen := make(map[StackItem]bool)
+		res := tc.input.ToContractParameter(seen)
 		assert.Equal(t, res, tc.result)
 	}
 }

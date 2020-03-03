@@ -171,7 +171,7 @@ func (c *Context) Dup() StackItem {
 }
 
 // ToContractParameter implements StackItem interface.
-func (c *Context) ToContractParameter() smartcontract.Parameter {
+func (c *Context) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	panic("Not implemented")
 }
 
