@@ -333,16 +333,29 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 }
 
 // AddHeaders processes the given headers and add them to the
-// HeaderHashList.
+// HeaderHashList. It expects headers to be sorted by index.
 func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 	return bc.addHeaders(bc.config.VerifyBlocks, headers...)
 }
 
+// addHeaders is an internal implementation of AddHeaders (`verify` parameter
+// tells it to verify or not verify given headers).
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err error) {
 	var (
 		start = time.Now()
 		batch = bc.dao.store.Batch()
 	)
+
+	if len(headers) > 0 {
+		var i int
+		curHeight := bc.HeaderHeight()
+		for i = range headers {
+			if headers[i].Index > curHeight {
+				break
+			}
+		}
+		headers = headers[i:]
+	}
 
 	if len(headers) == 0 {
 		return nil
