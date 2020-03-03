@@ -93,6 +93,43 @@ func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
 	return resp, nil
 }
 
+// GetRawTransaction returns a transaction by hash.
+func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   string
+		err    error
+	)
+	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
+		return nil, err
+	}
+	txBytes, err := hex.DecodeString(resp)
+	if err != nil {
+		return nil, err
+	}
+	r := io.NewBinReaderFromBuf(txBytes)
+	tx := new(transaction.Transaction)
+	tx.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return tx, nil
+}
+
+// GetRawTransactionVerbose returns a transaction wrapper with additional
+// metadata by transaction's hash.
+func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE(), 1)
+		resp   = &result.TransactionOutputRaw{}
+		err    error
+	)
+	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetUnspents returns UTXOs for the given NEO account.
 func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 	var (
@@ -144,19 +181,6 @@ func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*resul
 	}
 	return resp, nil
 }
-
-// getRawTransaction queries a transaction by hash.
-// missing output wrapper at the moment, thus commented out
-// func (c *Client) getRawTransaction(hash string, verbose bool) (*response, error) {
-// 	var (
-// 		params = request.NewRawParams(hash, verbose)
-// 		resp   = &response{}
-// 	)
-// 	if err := c.performRequest("getrawtransaction", params, resp); err != nil {
-// 		return nil, err
-// 	}
-// 	return resp, nil
-// }
 
 // SendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.

@@ -21,6 +21,7 @@ Supported methods
 	getaccountstate
 	getblock
 	getclaimable
+	getrawtransaction
 	getunspents
 	invoke
 	invokefunction
@@ -47,7 +48,6 @@ Unsupported methods
 	getnewaddress
 	getpeers
 	getrawmempool
-	getrawtransaction
 	getstorage
 	gettransactionheight
 	gettxout
