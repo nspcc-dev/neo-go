@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -174,4 +175,20 @@ func TestEncodingTXWithNoData(t *testing.T) {
 	tx := &Transaction{}
 	tx.EncodeBinary(buf.BinWriter)
 	require.Error(t, buf.Err)
+}
+
+func TestMarshalUnmarshalJSON(t *testing.T) {
+	tx := NewContractTX()
+	tx.Outputs = []Output{{
+		AssetID:    util.Uint256{1, 2, 3, 4},
+		Amount:     567,
+		ScriptHash: util.Uint160{7, 8, 9, 10},
+		Position:   13,
+	}}
+	data, err := json.Marshal(tx)
+	require.NoError(t, err)
+
+	txNew := new(Transaction)
+	require.NoError(t, json.Unmarshal(data, txNew))
+	require.Equal(t, tx, txNew)
 }
