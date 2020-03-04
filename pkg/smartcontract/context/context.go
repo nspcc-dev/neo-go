@@ -1,14 +1,21 @@
 package context
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 // ParameterContext represents smartcontract parameter's context.
@@ -25,6 +32,95 @@ type paramContext struct {
 	Type  string                     `json:"type"`
 	Hex   string                     `json:"hex"`
 	Items map[string]json.RawMessage `json:"items"`
+}
+
+type sigWithIndex struct {
+	index int
+	sig   []byte
+}
+
+// NewParameterContext returns ParameterContext with the specified type and item to sign.
+func NewParameterContext(typ string, verif io.Serializable) *ParameterContext {
+	return &ParameterContext{
+		Type:       typ,
+		Verifiable: verif,
+		Items:      make(map[util.Uint160]*Item),
+	}
+}
+
+// AddSignature adds a signature for the specified contract and public key.
+func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
+	item := c.getItemForContract(ctr)
+	if pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
+		if item.GetSignature(pub) != nil {
+			return errors.New("signature is already added")
+		}
+		pubBytes := pub.Bytes()
+		var contained bool
+		for i := range pubs {
+			if bytes.Equal(pubBytes, pubs[i]) {
+				contained = true
+				break
+			}
+		}
+		if !contained {
+			return errors.New("public key is not present in script")
+		}
+		item.AddSignature(pub, sig)
+		if len(item.Signatures) == len(ctr.Parameters) {
+			indexMap := map[string]int{}
+			for i := range pubs {
+				indexMap[hex.EncodeToString(pubs[i])] = i
+			}
+			sigs := make([]sigWithIndex, 0, len(item.Signatures))
+			for pub, sig := range item.Signatures {
+				sigs = append(sigs, sigWithIndex{index: indexMap[pub], sig: sig})
+			}
+			sort.Slice(sigs, func(i, j int) bool {
+				return sigs[i].index < sigs[j].index
+			})
+			for i := range sigs {
+				item.Parameters[i] = smartcontract.Parameter{
+					Type:  smartcontract.SignatureType,
+					Value: sigs[i].sig,
+				}
+			}
+		}
+		return nil
+	}
+
+	index := -1
+	for i := range ctr.Parameters {
+		if ctr.Parameters[i].Type == smartcontract.SignatureType {
+			if index >= 0 {
+				return errors.New("multiple signature parameters in non-multisig contract")
+			}
+			index = i
+		}
+	}
+	if index == -1 {
+		return errors.New("missing signature parameter")
+	}
+	item.Parameters[index].Value = sig
+	return nil
+}
+
+func (c *ParameterContext) getItemForContract(ctr *wallet.Contract) *Item {
+	h := ctr.ScriptHash()
+	if item, ok := c.Items[h]; ok {
+		return item
+	}
+	params := make([]smartcontract.Parameter, len(ctr.Parameters))
+	for i := range params {
+		params[i].Type = ctr.Parameters[i].Type
+	}
+	item := &Item{
+		Script:     h,
+		Parameters: params,
+		Signatures: make(map[string][]byte),
+	}
+	c.Items[h] = item
+	return item
 }
 
 // MarshalJSON implements json.Marshaler interface.
