@@ -66,7 +66,11 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:
 		resultRawValue, resultErr = json.Marshal(p.Value)
 	case PublicKeyType, ByteArrayType, SignatureType:
-		resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+		if p.Value == nil {
+			resultRawValue = []byte("null")
+		} else {
+			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+		}
 	case ArrayType:
 		var value = make([]rawParameter, 0)
 		for _, parameter := range p.Value.([]Parameter) {
