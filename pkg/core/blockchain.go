@@ -1209,6 +1209,12 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 
 // SystemFee returns system fee.
 func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	if t.Type == transaction.InvocationType {
+		inv := t.Data.(*transaction.InvocationTX)
+		if inv.Version >= 1 {
+			return inv.Gas
+		}
+	}
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
