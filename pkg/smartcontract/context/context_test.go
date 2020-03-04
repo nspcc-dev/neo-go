@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +51,18 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	item := c.Items[ctr.ScriptHash()]
 	require.NotNil(t, item)
 	require.Equal(t, sig, item.Parameters[0].Value)
+
+	t.Run("GetWitness", func(t *testing.T) {
+		w, err := c.GetWitness(ctr)
+		require.NoError(t, err)
+		v := vm.New()
+		v.SetCheckedHash(tx.VerificationHash().BytesBE())
+		v.LoadScript(w.VerificationScript)
+		v.LoadScript(w.InvocationScript)
+		require.NoError(t, v.Run())
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, true, v.Estack().Pop().Value())
+	})
 }
 
 func TestParameterContext_AddSignatureMultisig(t *testing.T) {
@@ -86,10 +99,17 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 		require.Equal(t, sig, item.GetSignature(pubs[i]))
 	}
 
-	item := c.Items[ctr.ScriptHash()]
-	for i := range item.Parameters {
-		require.NotNil(t, item.Parameters[i].Value)
-	}
+	t.Run("GetWitness", func(t *testing.T) {
+		w, err := c.GetWitness(ctr)
+		require.NoError(t, err)
+		v := vm.New()
+		v.SetCheckedHash(tx.VerificationHash().BytesBE())
+		v.LoadScript(w.VerificationScript)
+		v.LoadScript(w.InvocationScript)
+		require.NoError(t, v.Run())
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, true, v.Estack().Pop().Value())
+	})
 }
 
 func TestParameterContext_MarshalJSON(t *testing.T) {

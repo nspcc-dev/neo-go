@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -46,6 +47,24 @@ func NewParameterContext(typ string, verif io.Serializable) *ParameterContext {
 		Verifiable: verif,
 		Items:      make(map[util.Uint160]*Item),
 	}
+}
+
+// GetWitness returns invocation and verification scripts for the specified contract.
+func (c *ParameterContext) GetWitness(ctr *wallet.Contract) (*transaction.Witness, error) {
+	item := c.getItemForContract(ctr)
+	bw := io.NewBufBinWriter()
+	for i := range item.Parameters {
+		if item.Parameters[i].Type != smartcontract.SignatureType {
+			return nil, errors.New("only signature parameters are supported")
+		} else if item.Parameters[i].Value == nil {
+			return nil, errors.New("nil parameter")
+		}
+		emit.Bytes(bw.BinWriter, item.Parameters[i].Value.([]byte))
+	}
+	return &transaction.Witness{
+		InvocationScript:   bw.Bytes(),
+		VerificationScript: ctr.Script,
+	}, nil
 }
 
 // AddSignature adds a signature for the specified contract and public key.
