@@ -42,7 +42,7 @@ which would yield the response:
 | `getblock` | Yes |
 | `getblockcount` | Yes |
 | `getblockhash` | Yes |
-| `getblockheader` | No (#711) |
+| `getblockheader` | Yes |
 | `getblocksysfee` | Yes |
 | `getclaimable` | Yes |
 | `getconnectioncount` | Yes |

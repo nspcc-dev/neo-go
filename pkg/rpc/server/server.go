@@ -186,6 +186,10 @@ Methods:
 
 		results = s.chain.GetHeaderHash(num)
 
+	case "getblockheader":
+		getblockheaderCalled.Inc()
+		results, resultsErr = s.getBlockHeader(reqParams)
+
 	case "getblocksysfee":
 		getblocksysfeeCalled.Inc()
 		results, resultsErr = s.getBlockSysFee(reqParams)
@@ -555,6 +559,45 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (util.Fixed8, error) {
 	}
 
 	return blockSysFee, nil
+}
+
+// getBlockHeader returns the corresponding block header information according to the specified script hash.
+func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, error) {
+	var verbose bool
+
+	param, ok := reqParams.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	hash, err := param.GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	param, ok = reqParams.ValueWithType(1, request.NumberT)
+	if ok {
+		v, err := param.GetInt()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		verbose = v != 0
+	}
+
+	h, err := s.chain.GetHeader(hash)
+	if err != nil {
+		return nil, response.NewRPCError("unknown block", "", nil)
+	}
+
+	if verbose {
+		return result.NewHeader(h, s.chain), nil
+	}
+
+	buf := io.NewBufBinWriter()
+	h.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil, err
+	}
+	return hex.EncodeToString(buf.Bytes()), nil
 }
 
 // invoke implements the `invoke` RPC call.
