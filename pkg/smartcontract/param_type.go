@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -169,7 +170,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 		if len(b) != 64 {
 			return nil, errors.New("not a signature")
 		}
-		return val, nil
+		return b, nil
 	case BoolType:
 		switch val {
 		case "true":
@@ -184,37 +185,31 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 	case Hash160Type:
 		u, err := address.StringToUint160(val)
 		if err == nil {
-			return hex.EncodeToString(u.BytesBE()), nil
+			return u, nil
 		}
-		b, err := hex.DecodeString(val)
+		u, err = util.Uint160DecodeStringLE(val)
 		if err != nil {
 			return nil, err
 		}
-		if len(b) != 20 {
-			return nil, errors.New("not a hash160")
-		}
-		return val, nil
+		return u, nil
 	case Hash256Type:
+		u, err := util.Uint256DecodeStringLE(val)
+		if err != nil {
+			return nil, err
+		}
+		return u, nil
+	case ByteArrayType:
 		b, err := hex.DecodeString(val)
 		if err != nil {
 			return nil, err
 		}
-		if len(b) != 32 {
-			return nil, errors.New("not a hash256")
-		}
-		return val, nil
-	case ByteArrayType:
-		_, err := hex.DecodeString(val)
-		if err != nil {
-			return nil, err
-		}
-		return val, nil
+		return b, nil
 	case PublicKeyType:
-		_, err := keys.NewPublicKeyFromString(val)
+		pub, err := keys.NewPublicKeyFromString(val)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		return pub.Bytes(), nil
 	case StringType:
 		return val, nil
 	default:
