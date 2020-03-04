@@ -110,6 +110,8 @@ type Blockchain struct {
 
 	memPool mempool.Pool
 
+	// This lock protects concurrent access to keyCache.
+	keyCacheLock sync.RWMutex
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
 
@@ -1846,8 +1848,12 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
-	if useKeys && bc.keyCache[hash] != nil {
-		vm.SetPublicKeys(bc.keyCache[hash])
+	if useKeys {
+		bc.keyCacheLock.RLock()
+		if bc.keyCache[hash] != nil {
+			vm.SetPublicKeys(bc.keyCache[hash])
+		}
+		bc.keyCacheLock.RUnlock()
 	}
 	err = vm.Run()
 	if vm.HasFailed() {
@@ -1862,8 +1868,15 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		if !res {
 			return errors.Errorf("signature check failed")
 		}
-		if useKeys && bc.keyCache[hash] == nil {
-			bc.keyCache[hash] = vm.GetPublicKeys()
+		if useKeys {
+			bc.keyCacheLock.RLock()
+			_, ok := bc.keyCache[hash]
+			bc.keyCacheLock.RUnlock()
+			if !ok {
+				bc.keyCacheLock.Lock()
+				bc.keyCache[hash] = vm.GetPublicKeys()
+				bc.keyCacheLock.Unlock()
+			}
 		}
 	} else {
 		return errors.Errorf("no result returned from the script")
