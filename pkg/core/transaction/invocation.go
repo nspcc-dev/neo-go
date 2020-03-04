@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -36,8 +38,16 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 // DecodeBinary implements Serializable interface.
 func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
 	tx.Script = br.ReadVarBytes()
+	if br.Err == nil && len(tx.Script) == 0 {
+		br.Err = errors.New("no script")
+		return
+	}
 	if tx.Version >= 1 {
 		tx.Gas.DecodeBinary(br)
+		if br.Err == nil && tx.Gas.LessThan(0) {
+			br.Err = errors.New("negative gas")
+			return
+		}
 	} else {
 		tx.Gas = util.Fixed8FromInt64(0)
 	}
