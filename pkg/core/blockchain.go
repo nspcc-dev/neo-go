@@ -52,6 +52,9 @@ var (
 	// ErrPolicy is returned on attempt to add transaction that doesn't
 	// comply with node's configured policy into the mempool.
 	ErrPolicy = errors.New("not allowed by policy")
+	// ErrInvalidBlockIndex is returned when trying to add block with index
+	// other than expected height of the blockchain.
+	ErrInvalidBlockIndex error = errors.New("invalid block index")
 )
 var (
 	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
@@ -307,7 +310,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
-		return fmt.Errorf("expected block %d, but passed block %d", expectedHeight, block.Index)
+		return ErrInvalidBlockIndex
 	}
 
 	headerLen := bc.headerListLen()
