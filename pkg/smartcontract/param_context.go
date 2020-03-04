@@ -137,7 +137,7 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 			return
 		}
 		p.Value = boolean
-	case ByteArrayType, PublicKeyType:
+	case ByteArrayType, PublicKeyType, SignatureType:
 		if err = json.Unmarshal(r.Value, &s); err != nil {
 			return
 		}
