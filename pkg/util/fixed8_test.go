@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"testing"
 
@@ -16,7 +17,8 @@ func TestFixed8FromInt64(t *testing.T) {
 
 	for _, val := range values {
 		assert.Equal(t, Fixed8(val*decimals), Fixed8FromInt64(val))
-		assert.Equal(t, val, Fixed8FromInt64(val).Int64Value())
+		assert.Equal(t, val, Fixed8FromInt64(val).IntegralValue())
+		assert.Equal(t, int32(0), Fixed8FromInt64(val).FractionalValue())
 	}
 }
 
@@ -35,7 +37,8 @@ func TestFixed8Sub(t *testing.T) {
 	b := Fixed8FromInt64(34)
 
 	c := a.Sub(b)
-	assert.Equal(t, int64(8), c.Int64Value())
+	assert.Equal(t, int64(8), c.IntegralValue())
+	assert.Equal(t, int32(0), c.FractionalValue())
 }
 
 func TestFixed8FromFloat(t *testing.T) {
@@ -44,6 +47,10 @@ func TestFixed8FromFloat(t *testing.T) {
 	for _, val := range inputs {
 		assert.Equal(t, Fixed8(val*decimals), Fixed8FromFloat(val))
 		assert.Equal(t, val, Fixed8FromFloat(val).FloatValue())
+		trunc := math.Trunc(val)
+		rem := (val - trunc) * decimals
+		assert.Equal(t, int64(trunc), Fixed8FromFloat(val).IntegralValue())
+		assert.Equal(t, int32(math.Round(rem)), Fixed8FromFloat(val).FractionalValue())
 	}
 }
 

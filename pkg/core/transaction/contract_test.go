@@ -23,7 +23,8 @@ func TestEncodeDecodeContract(t *testing.T) {
 
 	assert.Equal(t, "eec17cc828d6ede932b57e4eaf79c2591151096a7825435cd67f498f9fa98d88", input.PrevHash.StringLE())
 	assert.Equal(t, 0, int(input.PrevIndex))
-	assert.Equal(t, int64(706), tx.Outputs[0].Amount.Int64Value())
+	assert.Equal(t, int64(706), tx.Outputs[0].Amount.IntegralValue())
+	assert.Equal(t, int32(0), tx.Outputs[0].Amount.FractionalValue())
 	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Outputs[0].AssetID.StringLE())
 	assert.Equal(t, "a8666b4830229d6a1a9b80f6088059191c122d2b", tx.Outputs[0].ScriptHash.String())
 	assert.Equal(t, "bdf6cc3b9af12a7565bda80933a75ee8cef1bc771d0d58effc08e4c8b436da79", tx.Hash().StringLE())

@@ -455,7 +455,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := newCachedDao(bc.dao.store)
 	fee := bc.getSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
-		fee += uint32(bc.SystemFee(tx).Int64Value())
+		fee += uint32(bc.SystemFee(tx).IntegralValue())
 	}
 	if err := cache.StoreAsBlock(block, fee); err != nil {
 		return err
