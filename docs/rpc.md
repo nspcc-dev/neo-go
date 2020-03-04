@@ -42,7 +42,9 @@ which would yield the response:
 | `getblock` | Yes |
 | `getblockcount` | Yes |
 | `getblockhash` | Yes |
+| `getblockheader` | No (#711) |
 | `getblocksysfee` | Yes |
+| `getclaimable` | Yes |
 | `getconnectioncount` | Yes |
 | `getcontractstate` | Yes |
 | `getnep5balances` | No (#498) |
@@ -51,8 +53,11 @@ which would yield the response:
 | `getrawmempool` | Yes |
 | `getrawtransaction` | Yes |
 | `getstorage` | Yes |
+| `gettransactionheight` | No (#713) |
 | `gettxout` | Yes |
+| `getunclaimed` | No (#712) |
 | `getunspents` | Yes |
+| `getvalidators` | No (#714) |
 | `getversion` | Yes |
 | `invoke` | Yes |
 | `invokefunction` | Yes |
@@ -60,6 +65,27 @@ which would yield the response:
 | `sendrawtransaction` | Yes |
 | `submitblock` | No (#344) |
 | `validateaddress` | Yes |
+
+### Unsupported methods
+
+Methods listed down below are not going to be supported for various reasons
+and we're not accepting issues related to them.
+
+| Method  | Reason |
+| ------- | ------------|
+| `claimgas` | Doesn't fit neo-go wallet model, use CLI to do that |
+| `dumpprivkey` | Shouldn't exist for security reasons, see `claimgas` comment also |
+| `getbalance` | Use `getaccountstate` instead, see `claimgas` comment also |
+| `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
+| `getnewaddress` | See `claimgas` comment |
+| `getunclaimedgas` | Use `getunclaimed` instead, see `claimgas` comment also |
+| `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |
+| `importprivkey` | Not applicable to neo-go, see `claimgas` comment |
+| `listaddress` | Not applicable to neo-go, see `claimgas` comment |
+| `listplugins` | neo-go doesn't have any plugins, so it makes no sense |
+| `sendfrom` | Not applicable to neo-go, see `claimgas` comment |
+| `sendmany` | Not applicable to neo-go, see `claimgas` comment |
+| `sendtoaddress` | Not applicable to neo-go, see `claimgas` comment |
 
 #### Implementation notices
 
