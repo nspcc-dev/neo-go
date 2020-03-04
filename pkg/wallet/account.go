@@ -56,7 +56,7 @@ type Contract struct {
 	Script []byte `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []contractParam `json:"parameters"`
+	Parameters []ContractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
@@ -68,13 +68,15 @@ type contract struct {
 	Script string `json:"script"`
 
 	// A list of parameters used deploying this contract.
-	Parameters []contractParam `json:"parameters"`
+	Parameters []ContractParam `json:"parameters"`
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
 }
 
-type contractParam struct {
+// ContractParam is a descriptor of a contract parameter
+// containing type and optional name.
+type ContractParam struct {
 	Name string                  `json:"name"`
 	Type smartcontract.ParamType `json:"type"`
 }
@@ -252,8 +254,8 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	return a
 }
 
-func getContractParams(n int) []contractParam {
-	params := make([]contractParam, n)
+func getContractParams(n int) []ContractParam {
+	params := make([]ContractParam, n)
 	for i := range params {
 		params[i].Name = fmt.Sprintf("parameter%d", i)
 		params[i].Type = smartcontract.SignatureType
