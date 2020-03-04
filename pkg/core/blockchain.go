@@ -1283,7 +1283,8 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
-	if t.Type == transaction.ClaimType {
+	switch t.Type {
+	case transaction.ClaimType:
 		claim := t.Data.(*transaction.ClaimTX)
 		if transaction.HaveDuplicateInputs(claim.Claims) {
 			return errors.New("duplicate claims")
@@ -1293,6 +1294,11 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 		if err := bc.verifyClaims(t); err != nil {
 			return err
+		}
+	case transaction.InvocationType:
+		inv := t.Data.(*transaction.InvocationTX)
+		if inv.Gas.FractionalValue() != 0 {
+			return errors.New("invocation gas can only be integer")
 		}
 	}
 
