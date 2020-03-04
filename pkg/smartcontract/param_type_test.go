@@ -1,8 +1,10 @@
 package smartcontract
 
 import (
+	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -151,7 +153,7 @@ func TestAdjustValToType(t *testing.T) {
 	}{{
 		typ: SignatureType,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+		out: mustHex("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"),
 	}, {
 		typ: SignatureType,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c",
@@ -199,11 +201,17 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: Hash160Type,
 		val: "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
-		out: "23ba2703c53263e8d6e522dc32203339dcd8eee9",
+		out: util.Uint160{
+			0x23, 0xba, 0x27, 0x3, 0xc5, 0x32, 0x63, 0xe8, 0xd6, 0xe5,
+			0x22, 0xdc, 0x32, 0x20, 0x33, 0x39, 0xdc, 0xd8, 0xee, 0xe9,
+		},
 	}, {
 		typ: Hash160Type,
 		val: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-		out: "50befd26fdf6e4d957c11e078b24ebce6291456f",
+		out: util.Uint160{
+			0x6f, 0x45, 0x91, 0x62, 0xce, 0xeb, 0x24, 0x8b, 0x7, 0x1e,
+			0xc1, 0x57, 0xd9, 0xe4, 0xf6, 0xfd, 0x26, 0xfd, 0xbe, 0x50,
+		},
 	}, {
 		typ: Hash160Type,
 		val: "befd26fdf6e4d957c11e078b24ebce6291456f",
@@ -215,7 +223,10 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: Hash256Type,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+		out: util.Uint256{
+			0xe7, 0x2d, 0x28, 0x69, 0x79, 0xee, 0x6c, 0xb1, 0xb7, 0xe6, 0x5d, 0xfd, 0xdf, 0xb2, 0xe3, 0x84,
+			0x10, 0xb, 0x8d, 0x14, 0x8e, 0x77, 0x58, 0xde, 0x42, 0xe4, 0x16, 0x8b, 0x71, 0x79, 0x2c, 0x60,
+		},
 	}, {
 		typ: Hash256Type,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
@@ -227,15 +238,15 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: ByteArrayType,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d",
+		out: mustHex("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282d"),
 	}, {
 		typ: ByteArrayType,
 		val: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
-		out: "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+		out: mustHex("602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"),
 	}, {
 		typ: ByteArrayType,
 		val: "50befd26fdf6e4d957c11e078b24ebce6291456f",
-		out: "50befd26fdf6e4d957c11e078b24ebce6291456f",
+		out: mustHex("50befd26fdf6e4d957c11e078b24ebce6291456f"),
 	}, {
 		typ: ByteArrayType,
 		val: "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
@@ -247,11 +258,11 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: ByteArrayType,
 		val: "ab",
-		out: "ab",
+		out: mustHex("ab"),
 	}, {
 		typ: PublicKeyType,
 		val: "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
-		out: "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
+		out: mustHex("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"),
 	}, {
 		typ: PublicKeyType,
 		val: "01b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
@@ -295,4 +306,12 @@ func TestAdjustValToType(t *testing.T) {
 			assert.Equal(t, inout.out, out, "bad output for '%s/%s' input", inout.typ, inout.val)
 		}
 	}
+}
+
+func mustHex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
