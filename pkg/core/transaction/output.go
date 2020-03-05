@@ -24,6 +24,13 @@ type Output struct {
 	Position int `json:"n"`
 }
 
+type outputAux struct {
+	AssetID    util.Uint256 `json:"asset"`
+	Amount     util.Fixed8  `json:"value"`
+	ScriptHash string       `json:"address"`
+	Position   int          `json:"n"`
+}
+
 // NewOutput returns a new transaction output.
 func NewOutput(assetID util.Uint256, amount util.Fixed8, scriptHash util.Uint160) *Output {
 	return &Output{
@@ -55,4 +62,21 @@ func (out *Output) MarshalJSON() ([]byte, error) {
 		"address": address.Uint160ToString(out.ScriptHash),
 		"n":       out.Position,
 	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (out *Output) UnmarshalJSON(data []byte) error {
+	var outAux outputAux
+	err := json.Unmarshal(data, &outAux)
+	if err != nil {
+		return err
+	}
+	out.ScriptHash, err = address.StringToUint160(outAux.ScriptHash)
+	if err != nil {
+		return err
+	}
+	out.Amount = outAux.Amount
+	out.AssetID = outAux.AssetID
+	out.Position = outAux.Position
+	return nil
 }

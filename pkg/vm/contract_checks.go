@@ -31,49 +31,58 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 // IsMultiSigContract checks whether the passed script is a multi-signature
 // contract.
 func IsMultiSigContract(script []byte) bool {
+	_, ok := ParseMultiSigContract(script)
+	return ok
+}
+
+// ParseMultiSigContract returns list of public keys from the verification
+// script of the contract.
+func ParseMultiSigContract(script []byte) ([][]byte, bool) {
 	var nsigs, nkeys int
 
 	ctx := NewContext(script)
 	instr, param, err := ctx.Next()
 	if err != nil {
-		return false
+		return nil, false
 	}
 	nsigs, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return false
+		return nil, false
 	}
+	var pubs [][]byte
 	for {
 		instr, param, err = ctx.Next()
 		if err != nil {
-			return false
+			return nil, false
 		}
 		if instr != opcode.PUSHBYTES33 {
 			break
 		}
+		pubs = append(pubs, param)
 		nkeys++
 		if nkeys > MaxArraySize {
-			return false
+			return nil, false
 		}
 	}
 	if nkeys < nsigs {
-		return false
+		return nil, false
 	}
 	nkeys2, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return false
+		return nil, false
 	}
 	if nkeys2 != nkeys {
-		return false
+		return nil, false
 	}
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.CHECKMULTISIG {
-		return false
+		return nil, false
 	}
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
-		return false
+		return nil, false
 	}
-	return true
+	return pubs, true
 }
 
 // IsSignatureContract checks whether the passed script is a signature check

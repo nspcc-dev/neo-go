@@ -3,8 +3,10 @@ package wallet
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -15,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	context2 "github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -46,6 +49,14 @@ var (
 	timeoutFlag = cli.DurationFlag{
 		Name:  "timeout, t",
 		Usage: "Timeout for the operation",
+	}
+	outFlag = cli.StringFlag{
+		Name:  "out",
+		Usage: "file to put JSON transaction to",
+	}
+	inFlag = cli.StringFlag{
+		Name:  "in",
+		Usage: "file with JSON transaction",
 	}
 )
 
@@ -144,12 +155,13 @@ func NewCommands() []cli.Command {
 				Name:  "transfer",
 				Usage: "transfer NEO/GAS",
 				UsageText: "transfer --path <path> --from <addr> --to <addr>" +
-					" --amount <amount> --asset [NEO|GAS|<hex-id>]",
+					" --amount <amount> --asset [NEO|GAS|<hex-id>] [--out <path>]",
 				Action: transferAsset,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					rpcFlag,
 					timeoutFlag,
+					outFlag,
 					cli.StringFlag{
 						Name:  "from",
 						Usage: "Address to send an asset from",
@@ -167,6 +179,11 @@ func NewCommands() []cli.Command {
 						Usage: "Asset ID",
 					},
 				},
+			},
+			{
+				Name:        "multisig",
+				Usage:       "work with multisig address",
+				Subcommands: newMultisigCommands(),
 			},
 		},
 	}}
@@ -416,7 +433,6 @@ func transferAsset(ctx *cli.Context) error {
 	}
 
 	tx := transaction.NewContractTX()
-	tx.Data = new(transaction.ContractTX)
 	if err := request.AddInputsAndUnspentsToTx(tx, from, asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -432,9 +448,23 @@ func transferAsset(ctx *cli.Context) error {
 		Position:   1,
 	})
 
-	_ = acc.SignTx(tx)
-	if err := c.SendRawTransaction(tx); err != nil {
-		return cli.NewExitError(err, 1)
+	if outFile := ctx.String("out"); outFile != "" {
+		priv := acc.PrivateKey()
+		pub := priv.PublicKey()
+		sign := priv.Sign(tx.GetSignedPart())
+		c := context2.NewParameterContext("Neo.Core.ContractTransaction", tx)
+		if err := c.AddSignature(acc.Contract, pub, sign); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
+		} else if data, err := json.Marshal(c); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %v", err), 1)
+		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't write tx to file: %v", err), 1)
+		}
+	} else {
+		_ = acc.SignTx(tx)
+		if err := c.SendRawTransaction(tx); err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 
 	fmt.Println(tx.Hash().StringLE())

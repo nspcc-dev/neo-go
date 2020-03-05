@@ -158,7 +158,8 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
-	if t.Data == nil {
+	noData := t.Type == ContractType
+	if t.Data == nil && !noData {
 		bw.Err = errors.New("transaction has no data")
 		return
 	}
@@ -166,7 +167,9 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Version))
 
 	// Underlying TXer.
-	t.Data.EncodeBinary(bw)
+	if !noData {
+		t.Data.EncodeBinary(bw)
+	}
 
 	// Attributes
 	bw.WriteArray(t.Attributes)
