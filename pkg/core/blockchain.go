@@ -708,7 +708,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					}
 					amount, ok := arr[3].Value().(*big.Int)
 					if !ok {
-						continue
+						bs, ok := arr[3].Value().([]byte)
+						if !ok {
+							continue
+						}
+						amount = emit.BytesToInt(bs)
 					}
 					// TODO: #498
 					_, _, _, _ = op, from, to, amount
