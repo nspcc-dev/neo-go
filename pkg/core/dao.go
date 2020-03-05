@@ -142,6 +142,9 @@ func (dao *dao) GetNEP5TransferLog(acc util.Uint160) (*state.NEP5TransferLog, er
 	key := storage.AppendPrefix(storage.STNEP5Transfers, acc.BytesBE())
 	value, err := dao.store.Get(key)
 	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			return new(state.NEP5TransferLog), nil
+		}
 		return nil, err
 	}
 	return &state.NEP5TransferLog{Raw: value}, nil

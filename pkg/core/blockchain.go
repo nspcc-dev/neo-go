@@ -810,10 +810,19 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		}
 
 		transfer.Amount = amount
-		if err := cache.AppendNEP5Transfer(fromAddr, transfer); err != nil {
+		if err := cache.AppendNEP5Transfer(toAddr, transfer); err != nil {
 			return
 		}
 	}
+}
+
+// GetNEP5TransferLog returns NEP5 transfer log for the acc.
+func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.NEP5TransferLog {
+	lg, err := bc.dao.GetNEP5TransferLog(acc)
+	if err != nil {
+		return nil
+	}
+	return lg
 }
 
 // LastBatch returns last persisted storage batch.

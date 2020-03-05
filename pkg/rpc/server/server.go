@@ -202,6 +202,10 @@ Methods:
 		getnep5balancesCalled.Inc()
 		results, resultsErr = s.getNEP5Balances(reqParams)
 
+	case "getnep5transfers":
+		getnep5transfersCalled.Inc()
+		results, resultsErr = s.getNEP5Transfers(reqParams)
+
 	case "getversion":
 		getversionCalled.Inc()
 		results = result.Version{
@@ -406,6 +410,47 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
 				LastUpdated: bal.LastUpdatedBlock,
 			})
 		}
+	}
+	return bs, nil
+}
+
+func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
+	p, ok := ps.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	u, err := p.GetUint160FromAddress()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	bs := &result.NEP5Transfers{Address: address.Uint160ToString(u)}
+	lg := s.chain.GetNEP5TransferLog(u)
+	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
+		transfer := result.NEP5Transfer{
+			Timestamp: tr.Timestamp,
+			Asset:     tr.Asset,
+			Index:     tr.Block,
+			TxHash:    tr.Tx,
+		}
+		if tr.Amount > 0 { // token was received
+			transfer.Amount = strconv.FormatInt(tr.Amount, 10)
+			if !tr.From.Equals(util.Uint160{}) {
+				transfer.Address = address.Uint160ToString(tr.From)
+			}
+			bs.Received = append(bs.Received, transfer)
+			return nil
+		}
+
+		transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
+		if !tr.From.Equals(util.Uint160{}) {
+			transfer.Address = address.Uint160ToString(tr.To)
+		}
+		bs.Sent = append(bs.Sent, transfer)
+		return nil
+	})
+	if err != nil {
+		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
 	}
 	return bs, nil
 }

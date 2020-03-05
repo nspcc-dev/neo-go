@@ -103,6 +103,16 @@ func (c *Client) GetNEP5Balances(address util.Uint160) (*result.NEP5Balances, er
 	return resp, nil
 }
 
+// GetNEP5Transfers is a wrapper for getnep5transfers RPC.
+func (c *Client) GetNEP5Transfers(address string) (*result.NEP5Transfers, error) {
+	params := request.NewRawParams(address)
+	resp := new(result.NEP5Transfers)
+	if err := c.performRequest("getnep5transfers", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetRawTransaction returns a transaction by hash.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (

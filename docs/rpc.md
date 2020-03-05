@@ -48,7 +48,7 @@ which would yield the response:
 | `getconnectioncount` | Yes |
 | `getcontractstate` | Yes |
 | `getnep5balances` | Yes |
-| `getnep5transfers` | No (#498) |
+| `getnep5transfers` | Yes |
 | `getpeers` | Yes |
 | `getrawmempool` | Yes |
 | `getrawtransaction` | Yes |

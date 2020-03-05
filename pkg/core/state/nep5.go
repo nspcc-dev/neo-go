@@ -52,6 +52,24 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 	return nil
 }
 
+// ForEach iterates over transfer log returning on first error.
+func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
+	if lg == nil {
+		return nil
+	}
+	tr := new(NEP5Transfer)
+	for i := 0; i < len(lg.Raw); i += NEP5TransferSize {
+		r := io.NewBinReaderFromBuf(lg.Raw[i : i+NEP5TransferSize])
+		tr.DecodeBinary(r)
+		if r.Err != nil {
+			return r.Err
+		} else if err := f(tr); err != nil {
+			return nil
+		}
+	}
+	return nil
+}
+
 // EncodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(uint64(t.Balance))
