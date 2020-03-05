@@ -57,7 +57,7 @@ which would yield the response:
 | `gettxout` | Yes |
 | `getunclaimed` | No (#712) |
 | `getunspents` | Yes |
-| `getvalidators` | No (#714) |
+| `getvalidators` | Yes |
 | `getversion` | Yes |
 | `invoke` | Yes |
 | `invokefunction` | Yes |

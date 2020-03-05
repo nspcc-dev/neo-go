@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
@@ -214,6 +215,9 @@ Methods:
 	case "getnep5transfers":
 		getnep5transfersCalled.Inc()
 		results, resultsErr = s.getNEP5Transfers(reqParams)
+	case "getvalidators":
+		getvalidatorsCalled.Inc()
+		results, resultsErr = s.getValidators()
 
 	case "getversion":
 		getversionCalled.Inc()
@@ -762,6 +766,29 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, error) {
 		return nil, err
 	}
 	return hex.EncodeToString(buf.Bytes()), nil
+}
+
+// getValidators returns the current NEO consensus nodes information and voting status.
+func (s *Server) getValidators() (interface{}, error) {
+	var validators keys.PublicKeys
+
+	validators, err := s.chain.GetValidators()
+	if err != nil {
+		return nil, err
+	}
+	enrollments, err := s.chain.GetEnrollments()
+	if err != nil {
+		return nil, err
+	}
+	var res []result.Validator
+	for _, v := range enrollments {
+		res = append(res, result.Validator{
+			PublicKey: *v.PublicKey,
+			Votes:     v.Votes,
+			Active:    validators.Contains(v.PublicKey),
+		})
+	}
+	return res, nil
 }
 
 // invoke implements the `invoke` RPC call.
