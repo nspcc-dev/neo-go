@@ -41,6 +41,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
+const testContractHash = "d864728bdbc88da799bc43862ae6aaa62adc3a87"
+
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
@@ -118,13 +120,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive",
-			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87"]`,
+			params: fmt.Sprintf(`["%s"]`, testContractHash),
 			result: func(e *executor) interface{} { return &result.ContractState{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*result.ContractState)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Version)
-				assert.Equal(t, util.Uint160{0xd8, 0x64, 0x72, 0x8b, 0xdb, 0xc8, 0x8d, 0xa7, 0x99, 0xbc, 0x43, 0x86, 0x2a, 0xe6, 0xaa, 0xa6, 0x2a, 0xdc, 0x3a, 0x87}, res.ScriptHash)
+				assert.Equal(t, testContractHash, res.ScriptHash.StringBE())
 				assert.Equal(t, "0.99", res.CodeVersion)
 			},
 		},
@@ -166,7 +168,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
 				require.Equal(t, 1, len(res.Balances))
 				require.Equal(t, "8.77", res.Balances[0].Amount)
-				require.Equal(t, "d864728bdbc88da799bc43862ae6aaa62adc3a87", res.Balances[0].Asset.StringLE())
+				require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
 				require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
 			},
 		},
@@ -191,7 +193,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
 
-				assetHash, err := util.Uint160DecodeStringLE("d864728bdbc88da799bc43862ae6aaa62adc3a87")
+				assetHash, err := util.Uint160DecodeStringLE(testContractHash)
 				require.NoError(t, err)
 
 				require.Equal(t, 1, len(res.Received))
@@ -209,7 +211,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getstorage": {
 		{
 			name:   "positive",
-			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "746573746b6579"]`,
+			params: fmt.Sprintf(`["%s", "746573746b6579"]`, testContractHash),
 			result: func(e *executor) interface{} {
 				v := hex.EncodeToString([]byte("testvalue"))
 				return &v
@@ -217,7 +219,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "missing key",
-			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "7465"]`,
+			params: fmt.Sprintf(`["%s", "7465"]`, testContractHash),
 			result: func(e *executor) interface{} {
 				v := ""
 				return &v
@@ -230,7 +232,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "no second parameter",
-			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87"]`,
+			params: fmt.Sprintf(`["%s"]`, testContractHash),
 			fail:   true,
 		},
 		{
@@ -240,7 +242,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid key",
-			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "notahex"]`,
+			params: fmt.Sprintf(`["%s", "notahex"]`, testContractHash),
 			fail:   true,
 		},
 	},
