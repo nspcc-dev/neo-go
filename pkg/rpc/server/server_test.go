@@ -44,14 +44,14 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["2441c2776cbab65bf81d38a839cf3a85689421631d4ba091be64703f02867315"]`,
+			params: `["440b84d1580e36e84379416b58d9a3ad978cc557e54fd7ec6a2648329975b333"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 
 				require.True(t, ok)
 
-				expectedTxHash, err := util.Uint256DecodeStringLE("2441c2776cbab65bf81d38a839cf3a85689421631d4ba091be64703f02867315")
+				expectedTxHash, err := util.Uint256DecodeStringLE("cdb9fef85da4efde173682233b1a6166c9f39e8e41e40b75abb88230bf0c04bc")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -117,13 +117,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
+			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87"]`,
 			result: func(e *executor) interface{} { return &result.ContractState{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*result.ContractState)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Version)
-				assert.Equal(t, util.Uint160{0x1a, 0x69, 0x6b, 0x32, 0xe2, 0x39, 0xdd, 0x5e, 0xac, 0xe3, 0xf0, 0x25, 0xca, 0xc0, 0xa1, 0x93, 0xa5, 0x74, 0x6a, 0x27}, res.ScriptHash)
+				assert.Equal(t, util.Uint160{0xd8, 0x64, 0x72, 0x8b, 0xdb, 0xc8, 0x8d, 0xa7, 0x99, 0xbc, 0x43, 0x86, 0x2a, 0xe6, 0xaa, 0xa6, 0x2a, 0xdc, 0x3a, 0x87}, res.ScriptHash)
 				assert.Equal(t, "0.99", res.CodeVersion)
 			},
 		},
@@ -146,7 +146,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getstorage": {
 		{
 			name:   "positive",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "746573746b6579"]`,
+			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "746573746b6579"]`,
 			result: func(e *executor) interface{} {
 				v := hex.EncodeToString([]byte("testvalue"))
 				return &v
@@ -154,7 +154,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "missing key",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "7465"]`,
+			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "7465"]`,
 			result: func(e *executor) interface{} {
 				v := ""
 				return &v
@@ -167,7 +167,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "no second parameter",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
+			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87"]`,
 			fail:   true,
 		},
 		{
@@ -177,7 +177,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid key",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "notahex"]`,
+			params: `["d864728bdbc88da799bc43862ae6aaa62adc3a87", "notahex"]`,
 			fail:   true,
 		},
 	},
