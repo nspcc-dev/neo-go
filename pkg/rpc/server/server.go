@@ -285,6 +285,10 @@ Methods:
 		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
 
+	case "gettransactionheight":
+		gettransactionheightCalled.Inc()
+		results, resultsErr = s.getTransactionHeight(reqParams)
+
 	case "gettxout":
 		gettxoutCalled.Inc()
 		results, resultsErr = s.getTxOut(reqParams)
@@ -587,6 +591,25 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, error
 	}
 
 	return results, resultsErr
+}
+
+func (s *Server) getTransactionHeight(ps request.Params) (interface{}, error) {
+	p, ok := ps.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	h, err := p.GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	_, height, err := s.chain.GetTransaction(h)
+	if err != nil {
+		return nil, response.NewRPCError("unknown transaction", "", nil)
+	}
+
+	return height, nil
 }
 
 func (s *Server) getTxOut(ps request.Params) (interface{}, error) {

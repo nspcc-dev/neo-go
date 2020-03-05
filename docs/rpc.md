@@ -53,7 +53,7 @@ which would yield the response:
 | `getrawmempool` | Yes |
 | `getrawtransaction` | Yes |
 | `getstorage` | Yes |
-| `gettransactionheight` | No (#713) |
+| `gettransactionheight` | Yes |
 | `gettxout` | Yes |
 | `getunclaimed` | No (#712) |
 | `getunspents` | Yes |
