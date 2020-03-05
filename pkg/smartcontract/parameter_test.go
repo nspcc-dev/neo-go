@@ -53,6 +53,22 @@ var marshalJSONTestCases = []struct {
 	},
 	{
 		input: Parameter{
+			Type: ArrayType,
+			Value: []Parameter{
+				{Type: ByteArrayType, Value: []byte{1, 2}},
+				{
+					Type: ArrayType,
+					Value: []Parameter{
+						{Type: ByteArrayType, Value: []byte{3, 2, 1}},
+						{Type: ByteArrayType, Value: []byte{7, 8, 9}},
+					}},
+			},
+		},
+		result: `{"type":"Array","value":[{"type":"ByteArray","value":"0102"},{"type":"Array","value":[` +
+			`{"type":"ByteArray","value":"030201"},{"type":"ByteArray","value":"070809"}]}]}`,
+	},
+	{
+		input: Parameter{
 			Type: MapType,
 			Value: map[Parameter]Parameter{
 				{Type: StringType, Value: "key1"}: {Type: IntegerType, Value: 1},
