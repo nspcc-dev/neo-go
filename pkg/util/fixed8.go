@@ -46,9 +46,16 @@ func (f Fixed8) FloatValue() float64 {
 	return float64(f) / decimals
 }
 
-// Int64Value returns the original value representing Fixed8 as int64.
-func (f Fixed8) Int64Value() int64 {
+// IntegralValue returns integer part of the original value representing
+// Fixed8 as int64.
+func (f Fixed8) IntegralValue() int64 {
 	return int64(f) / decimals
+}
+
+// FractionalValue returns decimal part of the original value. It has the same
+// sign as f, so that f = f.IntegralValue() + f.FractionalValue().
+func (f Fixed8) FractionalValue() int32 {
+	return int32(int64(f) % decimals)
 }
 
 // Fixed8FromInt64 returns a new Fixed8 type multiplied by decimals.

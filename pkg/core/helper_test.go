@@ -93,8 +93,9 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	blocks := make([]*block.Block, n)
 	lastHash := bc.topBlock.Load().(*block.Block).Hash()
+	lastIndex := bc.topBlock.Load().(*block.Block).Index
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(bc.config, uint32(i)+1, lastHash, newMinerTX())
+		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash, newMinerTX())
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err
 		}
@@ -165,21 +166,117 @@ func getInvocationScript(data []byte, priv *keys.PrivateKey) []byte {
 }
 
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data
-// for RPC unit tests.
+// for RPC unit tests. It also is a nice integration test.
 // To generate new "../rpc/testdata/testblocks.acc", follow the steps:
-// 		1. Rename the function
-// 		2. Add specific test-case into "neo-go/pkg/core/blockchain_test.go"
-// 		3. Run tests with `$ make test`
-func _(t *testing.T) {
+// 		1. Set saveChain down below to true
+// 		2. Run tests with `$ make test`
+func TestCreateBasicChain(t *testing.T) {
+	const saveChain = false
 	const prefix = "../rpc/server/testdata/"
+	// To make enough GAS.
+	const numOfEmptyBlocks = 200
 
+	var neoAmount = util.Fixed8FromInt64(99999000)
+	var neoRemainder = util.Fixed8FromInt64(100000000) - neoAmount
 	bc := newTestChain(t)
-	n := 50
-	_, err := bc.genBlocks(n)
+
+	// Move almost all NEO to one simple account.
+	txMoveNeo := transaction.NewContractTX()
+	h, err := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+	require.NoError(t, err)
+	txMoveNeo.AddInput(&transaction.Input{
+		PrevHash:  h,
+		PrevIndex: 0,
+	})
+
+	// multisig address which possess all NEO
+	scriptHash, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
+	require.NoError(t, err)
+	priv0, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
+	require.NoError(t, err)
+	txMoveNeo.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     neoAmount,
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	txMoveNeo.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     neoRemainder,
+		ScriptHash: scriptHash,
+		Position:   1,
+	})
+	txMoveNeo.Data = new(transaction.ContractTX)
+
+	validators, err := getValidators(bc.config)
+	require.NoError(t, err)
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
+	require.NoError(t, err)
+	data := txMoveNeo.GetSignedPart()
+
+	var invoc []byte
+	for i := range privNetKeys {
+		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
+		require.NoError(t, err)
+		invoc = append(invoc, getInvocationScript(data, priv)...)
+	}
+
+	txMoveNeo.Scripts = []transaction.Witness{{
+		InvocationScript:   invoc,
+		VerificationScript: rawScript,
+	}}
+
+	b := bc.newBlock(newMinerTX(), txMoveNeo)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
+
+	// Generate some blocks to be able to claim GAS for them.
+	_, err = bc.genBlocks(numOfEmptyBlocks)
 	require.NoError(t, err)
 
-	tx1 := newMinerTX()
+	acc0, err := wallet.NewAccountFromWIF(priv0.WIF())
+	require.NoError(t, err)
 
+	// Make a NEO roundtrip (send to myself) and claim GAS.
+	txNeoRound := transaction.NewContractTX()
+	txNeoRound.AddInput(&transaction.Input{
+		PrevHash:  txMoveNeo.Hash(),
+		PrevIndex: 0,
+	})
+	txNeoRound.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     neoAmount,
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	txNeoRound.Data = new(transaction.ContractTX)
+	require.NoError(t, acc0.SignTx(txNeoRound))
+	b = bc.newBlock(newMinerTX(), txNeoRound)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txNeoRound: %s", txNeoRound.Hash().StringLE())
+
+	txClaim := &transaction.Transaction{Type: transaction.ClaimType}
+	claim := new(transaction.ClaimTX)
+	claim.Claims = append(claim.Claims, transaction.Input{
+		PrevHash:  txMoveNeo.Hash(),
+		PrevIndex: 0,
+	})
+	txClaim.Data = claim
+	neoGas, sysGas, err := bc.CalculateClaimable(neoAmount, 1, bc.BlockHeight())
+	require.NoError(t, err)
+	gasOwned := neoGas + sysGas
+	txClaim.AddOutput(&transaction.Output{
+		AssetID:    UtilityTokenID(),
+		Amount:     gasOwned,
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	require.NoError(t, acc0.SignTx(txClaim))
+	b = bc.newBlock(newMinerTX(), txClaim)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txClaim: %s", txClaim.Hash().StringLE())
+
+	// Push some contract into the chain.
 	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
 	require.NoError(t, err)
 
@@ -200,11 +297,25 @@ func _(t *testing.T) {
 	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
 	txScript := script.Bytes()
 
-	tx2 := transaction.NewInvocationTX(txScript, util.Fixed8FromFloat(100))
+	invFee := util.Fixed8FromFloat(100)
+	txDeploy := transaction.NewInvocationTX(txScript, invFee)
+	txDeploy.AddInput(&transaction.Input{
+		PrevHash:  txClaim.Hash(),
+		PrevIndex: 0,
+	})
+	txDeploy.AddOutput(&transaction.Output{
+		AssetID:    UtilityTokenID(),
+		Amount:     gasOwned - invFee,
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	gasOwned -= invFee
+	require.NoError(t, acc0.SignTx(txDeploy))
+	b = bc.newBlock(newMinerTX(), txDeploy)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
 
-	block := bc.newBlock(tx1, tx2)
-	require.NoError(t, bc.AddBlock(block))
-
+	// Now invoke this contract.
 	script = io.NewBufBinWriter()
 	emit.String(script.BinWriter, "testvalue")
 	emit.String(script.BinWriter, "testkey")
@@ -213,94 +324,54 @@ func _(t *testing.T) {
 	emit.String(script.BinWriter, "Put")
 	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
 
-	tx3 := transaction.NewInvocationTX(script.Bytes(), util.Fixed8FromFloat(100))
-
-	tx4 := transaction.NewContractTX()
-	h, err := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
-	require.NoError(t, err)
-	tx4.AddInput(&transaction.Input{
-		PrevHash:  h,
-		PrevIndex: 0,
-	})
-
-	// multisig address which possess all NEO
-	scriptHash, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
-	require.NoError(t, err)
-	priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
-	require.NoError(t, err)
-	tx4.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     util.Fixed8FromInt64(1000),
-		ScriptHash: priv.GetScriptHash(),
-		Position:   0,
-	})
-	tx4.AddOutput(&transaction.Output{
-		AssetID:    GoverningTokenID(),
-		Amount:     util.Fixed8FromInt64(99999000),
-		ScriptHash: scriptHash,
-		Position:   1,
-	})
-	tx4.Data = new(transaction.ContractTX)
-
-	validators, err := getValidators(bc.config)
-	require.NoError(t, err)
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
-	require.NoError(t, err)
-	data := tx4.GetSignedPart()
-
-	var invoc []byte
-	for i := range privNetKeys {
-		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
-		require.NoError(t, err)
-		invoc = append(invoc, getInvocationScript(data, priv)...)
-	}
-
-	tx4.Scripts = []transaction.Witness{{
-		InvocationScript:   invoc,
-		VerificationScript: rawScript,
-	}}
-
-	b := bc.newBlock(newMinerTX(), tx3, tx4)
+	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
+	b = bc.newBlock(newMinerTX(), txInv)
 	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
 	priv1, err := keys.NewPrivateKeyFromWIF(privNetKeys[1])
 	require.NoError(t, err)
-	tx5 := transaction.NewContractTX()
-	tx5.Data = new(transaction.ContractTX)
-	tx5.AddInput(&transaction.Input{
-		PrevHash:  tx4.Hash(),
+	txNeo0to1 := transaction.NewContractTX()
+	txNeo0to1.Data = new(transaction.ContractTX)
+	txNeo0to1.AddInput(&transaction.Input{
+		PrevHash:  txNeoRound.Hash(),
 		PrevIndex: 0,
 	})
-	tx5.AddOutput(&transaction.Output{
+	txNeo0to1.AddOutput(&transaction.Output{
 		AssetID:    GoverningTokenID(),
 		Amount:     util.Fixed8FromInt64(1000),
 		ScriptHash: priv1.GetScriptHash(),
 	})
+	txNeo0to1.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     neoAmount - util.Fixed8FromInt64(1000),
+		ScriptHash: priv0.GetScriptHash(),
+	})
 
-	acc, err := wallet.NewAccountFromWIF(priv.WIF())
-	require.NoError(t, err)
-	require.NoError(t, acc.SignTx(tx5))
-	b = bc.newBlock(newMinerTX(), tx5)
+	require.NoError(t, acc0.SignTx(txNeo0to1))
+	b = bc.newBlock(newMinerTX(), txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
-	outStream, err := os.Create(prefix + "testblocks.acc")
-	require.NoError(t, err)
-	defer outStream.Close()
-
-	writer := io.NewBinWriterFromIO(outStream)
-
-	count := bc.BlockHeight() + 1
-	writer.WriteU32LE(count - 1)
-
-	for i := 1; i < int(count); i++ {
-		bh := bc.GetHeaderHash(i)
-		b, err := bc.GetBlock(bh)
+	if saveChain {
+		outStream, err := os.Create(prefix + "testblocks.acc")
 		require.NoError(t, err)
-		buf := io.NewBufBinWriter()
-		b.EncodeBinary(buf.BinWriter)
-		bytes := buf.Bytes()
-		writer.WriteU32LE(uint32(len(bytes)))
-		writer.WriteBytes(bytes)
-		require.NoError(t, writer.Err)
+		defer outStream.Close()
+
+		writer := io.NewBinWriterFromIO(outStream)
+
+		count := bc.BlockHeight() + 1
+		writer.WriteU32LE(count - 1)
+
+		for i := 1; i < int(count); i++ {
+			bh := bc.GetHeaderHash(i)
+			b, err := bc.GetBlock(bh)
+			require.NoError(t, err)
+			buf := io.NewBufBinWriter()
+			b.EncodeBinary(buf.BinWriter)
+			bytes := buf.Bytes()
+			writer.WriteU32LE(uint32(len(bytes)))
+			writer.WriteBytes(bytes)
+			require.NoError(t, writer.Err)
+		}
 	}
 }

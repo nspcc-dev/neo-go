@@ -457,7 +457,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := newCachedDao(bc.dao.store)
 	fee := bc.getSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
-		fee += uint32(bc.SystemFee(tx).Int64Value())
+		fee += uint32(bc.SystemFee(tx).IntegralValue())
 	}
 	if err := cache.StoreAsBlock(block, fee); err != nil {
 		return err
@@ -1211,6 +1211,12 @@ func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 
 // SystemFee returns system fee.
 func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
+	if t.Type == transaction.InvocationType {
+		inv := t.Data.(*transaction.InvocationTX)
+		if inv.Version >= 1 {
+			return inv.Gas
+		}
+	}
 	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
 }
 
@@ -1285,7 +1291,8 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
-	if t.Type == transaction.ClaimType {
+	switch t.Type {
+	case transaction.ClaimType:
 		claim := t.Data.(*transaction.ClaimTX)
 		if transaction.HaveDuplicateInputs(claim.Claims) {
 			return errors.New("duplicate claims")
@@ -1295,6 +1302,11 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 		if err := bc.verifyClaims(t); err != nil {
 			return err
+		}
+	case transaction.InvocationType:
+		inv := t.Data.(*transaction.InvocationTX)
+		if inv.Gas.FractionalValue() != 0 {
+			return errors.New("invocation gas can only be integer")
 		}
 	}
 
