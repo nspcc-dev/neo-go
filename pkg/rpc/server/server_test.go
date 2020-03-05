@@ -165,7 +165,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
 				require.Equal(t, 1, len(res.Balances))
-				require.Equal(t, "877", res.Balances[0].Amount)
+				require.Equal(t, "8.77", res.Balances[0].Amount)
 				require.Equal(t, "d864728bdbc88da799bc43862ae6aaa62adc3a87", res.Balances[0].Asset.StringLE())
 				require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
 			},
@@ -195,12 +195,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.NoError(t, err)
 
 				require.Equal(t, 1, len(res.Received))
-				require.Equal(t, "1000", res.Received[0].Amount)
+				require.Equal(t, "10", res.Received[0].Amount)
 				require.Equal(t, assetHash, res.Received[0].Asset)
 				require.Equal(t, address.Uint160ToString(assetHash), res.Received[0].Address)
 
 				require.Equal(t, 1, len(res.Sent))
-				require.Equal(t, "123", res.Sent[0].Amount)
+				require.Equal(t, "1.23", res.Sent[0].Amount)
 				require.Equal(t, assetHash, res.Sent[0].Asset)
 				require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 			},

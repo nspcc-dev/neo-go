@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"net/http"
 	"strconv"
 
@@ -20,6 +22,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -402,8 +406,13 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
 	as := s.chain.GetAccountState(u)
 	bs := &result.NEP5Balances{Address: address.Uint160ToString(u)}
 	if as != nil {
+		cache := make(map[util.Uint160]int64)
 		for h, bal := range as.NEP5Balances {
-			amount := strconv.FormatInt(bal.Balance, 10)
+			dec, err := s.getDecimals(h, cache)
+			if err != nil {
+				continue
+			}
+			amount := amountToString(bal.Balance, dec)
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
 				Asset:       h,
 				Amount:      amount,
@@ -426,6 +435,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 
 	bs := &result.NEP5Transfers{Address: address.Uint160ToString(u)}
 	lg := s.chain.GetNEP5TransferLog(u)
+	cache := make(map[util.Uint160]int64)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
@@ -433,8 +443,12 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
 		}
+		d, err := s.getDecimals(tr.Asset, cache)
+		if err != nil {
+			return nil
+		}
 		if tr.Amount > 0 { // token was received
-			transfer.Amount = strconv.FormatInt(tr.Amount, 10)
+			transfer.Amount = amountToString(tr.Amount, d)
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
@@ -442,7 +456,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 			return nil
 		}
 
-		transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
+		transfer.Amount = amountToString(-tr.Amount, d)
 		if !tr.From.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
@@ -453,6 +467,54 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
 	}
 	return bs, nil
+}
+
+func amountToString(amount int64, decimals int64) string {
+	if decimals == 0 {
+		return strconv.FormatInt(amount, 10)
+	}
+	pow := int64(math.Pow10(int(decimals)))
+	q := amount / pow
+	r := amount % pow
+	if r == 0 {
+		return strconv.FormatInt(q, 10)
+	}
+	fs := fmt.Sprintf("%%d.%%0%dd", decimals)
+	return fmt.Sprintf(fs, q, r)
+}
+
+func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, error) {
+	if d, ok := cache[h]; ok {
+		return d, nil
+	}
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, 0)
+	emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+	emit.String(w.BinWriter, "decimals")
+	emit.AppCall(w.BinWriter, h, true)
+	v, _ := s.chain.GetTestVM()
+	v.LoadScript(w.Bytes())
+	if err := v.Run(); err != nil {
+		return 0, err
+	}
+	res := v.PopResult()
+	if res == nil {
+		return 0, errors.New("invalid result")
+	}
+	bi, ok := res.(*big.Int)
+	if !ok {
+		bs, ok := res.([]byte)
+		if !ok {
+			return 0, errors.New("invalid result")
+		}
+		bi = emit.BytesToInt(bs)
+	}
+	d := bi.Int64()
+	if d < 0 {
+		return 0, errors.New("negative decimals")
+	}
+	cache[h] = d
+	return d, nil
 }
 
 func (s *Server) getStorage(ps request.Params) (interface{}, error) {
