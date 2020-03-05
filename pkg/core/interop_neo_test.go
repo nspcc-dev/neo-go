@@ -147,7 +147,7 @@ func TestHeaderGetMerkleRoot(t *testing.T) {
 	err := context.headerGetMerkleRoot(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value()
-	require.Equal(t, block.MerkleRoot.BytesLE(), value)
+	require.Equal(t, block.MerkleRoot.BytesBE(), value)
 }
 
 func TestHeaderGetNextConsensus(t *testing.T) {
@@ -157,7 +157,7 @@ func TestHeaderGetNextConsensus(t *testing.T) {
 	err := context.headerGetNextConsensus(v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value()
-	require.Equal(t, block.NextConsensus.BytesLE(), value)
+	require.Equal(t, block.NextConsensus.BytesBE(), value)
 }
 
 func TestTxGetAttributes(t *testing.T) {

@@ -60,7 +60,7 @@ func (ic *interopContext) headerGetMerkleRoot(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.MerkleRoot.BytesLE())
+	v.Estack().PushVal(header.MerkleRoot.BytesBE())
 	return nil
 }
 
@@ -70,7 +70,7 @@ func (ic *interopContext) headerGetNextConsensus(v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(header.NextConsensus.BytesLE())
+	v.Estack().PushVal(header.NextConsensus.BytesBE())
 	return nil
 }
 
