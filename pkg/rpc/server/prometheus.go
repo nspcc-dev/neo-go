@@ -83,6 +83,22 @@ var (
 		},
 	)
 
+	getnep5balancesCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getnep5balances rpc endpoint",
+			Name:      "getnep5balances_called",
+			Namespace: "neogo",
+		},
+	)
+
+	getnep5transfersCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getnep5transfers rpc endpoint",
+			Name:      "getnep5transfers_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getversionCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getversion rpc endpoint",

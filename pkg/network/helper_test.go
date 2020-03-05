@@ -92,6 +92,9 @@ func (chain testChain) GetAssetState(util.Uint256) *state.Asset {
 func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 	panic("TODO")
 }
+func (chain testChain) GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog {
+	panic("TODO")
+}
 func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.PublicKey, error) {
 	panic("TODO")
 }

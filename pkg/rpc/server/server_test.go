@@ -15,6 +15,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
@@ -42,18 +43,20 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
+const testContractHash = "d864728bdbc88da799bc43862ae6aaa62adc3a87"
+
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["2441c2776cbab65bf81d38a839cf3a85689421631d4ba091be64703f02867315"]`,
+			params: `["440b84d1580e36e84379416b58d9a3ad978cc557e54fd7ec6a2648329975b333"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 
 				require.True(t, ok)
 
-				expectedTxHash, err := util.Uint256DecodeStringLE("2441c2776cbab65bf81d38a839cf3a85689421631d4ba091be64703f02867315")
+				expectedTxHash, err := util.Uint256DecodeStringLE("440b84d1580e36e84379416b58d9a3ad978cc557e54fd7ec6a2648329975b333")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -119,13 +122,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
+			params: fmt.Sprintf(`["%s"]`, testContractHash),
 			result: func(e *executor) interface{} { return &result.ContractState{} },
 			check: func(t *testing.T, e *executor, cs interface{}) {
 				res, ok := cs.(*result.ContractState)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Version)
-				assert.Equal(t, util.Uint160{0x1a, 0x69, 0x6b, 0x32, 0xe2, 0x39, 0xdd, 0x5e, 0xac, 0xe3, 0xf0, 0x25, 0xca, 0xc0, 0xa1, 0x93, 0xa5, 0x74, 0x6a, 0x27}, res.ScriptHash)
+				assert.Equal(t, testContractHash, res.ScriptHash.StringBE())
 				assert.Equal(t, "0.99", res.CodeVersion)
 			},
 		},
@@ -145,10 +148,72 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+
+	"getnep5balances": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.NEP5Balances)
+				require.True(t, ok)
+				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
+				require.Equal(t, 1, len(res.Balances))
+				require.Equal(t, "8.77", res.Balances[0].Amount)
+				require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
+				require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
+			},
+		},
+	},
+	"getnep5transfers": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.NEP5Transfers)
+				require.True(t, ok)
+				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
+
+				assetHash, err := util.Uint160DecodeStringLE(testContractHash)
+				require.NoError(t, err)
+
+				require.Equal(t, 1, len(res.Received))
+				require.Equal(t, "10", res.Received[0].Amount)
+				require.Equal(t, assetHash, res.Received[0].Asset)
+				require.Equal(t, address.Uint160ToString(assetHash), res.Received[0].Address)
+
+				require.Equal(t, 1, len(res.Sent))
+				require.Equal(t, "1.23", res.Sent[0].Amount)
+				require.Equal(t, assetHash, res.Sent[0].Asset)
+				require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
+			},
+		},
+	},
 	"getstorage": {
 		{
 			name:   "positive",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "746573746b6579"]`,
+			params: fmt.Sprintf(`["%s", "746573746b6579"]`, testContractHash),
 			result: func(e *executor) interface{} {
 				v := hex.EncodeToString([]byte("testvalue"))
 				return &v
@@ -156,7 +221,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "missing key",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "7465"]`,
+			params: fmt.Sprintf(`["%s", "7465"]`, testContractHash),
 			result: func(e *executor) interface{} {
 				v := ""
 				return &v
@@ -169,7 +234,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "no second parameter",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27"]`,
+			params: fmt.Sprintf(`["%s"]`, testContractHash),
 			fail:   true,
 		},
 		{
@@ -179,7 +244,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid key",
-			params: `["1a696b32e239dd5eace3f025cac0a193a5746a27", "notahex"]`,
+			params: fmt.Sprintf(`["%s", "notahex"]`, testContractHash),
 			fail:   true,
 		},
 	},

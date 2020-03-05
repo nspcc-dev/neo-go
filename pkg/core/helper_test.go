@@ -279,6 +279,7 @@ func TestCreateBasicChain(t *testing.T) {
 	// Push some contract into the chain.
 	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
 	require.NoError(t, err)
+	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
 
 	var props smartcontract.PropertyState
 	script := io.NewBufBinWriter()
@@ -352,6 +353,22 @@ func TestCreateBasicChain(t *testing.T) {
 	b = bc.newBlock(newMinerTX(), txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
+	sh := hash.Hash160(avm)
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, 0)
+	emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+	emit.String(w.BinWriter, "init")
+	emit.AppCall(w.BinWriter, sh, true)
+	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
+	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
+
+	b = bc.newBlock(newMinerTX(), initTx, transferTx)
+	require.NoError(t, bc.AddBlock(b))
+
+	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
+	b = bc.newBlock(newMinerTX(), transferTx)
+	require.NoError(t, bc.AddBlock(b))
+
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
 		require.NoError(t, err)
@@ -374,4 +391,19 @@ func TestCreateBasicChain(t *testing.T) {
 			require.NoError(t, writer.Err)
 		}
 	}
+}
+
+func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, amount)
+	emit.Bytes(w.BinWriter, to.BytesBE())
+	emit.Bytes(w.BinWriter, from.BytesBE())
+	emit.Int(w.BinWriter, 3)
+	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "transfer")
+	emit.AppCall(w.BinWriter, sc, false)
+	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+
+	script := w.Bytes()
+	return transaction.NewInvocationTX(script, 0)
 }

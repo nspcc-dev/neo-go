@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.5"
+	version          = "0.0.6"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -708,10 +708,13 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					}
 					amount, ok := arr[3].Value().(*big.Int)
 					if !ok {
-						continue
+						bs, ok := arr[3].Value().([]byte)
+						if !ok {
+							continue
+						}
+						amount = emit.BytesToInt(bs)
 					}
-					// TODO: #498
-					_, _, _, _ = op, from, to, amount
+					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 				}
 			} else {
 				bc.log.Warn("contract invocation failed",
@@ -749,6 +752,77 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	updateBlockHeightMetric(block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant)
 	return nil
+}
+
+func parseUint160(addr []byte) util.Uint160 {
+	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
+		return u
+	}
+	return util.Uint160{}
+}
+
+func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+	toAddr := parseUint160(to)
+	fromAddr := parseUint160(from)
+	transfer := &state.NEP5Transfer{
+		Asset:     sc,
+		From:      fromAddr,
+		To:        toAddr,
+		Block:     b.Index,
+		Timestamp: b.Timestamp,
+		Tx:        tx.Hash(),
+	}
+	if !fromAddr.Equals(util.Uint160{}) {
+		acc, err := cache.GetAccountStateOrNew(fromAddr)
+		if err != nil {
+			return
+		}
+		bs := acc.NEP5Balances[sc]
+		if bs == nil {
+			bs = new(state.NEP5Tracker)
+			acc.NEP5Balances[sc] = bs
+		}
+		bs.Balance -= amount
+		bs.LastUpdatedBlock = b.Index
+		if err := cache.PutAccountState(acc); err != nil {
+			return
+		}
+
+		transfer.Amount = -amount
+		if err := cache.AppendNEP5Transfer(fromAddr, transfer); err != nil {
+			return
+		}
+	}
+	if !toAddr.Equals(util.Uint160{}) {
+		acc, err := cache.GetAccountStateOrNew(toAddr)
+		if err != nil {
+			return
+		}
+		bs := acc.NEP5Balances[sc]
+		if bs == nil {
+			bs = new(state.NEP5Tracker)
+			acc.NEP5Balances[sc] = bs
+		}
+		bs.Balance += amount
+		bs.LastUpdatedBlock = b.Index
+		if err := cache.PutAccountState(acc); err != nil {
+			return
+		}
+
+		transfer.Amount = amount
+		if err := cache.AppendNEP5Transfer(toAddr, transfer); err != nil {
+			return
+		}
+	}
+}
+
+// GetNEP5TransferLog returns NEP5 transfer log for the acc.
+func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.NEP5TransferLog {
+	lg, err := bc.dao.GetNEP5TransferLog(acc)
+	if err != nil {
+		return nil
+	}
+	return lg
 }
 
 // LastBatch returns last persisted storage batch.
