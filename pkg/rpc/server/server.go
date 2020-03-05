@@ -854,28 +854,24 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, erro
 		tx := &transaction.Transaction{}
 		tx.DecodeBinary(r)
 		if r.Err != nil {
-			err = errors.Wrap(r.Err, "transaction DecodeBinary failed")
-		} else {
-			relayReason := s.coreServer.RelayTxn(tx)
-			switch relayReason {
-			case network.RelaySucceed:
-				results = true
-			case network.RelayAlreadyExists:
-				err = errors.New("block or transaction already exists and cannot be sent repeatedly")
-			case network.RelayOutOfMemory:
-				err = errors.New("the memory pool is full and no more transactions can be sent")
-			case network.RelayUnableToVerify:
-				err = errors.New("the block cannot be validated")
-			case network.RelayInvalid:
-				err = errors.New("block or transaction validation failed")
-			case network.RelayPolicyFail:
-				err = errors.New("one of the Policy filters failed")
-			default:
-				err = errors.New("unknown error")
-			}
+			return nil, response.ErrInvalidParams
 		}
-		if err != nil {
-			resultsErr = response.NewInternalServerError(err.Error(), err)
+		relayReason := s.coreServer.RelayTxn(tx)
+		switch relayReason {
+		case network.RelaySucceed:
+			results = true
+		case network.RelayAlreadyExists:
+			resultsErr = response.ErrAlreadyExists
+		case network.RelayOutOfMemory:
+			resultsErr = response.ErrOutOfMemory
+		case network.RelayUnableToVerify:
+			resultsErr = response.ErrUnableToVerify
+		case network.RelayInvalid:
+			resultsErr = response.ErrValidationFailed
+		case network.RelayPolicyFail:
+			resultsErr = response.ErrPolicyFail
+		default:
+			resultsErr = response.ErrUnknown
 		}
 	}
 
