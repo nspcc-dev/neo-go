@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -332,6 +334,72 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "invalid number height",
 			params: `[-2]`,
+			fail:   true,
+		},
+	},
+	"getblockheader": {
+		{
+			name:   "positive, no verbose",
+			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c14d"]`,
+			result: func(e *executor) interface{} {
+				expected := "00000000b32b4a122730deb7f862bdc99b45cc8ef12ae55a8096a344429968702091bf3a8e9f458e580420a99a67f0d4137266f76523ea618d1db7ec314b106eb6e67c1721bd575e340000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd04014092cb08b7fbef9b8fe47e7d7ec0557e32aeb2e61bdf5c1c6cac203ed12ad32d50629af1783436e585acc8581f46b2b29247f04102d66e9e7e112ae5444c46487340896a200e806f4597df05a12f91f0fbc5c256522687547e7e057b88ec14082213ce98a88f6fd312d3e3fad4b77db1fcc95af69282d887d56f461280df557e4820402903ff86e02559a58376da45d27eb24e5362f6fd922b79a55c9927e33a81265b5ccfef9db83a48b3597e9b576999fc5c0f02df982dbf871a1ef60b089ffb4dae40405d746c546d0ac3d7e36f61d71996f104884db93cca7499f687eb8b8e444327f97bfb05e49ee388d36e0dc73132a3a9ec24a6d8c8b27ae92223dbb7b06af1ec8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
+				return &expected
+			},
+		},
+		{
+			name:   "positive, verbose 0",
+			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c14d", 0]`,
+			result: func(e *executor) interface{} {
+				expected := "00000000b32b4a122730deb7f862bdc99b45cc8ef12ae55a8096a344429968702091bf3a8e9f458e580420a99a67f0d4137266f76523ea618d1db7ec314b106eb6e67c1721bd575e340000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd04014092cb08b7fbef9b8fe47e7d7ec0557e32aeb2e61bdf5c1c6cac203ed12ad32d50629af1783436e585acc8581f46b2b29247f04102d66e9e7e112ae5444c46487340896a200e806f4597df05a12f91f0fbc5c256522687547e7e057b88ec14082213ce98a88f6fd312d3e3fad4b77db1fcc95af69282d887d56f461280df557e4820402903ff86e02559a58376da45d27eb24e5362f6fd922b79a55c9927e33a81265b5ccfef9db83a48b3597e9b576999fc5c0f02df982dbf871a1ef60b089ffb4dae40405d746c546d0ac3d7e36f61d71996f104884db93cca7499f687eb8b8e444327f97bfb05e49ee388d36e0dc73132a3a9ec24a6d8c8b27ae92223dbb7b06af1ec8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
+				return &expected
+			},
+		},
+		{
+			name:   "positive, verbose !=0",
+			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c14d", 2]`,
+			result: func(e *executor) interface{} {
+				hash, _ := util.Uint256DecodeStringLE("a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c14d")
+				block, _ := e.chain.GetBlock(hash)
+				header := block.Header()
+				expected := result.Header{
+					Hash:          header.Hash(),
+					Size:          io.GetVarSize(header),
+					Version:       header.Version,
+					PrevBlockHash: header.PrevHash,
+					MerkleRoot:    header.MerkleRoot,
+					Timestamp:     header.Timestamp,
+					Index:         header.Index,
+					Nonce:         strconv.FormatUint(header.ConsensusData, 16),
+					NextConsensus: header.NextConsensus,
+					Script:        header.Script,
+					Confirmations: e.chain.BlockHeight() - header.Index + 1,
+				}
+
+				nextHash := e.chain.GetHeaderHash(int(header.Index) + 1)
+				if !hash.Equals(util.Uint256{}) {
+					expected.NextBlockHash = &nextHash
+				}
+				return &expected
+			},
+		},
+		{
+			name:   "invalid verbose type",
+			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c14d", true]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid block hash",
+			params: `["notahash"]`,
+			fail:   true,
+		},
+		{
+			name:   "unknown block",
+			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c141"]`,
+			fail:   true,
+		},
+		{
+			name:   "no params",
+			params: `[]`,
 			fail:   true,
 		},
 	},
