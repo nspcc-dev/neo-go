@@ -58,6 +58,12 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 	testEncodeDecode(t, expected, new(NEP5Transfer))
 }
 
+func TestNEP5TransferSize(t *testing.T) {
+	tr := randomTransfer(t, rand.New(rand.NewSource(0)))
+	size := io.GetVarSize(tr)
+	require.EqualValues(t, NEP5TransferSize, size)
+}
+
 func randomTransfer(t *testing.T, r *rand.Rand) *NEP5Transfer {
 	tr := &NEP5Transfer{
 		Amount: int64(r.Uint64()),
