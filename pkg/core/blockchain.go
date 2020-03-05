@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.5"
+	version          = "0.0.6"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -714,8 +714,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						}
 						amount = emit.BytesToInt(bs)
 					}
-					// TODO: #498
-					_, _, _, _ = op, from, to, amount
+					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 				}
 			} else {
 				bc.log.Warn("contract invocation failed",
@@ -753,6 +752,50 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	updateBlockHeightMetric(block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant)
 	return nil
+}
+
+func parseUint160(addr []byte) *util.Uint160 {
+	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
+		return &u
+	}
+	return nil
+}
+
+func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+	toAddr := parseUint160(to)
+	fromAddr := parseUint160(from)
+	if fromAddr != nil {
+		acc, err := cache.GetAccountStateOrNew(*fromAddr)
+		if err != nil {
+			return
+		}
+		bs := acc.NEP5Balances[sc]
+		if bs == nil {
+			bs = new(state.NEP5Tracker)
+			acc.NEP5Balances[sc] = bs
+		}
+		bs.Balance -= amount
+		bs.LastUpdatedBlock = b.Index
+		if err := cache.PutAccountState(acc); err != nil {
+			return
+		}
+	}
+	if toAddr != nil {
+		acc, err := cache.GetAccountStateOrNew(*toAddr)
+		if err != nil {
+			return
+		}
+		bs := acc.NEP5Balances[sc]
+		if bs == nil {
+			bs = new(state.NEP5Tracker)
+			acc.NEP5Balances[sc] = bs
+		}
+		bs.Balance += amount
+		bs.LastUpdatedBlock = b.Index
+		if err := cache.PutAccountState(acc); err != nil {
+			return
+		}
+	}
 }
 
 // LastBatch returns last persisted storage batch.
