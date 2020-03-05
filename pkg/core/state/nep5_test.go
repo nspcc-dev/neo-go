@@ -18,6 +18,20 @@ func TestNEP5Tracker_EncodeBinary(t *testing.T) {
 	testEncodeDecode(t, expected, new(NEP5Tracker))
 }
 
+func TestNEP5Transfer_DecodeBinary(t *testing.T) {
+	expected := &NEP5Transfer{
+		Asset:     util.Uint160{1, 2, 3},
+		From:      util.Uint160{5, 6, 7},
+		To:        util.Uint160{8, 9, 10},
+		Amount:    42,
+		Block:     12345,
+		Timestamp: 54321,
+		Tx:        util.Uint256{8, 5, 3},
+	}
+
+	testEncodeDecode(t, expected, new(NEP5Transfer))
+}
+
 func testEncodeDecode(t *testing.T, expected, actual io.Serializable) {
 	w := io.NewBufBinWriter()
 	expected.EncodeBinary(w.BinWriter)

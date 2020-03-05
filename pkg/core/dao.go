@@ -135,6 +135,41 @@ func (dao *dao) DeleteContractState(hash util.Uint160) error {
 
 // -- end contracts.
 
+// -- start transfer log.
+
+// GetNEP5TransferLog retrieves transfer log from the cache.
+func (dao *dao) GetNEP5TransferLog(acc util.Uint160) (*state.NEP5TransferLog, error) {
+	key := storage.AppendPrefix(storage.STNEP5Transfers, acc.BytesBE())
+	value, err := dao.store.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	return &state.NEP5TransferLog{Raw: value}, nil
+}
+
+// PutNEP5TransferLog saves given transfer log in the cache.
+func (dao *dao) PutNEP5TransferLog(acc util.Uint160, lg *state.NEP5TransferLog) error {
+	key := storage.AppendPrefix(storage.STNEP5Transfers, acc.BytesBE())
+	return dao.store.Put(key, lg.Raw)
+}
+
+// AppendNEP5Transfer appends a single NEP5 transfer to a log.
+func (dao *dao) AppendNEP5Transfer(acc util.Uint160, tr *state.NEP5Transfer) error {
+	lg, err := dao.GetNEP5TransferLog(acc)
+	if err != nil {
+		if err != storage.ErrKeyNotFound {
+			return err
+		}
+		lg = new(state.NEP5TransferLog)
+	}
+	if err := lg.Append(tr); err != nil {
+		return err
+	}
+	return dao.PutNEP5TransferLog(acc, lg)
+}
+
+// -- end transfer log.
+
 // -- start unspent coins.
 
 // GetUnspentCoinStateOrNew gets UnspentCoinState from temporary or persistent Store

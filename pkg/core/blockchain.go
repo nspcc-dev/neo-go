@@ -754,18 +754,26 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	return nil
 }
 
-func parseUint160(addr []byte) *util.Uint160 {
+func parseUint160(addr []byte) util.Uint160 {
 	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
-		return &u
+		return u
 	}
-	return nil
+	return util.Uint160{}
 }
 
 func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
-	if fromAddr != nil {
-		acc, err := cache.GetAccountStateOrNew(*fromAddr)
+	transfer := &state.NEP5Transfer{
+		Asset:     sc,
+		From:      fromAddr,
+		To:        toAddr,
+		Block:     b.Index,
+		Timestamp: b.Timestamp,
+		Tx:        tx.Hash(),
+	}
+	if !fromAddr.Equals(util.Uint160{}) {
+		acc, err := cache.GetAccountStateOrNew(fromAddr)
 		if err != nil {
 			return
 		}
@@ -779,9 +787,14 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		if err := cache.PutAccountState(acc); err != nil {
 			return
 		}
+
+		transfer.Amount = -amount
+		if err := cache.AppendNEP5Transfer(fromAddr, transfer); err != nil {
+			return
+		}
 	}
-	if toAddr != nil {
-		acc, err := cache.GetAccountStateOrNew(*toAddr)
+	if !toAddr.Equals(util.Uint160{}) {
+		acc, err := cache.GetAccountStateOrNew(toAddr)
 		if err != nil {
 			return
 		}
@@ -793,6 +806,11 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		bs.Balance += amount
 		bs.LastUpdatedBlock = b.Index
 		if err := cache.PutAccountState(acc); err != nil {
+			return
+		}
+
+		transfer.Amount = amount
+		if err := cache.AppendNEP5Transfer(fromAddr, transfer); err != nil {
 			return
 		}
 	}
