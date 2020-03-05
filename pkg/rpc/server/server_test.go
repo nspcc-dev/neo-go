@@ -51,7 +51,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 
 				require.True(t, ok)
 
-				expectedTxHash, err := util.Uint256DecodeStringLE("cdb9fef85da4efde173682233b1a6166c9f39e8e41e40b75abb88230bf0c04bc")
+				expectedTxHash, err := util.Uint256DecodeStringLE("440b84d1580e36e84379416b58d9a3ad978cc557e54fd7ec6a2648329975b333")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -141,6 +141,33 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "invalid hash",
 			params: `["notahex"]`,
 			fail:   true,
+		},
+	},
+
+	"getnep5balances": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
+			check: func(t *testing.T, e *executor, acc interface{}) {
+				res, ok := acc.(*result.NEP5Balances)
+				require.True(t, ok)
+				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
+				require.Equal(t, 1, len(res.Balances))
+				require.Equal(t, "877", res.Balances[0].Amount)
+				require.Equal(t, "d864728bdbc88da799bc43862ae6aaa62adc3a87", res.Balances[0].Asset.StringLE())
+				require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
+			},
 		},
 	},
 	"getstorage": {

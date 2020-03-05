@@ -21,6 +21,7 @@ Supported methods
 	getaccountstate
 	getblock
 	getclaimable
+	getnep5balances
 	getrawtransaction
 	getunspents
 	invoke
@@ -43,7 +44,6 @@ Unsupported methods
 	getconnectioncount
 	getcontractstate
 	getmetricblocktimestamp
-	getnep5balances
 	getnep5transfers
 	getnewaddress
 	getpeers

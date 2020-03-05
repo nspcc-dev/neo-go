@@ -198,6 +198,10 @@ Methods:
 		getconnectioncountCalled.Inc()
 		results = s.coreServer.PeerCount()
 
+	case "getnep5balances":
+		getnep5balancesCalled.Inc()
+		results, resultsErr = s.getNEP5Balances(reqParams)
+
 	case "getversion":
 		getversionCalled.Inc()
 		results = result.Version{
@@ -379,6 +383,31 @@ func (s *Server) getClaimable(ps request.Params) (interface{}, error) {
 		Address:   p.String(),
 		Unclaimed: sum,
 	}, nil
+}
+
+func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
+	p, ok := ps.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	u, err := p.GetUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	as := s.chain.GetAccountState(u)
+	bs := &result.NEP5Balances{Address: address.Uint160ToString(u)}
+	if as != nil {
+		for h, bal := range as.NEP5Balances {
+			amount := strconv.FormatInt(bal.Balance, 10)
+			bs.Balances = append(bs.Balances, result.NEP5Balance{
+				Asset:       h,
+				Amount:      amount,
+				LastUpdated: bal.LastUpdatedBlock,
+			})
+		}
+	}
+	return bs, nil
 }
 
 func (s *Server) getStorage(ps request.Params) (interface{}, error) {

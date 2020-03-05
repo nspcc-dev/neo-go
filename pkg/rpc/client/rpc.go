@@ -93,6 +93,16 @@ func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
 	return resp, nil
 }
 
+// GetNEP5Balances is a wrapper for getnep5balances RPC.
+func (c *Client) GetNEP5Balances(address util.Uint160) (*result.NEP5Balances, error) {
+	params := request.NewRawParams(address.StringLE())
+	resp := new(result.NEP5Balances)
+	if err := c.performRequest("getnep5balances", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetRawTransaction returns a transaction by hash.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
