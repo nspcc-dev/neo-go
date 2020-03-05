@@ -147,6 +147,14 @@ var (
 		},
 	)
 
+	gettransactionheightCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to gettransactionheight rpc endpoint",
+			Name:      "gettransactionheight_called",
+			Namespace: "neogo",
+		},
+	)
+
 	gettxoutCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to gettxout rpc endpoint",
@@ -206,6 +214,7 @@ func init() {
 		getassetstateCalled,
 		getaccountstateCalled,
 		getunspentsCalled,
+		gettransactionheightCalled,
 		gettxoutCalled,
 		getrawtransactionCalled,
 		sendrawtransactionCalled,

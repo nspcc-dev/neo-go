@@ -576,6 +576,31 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"gettransactionheight": {
+		{
+			name:   "poositive",
+			params: `["3fee783413c27849c8ee2656fd757a7483de64f4e78bd7897f30ecdf42ce788b"]`,
+			result: func(e *executor) interface{} {
+				h := 202
+				return &h
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["notahex"]`,
+			fail:   true,
+		},
+		{
+			name:   "missing hash",
+			params: `["` + util.Uint256{}.String() + `"]`,
+			fail:   true,
+		},
+	},
 	"getunspents": {
 		{
 			name:   "positive",
