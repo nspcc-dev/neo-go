@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
@@ -67,6 +68,23 @@ func (c *Client) NEP5BalanceOf(tokenHash util.Uint160) (int64, error) {
 	}
 
 	return topIntFromStack(result.Stack)
+}
+
+// NEP5TokenInfo returns full NEP5 token info.
+func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
+	name, err := c.NEP5Name(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	symbol, err := c.NEP5Symbol(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	decimals, err := c.NEP5Decimals(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	return wallet.NewToken(tokenHash, name, symbol, decimals), nil
 }
 
 func topIntFromStack(st []smartcontract.Parameter) (int64, error) {
