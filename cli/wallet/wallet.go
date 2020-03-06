@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -74,7 +75,7 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					rpcFlag,
 					timeoutFlag,
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "address, a",
 						Usage: "Address to claim GAS for",
 					},
@@ -162,11 +163,11 @@ func NewCommands() []cli.Command {
 					rpcFlag,
 					timeoutFlag,
 					outFlag,
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "from",
 						Usage: "Address to send an asset from",
 					},
-					cli.StringFlag{
+					flags.AddressFlag{
 						Name:  "to",
 						Usage: "Address to send an asset to",
 					},
@@ -196,15 +197,11 @@ func claimGas(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	addr := ctx.String("address")
-	scriptHash, err := address.StringToUint160(addr)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	scriptHash := addrFlag.Uint160()
 	acc := wall.GetAccount(scriptHash)
 	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addr), 1)
+		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addrFlag), 1)
 	}
 
 	pass, err := readPassword("Enter password > ")
@@ -221,7 +218,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	info, err := c.GetClaimable(addr)
+	info, err := c.GetClaimable(scriptHash.String())
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {
@@ -397,14 +394,11 @@ func transferAsset(ctx *cli.Context) error {
 	}
 	defer wall.Close()
 
-	from := ctx.String("from")
-	addr, err := address.StringToUint160(from)
-	if err != nil {
-		return cli.NewExitError("invalid address", 1)
-	}
-	acc := wall.GetAccount(addr)
+	fromFlag := ctx.Generic("from").(*flags.Address)
+	from := fromFlag.Uint160()
+	acc := wall.GetAccount(from)
 	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addr), 1)
+		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", from), 1)
 	}
 
 	asset, err := getAssetID(ctx.String("asset"))
@@ -433,14 +427,11 @@ func transferAsset(ctx *cli.Context) error {
 	}
 
 	tx := transaction.NewContractTX()
-	if err := request.AddInputsAndUnspentsToTx(tx, from, asset, amount, c); err != nil {
+	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	toAddr, err := address.StringToUint160(ctx.String("to"))
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	toAddr := ctx.Generic("to").(*flags.Address).Uint160()
 	tx.AddOutput(&transaction.Output{
 		AssetID:    asset,
 		Amount:     amount,
