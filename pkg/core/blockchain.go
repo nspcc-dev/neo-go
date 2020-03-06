@@ -1364,7 +1364,12 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if err := bc.verifyOutputs(t); err != nil {
 		return errors.Wrap(err, "wrong outputs")
 	}
-	if err := bc.verifyResults(t); err != nil {
+	refs, err := bc.References(t)
+	if err != nil {
+		return err
+	}
+	results := refsAndOutsToResults(refs, t.Outputs)
+	if err := bc.verifyResults(t, results); err != nil {
 		return err
 	}
 
@@ -1383,7 +1388,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if bc.dao.IsDoubleClaim(claim) {
 			return errors.New("double claim")
 		}
-		if err := bc.verifyClaims(t); err != nil {
+		if err := bc.verifyClaims(t, results); err != nil {
 			return err
 		}
 	case transaction.InvocationType:
@@ -1396,10 +1401,9 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	return bc.verifyTxWitnesses(t, block)
 }
 
-func (bc *Blockchain) verifyClaims(tx *transaction.Transaction) (err error) {
+func (bc *Blockchain) verifyClaims(tx *transaction.Transaction, results []*transaction.Result) (err error) {
 	t := tx.Data.(*transaction.ClaimTX)
 	var result *transaction.Result
-	results := bc.GetTransactionResults(tx)
 	for i := range results {
 		if results[i].AssetID == UtilityTokenID() {
 			result = results[i]
@@ -1581,11 +1585,7 @@ func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
 	return nil
 }
 
-func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
-	results := bc.GetTransactionResults(t)
-	if results == nil {
-		return errors.New("tx has no results")
-	}
+func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*transaction.Result) error {
 	var resultsDestroy []*transaction.Result
 	var resultsIssue []*transaction.Result
 	for _, re := range results {
@@ -1641,18 +1641,24 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 // GetTransactionResults returns the transaction results aggregate by assetID.
 // Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
 func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
-	var results []*transaction.Result
-	tempResult := make(map[util.Uint256]util.Fixed8)
-
 	references, err := bc.References(t)
 	if err != nil {
 		return nil
 	}
+	return refsAndOutsToResults(references, t.Outputs)
+}
+
+// mapReferencesToResults returns cumulative results of transaction based in its
+// references and outputs.
+func refsAndOutsToResults(references []transaction.InOut, outputs []transaction.Output) []*transaction.Result {
+	var results []*transaction.Result
+	tempResult := make(map[util.Uint256]util.Fixed8)
+
 	for _, inout := range references {
 		c := tempResult[inout.Out.AssetID]
 		tempResult[inout.Out.AssetID] = c.Add(inout.Out.Amount)
 	}
-	for _, output := range t.Outputs {
+	for _, output := range outputs {
 		c := tempResult[output.AssetID]
 		tempResult[output.AssetID] = c.Sub(output.Amount)
 	}
