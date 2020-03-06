@@ -186,6 +186,11 @@ func NewCommands() []cli.Command {
 				Usage:       "work with multisig address",
 				Subcommands: newMultisigCommands(),
 			},
+			{
+				Name:        "nep5",
+				Usage:       "work with NEP5 contracts",
+				Subcommands: newNEP5Commands(),
+			},
 		},
 	}}
 }
