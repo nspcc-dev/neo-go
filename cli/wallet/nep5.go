@@ -4,9 +4,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -43,6 +50,31 @@ func newNEP5Commands() []cli.Command {
 				cli.StringFlag{
 					Name:  "token",
 					Usage: "Token contract hash in LE",
+				},
+			},
+		},
+		{
+			Name:      "transfer",
+			Usage:     "transfer NEP5 tokens",
+			UsageText: "transfer --path <path> --rpc <node> --from <addr> --to <addr> --token <hash> --amount string",
+			Action:    transferNEP5,
+			Flags: []cli.Flag{
+				walletPathFlag,
+				rpcFlag,
+				timeoutFlag,
+				fromAddrFlag,
+				toAddrFlag,
+				cli.StringFlag{
+					Name:  "token",
+					Usage: "Token to use",
+				},
+				cli.StringFlag{
+					Name:  "amount",
+					Usage: "Amount of asset to send",
+				},
+				cli.StringFlag{
+					Name:  "gas",
+					Usage: "Amount of GAS to attach to a tx",
 				},
 			},
 		},
@@ -188,4 +220,87 @@ func printTokenInfo(tok *wallet.Token) {
 	fmt.Printf("Hash:\t%s\n", tok.Hash.StringLE())
 	fmt.Printf("Decimals: %d\n", tok.Decimals)
 	fmt.Printf("Address: %s\n", tok.Address)
+}
+
+func transferNEP5(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	fromFlag := ctx.Generic("from").(*flags.Address)
+	from := fromFlag.Uint160()
+	acc := wall.GetAccount(from)
+	if acc == nil {
+		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", fromFlag), 1)
+	}
+
+	gctx, cancel := getGoContext(ctx)
+	defer cancel()
+	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	toFlag := ctx.Generic("to").(*flags.Address)
+	to := toFlag.Uint160()
+	token, err := getMatchingToken(wall, ctx.String("token"))
+	if err != nil {
+		fmt.Println("Can't find matching token in the wallet. Querying RPC-node for balances.")
+		token, err = getMatchingTokenRPC(c, from, ctx.String("token"))
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	amount, err := util.FixedNFromString(ctx.String("amount"), int(token.Decimals))
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
+	}
+
+	// Note: we don't use invoke function here because it requires
+	// 2 round trips instead of one.
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, amount)
+	emit.Bytes(w.BinWriter, to.BytesBE())
+	emit.Bytes(w.BinWriter, from.BytesBE())
+	emit.Int(w.BinWriter, 3)
+	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "transfer")
+	emit.AppCall(w.BinWriter, token.Hash, false)
+	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+
+	var gas util.Fixed8
+	if gasString := ctx.String("gas"); gasString != "" {
+		gas, err = util.Fixed8FromString(gasString)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid GAS amount: %v", err), 1)
+		}
+	}
+
+	tx := transaction.NewInvocationTX(w.Bytes(), gas)
+	tx.Attributes = append(tx.Attributes, transaction.Attribute{
+		Usage: transaction.Script,
+		Data:  from.BytesBE(),
+	})
+
+	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), core.UtilityTokenID(), gas, c); err != nil {
+		return cli.NewExitError(fmt.Errorf("can't add GAS to a tx: %v", err), 1)
+	}
+
+	if pass, err := readPassword("Password > "); err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err := acc.Decrypt(pass); err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err := acc.SignTx(tx); err != nil {
+		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
+	}
+
+	if err := c.SendRawTransaction(tx); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println(tx.Hash())
+	return nil
 }

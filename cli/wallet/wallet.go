@@ -59,6 +59,14 @@ var (
 		Name:  "in",
 		Usage: "file with JSON transaction",
 	}
+	fromAddrFlag = flags.AddressFlag{
+		Name:  "from",
+		Usage: "Address to send an asset from",
+	}
+	toAddrFlag = flags.AddressFlag{
+		Name:  "to",
+		Usage: "Address to send an asset to",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -163,14 +171,8 @@ func NewCommands() []cli.Command {
 					rpcFlag,
 					timeoutFlag,
 					outFlag,
-					flags.AddressFlag{
-						Name:  "from",
-						Usage: "Address to send an asset from",
-					},
-					flags.AddressFlag{
-						Name:  "to",
-						Usage: "Address to send an asset to",
-					},
+					fromAddrFlag,
+					toAddrFlag,
 					cli.StringFlag{
 						Name:  "amount",
 						Usage: "Amount of asset to send",
