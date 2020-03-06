@@ -54,6 +54,19 @@ func newNEP5Commands() []cli.Command {
 			},
 		},
 		{
+			Name:      "info",
+			Usage:     "print imported NEP5 token info",
+			UsageText: "print --path <path> [--token <hash-or-name>]",
+			Action:    printNEP5Info,
+			Flags: []cli.Flag{
+				walletPathFlag,
+				cli.StringFlag{
+					Name:  "token",
+					Usage: "Token name or hash",
+				},
+			},
+		},
+		{
 			Name:      "transfer",
 			Usage:     "transfer NEP5 tokens",
 			UsageText: "transfer --path <path> --rpc <node> --from <addr> --to <addr> --token <hash> --amount string",
@@ -220,6 +233,31 @@ func printTokenInfo(tok *wallet.Token) {
 	fmt.Printf("Hash:\t%s\n", tok.Hash.StringLE())
 	fmt.Printf("Decimals: %d\n", tok.Decimals)
 	fmt.Printf("Address: %s\n", tok.Address)
+}
+
+func printNEP5Info(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	if name := ctx.String("token"); name != "" {
+		token, err := getMatchingToken(wall, name)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		printTokenInfo(token)
+		return nil
+	}
+
+	for i, t := range wall.Extra.Tokens {
+		if i > 0 {
+			fmt.Println()
+		}
+		printTokenInfo(t)
+	}
+	return nil
 }
 
 func transferNEP5(ctx *cli.Context) error {
