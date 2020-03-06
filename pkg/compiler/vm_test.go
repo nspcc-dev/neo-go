@@ -23,10 +23,17 @@ func runTestCases(t *testing.T, tcases []testCase) {
 	}
 }
 
+func evalWithoutStackChecks(t *testing.T, src string, result interface{}) {
+	v := vmAndCompile(t, src)
+	require.NoError(t, v.Run())
+	assertResult(t, v, result)
+}
+
 func eval(t *testing.T, src string, result interface{}) {
 	vm := vmAndCompile(t, src)
 	err := vm.Run()
 	require.NoError(t, err)
+	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
 	assertResult(t, vm, result)
 }
 
@@ -35,6 +42,7 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, resu
 	vm.LoadArgs(op, args)
 	err := vm.Run()
 	require.NoError(t, err)
+	assert.Equal(t, 1, vm.Estack().Len(), "stack contains unexpected items")
 	assertResult(t, vm, result)
 }
 
