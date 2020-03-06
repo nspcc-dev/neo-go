@@ -1,11 +1,12 @@
 package result
 
 import (
-	"strconv"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -41,7 +42,7 @@ type (
 		Time              uint32        `json:"time"`
 		Index             uint32        `json:"index"`
 		Nonce             string        `json:"nonce"`
-		NextConsensus     util.Uint160  `json:"nextconsensus"`
+		NextConsensus     string        `json:"nextconsensus"`
 
 		Confirmations uint32 `json:"confirmations"`
 
@@ -61,8 +62,8 @@ func NewBlock(b *block.Block, chain core.Blockchainer) Block {
 		MerkleRoot:        b.MerkleRoot,
 		Time:              b.Timestamp,
 		Index:             b.Index,
-		Nonce:             strconv.FormatUint(b.ConsensusData, 16),
-		NextConsensus:     b.NextConsensus,
+		Nonce:             fmt.Sprintf("%016x", b.ConsensusData),
+		NextConsensus:     address.Uint160ToString(b.NextConsensus),
 		Confirmations:     chain.BlockHeight() - b.Index - 1,
 
 		Script: b.Script,
