@@ -1641,36 +1641,24 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction) error {
 // GetTransactionResults returns the transaction results aggregate by assetID.
 // Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
 func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
-	var tempResults []*transaction.Result
 	var results []*transaction.Result
-	tempGroupResult := make(map[util.Uint256]util.Fixed8)
+	tempResult := make(map[util.Uint256]util.Fixed8)
 
 	references, err := bc.References(t)
 	if err != nil {
 		return nil
 	}
 	for _, inout := range references {
-		tempResults = append(tempResults, &transaction.Result{
-			AssetID: inout.Out.AssetID,
-			Amount:  inout.Out.Amount,
-		})
+		c := tempResult[inout.Out.AssetID]
+		tempResult[inout.Out.AssetID] = c.Add(inout.Out.Amount)
 	}
 	for _, output := range t.Outputs {
-		tempResults = append(tempResults, &transaction.Result{
-			AssetID: output.AssetID,
-			Amount:  -output.Amount,
-		})
-	}
-	for _, r := range tempResults {
-		if amount, ok := tempGroupResult[r.AssetID]; ok {
-			tempGroupResult[r.AssetID] = amount.Add(r.Amount)
-		} else {
-			tempGroupResult[r.AssetID] = r.Amount
-		}
+		c := tempResult[output.AssetID]
+		tempResult[output.AssetID] = c.Sub(output.Amount)
 	}
 
 	results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
-	for assetID, amount := range tempGroupResult {
+	for assetID, amount := range tempResult {
 		if amount != util.Fixed8(0) {
 			results = append(results, &transaction.Result{
 				AssetID: assetID,
