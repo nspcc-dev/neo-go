@@ -63,7 +63,7 @@ which would yield the response:
 | `invokefunction` | Yes |
 | `invokescript` | Yes |
 | `sendrawtransaction` | Yes |
-| `submitblock` | No (#344) |
+| `submitblock` | Yes |
 | `validateaddress` | Yes |
 
 ### Unsupported methods

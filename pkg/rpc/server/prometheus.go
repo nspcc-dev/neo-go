@@ -187,6 +187,14 @@ var (
 		},
 	)
 
+	submitblockCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to submitblock rpc endpoint",
+			Name:      "submitblock_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getstorageCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getstorage rpc endpoint",
@@ -218,6 +226,7 @@ func init() {
 		gettxoutCalled,
 		getrawtransactionCalled,
 		sendrawtransactionCalled,
+		submitblockCalled,
 		getstorageCalled,
 	)
 }

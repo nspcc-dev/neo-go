@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -305,6 +306,10 @@ Methods:
 
 	case "invokescript":
 		results, resultsErr = s.invokescript(reqParams)
+
+	case "submitblock":
+		submitblockCalled.Inc()
+		results, resultsErr = s.submitBlock(reqParams)
 
 	case "sendrawtransaction":
 		sendrawtransactionCalled.Inc()
@@ -831,6 +836,34 @@ func (s *Server) runScriptInVM(script []byte) *result.Invoke {
 	return result
 }
 
+// submitBlock broadcasts a raw block over the NEO network.
+func (s *Server) submitBlock(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	blockBytes, err := param.GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	b := block.Block{}
+	r := io.NewBinReaderFromBuf(blockBytes)
+	b.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	err = s.chain.AddBlock(&b)
+	if err != nil {
+		switch err {
+		case core.ErrInvalidBlockIndex, core.ErrAlreadyExists:
+			return nil, response.ErrAlreadyExists
+		default:
+			return nil, response.ErrValidationFailed
+		}
+	}
+	return true, nil
+}
+
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
@@ -844,28 +877,24 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, erro
 		tx := &transaction.Transaction{}
 		tx.DecodeBinary(r)
 		if r.Err != nil {
-			err = errors.Wrap(r.Err, "transaction DecodeBinary failed")
-		} else {
-			relayReason := s.coreServer.RelayTxn(tx)
-			switch relayReason {
-			case network.RelaySucceed:
-				results = true
-			case network.RelayAlreadyExists:
-				err = errors.New("block or transaction already exists and cannot be sent repeatedly")
-			case network.RelayOutOfMemory:
-				err = errors.New("the memory pool is full and no more transactions can be sent")
-			case network.RelayUnableToVerify:
-				err = errors.New("the block cannot be validated")
-			case network.RelayInvalid:
-				err = errors.New("block or transaction validation failed")
-			case network.RelayPolicyFail:
-				err = errors.New("one of the Policy filters failed")
-			default:
-				err = errors.New("unknown error")
-			}
+			return nil, response.ErrInvalidParams
 		}
-		if err != nil {
-			resultsErr = response.NewInternalServerError(err.Error(), err)
+		relayReason := s.coreServer.RelayTxn(tx)
+		switch relayReason {
+		case network.RelaySucceed:
+			results = true
+		case network.RelayAlreadyExists:
+			resultsErr = response.ErrAlreadyExists
+		case network.RelayOutOfMemory:
+			resultsErr = response.ErrOutOfMemory
+		case network.RelayUnableToVerify:
+			resultsErr = response.ErrUnableToVerify
+		case network.RelayInvalid:
+			resultsErr = response.ErrValidationFailed
+		case network.RelayPolicyFail:
+			resultsErr = response.ErrPolicyFail
+		default:
+			resultsErr = response.ErrUnknown
 		}
 	}
 

@@ -391,6 +391,17 @@ func TestCreateBasicChain(t *testing.T) {
 			require.NoError(t, writer.Err)
 		}
 	}
+
+	// Blocks for `submitblock` test. If you are planning to modify test chain from `testblocks.acc`,
+	// please, update params value of `empty block` and `positive` tests.
+	var blocks []*block.Block
+	blocks = append(blocks, bc.newBlock(), bc.newBlock(newMinerTX()))
+	for _, b := range blocks {
+		buf := io.NewBufBinWriter()
+		b.EncodeBinary(buf.BinWriter)
+		require.NoError(t, buf.Err)
+		t.Log(hex.EncodeToString(buf.Bytes()))
+	}
 }
 
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
