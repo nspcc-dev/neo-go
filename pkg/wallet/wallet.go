@@ -28,13 +28,19 @@ type Wallet struct {
 
 	// Extra metadata can be used for storing arbitrary data.
 	// This field can be empty.
-	Extra interface{} `json:"extra"`
+	Extra Extra `json:"extra"`
 
 	// Path where the wallet file is located..
 	path string
 
 	// ReadWriter for reading and writing wallet data.
 	rw io.ReadWriter
+}
+
+// Extra stores imported token contracts.
+type Extra struct {
+	// Tokens is a list of imported token contracts.
+	Tokens []*Token
 }
 
 // NewWallet creates a new NEO wallet at the given location.
@@ -94,6 +100,11 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 // AddAccount adds an existing Account to the wallet.
 func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
+}
+
+// AddToken adds new token to a wallet.
+func (w *Wallet) AddToken(tok *Token) {
+	w.Extra.Tokens = append(w.Extra.Tokens, tok)
 }
 
 // Path returns the location of the wallet on the filesystem.
