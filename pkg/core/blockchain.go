@@ -531,8 +531,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						}
 					}
 					if index >= 0 {
-						copy(account.Balances[prevTXOutput.AssetID][index:], account.Balances[prevTXOutput.AssetID][index+1:])
-						account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:balancesLen-1]
+						last := balancesLen - 1
+						if last > index {
+							account.Balances[prevTXOutput.AssetID][index] = account.Balances[prevTXOutput.AssetID][last]
+						}
+						account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:last]
 					}
 				}
 				if err = cache.PutAccountState(account); err != nil {
@@ -619,8 +622,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				var changed bool
 				for i := range acc.Unclaimed {
 					if acc.Unclaimed[i].Tx == input.PrevHash && acc.Unclaimed[i].Index == input.PrevIndex {
-						copy(acc.Unclaimed[i:], acc.Unclaimed[i+1:])
-						acc.Unclaimed = acc.Unclaimed[:len(acc.Unclaimed)-1]
+						last := len(acc.Unclaimed) - 1
+						if last > i {
+							acc.Unclaimed[i] = acc.Unclaimed[last]
+						}
+						acc.Unclaimed = acc.Unclaimed[:last]
 						changed = true
 						break
 					}
