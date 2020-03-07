@@ -82,6 +82,13 @@ var (
 			Namespace: "neogo",
 		},
 	)
+	getvalidatorsCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getvalidators rpc endpoint",
+			Name:      "getvalidators_called",
+			Namespace: "neogo",
+		},
+	)
 
 	getnep5balancesCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
@@ -215,6 +222,7 @@ func init() {
 		getblocksysfeeCalled,
 		getconnectioncountCalled,
 		getcontractstateCalled,
+		getvalidatorsCalled,
 		getversionCalled,
 		getpeersCalled,
 		getrawmempoolCalled,

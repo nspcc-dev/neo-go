@@ -25,6 +25,7 @@ type Blockchainer interface {
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
+	GetEnrollments() ([]*state.Validator, error)
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256

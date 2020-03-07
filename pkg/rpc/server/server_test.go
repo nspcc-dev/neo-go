@@ -624,6 +624,31 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"getvalidators": {
+		{
+			params: "[]",
+			result: func(*executor) interface{} {
+				return &[]result.Validator{}
+			},
+			check: func(t *testing.T, e *executor, validators interface{}) {
+				var expected []result.Validator
+				sBValidators, err := e.chain.GetStandByValidators()
+				require.NoError(t, err)
+				for _, sbValidator := range sBValidators {
+					expected = append(expected, result.Validator{
+						PublicKey: *sbValidator,
+						Votes:     0,
+						Active:    true,
+					})
+				}
+
+				actual, ok := validators.(*[]result.Validator)
+				require.True(t, ok)
+
+				assert.ElementsMatch(t, expected, *actual)
+			},
+		},
+	},
 	"getversion": {
 		{
 			params: "[]",

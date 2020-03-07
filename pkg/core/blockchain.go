@@ -1804,6 +1804,40 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 	return result, nil
 }
 
+// GetEnrollments returns all registered validators and non-registered SB validators
+func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
+	validators := bc.dao.GetValidators()
+	standByValidators, err := bc.GetStandByValidators()
+	if err != nil {
+		return nil, err
+	}
+	uniqueSBValidators := standByValidators.Unique()
+
+	var result []*state.Validator
+	for _, validator := range validators {
+		if validator.Registered {
+			result = append(result, validator)
+		}
+	}
+	for _, sBValidator := range uniqueSBValidators {
+		isAdded := false
+		for _, v := range result {
+			if v.PublicKey == sBValidator {
+				isAdded = true
+				break
+			}
+		}
+		if !isAdded {
+			result = append(result, &state.Validator{
+				PublicKey:  sBValidator,
+				Registered: false,
+				Votes:      0,
+			})
+		}
+	}
+	return result, nil
+}
+
 func processStateTX(dao *cachedDao, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
