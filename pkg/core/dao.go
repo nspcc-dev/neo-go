@@ -590,7 +590,7 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 			return false
 		}
 		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.States) || unspent.States[input.PrevIndex] == state.CoinSpent {
+			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex]&state.CoinSpent) != 0 {
 				return true
 			}
 		}

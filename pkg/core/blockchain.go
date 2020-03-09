@@ -501,7 +501,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 			oldSpentCoinLen := len(spentCoin.Items)
 			for _, input := range inputs {
-				unspent.States[input.PrevIndex] = state.CoinSpent
+				unspent.States[input.PrevIndex] |= state.CoinSpent
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
