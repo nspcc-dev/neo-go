@@ -1,38 +1,60 @@
 package state
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // UnspentCoin hold the state of a unspent coin.
 type UnspentCoin struct {
-	States []Coin
+	Height uint32
+	States []OutputState
+}
+
+// OutputState combines transaction output (UTXO) and its state
+// (spent/claimed...) along with the height of spend (if it's spent).
+type OutputState struct {
+	transaction.Output
+
+	SpendHeight uint32
+	State       Coin
 }
 
 // NewUnspentCoin returns a new unspent coin state with N confirmed states.
-func NewUnspentCoin(n int) *UnspentCoin {
+func NewUnspentCoin(height uint32, tx *transaction.Transaction) *UnspentCoin {
 	u := &UnspentCoin{
-		States: make([]Coin, n),
+		Height: height,
+		States: make([]OutputState, len(tx.Outputs)),
 	}
-	for i := 0; i < n; i++ {
-		u.States[i] = CoinConfirmed
+	for i := range tx.Outputs {
+		u.States[i] = OutputState{Output: tx.Outputs[i]}
 	}
 	return u
 }
 
 // EncodeBinary encodes UnspentCoin to the given BinWriter.
 func (s *UnspentCoin) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteU32LE(s.Height)
+	bw.WriteArray(s.States)
 	bw.WriteVarUint(uint64(len(s.States)))
-	for _, state := range s.States {
-		bw.WriteB(byte(state))
-	}
 }
 
 // DecodeBinary decodes UnspentCoin from the given BinReader.
 func (s *UnspentCoin) DecodeBinary(br *io.BinReader) {
-	lenStates := br.ReadVarUint()
-	s.States = make([]Coin, lenStates)
-	for i := 0; i < int(lenStates); i++ {
-		s.States[i] = Coin(br.ReadB())
-	}
+	s.Height = br.ReadU32LE()
+	br.ReadArray(&s.States)
+}
+
+// EncodeBinary implements Serializable interface.
+func (o *OutputState) EncodeBinary(w *io.BinWriter) {
+	o.Output.EncodeBinary(w)
+	w.WriteU32LE(o.SpendHeight)
+	w.WriteB(byte(o.State))
+}
+
+// DecodeBinary implements Serializable interface.
+func (o *OutputState) DecodeBinary(r *io.BinReader) {
+	o.Output.DecodeBinary(r)
+	o.SpendHeight = r.ReadU32LE()
+	o.State = Coin(r.ReadB())
 }

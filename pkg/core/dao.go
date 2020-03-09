@@ -175,20 +175,6 @@ func (dao *dao) AppendNEP5Transfer(acc util.Uint160, tr *state.NEP5Transfer) err
 
 // -- start unspent coins.
 
-// GetUnspentCoinStateOrNew gets UnspentCoinState from temporary or persistent Store
-// and return it. If it's not present in both stores, returns a new
-// UnspentCoinState.
-func (dao *dao) GetUnspentCoinStateOrNew(hash util.Uint256) (*state.UnspentCoin, error) {
-	unspent, err := dao.GetUnspentCoinState(hash)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
-			return nil, err
-		}
-		unspent = state.NewUnspentCoin(0)
-	}
-	return unspent, nil
-}
-
 // GetUnspentCoinState retrieves UnspentCoinState from the given store.
 func (dao *dao) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
 	unspent := &state.UnspentCoin{}
@@ -207,45 +193,6 @@ func (dao *dao) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) e
 }
 
 // -- end unspent coins.
-
-// -- start spent coins.
-
-// GetSpentCoinsOrNew returns spent coins from store.
-func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256, height uint32) (*state.SpentCoin, error) {
-	spent, err := dao.GetSpentCoinState(hash)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
-			return nil, err
-		}
-		spent = state.NewSpentCoin(height)
-	}
-	return spent, nil
-}
-
-// GetSpentCoinState gets SpentCoinState from the given store.
-func (dao *dao) GetSpentCoinState(hash util.Uint256) (*state.SpentCoin, error) {
-	spent := &state.SpentCoin{}
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
-	err := dao.GetAndDecode(spent, key)
-	if err != nil {
-		return nil, err
-	}
-	return spent, nil
-}
-
-// PutSpentCoinState puts given SpentCoinState into the given store.
-func (dao *dao) PutSpentCoinState(hash util.Uint256, scs *state.SpentCoin) error {
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
-	return dao.Put(scs, key)
-}
-
-// DeleteSpentCoinState deletes given SpentCoinState from the given store.
-func (dao *dao) DeleteSpentCoinState(hash util.Uint256) error {
-	key := storage.AppendPrefix(storage.STSpentCoin, hash.BytesLE())
-	return dao.store.Delete(key)
-}
-
-// -- end spent coins.
 
 // -- start validator.
 
@@ -590,7 +537,7 @@ func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
 			return false
 		}
 		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex]&state.CoinSpent) != 0 {
+			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&state.CoinSpent) != 0 {
 				return true
 			}
 		}
@@ -605,13 +552,12 @@ func (dao *dao) IsDoubleClaim(claim *transaction.ClaimTX) bool {
 	}
 	for _, inputs := range transaction.GroupInputsByPrevHash(claim.Claims) {
 		prevHash := inputs[0].PrevHash
-		scs, err := dao.GetSpentCoinState(prevHash)
+		unspent, err := dao.GetUnspentCoinState(prevHash)
 		if err != nil {
 			return true
 		}
 		for _, input := range inputs {
-			_, ok := scs.Items[input.PrevIndex]
-			if !ok {
+			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&state.CoinClaimed) != 0 {
 				return true
 			}
 		}
