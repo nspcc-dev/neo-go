@@ -515,7 +515,7 @@ func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, 
 func (ic *interopContext) contractCreate(v *vm.VM) error {
 	newcontract, err := ic.createContractStateFromVM(v)
 	if err != nil {
-		return nil
+		return err
 	}
 	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
 	if err != nil {
@@ -555,7 +555,7 @@ func (ic *interopContext) contractIsPayable(v *vm.VM) error {
 func (ic *interopContext) contractMigrate(v *vm.VM) error {
 	newcontract, err := ic.createContractStateFromVM(v)
 	if err != nil {
-		return nil
+		return err
 	}
 	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
 	if err != nil {
