@@ -1,17 +1,16 @@
-package core
+package state
 
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEncodeDecodeSpentCoinState(t *testing.T) {
-	spent := &SpentCoinState{
-		txHeight: 1001,
-		items: map[uint16]uint32{
+func TestEncodeDecodeSpentCoin(t *testing.T) {
+	spent := &SpentCoin{
+		TxHeight: 1001,
+		Items: map[uint16]uint32{
 			1: 3,
 			2: 8,
 			4: 100,
@@ -21,7 +20,7 @@ func TestEncodeDecodeSpentCoinState(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	spent.EncodeBinary(buf.BinWriter)
 	assert.Nil(t, buf.Err)
-	spentDecode := new(SpentCoinState)
+	spentDecode := new(SpentCoin)
 	r := io.NewBinReaderFromBuf(buf.Bytes())
 	spentDecode.DecodeBinary(r)
 	assert.Nil(t, r.Err)

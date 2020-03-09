@@ -475,7 +475,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return err
 		}
 
-		if err := cache.PutUnspentCoinState(tx.Hash(), NewUnspentCoinState(len(tx.Outputs))); err != nil {
+		if err := cache.PutUnspentCoinState(tx.Hash(), state.NewUnspentCoin(len(tx.Outputs))); err != nil {
 			return err
 		}
 
@@ -499,9 +499,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return err
 			}
-			oldSpentCoinLen := len(spentCoin.items)
+			oldSpentCoinLen := len(spentCoin.Items)
 			for _, input := range inputs {
-				unspent.states[input.PrevIndex] = state.CoinSpent
+				unspent.States[input.PrevIndex] = state.CoinSpent
 				prevTXOutput := prevTX.Outputs[input.PrevIndex]
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
@@ -516,7 +516,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						End:   block.Index,
 						Value: prevTXOutput.Amount,
 					})
-					spentCoin.items[input.PrevIndex] = block.Index
+					spentCoin.Items[input.PrevIndex] = block.Index
 					if err = processTXWithValidatorsSubtract(&prevTXOutput, account, cache); err != nil {
 						return err
 					}
@@ -548,7 +548,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
 				return err
 			}
-			if oldSpentCoinLen != len(spentCoin.items) {
+			if oldSpentCoinLen != len(spentCoin.Items) {
 				if err = cache.PutSpentCoinState(prevHash, spentCoin); err != nil {
 					return err
 				}
@@ -590,7 +590,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			for _, input := range t.Claims {
 				scs, err := cache.GetSpentCoinState(input.PrevHash)
 				if err == nil {
-					_, ok := scs.items[input.PrevIndex]
+					_, ok := scs.Items[input.PrevIndex]
 					if !ok {
 						err = errors.New("no spent coin state")
 					}
@@ -644,8 +644,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 
-				delete(scs.items, input.PrevIndex)
-				if len(scs.items) > 0 {
+				delete(scs.Items, input.PrevIndex)
+				if len(scs.Items) > 0 {
 					if err = cache.PutSpentCoinState(input.PrevHash, scs); err != nil {
 						return err
 					}
@@ -1174,7 +1174,7 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 }
 
 // GetUnspentCoinState returns unspent coin state for given tx hash.
-func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *UnspentCoinState {
+func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *state.UnspentCoin {
 	ucs, err := bc.dao.GetUnspentCoinState(hash)
 	if ucs == nil && err != storage.ErrKeyNotFound {
 		bc.log.Warn("failed to get unspent coin state", zap.Error(err))
@@ -1472,7 +1472,7 @@ func (bc *Blockchain) getUnclaimed(h util.Uint256) (map[uint16]*spentCoin, error
 	}
 
 	result := make(map[uint16]*spentCoin)
-	for i, height := range scs.items {
+	for i, height := range scs.Items {
 		result[i] = &spentCoin{
 			Output:      &tx.Outputs[i],
 			StartHeight: txHeight,

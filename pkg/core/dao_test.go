@@ -113,7 +113,7 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 func TestPutGetUnspentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	unspentCoinState := &UnspentCoinState{states: []state.Coin{}}
+	unspentCoinState := &state.UnspentCoin{States: []state.Coin{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
@@ -132,7 +132,7 @@ func TestGetSpentCoinStateOrNew_New(t *testing.T) {
 func TestPutAndGetSpentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
+	spentCoinState := &state.SpentCoin{Items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
@@ -151,7 +151,7 @@ func TestGetSpentCoinState_Err(t *testing.T) {
 func TestDeleteSpentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
+	spentCoinState := &state.SpentCoin{Items: make(map[uint16]uint32)}
 	err := dao.PutSpentCoinState(hash, spentCoinState)
 	require.NoError(t, err)
 	err = dao.DeleteSpentCoinState(hash)
