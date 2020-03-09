@@ -3,12 +3,10 @@ package core
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // SpentCoinState represents the state of a spent coin.
 type SpentCoinState struct {
-	txHash   util.Uint256
 	txHeight uint32
 
 	// A mapping between the index of the prevIndex and block height.
@@ -23,9 +21,8 @@ type spentCoin struct {
 }
 
 // NewSpentCoinState returns a new SpentCoinState object.
-func NewSpentCoinState(hash util.Uint256, height uint32) *SpentCoinState {
+func NewSpentCoinState(height uint32) *SpentCoinState {
 	return &SpentCoinState{
-		txHash:   hash,
 		txHeight: height,
 		items:    make(map[uint16]uint32),
 	}
@@ -33,7 +30,6 @@ func NewSpentCoinState(hash util.Uint256, height uint32) *SpentCoinState {
 
 // DecodeBinary implements Serializable interface.
 func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
-	br.ReadBytes(s.txHash[:])
 	s.txHeight = br.ReadU32LE()
 
 	s.items = make(map[uint16]uint32)
@@ -51,7 +47,6 @@ func (s *SpentCoinState) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (s *SpentCoinState) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteBytes(s.txHash[:])
 	bw.WriteU32LE(s.txHeight)
 	bw.WriteVarUint(uint64(len(s.items)))
 	for k, v := range s.items {

@@ -219,7 +219,7 @@ func (dao *dao) GetSpentCoinsOrNew(hash util.Uint256, height uint32) (*SpentCoin
 		if err != storage.ErrKeyNotFound {
 			return nil, err
 		}
-		spent = NewSpentCoinState(hash, height)
+		spent = NewSpentCoinState(height)
 	}
 	return spent, nil
 }

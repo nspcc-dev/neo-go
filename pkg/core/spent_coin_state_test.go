@@ -10,7 +10,6 @@ import (
 
 func TestEncodeDecodeSpentCoinState(t *testing.T) {
 	spent := &SpentCoinState{
-		txHash:   random.Uint256(),
 		txHeight: 1001,
 		items: map[uint16]uint32{
 			1: 3,
