@@ -59,6 +59,14 @@ var (
 		Name:  "in",
 		Usage: "file with JSON transaction",
 	}
+	fromAddrFlag = flags.AddressFlag{
+		Name:  "from",
+		Usage: "Address to send an asset from",
+	}
+	toAddrFlag = flags.AddressFlag{
+		Name:  "to",
+		Usage: "Address to send an asset to",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -163,14 +171,8 @@ func NewCommands() []cli.Command {
 					rpcFlag,
 					timeoutFlag,
 					outFlag,
-					flags.AddressFlag{
-						Name:  "from",
-						Usage: "Address to send an asset from",
-					},
-					flags.AddressFlag{
-						Name:  "to",
-						Usage: "Address to send an asset to",
-					},
+					fromAddrFlag,
+					toAddrFlag,
 					cli.StringFlag{
 						Name:  "amount",
 						Usage: "Amount of asset to send",
@@ -185,6 +187,11 @@ func NewCommands() []cli.Command {
 				Name:        "multisig",
 				Usage:       "work with multisig address",
 				Subcommands: newMultisigCommands(),
+			},
+			{
+				Name:        "nep5",
+				Usage:       "work with NEP5 contracts",
+				Subcommands: newNEP5Commands(),
 			},
 		},
 	}}
@@ -221,7 +228,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	info, err := c.GetClaimable(scriptHash.String())
+	info, err := c.GetClaimable(addrFlag.String())
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {

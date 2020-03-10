@@ -85,6 +85,20 @@ func TestFixed8FromString(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestFixedNFromString(t *testing.T) {
+	val := "123.456"
+	num, err := FixedNFromString(val, 3)
+	require.NoError(t, err)
+	require.EqualValues(t, 123456, num)
+
+	num, err = FixedNFromString(val, 4)
+	require.NoError(t, err)
+	require.EqualValues(t, 1234560, num)
+
+	_, err = FixedNFromString(val, 2)
+	require.Error(t, err)
+}
+
 func TestSatoshi(t *testing.T) {
 	satoshif8 := Satoshi()
 	assert.Equal(t, "0.00000001", satoshif8.String())
