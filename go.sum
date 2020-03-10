@@ -1,7 +1,7 @@
-github.com/nspcc-dev/neo-go v0.62.1-pre.0.20191114145240-e740fbe708f8/go.mod h1:MJCkWUBhi9pn/CrYO1Q3P687y2KeahrOPS9BD9LDGb0=
-github.com/nspcc-dev/neo-go v0.70.1-pre.0.20191209120015-fccb0085941e/go.mod h1:0enZl0az8xA6PVkwzEOwPWVJGqlt/GO4hA4kmQ5Xzig=
-github.com/nspcc-dev/neo-go v0.70.1-pre.0.20191212173117-32ac01130d4c/go.mod h1:JtlHfeqLywZLswKIKFnAp+yzezY4Dji9qlfQKB2OD/I=
-github.com/nspcc-dev/neo-go v0.71.1-pre.0.20200129171427-f773ec69fb84/go.mod h1:FLI526IrRWHmcsO+mHsCbj64pJZhwQFTLJZu+A4PGOA=
+github.com/CityOfZion/neo-go v0.62.1-pre.0.20191114145240-e740fbe708f8/go.mod h1:MJCkWUBhi9pn/CrYO1Q3P687y2KeahrOPS9BD9LDGb0=
+github.com/CityOfZion/neo-go v0.70.1-pre.0.20191209120015-fccb0085941e/go.mod h1:0enZl0az8xA6PVkwzEOwPWVJGqlt/GO4hA4kmQ5Xzig=
+github.com/CityOfZion/neo-go v0.70.1-pre.0.20191212173117-32ac01130d4c/go.mod h1:JtlHfeqLywZLswKIKFnAp+yzezY4Dji9qlfQKB2OD/I=
+github.com/CityOfZion/neo-go v0.71.1-pre.0.20200129171427-f773ec69fb84/go.mod h1:FLI526IrRWHmcsO+mHsCbj64pJZhwQFTLJZu+A4PGOA=
 github.com/Workiva/go-datastructures v1.0.50 h1:slDmfW6KCHcC7U+LP3DDBbm4fqTwZGn1beOFPfGaLvo=
 github.com/Workiva/go-datastructures v1.0.50/go.mod h1:Z+F2Rca0qCsVYDS8z7bAGm8f3UkzuWYS/oBZz5a7VVA=
 github.com/abiosoft/ishell v2.0.0+incompatible h1:zpwIuEHc37EzrsIYah3cpevrIc8Oma7oZPxr03tlmmw=
@@ -99,8 +99,6 @@ github.com/nspcc-dev/dbft v0.0.0-20200117124306-478e5cfbf03a h1:ajvxgEe9qY4vvoSm
 github.com/nspcc-dev/dbft v0.0.0-20200117124306-478e5cfbf03a/go.mod h1:/YFK+XOxxg0Bfm6P92lY5eDSLYfp06XOdL8KAVgXjVk=
 github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1 h1:yEx9WznS+rjE0jl0dLujCxuZSIb+UTjF+005TJu/nNI=
 github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1/go.mod h1:O0qtn62prQSqizzoagHmuuKoz8QMkU3SzBoKdEvm3aQ=
-github.com/nspcc-dev/dbft v0.0.0-20200303142906-383e2589bc69 h1:jp29/ONuo8ECHXNirePBL/fG/fcuFlZxbItMCEZz05A=
-github.com/nspcc-dev/dbft v0.0.0-20200303142906-383e2589bc69/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
 github.com/nspcc-dev/dbft v0.0.0-20200303183127-36d3da79c682 h1:63OWUolW4GcjJR7cThq8hLnMLTwL+sjO3Qf4fo4sx8w=
 github.com/nspcc-dev/dbft v0.0.0-20200303183127-36d3da79c682/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
 github.com/nspcc-dev/neo-go v0.73.1-pre.0.20200303142215-f5a1b928ce09/go.mod h1:pPYwPZ2ks+uMnlRLUyXOpLieaDQSEaf4NM3zHVbRjmg=
