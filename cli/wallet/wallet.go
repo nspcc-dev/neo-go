@@ -228,7 +228,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	info, err := c.GetClaimable(scriptHash.String())
+	info, err := c.GetClaimable(addrFlag.String())
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {
