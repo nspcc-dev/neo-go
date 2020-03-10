@@ -41,6 +41,8 @@ type codegen struct {
 
 	// A mapping from label's names to their ids.
 	labels map[labelWithType]uint16
+	// A list of nested label names together with evaluation stack depth.
+	labelList []labelWithStackSize
 
 	// A label for the for-loop being currently visited.
 	currentFor string
@@ -64,6 +66,11 @@ const (
 type labelWithType struct {
 	name string
 	typ  labelOffsetType
+}
+
+type labelWithStackSize struct {
+	name string
+	sz   int
 }
 
 // newLabel creates a new label to jump to
@@ -373,6 +380,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		l := c.newLabel()
 		c.setLabel(l)
 
+		cnt := 0
+		for i := range c.labelList {
+			cnt += c.labelList[i].sz
+		}
+		c.dropItems(cnt)
+
 		// first result should be on top of the stack
 		for i := len(n.Results) - 1; i >= 0; i-- {
 			ast.Walk(c, n.Results[i])
@@ -414,6 +427,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		lastSwitch := c.currentSwitch
 		c.currentSwitch = label
+		c.pushStackLabel(label, 1)
 
 		startLabels := make([]uint16, len(n.Body.List))
 		for i := range startLabels {
@@ -451,7 +465,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		c.setLabel(switchEnd)
-		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		c.dropStackLabel()
 
 		c.currentSwitch = lastSwitch
 
@@ -725,6 +739,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			label = c.currentFor
 		}
 
+		cnt := 0
+		for i := len(c.labelList) - 1; i >= 0 && c.labelList[i].name != label; i-- {
+			cnt += c.labelList[i].sz
+		}
+		c.dropItems(cnt)
+
 		switch n.Tok {
 		case token.BREAK:
 			end := c.getLabelOffset(labelEnd, label)
@@ -759,6 +779,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// Set label and walk the condition.
+		c.pushStackLabel(label, 0)
 		c.setLabel(fstart)
 		ast.Walk(c, n.Cond)
 
@@ -775,6 +796,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Jump back to condition.
 		emit.Jmp(c.prog.BinWriter, opcode.JMP, fstart)
 		c.setLabel(fend)
+		c.dropStackLabel()
 
 		c.currentFor = lastLabel
 		c.currentSwitch = lastSwitch
@@ -803,6 +825,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
 		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 
+		c.pushStackLabel(label, 2)
 		c.setLabel(start)
 
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
@@ -825,6 +848,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Jmp(c.prog.BinWriter, opcode.JMP, start)
 
 		c.setLabel(end)
+		c.dropStackLabel()
 
 		c.currentFor = lastFor
 		c.currentSwitch = lastSwitch
@@ -845,6 +869,32 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 func isFallthroughStmt(c ast.Node) bool {
 	s, ok := c.(*ast.BranchStmt)
 	return ok && s.Tok == token.FALLTHROUGH
+}
+
+func (c *codegen) pushStackLabel(name string, size int) {
+	c.labelList = append(c.labelList, labelWithStackSize{
+		name: name,
+		sz:   size,
+	})
+}
+
+func (c *codegen) dropStackLabel() {
+	last := len(c.labelList) - 1
+	c.dropItems(c.labelList[last].sz)
+	c.labelList = c.labelList[:last]
+}
+
+func (c *codegen) dropItems(n int) {
+	if n < 4 {
+		for i := 0; i < n; i++ {
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		}
+		return
+	}
+
+	emit.Int(c.prog.BinWriter, int64(n))
+	emit.Opcode(c.prog.BinWriter, opcode.PACK)
+	emit.Opcode(c.prog.BinWriter, opcode.DROP)
 }
 
 // emitReverse reverses top num items of the stack.
