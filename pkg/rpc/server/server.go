@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -37,6 +38,7 @@ type (
 		config     config.RPCConfig
 		coreServer *network.Server
 		log        *zap.Logger
+		https      *http.Server
 	}
 )
 
@@ -50,12 +52,20 @@ func New(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Ser
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
 
+	var tlsServer *http.Server
+	if cfg := conf.TLSConfig; cfg.Enabled {
+		tlsServer = &http.Server{
+			Addr: net.JoinHostPort(cfg.Address, strconv.FormatUint(uint64(cfg.Port), 10)),
+		}
+	}
+
 	return Server{
 		Server:     httpServer,
 		chain:      chain,
 		config:     conf,
 		coreServer: coreServer,
 		log:        log,
+		https:      tlsServer,
 	}
 }
 
@@ -69,14 +79,39 @@ func (s *Server) Start(errChan chan error) {
 	s.Handler = http.HandlerFunc(s.requestHandler)
 	s.log.Info("starting rpc-server", zap.String("endpoint", s.Addr))
 
-	errChan <- s.ListenAndServe()
+	if cfg := s.config.TLSConfig; cfg.Enabled {
+		s.https.Handler = http.HandlerFunc(s.requestHandler)
+		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
+		go func() {
+			err := s.https.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile)
+			if err != nil {
+				s.log.Error("failed to start TLS RPC server", zap.Error(err))
+			}
+			errChan <- err
+		}()
+	}
+	err := s.ListenAndServe()
+	if err != nil {
+		s.log.Error("failed to start RPC server", zap.Error(err))
+	}
+	errChan <- err
 }
 
 // Shutdown overrides the http.Server Shutdown
 // method.
 func (s *Server) Shutdown() error {
+	var httpsErr error
+	if s.config.TLSConfig.Enabled {
+		s.log.Info("shutting down rpc-server (https)", zap.String("endpoint", s.https.Addr))
+		httpsErr = s.https.Shutdown(context.Background())
+	}
+
 	s.log.Info("shutting down rpc-server", zap.String("endpoint", s.Addr))
-	return s.Server.Shutdown(context.Background())
+	err := s.Server.Shutdown(context.Background())
+	if err == nil {
+		return httpsErr
+	}
+	return err
 }
 
 func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request) {
