@@ -68,7 +68,7 @@ type VM struct {
 	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
 
 	// callback to get scripts.
-	getScript func(util.Uint160) []byte
+	getScript func(util.Uint160) ([]byte, bool)
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -266,9 +266,11 @@ func (v *VM) LoadScript(b []byte) {
 // loadScriptWithHash if similar to the LoadScript method, but it also loads
 // given script hash directly into the Context to avoid its recalculations. It's
 // up to user of this function to make sure the script and hash match each other.
-func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160) {
+func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160, hasDynamicInvoke bool) {
 	v.LoadScript(b)
-	v.istack.Top().Value().(*Context).scriptHash = hash
+	ctx := v.Context()
+	ctx.scriptHash = hash
+	ctx.hasDynamicInvoke = hasDynamicInvoke
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -472,7 +474,7 @@ func (v *VM) SetCheckedHash(h []byte) {
 }
 
 // SetScriptGetter sets the script getter for CALL instructions.
-func (v *VM) SetScriptGetter(gs func(util.Uint160) []byte) {
+func (v *VM) SetScriptGetter(gs func(util.Uint160) ([]byte, bool)) {
 	v.getScript = gs
 }
 
@@ -515,6 +517,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.gasConsumed += v.getPrice(v, op, parameter)
 		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
 			panic("gas limit is exceeded")
+		}
+	}
+
+	switch op {
+	case opcode.APPCALL, opcode.TAILCALL:
+		isZero := true
+		for i := range parameter {
+			if parameter[i] != 0 {
+				isZero = false
+				break
+			}
+		}
+		if !isZero {
+			break
+		}
+
+		parameter = v.estack.Pop().Bytes()
+		fallthrough
+	case opcode.CALLED, opcode.CALLEDT:
+		if !ctx.hasDynamicInvoke {
+			panic("contract is not allowed to make dynamic invocations")
 		}
 	}
 
@@ -1150,7 +1173,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(err)
 		}
 
-		script := v.getScript(hash)
+		script, hasDynamicInvoke := v.getScript(hash)
 		if script == nil {
 			panic("could not find script")
 		}
@@ -1159,7 +1182,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			_ = v.istack.Pop()
 		}
 
-		v.loadScriptWithHash(script, hash)
+		v.loadScriptWithHash(script, hash, hasDynamicInvoke)
 
 	case opcode.RET:
 		oldCtx := v.istack.Pop().Value().(*Context)
@@ -1354,12 +1377,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if err != nil {
 				panic(err)
 			}
-			script := v.getScript(hash)
+			script, hasDynamicInvoke := v.getScript(hash)
 			if script == nil {
 				panic(fmt.Sprintf("could not find script %s", hash))
 			}
 			newCtx = NewContext(script)
 			newCtx.scriptHash = hash
+			newCtx.hasDynamicInvoke = hasDynamicInvoke
 		}
 		newCtx.rvcount = rvcount
 		newCtx.estack = NewStack("evaluation")

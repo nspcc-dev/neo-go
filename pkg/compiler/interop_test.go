@@ -63,11 +63,11 @@ func TestAppCall(t *testing.T) {
 	require.NoError(t, err)
 
 	ih := hash.Hash160(inner)
-	getScript := func(u util.Uint160) []byte {
+	getScript := func(u util.Uint160) ([]byte, bool) {
 		if u.Equals(ih) {
-			return inner
+			return inner, true
 		}
-		return nil
+		return nil, false
 	}
 
 	t.Run("valid script", func(t *testing.T) {

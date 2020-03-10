@@ -174,7 +174,7 @@ func testFile(t *testing.T, filename string) {
 	})
 }
 
-func getScript(scripts []map[string]vmUTScript) func(util.Uint160) []byte {
+func getScript(scripts []map[string]vmUTScript) func(util.Uint160) ([]byte, bool) {
 	store := make(map[util.Uint160][]byte)
 	for i := range scripts {
 		for _, v := range scripts[i] {
@@ -182,7 +182,7 @@ func getScript(scripts []map[string]vmUTScript) func(util.Uint160) []byte {
 		}
 	}
 
-	return func(a util.Uint160) []byte { return store[a] }
+	return func(a util.Uint160) ([]byte, bool) { return store[a], true }
 }
 
 func compareItems(t *testing.T, a, b StackItem) {
