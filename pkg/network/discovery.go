@@ -30,6 +30,7 @@ type Discoverer interface {
 type DefaultDiscovery struct {
 	transport        Transporter
 	lock             sync.RWMutex
+	closeMtx         sync.RWMutex
 	dialTimeout      time.Duration
 	badAddrs         map[string]bool
 	connectedAddrs   map[string]bool
@@ -90,11 +91,11 @@ func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 
 // RequestRemote tries to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
-	d.lock.RLock()
+	d.closeMtx.RLock()
 	if !d.isDead {
 		d.requestCh <- n
 	}
-	d.lock.RUnlock()
+	d.closeMtx.RUnlock()
 }
 
 // RegisterBadAddr registers the given address as a bad address.
@@ -179,9 +180,9 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 
 // Close stops discoverer pool processing making discoverer almost useless.
 func (d *DefaultDiscovery) Close() {
-	d.lock.Lock()
+	d.closeMtx.Lock()
 	d.isDead = true
-	d.lock.Unlock()
+	d.closeMtx.Unlock()
 	select {
 	case <-d.requestCh: // Drain the channel if there is anything there.
 	default:
