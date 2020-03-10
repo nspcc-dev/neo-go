@@ -146,8 +146,13 @@ func (ic *interopContext) txGetReferences(v *vm.VM) error {
 	}
 
 	stackrefs := make([]vm.StackItem, 0, len(refs))
-	for _, tio := range refs {
-		stackrefs = append(stackrefs, vm.NewInteropItem(tio))
+	for i := range tx.Inputs {
+		for j := range refs {
+			if refs[j].In == tx.Inputs[i] {
+				stackrefs = append(stackrefs, vm.NewInteropItem(refs[j]))
+				break
+			}
+		}
 	}
 	v.Estack().PushVal(stackrefs)
 	return nil
