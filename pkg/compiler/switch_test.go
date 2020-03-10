@@ -187,6 +187,41 @@ var switchTestCases = []testCase{
 		}`,
 		big.NewInt(2),
 	},
+	{
+		"simple fallthrough",
+		`package main
+		func Main() int {
+			n := 2
+			switch n {
+			case 1: return 5
+			case 2: fallthrough
+			case 3: return 6
+			}
+			return 7
+		}`,
+		big.NewInt(6),
+	},
+	{
+		"double fallthrough",
+		`package main
+		func Main() int {
+			n := 2
+			k := 5
+			switch n {
+			case 0: return k
+			case 1: fallthrough
+			case 2:
+				k++
+				fallthrough
+			case 3:
+			case 4:
+				k++
+				return k
+			}
+			return k
+		}`,
+		big.NewInt(6),
+	},
 }
 
 func TestSwitch(t *testing.T) {

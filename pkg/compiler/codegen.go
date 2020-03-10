@@ -407,7 +407,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
-		// fallthrough is not supported
 		ast.Walk(c, n.Tag)
 
 		eqOpcode := c.getEqualityOpcode(n.Tag)
@@ -416,9 +415,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		lastSwitch := c.currentSwitch
 		c.currentSwitch = label
 
+		startLabels := make([]uint16, len(n.Body.List))
+		for i := range startLabels {
+			startLabels[i] = c.newLabel()
+		}
 		for i := range n.Body.List {
 			lEnd := c.newLabel()
-			lStart := c.newLabel()
+			lStart := startLabels[i]
 			cc := n.Body.List[i].(*ast.CaseClause)
 
 			if l := len(cc.List); l != 0 { // if not `default`
@@ -435,7 +438,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 
 			c.setLabel(lStart)
-			for _, stmt := range cc.Body {
+			last := len(cc.Body) - 1
+			for j, stmt := range cc.Body {
+				if j == last && isFallthroughStmt(stmt) {
+					emit.Jmp(c.prog.BinWriter, opcode.JMP, startLabels[i+1])
+					break
+				}
 				ast.Walk(c, stmt)
 			}
 			emit.Jmp(c.prog.BinWriter, opcode.JMP, switchEnd)
@@ -832,6 +840,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+func isFallthroughStmt(c ast.Node) bool {
+	s, ok := c.(*ast.BranchStmt)
+	return ok && s.Tok == token.FALLTHROUGH
 }
 
 // emitReverse reverses top num items of the stack.
