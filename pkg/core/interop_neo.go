@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	// MaxContractDescriptionLen is the maximum length for contract description.
+	MaxContractDescriptionLen = 65536
 	// MaxContractScriptSize is the maximum script size for a contract.
 	MaxContractScriptSize = 1024 * 1024
 	// MaxContractParametersNum is the maximum number of parameters for a contract.
@@ -494,7 +496,7 @@ func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, 
 		return nil, errors.New("too big email")
 	}
 	desc := v.Estack().Pop().Bytes()
-	if len(desc) > MaxContractStringLen {
+	if len(desc) > MaxContractDescriptionLen {
 		return nil, errors.New("too big description")
 	}
 	contract := &state.Contract{
@@ -515,7 +517,7 @@ func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, 
 func (ic *interopContext) contractCreate(v *vm.VM) error {
 	newcontract, err := ic.createContractStateFromVM(v)
 	if err != nil {
-		return nil
+		return err
 	}
 	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
 	if err != nil {
@@ -555,7 +557,7 @@ func (ic *interopContext) contractIsPayable(v *vm.VM) error {
 func (ic *interopContext) contractMigrate(v *vm.VM) error {
 	newcontract, err := ic.createContractStateFromVM(v)
 	if err != nil {
-		return nil
+		return err
 	}
 	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
 	if err != nil {
