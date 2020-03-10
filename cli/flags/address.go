@@ -11,7 +11,10 @@ import (
 )
 
 // Address is a wrapper for Uint160 with flag.Value methods.
-type Address util.Uint160
+type Address struct {
+	IsSet bool
+	Value util.Uint160
+}
 
 // AddressFlag is a flag with type string
 type AddressFlag struct {
@@ -27,7 +30,7 @@ var (
 
 // String implements fmt.Stringer interface.
 func (a Address) String() string {
-	return address.Uint160ToString(util.Uint160(a))
+	return address.Uint160ToString(a.Value)
 }
 
 // Set implements flag.Value interface.
@@ -36,14 +39,24 @@ func (a *Address) Set(s string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	*a = Address(addr)
+	a.IsSet = true
+	a.Value = addr
 	return nil
 }
 
 // Uint160 casts address to Uint160.
 func (a *Address) Uint160() (u util.Uint160) {
-	copy(u[:], a[:])
-	return
+	if !a.IsSet {
+		// It is a programmer error to call this method without
+		// checking if the value was provided.
+		panic("address was not set")
+	}
+	return a.Value
+}
+
+// IsSet checks if flag was set to a non-default value.
+func (f AddressFlag) IsSet() bool {
+	return f.Value.IsSet
 }
 
 // String returns a readable representation of this value

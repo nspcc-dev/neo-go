@@ -198,6 +198,9 @@ func claimGas(ctx *cli.Context) error {
 	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
+	if !addrFlag.IsSet {
+		return cli.NewExitError("address was not provided", 1)
+	}
 	scriptHash := addrFlag.Uint160()
 	acc := wall.GetAccount(scriptHash)
 	if acc == nil {
@@ -395,6 +398,9 @@ func transferAsset(ctx *cli.Context) error {
 	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
+	if !fromFlag.IsSet {
+		return cli.NewExitError("'from' address was not provided", 1)
+	}
 	from := fromFlag.Uint160()
 	acc := wall.GetAccount(from)
 	if acc == nil {
@@ -431,7 +437,11 @@ func transferAsset(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	toAddr := ctx.Generic("to").(*flags.Address).Uint160()
+	toFlag := ctx.Generic("to").(*flags.Address)
+	if !toFlag.IsSet {
+		return cli.NewExitError("'to' address was not provided", 1)
+	}
+	toAddr := toFlag.Uint160()
 	tx.AddOutput(&transaction.Output{
 		AssetID:    asset,
 		Amount:     amount,
