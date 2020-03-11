@@ -1929,12 +1929,13 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 // up for current blockchain.
 func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 	vm := vm.New()
-	vm.SetScriptGetter(func(hash util.Uint160) []byte {
+	vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
 		cs, err := interopCtx.dao.GetContractState(hash)
 		if err != nil {
-			return nil
+			return nil, false
 		}
-		return cs.Script
+		hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
+		return cs.Script, hasDynamicInvoke
 	})
 	vm.RegisterInteropGetter(interopCtx.getSystemInterop)
 	vm.RegisterInteropGetter(interopCtx.getNeoInterop)

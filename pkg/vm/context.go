@@ -35,6 +35,9 @@ type Context struct {
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
+
+	// Whether it's allowed to make dynamic calls from this context.
+	hasDynamicInvoke bool
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
