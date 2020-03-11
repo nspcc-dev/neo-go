@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -18,6 +19,8 @@ type StackItem interface {
 	Value() interface{}
 	// Dup duplicates current StackItem.
 	Dup() StackItem
+	// TryBytes converts StackItem to a byte slice.
+	TryBytes() ([]byte, error)
 	// ToContractParameter converts StackItem to smartcontract.Parameter
 	ToContractParameter(map[StackItem]bool) smartcontract.Parameter
 }
@@ -118,6 +121,11 @@ func (i *StructItem) Dup() StackItem {
 	return i
 }
 
+// TryBytes implements StackItem interface.
+func (i *StructItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Struct to ByteArray")
+}
+
 // ToContractParameter implements StackItem interface.
 func (i *StructItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
 	var value []smartcontract.Parameter
@@ -165,6 +173,11 @@ func NewBigIntegerItem(value int) *BigIntegerItem {
 // Bytes converts i to a slice of bytes.
 func (i *BigIntegerItem) Bytes() []byte {
 	return emit.IntToBytes(i.value)
+}
+
+// TryBytes implements StackItem interface.
+func (i *BigIntegerItem) TryBytes() ([]byte, error) {
+	return i.Bytes(), nil
 }
 
 // Value implements StackItem interface.
@@ -226,6 +239,21 @@ func (i *BoolItem) Dup() StackItem {
 	return &BoolItem{i.value}
 }
 
+// Bytes converts BoolItem to bytes.
+func (i *BoolItem) Bytes() []byte {
+	if i.value {
+		return []byte{1}
+	}
+	// return []byte{0}
+	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
+	return []byte{}
+}
+
+// TryBytes implements StackItem interface.
+func (i *BoolItem) TryBytes() ([]byte, error) {
+	return i.Bytes(), nil
+}
+
 // ToContractParameter implements StackItem interface.
 func (i *BoolItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
@@ -258,6 +286,11 @@ func (i *ByteArrayItem) MarshalJSON() ([]byte, error) {
 
 func (i *ByteArrayItem) String() string {
 	return "ByteArray"
+}
+
+// TryBytes implements StackItem interface.
+func (i *ByteArrayItem) TryBytes() ([]byte, error) {
+	return i.value, nil
 }
 
 // Dup implements StackItem interface.
@@ -301,6 +334,11 @@ func (i *ArrayItem) String() string {
 	return "Array"
 }
 
+// TryBytes implements StackItem interface.
+func (i *ArrayItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Array to ByteArray")
+}
+
 // Dup implements StackItem interface.
 func (i *ArrayItem) Dup() StackItem {
 	// reference type
@@ -339,6 +377,11 @@ func NewMapItem() *MapItem {
 // Value implements StackItem interface.
 func (i *MapItem) Value() interface{} {
 	return i.value
+}
+
+// TryBytes implements StackItem interface.
+func (i *MapItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Map to ByteArray")
 }
 
 func (i *MapItem) String() string {
@@ -436,6 +479,11 @@ func (i *InteropItem) String() string {
 func (i *InteropItem) Dup() StackItem {
 	// reference type
 	return i
+}
+
+// TryBytes implements StackItem interface.
+func (i *InteropItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Interop to ByteArray")
 }
 
 // ToContractParameter implements StackItem interface.

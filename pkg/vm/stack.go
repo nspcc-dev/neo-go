@@ -125,21 +125,11 @@ func (e *Element) Bool() bool {
 // Bytes attempts to get the underlying value of the element as a byte array.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bytes() []byte {
-	switch t := e.value.(type) {
-	case *ByteArrayItem:
-		return t.value
-	case *BigIntegerItem:
-		return t.Bytes() // neoVM returns in LE
-	case *BoolItem:
-		if t.value {
-			return []byte{1}
-		}
-		// return []byte{0}
-		// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-		return []byte{}
-	default:
-		panic("can't convert to []byte: " + t.String())
+	bs, err := e.value.TryBytes()
+	if err != nil {
+		panic(err)
 	}
+	return bs
 }
 
 // Array attempts to get the underlying value of the element as an array of
