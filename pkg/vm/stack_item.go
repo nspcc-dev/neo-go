@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +22,8 @@ type StackItem interface {
 	Dup() StackItem
 	// TryBytes converts StackItem to a byte slice.
 	TryBytes() ([]byte, error)
+	// Equals checks if 2 StackItems are equal.
+	Equals(s StackItem) bool
 	// ToContractParameter converts StackItem to smartcontract.Parameter
 	ToContractParameter(map[StackItem]bool) smartcontract.Parameter
 }
@@ -126,6 +129,25 @@ func (i *StructItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Struct to ByteArray")
 }
 
+// Equals implements StackItem interface.
+func (i *StructItem) Equals(s StackItem) bool {
+	if i == s {
+		return true
+	} else if s == nil {
+		return false
+	}
+	val, ok := s.(*StructItem)
+	if !ok || len(i.value) != len(val.value) {
+		return false
+	}
+	for j := range i.value {
+		if !i.value[j].Equals(val.value[j]) {
+			return false
+		}
+	}
+	return true
+}
+
 // ToContractParameter implements StackItem interface.
 func (i *StructItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
 	var value []smartcontract.Parameter
@@ -178,6 +200,21 @@ func (i *BigIntegerItem) Bytes() []byte {
 // TryBytes implements StackItem interface.
 func (i *BigIntegerItem) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
+}
+
+// Equals implements StackItem interface.
+func (i *BigIntegerItem) Equals(s StackItem) bool {
+	if i == s {
+		return true
+	} else if s == nil {
+		return false
+	}
+	val, ok := s.(*BigIntegerItem)
+	if ok {
+		return i.value.Cmp(val.value) == 0
+	}
+	bs, err := s.TryBytes()
+	return err == nil && bytes.Equal(i.Bytes(), bs)
 }
 
 // Value implements StackItem interface.
@@ -254,6 +291,21 @@ func (i *BoolItem) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
+// Equals implements StackItem interface.
+func (i *BoolItem) Equals(s StackItem) bool {
+	if i == s {
+		return true
+	} else if s == nil {
+		return false
+	}
+	val, ok := s.(*BoolItem)
+	if ok {
+		return i.value == val.value
+	}
+	bs, err := s.TryBytes()
+	return err == nil && bytes.Equal(i.Bytes(), bs)
+}
+
 // ToContractParameter implements StackItem interface.
 func (i *BoolItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
@@ -291,6 +343,17 @@ func (i *ByteArrayItem) String() string {
 // TryBytes implements StackItem interface.
 func (i *ByteArrayItem) TryBytes() ([]byte, error) {
 	return i.value, nil
+}
+
+// Equals implements StackItem interface.
+func (i *ByteArrayItem) Equals(s StackItem) bool {
+	if i == s {
+		return true
+	} else if s == nil {
+		return false
+	}
+	bs, err := s.TryBytes()
+	return err == nil && bytes.Equal(i.value, bs)
 }
 
 // Dup implements StackItem interface.
@@ -339,6 +402,11 @@ func (i *ArrayItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Array to ByteArray")
 }
 
+// Equals implements StackItem interface.
+func (i *ArrayItem) Equals(s StackItem) bool {
+	return i == s
+}
+
 // Dup implements StackItem interface.
 func (i *ArrayItem) Dup() StackItem {
 	// reference type
@@ -382,6 +450,11 @@ func (i *MapItem) Value() interface{} {
 // TryBytes implements StackItem interface.
 func (i *MapItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Map to ByteArray")
+}
+
+// Equals implements StackItem interface.
+func (i *MapItem) Equals(s StackItem) bool {
+	return i == s
 }
 
 func (i *MapItem) String() string {
@@ -484,6 +557,17 @@ func (i *InteropItem) Dup() StackItem {
 // TryBytes implements StackItem interface.
 func (i *InteropItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Interop to ByteArray")
+}
+
+// Equals implements StackItem interface.
+func (i *InteropItem) Equals(s StackItem) bool {
+	if i == s {
+		return true
+	} else if s == nil {
+		return false
+	}
+	val, ok := s.(*InteropItem)
+	return ok && i.value == val.value
 }
 
 // ToContractParameter implements StackItem interface.

@@ -1006,6 +1006,16 @@ func TestEQUALGoodInteger(t *testing.T) {
 	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
 }
 
+func TestEQUALIntegerByteArray(t *testing.T) {
+	prog := makeProgram(opcode.EQUAL)
+	vm := load(prog)
+	vm.estack.PushVal([]byte{16})
+	vm.estack.PushVal(16)
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, &BoolItem{true}, vm.estack.Pop().value)
+}
+
 func TestEQUALArrayTrue(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.EQUAL)
 	vm := load(prog)
