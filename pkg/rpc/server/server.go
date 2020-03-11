@@ -423,14 +423,14 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	as := s.chain.GetAccountState(u)
+	as := s.chain.GetNEP5Balances(u)
 	bs := &result.NEP5Balances{
 		Address:  address.Uint160ToString(u),
 		Balances: []result.NEP5Balance{},
 	}
 	if as != nil {
 		cache := make(map[util.Uint160]int64)
-		for h, bal := range as.NEP5Balances {
+		for h, bal := range as.Trackers {
 			dec, err := s.getDecimals(h, cache)
 			if err != nil {
 				continue

@@ -763,18 +763,15 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		Tx:        tx.Hash(),
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
-		acc, err := cache.GetAccountStateOrNew(fromAddr)
+		balances, err := cache.GetNEP5Balances(fromAddr)
 		if err != nil {
 			return
 		}
-		bs := acc.NEP5Balances[sc]
-		if bs == nil {
-			bs = new(state.NEP5Tracker)
-			acc.NEP5Balances[sc] = bs
-		}
+		bs := balances.Trackers[sc]
 		bs.Balance -= amount
 		bs.LastUpdatedBlock = b.Index
-		if err := cache.PutAccountState(acc); err != nil {
+		balances.Trackers[sc] = bs
+		if err := cache.PutNEP5Balances(fromAddr, balances); err != nil {
 			return
 		}
 
@@ -784,18 +781,15 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		acc, err := cache.GetAccountStateOrNew(toAddr)
+		balances, err := cache.GetNEP5Balances(toAddr)
 		if err != nil {
 			return
 		}
-		bs := acc.NEP5Balances[sc]
-		if bs == nil {
-			bs = new(state.NEP5Tracker)
-			acc.NEP5Balances[sc] = bs
-		}
+		bs := balances.Trackers[sc]
 		bs.Balance += amount
 		bs.LastUpdatedBlock = b.Index
-		if err := cache.PutAccountState(acc); err != nil {
+		balances.Trackers[sc] = bs
+		if err := cache.PutNEP5Balances(toAddr, balances); err != nil {
 			return
 		}
 
@@ -813,6 +807,15 @@ func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.NEP5TransferLo
 		return nil
 	}
 	return lg
+}
+
+// GetNEP5Balances returns NEP5 balances for the acc.
+func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return nil
+	}
+	return bs
 }
 
 // LastBatch returns last persisted storage batch.

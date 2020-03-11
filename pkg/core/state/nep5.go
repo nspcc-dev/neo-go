@@ -41,6 +41,42 @@ type NEP5Transfer struct {
 	Tx util.Uint256
 }
 
+// NEP5Balances is a map of the NEP5 contract hashes
+// to the corresponding structures.
+type NEP5Balances struct {
+	Trackers map[util.Uint160]NEP5Tracker
+}
+
+// NewNEP5Balances returns new NEP5Balances.
+func NewNEP5Balances() *NEP5Balances {
+	return &NEP5Balances{
+		Trackers: make(map[util.Uint160]NEP5Tracker),
+	}
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
+	lenBalances := r.ReadVarUint()
+	m := make(map[util.Uint160]NEP5Tracker, lenBalances)
+	for i := 0; i < int(lenBalances); i++ {
+		var key util.Uint160
+		var tr NEP5Tracker
+		r.ReadBytes(key[:])
+		tr.DecodeBinary(r)
+		m[key] = tr
+	}
+	bs.Trackers = m
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
+	w.WriteVarUint(uint64(len(bs.Trackers)))
+	for k, v := range bs.Trackers {
+		w.WriteBytes(k[:])
+		v.EncodeBinary(w)
+	}
+}
+
 // Append appends single transfer to a log.
 func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 	w := io.NewBufBinWriter()

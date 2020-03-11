@@ -135,6 +135,27 @@ func (dao *dao) DeleteContractState(hash util.Uint160) error {
 
 // -- end contracts.
 
+// -- start nep5 balances.
+
+// GetNEP5Balances retrieves nep5 balances from the cache.
+func (dao *dao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
+	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
+	bs := state.NewNEP5Balances()
+	err := dao.GetAndDecode(bs, key)
+	if err != nil && err != storage.ErrKeyNotFound {
+		return nil, err
+	}
+	return bs, nil
+}
+
+// GetNEP5Balances saves nep5 balances from the cache.
+func (dao *dao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
+	return dao.Put(bs, key)
+}
+
+// -- end nep5 balances.
+
 // -- start transfer log.
 
 // GetNEP5TransferLog retrieves transfer log from the cache.
