@@ -425,7 +425,10 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
 	}
 
 	as := s.chain.GetAccountState(u)
-	bs := &result.NEP5Balances{Address: address.Uint160ToString(u)}
+	bs := &result.NEP5Balances{
+		Address:  address.Uint160ToString(u),
+		Balances: []result.NEP5Balance{},
+	}
 	if as != nil {
 		cache := make(map[util.Uint160]int64)
 		for h, bal := range as.NEP5Balances {
@@ -454,7 +457,11 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	bs := &result.NEP5Transfers{Address: address.Uint160ToString(u)}
+	bs := &result.NEP5Transfers{
+		Address:  address.Uint160ToString(u),
+		Received: []result.NEP5Transfer{},
+		Sent:     []result.NEP5Transfer{},
+	}
 	lg := s.chain.GetNEP5TransferLog(u)
 	cache := make(map[util.Uint160]int64)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
