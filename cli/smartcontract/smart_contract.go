@@ -10,26 +10,31 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"github.com/go-yaml/yaml"
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
 	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoWIF               = errors.New("no WIF parameter found, specify it with the '--wif or -w' flag")
+	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
@@ -38,9 +43,13 @@ var (
 		Name:  "endpoint, e",
 		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
 	}
-	wifFlag = cli.StringFlag{
-		Name:  "wif, w",
-		Usage: "key to sign deployed transaction (in wif format)",
+	walletFlag = cli.StringFlag{
+		Name:  "wallet, w",
+		Usage: "wallet to use to get the key for transaction signing",
+	}
+	addressFlag = flags.AddressFlag{
+		Name:  "address, a",
+		Usage: "address to use as transaction signee (and gas source)",
 	}
 	gasFlag = cli.Float64Flag{
 		Name:  "gas, g",
@@ -105,14 +114,15 @@ func NewCommands() []cli.Command {
 						Usage: "configuration input file (*.yml)",
 					},
 					endpointFlag,
-					wifFlag,
+					walletFlag,
+					addressFlag,
 					gasFlag,
 				},
 			},
 			{
 				Name:      "invoke",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invoke -e endpoint -w wif [-g gas] scripthash [arguments...]",
+				UsageText: "neo-go contract invoke -e endpoint -w wallet [-a address] [-g gas] scripthash [arguments...]",
 				Description: `Executes given (as a script hash) deployed script with the given arguments.
    See testinvoke documentation for the details about parameters. It differs
    from testinvoke in that this command sends an invocation transaction to
@@ -121,14 +131,15 @@ func NewCommands() []cli.Command {
 				Action: invoke,
 				Flags: []cli.Flag{
 					endpointFlag,
-					wifFlag,
+					walletFlag,
+					addressFlag,
 					gasFlag,
 				},
 			},
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -e endpoint -w wif [-g gas] scripthash [method] [arguments...]",
+				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...]",
 				Description: `Executes given (as a script hash) deployed script with the given method and
    and arguments. See testinvokefunction documentation for the details about
    parameters. It differs from testinvokefunction in that this command sends an
@@ -137,7 +148,8 @@ func NewCommands() []cli.Command {
 				Action: invokeFunction,
 				Flags: []cli.Flag{
 					endpointFlag,
-					wifFlag,
+					walletFlag,
+					addressFlag,
 					gasFlag,
 				},
 			},
@@ -371,7 +383,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		params      = make([]smartcontract.Parameter, 0)
 		paramsStart = 1
 		resp        *result.Invoke
-		wif         *keys.WIF
+		acc         *wallet.Account
 	)
 
 	endpoint := ctx.String("endpoint")
@@ -400,8 +412,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 
 	if signAndPush {
 		gas = util.Fixed8FromFloat(ctx.Float64("gas"))
-
-		wif, err = getWifFromContext(ctx)
+		acc, err = getAccFromContext(ctx)
 		if err != nil {
 			return err
 		}
@@ -427,7 +438,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, wif, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
@@ -531,17 +542,41 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
-func getWifFromContext(ctx *cli.Context) (*keys.WIF, error) {
-	wifStr := ctx.String("wif")
-	if len(wifStr) == 0 {
-		return nil, cli.NewExitError(errNoWIF, 1)
+func getAccFromContext(ctx *cli.Context) (*wallet.Account, error) {
+	var addr util.Uint160
+
+	wPath := ctx.String("wallet")
+	if len(wPath) == 0 {
+		return nil, cli.NewExitError(errNoWallet, 1)
 	}
 
-	wif, err := keys.WIFDecode(wifStr, 0)
+	wall, err := wallet.NewWalletFromFile(wPath)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("bad wif: %v", err), 1)
+		return nil, cli.NewExitError(err, 1)
 	}
-	return wif, nil
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		addr = addrFlag.Uint160()
+	} else {
+		addr = wall.GetChangeAddress()
+	}
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+	}
+
+	fmt.Printf("Enter account %s password > ", address.Uint160ToString(addr))
+	rawPass, err := terminal.ReadPassword(syscall.Stdin)
+	fmt.Println()
+	if err != nil {
+		return nil, cli.NewExitError(err, 1)
+	}
+	pass := strings.TrimRight(string(rawPass), "\n")
+	err = acc.Decrypt(pass)
+	if err != nil {
+		return nil, cli.NewExitError(err, 1)
+	}
+	return acc, nil
 }
 
 // contractDeploy deploys contract.
@@ -560,7 +595,7 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	gas := util.Fixed8FromFloat(ctx.Float64("gas"))
 
-	wif, err := getWifFromContext(ctx)
+	acc, err := getAccFromContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -589,9 +624,9 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
 
-	gas += smartcontract.GetDeploymentPrice(request.DetailsToSCProperties(&conf.Contract))
+	sysfee := smartcontract.GetDeploymentPrice(request.DetailsToSCProperties(&conf.Contract))
 
-	txHash, err := c.SignAndPushInvocationTx(txScript, wif, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, acc, sysfee, gas)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}

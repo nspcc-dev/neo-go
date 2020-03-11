@@ -6,7 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -249,24 +249,30 @@ func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.F
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.Fixed8) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee util.Fixed8, netfee util.Fixed8) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.NewInvocationTX(script, gas)
-
-	fromAddress := wif.PrivateKey.Address()
+	tx := transaction.NewInvocationTX(script, sysfee)
+	gas := sysfee + netfee
 
 	if gas > 0 {
-		if err = request.AddInputsAndUnspentsToTx(tx, fromAddress, core.UtilityTokenID(), gas, c); err != nil {
+		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
 			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
 		}
+	} else {
+		addr, err := address.StringToUint160(acc.Address)
+		if err != nil {
+			return txHash, errors.Wrap(err, "failed to get address")
+		}
+		tx.Attributes = append(tx.Attributes,
+			transaction.Attribute{
+				Usage: transaction.Script,
+				Data:  addr.BytesBE(),
+			})
 	}
 
-	acc, err := wallet.NewAccountFromWIF(wif.S)
-	if err != nil {
-		return txHash, err
-	} else if err = acc.SignTx(tx); err != nil {
+	if err = acc.SignTx(tx); err != nil {
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()
