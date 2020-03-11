@@ -30,41 +30,40 @@ which would yield the response:
     }
 }
 ```
-
 ### Supported methods
 
-| Method  | Implemented |
-| ------- | ------------|
-| `getaccountstate` | Yes |
-| `getapplicationlog` | Yes |
-| `getassetstate` | Yes |
-| `getbestblockhash` | Yes |
-| `getblock` | Yes |
-| `getblockcount` | Yes |
-| `getblockhash` | Yes |
-| `getblockheader` | Yes |
-| `getblocksysfee` | Yes |
-| `getclaimable` | Yes |
-| `getconnectioncount` | Yes |
-| `getcontractstate` | Yes |
-| `getnep5balances` | Yes |
-| `getnep5transfers` | Yes |
-| `getpeers` | Yes |
-| `getrawmempool` | Yes |
-| `getrawtransaction` | Yes |
-| `getstorage` | Yes |
-| `gettransactionheight` | Yes |
-| `gettxout` | Yes |
-| `getunclaimed` | No (#712) |
-| `getunspents` | Yes |
-| `getvalidators` | Yes |
-| `getversion` | Yes |
-| `invoke` | Yes |
-| `invokefunction` | Yes |
-| `invokescript` | Yes |
-| `sendrawtransaction` | Yes |
-| `submitblock` | Yes |
-| `validateaddress` | Yes |
+| Method  |
+| ------- |
+| `getaccountstate` |
+| `getapplicationlog` |
+| `getassetstate` |
+| `getbestblockhash` |
+| `getblock` |
+| `getblockcount` |
+| `getblockhash` |
+| `getblockheader` |
+| `getblocksysfee` |
+| `getclaimable` |
+| `getconnectioncount` |
+| `getcontractstate` |
+| `getnep5balances` |
+| `getnep5transfers` |
+| `getpeers` |
+| `getrawmempool` |
+| `getrawtransaction` |
+| `getstorage` |
+| `gettransactionheight` |
+| `gettxout` |
+| `getunclaimed` |
+| `getunspents` |
+| `getvalidators` |
+| `getversion` |
+| `invoke` |
+| `invokefunction` |
+| `invokescript` |
+| `sendrawtransaction` |
+| `submitblock` |
+| `validateaddress` |
 
 ### Unsupported methods
 

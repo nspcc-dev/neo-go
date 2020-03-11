@@ -178,6 +178,14 @@ var (
 		},
 	)
 
+	getunclaimedCalled = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Help:      "Number of calls to getunclaimed rpc endpoint",
+			Name:      "getunclaimed_called",
+			Namespace: "neogo",
+		},
+	)
+
 	getunspentsCalled = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Help:      "Number of calls to getunspents rpc endpoint",
@@ -229,6 +237,7 @@ func init() {
 		validateaddressCalled,
 		getassetstateCalled,
 		getaccountstateCalled,
+		getunclaimedCalled,
 		getunspentsCalled,
 		gettransactionheightCalled,
 		gettxoutCalled,

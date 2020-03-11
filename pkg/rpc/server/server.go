@@ -298,6 +298,10 @@ Methods:
 		gettxoutCalled.Inc()
 		results, resultsErr = s.getTxOut(reqParams)
 
+	case "getunclaimed":
+		getunclaimedCalled.Inc()
+		results, resultsErr = s.getUnclaimed(reqParams)
+
 	case "getunspents":
 		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
@@ -766,6 +770,25 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, error) {
 		return nil, err
 	}
 	return hex.EncodeToString(buf.Bytes()), nil
+}
+
+// getUnclaimed returns unclaimed GAS amount of the specified address.
+func (s *Server) getUnclaimed(ps request.Params) (interface{}, error) {
+	p, ok := ps.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	u, err := p.GetUint160FromAddress()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	acc := s.chain.GetAccountState(u)
+	if acc == nil {
+		return nil, response.NewInternalServerError("unknown account", nil)
+	}
+
+	return result.NewUnclaimed(acc, s.chain)
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.

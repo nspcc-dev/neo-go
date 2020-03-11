@@ -601,6 +601,32 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getunclaimed": {
+		{
+			name:   "no params",
+			params: "[]",
+			fail:   true,
+		},
+		{
+			name:   "invalid address",
+			params: `["invalid"]`,
+			fail:   true,
+		},
+		{
+			name:   "positive",
+			params: `["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]`,
+			result: func(*executor) interface{} {
+				return &result.Unclaimed{}
+			},
+			check: func(t *testing.T, e *executor, uncl interface{}) {
+				res, ok := uncl.(*result.Unclaimed)
+				require.True(t, ok)
+				assert.Equal(t, res.Available, util.Fixed8FromInt64(8))
+				assert.True(t, res.Unavailable > 0)
+				assert.Equal(t, res.Available + res.Unavailable, res.Unclaimed)
+			},
+		},
+	},
 	"getunspents": {
 		{
 			name:   "positive",
