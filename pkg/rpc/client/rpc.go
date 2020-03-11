@@ -28,6 +28,48 @@ func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
 	return resp, nil
 }
 
+// GetApplicationLog returns the contract log based on the specified txid.
+func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   = &result.ApplicationLog{}
+	)
+	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetAssetState queries the asset information, based on the specified asset number.
+func (c *Client) GetAssetState(hash util.Uint256) (*result.AssetState, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   = &result.AssetState{}
+	)
+	if err := c.performRequest("getassetstate", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetBestBlockHash returns the hash of the tallest block in the main chain.
+func (c *Client) GetBestBlockHash() (util.Uint256, error) {
+	var resp = util.Uint256{}
+	if err := c.performRequest("getbestblockhash", request.NewRawParams(), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetBlockCount returns the number of blocks in the main chain.
+func (c *Client) GetBlockCount() (uint32, error) {
+	var resp uint32
+	if err := c.performRequest("getblockcount", request.NewRawParams(), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetBlockByIndex returns a block by its height.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
 	return c.getBlock(request.NewRawParams(index))
@@ -83,12 +125,97 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 	return resp, nil
 }
 
+// GetBlockHash returns the hash value of the corresponding block, based on the specified index.
+func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
+	var (
+		params = request.NewRawParams(index)
+		resp   = util.Uint256{}
+	)
+	if err := c.performRequest("getblockhash", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetBlockHeader returns the corresponding block header information from serialized hex string
+// according to the specified script hash.
+func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   string
+		h      *block.Header
+	)
+	if err := c.performRequest("getblockheader", params, &resp); err != nil {
+		return nil, err
+	}
+	headerBytes, err := hex.DecodeString(resp)
+	if err != nil {
+		return nil, err
+	}
+	r := io.NewBinReaderFromBuf(headerBytes)
+	h = new(block.Header)
+	h.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return h, nil
+}
+
+// GetBlockHeaderVerbose returns the corresponding block header information from Json format string
+// according to the specified script hash.
+func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE(), 1)
+		resp   = &result.Header{}
+	)
+	if err := c.performRequest("getblockheader", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetBlockSysFee returns the system fees of the block, based on the specified index.
+func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
+	var (
+		params = request.NewRawParams(index)
+		resp   util.Fixed8
+	)
+	if err := c.performRequest("getblocksysfee", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetClaimable returns tx outputs which can be claimed.
 func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
 	params := request.NewRawParams(address)
 	resp := new(result.ClaimableInfo)
 	if err := c.performRequest("getclaimable", params, resp); err != nil {
 		return nil, err
+	}
+	return resp, nil
+}
+
+// GetConnectionCount returns the current number of connections for the node.
+func (c *Client) GetConnectionCount() (int, error) {
+	var (
+		params = request.NewRawParams()
+		resp   int
+	)
+	if err := c.performRequest("getconnectioncount", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetContractState queries contract information, according to the contract script hash.
+func (c *Client) GetContractState(hash util.Uint160) (*result.ContractState, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   = &result.ContractState{}
+	)
+	if err := c.performRequest("getcontractstate", params, resp); err != nil {
+		return resp, err
 	}
 	return resp, nil
 }
@@ -111,6 +238,30 @@ func (c *Client) GetNEP5Transfers(address string) (*result.NEP5Transfers, error)
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetPeers returns the list of nodes that the node is currently connected/disconnected from.
+func (c *Client) GetPeers() (*result.GetPeers, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = &result.GetPeers{}
+	)
+	if err := c.performRequest("getpeers", params, resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetRawMemPool returns the list of unconfirmed transactions in memory.
+func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new([]util.Uint256)
+	)
+	if err := c.performRequest("getrawmempool", params, resp); err != nil {
+		return *resp, err
+	}
+	return *resp, nil
 }
 
 // GetRawTransaction returns a transaction by hash.
@@ -150,6 +301,59 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
+// GetStorage returns the stored value, according to the contract script hash and the stored key.
+func (c *Client) GetStorage(hash util.Uint160, key []byte) ([]byte, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE(), hex.EncodeToString(key))
+		resp   string
+	)
+	if err := c.performRequest("getstorage", params, &resp); err != nil {
+		return nil, err
+	}
+	res, err := hex.DecodeString(resp)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetTransactionHeight returns the block index in which the transaction is found.
+func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE())
+		resp   uint32
+	)
+	if err := c.performRequest("gettransactionheight", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetTxOut returns the corresponding unspent transaction output information (returned change),
+// based on the specified hash and index.
+func (c *Client) GetTxOut(hash util.Uint256, num int) (*result.TransactionOutput, error) {
+	var (
+		params = request.NewRawParams(hash.StringLE(), num)
+		resp   = &result.TransactionOutput{}
+	)
+	if err := c.performRequest("gettxout", params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetUnclaimed returns unclaimed GAS amount of the specified address.
+func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
+	var (
+		params = request.NewRawParams(address)
+		resp   = &result.Unclaimed{}
+	)
+	if err := c.performRequest("getunclaimed", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetUnspents returns UTXOs for the given NEO account.
 func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 	var (
@@ -157,6 +361,30 @@ func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
 		resp   = &result.Unspents{}
 	)
 	if err := c.performRequest("getunspents", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetValidators returns the current NEO consensus nodes information and voting status.
+func (c *Client) GetValidators() ([]result.Validator, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new([]result.Validator)
+	)
+	if err := c.performRequest("getvalidators", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
+// GetVersion returns the version information about the queried node.
+func (c *Client) GetVersion() (*result.Version, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = &result.Version{}
+	)
+	if err := c.performRequest("getversion", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -220,6 +448,28 @@ func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) error {
 	return nil
 }
 
+// SubmitBlock broadcasts a raw block over the NEO network.
+func (c *Client) SubmitBlock(b block.Block) error {
+	var (
+		params request.RawParams
+		resp   bool
+	)
+	buf := io.NewBufBinWriter()
+	b.EncodeBinary(buf.BinWriter)
+	if err := buf.Err; err != nil {
+		return err
+	}
+	params = request.NewRawParams(hex.EncodeToString(buf.Bytes()))
+
+	if err := c.performRequest("submitblock", params, &resp); err != nil {
+		return err
+	}
+	if !resp {
+		return errors.New("submitblock returned false")
+	}
+	return nil
+}
+
 // TransferAsset sends an amount of specific asset to a given address.
 // This call requires open wallet. (`wif` key in client struct.)
 // If response.Result is `true` then transaction was formed correctly and was written in blockchain.
@@ -276,4 +526,20 @@ func (c *Client) SignAndPushInvocationTx(script []byte, wif *keys.WIF, gas util.
 		return txHash, errors.Wrap(err, "failed sendning tx")
 	}
 	return txHash, nil
+}
+
+// ValidateAddress verifies that the address is a correct NEO address.
+func (c *Client) ValidateAddress(address string) error {
+	var (
+		params = request.NewRawParams(address)
+		resp   = &result.ValidateAddress{}
+	)
+
+	if err := c.performRequest("validateaddress", params, &resp); err != nil {
+		return err
+	}
+	if !resp.IsValid {
+		return errors.New("validateaddress returned false")
+	}
+	return nil
 }

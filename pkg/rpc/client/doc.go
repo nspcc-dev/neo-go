@@ -19,42 +19,44 @@ TODO:
 Supported methods
 
 	getaccountstate
+	getapplicationlog
+	getassetstate
+	getbestblockhash
 	getblock
+	getblockcount
+	getblockhash
+	getblockheader
+	getblocksysfee
 	getclaimable
+	getconnectioncount
+	getcontractstate
 	getnep5balances
 	getnep5transfers
+	getpeers
+	getrawmempool
 	getrawtransaction
+	getstorage
+	gettransactionheight
+	gettxout
+	getunclaimed
 	getunspents
+	getvalidators
+	getversion
 	invoke
 	invokefunction
 	invokescript
 	sendrawtransaction
+	submitblock
+	validateaddress
 
 Unsupported methods
 
 	claimgas
 	dumpprivkey
-	getapplicationlog
-	getassetstate
 	getbalance
-	getbestblockhash
-	getblockcount
-	getblockhash
-	getblockheader
-	getblocksysfee
-	getconnectioncount
-	getcontractstate
 	getmetricblocktimestamp
 	getnewaddress
-	getpeers
-	getrawmempool
-	getstorage
-	gettransactionheight
-	gettxout
-	getunclaimed
 	getunclaimedgas
-	getvalidators
-	getversion
 	getwalletheight
 	importprivkey
 	listaddress
@@ -62,8 +64,6 @@ Unsupported methods
 	sendfrom
 	sendmany
 	sendtoaddress
-	submitblock
-	validateaddress
 
 */
 package client
