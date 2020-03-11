@@ -13,13 +13,15 @@ type cachedDao struct {
 	dao
 	accounts  map[util.Uint160]*state.Account
 	contracts map[util.Uint160]*state.Contract
+	unspents  map[util.Uint256]*state.UnspentCoin
 }
 
 // newCachedDao returns new cachedDao wrapping around given backing store.
 func newCachedDao(backend storage.Store) *cachedDao {
 	accs := make(map[util.Uint160]*state.Account)
 	ctrs := make(map[util.Uint160]*state.Contract)
-	return &cachedDao{*newDao(backend), accs, ctrs}
+	unspents := make(map[util.Uint256]*state.UnspentCoin)
+	return &cachedDao{*newDao(backend), accs, ctrs, unspents}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying Store
@@ -69,11 +71,31 @@ func (cd *cachedDao) DeleteContractState(hash util.Uint160) error {
 	return cd.dao.DeleteContractState(hash)
 }
 
+// GetUnspentCoinState retrieves UnspentCoin from cache or underlying Store.
+func (cd *cachedDao) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
+	if cd.unspents[hash] != nil {
+		return cd.unspents[hash], nil
+	}
+	return cd.dao.GetUnspentCoinState(hash)
+}
+
+// PutUnspentCoinState saves given UnspentCoin in the cache.
+func (cd *cachedDao) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
+	cd.unspents[hash] = ucs
+	return nil
+}
+
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *cachedDao) Persist() (int, error) {
 	for sc := range cd.accounts {
 		err := cd.dao.PutAccountState(cd.accounts[sc])
+		if err != nil {
+			return 0, err
+		}
+	}
+	for hash := range cd.unspents {
+		err := cd.dao.PutUnspentCoinState(hash, cd.unspents[hash])
 		if err != nil {
 			return 0, err
 		}
