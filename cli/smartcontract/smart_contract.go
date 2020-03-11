@@ -44,7 +44,7 @@ var (
 	}
 	gasFlag = cli.Float64Flag{
 		Name:  "gas, g",
-		Usage: "gas to pay for transaction",
+		Usage: "gas to add to the transaction",
 	}
 )
 
@@ -86,8 +86,14 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "deploy",
-				Usage:  "deploy a smart contract (.avm with description)",
+				Name:  "deploy",
+				Usage: "deploy a smart contract (.avm with description)",
+				Description: `Deploys given contract into the chain. The gas parameter is for additional
+   gas to be added as a network fee to prioritize the transaction. It may also
+   be required to add that to satisfy chain's policy regarding transaction size
+   and the minimum size fee (so if transaction send fails, try adding 0.001 GAS
+   to it).
+`,
 				Action: contractDeploy,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -582,6 +588,8 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
+
+	gas += smartcontract.GetDeploymentPrice(request.DetailsToSCProperties(&conf.Contract))
 
 	txHash, err := c.SignAndPushInvocationTx(txScript, wif, gas)
 	if err != nil {

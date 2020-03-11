@@ -93,18 +93,7 @@ func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 		arg := estack.Peek(1).BigInt().Int64()
 		return util.Fixed8FromInt64(arg * 5000)
 	case neoContractCreate, neoContractMigrate, antSharesContractCreate, antSharesContractMigrate:
-		fee := int64(100)
-		props := smartcontract.PropertyState(estack.Peek(3).BigInt().Int64())
-
-		if props&smartcontract.HasStorage != 0 {
-			fee += 400
-		}
-
-		if props&smartcontract.HasDynamicInvoke != 0 {
-			fee += 500
-		}
-
-		return util.Fixed8FromInt64(fee)
+		return smartcontract.GetDeploymentPrice(smartcontract.PropertyState(estack.Peek(3).BigInt().Int64()))
 	case systemStoragePut, systemStoragePutEx, neoStoragePut, antSharesStoragePut:
 		// price for storage PUT is 1 GAS per 1 KiB
 		keySize := len(estack.Peek(1).Bytes())

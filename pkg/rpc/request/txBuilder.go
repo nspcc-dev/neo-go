@@ -80,17 +80,10 @@ func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID 
 	return nil
 }
 
-// CreateDeploymentScript returns a script that deploys given smart contract
-// with its metadata.
-func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
+// DetailsToSCProperties extract the fields needed from ContractDetails
+// and converts them to smartcontract.PropertyState.
+func DetailsToSCProperties(contract *ContractDetails) smartcontract.PropertyState {
 	var props smartcontract.PropertyState
-
-	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte(contract.Description))
-	emit.Bytes(script.BinWriter, []byte(contract.Email))
-	emit.Bytes(script.BinWriter, []byte(contract.Author))
-	emit.Bytes(script.BinWriter, []byte(contract.Version))
-	emit.Bytes(script.BinWriter, []byte(contract.ProjectName))
 	if contract.HasStorage {
 		props |= smartcontract.HasStorage
 	}
@@ -100,7 +93,19 @@ func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, erro
 	if contract.IsPayable {
 		props |= smartcontract.IsPayable
 	}
-	emit.Int(script.BinWriter, int64(props))
+	return props
+}
+
+// CreateDeploymentScript returns a script that deploys given smart contract
+// with its metadata.
+func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
+	script := io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte(contract.Description))
+	emit.Bytes(script.BinWriter, []byte(contract.Email))
+	emit.Bytes(script.BinWriter, []byte(contract.Author))
+	emit.Bytes(script.BinWriter, []byte(contract.Version))
+	emit.Bytes(script.BinWriter, []byte(contract.ProjectName))
+	emit.Int(script.BinWriter, int64(DetailsToSCProperties(contract)))
 	emit.Int(script.BinWriter, int64(contract.ReturnType))
 	params := make([]byte, len(contract.Parameters))
 	for k := range contract.Parameters {
