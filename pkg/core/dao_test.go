@@ -94,14 +94,6 @@ func TestDeleteContractState(t *testing.T) {
 	require.Nil(t, gotContractState)
 }
 
-func TestGetUnspentCoinStateOrNew_New(t *testing.T) {
-	dao := newDao(storage.NewMemoryStore())
-	hash := random.Uint256()
-	unspentCoinState, err := dao.GetUnspentCoinStateOrNew(hash)
-	require.NoError(t, err)
-	require.NotNil(t, unspentCoinState)
-}
-
 func TestGetUnspentCoinState_Err(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
@@ -113,52 +105,12 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 func TestPutGetUnspentCoinState(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	unspentCoinState := &UnspentCoinState{states: []state.Coin{}}
+	unspentCoinState := &state.UnspentCoin{Height: 42, States: []state.OutputState{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
 	require.NoError(t, err)
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
 	require.NoError(t, err)
 	require.Equal(t, unspentCoinState, gotUnspentCoinState)
-}
-
-func TestGetSpentCoinStateOrNew_New(t *testing.T) {
-	dao := newDao(storage.NewMemoryStore())
-	hash := random.Uint256()
-	spentCoinState, err := dao.GetSpentCoinsOrNew(hash, 1)
-	require.NoError(t, err)
-	require.NotNil(t, spentCoinState)
-}
-
-func TestPutAndGetSpentCoinState(t *testing.T) {
-	dao := newDao(storage.NewMemoryStore())
-	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
-	err := dao.PutSpentCoinState(hash, spentCoinState)
-	require.NoError(t, err)
-	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, spentCoinState, gotSpentCoinState)
-}
-
-func TestGetSpentCoinState_Err(t *testing.T) {
-	dao := newDao(storage.NewMemoryStore())
-	hash := random.Uint256()
-	spentCoinState, err := dao.GetSpentCoinState(hash)
-	require.Error(t, err)
-	require.Nil(t, spentCoinState)
-}
-
-func TestDeleteSpentCoinState(t *testing.T) {
-	dao := newDao(storage.NewMemoryStore())
-	hash := random.Uint256()
-	spentCoinState := &SpentCoinState{items: make(map[uint16]uint32)}
-	err := dao.PutSpentCoinState(hash, spentCoinState)
-	require.NoError(t, err)
-	err = dao.DeleteSpentCoinState(hash)
-	require.NoError(t, err)
-	gotSpentCoinState, err := dao.GetSpentCoinState(hash)
-	require.Error(t, err)
-	require.Nil(t, gotSpentCoinState)
 }
 
 func TestGetValidatorStateOrNew_New(t *testing.T) {

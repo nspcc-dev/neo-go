@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/config"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -129,7 +128,7 @@ func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, u
 	panic("TODO")
 }
 
-func (chain testChain) GetUnspentCoinState(util.Uint256) *core.UnspentCoinState {
+func (chain testChain) GetUnspentCoinState(util.Uint256) *state.UnspentCoin {
 	panic("TODO")
 }
 
