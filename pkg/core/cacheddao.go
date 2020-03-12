@@ -14,6 +14,7 @@ type cachedDao struct {
 	accounts  map[util.Uint160]*state.Account
 	contracts map[util.Uint160]*state.Contract
 	unspents  map[util.Uint256]*state.UnspentCoin
+	balances  map[util.Uint160]*state.NEP5Balances
 }
 
 // newCachedDao returns new cachedDao wrapping around given backing store.
@@ -21,7 +22,8 @@ func newCachedDao(backend storage.Store) *cachedDao {
 	accs := make(map[util.Uint160]*state.Account)
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
-	return &cachedDao{*newDao(backend), accs, ctrs, unspents}
+	balances := make(map[util.Uint160]*state.NEP5Balances)
+	return &cachedDao{*newDao(backend), accs, ctrs, unspents, balances}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying Store
@@ -85,6 +87,20 @@ func (cd *cachedDao) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCo
 	return nil
 }
 
+// GetNEP5Balances retrieves NEP5Balances for the acc.
+func (cd *cachedDao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
+	if bs := cd.balances[acc]; bs != nil {
+		return bs, nil
+	}
+	return cd.dao.GetNEP5Balances(acc)
+}
+
+// PutNEP5Balances saves NEP5Balances for the acc.
+func (cd *cachedDao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+	cd.balances[acc] = bs
+	return nil
+}
+
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *cachedDao) Persist() (int, error) {
@@ -96,6 +112,12 @@ func (cd *cachedDao) Persist() (int, error) {
 	}
 	for hash := range cd.unspents {
 		err := cd.dao.PutUnspentCoinState(hash, cd.unspents[hash])
+		if err != nil {
+			return 0, err
+		}
+	}
+	for acc, bs := range cd.balances {
+		err := cd.dao.PutNEP5Balances(acc, bs)
 		if err != nil {
 			return 0, err
 		}
