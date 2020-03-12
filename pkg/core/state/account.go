@@ -35,9 +35,6 @@ type Account struct {
 	Votes      []*keys.PublicKey
 	Balances   map[util.Uint256][]UnspentBalance
 	Unclaimed  []UnclaimedBalance
-	// NEP5Balances is a map of the NEP5 contract hashes
-	// to the corresponding structures.
-	NEP5Balances map[util.Uint160]*NEP5Tracker
 }
 
 // NewAccount returns a new Account object.
@@ -49,8 +46,6 @@ func NewAccount(scriptHash util.Uint160) *Account {
 		Votes:      []*keys.PublicKey{},
 		Balances:   make(map[util.Uint256][]UnspentBalance),
 		Unclaimed:  []UnclaimedBalance{},
-
-		NEP5Balances: make(map[util.Uint160]*NEP5Tracker),
 	}
 }
 
@@ -75,16 +70,6 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 	}
 
 	br.ReadArray(&s.Unclaimed)
-
-	lenBalances = br.ReadVarUint()
-	s.NEP5Balances = make(map[util.Uint160]*NEP5Tracker, lenBalances)
-	for i := 0; i < int(lenBalances); i++ {
-		var key util.Uint160
-		var tr NEP5Tracker
-		br.ReadBytes(key[:])
-		tr.DecodeBinary(br)
-		s.NEP5Balances[key] = &tr
-	}
 }
 
 // EncodeBinary encodes Account to the given BinWriter.
@@ -104,12 +89,6 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 	}
 
 	bw.WriteArray(s.Unclaimed)
-
-	bw.WriteVarUint(uint64(len(s.NEP5Balances)))
-	for k, v := range s.NEP5Balances {
-		bw.WriteBytes(k[:])
-		v.EncodeBinary(bw)
-	}
 }
 
 // DecodeBinary implements io.Serializable interface.

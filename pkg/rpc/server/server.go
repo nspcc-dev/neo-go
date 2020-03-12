@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/big"
 	"net/http"
 	"strconv"
 
@@ -23,9 +22,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -424,11 +423,14 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	as := s.chain.GetAccountState(u)
-	bs := &result.NEP5Balances{Address: address.Uint160ToString(u)}
+	as := s.chain.GetNEP5Balances(u)
+	bs := &result.NEP5Balances{
+		Address:  address.Uint160ToString(u),
+		Balances: []result.NEP5Balance{},
+	}
 	if as != nil {
 		cache := make(map[util.Uint160]int64)
-		for h, bal := range as.NEP5Balances {
+		for h, bal := range as.Trackers {
 			dec, err := s.getDecimals(h, cache)
 			if err != nil {
 				continue
@@ -454,7 +456,11 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	bs := &result.NEP5Transfers{Address: address.Uint160ToString(u)}
+	bs := &result.NEP5Transfers{
+		Address:  address.Uint160ToString(u),
+		Received: []result.NEP5Transfer{},
+		Sent:     []result.NEP5Transfer{},
+	}
 	lg := s.chain.GetNEP5TransferLog(u)
 	cache := make(map[util.Uint160]int64)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
@@ -508,29 +514,33 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	if d, ok := cache[h]; ok {
 		return d, nil
 	}
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 0)
-	emit.Opcode(w.BinWriter, opcode.NEWARRAY)
-	emit.String(w.BinWriter, "decimals")
-	emit.AppCall(w.BinWriter, h, true)
-	v, _ := s.chain.GetTestVM()
-	v.LoadScript(w.Bytes())
-	if err := v.Run(); err != nil {
+	script, err := request.CreateFunctionInvocationScript(h, request.Params{
+		{
+			Type:  request.StringT,
+			Value: "decimals",
+		},
+		{
+			Type:  request.ArrayT,
+			Value: []request.Param{},
+		},
+	})
+	if err != nil {
 		return 0, err
 	}
-	res := v.PopResult()
-	if res == nil {
+	res := s.runScriptInVM(script)
+	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
+		return 0, errors.New("execution error")
+	}
+
+	var d int64
+	switch item := res.Stack[len(res.Stack)-1]; item.Type {
+	case smartcontract.IntegerType:
+		d = item.Value.(int64)
+	case smartcontract.ByteArrayType:
+		d = emit.BytesToInt(item.Value.([]byte)).Int64()
+	default:
 		return 0, errors.New("invalid result")
 	}
-	bi, ok := res.(*big.Int)
-	if !ok {
-		bs, ok := res.([]byte)
-		if !ok {
-			return 0, errors.New("invalid result")
-		}
-		bi = emit.BytesToInt(bs)
-	}
-	d := bi.Int64()
 	if d < 0 {
 		return 0, errors.New("negative decimals")
 	}

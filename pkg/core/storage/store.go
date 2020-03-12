@@ -18,6 +18,7 @@ const (
 	STContract        KeyPrefix = 0x50
 	STStorage         KeyPrefix = 0x70
 	STNEP5Transfers   KeyPrefix = 0x72
+	STNEP5Balances    KeyPrefix = 0x73
 	IXHeaderHashList  KeyPrefix = 0x80
 	IXValidatorsCount KeyPrefix = 0x90
 	SYSCurrentBlock   KeyPrefix = 0xc0

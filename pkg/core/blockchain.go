@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.7"
+	version          = "0.0.8"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -763,44 +763,46 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 		Tx:        tx.Hash(),
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
-		acc, err := cache.GetAccountStateOrNew(fromAddr)
+		balances, err := cache.GetNEP5Balances(fromAddr)
 		if err != nil {
 			return
 		}
-		bs := acc.NEP5Balances[sc]
-		if bs == nil {
-			bs = new(state.NEP5Tracker)
-			acc.NEP5Balances[sc] = bs
-		}
+		bs := balances.Trackers[sc]
 		bs.Balance -= amount
 		bs.LastUpdatedBlock = b.Index
-		if err := cache.PutAccountState(acc); err != nil {
-			return
-		}
+		balances.Trackers[sc] = bs
 
 		transfer.Amount = -amount
-		if err := cache.AppendNEP5Transfer(fromAddr, transfer); err != nil {
+		isBig, err := cache.AppendNEP5Transfer(fromAddr, balances.NextTransferBatch, transfer)
+		if err != nil {
+			return
+		}
+		if isBig {
+			balances.NextTransferBatch++
+		}
+		if err := cache.PutNEP5Balances(fromAddr, balances); err != nil {
 			return
 		}
 	}
 	if !toAddr.Equals(util.Uint160{}) {
-		acc, err := cache.GetAccountStateOrNew(toAddr)
+		balances, err := cache.GetNEP5Balances(toAddr)
 		if err != nil {
 			return
 		}
-		bs := acc.NEP5Balances[sc]
-		if bs == nil {
-			bs = new(state.NEP5Tracker)
-			acc.NEP5Balances[sc] = bs
-		}
+		bs := balances.Trackers[sc]
 		bs.Balance += amount
 		bs.LastUpdatedBlock = b.Index
-		if err := cache.PutAccountState(acc); err != nil {
-			return
-		}
+		balances.Trackers[sc] = bs
 
 		transfer.Amount = amount
-		if err := cache.AppendNEP5Transfer(toAddr, transfer); err != nil {
+		isBig, err := cache.AppendNEP5Transfer(toAddr, balances.NextTransferBatch, transfer)
+		if err != nil {
+			return
+		}
+		if isBig {
+			balances.NextTransferBatch++
+		}
+		if err := cache.PutNEP5Balances(toAddr, balances); err != nil {
 			return
 		}
 	}
@@ -808,11 +810,28 @@ func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Tran
 
 // GetNEP5TransferLog returns NEP5 transfer log for the acc.
 func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.NEP5TransferLog {
-	lg, err := bc.dao.GetNEP5TransferLog(acc)
+	balances, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
 		return nil
 	}
-	return lg
+	result := new(state.NEP5TransferLog)
+	for i := uint32(0); i <= balances.NextTransferBatch; i++ {
+		lg, err := bc.dao.GetNEP5TransferLog(acc, i)
+		if err != nil {
+			return nil
+		}
+		result.Raw = append(result.Raw, lg.Raw...)
+	}
+	return result
+}
+
+// GetNEP5Balances returns NEP5 balances for the acc.
+func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return nil
+	}
+	return bs
 }
 
 // LastBatch returns last persisted storage batch.

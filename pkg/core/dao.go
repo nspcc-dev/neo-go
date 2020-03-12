@@ -135,11 +135,42 @@ func (dao *dao) DeleteContractState(hash util.Uint160) error {
 
 // -- end contracts.
 
+// -- start nep5 balances.
+
+// GetNEP5Balances retrieves nep5 balances from the cache.
+func (dao *dao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
+	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
+	bs := state.NewNEP5Balances()
+	err := dao.GetAndDecode(bs, key)
+	if err != nil && err != storage.ErrKeyNotFound {
+		return nil, err
+	}
+	return bs, nil
+}
+
+// GetNEP5Balances saves nep5 balances from the cache.
+func (dao *dao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
+	return dao.Put(bs, key)
+}
+
+// -- end nep5 balances.
+
 // -- start transfer log.
 
+const nep5TransferBatchSize = 128
+
+func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
+	key := make([]byte, 1+util.Uint160Size+4)
+	key[0] = byte(storage.STNEP5Transfers)
+	copy(key[1:], acc.BytesBE())
+	binary.LittleEndian.PutUint32(key[util.Uint160Size:], index)
+	return key
+}
+
 // GetNEP5TransferLog retrieves transfer log from the cache.
-func (dao *dao) GetNEP5TransferLog(acc util.Uint160) (*state.NEP5TransferLog, error) {
-	key := storage.AppendPrefix(storage.STNEP5Transfers, acc.BytesBE())
+func (dao *dao) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+	key := getNEP5TransferLogKey(acc, index)
 	value, err := dao.store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -151,24 +182,25 @@ func (dao *dao) GetNEP5TransferLog(acc util.Uint160) (*state.NEP5TransferLog, er
 }
 
 // PutNEP5TransferLog saves given transfer log in the cache.
-func (dao *dao) PutNEP5TransferLog(acc util.Uint160, lg *state.NEP5TransferLog) error {
-	key := storage.AppendPrefix(storage.STNEP5Transfers, acc.BytesBE())
+func (dao *dao) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error {
+	key := getNEP5TransferLogKey(acc, index)
 	return dao.store.Put(key, lg.Raw)
 }
 
 // AppendNEP5Transfer appends a single NEP5 transfer to a log.
-func (dao *dao) AppendNEP5Transfer(acc util.Uint160, tr *state.NEP5Transfer) error {
-	lg, err := dao.GetNEP5TransferLog(acc)
+// First return value signalizes that log size has exceeded batch size.
+func (dao *dao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
+	lg, err := dao.GetNEP5TransferLog(acc, index)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
-			return err
+			return false, err
 		}
 		lg = new(state.NEP5TransferLog)
 	}
 	if err := lg.Append(tr); err != nil {
-		return err
+		return false, err
 	}
-	return dao.PutNEP5TransferLog(acc, lg)
+	return lg.Size() >= nep5TransferBatchSize, dao.PutNEP5TransferLog(acc, index, lg)
 }
 
 // -- end transfer log.

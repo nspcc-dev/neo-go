@@ -623,7 +623,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, res.Available, util.Fixed8FromInt64(8))
 				assert.True(t, res.Unavailable > 0)
-				assert.Equal(t, res.Available + res.Unavailable, res.Unclaimed)
+				assert.Equal(t, res.Available+res.Unavailable, res.Unclaimed)
 			},
 		},
 	},
