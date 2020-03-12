@@ -45,6 +45,8 @@ type NEP5Transfer struct {
 // to the corresponding structures.
 type NEP5Balances struct {
 	Trackers map[util.Uint160]NEP5Tracker
+	// NextTransferBatch stores an index of the next transfer batch.
+	NextTransferBatch uint32
 }
 
 // NewNEP5Balances returns new NEP5Balances.
@@ -56,6 +58,7 @@ func NewNEP5Balances() *NEP5Balances {
 
 // DecodeBinary implements io.Serializable interface.
 func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
+	bs.NextTransferBatch = r.ReadU32LE()
 	lenBalances := r.ReadVarUint()
 	m := make(map[util.Uint160]NEP5Tracker, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
@@ -70,6 +73,7 @@ func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable interface.
 func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
+	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteVarUint(uint64(len(bs.Trackers)))
 	for k, v := range bs.Trackers {
 		w.WriteBytes(k[:])
