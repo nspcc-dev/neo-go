@@ -106,6 +106,11 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 	return nil
 }
 
+// Size returns an amount of transfer written in log.
+func (lg *NEP5TransferLog) Size() int {
+	return len(lg.Raw) / NEP5TransferSize
+}
+
 // EncodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(uint64(t.Balance))

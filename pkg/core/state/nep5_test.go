@@ -25,6 +25,8 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 		require.NoError(t, lg.Append(tr))
 	}
 
+	require.Equal(t, len(expected), lg.Size())
+
 	i := 0
 	err := lg.ForEach(func(tr *NEP5Transfer) error {
 		require.Equal(t, expected[i], tr)
