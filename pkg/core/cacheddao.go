@@ -15,6 +15,7 @@ type cachedDao struct {
 	contracts map[util.Uint160]*state.Contract
 	unspents  map[util.Uint256]*state.UnspentCoin
 	balances  map[util.Uint160]*state.NEP5Balances
+	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
 }
 
 // newCachedDao returns new cachedDao wrapping around given backing store.
@@ -23,7 +24,8 @@ func newCachedDao(backend storage.Store) *cachedDao {
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
-	return &cachedDao{*newDao(backend), accs, ctrs, unspents, balances}
+	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
+	return &cachedDao{*newDao(backend), accs, ctrs, unspents, balances, transfers}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying Store
@@ -101,6 +103,38 @@ func (cd *cachedDao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) e
 	return nil
 }
 
+// GetNEP5TransferLog retrieves NEP5TransferLog for the acc.
+func (cd *cachedDao) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+	ts := cd.transfers[acc]
+	if ts != nil && ts[index] != nil {
+		return ts[index], nil
+	}
+	return cd.dao.GetNEP5TransferLog(acc, index)
+}
+
+// PutNEP5TransferLog saves NEP5TransferLog for the acc.
+func (cd *cachedDao) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.NEP5TransferLog) error {
+	ts := cd.transfers[acc]
+	if ts == nil {
+		ts = make(map[uint32]*state.NEP5TransferLog, 2)
+		cd.transfers[acc] = ts
+	}
+	ts[index] = bs
+	return nil
+}
+
+// AppendNEP5Transfer appends new transfer to a transfer event log.
+func (cd *cachedDao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
+	lg, err := cd.GetNEP5TransferLog(acc, index)
+	if err != nil {
+		return false, err
+	}
+	if err := lg.Append(tr); err != nil {
+		return false, err
+	}
+	return lg.Size() >= nep5TransferBatchSize, cd.PutNEP5TransferLog(acc, index, lg)
+}
+
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *cachedDao) Persist() (int, error) {
@@ -120,6 +154,14 @@ func (cd *cachedDao) Persist() (int, error) {
 		err := cd.dao.PutNEP5Balances(acc, bs)
 		if err != nil {
 			return 0, err
+		}
+	}
+	for acc, ts := range cd.transfers {
+		for ind, lg := range ts {
+			err := cd.dao.PutNEP5TransferLog(acc, ind, lg)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 	return cd.dao.Persist()
