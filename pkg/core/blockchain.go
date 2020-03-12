@@ -1942,6 +1942,16 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	case transaction.EnrollmentType:
 		etx := t.Data.(*transaction.EnrollmentTX)
 		hashes[etx.PublicKey.GetScriptHash()] = true
+	case transaction.IssueType:
+		for _, res := range refsAndOutsToResults(references, t.Outputs) {
+			if res.Amount < 0 {
+				asset, err := bc.dao.GetAssetState(res.AssetID)
+				if asset == nil || err != nil {
+					return nil, errors.New("invalid asset in issue tx")
+				}
+				hashes[asset.Issuer] = true
+			}
+		}
 	case transaction.RegisterType:
 		reg := t.Data.(*transaction.RegisterTX)
 		hashes[reg.Owner.GetScriptHash()] = true
