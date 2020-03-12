@@ -515,11 +515,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 		if err != nil {
 			return txHash, errors.Wrap(err, "failed to get address")
 		}
-		tx.Attributes = append(tx.Attributes,
-			transaction.Attribute{
-				Usage: transaction.Script,
-				Data:  addr.BytesBE(),
-			})
+		tx.AddVerificationHash(addr)
 	}
 
 	if err = acc.SignTx(tx); err != nil {

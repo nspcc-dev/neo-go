@@ -311,10 +311,7 @@ func transferNEP5(ctx *cli.Context) error {
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	tx := transaction.NewInvocationTX(w.Bytes(), gas)
-	tx.Attributes = append(tx.Attributes, transaction.Attribute{
-		Usage: transaction.Script,
-		Data:  from.BytesBE(),
-	})
+	tx.AddVerificationHash(from)
 
 	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), core.UtilityTokenID(), gas, c); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't add GAS to a tx: %v", err), 1)
