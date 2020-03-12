@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
-	"reflect"
 	"text/tabwriter"
 	"unicode/utf8"
 
@@ -726,18 +725,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if a == nil {
 			panic("no second-to-the-top element found")
 		}
-		if ta, ok := a.value.(*ArrayItem); ok {
-			if tb, ok := b.value.(*ArrayItem); ok {
-				v.estack.PushVal(ta == tb)
-				break
-			}
-		} else if ma, ok := a.value.(*MapItem); ok {
-			if mb, ok := b.value.(*MapItem); ok {
-				v.estack.PushVal(ma == mb)
-				break
-			}
-		}
-		v.estack.PushVal(reflect.DeepEqual(a, b))
+		v.estack.PushVal(a.value.Equals(b.value))
 
 	// Bit operations.
 	case opcode.INVERT:

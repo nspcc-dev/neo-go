@@ -173,6 +173,16 @@ func (c *Context) Dup() StackItem {
 	return c
 }
 
+// TryBytes implements StackItem interface.
+func (c *Context) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Context to ByteArray")
+}
+
+// Equals implements StackItem interface.
+func (c *Context) Equals(s StackItem) bool {
+	return c == s
+}
+
 // ToContractParameter implements StackItem interface.
 func (c *Context) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
 	return smartcontract.Parameter{
