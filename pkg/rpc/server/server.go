@@ -153,18 +153,17 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		resultsErr error
 	)
 
+	incCounter(req.Method)
+
 Methods:
 	switch req.Method {
 	case "getapplicationlog":
-		getapplicationlogCalled.Inc()
 		results, resultsErr = s.getApplicationLog(reqParams)
 
 	case "getbestblockhash":
-		getbestblockhashCalled.Inc()
 		results = "0x" + s.chain.CurrentBlockHash().StringLE()
 
 	case "getblock":
-		getbestblockCalled.Inc()
 		var hash util.Uint256
 
 		param, ok := reqParams.Value(0)
@@ -208,11 +207,9 @@ Methods:
 		}
 
 	case "getblockcount":
-		getblockcountCalled.Inc()
 		results = s.chain.BlockHeight() + 1
 
 	case "getblockhash":
-		getblockHashCalled.Inc()
 		param, ok := reqParams.ValueWithType(0, request.NumberT)
 		if !ok {
 			resultsErr = response.ErrInvalidParams
@@ -227,34 +224,26 @@ Methods:
 		results = s.chain.GetHeaderHash(num)
 
 	case "getblockheader":
-		getblockheaderCalled.Inc()
 		results, resultsErr = s.getBlockHeader(reqParams)
 
 	case "getblocksysfee":
-		getblocksysfeeCalled.Inc()
 		results, resultsErr = s.getBlockSysFee(reqParams)
 
 	case "getclaimable":
-		getclaimableCalled.Inc()
 		results, resultsErr = s.getClaimable(reqParams)
 
 	case "getconnectioncount":
-		getconnectioncountCalled.Inc()
 		results = s.coreServer.PeerCount()
 
 	case "getnep5balances":
-		getnep5balancesCalled.Inc()
 		results, resultsErr = s.getNEP5Balances(reqParams)
 
 	case "getnep5transfers":
-		getnep5transfersCalled.Inc()
 		results, resultsErr = s.getNEP5Transfers(reqParams)
 	case "getvalidators":
-		getvalidatorsCalled.Inc()
 		results, resultsErr = s.getValidators()
 
 	case "getversion":
-		getversionCalled.Inc()
 		results = result.Version{
 			Port:      s.coreServer.Port,
 			Nonce:     s.coreServer.ID(),
@@ -262,7 +251,6 @@ Methods:
 		}
 
 	case "getpeers":
-		getpeersCalled.Inc()
 		peers := result.NewGetPeers()
 		peers.AddUnconnected(s.coreServer.UnconnectedPeers())
 		peers.AddConnected(s.coreServer.ConnectedPeers())
@@ -270,7 +258,6 @@ Methods:
 		results = peers
 
 	case "getrawmempool":
-		getrawmempoolCalled.Inc()
 		mp := s.chain.GetMemPool()
 		hashList := make([]util.Uint256, 0)
 		for _, item := range mp.GetVerifiedTransactions() {
@@ -279,11 +266,9 @@ Methods:
 		results = hashList
 
 	case "getstorage":
-		getstorageCalled.Inc()
 		results, resultsErr = s.getStorage(reqParams)
 
 	case "validateaddress":
-		validateaddressCalled.Inc()
 		param, ok := reqParams.Value(0)
 		if !ok {
 			resultsErr = response.ErrInvalidParams
@@ -292,7 +277,6 @@ Methods:
 		results = validateAddress(param.Value)
 
 	case "getassetstate":
-		getassetstateCalled.Inc()
 		param, ok := reqParams.ValueWithType(0, request.StringT)
 		if !ok {
 			resultsErr = response.ErrInvalidParams
@@ -313,31 +297,24 @@ Methods:
 		}
 
 	case "getaccountstate":
-		getaccountstateCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, false)
 
 	case "getcontractstate":
-		getcontractstateCalled.Inc()
 		results, resultsErr = s.getContractState(reqParams)
 
 	case "getrawtransaction":
-		getrawtransactionCalled.Inc()
 		results, resultsErr = s.getrawtransaction(reqParams)
 
 	case "gettransactionheight":
-		gettransactionheightCalled.Inc()
 		results, resultsErr = s.getTransactionHeight(reqParams)
 
 	case "gettxout":
-		gettxoutCalled.Inc()
 		results, resultsErr = s.getTxOut(reqParams)
 
 	case "getunclaimed":
-		getunclaimedCalled.Inc()
 		results, resultsErr = s.getUnclaimed(reqParams)
 
 	case "getunspents":
-		getunspentsCalled.Inc()
 		results, resultsErr = s.getAccountState(reqParams, true)
 
 	case "invoke":
@@ -350,11 +327,9 @@ Methods:
 		results, resultsErr = s.invokescript(reqParams)
 
 	case "submitblock":
-		submitblockCalled.Inc()
 		results, resultsErr = s.submitBlock(reqParams)
 
 	case "sendrawtransaction":
-		sendrawtransactionCalled.Inc()
 		results, resultsErr = s.sendrawtransaction(reqParams)
 
 	default:
