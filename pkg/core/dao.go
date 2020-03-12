@@ -559,37 +559,26 @@ func (dao *dao) StoreAsTransaction(tx *transaction.Transaction, index uint32) er
 
 // IsDoubleSpend verifies that the input transactions are not double spent.
 func (dao *dao) IsDoubleSpend(tx *transaction.Transaction) bool {
-	if len(tx.Inputs) == 0 {
-		return false
-	}
-	for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
-		prevHash := inputs[0].PrevHash
-		unspent, err := dao.GetUnspentCoinState(prevHash)
-		if err != nil {
-			return false
-		}
-		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&state.CoinSpent) != 0 {
-				return true
-			}
-		}
-	}
-	return false
+	return dao.checkUsedInputs(tx.Inputs, state.CoinSpent)
 }
 
 // IsDoubleClaim verifies that given claim inputs are not already claimed by another tx.
 func (dao *dao) IsDoubleClaim(claim *transaction.ClaimTX) bool {
-	if len(claim.Claims) == 0 {
+	return dao.checkUsedInputs(claim.Claims, state.CoinClaimed)
+}
+
+func (dao *dao) checkUsedInputs(inputs []transaction.Input, coin state.Coin) bool {
+	if len(inputs) == 0 {
 		return false
 	}
-	for _, inputs := range transaction.GroupInputsByPrevHash(claim.Claims) {
+	for _, inputs := range transaction.GroupInputsByPrevHash(inputs) {
 		prevHash := inputs[0].PrevHash
 		unspent, err := dao.GetUnspentCoinState(prevHash)
 		if err != nil {
 			return true
 		}
 		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&state.CoinClaimed) != 0 {
+			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&coin) != 0 {
 				return true
 			}
 		}
