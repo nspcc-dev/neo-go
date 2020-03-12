@@ -85,7 +85,7 @@ func newNEP5Commands() []cli.Command {
 					Name:  "amount",
 					Usage: "Amount of asset to send",
 				},
-				cli.StringFlag{
+				flags.Fixed8Flag{
 					Name:  "gas",
 					Usage: "Amount of GAS to attach to a tx",
 				},
@@ -309,14 +309,7 @@ func transferNEP5(ctx *cli.Context) error {
 	emit.AppCall(w.BinWriter, token.Hash, false)
 	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
 
-	var gas util.Fixed8
-	if gasString := ctx.String("gas"); gasString != "" {
-		gas, err = util.Fixed8FromString(gasString)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid GAS amount: %v", err), 1)
-		}
-	}
-
+	gas := flags.Fixed8FromContext(ctx, "gas")
 	tx := transaction.NewInvocationTX(w.Bytes(), gas)
 	tx.Attributes = append(tx.Attributes, transaction.Attribute{
 		Usage: transaction.Script,
