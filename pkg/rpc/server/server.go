@@ -210,7 +210,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		results, resultsErr = s.getAssetState(reqParams)
 
 	case "getaccountstate":
-		results, resultsErr = s.getAccountState(reqParams, false)
+		results, resultsErr = s.getAccountState(reqParams)
 
 	case "getcontractstate":
 		results, resultsErr = s.getContractState(reqParams)
@@ -228,7 +228,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		results, resultsErr = s.getUnclaimed(reqParams)
 
 	case "getunspents":
-		results, resultsErr = s.getAccountState(reqParams, true)
+		results, resultsErr = s.getUnspents(reqParams)
 
 	case "invoke":
 		results, resultsErr = s.invoke(reqParams)
@@ -720,8 +720,16 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, error)
 	return results, nil
 }
 
+func (s *Server) getAccountState(ps request.Params) (interface{}, error) {
+	return s.getAccountStateAux(ps, false)
+}
+
+func (s *Server) getUnspents(ps request.Params) (interface{}, error) {
+	return s.getAccountStateAux(ps, true)
+}
+
 // getAccountState returns account state either in short or full (unspents included) form.
-func (s *Server) getAccountState(reqParams request.Params, unspents bool) (interface{}, error) {
+func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
