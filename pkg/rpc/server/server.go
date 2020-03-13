@@ -258,12 +258,7 @@ Methods:
 		results = peers
 
 	case "getrawmempool":
-		mp := s.chain.GetMemPool()
-		hashList := make([]util.Uint256, 0)
-		for _, item := range mp.GetVerifiedTransactions() {
-			hashList = append(hashList, item.Tx.Hash())
-		}
-		results = hashList
+		results, resultsErr = s.getRawMempool(reqParams)
 
 	case "getstorage":
 		results, resultsErr = s.getStorage(reqParams)
@@ -320,6 +315,15 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getRawMempool(_ request.Params) (interface{}, error) {
+	mp := s.chain.GetMemPool()
+	hashList := make([]util.Uint256, 0)
+	for _, item := range mp.GetVerifiedTransactions() {
+		hashList = append(hashList, item.Tx.Hash())
+	}
+	return hashList, nil
 }
 
 func (s *Server) validateAddress(reqParams request.Params) (interface{}, error) {
