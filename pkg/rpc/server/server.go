@@ -210,18 +210,7 @@ Methods:
 		results = s.chain.BlockHeight() + 1
 
 	case "getblockhash":
-		param, ok := reqParams.ValueWithType(0, request.NumberT)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-		num, err := s.blockHeightFromParam(param)
-		if err != nil {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		results = s.chain.GetHeaderHash(num)
+		results, resultsErr = s.getBlockHash(reqParams)
 
 	case "getblockheader":
 		results, resultsErr = s.getBlockHeader(reqParams)
@@ -307,6 +296,19 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getBlockHash(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.NumberT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	num, err := s.blockHeightFromParam(param)
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	return s.chain.GetHeaderHash(num), nil
 }
 
 func (s *Server) getVersion(_ request.Params) (interface{}, error) {
