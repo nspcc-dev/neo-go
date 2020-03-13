@@ -189,7 +189,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 	case "getnep5transfers":
 		results, resultsErr = s.getNEP5Transfers(reqParams)
 	case "getvalidators":
-		results, resultsErr = s.getValidators()
+		results, resultsErr = s.getValidators(reqParams)
 
 	case "getversion":
 		results, resultsErr = s.getVersion(reqParams)
@@ -769,7 +769,7 @@ func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (in
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
-func (s *Server) getBlockSysFee(reqParams request.Params) (util.Fixed8, error) {
+func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, error) {
 	param, ok := reqParams.ValueWithType(0, request.NumberT)
 	if !ok {
 		return 0, response.ErrInvalidParams
@@ -853,7 +853,7 @@ func (s *Server) getUnclaimed(ps request.Params) (interface{}, error) {
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.
-func (s *Server) getValidators() (interface{}, error) {
+func (s *Server) getValidators(_ request.Params) (interface{}, error) {
 	var validators keys.PublicKeys
 
 	validators, err := s.chain.GetValidators()
