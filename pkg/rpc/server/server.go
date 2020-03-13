@@ -155,7 +155,6 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 
 	incCounter(req.Method)
 
-Methods:
 	switch req.Method {
 	case "getapplicationlog":
 		results, resultsErr = s.getApplicationLog(reqParams)
@@ -164,47 +163,7 @@ Methods:
 		results = "0x" + s.chain.CurrentBlockHash().StringLE()
 
 	case "getblock":
-		var hash util.Uint256
-
-		param, ok := reqParams.Value(0)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		switch param.Type {
-		case request.StringT:
-			var err error
-			hash, err = param.GetUint256()
-			if err != nil {
-				resultsErr = response.ErrInvalidParams
-				break Methods
-			}
-		case request.NumberT:
-			num, err := s.blockHeightFromParam(param)
-			if err != nil {
-				resultsErr = response.ErrInvalidParams
-				break Methods
-			}
-			hash = s.chain.GetHeaderHash(num)
-		default:
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		block, err := s.chain.GetBlock(hash)
-		if err != nil {
-			resultsErr = response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
-			break
-		}
-
-		if len(reqParams) == 2 && reqParams[1].Value == 1 {
-			results = result.NewBlock(block, s.chain)
-		} else {
-			writer := io.NewBufBinWriter()
-			block.EncodeBinary(writer.BinWriter)
-			results = hex.EncodeToString(writer.Bytes())
-		}
+		results, resultsErr = s.getBlock(reqParams)
 
 	case "getblockcount":
 		results = s.chain.BlockHeight() + 1
@@ -296,6 +255,44 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getBlock(reqParams request.Params) (interface{}, error) {
+	var hash util.Uint256
+
+	param, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	switch param.Type {
+	case request.StringT:
+		var err error
+		hash, err = param.GetUint256()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+	case request.NumberT:
+		num, err := s.blockHeightFromParam(param)
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		hash = s.chain.GetHeaderHash(num)
+	default:
+		return nil, response.ErrInvalidParams
+	}
+
+	block, err := s.chain.GetBlock(hash)
+	if err != nil {
+		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+	}
+
+	if len(reqParams) == 2 && reqParams[1].Value == 1 {
+		return result.NewBlock(block, s.chain), nil
+	}
+	writer := io.NewBufBinWriter()
+	block.EncodeBinary(writer.BinWriter)
+	return hex.EncodeToString(writer.Bytes()), nil
 }
 
 func (s *Server) getBlockHash(reqParams request.Params) (interface{}, error) {
