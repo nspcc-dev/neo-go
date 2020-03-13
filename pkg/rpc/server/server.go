@@ -244,11 +244,7 @@ Methods:
 		results, resultsErr = s.getValidators()
 
 	case "getversion":
-		results = result.Version{
-			Port:      s.coreServer.Port,
-			Nonce:     s.coreServer.ID(),
-			UserAgent: s.coreServer.UserAgent,
-		}
+		results, resultsErr = s.getVersion(reqParams)
 
 	case "getpeers":
 		results, resultsErr = s.getPeers(reqParams)
@@ -311,6 +307,14 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getVersion(_ request.Params) (interface{}, error) {
+	return result.Version{
+		Port:      s.coreServer.Port,
+		Nonce:     s.coreServer.ID(),
+		UserAgent: s.coreServer.UserAgent,
+	}, nil
 }
 
 func (s *Server) getPeers(_ request.Params) (interface{}, error) {
