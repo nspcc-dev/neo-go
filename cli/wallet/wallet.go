@@ -3,6 +3,7 @@ package wallet
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -142,6 +143,10 @@ func NewCommands() []cli.Command {
 					cli.StringFlag{
 						Name:  "name, n",
 						Usage: "Optional account name",
+					},
+					cli.StringFlag{
+						Name:  "contract",
+						Usage: "Verification script for custom contracts",
 					},
 				},
 			},
@@ -401,6 +406,14 @@ func importWallet(ctx *cli.Context) error {
 	acc, err := newAccountFromWIF(ctx.String("wif"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+
+	if ctrFlag := ctx.String("contract"); ctrFlag != "" {
+		ctr, err := hex.DecodeString(ctrFlag)
+		if err != nil {
+			return cli.NewExitError("invalid contract", 1)
+		}
+		acc.Contract.Script = ctr
 	}
 
 	acc.Label = ctx.String("name")
