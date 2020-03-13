@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -136,6 +137,18 @@ func checkWalletConstructor(t *testing.T) *Wallet {
 func removeWallet(t *testing.T, walletPath string) {
 	err := os.RemoveAll(walletPath)
 	require.NoError(t, err)
+}
+
+func TestWallet_AddToken(t *testing.T) {
+	w := checkWalletConstructor(t)
+	tok := NewToken(util.Uint160{1, 2, 3}, "Rubl", "RUB", 2)
+	require.Equal(t, 0, len(w.Extra.Tokens))
+	w.AddToken(tok)
+	require.Equal(t, 1, len(w.Extra.Tokens))
+	require.Error(t, w.RemoveToken(util.Uint160{4, 5, 6}))
+	require.Equal(t, 1, len(w.Extra.Tokens))
+	require.NoError(t, w.RemoveToken(tok.Hash))
+	require.Equal(t, 0, len(w.Extra.Tokens))
 }
 
 func TestWallet_GetAccount(t *testing.T) {
