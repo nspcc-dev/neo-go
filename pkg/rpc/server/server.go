@@ -277,24 +277,7 @@ Methods:
 		results = validateAddress(param.Value)
 
 	case "getassetstate":
-		param, ok := reqParams.ValueWithType(0, request.StringT)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		paramAssetID, err := param.GetUint256()
-		if err != nil {
-			resultsErr = response.ErrInvalidParams
-			break
-		}
-
-		as := s.chain.GetAssetState(paramAssetID)
-		if as != nil {
-			results = result.NewAssetState(as)
-		} else {
-			resultsErr = response.NewRPCError("Unknown asset", "", nil)
-		}
+		results, resultsErr = s.getAssetState(reqParams)
 
 	case "getaccountstate":
 		results, resultsErr = s.getAccountState(reqParams, false)
@@ -342,6 +325,24 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getAssetState(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	paramAssetID, err := param.GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	as := s.chain.GetAssetState(paramAssetID)
+	if as != nil {
+		return result.NewAssetState(as), nil
+	}
+	return nil, response.NewRPCError("Unknown asset", "", nil)
 }
 
 // getApplicationLog returns the contract log based on the specified txid.
