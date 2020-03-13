@@ -42,6 +42,39 @@ type (
 	}
 )
 
+var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, error){
+	"getaccountstate":      (*Server).getAccountState,
+	"getapplicationlog":    (*Server).getApplicationLog,
+	"getassetstate":        (*Server).getAssetState,
+	"getbestblockhash":     (*Server).getBestBlockHash,
+	"getblock":             (*Server).getBlock,
+	"getblockcount":        (*Server).getBlockCount,
+	"getblockhash":         (*Server).getBlockHash,
+	"getblockheader":       (*Server).getBlockHeader,
+	"getblocksysfee":       (*Server).getBlockSysFee,
+	"getclaimable":         (*Server).getClaimable,
+	"getconnectioncount":   (*Server).getConnectionCount,
+	"getcontractstate":     (*Server).getContractState,
+	"getnep5balances":      (*Server).getNEP5Balances,
+	"getnep5transfers":     (*Server).getNEP5Transfers,
+	"getpeers":             (*Server).getPeers,
+	"getrawmempool":        (*Server).getRawMempool,
+	"getrawtransaction":    (*Server).getrawtransaction,
+	"getstorage":           (*Server).getStorage,
+	"gettransactionheight": (*Server).getTransactionHeight,
+	"gettxout":             (*Server).getTxOut,
+	"getunclaimed":         (*Server).getUnclaimed,
+	"getunspents":          (*Server).getUnspents,
+	"getvalidators":        (*Server).getValidators,
+	"getversion":           (*Server).getVersion,
+	"invoke":               (*Server).invoke,
+	"invokefunction":       (*Server).invokeFunction,
+	"invokescript":         (*Server).invokescript,
+	"sendrawtransaction":   (*Server).sendrawtransaction,
+	"submitblock":          (*Server).submitBlock,
+	"validateaddress":      (*Server).validateAddress,
+}
+
 var invalidBlockHeightError = func(index int, height int) error {
 	return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
 }
@@ -155,97 +188,10 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 
 	incCounter(req.Method)
 
-	switch req.Method {
-	case "getapplicationlog":
-		results, resultsErr = s.getApplicationLog(reqParams)
-
-	case "getbestblockhash":
-		results, resultsErr = s.getBestBlockHash(reqParams)
-
-	case "getblock":
-		results, resultsErr = s.getBlock(reqParams)
-
-	case "getblockcount":
-		results, resultsErr = s.getBlockCount(reqParams)
-
-	case "getblockhash":
-		results, resultsErr = s.getBlockHash(reqParams)
-
-	case "getblockheader":
-		results, resultsErr = s.getBlockHeader(reqParams)
-
-	case "getblocksysfee":
-		results, resultsErr = s.getBlockSysFee(reqParams)
-
-	case "getclaimable":
-		results, resultsErr = s.getClaimable(reqParams)
-
-	case "getconnectioncount":
-		results, resultsErr = s.getConnectionCount(reqParams)
-
-	case "getnep5balances":
-		results, resultsErr = s.getNEP5Balances(reqParams)
-
-	case "getnep5transfers":
-		results, resultsErr = s.getNEP5Transfers(reqParams)
-	case "getvalidators":
-		results, resultsErr = s.getValidators(reqParams)
-
-	case "getversion":
-		results, resultsErr = s.getVersion(reqParams)
-
-	case "getpeers":
-		results, resultsErr = s.getPeers(reqParams)
-
-	case "getrawmempool":
-		results, resultsErr = s.getRawMempool(reqParams)
-
-	case "getstorage":
-		results, resultsErr = s.getStorage(reqParams)
-
-	case "validateaddress":
-		results, resultsErr = s.validateAddress(reqParams)
-
-	case "getassetstate":
-		results, resultsErr = s.getAssetState(reqParams)
-
-	case "getaccountstate":
-		results, resultsErr = s.getAccountState(reqParams)
-
-	case "getcontractstate":
-		results, resultsErr = s.getContractState(reqParams)
-
-	case "getrawtransaction":
-		results, resultsErr = s.getrawtransaction(reqParams)
-
-	case "gettransactionheight":
-		results, resultsErr = s.getTransactionHeight(reqParams)
-
-	case "gettxout":
-		results, resultsErr = s.getTxOut(reqParams)
-
-	case "getunclaimed":
-		results, resultsErr = s.getUnclaimed(reqParams)
-
-	case "getunspents":
-		results, resultsErr = s.getUnspents(reqParams)
-
-	case "invoke":
-		results, resultsErr = s.invoke(reqParams)
-
-	case "invokefunction":
-		results, resultsErr = s.invokeFunction(reqParams)
-
-	case "invokescript":
-		results, resultsErr = s.invokescript(reqParams)
-
-	case "submitblock":
-		results, resultsErr = s.submitBlock(reqParams)
-
-	case "sendrawtransaction":
-		results, resultsErr = s.sendrawtransaction(reqParams)
-
-	default:
+	handler, ok := rpcHandlers[req.Method]
+	if ok {
+		results, resultsErr = handler(s, reqParams)
+	} else {
 		resultsErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	}
 
