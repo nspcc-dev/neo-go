@@ -67,6 +67,10 @@ var (
 		Name:  "to",
 		Usage: "Address to send an asset to",
 	}
+	forceFlag = cli.BoolFlag{
+		Name:  "force",
+		Usage: "Do not ask for a confirmation",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -158,6 +162,16 @@ func NewCommands() []cli.Command {
 						Name:  "min, m",
 						Usage: "Minimal number of signatures",
 					},
+				},
+			},
+			{
+				Name:      "remove",
+				Usage:     "remove an account from the wallet",
+				UsageText: "remove --path <path> [--force] <addr>",
+				Action:    removeAccount,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					forceFlag,
 				},
 			},
 			{
@@ -395,6 +409,52 @@ func importWallet(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func removeAccount(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	addrArg := ctx.Args().First()
+	addr, err := address.StringToUint160(addrArg)
+	if err != nil {
+		return cli.NewExitError("valid address must be provided", 1)
+	}
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return cli.NewExitError("account wasn't found", 1)
+	}
+
+	if !ctx.Bool("force") {
+		fmt.Printf("Account %s will be removed. This action is irreversible.\n", addrArg)
+		if ok := askForConsent(); !ok {
+			return nil
+		}
+	}
+
+	if err := wall.RemoveAccount(acc.Address); err != nil {
+		return cli.NewExitError(fmt.Errorf("error on remove: %v", err), 1)
+	} else if err := wall.Save(); err != nil {
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %v", err), 1)
+	}
+	return nil
+}
+
+func askForConsent() bool {
+	fmt.Print("Are you sure? [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err == nil {
+		response = strings.ToLower(strings.TrimSpace(response))
+		if response == "y" || response == "yes" {
+			return true
+		}
+	}
+	fmt.Println("Cancelled.")
+	return false
 }
 
 func transferAsset(ctx *cli.Context) error {
