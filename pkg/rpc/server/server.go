@@ -160,13 +160,13 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		results, resultsErr = s.getApplicationLog(reqParams)
 
 	case "getbestblockhash":
-		results = "0x" + s.chain.CurrentBlockHash().StringLE()
+		results, resultsErr = s.getBestBlockHash(reqParams)
 
 	case "getblock":
 		results, resultsErr = s.getBlock(reqParams)
 
 	case "getblockcount":
-		results = s.chain.BlockHeight() + 1
+		results, resultsErr = s.getBlockCount(reqParams)
 
 	case "getblockhash":
 		results, resultsErr = s.getBlockHash(reqParams)
@@ -181,7 +181,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		results, resultsErr = s.getClaimable(reqParams)
 
 	case "getconnectioncount":
-		results = s.coreServer.PeerCount()
+		results, resultsErr = s.getConnectionCount(reqParams)
 
 	case "getnep5balances":
 		results, resultsErr = s.getNEP5Balances(reqParams)
@@ -255,6 +255,18 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getBestBlockHash(_ request.Params) (interface{}, error) {
+	return "0x" + s.chain.CurrentBlockHash().StringLE(), nil
+}
+
+func (s *Server) getBlockCount(_ request.Params) (interface{}, error) {
+	return s.chain.BlockHeight() + 1, nil
+}
+
+func (s *Server) getConnectionCount(_ request.Params) (interface{}, error) {
+	return s.coreServer.PeerCount(), nil
 }
 
 func (s *Server) getBlock(reqParams request.Params) (interface{}, error) {
