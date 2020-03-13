@@ -269,12 +269,7 @@ Methods:
 		results, resultsErr = s.getStorage(reqParams)
 
 	case "validateaddress":
-		param, ok := reqParams.Value(0)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-		results = validateAddress(param.Value)
+		results, resultsErr = s.validateAddress(reqParams)
 
 	case "getassetstate":
 		results, resultsErr = s.getAssetState(reqParams)
@@ -325,6 +320,14 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) validateAddress(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	return validateAddress(param.Value), nil
 }
 
 func (s *Server) getAssetState(reqParams request.Params) (interface{}, error) {
