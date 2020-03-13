@@ -507,13 +507,16 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				}
 
 				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
-					account.Unclaimed = append(account.Unclaimed, state.UnclaimedBalance{
+					err = account.Unclaimed.Put(&state.UnclaimedBalance{
 						Tx:    input.PrevHash,
 						Index: input.PrevIndex,
 						Start: unspent.Height,
 						End:   block.Index,
 						Value: prevTXOutput.Amount,
 					})
+					if err != nil {
+						return err
+					}
 					if err = processTXWithValidatorsSubtract(prevTXOutput, account, cache); err != nil {
 						return err
 					}
@@ -614,19 +617,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 
-				var changed bool
-				for i := range acc.Unclaimed {
-					if acc.Unclaimed[i].Tx == input.PrevHash && acc.Unclaimed[i].Index == input.PrevIndex {
-						last := len(acc.Unclaimed) - 1
-						if last > i {
-							acc.Unclaimed[i] = acc.Unclaimed[last]
-						}
-						acc.Unclaimed = acc.Unclaimed[:last]
-						changed = true
-						break
-					}
-				}
-
+				changed := acc.Unclaimed.Remove(input.PrevHash, input.PrevIndex)
 				if !changed {
 					bc.log.Warn("no spent coin in the account",
 						zap.String("tx", tx.Hash().StringLE()),
