@@ -155,7 +155,10 @@ func Load(path string, netMode NetMode) (Config, error) {
 		ProtocolConfiguration: ProtocolConfiguration{
 			SystemFee: SystemFee{},
 		},
-		ApplicationConfiguration: ApplicationConfiguration{},
+		ApplicationConfiguration: ApplicationConfiguration{
+			PingInterval: 30,
+			PingTimeout:  90,
+		},
 	}
 
 	err = yaml.Unmarshal(configData, &config)
