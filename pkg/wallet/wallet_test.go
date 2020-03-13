@@ -48,7 +48,7 @@ func TestAddAccount(t *testing.T) {
 		privateKey:   nil,
 		publicKey:    nil,
 		wif:          "",
-		Address:      "",
+		Address:      "real",
 		EncryptedWIF: "",
 		Label:        "",
 		Contract:     nil,
@@ -57,6 +57,11 @@ func TestAddAccount(t *testing.T) {
 	})
 	accounts := wallet.Accounts
 	require.Len(t, accounts, 1)
+
+	require.Error(t, wallet.RemoveAccount("abc"))
+	require.Len(t, wallet.Accounts, 1)
+	require.NoError(t, wallet.RemoveAccount("real"))
+	require.Len(t, wallet.Accounts, 0)
 }
 
 func TestPath(t *testing.T) {

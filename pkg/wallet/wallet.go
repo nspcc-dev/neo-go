@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 
@@ -100,6 +101,19 @@ func (w *Wallet) CreateAccount(name, passphrase string) error {
 // AddAccount adds an existing Account to the wallet.
 func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
+}
+
+// RemoveAccount removes an Account with the specified addr
+// from the wallet.
+func (w *Wallet) RemoveAccount(addr string) error {
+	for i, acc := range w.Accounts {
+		if acc.Address == addr {
+			copy(w.Accounts[i:], w.Accounts[i+1:])
+			w.Accounts = w.Accounts[:len(w.Accounts)-1]
+			return nil
+		}
+	}
+	return errors.New("account wasn't found")
 }
 
 // AddToken adds new token to a wallet.
