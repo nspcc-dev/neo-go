@@ -251,11 +251,7 @@ Methods:
 		}
 
 	case "getpeers":
-		peers := result.NewGetPeers()
-		peers.AddUnconnected(s.coreServer.UnconnectedPeers())
-		peers.AddConnected(s.coreServer.ConnectedPeers())
-		peers.AddBad(s.coreServer.BadPeers())
-		results = peers
+		results, resultsErr = s.getPeers(reqParams)
 
 	case "getrawmempool":
 		results, resultsErr = s.getRawMempool(reqParams)
@@ -315,6 +311,14 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getPeers(_ request.Params) (interface{}, error) {
+	peers := result.NewGetPeers()
+	peers.AddUnconnected(s.coreServer.UnconnectedPeers())
+	peers.AddConnected(s.coreServer.ConnectedPeers())
+	peers.AddBad(s.coreServer.BadPeers())
+	return peers, nil
 }
 
 func (s *Server) getRawMempool(_ request.Params) (interface{}, error) {
