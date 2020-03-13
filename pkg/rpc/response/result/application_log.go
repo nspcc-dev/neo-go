@@ -46,12 +46,18 @@ func NewApplicationLog(appExecRes *state.AppExecResult, scriptHash util.Uint160)
 
 	triggerString := appExecRes.Trigger.String()
 
+	var rawStack json.RawMessage
+	if len(appExecRes.Stack) != 0 {
+		rawStack = json.RawMessage(appExecRes.Stack)
+	} else {
+		rawStack = json.RawMessage("[]")
+	}
 	executions := []Execution{{
 		Trigger:     triggerString,
 		ScriptHash:  scriptHash,
 		VMState:     appExecRes.VMState,
 		GasConsumed: appExecRes.GasConsumed,
-		Stack:       json.RawMessage(appExecRes.Stack),
+		Stack:       rawStack,
 		Events:      events,
 	}}
 
