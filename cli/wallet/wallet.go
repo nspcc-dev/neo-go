@@ -90,7 +90,7 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "create",
+				Name:   "init",
 				Usage:  "create a new wallet",
 				Action: createWallet,
 				Flags: []cli.Flag{
@@ -102,7 +102,7 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "create-account",
+				Name:   "create",
 				Usage:  "add an account to the existing wallet",
 				Action: addAccount,
 				Flags: []cli.Flag{
