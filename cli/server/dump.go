@@ -12,7 +12,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-type dump []interface{}
+type dump []blockDump
+
+type blockDump struct {
+	Block   uint32      `json:"block"`
+	Size    int         `json:"size"`
+	Storage []storageOp `json:"storage"`
+}
 
 type storageOp struct {
 	State string `json:"state"`
@@ -60,7 +66,7 @@ func toNeoStorageKey(key []byte) []byte {
 
 // batchToMap converts batch to a map so that JSON is compatible
 // with https://github.com/NeoResearch/neo-storage-audit/
-func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
+func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 	size := len(batch.Put) + len(batch.Deleted)
 	ops := make([]storageOp, 0, size)
 	for i := range batch.Put {
@@ -95,10 +101,10 @@ func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
 		})
 	}
 
-	return map[string]interface{}{
-		"block":   index,
-		"size":    len(ops),
-		"storage": ops,
+	return blockDump{
+		Block:   index,
+		Size:    len(ops),
+		Storage: ops,
 	}
 }
 
