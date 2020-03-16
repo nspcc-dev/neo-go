@@ -1885,6 +1885,31 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	case transaction.EnrollmentType:
 		etx := t.Data.(*transaction.EnrollmentTX)
 		hashes[etx.PublicKey.GetScriptHash()] = true
+	case transaction.StateType:
+		stx := t.Data.(*transaction.StateTX)
+		for _, desc := range stx.Descriptors {
+			switch desc.Type {
+			case transaction.Account:
+				if desc.Field != "Votes" {
+					return nil, errors.New("bad account state descriptor")
+				}
+				hash, err := util.Uint160DecodeBytesBE(desc.Key)
+				if err != nil {
+					return nil, err
+				}
+				hashes[hash] = true
+			case transaction.Validator:
+				if desc.Field != "Registered" {
+					return nil, errors.New("bad validator state descriptor")
+				}
+				key := &keys.PublicKey{}
+				err := key.DecodeBytes(desc.Key)
+				if err != nil {
+					return nil, err
+				}
+				hashes[key.GetScriptHash()] = true
+			}
+		}
 	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))
