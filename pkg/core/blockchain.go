@@ -1660,6 +1660,13 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 			if r.AssetID == UtilityTokenID() {
 				return errors.New("issue tx issues utility tokens")
 			}
+			asset, err := bc.dao.GetAssetState(r.AssetID)
+			if asset == nil || err != nil {
+				return errors.New("invalid asset in issue tx")
+			}
+			if asset.Available < r.Amount {
+				return errors.New("trying to issue more than available")
+			}
 		}
 		break
 	default:
