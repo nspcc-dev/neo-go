@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 
@@ -102,9 +103,34 @@ func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
 }
 
+// RemoveAccount removes an Account with the specified addr
+// from the wallet.
+func (w *Wallet) RemoveAccount(addr string) error {
+	for i, acc := range w.Accounts {
+		if acc.Address == addr {
+			copy(w.Accounts[i:], w.Accounts[i+1:])
+			w.Accounts = w.Accounts[:len(w.Accounts)-1]
+			return nil
+		}
+	}
+	return errors.New("account wasn't found")
+}
+
 // AddToken adds new token to a wallet.
 func (w *Wallet) AddToken(tok *Token) {
 	w.Extra.Tokens = append(w.Extra.Tokens, tok)
+}
+
+// RemoveToken removes token with the specified hash from the wallet.
+func (w *Wallet) RemoveToken(h util.Uint160) error {
+	for i, tok := range w.Extra.Tokens {
+		if tok.Hash.Equals(h) {
+			copy(w.Extra.Tokens[i:], w.Extra.Tokens[i+1:])
+			w.Extra.Tokens = w.Extra.Tokens[:len(w.Extra.Tokens)-1]
+			return nil
+		}
+	}
+	return errors.New("token wasn't found")
 }
 
 // Path returns the location of the wallet on the filesystem.

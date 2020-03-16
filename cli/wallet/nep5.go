@@ -67,6 +67,20 @@ func newNEP5Commands() []cli.Command {
 			},
 		},
 		{
+			Name:      "remove",
+			Usage:     "remove NEP5 token from the wallet",
+			UsageText: "remove --path <path> <hash-or-name>",
+			Action:    removeNEP5Token,
+			Flags: []cli.Flag{
+				walletPathFlag,
+				cli.StringFlag{
+					Name:  "token",
+					Usage: "Token name or hash",
+				},
+				forceFlag,
+			},
+		},
+		{
 			Name:      "transfer",
 			Usage:     "transfer NEP5 tokens",
 			UsageText: "transfer --path <path> --rpc <node> --from <addr> --to <addr> --token <hash> --amount string",
@@ -256,6 +270,34 @@ func printNEP5Info(ctx *cli.Context) error {
 			fmt.Println()
 		}
 		printTokenInfo(t)
+	}
+	return nil
+}
+
+func removeNEP5Token(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	name := ctx.Args().First()
+	if name == "" {
+		return cli.NewExitError("token must be specified", 1)
+	}
+	token, err := getMatchingToken(wall, name)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if !ctx.Bool("force") {
+		if ok := askForConsent(); !ok {
+			return nil
+		}
+	}
+	if err := wall.RemoveToken(token.Hash); err != nil {
+		return cli.NewExitError(fmt.Errorf("can't remove token: %v", err), 1)
+	} else if err := wall.Save(); err != nil {
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %v", err), 1)
 	}
 	return nil
 }
