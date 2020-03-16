@@ -277,9 +277,19 @@ func restoreDB(ctx *cli.Context) error {
 		}
 	}
 
+	gctx := newGraceContext()
+	var lastIndex uint32
 	dump := newDump()
+	defer func() {
+		_ = dump.tryPersist(dumpDir, lastIndex)
+	}()
 
 	for ; i < skip+count; i++ {
+		select {
+		case <-gctx.Done():
+			return cli.NewExitError("cancelled", 1)
+		default:
+		}
 		bytes, err := readBlock(reader)
 		block := &block.Block{}
 		newReader := io.NewBinReaderFromBuf(bytes)
@@ -302,8 +312,11 @@ func restoreDB(ctx *cli.Context) error {
 		if dumpDir != "" {
 			batch := chain.LastBatch()
 			dump.add(block.Index, batch)
-			if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-				return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+			lastIndex = block.Index
+			if block.Index%1000 == 0 {
+				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
+					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+				}
 			}
 		}
 	}

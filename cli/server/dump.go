@@ -111,10 +111,6 @@ func (d *dump) add(index uint32, batch *storage.MemBatch) {
 }
 
 func (d *dump) tryPersist(prefix string, index uint32) error {
-	if index%1000 != 0 {
-		return nil
-	}
-
 	f, err := createFile(prefix, index)
 	if err != nil {
 		return err
