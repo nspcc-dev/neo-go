@@ -379,7 +379,13 @@ func (s *Server) getClaimable(ps request.Params) (interface{}, error) {
 
 	var unclaimed []state.UnclaimedBalance
 	if acc := s.chain.GetAccountState(u); acc != nil {
-		unclaimed = acc.Unclaimed
+		err := acc.Unclaimed.ForEach(func(b *state.UnclaimedBalance) error {
+			unclaimed = append(unclaimed, *b)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var sum util.Fixed8

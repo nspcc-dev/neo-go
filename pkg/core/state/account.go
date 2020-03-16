@@ -34,7 +34,7 @@ type Account struct {
 	IsFrozen   bool
 	Votes      []*keys.PublicKey
 	Balances   map[util.Uint256][]UnspentBalance
-	Unclaimed  []UnclaimedBalance
+	Unclaimed  UnclaimedBalances
 }
 
 // NewAccount returns a new Account object.
@@ -45,7 +45,7 @@ func NewAccount(scriptHash util.Uint160) *Account {
 		IsFrozen:   false,
 		Votes:      []*keys.PublicKey{},
 		Balances:   make(map[util.Uint256][]UnspentBalance),
-		Unclaimed:  []UnclaimedBalance{},
+		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}
 }
 
@@ -69,7 +69,9 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 		s.Balances[key] = ubs
 	}
 
-	br.ReadArray(&s.Unclaimed)
+	lenBalances = br.ReadVarUint()
+	s.Unclaimed.Raw = make([]byte, lenBalances*UnclaimedBalanceSize)
+	br.ReadBytes(s.Unclaimed.Raw)
 }
 
 // EncodeBinary encodes Account to the given BinWriter.
@@ -88,7 +90,8 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 		}
 	}
 
-	bw.WriteArray(s.Unclaimed)
+	bw.WriteVarUint(uint64(s.Unclaimed.Size()))
+	bw.WriteBytes(s.Unclaimed.Raw)
 }
 
 // DecodeBinary implements io.Serializable interface.

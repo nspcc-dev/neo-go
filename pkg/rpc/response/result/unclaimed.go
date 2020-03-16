@@ -20,12 +20,16 @@ func NewUnclaimed(a *state.Account, chain core.Blockchainer) (*Unclaimed, error)
 		unavailable util.Fixed8
 	)
 
-	for _, ucb := range a.Unclaimed {
+	err := a.Unclaimed.ForEach(func(ucb *state.UnclaimedBalance) error {
 		gen, sys, err := chain.CalculateClaimable(ucb.Value, ucb.Start, ucb.End)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		available += gen + sys
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	blockHeight := chain.BlockHeight()
