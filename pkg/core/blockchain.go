@@ -1387,6 +1387,63 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if inv.Gas.FractionalValue() != 0 {
 			return errors.New("invocation gas can only be integer")
 		}
+	case transaction.StateType:
+		stx := t.Data.(*transaction.StateTX)
+		for _, desc := range stx.Descriptors {
+			switch desc.Type {
+			case transaction.Account:
+				if desc.Field != "Votes" {
+					return errors.New("bad field in account descriptor")
+				}
+				votes := keys.PublicKeys{}
+				err := votes.DecodeBytes(desc.Value)
+				if err != nil {
+					return err
+				}
+				if len(votes) > state.MaxValidatorsVoted {
+					return errors.New("voting candidate limit exceeded")
+				}
+				hash, err := util.Uint160DecodeBytesBE(desc.Key)
+				if err != nil {
+					return err
+				}
+				account, err := bc.dao.GetAccountStateOrNew(hash)
+				if err != nil {
+					return err
+				}
+				if account.IsFrozen {
+					return errors.New("account is frozen")
+				}
+				if votes.Len() > 0 {
+					balance := account.GetBalanceValues()[GoverningTokenID()]
+					if balance == 0 {
+						return errors.New("no governing tokens available to vote")
+					}
+					validators, err := bc.GetEnrollments()
+					if err != nil {
+						return err
+					}
+					for _, k := range votes {
+						var isRegistered bool
+						for i := range validators {
+							if k.Equal(validators[i].PublicKey) {
+								isRegistered = true
+								break
+							}
+						}
+						if !isRegistered {
+							return errors.New("vote for unregistered validator")
+						}
+					}
+				}
+			case transaction.Validator:
+				if desc.Field != "Registered" {
+					return errors.New("bad field in validator descriptor")
+				}
+			default:
+				return errors.New("bad descriptor type")
+			}
+		}
 	}
 
 	return bc.verifyTxWitnesses(t, block)
