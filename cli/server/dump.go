@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -11,7 +12,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-type dump []interface{}
+type dump []blockDump
+
+type blockDump struct {
+	Block   uint32      `json:"block"`
+	Size    int         `json:"size"`
+	Storage []storageOp `json:"storage"`
+}
 
 type storageOp struct {
 	State string `json:"state"`
@@ -59,7 +66,7 @@ func toNeoStorageKey(key []byte) []byte {
 
 // batchToMap converts batch to a map so that JSON is compatible
 // with https://github.com/NeoResearch/neo-storage-audit/
-func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
+func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 	size := len(batch.Put) + len(batch.Deleted)
 	ops := make([]storageOp, 0, size)
 	for i := range batch.Put {
@@ -94,10 +101,10 @@ func batchToMap(index uint32, batch *storage.MemBatch) map[string]interface{} {
 		})
 	}
 
-	return map[string]interface{}{
-		"block":   index,
-		"size":    len(ops),
-		"storage": ops,
+	return blockDump{
+		Block:   index,
+		Size:    len(ops),
+		Storage: ops,
 	}
 }
 
@@ -111,20 +118,28 @@ func (d *dump) add(index uint32, batch *storage.MemBatch) {
 }
 
 func (d *dump) tryPersist(prefix string, index uint32) error {
-	if index%1000 != 0 {
+	if len(*d) == 0 {
 		return nil
 	}
-
-	f, err := createFile(prefix, index)
+	path, err := getPath(prefix, index)
 	if err != nil {
 		return err
 	}
-
+	old, err := readFile(path)
+	if err == nil {
+		*old = append(*old, *d...)
+	} else {
+		old = d
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", " ")
-	if err := enc.Encode(*d); err != nil {
+	if err := enc.Encode(*old); err != nil {
 		return err
 	}
 
@@ -133,14 +148,26 @@ func (d *dump) tryPersist(prefix string, index uint32) error {
 	return nil
 }
 
-// createFile creates directory and file in it for storing blocks up to index.
+func readFile(path string) (*dump, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	d := newDump()
+	if err := json.Unmarshal(data, d); err != nil {
+		return nil, err
+	}
+	return d, err
+}
+
+// getPath returns filename for storing blocks up to index.
 // Directory structure is the following:
 // https://github.com/NeoResearch/neo-storage-audit#folder-organization-where-to-find-the-desired-block
 // Dir `BlockStorage_$DIRNO` contains blocks up to $DIRNO (from $DIRNO-100k)
 // Inside it there are files grouped by 1k blocks.
 // File dump-block-$FILENO.json contains blocks from $FILENO-999, $FILENO
 // Example: file `BlockStorage_100000/dump-block-6000.json` contains blocks from 5001 to 6000.
-func createFile(prefix string, index uint32) (*os.File, error) {
+func getPath(prefix string, index uint32) (string, error) {
 	dirN := (index-1)/100000 + 1
 	dir := fmt.Sprintf("BlockStorage_%d00000", dirN)
 
@@ -149,15 +176,13 @@ func createFile(prefix string, index uint32) (*os.File, error) {
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(path, os.ModePerm)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	} else if !info.IsDir() {
-		return nil, fmt.Errorf("file `%s` is not a directory", path)
+		return "", fmt.Errorf("file `%s` is not a directory", path)
 	}
 
 	fileN := (index-1)/1000 + 1
 	file := fmt.Sprintf("dump-block-%d000.json", fileN)
-	path = filepath.Join(path, file)
-
-	return os.Create(path)
+	return filepath.Join(path, file), nil
 }
