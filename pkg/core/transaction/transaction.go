@@ -91,6 +91,14 @@ func (t *Transaction) AddInput(in *Input) {
 	t.Inputs = append(t.Inputs, *in)
 }
 
+// AddVerificationHash adds a script attribute for transaction verification.
+func (t *Transaction) AddVerificationHash(addr util.Uint160) {
+	t.Attributes = append(t.Attributes, Attribute{
+		Usage: Script,
+		Data:  addr.BytesBE(),
+	})
+}
+
 // DecodeBinary implements Serializable interface.
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Type = TXType(br.ReadB())

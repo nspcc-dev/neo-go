@@ -51,7 +51,7 @@ var (
 		Name:  "address, a",
 		Usage: "address to use as transaction signee (and gas source)",
 	}
-	gasFlag = cli.Float64Flag{
+	gasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
 		Usage: "gas to add to the transaction",
 	}
@@ -411,7 +411,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	}
 
 	if signAndPush {
-		gas = util.Fixed8FromFloat(ctx.Float64("gas"))
+		gas = flags.Fixed8FromContext(ctx, "gas")
 		acc, err = getAccFromContext(ctx)
 		if err != nil {
 			return err
@@ -593,7 +593,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(endpoint) == 0 {
 		return cli.NewExitError(errNoEndpoint, 1)
 	}
-	gas := util.Fixed8FromFloat(ctx.Float64("gas"))
+	gas := flags.Fixed8FromContext(ctx, "gas")
 
 	acc, err := getAccFromContext(ctx)
 	if err != nil {

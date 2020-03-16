@@ -38,11 +38,7 @@ func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transac
 	if toAddressHash, err = address.StringToUint160(toAddress); err != nil {
 		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", toAddress)
 	}
-	tx.Attributes = append(tx.Attributes,
-		transaction.Attribute{
-			Usage: transaction.Script,
-			Data:  fromAddressHash.BytesBE(),
-		})
+	tx.AddVerificationHash(fromAddressHash)
 
 	if err = AddInputsAndUnspentsToTx(tx, fromAddress, assetID, amount, balancer); err != nil {
 		return nil, errs.Wrap(err, "failed to add inputs and unspents to transaction")
