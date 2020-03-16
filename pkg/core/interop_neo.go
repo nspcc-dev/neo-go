@@ -579,7 +579,10 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 			}
 			for k, v := range siMap {
 				v.IsConst = false
-				_ = ic.dao.PutStorageItem(hash, []byte(k), v)
+				err = ic.dao.PutStorageItem(contract.ScriptHash(), []byte(k), v)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
