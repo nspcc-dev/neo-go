@@ -5,15 +5,9 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -339,38 +333,19 @@ func transferNEP5(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
 	}
 
-	// Note: we don't use invoke function here because it requires
-	// 2 round trips instead of one.
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, amount)
-	emit.Bytes(w.BinWriter, to.BytesBE())
-	emit.Bytes(w.BinWriter, from.BytesBE())
-	emit.Int(w.BinWriter, 3)
-	emit.Opcode(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "transfer")
-	emit.AppCall(w.BinWriter, token.Hash, false)
-	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
-
 	gas := flags.Fixed8FromContext(ctx, "gas")
-	tx := transaction.NewInvocationTX(w.Bytes(), gas)
-	tx.AddVerificationHash(from)
-
-	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), core.UtilityTokenID(), gas, c); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't add GAS to a tx: %v", err), 1)
-	}
 
 	if pass, err := readPassword("Password > "); err != nil {
 		return cli.NewExitError(err, 1)
 	} else if err := acc.Decrypt(pass); err != nil {
 		return cli.NewExitError(err, 1)
-	} else if err := acc.SignTx(tx); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
 	}
 
-	if err := c.SendRawTransaction(tx); err != nil {
+	hash, err := c.TransferNEP5(acc, to, token, amount, gas)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Println(tx.Hash())
+	fmt.Println(hash.StringLE())
 	return nil
 }

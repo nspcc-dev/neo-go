@@ -4,9 +4,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -85,6 +91,47 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 		return nil, err
 	}
 	return wallet.NewToken(tokenHash, name, symbol, decimals), nil
+}
+
+// TransferNEP5 creates an invocation transaction that invokes 'transfer' method
+// on a given token to move specified amount of NEP5 assets (in FixedN format
+// using contract's number of decimals) to given account.
+func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *wallet.Token, amount int64, gas util.Fixed8) (util.Uint256, error) {
+	from, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("bad account address: %v", err)
+	}
+	// Note: we don't use invoke function here because it requires
+	// 2 round trips instead of one.
+	w := io.NewBufBinWriter()
+	emit.Int(w.BinWriter, amount)
+	emit.Bytes(w.BinWriter, to.BytesBE())
+	emit.Bytes(w.BinWriter, from.BytesBE())
+	emit.Int(w.BinWriter, 3)
+	emit.Opcode(w.BinWriter, opcode.PACK)
+	emit.String(w.BinWriter, "transfer")
+	emit.AppCall(w.BinWriter, token.Hash, false)
+	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+
+	tx := transaction.NewInvocationTX(w.Bytes(), gas)
+	tx.Attributes = append(tx.Attributes, transaction.Attribute{
+		Usage: transaction.Script,
+		Data:  from.BytesBE(),
+	})
+
+	if err := request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
+		return util.Uint256{}, fmt.Errorf("can't add GAS to transaction: %v", err)
+	}
+
+	if err := acc.SignTx(tx); err != nil {
+		return util.Uint256{}, fmt.Errorf("can't sign tx: %v", err)
+	}
+
+	if err := c.SendRawTransaction(tx); err != nil {
+		return util.Uint256{}, err
+	}
+
+	return tx.Hash(), nil
 }
 
 func topIntFromStack(st []smartcontract.Parameter) (int64, error) {
