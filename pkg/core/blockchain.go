@@ -1942,6 +1942,9 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	case transaction.EnrollmentType:
 		etx := t.Data.(*transaction.EnrollmentTX)
 		hashes[etx.PublicKey.GetScriptHash()] = true
+	case transaction.RegisterType:
+		reg := t.Data.(*transaction.RegisterTX)
+		hashes[reg.Owner.GetScriptHash()] = true
 	case transaction.StateType:
 		stx := t.Data.(*transaction.StateTX)
 		for _, desc := range stx.Descriptors {
