@@ -1660,6 +1660,13 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 			if r.AssetID == UtilityTokenID() {
 				return errors.New("issue tx issues utility tokens")
 			}
+			asset, err := bc.dao.GetAssetState(r.AssetID)
+			if asset == nil || err != nil {
+				return errors.New("invalid asset in issue tx")
+			}
+			if asset.Available < r.Amount {
+				return errors.New("trying to issue more than available")
+			}
 		}
 		break
 	default:
@@ -1942,6 +1949,16 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	case transaction.EnrollmentType:
 		etx := t.Data.(*transaction.EnrollmentTX)
 		hashes[etx.PublicKey.GetScriptHash()] = true
+	case transaction.IssueType:
+		for _, res := range refsAndOutsToResults(references, t.Outputs) {
+			if res.Amount < 0 {
+				asset, err := bc.dao.GetAssetState(res.AssetID)
+				if asset == nil || err != nil {
+					return nil, errors.New("invalid asset in issue tx")
+				}
+				hashes[asset.Issuer] = true
+			}
+		}
 	case transaction.RegisterType:
 		reg := t.Data.(*transaction.RegisterTX)
 		hashes[reg.Owner.GetScriptHash()] = true

@@ -177,6 +177,31 @@ func TestMemPoolVerifyClaims(t *testing.T) {
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
+func TestMemPoolVerifyIssue(t *testing.T) {
+	mp := NewMemPool(50)
+	tx1 := newIssueTX()
+	require.Equal(t, true, mp.Verify(tx1))
+	require.NoError(t, mp.Add(tx1, &FeerStub{}))
+
+	tx2 := newIssueTX()
+	require.Equal(t, false, mp.Verify(tx2))
+	require.Error(t, mp.Add(tx2, &FeerStub{}))
+}
+
+func newIssueTX() *transaction.Transaction {
+	return &transaction.Transaction{
+		Type: transaction.IssueType,
+		Data: &transaction.IssueTX{},
+		Outputs: []transaction.Output{
+			transaction.Output{
+				AssetID:    random.Uint256(),
+				Amount:     util.Fixed8FromInt64(42),
+				ScriptHash: random.Uint160(),
+			},
+		},
+	}
+}
+
 func newMinerTX(i uint32) *transaction.Transaction {
 	return &transaction.Transaction{
 		Type: transaction.MinerType,
