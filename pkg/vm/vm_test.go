@@ -832,11 +832,21 @@ func TestMULBigResult(t *testing.T) {
 
 func TestDiv(t *testing.T) {
 	prog := makeProgram(opcode.DIV)
-	vm := load(prog)
-	vm.estack.PushVal(4)
-	vm.estack.PushVal(2)
-	runVM(t, vm)
-	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
+	runCase := func(p, q, result int64) func(t *testing.T) {
+		return func(t *testing.T) {
+			vm := load(prog)
+			vm.estack.PushVal(p)
+			vm.estack.PushVal(q)
+			runVM(t, vm)
+			assert.Equal(t, result, vm.estack.Pop().BigInt().Int64())
+		}
+	}
+
+	t.Run("positive/positive", runCase(5, 2, 2))
+	t.Run("positive/negative", runCase(5, -2, -2))
+	t.Run("negative/positive", runCase(-5, 2, -2))
+	t.Run("negative/negative", runCase(-5, -2, 2))
+
 }
 
 func TestSub(t *testing.T) {
