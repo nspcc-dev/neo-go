@@ -193,7 +193,7 @@ func newIssueTX() *transaction.Transaction {
 		Type: transaction.IssueType,
 		Data: &transaction.IssueTX{},
 		Outputs: []transaction.Output{
-			transaction.Output{
+			{
 				AssetID:    random.Uint256(),
 				Amount:     util.Fixed8FromInt64(42),
 				ScriptHash: random.Uint160(),
