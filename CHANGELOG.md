@@ -2,6 +2,141 @@
 
 This document outlines major changes between releases.
 
+## 0.74.0 "Comprehension" (17 Mar 2020)
+
+Functionally complete NEO 2.0 node implementation, this release can be used as
+a drop-in replacement for C# node in any setting. It features full RPC
+functionality support and full set of wallet operations. As usual, there
+also was a number of bugs fixed, the node stability improved and some great
+optimizations were also done (especially concentrated around DB interactions),
+so even though this release has more functionality than ever (and it stores a
+lot more chain data than ever) it at the same time imports blocks faster than
+the previous one.
+
+Of course we will make additional maintenance releases for NEO 2.0 when
+needed, but following this release we'll concentrate more on NEO 3.0 features
+and catching up with recent community developments around that.
+
+New features:
+ * WIF and NEP2 keys import/export into/from the wallet (#685)
+ * multisig accounts import into the wallet (#685)
+ * additional key generation for existing wallets (#685)
+ * support for `break` and `continue` statements in the compiler (#678)
+ * `getblocksysfee` RPC method support (#341)
+ * `getapplicationlog` RPC method support (#500, #754)
+ * `getclaimable` RPC method support (#694)
+ * gas claiming support in wallet CLI (#694)
+ * asset transfer commands in wallet CLI (#694, #706)
+ * `getrawmempool` RPC method support (#175)
+ * RPC client support for all methods implemented in neo-go's server (#586,
+   #715, #694, #723, #750)
+ * `getblockheader` RPC method support (#722)
+ * `getnep5balances` and `getnep5transfers` RPC methods support (#498, #751)
+ * `gettransactionheight` RPC method support (#713)
+ * `submitblock` RPC method support (#344)
+ * `getvalidators` RPC method support (#714)
+ * support for `switch` `fallthrough` statements in the compiler (#628)
+ * a set of `NEP5*` methods added to RPC client for convenient NEP5 contract
+   calls (#728, #764)
+ * NEP tokens balance querying and transfers support for CLI (#728, #757)
+ * `getunclaimed` RPC method support (#712)
+ * contract import was added to the wallet CLI command set (#757)
+ * key removal added to the wallet CLI command set (#757)
+ * https support for RPC server (#702)
+
+Behaviour changes:
+ * gas parameter for deployment no longer specifies full gas to be added into
+   the transaction, it now only specifies the network fee part while system
+   fee part is computed automatically based on contract's metadata (#747)
+ * contract deployment and invocation from CLI is now integrated with the
+   wallet subsystem, WIF parameter support was dropped (#747)
+ * wallet subcommands were renamed, `create` became `init` and
+   `create-account` became simple `create` (#757)
+ * DB format was changed several times during this release cycle, so please
+   resynchronize your chains
+
+Improvements:
+ * improved and extended `wallet` package (#685, #694, #706, #728, #757)
+ * refactored RPC package (dividing it into smaller subpackages, #510, #689)
+ * `GroupInputsByPrevHash` is no longer tied to `Transaction`, allowing its
+   wider use (#696)
+ * more efficient `transaction.InOut` type is used for `References` (#696,
+   #733)
+ * RPC client's `SendToAddress` was renamed to `TransferAsset` to better
+   reflect its purpose (#686)
+ * P2P server's graceful shutdown with connection closing (#691)
+ * broadcasted transaction batching was added improving network efficiency
+   (#681)
+ * dropped duplicating `rpc.StackParamType` in favor of improved
+   `smartcontract.ParamType` (#690, #706)
+ * trigger types moved to their own `trigger` package (#690)
+ * all Go packages were moved from github.com/CityOfZion to
+   github.com/nspcc-dev where they technically already reside since August
+   2019 (#710)
+ * NEP5 balances and transfers tracking was added to Blockchain (#723, #748)
+ * optimized transaction inputs/outputs/results verification (#743)
+ * `SpentCoin` and `UnspentCoin` structures were merged and moved into `state`
+   package (#743)
+ * `AddVerificationHash` method was added to `Transaction` to simplify
+   attributes management (#752)
+
+Bugs fixed:
+ * `getpeers` RPC request was not returning unconnected and bad peers (#676)
+ * RPC client was not reporting real error from the answer in case of HTTP
+   error (#676)
+ * potential race in `Seek` implementation for `MemoryStore` (#693)
+ * improper handling of more than 64K branching points in the compiler (#687)
+ * Enrollment transactions verification didn't check for validator key (#696)
+ * Claim transaction witness check might miss some hashes from Inputs (#696)
+ * double Claim verification was missing (#696)
+ * network fee calculation was completely broken (#696)
+ * mempool's `Remove` might drop wrong transaction (#697)
+ * missing double claim verification for mempool transactions (#697)
+ * server deadlock upon reaching connection limit (#691)
+ * wrong logic short-circuiting by compiler in complex conditions (#699, #701)
+ * `AddHeaders` method was not verifying headers in any way (#703)
+ * missing Claim amount verification (#694)
+ * bogus error returned from `GetValidators` when processing transfers to
+   (yet) unexisting accounts (#694)
+ * Claim and Miner transactions	network fee was wrong (#694)
+ * negative outputs were allowed in transactions, but shouldn't (#694)
+ * smart contract invocation CLI command failed to process some parameters
+   correctly (#719)
+ * fatal error on concurrent access to `Blockchain` internal variable (#720)
+ * Invocation transactions missed some decoding checks (#718)
+ * it was allowed to have fractional GAS in Invocation transactions (which is
+   interpreted as system fee), but it shouldn't (#718)
+ * system fee calculation for Invocation transactions was incorrect (#718)
+ * `Transaction` JSON unmarshalling was processing Outputs and Witnesses
+   incorrectly (#706)
+ * panic on server shutdown in case it's not fully started yet (#721)
+ * `sendrawtransaction` RPC method implementation was not following error
+   codes convention (#724)
+ * interop implementations were using wrong byte order for returned hashes
+   leading to storage state differences at mainnet's block 2025204 (#727)
+ * `getblock` verbose response format was not following official documentation
+   (#734)
+ * contract deployment could fail with no error returned (#736)
+ * max contract description limit was wrong, leading to deployment failures
+   (#735)
+ * compiler didn't properly clean up stack on `return` or `break` in some
+   situations (#731)
+ * deadlock in discovery service (#741)
+ * missing dynamic `APPCALL` support (#740)
+ * `EQUAL` opcode implementation was not comparing different stack item types
+   correctly (#745, #749)
+ * RPC error on contract invocation when Hash160 is being passed into it
+   (#758)
+ * absent any ping timeouts configuration the node was constantly pinging its
+   neighbours (#680)
+ * contract's state migration was not done properly (#760)
+ * db import with state dump was not saving dumps correctly on interruption
+   and was now resuming writes to dump files correctly after restart (#761)
+ * incomplete State transaction verification (#767)
+ * missing Owner signature check for Register transaction (#766)
+ * incomplete Issue transaction verification and mempool conflicts check
+   (#765)
+
 ## 0.73.0 "Cotransduction" (19 Feb 2020)
 
 This is the first release than can successfully operate as a Testnet CN
