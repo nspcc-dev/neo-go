@@ -65,6 +65,11 @@ ApplicationConfiguration:
     Enabled: true
     EnableCORSWorkaround: false
     Port: 10332
+    TLSConfig:
+      Enabled: false
+      Port: 10331
+      CertFile: serv.crt
+      KeyFile: serv.key
   Prometheus:
     Enabled: true
     Port: 2112

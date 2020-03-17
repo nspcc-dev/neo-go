@@ -111,6 +111,16 @@ type (
 		// MaxGasInvoke is a maximum amount of gas which
 		// can be spent during RPC call.
 		MaxGasInvoke util.Fixed8 `yaml:"MaxGasInvoke"`
+		TLSConfig    TLSConfig   `yaml:"TLSConfig"`
+	}
+
+	// TLSConfig describes SSL/TLS configuration.
+	TLSConfig struct {
+		Enabled  bool   `yaml:"Enabled"`
+		Address  string `yaml:"Address"`
+		Port     uint16 `yaml:"Port"`
+		CertFile string `yaml:"CertFile"`
+		KeyFile  string `yaml:"KeyFile"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.
