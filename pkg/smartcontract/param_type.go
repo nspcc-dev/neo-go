@@ -30,6 +30,7 @@ const (
 	ArrayType            ParamType = 0x10
 	MapType              ParamType = 0x12
 	InteropInterfaceType ParamType = 0xf0
+	AnyType              ParamType = 0xfe
 	VoidType             ParamType = 0xff
 )
 
@@ -60,6 +61,8 @@ func (pt ParamType) String() string {
 		return "InteropInterface"
 	case VoidType:
 		return "Void"
+	case AnyType:
+		return "Any"
 	default:
 		return ""
 	}
@@ -154,6 +157,8 @@ func ParseParamType(typ string) (ParamType, error) {
 		return InteropInterfaceType, nil
 	case "void":
 		return VoidType, nil
+	case "any":
+		return AnyType, nil
 	default:
 		return UnknownType, errors.Errorf("Unknown contract parameter type: %s", typ)
 	}
