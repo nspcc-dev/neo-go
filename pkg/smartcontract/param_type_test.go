@@ -185,15 +185,15 @@ func TestAdjustValToType(t *testing.T) {
 	}, {
 		typ: IntegerType,
 		val: "0",
-		out: 0,
+		out: int64(0),
 	}, {
 		typ: IntegerType,
 		val: "42",
-		out: 42,
+		out: int64(42),
 	}, {
 		typ: IntegerType,
 		val: "-42",
-		out: -42,
+		out: int64(-42),
 	}, {
 		typ: IntegerType,
 		val: "q",
