@@ -139,6 +139,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Contract.IsPayable", Func: contractIsPayable, Price: 1},
 	{Name: "Neo.Contract.Migrate", Func: contractMigrate, Price: 0},
 	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: 1},
+	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 1},
 	{Name: "Neo.Enumerator.Concat", Func: enumerator.Concat, Price: 1},
 	{Name: "Neo.Enumerator.Create", Func: enumerator.Create, Price: 1},
 	{Name: "Neo.Enumerator.Next", Func: enumerator.Next, Price: 1},

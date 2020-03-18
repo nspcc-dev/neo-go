@@ -424,9 +424,9 @@ func (s *Stack) Roll(n int) error {
 	return nil
 }
 
-// popSigElements pops keys or signatures from the stack as needed for
+// PopSigElements pops keys or signatures from the stack as needed for
 // CHECKMULTISIG.
-func (s *Stack) popSigElements() ([][]byte, error) {
+func (s *Stack) PopSigElements() ([][]byte, error) {
 	var num int
 	var elems [][]byte
 	item := s.Pop()

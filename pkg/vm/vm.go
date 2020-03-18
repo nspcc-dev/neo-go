@@ -1235,11 +1235,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(res)
 
 	case opcode.CHECKMULTISIG:
-		pkeys, err := v.estack.popSigElements()
+		pkeys, err := v.estack.PopSigElements()
 		if err != nil {
 			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
 		}
-		sigs, err := v.estack.popSigElements()
+		sigs, err := v.estack.PopSigElements()
 		if err != nil {
 			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
 		}
@@ -1252,7 +1252,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("VM is not set up properly for signature checks")
 		}
 
-		sigok := checkMultisigPar(v, pkeys, sigs)
+		sigok := CheckMultisigPar(v, pkeys, sigs)
 		v.estack.PushVal(sigok)
 
 	case opcode.NEWMAP:
@@ -1446,7 +1446,8 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 	return offset
 }
 
-func checkMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
+// CheckMultisigPar checks if sigs contains sufficient valid signatures.
+func CheckMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
 		return checkMultisig1(v, pkeys, sigs[0])
 	}
