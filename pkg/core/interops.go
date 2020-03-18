@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -137,6 +138,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Contract.GetStorageContext", Func: contractGetStorageContext, Price: 1},
 	{Name: "Neo.Contract.IsPayable", Func: contractIsPayable, Price: 1},
 	{Name: "Neo.Contract.Migrate", Func: contractMigrate, Price: 0},
+	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: 1},
 	{Name: "Neo.Enumerator.Concat", Func: enumerator.Concat, Price: 1},
 	{Name: "Neo.Enumerator.Create", Func: enumerator.Create, Price: 1},
 	{Name: "Neo.Enumerator.Next", Func: enumerator.Next, Price: 1},
