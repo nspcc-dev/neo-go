@@ -8,7 +8,7 @@ import (
 
 // NEP5Balances is a result for the getnep5balances RPC call.
 type NEP5Balances struct {
-	Balances []NEP5Balance `json:"balances"`
+	Balances []NEP5Balance `json:"balance"`
 	Address  string        `json:"address"`
 }
 
