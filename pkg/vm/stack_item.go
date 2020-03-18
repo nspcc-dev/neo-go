@@ -87,6 +87,11 @@ func makeStackItem(v interface{}) StackItem {
 		}
 		return makeStackItem(a)
 	default:
+		i64T := reflect.TypeOf(int64(0))
+		if reflect.TypeOf(val).ConvertibleTo(i64T) {
+			i64Val := reflect.ValueOf(val).Convert(i64T).Interface()
+			return makeStackItem(i64Val)
+		}
 		panic(
 			fmt.Sprintf(
 				"invalid stack item type: %v (%v)",

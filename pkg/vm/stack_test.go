@@ -1,9 +1,11 @@
 package vm
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPushElement(t *testing.T) {
@@ -18,6 +20,20 @@ func TestPushElement(t *testing.T) {
 	for i := 0; i < len(elems); i++ {
 		assert.Equal(t, elems[len(elems)-1-i], s.Peek(i))
 	}
+}
+
+func TestStack_PushVal(t *testing.T) {
+	type (
+		i32      int32
+		testByte uint8
+	)
+
+	s := NewStack("test")
+	require.NotPanics(t, func() { s.PushVal(i32(123)) })
+	require.NotPanics(t, func() { s.PushVal(testByte(42)) })
+	require.Equal(t, 2, s.Len())
+	require.Equal(t, big.NewInt(42), s.Pop().Value())
+	require.Equal(t, big.NewInt(123), s.Pop().Value())
 }
 
 func TestPopElement(t *testing.T) {
