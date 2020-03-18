@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -273,4 +274,29 @@ func (p *PublicKey) String() string {
 	bx := hex.EncodeToString(p.X.Bytes())
 	by := hex.EncodeToString(p.Y.Bytes())
 	return fmt.Sprintf("%s%s", bx, by)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (p PublicKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(p.Bytes()))
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (p *PublicKey) UnmarshalJSON(data []byte) error {
+	l := len(data)
+	if l < 2 || data[0] != '"' || data[l-1] != '"' {
+		return errors.New("wrong format")
+	}
+
+	bytes := make([]byte, l-2)
+	_, err := hex.Decode(bytes, data[1:l-1])
+	if err != nil {
+		return err
+	}
+	err = p.DecodeBytes(bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
