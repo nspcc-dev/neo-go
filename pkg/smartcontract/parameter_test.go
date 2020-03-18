@@ -384,13 +384,13 @@ func TestNewParameterFromString(t *testing.T) {
 		out: Parameter{StringType, "qwerty"},
 	}, {
 		in:  "42",
-		out: Parameter{IntegerType, 42},
+		out: Parameter{IntegerType, int64(42)},
 	}, {
 		in:  "Hello, 世界",
 		out: Parameter{StringType, "Hello, 世界"},
 	}, {
 		in:  `\4\2`,
-		out: Parameter{IntegerType, 42},
+		out: Parameter{IntegerType, int64(42)},
 	}, {
 		in:  `\\4\2`,
 		out: Parameter{StringType, `\42`},
@@ -399,7 +399,7 @@ func TestNewParameterFromString(t *testing.T) {
 		out: Parameter{StringType, `\42`},
 	}, {
 		in:  "int:42",
-		out: Parameter{IntegerType, 42},
+		out: Parameter{IntegerType, int64(42)},
 	}, {
 		in:  "true",
 		out: Parameter{BoolType, true},

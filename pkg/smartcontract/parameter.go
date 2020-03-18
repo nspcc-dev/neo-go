@@ -63,8 +63,16 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 		resultErr      error
 	)
 	switch p.Type {
-	case BoolType, IntegerType, StringType, Hash256Type, Hash160Type:
+	case BoolType, StringType, Hash256Type, Hash160Type:
 		resultRawValue, resultErr = json.Marshal(p.Value)
+	case IntegerType:
+		val, ok := p.Value.(int64)
+		if !ok {
+			resultErr = errors.New("invalid integer value")
+			break
+		}
+		valStr := strconv.FormatInt(val, 10)
+		resultRawValue = json.RawMessage(`"` + valStr + `"`)
 	case PublicKeyType, ByteArrayType, SignatureType:
 		if p.Value == nil {
 			resultRawValue = []byte("null")

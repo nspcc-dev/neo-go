@@ -181,7 +181,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 			return nil, errors.New("invalid boolean value")
 		}
 	case IntegerType:
-		return strconv.Atoi(val)
+		return strconv.ParseInt(val, 10, 64)
 	case Hash160Type:
 		u, err := address.StringToUint160(val)
 		if err == nil {
