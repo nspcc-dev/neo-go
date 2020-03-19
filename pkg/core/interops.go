@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -24,7 +25,12 @@ import (
 // up for current blockchain.
 func SpawnVM(ic *interop.Context) *vm.VM {
 	vm := vm.New()
+	bc := ic.Chain.(*Blockchain)
 	vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
+		if c := bc.contracts.ByHash(hash); c != nil {
+			meta := c.Metadata()
+			return meta.Script, (meta.Manifest.Features&smartcontract.HasDynamicInvoke != 0)
+		}
 		cs, err := ic.DAO.GetContractState(hash)
 		if err != nil {
 			return nil, false
@@ -34,6 +40,7 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 	})
 	vm.RegisterInteropGetter(getSystemInterop(ic))
 	vm.RegisterInteropGetter(getNeoInterop(ic))
+	vm.RegisterInteropGetter(bc.contracts.GetNativeInterop(ic))
 	return vm
 }
 
@@ -161,6 +168,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Iterator.Key", Func: iterator.Key, Price: 1},
 	{Name: "Neo.Iterator.Keys", Func: iterator.Keys, Price: 1},
 	{Name: "Neo.Iterator.Values", Func: iterator.Values, Price: 1},
+	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 1},
 	{Name: "Neo.Output.GetAssetId", Func: outputGetAssetID, Price: 1},
 	{Name: "Neo.Output.GetScriptHash", Func: outputGetScriptHash, Price: 1},
 	{Name: "Neo.Output.GetValue", Func: outputGetValue, Price: 1},

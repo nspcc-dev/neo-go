@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -123,6 +124,8 @@ type Blockchain struct {
 	log *zap.Logger
 
 	lastBatch *storage.MemBatch
+
+	contracts native.Contracts
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -167,6 +170,8 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 
 		generationAmount:  genAmount,
 		decrementInterval: decrementInterval,
+
+		contracts: *native.NewContracts(),
 	}
 
 	if err := bc.init(); err != nil {
@@ -726,6 +731,13 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.lastBatch = cache.DAO.GetBatch()
 	}
 
+	for i := range bc.contracts.Contracts {
+		systemInterop := bc.newInteropContext(trigger.Application, cache, block, nil)
+		if err := bc.contracts.Contracts[i].OnPersist(systemInterop); err != nil {
+			return err
+		}
+	}
+
 	_, err := cache.Persist()
 	if err != nil {
 		return err
@@ -830,6 +842,11 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 // LastBatch returns last persisted storage batch.
 func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch
+}
+
+// RegisterNative registers native contract in the blockchain.
+func (bc *Blockchain) RegisterNative(c native.Contract) {
+	bc.contracts.Add(c)
 }
 
 // processOutputs processes transaction outputs.
