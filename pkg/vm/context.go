@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -176,6 +177,11 @@ func (c *Context) Dup() StackItem {
 // TryBytes implements StackItem interface.
 func (c *Context) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Context to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (c *Context) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Context to Integer")
 }
 
 // Equals implements StackItem interface.

@@ -22,6 +22,8 @@ type StackItem interface {
 	Dup() StackItem
 	// TryBytes converts StackItem to a byte slice.
 	TryBytes() ([]byte, error)
+	// TryInteger converts StackItem to an integer.
+	TryInteger() (*big.Int, error)
 	// Equals checks if 2 StackItems are equal.
 	Equals(s StackItem) bool
 	// ToContractParameter converts StackItem to smartcontract.Parameter
@@ -134,6 +136,11 @@ func (i *StructItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Struct to ByteArray")
 }
 
+// TryInteger implements StackItem interface.
+func (i *StructItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Struct to Integer")
+}
+
 // Equals implements StackItem interface.
 func (i *StructItem) Equals(s StackItem) bool {
 	if i == s {
@@ -210,6 +217,11 @@ func (i NullItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Null to ByteArray")
 }
 
+// TryInteger implements StackItem interface.
+func (i NullItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Null to Integer")
+}
+
 // Equals implements StackItem interface.
 func (i NullItem) Equals(s StackItem) bool {
 	_, ok := s.(NullItem)
@@ -243,6 +255,11 @@ func (i *BigIntegerItem) Bytes() []byte {
 // TryBytes implements StackItem interface.
 func (i *BigIntegerItem) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
+}
+
+// TryInteger implements StackItem interface.
+func (i *BigIntegerItem) TryInteger() (*big.Int, error) {
+	return i.value, nil
 }
 
 // Equals implements StackItem interface.
@@ -334,6 +351,14 @@ func (i *BoolItem) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
+// TryInteger implements StackItem interface.
+func (i *BoolItem) TryInteger() (*big.Int, error) {
+	if i.value {
+		return big.NewInt(1), nil
+	}
+	return big.NewInt(0), nil
+}
+
 // Equals implements StackItem interface.
 func (i *BoolItem) Equals(s StackItem) bool {
 	if i == s {
@@ -386,6 +411,11 @@ func (i *ByteArrayItem) String() string {
 // TryBytes implements StackItem interface.
 func (i *ByteArrayItem) TryBytes() ([]byte, error) {
 	return i.value, nil
+}
+
+// TryInteger implements StackItem interface.
+func (i *ByteArrayItem) TryInteger() (*big.Int, error) {
+	return emit.BytesToInt(i.value), nil
 }
 
 // Equals implements StackItem interface.
@@ -443,6 +473,11 @@ func (i *ArrayItem) String() string {
 // TryBytes implements StackItem interface.
 func (i *ArrayItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Array to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (i *ArrayItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Array to Integer")
 }
 
 // Equals implements StackItem interface.
@@ -503,6 +538,11 @@ func (i *MapItem) Value() interface{} {
 // TryBytes implements StackItem interface.
 func (i *MapItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Map to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (i *MapItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Map to Integer")
 }
 
 // Equals implements StackItem interface.
@@ -614,6 +654,11 @@ func (i *InteropItem) Dup() StackItem {
 // TryBytes implements StackItem interface.
 func (i *InteropItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Interop to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (i *InteropItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Interop to Integer")
 }
 
 // Equals implements StackItem interface.
