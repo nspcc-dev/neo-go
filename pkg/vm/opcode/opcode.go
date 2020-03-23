@@ -119,6 +119,8 @@ const (
 	SYSCALL  Opcode = 0x68
 	TAILCALL Opcode = 0x69
 
+	ISNULL Opcode = 0x70
+
 	// Stack
 	DUPFROMALTSTACK Opcode = 0x6A
 	TOALTSTACK      Opcode = 0x6B
