@@ -13,7 +13,7 @@ func SHA256(b []byte) []byte {
 	return nil
 }
 
-// VerifySignature checks that sig is msg's signature with pub.
-func VerifySignature(msg []byte, sig []byte, pub []byte) bool {
+// ECDsaVerify checks that sig is msg's signature with pub.
+func ECDsaVerify(msg []byte, pub []byte, sig []byte) bool {
 	return false
 }

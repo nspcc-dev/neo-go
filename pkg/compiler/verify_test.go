@@ -5,24 +5,28 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// In this test we only check that needed interop
+// is called with the provided arguments in the right order.
 func TestVerifyGood(t *testing.T) {
 	msg := []byte("test message")
 	pub, sig := signMessage(t, msg)
 	src := getVerifyProg(pub, sig, msg)
 
-	eval(t, src, true)
-}
+	v, p := vmAndCompileInterop(t, src)
+	p.interops[vm.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))] = func(v *vm.VM) error {
+		assert.Equal(t, msg, v.Estack().Pop().Bytes())
+		assert.Equal(t, pub, v.Estack().Pop().Bytes())
+		assert.Equal(t, sig, v.Estack().Pop().Bytes())
+		v.Estack().PushVal(true)
+		return nil
+	}
 
-func TestVerifyBad(t *testing.T) {
-	msg := []byte("test message")
-	pub, sig := signMessage(t, msg)
-	sig[0] = ^sig[0]
-	src := getVerifyProg(pub, sig, msg)
-
-	eval(t, src, false)
+	require.NoError(t, v.Run())
 }
 
 func signMessage(t *testing.T, msg []byte) ([]byte, []byte) {
@@ -49,7 +53,7 @@ func getVerifyProg(pub, sig, msg []byte) string {
 			pub := ` + pubS + `
 			sig := ` + sigS + `
 			msg := ` + msgS + `
-			return crypto.VerifySignature(msg, sig, pub)
+			return crypto.ECDsaVerify(msg, pub, sig)
 		}
 	`
 }
