@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -21,7 +22,7 @@ type AppExecResult struct {
 	Trigger     trigger.Type
 	VMState     string
 	GasConsumed util.Fixed8
-	Stack       string // JSON
+	Stack       []smartcontract.Parameter
 	Events      []NotificationEvent
 }
 
@@ -43,7 +44,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(aer.Trigger))
 	w.WriteString(aer.VMState)
 	aer.GasConsumed.EncodeBinary(w)
-	w.WriteString(aer.Stack)
+	w.WriteArray(aer.Stack)
 	w.WriteArray(aer.Events)
 }
 
@@ -53,6 +54,6 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Trigger = trigger.Type(r.ReadB())
 	aer.VMState = r.ReadString()
 	aer.GasConsumed.DecodeBinary(r)
-	aer.Stack = r.ReadString()
+	r.ReadArray(&aer.Stack)
 	r.ReadArray(&aer.Events)
 }
