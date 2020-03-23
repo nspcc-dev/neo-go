@@ -71,7 +71,7 @@ var marshalJSONTestCases = []struct {
 		input: Parameter{
 			Type: MapType,
 			Value: map[Parameter]Parameter{
-				{Type: StringType, Value: "key1"}: {Type: IntegerType, Value: 1},
+				{Type: StringType, Value: "key1"}: {Type: IntegerType, Value: int64(1)},
 				{Type: StringType, Value: "key2"}: {Type: StringType, Value: "two"},
 			},
 		},
