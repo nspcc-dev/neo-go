@@ -6,8 +6,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var marshalJSONTestCases = []struct {
@@ -440,4 +442,29 @@ func TestNewParameterFromString(t *testing.T) {
 			assert.Equal(t, inout.out, *out, "bad output for '%s' input", inout.in)
 		}
 	}
+}
+
+func TestEncodeDecodeBinary(t *testing.T) {
+	for _, tc := range marshalJSONTestCases {
+		w := io.NewBufBinWriter()
+		tc.input.EncodeBinary(w.BinWriter)
+		require.NoError(t, w.Err)
+
+		r := io.NewBinReaderFromBuf(w.Bytes())
+		var p Parameter
+		p.DecodeBinary(r)
+		require.NoError(t, r.Err)
+		require.Equal(t, tc.input, p)
+	}
+
+	t.Run("unknown", func(t *testing.T) {
+		p := Parameter{Type: UnknownType}
+		w := io.NewBufBinWriter()
+		p.EncodeBinary(w.BinWriter)
+		require.Error(t, w.Err)
+
+		r := io.NewBinReaderFromBuf([]byte{0xAA})
+		p.DecodeBinary(r)
+		require.Error(t, r.Err)
+	})
 }
