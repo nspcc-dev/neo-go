@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"encoding/json"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -50,4 +52,14 @@ func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(tx.Precision))
 	bw.WriteBytes(tx.Owner.Bytes())
 	bw.WriteBytes(tx.Admin[:])
+}
+
+// registeredAsset is a wrapper for RegisterTransaction
+type registeredAsset struct {
+	AssetType AssetType       `json:"type,omitempty"`
+	Name      json.RawMessage `json:"name,omitempty"`
+	Amount    util.Fixed8     `json:"amount,omitempty"`
+	Precision uint8           `json:"precision,omitempty"`
+	Owner     keys.PublicKey  `json:"owner,omitempty"`
+	Admin     string          `json:"admin,omitempty"`
 }

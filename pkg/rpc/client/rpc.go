@@ -104,6 +104,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 
 // GetBlockByIndexVerbose returns a block wrapper with additional metadata by
 // its height.
+// NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
 	return c.getBlockVerbose(request.NewRawParams(index, 1))
 }
@@ -289,6 +290,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 
 // GetRawTransactionVerbose returns a transaction wrapper with additional
 // metadata by transaction's hash.
+// NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE(), 1)

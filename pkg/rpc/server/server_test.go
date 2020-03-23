@@ -15,6 +15,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -336,12 +337,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, block.Hash(), res.Hash)
 				for i := range res.Tx {
 					tx := res.Tx[i]
-					require.Equal(t, transaction.MinerType, tx.Type)
+					require.Equal(t, transaction.MinerType, tx.Transaction.Type)
 
 					miner, ok := block.Transactions[i].Data.(*transaction.MinerTX)
 					require.True(t, ok)
-					require.Equal(t, miner.Nonce, tx.Nonce)
-					require.Equal(t, block.Transactions[i].Hash(), tx.TxID)
+					require.Equal(t, miner.Nonce, tx.Transaction.Data.(*transaction.MinerTX).Nonce)
+					require.Equal(t, block.Transactions[i].Hash(), tx.Transaction.Hash())
 				}
 			},
 		},
@@ -933,6 +934,31 @@ func TestRPC(t *testing.T) {
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
 		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
+	})
+
+	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
+		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
+		TXHash := block.Transactions[1].Hash()
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
+		body := doRPCCall(rpc, handler, t)
+		txOut := checkErrGetResult(t, body, false)
+		actual := result.TransactionOutputRaw{}
+		err := json.Unmarshal(txOut, &actual)
+		require.NoErrorf(t, err, "could not parse response: %s", txOut)
+		admin, err := util.Uint160DecodeStringBE("da1745e9b549bd0bfa1a569971c77eba30cd5a4b")
+		require.NoError(t, err)
+
+		assert.Equal(t, transaction.RegisterType, actual.Transaction.Type)
+		assert.Equal(t, &transaction.RegisterTX{
+			AssetType: 0,
+			Name:      `[{"lang":"zh-CN","name":"小蚁股"},{"lang":"en","name":"AntShare"}]`,
+			Amount:    util.Fixed8FromInt64(100000000),
+			Precision: 0,
+			Owner:     keys.PublicKey{},
+			Admin:     admin,
+		}, actual.Transaction.Data.(*transaction.RegisterTX))
+		assert.Equal(t, 210, actual.Confirmations)
+		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
 	t.Run("gettxout", func(t *testing.T) {
