@@ -123,11 +123,11 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	js = strings.TrimPrefix(js, "0x")
-	*u, err = Uint160DecodeStringBE(js)
+	*u, err = Uint160DecodeStringLE(js)
 	return err
 }
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
-	return []byte(`"0x` + u.String() + `"`), nil
+	return []byte(`"0x` + u.StringLE() + `"`), nil
 }

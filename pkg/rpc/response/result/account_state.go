@@ -44,12 +44,9 @@ func NewAccountState(a *state.Account) AccountState {
 
 	sort.Sort(balances)
 
-	// reverse scriptHash to be consistent with other client
-	scriptHash := a.ScriptHash.Reverse()
-
 	return AccountState{
 		Version:    a.Version,
-		ScriptHash: scriptHash,
+		ScriptHash: a.ScriptHash,
 		IsFrozen:   a.IsFrozen,
 		Votes:      a.Votes,
 		Balances:   balances,

@@ -179,7 +179,7 @@ func getMatchingTokenAux(get func(i int) *wallet.Token, n int, name string) (*wa
 	var count int
 	for i := 0; i < n; i++ {
 		t := get(i)
-		if t != nil && (t.Name == name || t.Symbol == name || t.Address == name || t.Hash.StringLE() == name) {
+		if t != nil && (t.Name == name || t.Symbol == name || t.Address() == name || t.Hash.StringLE() == name) {
 			if count == 1 {
 				printTokenInfo(token)
 				printTokenInfo(t)
@@ -240,7 +240,7 @@ func printTokenInfo(tok *wallet.Token) {
 	fmt.Printf("Symbol:\t%s\n", tok.Symbol)
 	fmt.Printf("Hash:\t%s\n", tok.Hash.StringLE())
 	fmt.Printf("Decimals: %d\n", tok.Decimals)
-	fmt.Printf("Address: %s\n", tok.Address)
+	fmt.Printf("Address: %s\n", tok.Address())
 }
 
 func printNEP5Info(ctx *cli.Context) error {

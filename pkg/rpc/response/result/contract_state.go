@@ -31,9 +31,6 @@ type Properties struct {
 
 // NewContractState creates a new Contract wrapper.
 func NewContractState(c *state.Contract) ContractState {
-	// reverse scriptHash to be consistent with other client
-	scriptHash := c.ScriptHash().Reverse()
-
 	properties := Properties{
 		HasStorage:       c.HasStorage(),
 		HasDynamicInvoke: c.HasDynamicInvoke(),
@@ -42,7 +39,7 @@ func NewContractState(c *state.Contract) ContractState {
 
 	return ContractState{
 		Version:     0,
-		ScriptHash:  scriptHash,
+		ScriptHash:  c.ScriptHash(),
 		Script:      c.Script,
 		ParamList:   c.ParamList,
 		ReturnType:  c.ReturnType,

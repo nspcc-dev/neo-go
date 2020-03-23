@@ -128,7 +128,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := cs.(*result.ContractState)
 				require.True(t, ok)
 				assert.Equal(t, byte(0), res.Version)
-				assert.Equal(t, testContractHash, res.ScriptHash.StringBE())
+				assert.Equal(t, testContractHash, res.ScriptHash.StringLE())
 				assert.Equal(t, "0.99", res.CodeVersion)
 			},
 		},
