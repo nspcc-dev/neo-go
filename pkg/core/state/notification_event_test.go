@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +31,7 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 		Trigger:     1,
 		VMState:     "Hault",
 		GasConsumed: 10,
-		Stack:       "",
+		Stack:       []smartcontract.Parameter{},
 		Events:      []NotificationEvent{},
 	}
 	buf := io.NewBufBinWriter()

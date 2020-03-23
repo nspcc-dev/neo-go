@@ -29,7 +29,7 @@ import (
 // Tuning parameters.
 const (
 	headerBatchCount = 2000
-	version          = "0.0.8"
+	version          = "0.0.9"
 
 	// This one comes from C# code and it's different from the constant used
 	// when creating an asset with Neo.Asset.Create interop call. It looks
@@ -708,7 +708,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				Trigger:     trigger.Application,
 				VMState:     v.State(),
 				GasConsumed: v.GasConsumed(),
-				Stack:       v.Stack("estack"),
+				Stack:       v.Estack().ToContractParameters(),
 				Events:      systemInterop.notifications,
 			}
 			err = cache.PutAppExecResult(aer)

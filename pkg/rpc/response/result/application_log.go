@@ -1,8 +1,6 @@
 package result
 
 import (
-	"encoding/json"
-
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -18,12 +16,12 @@ type ApplicationLog struct {
 
 // Execution response wrapper
 type Execution struct {
-	Trigger     string              `json:"trigger"`
-	ScriptHash  util.Uint160        `json:"contract"`
-	VMState     string              `json:"vmstate"`
-	GasConsumed util.Fixed8         `json:"gas_consumed"`
-	Stack       json.RawMessage     `json:"stack"`
-	Events      []NotificationEvent `json:"notifications"`
+	Trigger     string                    `json:"trigger"`
+	ScriptHash  util.Uint160              `json:"contract"`
+	VMState     string                    `json:"vmstate"`
+	GasConsumed util.Fixed8               `json:"gas_consumed"`
+	Stack       []smartcontract.Parameter `json:"stack"`
+	Events      []NotificationEvent       `json:"notifications"`
 }
 
 //NotificationEvent response wrapper
@@ -46,18 +44,12 @@ func NewApplicationLog(appExecRes *state.AppExecResult, scriptHash util.Uint160)
 
 	triggerString := appExecRes.Trigger.String()
 
-	var rawStack json.RawMessage
-	if len(appExecRes.Stack) != 0 {
-		rawStack = json.RawMessage(appExecRes.Stack)
-	} else {
-		rawStack = json.RawMessage("[]")
-	}
 	executions := []Execution{{
 		Trigger:     triggerString,
 		ScriptHash:  scriptHash,
 		VMState:     appExecRes.VMState,
 		GasConsumed: appExecRes.GasConsumed,
-		Stack:       rawStack,
+		Stack:       appExecRes.Stack,
 		Events:      events,
 	}}
 

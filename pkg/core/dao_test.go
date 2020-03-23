@@ -171,7 +171,11 @@ func TestGetValidators(t *testing.T) {
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := newDao(storage.NewMemoryStore())
 	hash := random.Uint256()
-	appExecResult := &state.AppExecResult{TxHash: hash, Events: []state.NotificationEvent{}}
+	appExecResult := &state.AppExecResult{
+		TxHash: hash,
+		Events: []state.NotificationEvent{},
+		Stack:  []smartcontract.Parameter{},
+	}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
 	gotAppExecResult, err := dao.GetAppExecResult(hash)

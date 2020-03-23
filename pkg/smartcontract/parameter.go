@@ -4,11 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math"
 	"math/bits"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
@@ -208,6 +211,87 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		return errors.Errorf("Unmarshaller for type %s not implemented", p.Type)
 	}
 	return
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (p *Parameter) EncodeBinary(w *io.BinWriter) {
+	w.WriteB(byte(p.Type))
+	switch p.Type {
+	case BoolType:
+		w.WriteBool(p.Value.(bool))
+	case ByteArrayType, PublicKeyType, SignatureType:
+		if p.Value == nil {
+			w.WriteVarUint(math.MaxUint64)
+		} else {
+			w.WriteVarBytes(p.Value.([]byte))
+		}
+	case StringType:
+		w.WriteString(p.Value.(string))
+	case IntegerType:
+		w.WriteU64LE(uint64(p.Value.(int64)))
+	case ArrayType:
+		w.WriteArray(p.Value.([]Parameter))
+	case MapType:
+		m := p.Value.(map[Parameter]Parameter)
+		w.WriteVarUint(uint64(len(m)))
+		for k := range m {
+			v := m[k]
+			k.EncodeBinary(w)
+			v.EncodeBinary(w)
+		}
+	case Hash160Type:
+		w.WriteBytes(p.Value.(util.Uint160).BytesBE())
+	case Hash256Type:
+		w.WriteBytes(p.Value.(util.Uint256).BytesBE())
+	case InteropInterfaceType:
+	default:
+		w.Err = fmt.Errorf("unknown type: %x", p.Type)
+	}
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (p *Parameter) DecodeBinary(r *io.BinReader) {
+	p.Type = ParamType(r.ReadB())
+	switch p.Type {
+	case BoolType:
+		p.Value = r.ReadBool()
+	case ByteArrayType, PublicKeyType, SignatureType:
+		ln := r.ReadVarUint()
+		if ln != math.MaxUint64 {
+			b := make([]byte, ln)
+			r.ReadBytes(b)
+			p.Value = b
+		}
+	case StringType:
+		p.Value = r.ReadString()
+	case IntegerType:
+		p.Value = int64(r.ReadU64LE())
+	case ArrayType:
+		ps := []Parameter{}
+		r.ReadArray(&ps)
+		p.Value = ps
+	case MapType:
+		ln := r.ReadVarUint()
+		m := make(map[Parameter]Parameter, ln)
+		for i := uint64(0); i < ln; i++ {
+			var k, v Parameter
+			k.DecodeBinary(r)
+			v.DecodeBinary(r)
+			m[k] = v
+		}
+		p.Value = m
+	case Hash160Type:
+		var u util.Uint160
+		r.ReadBytes(u[:])
+		p.Value = u
+	case Hash256Type:
+		var u util.Uint256
+		r.ReadBytes(u[:])
+		p.Value = u
+	case InteropInterfaceType:
+	default:
+		r.Err = fmt.Errorf("unknown type: %x", p.Type)
+	}
 }
 
 // Params is an array of Parameter (TODO: drop it?).
