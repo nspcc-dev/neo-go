@@ -89,6 +89,7 @@ const (
 	PUSHDATA2   Opcode = 0x4D
 	PUSHDATA4   Opcode = 0x4E
 	PUSHM1      Opcode = 0x4F
+	PUSHNULL    Opcode = 0x50
 	PUSH1       Opcode = 0x51
 	PUSHT       Opcode = PUSH1
 	PUSH2       Opcode = 0x52

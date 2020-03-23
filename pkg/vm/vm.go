@@ -560,6 +560,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushVal(parameter)
 
+	case opcode.PUSHNULL:
+		v.estack.PushVal(NullItem{})
+
 	// Stack operations.
 	case opcode.TOALTSTACK:
 		v.astack.Push(v.estack.Pop())
