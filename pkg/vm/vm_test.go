@@ -3035,28 +3035,6 @@ func TestSHA256(t *testing.T) {
 	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
 }
 
-func TestHASH160(t *testing.T) {
-	// 0x0100 hashes to fbc22d517f38e7612798ece8e5957cf6c41d8caf
-	res := "fbc22d517f38e7612798ece8e5957cf6c41d8caf"
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
-		opcode.HASH160)
-	vm := load(prog)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
-}
-
-func TestHASH256(t *testing.T) {
-	// 0x0100 hashes to 677b2d718464ee0121475600b929c0b4155667486577d1320b18c2dc7d4b4f99
-	res := "677b2d718464ee0121475600b929c0b4155667486577d1320b18c2dc7d4b4f99"
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
-		opcode.HASH256)
-	vm := load(prog)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
-}
-
 var opcodesTestCases = map[opcode.Opcode][]struct {
 	name     string
 	args     []interface{}

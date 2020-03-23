@@ -1063,10 +1063,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":
 		emit.Opcode(c.prog.BinWriter, opcode.SHA1)
-	case "Hash256":
-		emit.Opcode(c.prog.BinWriter, opcode.HASH256)
-	case "Hash160":
-		emit.Opcode(c.prog.BinWriter, opcode.HASH160)
 	case "VerifySignature":
 		emit.Opcode(c.prog.BinWriter, opcode.VERIFY)
 	case "AppCall":

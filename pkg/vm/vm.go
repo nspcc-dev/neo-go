@@ -1332,14 +1332,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		b := v.estack.Pop().Bytes()
 		v.estack.PushVal(hash.Sha256(b).BytesBE())
 
-	case opcode.HASH160:
-		b := v.estack.Pop().Bytes()
-		v.estack.PushVal(hash.Hash160(b).BytesBE())
-
-	case opcode.HASH256:
-		b := v.estack.Pop().Bytes()
-		v.estack.PushVal(hash.DoubleSha256(b).BytesBE())
-
 	case opcode.NOP:
 		// unlucky ^^
 
