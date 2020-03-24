@@ -119,7 +119,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
-	if err = c.performRequest("getblock", params, &resp); err != nil {
+	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -168,7 +168,7 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 		params = request.NewRawParams(hash.StringLE(), 1)
 		resp   = &result.Header{}
 	)
-	if err := c.performRequest("getblockheader", params, &resp); err != nil {
+	if err := c.performRequest("getblockheader", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -295,7 +295,7 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
-	if err = c.performRequest("getrawtransaction", params, &resp); err != nil {
+	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -336,7 +336,7 @@ func (c *Client) GetTxOut(hash util.Uint256, num int) (*result.TransactionOutput
 		params = request.NewRawParams(hash.StringLE(), num)
 		resp   = &result.TransactionOutput{}
 	)
-	if err := c.performRequest("gettxout", params, &resp); err != nil {
+	if err := c.performRequest("gettxout", params, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -537,7 +537,7 @@ func (c *Client) ValidateAddress(address string) error {
 		resp   = &result.ValidateAddress{}
 	)
 
-	if err := c.performRequest("validateaddress", params, &resp); err != nil {
+	if err := c.performRequest("validateaddress", params, resp); err != nil {
 		return err
 	}
 	if !resp.IsValid {
