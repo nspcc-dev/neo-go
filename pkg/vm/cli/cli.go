@@ -434,7 +434,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 				return nil, errors.New("failed to parse bool parameter")
 			}
 		case intType:
-			val, err := strconv.Atoi(value)
+			val, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return nil, err
 			}

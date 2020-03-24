@@ -191,9 +191,9 @@ type BigIntegerItem struct {
 }
 
 // NewBigIntegerItem returns an new BigIntegerItem object.
-func NewBigIntegerItem(value int) *BigIntegerItem {
+func NewBigIntegerItem(value int64) *BigIntegerItem {
 	return &BigIntegerItem{
-		value: big.NewInt(int64(value)),
+		value: big.NewInt(value),
 	}
 }
 
