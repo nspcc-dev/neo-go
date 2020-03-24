@@ -2,6 +2,7 @@ package keys
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math/rand"
 	"sort"
 	"testing"
@@ -142,4 +143,46 @@ func getPubKey(t *testing.T) *PublicKey {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)
 	return pubKey
+}
+
+func TestMarshallJSON(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	pubKey, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	bytes, err := json.Marshal(&pubKey)
+	require.NoError(t, err)
+	require.Equal(t, []byte(`"`+str+`"`), bytes)
+}
+
+func TestUnmarshallJSON(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	expected, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	actual := &PublicKey{}
+	err = json.Unmarshal([]byte(`"`+str+`"`), actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestUnmarshallJSONBadCompresed(t *testing.T) {
+	str := `"02ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`
+	actual := &PublicKey{}
+	err := json.Unmarshal([]byte(str), actual)
+	require.Error(t, err)
+}
+
+func TestUnmarshallJSONNotAHex(t *testing.T) {
+	str := `"04Tb17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"`
+	actual := &PublicKey{}
+	err := json.Unmarshal([]byte(str), actual)
+	require.Error(t, err)
+}
+
+func TestUnmarshallJSONBadFormat(t *testing.T) {
+	str := "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"
+	actual := &PublicKey{}
+	err := json.Unmarshal([]byte(str), actual)
+	require.Error(t, err)
 }

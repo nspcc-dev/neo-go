@@ -441,7 +441,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Timestamp:     header.Timestamp,
 					Index:         header.Index,
 					Nonce:         strconv.FormatUint(header.ConsensusData, 16),
-					NextConsensus: header.NextConsensus,
+					NextConsensus: address.Uint160ToString(header.NextConsensus),
 					Script:        header.Script,
 					Confirmations: e.chain.BlockHeight() - header.Index + 1,
 				}
