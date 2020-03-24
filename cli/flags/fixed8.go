@@ -71,5 +71,5 @@ func (f Fixed8Flag) Apply(set *flag.FlagSet) {
 
 // Fixed8FromContext returns parsed util.Fixed8 value provided flag name.
 func Fixed8FromContext(ctx *cli.Context, name string) util.Fixed8 {
-	return ctx.Generic(name).(*Fixed8Flag).Value.Fixed8()
+	return ctx.Generic(name).(*Fixed8).Value
 }
