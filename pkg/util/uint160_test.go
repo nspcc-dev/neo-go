@@ -9,8 +9,8 @@ import (
 )
 
 func TestUint160UnmarshalJSON(t *testing.T) {
-	str := "2d3b96ae1bcc5a585e075e3b81920210dec16302"
-	expected, err := Uint160DecodeStringBE(str)
+	str := "0263c1de100292813b5e075e585acc1bae963b2d"
+	expected, err := Uint160DecodeStringLE(str)
 	assert.NoError(t, err)
 
 	// UnmarshalJSON decodes hex-strings

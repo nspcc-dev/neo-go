@@ -18,7 +18,7 @@ func TestToken_MarshalJSON(t *testing.T) {
 	require.Equal(t, "NEP5", tok.Symbol)
 	require.EqualValues(t, 8, tok.Decimals)
 	require.Equal(t, h, tok.Hash)
-	require.Equal(t, "AYhE3Svuqdfh1RtzvE8hUhNR7HSpaSDFQg", tok.Address)
+	require.Equal(t, "AYhE3Svuqdfh1RtzvE8hUhNR7HSpaSDFQg", tok.Address())
 
 	data, err := json.Marshal(tok)
 	require.NoError(t, err)

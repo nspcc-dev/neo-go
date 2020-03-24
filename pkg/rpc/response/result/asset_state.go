@@ -10,14 +10,12 @@ import (
 // AssetState wrapper used for the representation of
 // state.Asset on the RPC Server.
 type AssetState struct {
-	ID         util.Uint256          `json:"assetID"`
-	AssetType  transaction.AssetType `json:"assetType"`
+	ID         util.Uint256          `json:"id"`
+	AssetType  transaction.AssetType `json:"type"`
 	Name       string                `json:"name"`
 	Amount     util.Fixed8           `json:"amount"`
 	Available  util.Fixed8           `json:"available"`
 	Precision  uint8                 `json:"precision"`
-	FeeMode    uint8                 `json:"fee"`
-	FeeAddress util.Uint160          `json:"address"`
 	Owner      string                `json:"owner"`
 	Admin      string                `json:"admin"`
 	Issuer     string                `json:"issuer"`
@@ -34,8 +32,6 @@ func NewAssetState(a *state.Asset) AssetState {
 		Amount:     a.Amount,
 		Available:  a.Available,
 		Precision:  a.Precision,
-		FeeMode:    a.FeeMode,
-		FeeAddress: a.FeeAddress,
 		Owner:      a.Owner.String(),
 		Admin:      address.Uint160ToString(a.Admin),
 		Issuer:     address.Uint160ToString(a.Issuer),
