@@ -37,7 +37,11 @@ func (dao *dao) GetAndDecode(entity io.Serializable, key []byte) error {
 
 // Put performs put operation with serializable structures.
 func (dao *dao) Put(entity io.Serializable, key []byte) error {
-	buf := io.NewBufBinWriter()
+	return dao.putWithBuffer(entity, key, io.NewBufBinWriter())
+}
+
+// putWithBuffer performs put operation using buf as a pre-allocated buffer for serialization.
+func (dao *dao) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
 	entity.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
@@ -73,8 +77,12 @@ func (dao *dao) GetAccountState(hash util.Uint160) (*state.Account, error) {
 }
 
 func (dao *dao) PutAccountState(as *state.Account) error {
+	return dao.putAccountState(as, io.NewBufBinWriter())
+}
+
+func (dao *dao) putAccountState(as *state.Account, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
-	return dao.Put(as, key)
+	return dao.putWithBuffer(as, key, buf)
 }
 
 // -- end accounts.
@@ -148,10 +156,14 @@ func (dao *dao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
 	return bs, nil
 }
 
-// GetNEP5Balances saves nep5 balances from the cache.
+// PutNEP5Balances saves nep5 balances from the cache.
 func (dao *dao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+	return dao.putNEP5Balances(acc, bs, io.NewBufBinWriter())
+}
+
+func (dao *dao) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
-	return dao.Put(bs, key)
+	return dao.putWithBuffer(bs, key, buf)
 }
 
 // -- end nep5 balances.
@@ -220,8 +232,12 @@ func (dao *dao) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, erro
 
 // PutUnspentCoinState puts given UnspentCoinState into the given store.
 func (dao *dao) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
+	return dao.putUnspentCoinState(hash, ucs, io.NewBufBinWriter())
+}
+
+func (dao *dao) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
-	return dao.Put(ucs, key)
+	return dao.putWithBuffer(ucs, key, buf)
 }
 
 // -- end unspent coins.

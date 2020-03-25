@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -138,23 +139,28 @@ func (cd *cachedDao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *stat
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *cachedDao) Persist() (int, error) {
+	buf := io.NewBufBinWriter()
+
 	for sc := range cd.accounts {
-		err := cd.dao.PutAccountState(cd.accounts[sc])
+		err := cd.dao.putAccountState(cd.accounts[sc], buf)
 		if err != nil {
 			return 0, err
 		}
+		buf.Reset()
 	}
 	for hash := range cd.unspents {
-		err := cd.dao.PutUnspentCoinState(hash, cd.unspents[hash])
+		err := cd.dao.putUnspentCoinState(hash, cd.unspents[hash], buf)
 		if err != nil {
 			return 0, err
 		}
+		buf.Reset()
 	}
 	for acc, bs := range cd.balances {
-		err := cd.dao.PutNEP5Balances(acc, bs)
+		err := cd.dao.putNEP5Balances(acc, bs, buf)
 		if err != nil {
 			return 0, err
 		}
+		buf.Reset()
 	}
 	for acc, ts := range cd.transfers {
 		for ind, lg := range ts {
