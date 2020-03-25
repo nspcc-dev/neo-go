@@ -7,42 +7,7 @@ import (
 )
 
 // Metrics used in monitoring service.
-var (
-	rpcCalls = []string{
-		"getaccountstate",
-		"getapplicationlog",
-		"getassetstate",
-		"getbestblock",
-		"getbestblockhash",
-		"getblockcount",
-		"getblockhash",
-		"getblockheader",
-		"getblocksysfee",
-		"getclaimable",
-		"getconnectioncount",
-		"getcontractstate",
-		"getnep5balances",
-		"getnep5transfers",
-		"getpeers",
-		"getrawmempool",
-		"getrawtransaction",
-		"getstorage",
-		"gettransactionheight",
-		"gettxout",
-		"getunclaimed",
-		"getunspents",
-		"getvalidators",
-		"getversion",
-		"invoke",
-		"invokefunction",
-		"invokescript",
-		"sendrawtransaction",
-		"submitblock",
-		"validateaddress",
-	}
-
-	rpcCounter = map[string]prometheus.Counter{}
-)
+var rpcCounter = map[string]prometheus.Counter{}
 
 func incCounter(name string) {
 	ctr, ok := rpcCounter[name]
@@ -52,15 +17,15 @@ func incCounter(name string) {
 }
 
 func init() {
-	for i := range rpcCalls {
+	for call := range rpcHandlers {
 		ctr := prometheus.NewCounter(
 			prometheus.CounterOpts{
-				Help:      fmt.Sprintf("Number of calls to %s rpc endpoint", rpcCalls[i]),
-				Name:      fmt.Sprintf("%s_called", rpcCalls[i]),
+				Help:      fmt.Sprintf("Number of calls to %s rpc endpoint", call),
+				Name:      fmt.Sprintf("%s_called", call),
 				Namespace: "neogo",
 			},
 		)
 		prometheus.MustRegister(ctr)
-		rpcCounter[rpcCalls[i]] = ctr
+		rpcCounter[call] = ctr
 	}
 }
