@@ -33,6 +33,8 @@ type Account struct {
 	ScriptHash util.Uint160
 	IsFrozen   bool
 	Votes      []*keys.PublicKey
+	GAS        NEP5BalanceState
+	NEO        NEOBalanceState
 	Balances   map[util.Uint256][]UnspentBalance
 	Unclaimed  UnclaimedBalances
 }
@@ -55,6 +57,8 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(s.ScriptHash[:])
 	s.IsFrozen = br.ReadBool()
 	br.ReadArray(&s.Votes)
+	s.GAS.DecodeBinary(br)
+	s.NEO.DecodeBinary(br)
 
 	s.Balances = make(map[util.Uint256][]UnspentBalance)
 	lenBalances := br.ReadVarUint()
@@ -80,6 +84,8 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(s.ScriptHash[:])
 	bw.WriteBool(s.IsFrozen)
 	bw.WriteArray(s.Votes)
+	s.GAS.EncodeBinary(bw)
+	s.NEO.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(len(s.Balances)))
 	for k, v := range s.Balances {

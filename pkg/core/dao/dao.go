@@ -32,8 +32,10 @@ type DAO interface {
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetHeaderHashes() ([]util.Uint256, error)
+	GetNativeContractState(h util.Uint160) ([]byte, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
+	GetNextBlockValidators() (keys.PublicKeys, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
@@ -53,8 +55,10 @@ type DAO interface {
 	PutAssetState(as *state.Asset) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
+	PutNativeContractState(h util.Uint160, value []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
+	PutNextBlockValidators(keys.PublicKeys) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
 	PutValidatorState(vs *state.Validator) error
@@ -207,6 +211,18 @@ func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	return dao.Store.Delete(key)
 }
 
+// GetNativeContractState retrieves native contract state from the store.
+func (dao *Simple) GetNativeContractState(h util.Uint160) ([]byte, error) {
+	key := storage.AppendPrefix(storage.STNativeContract, h.BytesBE())
+	return dao.Store.Get(key)
+}
+
+// PutNativeContractState puts native contract state into the store.
+func (dao *Simple) PutNativeContractState(h util.Uint160, value []byte) error {
+	key := storage.AppendPrefix(storage.STNativeContract, h.BytesBE())
+	return dao.Store.Put(key, value)
+}
+
 // -- end contracts.
 
 // -- start nep5 balances.
@@ -309,6 +325,38 @@ func (dao *Simple) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin
 // -- end unspent coins.
 
 // -- start validator.
+
+// GetNextBlockValidators retrieves next block validators from store or nil if they are missing.
+func (dao *Simple) GetNextBlockValidators() (keys.PublicKeys, error) {
+	key := []byte{byte(storage.STNextValidators)}
+	buf, err := dao.Store.Get(key)
+	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var pubs keys.PublicKeys
+	r := io.NewBinReaderFromBuf(buf)
+	r.ReadArray(&pubs)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return pubs, nil
+}
+
+// PutNextBlockValidators puts next block validators to store.
+func (dao *Simple) PutNextBlockValidators(pubs keys.PublicKeys) error {
+	w := io.NewBufBinWriter()
+	w.WriteArray(pubs)
+	if w.Err != nil {
+		return w.Err
+	}
+
+	key := []byte{byte(storage.STNextValidators)}
+	return dao.Store.Put(key, w.Bytes())
+}
 
 // GetValidatorStateOrNew gets validator from store or created new one in case of error.
 func (dao *Simple) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error) {

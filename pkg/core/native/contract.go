@@ -42,7 +42,21 @@ type ContractMD struct {
 
 // Contracts is a set of registered native contracts.
 type Contracts struct {
+	NEO       *NEO
+	GAS       *GAS
 	Contracts []Contract
+}
+
+// SetGAS sets GAS native contract.
+func (cs *Contracts) SetGAS(g *GAS) {
+	cs.GAS = g
+	cs.Contracts = append(cs.Contracts, g)
+}
+
+// SetNEO sets NEO native contract.
+func (cs *Contracts) SetNEO(n *NEO) {
+	cs.NEO = n
+	cs.Contracts = append(cs.Contracts, n)
 }
 
 // NewContractMD returns Contract with the specified list of methods.
