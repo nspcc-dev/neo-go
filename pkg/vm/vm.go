@@ -1118,7 +1118,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(len(arr))
 
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT:
-		offset := v.getJumpOffset(ctx, parameter)
+		offset := v.getJumpOffset(ctx, parameter, 0)
 		cond := true
 		if op != opcode.JMP {
 			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF)
@@ -1133,7 +1133,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 
-		offset := v.getJumpOffset(newCtx, parameter)
+		offset := v.getJumpOffset(newCtx, parameter, 0)
 		v.jumpIf(newCtx, offset, true)
 
 	case opcode.SYSCALL:
@@ -1388,7 +1388,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack = newCtx.estack
 		v.astack = newCtx.astack
 		if op == opcode.CALLI {
-			offset := v.getJumpOffset(newCtx, parameter[2:])
+			// CALLI is a bit different from other JMPs
+			// https://github.com/neo-project/neo-vm/blob/master-2.x/src/neo-vm/ExecutionEngine.cs#L1175
+			offset := v.getJumpOffset(newCtx, parameter[2:], 2)
 			v.jumpIf(newCtx, offset, true)
 		}
 
@@ -1416,9 +1418,9 @@ func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 // getJumpOffset returns instruction number in a current context
 // to a which JMP should be performed.
 // parameter is interpreted as little-endian int16.
-func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 	rOffset := int16(binary.LittleEndian.Uint16(parameter))
-	offset := ctx.ip + int(rOffset)
+	offset := ctx.ip + int(rOffset) + mod
 	if offset < 0 || offset > len(ctx.prog) {
 		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
 	}
