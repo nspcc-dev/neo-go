@@ -3,7 +3,6 @@ package request
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -195,7 +194,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 			if err != nil {
 				return nil, err
 			}
-			emit.String(script.BinWriter, strconv.Itoa(num))
+			emit.Int(script.BinWriter, int64(num))
 		case ArrayT:
 			slice, err := params[i].GetArray()
 			if err != nil {

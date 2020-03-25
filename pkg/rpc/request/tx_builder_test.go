@@ -25,7 +25,7 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script: "087472616e73666572676f459162ceeb248b071ec157d9e4f6fd26fdbe50",
 	}, {
 		ps:     Params{{Type: NumberT, Value: 42}},
-		script: "023432676f459162ceeb248b071ec157d9e4f6fd26fdbe50",
+		script: "012a676f459162ceeb248b071ec157d9e4f6fd26fdbe50",
 	}, {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{}}},
 		script: "00c10161676f459162ceeb248b071ec157d9e4f6fd26fdbe50",
