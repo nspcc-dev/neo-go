@@ -42,6 +42,39 @@ type (
 	}
 )
 
+var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, error){
+	"getaccountstate":      (*Server).getAccountState,
+	"getapplicationlog":    (*Server).getApplicationLog,
+	"getassetstate":        (*Server).getAssetState,
+	"getbestblockhash":     (*Server).getBestBlockHash,
+	"getblock":             (*Server).getBlock,
+	"getblockcount":        (*Server).getBlockCount,
+	"getblockhash":         (*Server).getBlockHash,
+	"getblockheader":       (*Server).getBlockHeader,
+	"getblocksysfee":       (*Server).getBlockSysFee,
+	"getclaimable":         (*Server).getClaimable,
+	"getconnectioncount":   (*Server).getConnectionCount,
+	"getcontractstate":     (*Server).getContractState,
+	"getnep5balances":      (*Server).getNEP5Balances,
+	"getnep5transfers":     (*Server).getNEP5Transfers,
+	"getpeers":             (*Server).getPeers,
+	"getrawmempool":        (*Server).getRawMempool,
+	"getrawtransaction":    (*Server).getrawtransaction,
+	"getstorage":           (*Server).getStorage,
+	"gettransactionheight": (*Server).getTransactionHeight,
+	"gettxout":             (*Server).getTxOut,
+	"getunclaimed":         (*Server).getUnclaimed,
+	"getunspents":          (*Server).getUnspents,
+	"getvalidators":        (*Server).getValidators,
+	"getversion":           (*Server).getVersion,
+	"invoke":               (*Server).invoke,
+	"invokefunction":       (*Server).invokeFunction,
+	"invokescript":         (*Server).invokescript,
+	"sendrawtransaction":   (*Server).sendrawtransaction,
+	"submitblock":          (*Server).submitBlock,
+	"validateaddress":      (*Server).validateAddress,
+}
+
 var invalidBlockHeightError = func(index int, height int) error {
 	return errors.Errorf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height)
 }
@@ -153,211 +186,12 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 		resultsErr error
 	)
 
-Methods:
-	switch req.Method {
-	case "getapplicationlog":
-		getapplicationlogCalled.Inc()
-		results, resultsErr = s.getApplicationLog(reqParams)
+	incCounter(req.Method)
 
-	case "getbestblockhash":
-		getbestblockhashCalled.Inc()
-		results = "0x" + s.chain.CurrentBlockHash().StringLE()
-
-	case "getblock":
-		getbestblockCalled.Inc()
-		var hash util.Uint256
-
-		param, ok := reqParams.Value(0)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		switch param.Type {
-		case request.StringT:
-			var err error
-			hash, err = param.GetUint256()
-			if err != nil {
-				resultsErr = response.ErrInvalidParams
-				break Methods
-			}
-		case request.NumberT:
-			num, err := s.blockHeightFromParam(param)
-			if err != nil {
-				resultsErr = response.ErrInvalidParams
-				break Methods
-			}
-			hash = s.chain.GetHeaderHash(num)
-		default:
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		block, err := s.chain.GetBlock(hash)
-		if err != nil {
-			resultsErr = response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
-			break
-		}
-
-		if len(reqParams) == 2 && reqParams[1].Value == 1 {
-			results = result.NewBlock(block, s.chain)
-		} else {
-			writer := io.NewBufBinWriter()
-			block.EncodeBinary(writer.BinWriter)
-			results = hex.EncodeToString(writer.Bytes())
-		}
-
-	case "getblockcount":
-		getblockcountCalled.Inc()
-		results = s.chain.BlockHeight() + 1
-
-	case "getblockhash":
-		getblockHashCalled.Inc()
-		param, ok := reqParams.ValueWithType(0, request.NumberT)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-		num, err := s.blockHeightFromParam(param)
-		if err != nil {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		results = s.chain.GetHeaderHash(num)
-
-	case "getblockheader":
-		getblockheaderCalled.Inc()
-		results, resultsErr = s.getBlockHeader(reqParams)
-
-	case "getblocksysfee":
-		getblocksysfeeCalled.Inc()
-		results, resultsErr = s.getBlockSysFee(reqParams)
-
-	case "getclaimable":
-		getclaimableCalled.Inc()
-		results, resultsErr = s.getClaimable(reqParams)
-
-	case "getconnectioncount":
-		getconnectioncountCalled.Inc()
-		results = s.coreServer.PeerCount()
-
-	case "getnep5balances":
-		getnep5balancesCalled.Inc()
-		results, resultsErr = s.getNEP5Balances(reqParams)
-
-	case "getnep5transfers":
-		getnep5transfersCalled.Inc()
-		results, resultsErr = s.getNEP5Transfers(reqParams)
-	case "getvalidators":
-		getvalidatorsCalled.Inc()
-		results, resultsErr = s.getValidators()
-
-	case "getversion":
-		getversionCalled.Inc()
-		results = result.Version{
-			Port:      s.coreServer.Port,
-			Nonce:     s.coreServer.ID(),
-			UserAgent: s.coreServer.UserAgent,
-		}
-
-	case "getpeers":
-		getpeersCalled.Inc()
-		peers := result.NewGetPeers()
-		peers.AddUnconnected(s.coreServer.UnconnectedPeers())
-		peers.AddConnected(s.coreServer.ConnectedPeers())
-		peers.AddBad(s.coreServer.BadPeers())
-		results = peers
-
-	case "getrawmempool":
-		getrawmempoolCalled.Inc()
-		mp := s.chain.GetMemPool()
-		hashList := make([]util.Uint256, 0)
-		for _, item := range mp.GetVerifiedTransactions() {
-			hashList = append(hashList, item.Tx.Hash())
-		}
-		results = hashList
-
-	case "getstorage":
-		getstorageCalled.Inc()
-		results, resultsErr = s.getStorage(reqParams)
-
-	case "validateaddress":
-		validateaddressCalled.Inc()
-		param, ok := reqParams.Value(0)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-		results = validateAddress(param.Value)
-
-	case "getassetstate":
-		getassetstateCalled.Inc()
-		param, ok := reqParams.ValueWithType(0, request.StringT)
-		if !ok {
-			resultsErr = response.ErrInvalidParams
-			break Methods
-		}
-
-		paramAssetID, err := param.GetUint256()
-		if err != nil {
-			resultsErr = response.ErrInvalidParams
-			break
-		}
-
-		as := s.chain.GetAssetState(paramAssetID)
-		if as != nil {
-			results = result.NewAssetState(as)
-		} else {
-			resultsErr = response.NewRPCError("Unknown asset", "", nil)
-		}
-
-	case "getaccountstate":
-		getaccountstateCalled.Inc()
-		results, resultsErr = s.getAccountState(reqParams, false)
-
-	case "getcontractstate":
-		getcontractstateCalled.Inc()
-		results, resultsErr = s.getContractState(reqParams)
-
-	case "getrawtransaction":
-		getrawtransactionCalled.Inc()
-		results, resultsErr = s.getrawtransaction(reqParams)
-
-	case "gettransactionheight":
-		gettransactionheightCalled.Inc()
-		results, resultsErr = s.getTransactionHeight(reqParams)
-
-	case "gettxout":
-		gettxoutCalled.Inc()
-		results, resultsErr = s.getTxOut(reqParams)
-
-	case "getunclaimed":
-		getunclaimedCalled.Inc()
-		results, resultsErr = s.getUnclaimed(reqParams)
-
-	case "getunspents":
-		getunspentsCalled.Inc()
-		results, resultsErr = s.getAccountState(reqParams, true)
-
-	case "invoke":
-		results, resultsErr = s.invoke(reqParams)
-
-	case "invokefunction":
-		results, resultsErr = s.invokeFunction(reqParams)
-
-	case "invokescript":
-		results, resultsErr = s.invokescript(reqParams)
-
-	case "submitblock":
-		submitblockCalled.Inc()
-		results, resultsErr = s.submitBlock(reqParams)
-
-	case "sendrawtransaction":
-		sendrawtransactionCalled.Inc()
-		results, resultsErr = s.sendrawtransaction(reqParams)
-
-	default:
+	handler, ok := rpcHandlers[req.Method]
+	if ok {
+		results, resultsErr = handler(s, reqParams)
+	} else {
 		resultsErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	}
 
@@ -367,6 +201,120 @@ Methods:
 	}
 
 	s.WriteResponse(req, w, results)
+}
+
+func (s *Server) getBestBlockHash(_ request.Params) (interface{}, error) {
+	return "0x" + s.chain.CurrentBlockHash().StringLE(), nil
+}
+
+func (s *Server) getBlockCount(_ request.Params) (interface{}, error) {
+	return s.chain.BlockHeight() + 1, nil
+}
+
+func (s *Server) getConnectionCount(_ request.Params) (interface{}, error) {
+	return s.coreServer.PeerCount(), nil
+}
+
+func (s *Server) getBlock(reqParams request.Params) (interface{}, error) {
+	var hash util.Uint256
+
+	param, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	switch param.Type {
+	case request.StringT:
+		var err error
+		hash, err = param.GetUint256()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+	case request.NumberT:
+		num, err := s.blockHeightFromParam(param)
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		hash = s.chain.GetHeaderHash(num)
+	default:
+		return nil, response.ErrInvalidParams
+	}
+
+	block, err := s.chain.GetBlock(hash)
+	if err != nil {
+		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+	}
+
+	if len(reqParams) == 2 && reqParams[1].Value == 1 {
+		return result.NewBlock(block, s.chain), nil
+	}
+	writer := io.NewBufBinWriter()
+	block.EncodeBinary(writer.BinWriter)
+	return hex.EncodeToString(writer.Bytes()), nil
+}
+
+func (s *Server) getBlockHash(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.NumberT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	num, err := s.blockHeightFromParam(param)
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	return s.chain.GetHeaderHash(num), nil
+}
+
+func (s *Server) getVersion(_ request.Params) (interface{}, error) {
+	return result.Version{
+		Port:      s.coreServer.Port,
+		Nonce:     s.coreServer.ID(),
+		UserAgent: s.coreServer.UserAgent,
+	}, nil
+}
+
+func (s *Server) getPeers(_ request.Params) (interface{}, error) {
+	peers := result.NewGetPeers()
+	peers.AddUnconnected(s.coreServer.UnconnectedPeers())
+	peers.AddConnected(s.coreServer.ConnectedPeers())
+	peers.AddBad(s.coreServer.BadPeers())
+	return peers, nil
+}
+
+func (s *Server) getRawMempool(_ request.Params) (interface{}, error) {
+	mp := s.chain.GetMemPool()
+	hashList := make([]util.Uint256, 0)
+	for _, item := range mp.GetVerifiedTransactions() {
+		hashList = append(hashList, item.Tx.Hash())
+	}
+	return hashList, nil
+}
+
+func (s *Server) validateAddress(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	return validateAddress(param.Value), nil
+}
+
+func (s *Server) getAssetState(reqParams request.Params) (interface{}, error) {
+	param, ok := reqParams.ValueWithType(0, request.StringT)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+
+	paramAssetID, err := param.GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	as := s.chain.GetAssetState(paramAssetID)
+	if as != nil {
+		return result.NewAssetState(as), nil
+	}
+	return nil, response.NewRPCError("Unknown asset", "", nil)
 }
 
 // getApplicationLog returns the contract log based on the specified txid.
@@ -730,8 +678,16 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, error)
 	return results, nil
 }
 
+func (s *Server) getAccountState(ps request.Params) (interface{}, error) {
+	return s.getAccountStateAux(ps, false)
+}
+
+func (s *Server) getUnspents(ps request.Params) (interface{}, error) {
+	return s.getAccountStateAux(ps, true)
+}
+
 // getAccountState returns account state either in short or full (unspents included) form.
-func (s *Server) getAccountState(reqParams request.Params, unspents bool) (interface{}, error) {
+func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (interface{}, error) {
 	var resultsErr error
 	var results interface{}
 
@@ -759,7 +715,7 @@ func (s *Server) getAccountState(reqParams request.Params, unspents bool) (inter
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
-func (s *Server) getBlockSysFee(reqParams request.Params) (util.Fixed8, error) {
+func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, error) {
 	param, ok := reqParams.ValueWithType(0, request.NumberT)
 	if !ok {
 		return 0, response.ErrInvalidParams
@@ -843,7 +799,7 @@ func (s *Server) getUnclaimed(ps request.Params) (interface{}, error) {
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.
-func (s *Server) getValidators() (interface{}, error) {
+func (s *Server) getValidators(_ request.Params) (interface{}, error) {
 	var validators keys.PublicKeys
 
 	validators, err := s.chain.GetValidators()
