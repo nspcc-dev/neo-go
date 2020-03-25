@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -55,10 +56,12 @@ func (p Param) GetString() (string, error) {
 // GetInt returns int value of te parameter.
 func (p Param) GetInt() (int, error) {
 	i, ok := p.Value.(int)
-	if !ok {
-		return 0, errors.New("not an integer")
+	if ok {
+		return i, nil
+	} else if s, ok := p.Value.(string); ok {
+		return strconv.Atoi(s)
 	}
-	return i, nil
+	return 0, errors.New("not an integer")
 }
 
 // GetArray returns a slice of Params stored in the parameter.
