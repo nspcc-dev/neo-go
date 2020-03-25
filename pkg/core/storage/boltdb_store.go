@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/etcd-io/bbolt"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"go.etcd.io/bbolt"
 )
 
 // BoltDBOptions configuration for boltdb.
