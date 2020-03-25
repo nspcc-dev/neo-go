@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -85,7 +84,7 @@ type Config struct {
 	// TimePerBlock minimal time that should pass before next block is accepted.
 	TimePerBlock time.Duration
 	// Wallet is a local-node wallet configuration.
-	Wallet *config.WalletConfig
+	Wallet *wallet.Config
 }
 
 // NewService returns new consensus.Service instance.
