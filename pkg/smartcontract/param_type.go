@@ -87,7 +87,7 @@ func (pt *ParamType) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalYAML implements the YAML Marshaler interface.
-func (pt *ParamType) MarshalYAML() (interface{}, error) {
+func (pt ParamType) MarshalYAML() (interface{}, error) {
 	return pt.String(), nil
 }
 
