@@ -203,6 +203,19 @@ func isByte(t types.Type) bool {
 	return ok && e.Kind() == types.Byte
 }
 
+func (c *codegen) isStructType(t ast.Expr) (int, bool) {
+	switch s := t.(type) {
+	case *ast.StructType:
+		return s.Fields.NumFields(), true
+	case *ast.Ident:
+		st, ok := c.typeInfo.Types[s].Type.Underlying().(*types.Struct)
+		if ok {
+			return st.NumFields(), true
+		}
+	}
+	return 0, false
+}
+
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	if len(lit.Elts) == 0 {
 		if typ, ok := lit.Type.(*ast.ArrayType); ok {

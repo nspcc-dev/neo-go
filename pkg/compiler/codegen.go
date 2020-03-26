@@ -287,6 +287,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
 					l := c.scope.newLocal(t.Names[0].Name)
 					c.emitStoreLocal(l)
+				} else if n, ok := c.isStructType(t.Type); ok {
+					emit.Int(c.prog.BinWriter, int64(n))
+					emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+					l := c.scope.newLocal(t.Names[0].Name)
+					c.emitStoreLocal(l)
 				}
 			}
 		}
