@@ -6,7 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,21 +44,18 @@ func newTestHeaders(n int) *Headers {
 }
 
 func testHeadersEncodeDecode(t *testing.T, headers *Headers, expected int, limit bool) {
-	buf := io.NewBufBinWriter()
-	headers.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
+	data, err := testserdes.EncodeBinary(headers)
+	assert.Nil(t, err)
 
-	b := buf.Bytes()
-	r := io.NewBinReaderFromBuf(b)
 	headersDecode := &Headers{}
-	headersDecode.DecodeBinary(r)
+	rErr := testserdes.DecodeBinary(data, headersDecode)
 
-	var err error
+	err = nil
 	if limit {
 		err = ErrTooManyHeaders
 	}
 
-	assert.Equal(t, err, r.Err)
+	assert.Equal(t, err, rErr)
 	assert.Equal(t, expected, len(headersDecode.Hdrs))
 
 	for i := 0; i < len(headersDecode.Hdrs); i++ {
@@ -75,10 +72,7 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	rawBlockBytes, _ := hex.DecodeString(rawBlockHeaders)
 
-	r := io.NewBinReaderFromBuf(rawBlockBytes)
-
-	headerMsg.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(rawBlockBytes, &headerMsg))
 	assert.Equal(t, 1, len(headerMsg.Hdrs))
 
 	header := headerMsg.Hdrs[0]
@@ -86,9 +80,7 @@ func TestBinEncodeDecode(t *testing.T) {
 
 	assert.Equal(t, "f3c4ec44c07eccbda974f1ee34bc6654ab6d3f22cd89c2e5c593a16d6cc7e6e8", hash.StringLE())
 
-	buf := io.NewBufBinWriter()
-
-	headerMsg.EncodeBinary(buf.BinWriter)
-	assert.Equal(t, nil, buf.Err)
-	assert.Equal(t, hex.EncodeToString(rawBlockBytes), hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(&headerMsg)
+	assert.NoError(t, err)
+	assert.Equal(t, hex.EncodeToString(rawBlockBytes), hex.EncodeToString(data))
 }

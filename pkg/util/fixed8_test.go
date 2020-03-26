@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-yaml/yaml"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -175,12 +175,5 @@ func TestFixed8_Arith(t *testing.T) {
 func TestFixed8_Serializable(t *testing.T) {
 	a := Fixed8(0x0102030405060708)
 
-	w := io.NewBufBinWriter()
-	a.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-
-	var b Fixed8
-	r := io.NewBinReaderFromBuf(w.Bytes())
-	b.DecodeBinary(r)
-	require.Equal(t, a, b)
+	testserdes.EncodeDecodeBinary(t, &a, new(Fixed8))
 }

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,9 +19,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	require.NoError(t, err)
 
 	block := &Block{}
-	r := io.NewBinReaderFromBuf(b)
-	block.DecodeBinary(r)
-	require.NoError(t, r.Err)
+	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block
 }

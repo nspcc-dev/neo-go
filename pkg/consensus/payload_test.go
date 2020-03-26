@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -78,19 +79,15 @@ func TestConsensusPayload_Hash(t *testing.T) {
 	data, err := hex.DecodeString(dataHex)
 	require.NoError(t, err)
 
-	r := io.NewBinReaderFromBuf(data)
-
 	var p Payload
-	p.DecodeBinary(r)
-
-	require.NoError(t, err)
+	require.NoError(t, testserdes.DecodeBinary(data, &p))
 	require.Equal(t, p.Hash().String(), "45859759c8491597804f1922773947e0d37bf54484af82f80cd642f7b063aa56")
 }
 
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
-		testSerializable(t, p, new(Payload))
+		testserdes.EncodeDecodeBinary(t, p, new(Payload))
 
 		data := p.MarshalUnsigned()
 		pu := new(Payload)
@@ -133,57 +130,49 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	buf[delimeterIndex] = 1
 	buf[lenIndex] = 34
 	buf[typeIndex] = byte(prepareResponseType)
-	r := io.NewBinReaderFromBuf(buf)
 	p := new(Payload)
-	p.DecodeBinary(r)
-	require.NoError(t, r.Err)
+	require.NoError(t, testserdes.DecodeBinary(buf, p))
 	require.Equal(t, expected, p)
 
 	// invalid type
 	buf[typeIndex] = 0xFF
-	r = io.NewBinReaderFromBuf(buf)
-	new(Payload).DecodeBinary(r)
-	require.Error(t, r.Err)
+	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
 
 	// invalid format
 	buf[delimeterIndex] = 0
 	buf[typeIndex] = byte(prepareResponseType)
-	r = io.NewBinReaderFromBuf(buf)
-	new(Payload).DecodeBinary(r)
-	require.Error(t, r.Err)
+	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
 
 	// invalid message length
 	buf[delimeterIndex] = 1
 	buf[lenIndex] = 0xFF
 	buf[typeIndex] = byte(prepareResponseType)
-	r = io.NewBinReaderFromBuf(buf)
-	new(Payload).DecodeBinary(r)
-	require.Error(t, r.Err)
+	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
 }
 
 func TestCommit_Serializable(t *testing.T) {
 	c := randomMessage(t, commitType)
-	testSerializable(t, c, new(commit))
+	testserdes.EncodeDecodeBinary(t, c, new(commit))
 }
 
 func TestPrepareResponse_Serializable(t *testing.T) {
 	resp := randomMessage(t, prepareResponseType)
-	testSerializable(t, resp, new(prepareResponse))
+	testserdes.EncodeDecodeBinary(t, resp, new(prepareResponse))
 }
 
 func TestPrepareRequest_Serializable(t *testing.T) {
 	req := randomMessage(t, prepareRequestType)
-	testSerializable(t, req, new(prepareRequest))
+	testserdes.EncodeDecodeBinary(t, req, new(prepareRequest))
 }
 
 func TestRecoveryRequest_Serializable(t *testing.T) {
 	req := randomMessage(t, recoveryRequestType)
-	testSerializable(t, req, new(recoveryRequest))
+	testserdes.EncodeDecodeBinary(t, req, new(recoveryRequest))
 }
 
 func TestRecoveryMessage_Serializable(t *testing.T) {
 	msg := randomMessage(t, recoveryMessageType)
-	testSerializable(t, msg, new(recoveryMessage))
+	testserdes.EncodeDecodeBinary(t, msg, new(recoveryMessage))
 }
 
 func randomPayload(t *testing.T, mt messageType) *Payload {
@@ -316,16 +305,6 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "RecoveryMessage", recoveryMessageType.String())
 	require.Equal(t, "RecoveryRequest", recoveryRequestType.String())
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
-}
-
-func testSerializable(t *testing.T, expected, actual io.Serializable) {
-	w := io.NewBufBinWriter()
-	expected.EncodeBinary(w.BinWriter)
-
-	r := io.NewBinReaderFromBuf(w.Bytes())
-	actual.DecodeBinary(r)
-
-	require.Equal(t, expected, actual)
 }
 
 func fillRandom(t *testing.T, buf []byte) []byte {

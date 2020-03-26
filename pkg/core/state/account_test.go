@@ -5,7 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,25 +36,10 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		IsFrozen:   true,
 		Votes:      votes,
 		Balances:   balances,
+		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}
 
-	buf := io.NewBufBinWriter()
-	a.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	aDecode := &Account{}
-	r := io.NewBinReaderFromBuf(buf.Bytes())
-	aDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-
-	assert.Equal(t, a.Version, aDecode.Version)
-	assert.Equal(t, a.ScriptHash, aDecode.ScriptHash)
-	assert.Equal(t, a.IsFrozen, aDecode.IsFrozen)
-
-	for i, vote := range a.Votes {
-		assert.Equal(t, vote.X, aDecode.Votes[i].X)
-	}
-	assert.Equal(t, a.Balances, aDecode.Balances)
+	testserdes.EncodeDecodeBinary(t, a, new(Account))
 }
 
 func TestAccountStateBalanceValues(t *testing.T) {

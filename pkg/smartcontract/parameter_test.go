@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -446,25 +446,14 @@ func TestNewParameterFromString(t *testing.T) {
 
 func TestEncodeDecodeBinary(t *testing.T) {
 	for _, tc := range marshalJSONTestCases {
-		w := io.NewBufBinWriter()
-		tc.input.EncodeBinary(w.BinWriter)
-		require.NoError(t, w.Err)
-
-		r := io.NewBinReaderFromBuf(w.Bytes())
-		var p Parameter
-		p.DecodeBinary(r)
-		require.NoError(t, r.Err)
-		require.Equal(t, tc.input, p)
+		testserdes.EncodeDecodeBinary(t, &tc.input, new(Parameter))
 	}
 
 	t.Run("unknown", func(t *testing.T) {
 		p := Parameter{Type: UnknownType}
-		w := io.NewBufBinWriter()
-		p.EncodeBinary(w.BinWriter)
-		require.Error(t, w.Err)
+		_, err := testserdes.EncodeBinary(&p)
+		require.Error(t, err)
 
-		r := io.NewBinReaderFromBuf([]byte{0xAA})
-		p.DecodeBinary(r)
-		require.Error(t, r.Err)
+		require.Error(t, testserdes.DecodeBinary([]byte{0xAA}, &p))
 	})
 }

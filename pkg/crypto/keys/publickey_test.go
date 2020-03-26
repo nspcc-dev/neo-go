@@ -7,16 +7,14 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeDecodeInfinity(t *testing.T) {
 	key := &PublicKey{}
-	buf := io.NewBufBinWriter()
-	key.EncodeBinary(buf.BinWriter)
-	require.NoError(t, buf.Err)
-	b := buf.Bytes()
+	b, err := testserdes.EncodeBinary(key)
+	require.NoError(t, err)
 	require.Equal(t, 1, len(b))
 
 	keyDecode := &PublicKey{}
@@ -29,24 +27,13 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 		k, err := NewPrivateKey()
 		require.NoError(t, err)
 		p := k.PublicKey()
-		buf := io.NewBufBinWriter()
-		p.EncodeBinary(buf.BinWriter)
-		require.NoError(t, buf.Err)
-		b := buf.Bytes()
-
-		pDecode := &PublicKey{}
-		require.NoError(t, pDecode.DecodeBytes(b))
-		require.Equal(t, p.X, pDecode.X)
+		testserdes.EncodeDecodeBinary(t, p, new(PublicKey))
 	}
 
 	errCases := [][]byte{{}, {0x02}, {0x04}}
 
 	for _, tc := range errCases {
-		r := io.NewBinReaderFromBuf(tc)
-
-		var pDecode PublicKey
-		pDecode.DecodeBinary(r)
-		require.Error(t, r.Err)
+		require.Error(t, testserdes.DecodeBinary(tc, new(PublicKey)))
 	}
 }
 

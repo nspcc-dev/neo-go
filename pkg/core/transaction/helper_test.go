@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,8 +21,6 @@ func decodeTransaction(rawTX string, t *testing.T) *Transaction {
 	b, err1 := hex.DecodeString(rawTX)
 	assert.Nil(t, err1)
 	tx := &Transaction{}
-	r := io.NewBinReaderFromBuf(b)
-	tx.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(b, tx))
 	return tx
 }

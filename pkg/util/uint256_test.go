@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,12 +20,7 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 	require.NoError(t, u1.UnmarshalJSON([]byte(`"`+str+`"`)))
 	assert.True(t, expected.Equals(u1))
 
-	s, err := expected.MarshalJSON()
-	require.NoError(t, err)
-
-	// UnmarshalJSON decodes hex-strings prefixed by 0x
-	require.NoError(t, u2.UnmarshalJSON(s))
-	assert.True(t, expected.Equals(u1))
+	testserdes.MarshalUnmarshalJSON(t, &expected, &u2)
 
 	// UnmarshalJSON does not accepts numbers
 	assert.Error(t, u2.UnmarshalJSON([]byte("123")))
@@ -96,12 +91,6 @@ func TestUint256_Serializable(t *testing.T) {
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
 
-	w := io.NewBufBinWriter()
-	a.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-
 	var b Uint256
-	r := io.NewBinReaderFromBuf(w.Bytes())
-	b.DecodeBinary(r)
-	require.Equal(t, a, b)
+	testserdes.EncodeDecodeBinary(t, &a, &b)
 }

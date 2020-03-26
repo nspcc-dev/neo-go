@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -119,9 +120,7 @@ func getDecodedBlock(t *testing.T, i int) *block.Block {
 	require.NoError(t, err)
 
 	block := &block.Block{}
-	r := io.NewBinReaderFromBuf(b)
-	block.DecodeBinary(r)
-	require.NoError(t, r.Err)
+	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block
 }
@@ -383,9 +382,8 @@ func TestCreateBasicChain(t *testing.T) {
 			bh := bc.GetHeaderHash(i)
 			b, err := bc.GetBlock(bh)
 			require.NoError(t, err)
-			buf := io.NewBufBinWriter()
-			b.EncodeBinary(buf.BinWriter)
-			bytes := buf.Bytes()
+			bytes, err := testserdes.EncodeBinary(b)
+			require.NoError(t, err)
 			writer.WriteU32LE(uint32(len(bytes)))
 			writer.WriteBytes(bytes)
 			require.NoError(t, writer.Err)
@@ -397,10 +395,9 @@ func TestCreateBasicChain(t *testing.T) {
 	var blocks []*block.Block
 	blocks = append(blocks, bc.newBlock(), bc.newBlock(newMinerTX()))
 	for _, b := range blocks {
-		buf := io.NewBufBinWriter()
-		b.EncodeBinary(buf.BinWriter)
-		require.NoError(t, buf.Err)
-		t.Log(hex.EncodeToString(buf.Bytes()))
+		data, err := testserdes.EncodeBinary(b)
+		require.NoError(t, err)
+		t.Log(hex.EncodeToString(data))
 	}
 }
 

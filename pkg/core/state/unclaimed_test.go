@@ -7,18 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUnclaimedBalance_Structure(t *testing.T) {
 	b := randomUnclaimed(t)
-	w := io.NewBufBinWriter()
-	b.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-
-	buf := w.Bytes()
+	buf, err := testserdes.EncodeBinary(b)
+	require.NoError(t, err)
 	require.Equal(t, UnclaimedBalanceSize, len(buf))
 	require.Equal(t, b.Tx.BytesBE(), buf[:util.Uint256Size])
 	require.Equal(t, b.Index, binary.LittleEndian.Uint16(buf[util.Uint256Size:]))

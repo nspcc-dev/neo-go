@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,14 +25,9 @@ func TestEncodeDecodeContractState(t *testing.T) {
 	}
 
 	assert.Equal(t, hash.Hash160(script), contract.ScriptHash())
-	buf := io.NewBufBinWriter()
-	contract.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
+
 	contractDecoded := &Contract{}
-	r := io.NewBinReaderFromBuf(buf.Bytes())
-	contractDecoded.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-	assert.Equal(t, contract, contractDecoded)
+	testserdes.EncodeDecodeBinary(t, contract, contractDecoded)
 	assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
 }
 

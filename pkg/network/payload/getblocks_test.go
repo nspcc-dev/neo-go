@@ -4,9 +4,8 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetBlockEncodeDecode(t *testing.T) {
@@ -18,16 +17,7 @@ func TestGetBlockEncodeDecode(t *testing.T) {
 	}
 
 	p := NewGetBlocks(start, util.Uint256{})
-	buf := io.NewBufBinWriter()
-	p.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	b := buf.Bytes()
-	r := io.NewBinReaderFromBuf(b)
-	pDecode := &GetBlocks{}
-	pDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-	assert.Equal(t, p, pDecode)
+	testserdes.EncodeDecodeBinary(t, p, new(GetBlocks))
 }
 
 func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
@@ -41,14 +31,5 @@ func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
 		stop = hash.Sha256([]byte("e"))
 	)
 	p := NewGetBlocks(start, stop)
-	buf := io.NewBufBinWriter()
-	p.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	b := buf.Bytes()
-	r := io.NewBinReaderFromBuf(b)
-	pDecode := &GetBlocks{}
-	pDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-	assert.Equal(t, p, pDecode)
+	testserdes.EncodeDecodeBinary(t, p, new(GetBlocks))
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -16,15 +16,8 @@ func TestValidatorState_DecodeEncodeBinary(t *testing.T) {
 		Registered: false,
 		Votes:      util.Fixed8(10),
 	}
-	buf := io.NewBufBinWriter()
-	state.EncodeBinary(buf.BinWriter)
-	require.NoError(t, buf.Err)
 
-	decodedState := &Validator{}
-	reader := io.NewBinReaderFromBuf(buf.Bytes())
-	decodedState.DecodeBinary(reader)
-	require.NoError(t, reader.Err)
-	require.Equal(t, state, decodedState)
+	testserdes.EncodeDecodeBinary(t, state, new(Validator))
 }
 
 func TestRegisteredAndHasVotes_Registered(t *testing.T) {

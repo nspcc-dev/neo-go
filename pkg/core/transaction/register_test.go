@@ -6,7 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,21 +24,14 @@ func TestRegisterTX(t *testing.T) {
 			Precision: 8,
 			Admin:     someuint160,
 		},
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
 	}
+	_ = tx.Hash()
 
-	buf := io.NewBufBinWriter()
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	b := buf.Bytes()
-	txDecode := &Transaction{}
-	r := io.NewBinReaderFromBuf(b)
-	txDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-	txData := tx.Data.(*RegisterTX)
-	txDecodeData := txDecode.Data.(*RegisterTX)
-	assert.Equal(t, txData, txDecodeData)
-	assert.Equal(t, tx.Hash(), txDecode.Hash())
+	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }
 
 func TestDecodeRegisterTXFromRawString(t *testing.T) {
@@ -47,9 +40,7 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := &Transaction{}
-	r := io.NewBinReaderFromBuf(b)
-	tx.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(b, tx))
 	assert.Equal(t, RegisterType, tx.Type)
 	txData := tx.Data.(*RegisterTX)
 	assert.Equal(t, GoverningToken, txData.AssetType)
@@ -60,14 +51,5 @@ func TestDecodeRegisterTXFromRawString(t *testing.T) {
 	assert.Equal(t, "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt", address.Uint160ToString(txData.Admin))
 	assert.Equal(t, "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b", tx.Hash().StringLE())
 
-	buf := io.NewBufBinWriter()
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-	benc := buf.Bytes()
-
-	txDecode := &Transaction{}
-	encreader := io.NewBinReaderFromBuf(benc)
-	txDecode.DecodeBinary(encreader)
-	assert.Nil(t, encreader.Err)
-	assert.Equal(t, tx, txDecode)
+	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }

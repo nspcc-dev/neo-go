@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,12 +20,7 @@ func TestUint160UnmarshalJSON(t *testing.T) {
 	assert.NoError(t, u1.UnmarshalJSON([]byte(`"`+str+`"`)))
 	assert.True(t, expected.Equals(u1))
 
-	s, err := expected.MarshalJSON()
-	require.NoError(t, err)
-
-	// UnmarshalJSON decodes hex-strings prefixed by 0x
-	assert.NoError(t, u2.UnmarshalJSON(s))
-	assert.True(t, expected.Equals(u1))
+	testserdes.MarshalUnmarshalJSON(t, &expected, &u2)
 
 	assert.Error(t, u2.UnmarshalJSON([]byte(`123`)))
 }

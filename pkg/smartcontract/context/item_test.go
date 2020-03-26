@@ -2,17 +2,15 @@ package context
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,12 +54,7 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 		},
 	}
 
-	data, err := json.Marshal(expected)
-	require.NoError(t, err)
-
-	actual := new(Item)
-	require.NoError(t, json.Unmarshal(data, actual))
-	assert.Equal(t, expected, actual)
+	testserdes.MarshalUnmarshalJSON(t, expected, new(Item))
 }
 
 func getRandomSlice(t *testing.T, n int) []byte {

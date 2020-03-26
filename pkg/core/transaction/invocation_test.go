@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,18 +16,13 @@ func TestInvocationZeroScript(t *testing.T) {
 	require.NoError(t, err)
 
 	inv := &InvocationTX{Version: 1}
-	r := io.NewBinReaderFromBuf(in)
-
-	inv.DecodeBinary(r)
-	assert.Error(t, r.Err)
+	assert.Error(t, testserdes.DecodeBinary(in, inv))
 
 	// PUSH1 script.
 	in, err = hex.DecodeString("01510000000000000000")
 	require.NoError(t, err)
-	r = io.NewBinReaderFromBuf(in)
 
-	inv.DecodeBinary(r)
-	assert.NoError(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(in, inv))
 }
 
 func TestInvocationNegativeGas(t *testing.T) {
@@ -36,18 +31,13 @@ func TestInvocationNegativeGas(t *testing.T) {
 	require.NoError(t, err)
 
 	inv := &InvocationTX{Version: 1}
-	r := io.NewBinReaderFromBuf(in)
-
-	inv.DecodeBinary(r)
-	assert.Error(t, r.Err)
+	assert.Error(t, testserdes.DecodeBinary(in, inv))
 
 	// Positive GAS.
 	in, err = hex.DecodeString("01510100000000000000")
 	require.NoError(t, err)
-	r = io.NewBinReaderFromBuf(in)
 
-	inv.DecodeBinary(r)
-	assert.NoError(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(in, inv))
 	assert.Equal(t, util.Fixed8(1), inv.Gas)
 }
 
@@ -56,15 +46,9 @@ func TestInvocationVersionZero(t *testing.T) {
 	require.NoError(t, err)
 
 	inv := &InvocationTX{Version: 1}
-	r := io.NewBinReaderFromBuf(in)
-
-	inv.DecodeBinary(r)
-	assert.Error(t, r.Err)
+	assert.Error(t, testserdes.DecodeBinary(in, inv))
 
 	inv = &InvocationTX{Version: 0}
-	r = io.NewBinReaderFromBuf(in)
-
-	inv.DecodeBinary(r)
-	assert.NoError(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(in, inv))
 	assert.Equal(t, util.Fixed8(0), inv.Gas)
 }
