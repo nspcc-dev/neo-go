@@ -86,6 +86,8 @@ var syscalls = map[string]map[string]string{
 		"Create": "Neo.Iterator.Create",
 		"Key":    "Neo.Iterator.Key",
 		"Keys":   "Neo.Iterator.Keys",
+		"Next":   "Neo.Iterator.Next",
+		"Value":  "Neo.Iterator.Value",
 		"Values": "Neo.Iterator.Values",
 	},
 }
