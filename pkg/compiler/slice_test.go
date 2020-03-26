@@ -3,6 +3,8 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 var sliceTestCases = []testCase{
@@ -127,6 +129,35 @@ var sliceTestCases = []testCase{
 			return b
 		}`,
 		[]byte{2, 3},
+	},
+	{
+		"declare compound slice",
+		`package foo
+		func Main() []string {
+			var a []string
+			a = append(a, "a")
+			a = append(a, "b")
+			return a
+		}`,
+		[]vm.StackItem{
+			vm.NewByteArrayItem([]byte("a")),
+			vm.NewByteArrayItem([]byte("b")),
+		},
+	},
+	{
+		"declare compound slice alias",
+		`package foo
+		type strs []string
+		func Main() []string {
+			var a strs
+			a = append(a, "a")
+			a = append(a, "b")
+			return a
+		}`,
+		[]vm.StackItem{
+			vm.NewByteArrayItem([]byte("a")),
+			vm.NewByteArrayItem([]byte("b")),
+		},
 	},
 }
 

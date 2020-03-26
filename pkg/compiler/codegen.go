@@ -276,9 +276,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
-				for i, val := range t.Values {
-					ast.Walk(c, val)
-					l := c.scope.newLocal(t.Names[i].Name)
+				if len(t.Values) != 0 {
+					for i, val := range t.Values {
+						ast.Walk(c, val)
+						l := c.scope.newLocal(t.Names[i].Name)
+						c.emitStoreLocal(l)
+					}
+				} else if c.isCompoundArrayType(t.Type) {
+					emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+					emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+					l := c.scope.newLocal(t.Names[0].Name)
 					c.emitStoreLocal(l)
 				}
 			}
