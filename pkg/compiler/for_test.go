@@ -374,6 +374,23 @@ func TestDec(t *testing.T) {
 	eval(t, src, big.NewInt(1))
 }
 
+func TestForLoopEmpty(t *testing.T) {
+	src := `
+	package foo
+	func Main() int {
+		x := 0
+		for {
+			x++
+			if x == 2 {
+				break
+			}
+		}
+		return x
+	}
+	`
+	eval(t, src, big.NewInt(2))
+}
+
 func TestForLoopBigIter(t *testing.T) {
 	src := `
 	package foo
