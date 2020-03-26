@@ -781,10 +781,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Set label and walk the condition.
 		c.pushStackLabel(label, 0)
 		c.setLabel(fstart)
-		ast.Walk(c, n.Cond)
+		if n.Cond != nil {
+			ast.Walk(c, n.Cond)
 
-		// Jump if the condition is false
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, fend)
+			// Jump if the condition is false
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, fend)
+		}
 
 		// Walk body followed by the iterator (post stmt).
 		ast.Walk(c, n.Body)
