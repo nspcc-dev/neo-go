@@ -1,6 +1,7 @@
 package storagecontract
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
@@ -33,7 +34,20 @@ func Main(operation string, args []interface{}) interface{} {
 		return true
 	}
 
-	// TODO: storage.Find()
+	// Returns an array of key-value pairs with key that matched the passed value
+	if operation == "find" {
+		if checkArgs(args, 1) {
+			value := args[0].([]byte)
+			iter := storage.Find(ctx, value)
+			result := []string{}
+			for iterator.Next(iter) {
+				val := iterator.Value(iter)
+				key := iterator.Key(iter)
+				result = append(result, key.(string)+":"+val.(string))
+			}
+			return result
+		}
+	}
 
 	return false
 }

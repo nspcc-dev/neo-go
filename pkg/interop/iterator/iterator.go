@@ -22,6 +22,17 @@ func Keys(it Iterator) []interface{} {
 	return nil
 }
 
+// Next advances the iterator, return true if it is was successful
+// and false otherwise.
+func Next(it Iterator) bool {
+	return true
+}
+
+// Value returns the current iterator value.
+func Value(it Iterator) interface{} {
+	return nil
+}
+
 // Values returns the iterator values.
 func Values(it Iterator) []interface{} {
 	return nil
