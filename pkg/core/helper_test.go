@@ -318,12 +318,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	// Now invoke this contract.
 	script = io.NewBufBinWriter()
-	emit.String(script.BinWriter, "testvalue")
-	emit.String(script.BinWriter, "testkey")
-	emit.Int(script.BinWriter, 2)
-	emit.Opcode(script.BinWriter, opcode.PACK)
-	emit.String(script.BinWriter, "Put")
-	emit.AppCall(script.BinWriter, hash.Hash160(avm), false)
+	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
 
 	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
 	b = bc.newBlock(newMinerTX(), txInv)
@@ -355,10 +350,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 0)
-	emit.Opcode(w.BinWriter, opcode.NEWARRAY)
-	emit.String(w.BinWriter, "init")
-	emit.AppCall(w.BinWriter, sh, true)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
 	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 
@@ -406,13 +398,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, amount)
-	emit.Bytes(w.BinWriter, to.BytesBE())
-	emit.Bytes(w.BinWriter, from.BytesBE())
-	emit.Int(w.BinWriter, 3)
-	emit.Opcode(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "transfer")
-	emit.AppCall(w.BinWriter, sc, false)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
 	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
 
 	script := w.Bytes()

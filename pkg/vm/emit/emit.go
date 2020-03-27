@@ -48,6 +48,29 @@ func Int(w *io.BinWriter, i int64) {
 	}
 }
 
+// Array emits array of elements to the given buffer.
+func Array(w *io.BinWriter, es ...interface{}) {
+	for i := len(es) - 1; i >= 0; i-- {
+		switch e := es[i].(type) {
+		case int64:
+			Int(w, e)
+		case string:
+			String(w, e)
+		case util.Uint160:
+			Bytes(w, e.BytesBE())
+		case []byte:
+			Bytes(w, e)
+		case bool:
+			Bool(w, e)
+		default:
+			w.Err = errors.New("unsupported type")
+			return
+		}
+	}
+	Int(w, int64(len(es)))
+	Opcode(w, opcode.PACK)
+}
+
 // String emits a string to the given buffer.
 func String(w *io.BinWriter, s string) {
 	Bytes(w, []byte(s))
@@ -116,6 +139,13 @@ func AppCall(w *io.BinWriter, scriptHash util.Uint160, tailCall bool) {
 		op = opcode.TAILCALL
 	}
 	Instruction(w, op, scriptHash.BytesBE())
+}
+
+// AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.
+func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, args ...interface{}) {
+	Array(w, args...)
+	String(w, operation)
+	AppCall(w, scriptHash, false)
 }
 
 // AppCallWithOperationAndData emits an appcall with the given operation and data.
