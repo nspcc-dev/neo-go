@@ -18,6 +18,20 @@ func String(n int) string {
 	return string(b)
 }
 
+// Bytes returns a random byte slice of specified length.
+func Bytes(n int) []byte {
+	b := make([]byte, n)
+	Fill(b)
+	return b
+}
+
+// Fill fills buffer with random bytes.
+func Fill(buf []byte) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Rand reader returns no errors
+	r.Read(buf)
+}
+
 // Int returns a random integer in [min,max).
 func Int(min, max int) int {
 	return min + rand.Intn(max-min)

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +50,7 @@ func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
 	payloads = make([]Payload, n)
 	for i := range payloads {
 		var sign [signatureSize]byte
-		fillRandom(t, sign[:])
+		random.Fill(sign[:])
 
 		payloads[i].SetValidatorIndex(uint16(i))
 		payloads[i].SetType(payload.MessageType(commitType))

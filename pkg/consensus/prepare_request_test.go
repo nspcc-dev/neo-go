@@ -3,6 +3,7 @@ package consensus
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -19,9 +20,7 @@ func TestPrepareRequest_Setters(t *testing.T) {
 	p.SetNonce(8765)
 	require.EqualValues(t, 8765, p.Nonce())
 
-	var hashes [2]util.Uint256
-	fillRandom(t, hashes[0][:])
-	fillRandom(t, hashes[1][:])
+	hashes := [2]util.Uint256{random.Uint256(), random.Uint256()}
 
 	p.SetTransactionHashes(hashes[:])
 	require.Equal(t, hashes[:], p.TransactionHashes())

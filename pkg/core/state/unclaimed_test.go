@@ -2,11 +2,10 @@ package state
 
 import (
 	"encoding/binary"
-	gio "io"
 	"math/rand"
 	"testing"
-	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -64,10 +63,7 @@ func TestUnclaimedBalances_ForEach(t *testing.T) {
 
 func randomUnclaimed(t *testing.T) *UnclaimedBalance {
 	b := new(UnclaimedBalance)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	_, err := gio.ReadFull(r, b.Tx[:])
-	require.NoError(t, err)
-
+	b.Tx = random.Uint256()
 	b.Index = uint16(rand.Uint32())
 	b.Start = rand.Uint32()
 	b.End = rand.Uint32()

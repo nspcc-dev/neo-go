@@ -2,14 +2,13 @@ package consensus
 
 import (
 	"encoding/hex"
-	gio "io"
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -185,13 +184,13 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 		version:        1,
 		validatorIndex: 13,
 		height:         rand.Uint32(),
+		prevHash:       random.Uint256(),
 		timestamp:      rand.Uint32(),
 		Witness: transaction.Witness{
-			InvocationScript:   fillRandom(t, make([]byte, 3)),
+			InvocationScript:   random.Bytes(3),
 			VerificationScript: []byte{byte(opcode.PUSH0)},
 		},
 	}
-	fillRandom(t, p.prevHash[:])
 
 	if mt == changeViewType {
 		p.payload.(*changeView).newViewNumber = p.ViewNumber() + 1
@@ -209,12 +208,10 @@ func randomMessage(t *testing.T, mt messageType) io.Serializable {
 	case prepareRequestType:
 		return randomPrepareRequest(t)
 	case prepareResponseType:
-		resp := &prepareResponse{}
-		fillRandom(t, resp.preparationHash[:])
-		return resp
+		return &prepareResponse{preparationHash: random.Uint256()}
 	case commitType:
 		var c commit
-		fillRandom(t, c.signature[:])
+		random.Fill(c.signature[:])
 		return &c
 	case recoveryRequestType:
 		return &recoveryRequest{timestamp: rand.Uint32()}
@@ -238,9 +235,9 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 
 	req.transactionHashes[0] = req.minerTx.Hash()
 	for i := 1; i < txCount; i++ {
-		fillRandom(t, req.transactionHashes[i][:])
+		req.transactionHashes[i] = random.Uint256()
 	}
-	fillRandom(t, req.nextConsensus[:])
+	req.nextConsensus = random.Uint160()
 
 	return req
 }
@@ -254,7 +251,7 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 		preparationPayloads: []*preparationCompact{
 			{
 				ValidatorIndex:   1,
-				InvocationScript: fillRandom(t, make([]byte, 10)),
+				InvocationScript: random.Bytes(10),
 			},
 		},
 		commitPayloads: []*commitCompact{
@@ -262,13 +259,13 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				ViewNumber:       0,
 				ValidatorIndex:   1,
 				Signature:        [64]byte{1, 2, 3},
-				InvocationScript: fillRandom(t, make([]byte, 20)),
+				InvocationScript: random.Bytes(20),
 			},
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   2,
 				Signature:        [64]byte{11, 3, 4, 98},
-				InvocationScript: fillRandom(t, make([]byte, 10)),
+				InvocationScript: random.Bytes(10),
 			},
 		},
 		changeViewPayloads: []*changeViewCompact{
@@ -276,7 +273,7 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				Timestamp:          rand.Uint32(),
 				ValidatorIndex:     3,
 				OriginalViewNumber: 3,
-				InvocationScript:   fillRandom(t, make([]byte, 4)),
+				InvocationScript:   random.Bytes(4),
 			},
 		},
 		prepareRequest: &message{
@@ -305,14 +302,6 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "RecoveryMessage", recoveryMessageType.String())
 	require.Equal(t, "RecoveryRequest", recoveryRequestType.String())
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
-}
-
-func fillRandom(t *testing.T, buf []byte) []byte {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
-	_, err := gio.ReadFull(r, buf)
-	require.NoError(t, err)
-
-	return buf
 }
 
 func newMinerTx(nonce uint32) *transaction.Transaction {

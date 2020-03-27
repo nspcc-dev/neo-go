@@ -2,12 +2,10 @@ package context
 
 import (
 	"encoding/hex"
-	"io"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -46,22 +44,13 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 		Script: util.Uint160{1, 2, 3},
 		Parameters: []smartcontract.Parameter{{
 			Type:  smartcontract.SignatureType,
-			Value: getRandomSlice(t, 64),
+			Value: random.Bytes(64),
 		}},
 		Signatures: map[string][]byte{
-			hex.EncodeToString(priv1.PublicKey().Bytes()): getRandomSlice(t, 64),
-			hex.EncodeToString(priv2.PublicKey().Bytes()): getRandomSlice(t, 64),
+			hex.EncodeToString(priv1.PublicKey().Bytes()): random.Bytes(64),
+			hex.EncodeToString(priv2.PublicKey().Bytes()): random.Bytes(64),
 		},
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, expected, new(Item))
-}
-
-func getRandomSlice(t *testing.T, n int) []byte {
-	src := rand.NewSource(time.Now().UnixNano())
-	r := rand.New(src)
-	data := make([]byte, n)
-	_, err := io.ReadFull(r, data)
-	require.NoError(t, err)
-	return data
 }
