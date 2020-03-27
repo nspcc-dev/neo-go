@@ -7,9 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemCachedStorePersist(t *testing.T) {
-	// persistent Store
-	ps := NewMemoryStore()
+func testMemCachedStorePersist(t *testing.T, ps Store) {
 	// cached Store
 	ts := NewMemCachedStore(ps)
 	// persisting nothing should do nothing
@@ -92,6 +90,22 @@ func checkBatch(t *testing.T, ts *MemCachedStore, put []KeyValue, del []KeyValue
 	for i := range del {
 		assert.Contains(t, b.Deleted, del[i])
 	}
+}
+
+func TestMemCachedPersist(t *testing.T) {
+	t.Run("MemoryStore", func(t *testing.T) {
+		ps := NewMemoryStore()
+		testMemCachedStorePersist(t, ps)
+	})
+	t.Run("MemoryCachedStore", func(t *testing.T) {
+		ps1 := NewMemoryStore()
+		ps2 := NewMemCachedStore(ps1)
+		testMemCachedStorePersist(t, ps2)
+	})
+	t.Run("BoltDBStore", func(t *testing.T) {
+		ps := newBoltStoreForTesting(t)
+		testMemCachedStorePersist(t, ps)
+	})
 }
 
 func TestCachedGetFromPersistent(t *testing.T) {

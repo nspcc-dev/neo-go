@@ -93,20 +93,42 @@ func (s *MemCachedStore) Seek(key []byte, f func(k, v []byte)) {
 // Persist flushes all the MemoryStore contents into the (supposedly) persistent
 // store ps.
 func (s *MemCachedStore) Persist() (int, error) {
+	var err error
+	var keys, dkeys int
+
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	batch := s.ps.Batch()
-	keys, dkeys := 0, 0
-	for k, v := range s.mem {
-		batch.Put([]byte(k), v)
-		keys++
+
+	keys = len(s.mem)
+	dkeys = len(s.del)
+	if keys == 0 && dkeys == 0 {
+		return 0, nil
 	}
-	for k := range s.del {
-		batch.Delete([]byte(k))
-		dkeys++
+
+	memStore, ok := s.ps.(*MemoryStore)
+	if !ok {
+		memCachedStore, ok := s.ps.(*MemCachedStore)
+		if ok {
+			memStore = &memCachedStore.MemoryStore
+		}
 	}
-	var err error
-	if keys != 0 || dkeys != 0 {
+	if memStore != nil {
+		memStore.mut.Lock()
+		for k := range s.mem {
+			memStore.put(k, s.mem[k])
+		}
+		for k := range s.del {
+			memStore.drop(k)
+		}
+		memStore.mut.Unlock()
+	} else {
+		batch := s.ps.Batch()
+		for k := range s.mem {
+			batch.Put([]byte(k), s.mem[k])
+		}
+		for k := range s.del {
+			batch.Delete([]byte(k))
+		}
 		err = s.ps.PutBatch(batch)
 	}
 	if err == nil {
