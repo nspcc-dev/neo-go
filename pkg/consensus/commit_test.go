@@ -3,12 +3,13 @@ package consensus
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCommit_Setters(t *testing.T) {
 	var sign [signatureSize]byte
-	fillRandom(t, sign[:])
+	random.Fill(sign[:])
 
 	var c commit
 	c.SetSignature(sign[:])

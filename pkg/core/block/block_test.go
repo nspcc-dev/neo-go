@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,9 +23,7 @@ func TestDecodeBlock1(t *testing.T) {
 	require.NoError(t, err)
 
 	block := &Block{}
-	r := io.NewBinReaderFromBuf(b)
-	block.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(b, block))
 
 	assert.Equal(t, uint32(data["index"].(float64)), block.Index)
 	assert.Equal(t, uint32(data["version"].(float64)), block.Version)
@@ -132,9 +131,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 
 	b := Block{}
 
-	r := io.NewBinReaderFromBuf(rawtxBytes)
-	b.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(rawtxBytes, &b))
 	expected := map[string]bool{ // 18 trans
 
 		"009f61f481f47eb7478e887871e4e744669d461b13d68e04250035260171d706": false,
@@ -188,12 +185,9 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	}
 	assert.Equal(t, true, val)
 
-	buf := io.NewBufBinWriter()
-
-	b.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(&b)
+	assert.NoError(t, err)
+	assert.Equal(t, rawtx, hex.EncodeToString(data))
 }
 
 func TestBlockSizeCalculation(t *testing.T) {
@@ -207,10 +201,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 	rawBlockBytes, _ := hex.DecodeString(rawBlock)
 
 	b := Block{}
-
-	r := io.NewBinReaderFromBuf(rawBlockBytes)
-	b.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	assert.NoError(t, testserdes.DecodeBinary(rawBlockBytes, &b))
 
 	expected := []struct {
 		ID            string
@@ -273,11 +264,8 @@ func TestBlockSizeCalculation(t *testing.T) {
 	assert.Equal(t, "552102486fd15702c4490a26703112a5cc1d0923fd697a33406bd5a1c00e0013b09a7021024c7b7fb6c310fccf1ba33b082519d82964ea93868d676662d4a59ad548df0e7d2102aaec38470f6aad0042c6e877cfd8087d2676b0f516fddd362801b9bd3936399e2103b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c2103b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a2102ca0e27697b9c248f6f16e085fd0061e26f44da85b58ee835c110caa5ec3ba5542102df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e89509357ae", hex.EncodeToString(b.Script.VerificationScript))
 	assert.Equal(t, "0006d3ff96e269f599eb1b5c5a527c218439e498dcc65b63794591bbcdc0516b", b.Hash().StringLE())
 
-	buf := io.NewBufBinWriter()
-
-	b.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, r.Err)
-	benc := buf.Bytes()
+	benc, err := testserdes.EncodeBinary(&b)
+	assert.NoError(t, err)
 	// test size of the block
 	assert.Equal(t, 7360, len(benc))
 	assert.Equal(t, rawBlock, hex.EncodeToString(benc))

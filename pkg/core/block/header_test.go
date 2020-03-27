@@ -6,7 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,14 +26,10 @@ func TestHeaderEncodeDecode(t *testing.T) {
 		},
 	}}
 
-	buf := io.NewBufBinWriter()
-	header.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
+	_ = header.Hash()
 	headerDecode := &Header{}
-	r := io.NewBinReaderFromBuf(buf.Bytes())
-	headerDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	testserdes.EncodeDecodeBinary(t, &header, headerDecode)
+
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")
 	assert.Equal(t, header.PrevHash, headerDecode.PrevHash, "expected both prev hashes to be equal")
 	assert.Equal(t, header.MerkleRoot, headerDecode.MerkleRoot, "expected both merkle roots to be equal")

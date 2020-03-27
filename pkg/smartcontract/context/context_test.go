@@ -2,11 +2,11 @@ package context
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -137,12 +137,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 		},
 	}
 
-	data, err = json.Marshal(expected)
-	require.NoError(t, err)
-
-	actual := new(ParameterContext)
-	require.NoError(t, json.Unmarshal(data, actual))
-	require.Equal(t, expected, actual)
+	testserdes.MarshalUnmarshalJSON(t, expected, new(ParameterContext))
 }
 
 func getPrivateKeys(t *testing.T, n int) ([]*keys.PrivateKey, []*keys.PublicKey) {

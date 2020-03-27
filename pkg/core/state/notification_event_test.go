@@ -4,25 +4,18 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/stretchr/testify/assert"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 func TestEncodeDecodeNotificationEvent(t *testing.T) {
 	event := &NotificationEvent{
 		ScriptHash: random.Uint160(),
-		Item:       nil,
+		Item:       vm.NewBoolItem(true),
 	}
 
-	buf := io.NewBufBinWriter()
-	event.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	eventDecoded := &NotificationEvent{}
-	reader := io.NewBinReaderFromBuf(buf.Bytes())
-	eventDecoded.DecodeBinary(reader)
-	assert.Equal(t, event, eventDecoded)
+	testserdes.EncodeDecodeBinary(t, event, new(NotificationEvent))
 }
 
 func TestEncodeDecodeAppExecResult(t *testing.T) {
@@ -34,12 +27,6 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 		Stack:       []smartcontract.Parameter{},
 		Events:      []NotificationEvent{},
 	}
-	buf := io.NewBufBinWriter()
-	appExecResult.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
 
-	appExecResultDecoded := &AppExecResult{}
-	reader := io.NewBinReaderFromBuf(buf.Bytes())
-	appExecResultDecoded.DecodeBinary(reader)
-	assert.Equal(t, appExecResult, appExecResultDecoded)
+	testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
 }

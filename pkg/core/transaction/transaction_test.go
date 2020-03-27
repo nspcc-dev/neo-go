@@ -2,11 +2,10 @@ package transaction
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -29,19 +28,11 @@ func TestWitnessEncodeDecode(t *testing.T) {
 		VerificationScript: verif,
 	}
 
-	buf := io.NewBufBinWriter()
-	wit.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	benc := buf.Bytes()
 	witDecode := &Witness{}
-	encreader := io.NewBinReaderFromBuf(benc)
-	witDecode.DecodeBinary(encreader)
-	assert.Nil(t, encreader.Err)
+	testserdes.EncodeDecodeBinary(t, wit, witDecode)
+
 	t.Log(len(witDecode.VerificationScript))
 	t.Log(len(witDecode.InvocationScript))
-
-	assert.Equal(t, wit, witDecode)
 }
 
 func TestDecodeEncodeClaimTX(t *testing.T) {
@@ -62,10 +53,9 @@ func TestDecodeEncodeClaimTX(t *testing.T) {
 	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
-	buf := io.NewBufBinWriter()
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-	assert.Equal(t, rawClaimTX, hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(tx)
+	assert.NoError(t, err)
+	assert.Equal(t, rawClaimTX, hex.EncodeToString(data))
 
 	hash := "2c6a45547b3898318e400e541628990a07acb00f3b9a15a8e966ae49525304da"
 	assert.Equal(t, hash, tx.hash.StringLE())
@@ -90,11 +80,9 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
 	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
 
-	buf := io.NewBufBinWriter()
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-
-	assert.Equal(t, rawInvocationTX, hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(tx)
+	assert.NoError(t, err)
+	assert.Equal(t, rawInvocationTX, hex.EncodeToString(data))
 }
 
 func TestNewInvocationTX(t *testing.T) {
@@ -104,16 +92,9 @@ func TestNewInvocationTX(t *testing.T) {
 	assert.Equal(t, InvocationType, tx.Type)
 	assert.Equal(t, tx.Version, txData.Version)
 	assert.Equal(t, script, txData.Script)
-	buf := io.NewBufBinWriter()
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-	var tx2 Transaction
-	r := io.NewBinReaderFromBuf(buf.Bytes())
-	tx2.DecodeBinary(r)
-	assert.Nil(t, r.Err)
-	assert.Equal(t, *tx, tx2)
+	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }
 
 func TestDecodePublishTX(t *testing.T) {
@@ -164,17 +145,14 @@ func TestDecodePublishTX(t *testing.T) {
 	assert.Equal(t, expectedTX.Type, actualTX.Type)
 	assert.Equal(t, expectedTX.Version, actualTX.Version)
 
-	buf := io.NewBufBinWriter()
-	actualTX.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-	assert.Equal(t, rawPublishTX, hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(actualTX)
+	assert.NoError(t, err)
+	assert.Equal(t, rawPublishTX, hex.EncodeToString(data))
 }
 
 func TestEncodingTXWithNoData(t *testing.T) {
-	buf := io.NewBufBinWriter()
-	tx := &Transaction{}
-	tx.EncodeBinary(buf.BinWriter)
-	require.Error(t, buf.Err)
+	_, err := testserdes.EncodeBinary(new(Transaction))
+	require.Error(t, err)
 }
 
 func TestMarshalUnmarshalJSON(t *testing.T) {
@@ -189,10 +167,5 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		InvocationScript:   []byte{5, 3, 1},
 		VerificationScript: []byte{2, 4, 6},
 	}}
-	data, err := json.Marshal(tx)
-	require.NoError(t, err)
-
-	txNew := new(Transaction)
-	require.NoError(t, json.Unmarshal(data, txNew))
-	require.Equal(t, tx, txNew)
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }

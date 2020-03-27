@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,10 +21,7 @@ func TestEncodeDecodeMiner(t *testing.T) {
 	assert.Equal(t, "a1f219dc6be4c35eca172e65e02d4591045220221b1543f1a4b67b9e9442c264", tx.Hash().StringLE())
 
 	// Encode
-	buf := io.NewBufBinWriter()
-
-	tx.EncodeBinary(buf.BinWriter)
-	assert.Equal(t, nil, buf.Err)
-
-	assert.Equal(t, rawtx, hex.EncodeToString(buf.Bytes()))
+	data, err := testserdes.EncodeBinary(tx)
+	assert.NoError(t, err)
+	assert.Equal(t, rawtx, hex.EncodeToString(data))
 }

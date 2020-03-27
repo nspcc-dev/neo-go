@@ -5,9 +5,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestDecodeEncodeUnspentCoin(t *testing.T) {
@@ -44,11 +43,5 @@ func TestDecodeEncodeUnspentCoin(t *testing.T) {
 		},
 	}
 
-	buf := io.NewBufBinWriter()
-	unspent.EncodeBinary(buf.BinWriter)
-	assert.Nil(t, buf.Err)
-	unspentDecode := &UnspentCoin{}
-	r := io.NewBinReaderFromBuf(buf.Bytes())
-	unspentDecode.DecodeBinary(r)
-	assert.Nil(t, r.Err)
+	testserdes.EncodeDecodeBinary(t, unspent, new(UnspentCoin))
 }

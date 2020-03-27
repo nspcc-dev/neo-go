@@ -1,11 +1,12 @@
 package state
 
 import (
-	gio "io"
 	"math/rand"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -14,10 +15,10 @@ import (
 func TestNEP5TransferLog_Append(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	expected := []*NEP5Transfer{
-		randomTransfer(t, r),
-		randomTransfer(t, r),
-		randomTransfer(t, r),
-		randomTransfer(t, r),
+		randomTransfer(r),
+		randomTransfer(r),
+		randomTransfer(r),
+		randomTransfer(r),
 	}
 
 	lg := new(NEP5TransferLog)
@@ -43,7 +44,7 @@ func TestNEP5Tracker_EncodeBinary(t *testing.T) {
 		LastUpdatedBlock: rand.Uint32(),
 	}
 
-	testEncodeDecode(t, expected, new(NEP5Tracker))
+	testserdes.EncodeDecodeBinary(t, expected, new(NEP5Tracker))
 }
 
 func TestNEP5Transfer_DecodeBinary(t *testing.T) {
@@ -57,41 +58,22 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 		Tx:        util.Uint256{8, 5, 3},
 	}
 
-	testEncodeDecode(t, expected, new(NEP5Transfer))
+	testserdes.EncodeDecodeBinary(t, expected, new(NEP5Transfer))
 }
 
 func TestNEP5TransferSize(t *testing.T) {
-	tr := randomTransfer(t, rand.New(rand.NewSource(0)))
+	tr := randomTransfer(rand.New(rand.NewSource(0)))
 	size := io.GetVarSize(tr)
 	require.EqualValues(t, NEP5TransferSize, size)
 }
 
-func randomTransfer(t *testing.T, r *rand.Rand) *NEP5Transfer {
-	tr := &NEP5Transfer{
+func randomTransfer(r *rand.Rand) *NEP5Transfer {
+	return &NEP5Transfer{
 		Amount: int64(r.Uint64()),
 		Block:  r.Uint32(),
+		Asset:  random.Uint160(),
+		From:   random.Uint160(),
+		To:     random.Uint160(),
+		Tx:     random.Uint256(),
 	}
-
-	var err error
-	_, err = gio.ReadFull(r, tr.Asset[:])
-	require.NoError(t, err)
-	_, err = gio.ReadFull(r, tr.From[:])
-	require.NoError(t, err)
-	_, err = gio.ReadFull(r, tr.To[:])
-	require.NoError(t, err)
-	_, err = gio.ReadFull(r, tr.Tx[:])
-	require.NoError(t, err)
-
-	return tr
-}
-
-func testEncodeDecode(t *testing.T, expected, actual io.Serializable) {
-	w := io.NewBufBinWriter()
-	expected.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-
-	r := io.NewBinReaderFromBuf(w.Bytes())
-	actual.DecodeBinary(r)
-	require.NoError(t, r.Err)
-	require.Equal(t, expected, actual)
 }
