@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmitInt(t *testing.T) {
@@ -104,6 +105,35 @@ func TestBytes(t *testing.T) {
 		assert.EqualValues(t, opcode.PUSHDATA4, result[0])
 		assert.EqualValues(t, size, binary.LittleEndian.Uint32(result[1:5]))
 		assert.Equal(t, getSlice(size), result[5:])
+	})
+}
+
+func TestEmitArray(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Array(buf.BinWriter, int64(1), "str", true, []byte{0xCA, 0xFE})
+		require.NoError(t, buf.Err)
+
+		res := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHBYTES2, res[0])
+		assert.EqualValues(t, []byte{0xCA, 0xFE}, res[1:3])
+		assert.EqualValues(t, opcode.PUSHT, res[3])
+		assert.EqualValues(t, opcode.PUSHBYTES3, res[4])
+		assert.EqualValues(t, []byte("str"), res[5:8])
+		assert.EqualValues(t, opcode.PUSH1, res[8])
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Array(buf.BinWriter)
+		require.NoError(t, buf.Err)
+		assert.EqualValues(t, []byte{0, byte(opcode.PACK)}, buf.Bytes())
+	})
+
+	t.Run("invalid type", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Array(buf.BinWriter, struct{}{})
+		require.Error(t, buf.Err)
 	})
 }
 
