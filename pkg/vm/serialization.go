@@ -74,8 +74,8 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 		w.WriteBytes([]byte{byte(mapT)})
 		w.WriteVarUint(uint64(len(t.value)))
 		for k, v := range t.value {
-			serializeItemTo(v, w, seen)
 			serializeItemTo(makeStackItem(k), w, seen)
+			serializeItemTo(v, w, seen)
 		}
 	}
 }
@@ -128,8 +128,8 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		size := int(r.ReadVarUint())
 		m := NewMapItem()
 		for i := 0; i < size; i++ {
-			value := DecodeBinaryStackItem(r)
 			key := DecodeBinaryStackItem(r)
+			value := DecodeBinaryStackItem(r)
 			if r.Err != nil {
 				break
 			}
