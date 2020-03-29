@@ -678,6 +678,20 @@ func TestSerializeMap(t *testing.T) {
 	require.Equal(t, item.value, vm.estack.Top().value.(*MapItem).value)
 }
 
+func TestSerializeMapCompat(t *testing.T) {
+	// Create a map, push key and value, add KV to map, serialize.
+	progHex := "c776036b65790576616c7565c468154e656f2e52756e74696d652e53657269616c697a65"
+	resHex := "820100036b6579000576616c7565"
+	prog, err := hex.DecodeString(progHex)
+	require.NoError(t, err)
+	res, err := hex.DecodeString(resHex)
+	require.NoError(t, err)
+
+	vm := load(prog)
+	runVM(t, vm)
+	assert.Equal(t, res, vm.estack.Pop().Bytes())
+}
+
 func TestSerializeInterop(t *testing.T) {
 	vm := load(getSerializeProg())
 	item := NewInteropItem("kek")
