@@ -302,6 +302,31 @@ var structTestCases = []testCase{
 		`,
 		big.NewInt(14),
 	},
+	{
+		"declare struct literal",
+		`package foo
+		func Main() int {
+			var x struct {
+				a int
+			}
+			x.a = 2
+			return x.a
+		}`,
+		big.NewInt(2),
+	},
+	{
+		"declare struct type",
+		`package foo
+		type withA struct {
+			a int
+		}
+		func Main() int {
+			var x withA
+			x.a = 2
+			return x.a
+		}`,
+		big.NewInt(2),
+	},
 }
 
 func TestStructs(t *testing.T) {

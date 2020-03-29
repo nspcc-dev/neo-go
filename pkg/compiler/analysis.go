@@ -187,6 +187,35 @@ func isBuiltin(expr ast.Expr) bool {
 	return false
 }
 
+func (c *codegen) isCompoundArrayType(t ast.Expr) bool {
+	switch s := t.(type) {
+	case *ast.ArrayType:
+		return true
+	case *ast.Ident:
+		arr, ok := c.typeInfo.Types[s].Type.Underlying().(*types.Slice)
+		return ok && !isByte(arr.Elem())
+	}
+	return false
+}
+
+func isByte(t types.Type) bool {
+	e, ok := t.(*types.Basic)
+	return ok && e.Kind() == types.Byte
+}
+
+func (c *codegen) isStructType(t ast.Expr) (int, bool) {
+	switch s := t.(type) {
+	case *ast.StructType:
+		return s.Fields.NumFields(), true
+	case *ast.Ident:
+		st, ok := c.typeInfo.Types[s].Type.Underlying().(*types.Struct)
+		if ok {
+			return st.NumFields(), true
+		}
+	}
+	return 0, false
+}
+
 func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	if len(lit.Elts) == 0 {
 		if typ, ok := lit.Type.(*ast.ArrayType); ok {
@@ -199,14 +228,7 @@ func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
 	}
 
 	typ := tInfo.Types[lit.Elts[0]].Type.Underlying()
-	switch t := typ.(type) {
-	case *types.Basic:
-		switch t.Kind() {
-		case types.Byte:
-			return true
-		}
-	}
-	return false
+	return isByte(typ)
 }
 
 func isSyscall(fun *funcScope) bool {
