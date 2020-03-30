@@ -1,6 +1,8 @@
 package result
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -15,19 +17,14 @@ type (
 	// Tx wrapper used for the representation of
 	// transaction on the RPC Server.
 	Tx struct {
-		TxID       util.Uint256            `json:"txid"`
-		Size       int                     `json:"size"`
-		Type       transaction.TXType      `json:"type"`
-		Version    uint8                   `json:"version"`
-		Attributes []transaction.Attribute `json:"attributes"`
-		VIn        []transaction.Input     `json:"vin"`
-		VOut       []transaction.Output    `json:"vout"`
-		Scripts    []transaction.Witness   `json:"scripts"`
+		*transaction.Transaction
+		Fees
+	}
 
+	// Fees is an auxilliary struct for proper Tx marshaling.
+	Fees struct {
 		SysFee util.Fixed8 `json:"sys_fee"`
 		NetFee util.Fixed8 `json:"net_fee"`
-
-		Nonce uint32 `json:"nonce,omitempty"`
 	}
 
 	// Block wrapper used for the representation of
@@ -77,32 +74,59 @@ func NewBlock(b *block.Block, chain core.Blockchainer) Block {
 	}
 
 	for i := range b.Transactions {
-		tx := Tx{
-			TxID:       b.Transactions[i].Hash(),
-			Size:       io.GetVarSize(b.Transactions[i]),
-			Type:       b.Transactions[i].Type,
-			Version:    b.Transactions[i].Version,
-			Attributes: make([]transaction.Attribute, 0, len(b.Transactions[i].Attributes)),
-			VIn:        make([]transaction.Input, 0, len(b.Transactions[i].Inputs)),
-			VOut:       make([]transaction.Output, 0, len(b.Transactions[i].Outputs)),
-			Scripts:    make([]transaction.Witness, 0, len(b.Transactions[i].Scripts)),
-		}
-
-		copy(tx.Attributes, b.Transactions[i].Attributes)
-		copy(tx.VIn, b.Transactions[i].Inputs)
-		copy(tx.VOut, b.Transactions[i].Outputs)
-		copy(tx.Scripts, b.Transactions[i].Scripts)
-
-		tx.SysFee = chain.SystemFee(b.Transactions[i])
-		tx.NetFee = chain.NetworkFee(b.Transactions[i])
-
-		// set nonce only for MinerTransaction
-		if miner, ok := b.Transactions[i].Data.(*transaction.MinerTX); ok {
-			tx.Nonce = miner.Nonce
-		}
-
-		res.Tx = append(res.Tx, tx)
+		res.Tx = append(res.Tx, Tx{
+			Transaction: b.Transactions[i],
+			Fees: Fees{
+				SysFee: chain.SystemFee(b.Transactions[i]),
+				NetFee: chain.NetworkFee(b.Transactions[i]),
+			},
+		})
 	}
 
 	return res
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (t Tx) MarshalJSON() ([]byte, error) {
+	output, err := json.Marshal(&Fees{
+		SysFee: t.SysFee,
+		NetFee: t.NetFee,
+	})
+	if err != nil {
+		return nil, err
+	}
+	txBytes, err := json.Marshal(t.Transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	// We have to keep both transaction.Transaction and tx at the same level in json in order to match C# API,
+	// so there's no way to marshall Tx correctly with standard json.Marshaller tool.
+	if output[len(output)-1] != '}' || txBytes[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	output[len(output)-1] = ','
+	output = append(output, txBytes[1:]...)
+	return output, nil
+}
+
+// UnmarshalJSON implements json.Marshaler interface.
+func (t *Tx) UnmarshalJSON(data []byte) error {
+	// As transaction.Transaction and tx are at the same level in json, do unmarshalling
+	// separately for both structs.
+	output := new(Fees)
+	err := json.Unmarshal(data, output)
+	if err != nil {
+		return err
+	}
+	t.SysFee = output.SysFee
+	t.NetFee = output.NetFee
+
+	transaction := new(transaction.Transaction)
+	err = json.Unmarshal(data, transaction)
+	if err != nil {
+		return err
+	}
+	t.Transaction = transaction
+	return nil
 }

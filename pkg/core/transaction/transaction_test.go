@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -155,7 +156,7 @@ func TestEncodingTXWithNoData(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestMarshalUnmarshalJSON(t *testing.T) {
+func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
 	tx := NewContractTX()
 	tx.Outputs = []Output{{
 		AssetID:    util.Uint256{1, 2, 3, 4},
@@ -167,5 +168,196 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		InvocationScript:   []byte{5, 3, 1},
 		VerificationScript: []byte{2, 4, 6},
 	}}
+	tx.Data = &ContractTX{}
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONMinerTX(t *testing.T) {
+	tx := &Transaction{
+		Type:       MinerType,
+		Version:    0,
+		Data:       &MinerTX{Nonce: 12345},
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
+		Trimmed:    false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONClaimTX(t *testing.T) {
+	tx := &Transaction{
+		Type:    ClaimType,
+		Version: 0,
+		Data: &ClaimTX{Claims: []Input{
+			{
+				PrevHash:  util.Uint256{1, 2, 3, 4},
+				PrevIndex: uint16(56),
+			},
+		}},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONEnrollmentTX(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	pubKey, err := keys.NewPublicKeyFromString(str)
+	require.NoError(t, err)
+	tx := &Transaction{
+		Type:       EnrollmentType,
+		Version:    5,
+		Data:       &EnrollmentTX{PublicKey: *pubKey},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
+	tx := &Transaction{
+		Type:    InvocationType,
+		Version: 3,
+		Data: &InvocationTX{
+			Script:  []byte{1, 2, 3, 4},
+			Gas:     util.Fixed8FromFloat(100),
+			Version: 3,
+		},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONPublishTX(t *testing.T) {
+	tx := &Transaction{
+		Type:    PublishType,
+		Version: 5,
+		Data: &PublishTX{
+			Script:      []byte{1, 2, 3, 4},
+			ParamList:   []smartcontract.ParamType{smartcontract.IntegerType, smartcontract.Hash160Type},
+			ReturnType:  smartcontract.BoolType,
+			NeedStorage: true,
+			Name:        "Name",
+			CodeVersion: "1.0",
+			Author:      "Author",
+			Email:       "Email",
+			Description: "Description",
+			Version:     5,
+		},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONRegisterTX(t *testing.T) {
+	tx := &Transaction{
+		Type:    RegisterType,
+		Version: 5,
+		Data: &RegisterTX{
+			AssetType: 0,
+			Name:      `[{"lang":"zh-CN","name":"小蚁股"},{"lang":"en","name":"AntShare"}]`,
+			Amount:    1000000,
+			Precision: 0,
+			Owner:     keys.PublicKey{},
+			Admin:     util.Uint160{},
+		},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
+	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+}
+
+func TestMarshalUnmarshalJSONStateTX(t *testing.T) {
+	tx := &Transaction{
+		Type:    StateType,
+		Version: 5,
+		Data: &StateTX{
+			Descriptors: []*StateDescriptor{&StateDescriptor{
+				Type:  Validator,
+				Key:   []byte{1, 2, 3},
+				Value: []byte{4, 5, 6},
+				Field: "Field",
+			}},
+		},
+		Attributes: []Attribute{},
+		Inputs: []Input{{
+			PrevHash:  util.Uint256{5, 6, 7, 8},
+			PrevIndex: uint16(12),
+		}},
+		Outputs: []Output{{
+			AssetID:    util.Uint256{1, 2, 3},
+			Amount:     util.Fixed8FromInt64(1),
+			ScriptHash: util.Uint160{1, 2, 3},
+			Position:   0,
+		}},
+		Scripts: []Witness{},
+		Trimmed: false,
+	}
+
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }

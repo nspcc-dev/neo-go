@@ -172,10 +172,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				txID, err := util.Uint256DecodeStringLE("cb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2")
-				if err != nil {
-					panic(err)
-				}
 				invScript, err := hex.DecodeString("40356a91d94e398170e47447d6a0f60aa5470e209782a5452403115a49166db3e1c4a3898122db19f779c30f8ccd0b7d401acdf71eda340655e4ae5237a64961bf4034dd47955e5a71627dafc39dd92999140e9eaeec6b11dbb2b313efa3f1093ed915b4455e199c69ec53778f94ffc236b92f8b97fff97a1f6bbb3770c0c0b3844a40fbe743bd5c90b2f5255e0b073281d7aeb2fb516572f36bec8446bcc37ac755cbf10d08b16c95644db1b2dddc2df5daa377880b20198fc7b967ac6e76474b22df")
 				if err != nil {
 					panic(err)
@@ -184,6 +180,18 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
+				tx := &transaction.Transaction{
+					Type:       transaction.MinerType,
+					Version:    0,
+					Data:       &transaction.MinerTX{Nonce: 4266257741},
+					Attributes: []transaction.Attribute{},
+					Inputs:     []transaction.Input{},
+					Outputs:    []transaction.Output{},
+					Scripts:    []transaction.Witness{},
+					Trimmed:    false,
+				}
+				// Update hashes for correct result comparison.
+				_ = tx.Hash()
 				return &result.Block{
 					Hash:              hash,
 					Size:              452,
@@ -201,17 +209,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						VerificationScript: verifScript,
 					},
 					Tx: []result.Tx{{
-						TxID:       txID,
-						Size:       10,
-						Type:       transaction.MinerType,
-						Version:    0,
-						Attributes: []transaction.Attribute{},
-						VIn:        []transaction.Input{},
-						VOut:       []transaction.Output{},
-						Scripts:    []transaction.Witness{},
-						SysFee:     0,
-						NetFee:     0,
-						Nonce:      4266257741,
+						Transaction: tx,
+						Fees: result.Fees{
+							SysFee: 0,
+							NetFee: 0,
+						},
 					}},
 				}
 			},
@@ -265,10 +267,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				txID, err := util.Uint256DecodeStringLE("cb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2")
-				if err != nil {
-					panic(err)
-				}
 				invScript, err := hex.DecodeString("40356a91d94e398170e47447d6a0f60aa5470e209782a5452403115a49166db3e1c4a3898122db19f779c30f8ccd0b7d401acdf71eda340655e4ae5237a64961bf4034dd47955e5a71627dafc39dd92999140e9eaeec6b11dbb2b313efa3f1093ed915b4455e199c69ec53778f94ffc236b92f8b97fff97a1f6bbb3770c0c0b3844a40fbe743bd5c90b2f5255e0b073281d7aeb2fb516572f36bec8446bcc37ac755cbf10d08b16c95644db1b2dddc2df5daa377880b20198fc7b967ac6e76474b22df")
 				if err != nil {
 					panic(err)
@@ -277,6 +275,18 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
+				tx := &transaction.Transaction{
+					Type:       transaction.MinerType,
+					Version:    0,
+					Data:       &transaction.MinerTX{Nonce: 4266257741},
+					Attributes: []transaction.Attribute{},
+					Inputs:     []transaction.Input{},
+					Outputs:    []transaction.Output{},
+					Scripts:    []transaction.Witness{},
+					Trimmed:    false,
+				}
+				// Update hashes for correct result comparison.
+				_ = tx.Hash()
 				return &result.Block{
 					Hash:              hash,
 					Size:              452,
@@ -294,17 +304,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						VerificationScript: verifScript,
 					},
 					Tx: []result.Tx{{
-						TxID:       txID,
-						Size:       10,
-						Type:       transaction.MinerType,
-						Version:    0,
-						Attributes: []transaction.Attribute{},
-						VIn:        []transaction.Input{},
-						VOut:       []transaction.Output{},
-						Scripts:    []transaction.Witness{},
-						SysFee:     0,
-						NetFee:     0,
-						Nonce:      4266257741,
+						Transaction: tx,
+						Fees: result.Fees{
+							SysFee: 0,
+							NetFee: 0,
+						},
 					}},
 				}
 			},
@@ -646,34 +650,34 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetRawTransactionVerbose(hash)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"type":"MinerTransaction","version":0,"attributes":[],"vin":[],"vout":[],"scripts":[],"txid":"0xcb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2","size":10,"sys_fee":"0","net_fee":"0","blockhash":"0xe93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c","confirmations":20875,"blocktime":1541215200}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"nonce":4266257741,"type":"MinerTransaction","version":0,"attributes":[],"vin":[],"vout":[],"scripts":[],"txid":"0xcb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2","size":10,"sys_fee":"0","net_fee":"0","blockhash":"0xe93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c","confirmations":20875,"blocktime":1541215200}}`,
 			result: func(c *Client) interface{} {
-				txHash, err := util.Uint256DecodeStringLE("cb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2")
-				if err != nil {
-					panic(err)
-				}
 				blockHash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
 				if err != nil {
 					panic(err)
 				}
+				tx := &transaction.Transaction{
+					Type:       transaction.MinerType,
+					Version:    0,
+					Data:       &transaction.MinerTX{Nonce: 4266257741},
+					Attributes: []transaction.Attribute{},
+					Inputs:     []transaction.Input{},
+					Outputs:    []transaction.Output{},
+					Scripts:    []transaction.Witness{},
+					Trimmed:    false,
+				}
+				// Update hashes for correct result comparison.
+				_ = tx.Hash()
+
 				return &result.TransactionOutputRaw{
-					Transaction: &transaction.Transaction{
-						Type:       transaction.MinerType,
-						Version:    0,
-						Data:       nil,
-						Attributes: []transaction.Attribute{},
-						Inputs:     []transaction.Input{},
-						Outputs:    []transaction.Output{},
-						Scripts:    []transaction.Witness{},
-						Trimmed:    false,
+					Transaction: tx,
+					TransactionMetadata: result.TransactionMetadata{
+						SysFee:        0,
+						NetFee:        0,
+						Blockhash:     blockHash,
+						Confirmations: 20875,
+						Timestamp:     uint32(1541215200),
 					},
-					TxHash:        txHash,
-					Size:          10,
-					SysFee:        0,
-					NetFee:        0,
-					Blockhash:     blockHash,
-					Confirmations: 20875,
-					Timestamp:     1541215200,
 				}
 			},
 		},

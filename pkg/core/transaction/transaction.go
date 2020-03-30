@@ -1,10 +1,14 @@
 package transaction
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -18,28 +22,28 @@ const (
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type TXType `json:"type"`
+	Type TXType
 
 	// The trading version which is currently 0.
-	Version uint8 `json:"version"`
+	Version uint8
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data TXer `json:"-"`
+	Data TXer
 
 	// Transaction attributes.
-	Attributes []Attribute `json:"attributes"`
+	Attributes []Attribute
 
 	// The inputs of the transaction.
-	Inputs []Input `json:"vin"`
+	Inputs []Input
 
 	// The outputs of the transaction.
-	Outputs []Output `json:"vout"`
+	Outputs []Output
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
-	Scripts []Witness `json:"scripts"`
+	Scripts []Witness
 
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
@@ -49,7 +53,7 @@ type Transaction struct {
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
-	Trimmed bool `json:"-"`
+	Trimmed bool
 }
 
 // NewTrimmedTX returns a trimmed transaction with only its hash
@@ -232,4 +236,161 @@ func (t *Transaction) Bytes() []byte {
 		return nil
 	}
 	return buf.Bytes()
+}
+
+// transactionJSON is a wrapper for Transaction and
+// used for correct marhalling of transaction.Data
+type transactionJSON struct {
+	TxID       util.Uint256 `json:"txid"`
+	Size       int          `json:"size"`
+	Type       TXType       `json:"type"`
+	Version    uint8        `json:"version"`
+	Attributes []Attribute  `json:"attributes"`
+	Inputs     []Input      `json:"vin"`
+	Outputs    []Output     `json:"vout"`
+	Scripts    []Witness    `json:"scripts"`
+
+	Claims      []Input            `json:"claims,omitempty"`
+	PublicKey   *keys.PublicKey    `json:"pubkey,omitempty"`
+	Script      string             `json:"script,omitempty"`
+	Gas         util.Fixed8        `json:"gas,omitempty"`
+	Nonce       uint32             `json:"nonce,omitempty"`
+	Contract    *publishedContract `json:"contract,omitempty"`
+	Asset       *registeredAsset   `json:"asset,omitempty"`
+	Descriptors []*StateDescriptor `json:"descriptors,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (t *Transaction) MarshalJSON() ([]byte, error) {
+	tx := transactionJSON{
+		TxID:       t.Hash(),
+		Size:       io.GetVarSize(t),
+		Type:       t.Type,
+		Version:    t.Version,
+		Attributes: t.Attributes,
+		Inputs:     t.Inputs,
+		Outputs:    t.Outputs,
+		Scripts:    t.Scripts,
+	}
+	switch t.Type {
+	case MinerType:
+		tx.Nonce = t.Data.(*MinerTX).Nonce
+	case ClaimType:
+		tx.Claims = t.Data.(*ClaimTX).Claims
+	case EnrollmentType:
+		tx.PublicKey = &t.Data.(*EnrollmentTX).PublicKey
+	case InvocationType:
+		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
+		tx.Gas = t.Data.(*InvocationTX).Gas
+	case PublishType:
+		transaction := t.Data.(*PublishTX)
+		tx.Contract = &publishedContract{
+			Code: publishedCode{
+				Hash:       hash.Hash160(transaction.Script),
+				Script:     hex.EncodeToString(transaction.Script),
+				ParamList:  transaction.ParamList,
+				ReturnType: transaction.ReturnType,
+			},
+			NeedStorage: transaction.NeedStorage,
+			Name:        transaction.Name,
+			CodeVersion: transaction.CodeVersion,
+			Author:      transaction.Author,
+			Email:       transaction.Email,
+			Description: transaction.Description,
+		}
+	case RegisterType:
+		transaction := *t.Data.(*RegisterTX)
+		tx.Asset = &registeredAsset{
+			AssetType: transaction.AssetType,
+			Name:      json.RawMessage(transaction.Name),
+			Amount:    transaction.Amount,
+			Precision: transaction.Precision,
+			Owner:     transaction.Owner,
+			Admin:     address.Uint160ToString(transaction.Admin),
+		}
+	case StateType:
+		tx.Descriptors = t.Data.(*StateTX).Descriptors
+	}
+	return json.Marshal(tx)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (t *Transaction) UnmarshalJSON(data []byte) error {
+	tx := new(transactionJSON)
+	if err := json.Unmarshal(data, tx); err != nil {
+		return err
+	}
+	t.Type = tx.Type
+	t.Version = tx.Version
+	t.Attributes = tx.Attributes
+	t.Inputs = tx.Inputs
+	t.Outputs = tx.Outputs
+	t.Scripts = tx.Scripts
+	switch tx.Type {
+	case MinerType:
+		t.Data = &MinerTX{
+			Nonce: tx.Nonce,
+		}
+	case ClaimType:
+		t.Data = &ClaimTX{
+			Claims: tx.Claims,
+		}
+	case EnrollmentType:
+		t.Data = &EnrollmentTX{
+			PublicKey: *tx.PublicKey,
+		}
+	case InvocationType:
+		bytes, err := hex.DecodeString(tx.Script)
+		if err != nil {
+			return err
+		}
+		t.Data = &InvocationTX{
+			Script:  bytes,
+			Gas:     tx.Gas,
+			Version: tx.Version,
+		}
+	case PublishType:
+		bytes, err := hex.DecodeString(tx.Contract.Code.Script)
+		if err != nil {
+			return err
+		}
+		t.Data = &PublishTX{
+			Script:      bytes,
+			ParamList:   tx.Contract.Code.ParamList,
+			ReturnType:  tx.Contract.Code.ReturnType,
+			NeedStorage: tx.Contract.NeedStorage,
+			Name:        tx.Contract.Name,
+			CodeVersion: tx.Contract.CodeVersion,
+			Author:      tx.Contract.Author,
+			Email:       tx.Contract.Email,
+			Description: tx.Contract.Description,
+			Version:     tx.Version,
+		}
+	case RegisterType:
+		admin, err := address.StringToUint160(tx.Asset.Admin)
+		if err != nil {
+			return err
+		}
+		t.Data = &RegisterTX{
+			AssetType: tx.Asset.AssetType,
+			Name:      string(tx.Asset.Name),
+			Amount:    tx.Asset.Amount,
+			Precision: tx.Asset.Precision,
+			Owner:     tx.Asset.Owner,
+			Admin:     admin,
+		}
+	case StateType:
+		t.Data = &StateTX{
+			Descriptors: tx.Descriptors,
+		}
+	case ContractType:
+		t.Data = &ContractTX{}
+	case IssueType:
+		t.Data = &IssueTX{}
+	}
+	if t.Hash() != tx.TxID {
+		return errors.New("txid doesn't match transaction hash")
+	}
+
+	return nil
 }
