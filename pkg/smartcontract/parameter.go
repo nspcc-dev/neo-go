@@ -35,6 +35,13 @@ type Parameter struct {
 	Value interface{} `json:"value"`
 }
 
+// ParameterPair represents key-value pair, a slice of which is stored in
+// MapType Parameter.
+type ParameterPair struct {
+	Key   Parameter `json:"key"`
+	Value Parameter `json:"value"`
+}
+
 // NewParameter returns a Parameter with proper initialized Value
 // of the given ParamType.
 func NewParameter(t ParamType) Parameter {
@@ -46,16 +53,6 @@ func NewParameter(t ParamType) Parameter {
 
 type rawParameter struct {
 	Type  ParamType       `json:"type"`
-	Value json.RawMessage `json:"value"`
-}
-
-type keyValuePair struct {
-	Key   rawParameter `json:"key"`
-	Value rawParameter `json:"value"`
-}
-
-type rawKeyValuePair struct {
-	Key   json.RawMessage `json:"key"`
 	Value json.RawMessage `json:"value"`
 }
 
@@ -95,28 +92,8 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 		}
 		resultRawValue, resultErr = json.Marshal(value)
 	case MapType:
-		var value []keyValuePair
-		for key, val := range p.Value.(map[Parameter]Parameter) {
-			rawKey, err := json.Marshal(key.Value)
-			if err != nil {
-				return nil, err
-			}
-			rawValue, err := json.Marshal(val.Value)
-			if err != nil {
-				return nil, err
-			}
-			value = append(value, keyValuePair{
-				Key: rawParameter{
-					Type:  key.Type,
-					Value: rawKey,
-				},
-				Value: rawParameter{
-					Type:  val.Type,
-					Value: rawValue,
-				},
-			})
-		}
-		resultRawValue, resultErr = json.Marshal(value)
+		ppair := p.Value.([]ParameterPair)
+		resultRawValue, resultErr = json.Marshal(ppair)
 	default:
 		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
 	}
@@ -181,22 +158,11 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		}
 		p.Value = rs
 	case MapType:
-		var rawMap []rawKeyValuePair
-		if err = json.Unmarshal(r.Value, &rawMap); err != nil {
+		var ppair []ParameterPair
+		if err = json.Unmarshal(r.Value, &ppair); err != nil {
 			return
 		}
-		rs := make(map[Parameter]Parameter)
-		for _, p := range rawMap {
-			var key, value Parameter
-			if err = json.Unmarshal(p.Key, &key); err != nil {
-				return
-			}
-			if err = json.Unmarshal(p.Value, &value); err != nil {
-				return
-			}
-			rs[key] = value
-		}
-		p.Value = rs
+		p.Value = ppair
 	case Hash160Type:
 		var h util.Uint160
 		if err = json.Unmarshal(r.Value, &h); err != nil {
@@ -234,13 +200,7 @@ func (p *Parameter) EncodeBinary(w *io.BinWriter) {
 	case ArrayType:
 		w.WriteArray(p.Value.([]Parameter))
 	case MapType:
-		m := p.Value.(map[Parameter]Parameter)
-		w.WriteVarUint(uint64(len(m)))
-		for k := range m {
-			v := m[k]
-			k.EncodeBinary(w)
-			v.EncodeBinary(w)
-		}
+		w.WriteArray(p.Value.([]ParameterPair))
 	case Hash160Type:
 		w.WriteBytes(p.Value.(util.Uint160).BytesBE())
 	case Hash256Type:
@@ -273,15 +233,9 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 		r.ReadArray(&ps)
 		p.Value = ps
 	case MapType:
-		ln := r.ReadVarUint()
-		m := make(map[Parameter]Parameter, ln)
-		for i := uint64(0); i < ln; i++ {
-			var k, v Parameter
-			k.DecodeBinary(r)
-			v.DecodeBinary(r)
-			m[k] = v
-		}
-		p.Value = m
+		ps := []ParameterPair{}
+		r.ReadArray(&ps)
+		p.Value = ps
 	case Hash160Type:
 		var u util.Uint160
 		r.ReadBytes(u[:])
@@ -294,6 +248,18 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 	default:
 		r.Err = fmt.Errorf("unknown type: %x", p.Type)
 	}
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (p *ParameterPair) EncodeBinary(w *io.BinWriter) {
+	p.Key.EncodeBinary(w)
+	p.Value.EncodeBinary(w)
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (p *ParameterPair) DecodeBinary(r *io.BinReader) {
+	p.Key.DecodeBinary(r)
+	p.Value.DecodeBinary(r)
 }
 
 // Params is an array of Parameter (TODO: drop it?).

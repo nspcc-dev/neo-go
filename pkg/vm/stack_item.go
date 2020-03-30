@@ -480,16 +480,16 @@ func (i *MapItem) Dup() StackItem {
 
 // ToContractParameter implements StackItem interface.
 func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
-	value := make(map[smartcontract.Parameter]smartcontract.Parameter)
+	value := make([]smartcontract.ParameterPair, 0)
 	if !seen[i] {
 		seen[i] = true
 		for key, val := range i.value {
 			pValue := val.ToContractParameter(seen)
 			pKey := fromMapKey(key).ToContractParameter(seen)
-			if pKey.Type == smartcontract.ByteArrayType {
-				pKey.Value = string(pKey.Value.([]byte))
-			}
-			value[pKey] = pValue
+			value = append(value, smartcontract.ParameterPair{
+				Key:   pKey,
+				Value: pValue,
+			})
 		}
 	}
 	return smartcontract.Parameter{

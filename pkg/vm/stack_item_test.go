@@ -421,10 +421,18 @@ var toContractParameterTestCases = []struct {
 		}},
 		result: smartcontract.Parameter{
 			Type: smartcontract.MapType,
-			Value: map[smartcontract.Parameter]smartcontract.Parameter{
-				{Type: smartcontract.IntegerType, Value: int64(1)}:   {Type: smartcontract.BoolType, Value: true},
-				{Type: smartcontract.ByteArrayType, Value: "qwerty"}: {Type: smartcontract.IntegerType, Value: int64(3)},
-				{Type: smartcontract.BoolType, Value: true}:          {Type: smartcontract.BoolType, Value: false},
+			Value: []smartcontract.ParameterPair{
+				{
+					Key:   smartcontract.Parameter{Type: smartcontract.IntegerType, Value: int64(1)},
+					Value: smartcontract.Parameter{Type: smartcontract.BoolType, Value: true},
+				}, {
+					Key:   smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: []byte("qwerty")},
+					Value: smartcontract.Parameter{Type: smartcontract.IntegerType, Value: int64(3)},
+				}, {
+
+					Key:   smartcontract.Parameter{Type: smartcontract.BoolType, Value: true},
+					Value: smartcontract.Parameter{Type: smartcontract.BoolType, Value: false},
+				},
 			},
 		},
 	},
