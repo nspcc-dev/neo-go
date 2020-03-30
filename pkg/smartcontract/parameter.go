@@ -82,14 +82,7 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
 		}
 	case ArrayType:
-		var value = make([]json.RawMessage, 0)
-		for _, parameter := range p.Value.([]Parameter) {
-			rawValue, err := json.Marshal(&parameter)
-			if err != nil {
-				return nil, err
-			}
-			value = append(value, rawValue)
-		}
+		var value = p.Value.([]Parameter)
 		resultRawValue, resultErr = json.Marshal(value)
 	case MapType:
 		ppair := p.Value.([]ParameterPair)
