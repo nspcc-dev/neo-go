@@ -211,6 +211,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 		f = c.newFunc(decl)
 	}
 
+	f.rng.Start = uint16(c.prog.Len())
 	c.scope = f
 	ast.Inspect(decl, c.scope.analyzeVoidCalls) // @OPTIMIZE
 
@@ -260,6 +261,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 	}
+
+	f.rng.End = uint16(c.prog.Len() - 1)
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {

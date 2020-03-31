@@ -21,6 +21,9 @@ type funcScope struct {
 	// Program label of the scope
 	label uint16
 
+	// Range of opcodes corresponding to the function.
+	rng DebugRange
+
 	// Local variables
 	locals map[string]int
 
