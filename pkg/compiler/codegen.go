@@ -52,6 +52,11 @@ type codegen struct {
 	// A label to be used in the next statement.
 	nextLabel string
 
+	// sequencePoints is mapping from method name to a slice
+	// containing info about mapping from opcode's offset
+	// to a text span in the source file.
+	sequencePoints map[string][]DebugSeqPoint
+
 	// Label table for recording jump destinations.
 	l []int
 }
@@ -258,6 +263,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
 	if !hasReturnStmt(decl) {
+		c.saveSequencePoint(decl.Body)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
@@ -303,7 +309,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
-
+		c.saveSequencePoint(n)
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
@@ -407,6 +413,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Results[i])
 		}
 
+		c.saveSequencePoint(n)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP) // Cleanup the stack.
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
@@ -647,6 +654,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Args[0])
 			return nil
 		}
+
+		c.saveSequencePoint(n)
 
 		args := transformArgs(n.Fun, n.Args)
 
@@ -1298,6 +1307,8 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		funcs:     map[string]*funcScope{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
+
+		sequencePoints: make(map[string][]DebugSeqPoint),
 	}
 }
 

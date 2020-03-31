@@ -76,6 +76,19 @@ type DebugParam struct {
 	Type string
 }
 
+func (c *codegen) saveSequencePoint(n ast.Node) {
+	fset := c.buildInfo.program.Fset
+	start := fset.Position(n.Pos())
+	end := fset.Position(n.End())
+	c.sequencePoints[c.scope.name] = append(c.sequencePoints[c.scope.name], DebugSeqPoint{
+		Opcode:    c.prog.Len(),
+		StartLine: start.Line,
+		StartCol:  start.Offset,
+		EndLine:   end.Line,
+		EndCol:    end.Offset,
+	})
+}
+
 func (c *codegen) emitDebugInfo() *DebugInfo {
 	d := &DebugInfo{
 		EntryPoint: mainIdent,
@@ -108,6 +121,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
+		SeqPoints:  c.sequencePoints[name],
 	}
 }
 

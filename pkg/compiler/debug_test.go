@@ -64,6 +64,32 @@ func methodStruct() struct{} { return struct{}{} }
 	}
 }
 
+func TestSequencePoints(t *testing.T) {
+	src := `package foo
+	func Main(op string) bool {
+		if op == "123" {
+			return true
+		}
+		return false
+	}`
+
+	info, err := getBuildInfo(src)
+	require.NoError(t, err)
+
+	pkg := info.program.Package(info.initialPackage)
+	c := newCodegen(info, pkg)
+	require.NoError(t, c.compile(info, pkg))
+
+	d := c.emitDebugInfo()
+	require.NotNil(t, d)
+
+	// Main func has 2 return on 4-th and 6-th lines.
+	ps := d.Methods[0].SeqPoints
+	require.Equal(t, 2, len(ps))
+	require.Equal(t, 4, ps[0].StartLine)
+	require.Equal(t, 6, ps[1].StartLine)
+}
+
 func TestDebugInfo_MarshalJSON(t *testing.T) {
 	d := &DebugInfo{
 		EntryPoint: "main",
