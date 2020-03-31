@@ -1014,11 +1014,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item := arr[index].Dup()
 			v.estack.PushVal(item)
 		case *MapItem:
-			if !t.Has(key.value) {
+			index := t.Index(key.Item())
+			if index < 0 {
 				panic("invalid key")
 			}
-			k := toMapKey(key.value)
-			v.estack.Push(&Element{value: t.value[k].Dup()})
+			v.estack.Push(&Element{value: t.value[index].Value.Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -1091,10 +1091,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *MapItem:
-			m := t.value
-			k := toMapKey(key.value)
-			v.estack.updateSizeRemove(m[k])
-			delete(m, k)
+			index := t.Index(key.Item())
+			// NEO 2.0 doesn't error on missing key.
+			if index >= 0 {
+				v.estack.updateSizeRemove(t.value[index].Value)
+				t.Drop(index)
+			}
 		default:
 			panic("REMOVE: invalid type")
 		}
@@ -1106,7 +1108,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		switch t := elem.Value().(type) {
 		case []StackItem:
 			v.estack.PushVal(len(t))
-		case map[interface{}]StackItem:
+		case []MapElement:
 			v.estack.PushVal(len(t))
 		default:
 			v.estack.PushVal(len(elem.Bytes()))
@@ -1253,7 +1255,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		arr := make([]StackItem, 0, len(m.value))
 		for k := range m.value {
-			arr = append(arr, makeStackItem(k))
+			arr = append(arr, m.value[k].Key.Dup())
 		}
 		v.estack.PushVal(arr)
 
@@ -1274,7 +1276,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *MapItem:
 			arr = make([]StackItem, 0, len(t.value))
 			for k := range t.value {
-				arr = append(arr, cloneIfStruct(t.value[k]))
+				arr = append(arr, cloneIfStruct(t.value[k].Value))
 			}
 		default:
 			panic("not a Map, Array or Struct")
@@ -1298,7 +1300,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			v.estack.PushVal(index < int64(len(c.Array())))
 		case *MapItem:
-			v.estack.PushVal(t.Has(key.value))
+			v.estack.PushVal(t.Has(key.Item()))
 		default:
 			panic("wrong collection type")
 		}
@@ -1552,8 +1554,7 @@ func validateMapKey(key *Element) {
 	if key == nil {
 		panic("no key found")
 	}
-	switch key.value.(type) {
-	case *ArrayItem, *StructItem, *MapItem:
+	if !isValidMapKey(key.Item()) {
 		panic("key can't be a collection")
 	}
 }

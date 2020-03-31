@@ -185,7 +185,7 @@ func IteratorCreate(v *VM) error {
 			value: t.Value().([]StackItem),
 		})
 	case *MapItem:
-		item = NewMapIterator(t.value)
+		item = NewMapIterator(t)
 	default:
 		return errors.New("non-iterable type")
 	}
@@ -195,16 +195,10 @@ func IteratorCreate(v *VM) error {
 }
 
 // NewMapIterator returns new interop item containing iterator over m.
-func NewMapIterator(m map[interface{}]StackItem) *InteropItem {
-	keys := make([]interface{}, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
+func NewMapIterator(m *MapItem) *InteropItem {
 	return NewInteropItem(&mapWrapper{
 		index: -1,
-		keys:  keys,
-		m:     m,
+		m:     m.value,
 	})
 }
 
