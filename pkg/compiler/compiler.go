@@ -31,10 +31,9 @@ type buildInfo struct {
 	program        *loader.Program
 }
 
-// Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
-func Compile(r io.Reader) ([]byte, error) {
+func getBuildInfo(src interface{}) (*buildInfo, error) {
 	conf := loader.Config{ParserMode: parser.ParseComments}
-	f, err := conf.ParseFile("", r)
+	f, err := conf.ParseFile("", src)
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +44,17 @@ func Compile(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	ctx := &buildInfo{
+	return &buildInfo{
 		initialPackage: f.Name.Name,
 		program:        prog,
+	}, nil
+}
+
+// Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
+func Compile(r io.Reader) ([]byte, error) {
+	ctx, err := getBuildInfo(r)
+	if err != nil {
+		return nil, err
 	}
 
 	buf, err := CodeGen(ctx)

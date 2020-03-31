@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"golang.org/x/tools/go/loader"
 )
 
 // The identifier of the entry function. Default set to Main.
@@ -1240,23 +1241,12 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
-// CodeGen compiles the program to bytecode.
-func CodeGen(info *buildInfo) ([]byte, error) {
-	pkg := info.program.Package(info.initialPackage)
-	c := &codegen{
-		buildInfo: info,
-		prog:      io.NewBufBinWriter(),
-		l:         []int{},
-		funcs:     map[string]*funcScope{},
-		labels:    map[labelWithType]uint16{},
-		typeInfo:  &pkg.Info,
-	}
-
+func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Resolve the entrypoint of the program.
 	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
 		c.prog.Err = fmt.Errorf("could not find func main. Did you forget to declare it? ")
-		return []byte{}, c.prog.Err
+		return c.prog.Err
 	}
 
 	funUsage := analyzeFuncUsage(info.program.AllPackages)
@@ -1297,9 +1287,29 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 		}
 	}
 
-	if c.prog.Err != nil {
-		return nil, c.prog.Err
+	return c.prog.Err
+}
+
+func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
+	return &codegen{
+		buildInfo: info,
+		prog:      io.NewBufBinWriter(),
+		l:         []int{},
+		funcs:     map[string]*funcScope{},
+		labels:    map[labelWithType]uint16{},
+		typeInfo:  &pkg.Info,
 	}
+}
+
+// CodeGen compiles the program to bytecode.
+func CodeGen(info *buildInfo) ([]byte, error) {
+	pkg := info.program.Package(info.initialPackage)
+	c := newCodegen(info, pkg)
+
+	if err := c.compile(info, pkg); err != nil {
+		return nil, err
+	}
+
 	buf := c.prog.Bytes()
 	if err := c.writeJumps(buf); err != nil {
 		return nil, err
