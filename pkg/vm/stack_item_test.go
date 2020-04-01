@@ -282,13 +282,13 @@ var equalsTestCases = map[string][]struct {
 			result: false,
 		},
 		{
-			item1:  &MapItem{value: map[interface{}]StackItem{"first": NewBigIntegerItem(1), true: NewByteArrayItem([]byte{2})}},
-			item2:  &MapItem{value: map[interface{}]StackItem{"first": NewBigIntegerItem(1), true: NewByteArrayItem([]byte{2})}},
+			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
+			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
 			result: false,
 		},
 		{
-			item1:  &MapItem{value: map[interface{}]StackItem{"first": NewBigIntegerItem(1), true: NewByteArrayItem([]byte{2})}},
-			item2:  &MapItem{value: map[interface{}]StackItem{"first": NewBigIntegerItem(1), true: NewByteArrayItem([]byte{3})}},
+			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
+			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{3})}}},
 			result: false,
 		},
 	},
@@ -414,17 +414,25 @@ var toContractParameterTestCases = []struct {
 		result: smartcontract.Parameter{Type: smartcontract.InteropInterfaceType, Value: nil},
 	},
 	{
-		input: &MapItem{value: map[interface{}]StackItem{
-			toMapKey(NewBigIntegerItem(1)):               NewBoolItem(true),
-			toMapKey(NewByteArrayItem([]byte("qwerty"))): NewBigIntegerItem(3),
-			toMapKey(NewBoolItem(true)):                  NewBoolItem(false),
+		input: &MapItem{value: []MapElement{
+			{NewBigIntegerItem(1), NewBoolItem(true)},
+			{NewByteArrayItem([]byte("qwerty")), NewBigIntegerItem(3)},
+			{NewBoolItem(true), NewBoolItem(false)},
 		}},
 		result: smartcontract.Parameter{
 			Type: smartcontract.MapType,
-			Value: map[smartcontract.Parameter]smartcontract.Parameter{
-				{Type: smartcontract.IntegerType, Value: int64(1)}:   {Type: smartcontract.BoolType, Value: true},
-				{Type: smartcontract.ByteArrayType, Value: "qwerty"}: {Type: smartcontract.IntegerType, Value: int64(3)},
-				{Type: smartcontract.BoolType, Value: true}:          {Type: smartcontract.BoolType, Value: false},
+			Value: []smartcontract.ParameterPair{
+				{
+					Key:   smartcontract.Parameter{Type: smartcontract.IntegerType, Value: int64(1)},
+					Value: smartcontract.Parameter{Type: smartcontract.BoolType, Value: true},
+				}, {
+					Key:   smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: []byte("qwerty")},
+					Value: smartcontract.Parameter{Type: smartcontract.IntegerType, Value: int64(3)},
+				}, {
+
+					Key:   smartcontract.Parameter{Type: smartcontract.BoolType, Value: true},
+					Value: smartcontract.Parameter{Type: smartcontract.BoolType, Value: false},
+				},
 			},
 		},
 	},
@@ -434,31 +442,6 @@ func TestToContractParameter(t *testing.T) {
 	for _, tc := range toContractParameterTestCases {
 		seen := make(map[StackItem]bool)
 		res := tc.input.ToContractParameter(seen)
-		assert.Equal(t, res, tc.result)
-	}
-}
-
-var fromMapKeyTestCases = []struct {
-	input  interface{}
-	result StackItem
-}{
-	{
-		input:  true,
-		result: NewBoolItem(true),
-	},
-	{
-		input:  int64(4),
-		result: NewBigIntegerItem(4),
-	},
-	{
-		input:  "qwerty",
-		result: NewByteArrayItem([]byte("qwerty")),
-	},
-}
-
-func TestFromMapKey(t *testing.T) {
-	for _, tc := range fromMapKeyTestCases {
-		res := fromMapKey(tc.input)
 		assert.Equal(t, res, tc.result)
 	}
 }

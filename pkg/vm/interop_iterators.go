@@ -25,8 +25,7 @@ type (
 
 	mapWrapper struct {
 		index int
-		keys  []interface{}
-		m     map[interface{}]StackItem
+		m     []MapElement
 	}
 
 	concatIter struct {
@@ -91,7 +90,7 @@ func (i *concatIter) Key() StackItem {
 }
 
 func (m *mapWrapper) Next() bool {
-	if next := m.index + 1; next < len(m.keys) {
+	if next := m.index + 1; next < len(m.m) {
 		m.index = next
 		return true
 	}
@@ -100,11 +99,11 @@ func (m *mapWrapper) Next() bool {
 }
 
 func (m *mapWrapper) Value() StackItem {
-	return m.m[m.keys[m.index]]
+	return m.m[m.index].Value
 }
 
 func (m *mapWrapper) Key() StackItem {
-	return makeStackItem(m.keys[m.index])
+	return m.m[m.index].Key
 }
 
 func (e *keysWrapper) Next() bool {

@@ -435,15 +435,25 @@ func (i *ArrayItem) ToContractParameter(seen map[StackItem]bool) smartcontract.P
 	}
 }
 
-// MapItem represents Map object.
+// MapElement is a key-value pair of StackItems.
+type MapElement struct {
+	Key   StackItem
+	Value StackItem
+}
+
+// MapItem represents Map object. It's ordered, so we use slice representation
+// which should be fine for maps with less than 32 or so elements. Given that
+// our VM has quite low limit of overall stack items, it should be good enough,
+// but it can be extended with a real map for fast random access in the future
+// if need be.
 type MapItem struct {
-	value map[interface{}]StackItem
+	value []MapElement
 }
 
 // NewMapItem returns new MapItem object.
 func NewMapItem() *MapItem {
 	return &MapItem{
-		value: make(map[interface{}]StackItem),
+		value: make([]MapElement, 0),
 	}
 }
 
@@ -466,10 +476,19 @@ func (i *MapItem) String() string {
 	return "Map"
 }
 
+// Index returns an index of the key in map.
+func (i *MapItem) Index(key StackItem) int {
+	for k := range i.value {
+		if i.value[k].Key.Equals(key) {
+			return k
+		}
+	}
+	return -1
+}
+
 // Has checks if map has specified key.
-func (i *MapItem) Has(key StackItem) (ok bool) {
-	_, ok = i.value[toMapKey(key)]
-	return
+func (i *MapItem) Has(key StackItem) bool {
+	return i.Index(key) >= 0
 }
 
 // Dup implements StackItem interface.
@@ -480,16 +499,14 @@ func (i *MapItem) Dup() StackItem {
 
 // ToContractParameter implements StackItem interface.
 func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Parameter {
-	value := make(map[smartcontract.Parameter]smartcontract.Parameter)
+	value := make([]smartcontract.ParameterPair, 0)
 	if !seen[i] {
 		seen[i] = true
-		for key, val := range i.value {
-			pValue := val.ToContractParameter(seen)
-			pKey := fromMapKey(key).ToContractParameter(seen)
-			if pKey.Type == smartcontract.ByteArrayType {
-				pKey.Value = string(pKey.Value.([]byte))
-			}
-			value[pKey] = pValue
+		for k := range i.value {
+			value = append(value, smartcontract.ParameterPair{
+				Key:   i.value[k].Key.ToContractParameter(seen),
+				Value: i.value[k].Value.ToContractParameter(seen),
+			})
 		}
 	}
 	return smartcontract.Parameter{
@@ -500,34 +517,31 @@ func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Par
 
 // Add adds key-value pair to the map.
 func (i *MapItem) Add(key, value StackItem) {
-	i.value[toMapKey(key)] = value
-}
-
-// toMapKey converts StackItem so that it can be used as a map key.
-func toMapKey(key StackItem) interface{} {
-	switch t := key.(type) {
-	case *BoolItem:
-		return t.value
-	case *BigIntegerItem:
-		return t.value.Int64()
-	case *ByteArrayItem:
-		return string(t.value)
-	default:
+	if !isValidMapKey(key) {
 		panic("wrong key type")
+	}
+	index := i.Index(key)
+	if index >= 0 {
+		i.value[index].Value = value
+	} else {
+		i.value = append(i.value, MapElement{key, value})
 	}
 }
 
-// fromMapKey converts map key to StackItem
-func fromMapKey(key interface{}) StackItem {
-	switch t := key.(type) {
-	case bool:
-		return &BoolItem{value: t}
-	case int64:
-		return &BigIntegerItem{value: big.NewInt(t)}
-	case string:
-		return &ByteArrayItem{value: []byte(t)}
+// Drop removes given index from the map (no bounds check done here).
+func (i *MapItem) Drop(index int) {
+	copy(i.value[index:], i.value[index+1:])
+	i.value = i.value[:len(i.value)-1]
+}
+
+// isValidMapKey checks whether it's possible to use given StackItem as a Map
+// key.
+func isValidMapKey(key StackItem) bool {
+	switch key.(type) {
+	case *BoolItem, *BigIntegerItem, *ByteArrayItem:
+		return true
 	default:
-		panic("wrong key type")
+		return false
 	}
 }
 

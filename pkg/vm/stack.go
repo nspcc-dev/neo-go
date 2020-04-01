@@ -228,8 +228,8 @@ func (s *Stack) updateSizeAdd(item StackItem) {
 				s.updateSizeAdd(it)
 			}
 		case *MapItem:
-			for _, v := range t.value {
-				s.updateSizeAdd(v)
+			for i := range t.value {
+				s.updateSizeAdd(t.value[i].Value)
 			}
 		}
 	}
@@ -253,8 +253,8 @@ func (s *Stack) updateSizeRemove(item StackItem) {
 				s.updateSizeRemove(it)
 			}
 		case *MapItem:
-			for _, v := range t.value {
-				s.updateSizeRemove(v)
+			for i := range t.value {
+				s.updateSizeRemove(t.value[i].Value)
 			}
 		}
 	}

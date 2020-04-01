@@ -450,10 +450,11 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 		return err
 	}
 
-	filteredMap := make(map[interface{}]vm.StackItem)
+	filteredMap := vm.NewMapItem()
 	for k, v := range siMap {
 		if strings.HasPrefix(k, prefix) {
-			filteredMap[k] = vm.NewByteArrayItem(v.Value)
+			filteredMap.Add(vm.NewByteArrayItem([]byte(k)),
+				vm.NewByteArrayItem(v.Value))
 		}
 	}
 

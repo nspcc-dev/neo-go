@@ -73,9 +73,9 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 		w.WriteBytes([]byte{byte(mapT)})
 		w.WriteVarUint(uint64(len(t.value)))
-		for k, v := range t.value {
-			serializeItemTo(makeStackItem(k), w, seen)
-			serializeItemTo(v, w, seen)
+		for i := range t.value {
+			serializeItemTo(t.value[i].Key, w, seen)
+			serializeItemTo(t.value[i].Value, w, seen)
 		}
 	}
 }

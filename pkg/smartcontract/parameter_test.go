@@ -72,9 +72,15 @@ var marshalJSONTestCases = []struct {
 	{
 		input: Parameter{
 			Type: MapType,
-			Value: map[Parameter]Parameter{
-				{Type: StringType, Value: "key1"}: {Type: IntegerType, Value: int64(1)},
-				{Type: StringType, Value: "key2"}: {Type: StringType, Value: "two"},
+			Value: []ParameterPair{
+				{
+					Key:   Parameter{Type: StringType, Value: "key1"},
+					Value: Parameter{Type: IntegerType, Value: int64(1)},
+				},
+				{
+					Key:   Parameter{Type: StringType, Value: "key2"},
+					Value: Parameter{Type: StringType, Value: "two"},
+				},
 			},
 		},
 		result: `{"type":"Map","value":[{"key":{"type":"String","value":"key1"},"value":{"type":"Integer","value":1}},{"key":{"type":"String","value":"key2"},"value":{"type":"String","value":"two"}}]}`,
@@ -82,11 +88,14 @@ var marshalJSONTestCases = []struct {
 	{
 		input: Parameter{
 			Type: MapType,
-			Value: map[Parameter]Parameter{
-				{Type: StringType, Value: "key1"}: {Type: ArrayType, Value: []Parameter{
-					{Type: StringType, Value: "str 1"},
-					{Type: IntegerType, Value: int64(2)},
-				}},
+			Value: []ParameterPair{
+				{
+					Key: Parameter{Type: StringType, Value: "key1"},
+					Value: Parameter{Type: ArrayType, Value: []Parameter{
+						{Type: StringType, Value: "str 1"},
+						{Type: IntegerType, Value: int64(2)},
+					}},
+				},
 			},
 		},
 		result: `{"type":"Map","value":[{"key":{"type":"String","value":"key1"},"value":{"type":"Array","value":[{"type":"String","value":"str 1"},{"type":"Integer","value":2}]}}]}`,
@@ -209,9 +218,15 @@ var unmarshalJSONTestCases = []struct {
 		input: `{"type":"Map","value":[{"key":{"type":"String","value":"key1"},"value":{"type":"Integer","value":1}},{"key":{"type":"String","value":"key2"},"value":{"type":"String","value":"two"}}]}`,
 		result: Parameter{
 			Type: MapType,
-			Value: map[Parameter]Parameter{
-				{Type: StringType, Value: "key1"}: {Type: IntegerType, Value: int64(1)},
-				{Type: StringType, Value: "key2"}: {Type: StringType, Value: "two"},
+			Value: []ParameterPair{
+				{
+					Key:   Parameter{Type: StringType, Value: "key1"},
+					Value: Parameter{Type: IntegerType, Value: int64(1)},
+				},
+				{
+					Key:   Parameter{Type: StringType, Value: "key2"},
+					Value: Parameter{Type: StringType, Value: "two"},
+				},
 			},
 		},
 	},
@@ -219,11 +234,14 @@ var unmarshalJSONTestCases = []struct {
 		input: `{"type":"Map","value":[{"key":{"type":"String","value":"key1"},"value":{"type":"Array","value":[{"type":"String","value":"str 1"},{"type":"Integer","value":2}]}}]}`,
 		result: Parameter{
 			Type: MapType,
-			Value: map[Parameter]Parameter{
-				{Type: StringType, Value: "key1"}: {Type: ArrayType, Value: []Parameter{
-					{Type: StringType, Value: "str 1"},
-					{Type: IntegerType, Value: int64(2)},
-				}},
+			Value: []ParameterPair{
+				{
+					Key: Parameter{Type: StringType, Value: "key1"},
+					Value: Parameter{Type: ArrayType, Value: []Parameter{
+						{Type: StringType, Value: "str 1"},
+						{Type: IntegerType, Value: int64(2)},
+					}},
+				},
 			},
 		},
 	},

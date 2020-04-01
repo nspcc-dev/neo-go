@@ -1371,8 +1371,10 @@ func TestPICKITEMDupMap(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	items := vm.estack.Pop().Value().(map[interface{}]StackItem)
-	assert.Equal(t, big.NewInt(-1), items[string([]byte{42})].Value())
+	items := vm.estack.Pop().Value().([]MapElement)
+	assert.Equal(t, 1, len(items))
+	assert.Equal(t, []byte{42}, items[0].Key.Value())
+	assert.Equal(t, big.NewInt(-1), items[0].Value.Value())
 }
 
 func TestPICKITEMMap(t *testing.T) {
