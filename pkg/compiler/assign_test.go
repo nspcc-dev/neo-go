@@ -3,6 +3,8 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 var assignTestCases = []testCase{
@@ -132,4 +134,19 @@ var assignTestCases = []testCase{
 
 func TestAssignments(t *testing.T) {
 	runTestCases(t, assignTestCases)
+}
+
+func TestManyAssignments(t *testing.T) {
+	src1 := `package foo
+	func Main() int {
+		a := 0
+	`
+	src2 := `return a
+	}`
+
+	for i := 0; i < vm.MaxArraySize; i++ {
+		src1 += "a += 1\n"
+	}
+
+	eval(t, src1+src2, big.NewInt(vm.MaxArraySize))
 }
