@@ -66,9 +66,7 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 		resultErr      error
 	)
 	switch p.Type {
-	case Hash160Type:
-		resultRawValue, resultErr = json.Marshal(p.Value.(util.Uint160).Reverse()) // Hash160 should be marshaled in BE but default marshaler uses LE.
-	case BoolType, StringType, Hash256Type:
+	case BoolType, StringType, Hash160Type, Hash256Type:
 		resultRawValue, resultErr = json.Marshal(p.Value)
 	case IntegerType:
 		val, ok := p.Value.(int64)
@@ -202,7 +200,7 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		if err = json.Unmarshal(r.Value, &h); err != nil {
 			return
 		}
-		p.Value = h.Reverse() // Hash160 should be marshaled in BE but default marshaler uses LE.
+		p.Value = h
 	case Hash256Type:
 		var h util.Uint256
 		if err = json.Unmarshal(r.Value, &h); err != nil {
