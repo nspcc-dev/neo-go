@@ -12,7 +12,7 @@ DC_FILE=.docker/docker-compose.yml
 
 REPO ?= "$(shell go list -m)"
 VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
-BUILD_FLAGS = "-X $(REPO)/config.Version=$(VERSION)"
+BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)'"
 
 IMAGE_REPO=nspccdev/neo-go
 
