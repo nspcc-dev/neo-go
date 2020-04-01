@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"go/ast"
+	"go/token"
 )
 
 // A funcScope represents the scope within the function context.
@@ -76,7 +77,9 @@ func (c *funcScope) stackSize() int64 {
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.AssignStmt:
-			size += len(n.Rhs)
+			if n.Tok == token.DEFINE {
+				size += len(n.Rhs)
+			}
 		case *ast.ReturnStmt, *ast.IfStmt:
 			size++
 		// This handles the inline GenDecl like "var x = 2"
