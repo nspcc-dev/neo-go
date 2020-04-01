@@ -184,6 +184,6 @@ There is a small subset of commands:
 
 ## Wallet operations
 
-- `./bin/neo-go wallet create -p newWallet` to create new wallet in the path `newWallet`
-- `./bin/neo-go wallet open -p newWallet` to open created wallet in the path `newWallet`
-- `./bin/neo-go wallet create -p newWallet -a` to create new account
+- `./bin/neo-go wallet init -p newWallet` to create new wallet in the path `newWallet`
+- `./bin/neo-go wallet dump -p newWallet` to open created wallet in the path `newWallet`
+- `./bin/neo-go wallet init -p newWallet -a` to create new account
