@@ -3,7 +3,8 @@ package network
 import (
 	"time"
 
-	"github.com/nspcc-dev/neo-go/config"
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -61,7 +62,7 @@ type (
 		LogLevel zapcore.Level
 
 		// Wallet is a wallet configuration.
-		Wallet *config.WalletConfig
+		Wallet *wallet.Config
 
 		// TimePerBlock is an interval which should pass between two successive blocks.
 		TimePerBlock time.Duration
@@ -74,7 +75,7 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
 
-	var wc *config.WalletConfig
+	var wc *wallet.Config
 	if appConfig.UnlockWallet.Path != "" {
 		wc = &appConfig.UnlockWallet
 	}

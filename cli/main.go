@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/cli/vm"
 	"github.com/nspcc-dev/neo-go/cli/wallet"
-	"github.com/nspcc-dev/neo-go/config"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/urfave/cli"
 )
 

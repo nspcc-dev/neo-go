@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/config"
+	"github.com/nspcc-dev/neo-go/pkg/rpc"
+
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -35,7 +36,7 @@ type (
 	Server struct {
 		*http.Server
 		chain      core.Blockchainer
-		config     config.RPCConfig
+		config     rpc.Config
 		coreServer *network.Server
 		log        *zap.Logger
 		https      *http.Server
@@ -80,7 +81,7 @@ var invalidBlockHeightError = func(index int, height int) error {
 }
 
 // New creates a new Server struct.
-func New(chain core.Blockchainer, conf config.RPCConfig, coreServer *network.Server, log *zap.Logger) Server {
+func New(chain core.Blockchainer, conf rpc.Config, coreServer *network.Server, log *zap.Logger) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}

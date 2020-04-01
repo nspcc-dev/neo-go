@@ -5,12 +5,13 @@ import (
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/config"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -181,7 +182,7 @@ func newTestService(t *testing.T) *service {
 		Broadcast: func(*Payload) {},
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
-		Wallet: &config.WalletConfig{
+		Wallet: &wallet.Config{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
 		},
