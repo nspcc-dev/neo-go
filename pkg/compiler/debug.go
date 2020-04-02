@@ -104,6 +104,11 @@ func (c *codegen) emitDebugInfo() *DebugInfo {
 	return d
 }
 
+func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
+	typ := c.scTypeFromExpr(expr)
+	c.scope.variables = append(c.scope.variables, name+","+typ)
+}
+
 func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebugInfo {
 	ps := scope.decl.Type.Params
 	params := make([]DebugParam, 0, ps.NumFields())
@@ -122,6 +127,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
 		SeqPoints:  c.sequencePoints[name],
+		Variables:  scope.variables,
 	}
 }
 

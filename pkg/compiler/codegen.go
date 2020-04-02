@@ -286,6 +286,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
+				for _, id := range t.Names {
+					c.registerDebugVariable(id.Name, t.Type)
+				}
 				if len(t.Values) != 0 {
 					for i, val := range t.Values {
 						ast.Walk(c, val)
@@ -320,6 +323,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.convertToken(n.Tok)
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
+				case token.DEFINE:
+					if !multiRet {
+						c.registerDebugVariable(t.Name, n.Rhs[i])
+					}
+					fallthrough
 				default:
 					if i == 0 || !multiRet {
 						ast.Walk(c, n.Rhs[i])

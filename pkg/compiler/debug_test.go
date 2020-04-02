@@ -12,6 +12,8 @@ import (
 func TestCodeGen_DebugInfo(t *testing.T) {
 	src := `package foo
 func Main(op string) bool {
+	var s string
+	_ = s
 	res := methodInt(op)
 	_ = methodString()	
 	_ = methodByteArray()
@@ -53,6 +55,18 @@ func methodStruct() struct{} { return struct{}{} }
 		for i := range d.Methods {
 			name := d.Methods[i].Name.Name
 			assert.Equal(t, returnTypes[name], d.Methods[i].ReturnType)
+		}
+	})
+
+	t.Run("variables", func(t *testing.T) {
+		vars := map[string][]string{
+			"Main": {"s,String", "res,Integer"},
+		}
+		for i := range d.Methods {
+			v, ok := vars[d.Methods[i].Name.Name]
+			if ok {
+				require.Equal(t, v, d.Methods[i].Variables)
+			}
 		}
 	})
 
