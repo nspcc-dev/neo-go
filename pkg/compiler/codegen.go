@@ -1313,19 +1313,19 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 }
 
 // CodeGen compiles the program to bytecode.
-func CodeGen(info *buildInfo) ([]byte, error) {
+func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	pkg := info.program.Package(info.initialPackage)
 	c := newCodegen(info, pkg)
 
 	if err := c.compile(info, pkg); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	buf := c.prog.Bytes()
 	if err := c.writeJumps(buf); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf, nil
+	return buf, c.emitDebugInfo(), nil
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File) {
