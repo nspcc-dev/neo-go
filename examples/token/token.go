@@ -56,6 +56,10 @@ func Main(operation string, args []interface{}) interface{} {
 		amount := args[2].(int)
 		return token.Transfer(ctx, from, to, amount)
 	}
+	if operation == "mint" && CheckArgs(args, 1) {
+		addr := args[0].([]byte)
+		return token.Mint(ctx, addr)
+	}
 
 	return true
 }
