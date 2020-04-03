@@ -93,3 +93,19 @@ func IsUsableAddress(addr []byte) bool {
 
 	return false
 }
+
+// Mint initial supply of tokens.
+func (t Token) Mint(ctx storage.Context, to []byte) bool {
+	if !IsUsableAddress(t.Owner) {
+		return false
+	}
+	minted := storage.Get(ctx, []byte("minted")).(bool)
+	if minted {
+		return false
+	}
+
+	storage.Put(ctx, to, t.TotalSupply)
+	storage.Put(ctx, []byte("minted"), true)
+	runtime.Notify("transfer", "", to, t.TotalSupply)
+	return true
+}
