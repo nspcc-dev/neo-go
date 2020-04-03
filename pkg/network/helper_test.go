@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -109,7 +108,7 @@ func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	panic("TODO")
 }
-func (chain testChain) GetTestVM() (*vm.VM, storage.Store) {
+func (chain testChain) GetTestVM() *vm.VM {
 	panic("TODO")
 }
 func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {

@@ -15,7 +15,8 @@ import (
 func TestGetPrice(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
-	systemInterop := bc.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
+	sdao := newSimpleDao(storage.NewMemoryStore())
+	systemInterop := bc.newInteropContext(trigger.Application, sdao, nil, nil)
 
 	v := bc.spawnVMWithInterops(systemInterop)
 	v.SetPriceGetter(getPrice)

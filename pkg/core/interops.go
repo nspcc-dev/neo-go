@@ -12,7 +12,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -29,8 +28,8 @@ type interopContext struct {
 	log           *zap.Logger
 }
 
-func newInteropContext(trigger trigger.Type, bc Blockchainer, s storage.Store, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
-	dao := newCachedDao(s)
+func newInteropContext(trigger trigger.Type, bc Blockchainer, d dao, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
+	dao := newCachedDao(d)
 	nes := make([]state.NotificationEvent, 0)
 	return &interopContext{bc, trigger, block, tx, dao, nes, log}
 }

@@ -16,7 +16,7 @@ func testNonInterop(t *testing.T, value interface{}, f func(*interopContext, *vm
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
 	defer chain.Close()
-	context := chain.newInteropContext(trigger.Application, storage.NewMemoryStore(), nil, nil)
+	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, nil)
 	require.Error(t, f(context, v))
 }
 

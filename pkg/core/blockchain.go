@@ -80,7 +80,7 @@ type Blockchain struct {
 	lock sync.RWMutex
 
 	// Data access object for CRUD operations around storage.
-	dao *dao
+	dao *simpleDao
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -154,7 +154,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 	bc := &Blockchain{
 		config:        cfg,
-		dao:           newDao(s),
+		dao:           newSimpleDao(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -457,7 +457,7 @@ func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
-	cache := newCachedDao(bc.dao.store)
+	cache := newCachedDao(bc.dao)
 	fee := bc.getSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
 		fee += uint32(bc.SystemFee(tx).IntegralValue())
@@ -655,7 +655,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				return err
 			}
 		case *transaction.InvocationTX:
-			systemInterop := bc.newInteropContext(trigger.Application, cache.store, block, tx)
+			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 			v := bc.spawnVMWithInterops(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
@@ -721,7 +721,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	defer bc.lock.Unlock()
 
 	if bc.config.SaveStorageBatch {
-		bc.lastBatch = cache.dao.store.GetBatch()
+		bc.lastBatch = cache.dao.GetBatch()
 	}
 
 	_, err := cache.Persist()
@@ -1725,7 +1725,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
 func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := newCachedDao(bc.dao.store)
+	cache := newCachedDao(bc.dao)
 	if len(txes) > 0 {
 		for _, tx := range txes {
 			// iterate through outputs
@@ -2016,12 +2016,11 @@ func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
 }
 
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
-func (bc *Blockchain) GetTestVM() (*vm.VM, storage.Store) {
-	tmpStore := storage.NewMemCachedStore(bc.dao.store)
-	systemInterop := bc.newInteropContext(trigger.Application, tmpStore, nil, nil)
+func (bc *Blockchain) GetTestVM() *vm.VM {
+	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
 	vm := bc.spawnVMWithInterops(systemInterop)
 	vm.SetPriceGetter(getPrice)
-	return vm, tmpStore
+	return vm
 }
 
 // ScriptFromWitness returns verification script for provided witness.
@@ -2106,7 +2105,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	}
 	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
-	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, block, t)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := 0; i < len(hashes); i++ {
 		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
 		if err != nil {
@@ -2126,7 +2125,7 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	} else {
 		hash = prevHeader.NextConsensus
 	}
-	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao.store, nil, nil)
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	return bc.verifyHashAgainstScript(hash, &currHeader.Script, currHeader.VerificationHash(), interopCtx, true)
 }
 
@@ -2141,6 +2140,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, s storage.Store, block *block.Block, tx *transaction.Transaction) *interopContext {
-	return newInteropContext(trigger, bc, s, block, tx, bc.log)
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao, block *block.Block, tx *transaction.Transaction) *interopContext {
+	return newInteropContext(trigger, bc, d, block, tx, bc.log)
 }
