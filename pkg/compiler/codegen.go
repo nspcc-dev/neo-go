@@ -662,7 +662,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
 		case isSyscall(f):
-			c.convertSyscall(f.selector.Name, f.name)
+			c.convertSyscall(n, f.selector.Name, f.name)
 		default:
 			emit.Call(c.prog.BinWriter, opcode.CALL, f.label)
 		}
@@ -978,11 +978,17 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 	}
 }
 
-func (c *codegen) convertSyscall(api, name string) {
+func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 	api, ok := syscalls[api][name]
 	if !ok {
 		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
 		return
+	}
+	switch name {
+	case "Notify":
+		numArgs := len(expr.Args)
+		emit.Int(c.prog.BinWriter, int64(numArgs))
+		emit.Opcode(c.prog.BinWriter, opcode.PACK)
 	}
 	emit.Syscall(c.prog.BinWriter, api)
 
