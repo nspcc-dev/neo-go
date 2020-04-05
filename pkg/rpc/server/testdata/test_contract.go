@@ -12,7 +12,7 @@ const (
 )
 
 func Main(operation string, args []interface{}) interface{} {
-	runtime.Notify([]interface{}{"contract call", operation, args})
+	runtime.Notify("contract call", operation, args)
 	switch operation {
 	case "Put":
 		ctx := storage.GetContext()
@@ -34,7 +34,7 @@ func Main(operation string, args []interface{}) interface{} {
 			return false
 		}
 		amount := storage.Get(ctx, addr).(int)
-		runtime.Notify([]interface{}{"balanceOf", addr, amount})
+		runtime.Notify("balanceOf", addr, amount)
 		return amount
 	case "transfer":
 		ctx := storage.GetContext()
@@ -66,7 +66,7 @@ func Main(operation string, args []interface{}) interface{} {
 		toBalance += amount
 		storage.Put(ctx, to, toBalance)
 
-		runtime.Notify([]interface{}{"transfer", from, to, amount})
+		runtime.Notify("transfer", from, to, amount)
 
 		return true
 	case "init":
@@ -74,7 +74,7 @@ func Main(operation string, args []interface{}) interface{} {
 		h := engine.GetExecutingScriptHash()
 		amount := totalSupply
 		storage.Put(ctx, h, amount)
-		runtime.Notify([]interface{}{"transfer", []byte{}, h, amount})
+		runtime.Notify("transfer", []byte{}, h, amount)
 		return true
 	default:
 		panic("invalid operation")
