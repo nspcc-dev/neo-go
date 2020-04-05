@@ -844,11 +844,10 @@ func TestMULBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func TestDiv(t *testing.T) {
-	prog := makeProgram(opcode.DIV)
-	runCase := func(p, q, result int64) func(t *testing.T) {
+func TestDivMod(t *testing.T) {
+	runCase := func(op opcode.Opcode, p, q, result int64) func(t *testing.T) {
 		return func(t *testing.T) {
-			vm := load(prog)
+			vm := load(makeProgram(op))
 			vm.estack.PushVal(p)
 			vm.estack.PushVal(q)
 			runVM(t, vm)
@@ -856,10 +855,19 @@ func TestDiv(t *testing.T) {
 		}
 	}
 
-	t.Run("positive/positive", runCase(5, 2, 2))
-	t.Run("positive/negative", runCase(5, -2, -2))
-	t.Run("negative/positive", runCase(-5, 2, -2))
-	t.Run("negative/negative", runCase(-5, -2, 2))
+	t.Run("DIV", func(t *testing.T) {
+		t.Run("positive/positive", runCase(opcode.DIV, 5, 2, 2))
+		t.Run("positive/negative", runCase(opcode.DIV, 5, -2, -2))
+		t.Run("negative/positive", runCase(opcode.DIV, -5, 2, -2))
+		t.Run("negative/negative", runCase(opcode.DIV, -5, -2, 2))
+	})
+
+	t.Run("MOD", func(t *testing.T) {
+		t.Run("positive/positive", runCase(opcode.MOD, 5, 2, 1))
+		t.Run("positive/negative", runCase(opcode.MOD, 5, -2, 1))
+		t.Run("negative/positive", runCase(opcode.MOD, -5, 2, -1))
+		t.Run("negative/negative", runCase(opcode.MOD, -5, -2, -1))
+	})
 
 }
 
