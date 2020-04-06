@@ -21,6 +21,11 @@ type funcScope struct {
 	// Program label of the scope
 	label uint16
 
+	// Range of opcodes corresponding to the function.
+	rng DebugRange
+	// Variables together with it's type in neo-vm.
+	variables []string
+
 	// Local variables
 	locals map[string]int
 
@@ -43,6 +48,7 @@ func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		label:     label,
 		locals:    map[string]int{},
 		voidCalls: map[*ast.CallExpr]bool{},
+		variables: []string{},
 		i:         -1,
 	}
 }

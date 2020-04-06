@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"golang.org/x/tools/go/loader"
 )
 
 // The identifier of the entry function. Default set to Main.
@@ -50,6 +51,11 @@ type codegen struct {
 	currentSwitch string
 	// A label to be used in the next statement.
 	nextLabel string
+
+	// sequencePoints is mapping from method name to a slice
+	// containing info about mapping from opcode's offset
+	// to a text span in the source file.
+	sequencePoints map[string][]DebugSeqPoint
 
 	// Label table for recording jump destinations.
 	l []int
@@ -211,6 +217,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 		f = c.newFunc(decl)
 	}
 
+	f.rng.Start = uint16(c.prog.Len())
 	c.scope = f
 	ast.Inspect(decl, c.scope.analyzeVoidCalls) // @OPTIMIZE
 
@@ -256,10 +263,13 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
 	if !hasReturnStmt(decl) {
+		c.saveSequencePoint(decl.Body)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 	}
+
+	f.rng.End = uint16(c.prog.Len() - 1)
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
@@ -276,21 +286,25 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
+				for _, id := range t.Names {
+					c.scope.newLocal(id.Name)
+					c.registerDebugVariable(id.Name, t.Type)
+				}
 				if len(t.Values) != 0 {
 					for i, val := range t.Values {
 						ast.Walk(c, val)
-						l := c.scope.newLocal(t.Names[i].Name)
+						l := c.scope.loadLocal(t.Names[i].Name)
 						c.emitStoreLocal(l)
 					}
 				} else if c.isCompoundArrayType(t.Type) {
 					emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 					emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-					l := c.scope.newLocal(t.Names[0].Name)
+					l := c.scope.loadLocal(t.Names[0].Name)
 					c.emitStoreLocal(l)
 				} else if n, ok := c.isStructType(t.Type); ok {
 					emit.Int(c.prog.BinWriter, int64(n))
 					emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-					l := c.scope.newLocal(t.Names[0].Name)
+					l := c.scope.loadLocal(t.Names[0].Name)
 					c.emitStoreLocal(l)
 				}
 			}
@@ -299,7 +313,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
-
+		c.saveSequencePoint(n)
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
@@ -310,6 +324,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.convertToken(n.Tok)
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
+				case token.DEFINE:
+					if !multiRet {
+						c.registerDebugVariable(t.Name, n.Rhs[i])
+					}
+					fallthrough
 				default:
 					if i == 0 || !multiRet {
 						ast.Walk(c, n.Rhs[i])
@@ -403,6 +422,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Results[i])
 		}
 
+		c.saveSequencePoint(n)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP) // Cleanup the stack.
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
@@ -643,6 +663,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Args[0])
 			return nil
 		}
+
+		c.saveSequencePoint(n)
 
 		args := transformArgs(n.Fun, n.Args)
 
@@ -1237,23 +1259,12 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
-// CodeGen compiles the program to bytecode.
-func CodeGen(info *buildInfo) ([]byte, error) {
-	pkg := info.program.Package(info.initialPackage)
-	c := &codegen{
-		buildInfo: info,
-		prog:      io.NewBufBinWriter(),
-		l:         []int{},
-		funcs:     map[string]*funcScope{},
-		labels:    map[labelWithType]uint16{},
-		typeInfo:  &pkg.Info,
-	}
-
+func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Resolve the entrypoint of the program.
 	main, mainFile := resolveEntryPoint(mainIdent, pkg)
 	if main == nil {
 		c.prog.Err = fmt.Errorf("could not find func main. Did you forget to declare it? ")
-		return []byte{}, c.prog.Err
+		return c.prog.Err
 	}
 
 	funUsage := analyzeFuncUsage(info.program.AllPackages)
@@ -1294,14 +1305,36 @@ func CodeGen(info *buildInfo) ([]byte, error) {
 		}
 	}
 
-	if c.prog.Err != nil {
-		return nil, c.prog.Err
+	return c.prog.Err
+}
+
+func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
+	return &codegen{
+		buildInfo: info,
+		prog:      io.NewBufBinWriter(),
+		l:         []int{},
+		funcs:     map[string]*funcScope{},
+		labels:    map[labelWithType]uint16{},
+		typeInfo:  &pkg.Info,
+
+		sequencePoints: make(map[string][]DebugSeqPoint),
 	}
+}
+
+// CodeGen compiles the program to bytecode.
+func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
+	pkg := info.program.Package(info.initialPackage)
+	c := newCodegen(info, pkg)
+
+	if err := c.compile(info, pkg); err != nil {
+		return nil, nil, err
+	}
+
 	buf := c.prog.Bytes()
 	if err := c.writeJumps(buf); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf, nil
+	return buf, c.emitDebugInfo(), nil
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File) {
