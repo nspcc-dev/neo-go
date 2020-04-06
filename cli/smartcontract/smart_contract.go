@@ -351,7 +351,6 @@ func contractCompile(ctx *cli.Context) error {
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
-		Debug:   ctx.Bool("verbose"),
 
 		DebugInfo: ctx.String("emitdebug"),
 	}
@@ -360,7 +359,9 @@ func contractCompile(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(hex.EncodeToString(result))
+	if ctx.Bool("verbose") {
+		fmt.Println(hex.EncodeToString(result))
+	}
 
 	return nil
 }
