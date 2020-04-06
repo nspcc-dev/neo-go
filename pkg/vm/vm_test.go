@@ -844,7 +844,7 @@ func TestMULBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func TestDivMod(t *testing.T) {
+func TestArithNegativeArguments(t *testing.T) {
 	runCase := func(op opcode.Opcode, p, q, result int64) func(t *testing.T) {
 		return func(t *testing.T) {
 			vm := load(makeProgram(op))
@@ -869,6 +869,19 @@ func TestDivMod(t *testing.T) {
 		t.Run("negative/negative", runCase(opcode.MOD, -5, -2, -1))
 	})
 
+	t.Run("SHR", func(t *testing.T) {
+		t.Run("positive/positive", runCase(opcode.SHR, 5, 2, 1))
+		t.Run("positive/negative", runCase(opcode.SHR, 5, -2, 20))
+		t.Run("negative/positive", runCase(opcode.SHR, -5, 2, -2))
+		t.Run("negative/negative", runCase(opcode.SHR, -5, -2, -20))
+	})
+
+	t.Run("SHL", func(t *testing.T) {
+		t.Run("positive/positive", runCase(opcode.SHL, 5, 2, 20))
+		t.Run("positive/negative", runCase(opcode.SHL, 5, -2, 1))
+		t.Run("negative/positive", runCase(opcode.SHL, -5, 2, -20))
+		t.Run("negative/negative", runCase(opcode.SHL, -5, -2, -2))
+	})
 }
 
 func TestSub(t *testing.T) {
