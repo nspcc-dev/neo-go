@@ -53,6 +53,11 @@ func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {
+	v, _ := vmAndCompileInterop(t, src)
+	return v
+}
+
+func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
@@ -61,12 +66,13 @@ func vmAndCompile(t *testing.T, src string) *vm.VM {
 	b, err := compiler.Compile(strings.NewReader(src))
 	require.NoError(t, err)
 	vm.Load(b)
-	return vm
+	return vm, storePlugin
 }
 
 type storagePlugin struct {
 	mem      map[string][]byte
 	interops map[uint32]vm.InteropFunc
+	events   []vm.StackItem
 }
 
 func newStoragePlugin() *storagePlugin {
@@ -77,6 +83,7 @@ func newStoragePlugin() *storagePlugin {
 	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Get"))] = s.Get
 	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Put"))] = s.Put
 	s.interops[vm.InteropNameToID([]byte("Neo.Storage.GetContext"))] = s.GetContext
+	s.interops[vm.InteropNameToID([]byte("Neo.Runtime.Notify"))] = s.Notify
 	return s
 
 }
@@ -86,6 +93,11 @@ func (s *storagePlugin) getInterop(id uint32) *vm.InteropFuncPrice {
 	if f != nil {
 		return &vm.InteropFuncPrice{Func: f, Price: 1}
 	}
+	return nil
+}
+
+func (s *storagePlugin) Notify(v *vm.VM) error {
+	s.events = append(s.events, v.Estack().Pop().Item())
 	return nil
 }
 
