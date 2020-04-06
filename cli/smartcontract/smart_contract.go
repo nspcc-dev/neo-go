@@ -89,8 +89,8 @@ func NewCommands() []cli.Command {
 						Usage: "Output of the compiled contract",
 					},
 					cli.BoolFlag{
-						Name:  "debug, d",
-						Usage: "Debug mode will print out additional information after a compiling",
+						Name:  "verbose, v",
+						Usage: "Print out additional information after a compiling",
 					},
 					cli.StringFlag{
 						Name:  "emitdebug",
@@ -351,7 +351,7 @@ func contractCompile(ctx *cli.Context) error {
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
-		Debug:   ctx.Bool("debug"),
+		Debug:   ctx.Bool("verbose"),
 
 		DebugInfo: ctx.String("emitdebug"),
 	}
