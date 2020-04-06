@@ -794,7 +794,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.checkBigIntSize(a)
 
-		v.estack.PushVal(new(big.Int).Mod(a, b))
+		v.estack.PushVal(new(big.Int).Rem(a, b))
 
 	case opcode.SHL, opcode.SHR:
 		b := v.estack.Pop().BigInt().Int64()
