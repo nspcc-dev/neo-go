@@ -1,8 +1,9 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -20,13 +21,13 @@ type cachedDao struct {
 }
 
 // newCachedDao returns new cachedDao wrapping around given backing store.
-func newCachedDao(backend storage.Store) *cachedDao {
+func newCachedDao(d dao) *cachedDao {
 	accs := make(map[util.Uint160]*state.Account)
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
-	return &cachedDao{*newDao(backend), accs, ctrs, unspents, balances, transfers}
+	return &cachedDao{d.GetWrapped(), accs, ctrs, unspents, balances, transfers}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying Store
@@ -139,6 +140,24 @@ func (cd *cachedDao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *stat
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *cachedDao) Persist() (int, error) {
+	lowerCache, ok := cd.dao.(*cachedDao)
+	// If the lower dao is cachedDao, we only need to flush the MemCached DB.
+	// This actually breaks dao interface incapsulation, but for our current
+	// usage scenario it should be good enough if cd doesn't modify object
+	// caches (accounts/contracts/etc) in any way.
+	if ok {
+		var simpleCache *simpleDao
+		for simpleCache == nil {
+			simpleCache, ok = lowerCache.dao.(*simpleDao)
+			if !ok {
+				lowerCache, ok = cd.dao.(*cachedDao)
+				if !ok {
+					return 0, errors.New("unsupported lower dao")
+				}
+			}
+		}
+		return simpleCache.Persist()
+	}
 	buf := io.NewBufBinWriter()
 
 	for sc := range cd.accounts {
@@ -171,4 +190,14 @@ func (cd *cachedDao) Persist() (int, error) {
 		}
 	}
 	return cd.dao.Persist()
+}
+
+func (cd *cachedDao) GetWrapped() dao {
+	return &cachedDao{cd.dao.GetWrapped(),
+		cd.accounts,
+		cd.contracts,
+		cd.unspents,
+		cd.balances,
+		cd.transfers,
+	}
 }

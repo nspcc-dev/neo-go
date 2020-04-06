@@ -5,7 +5,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -41,7 +40,7 @@ type Blockchainer interface {
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
-	GetTestVM() (*vm.VM, storage.Store)
+	GetTestVM() *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(util.Uint256) *state.UnspentCoin
 	References(t *transaction.Transaction) ([]transaction.InOut, error)
