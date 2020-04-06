@@ -229,6 +229,12 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 
+	// info for getblockheader rpc tests
+	t.Logf("header hash: %s", b.Hash().StringLE())
+	buf := io.NewBufBinWriter()
+	b.Header().EncodeBinary(buf.BinWriter)
+	t.Logf("header: %s", hex.EncodeToString(buf.Bytes()))
+
 	// Generate some blocks to be able to claim GAS for them.
 	_, err = bc.genBlocks(numOfEmptyBlocks)
 	require.NoError(t, err)
