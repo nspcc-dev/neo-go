@@ -806,8 +806,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.checkBigIntSize(a)
 
+		newOp := op
+		if b < 0 {
+			b = -b
+			if op == opcode.SHR {
+				newOp = opcode.SHL
+			} else {
+				newOp = opcode.SHR
+			}
+		}
 		var item big.Int
-		if op == opcode.SHL {
+		if newOp == opcode.SHL {
 			item.Lsh(a, uint(b))
 		} else {
 			item.Rsh(a, uint(b))
