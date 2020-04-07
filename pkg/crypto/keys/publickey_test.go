@@ -37,6 +37,16 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 	}
 }
 
+func TestNewPublicKeyFromBytes(t *testing.T) {
+	priv, err := NewPrivateKey()
+	require.NoError(t, err)
+
+	b := priv.PublicKey().Bytes()
+	pub, err := NewPublicKeyFromBytes(b)
+	require.NoError(t, err)
+	require.Equal(t, priv.PublicKey(), pub)
+}
+
 func TestDecodeFromString(t *testing.T) {
 	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
 	pubKey, err := NewPublicKeyFromString(str)

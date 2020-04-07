@@ -628,8 +628,7 @@ func assetCreate(ic *interop.Context, v *vm.VM) error {
 	if amount != -util.Satoshi() && (int64(amount)%int64(math.Pow10(int(MaxAssetPrecision-precision))) != 0) {
 		return errors.New("given asset amount has fractional component")
 	}
-	owner := &keys.PublicKey{}
-	err := owner.DecodeBytes(v.Estack().Pop().Bytes())
+	owner, err := keys.NewPublicKeyFromBytes(v.Estack().Pop().Bytes())
 	if err != nil {
 		return gherr.Wrap(err, "failed to get owner key")
 	}

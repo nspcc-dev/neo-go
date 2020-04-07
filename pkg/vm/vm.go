@@ -1595,8 +1595,8 @@ func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
 	if v.keys[s] != nil {
 		pkey = v.keys[s]
 	} else {
-		pkey = &keys.PublicKey{}
-		err := pkey.DecodeBytes(b)
+		var err error
+		pkey, err = keys.NewPublicKeyFromBytes(b)
 		if err != nil {
 			panic(err.Error())
 		}
