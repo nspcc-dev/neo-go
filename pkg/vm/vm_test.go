@@ -3032,6 +3032,305 @@ func TestHASH256(t *testing.T) {
 	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
 }
 
+var opcodesTestCases = map[opcode.Opcode][]struct {
+	name     string
+	args     []interface{}
+	expected interface{}
+	actual   func(vm *VM) interface{}
+}{
+	opcode.AND: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{1, 0, 0, 0, 0, 0, 0, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.OR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{1, 1, 1, 0, 1, 0, 1, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.XOR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{0, 1, 1, 0, 1, 0, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.BOOLOR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{true, true},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{false, false},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{false, true},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{true, false},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+	},
+	opcode.MIN: {
+		{
+			name:     "3_5",
+			args:     []interface{}{3, 5},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "5_3",
+			args:     []interface{}{5, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "3_3",
+			args:     []interface{}{3, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+	opcode.MAX: {
+		{
+			name:     "3_5",
+			args:     []interface{}{3, 5},
+			expected: int64(5),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "5_3",
+			args:     []interface{}{5, 3},
+			expected: int64(5),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "3_3",
+			args:     []interface{}{3, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+	opcode.WITHIN: {
+		{
+			name:     "within",
+			args:     []interface{}{4, 3, 5},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "less",
+			args:     []interface{}{2, 3, 5},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "more",
+			args:     []interface{}{6, 3, 5},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+	},
+	opcode.NEGATE: {
+		{
+			name:     "3",
+			args:     []interface{}{3},
+			expected: int64(-3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "-3",
+			args:     []interface{}{-3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0",
+			args:     []interface{}{0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+}
+
+func TestBitAndNumericOpcodes(t *testing.T) {
+	for code, opcodeTestCases := range opcodesTestCases {
+		t.Run(code.String(), func(t *testing.T) {
+			for _, testCase := range opcodeTestCases {
+				prog := makeProgram(code)
+				vm := load(prog)
+				t.Run(testCase.name, func(t *testing.T) {
+					for _, arg := range testCase.args {
+						vm.estack.PushVal(arg)
+					}
+					runVM(t, vm)
+					assert.Equal(t, testCase.expected, testCase.actual(vm))
+				})
+			}
+		})
+	}
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
