@@ -1,4 +1,4 @@
-package core
+package dao
 
 // slice attaches the methods of Interface to []int, sorting in increasing order.
 type slice []uint32

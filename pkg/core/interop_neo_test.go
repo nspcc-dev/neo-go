@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -123,7 +124,7 @@ func TestHeaderGetVersion_Negative(t *testing.T) {
 	block := newDumbBlock()
 	chain := newTestChain(t)
 	defer chain.Close()
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), block, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
 	v.Estack().PushVal(vm.NewBoolItem(false))
 
 	err := context.headerGetVersion(v)
@@ -219,7 +220,7 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
 
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
 	v.Estack().PushVal(vm.NewInteropItem(&witness))
 	err := context.witnessGetVerificationScript(v)
 	require.NoError(t, err)
@@ -462,7 +463,7 @@ func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interopContext, 
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), block, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
 	v.Estack().PushVal(vm.NewInteropItem(block))
 	return v, block, context, chain
 }
@@ -492,7 +493,7 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext,
 	}
 
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
 	return v, assetState, context, chain
 }
 
@@ -511,7 +512,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopCo
 	}
 
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
 	return v, contractState, context, chain
 }
 
@@ -526,7 +527,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext,
 
 	require.NoError(t, err)
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
 	return v, accountState, context, chain
 }
 
@@ -557,6 +558,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopCont
 	tx.Inputs = inputs
 	tx.Outputs = outputs
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, newSimpleDao(storage.NewMemoryStore()), nil, tx)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, tx)
 	return v, tx, context, chain
 }

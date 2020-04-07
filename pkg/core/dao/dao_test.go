@@ -1,4 +1,4 @@
-package core
+package dao
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestPutGetAndDecode(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	err := dao.Put(serializable, hash)
@@ -41,7 +41,7 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 }
 
 func TestGetAccountStateOrNew_New(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint160()
 	createdAccount, err := dao.GetAccountStateOrNew(hash)
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestGetAccountStateOrNew_New(t *testing.T) {
 }
 
 func TestPutAndGetAccountStateOrNew(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint160()
 	accountState := &state.Account{ScriptHash: hash}
 	err := dao.PutAccountState(accountState)
@@ -60,7 +60,7 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 }
 
 func TestPutAndGetAssetState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	id := random.Uint256()
 	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
 	err := dao.PutAssetState(assetState)
@@ -71,7 +71,7 @@ func TestPutAndGetAssetState(t *testing.T) {
 }
 
 func TestPutAndGetContractState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
@@ -82,7 +82,7 @@ func TestPutAndGetContractState(t *testing.T) {
 }
 
 func TestDeleteContractState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
@@ -95,7 +95,7 @@ func TestDeleteContractState(t *testing.T) {
 }
 
 func TestGetUnspentCoinState_Err(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
 	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
 	require.Error(t, err)
@@ -103,7 +103,7 @@ func TestGetUnspentCoinState_Err(t *testing.T) {
 }
 
 func TestPutGetUnspentCoinState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
 	unspentCoinState := &state.UnspentCoin{Height: 42, States: []state.OutputState{}}
 	err := dao.PutUnspentCoinState(hash, unspentCoinState)
@@ -114,7 +114,7 @@ func TestPutGetUnspentCoinState(t *testing.T) {
 }
 
 func TestGetValidatorStateOrNew_New(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState, err := dao.GetValidatorStateOrNew(publicKey)
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestGetValidatorStateOrNew_New(t *testing.T) {
 }
 
 func TestPutGetValidatorState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -137,7 +137,7 @@ func TestPutGetValidatorState(t *testing.T) {
 }
 
 func TestDeleteValidatorState(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -154,7 +154,7 @@ func TestDeleteValidatorState(t *testing.T) {
 }
 
 func TestGetValidators(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	publicKey := &keys.PublicKey{}
 	validatorState := &state.Validator{
 		PublicKey:  publicKey,
@@ -169,7 +169,7 @@ func TestGetValidators(t *testing.T) {
 }
 
 func TestPutGetAppExecResult(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
 	appExecResult := &state.AppExecResult{
 		TxHash: hash,
@@ -184,7 +184,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 }
 
 func TestPutGetStorageItem(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
@@ -195,7 +195,7 @@ func TestPutGetStorageItem(t *testing.T) {
 }
 
 func TestDeleteStorageItem(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint160()
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
@@ -208,7 +208,7 @@ func TestDeleteStorageItem(t *testing.T) {
 }
 
 func TestGetBlock_NotExists(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
 	block, _, err := dao.GetBlock(hash)
 	require.Error(t, err)
@@ -216,7 +216,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 }
 
 func TestPutGetBlock(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	b := &block.Block{
 		Base: block.Base{
 			Script: transaction.Witness{
@@ -235,14 +235,14 @@ func TestPutGetBlock(t *testing.T) {
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	version, err := dao.GetVersion()
 	require.Error(t, err)
 	require.Equal(t, "", version)
 }
 
 func TestGetVersion(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	err := dao.PutVersion("testVersion")
 	require.NoError(t, err)
 	version, err := dao.GetVersion()
@@ -251,14 +251,14 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	height, err := dao.GetCurrentBlockHeight()
 	require.Error(t, err)
 	require.Equal(t, uint32(0), height)
 }
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	b := &block.Block{
 		Base: block.Base{
 			Script: transaction.Witness{
@@ -275,7 +275,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 }
 
 func TestStoreAsTransaction(t *testing.T) {
-	dao := newSimpleDao(storage.NewMemoryStore())
+	dao := NewSimple(storage.NewMemoryStore())
 	tx := &transaction.Transaction{Type: transaction.IssueType, Data: &transaction.IssueTX{}}
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0)

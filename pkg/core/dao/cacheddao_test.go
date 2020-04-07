@@ -1,4 +1,4 @@
-package core
+package dao
 
 import (
 	"testing"
@@ -15,9 +15,9 @@ import (
 func TestCachedDaoAccounts(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := newSimpleDao(store)
+	pdao := NewSimple(store)
 	// Cached DAO.
-	cdao := newCachedDao(pdao)
+	cdao := NewCached(pdao)
 
 	hash := random.Uint160()
 	_, err := cdao.GetAccountState(hash)
@@ -51,8 +51,8 @@ func TestCachedDaoAccounts(t *testing.T) {
 
 func TestCachedDaoContracts(t *testing.T) {
 	store := storage.NewMemoryStore()
-	pdao := newSimpleDao(store)
-	dao := newCachedDao(pdao)
+	pdao := NewSimple(store)
+	dao := NewCached(pdao)
 
 	script := []byte{0xde, 0xad, 0xbe, 0xef}
 	sh := hash.Hash160(script)
@@ -71,7 +71,7 @@ func TestCachedDaoContracts(t *testing.T) {
 
 	_, err = dao.Persist()
 	require.Nil(t, err)
-	dao2 := newCachedDao(pdao)
+	dao2 := NewCached(pdao)
 	cs2, err = dao2.GetContractState(sh)
 	require.Nil(t, err)
 	require.Equal(t, cs, cs2)
@@ -87,21 +87,21 @@ func TestCachedDaoContracts(t *testing.T) {
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := newSimpleDao(store)
-	assert.NotEqual(t, store, pdao.store)
+	pdao := NewSimple(store)
+	assert.NotEqual(t, store, pdao.Store)
 	// Cached DAO.
-	cdao := newCachedDao(pdao)
-	cdaoDao := cdao.dao.(*simpleDao)
-	assert.NotEqual(t, store, cdaoDao.store)
-	assert.NotEqual(t, pdao.store, cdaoDao.store)
+	cdao := NewCached(pdao)
+	cdaoDao := cdao.DAO.(*Simple)
+	assert.NotEqual(t, store, cdaoDao.Store)
+	assert.NotEqual(t, pdao.Store, cdaoDao.Store)
 
 	// Cached cached DAO.
-	ccdao := newCachedDao(cdao)
-	ccdaoDao := ccdao.dao.(*cachedDao)
-	intDao := ccdaoDao.dao.(*simpleDao)
-	assert.NotEqual(t, store, intDao.store)
-	assert.NotEqual(t, pdao.store, intDao.store)
-	assert.NotEqual(t, cdaoDao.store, intDao.store)
+	ccdao := NewCached(cdao)
+	ccdaoDao := ccdao.DAO.(*Cached)
+	intDao := ccdaoDao.DAO.(*Simple)
+	assert.NotEqual(t, store, intDao.Store)
+	assert.NotEqual(t, pdao.Store, intDao.Store)
+	assert.NotEqual(t, cdaoDao.Store, intDao.Store)
 
 	hash := random.Uint160()
 	key := []byte("qwerty")

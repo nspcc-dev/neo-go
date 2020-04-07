@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -100,7 +101,7 @@ func (ic *interopContext) bcGetHeight(v *vm.VM) error {
 
 // getTransactionAndHeight gets parameter from the vm evaluation stack and
 // returns transaction and its height if it's present in the blockchain.
-func getTransactionAndHeight(cd *cachedDao, v *vm.VM) (*transaction.Transaction, uint32, error) {
+func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction, uint32, error) {
 	hashbytes := v.Estack().Pop().Bytes()
 	hash, err := util.Uint256DecodeBytesBE(hashbytes)
 	if err != nil {

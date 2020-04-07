@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -80,7 +81,7 @@ type Blockchain struct {
 	lock sync.RWMutex
 
 	// Data access object for CRUD operations around storage.
-	dao *simpleDao
+	dao *dao.Simple
 
 	// Current index/height of the highest block.
 	// Read access should always be called by BlockHeight().
@@ -154,7 +155,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	}
 	bc := &Blockchain{
 		config:        cfg,
-		dao:           newSimpleDao(s),
+		dao:           dao.NewSimple(s),
 		headersOp:     make(chan headersOpFunc),
 		headersOpDone: make(chan struct{}),
 		stopCh:        make(chan struct{}),
@@ -271,7 +272,7 @@ func (bc *Blockchain) Run() {
 		if err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
-		if err := bc.dao.store.Close(); err != nil {
+		if err := bc.dao.Store.Close(); err != nil {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
 		close(bc.runToExitCh)
@@ -348,7 +349,7 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err error) {
 	var (
 		start = time.Now()
-		batch = bc.dao.store.Batch()
+		batch = bc.dao.Store.Batch()
 	)
 
 	if len(headers) > 0 {
@@ -402,7 +403,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 
 		if oldlen != headerList.Len() {
 			updateHeaderHeightMetric(headerList.Len() - 1)
-			if err = bc.dao.store.PutBatch(batch); err != nil {
+			if err = bc.dao.Store.PutBatch(batch); err != nil {
 				return
 			}
 			bc.log.Debug("done processing headers",
@@ -457,7 +458,7 @@ func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 // is happening here, quite allot as you can see :). If things are wired together
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
-	cache := newCachedDao(bc.dao)
+	cache := dao.NewCached(bc.dao)
 	fee := bc.getSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
 		fee += uint32(bc.SystemFee(tx).IntegralValue())
@@ -713,7 +714,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 			err = cache.PutAppExecResult(aer)
 			if err != nil {
-				return errors.Wrap(err, "failed to store notifications")
+				return errors.Wrap(err, "failed to Store notifications")
 			}
 		}
 	}
@@ -721,7 +722,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	defer bc.lock.Unlock()
 
 	if bc.config.SaveStorageBatch {
-		bc.lastBatch = cache.dao.GetBatch()
+		bc.lastBatch = cache.DAO.GetBatch()
 	}
 
 	_, err := cache.Persist()
@@ -742,7 +743,7 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP5Transfer(cache *cachedDao, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	transfer := &state.NEP5Transfer{
@@ -831,7 +832,7 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 }
 
 // processOutputs processes transaction outputs.
-func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
+func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
 	for index, output := range tx.Outputs {
 		account, err := dao.GetAccountStateOrNew(output.ScriptHash)
 		if err != nil {
@@ -852,14 +853,14 @@ func processOutputs(tx *transaction.Transaction, dao *cachedDao) error {
 	return nil
 }
 
-func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *cachedDao) error {
+func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *dao.Cached) error {
 	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, output.Amount)
 	}
 	return nil
 }
 
-func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *cachedDao) error {
+func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *dao.Cached) error {
 	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
 		return modAccountVotes(account, dao, -output.Amount)
 	}
@@ -867,7 +868,7 @@ func processTXWithValidatorsSubtract(output *transaction.Output, account *state.
 }
 
 // modAccountVotes adds given value to given account voted validators.
-func modAccountVotes(account *state.Account, dao *cachedDao, value util.Fixed8) error {
+func modAccountVotes(account *state.Account, dao *dao.Cached, value util.Fixed8) error {
 	for _, vote := range account.Votes {
 		validator, err := dao.GetValidatorStateOrNew(vote)
 		if err != nil {
@@ -898,7 +899,7 @@ func modAccountVotes(account *state.Account, dao *cachedDao, value util.Fixed8) 
 	return nil
 }
 
-func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
+func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao.Cached) error {
 	publicKey := &keys.PublicKey{}
 	err := publicKey.DecodeBytes(descriptor.Key)
 	if err != nil {
@@ -918,7 +919,7 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 	return nil
 }
 
-func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *cachedDao) error {
+func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao.Cached) error {
 	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
 	if err != nil {
 		return err
@@ -971,7 +972,7 @@ func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao 
 	return nil
 }
 
-// persist flushes current in-memory store contents to the persistent storage.
+// persist flushes current in-memory Store contents to the persistent storage.
 func (bc *Blockchain) persist() error {
 	var (
 		start     = time.Now()
@@ -1725,7 +1726,7 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 // GetValidators returns validators.
 // Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
 func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := newCachedDao(bc.dao)
+	cache := dao.NewCached(bc.dao)
 	if len(txes) > 0 {
 		for _, tx := range txes {
 			// iterate through outputs
@@ -1873,7 +1874,7 @@ func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
 	return result, nil
 }
 
-func processStateTX(dao *cachedDao, tx *transaction.StateTX) error {
+func processStateTX(dao *dao.Cached, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
 		case transaction.Account:
@@ -1889,7 +1890,7 @@ func processStateTX(dao *cachedDao, tx *transaction.StateTX) error {
 	return nil
 }
 
-func processEnrollmentTX(dao *cachedDao, tx *transaction.EnrollmentTX) error {
+func processEnrollmentTX(dao *dao.Cached, tx *transaction.EnrollmentTX) error {
 	validatorState, err := dao.GetValidatorStateOrNew(&tx.PublicKey)
 	if err != nil {
 		return err
@@ -2140,6 +2141,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao, block *block.Block, tx *transaction.Transaction) *interopContext {
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interopContext {
 	return newInteropContext(trigger, bc, d, block, tx, bc.log)
 }
