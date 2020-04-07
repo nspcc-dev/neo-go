@@ -537,7 +537,7 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	for k := range hashMap {
 		sortedKeys = append(sortedKeys, k)
 	}
-	sort.Sort(slice(sortedKeys))
+	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
 
 	for _, key := range sortedKeys {
 		hashes = append(hashes[:key], hashMap[key]...)
