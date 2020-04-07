@@ -657,7 +657,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-			v := bc.spawnVMWithInterops(systemInterop)
+			v := systemInterop.SpawnVM()
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
@@ -1999,27 +1999,10 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 
 }
 
-// spawnVMWithInterops returns a VM with script getter and interop functions set
-// up for current blockchain.
-func (bc *Blockchain) spawnVMWithInterops(interopCtx *interopContext) *vm.VM {
-	vm := vm.New()
-	vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
-		cs, err := interopCtx.dao.GetContractState(hash)
-		if err != nil {
-			return nil, false
-		}
-		hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
-		return cs.Script, hasDynamicInvoke
-	})
-	vm.RegisterInteropGetter(interopCtx.getSystemInterop)
-	vm.RegisterInteropGetter(interopCtx.getNeoInterop)
-	return vm
-}
-
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() *vm.VM {
 	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
-	vm := bc.spawnVMWithInterops(systemInterop)
+	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	return vm
 }
@@ -2047,7 +2030,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		return err
 	}
 
-	vm := bc.spawnVMWithInterops(interopCtx)
+	vm := interopCtx.SpawnVM()
 	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
