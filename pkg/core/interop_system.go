@@ -385,17 +385,6 @@ func runtimeGetTime(ic *interopContext, v *vm.VM) error {
 	return nil
 }
 
-/*
-// runtimeSerialize serializes given stack item.
-func runtimeSerialize(ic *interopContext, v *vm.VM) error {
-	panic("TODO")
-}
-
-// runtimeDeserialize deserializes given stack item.
-func runtimeDeserialize(ic *interopContext, v *vm.VM) error {
-	panic("TODO")
-}
-*/
 func checkStorageContext(ic *interopContext, stc *StorageContext) error {
 	contract, err := ic.dao.GetContractState(stc.ScriptHash)
 	if err != nil {
