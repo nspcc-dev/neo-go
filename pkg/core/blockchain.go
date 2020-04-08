@@ -657,7 +657,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-			v := systemInterop.SpawnVM()
+			v := SpawnVM(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
@@ -2002,7 +2002,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() *vm.VM {
 	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
-	vm := systemInterop.SpawnVM()
+	vm := SpawnVM(systemInterop)
 	vm.SetPriceGetter(getPrice)
 	return vm
 }
@@ -2030,7 +2030,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		return err
 	}
 
-	vm := interopCtx.SpawnVM()
+	vm := SpawnVM(interopCtx)
 	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)

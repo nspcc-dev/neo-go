@@ -19,7 +19,7 @@ func TestGetPrice(t *testing.T) {
 	sdao := dao.NewSimple(storage.NewMemoryStore())
 	systemInterop := bc.newInteropContext(trigger.Application, sdao, nil, nil)
 
-	v := systemInterop.SpawnVM()
+	v := SpawnVM(systemInterop)
 	v.SetPriceGetter(getPrice)
 
 	t.Run("Neo.Asset.Create", func(t *testing.T) {
