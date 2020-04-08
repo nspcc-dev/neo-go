@@ -91,6 +91,8 @@ func NewStore(cfg DBConfiguration) (Store, error) {
 		store, err = NewRedisStore(cfg.RedisDBOptions)
 	case "boltdb":
 		store, err = NewBoltDBStore(cfg.BoltDBOptions)
+	case "badgerdb":
+		store, err = NewBadgerDBStore(cfg.BadgerDBOptions)
 	}
 	return store, err
 }
