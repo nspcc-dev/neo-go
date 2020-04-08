@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -32,7 +33,7 @@ type StorageContext struct {
 // getBlockHashFromElement converts given vm.Element to block hash using given
 // Blockchainer if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed.
-func getBlockHashFromElement(bc Blockchainer, element *vm.Element) (util.Uint256, error) {
+func getBlockHashFromElement(bc blockchainer.Blockchainer, element *vm.Element) (util.Uint256, error) {
 	var hash util.Uint256
 	hashbytes := element.Bytes()
 	if len(hashbytes) <= 5 {

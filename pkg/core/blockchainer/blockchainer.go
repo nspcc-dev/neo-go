@@ -1,4 +1,4 @@
-package core
+package blockchainer
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
