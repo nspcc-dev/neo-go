@@ -93,7 +93,7 @@ func NewCommands() []cli.Command {
 						Usage: "Print out additional information after a compiling",
 					},
 					cli.StringFlag{
-						Name:  "emitdebug",
+						Name:  "debug, d",
 						Usage: "Emit debug info in a separate file",
 					},
 				},
@@ -352,7 +352,7 @@ func contractCompile(ctx *cli.Context) error {
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo: ctx.String("emitdebug"),
+		DebugInfo: ctx.String("debug"),
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
