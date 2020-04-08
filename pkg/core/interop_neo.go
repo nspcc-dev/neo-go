@@ -663,7 +663,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 	}
 	err = ic.dao.PutAssetState(asset)
 	if err != nil {
-		return gherr.Wrap(err, "failed to store asset")
+		return gherr.Wrap(err, "failed to Store asset")
 	}
 	v.Estack().PushVal(vm.NewInteropItem(asset))
 	return nil
@@ -783,7 +783,7 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 	asset.Expiration = uint32(expiration)
 	err = ic.dao.PutAssetState(asset)
 	if err != nil {
-		return gherr.Wrap(err, "failed to store asset")
+		return gherr.Wrap(err, "failed to Store asset")
 	}
 	v.Estack().PushVal(expiration)
 	return nil

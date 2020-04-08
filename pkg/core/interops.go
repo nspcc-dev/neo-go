@@ -11,9 +11,12 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
 )
@@ -23,15 +26,32 @@ type interopContext struct {
 	trigger       trigger.Type
 	block         *block.Block
 	tx            *transaction.Transaction
-	dao           *cachedDao
+	dao           *dao.Cached
 	notifications []state.NotificationEvent
 	log           *zap.Logger
 }
 
-func newInteropContext(trigger trigger.Type, bc Blockchainer, d dao, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
-	dao := newCachedDao(d)
+func newInteropContext(trigger trigger.Type, bc Blockchainer, d dao.DAO, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
+	dao := dao.NewCached(d)
 	nes := make([]state.NotificationEvent, 0)
 	return &interopContext{bc, trigger, block, tx, dao, nes, log}
+}
+
+// SpawnVM returns a VM with script getter and interop functions set
+// up for current blockchain.
+func (ic *interopContext) SpawnVM() *vm.VM {
+	vm := vm.New()
+	vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
+		cs, err := ic.dao.GetContractState(hash)
+		if err != nil {
+			return nil, false
+		}
+		hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
+		return cs.Script, hasDynamicInvoke
+	})
+	vm.RegisterInteropGetter(ic.getSystemInterop)
+	vm.RegisterInteropGetter(ic.getNeoInterop)
+	return vm
 }
 
 // interopedFunction binds function name, id with the function itself and price,

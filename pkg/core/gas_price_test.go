@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -15,10 +16,10 @@ import (
 func TestGetPrice(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
-	sdao := newSimpleDao(storage.NewMemoryStore())
+	sdao := dao.NewSimple(storage.NewMemoryStore())
 	systemInterop := bc.newInteropContext(trigger.Application, sdao, nil, nil)
 
-	v := bc.spawnVMWithInterops(systemInterop)
+	v := systemInterop.SpawnVM()
 	v.SetPriceGetter(getPrice)
 
 	t.Run("Neo.Asset.Create", func(t *testing.T) {

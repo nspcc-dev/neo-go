@@ -1,4 +1,4 @@
-package core
+package dao
 
 import (
 	"bytes"
@@ -15,8 +15,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// dao is a data access object.
-type dao interface {
+// DAO is a data access object.
+type DAO interface {
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(scripthash util.Uint160, key []byte) error
@@ -43,7 +43,7 @@ type dao interface {
 	GetValidators() []*state.Validator
 	GetValidatorsCount() (*state.ValidatorsCount, error)
 	GetVersion() (string, error)
-	GetWrapped() dao
+	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
 	IsDoubleClaim(claim *transaction.ClaimTX) bool
 	IsDoubleSpend(tx *transaction.Transaction) bool
@@ -68,29 +68,30 @@ type dao interface {
 	putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error
 }
 
-// simpleDao is memCached wrapper around DB, simple dao implementation.
-type simpleDao struct {
-	store *storage.MemCachedStore
+// Simple is memCached wrapper around DB, simple DAO implementation.
+type Simple struct {
+	Store *storage.MemCachedStore
 }
 
-func newSimpleDao(backend storage.Store) *simpleDao {
-	return &simpleDao{store: storage.NewMemCachedStore(backend)}
+// NewSimple creates new simple dao using provided backend store.
+func NewSimple(backend storage.Store) *Simple {
+	return &Simple{Store: storage.NewMemCachedStore(backend)}
 }
 
 // GetBatch returns currently accumulated DB changeset.
-func (dao *simpleDao) GetBatch() *storage.MemBatch {
-	return dao.store.GetBatch()
+func (dao *Simple) GetBatch() *storage.MemBatch {
+	return dao.Store.GetBatch()
 }
 
-// GetWrapped returns new dao instance with another layer of wrapped
-// MemCachedStore around the current dao store.
-func (dao *simpleDao) GetWrapped() dao {
-	return newSimpleDao(dao.store)
+// GetWrapped returns new DAO instance with another layer of wrapped
+// MemCachedStore around the current DAO Store.
+func (dao *Simple) GetWrapped() DAO {
+	return NewSimple(dao.Store)
 }
 
 // GetAndDecode performs get operation and decoding with serializable structures.
-func (dao *simpleDao) GetAndDecode(entity io.Serializable, key []byte) error {
-	entityBytes, err := dao.store.Get(key)
+func (dao *Simple) GetAndDecode(entity io.Serializable, key []byte) error {
+	entityBytes, err := dao.Store.Get(key)
 	if err != nil {
 		return err
 	}
@@ -100,24 +101,24 @@ func (dao *simpleDao) GetAndDecode(entity io.Serializable, key []byte) error {
 }
 
 // Put performs put operation with serializable structures.
-func (dao *simpleDao) Put(entity io.Serializable, key []byte) error {
+func (dao *Simple) Put(entity io.Serializable, key []byte) error {
 	return dao.putWithBuffer(entity, key, io.NewBufBinWriter())
 }
 
 // putWithBuffer performs put operation using buf as a pre-allocated buffer for serialization.
-func (dao *simpleDao) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
+func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.BufBinWriter) error {
 	entity.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.store.Put(key, buf.Bytes())
+	return dao.Store.Put(key, buf.Bytes())
 }
 
 // -- start accounts.
 
 // GetAccountStateOrNew retrieves Account from temporary or persistent Store
 // or creates a new one if it doesn't exist and persists it.
-func (dao *simpleDao) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) {
+func (dao *Simple) GetAccountStateOrNew(hash util.Uint160) (*state.Account, error) {
 	account, err := dao.GetAccountState(hash)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
@@ -130,7 +131,7 @@ func (dao *simpleDao) GetAccountStateOrNew(hash util.Uint160) (*state.Account, e
 
 // GetAccountState returns Account from the given Store if it's
 // present there. Returns nil otherwise.
-func (dao *simpleDao) GetAccountState(hash util.Uint160) (*state.Account, error) {
+func (dao *Simple) GetAccountState(hash util.Uint160) (*state.Account, error) {
 	account := &state.Account{}
 	key := storage.AppendPrefix(storage.STAccount, hash.BytesBE())
 	err := dao.GetAndDecode(account, key)
@@ -140,11 +141,12 @@ func (dao *simpleDao) GetAccountState(hash util.Uint160) (*state.Account, error)
 	return account, err
 }
 
-func (dao *simpleDao) PutAccountState(as *state.Account) error {
+// PutAccountState saves given Account in given store.
+func (dao *Simple) PutAccountState(as *state.Account) error {
 	return dao.putAccountState(as, io.NewBufBinWriter())
 }
 
-func (dao *simpleDao) putAccountState(as *state.Account, buf *io.BufBinWriter) error {
+func (dao *Simple) putAccountState(as *state.Account, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STAccount, as.ScriptHash.BytesBE())
 	return dao.putWithBuffer(as, key, buf)
 }
@@ -154,7 +156,7 @@ func (dao *simpleDao) putAccountState(as *state.Account, buf *io.BufBinWriter) e
 // -- start assets.
 
 // GetAssetState returns given asset state as recorded in the given store.
-func (dao *simpleDao) GetAssetState(assetID util.Uint256) (*state.Asset, error) {
+func (dao *Simple) GetAssetState(assetID util.Uint256) (*state.Asset, error) {
 	asset := &state.Asset{}
 	key := storage.AppendPrefix(storage.STAsset, assetID.BytesBE())
 	err := dao.GetAndDecode(asset, key)
@@ -168,7 +170,7 @@ func (dao *simpleDao) GetAssetState(assetID util.Uint256) (*state.Asset, error) 
 }
 
 // PutAssetState puts given asset state into the given store.
-func (dao *simpleDao) PutAssetState(as *state.Asset) error {
+func (dao *Simple) PutAssetState(as *state.Asset) error {
 	key := storage.AppendPrefix(storage.STAsset, as.ID.BytesBE())
 	return dao.Put(as, key)
 }
@@ -179,7 +181,7 @@ func (dao *simpleDao) PutAssetState(as *state.Asset) error {
 
 // GetContractState returns contract state as recorded in the given
 // store by the given script hash.
-func (dao *simpleDao) GetContractState(hash util.Uint160) (*state.Contract, error) {
+func (dao *Simple) GetContractState(hash util.Uint160) (*state.Contract, error) {
 	contract := &state.Contract{}
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	err := dao.GetAndDecode(contract, key)
@@ -194,15 +196,15 @@ func (dao *simpleDao) GetContractState(hash util.Uint160) (*state.Contract, erro
 }
 
 // PutContractState puts given contract state into the given store.
-func (dao *simpleDao) PutContractState(cs *state.Contract) error {
+func (dao *Simple) PutContractState(cs *state.Contract) error {
 	key := storage.AppendPrefix(storage.STContract, cs.ScriptHash().BytesBE())
 	return dao.Put(cs, key)
 }
 
 // DeleteContractState deletes given contract state in the given store.
-func (dao *simpleDao) DeleteContractState(hash util.Uint160) error {
+func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
-	return dao.store.Delete(key)
+	return dao.Store.Delete(key)
 }
 
 // -- end contracts.
@@ -210,7 +212,7 @@ func (dao *simpleDao) DeleteContractState(hash util.Uint160) error {
 // -- start nep5 balances.
 
 // GetNEP5Balances retrieves nep5 balances from the cache.
-func (dao *simpleDao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
+func (dao *Simple) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
 	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
 	bs := state.NewNEP5Balances()
 	err := dao.GetAndDecode(bs, key)
@@ -221,11 +223,11 @@ func (dao *simpleDao) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, er
 }
 
 // PutNEP5Balances saves nep5 balances from the cache.
-func (dao *simpleDao) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
+func (dao *Simple) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error {
 	return dao.putNEP5Balances(acc, bs, io.NewBufBinWriter())
 }
 
-func (dao *simpleDao) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error {
+func (dao *Simple) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STNEP5Balances, acc.BytesBE())
 	return dao.putWithBuffer(bs, key, buf)
 }
@@ -245,9 +247,9 @@ func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
 }
 
 // GetNEP5TransferLog retrieves transfer log from the cache.
-func (dao *simpleDao) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+func (dao *Simple) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
 	key := getNEP5TransferLogKey(acc, index)
-	value, err := dao.store.Get(key)
+	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
 			return new(state.NEP5TransferLog), nil
@@ -258,14 +260,14 @@ func (dao *simpleDao) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state
 }
 
 // PutNEP5TransferLog saves given transfer log in the cache.
-func (dao *simpleDao) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error {
+func (dao *Simple) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error {
 	key := getNEP5TransferLogKey(acc, index)
-	return dao.store.Put(key, lg.Raw)
+	return dao.Store.Put(key, lg.Raw)
 }
 
 // AppendNEP5Transfer appends a single NEP5 transfer to a log.
 // First return value signalizes that log size has exceeded batch size.
-func (dao *simpleDao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
+func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error) {
 	lg, err := dao.GetNEP5TransferLog(acc, index)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
@@ -284,7 +286,7 @@ func (dao *simpleDao) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *sta
 // -- start unspent coins.
 
 // GetUnspentCoinState retrieves UnspentCoinState from the given store.
-func (dao *simpleDao) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
+func (dao *Simple) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
 	unspent := &state.UnspentCoin{}
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
 	err := dao.GetAndDecode(unspent, key)
@@ -295,11 +297,11 @@ func (dao *simpleDao) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin
 }
 
 // PutUnspentCoinState puts given UnspentCoinState into the given store.
-func (dao *simpleDao) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
+func (dao *Simple) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
 	return dao.putUnspentCoinState(hash, ucs, io.NewBufBinWriter())
 }
 
-func (dao *simpleDao) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error {
+func (dao *Simple) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error {
 	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
 	return dao.putWithBuffer(ucs, key, buf)
 }
@@ -309,7 +311,7 @@ func (dao *simpleDao) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentC
 // -- start validator.
 
 // GetValidatorStateOrNew gets validator from store or created new one in case of error.
-func (dao *simpleDao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error) {
+func (dao *Simple) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error) {
 	validatorState, err := dao.GetValidatorState(publicKey)
 	if err != nil {
 		if err != storage.ErrKeyNotFound {
@@ -322,9 +324,9 @@ func (dao *simpleDao) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.
 }
 
 // GetValidators returns all validators from store.
-func (dao *simpleDao) GetValidators() []*state.Validator {
+func (dao *Simple) GetValidators() []*state.Validator {
 	var validators []*state.Validator
-	dao.store.Seek(storage.STValidator.Bytes(), func(k, v []byte) {
+	dao.Store.Seek(storage.STValidator.Bytes(), func(k, v []byte) {
 		r := io.NewBinReaderFromBuf(v)
 		validator := &state.Validator{}
 		validator.DecodeBinary(r)
@@ -337,7 +339,7 @@ func (dao *simpleDao) GetValidators() []*state.Validator {
 }
 
 // GetValidatorState returns validator by publicKey.
-func (dao *simpleDao) GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error) {
+func (dao *Simple) GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error) {
 	validatorState := &state.Validator{}
 	key := storage.AppendPrefix(storage.STValidator, publicKey.Bytes())
 	err := dao.GetAndDecode(validatorState, key)
@@ -348,20 +350,20 @@ func (dao *simpleDao) GetValidatorState(publicKey *keys.PublicKey) (*state.Valid
 }
 
 // PutValidatorState puts given Validator into the given store.
-func (dao *simpleDao) PutValidatorState(vs *state.Validator) error {
+func (dao *Simple) PutValidatorState(vs *state.Validator) error {
 	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
 	return dao.Put(vs, key)
 }
 
 // DeleteValidatorState deletes given Validator into the given store.
-func (dao *simpleDao) DeleteValidatorState(vs *state.Validator) error {
+func (dao *Simple) DeleteValidatorState(vs *state.Validator) error {
 	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
-	return dao.store.Delete(key)
+	return dao.Store.Delete(key)
 }
 
 // GetValidatorsCount returns current ValidatorsCount or new one if there is none
 // in the DB.
-func (dao *simpleDao) GetValidatorsCount() (*state.ValidatorsCount, error) {
+func (dao *Simple) GetValidatorsCount() (*state.ValidatorsCount, error) {
 	vc := &state.ValidatorsCount{}
 	key := []byte{byte(storage.IXValidatorsCount)}
 	err := dao.GetAndDecode(vc, key)
@@ -372,7 +374,7 @@ func (dao *simpleDao) GetValidatorsCount() (*state.ValidatorsCount, error) {
 }
 
 // PutValidatorsCount put given ValidatorsCount in the store.
-func (dao *simpleDao) PutValidatorsCount(vc *state.ValidatorsCount) error {
+func (dao *Simple) PutValidatorsCount(vc *state.ValidatorsCount) error {
 	key := []byte{byte(storage.IXValidatorsCount)}
 	return dao.Put(vc, key)
 }
@@ -383,7 +385,7 @@ func (dao *simpleDao) PutValidatorsCount(vc *state.ValidatorsCount) error {
 
 // GetAppExecResult gets application execution result from the
 // given store.
-func (dao *simpleDao) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
+func (dao *Simple) GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error) {
 	aer := &state.AppExecResult{}
 	key := storage.AppendPrefix(storage.STNotification, hash.BytesBE())
 	err := dao.GetAndDecode(aer, key)
@@ -395,7 +397,7 @@ func (dao *simpleDao) GetAppExecResult(hash util.Uint256) (*state.AppExecResult,
 
 // PutAppExecResult puts given application execution result into the
 // given store.
-func (dao *simpleDao) PutAppExecResult(aer *state.AppExecResult) error {
+func (dao *Simple) PutAppExecResult(aer *state.AppExecResult) error {
 	key := storage.AppendPrefix(storage.STNotification, aer.TxHash.BytesBE())
 	return dao.Put(aer, key)
 }
@@ -404,9 +406,9 @@ func (dao *simpleDao) PutAppExecResult(aer *state.AppExecResult) error {
 
 // -- start storage item.
 
-// GetStorageItem returns StorageItem if it exists in the given Store.
-func (dao *simpleDao) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
-	b, err := dao.store.Get(makeStorageItemKey(scripthash, key))
+// GetStorageItem returns StorageItem if it exists in the given store.
+func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
+	b, err := dao.Store.Get(makeStorageItemKey(scripthash, key))
 	if err != nil {
 		return nil
 	}
@@ -422,19 +424,19 @@ func (dao *simpleDao) GetStorageItem(scripthash util.Uint160, key []byte) *state
 }
 
 // PutStorageItem puts given StorageItem for given script with given
-// key into the given Store.
-func (dao *simpleDao) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
+// key into the given store.
+func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
 	return dao.Put(si, makeStorageItemKey(scripthash, key))
 }
 
 // DeleteStorageItem drops storage item for the given script with the
-// given key from the Store.
-func (dao *simpleDao) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
-	return dao.store.Delete(makeStorageItemKey(scripthash, key))
+// given key from the store.
+func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
+	return dao.Store.Delete(makeStorageItemKey(scripthash, key))
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
-func (dao *simpleDao) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
+func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
 	var siMap = make(map[string]*state.StorageItem)
 	var err error
 
@@ -453,7 +455,7 @@ func (dao *simpleDao) GetStorageItems(hash util.Uint160) (map[string]*state.Stor
 		// Cut prefix and hash.
 		siMap[string(k[21:])] = si
 	}
-	dao.store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
+	dao.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
 	if err != nil {
 		return nil, err
 	}
@@ -470,9 +472,9 @@ func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
 // -- other.
 
 // GetBlock returns Block by the given hash if it exists in the store.
-func (dao *simpleDao) GetBlock(hash util.Uint256) (*block.Block, uint32, error) {
+func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, uint32, error) {
 	key := storage.AppendPrefix(storage.DataBlock, hash.BytesLE())
-	b, err := dao.store.Get(key)
+	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -485,16 +487,16 @@ func (dao *simpleDao) GetBlock(hash util.Uint256) (*block.Block, uint32, error) 
 }
 
 // GetVersion attempts to get the current version stored in the
-// underlying Store.
-func (dao *simpleDao) GetVersion() (string, error) {
-	version, err := dao.store.Get(storage.SYSVersion.Bytes())
+// underlying store.
+func (dao *Simple) GetVersion() (string, error) {
+	version, err := dao.Store.Get(storage.SYSVersion.Bytes())
 	return string(version), err
 }
 
 // GetCurrentBlockHeight returns the current block height found in the
-// underlying Store.
-func (dao *simpleDao) GetCurrentBlockHeight() (uint32, error) {
-	b, err := dao.store.Get(storage.SYSCurrentBlock.Bytes())
+// underlying store.
+func (dao *Simple) GetCurrentBlockHeight() (uint32, error) {
+	b, err := dao.Store.Get(storage.SYSCurrentBlock.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -502,10 +504,10 @@ func (dao *simpleDao) GetCurrentBlockHeight() (uint32, error) {
 }
 
 // GetCurrentHeaderHeight returns the current header height and hash from
-// the underlying Store.
-func (dao *simpleDao) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error) {
+// the underlying store.
+func (dao *Simple) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error) {
 	var b []byte
-	b, err = dao.store.Get(storage.SYSCurrentHeader.Bytes())
+	b, err = dao.Store.Get(storage.SYSCurrentHeader.Bytes())
 	if err != nil {
 		return
 	}
@@ -515,10 +517,10 @@ func (dao *simpleDao) GetCurrentHeaderHeight() (i uint32, h util.Uint256, err er
 }
 
 // GetHeaderHashes returns a sorted list of header hashes retrieved from
-// the given underlying Store.
-func (dao *simpleDao) GetHeaderHashes() ([]util.Uint256, error) {
+// the given underlying store.
+func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	hashMap := make(map[uint32][]util.Uint256)
-	dao.store.Seek(storage.IXHeaderHashList.Bytes(), func(k, v []byte) {
+	dao.Store.Seek(storage.IXHeaderHashList.Bytes(), func(k, v []byte) {
 		storedCount := binary.LittleEndian.Uint32(k[1:])
 		hashes, err := read2000Uint256Hashes(v)
 		if err != nil {
@@ -535,7 +537,7 @@ func (dao *simpleDao) GetHeaderHashes() ([]util.Uint256, error) {
 	for k := range hashMap {
 		sortedKeys = append(sortedKeys, k)
 	}
-	sort.Sort(slice(sortedKeys))
+	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
 
 	for _, key := range sortedKeys {
 		hashes = append(hashes[:key], hashMap[key]...)
@@ -546,9 +548,9 @@ func (dao *simpleDao) GetHeaderHashes() ([]util.Uint256, error) {
 
 // GetTransaction returns Transaction and its height by the given hash
 // if it exists in the store.
-func (dao *simpleDao) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
+func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
-	b, err := dao.store.Get(key)
+	b, err := dao.Store.Get(key)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -565,14 +567,14 @@ func (dao *simpleDao) GetTransaction(hash util.Uint256) (*transaction.Transactio
 	return tx, height, nil
 }
 
-// PutVersion stores the given version in the underlying Store.
-func (dao *simpleDao) PutVersion(v string) error {
-	return dao.store.Put(storage.SYSVersion.Bytes(), []byte(v))
+// PutVersion stores the given version in the underlying store.
+func (dao *Simple) PutVersion(v string) error {
+	return dao.Store.Put(storage.SYSVersion.Bytes(), []byte(v))
 }
 
 // PutCurrentHeader stores current header.
-func (dao *simpleDao) PutCurrentHeader(hashAndIndex []byte) error {
-	return dao.store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
+func (dao *Simple) PutCurrentHeader(hashAndIndex []byte) error {
+	return dao.Store.Put(storage.SYSCurrentHeader.Bytes(), hashAndIndex)
 }
 
 // read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
@@ -590,16 +592,16 @@ func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
 
 // HasTransaction returns true if the given store contains the given
 // Transaction hash.
-func (dao *simpleDao) HasTransaction(hash util.Uint256) bool {
+func (dao *Simple) HasTransaction(hash util.Uint256) bool {
 	key := storage.AppendPrefix(storage.DataTransaction, hash.BytesLE())
-	if _, err := dao.store.Get(key); err == nil {
+	if _, err := dao.Store.Get(key); err == nil {
 		return true
 	}
 	return false
 }
 
 // StoreAsBlock stores the given block as DataBlock.
-func (dao *simpleDao) StoreAsBlock(block *block.Block, sysFee uint32) error {
+func (dao *Simple) StoreAsBlock(block *block.Block, sysFee uint32) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
 		buf = io.NewBufBinWriter()
@@ -613,20 +615,20 @@ func (dao *simpleDao) StoreAsBlock(block *block.Block, sysFee uint32) error {
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.store.Put(key, buf.Bytes())
+	return dao.Store.Put(key, buf.Bytes())
 }
 
 // StoreAsCurrentBlock stores the given block witch prefix SYSCurrentBlock.
-func (dao *simpleDao) StoreAsCurrentBlock(block *block.Block) error {
+func (dao *Simple) StoreAsCurrentBlock(block *block.Block) error {
 	buf := io.NewBufBinWriter()
 	h := block.Hash()
 	h.EncodeBinary(buf.BinWriter)
 	buf.WriteU32LE(block.Index)
-	return dao.store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
+	return dao.Store.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
 }
 
 // StoreAsTransaction stores the given TX as DataTransaction.
-func (dao *simpleDao) StoreAsTransaction(tx *transaction.Transaction, index uint32) error {
+func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32) error {
 	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesLE())
 	buf := io.NewBufBinWriter()
 	buf.WriteU32LE(index)
@@ -634,20 +636,20 @@ func (dao *simpleDao) StoreAsTransaction(tx *transaction.Transaction, index uint
 	if buf.Err != nil {
 		return buf.Err
 	}
-	return dao.store.Put(key, buf.Bytes())
+	return dao.Store.Put(key, buf.Bytes())
 }
 
 // IsDoubleSpend verifies that the input transactions are not double spent.
-func (dao *simpleDao) IsDoubleSpend(tx *transaction.Transaction) bool {
+func (dao *Simple) IsDoubleSpend(tx *transaction.Transaction) bool {
 	return dao.checkUsedInputs(tx.Inputs, state.CoinSpent)
 }
 
 // IsDoubleClaim verifies that given claim inputs are not already claimed by another tx.
-func (dao *simpleDao) IsDoubleClaim(claim *transaction.ClaimTX) bool {
+func (dao *Simple) IsDoubleClaim(claim *transaction.ClaimTX) bool {
 	return dao.checkUsedInputs(claim.Claims, state.CoinClaimed)
 }
 
-func (dao *simpleDao) checkUsedInputs(inputs []transaction.Input, coin state.Coin) bool {
+func (dao *Simple) checkUsedInputs(inputs []transaction.Input, coin state.Coin) bool {
 	if len(inputs) == 0 {
 		return false
 	}
@@ -668,6 +670,6 @@ func (dao *simpleDao) checkUsedInputs(inputs []transaction.Input, coin state.Coi
 
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
-func (dao *simpleDao) Persist() (int, error) {
-	return dao.store.Persist()
+func (dao *Simple) Persist() (int, error) {
+	return dao.Store.Persist()
 }
