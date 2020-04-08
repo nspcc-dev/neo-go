@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 
-func testNonInterop(t *testing.T, value interface{}, f func(*interopContext, *vm.VM) error) {
+func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context, *vm.VM) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
@@ -30,7 +31,7 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	}
 
 	// All of these functions expect an interop item on the stack.
-	funcs := []func(*interopContext, *vm.VM) error{
+	funcs := []func(*interop.Context, *vm.VM) error{
 		accountGetBalance,
 		accountGetScriptHash,
 		accountGetVotes,

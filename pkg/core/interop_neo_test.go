@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -56,12 +57,12 @@ func TestStorageFind(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, context.dao.PutContractState(contractState))
+	require.NoError(t, context.DAO.PutContractState(contractState))
 
 	scriptHash := contractState.ScriptHash()
 
 	for i := range skeys {
-		err := context.dao.PutStorageItem(scriptHash, skeys[i], items[i])
+		err := context.DAO.PutStorageItem(scriptHash, skeys[i], items[i])
 		require.NoError(t, err)
 	}
 
@@ -459,7 +460,7 @@ func TestAssetGetPrecision(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
 
-func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interopContext, *Blockchain) {
+func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
@@ -468,13 +469,13 @@ func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interopContext, 
 	return v, block, context, chain
 }
 
-func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext, *Blockchain) {
+func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v, tx, context, chain := createVMAndTX(t)
 	v.Estack().PushVal(vm.NewInteropItem(tx))
 	return v, tx, context, chain
 }
 
-func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext, *Blockchain) {
+func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interop.Context, *Blockchain) {
 	v := vm.New()
 	assetState := &state.Asset{
 		ID:         util.Uint256{},
@@ -497,7 +498,7 @@ func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interopContext,
 	return v, assetState, context, chain
 }
 
-func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopContext, *Blockchain) {
+func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	v := vm.New()
 	contractState := &state.Contract{
 		Script:      []byte("testscript"),
@@ -516,7 +517,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interopCo
 	return v, contractState, context, chain
 }
 
-func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext, *Blockchain) {
+func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context, *Blockchain) {
 	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
@@ -531,7 +532,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interopContext,
 	return v, accountState, context, chain
 }
 
-func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interopContext, *Blockchain) {
+func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 	tx := transaction.NewInvocationTX(script, 0)

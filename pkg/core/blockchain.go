@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -667,11 +668,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 			err := v.Run()
 			if !v.HasFailed() {
-				_, err := systemInterop.dao.Persist()
+				_, err := systemInterop.DAO.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
-				for _, note := range systemInterop.notifications {
+				for _, note := range systemInterop.Notifications {
 					arr, ok := note.Item.Value().([]vm.StackItem)
 					if !ok || len(arr) != 4 {
 						continue
@@ -710,7 +711,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				VMState:     v.State(),
 				GasConsumed: v.GasConsumed(),
 				Stack:       v.Estack().ToContractParameters(),
-				Events:      systemInterop.notifications,
+				Events:      systemInterop.Notifications,
 			}
 			err = cache.PutAppExecResult(aer)
 			if err != nil {
@@ -2024,7 +2025,7 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext, useKeys bool) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interop.Context, useKeys bool) error {
 	verification, err := ScriptFromWitness(hash, witness)
 	if err != nil {
 		return err
@@ -2124,6 +2125,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interopContext {
-	return newInteropContext(trigger, bc, d, block, tx, bc.log)
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
+	return interop.NewContext(trigger, bc, d, block, tx, bc.log)
 }
