@@ -7,6 +7,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -76,19 +78,19 @@ func TestStorageFind(t *testing.T) {
 		var iter *vm.InteropItem
 		require.NotPanics(t, func() { iter = v.Estack().Top().Interop() })
 
-		require.NoError(t, enumeratorNext(context, v))
+		require.NoError(t, enumerator.Next(context, v))
 		require.True(t, v.Estack().Pop().Bool())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, iteratorKey(context, v))
+		require.NoError(t, iterator.Key(context, v))
 		require.Equal(t, []byte{0x01, 0x02}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumeratorValue(context, v))
+		require.NoError(t, enumerator.Value(context, v))
 		require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumeratorNext(context, v))
+		require.NoError(t, enumerator.Next(context, v))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 

@@ -11,6 +11,8 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -135,10 +137,10 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Contract.GetStorageContext", Func: contractGetStorageContext, Price: 1},
 	{Name: "Neo.Contract.IsPayable", Func: contractIsPayable, Price: 1},
 	{Name: "Neo.Contract.Migrate", Func: contractMigrate, Price: 0},
-	{Name: "Neo.Enumerator.Concat", Func: enumeratorConcat, Price: 1},
-	{Name: "Neo.Enumerator.Create", Func: enumeratorCreate, Price: 1},
-	{Name: "Neo.Enumerator.Next", Func: enumeratorNext, Price: 1},
-	{Name: "Neo.Enumerator.Value", Func: enumeratorValue, Price: 1},
+	{Name: "Neo.Enumerator.Concat", Func: enumerator.Concat, Price: 1},
+	{Name: "Neo.Enumerator.Create", Func: enumerator.Create, Price: 1},
+	{Name: "Neo.Enumerator.Next", Func: enumerator.Next, Price: 1},
+	{Name: "Neo.Enumerator.Value", Func: enumerator.Value, Price: 1},
 	{Name: "Neo.Header.GetConsensusData", Func: headerGetConsensusData, Price: 1},
 	{Name: "Neo.Header.GetHash", Func: headerGetHash, Price: 1},
 	{Name: "Neo.Header.GetIndex", Func: headerGetIndex, Price: 1},
@@ -150,11 +152,11 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Input.GetHash", Func: inputGetHash, Price: 1},
 	{Name: "Neo.Input.GetIndex", Func: inputGetIndex, Price: 1},
 	{Name: "Neo.InvocationTransaction.GetScript", Func: invocationTxGetScript, Price: 1},
-	{Name: "Neo.Iterator.Concat", Func: iteratorConcat, Price: 1},
-	{Name: "Neo.Iterator.Create", Func: iteratorCreate, Price: 1},
-	{Name: "Neo.Iterator.Key", Func: iteratorKey, Price: 1},
-	{Name: "Neo.Iterator.Keys", Func: iteratorKeys, Price: 1},
-	{Name: "Neo.Iterator.Values", Func: iteratorValues, Price: 1},
+	{Name: "Neo.Iterator.Concat", Func: iterator.Concat, Price: 1},
+	{Name: "Neo.Iterator.Create", Func: iterator.Create, Price: 1},
+	{Name: "Neo.Iterator.Key", Func: iterator.Key, Price: 1},
+	{Name: "Neo.Iterator.Keys", Func: iterator.Keys, Price: 1},
+	{Name: "Neo.Iterator.Values", Func: iterator.Values, Price: 1},
 	{Name: "Neo.Output.GetAssetId", Func: outputGetAssetID, Price: 1},
 	{Name: "Neo.Output.GetScriptHash", Func: outputGetScriptHash, Price: 1},
 	{Name: "Neo.Output.GetValue", Func: outputGetValue, Price: 1},
@@ -183,8 +185,8 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Witness.GetVerificationScript", Func: witnessGetVerificationScript, Price: 100},
 
 	// Aliases.
-	{Name: "Neo.Iterator.Next", Func: enumeratorNext, Price: 1},
-	{Name: "Neo.Iterator.Value", Func: enumeratorValue, Price: 1},
+	{Name: "Neo.Iterator.Next", Func: enumerator.Next, Price: 1},
+	{Name: "Neo.Iterator.Value", Func: enumerator.Value, Price: 1},
 
 	// Old compatibility APIs.
 	{Name: "AntShares.Account.GetBalance", Func: accountGetBalance, Price: 1},
