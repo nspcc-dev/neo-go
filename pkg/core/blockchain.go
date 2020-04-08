@@ -446,7 +446,7 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// getSystemFeeAmount returns sum of all system fees for blocks up to h.
 // and 0 if no such block exists.
 func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 	_, sf, _ := bc.dao.GetBlock(h)
