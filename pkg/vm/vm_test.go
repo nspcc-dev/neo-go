@@ -3032,6 +3032,454 @@ func TestHASH256(t *testing.T) {
 	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
 }
 
+var opcodesTestCases = map[opcode.Opcode][]struct {
+	name     string
+	args     []interface{}
+	expected interface{}
+	actual   func(vm *VM) interface{}
+}{
+	opcode.AND: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{1, 0, 0, 0, 0, 0, 0, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.OR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{1, 1, 1, 0, 1, 0, 1, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.XOR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{1, 1},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{0, 0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{0, 1},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{1, 0},
+			expected: int64(1),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name: "random_values",
+			args: []interface{}{
+				[]byte{1, 0, 1, 0, 1, 0, 1, 1},
+				[]byte{1, 1, 0, 0, 0, 0, 0, 1},
+			},
+			expected: []byte{0, 1, 1, 0, 1, 0, 1},
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bytes()
+			},
+		},
+	},
+	opcode.BOOLOR: {
+		{
+			name:     "1_1",
+			args:     []interface{}{true, true},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "0_0",
+			args:     []interface{}{false, false},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "0_1",
+			args:     []interface{}{false, true},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "1_0",
+			args:     []interface{}{true, false},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+	},
+	opcode.MIN: {
+		{
+			name:     "3_5",
+			args:     []interface{}{3, 5},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "5_3",
+			args:     []interface{}{5, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "3_3",
+			args:     []interface{}{3, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+	opcode.MAX: {
+		{
+			name:     "3_5",
+			args:     []interface{}{3, 5},
+			expected: int64(5),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "5_3",
+			args:     []interface{}{5, 3},
+			expected: int64(5),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "3_3",
+			args:     []interface{}{3, 3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+	opcode.WITHIN: {
+		{
+			name:     "within",
+			args:     []interface{}{4, 3, 5},
+			expected: true,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "less",
+			args:     []interface{}{2, 3, 5},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+		{
+			name:     "more",
+			args:     []interface{}{6, 3, 5},
+			expected: false,
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().Bool()
+			},
+		},
+	},
+	opcode.NEGATE: {
+		{
+			name:     "3",
+			args:     []interface{}{3},
+			expected: int64(-3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "-3",
+			args:     []interface{}{-3},
+			expected: int64(3),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+		{
+			name:     "0",
+			args:     []interface{}{0},
+			expected: int64(0),
+			actual: func(vm *VM) interface{} {
+				return vm.estack.Pop().BigInt().Int64()
+			},
+		},
+	},
+}
+
+func TestBitAndNumericOpcodes(t *testing.T) {
+	for code, opcodeTestCases := range opcodesTestCases {
+		t.Run(code.String(), func(t *testing.T) {
+			for _, testCase := range opcodeTestCases {
+				prog := makeProgram(code)
+				vm := load(prog)
+				t.Run(testCase.name, func(t *testing.T) {
+					for _, arg := range testCase.args {
+						vm.estack.PushVal(arg)
+					}
+					runVM(t, vm)
+					assert.Equal(t, testCase.expected, testCase.actual(vm))
+				})
+			}
+		})
+	}
+}
+
+var stackIsolationTestCases = map[opcode.Opcode][]struct {
+	name   string
+	params []interface{}
+}{
+	opcode.CALLE: {
+		{
+			name: "no_params",
+		},
+		{
+			name:   "with_params",
+			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
+		},
+	},
+	opcode.CALLED: {
+		{
+			name: "no_paranms",
+		},
+		{
+			name:   "with_params",
+			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
+		},
+	},
+	opcode.CALLET: {
+		{
+			name: "no_params",
+		},
+		{
+			name:   "with_params",
+			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
+		},
+	},
+	opcode.CALLEDT: {
+		{
+			name: "no_params",
+		},
+		{
+			name:   "with_params",
+			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
+		},
+	},
+}
+
+func TestStackIsolationOpcodes(t *testing.T) {
+	scriptHash := util.Uint160{1, 2, 3}
+	for code, codeTestCases := range stackIsolationTestCases {
+		t.Run(code.String(), func(t *testing.T) {
+			for _, testCase := range codeTestCases {
+				t.Run(testCase.name, func(t *testing.T) {
+					rvcount := len(testCase.params) + 1 // parameters + DEPTH
+					pcount := len(testCase.params)
+					prog := []byte{byte(code), byte(rvcount), byte(pcount)}
+					if code == opcode.CALLE || code == opcode.CALLET {
+						prog = append(prog, scriptHash.BytesBE()...)
+					}
+					prog = append(prog, byte(opcode.RET))
+
+					vm := load(prog)
+					vm.SetScriptGetter(func(in util.Uint160) ([]byte, bool) {
+						if in.Equals(scriptHash) {
+							return makeProgram(opcode.DEPTH), true
+						}
+						return nil, false
+					})
+					if code == opcode.CALLED || code == opcode.CALLEDT {
+						vm.Context().hasDynamicInvoke = true
+					}
+					if code == opcode.CALLET || code == opcode.CALLEDT {
+						vm.Context().rvcount = rvcount
+					}
+					// add extra parameter just to check that it won't appear on new estack
+					vm.estack.PushVal(7)
+					for _, param := range testCase.params {
+						vm.estack.PushVal(param)
+					}
+					if code == opcode.CALLED || code == opcode.CALLEDT {
+						vm.estack.PushVal(scriptHash.BytesBE())
+					}
+
+					runVM(t, vm)
+					elem := vm.estack.Pop() // depth should be equal to params count, as it's a separate execution context
+					assert.Equal(t, int64(pcount), elem.BigInt().Int64())
+					for i := pcount; i > 0; i-- {
+						p := vm.estack.Pop()
+						assert.Equal(t, testCase.params[i-1], p.value.Value())
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestCALLIAltStack(t *testing.T) {
+	prog := []byte{
+		byte(opcode.PUSH1),
+		byte(opcode.DUP),
+		byte(opcode.TOALTSTACK),
+		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including  JMP parameters)
+		byte(opcode.FROMALTSTACK), // altstack is empty, so panic here
+		byte(opcode.RET),
+		byte(opcode.CALLI), byte(0), byte(0), 0xfc, 0xff, // to FROMALTSTACK (-4) with clean stacks
+		byte(opcode.RET),
+	}
+
+	vm := load(prog)
+	checkVMFailed(t, vm)
+}
+
+func TestCALLIDEPTH(t *testing.T) {
+	prog := []byte{
+		byte(opcode.PUSH3),
+		byte(opcode.PUSH2),
+		byte(opcode.PUSH1),
+		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including JMP parameters)
+		byte(opcode.DEPTH), // depth is 2, put it on stack
+		byte(opcode.RET),
+		byte(opcode.CALLI), byte(3), byte(2), 0xfc, 0xff, // to DEPTH (-4) with [21 on stack
+		byte(opcode.RET),
+	}
+
+	vm := load(prog)
+
+	runVM(t, vm)
+	assert.Equal(t, 4, vm.estack.Len())
+	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64()) // depth was 2
+	for i := 1; i < 4; i++ {
+		assert.Equal(t, int64(i), vm.estack.Pop().BigInt().Int64())
+	}
+}
+
+func TestCALLI(t *testing.T) {
+	prog := []byte{
+		byte(opcode.PUSH3),
+		byte(opcode.PUSH2),
+		byte(opcode.PUSH1),
+		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including JMP parameters)
+		byte(opcode.SUB), // 2 - 1
+		byte(opcode.RET),
+		byte(opcode.CALLI), byte(1), byte(2), 0xfc, 0xff, // to SUB (-4) with [21 on stack
+		byte(opcode.MUL), // 3 * 1
+		byte(opcode.RET),
+	}
+
+	vm := load(prog)
+
+	runVM(t, vm)
+	assert.Equal(t, 1, vm.estack.Len())
+	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {
