@@ -138,7 +138,7 @@ At the moment this is implemented via RPC call to the remote server.
 
 ## Smart contract examples
 
-Some examples are provided in the [examples directory](https://github.com/nspcc-dev/neo-go/tree/master/examples).
+Some examples are provided in the [examples directory](examples).
 
 ### Check if the invoker of the contract is the owning address
 

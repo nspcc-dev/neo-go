@@ -16,14 +16,21 @@
 
 # Overview
 
-This project aims to be a full port of the original C# [NEO project](https://github.com/neo-project).
+This project aims to be a full port of the original C# [Neo project](https://github.com/neo-project).
 A complete toolkit for the NEO blockchain, including:
 
 - [Consensus node](docs/consensus.md)
-- [RPC node & client](https://github.com/nspcc-dev/neo-go/tree/master/docs/rpc.md)
-- [CLI tool](https://github.com/nspcc-dev/neo-go/blob/master/docs/cli.md)
-- [Smart contract compiler](https://github.com/nspcc-dev/neo-go/blob/master/docs/compiler.md)
-- [NEO virtual machine](https://github.com/nspcc-dev/neo-go/blob/master/docs/vm.md)
+- [RPC node & client](docs/rpc.md)
+- [CLI tool](docs/cli.md)
+- [Smart contract compiler](docs/compiler.md)
+- [NEO virtual machine](docs/vm.md)
+
+This branch (**master**) is under active development now (read: won't work
+out of the box) and aims to be compatible with Neo 3. For the current stable
+version compatible with Neo 2 please refer to the [**master-2.x**
+branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
+before 0.80.0 (**0.7X.Y** track). Releases starting from 0.90.0 will contain
+Neo 3 code.
 
 # Getting started
 
@@ -101,7 +108,7 @@ where you can switch on/off and define port. Prometheus is enabled and Pprof is 
 # Contributing
 
 Feel free to contribute to this project after reading the
-[contributing guidelines](https://github.com/nspcc-dev/neo-go/blob/master/CONTRIBUTING.md).
+[contributing guidelines](CONTRIBUTING.md).
 
 Before starting to work on a certain topic, create an new issue first,
 describing the feature/topic you are going to implement.
@@ -114,4 +121,4 @@ describing the feature/topic you are going to implement.
 
 # License
 
-- Open-source [MIT](https://github.com/nspcc-dev/neo-go/blob/master/LICENSE.md)
+- Open-source [MIT](LICENSE.md)
