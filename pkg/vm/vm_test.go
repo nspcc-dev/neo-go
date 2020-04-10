@@ -197,6 +197,31 @@ func TestStackLimitPUSH1Bad(t *testing.T) {
 	checkVMFailed(t, v)
 }
 
+func TestPUSHNULL(t *testing.T) {
+	prog := makeProgram(opcode.PUSHNULL, opcode.PUSHNULL, opcode.EQUAL)
+	v := load(prog)
+	require.NoError(t, v.Step())
+	require.Equal(t, 1, v.estack.Len())
+	runVM(t, v)
+	require.True(t, v.estack.Pop().Bool())
+}
+
+func TestISNULL(t *testing.T) {
+	t.Run("Integer", func(t *testing.T) {
+		prog := makeProgram(opcode.PUSH1, opcode.ISNULL)
+		v := load(prog)
+		runVM(t, v)
+		require.False(t, v.estack.Pop().Bool())
+	})
+
+	t.Run("Null", func(t *testing.T) {
+		prog := makeProgram(opcode.PUSHNULL, opcode.ISNULL)
+		v := load(prog)
+		runVM(t, v)
+		require.True(t, v.estack.Pop().Bool())
+	})
+}
+
 // appendBigStruct returns a program which:
 // 1. pushes size Structs on stack
 // 2. packs them into a new struct

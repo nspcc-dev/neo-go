@@ -185,6 +185,44 @@ func (i *StructItem) Clone() *StructItem {
 	return ret
 }
 
+// NullItem represents null on the stack.
+type NullItem struct{}
+
+// String implements StackItem interface.
+func (i NullItem) String() string {
+	return "Null"
+}
+
+// Value implements StackItem interface.
+func (i NullItem) Value() interface{} {
+	return nil
+}
+
+// Dup implements StackItem interface.
+// There is no need to perform a real copy here,
+// as NullItem has no internal state.
+func (i NullItem) Dup() StackItem {
+	return i
+}
+
+// TryBytes implements StackItem interface.
+func (i NullItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Null to ByteArray")
+}
+
+// Equals implements StackItem interface.
+func (i NullItem) Equals(s StackItem) bool {
+	_, ok := s.(NullItem)
+	return ok
+}
+
+// ToContractParameter implements StackItem interface.
+func (i NullItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type: smartcontract.AnyType,
+	}
+}
+
 // BigIntegerItem represents a big integer on the stack.
 type BigIntegerItem struct {
 	value *big.Int
