@@ -3,6 +3,7 @@ module github.com/nspcc-dev/neo-go
 require (
 	github.com/Workiva/go-datastructures v1.0.50
 	github.com/alicebob/miniredis v2.5.0+incompatible
+	github.com/dgraph-io/badger/v2 v2.0.3
 	github.com/go-redis/redis v6.10.2+incompatible
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/mr-tron/base58 v1.1.2
