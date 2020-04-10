@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -36,6 +35,8 @@ func TestWitnessEncodeDecode(t *testing.T) {
 	t.Log(len(witDecode.InvocationScript))
 }
 
+// TODO NEO3.0: update binary
+/*
 func TestDecodeEncodeClaimTX(t *testing.T) {
 	tx := decodeTransaction(rawClaimTX, t)
 	assert.Equal(t, tx.Type, ClaimType)
@@ -85,6 +86,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rawInvocationTX, hex.EncodeToString(data))
 }
+*/
 
 func TestNewInvocationTX(t *testing.T) {
 	script := []byte{0x51}
@@ -98,6 +100,8 @@ func TestNewInvocationTX(t *testing.T) {
 	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }
 
+// TODO NEO3.0: Update binary
+/*
 func TestDecodePublishTX(t *testing.T) {
 	expectedTXData := &PublishTX{}
 	expectedTXData.Name = "Lock"
@@ -150,6 +154,7 @@ func TestDecodePublishTX(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rawPublishTX, hex.EncodeToString(data))
 }
+*/
 
 func TestEncodingTXWithNoData(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
@@ -173,16 +178,7 @@ func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
 }
 
 func TestMarshalUnmarshalJSONMinerTX(t *testing.T) {
-	tx := &Transaction{
-		Type:       MinerType,
-		Version:    0,
-		Data:       &MinerTX{Nonce: 12345},
-		Attributes: []Attribute{},
-		Inputs:     []Input{},
-		Outputs:    []Output{},
-		Scripts:    []Witness{},
-		Trimmed:    false,
-	}
+	tx := NewMinerTX()
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }

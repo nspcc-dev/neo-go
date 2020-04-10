@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"math/rand"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -11,7 +13,15 @@ type ContractTX struct{}
 // NewContractTX creates Transaction of ContractType type.
 func NewContractTX() *Transaction {
 	return &Transaction{
-		Type: ContractType,
+		Type:       ContractType,
+		Version:    0,
+		Nonce:      rand.Uint32(),
+		Data:       &ContractTX{},
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
+		Trimmed:    false,
 	}
 }
 

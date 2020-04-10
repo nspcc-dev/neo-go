@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"math/rand"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -19,6 +21,21 @@ type PublishTX struct {
 	Email       string
 	Description string
 	Version     uint8 // Version of the parent struct Transaction. Used in reading NeedStorage flag.
+}
+
+// NewPublishTX creates Transaction of PublishType type.
+func NewPublishTX(publish *PublishTX) *Transaction {
+	return &Transaction{
+		Type:       PublishType,
+		Version:    0,
+		Nonce:      rand.Uint32(),
+		Data:       publish,
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
+		Trimmed:    false,
+	}
 }
 
 // DecodeBinary implements Serializable interface.

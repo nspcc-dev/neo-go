@@ -27,6 +27,9 @@ type Transaction struct {
 	// The trading version which is currently 0.
 	Version uint8
 
+	// Random number to avoid hash collision.
+	Nonce uint32
+
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
 	Data TXer
@@ -107,6 +110,7 @@ func (t *Transaction) AddVerificationHash(addr util.Uint160) {
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Type = TXType(br.ReadB())
 	t.Version = uint8(br.ReadB())
+	t.Nonce = br.ReadU32LE()
 	t.decodeData(br)
 
 	br.ReadArray(&t.Attributes)
@@ -177,6 +181,7 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	}
 	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
+	bw.WriteU32LE(t.Nonce)
 
 	// Underlying TXer.
 	if !noData {
@@ -256,6 +261,7 @@ type transactionJSON struct {
 	Size       int          `json:"size"`
 	Type       TXType       `json:"type"`
 	Version    uint8        `json:"version"`
+	Nonce      uint32       `json:"nonce"`
 	Attributes []Attribute  `json:"attributes"`
 	Inputs     []Input      `json:"vin"`
 	Outputs    []Output     `json:"vout"`
@@ -265,7 +271,6 @@ type transactionJSON struct {
 	PublicKey   *keys.PublicKey    `json:"pubkey,omitempty"`
 	Script      string             `json:"script,omitempty"`
 	Gas         util.Fixed8        `json:"gas,omitempty"`
-	Nonce       uint32             `json:"nonce,omitempty"`
 	Contract    *publishedContract `json:"contract,omitempty"`
 	Asset       *registeredAsset   `json:"asset,omitempty"`
 	Descriptors []*StateDescriptor `json:"descriptors,omitempty"`
@@ -278,14 +283,13 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Size:       io.GetVarSize(t),
 		Type:       t.Type,
 		Version:    t.Version,
+		Nonce:      t.Nonce,
 		Attributes: t.Attributes,
 		Inputs:     t.Inputs,
 		Outputs:    t.Outputs,
 		Scripts:    t.Scripts,
 	}
 	switch t.Type {
-	case MinerType:
-		tx.Nonce = t.Data.(*MinerTX).Nonce
 	case ClaimType:
 		tx.Claims = t.Data.(*ClaimTX).Claims
 	case EnrollmentType:
@@ -333,15 +337,14 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	}
 	t.Type = tx.Type
 	t.Version = tx.Version
+	t.Nonce = tx.Nonce
 	t.Attributes = tx.Attributes
 	t.Inputs = tx.Inputs
 	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts
 	switch tx.Type {
 	case MinerType:
-		t.Data = &MinerTX{
-			Nonce: tx.Nonce,
-		}
+		t.Data = &MinerTX{}
 	case ClaimType:
 		t.Data = &ClaimTX{
 			Claims: tx.Claims,

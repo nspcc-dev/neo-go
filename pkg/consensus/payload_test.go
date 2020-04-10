@@ -230,7 +230,7 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 		timestamp:         rand.Uint32(),
 		nonce:             rand.Uint64(),
 		transactionHashes: make([]util.Uint256, txCount),
-		minerTx:           *newMinerTx(rand.Uint32()),
+		minerTx:           *transaction.NewMinerTX(),
 	}
 
 	req.transactionHashes[0] = req.minerTx.Hash()
@@ -302,19 +302,4 @@ func TestMessageType_String(t *testing.T) {
 	require.Equal(t, "RecoveryMessage", recoveryMessageType.String())
 	require.Equal(t, "RecoveryRequest", recoveryRequestType.String())
 	require.Equal(t, "UNKNOWN(0xff)", messageType(0xff).String())
-}
-
-func newMinerTx(nonce uint32) *transaction.Transaction {
-	return &transaction.Transaction{
-		Type:    transaction.MinerType,
-		Version: 0,
-		Data: &transaction.MinerTX{
-			Nonce: rand.Uint32(),
-		},
-		Attributes: []transaction.Attribute{},
-		Inputs:     []transaction.Input{},
-		Outputs:    []transaction.Output{},
-		Scripts:    []transaction.Witness{},
-		Trimmed:    false,
-	}
 }

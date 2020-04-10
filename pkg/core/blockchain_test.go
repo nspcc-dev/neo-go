@@ -98,7 +98,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	block := bc.newBlock(newMinerTX())
+	block := bc.newBlock(transaction.NewMinerTX())
 	err := bc.AddBlock(block)
 	assert.Nil(t, err)
 

@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"errors"
+	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -23,6 +24,7 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 	return &Transaction{
 		Type:    InvocationType,
 		Version: 1,
+		Nonce:   rand.Uint32(),
 		Data: &InvocationTX{
 			Script:  script,
 			Gas:     gas,

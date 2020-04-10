@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"encoding/json"
+	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -28,6 +29,21 @@ type RegisterTX struct {
 	Owner keys.PublicKey
 
 	Admin util.Uint160
+}
+
+// NewRegisterTX creates Transaction of RegisterType type.
+func NewRegisterTX(register *RegisterTX) *Transaction {
+	return &Transaction{
+		Type:       RegisterType,
+		Version:    0,
+		Nonce:      rand.Uint32(),
+		Data:       register,
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
+		Trimmed:    false,
+	}
 }
 
 // DecodeBinary implements Serializable interface.

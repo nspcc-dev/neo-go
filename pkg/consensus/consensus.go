@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"errors"
-	"math/rand"
 	"sort"
 	"time"
 
@@ -452,17 +451,9 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 		}}
 	}
 	for {
-		nonce := rand.Uint32()
-		res[0] = &transaction.Transaction{
-			Type:       transaction.MinerType,
-			Version:    0,
-			Data:       &transaction.MinerTX{Nonce: nonce},
-			Attributes: nil,
-			Inputs:     nil,
-			Outputs:    txOuts,
-			Scripts:    nil,
-			Trimmed:    false,
-		}
+		minerTx := transaction.NewMinerTX()
+		minerTx.Outputs = txOuts
+		res[0] = minerTx
 
 		if tx, _, _ := s.Chain.GetTransaction(res[0].Hash()); tx == nil {
 			break
