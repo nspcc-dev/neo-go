@@ -166,7 +166,7 @@ INDEX    OPCODE    DESC
 ```
 
 In depth documentation about the **neo-go** compiler and smart contract examples can be found inside 
-the [compiler package](https://github.com/nspcc-dev/neo-go/tree/master/pkg/compiler).
+the [compiler package](pkg/compiler).
 
 ## VM run
 To run VM use
