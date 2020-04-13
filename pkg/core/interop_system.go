@@ -246,7 +246,7 @@ func txGetHash(ic *interop.Context, v *vm.VM) error {
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(vm.NewInteropItem(ic.Tx))
+	v.Estack().PushVal(vm.NewInteropItem(ic.Container))
 	return nil
 }
 
