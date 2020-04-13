@@ -280,6 +280,14 @@ func TestECDSAVerify(t *testing.T) {
 		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NewInteropItem(tx))
 	})
 
+	t.Run("signed script container", func(t *testing.T) {
+		tx := transaction.NewInvocationTX([]byte{0, 1, 2}, 1)
+		msg := tx.GetSignedPart()
+		sign := priv.Sign(msg)
+		ic.Container = tx
+		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NullItem{})
+	})
+
 	t.Run("missing arguments", func(t *testing.T) {
 		runCase(t, true, false)
 		sign := priv.Sign(msg)

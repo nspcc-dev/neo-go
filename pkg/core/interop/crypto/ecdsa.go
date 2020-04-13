@@ -49,11 +49,13 @@ func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-func getMessage(_ *interop.Context, item vm.StackItem) []byte {
+func getMessage(ic *interop.Context, item vm.StackItem) []byte {
 	var msg []byte
 	switch val := item.(type) {
 	case *vm.InteropItem:
 		msg = val.Value().(crypto.Verifiable).GetSignedPart()
+	case vm.NullItem:
+		msg = ic.Container.GetSignedPart()
 	default:
 		var err error
 		if msg, err = val.TryBytes(); err != nil {
