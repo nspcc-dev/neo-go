@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -49,9 +50,15 @@ func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
 }
 
 func getMessage(_ *interop.Context, item vm.StackItem) []byte {
-	msg, err := item.TryBytes()
-	if err != nil {
-		panic(err)
+	var msg []byte
+	switch val := item.(type) {
+	case *vm.InteropItem:
+		msg = val.Value().(crypto.Verifiable).GetSignedPart()
+	default:
+		var err error
+		if msg, err = val.TryBytes(); err != nil {
+			return nil
+		}
 	}
 	return msg
 }
