@@ -279,11 +279,9 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err != nil {
 		return nil, err
 	}
-	r := io.NewBinReaderFromBuf(txBytes)
-	tx := new(transaction.Transaction)
-	tx.DecodeBinary(r)
-	if r.Err != nil {
-		return nil, r.Err
+	tx, err := transaction.NewTransactionFromBytes(txBytes)
+	if err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

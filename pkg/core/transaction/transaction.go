@@ -238,6 +238,17 @@ func (t *Transaction) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewTransactionFromBytes decodes byte array into *Transaction
+func NewTransactionFromBytes(b []byte) (*Transaction, error) {
+	tx := &Transaction{}
+	r := io.NewBinReaderFromBuf(b)
+	tx.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return tx, nil
+}
+
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
