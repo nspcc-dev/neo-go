@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -50,7 +50,7 @@ type (
 )
 
 // NewBlock creates a new Block wrapper.
-func NewBlock(b *block.Block, chain core.Blockchainer) Block {
+func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 	res := Block{
 		Version:           b.Version,
 		Hash:              b.Hash(),

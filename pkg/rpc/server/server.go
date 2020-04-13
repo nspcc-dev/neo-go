@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -35,7 +36,7 @@ type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		chain      core.Blockchainer
+		chain      blockchainer.Blockchainer
 		config     rpc.Config
 		coreServer *network.Server
 		log        *zap.Logger
@@ -81,7 +82,7 @@ var invalidBlockHeightError = func(index int, height int) error {
 }
 
 // New creates a new Server struct.
-func New(chain core.Blockchainer, conf rpc.Config, coreServer *network.Server, log *zap.Logger) Server {
+func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server, log *zap.Logger) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}

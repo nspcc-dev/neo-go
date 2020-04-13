@@ -1,7 +1,7 @@
 package result
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -29,7 +29,7 @@ var GlobalAssets = map[string]string{
 }
 
 // NewUnspents creates a new Account wrapper using given Blockchainer.
-func NewUnspents(a *state.Account, chain core.Blockchainer, addr string) Unspents {
+func NewUnspents(a *state.Account, chain blockchainer.Blockchainer, addr string) Unspents {
 	res := Unspents{
 		Address: addr,
 		Balance: make([]UnspentBalanceInfo, 0, len(a.Balances)),

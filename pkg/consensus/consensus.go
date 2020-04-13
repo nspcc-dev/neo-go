@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -77,7 +78,7 @@ type Config struct {
 	// about the new block that needs to be broadcasted.
 	RelayBlock func(b *coreb.Block)
 	// Chain is a core.Blockchainer instance.
-	Chain core.Blockchainer
+	Chain blockchainer.Blockchainer
 	// RequestTx is a callback to which will be called
 	// when a node lacks transactions present in a block.
 	RequestTx func(h ...util.Uint256)

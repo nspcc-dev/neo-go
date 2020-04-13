@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -53,7 +54,7 @@ type (
 
 		transport Transporter
 		discovery Discoverer
-		chain     core.Blockchainer
+		chain     blockchainer.Blockchainer
 		bQueue    *blockQueue
 		consensus consensus.Service
 
@@ -84,7 +85,7 @@ func randomID() uint32 {
 }
 
 // NewServer returns a new Server, initialized with the given configuration.
-func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*Server, error) {
+func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Logger) (*Server, error) {
 	if log == nil {
 		return nil, errors.New("logger is a required parameter")
 	}

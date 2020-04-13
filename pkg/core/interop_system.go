@@ -6,7 +6,9 @@ import (
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -32,7 +34,7 @@ type StorageContext struct {
 // getBlockHashFromElement converts given vm.Element to block hash using given
 // Blockchainer if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed.
-func getBlockHashFromElement(bc Blockchainer, element *vm.Element) (util.Uint256, error) {
+func getBlockHashFromElement(bc blockchainer.Blockchainer, element *vm.Element) (util.Uint256, error) {
 	var hash util.Uint256
 	hashbytes := element.Bytes()
 	if len(hashbytes) <= 5 {
@@ -48,12 +50,12 @@ func getBlockHashFromElement(bc Blockchainer, element *vm.Element) (util.Uint256
 }
 
 // bcGetBlock returns current block.
-func (ic *interopContext) bcGetBlock(v *vm.VM) error {
-	hash, err := getBlockHashFromElement(ic.bc, v.Estack().Pop())
+func bcGetBlock(ic *interop.Context, v *vm.VM) error {
+	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
 	if err != nil {
 		return err
 	}
-	block, err := ic.bc.GetBlock(hash)
+	block, err := ic.Chain.GetBlock(hash)
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
@@ -63,13 +65,13 @@ func (ic *interopContext) bcGetBlock(v *vm.VM) error {
 }
 
 // bcGetContract returns contract.
-func (ic *interopContext) bcGetContract(v *vm.VM) error {
+func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	hashbytes := v.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashbytes)
 	if err != nil {
 		return err
 	}
-	cs, err := ic.dao.GetContractState(hash)
+	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
@@ -79,12 +81,12 @@ func (ic *interopContext) bcGetContract(v *vm.VM) error {
 }
 
 // bcGetHeader returns block header.
-func (ic *interopContext) bcGetHeader(v *vm.VM) error {
-	hash, err := getBlockHashFromElement(ic.bc, v.Estack().Pop())
+func bcGetHeader(ic *interop.Context, v *vm.VM) error {
+	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
 	if err != nil {
 		return err
 	}
-	header, err := ic.bc.GetHeader(hash)
+	header, err := ic.Chain.GetHeader(hash)
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
@@ -94,8 +96,8 @@ func (ic *interopContext) bcGetHeader(v *vm.VM) error {
 }
 
 // bcGetHeight returns blockchain height.
-func (ic *interopContext) bcGetHeight(v *vm.VM) error {
-	v.Estack().PushVal(ic.bc.BlockHeight())
+func bcGetHeight(ic *interop.Context, v *vm.VM) error {
+	v.Estack().PushVal(ic.Chain.BlockHeight())
 	return nil
 }
 
@@ -111,8 +113,8 @@ func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction
 }
 
 // bcGetTransaction returns transaction.
-func (ic *interopContext) bcGetTransaction(v *vm.VM) error {
-	tx, _, err := getTransactionAndHeight(ic.dao, v)
+func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
+	tx, _, err := getTransactionAndHeight(ic.DAO, v)
 	if err != nil {
 		return err
 	}
@@ -121,8 +123,8 @@ func (ic *interopContext) bcGetTransaction(v *vm.VM) error {
 }
 
 // bcGetTransactionHeight returns transaction height.
-func (ic *interopContext) bcGetTransactionHeight(v *vm.VM) error {
-	_, h, err := getTransactionAndHeight(ic.dao, v)
+func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
+	_, h, err := getTransactionAndHeight(ic.DAO, v)
 	if err != nil {
 		return err
 	}
@@ -147,7 +149,7 @@ func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
 }
 
 // headerGetIndex returns block index from the header.
-func (ic *interopContext) headerGetIndex(v *vm.VM) error {
+func headerGetIndex(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -157,7 +159,7 @@ func (ic *interopContext) headerGetIndex(v *vm.VM) error {
 }
 
 // headerGetHash returns header hash of the passed header.
-func (ic *interopContext) headerGetHash(v *vm.VM) error {
+func headerGetHash(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -167,7 +169,7 @@ func (ic *interopContext) headerGetHash(v *vm.VM) error {
 }
 
 // headerGetPrevHash returns previous header hash of the passed header.
-func (ic *interopContext) headerGetPrevHash(v *vm.VM) error {
+func headerGetPrevHash(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -177,7 +179,7 @@ func (ic *interopContext) headerGetPrevHash(v *vm.VM) error {
 }
 
 // headerGetTimestamp returns timestamp of the passed header.
-func (ic *interopContext) headerGetTimestamp(v *vm.VM) error {
+func headerGetTimestamp(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -187,7 +189,7 @@ func (ic *interopContext) headerGetTimestamp(v *vm.VM) error {
 }
 
 // blockGetTransactionCount returns transactions count in the given block.
-func (ic *interopContext) blockGetTransactionCount(v *vm.VM) error {
+func blockGetTransactionCount(ic *interop.Context, v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
 	block, ok := blockInterface.(*block.Block)
 	if !ok {
@@ -198,7 +200,7 @@ func (ic *interopContext) blockGetTransactionCount(v *vm.VM) error {
 }
 
 // blockGetTransactions returns transactions from the given block.
-func (ic *interopContext) blockGetTransactions(v *vm.VM) error {
+func blockGetTransactions(ic *interop.Context, v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
 	block, ok := blockInterface.(*block.Block)
 	if !ok {
@@ -217,7 +219,7 @@ func (ic *interopContext) blockGetTransactions(v *vm.VM) error {
 
 // blockGetTransaction returns transaction with the given number from the given
 // block.
-func (ic *interopContext) blockGetTransaction(v *vm.VM) error {
+func blockGetTransaction(ic *interop.Context, v *vm.VM) error {
 	blockInterface := v.Estack().Pop().Value()
 	block, ok := blockInterface.(*block.Block)
 	if !ok {
@@ -233,7 +235,7 @@ func (ic *interopContext) blockGetTransaction(v *vm.VM) error {
 }
 
 // txGetHash returns transaction's hash.
-func (ic *interopContext) txGetHash(v *vm.VM) error {
+func txGetHash(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -245,8 +247,8 @@ func (ic *interopContext) txGetHash(v *vm.VM) error {
 
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
-func (ic *interopContext) engineGetScriptContainer(v *vm.VM) error {
-	v.Estack().PushVal(vm.NewInteropItem(ic.tx))
+func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
+	v.Estack().PushVal(vm.NewInteropItem(ic.Tx))
 	return nil
 }
 
@@ -267,36 +269,36 @@ func pushContextScriptHash(v *vm.VM, n int) error {
 }
 
 // engineGetExecutingScriptHash returns executing script hash.
-func (ic *interopContext) engineGetExecutingScriptHash(v *vm.VM) error {
+func engineGetExecutingScriptHash(ic *interop.Context, v *vm.VM) error {
 	return pushContextScriptHash(v, 0)
 }
 
 // engineGetCallingScriptHash returns calling script hash.
-func (ic *interopContext) engineGetCallingScriptHash(v *vm.VM) error {
+func engineGetCallingScriptHash(ic *interop.Context, v *vm.VM) error {
 	return pushContextScriptHash(v, 1)
 }
 
 // engineGetEntryScriptHash returns entry script hash.
-func (ic *interopContext) engineGetEntryScriptHash(v *vm.VM) error {
+func engineGetEntryScriptHash(ic *interop.Context, v *vm.VM) error {
 	return pushContextScriptHash(v, v.Istack().Len()-1)
 }
 
 // runtimePlatform returns the name of the platform.
-func (ic *interopContext) runtimePlatform(v *vm.VM) error {
+func runtimePlatform(ic *interop.Context, v *vm.VM) error {
 	v.Estack().PushVal([]byte("NEO"))
 	return nil
 }
 
 // runtimeGetTrigger returns the script trigger.
-func (ic *interopContext) runtimeGetTrigger(v *vm.VM) error {
-	v.Estack().PushVal(byte(ic.trigger))
+func runtimeGetTrigger(ic *interop.Context, v *vm.VM) error {
+	v.Estack().PushVal(byte(ic.Trigger))
 	return nil
 }
 
 // checkHashedWitness checks given hash against current list of script hashes
 // for verifying in the interop context.
-func (ic *interopContext) checkHashedWitness(hash util.Uint160) (bool, error) {
-	hashes, err := ic.bc.GetScriptHashesForVerifying(ic.tx)
+func checkHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
+	hashes, err := ic.Chain.GetScriptHashesForVerifying(ic.Tx)
 	if err != nil {
 		return false, gherr.Wrap(err, "failed to get script hashes")
 	}
@@ -310,12 +312,12 @@ func (ic *interopContext) checkHashedWitness(hash util.Uint160) (bool, error) {
 
 // checkKeyedWitness checks hash of signature check contract with a given public
 // key against current list of script hashes for verifying in the interop context.
-func (ic *interopContext) checkKeyedWitness(key *keys.PublicKey) (bool, error) {
-	return ic.checkHashedWitness(key.GetScriptHash())
+func checkKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
+	return checkHashedWitness(ic, key.GetScriptHash())
 }
 
 // runtimeCheckWitness checks witnesses.
-func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
+func runtimeCheckWitness(ic *interop.Context, v *vm.VM) error {
 	var res bool
 	var err error
 
@@ -327,9 +329,9 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}
-		res, err = ic.checkKeyedWitness(key)
+		res, err = checkKeyedWitness(ic, key)
 	} else {
-		res, err = ic.checkHashedWitness(hash)
+		res, err = checkHashedWitness(ic, hash)
 	}
 	if err != nil {
 		return gherr.Wrap(err, "failed to check")
@@ -340,7 +342,7 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 
 // runtimeNotify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
-func (ic *interopContext) runtimeNotify(v *vm.VM) error {
+func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	// It can be just about anything.
 	e := v.Estack().Pop()
 	item := e.Item()
@@ -354,49 +356,38 @@ func (ic *interopContext) runtimeNotify(v *vm.VM) error {
 		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
 	}
 	ne := state.NotificationEvent{ScriptHash: getContextScriptHash(v, 0), Item: item}
-	ic.notifications = append(ic.notifications, ne)
+	ic.Notifications = append(ic.Notifications, ne)
 	return nil
 }
 
 // runtimeLog logs the message passed.
-func (ic *interopContext) runtimeLog(v *vm.VM) error {
+func runtimeLog(ic *interop.Context, v *vm.VM) error {
 	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
-	ic.log.Info("runtime log",
+	ic.Log.Info("runtime log",
 		zap.Stringer("script", getContextScriptHash(v, 0)),
 		zap.String("logs", msg))
 	return nil
 }
 
 // runtimeGetTime returns timestamp of the block being verified, or the latest
-// one in the blockchain if no block is given to interopContext.
-func (ic *interopContext) runtimeGetTime(v *vm.VM) error {
+// one in the blockchain if no block is given to Context.
+func runtimeGetTime(ic *interop.Context, v *vm.VM) error {
 	var header *block.Header
-	if ic.block == nil {
+	if ic.Block == nil {
 		var err error
-		header, err = ic.bc.GetHeader(ic.bc.CurrentBlockHash())
+		header, err = ic.Chain.GetHeader(ic.Chain.CurrentBlockHash())
 		if err != nil {
 			return err
 		}
 	} else {
-		header = ic.block.Header()
+		header = ic.Block.Header()
 	}
 	v.Estack().PushVal(header.Timestamp)
 	return nil
 }
 
-/*
-// runtimeSerialize serializes given stack item.
-func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
-	panic("TODO")
-}
-
-// runtimeDeserialize deserializes given stack item.
-func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
-	panic("TODO")
-}
-*/
-func (ic *interopContext) checkStorageContext(stc *StorageContext) error {
-	contract, err := ic.dao.GetContractState(stc.ScriptHash)
+func checkStorageContext(ic *interop.Context, stc *StorageContext) error {
+	contract, err := ic.DAO.GetContractState(stc.ScriptHash)
 	if err != nil {
 		return errors.New("no contract found")
 	}
@@ -407,8 +398,8 @@ func (ic *interopContext) checkStorageContext(stc *StorageContext) error {
 }
 
 // storageDelete deletes stored key-value pair.
-func (ic *interopContext) storageDelete(v *vm.VM) error {
-	if ic.trigger != trigger.Application && ic.trigger != trigger.ApplicationR {
+func storageDelete(ic *interop.Context, v *vm.VM) error {
+	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	stcInterface := v.Estack().Pop().Value()
@@ -419,31 +410,31 @@ func (ic *interopContext) storageDelete(v *vm.VM) error {
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := ic.checkStorageContext(stc)
+	err := checkStorageContext(ic, stc)
 	if err != nil {
 		return err
 	}
 	key := v.Estack().Pop().Bytes()
-	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
 	if si != nil && si.IsConst {
 		return errors.New("storage item is constant")
 	}
-	return ic.dao.DeleteStorageItem(stc.ScriptHash, key)
+	return ic.DAO.DeleteStorageItem(stc.ScriptHash, key)
 }
 
 // storageGet returns stored key-value pair.
-func (ic *interopContext) storageGet(v *vm.VM) error {
+func storageGet(ic *interop.Context, v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	err := ic.checkStorageContext(stc)
+	err := checkStorageContext(ic, stc)
 	if err != nil {
 		return err
 	}
 	key := v.Estack().Pop().Bytes()
-	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
 	if si != nil && si.Value != nil {
 		v.Estack().PushVal(si.Value)
 	} else {
@@ -453,7 +444,7 @@ func (ic *interopContext) storageGet(v *vm.VM) error {
 }
 
 // storageGetContext returns storage context (scripthash).
-func (ic *interopContext) storageGetContext(v *vm.VM) error {
+func storageGetContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
 		ScriptHash: getContextScriptHash(v, 0),
 		ReadOnly:   false,
@@ -463,7 +454,7 @@ func (ic *interopContext) storageGetContext(v *vm.VM) error {
 }
 
 // storageGetReadOnlyContext returns read-only context (scripthash).
-func (ic *interopContext) storageGetReadOnlyContext(v *vm.VM) error {
+func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
 		ScriptHash: getContextScriptHash(v, 0),
 		ReadOnly:   true,
@@ -472,8 +463,8 @@ func (ic *interopContext) storageGetReadOnlyContext(v *vm.VM) error {
 	return nil
 }
 
-func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte, value []byte, isConst bool) error {
-	if ic.trigger != trigger.Application && ic.trigger != trigger.ApplicationR {
+func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
+	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	if len(key) > MaxStorageKeyLen {
@@ -482,11 +473,11 @@ func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := ic.checkStorageContext(stc)
+	err := checkStorageContext(ic, stc)
 	if err != nil {
 		return err
 	}
-	si := ic.dao.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
 	if si == nil {
 		si = &state.StorageItem{}
 	}
@@ -495,11 +486,11 @@ func (ic *interopContext) putWithContextAndFlags(stc *StorageContext, key []byte
 	}
 	si.Value = value
 	si.IsConst = isConst
-	return ic.dao.PutStorageItem(stc.ScriptHash, key, si)
+	return ic.DAO.PutStorageItem(stc.ScriptHash, key, si)
 }
 
 // storagePutInternal is a unified implementation of storagePut and storagePutEx.
-func (ic *interopContext) storagePutInternal(v *vm.VM, getFlag bool) error {
+func storagePutInternal(ic *interop.Context, v *vm.VM, getFlag bool) error {
 	stcInterface := v.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
@@ -511,21 +502,21 @@ func (ic *interopContext) storagePutInternal(v *vm.VM, getFlag bool) error {
 	if getFlag {
 		flag = int(v.Estack().Pop().BigInt().Int64())
 	}
-	return ic.putWithContextAndFlags(stc, key, value, flag == 1)
+	return putWithContextAndFlags(ic, stc, key, value, flag == 1)
 }
 
 // storagePut puts key-value pair into the storage.
-func (ic *interopContext) storagePut(v *vm.VM) error {
-	return ic.storagePutInternal(v, false)
+func storagePut(ic *interop.Context, v *vm.VM) error {
+	return storagePutInternal(ic, v, false)
 }
 
 // storagePutEx puts key-value pair with given flags into the storage.
-func (ic *interopContext) storagePutEx(v *vm.VM) error {
-	return ic.storagePutInternal(v, true)
+func storagePutEx(ic *interop.Context, v *vm.VM) error {
+	return storagePutInternal(ic, v, true)
 }
 
 // storageContextAsReadOnly sets given context to read-only mode.
-func (ic *interopContext) storageContextAsReadOnly(v *vm.VM) error {
+func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
@@ -543,39 +534,39 @@ func (ic *interopContext) storageContextAsReadOnly(v *vm.VM) error {
 }
 
 // contractDestroy destroys a contract.
-func (ic *interopContext) contractDestroy(v *vm.VM) error {
-	if ic.trigger != trigger.Application {
+func contractDestroy(ic *interop.Context, v *vm.VM) error {
+	if ic.Trigger != trigger.Application {
 		return errors.New("can't destroy contract when not triggered by application")
 	}
 	hash := getContextScriptHash(v, 0)
-	cs, err := ic.dao.GetContractState(hash)
+	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
 		return nil
 	}
-	err = ic.dao.DeleteContractState(hash)
+	err = ic.DAO.DeleteContractState(hash)
 	if err != nil {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.dao.GetStorageItems(hash)
+		siMap, err := ic.DAO.GetStorageItems(hash)
 		if err != nil {
 			return err
 		}
 		for k := range siMap {
-			_ = ic.dao.DeleteStorageItem(hash, []byte(k))
+			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
 		}
 	}
 	return nil
 }
 
 // contractGetStorageContext retrieves StorageContext of a contract.
-func (ic *interopContext) contractGetStorageContext(v *vm.VM) error {
+func contractGetStorageContext(ic *interop.Context, v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
 	cs, ok := csInterface.(*state.Contract)
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}
-	contractState, err := ic.dao.GetContractState(cs.ScriptHash())
+	contractState, err := ic.DAO.GetContractState(cs.ScriptHash())
 	if contractState == nil || err != nil {
 		return fmt.Errorf("contract was not created in this transaction")
 	}

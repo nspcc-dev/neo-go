@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -446,7 +447,7 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// bc.GetHeaderHash(int(endHeight)) returns sum of all system fees for blocks up to h.
+// getSystemFeeAmount returns sum of all system fees for blocks up to h.
 // and 0 if no such block exists.
 func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 	_, sf, _ := bc.dao.GetBlock(h)
@@ -657,7 +658,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-			v := systemInterop.SpawnVM()
+			v := SpawnVM(systemInterop)
 			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
@@ -667,11 +668,11 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 			err := v.Run()
 			if !v.HasFailed() {
-				_, err := systemInterop.dao.Persist()
+				_, err := systemInterop.DAO.Persist()
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
-				for _, note := range systemInterop.notifications {
+				for _, note := range systemInterop.Notifications {
 					arr, ok := note.Item.Value().([]vm.StackItem)
 					if !ok || len(arr) != 4 {
 						continue
@@ -710,7 +711,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				VMState:     v.State(),
 				GasConsumed: v.GasConsumed(),
 				Stack:       v.Estack().ToContractParameters(),
-				Events:      systemInterop.notifications,
+				Events:      systemInterop.Notifications,
 			}
 			err = cache.PutAppExecResult(aer)
 			if err != nil {
@@ -2002,7 +2003,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM() *vm.VM {
 	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
-	vm := systemInterop.SpawnVM()
+	vm := SpawnVM(systemInterop)
 	vm.SetPriceGetter(getPrice)
 	return vm
 }
@@ -2024,13 +2025,13 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interopContext, useKeys bool) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interop.Context, useKeys bool) error {
 	verification, err := ScriptFromWitness(hash, witness)
 	if err != nil {
 		return err
 	}
 
-	vm := interopCtx.SpawnVM()
+	vm := SpawnVM(interopCtx)
 	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
@@ -2124,6 +2125,6 @@ func (bc *Blockchain) secondsPerBlock() int {
 	return bc.config.SecondsPerBlock
 }
 
-func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interopContext {
-	return newInteropContext(trigger, bc, d, block, tx, bc.log)
+func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
+	return interop.NewContext(trigger, bc, d, block, tx, bc.log)
 }

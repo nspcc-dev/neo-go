@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -37,7 +38,7 @@ const (
 )
 
 // headerGetVersion returns version from the header.
-func (ic *interopContext) headerGetVersion(v *vm.VM) error {
+func headerGetVersion(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -47,7 +48,7 @@ func (ic *interopContext) headerGetVersion(v *vm.VM) error {
 }
 
 // headerGetConsensusData returns consensus data from the header.
-func (ic *interopContext) headerGetConsensusData(v *vm.VM) error {
+func headerGetConsensusData(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -57,7 +58,7 @@ func (ic *interopContext) headerGetConsensusData(v *vm.VM) error {
 }
 
 // headerGetMerkleRoot returns version from the header.
-func (ic *interopContext) headerGetMerkleRoot(v *vm.VM) error {
+func headerGetMerkleRoot(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -67,7 +68,7 @@ func (ic *interopContext) headerGetMerkleRoot(v *vm.VM) error {
 }
 
 // headerGetNextConsensus returns version from the header.
-func (ic *interopContext) headerGetNextConsensus(v *vm.VM) error {
+func headerGetNextConsensus(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)
 	if err != nil {
 		return err
@@ -77,7 +78,7 @@ func (ic *interopContext) headerGetNextConsensus(v *vm.VM) error {
 }
 
 // txGetAttributes returns current transaction attributes.
-func (ic *interopContext) txGetAttributes(v *vm.VM) error {
+func txGetAttributes(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -95,7 +96,7 @@ func (ic *interopContext) txGetAttributes(v *vm.VM) error {
 }
 
 // txGetInputs returns current transaction inputs.
-func (ic *interopContext) txGetInputs(v *vm.VM) error {
+func txGetInputs(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -113,7 +114,7 @@ func (ic *interopContext) txGetInputs(v *vm.VM) error {
 }
 
 // txGetOutputs returns current transaction outputs.
-func (ic *interopContext) txGetOutputs(v *vm.VM) error {
+func txGetOutputs(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -131,13 +132,13 @@ func (ic *interopContext) txGetOutputs(v *vm.VM) error {
 }
 
 // txGetReferences returns current transaction references.
-func (ic *interopContext) txGetReferences(v *vm.VM) error {
+func txGetReferences(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
 		return fmt.Errorf("type mismatch: %T is not a Transaction", txInterface)
 	}
-	refs, err := ic.bc.References(tx)
+	refs, err := ic.Chain.References(tx)
 	if err != nil {
 		return err
 	}
@@ -159,7 +160,7 @@ func (ic *interopContext) txGetReferences(v *vm.VM) error {
 }
 
 // txGetType returns current transaction type.
-func (ic *interopContext) txGetType(v *vm.VM) error {
+func txGetType(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -170,13 +171,13 @@ func (ic *interopContext) txGetType(v *vm.VM) error {
 }
 
 // txGetUnspentCoins returns current transaction unspent coins.
-func (ic *interopContext) txGetUnspentCoins(v *vm.VM) error {
+func txGetUnspentCoins(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
 		return errors.New("value is not a transaction")
 	}
-	ucs, err := ic.dao.GetUnspentCoinState(tx.Hash())
+	ucs, err := ic.DAO.GetUnspentCoinState(tx.Hash())
 	if err != nil {
 		return errors.New("no unspent coin state found")
 	}
@@ -185,7 +186,7 @@ func (ic *interopContext) txGetUnspentCoins(v *vm.VM) error {
 }
 
 // txGetWitnesses returns current transaction witnesses.
-func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
+func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -203,7 +204,7 @@ func (ic *interopContext) txGetWitnesses(v *vm.VM) error {
 }
 
 // invocationTx_GetScript returns invocation script from the current transaction.
-func (ic *interopContext) invocationTxGetScript(v *vm.VM) error {
+func invocationTxGetScript(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
 	tx, ok := txInterface.(*transaction.Transaction)
 	if !ok {
@@ -221,7 +222,7 @@ func (ic *interopContext) invocationTxGetScript(v *vm.VM) error {
 }
 
 // witnessGetVerificationScript returns current witness' script.
-func (ic *interopContext) witnessGetVerificationScript(v *vm.VM) error {
+func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	witInterface := v.Estack().Pop().Value()
 	wit, ok := witInterface.(*transaction.Witness)
 	if !ok {
@@ -235,8 +236,8 @@ func (ic *interopContext) witnessGetVerificationScript(v *vm.VM) error {
 }
 
 // bcGetValidators returns validators.
-func (ic *interopContext) bcGetValidators(v *vm.VM) error {
-	validators := ic.dao.GetValidators()
+func bcGetValidators(ic *interop.Context, v *vm.VM) error {
+	validators := ic.DAO.GetValidators()
 	v.Estack().PushVal(validators)
 	return nil
 }
@@ -256,7 +257,7 @@ func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
 }
 
 // inputGetHash returns hash from the given input.
-func (ic *interopContext) inputGetHash(v *vm.VM) error {
+func inputGetHash(ic *interop.Context, v *vm.VM) error {
 	input, err := popInputFromVM(v)
 	if err != nil {
 		return err
@@ -266,7 +267,7 @@ func (ic *interopContext) inputGetHash(v *vm.VM) error {
 }
 
 // inputGetIndex returns index from the given input.
-func (ic *interopContext) inputGetIndex(v *vm.VM) error {
+func inputGetIndex(ic *interop.Context, v *vm.VM) error {
 	input, err := popInputFromVM(v)
 	if err != nil {
 		return err
@@ -290,7 +291,7 @@ func popOutputFromVM(v *vm.VM) (*transaction.Output, error) {
 }
 
 // outputGetAssetId returns asset ID from the given output.
-func (ic *interopContext) outputGetAssetID(v *vm.VM) error {
+func outputGetAssetID(ic *interop.Context, v *vm.VM) error {
 	output, err := popOutputFromVM(v)
 	if err != nil {
 		return err
@@ -300,7 +301,7 @@ func (ic *interopContext) outputGetAssetID(v *vm.VM) error {
 }
 
 // outputGetScriptHash returns scripthash from the given output.
-func (ic *interopContext) outputGetScriptHash(v *vm.VM) error {
+func outputGetScriptHash(ic *interop.Context, v *vm.VM) error {
 	output, err := popOutputFromVM(v)
 	if err != nil {
 		return err
@@ -310,7 +311,7 @@ func (ic *interopContext) outputGetScriptHash(v *vm.VM) error {
 }
 
 // outputGetValue returns value (amount) from the given output.
-func (ic *interopContext) outputGetValue(v *vm.VM) error {
+func outputGetValue(ic *interop.Context, v *vm.VM) error {
 	output, err := popOutputFromVM(v)
 	if err != nil {
 		return err
@@ -320,7 +321,7 @@ func (ic *interopContext) outputGetValue(v *vm.VM) error {
 }
 
 // attrGetData returns tx attribute data.
-func (ic *interopContext) attrGetData(v *vm.VM) error {
+func attrGetData(ic *interop.Context, v *vm.VM) error {
 	attrInterface := v.Estack().Pop().Value()
 	attr, ok := attrInterface.(*transaction.Attribute)
 	if !ok {
@@ -331,7 +332,7 @@ func (ic *interopContext) attrGetData(v *vm.VM) error {
 }
 
 // attrGetData returns tx attribute usage field.
-func (ic *interopContext) attrGetUsage(v *vm.VM) error {
+func attrGetUsage(ic *interop.Context, v *vm.VM) error {
 	attrInterface := v.Estack().Pop().Value()
 	attr, ok := attrInterface.(*transaction.Attribute)
 	if !ok {
@@ -342,13 +343,13 @@ func (ic *interopContext) attrGetUsage(v *vm.VM) error {
 }
 
 // bcGetAccount returns or creates an account.
-func (ic *interopContext) bcGetAccount(v *vm.VM) error {
+func bcGetAccount(ic *interop.Context, v *vm.VM) error {
 	accbytes := v.Estack().Pop().Bytes()
 	acchash, err := util.Uint160DecodeBytesBE(accbytes)
 	if err != nil {
 		return err
 	}
-	acc, err := ic.dao.GetAccountStateOrNew(acchash)
+	acc, err := ic.DAO.GetAccountStateOrNew(acchash)
 	if err != nil {
 		return err
 	}
@@ -357,13 +358,13 @@ func (ic *interopContext) bcGetAccount(v *vm.VM) error {
 }
 
 // bcGetAsset returns an asset.
-func (ic *interopContext) bcGetAsset(v *vm.VM) error {
+func bcGetAsset(ic *interop.Context, v *vm.VM) error {
 	asbytes := v.Estack().Pop().Bytes()
 	ashash, err := util.Uint256DecodeBytesBE(asbytes)
 	if err != nil {
 		return err
 	}
-	as, err := ic.dao.GetAssetState(ashash)
+	as, err := ic.DAO.GetAssetState(ashash)
 	if err != nil {
 		return errors.New("asset not found")
 	}
@@ -372,7 +373,7 @@ func (ic *interopContext) bcGetAsset(v *vm.VM) error {
 }
 
 // accountGetBalance returns balance for a given account.
-func (ic *interopContext) accountGetBalance(v *vm.VM) error {
+func accountGetBalance(ic *interop.Context, v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
 	acc, ok := accInterface.(*state.Account)
 	if !ok {
@@ -392,7 +393,7 @@ func (ic *interopContext) accountGetBalance(v *vm.VM) error {
 }
 
 // accountGetScriptHash returns script hash of a given account.
-func (ic *interopContext) accountGetScriptHash(v *vm.VM) error {
+func accountGetScriptHash(ic *interop.Context, v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
 	acc, ok := accInterface.(*state.Account)
 	if !ok {
@@ -403,7 +404,7 @@ func (ic *interopContext) accountGetScriptHash(v *vm.VM) error {
 }
 
 // accountGetVotes returns votes of a given account.
-func (ic *interopContext) accountGetVotes(v *vm.VM) error {
+func accountGetVotes(ic *interop.Context, v *vm.VM) error {
 	accInterface := v.Estack().Pop().Value()
 	acc, ok := accInterface.(*state.Account)
 	if !ok {
@@ -421,31 +422,31 @@ func (ic *interopContext) accountGetVotes(v *vm.VM) error {
 }
 
 // accountIsStandard checks whether given account is standard.
-func (ic *interopContext) accountIsStandard(v *vm.VM) error {
+func accountIsStandard(ic *interop.Context, v *vm.VM) error {
 	accbytes := v.Estack().Pop().Bytes()
 	acchash, err := util.Uint160DecodeBytesBE(accbytes)
 	if err != nil {
 		return err
 	}
-	contract, err := ic.dao.GetContractState(acchash)
+	contract, err := ic.DAO.GetContractState(acchash)
 	res := err != nil || vm.IsStandardContract(contract.Script)
 	v.Estack().PushVal(res)
 	return nil
 }
 
 // storageFind finds stored key-value pair.
-func (ic *interopContext) storageFind(v *vm.VM) error {
+func storageFind(ic *interop.Context, v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	err := ic.checkStorageContext(stc)
+	err := checkStorageContext(ic, stc)
 	if err != nil {
 		return err
 	}
 	prefix := string(v.Estack().Pop().Bytes())
-	siMap, err := ic.dao.GetStorageItems(stc.ScriptHash)
+	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash)
 	if err != nil {
 		return err
 	}
@@ -467,8 +468,8 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 // createContractStateFromVM pops all contract state elements from the VM
 // evaluation stack, does a lot of checks and returns Contract if it
 // succeeds.
-func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, error) {
-	if ic.trigger != trigger.Application {
+func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, error) {
+	if ic.Trigger != trigger.Application {
 		return nil, errors.New("can't create contract when not triggered by an application")
 	}
 	script := v.Estack().Pop().Bytes()
@@ -520,15 +521,15 @@ func (ic *interopContext) createContractStateFromVM(v *vm.VM) (*state.Contract, 
 }
 
 // contractCreate creates a contract.
-func (ic *interopContext) contractCreate(v *vm.VM) error {
-	newcontract, err := ic.createContractStateFromVM(v)
+func contractCreate(ic *interop.Context, v *vm.VM) error {
+	newcontract, err := createContractStateFromVM(ic, v)
 	if err != nil {
 		return err
 	}
-	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
+	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
 	if err != nil {
 		contract = newcontract
-		err := ic.dao.PutContractState(contract)
+		err := ic.DAO.PutContractState(contract)
 		if err != nil {
 			return err
 		}
@@ -538,7 +539,7 @@ func (ic *interopContext) contractCreate(v *vm.VM) error {
 }
 
 // contractGetScript returns a script associated with a contract.
-func (ic *interopContext) contractGetScript(v *vm.VM) error {
+func contractGetScript(ic *interop.Context, v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
 	cs, ok := csInterface.(*state.Contract)
 	if !ok {
@@ -549,7 +550,7 @@ func (ic *interopContext) contractGetScript(v *vm.VM) error {
 }
 
 // contractIsPayable returns whether contract is payable.
-func (ic *interopContext) contractIsPayable(v *vm.VM) error {
+func contractIsPayable(ic *interop.Context, v *vm.VM) error {
 	csInterface := v.Estack().Pop().Value()
 	cs, ok := csInterface.(*state.Contract)
 	if !ok {
@@ -560,27 +561,27 @@ func (ic *interopContext) contractIsPayable(v *vm.VM) error {
 }
 
 // contractMigrate migrates a contract.
-func (ic *interopContext) contractMigrate(v *vm.VM) error {
-	newcontract, err := ic.createContractStateFromVM(v)
+func contractMigrate(ic *interop.Context, v *vm.VM) error {
+	newcontract, err := createContractStateFromVM(ic, v)
 	if err != nil {
 		return err
 	}
-	contract, err := ic.dao.GetContractState(newcontract.ScriptHash())
+	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
 	if err != nil {
 		contract = newcontract
-		err := ic.dao.PutContractState(contract)
+		err := ic.DAO.PutContractState(contract)
 		if err != nil {
 			return err
 		}
 		if contract.HasStorage() {
 			hash := getContextScriptHash(v, 0)
-			siMap, err := ic.dao.GetStorageItems(hash)
+			siMap, err := ic.DAO.GetStorageItems(hash)
 			if err != nil {
 				return err
 			}
 			for k, v := range siMap {
 				v.IsConst = false
-				err = ic.dao.PutStorageItem(contract.ScriptHash(), []byte(k), v)
+				err = ic.DAO.PutStorageItem(contract.ScriptHash(), []byte(k), v)
 				if err != nil {
 					return err
 				}
@@ -588,12 +589,12 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 		}
 	}
 	v.Estack().PushVal(vm.NewInteropItem(contract))
-	return ic.contractDestroy(v)
+	return contractDestroy(ic, v)
 }
 
 // assetCreate creates an asset.
-func (ic *interopContext) assetCreate(v *vm.VM) error {
-	if ic.trigger != trigger.Application {
+func assetCreate(ic *interop.Context, v *vm.VM) error {
+	if ic.Trigger != trigger.Application {
 		return errors.New("can't create asset when not triggered by an application")
 	}
 	atype := transaction.AssetType(v.Estack().Pop().BigInt().Int64())
@@ -635,7 +636,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 	if owner.IsInfinity() {
 		return errors.New("can't have infinity as an owner key")
 	}
-	witnessOk, err := ic.checkKeyedWitness(owner)
+	witnessOk, err := checkKeyedWitness(ic, owner)
 	if err != nil {
 		return err
 	}
@@ -651,7 +652,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 		return gherr.Wrap(err, "failed to get issuer")
 	}
 	asset := &state.Asset{
-		ID:         ic.tx.Hash(),
+		ID:         ic.Tx.Hash(),
 		AssetType:  atype,
 		Name:       name,
 		Amount:     amount,
@@ -659,9 +660,9 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 		Owner:      *owner,
 		Admin:      admin,
 		Issuer:     issuer,
-		Expiration: ic.bc.BlockHeight() + DefaultAssetLifetime,
+		Expiration: ic.Chain.BlockHeight() + DefaultAssetLifetime,
 	}
-	err = ic.dao.PutAssetState(asset)
+	err = ic.DAO.PutAssetState(asset)
 	if err != nil {
 		return gherr.Wrap(err, "failed to Store asset")
 	}
@@ -670,7 +671,7 @@ func (ic *interopContext) assetCreate(v *vm.VM) error {
 }
 
 // assetGetAdmin returns asset admin.
-func (ic *interopContext) assetGetAdmin(v *vm.VM) error {
+func assetGetAdmin(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -681,7 +682,7 @@ func (ic *interopContext) assetGetAdmin(v *vm.VM) error {
 }
 
 // assetGetAmount returns the overall amount of asset available.
-func (ic *interopContext) assetGetAmount(v *vm.VM) error {
+func assetGetAmount(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -692,7 +693,7 @@ func (ic *interopContext) assetGetAmount(v *vm.VM) error {
 }
 
 // assetGetAssetId returns the id of an asset.
-func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
+func assetGetAssetID(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -703,7 +704,7 @@ func (ic *interopContext) assetGetAssetID(v *vm.VM) error {
 }
 
 // assetGetAssetType returns type of an asset.
-func (ic *interopContext) assetGetAssetType(v *vm.VM) error {
+func assetGetAssetType(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -714,7 +715,7 @@ func (ic *interopContext) assetGetAssetType(v *vm.VM) error {
 }
 
 // assetGetAvailable returns available (not yet issued) amount of asset.
-func (ic *interopContext) assetGetAvailable(v *vm.VM) error {
+func assetGetAvailable(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -725,7 +726,7 @@ func (ic *interopContext) assetGetAvailable(v *vm.VM) error {
 }
 
 // assetGetIssuer returns issuer of an asset.
-func (ic *interopContext) assetGetIssuer(v *vm.VM) error {
+func assetGetIssuer(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -736,7 +737,7 @@ func (ic *interopContext) assetGetIssuer(v *vm.VM) error {
 }
 
 // assetGetOwner returns owner of an asset.
-func (ic *interopContext) assetGetOwner(v *vm.VM) error {
+func assetGetOwner(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -747,7 +748,7 @@ func (ic *interopContext) assetGetOwner(v *vm.VM) error {
 }
 
 // assetGetPrecision returns precision used to measure this asset.
-func (ic *interopContext) assetGetPrecision(v *vm.VM) error {
+func assetGetPrecision(ic *interop.Context, v *vm.VM) error {
 	asInterface := v.Estack().Pop().Value()
 	as, ok := asInterface.(*state.Asset)
 	if !ok {
@@ -758,8 +759,8 @@ func (ic *interopContext) assetGetPrecision(v *vm.VM) error {
 }
 
 // assetRenew updates asset expiration date.
-func (ic *interopContext) assetRenew(v *vm.VM) error {
-	if ic.trigger != trigger.Application {
+func assetRenew(ic *interop.Context, v *vm.VM) error {
+	if ic.Trigger != trigger.Application {
 		return errors.New("can't create asset when not triggered by an application")
 	}
 	asInterface := v.Estack().Pop().Value()
@@ -769,19 +770,19 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 	}
 	years := byte(v.Estack().Pop().BigInt().Int64())
 	// Not sure why C# code regets an asset from the Store, but we also do it.
-	asset, err := ic.dao.GetAssetState(as.ID)
+	asset, err := ic.DAO.GetAssetState(as.ID)
 	if err != nil {
 		return errors.New("can't renew non-existent asset")
 	}
-	if asset.Expiration < ic.bc.BlockHeight()+1 {
-		asset.Expiration = ic.bc.BlockHeight() + 1
+	if asset.Expiration < ic.Chain.BlockHeight()+1 {
+		asset.Expiration = ic.Chain.BlockHeight() + 1
 	}
 	expiration := uint64(asset.Expiration) + uint64(years)*BlocksPerYear
 	if expiration > math.MaxUint32 {
 		expiration = math.MaxUint32
 	}
 	asset.Expiration = uint32(expiration)
-	err = ic.dao.PutAssetState(asset)
+	err = ic.DAO.PutAssetState(asset)
 	if err != nil {
 		return gherr.Wrap(err, "failed to Store asset")
 	}
@@ -790,57 +791,11 @@ func (ic *interopContext) assetRenew(v *vm.VM) error {
 }
 
 // runtimeSerialize serializes top stack item into a ByteArray.
-func (ic *interopContext) runtimeSerialize(v *vm.VM) error {
+func runtimeSerialize(_ *interop.Context, v *vm.VM) error {
 	return vm.RuntimeSerialize(v)
 }
 
 // runtimeDeserialize deserializes ByteArray from a stack into an item.
-func (ic *interopContext) runtimeDeserialize(v *vm.VM) error {
+func runtimeDeserialize(_ *interop.Context, v *vm.VM) error {
 	return vm.RuntimeDeserialize(v)
-}
-
-// enumeratorConcat concatenates 2 enumerators into a single one.
-func (ic *interopContext) enumeratorConcat(v *vm.VM) error {
-	return vm.EnumeratorConcat(v)
-}
-
-// enumeratorCreate creates an enumerator from an array-like stack item.
-func (ic *interopContext) enumeratorCreate(v *vm.VM) error {
-	return vm.EnumeratorCreate(v)
-}
-
-// enumeratorNext advances the enumerator, pushes true if is it was successful
-// and false otherwise.
-func (ic *interopContext) enumeratorNext(v *vm.VM) error {
-	return vm.EnumeratorNext(v)
-}
-
-// enumeratorValue returns the current value of the enumerator.
-func (ic *interopContext) enumeratorValue(v *vm.VM) error {
-	return vm.EnumeratorValue(v)
-}
-
-// iteratorConcat concatenates 2 iterators into a single one.
-func (ic *interopContext) iteratorConcat(v *vm.VM) error {
-	return vm.IteratorConcat(v)
-}
-
-// iteratorCreate creates an iterator from array-like or map stack item.
-func (ic *interopContext) iteratorCreate(v *vm.VM) error {
-	return vm.IteratorCreate(v)
-}
-
-// iteratorKey returns current iterator key.
-func (ic *interopContext) iteratorKey(v *vm.VM) error {
-	return vm.IteratorKey(v)
-}
-
-// iteratorKeys returns keys of the iterator.
-func (ic *interopContext) iteratorKeys(v *vm.VM) error {
-	return vm.IteratorKeys(v)
-}
-
-// iteratorValues returns values of the iterator.
-func (ic *interopContext) iteratorValues(v *vm.VM) error {
-	return vm.IteratorValues(v)
 }

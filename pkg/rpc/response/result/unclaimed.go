@@ -2,6 +2,7 @@ package result
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -14,7 +15,7 @@ type Unclaimed struct {
 }
 
 // NewUnclaimed creates a new Unclaimed wrapper using given Blockchainer.
-func NewUnclaimed(a *state.Account, chain core.Blockchainer) (*Unclaimed, error) {
+func NewUnclaimed(a *state.Account, chain blockchainer.Blockchainer) (*Unclaimed, error) {
 	var (
 		available   util.Fixed8
 		unavailable util.Fixed8

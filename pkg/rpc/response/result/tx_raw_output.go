@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -27,7 +27,7 @@ type TransactionMetadata struct {
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
-func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain core.Blockchainer) TransactionOutputRaw {
+func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain blockchainer.Blockchainer) TransactionOutputRaw {
 	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
 	// set index position

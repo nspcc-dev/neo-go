@@ -3,8 +3,8 @@ package result
 import (
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -31,7 +31,7 @@ type (
 )
 
 // NewHeader creates a new Header wrapper.
-func NewHeader(h *block.Header, chain core.Blockchainer) Header {
+func NewHeader(h *block.Header, chain blockchainer.Blockchainer) Header {
 	res := Header{
 		Hash:          h.Hash(),
 		Size:          io.GetVarSize(h),

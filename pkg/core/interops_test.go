@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 
-func testNonInterop(t *testing.T, value interface{}, f func(*interopContext, *vm.VM) error) {
+func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context, *vm.VM) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
@@ -30,56 +31,56 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	}
 
 	// All of these functions expect an interop item on the stack.
-	funcs := []func(*interopContext, *vm.VM) error{
-		(*interopContext).accountGetBalance,
-		(*interopContext).accountGetScriptHash,
-		(*interopContext).accountGetVotes,
-		(*interopContext).assetGetAdmin,
-		(*interopContext).assetGetAmount,
-		(*interopContext).assetGetAssetID,
-		(*interopContext).assetGetAssetType,
-		(*interopContext).assetGetAvailable,
-		(*interopContext).assetGetIssuer,
-		(*interopContext).assetGetOwner,
-		(*interopContext).assetGetPrecision,
-		(*interopContext).assetRenew,
-		(*interopContext).attrGetData,
-		(*interopContext).attrGetUsage,
-		(*interopContext).blockGetTransaction,
-		(*interopContext).blockGetTransactionCount,
-		(*interopContext).blockGetTransactions,
-		(*interopContext).contractGetScript,
-		(*interopContext).contractGetStorageContext,
-		(*interopContext).contractIsPayable,
-		(*interopContext).headerGetConsensusData,
-		(*interopContext).headerGetHash,
-		(*interopContext).headerGetIndex,
-		(*interopContext).headerGetMerkleRoot,
-		(*interopContext).headerGetNextConsensus,
-		(*interopContext).headerGetPrevHash,
-		(*interopContext).headerGetTimestamp,
-		(*interopContext).headerGetVersion,
-		(*interopContext).inputGetHash,
-		(*interopContext).inputGetIndex,
-		(*interopContext).invocationTxGetScript,
-		(*interopContext).outputGetAssetID,
-		(*interopContext).outputGetScriptHash,
-		(*interopContext).outputGetValue,
-		(*interopContext).storageContextAsReadOnly,
-		(*interopContext).storageDelete,
-		(*interopContext).storageFind,
-		(*interopContext).storageGet,
-		(*interopContext).storagePut,
-		(*interopContext).storagePutEx,
-		(*interopContext).txGetAttributes,
-		(*interopContext).txGetHash,
-		(*interopContext).txGetInputs,
-		(*interopContext).txGetOutputs,
-		(*interopContext).txGetReferences,
-		(*interopContext).txGetType,
-		(*interopContext).txGetUnspentCoins,
-		(*interopContext).txGetWitnesses,
-		(*interopContext).witnessGetVerificationScript,
+	funcs := []func(*interop.Context, *vm.VM) error{
+		accountGetBalance,
+		accountGetScriptHash,
+		accountGetVotes,
+		assetGetAdmin,
+		assetGetAmount,
+		assetGetAssetID,
+		assetGetAssetType,
+		assetGetAvailable,
+		assetGetIssuer,
+		assetGetOwner,
+		assetGetPrecision,
+		assetRenew,
+		attrGetData,
+		attrGetUsage,
+		blockGetTransaction,
+		blockGetTransactionCount,
+		blockGetTransactions,
+		contractGetScript,
+		contractGetStorageContext,
+		contractIsPayable,
+		headerGetConsensusData,
+		headerGetHash,
+		headerGetIndex,
+		headerGetMerkleRoot,
+		headerGetNextConsensus,
+		headerGetPrevHash,
+		headerGetTimestamp,
+		headerGetVersion,
+		inputGetHash,
+		inputGetIndex,
+		invocationTxGetScript,
+		outputGetAssetID,
+		outputGetScriptHash,
+		outputGetValue,
+		storageContextAsReadOnly,
+		storageDelete,
+		storageFind,
+		storageGet,
+		storagePut,
+		storagePutEx,
+		txGetAttributes,
+		txGetHash,
+		txGetInputs,
+		txGetOutputs,
+		txGetReferences,
+		txGetType,
+		txGetUnspentCoins,
+		txGetWitnesses,
+		witnessGetVerificationScript,
 	}
 	for _, f := range funcs {
 		for k, v := range vals {

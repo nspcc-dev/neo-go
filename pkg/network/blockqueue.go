@@ -2,8 +2,8 @@ package network
 
 import (
 	"github.com/Workiva/go-datastructures/queue"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"go.uber.org/zap"
 )
 
@@ -11,11 +11,11 @@ type blockQueue struct {
 	log         *zap.Logger
 	queue       *queue.PriorityQueue
 	checkBlocks chan struct{}
-	chain       core.Blockchainer
+	chain       blockchainer.Blockchainer
 	relayF      func(*block.Block)
 }
 
-func newBlockQueue(capacity int, bc core.Blockchainer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
+func newBlockQueue(capacity int, bc blockchainer.Blockchainer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
 	}
