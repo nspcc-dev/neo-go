@@ -252,35 +252,19 @@ func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// pushContextScriptHash returns script hash of the invocation stack element
-// number n.
-func getContextScriptHash(v *vm.VM, n int) util.Uint160 {
-	ctxIface := v.Istack().Peek(n).Value()
-	ctx := ctxIface.(*vm.Context)
-	return ctx.ScriptHash()
-}
-
-// pushContextScriptHash pushes to evaluation stack the script hash of the
-// invocation stack element number n.
-func pushContextScriptHash(v *vm.VM, n int) error {
-	h := getContextScriptHash(v, n)
-	v.Estack().PushVal(h.BytesBE())
-	return nil
-}
-
 // engineGetExecutingScriptHash returns executing script hash.
 func engineGetExecutingScriptHash(ic *interop.Context, v *vm.VM) error {
-	return pushContextScriptHash(v, 0)
+	return v.PushContextScriptHash(0)
 }
 
 // engineGetCallingScriptHash returns calling script hash.
 func engineGetCallingScriptHash(ic *interop.Context, v *vm.VM) error {
-	return pushContextScriptHash(v, 1)
+	return v.PushContextScriptHash(1)
 }
 
 // engineGetEntryScriptHash returns entry script hash.
 func engineGetEntryScriptHash(ic *interop.Context, v *vm.VM) error {
-	return pushContextScriptHash(v, v.Istack().Len()-1)
+	return v.PushContextScriptHash(v.Istack().Len() - 1)
 }
 
 // runtimePlatform returns the name of the platform.
@@ -354,7 +338,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
 	}
-	ne := state.NotificationEvent{ScriptHash: getContextScriptHash(v, 0), Item: item}
+	ne := state.NotificationEvent{ScriptHash: v.GetContextScriptHash(0), Item: item}
 	ic.Notifications = append(ic.Notifications, ne)
 	return nil
 }
@@ -363,7 +347,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 func runtimeLog(ic *interop.Context, v *vm.VM) error {
 	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
 	ic.Log.Info("runtime log",
-		zap.Stringer("script", getContextScriptHash(v, 0)),
+		zap.Stringer("script", v.GetContextScriptHash(0)),
 		zap.String("logs", msg))
 	return nil
 }
@@ -445,7 +429,7 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 // storageGetContext returns storage context (scripthash).
 func storageGetContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
-		ScriptHash: getContextScriptHash(v, 0),
+		ScriptHash: v.GetContextScriptHash(0),
 		ReadOnly:   false,
 	}
 	v.Estack().PushVal(vm.NewInteropItem(sc))
@@ -455,7 +439,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 // storageGetReadOnlyContext returns read-only context (scripthash).
 func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
-		ScriptHash: getContextScriptHash(v, 0),
+		ScriptHash: v.GetContextScriptHash(0),
 		ReadOnly:   true,
 	}
 	v.Estack().PushVal(vm.NewInteropItem(sc))
@@ -537,7 +521,7 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 	if ic.Trigger != trigger.Application {
 		return errors.New("can't destroy contract when not triggered by application")
 	}
-	hash := getContextScriptHash(v, 0)
+	hash := v.GetContextScriptHash(0)
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
 		return nil

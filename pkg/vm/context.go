@@ -209,3 +209,19 @@ func (c *Context) atBreakPoint() bool {
 func (c *Context) String() string {
 	return "execution context"
 }
+
+// GetContextScriptHash returns script hash of the invocation stack element
+// number n.
+func (v *VM) GetContextScriptHash(n int) util.Uint160 {
+	ctxIface := v.Istack().Peek(n).Value()
+	ctx := ctxIface.(*Context)
+	return ctx.ScriptHash()
+}
+
+// PushContextScriptHash pushes to evaluation stack the script hash of the
+// invocation stack element number n.
+func (v *VM) PushContextScriptHash(n int) error {
+	h := v.GetContextScriptHash(n)
+	v.Estack().PushVal(h.BytesBE())
+	return nil
+}
