@@ -11,11 +11,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	gherr "github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -276,50 +274,6 @@ func runtimePlatform(ic *interop.Context, v *vm.VM) error {
 // runtimeGetTrigger returns the script trigger.
 func runtimeGetTrigger(ic *interop.Context, v *vm.VM) error {
 	v.Estack().PushVal(byte(ic.Trigger))
-	return nil
-}
-
-// checkHashedWitness checks given hash against current list of script hashes
-// for verifying in the interop context.
-func checkHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
-	hashes, err := ic.Chain.GetScriptHashesForVerifying(ic.Tx)
-	if err != nil {
-		return false, gherr.Wrap(err, "failed to get script hashes")
-	}
-	for _, v := range hashes {
-		if hash.Equals(v) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// checkKeyedWitness checks hash of signature check contract with a given public
-// key against current list of script hashes for verifying in the interop context.
-func checkKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
-	return checkHashedWitness(ic, key.GetScriptHash())
-}
-
-// runtimeCheckWitness checks witnesses.
-func runtimeCheckWitness(ic *interop.Context, v *vm.VM) error {
-	var res bool
-	var err error
-
-	hashOrKey := v.Estack().Pop().Bytes()
-	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
-	if err != nil {
-		key, err := keys.NewPublicKeyFromBytes(hashOrKey)
-		if err != nil {
-			return errors.New("parameter given is neither a key nor a hash")
-		}
-		res, err = checkKeyedWitness(ic, key)
-	} else {
-		res, err = checkHashedWitness(ic, hash)
-	}
-	if err != nil {
-		return gherr.Wrap(err, "failed to check")
-	}
-	v.Estack().PushVal(res)
 	return nil
 }
 

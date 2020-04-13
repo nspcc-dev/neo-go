@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -85,7 +86,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Header.GetIndex", Func: headerGetIndex, Price: 1},
 	{Name: "System.Header.GetPrevHash", Func: headerGetPrevHash, Price: 1},
 	{Name: "System.Header.GetTimestamp", Func: headerGetTimestamp, Price: 1},
-	{Name: "System.Runtime.CheckWitness", Func: runtimeCheckWitness, Price: 200},
+	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200},
 	{Name: "System.Runtime.Deserialize", Func: runtimeDeserialize, Price: 1},
 	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 1},
 	{Name: "System.Runtime.GetTrigger", Func: runtimeGetTrigger, Price: 1},
@@ -163,7 +164,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Output.GetAssetId", Func: outputGetAssetID, Price: 1},
 	{Name: "Neo.Output.GetScriptHash", Func: outputGetScriptHash, Price: 1},
 	{Name: "Neo.Output.GetValue", Func: outputGetValue, Price: 1},
-	{Name: "Neo.Runtime.CheckWitness", Func: runtimeCheckWitness, Price: 200},
+	{Name: "Neo.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200},
 	{Name: "Neo.Runtime.Deserialize", Func: runtimeDeserialize, Price: 1},
 	{Name: "Neo.Runtime.GetTime", Func: runtimeGetTime, Price: 1},
 	{Name: "Neo.Runtime.GetTrigger", Func: runtimeGetTrigger, Price: 1},
@@ -235,7 +236,7 @@ var neoInterops = []interop.Function{
 	{Name: "AntShares.Output.GetAssetId", Func: outputGetAssetID, Price: 1},
 	{Name: "AntShares.Output.GetScriptHash", Func: outputGetScriptHash, Price: 1},
 	{Name: "AntShares.Output.GetValue", Func: outputGetValue, Price: 1},
-	{Name: "AntShares.Runtime.CheckWitness", Func: runtimeCheckWitness, Price: 200},
+	{Name: "AntShares.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200},
 	{Name: "AntShares.Runtime.Log", Func: runtimeLog, Price: 1},
 	{Name: "AntShares.Runtime.Notify", Func: runtimeNotify, Price: 1},
 	{Name: "AntShares.Storage.Delete", Func: storageDelete, Price: 100},
