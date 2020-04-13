@@ -34,6 +34,7 @@ var (
 	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoMethod            = errors.New("no method specified for function invocation command")
 	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
@@ -403,7 +404,10 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
 	script := args[0]
-	if withMethod && len(args) > 1 {
+	if withMethod {
+		if len(args) <= 1 {
+			return cli.NewExitError(errNoMethod, 1)
+		}
 		operation = args[1]
 		paramsStart++
 	}
