@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -50,14 +49,14 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["93670859cc8a42f6ea994869c944879678d33d7501d388f5a446a8c7de147df7"]`,
+			params: `["0d77a6c348097c4b29fd9d0fe8657c621bc7d804034c71272e3c4f13775138f2"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 
 				require.True(t, ok)
 
-				expectedTxHash, err := util.Uint256DecodeStringLE("93670859cc8a42f6ea994869c944879678d33d7501d388f5a446a8c7de147df7")
+				expectedTxHash, err := util.Uint256DecodeStringLE("0d77a6c348097c4b29fd9d0fe8657c621bc7d804034c71272e3c4f13775138f2")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -252,7 +251,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getassetstate": {
 		{
 			name:   "positive",
-			params: `["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"]`,
+			params: `["057ea06225860f0f7e69cca1e0052652918629929591b8138a516431be144ba8"]`,
 			result: func(e *executor) interface{} { return &result.AssetState{} },
 			check: func(t *testing.T, e *executor, as interface{}) {
 				res, ok := as.(*result.AssetState)
@@ -339,9 +338,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 					tx := res.Tx[i]
 					require.Equal(t, transaction.MinerType, tx.Transaction.Type)
 
-					miner, ok := block.Transactions[i].Data.(*transaction.MinerTX)
+					miner := block.Transactions[i]
 					require.True(t, ok)
-					require.Equal(t, miner.Nonce, tx.Transaction.Data.(*transaction.MinerTX).Nonce)
+					require.Equal(t, miner.Nonce, tx.Transaction.Nonce)
 					require.Equal(t, block.Transactions[i].Hash(), tx.Transaction.Hash())
 				}
 			},
@@ -406,25 +405,25 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockheader": {
 		{
 			name:   "positive, no verbose",
-			params: `["614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f"]`,
+			params: `["7c32645dab0d87cfaddd5db053e2430c669f807e9efc2b91d1f50a824893352f"]`,
 			result: func(e *executor) interface{} {
-				expected := "00000000999086db552ba8f84734bddca55b25a8d3d8c5f866f941209169c38d35376e995f2f29c4685140d85073fec705089706553eae4de3c95d9d8d425af36e597ee651cb8a5e010000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd04014057de8968705f020995662b60c15133846425ea2f786757f2a0fd8845f0d33f6ec35b2ef77a882e4d7560d7667dbf9a6c4b74a51d9e4c52ddce26dd6731047bb340720cd95db06a799c3d121a3b75347c002b0fdc09b45bc2dd5f7fd79c6f674ca9a97cf9c7aff2c8a6ec9f0eefab29a2ae1a758b122f83f4dc34b4d6fa1266b5ae407987727d9a5345d45966e0a6b8e372efc4ce3695c73a2d2f94ba00eee1ce0a75d86ffa60bcfc673c8abc971bf2576ed9c82d5371a235d0168a2fed1ef722f06740c2385bbb75ca72665a2d4f7a9b6ef7f529cd90d55b08bfbaccf4edeee86343e915bb25c5deca6ce2fd9114c44a8963bdfc430d987923caa8ed5f6fb20f81fabe8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
+				expected := "000000002534685cc322d339f957ea368a654bf30b834be4cac0b8441375cce2a37630625507db78d2a2f3130c6073bd68f57202248fdc8966fa8706e88eb0fc61df74085384945e010000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd040140b622b3bdddb8c5e52ae8b4bce5665eb6e2aca950ba72386ea0d37e364af2c7fc40f009c47e1a2140bee90d1e2f81c705d6f2499fe6230b27d1f225c45f38d3c440ec01e743024c2c63dccb2ca4a555eeadb2e6115fe6bc42a8d5c17093828e4ea779b36c6d1535c70c047c709183fc1c93139153291dd0edb614dd3e17d67038dd400f7635816214254b7fba0bb480e2a0ab149c84854adcb542124e67f4cedbf551690f8048271c3f05bbe50f576dcbaf3607afffa2551480cdc24908df0fd47c60408d724d6cfb9bf99e38dc42974f084d110057d3f23a04f5bbf99f5712dad17ae842416bb3e30fee034a317280565cb772f8a61fd09cb05e76db27c5fc7722819f8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
 				return &expected
 			},
 		},
 		{
 			name:   "positive, verbose 0",
-			params: `["614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f", 0]`,
+			params: `["7c32645dab0d87cfaddd5db053e2430c669f807e9efc2b91d1f50a824893352f", 0]`,
 			result: func(e *executor) interface{} {
-				expected := "00000000999086db552ba8f84734bddca55b25a8d3d8c5f866f941209169c38d35376e995f2f29c4685140d85073fec705089706553eae4de3c95d9d8d425af36e597ee651cb8a5e010000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd04014057de8968705f020995662b60c15133846425ea2f786757f2a0fd8845f0d33f6ec35b2ef77a882e4d7560d7667dbf9a6c4b74a51d9e4c52ddce26dd6731047bb340720cd95db06a799c3d121a3b75347c002b0fdc09b45bc2dd5f7fd79c6f674ca9a97cf9c7aff2c8a6ec9f0eefab29a2ae1a758b122f83f4dc34b4d6fa1266b5ae407987727d9a5345d45966e0a6b8e372efc4ce3695c73a2d2f94ba00eee1ce0a75d86ffa60bcfc673c8abc971bf2576ed9c82d5371a235d0168a2fed1ef722f06740c2385bbb75ca72665a2d4f7a9b6ef7f529cd90d55b08bfbaccf4edeee86343e915bb25c5deca6ce2fd9114c44a8963bdfc430d987923caa8ed5f6fb20f81fabe8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
+				expected := "000000002534685cc322d339f957ea368a654bf30b834be4cac0b8441375cce2a37630625507db78d2a2f3130c6073bd68f57202248fdc8966fa8706e88eb0fc61df74085384945e010000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd040140b622b3bdddb8c5e52ae8b4bce5665eb6e2aca950ba72386ea0d37e364af2c7fc40f009c47e1a2140bee90d1e2f81c705d6f2499fe6230b27d1f225c45f38d3c440ec01e743024c2c63dccb2ca4a555eeadb2e6115fe6bc42a8d5c17093828e4ea779b36c6d1535c70c047c709183fc1c93139153291dd0edb614dd3e17d67038dd400f7635816214254b7fba0bb480e2a0ab149c84854adcb542124e67f4cedbf551690f8048271c3f05bbe50f576dcbaf3607afffa2551480cdc24908df0fd47c60408d724d6cfb9bf99e38dc42974f084d110057d3f23a04f5bbf99f5712dad17ae842416bb3e30fee034a317280565cb772f8a61fd09cb05e76db27c5fc7722819f8b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"
 				return &expected
 			},
 		},
 		{
 			name:   "positive, verbose !=0",
-			params: `["614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f", 2]`,
+			params: `["7c32645dab0d87cfaddd5db053e2430c669f807e9efc2b91d1f50a824893352f", 2]`,
 			result: func(e *executor) interface{} {
-				hash, err := util.Uint256DecodeStringLE("614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f")
+				hash, err := util.Uint256DecodeStringLE("7c32645dab0d87cfaddd5db053e2430c669f807e9efc2b91d1f50a824893352f")
 				if err != nil {
 					panic("can not decode hash parameter")
 				}
@@ -521,7 +520,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			params: `["AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU"]`,
 			result: func(*executor) interface{} {
 				// hash of the issueTx
-				h, _ := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+				h, _ := util.Uint256DecodeStringBE("6a46738cd6f821d3b2d96e68c3feb5fcfe81d08a711baadbb68cbfb034fa29c5")
 				amount := util.Fixed8FromInt64(1 * 8) // (endHeight - startHeight) * genAmount[0]
 				return &result.ClaimableInfo{
 					Spents: []result.Claimable{
@@ -580,9 +579,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "poositive",
-			params: `["3fee783413c27849c8ee2656fd757a7483de64f4e78bd7897f30ecdf42ce788b"]`,
+			params: `["3fe72668fa667b8bb0a77ac2375402d52fafc18e6d0a4c12a401dc69bdf515c2"]`,
 			result: func(e *executor) interface{} {
-				h := 202
+				h := 1
 				return &h
 			},
 		},
@@ -792,7 +791,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["d1001b00046e616d6567d3d8602814a429a91afdbaa3914884a1c90c733101201cc9c05cefffe6cdd7b182816a9152ec218d2ec000000141403387ef7940a5764259621e655b3c621a6aafd869a611ad64adcc364d8dd1edf84e00a7f8b11b630a377eaef02791d1c289d711c08b7ad04ff0d6c9caca22cfe6232103cbb45da6072c14761c9da545749d9cfd863f860c351066d16df480602a2024c6ac"]`,
+			params: `["80001300000000015b090ad71ea0c192adc820401b2edc6a197788ee8e5e42a9c5e5e00d700c5da1010001250815d6e93c89e6d2f7279bd5781317d1bfb1ee30aca4c338524654563b3acd0030d3dec38623002baa76ad534b886cb87c6b3720a34943d9000fa90141409646e3dd0dd87685eadac1f682fa63db83729f780a7b2e739cb372ceeaadb3f19260060b34c83fec46e48a6288b2bc5c641e75d1cb358e9c185425a2e6e3fdab232102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2ac"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -821,8 +820,9 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"submitblock": {
 		{
+			// If you are planning to modify test chain from `testblocks.acc`, please, update param value (first block)
 			name:   "empty block",
-			params: `["00000000399183d238a2a5a11ae4f2263fa5372a2fc488ad1bb0782b83e66d7fc89637d9000000000000000000000000000000000000000000000000000000000000000021cc8a5ed10000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd04014090fb6263dc6a3009947999d1320844fb08929748ef3c0a6647194a637dea2c4454bfc97cafb1ce46f7df25529ff5f195f62fc455d929b4e89d5a974ad0f6bfdd40b9d36fceb1e3cadbcc88d2d0b6f481c6c3af45fa20b91682d7aed6493bdeed7ee602aeb7f50ea09b6ee5332f9f95f180fa6b3033be4a6c1208e40d75fe73c8804005dcc45a2a94c036597381e6fd3c4f76977f61fdc25f7e99d60577a970a6eeb543b6133b9b6387ec60babe25fb8dd4bfe9874e06c864f21059664c9b4a0f214c40fde0dfd49c32920d2a17bad0acd68b25180aeb137f82fdbd5794ece3d42bf699539928a30413fc9fd367b34465189a740ff41f0861318847fbc77cbe005bb6918b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"]`,
+			params: `["00000000565f6b8fab486930d5ece5feb93060f010b556b2d4aa618878326ed93604ed6400000000000000000000000000000000000000000000000000000000000000002385945ed10000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd0401408313b36a61c137d327bec8791dfbb22ae9627fbcd2b023236f65188376f1ff4913c554b276cf7e84c5446fb495df2ed7cd34577ef9a4f9dd0dd27654aa53abe040acf3d5327c50e08bf97d794b6ec021223b8c493f9b71f8844446a01a99e555d517d30b84cbb2a5dcbafb5171373f4d0e6c8aea54f46901455d62545f75bdd2a640c359e2365bfe6f9b7b58a09e7e78f2bee85dbb4f823f9bee31b297cb2eb804eb4a5f1858a729d9676ab2c63b91bee5726c7b38086a04f3fe0ca23155331c476840dfddf4c173a374aacff6d2f37b327256556aa37d7c38c41dfda1f42d25f33d921b41da271aa27f7872f7b2b0b00f90a7ee83f5823ea1cc4f9db90a0100a8b7868b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae00"]`,
 			fail:   true,
 		},
 		{
@@ -847,8 +847,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name: "positive",
-			// If you are planning to modify test chain from `testblocks.acc`, please, update param value
-			params: `["00000000399183d238a2a5a11ae4f2263fa5372a2fc488ad1bb0782b83e66d7fc89637d9edb908054ac1409be5f77d5369c6e03490b2f6676d68d0b3370f8159e0fdadf921cc8a5ed10000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd0401401b2c9a188c2bf0b14c59dca4c2fccc14664d815204573824d2bc7899aed43e4023d321ce28551875e7459de494d368ffe0d8b04502694640dfe0db795a52b3c340c06924f3f0de04045ab09cb51a7944219fe9f69fbf9c9770fed7712930b1a0e58dd13e78c76afff1c7d7316cf5ff55981917f8c243a33858163557a3f7d0270f4057675127a0355f24ffa2c28b742def8d4c39b4ef79b098028da182a48385608472d3fbed598b806f60b834196222b4d1bc2a65cf465de7fcedba4103dd510ae54036f06134debb8bbecfef297fb98070e242d5eefd607622110adc645d90d40779065819871c739598f04b9ee7311ebaaa048ac403a19542c5b0d2ccf1ba5e16968b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae0100000000000000000000"]`,
+			// If you are planning to modify test chain from `testblocks.acc`, please, update param value (second block)
+			params: `["00000000565f6b8fab486930d5ece5feb93060f010b556b2d4aa618878326ed93604ed645c23aae5b26be3d759680239a4276be0d2e76de303ef3fda96da97e8a3f6a0f12385945ed10000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd040140accd1571b3c25e4a6ec80f3bfc8ca3360f51232ed615b756e88424c1c083bd4c0d37f98156c8b87a36710467a75ff3938acea5bbd6a683d439004e2a30665562405de64537c7a411055504bec46851101a3ee9a3db02a7fb0feff781bee43a71ff7e76e03f273437bb94ad1f58dbe29eff32d9299bae0f48860a89a74ed5a48900400a337ce23f8dd767d043ba2b0886ba25d3905a1493ba70a96b297179914d096dfb8621f40e5efa63205af46b8ae71198846affcf02b9137752fcf3d54a683faa408d54fcd4d5235ff48b8dbe7d6f2e0b75ea3dc1bcd563ae44c8c8df201f5039fd30357d8c6709a0639a4aef07a223ca2ae21a74494808bc8b8f2955e7b26bdd148b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae0100001400000000000000"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -921,7 +921,7 @@ func TestRPC(t *testing.T) {
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
+		assert.Equal(t, "40000000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
 	})
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
@@ -933,7 +933,7 @@ func TestRPC(t *testing.T) {
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "400000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
+		assert.Equal(t, "40000000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
 	})
 
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
@@ -973,7 +973,7 @@ func TestRPC(t *testing.T) {
 		err := json.Unmarshal(res, &txOut)
 		require.NoErrorf(t, err, "could not parse response: %s", res)
 		assert.Equal(t, 0, txOut.N)
-		assert.Equal(t, "0x9b7cffdaa674beae0f930ebe6085af9093e5fe56b34a5c220ccdcf6efc336fc5", txOut.Asset)
+		assert.Equal(t, "0x250815d6e93c89e6d2f7279bd5781317d1bfb1ee30aca4c338524654563b3acd", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
 		assert.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", txOut.Address)
 	})
@@ -986,12 +986,7 @@ func TestRPC(t *testing.T) {
 			expected = append(expected, tx.Tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := &transaction.Transaction{
-				Type: transaction.MinerType,
-				Data: &transaction.MinerTX{
-					Nonce: uint32(random.Int(0, 1000000000)),
-				},
-			}
+			tx := transaction.NewMinerTX()
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
 		}

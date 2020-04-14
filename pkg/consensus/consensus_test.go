@@ -18,10 +18,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
-	tx := &transaction.Transaction{
-		Type: transaction.MinerType,
-		Data: &transaction.MinerTX{Nonce: 12345},
-	}
+	tx := transaction.NewMinerTX()
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
@@ -34,10 +31,10 @@ func TestNewService(t *testing.T) {
 func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
 	txs := []*transaction.Transaction{
-		newMinerTx(1),
-		newMinerTx(2),
-		newMinerTx(3),
-		newMinerTx(4),
+		transaction.NewMinerTXWithNonce(123),
+		transaction.NewMinerTXWithNonce(124),
+		transaction.NewMinerTXWithNonce(125),
+		transaction.NewMinerTXWithNonce(126),
 	}
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
@@ -45,7 +42,7 @@ func TestService_GetVerified(t *testing.T) {
 
 	p := new(Payload)
 	p.SetType(payload.PrepareRequestType)
-	p.SetPayload(&prepareRequest{transactionHashes: hashes, minerTx: *newMinerTx(999)})
+	p.SetPayload(&prepareRequest{transactionHashes: hashes, minerTx: *transaction.NewMinerTXWithNonce(999)})
 	p.SetValidatorIndex(1)
 
 	priv, _ := getTestValidator(1)
@@ -109,7 +106,7 @@ func TestService_getTx(t *testing.T) {
 	srv := newTestService(t)
 
 	t.Run("transaction in mempool", func(t *testing.T) {
-		tx := newMinerTx(1234)
+		tx := transaction.NewMinerTXWithNonce(1234)
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))
@@ -122,7 +119,7 @@ func TestService_getTx(t *testing.T) {
 	})
 
 	t.Run("transaction in local cache", func(t *testing.T) {
-		tx := newMinerTx(4321)
+		tx := transaction.NewMinerTXWithNonce(4321)
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))

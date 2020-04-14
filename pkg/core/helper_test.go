@@ -96,20 +96,13 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	lastHash := bc.topBlock.Load().(*block.Block).Hash()
 	lastIndex := bc.topBlock.Load().(*block.Block).Index
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash, newMinerTX())
+		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash, transaction.NewMinerTXWithNonce(uint32(1234+i)))
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err
 		}
 		lastHash = blocks[i].Hash()
 	}
 	return blocks, nil
-}
-
-func newMinerTX() *transaction.Transaction {
-	return &transaction.Transaction{
-		Type: transaction.MinerType,
-		Data: &transaction.MinerTX{},
-	}
 }
 
 func getDecodedBlock(t *testing.T, i int) *block.Block {
@@ -175,14 +168,28 @@ func TestCreateBasicChain(t *testing.T) {
 	// To make enough GAS.
 	const numOfEmptyBlocks = 200
 
+	// To be incremented after each created transaction to keep chain constant.
+	var testNonce uint32 = 1
+
+	// Use as nonce when new transaction is created to avoid random data in tests.
+	getNextNonce := func() uint32 {
+		testNonce++
+		return testNonce
+	}
+
 	var neoAmount = util.Fixed8FromInt64(99999000)
 	var neoRemainder = util.Fixed8FromInt64(100000000) - neoAmount
 	bc := newTestChain(t)
 
 	// Move almost all NEO to one simple account.
 	txMoveNeo := transaction.NewContractTX()
-	h, err := util.Uint256DecodeStringBE("6da730b566db183bfceb863b780cd92dee2b497e5a023c322c1eaca81cf9ad7a")
+	txMoveNeo.Nonce = getNextNonce()
+
+	// use output of issue tx from genesis block as an input
+	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
 	require.NoError(t, err)
+	require.Equal(t, 4, len(genesisBlock.Transactions))
+	h := genesisBlock.Transactions[3].Hash()
 	txMoveNeo.AddInput(&transaction.Input{
 		PrevHash:  h,
 		PrevIndex: 0,
@@ -225,7 +232,7 @@ func TestCreateBasicChain(t *testing.T) {
 		VerificationScript: rawScript,
 	}}
 
-	b := bc.newBlock(newMinerTX(), txMoveNeo)
+	b := bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txMoveNeo)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 
@@ -244,6 +251,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	// Make a NEO roundtrip (send to myself) and claim GAS.
 	txNeoRound := transaction.NewContractTX()
+	txNeoRound.Nonce = getNextNonce()
 	txNeoRound.AddInput(&transaction.Input{
 		PrevHash:  txMoveNeo.Hash(),
 		PrevIndex: 0,
@@ -256,16 +264,17 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	txNeoRound.Data = new(transaction.ContractTX)
 	require.NoError(t, acc0.SignTx(txNeoRound))
-	b = bc.newBlock(newMinerTX(), txNeoRound)
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txNeoRound)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txNeoRound: %s", txNeoRound.Hash().StringLE())
 
-	txClaim := &transaction.Transaction{Type: transaction.ClaimType}
 	claim := new(transaction.ClaimTX)
 	claim.Claims = append(claim.Claims, transaction.Input{
 		PrevHash:  txMoveNeo.Hash(),
 		PrevIndex: 0,
 	})
+	txClaim := transaction.NewClaimTX(claim)
+	txClaim.Nonce = getNextNonce()
 	txClaim.Data = claim
 	neoGas, sysGas, err := bc.CalculateClaimable(neoAmount, 1, bc.BlockHeight())
 	require.NoError(t, err)
@@ -277,7 +286,7 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	require.NoError(t, acc0.SignTx(txClaim))
-	b = bc.newBlock(newMinerTX(), txClaim)
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txClaim)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txClaim: %s", txClaim.Hash().StringLE())
 
@@ -305,6 +314,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	invFee := util.Fixed8FromFloat(100)
 	txDeploy := transaction.NewInvocationTX(txScript, invFee)
+	txDeploy.Nonce = getNextNonce()
 	txDeploy.AddInput(&transaction.Input{
 		PrevHash:  txClaim.Hash(),
 		PrevIndex: 0,
@@ -317,7 +327,7 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	gasOwned -= invFee
 	require.NoError(t, acc0.SignTx(txDeploy))
-	b = bc.newBlock(newMinerTX(), txDeploy)
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
 
@@ -326,13 +336,15 @@ func TestCreateBasicChain(t *testing.T) {
 	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
 
 	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
-	b = bc.newBlock(newMinerTX(), txInv)
+	txInv.Nonce = getNextNonce()
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txInv)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
 	priv1, err := keys.NewPrivateKeyFromWIF(privNetKeys[1])
 	require.NoError(t, err)
 	txNeo0to1 := transaction.NewContractTX()
+	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.Data = new(transaction.ContractTX)
 	txNeo0to1.AddInput(&transaction.Input{
 		PrevHash:  txNeoRound.Hash(),
@@ -350,20 +362,23 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 
 	require.NoError(t, acc0.SignTx(txNeo0to1))
-	b = bc.newBlock(newMinerTX(), txNeo0to1)
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
 	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
+	initTx.Nonce = getNextNonce()
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
+	transferTx.Nonce = getNextNonce()
 
-	b = bc.newBlock(newMinerTX(), initTx, transferTx)
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
-	b = bc.newBlock(newMinerTX(), transferTx)
+	transferTx.Nonce = getNextNonce()
+	b = bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce()), transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	if saveChain {
@@ -388,14 +403,33 @@ func TestCreateBasicChain(t *testing.T) {
 		}
 	}
 
+	// Make a NEO roundtrip (send to myself) and claim GAS.
+	txNeoRound = transaction.NewContractTX()
+	txNeoRound.Nonce = getNextNonce()
+	txNeoRound.AddInput(&transaction.Input{
+		PrevHash:  txNeo0to1.Hash(),
+		PrevIndex: 1,
+	})
+	txNeoRound.AddOutput(&transaction.Output{
+		AssetID:    GoverningTokenID(),
+		Amount:     neoAmount - util.Fixed8FromInt64(1000),
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	txNeoRound.Data = new(transaction.ContractTX)
+	require.NoError(t, acc0.SignTx(txNeoRound))
+	bw := io.NewBufBinWriter()
+	txNeoRound.EncodeBinary(bw.BinWriter)
+	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
+
 	// Blocks for `submitblock` test. If you are planning to modify test chain from `testblocks.acc`,
 	// please, update params value of `empty block` and `positive` tests.
 	var blocks []*block.Block
-	blocks = append(blocks, bc.newBlock(), bc.newBlock(newMinerTX()))
-	for _, b := range blocks {
+	blocks = append(blocks, bc.newBlock(), bc.newBlock(transaction.NewMinerTXWithNonce(getNextNonce())))
+	for i, b := range blocks {
 		data, err := testserdes.EncodeBinary(b)
 		require.NoError(t, err)
-		t.Log(hex.EncodeToString(data))
+		t.Logf("\nblock %v for submitblock test:\n%s", i, hex.EncodeToString(data))
 	}
 }
 

@@ -36,7 +36,7 @@ func (fs *FeerStub) SystemFee(*transaction.Transaction) util.Fixed8 {
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := NewMemPool(10)
-	tx := newMinerTX(0)
+	tx := transaction.NewMinerTXWithNonce(0)
 	_, _, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	require.NoError(t, mp.Add(tx, fs))
@@ -73,7 +73,7 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 		return mp.claims[i].Cmp(mp.claims[j]) < 0
 	}
 
-	txm1 := newMinerTX(1)
+	txm1 := transaction.NewMinerTXWithNonce(1)
 	txc1, claim1 := newClaimTX()
 	for i := 0; i < 5; i++ {
 		txm1.Inputs = append(txm1.Inputs, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
@@ -87,7 +87,7 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 	assert.Equal(t, len(claim1.Claims), len(mp.claims))
 	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 
-	txm2 := newMinerTX(1)
+	txm2 := transaction.NewMinerTXWithNonce(1)
 	txc2, claim2 := newClaimTX()
 	for i := 0; i < 10; i++ {
 		txm2.Inputs = append(txm2.Inputs, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
@@ -128,19 +128,19 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 
 func TestMemPoolVerifyInputs(t *testing.T) {
 	mp := NewMemPool(10)
-	tx := newMinerTX(1)
+	tx := transaction.NewMinerTXWithNonce(1)
 	inhash1 := random.Uint256()
 	tx.Inputs = append(tx.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 0})
 	require.Equal(t, true, mp.Verify(tx))
 	require.NoError(t, mp.Add(tx, &FeerStub{}))
 
-	tx2 := newMinerTX(2)
+	tx2 := transaction.NewMinerTXWithNonce(2)
 	inhash2 := random.Uint256()
 	tx2.Inputs = append(tx2.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
 	require.Equal(t, true, mp.Verify(tx2))
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 
-	tx3 := newMinerTX(3)
+	tx3 := transaction.NewMinerTXWithNonce(3)
 	// Different index number, but the same PrevHash as in tx1.
 	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 1})
 	require.Equal(t, true, mp.Verify(tx3))
@@ -189,32 +189,20 @@ func TestMemPoolVerifyIssue(t *testing.T) {
 }
 
 func newIssueTX() *transaction.Transaction {
-	return &transaction.Transaction{
-		Type: transaction.IssueType,
-		Data: &transaction.IssueTX{},
-		Outputs: []transaction.Output{
-			{
-				AssetID:    random.Uint256(),
-				Amount:     util.Fixed8FromInt64(42),
-				ScriptHash: random.Uint160(),
-			},
+	tx := transaction.NewIssueTX()
+	tx.Outputs = []transaction.Output{
+		{
+			AssetID:    random.Uint256(),
+			Amount:     util.Fixed8FromInt64(42),
+			ScriptHash: random.Uint160(),
 		},
 	}
-}
-
-func newMinerTX(i uint32) *transaction.Transaction {
-	return &transaction.Transaction{
-		Type: transaction.MinerType,
-		Data: &transaction.MinerTX{Nonce: i},
-	}
+	return tx
 }
 
 func newClaimTX() (*transaction.Transaction, *transaction.ClaimTX) {
 	cl := &transaction.ClaimTX{}
-	return &transaction.Transaction{
-		Type: transaction.ClaimType,
-		Data: cl,
-	}, cl
+	return transaction.NewClaimTX(cl), cl
 }
 
 func TestOverCapacity(t *testing.T) {
@@ -223,7 +211,7 @@ func TestOverCapacity(t *testing.T) {
 	mp := NewMemPool(mempoolSize)
 
 	for i := 0; i < mempoolSize; i++ {
-		tx := newMinerTX(uint32(i))
+		tx := transaction.NewMinerTXWithNonce(uint32(i))
 		require.NoError(t, mp.Add(tx, fs))
 	}
 	txcnt := uint32(mempoolSize)
@@ -243,7 +231,7 @@ func TestOverCapacity(t *testing.T) {
 	// Fees are also prioritized.
 	fs.netFee = util.Fixed8FromFloat(0.0001)
 	for i := 0; i < mempoolSize-1; i++ {
-		tx := newMinerTX(txcnt)
+		tx := transaction.NewMinerTXWithNonce(txcnt)
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
@@ -251,7 +239,7 @@ func TestOverCapacity(t *testing.T) {
 	}
 	// Less prioritized txes are not allowed anymore.
 	fs.netFee = util.Fixed8FromFloat(0.00001)
-	tx := newMinerTX(txcnt)
+	tx := transaction.NewMinerTXWithNonce(txcnt)
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
@@ -262,7 +250,7 @@ func TestOverCapacity(t *testing.T) {
 
 	// Low net fee, but higher per-byte fee is still a better combination.
 	fs.perByteFee = util.Fixed8FromFloat(0.001)
-	tx = newMinerTX(txcnt)
+	tx = transaction.NewMinerTXWithNonce(txcnt)
 	txcnt++
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
@@ -271,7 +259,7 @@ func TestOverCapacity(t *testing.T) {
 	// High priority always wins over low priority.
 	fs.lowPriority = false
 	for i := 0; i < mempoolSize; i++ {
-		tx := newMinerTX(txcnt)
+		tx := transaction.NewMinerTXWithNonce(txcnt)
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
@@ -279,7 +267,7 @@ func TestOverCapacity(t *testing.T) {
 	}
 	// Good luck with low priority now.
 	fs.lowPriority = true
-	tx = newMinerTX(txcnt)
+	tx = transaction.NewMinerTXWithNonce(txcnt)
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -292,7 +280,7 @@ func TestGetVerified(t *testing.T) {
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := 0; i < mempoolSize; i++ {
-		tx := newMinerTX(uint32(i))
+		tx := transaction.NewMinerTXWithNonce(uint32(i))
 		txes = append(txes, tx)
 		require.NoError(t, mp.Add(tx, fs))
 	}
@@ -317,7 +305,7 @@ func TestRemoveStale(t *testing.T) {
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	for i := 0; i < mempoolSize; i++ {
-		tx := newMinerTX(uint32(i))
+		tx := transaction.NewMinerTXWithNonce(uint32(i))
 		if i%2 == 0 {
 			txes1 = append(txes1, tx)
 		} else {

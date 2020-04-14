@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +43,7 @@ func TestNeoBlock_Setters(t *testing.T) {
 	b.SetPrevHash(util.Uint256{9, 8, 7})
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())
 
-	txx := []block.Transaction{newMinerTx(123)}
+	txx := []block.Transaction{transaction.NewMinerTX()}
 	b.SetTransactions(txx)
 	require.Equal(t, txx, b.Transactions())
 }

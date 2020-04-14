@@ -263,10 +263,7 @@ func claimGas(ctx *cli.Context) error {
 		})
 	}
 
-	tx := &transaction.Transaction{
-		Type: transaction.ClaimType,
-		Data: &claim,
-	}
+	tx := transaction.NewClaimTX(&claim)
 
 	tx.AddOutput(&transaction.Output{
 		AssetID:    core.UtilityTokenID(),

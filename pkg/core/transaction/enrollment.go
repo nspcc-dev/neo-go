@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"math/rand"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -13,6 +15,21 @@ import (
 type EnrollmentTX struct {
 	// PublicKey of the validator.
 	PublicKey keys.PublicKey
+}
+
+// NewEnrollmentTX creates Transaction of EnrollmentType type.
+func NewEnrollmentTX(enrollment *EnrollmentTX) *Transaction {
+	return &Transaction{
+		Type:       EnrollmentType,
+		Version:    0,
+		Nonce:      rand.Uint32(),
+		Data:       enrollment,
+		Attributes: []Attribute{},
+		Inputs:     []Input{},
+		Outputs:    []Output{},
+		Scripts:    []Witness{},
+		Trimmed:    false,
+	}
 }
 
 // DecodeBinary implements Serializable interface.

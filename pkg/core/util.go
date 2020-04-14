@@ -58,39 +58,32 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	}
 	scriptOut := hash.Hash160(rawScript)
 
+	minerTx := transaction.NewMinerTXWithNonce(2083236893)
+
+	issueTx := transaction.NewIssueTX()
+	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
+	issueTx.Nonce = 0
+	issueTx.Outputs = []transaction.Output{
+		{
+			AssetID:    governingTokenTX.Hash(),
+			Amount:     governingTokenTX.Data.(*transaction.RegisterTX).Amount,
+			ScriptHash: scriptOut,
+		},
+	}
+	issueTx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: []byte{byte(opcode.PUSHT)},
+		},
+	}
+
 	b := &block.Block{
 		Base: base,
 		Transactions: []*transaction.Transaction{
-			{
-				Type: transaction.MinerType,
-				Data: &transaction.MinerTX{
-					Nonce: 2083236893,
-				},
-				Attributes: []transaction.Attribute{},
-				Inputs:     []transaction.Input{},
-				Outputs:    []transaction.Output{},
-				Scripts:    []transaction.Witness{},
-			},
+			minerTx,
 			&governingTokenTX,
 			&utilityTokenTX,
-			{
-				Type:   transaction.IssueType,
-				Data:   &transaction.IssueTX{}, // no fields.
-				Inputs: []transaction.Input{},
-				Outputs: []transaction.Output{
-					{
-						AssetID:    governingTokenTX.Hash(),
-						Amount:     governingTokenTX.Data.(*transaction.RegisterTX).Amount,
-						ScriptHash: scriptOut,
-					},
-				},
-				Scripts: []transaction.Witness{
-					{
-						InvocationScript:   []byte{},
-						VerificationScript: []byte{byte(opcode.PUSHT)},
-					},
-				},
-			},
+			issueTx,
 		},
 	}
 
@@ -111,14 +104,9 @@ func init() {
 		Admin:     admin,
 	}
 
-	governingTokenTX = transaction.Transaction{
-		Type:       transaction.RegisterType,
-		Data:       registerTX,
-		Attributes: []transaction.Attribute{},
-		Inputs:     []transaction.Input{},
-		Outputs:    []transaction.Output{},
-		Scripts:    []transaction.Witness{},
-	}
+	governingTokenTX = *transaction.NewRegisterTX(registerTX)
+	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
+	governingTokenTX.Nonce = 0
 
 	admin = hash.Hash160([]byte{byte(opcode.PUSHF)})
 	registerTX = &transaction.RegisterTX{
@@ -128,14 +116,9 @@ func init() {
 		Precision: 8,
 		Admin:     admin,
 	}
-	utilityTokenTX = transaction.Transaction{
-		Type:       transaction.RegisterType,
-		Data:       registerTX,
-		Attributes: []transaction.Attribute{},
-		Inputs:     []transaction.Input{},
-		Outputs:    []transaction.Output{},
-		Scripts:    []transaction.Witness{},
-	}
+	utilityTokenTX = *transaction.NewRegisterTX(registerTX)
+	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
+	utilityTokenTX.Nonce = 0
 }
 
 // GoverningTokenID returns the governing token (NEO) hash.

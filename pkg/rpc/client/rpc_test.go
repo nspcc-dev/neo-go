@@ -37,7 +37,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAccountState("")
 			},
-			serverResponse: `{"jsonrpc":"2.0","id": 1,"result":{"version":0,"script_hash":"0x1179716da2e9523d153a35fb3ad10c561b1e5b1a","frozen":false,"votes":[],"balances":[{"asset":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","value":"94"}]}}`,
+			serverResponse: `{"jsonrpc":"2.0","id": 1,"result":{"version":0,"script_hash":"0x1179716da2e9523d153a35fb3ad10c561b1e5b1a","frozen":false,"votes":[],"balances":[{"asset":"0xcd3a3b5654465238c3a4ac30eeb1bfd1171378d59b27f7d2e6893ce9d6150825","value":"94"}]}}`,
 			result: func(c *Client) interface{} {
 				scriptHash, err := util.Uint160DecodeStringLE("1179716da2e9523d153a35fb3ad10c561b1e5b1a")
 				if err != nil {
@@ -96,7 +96,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAssetState(util.Uint256{})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0xcd3a3b5654465238c3a4ac30eeb1bfd1171378d59b27f7d2e6893ce9d6150825","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
 			result: func(c *Client) interface{} {
 				return &result.AssetState{
 					ID:         core.GoverningTokenID(),
@@ -180,16 +180,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				tx := &transaction.Transaction{
-					Type:       transaction.MinerType,
-					Version:    0,
-					Data:       &transaction.MinerTX{Nonce: 4266257741},
-					Attributes: []transaction.Attribute{},
-					Inputs:     []transaction.Input{},
-					Outputs:    []transaction.Output{},
-					Scripts:    []transaction.Witness{},
-					Trimmed:    false,
-				}
+				tx := transaction.NewMinerTXWithNonce(4266257741)
 				// Update hashes for correct result comparison.
 				_ = tx.Hash()
 				return &result.Block{
@@ -275,16 +266,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				tx := &transaction.Transaction{
-					Type:       transaction.MinerType,
-					Version:    0,
-					Data:       &transaction.MinerTX{Nonce: 4266257741},
-					Attributes: []transaction.Attribute{},
-					Inputs:     []transaction.Input{},
-					Outputs:    []transaction.Output{},
-					Scripts:    []transaction.Witness{},
-					Trimmed:    false,
-				}
+				tx := transaction.NewMinerTXWithNonce(4266257741)
 				// Update hashes for correct result comparison.
 				_ = tx.Hash()
 				return &result.Block{
@@ -656,16 +638,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				tx := &transaction.Transaction{
-					Type:       transaction.MinerType,
-					Version:    0,
-					Data:       &transaction.MinerTX{Nonce: 4266257741},
-					Attributes: []transaction.Attribute{},
-					Inputs:     []transaction.Input{},
-					Outputs:    []transaction.Output{},
-					Scripts:    []transaction.Witness{},
-					Trimmed:    false,
-				}
+				tx := transaction.NewMinerTXWithNonce(4266257741)
 				// Update hashes for correct result comparison.
 				_ = tx.Hash()
 
@@ -871,16 +844,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(&transaction.Transaction{
-					Type:       transaction.MinerType,
-					Version:    0,
-					Data:       nil,
-					Attributes: []transaction.Attribute{},
-					Inputs:     []transaction.Input{},
-					Outputs:    []transaction.Output{},
-					Scripts:    []transaction.Witness{},
-					Trimmed:    false,
-				})
+				return nil, c.SendRawTransaction(transaction.NewMinerTX())
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":true}`,
 			result: func(c *Client) interface{} {
@@ -1001,16 +965,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(&transaction.Transaction{
-					Type:       transaction.MinerType,
-					Version:    0,
-					Data:       nil,
-					Attributes: []transaction.Attribute{},
-					Inputs:     []transaction.Input{},
-					Outputs:    []transaction.Output{},
-					Scripts:    []transaction.Witness{},
-					Trimmed:    false,
-				})
+				return nil, c.SendRawTransaction(transaction.NewMinerTX())
 			},
 		},
 		{
@@ -1396,16 +1351,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(&transaction.Transaction{
-					Type:       0,
-					Version:    0,
-					Data:       nil,
-					Attributes: nil,
-					Inputs:     nil,
-					Outputs:    nil,
-					Scripts:    nil,
-					Trimmed:    false,
-				})
+				return nil, c.SendRawTransaction(transaction.NewMinerTX())
 			},
 		},
 		{

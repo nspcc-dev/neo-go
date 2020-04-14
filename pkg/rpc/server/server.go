@@ -932,10 +932,8 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, erro
 	} else if byteTx, err := reqParams[0].GetBytesHex(); err != nil {
 		return nil, response.ErrInvalidParams
 	} else {
-		r := io.NewBinReaderFromBuf(byteTx)
-		tx := &transaction.Transaction{}
-		tx.DecodeBinary(r)
-		if r.Err != nil {
+		tx, err := transaction.NewTransactionFromBytes(byteTx)
+		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
 		relayReason := s.coreServer.RelayTxn(tx)
