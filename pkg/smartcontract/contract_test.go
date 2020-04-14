@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,11 +25,14 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 
 	for i := 0; i < len(validators); i++ {
+		assert.EqualValues(t, opcode.PUSHDATA1, br.ReadB())
 		bb := br.ReadVarBytes()
 		require.NoError(t, br.Err)
 		assert.Equal(t, validators[i].Bytes(), bb)
 	}
 
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
-	assert.Equal(t, opcode.CHECKMULTISIG, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, opcode.PUSHNULL, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig")), br.ReadU32LE())
 }

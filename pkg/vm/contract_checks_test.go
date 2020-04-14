@@ -1,228 +1,117 @@
 package vm
 
 import (
+	"encoding/binary"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestIsSignatureContractGood(t *testing.T) {
-	prog := make([]byte, 35)
-	prog[0] = byte(opcode.PUSHBYTES33)
-	prog[34] = byte(opcode.CHECKSIG)
-	assert.Equal(t, true, IsSignatureContract(prog))
-	assert.Equal(t, true, IsStandardContract(prog))
+func testSignatureContract() []byte {
+	prog := make([]byte, 41)
+	prog[0] = byte(opcode.PUSHDATA1)
+	prog[1] = 33
+	prog[35] = byte(opcode.PUSHNULL)
+	prog[36] = byte(opcode.SYSCALL)
+	binary.LittleEndian.PutUint32(prog[37:], verifyInteropID)
+	return prog
 }
 
-func TestIsSignatureContractBadNoCheckSig(t *testing.T) {
-	prog := make([]byte, 34)
-	prog[0] = byte(opcode.PUSHBYTES33)
-	assert.Equal(t, false, IsSignatureContract(prog))
-	assert.Equal(t, false, IsStandardContract(prog))
+func TestIsSignatureContract(t *testing.T) {
+	t.Run("valid contract", func(t *testing.T) {
+		prog := testSignatureContract()
+		assert.True(t, IsSignatureContract(prog))
+		assert.True(t, IsStandardContract(prog))
+	})
+
+	t.Run("invalid interop ID", func(t *testing.T) {
+		prog := testSignatureContract()
+		binary.LittleEndian.PutUint32(prog[37:], ^verifyInteropID)
+		assert.False(t, IsSignatureContract(prog))
+		assert.False(t, IsStandardContract(prog))
+	})
+
+	t.Run("invalid pubkey size", func(t *testing.T) {
+		prog := testSignatureContract()
+		prog[1] = 32
+		assert.False(t, IsSignatureContract(prog))
+		assert.False(t, IsStandardContract(prog))
+	})
+
+	t.Run("no PUSHNULL", func(t *testing.T) {
+		prog := testSignatureContract()
+		prog[35] = byte(opcode.PUSH1)
+		assert.False(t, IsSignatureContract(prog))
+		assert.False(t, IsStandardContract(prog))
+	})
+
+	t.Run("invalid length", func(t *testing.T) {
+		prog := testSignatureContract()
+		prog = append(prog, 0)
+		assert.False(t, IsSignatureContract(prog))
+		assert.False(t, IsStandardContract(prog))
+	})
 }
 
-func TestIsSignatureContractBadNoCheckSig2(t *testing.T) {
-	prog := make([]byte, 35)
-	prog[0] = byte(opcode.PUSHBYTES33)
-	prog[34] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsSignatureContract(prog))
-}
-
-func TestIsSignatureContractBadWrongPush(t *testing.T) {
-	prog := make([]byte, 35)
-	prog[0] = byte(opcode.PUSHBYTES32)
-	prog[33] = byte(opcode.NOP)
-	prog[34] = byte(opcode.CHECKSIG)
-	assert.Equal(t, false, IsSignatureContract(prog))
-}
-
-func TestIsSignatureContractBadWrongInstr(t *testing.T) {
-	prog := make([]byte, 30)
-	prog[0] = byte(opcode.PUSHBYTES33)
-	assert.Equal(t, false, IsSignatureContract(prog))
-}
-
-func TestIsSignatureContractBadExcessiveInstr(t *testing.T) {
-	prog := make([]byte, 36)
-	prog[0] = byte(opcode.PUSHBYTES33)
-	prog[34] = byte(opcode.CHECKSIG)
-	prog[35] = byte(opcode.RET)
-	assert.Equal(t, false, IsSignatureContract(prog))
-}
-
-func TestIsMultiSigContractGood(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, true, IsMultiSigContract(prog))
-	assert.Equal(t, true, IsStandardContract(prog))
-}
-
-func TestIsMultiSigContractGoodPushBytes1(t *testing.T) {
-	prog := make([]byte, 73)
-	prog[0] = byte(opcode.PUSHBYTES1)
-	prog[1] = 2
-	prog[2] = byte(opcode.PUSHBYTES33)
-	prog[36] = byte(opcode.PUSHBYTES33)
-	prog[70] = byte(opcode.PUSHBYTES1)
-	prog[71] = 2
-	prog[72] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, true, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractGoodPushBytes2(t *testing.T) {
-	prog := make([]byte, 75)
-	prog[0] = byte(opcode.PUSHBYTES2)
-	prog[1] = 2
-	prog[3] = byte(opcode.PUSHBYTES33)
-	prog[37] = byte(opcode.PUSHBYTES33)
-	prog[71] = byte(opcode.PUSHBYTES2)
-	prog[72] = 2
-	prog[74] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, true, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadNSigs1(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH0)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-	assert.Equal(t, false, IsStandardContract(prog))
-}
-
-func TestIsMultiSigContractBadNSigs2(t *testing.T) {
-	prog := make([]byte, 73)
-	prog[0] = byte(opcode.PUSHBYTES2)
-	prog[1] = 0xff
-	prog[2] = 0xff
-	prog[3] = byte(opcode.PUSHBYTES33)
-	prog[37] = byte(opcode.PUSHBYTES33)
-	prog[71] = byte(opcode.PUSH2)
-	prog[72] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadNSigs3(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH5)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadExcessiveNOP1(t *testing.T) {
-	prog := make([]byte, 72)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.NOP)
-	prog[2] = byte(opcode.PUSHBYTES33)
-	prog[36] = byte(opcode.PUSHBYTES33)
-	prog[70] = byte(opcode.PUSH2)
-	prog[71] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadExcessiveNOP2(t *testing.T) {
-	prog := make([]byte, 72)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.NOP)
-	prog[36] = byte(opcode.PUSHBYTES33)
-	prog[70] = byte(opcode.PUSH2)
-	prog[71] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadExcessiveNOP3(t *testing.T) {
-	prog := make([]byte, 72)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.NOP)
-	prog[70] = byte(opcode.PUSH2)
-	prog[71] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadExcessiveNOP4(t *testing.T) {
-	prog := make([]byte, 72)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.NOP)
-	prog[71] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadExcessiveNOP5(t *testing.T) {
-	prog := make([]byte, 72)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	prog[71] = byte(opcode.NOP)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadNKeys1(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH3)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
-
-func TestIsMultiSigContractBadNKeys2(t *testing.T) {
-	prog := make([]byte, 1)
-	prog[0] = byte(opcode.PUSH10)
-	key := make([]byte, 33)
-	var asize = uint16(MaxArraySize + 1)
-	for i := 0; i < int(asize); i++ {
-		prog = append(prog, byte(opcode.PUSHBYTES33))
-		prog = append(prog, key...)
+func testMultisigContract(t *testing.T, n, m int) []byte {
+	pubs := make(keys.PublicKeys, n)
+	for i := 0; i < n; i++ {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		pubs[i] = priv.PublicKey()
 	}
-	prog = append(prog, byte(opcode.PUSHBYTES2), byte(asize&0xff), byte((asize<<8)&0xff), byte(opcode.CHECKMULTISIG))
-	assert.Equal(t, false, IsMultiSigContract(prog))
+
+	prog, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
+	require.NoError(t, err)
+	return prog
 }
 
-func TestIsMultiSigContractBadRead1(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSHBYTES75)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
+func TestIsMultiSigContract(t *testing.T) {
+	t.Run("valid contract", func(t *testing.T) {
+		prog := testMultisigContract(t, 2, 2)
+		assert.True(t, IsMultiSigContract(prog))
+		assert.True(t, IsStandardContract(prog))
+	})
 
-func TestIsMultiSigContractBadRead2(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES75)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.CHECKMULTISIG)
-	assert.Equal(t, false, IsMultiSigContract(prog))
-}
+	t.Run("0-length", func(t *testing.T) {
+		assert.False(t, IsMultiSigContract([]byte{}))
+	})
 
-func TestIsMultiSigContractBadRead3(t *testing.T) {
-	prog := make([]byte, 71)
-	prog[0] = byte(opcode.PUSH2)
-	prog[1] = byte(opcode.PUSHBYTES33)
-	prog[35] = byte(opcode.PUSHBYTES33)
-	prog[69] = byte(opcode.PUSH2)
-	prog[70] = byte(opcode.PUSHBYTES1)
-	assert.Equal(t, false, IsMultiSigContract(prog))
+	t.Run("invalid param", func(t *testing.T) {
+		prog := []byte{byte(opcode.PUSHDATA1), 10}
+		assert.False(t, IsMultiSigContract(prog))
+	})
+
+	t.Run("too many keys", func(t *testing.T) {
+		prog := testMultisigContract(t, 1025, 1)
+		assert.False(t, IsMultiSigContract(prog))
+	})
+
+	t.Run("invalid interop ID", func(t *testing.T) {
+		prog := testMultisigContract(t, 2, 2)
+		prog[len(prog)-4] ^= 0xFF
+		assert.False(t, IsMultiSigContract(prog))
+	})
+
+	t.Run("no PUSHNULL", func(t *testing.T) {
+		prog := testMultisigContract(t, 2, 2)
+		prog[len(prog)-6] ^= 0xFF
+		assert.False(t, IsMultiSigContract(prog))
+	})
+
+	t.Run("invalid keys number", func(t *testing.T) {
+		prog := testMultisigContract(t, 2, 2)
+		prog[len(prog)-7] = byte(opcode.PUSH3)
+		assert.False(t, IsMultiSigContract(prog))
+	})
+
+	t.Run("invalid length", func(t *testing.T) {
+		prog := testMultisigContract(t, 2, 2)
+		prog = append(prog, 0)
+		assert.False(t, IsMultiSigContract(prog))
+	})
 }

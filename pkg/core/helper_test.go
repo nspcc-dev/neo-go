@@ -208,7 +208,7 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 
 	// multisig address which possess all NEO
-	scriptHash, err := util.Uint160DecodeStringBE("be48d3a3f5d10013ab9ffee489706078714f1ea2")
+	scriptHash, err := util.Uint160DecodeStringBE("d60ac443bb800fb08261e75fa5925d747d485861")
 	require.NoError(t, err)
 	priv0, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
 	require.NoError(t, err)

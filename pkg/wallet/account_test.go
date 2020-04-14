@@ -90,7 +90,7 @@ func TestContract_ScriptHash(t *testing.T) {
 
 func TestAccount_ConvertMultisig(t *testing.T) {
 	// test is based on a wallet1_solo.json accounts from neo-local
-	a, err := NewAccountFromEncryptedWIF("6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y", "one")
+	a, err := NewAccountFromEncryptedWIF("6PYKYQKRs758NBX4q5k6fSmduZDfEfQyoXMovQU5myKm2h5ArXuYpuMEaN", "one")
 	require.NoError(t, err)
 
 	hexs := []string{
@@ -113,13 +113,13 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 	t.Run("1/1 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs[:1])
 		require.NoError(t, a.ConvertMultisig(1, pubs))
-		require.Equal(t, "AbU69m8WUZJSWanfr1Cy66cpEcsmMcX7BR", a.Address)
+		require.Equal(t, "Ab3TJfgpa94yDr1WPeXpYQiChTRohBJ6T5", a.Address)
 	})
 
 	t.Run("3/4 multisig", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.NoError(t, a.ConvertMultisig(3, pubs))
-		require.Equal(t, "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU", a.Address)
+		require.Equal(t, "AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6", a.Address)
 	})
 }
 
