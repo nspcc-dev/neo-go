@@ -13,17 +13,7 @@ func SHA256(b []byte) []byte {
 	return nil
 }
 
-// Hash160 computes the sha256 + ripemd160 of b.
-func Hash160(b []byte) []byte {
-	return nil
-}
-
-// Hash256 computes the sha256^2 hash of b.
-func Hash256(b []byte) []byte {
-	return nil
-}
-
-// VerifySignature checks that sig is msg's signature with pub.
-func VerifySignature(msg []byte, sig []byte, pub []byte) bool {
+// ECDsaVerify checks that sig is msg's signature with pub.
+func ECDsaVerify(msg []byte, pub []byte, sig []byte) bool {
 	return false
 }

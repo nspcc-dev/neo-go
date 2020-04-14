@@ -1,6 +1,9 @@
 package compiler
 
 var syscalls = map[string]map[string]string{
+	"crypto": {
+		"ECDsaVerify": "Neo.Crypto.ECDsaVerify",
+	},
 	"storage": {
 		"GetContext": "Neo.Storage.GetContext",
 		"Put":        "Neo.Storage.Put",

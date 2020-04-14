@@ -317,37 +317,37 @@ func TestRoll(t *testing.T) {
 func TestPopSigElements(t *testing.T) {
 	s := NewStack("test")
 
-	_, err := s.popSigElements()
+	_, err := s.PopSigElements()
 	assert.NotNil(t, err)
 
 	s.PushVal([]StackItem{})
-	_, err = s.popSigElements()
+	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
 	s.PushVal([]StackItem{NewBoolItem(false)})
-	_, err = s.popSigElements()
+	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
 	b1 := []byte("smth")
 	b2 := []byte("strange")
 	s.PushVal([]StackItem{NewByteArrayItem(b1), NewByteArrayItem(b2)})
-	z, err := s.popSigElements()
+	z, err := s.PopSigElements()
 	assert.Nil(t, err)
 	assert.Equal(t, z, [][]byte{b1, b2})
 
 	s.PushVal(2)
-	_, err = s.popSigElements()
+	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
 	s.PushVal(b1)
 	s.PushVal(2)
-	_, err = s.popSigElements()
+	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
 	s.PushVal(b2)
 	s.PushVal(b1)
 	s.PushVal(2)
-	z, err = s.popSigElements()
+	z, err = s.PopSigElements()
 	assert.Nil(t, err)
 	assert.Equal(t, z, [][]byte{b1, b2})
 }

@@ -324,8 +324,7 @@ func runtimeCheckWitness(ic *interop.Context, v *vm.VM) error {
 	hashOrKey := v.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
-		key := &keys.PublicKey{}
-		err = key.DecodeBytes(hashOrKey)
+		key, err := keys.NewPublicKeyFromBytes(hashOrKey)
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}

@@ -1,12 +1,14 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -229,6 +231,67 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value().([]byte)
 	require.Equal(t, witness.VerificationScript, value)
+}
+
+func TestECDSAVerify(t *testing.T) {
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
+		v := vm.New()
+		for i := range args {
+			v.Estack().PushVal(args[i])
+		}
+
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("panic: %v", r)
+				}
+			}()
+			err = crypto.ECDSAVerify(ic, v)
+		}()
+
+		if isErr {
+			require.Error(t, err)
+			return
+		}
+		require.NoError(t, err)
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, result, v.Estack().Pop().Value().(bool))
+	}
+
+	msg := []byte("test message")
+
+	t.Run("success", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		runCase(t, false, true, sign, priv.PublicKey().Bytes(), msg)
+	})
+
+	t.Run("missing arguments", func(t *testing.T) {
+		runCase(t, true, false)
+		sign := priv.Sign(msg)
+		runCase(t, true, false, sign)
+		runCase(t, true, false, sign, priv.PublicKey().Bytes())
+	})
+
+	t.Run("invalid signature", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		sign[0] ^= sign[0]
+		runCase(t, false, false, sign, priv.PublicKey().Bytes(), msg)
+	})
+
+	t.Run("invalid public key", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		pub := priv.PublicKey().Bytes()
+		pub = pub[10:]
+		runCase(t, true, false, sign, pub, msg)
+	})
 }
 
 func TestPopInputFromVM(t *testing.T) {

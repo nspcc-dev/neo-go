@@ -83,14 +83,15 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewPublicKeyFromBytes(b)
+}
 
+// NewPublicKeyFromBytes returns public key created from b.
+func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 	pubKey := new(PublicKey)
-	r := io.NewBinReaderFromBuf(b)
-	pubKey.DecodeBinary(r)
-	if r.Err != nil {
-		return nil, r.Err
+	if err := pubKey.DecodeBytes(b); err != nil {
+		return nil, err
 	}
-
 	return pubKey, nil
 }
 
