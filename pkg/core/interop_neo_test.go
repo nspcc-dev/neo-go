@@ -282,7 +282,7 @@ func TestECDSAVerify(t *testing.T) {
 
 	t.Run("invalid signature", func(t *testing.T) {
 		sign := priv.Sign(msg)
-		sign[0] ^= sign[0]
+		sign[0] = ^sign[0]
 		runCase(t, false, false, sign, priv.PublicKey().Bytes(), msg)
 	})
 
