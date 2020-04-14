@@ -173,7 +173,7 @@ func (c *Client) SetClient(cli *http.Client) {
 
 // CalculateInputs creates input transactions for the specified amount of given
 // asset belonging to specified address. This implementation uses GetUnspents
-// JSON-RPC call internally, so make sure your RPC server suppors that.
+// JSON-RPC call internally, so make sure your RPC server supports that.
 func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var utxos state.UnspentBalances
 
