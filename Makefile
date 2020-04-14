@@ -93,7 +93,7 @@ fmt:
 	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")
 
 cover:
-	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=all
+	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=./pkg/...,./cli/...
 	@go tool cover -html=coverage.txt -o coverage.html
 
 # --- Environment ---
