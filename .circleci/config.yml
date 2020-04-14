@@ -94,7 +94,7 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - gomod
-      - run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=all
+      - run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
       - codecov/upload:
           file: coverage.txt
 
