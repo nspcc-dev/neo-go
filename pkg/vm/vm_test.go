@@ -2213,7 +2213,7 @@ func TestCATInt0ByteArray(t *testing.T) {
 	vm.estack.PushVal([]byte{})
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &ByteArrayItem{[]byte{0}}, vm.estack.Pop().value)
+	assert.Equal(t, &ByteArrayItem{[]byte{}}, vm.estack.Pop().value)
 }
 
 func TestCATByteArrayInt1(t *testing.T) {
