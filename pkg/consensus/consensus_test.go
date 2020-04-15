@@ -19,6 +19,7 @@ import (
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
 	tx := transaction.NewMinerTX()
+	tx.ValidUntilBlock = 1
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
@@ -30,11 +31,11 @@ func TestNewService(t *testing.T) {
 
 func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
-	txs := []*transaction.Transaction{
-		transaction.NewMinerTXWithNonce(123),
-		transaction.NewMinerTXWithNonce(124),
-		transaction.NewMinerTXWithNonce(125),
-		transaction.NewMinerTXWithNonce(126),
+	var txs []*transaction.Transaction
+	for i := 0; i < 4; i++ {
+		tx := transaction.NewMinerTXWithNonce(123 + uint32(i))
+		tx.ValidUntilBlock = 1
+		txs = append(txs, tx)
 	}
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
@@ -107,6 +108,7 @@ func TestService_getTx(t *testing.T) {
 
 	t.Run("transaction in mempool", func(t *testing.T) {
 		tx := transaction.NewMinerTXWithNonce(1234)
+		tx.ValidUntilBlock = 1
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))
@@ -120,6 +122,7 @@ func TestService_getTx(t *testing.T) {
 
 	t.Run("transaction in local cache", func(t *testing.T) {
 		tx := transaction.NewMinerTXWithNonce(4321)
+		tx.ValidUntilBlock = 1
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))

@@ -264,6 +264,11 @@ func claimGas(ctx *cli.Context) error {
 	}
 
 	tx := transaction.NewClaimTX(&claim)
+	validUntilBlock, err := c.CalculateValidUntilBlock()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	tx.ValidUntilBlock = validUntilBlock
 
 	tx.AddOutput(&transaction.Output{
 		AssetID:    core.UtilityTokenID(),
@@ -510,6 +515,11 @@ func transferAsset(ctx *cli.Context) error {
 	}
 
 	tx := transaction.NewContractTX()
+	validUntilBlock, err := c.CalculateValidUntilBlock()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	tx.ValidUntilBlock = validUntilBlock
 	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
 	}
