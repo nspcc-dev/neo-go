@@ -615,15 +615,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative index")
 		}
 		s := v.estack.Pop().Bytes()
-		if o > len(s) {
-			// panic("invalid offset")
-			// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-			v.estack.PushVal("")
-			break
-		}
 		last := l + o
 		if last > len(s) {
-			last = len(s)
+			panic("invalid offset")
 		}
 		v.estack.PushVal(s[o:last])
 

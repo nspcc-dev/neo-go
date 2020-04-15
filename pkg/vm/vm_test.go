@@ -2267,11 +2267,7 @@ func TestSUBSTRBadOffset(t *testing.T) {
 	vm.estack.PushVal(7)
 	vm.estack.PushVal(1)
 
-	// checkVMFailed(t, vm)
-	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte{}, vm.estack.Peek(0).Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBigLen(t *testing.T) {
@@ -2280,9 +2276,7 @@ func TestSUBSTRBigLen(t *testing.T) {
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBad387(t *testing.T) {
@@ -2293,9 +2287,7 @@ func TestSUBSTRBad387(t *testing.T) {
 	vm.estack.PushVal(b)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBadNegativeOffset(t *testing.T) {
