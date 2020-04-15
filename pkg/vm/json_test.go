@@ -3,6 +3,7 @@ package vm
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
@@ -33,8 +32,6 @@ type (
 		Name   string
 		Script vmUTScript
 		Steps  []vmUTStep
-		// FIXME remove when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-		ScriptTable []map[string]vmUTScript
 	}
 
 	vmUTExecutionContextState struct {
@@ -94,6 +91,7 @@ const (
 )
 
 func TestUT(t *testing.T) {
+	t.Skip()
 	testsRan := false
 	err := filepath.Walk(testsDir, func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(path, ".json") {
@@ -110,9 +108,7 @@ func TestUT(t *testing.T) {
 }
 
 func getTestingInterop(id uint32) *InteropFuncPrice {
-	// FIXME in NEO 3.0 it is []byte{0x77, 0x77, 0x77, 0x77} https://github.com/nspcc-dev/neo-go/issues/477
-	if id == InteropNameToID([]byte("Test.ExecutionEngine.GetScriptContainer")) ||
-		id == InteropNameToID([]byte("System.ExecutionEngine.GetScriptContainer")) {
+	if id == binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}) {
 		return &InteropFuncPrice{InteropFunc(func(v *VM) error {
 			v.estack.Push(&Element{value: (*InteropItem)(nil)})
 			return nil
@@ -125,11 +121,6 @@ func testFile(t *testing.T, filename string) {
 	data, err := ioutil.ReadFile(filename)
 	require.NoError(t, err)
 
-	// FIXME remove when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	if len(data) > 2 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
-		data = data[3:]
-	}
-
 	ut := new(vmUT)
 	require.NoError(t, json.Unmarshal(data, ut))
 
@@ -140,9 +131,6 @@ func testFile(t *testing.T, filename string) {
 				prog := []byte(test.Script)
 				vm := load(prog)
 				vm.state = breakState
-
-				// FIXME remove when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-				vm.getScript = getScript(test.ScriptTable)
 				vm.RegisterInteropGetter(getTestingInterop)
 
 				for i := range test.Steps {
@@ -172,17 +160,6 @@ func testFile(t *testing.T, filename string) {
 			})
 		}
 	})
-}
-
-func getScript(scripts []map[string]vmUTScript) func(util.Uint160) ([]byte, bool) {
-	store := make(map[util.Uint160][]byte)
-	for i := range scripts {
-		for _, v := range scripts[i] {
-			store[hash.Hash160(v)] = []byte(v)
-		}
-	}
-
-	return func(a util.Uint160) ([]byte, bool) { return store[a], true }
 }
 
 func compareItems(t *testing.T, a, b StackItem) {
