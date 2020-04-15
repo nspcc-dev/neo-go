@@ -41,22 +41,6 @@ func TestInteropHook(t *testing.T) {
 	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
 }
 
-func TestInteropHookViaID(t *testing.T) {
-	v := New()
-	v.RegisterInteropGetter(fooInteropGetter)
-
-	buf := io.NewBufBinWriter()
-	fooid := emit.InteropNameToID([]byte("foo"))
-	var id = make([]byte, 4)
-	binary.LittleEndian.PutUint32(id, fooid)
-	emit.Syscall(buf.BinWriter, string(id))
-	emit.Opcode(buf.BinWriter, opcode.RET)
-	v.Load(buf.Bytes())
-	runVM(t, v)
-	assert.Equal(t, 1, v.estack.Len())
-	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
-}
-
 func TestRegisterInteropGetter(t *testing.T) {
 	v := New()
 	currRegistered := len(v.getInterop)
@@ -563,11 +547,9 @@ func TestIteratorValues(t *testing.T) {
 }
 
 func getSyscallProg(name string) (prog []byte) {
-	prog = []byte{byte(opcode.SYSCALL)}
-	prog = append(prog, byte(len(name)))
-	prog = append(prog, name...)
-
-	return
+	buf := io.NewBufBinWriter()
+	emit.Syscall(buf.BinWriter, name)
+	return buf.Bytes()
 }
 
 func getSerializeProg() (prog []byte) {
@@ -704,15 +686,21 @@ func TestSerializeMap(t *testing.T) {
 }
 
 func TestSerializeMapCompat(t *testing.T) {
-	// Create a map, push key and value, add KV to map, serialize.
-	progHex := "c776036b65790576616c7565c468154e656f2e52756e74696d652e53657269616c697a65"
 	resHex := "820100036b6579000576616c7565"
-	prog, err := hex.DecodeString(progHex)
-	require.NoError(t, err)
 	res, err := hex.DecodeString(resHex)
 	require.NoError(t, err)
 
-	vm := load(prog)
+	// Create a map, push key and value, add KV to map, serialize.
+	buf := io.NewBufBinWriter()
+	emit.Opcode(buf.BinWriter, opcode.NEWMAP)
+	emit.Opcode(buf.BinWriter, opcode.DUP)
+	emit.Bytes(buf.BinWriter, []byte("key"))
+	emit.Bytes(buf.BinWriter, []byte("value"))
+	emit.Opcode(buf.BinWriter, opcode.SETITEM)
+	emit.Syscall(buf.BinWriter, "Neo.Runtime.Serialize")
+	require.NoError(t, buf.Err)
+
+	vm := load(buf.Bytes())
 	runVM(t, vm)
 	assert.Equal(t, res, vm.estack.Pop().Bytes())
 }

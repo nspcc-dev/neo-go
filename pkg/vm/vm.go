@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
@@ -480,11 +479,7 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) ([]byte, bool)) {
 
 // GetInteropID converts instruction parameter to an interop ID.
 func GetInteropID(parameter []byte) uint32 {
-	if len(parameter) == 4 {
-		return binary.LittleEndian.Uint32(parameter)
-	}
-
-	return emit.InteropNameToID(parameter)
+	return binary.LittleEndian.Uint32(parameter)
 }
 
 // GetInteropByID returns interop function together with price.

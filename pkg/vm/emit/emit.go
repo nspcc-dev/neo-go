@@ -108,9 +108,8 @@ func Syscall(w *io.BinWriter, api string) {
 		w.Err = errors.New("syscall api cannot be of length 0")
 		return
 	}
-	buf := make([]byte, len(api)+1)
-	buf[0] = byte(len(api))
-	copy(buf[1:], api)
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, InteropNameToID([]byte(api)))
 	Instruction(w, opcode.SYSCALL, buf)
 }
 
