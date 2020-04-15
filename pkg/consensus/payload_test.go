@@ -28,6 +28,7 @@ var messageTypes = []messageType{
 
 func TestConsensusPayload_Setters(t *testing.T) {
 	var p Payload
+	p.message = &message{}
 
 	p.SetVersion(1)
 	assert.EqualValues(t, 1, p.Version())
@@ -86,11 +87,20 @@ func TestConsensusPayload_Hash(t *testing.T) {
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
-		testserdes.EncodeDecodeBinary(t, p, new(Payload))
+		actual := new(Payload)
+		data, err := testserdes.EncodeBinary(p)
+		require.NoError(t, err)
+		require.NoError(t, testserdes.DecodeBinary(data, actual))
+		// message is nil after decoding as we didn't yet call decodeData
+		require.Nil(t, actual.message)
+		// message should now be decoded from actual.data byte array
+		assert.NoError(t, actual.decodeData())
+		require.Equal(t, p, actual)
 
-		data := p.MarshalUnsigned()
+		data = p.MarshalUnsigned()
 		pu := new(Payload)
 		require.NoError(t, pu.UnmarshalUnsigned(data))
+		assert.NoError(t, pu.decodeData())
 
 		p.Witness = transaction.Witness{}
 		require.Equal(t, p, pu)
@@ -115,7 +125,7 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	buf := make([]byte, 46+1+34+1+2)
 
 	expected := &Payload{
-		message: message{
+		message: &message{
 			Type:    prepareResponseType,
 			payload: &prepareResponse{},
 		},
@@ -124,6 +134,8 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 			VerificationScript: []byte{},
 		},
 	}
+	// fill `data` for next check
+	_ = expected.Hash()
 
 	// valid payload
 	buf[delimeterIndex] = 1
@@ -131,11 +143,15 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	buf[typeIndex] = byte(prepareResponseType)
 	p := new(Payload)
 	require.NoError(t, testserdes.DecodeBinary(buf, p))
+	// decode `data` into `message`
+	assert.NoError(t, p.decodeData())
 	require.Equal(t, expected, p)
 
 	// invalid type
 	buf[typeIndex] = 0xFF
-	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
+	actual := new(Payload)
+	require.NoError(t, testserdes.DecodeBinary(buf, actual))
+	require.Error(t, actual.decodeData())
 
 	// invalid format
 	buf[delimeterIndex] = 0
@@ -176,7 +192,7 @@ func TestRecoveryMessage_Serializable(t *testing.T) {
 
 func randomPayload(t *testing.T, mt messageType) *Payload {
 	p := &Payload{
-		message: message{
+		message: &message{
 			Type:       mt,
 			ViewNumber: byte(rand.Uint32()),
 			payload:    randomMessage(t, mt),
