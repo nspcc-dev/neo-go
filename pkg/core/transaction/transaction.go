@@ -17,6 +17,9 @@ const (
 	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
 	// set to be 102400.
 	MaxTransactionSize = 102400
+	// MaxValidUntilBlockIncrement is the upper increment size of blockhain height in blocs after
+	// exceeding that a transaction should fail validation. It is set to be 2102400.
+	MaxValidUntilBlockIncrement = 2102400
 )
 
 // Transaction is a process recorded in the NEO blockchain.
@@ -29,6 +32,10 @@ type Transaction struct {
 
 	// Random number to avoid hash collision.
 	Nonce uint32
+
+	// Maximum blockchain height exceeding which
+	// transaction should fail verification.
+	ValidUntilBlock uint32
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
@@ -111,6 +118,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Type = TXType(br.ReadB())
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
+	t.ValidUntilBlock = br.ReadU32LE()
 	t.decodeData(br)
 
 	br.ReadArray(&t.Attributes)
@@ -182,6 +190,7 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
+	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.
 	if !noData {
@@ -257,15 +266,16 @@ func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
-	TxID       util.Uint256 `json:"txid"`
-	Size       int          `json:"size"`
-	Type       TXType       `json:"type"`
-	Version    uint8        `json:"version"`
-	Nonce      uint32       `json:"nonce"`
-	Attributes []Attribute  `json:"attributes"`
-	Inputs     []Input      `json:"vin"`
-	Outputs    []Output     `json:"vout"`
-	Scripts    []Witness    `json:"scripts"`
+	TxID            util.Uint256 `json:"txid"`
+	Size            int          `json:"size"`
+	Type            TXType       `json:"type"`
+	Version         uint8        `json:"version"`
+	Nonce           uint32       `json:"nonce"`
+	ValidUntilBlock uint32       `json:"valid_until_block"`
+	Attributes      []Attribute  `json:"attributes"`
+	Inputs          []Input      `json:"vin"`
+	Outputs         []Output     `json:"vout"`
+	Scripts         []Witness    `json:"scripts"`
 
 	Claims      []Input            `json:"claims,omitempty"`
 	PublicKey   *keys.PublicKey    `json:"pubkey,omitempty"`
@@ -279,15 +289,16 @@ type transactionJSON struct {
 // MarshalJSON implements json.Marshaler interface.
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	tx := transactionJSON{
-		TxID:       t.Hash(),
-		Size:       io.GetVarSize(t),
-		Type:       t.Type,
-		Version:    t.Version,
-		Nonce:      t.Nonce,
-		Attributes: t.Attributes,
-		Inputs:     t.Inputs,
-		Outputs:    t.Outputs,
-		Scripts:    t.Scripts,
+		TxID:            t.Hash(),
+		Size:            io.GetVarSize(t),
+		Type:            t.Type,
+		Version:         t.Version,
+		Nonce:           t.Nonce,
+		ValidUntilBlock: t.ValidUntilBlock,
+		Attributes:      t.Attributes,
+		Inputs:          t.Inputs,
+		Outputs:         t.Outputs,
+		Scripts:         t.Scripts,
 	}
 	switch t.Type {
 	case ClaimType:
@@ -338,6 +349,7 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Type = tx.Type
 	t.Version = tx.Version
 	t.Nonce = tx.Nonce
+	t.ValidUntilBlock = tx.ValidUntilBlock
 	t.Attributes = tx.Attributes
 	t.Inputs = tx.Inputs
 	t.Outputs = tx.Outputs

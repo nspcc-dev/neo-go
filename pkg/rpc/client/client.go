@@ -24,6 +24,8 @@ const (
 	defaultDialTimeout    = 4 * time.Second
 	defaultRequestTimeout = 4 * time.Second
 	defaultClientVersion  = "2.0"
+	// number of blocks after which cache is expired
+	cacheTimeout = 100
 )
 
 // Client represents the middleman for executing JSON RPC calls
@@ -40,6 +42,7 @@ type Client struct {
 	wif        *keys.WIF
 	balancerMu *sync.Mutex
 	balancer   request.BalanceGetter
+	cache      cache
 }
 
 // Options defines options for the RPC client.
@@ -55,6 +58,18 @@ type Options struct {
 	// along with the request body. If no version is specified
 	// the default version (currently 2.0) will be used.
 	Version string
+}
+
+// cache stores cache values for the RPC client methods
+type cache struct {
+	calculateValidUntilBlock calculateValidUntilBlockCache
+}
+
+// calculateValidUntilBlockCache stores cached number of validators and
+// cache expiration value in blocks
+type calculateValidUntilBlockCache struct {
+	validatorsCount uint32
+	expiresAt       uint32
 }
 
 // New returns a new Client ready to use.

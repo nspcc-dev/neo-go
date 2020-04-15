@@ -1340,6 +1340,10 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 
 // verifyTx verifies whether a transaction is bonafide or not.
 func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) error {
+	height := bc.BlockHeight()
+	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
+		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
+	}
 	if io.GetVarSize(t) > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}

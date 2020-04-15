@@ -490,6 +490,13 @@ func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.F
 	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
 		return resp, errors.Wrap(err, "failed to create raw transaction")
 	}
+
+	validUntilBlock, err := c.CalculateValidUntilBlock()
+	if err != nil {
+		return resp, errors.Wrap(err, "failed to add validUntilBlock to raw transaction")
+	}
+	rawTx.ValidUntilBlock = validUntilBlock
+
 	if err = c.SendRawTransaction(rawTx); err != nil {
 		return resp, errors.Wrap(err, "failed to send raw transaction")
 	}
@@ -504,6 +511,12 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var err error
 
 	tx := transaction.NewInvocationTX(script, sysfee)
+	validUntilBlock, err := c.CalculateValidUntilBlock()
+	if err != nil {
+		return txHash, errors.Wrap(err, "failed to add validUntilBlock to transaction")
+	}
+	tx.ValidUntilBlock = validUntilBlock
+
 	gas := sysfee + netfee
 
 	if gas > 0 {
@@ -544,4 +557,34 @@ func (c *Client) ValidateAddress(address string) error {
 		return errors.New("validateaddress returned false")
 	}
 	return nil
+}
+
+// CalculateValidUntilBlock calculates ValidUntilBlock field for tx as
+// current blockchain height + number of validators. Number of validators
+// is the length of blockchain validators list got from GetValidators()
+// method. Validators count is being cached and updated every 100 blocks.
+func (c *Client) CalculateValidUntilBlock() (uint32, error) {
+	var (
+		result          uint32
+		validatorsCount uint32
+	)
+	blockCount, err := c.GetBlockCount()
+	if err != nil {
+		return result, errors.Wrapf(err, "cannot get block count")
+	}
+
+	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
+		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
+	} else {
+		validators, err := c.GetValidators()
+		if err != nil {
+			return result, errors.Wrapf(err, "cannot get validators")
+		}
+		validatorsCount = uint32(len(validators))
+		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{
+			validatorsCount: validatorsCount,
+			expiresAt:       blockCount + cacheTimeout,
+		}
+	}
+	return blockCount + validatorsCount, nil
 }

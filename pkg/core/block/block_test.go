@@ -1,19 +1,16 @@
 package block
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Test blocks are blocks from mainnet with their corresponding index.
-
+// TODO NEO3.0: Update binary
+/*
 func TestDecodeBlock1(t *testing.T) {
 	data, err := getBlockData(1)
 	require.NoError(t, err)
@@ -67,7 +64,7 @@ func TestTrimmedBlock(t *testing.T) {
 		assert.True(t, trimmedBlock.Transactions[i].Trimmed)
 	}
 }
-
+*/
 func newDumbBlock() *Block {
 	return &Block{
 		Base: Base{
