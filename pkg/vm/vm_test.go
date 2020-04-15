@@ -19,7 +19,7 @@ import (
 )
 
 func fooInteropGetter(id uint32) *InteropFuncPrice {
-	if id == InteropNameToID([]byte("foo")) {
+	if id == emit.InteropNameToID([]byte("foo")) {
 		return &InteropFuncPrice{func(evm *VM) error {
 			evm.Estack().PushVal(1)
 			return nil
@@ -46,7 +46,7 @@ func TestInteropHookViaID(t *testing.T) {
 	v.RegisterInteropGetter(fooInteropGetter)
 
 	buf := io.NewBufBinWriter()
-	fooid := InteropNameToID([]byte("foo"))
+	fooid := emit.InteropNameToID([]byte("foo"))
 	var id = make([]byte, 4)
 	binary.LittleEndian.PutUint32(id, fooid)
 	emit.Syscall(buf.BinWriter, string(id))

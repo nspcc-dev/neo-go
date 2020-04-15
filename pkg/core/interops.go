@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // SpawnVM returns a VM with script getter and interop functions set
@@ -263,7 +264,7 @@ var neoInterops = []interop.Function{
 // Function slice and then sorts it.
 func initIDinInteropsSlice(iops []interop.Function) {
 	for i := range iops {
-		iops[i].ID = vm.InteropNameToID([]byte(iops[i].Name))
+		iops[i].ID = emit.InteropNameToID([]byte(iops[i].Name))
 	}
 	sort.Slice(iops, func(i, j int) bool {
 		return iops[i].ID < iops[j].ID

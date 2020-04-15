@@ -1,11 +1,11 @@
 package vm
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // InteropFunc allows to hook into the VM.
@@ -28,35 +28,35 @@ type interopIDFuncPrice struct {
 type InteropGetterFunc func(uint32) *InteropFuncPrice
 
 var defaultVMInterops = []interopIDFuncPrice{
-	{InteropNameToID([]byte("Neo.Runtime.Log")),
+	{emit.InteropNameToID([]byte("Neo.Runtime.Log")),
 		InteropFuncPrice{runtimeLog, 1}},
-	{InteropNameToID([]byte("Neo.Runtime.Notify")),
+	{emit.InteropNameToID([]byte("Neo.Runtime.Notify")),
 		InteropFuncPrice{runtimeNotify, 1}},
-	{InteropNameToID([]byte("Neo.Runtime.Serialize")),
+	{emit.InteropNameToID([]byte("Neo.Runtime.Serialize")),
 		InteropFuncPrice{RuntimeSerialize, 1}},
-	{InteropNameToID([]byte("System.Runtime.Serialize")),
+	{emit.InteropNameToID([]byte("System.Runtime.Serialize")),
 		InteropFuncPrice{RuntimeSerialize, 1}},
-	{InteropNameToID([]byte("Neo.Runtime.Deserialize")),
+	{emit.InteropNameToID([]byte("Neo.Runtime.Deserialize")),
 		InteropFuncPrice{RuntimeDeserialize, 1}},
-	{InteropNameToID([]byte("System.Runtime.Deserialize")),
+	{emit.InteropNameToID([]byte("System.Runtime.Deserialize")),
 		InteropFuncPrice{RuntimeDeserialize, 1}},
-	{InteropNameToID([]byte("Neo.Enumerator.Create")),
+	{emit.InteropNameToID([]byte("Neo.Enumerator.Create")),
 		InteropFuncPrice{EnumeratorCreate, 1}},
-	{InteropNameToID([]byte("Neo.Enumerator.Next")),
+	{emit.InteropNameToID([]byte("Neo.Enumerator.Next")),
 		InteropFuncPrice{EnumeratorNext, 1}},
-	{InteropNameToID([]byte("Neo.Enumerator.Concat")),
+	{emit.InteropNameToID([]byte("Neo.Enumerator.Concat")),
 		InteropFuncPrice{EnumeratorConcat, 1}},
-	{InteropNameToID([]byte("Neo.Enumerator.Value")),
+	{emit.InteropNameToID([]byte("Neo.Enumerator.Value")),
 		InteropFuncPrice{EnumeratorValue, 1}},
-	{InteropNameToID([]byte("Neo.Iterator.Create")),
+	{emit.InteropNameToID([]byte("Neo.Iterator.Create")),
 		InteropFuncPrice{IteratorCreate, 1}},
-	{InteropNameToID([]byte("Neo.Iterator.Concat")),
+	{emit.InteropNameToID([]byte("Neo.Iterator.Concat")),
 		InteropFuncPrice{IteratorConcat, 1}},
-	{InteropNameToID([]byte("Neo.Iterator.Key")),
+	{emit.InteropNameToID([]byte("Neo.Iterator.Key")),
 		InteropFuncPrice{IteratorKey, 1}},
-	{InteropNameToID([]byte("Neo.Iterator.Keys")),
+	{emit.InteropNameToID([]byte("Neo.Iterator.Keys")),
 		InteropFuncPrice{IteratorKeys, 1}},
-	{InteropNameToID([]byte("Neo.Iterator.Values")),
+	{emit.InteropNameToID([]byte("Neo.Iterator.Values")),
 		InteropFuncPrice{IteratorValues, 1}},
 }
 
@@ -68,12 +68,6 @@ func getDefaultVMInterop(id uint32) *InteropFuncPrice {
 		return &defaultVMInterops[n].InteropFuncPrice
 	}
 	return nil
-}
-
-// InteropNameToID returns an identificator of the method based on its name.
-func InteropNameToID(name []byte) uint32 {
-	h := sha256.Sum256(name)
-	return binary.LittleEndian.Uint32(h[:4])
 }
 
 // runtimeLog handles the syscall "Neo.Runtime.Log" for printing and logging stuff.

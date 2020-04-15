@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -167,4 +168,10 @@ func isInstructionJmp(op opcode.Opcode) bool {
 		return true
 	}
 	return false
+}
+
+// InteropNameToID returns an identificator of the method based on its name.
+func InteropNameToID(name []byte) uint32 {
+	h := sha256.Sum256(name)
+	return binary.LittleEndian.Uint32(h[:4])
 }

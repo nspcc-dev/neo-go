@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func TestVerifyGood(t *testing.T) {
 	src := getVerifyProg(pub, sig, msg)
 
 	v, p := vmAndCompileInterop(t, src)
-	p.interops[vm.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))] = func(v *vm.VM) error {
+	p.interops[emit.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))] = func(v *vm.VM) error {
 		assert.Equal(t, msg, v.Estack().Pop().Bytes())
 		assert.Equal(t, pub, v.Estack().Pop().Bytes())
 		assert.Equal(t, sig, v.Estack().Pop().Bytes())

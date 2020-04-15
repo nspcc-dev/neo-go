@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,10 +81,10 @@ func newStoragePlugin() *storagePlugin {
 		mem:      make(map[string][]byte),
 		interops: make(map[uint32]vm.InteropFunc),
 	}
-	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Get"))] = s.Get
-	s.interops[vm.InteropNameToID([]byte("Neo.Storage.Put"))] = s.Put
-	s.interops[vm.InteropNameToID([]byte("Neo.Storage.GetContext"))] = s.GetContext
-	s.interops[vm.InteropNameToID([]byte("Neo.Runtime.Notify"))] = s.Notify
+	s.interops[emit.InteropNameToID([]byte("Neo.Storage.Get"))] = s.Get
+	s.interops[emit.InteropNameToID([]byte("Neo.Storage.Put"))] = s.Put
+	s.interops[emit.InteropNameToID([]byte("Neo.Storage.GetContext"))] = s.GetContext
+	s.interops[emit.InteropNameToID([]byte("Neo.Runtime.Notify"))] = s.Notify
 	return s
 
 }
