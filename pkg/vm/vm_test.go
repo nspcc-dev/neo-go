@@ -1505,9 +1505,7 @@ func TestSIZEBool(t *testing.T) {
 	vm.estack.PushVal(false)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	// assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
-	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	assert.Equal(t, makeStackItem(0), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func TestARRAYSIZEArray(t *testing.T) {

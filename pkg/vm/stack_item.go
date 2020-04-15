@@ -341,9 +341,7 @@ func (i *BoolItem) Bytes() []byte {
 	if i.value {
 		return []byte{1}
 	}
-	// return []byte{0}
-	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	return []byte{}
+	return []byte{0}
 }
 
 // TryBytes implements StackItem interface.
