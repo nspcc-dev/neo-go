@@ -15,11 +15,9 @@ const (
 	IssueType      TXType = 0x01
 	ClaimType      TXType = 0x02
 	EnrollmentType TXType = 0x20
-	VotingType     TXType = 0x24
 	RegisterType   TXType = 0x40
 	ContractType   TXType = 0x80
 	StateType      TXType = 0x90
-	AgencyType     TXType = 0xb0
 	InvocationType TXType = 0xd1
 )
 
@@ -34,16 +32,12 @@ func (t TXType) String() string {
 		return "ClaimTransaction"
 	case EnrollmentType:
 		return "EnrollmentTransaction"
-	case VotingType:
-		return "VotingTransaction"
 	case RegisterType:
 		return "RegisterTransaction"
 	case ContractType:
 		return "ContractTransaction"
 	case StateType:
 		return "StateTransaction"
-	case AgencyType:
-		return "AgencyTransaction"
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
@@ -78,16 +72,12 @@ func TXTypeFromString(jsonString string) (TXType, error) {
 		return ClaimType, nil
 	case "EnrollmentTransaction":
 		return EnrollmentType, nil
-	case "VotingTransaction":
-		return VotingType, nil
 	case "RegisterTransaction":
 		return RegisterType, nil
 	case "ContractTransaction":
 		return ContractType, nil
 	case "StateTransaction":
 		return StateType, nil
-	case "AgencyTransaction":
-		return AgencyType, nil
 	case "InvocationTransaction":
 		return InvocationType, nil
 	default:
