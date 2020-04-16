@@ -118,6 +118,12 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 		return util.Uint256{}, fmt.Errorf("can't calculate validUntilBlock: %v", err)
 	}
 
+	addr, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("failed to get address: %v", err)
+	}
+	tx.Sender = addr
+
 	if err := request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
 		return util.Uint256{}, fmt.Errorf("can't add GAS to transaction: %v", err)
 	}

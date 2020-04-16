@@ -1868,6 +1868,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 			}
 		}
 	}
+	hashes[t.Sender] = true
 	switch t.Type {
 	case transaction.ClaimType:
 		claim := t.Data.(*transaction.ClaimTX)

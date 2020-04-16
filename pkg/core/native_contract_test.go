@@ -86,6 +86,8 @@ func TestNativeContract_Invoke(t *testing.T) {
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	mn.ValidUntilBlock = validUntil
+	require.NoError(t, addSender(tx, mn))
+	require.NoError(t, signTx(chain, tx, mn))
 	b := chain.newBlock(mn, tx)
 	require.NoError(t, chain.AddBlock(b))
 

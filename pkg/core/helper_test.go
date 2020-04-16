@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -32,6 +33,9 @@ var privNetKeys = []string{
 	"KzgWE3u3EDp13XPXXuTKZxeJ3Gi8Bsm8f9ijY3ZsCKKRvZUo1Cdn",
 	"L2oEXKRAAMiPEZukwR5ho2S6SMeQLhcK9mF71ZnF7GvT8dU4Kkgz",
 }
+
+// multisig address which possess all NEO
+var neoOwner = "d60ac443bb800fb08261e75fa5925d747d485861"
 
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
@@ -98,6 +102,14 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	for i := 0; i < n; i++ {
 		minerTx := transaction.NewMinerTXWithNonce(uint32(1234 + i))
 		minerTx.ValidUntilBlock = lastIndex + uint32(i) + 1
+		err := addSender(minerTx)
+		if err != nil {
+			return nil, err
+		}
+		err = signTx(bc, minerTx)
+		if err != nil {
+			return nil, err
+		}
 		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash, minerTx)
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err
@@ -207,11 +219,13 @@ func TestCreateBasicChain(t *testing.T) {
 		PrevIndex: 0,
 	})
 
-	// multisig address which possess all NEO
-	scriptHash, err := util.Uint160DecodeStringBE("d60ac443bb800fb08261e75fa5925d747d485861")
+	scriptHash, err := util.Uint160DecodeStringBE(neoOwner)
 	require.NoError(t, err)
+	txMoveNeo.Sender = scriptHash
+
 	priv0, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
 	require.NoError(t, err)
+	priv0ScriptHash := priv0.GetScriptHash()
 	txMoveNeo.AddOutput(&transaction.Output{
 		AssetID:    GoverningTokenID(),
 		Amount:     neoAmount,
@@ -226,24 +240,11 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	txMoveNeo.Data = new(transaction.ContractTX)
 
-	validators, err := getValidators(bc.config)
-	require.NoError(t, err)
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
-	require.NoError(t, err)
-	data := txMoveNeo.GetSignedPart()
+	minerTx := nextMinerTx(validUntilBlock)
+	minerTx.Sender = scriptHash
 
-	var invoc []byte
-	for i := range privNetKeys {
-		priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
-		require.NoError(t, err)
-		invoc = append(invoc, getInvocationScript(data, priv)...)
-	}
-
-	txMoveNeo.Scripts = []transaction.Witness{{
-		InvocationScript:   invoc,
-		VerificationScript: rawScript,
-	}}
-	b := bc.newBlock(nextMinerTx(validUntilBlock), txMoveNeo)
+	require.NoError(t, signTx(bc, minerTx, txMoveNeo))
+	b := bc.newBlock(minerTx, txMoveNeo)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 
@@ -263,6 +264,7 @@ func TestCreateBasicChain(t *testing.T) {
 	// Make a NEO roundtrip (send to myself) and claim GAS.
 	txNeoRound := transaction.NewContractTX()
 	txNeoRound.Nonce = getNextNonce()
+	txNeoRound.Sender = priv0ScriptHash
 	txNeoRound.ValidUntilBlock = validUntilBlock
 	txNeoRound.AddInput(&transaction.Input{
 		PrevHash:  txMoveNeo.Hash(),
@@ -276,7 +278,10 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	txNeoRound.Data = new(transaction.ContractTX)
 	require.NoError(t, acc0.SignTx(txNeoRound))
-	b = bc.newBlock(nextMinerTx(validUntilBlock), txNeoRound)
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, txNeoRound)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txNeoRound: %s", txNeoRound.Hash().StringLE())
 
@@ -288,6 +293,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txClaim := transaction.NewClaimTX(claim)
 	txClaim.Nonce = getNextNonce()
 	txClaim.ValidUntilBlock = validUntilBlock
+	txClaim.Sender = priv0ScriptHash
 	txClaim.Data = claim
 	neoGas, sysGas, err := bc.CalculateClaimable(neoAmount, 1, bc.BlockHeight())
 	require.NoError(t, err)
@@ -299,7 +305,10 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	require.NoError(t, acc0.SignTx(txClaim))
-	b = bc.newBlock(nextMinerTx(validUntilBlock), txClaim)
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, txClaim)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txClaim: %s", txClaim.Hash().StringLE())
 
@@ -329,6 +338,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txDeploy := transaction.NewInvocationTX(txScript, invFee)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
+	txDeploy.Sender = priv0ScriptHash
 	txDeploy.AddInput(&transaction.Input{
 		PrevHash:  txClaim.Hash(),
 		PrevIndex: 0,
@@ -341,7 +351,10 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	gasOwned -= invFee
 	require.NoError(t, acc0.SignTx(txDeploy))
-	b = bc.newBlock(nextMinerTx(validUntilBlock), txDeploy)
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
 
@@ -352,7 +365,12 @@ func TestCreateBasicChain(t *testing.T) {
 	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
-	b = bc.newBlock(nextMinerTx(validUntilBlock), txInv)
+	txInv.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(txInv))
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, txInv)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
@@ -361,6 +379,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txNeo0to1 := transaction.NewContractTX()
 	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.ValidUntilBlock = validUntilBlock
+	txNeo0to1.Sender = priv0ScriptHash
 	txNeo0to1.Data = new(transaction.ContractTX)
 	txNeo0to1.AddInput(&transaction.Input{
 		PrevHash:  txNeoRound.Hash(),
@@ -378,7 +397,10 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 
 	require.NoError(t, acc0.SignTx(txNeo0to1))
-	b = bc.newBlock(nextMinerTx(validUntilBlock), txNeo0to1)
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
 	sh := hash.Hash160(avm)
@@ -387,17 +409,30 @@ func TestCreateBasicChain(t *testing.T) {
 	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
+	initTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(initTx))
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
+	transferTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(transferTx))
 
-	b = bc.newBlock(nextMinerTx(validUntilBlock), initTx, transferTx)
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
-	b = bc.newBlock(nextMinerTx(validUntilBlock), transferTx)
+	transferTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(transferTx))
+
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	b = bc.newBlock(minerTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	if saveChain {
@@ -426,6 +461,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txNeoRound = transaction.NewContractTX()
 	txNeoRound.Nonce = getNextNonce()
 	txNeoRound.ValidUntilBlock = validUntilBlock
+	txNeoRound.Sender = priv0ScriptHash
 	txNeoRound.AddInput(&transaction.Input{
 		PrevHash:  txNeo0to1.Hash(),
 		PrevIndex: 1,
@@ -445,7 +481,10 @@ func TestCreateBasicChain(t *testing.T) {
 	// Blocks for `submitblock` test. If you are planning to modify test chain from `testblocks.acc`,
 	// please, update params value of `empty block` and `positive` tests.
 	var blocks []*block.Block
-	blocks = append(blocks, bc.newBlock(), bc.newBlock(nextMinerTx(validUntilBlock)))
+	minerTx = nextMinerTx(validUntilBlock)
+	minerTx.Sender = priv0ScriptHash
+	require.NoError(t, acc0.SignTx(minerTx))
+	blocks = append(blocks, bc.newBlock(), bc.newBlock(minerTx))
 	for i, b := range blocks {
 		data, err := testserdes.EncodeBinary(b)
 		require.NoError(t, err)
@@ -460,4 +499,44 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 
 	script := w.Bytes()
 	return transaction.NewInvocationTX(script, 0)
+}
+
+func addSender(txs ...*transaction.Transaction) error {
+	scriptHash, err := util.Uint160DecodeStringBE(neoOwner)
+	if err != nil {
+		return errors.Wrap(err, "can't add sender to tx")
+	}
+	for _, tx := range txs {
+		tx.Sender = scriptHash
+	}
+	return nil
+}
+
+func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
+	validators, err := getValidators(bc.config)
+	if err != nil {
+		return errors.Wrap(err, "fail to sign tx")
+	}
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
+	if err != nil {
+		return errors.Wrap(err, "fail to sign tx")
+	}
+	for _, tx := range txs {
+		data := tx.GetSignedPart()
+
+		var invoc []byte
+		for i := range privNetKeys {
+			priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
+			if err != nil {
+				return err
+			}
+			invoc = append(invoc, getInvocationScript(data, priv)...)
+		}
+
+		tx.Scripts = []transaction.Witness{{
+			InvocationScript:   invoc,
+			VerificationScript: rawScript,
+		}}
+	}
+	return nil
 }
