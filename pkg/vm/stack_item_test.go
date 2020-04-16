@@ -104,7 +104,7 @@ var stringerTestCases = []struct {
 		result: "Struct",
 	},
 	{
-		input:  NewBigIntegerItem(3),
+		input:  NewBigIntegerItem(big.NewInt(3)),
 		result: "BigInteger",
 	},
 	{
@@ -148,48 +148,48 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewStructItem(nil),
-			item2:  NewBigIntegerItem(1),
+			item2:  NewBigIntegerItem(big.NewInt(1)),
 			result: false,
 		},
 		{
 			item1:  NewStructItem(nil),
-			item2:  NewStructItem([]StackItem{NewBigIntegerItem(1)}),
+			item2:  NewStructItem([]StackItem{NewBigIntegerItem(big.NewInt(1))}),
 			result: false,
 		},
 		{
-			item1:  NewStructItem([]StackItem{NewBigIntegerItem(1)}),
-			item2:  NewStructItem([]StackItem{NewBigIntegerItem(2)}),
+			item1:  NewStructItem([]StackItem{NewBigIntegerItem(big.NewInt(1))}),
+			item2:  NewStructItem([]StackItem{NewBigIntegerItem(big.NewInt(2))}),
 			result: false,
 		},
 		{
-			item1:  NewStructItem([]StackItem{NewBigIntegerItem(1)}),
-			item2:  NewStructItem([]StackItem{NewBigIntegerItem(1)}),
+			item1:  NewStructItem([]StackItem{NewBigIntegerItem(big.NewInt(1))}),
+			item2:  NewStructItem([]StackItem{NewBigIntegerItem(big.NewInt(1))}),
 			result: true,
 		},
 	},
 	"bigint": {
 		{
-			item1:  NewBigIntegerItem(2),
+			item1:  NewBigIntegerItem(big.NewInt(2)),
 			item2:  nil,
 			result: false,
 		},
 		{
-			item1:  NewBigIntegerItem(2),
-			item2:  NewBigIntegerItem(2),
+			item1:  NewBigIntegerItem(big.NewInt(2)),
+			item2:  NewBigIntegerItem(big.NewInt(2)),
 			result: true,
 		},
 		{
-			item1:  NewBigIntegerItem(2),
+			item1:  NewBigIntegerItem(big.NewInt(2)),
 			item2:  NewBoolItem(false),
 			result: false,
 		},
 		{
-			item1:  NewBigIntegerItem(0),
+			item1:  NewBigIntegerItem(big.NewInt(0)),
 			item2:  NewBoolItem(false),
 			result: false,
 		},
 		{
-			item1:  NewBigIntegerItem(2),
+			item1:  NewBigIntegerItem(big.NewInt(2)),
 			item2:  makeStackItem(int32(2)),
 			result: true,
 		},
@@ -207,7 +207,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewBoolItem(true),
-			item2:  NewBigIntegerItem(1),
+			item2:  NewBigIntegerItem(big.NewInt(1)),
 			result: true,
 		},
 		{
@@ -234,7 +234,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewByteArrayItem([]byte{1}),
-			item2:  NewBigIntegerItem(1),
+			item2:  NewBigIntegerItem(big.NewInt(1)),
 			result: true,
 		},
 		{
@@ -261,7 +261,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewArrayItem([]StackItem{&BigIntegerItem{big.NewInt(1)}}),
-			item2:  NewBigIntegerItem(1),
+			item2:  NewBigIntegerItem(big.NewInt(1)),
 			result: false,
 		},
 		{
@@ -282,13 +282,13 @@ var equalsTestCases = map[string][]struct {
 			result: false,
 		},
 		{
-			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
-			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
+			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(big.NewInt(1))}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
+			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(big.NewInt(1))}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
 			result: false,
 		},
 		{
-			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
-			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(1)}, {NewBoolItem(true), NewByteArrayItem([]byte{3})}}},
+			item1:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(big.NewInt(1))}, {NewBoolItem(true), NewByteArrayItem([]byte{2})}}},
+			item2:  &MapItem{value: []MapElement{{NewByteArrayItem([]byte("first")), NewBigIntegerItem(big.NewInt(1))}, {NewBoolItem(true), NewByteArrayItem([]byte{3})}}},
 			result: false,
 		},
 	},
@@ -333,7 +333,7 @@ var marshalJSONTestCases = []struct {
 	result []byte
 }{
 	{
-		input:  NewBigIntegerItem(2),
+		input:  NewBigIntegerItem(big.NewInt(2)),
 		result: []byte(`2`),
 	},
 	{
@@ -386,7 +386,7 @@ var toContractParameterTestCases = []struct {
 }{
 	{
 		input: NewStructItem([]StackItem{
-			NewBigIntegerItem(1),
+			NewBigIntegerItem(big.NewInt(1)),
 			NewBoolItem(true),
 		}),
 		result: smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
@@ -403,7 +403,7 @@ var toContractParameterTestCases = []struct {
 		result: smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
 	},
 	{
-		input: NewArrayItem([]StackItem{NewBigIntegerItem(2), NewBoolItem(true)}),
+		input: NewArrayItem([]StackItem{NewBigIntegerItem(big.NewInt(2)), NewBoolItem(true)}),
 		result: smartcontract.Parameter{Type: smartcontract.ArrayType, Value: []smartcontract.Parameter{
 			{Type: smartcontract.IntegerType, Value: int64(2)},
 			{Type: smartcontract.BoolType, Value: true},
@@ -415,8 +415,8 @@ var toContractParameterTestCases = []struct {
 	},
 	{
 		input: &MapItem{value: []MapElement{
-			{NewBigIntegerItem(1), NewBoolItem(true)},
-			{NewByteArrayItem([]byte("qwerty")), NewBigIntegerItem(3)},
+			{NewBigIntegerItem(big.NewInt(1)), NewBoolItem(true)},
+			{NewByteArrayItem([]byte("qwerty")), NewBigIntegerItem(big.NewInt(3))},
 			{NewBoolItem(true), NewBoolItem(false)},
 		}},
 		result: smartcontract.Parameter{

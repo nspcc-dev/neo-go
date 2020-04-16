@@ -34,7 +34,7 @@ func TestEntryPointWithArgs(t *testing.T) {
 			return 2 + args[1].(int)
 		}
 	`
-	args := []vm.StackItem{vm.NewBigIntegerItem(0), vm.NewBigIntegerItem(1)}
+	args := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(0)), vm.NewBigIntegerItem(big.NewInt(1))}
 	evalWithArgs(t, src, nil, args, big.NewInt(3))
 }
 
@@ -49,7 +49,7 @@ func TestEntryPointWithMethodAndArgs(t *testing.T) {
 			return 0
 		}
 	`
-	args := []vm.StackItem{vm.NewBigIntegerItem(0), vm.NewBigIntegerItem(1)}
+	args := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(0)), vm.NewBigIntegerItem(big.NewInt(1))}
 	evalWithArgs(t, src, []byte("foobar"), args, big.NewInt(3))
 }
 
@@ -154,9 +154,9 @@ func TestIntArray(t *testing.T) {
 		}
 	`
 	eval(t, src, []vm.StackItem{
-		vm.NewBigIntegerItem(1),
-		vm.NewBigIntegerItem(2),
-		vm.NewBigIntegerItem(3),
+		vm.NewBigIntegerItem(big.NewInt(1)),
+		vm.NewBigIntegerItem(big.NewInt(2)),
+		vm.NewBigIntegerItem(big.NewInt(3)),
 	})
 }
 

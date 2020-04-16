@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -438,7 +439,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			items[i] = vm.NewBigIntegerItem(val)
+			items[i] = vm.NewBigIntegerItem(big.NewInt(val))
 		case stringType:
 			items[i] = vm.NewByteArrayItem([]byte(value))
 		}
