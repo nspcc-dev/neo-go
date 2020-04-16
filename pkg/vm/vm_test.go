@@ -441,7 +441,7 @@ func testIterableCreate(t *testing.T, typ string) {
 
 	vm := load(prog)
 	arr := []StackItem{
-		NewBigIntegerItem(42),
+		NewBigIntegerItem(big.NewInt(42)),
 		NewByteArrayItem([]byte{3, 2, 1}),
 	}
 	vm.estack.Push(&Element{value: NewArrayItem(arr)})
@@ -479,7 +479,7 @@ func testIterableConcat(t *testing.T, typ string) {
 
 	arr := []StackItem{
 		NewBoolItem(false),
-		NewBigIntegerItem(123),
+		NewBigIntegerItem(big.NewInt(123)),
 		NewMapItem(),
 	}
 	vm.estack.Push(&Element{value: NewArrayItem(arr[:1])})
@@ -521,15 +521,15 @@ func TestIteratorKeys(t *testing.T) {
 	v := load(prog)
 	arr := NewArrayItem([]StackItem{
 		NewBoolItem(false),
-		NewBigIntegerItem(42),
+		NewBigIntegerItem(big.NewInt(42)),
 	})
 	v.estack.PushVal(arr)
 
 	runVM(t, v)
 
 	checkEnumeratorStack(t, v, []StackItem{
-		NewBigIntegerItem(1), NewBoolItem(true),
-		NewBigIntegerItem(0), NewBoolItem(true),
+		NewBigIntegerItem(big.NewInt(1)), NewBoolItem(true),
+		NewBigIntegerItem(big.NewInt(0)), NewBoolItem(true),
 	})
 }
 
@@ -541,7 +541,7 @@ func TestIteratorValues(t *testing.T) {
 
 	v := load(prog)
 	m := NewMapItem()
-	m.Add(NewBigIntegerItem(1), NewBoolItem(false))
+	m.Add(NewBigIntegerItem(big.NewInt(1)), NewBoolItem(false))
 	m.Add(NewByteArrayItem([]byte{32}), NewByteArrayItem([]byte{7}))
 	v.estack.PushVal(m)
 
@@ -680,7 +680,7 @@ func TestDeserializeUnknown(t *testing.T) {
 	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(opcode.RET))
 	vm := load(prog)
 
-	data, err := SerializeItem(NewBigIntegerItem(123))
+	data, err := SerializeItem(NewBigIntegerItem(big.NewInt(123)))
 	require.NoError(t, err)
 
 	data[0] = 0xFF

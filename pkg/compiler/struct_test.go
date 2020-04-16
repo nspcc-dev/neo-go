@@ -271,8 +271,8 @@ var structTestCases = []testCase{
 		}
 		`,
 		[]vm.StackItem{
-			vm.NewBigIntegerItem(1),
-			vm.NewBigIntegerItem(2),
+			vm.NewBigIntegerItem(big.NewInt(1)),
+			vm.NewBigIntegerItem(big.NewInt(2)),
 			vm.NewByteArrayItem([]byte("hello")),
 			vm.NewByteArrayItem([]byte{}),
 		},

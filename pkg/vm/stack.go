@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // Stack implementation for the neo-go virtual machine. The stack implements
@@ -74,18 +73,11 @@ func (e *Element) Value() interface{} {
 // BigInt attempts to get the underlying value of the element as a big integer.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) BigInt() *big.Int {
-	switch t := e.value.(type) {
-	case *BigIntegerItem:
-		return t.value
-	case *BoolItem:
-		if t.value {
-			return big.NewInt(1)
-		}
-		return big.NewInt(0)
-	default:
-		b := t.Value().([]uint8)
-		return emit.BytesToInt(b)
+	val, err := e.value.TryInteger()
+	if err != nil {
+		panic(err)
 	}
+	return val
 }
 
 // TryBool attempts to get the underlying value of the element as a boolean.

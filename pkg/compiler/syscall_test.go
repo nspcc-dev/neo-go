@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -40,7 +41,7 @@ func TestNotify(t *testing.T) {
 	require.NoError(t, v.Run())
 	require.Equal(t, 3, len(s.events))
 
-	exp0 := []vm.StackItem{vm.NewBigIntegerItem(11), vm.NewByteArrayItem([]byte("sum")), vm.NewBigIntegerItem(12)}
+	exp0 := []vm.StackItem{vm.NewBigIntegerItem(big.NewInt(11)), vm.NewByteArrayItem([]byte("sum")), vm.NewBigIntegerItem(big.NewInt(12))}
 	assert.Equal(t, exp0, s.events[0].Value())
 	assert.Equal(t, []vm.StackItem{}, s.events[1].Value())
 	assert.Equal(t, []vm.StackItem{vm.NewByteArrayItem([]byte("single"))}, s.events[2].Value())

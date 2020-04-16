@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -574,7 +575,7 @@ func contractMigrate(ic *interop.Context, v *vm.VM) error {
 			return err
 		}
 		if contract.HasStorage() {
-			hash := getContextScriptHash(v, 0)
+			hash := v.GetContextScriptHash(0)
 			siMap, err := ic.DAO.GetStorageItems(hash)
 			if err != nil {
 				return err
@@ -635,7 +636,7 @@ func assetCreate(ic *interop.Context, v *vm.VM) error {
 	if owner.IsInfinity() {
 		return errors.New("can't have infinity as an owner key")
 	}
-	witnessOk, err := checkKeyedWitness(ic, owner)
+	witnessOk, err := runtime.CheckKeyedWitness(ic, owner)
 	if err != nil {
 		return err
 	}

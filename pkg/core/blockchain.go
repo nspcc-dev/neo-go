@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -123,6 +124,8 @@ type Blockchain struct {
 	log *zap.Logger
 
 	lastBatch *storage.MemBatch
+
+	contracts native.Contracts
 }
 
 type headersOpFunc func(headerList *HeaderHashList)
@@ -167,6 +170,8 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 
 		generationAmount:  genAmount,
 		decrementInterval: decrementInterval,
+
+		contracts: *native.NewContracts(),
 	}
 
 	if err := bc.init(); err != nil {
@@ -191,6 +196,9 @@ func (bc *Blockchain) init() error {
 		bc.headerList = NewHeaderHashList(genesisBlock.Hash())
 		err = bc.dao.PutCurrentHeader(hashAndIndexToBytes(genesisBlock.Hash(), genesisBlock.Index))
 		if err != nil {
+			return err
+		}
+		if err := bc.initNative(); err != nil {
 			return err
 		}
 		return bc.storeBlock(genesisBlock)
@@ -261,6 +269,27 @@ func (bc *Blockchain) init() error {
 			bc.headerList.Add(h.Hash())
 		}
 	}
+
+	return nil
+}
+
+func (bc *Blockchain) initNative() error {
+	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
+
+	gas := native.NewGAS()
+	neo := native.NewNEO()
+	neo.GAS = gas
+	gas.NEO = neo
+
+	if err := gas.Initialize(ic); err != nil {
+		return fmt.Errorf("can't initialize GAS native contract: %v", err)
+	}
+	if err := neo.Initialize(ic); err != nil {
+		return fmt.Errorf("can't initialize NEO native contract: %v", err)
+	}
+
+	bc.contracts.SetGAS(gas)
+	bc.contracts.SetNEO(neo)
 
 	return nil
 }
@@ -634,7 +663,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				return err
 			}
 		case *transaction.StateTX:
-			if err := processStateTX(cache, t); err != nil {
+			if err := bc.processStateTX(cache, tx, t); err != nil {
 				return err
 			}
 		case *transaction.PublishTX:
@@ -724,6 +753,13 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 	if bc.config.SaveStorageBatch {
 		bc.lastBatch = cache.DAO.GetBatch()
+	}
+
+	for i := range bc.contracts.Contracts {
+		systemInterop := bc.newInteropContext(trigger.Application, cache, block, nil)
+		if err := bc.contracts.Contracts[i].OnPersist(systemInterop); err != nil {
+			return err
+		}
 	}
 
 	_, err := cache.Persist()
@@ -832,6 +868,11 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch
 }
 
+// RegisterNative registers native contract in the blockchain.
+func (bc *Blockchain) RegisterNative(c native.Contract) {
+	bc.contracts.Add(c)
+}
+
 // processOutputs processes transaction outputs.
 func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
 	for index, output := range tx.Outputs {
@@ -870,21 +911,8 @@ func processTXWithValidatorsSubtract(output *transaction.Output, account *state.
 
 // modAccountVotes adds given value to given account voted validators.
 func modAccountVotes(account *state.Account, dao *dao.Cached, value util.Fixed8) error {
-	for _, vote := range account.Votes {
-		validator, err := dao.GetValidatorStateOrNew(vote)
-		if err != nil {
-			return err
-		}
-		validator.Votes += value
-		if validator.UnregisteredAndHasNoVotes() {
-			if err := dao.DeleteValidatorState(validator); err != nil {
-				return err
-			}
-		} else {
-			if err := dao.PutValidatorState(validator); err != nil {
-				return err
-			}
-		}
+	if err := native.ModifyAccountVotes(account, dao, value); err != nil {
+		return err
 	}
 	if len(account.Votes) > 0 {
 		vc, err := dao.GetValidatorsCount()
@@ -920,55 +948,19 @@ func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, da
 	return nil
 }
 
-func processAccountStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao.Cached) error {
+func (bc *Blockchain) processAccountStateDescriptor(descriptor *transaction.StateDescriptor, t *transaction.Transaction, dao *dao.Cached) error {
 	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
-	if err != nil {
-		return err
-	}
-	account, err := dao.GetAccountStateOrNew(hash)
 	if err != nil {
 		return err
 	}
 
 	if descriptor.Field == "Votes" {
-		balance := account.GetBalanceValues()[GoverningTokenID()]
-		if err = modAccountVotes(account, dao, -balance); err != nil {
-			return err
-		}
-
 		votes := keys.PublicKeys{}
-		err := votes.DecodeBytes(descriptor.Value)
-		if err != nil {
+		if err := votes.DecodeBytes(descriptor.Value); err != nil {
 			return err
 		}
-		if len(votes) > state.MaxValidatorsVoted {
-			return errors.New("voting candidate limit exceeded")
-		}
-		if len(votes) > 0 {
-			account.Votes = votes
-			for _, vote := range account.Votes {
-				validatorState, err := dao.GetValidatorStateOrNew(vote)
-				if err != nil {
-					return err
-				}
-				validatorState.Votes += balance
-				if err = dao.PutValidatorState(validatorState); err != nil {
-					return err
-				}
-			}
-			vc, err := dao.GetValidatorsCount()
-			if err != nil {
-				return err
-			}
-			vc[len(account.Votes)-1] += balance
-			err = dao.PutValidatorsCount(vc)
-			if err != nil {
-				return err
-			}
-		} else {
-			account.Votes = nil
-		}
-		return dao.PutAccountState(account)
+		ic := bc.newInteropContext(trigger.Application, dao, nil, t)
+		return bc.contracts.NEO.VoteInternal(ic, hash, votes)
 	}
 	return nil
 }
@@ -1790,59 +1782,14 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 					return nil, err
 				}
 			case *transaction.StateTX:
-				if err := processStateTX(cache, t); err != nil {
+				if err := bc.processStateTX(cache, tx, t); err != nil {
 					return nil, err
 				}
 			}
 		}
 	}
 
-	validators := cache.GetValidators()
-	sort.Slice(validators, func(i, j int) bool {
-		// Unregistered validators go to the end of the list.
-		if validators[i].Registered != validators[j].Registered {
-			return validators[i].Registered
-		}
-		// The most-voted validators should end up in the front of the list.
-		if validators[i].Votes != validators[j].Votes {
-			return validators[i].Votes > validators[j].Votes
-		}
-		// Ties are broken with public keys.
-		return validators[i].PublicKey.Cmp(validators[j].PublicKey) == -1
-	})
-
-	validatorsCount, err := cache.GetValidatorsCount()
-	if err != nil {
-		return nil, err
-	}
-	count := validatorsCount.GetWeightedAverage()
-	standByValidators, err := bc.GetStandByValidators()
-	if err != nil {
-		return nil, err
-	}
-	if count < len(standByValidators) {
-		count = len(standByValidators)
-	}
-
-	uniqueSBValidators := standByValidators.Unique()
-	result := keys.PublicKeys{}
-	for _, validator := range validators {
-		if validator.RegisteredAndHasVotes() || uniqueSBValidators.Contains(validator.PublicKey) {
-			result = append(result, validator.PublicKey)
-		}
-	}
-
-	if result.Len() >= count {
-		result = result[:count]
-	} else {
-		for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-			if !result.Contains(uniqueSBValidators[i]) {
-				result = append(result, uniqueSBValidators[i])
-			}
-		}
-	}
-	sort.Sort(result)
-	return result, nil
+	return bc.contracts.NEO.GetValidatorsInternal(bc, cache)
 }
 
 // GetEnrollments returns all registered validators and non-registered SB validators
@@ -1879,11 +1826,11 @@ func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
 	return result, nil
 }
 
-func processStateTX(dao *dao.Cached, tx *transaction.StateTX) error {
+func (bc *Blockchain) processStateTX(dao *dao.Cached, t *transaction.Transaction, tx *transaction.StateTX) error {
 	for _, desc := range tx.Descriptors {
 		switch desc.Type {
 		case transaction.Account:
-			if err := processAccountStateDescriptor(desc, dao); err != nil {
+			if err := bc.processAccountStateDescriptor(desc, t, dao); err != nil {
 				return err
 			}
 		case transaction.Validator:
