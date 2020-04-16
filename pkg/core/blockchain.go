@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -635,25 +634,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		case *transaction.StateTX:
 			if err := processStateTX(cache, t); err != nil {
-				return err
-			}
-		case *transaction.PublishTX:
-			var properties smartcontract.PropertyState
-			if t.NeedStorage {
-				properties |= smartcontract.HasStorage
-			}
-			contract := &state.Contract{
-				Script:      t.Script,
-				ParamList:   t.ParamList,
-				ReturnType:  t.ReturnType,
-				Properties:  properties,
-				Name:        t.Name,
-				CodeVersion: t.CodeVersion,
-				Author:      t.Author,
-				Email:       t.Email,
-				Description: t.Description,
-			}
-			if err := cache.PutContractState(contract); err != nil {
 				return err
 			}
 		case *transaction.InvocationTX:

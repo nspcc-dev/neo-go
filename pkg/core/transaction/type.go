@@ -20,7 +20,6 @@ const (
 	ContractType   TXType = 0x80
 	StateType      TXType = 0x90
 	AgencyType     TXType = 0xb0
-	PublishType    TXType = 0xd0
 	InvocationType TXType = 0xd1
 )
 
@@ -45,8 +44,6 @@ func (t TXType) String() string {
 		return "StateTransaction"
 	case AgencyType:
 		return "AgencyTransaction"
-	case PublishType:
-		return "PublishTransaction"
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
@@ -91,8 +88,6 @@ func TXTypeFromString(jsonString string) (TXType, error) {
 		return StateType, nil
 	case "AgencyTransaction":
 		return AgencyType, nil
-	case "PublishTransaction":
-		return PublishType, nil
 	case "InvocationTransaction":
 		return InvocationType, nil
 	default:
