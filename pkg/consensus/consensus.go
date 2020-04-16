@@ -140,7 +140,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetValidators(srv.getValidators),
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
-		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { return new(Payload) }),
+		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
 		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
@@ -245,7 +245,7 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *Payload) {
-	log := s.log.With(zap.Stringer("hash", cp.Hash()), zap.Stringer("type", cp.Type()))
+	log := s.log.With(zap.Stringer("hash", cp.Hash()))
 	if !s.validatePayload(cp) {
 		log.Debug("can't validate payload")
 		return
@@ -260,6 +260,14 @@ func (s *service) OnPayload(cp *Payload) {
 	if s.dbft == nil {
 		log.Debug("dbft is nil")
 		return
+	}
+
+	// decode payload data into message
+	if cp.message == nil {
+		if err := cp.decodeData(); err != nil {
+			log.Debug("can't decode payload data")
+			return
+		}
 	}
 
 	// we use switch here because other payloads could be possibly added in future

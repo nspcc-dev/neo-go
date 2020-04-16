@@ -27,8 +27,9 @@ type (
 
 	// Payload is a type for consensus-related messages.
 	Payload struct {
-		message
+		*message
 
+		data           []byte
 		version        uint32
 		validatorIndex uint16
 		prevHash       util.Uint256
@@ -168,9 +169,12 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteU16LE(p.validatorIndex)
 	w.WriteU32LE(p.timestamp)
 
-	ww := io.NewBufBinWriter()
-	p.message.EncodeBinary(ww.BinWriter)
-	w.WriteVarBytes(ww.Bytes())
+	if p.message != nil {
+		ww := io.NewBufBinWriter()
+		p.message.EncodeBinary(ww.BinWriter)
+		p.data = ww.Bytes()
+	}
+	w.WriteVarBytes(p.data)
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -227,14 +231,10 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	p.validatorIndex = r.ReadU16LE()
 	p.timestamp = r.ReadU32LE()
 
-	data := r.ReadVarBytes()
+	p.data = r.ReadVarBytes()
 	if r.Err != nil {
 		return
 	}
-
-	rr := io.NewBinReaderFromBuf(data)
-	p.message.DecodeBinary(rr)
-	r.Err = rr.Err
 }
 
 // Hash implements payload.ConsensusPayload interface.
@@ -317,4 +317,16 @@ func (t messageType) String() string {
 	default:
 		return fmt.Sprintf("UNKNOWN(0x%02x)", byte(t))
 	}
+}
+
+// decode data of payload into it's message
+func (p *Payload) decodeData() error {
+	m := new(message)
+	br := io.NewBinReaderFromBuf(p.data)
+	m.DecodeBinary(br)
+	if br.Err != nil {
+		return errors.Wrap(br.Err, "cannot decode data into message")
+	}
+	p.message = m
+	return nil
 }

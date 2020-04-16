@@ -42,6 +42,7 @@ func TestService_GetVerified(t *testing.T) {
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
 
 	p := new(Payload)
+	p.message = &message{}
 	p.SetType(payload.PrepareRequestType)
 	p.SetPayload(&prepareRequest{transactionHashes: hashes, minerTx: *transaction.NewMinerTXWithNonce(999)})
 	p.SetValidatorIndex(1)
@@ -77,6 +78,7 @@ func TestService_ValidatePayload(t *testing.T) {
 	srv := newTestService(t)
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
+	p.message = &message{}
 
 	p.SetPayload(&prepareRequest{})
 
@@ -141,6 +143,7 @@ func TestService_OnPayload(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
+	p.message = &message{}
 	p.SetValidatorIndex(1)
 	p.SetPayload(&prepareRequest{})
 
