@@ -62,7 +62,6 @@ ProtocolConfiguration:
   SystemFee:
     EnrollmentTransaction: 1000
     IssueTransaction: 500
-    PublishTransaction: 500
     RegisterTransaction: 10000
 
 ApplicationConfiguration:

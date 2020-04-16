@@ -49,7 +49,6 @@ type (
 	SystemFee struct {
 		EnrollmentTransaction int64 `yaml:"EnrollmentTransaction"`
 		IssueTransaction      int64 `yaml:"IssueTransaction"`
-		PublishTransaction    int64 `yaml:"PublishTransaction"`
 		RegisterTransaction   int64 `yaml:"RegisterTransaction"`
 	}
 
@@ -80,8 +79,6 @@ func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
 		return util.Fixed8FromInt64(s.EnrollmentTransaction)
 	case transaction.IssueType:
 		return util.Fixed8FromInt64(s.IssueTransaction)
-	case transaction.PublishType:
-		return util.Fixed8FromInt64(s.PublishTransaction)
 	case transaction.RegisterType:
 		return util.Fixed8FromInt64(s.RegisterTransaction)
 	default:

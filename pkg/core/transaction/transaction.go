@@ -162,9 +162,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case EnrollmentType:
 		t.Data = &EnrollmentTX{}
 		t.Data.(*EnrollmentTX).DecodeBinary(r)
-	case PublishType:
-		t.Data = &PublishTX{Version: t.Version}
-		t.Data.(*PublishTX).DecodeBinary(r)
 	case StateType:
 		t.Data = &StateTX{}
 		t.Data.(*StateTX).DecodeBinary(r)
@@ -281,7 +278,6 @@ type transactionJSON struct {
 	PublicKey   *keys.PublicKey    `json:"pubkey,omitempty"`
 	Script      string             `json:"script,omitempty"`
 	Gas         util.Fixed8        `json:"gas,omitempty"`
-	Contract    *publishedContract `json:"contract,omitempty"`
 	Asset       *registeredAsset   `json:"asset,omitempty"`
 	Descriptors []*StateDescriptor `json:"descriptors,omitempty"`
 }
@@ -308,22 +304,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	case InvocationType:
 		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
 		tx.Gas = t.Data.(*InvocationTX).Gas
-	case PublishType:
-		transaction := t.Data.(*PublishTX)
-		tx.Contract = &publishedContract{
-			Code: publishedCode{
-				Hash:       hash.Hash160(transaction.Script),
-				Script:     hex.EncodeToString(transaction.Script),
-				ParamList:  transaction.ParamList,
-				ReturnType: transaction.ReturnType,
-			},
-			NeedStorage: transaction.NeedStorage,
-			Name:        transaction.Name,
-			CodeVersion: transaction.CodeVersion,
-			Author:      transaction.Author,
-			Email:       transaction.Email,
-			Description: transaction.Description,
-		}
 	case RegisterType:
 		transaction := *t.Data.(*RegisterTX)
 		tx.Asset = &registeredAsset{
@@ -374,23 +354,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 			Script:  bytes,
 			Gas:     tx.Gas,
 			Version: tx.Version,
-		}
-	case PublishType:
-		bytes, err := hex.DecodeString(tx.Contract.Code.Script)
-		if err != nil {
-			return err
-		}
-		t.Data = &PublishTX{
-			Script:      bytes,
-			ParamList:   tx.Contract.Code.ParamList,
-			ReturnType:  tx.Contract.Code.ReturnType,
-			NeedStorage: tx.Contract.NeedStorage,
-			Name:        tx.Contract.Name,
-			CodeVersion: tx.Contract.CodeVersion,
-			Author:      tx.Contract.Author,
-			Email:       tx.Contract.Email,
-			Description: tx.Contract.Description,
-			Version:     tx.Version,
 		}
 	case RegisterType:
 		admin, err := address.StringToUint160(tx.Asset.Admin)
