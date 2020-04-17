@@ -479,11 +479,7 @@ func (v *VM) SetScriptGetter(gs func(util.Uint160) ([]byte, bool)) {
 
 // GetInteropID converts instruction parameter to an interop ID.
 func GetInteropID(parameter []byte) uint32 {
-	if len(parameter) == 4 {
-		return binary.LittleEndian.Uint32(parameter)
-	}
-
-	return InteropNameToID(parameter)
+	return binary.LittleEndian.Uint32(parameter)
 }
 
 // GetInteropByID returns interop function together with price.
@@ -615,15 +611,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative index")
 		}
 		s := v.estack.Pop().Bytes()
-		if o > len(s) {
-			// panic("invalid offset")
-			// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-			v.estack.PushVal("")
-			break
-		}
 		last := l + o
 		if last > len(s) {
-			last = len(s)
+			panic("invalid offset")
 		}
 		v.estack.PushVal(s[o:last])
 

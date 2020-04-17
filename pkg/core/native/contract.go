@@ -63,7 +63,7 @@ func (cs *Contracts) SetNEO(n *NEO) {
 func NewContractMD(name string) *ContractMD {
 	c := &ContractMD{
 		ServiceName: name,
-		ServiceID:   vm.InteropNameToID([]byte(name)),
+		ServiceID:   emit.InteropNameToID([]byte(name)),
 		Methods:     make(map[string]MethodAndPrice),
 	}
 

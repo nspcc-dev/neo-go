@@ -74,7 +74,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 
 	var numtoread int
 	switch instr {
-	case opcode.PUSHDATA1, opcode.SYSCALL:
+	case opcode.PUSHDATA1:
 		if c.nextip >= len(c.prog) {
 			err = errNoInstParam
 		} else {
@@ -101,7 +101,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		}
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL, opcode.CALLED, opcode.CALLEDT:
 		numtoread = 2
-	case opcode.CALLI:
+	case opcode.CALLI, opcode.SYSCALL:
 		numtoread = 4
 	case opcode.APPCALL, opcode.TAILCALL:
 		numtoread = 20

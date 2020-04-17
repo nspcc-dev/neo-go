@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +55,7 @@ func getPanicSource(need bool, message string) string {
 }
 
 func logGetter(logs *[]string) vm.InteropGetterFunc {
-	logID := vm.InteropNameToID([]byte("Neo.Runtime.Log"))
+	logID := emit.InteropNameToID([]byte("Neo.Runtime.Log"))
 	return func(id uint32) *vm.InteropFuncPrice {
 		if id != logID {
 			return nil

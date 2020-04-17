@@ -19,7 +19,7 @@ import (
 )
 
 func fooInteropGetter(id uint32) *InteropFuncPrice {
-	if id == InteropNameToID([]byte("foo")) {
+	if id == emit.InteropNameToID([]byte("foo")) {
 		return &InteropFuncPrice{func(evm *VM) error {
 			evm.Estack().PushVal(1)
 			return nil
@@ -34,22 +34,6 @@ func TestInteropHook(t *testing.T) {
 
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "foo")
-	emit.Opcode(buf.BinWriter, opcode.RET)
-	v.Load(buf.Bytes())
-	runVM(t, v)
-	assert.Equal(t, 1, v.estack.Len())
-	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
-}
-
-func TestInteropHookViaID(t *testing.T) {
-	v := New()
-	v.RegisterInteropGetter(fooInteropGetter)
-
-	buf := io.NewBufBinWriter()
-	fooid := InteropNameToID([]byte("foo"))
-	var id = make([]byte, 4)
-	binary.LittleEndian.PutUint32(id, fooid)
-	emit.Syscall(buf.BinWriter, string(id))
 	emit.Opcode(buf.BinWriter, opcode.RET)
 	v.Load(buf.Bytes())
 	runVM(t, v)
@@ -563,11 +547,9 @@ func TestIteratorValues(t *testing.T) {
 }
 
 func getSyscallProg(name string) (prog []byte) {
-	prog = []byte{byte(opcode.SYSCALL)}
-	prog = append(prog, byte(len(name)))
-	prog = append(prog, name...)
-
-	return
+	buf := io.NewBufBinWriter()
+	emit.Syscall(buf.BinWriter, name)
+	return buf.Bytes()
 }
 
 func getSerializeProg() (prog []byte) {
@@ -704,15 +686,21 @@ func TestSerializeMap(t *testing.T) {
 }
 
 func TestSerializeMapCompat(t *testing.T) {
-	// Create a map, push key and value, add KV to map, serialize.
-	progHex := "c776036b65790576616c7565c468154e656f2e52756e74696d652e53657269616c697a65"
 	resHex := "820100036b6579000576616c7565"
-	prog, err := hex.DecodeString(progHex)
-	require.NoError(t, err)
 	res, err := hex.DecodeString(resHex)
 	require.NoError(t, err)
 
-	vm := load(prog)
+	// Create a map, push key and value, add KV to map, serialize.
+	buf := io.NewBufBinWriter()
+	emit.Opcode(buf.BinWriter, opcode.NEWMAP)
+	emit.Opcode(buf.BinWriter, opcode.DUP)
+	emit.Bytes(buf.BinWriter, []byte("key"))
+	emit.Bytes(buf.BinWriter, []byte("value"))
+	emit.Opcode(buf.BinWriter, opcode.SETITEM)
+	emit.Syscall(buf.BinWriter, "Neo.Runtime.Serialize")
+	require.NoError(t, buf.Err)
+
+	vm := load(buf.Bytes())
 	runVM(t, vm)
 	assert.Equal(t, res, vm.estack.Pop().Bytes())
 }
@@ -1505,9 +1493,7 @@ func TestSIZEBool(t *testing.T) {
 	vm.estack.PushVal(false)
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	// assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
-	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	assert.Equal(t, makeStackItem(0), vm.estack.Pop().value)
+	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
 func TestARRAYSIZEArray(t *testing.T) {
@@ -2215,7 +2201,7 @@ func TestCATInt0ByteArray(t *testing.T) {
 	vm.estack.PushVal([]byte{})
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, &ByteArrayItem{[]byte{0}}, vm.estack.Pop().value)
+	assert.Equal(t, &ByteArrayItem{[]byte{}}, vm.estack.Pop().value)
 }
 
 func TestCATByteArrayInt1(t *testing.T) {
@@ -2267,11 +2253,7 @@ func TestSUBSTRBadOffset(t *testing.T) {
 	vm.estack.PushVal(7)
 	vm.estack.PushVal(1)
 
-	// checkVMFailed(t, vm)
-	// FIXME revert when NEO 3.0 https://github.com/nspcc-dev/neo-go/issues/477
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte{}, vm.estack.Peek(0).Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBigLen(t *testing.T) {
@@ -2280,9 +2262,7 @@ func TestSUBSTRBigLen(t *testing.T) {
 	vm.estack.PushVal([]byte("abcdef"))
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBad387(t *testing.T) {
@@ -2293,9 +2273,7 @@ func TestSUBSTRBad387(t *testing.T) {
 	vm.estack.PushVal(b)
 	vm.estack.PushVal(1)
 	vm.estack.PushVal(6)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, []byte("bcdef"), vm.estack.Pop().Bytes())
+	checkVMFailed(t, vm)
 }
 
 func TestSUBSTRBadNegativeOffset(t *testing.T) {

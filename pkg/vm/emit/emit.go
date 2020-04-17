@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -107,9 +108,8 @@ func Syscall(w *io.BinWriter, api string) {
 		w.Err = errors.New("syscall api cannot be of length 0")
 		return
 	}
-	buf := make([]byte, len(api)+1)
-	buf[0] = byte(len(api))
-	copy(buf[1:], api)
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, InteropNameToID([]byte(api)))
 	Instruction(w, opcode.SYSCALL, buf)
 }
 
@@ -167,4 +167,10 @@ func isInstructionJmp(op opcode.Opcode) bool {
 		return true
 	}
 	return false
+}
+
+// InteropNameToID returns an identificator of the method based on its name.
+func InteropNameToID(name []byte) uint32 {
+	h := sha256.Sum256(name)
+	return binary.LittleEndian.Uint32(h[:4])
 }
