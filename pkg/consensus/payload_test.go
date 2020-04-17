@@ -110,7 +110,7 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 
 func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	// PrepareResponse ConsensusPayload consists of:
-	// 46-byte common prefix
+	// 42-byte common prefix
 	// 1-byte varint length of the payload (34),
 	// - 1-byte view number
 	// - 1-byte message type (PrepareResponse)
@@ -118,12 +118,12 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	// 1-byte delimiter (1)
 	// 2-byte for empty invocation and verification scripts
 	const (
-		lenIndex       = 46
-		typeIndex      = 47
-		delimeterIndex = 81
+		lenIndex       = 42
+		typeIndex      = lenIndex + 1
+		delimeterIndex = typeIndex + 34
 	)
 
-	buf := make([]byte, 46+1+34+1+2)
+	buf := make([]byte, delimeterIndex+1+2)
 
 	expected := &Payload{
 		message: &message{
@@ -202,7 +202,6 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 		validatorIndex: 13,
 		height:         rand.Uint32(),
 		prevHash:       random.Uint256(),
-		timestamp:      rand.Uint32(),
 		Witness: transaction.Witness{
 			InvocationScript:   random.Bytes(3),
 			VerificationScript: []byte{byte(opcode.PUSH0)},

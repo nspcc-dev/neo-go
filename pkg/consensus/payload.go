@@ -34,7 +34,6 @@ type (
 		validatorIndex uint16
 		prevHash       util.Uint256
 		height         uint32
-		timestamp      uint32
 
 		Witness transaction.Witness
 	}
@@ -167,7 +166,6 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU32LE(p.height)
 	w.WriteU16LE(p.validatorIndex)
-	w.WriteU32LE(p.timestamp)
 
 	if p.message != nil {
 		ww := io.NewBufBinWriter()
@@ -229,7 +227,6 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 	r.ReadBytes(p.prevHash[:])
 	p.height = r.ReadU32LE()
 	p.validatorIndex = r.ReadU16LE()
-	p.timestamp = r.ReadU32LE()
 
 	p.data = r.ReadVarBytes()
 	if r.Err != nil {
