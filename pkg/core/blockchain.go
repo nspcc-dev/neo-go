@@ -2057,5 +2057,12 @@ func (bc *Blockchain) secondsPerBlock() int {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	return interop.NewContext(trigger, bc, d, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, block, tx, bc.log)
+	switch {
+	case tx != nil:
+		ic.Container = tx
+	case block != nil:
+		ic.Container = block
+	}
+	return ic
 }

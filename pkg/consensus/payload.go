@@ -186,7 +186,7 @@ func (p *Payload) EncodeBinary(w *io.BinWriter) {
 // Sign signs payload using the private key.
 // It also sets corresponding verification and invocation scripts.
 func (p *Payload) Sign(key *privateKey) error {
-	sig, err := key.Sign(p.MarshalUnsigned())
+	sig, err := key.Sign(p.GetSignedPart())
 	if err != nil {
 		return err
 	}
@@ -197,6 +197,11 @@ func (p *Payload) Sign(key *privateKey) error {
 	return nil
 }
 
+// GetSignedPart implements crypto.Verifiable interface.
+func (p *Payload) GetSignedPart() []byte {
+	return p.MarshalUnsigned()
+}
+
 // Verify verifies payload using provided Witness.
 func (p *Payload) Verify(scriptHash util.Uint160) bool {
 	verification, err := core.ScriptFromWitness(scriptHash, &p.Witness)
@@ -205,7 +210,7 @@ func (p *Payload) Verify(scriptHash util.Uint160) bool {
 	}
 
 	v := vm.New()
-	h := sha256.Sum256(p.MarshalUnsigned())
+	h := sha256.Sum256(p.GetSignedPart())
 
 	v.SetCheckedHash(h[:])
 	v.LoadScript(verification)

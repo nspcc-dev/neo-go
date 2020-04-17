@@ -79,7 +79,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		if err != nil {
 			panic(err)
 		}
-		b := b.GetHashableData()
+		b := b.GetSignedPart()
 		sig := pKey.Sign(b)
 		if len(sig) != 64 {
 			panic("wrong signature length")

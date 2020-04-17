@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"go.uber.org/zap"
@@ -14,6 +15,7 @@ import (
 // Context represents context in which interops are executed.
 type Context struct {
 	Chain         blockchainer.Blockchainer
+	Container     crypto.Verifiable
 	Trigger       trigger.Type
 	Block         *block.Block
 	Tx            *transaction.Transaction
