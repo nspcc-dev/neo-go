@@ -43,8 +43,7 @@ func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	v.SetCheckedHash(hashToCheck)
-	sigok := vm.CheckMultisigPar(v, pkeys, sigs)
+	sigok := vm.CheckMultisigPar(v, hashToCheck, pkeys, sigs)
 	v.Estack().PushVal(sigok)
 	return nil
 }
