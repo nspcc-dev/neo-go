@@ -884,16 +884,12 @@ func TestArithNegativeArguments(t *testing.T) {
 
 	t.Run("SHR", func(t *testing.T) {
 		t.Run("positive/positive", runCase(opcode.SHR, 5, 2, 1))
-		t.Run("positive/negative", runCase(opcode.SHR, 5, -2, 20))
 		t.Run("negative/positive", runCase(opcode.SHR, -5, 2, -2))
-		t.Run("negative/negative", runCase(opcode.SHR, -5, -2, -20))
 	})
 
 	t.Run("SHL", func(t *testing.T) {
 		t.Run("positive/positive", runCase(opcode.SHL, 5, 2, 20))
-		t.Run("positive/negative", runCase(opcode.SHL, 5, -2, 1))
 		t.Run("negative/positive", runCase(opcode.SHL, -5, 2, -20))
-		t.Run("negative/negative", runCase(opcode.SHL, -5, -2, -2))
 	})
 }
 
@@ -934,11 +930,11 @@ func TestSHRZero(t *testing.T) {
 	assert.Equal(t, makeStackItem([]byte{0, 1}), vm.estack.Pop().value)
 }
 
-func TestSHRSmallValue(t *testing.T) {
+func TestSHRNegative(t *testing.T) {
 	prog := makeProgram(opcode.SHR)
 	vm := load(prog)
 	vm.estack.PushVal(5)
-	vm.estack.PushVal(minSHLArg - 1)
+	vm.estack.PushVal(-1)
 	checkVMFailed(t, vm)
 }
 
