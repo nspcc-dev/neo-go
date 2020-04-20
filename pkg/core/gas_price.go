@@ -29,29 +29,6 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 		return toFixed8(10)
 	case opcode.HASH160, opcode.HASH256:
 		return toFixed8(20)
-	case opcode.CHECKSIG, opcode.VERIFY:
-		return toFixed8(100)
-	case opcode.CHECKMULTISIG:
-		estack := v.Estack()
-		if estack.Len() == 0 {
-			return toFixed8(1)
-		}
-
-		var cost int
-
-		item := estack.Peek(0)
-		switch item.Item().(type) {
-		case *vm.ArrayItem, *vm.StructItem:
-			cost = len(item.Array())
-		default:
-			cost = int(item.BigInt().Int64())
-		}
-
-		if cost < 1 {
-			return toFixed8(1)
-		}
-
-		return toFixed8(int64(100 * cost))
 	default:
 		return toFixed8(1)
 	}

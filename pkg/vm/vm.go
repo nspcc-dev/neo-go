@@ -1196,45 +1196,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.astack = v.Context().astack
 		}
 
-	case opcode.CHECKSIG, opcode.VERIFY:
-		var hashToCheck []byte
-
-		keyb := v.estack.Pop().Bytes()
-		signature := v.estack.Pop().Bytes()
-		if op == opcode.CHECKSIG {
-			if v.checkhash == nil {
-				panic("VM is not set up properly for signature checks")
-			}
-			hashToCheck = v.checkhash
-		} else { // VERIFY
-			msg := v.estack.Pop().Bytes()
-			hashToCheck = hash.Sha256(msg).BytesBE()
-		}
-		pkey := v.bytesToPublicKey(keyb)
-		res := pkey.Verify(signature, hashToCheck)
-		v.estack.PushVal(res)
-
-	case opcode.CHECKMULTISIG:
-		pkeys, err := v.estack.PopSigElements()
-		if err != nil {
-			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
-		}
-		sigs, err := v.estack.PopSigElements()
-		if err != nil {
-			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
-		}
-		// It's ok to have more keys than there are signatures (it would
-		// just mean that some keys didn't sign), but not the other way around.
-		if len(pkeys) < len(sigs) {
-			panic("more signatures than there are keys")
-		}
-		if v.checkhash == nil {
-			panic("VM is not set up properly for signature checks")
-		}
-
-		sigok := CheckMultisigPar(v, v.checkhash, pkeys, sigs)
-		v.estack.PushVal(sigok)
-
 	case opcode.NEWMAP:
 		v.estack.Push(&Element{value: NewMapItem()})
 
