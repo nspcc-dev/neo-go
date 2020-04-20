@@ -668,7 +668,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 			v := SpawnVM(systemInterop)
-			v.SetCheckedHash(tx.VerificationHash().BytesBE())
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
 			if bc.config.FreeGasLimit > 0 {
@@ -1956,14 +1955,13 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, checkedHash util.Uint256, interopCtx *interop.Context, useKeys bool) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool) error {
 	verification, err := ScriptFromWitness(hash, witness)
 	if err != nil {
 		return err
 	}
 
 	vm := SpawnVM(interopCtx)
-	vm.SetCheckedHash(checkedHash.BytesBE())
 	vm.LoadScript(verification)
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
@@ -2023,7 +2021,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], t.VerificationHash(), interopCtx, false)
+		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false)
 		if err != nil {
 			numStr := fmt.Sprintf("witness #%d", i)
 			return errors.Wrap(err, numStr)
@@ -2042,7 +2040,8 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 		hash = prevHeader.NextConsensus
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
-	return bc.verifyHashAgainstScript(hash, &currHeader.Script, currHeader.VerificationHash(), interopCtx, true)
+	interopCtx.Container = currHeader
+	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true)
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

@@ -1,11 +1,12 @@
 package consensus
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -210,9 +211,7 @@ func (p *Payload) Verify(scriptHash util.Uint160) bool {
 	}
 
 	v := vm.New()
-	h := sha256.Sum256(p.GetSignedPart())
-
-	v.SetCheckedHash(h[:])
+	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: p}))
 	v.LoadScript(verification)
 	v.LoadScript(p.Witness.InvocationScript)
 

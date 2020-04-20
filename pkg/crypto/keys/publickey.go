@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
@@ -230,10 +231,13 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 // public key.
 func (p *PublicKey) GetVerificationScript() []byte {
 	b := p.Bytes()
-	b = append([]byte{byte(opcode.PUSHBYTES33)}, b...)
-	b = append(b, byte(opcode.CHECKSIG))
+	buf := io.NewBufBinWriter()
+	emit.Instruction(buf.BinWriter, opcode.PUSHDATA1, []byte{33})
+	buf.BinWriter.WriteBytes(b)
+	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
+	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
 
-	return b
+	return buf.Bytes()
 }
 
 // GetScriptHash returns a Hash160 of verification script for the key.

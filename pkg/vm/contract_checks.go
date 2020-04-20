@@ -3,7 +3,13 @@ package vm
 import (
 	"encoding/binary"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+)
+
+var (
+	verifyInteropID   = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))
+	multisigInteropID = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig"))
 )
 
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
@@ -55,8 +61,11 @@ func ParseMultiSigContract(script []byte) ([][]byte, bool) {
 		if err != nil {
 			return nil, false
 		}
-		if instr != opcode.PUSHBYTES33 {
+		if instr != opcode.PUSHDATA1 {
 			break
+		}
+		if len(param) < 33 {
+			return nil, false
 		}
 		pubs = append(pubs, param)
 		nkeys++
@@ -75,7 +84,11 @@ func ParseMultiSigContract(script []byte) ([][]byte, bool) {
 		return nil, false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.CHECKMULTISIG {
+	if err != nil || instr != opcode.PUSHNULL {
+		return nil, false
+	}
+	instr, param, err = ctx.Next()
+	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != multisigInteropID {
 		return nil, false
 	}
 	instr, _, err = ctx.Next()
@@ -88,17 +101,21 @@ func ParseMultiSigContract(script []byte) ([][]byte, bool) {
 // IsSignatureContract checks whether the passed script is a signature check
 // contract.
 func IsSignatureContract(script []byte) bool {
+	if len(script) != 41 {
+		return false
+	}
+
 	ctx := NewContext(script)
-	instr, _, err := ctx.Next()
-	if err != nil || instr != opcode.PUSHBYTES33 {
+	instr, param, err := ctx.Next()
+	if err != nil || instr != opcode.PUSHDATA1 || len(param) != 33 {
 		return false
 	}
 	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.CHECKSIG {
+	if err != nil || instr != opcode.PUSHNULL {
 		return false
 	}
-	instr, _, err = ctx.Next()
-	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
+	instr, param, err = ctx.Next()
+	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != verifyInteropID {
 		return false
 	}
 	return true

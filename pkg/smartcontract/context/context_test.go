@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
@@ -55,10 +57,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	t.Run("GetWitness", func(t *testing.T) {
 		w, err := c.GetWitness(ctr)
 		require.NoError(t, err)
-		v := vm.New()
-		v.SetCheckedHash(tx.VerificationHash().BytesBE())
-		v.LoadScript(w.VerificationScript)
-		v.LoadScript(w.InvocationScript)
+		v := newTestVM(w, tx)
 		require.NoError(t, v.Run())
 		require.Equal(t, 1, v.Estack().Len())
 		require.Equal(t, true, v.Estack().Pop().Value())
@@ -102,14 +101,19 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	t.Run("GetWitness", func(t *testing.T) {
 		w, err := c.GetWitness(ctr)
 		require.NoError(t, err)
-		v := vm.New()
-		v.SetCheckedHash(tx.VerificationHash().BytesBE())
-		v.LoadScript(w.VerificationScript)
-		v.LoadScript(w.InvocationScript)
+		v := newTestVM(w, tx)
 		require.NoError(t, v.Run())
 		require.Equal(t, 1, v.Estack().Len())
 		require.Equal(t, true, v.Estack().Pop().Value())
 	})
+}
+
+func newTestVM(w *transaction.Witness, tx *transaction.Transaction) *vm.VM {
+	v := vm.New()
+	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: tx}))
+	v.LoadScript(w.VerificationScript)
+	v.LoadScript(w.InvocationScript)
+	return v
 }
 
 func TestParameterContext_MarshalJSON(t *testing.T) {

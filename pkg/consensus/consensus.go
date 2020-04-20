@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"math/rand"
 	"sort"
 	"time"
 
@@ -348,7 +349,9 @@ func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
 	for _, tx := range coreb.Transactions {
 		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
-			s.log.Warn("invalid transaction in proposed block", zap.Stringer("hash", tx.Hash()))
+			s.log.Warn("invalid transaction in proposed block",
+				zap.Stringer("hash", tx.Hash()),
+				zap.Error(err))
 			return false
 		}
 	}
@@ -462,6 +465,8 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 	for {
 		minerTx := transaction.NewMinerTX()
 		minerTx.Outputs = txOuts
+		minerTx.ValidUntilBlock = s.dbft.BlockIndex
+		minerTx.Nonce = rand.Uint32()
 		res[0] = minerTx
 
 		if tx, _, _ := s.Chain.GetTransaction(res[0].Hash()); tx == nil {

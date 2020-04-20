@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/dbft/block"
@@ -9,7 +11,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -195,25 +200,33 @@ func newTestService(t *testing.T) *service {
 	return srv.(*service)
 }
 
+func TestExport(t *testing.T) {
+	_, pub := getTestValidator(3)
+	s, _ := smartcontract.CreateMultiSigRedeemScript(1, keys.PublicKeys{pub.PublicKey})
+	fmt.Println(hex.EncodeToString(s))
+	u := hash.Hash160(s)
+	fmt.Println(address.Uint160ToString(u))
+}
+
 func getTestValidator(i int) (*privateKey, *publicKey) {
 	var wif, password string
 
 	// Sorted by public key.
 	switch i {
 	case 0:
-		wif = "6PYXHjPaNvW8YknSXaKsTWjf9FRxo1s4naV2jdmSQEgzaqKGX368rndN3L"
+		wif = "6PYXPEFeBxeDjqMiwRrSe81LnpL1cpw1WSwENJY1p4NtgSbfZPaUFy8Kkg"
 		password = "two"
 
 	case 1:
-		wif = "6PYRXVwHSqFSukL3CuXxdQ75VmsKpjeLgQLEjt83FrtHf1gCVphHzdD4nc"
+		wif = "6PYWscJHQ76uctwuM7GRcAp6xfGjdYDKnbMtMnT6hcXxcNn7CywbQmvfSy"
 		password = "four"
 
 	case 2:
-		wif = "6PYLmjBYJ4wQTCEfqvnznGJwZeW9pfUcV5m5oreHxqryUgqKpTRAFt9L8Y"
+		wif = "6PYKYQKRs758NBX4q5k6fSmduZDfEfQyoXMovQU5myKm2h5ArXuYpuMEaN"
 		password = "one"
 
 	case 3:
-		wif = "6PYX86vYiHfUbpD95hfN1xgnvcSxy5skxfWYKu3ztjecxk6ikYs2kcWbeh"
+		wif = "6PYRHjZrvxYqrHLpXz1aP6dBnrFkkxQMCdYsJi7YDPoQnQddvRuTzKGxME"
 		password = "three"
 
 	default:

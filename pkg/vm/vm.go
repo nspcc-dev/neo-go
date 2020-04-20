@@ -1196,45 +1196,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.astack = v.Context().astack
 		}
 
-	case opcode.CHECKSIG, opcode.VERIFY:
-		var hashToCheck []byte
-
-		keyb := v.estack.Pop().Bytes()
-		signature := v.estack.Pop().Bytes()
-		if op == opcode.CHECKSIG {
-			if v.checkhash == nil {
-				panic("VM is not set up properly for signature checks")
-			}
-			hashToCheck = v.checkhash
-		} else { // VERIFY
-			msg := v.estack.Pop().Bytes()
-			hashToCheck = hash.Sha256(msg).BytesBE()
-		}
-		pkey := v.bytesToPublicKey(keyb)
-		res := pkey.Verify(signature, hashToCheck)
-		v.estack.PushVal(res)
-
-	case opcode.CHECKMULTISIG:
-		pkeys, err := v.estack.PopSigElements()
-		if err != nil {
-			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
-		}
-		sigs, err := v.estack.PopSigElements()
-		if err != nil {
-			panic(fmt.Sprintf("wrong parameters: %s", err.Error()))
-		}
-		// It's ok to have more keys than there are signatures (it would
-		// just mean that some keys didn't sign), but not the other way around.
-		if len(pkeys) < len(sigs) {
-			panic("more signatures than there are keys")
-		}
-		if v.checkhash == nil {
-			panic("VM is not set up properly for signature checks")
-		}
-
-		sigok := CheckMultisigPar(v, pkeys, sigs)
-		v.estack.PushVal(sigok)
-
 	case opcode.NEWMAP:
 		v.estack.Push(&Element{value: NewMapItem()})
 
@@ -1419,9 +1380,9 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
-func CheckMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
+func CheckMultisigPar(v *VM, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
-		return checkMultisig1(v, pkeys, sigs[0])
+		return checkMultisig1(v, h, pkeys, sigs[0])
 	}
 
 	k1, k2 := 0, len(pkeys)-1
@@ -1446,7 +1407,7 @@ func CheckMultisigPar(v *VM, pkeys [][]byte, sigs [][]byte) bool {
 
 			result <- verify{
 				signum: t.signum,
-				ok:     t.pub.Verify(sigs[t.signum], v.checkhash),
+				ok:     t.pub.Verify(sigs[t.signum], h),
 			}
 		}
 	}
@@ -1511,10 +1472,10 @@ loop:
 	return sigok
 }
 
-func checkMultisig1(v *VM, pkeys [][]byte, sig []byte) bool {
+func checkMultisig1(v *VM, h []byte, pkeys [][]byte, sig []byte) bool {
 	for i := range pkeys {
 		pkey := v.bytesToPublicKey(pkeys[i])
-		if pkey.Verify(sig, v.checkhash) {
+		if pkey.Verify(sig, h) {
 			return true
 		}
 	}
