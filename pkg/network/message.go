@@ -1,15 +1,12 @@
 package network
 
 import (
-	"encoding/binary"
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
@@ -18,10 +15,6 @@ const (
 	// The minimum size of a valid message.
 	minMessageSize = 24
 	cmdSize        = 12
-)
-
-var (
-	errChecksumMismatch = errors.New("checksum mismatch")
 )
 
 // Message is the complete message send between nodes.
@@ -35,10 +28,6 @@ type Message struct {
 
 	// Length of the payload.
 	Length uint32
-
-	// Checksum is the first 4 bytes of the value that two times SHA256
-	// hash of the payload.
-	Checksum uint32
 
 	// Payload send with the message.
 	Payload payload.Payload
@@ -74,8 +63,7 @@ const (
 // NewMessage returns a new message with the given payload.
 func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Message {
 	var (
-		size     uint32
-		checksum []byte
+		size uint32
 	)
 
 	if p != nil {
@@ -86,17 +74,13 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 		}
 		b := buf.Bytes()
 		size = uint32(len(b))
-		checksum = hash.Checksum(b)
-	} else {
-		checksum = hash.Checksum([]byte{})
 	}
 
 	return &Message{
-		Magic:    magic,
-		Command:  cmdToByteArray(cmd),
-		Length:   size,
-		Payload:  p,
-		Checksum: binary.LittleEndian.Uint32(checksum[:4]),
+		Magic:   magic,
+		Command: cmdToByteArray(cmd),
+		Length:  size,
+		Payload: p,
 	}
 }
 
@@ -152,7 +136,6 @@ func (m *Message) Decode(br *io.BinReader) error {
 	m.Magic = config.NetMode(br.ReadU32LE())
 	br.ReadBytes(m.Command[:])
 	m.Length = br.ReadU32LE()
-	m.Checksum = br.ReadU32LE()
 	if br.Err != nil {
 		return br.Err
 	}
@@ -168,10 +151,6 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	br.ReadBytes(buf)
 	if br.Err != nil {
 		return br.Err
-	}
-	// Compare the checksum of the payload.
-	if !compareChecksum(m.Checksum, buf) {
-		return errChecksumMismatch
 	}
 
 	r := io.NewBinReaderFromBuf(buf)
@@ -215,7 +194,6 @@ func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteU32LE(uint32(m.Magic))
 	br.WriteBytes(m.Command[:])
 	br.WriteU32LE(m.Length)
-	br.WriteU32LE(m.Checksum)
 	if m.Payload != nil {
 		m.Payload.EncodeBinary(br)
 
@@ -263,10 +241,4 @@ func cmdByteArrayToString(cmd [cmdSize]byte) string {
 		}
 	}
 	return string(buf)
-}
-
-func compareChecksum(have uint32, b []byte) bool {
-	sum := hash.Checksum(b)
-	want := binary.LittleEndian.Uint32(sum)
-	return have == want
 }
