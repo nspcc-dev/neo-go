@@ -53,7 +53,6 @@ const (
 	MaxStackSize = 2 * 1024
 
 	maxSHLArg = MaxBigIntegerSizeBits
-	minSHLArg = -MaxBigIntegerSizeBits
 )
 
 // VM represents the virtual machine.
@@ -797,23 +796,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		b := v.estack.Pop().BigInt().Int64()
 		if b == 0 {
 			return
-		} else if b < minSHLArg || b > maxSHLArg {
-			panic(fmt.Sprintf("operand must be between %d and %d", minSHLArg, maxSHLArg))
+		} else if b < 0 || b > maxSHLArg {
+			panic(fmt.Sprintf("operand must be between %d and %d", 0, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
 		v.checkBigIntSize(a)
 
-		newOp := op
-		if b < 0 {
-			b = -b
-			if op == opcode.SHR {
-				newOp = opcode.SHL
-			} else {
-				newOp = opcode.SHR
-			}
-		}
 		var item big.Int
-		if newOp == opcode.SHL {
+		if op == opcode.SHL {
 			item.Lsh(a, uint(b))
 		} else {
 			item.Rsh(a, uint(b))
