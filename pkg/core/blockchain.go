@@ -197,9 +197,6 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.initNative(); err != nil {
-			return err
-		}
 		return bc.storeBlock(genesisBlock)
 	}
 	if ver != version {
@@ -210,6 +207,10 @@ func (bc *Blockchain) init() error {
 	// implies a creating fresh storage with the version specified
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
+
+	if err = bc.registerNative(); err != nil {
+		return err
+	}
 
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
@@ -272,19 +273,26 @@ func (bc *Blockchain) init() error {
 	return nil
 }
 
-func (bc *Blockchain) initNative() error {
-	ic := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
-
+func (bc *Blockchain) registerNative() error {
 	gas := native.NewGAS()
 	neo := native.NewNEO()
 	neo.GAS = gas
 	gas.NEO = neo
 
-	if err := gas.Initialize(ic); err != nil {
-		return fmt.Errorf("can't initialize GAS native contract: %v", err)
+	data, err := bc.dao.GetNativeContractState(gas.Hash)
+	if err != nil {
+		return err
 	}
-	if err := neo.Initialize(ic); err != nil {
-		return fmt.Errorf("can't initialize NEO native contract: %v", err)
+	if err = gas.InitFromStore(data); err != nil {
+		return err
+	}
+
+	data, err = bc.dao.GetNativeContractState(neo.Hash)
+	if err != nil {
+		return err
+	}
+	if err = neo.InitFromStore(data); err != nil {
+		return err
 	}
 
 	bc.contracts.SetGAS(gas)

@@ -8,8 +8,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
@@ -86,6 +88,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			&governingTokenTX,
 			&utilityTokenTX,
 			issueTx,
+			deployNativeContracts(),
 		},
 	}
 
@@ -94,6 +97,22 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	}
 
 	return b, nil
+}
+
+func deployNativeContracts() *transaction.Transaction {
+	buf := io.NewBufBinWriter()
+	emit.Syscall(buf.BinWriter, "Neo.Native.Deploy")
+	script := buf.Bytes()
+	tx := transaction.NewInvocationTX(script, 0)
+	tx.Nonce = 0
+	tx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	tx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: []byte{byte(opcode.PUSH1)},
+		},
+	}
+	return tx
 }
 
 func init() {

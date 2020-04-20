@@ -76,7 +76,7 @@ func NewNEO() *NEO {
 func (n *NEO) Initialize(ic *interop.Context) error {
 	data, err := ic.DAO.GetNativeContractState(n.Hash)
 	if err == nil {
-		return n.initFromStore(data)
+		return n.InitFromStore(data)
 	} else if err != storage.ErrKeyNotFound {
 		return err
 	}
@@ -101,7 +101,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 }
 
 // initFromStore initializes variable contract parameters from the store.
-func (n *NEO) initFromStore(data []byte) error {
+func (n *NEO) InitFromStore(data []byte) error {
 	n.totalSupply = *emit.BytesToInt(data)
 	return nil
 }

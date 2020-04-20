@@ -45,7 +45,7 @@ func NewGAS() *GAS {
 }
 
 // initFromStore initializes variable contract parameters from the store.
-func (g *GAS) initFromStore(data []byte) error {
+func (g *GAS) InitFromStore(data []byte) error {
 	g.totalSupply = *emit.BytesToInt(data)
 	return nil
 }
@@ -68,7 +68,7 @@ func (g *GAS) increaseBalance(_ *interop.Context, acc *state.Account, amount *bi
 func (g *GAS) Initialize(ic *interop.Context) error {
 	data, err := ic.DAO.GetNativeContractState(g.Hash)
 	if err == nil {
-		return g.initFromStore(data)
+		return g.InitFromStore(data)
 	} else if err != storage.ErrKeyNotFound {
 		return err
 	}
