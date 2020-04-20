@@ -517,18 +517,18 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	}
 	tx.ValidUntilBlock = validUntilBlock
 
+	addr, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return txHash, errors.Wrap(err, "failed to get address")
+	}
+	tx.Sender = addr
+
 	gas := sysfee + netfee
 
 	if gas > 0 {
 		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
 			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
 		}
-	} else {
-		addr, err := address.StringToUint160(acc.Address)
-		if err != nil {
-			return txHash, errors.Wrap(err, "failed to get address")
-		}
-		tx.AddVerificationHash(addr)
 	}
 
 	if err = acc.SignTx(tx); err != nil {

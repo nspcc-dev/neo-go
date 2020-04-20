@@ -33,6 +33,9 @@ type Transaction struct {
 	// Random number to avoid hash collision.
 	Nonce uint32
 
+	// Address signed the transaction.
+	Sender util.Uint160
+
 	// Maximum blockchain height exceeding which
 	// transaction should fail verification.
 	ValidUntilBlock uint32
@@ -118,6 +121,8 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Type = TXType(br.ReadB())
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
+	br.ReadBytes(t.Sender[:])
+
 	t.ValidUntilBlock = br.ReadU32LE()
 	t.decodeData(br)
 
@@ -187,6 +192,7 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
+	bw.WriteBytes(t.Sender[:])
 	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.
@@ -268,6 +274,7 @@ type transactionJSON struct {
 	Type            TXType       `json:"type"`
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`
+	Sender          string       `json:"sender"`
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
 	Inputs          []Input      `json:"vin"`
@@ -290,6 +297,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Type:            t.Type,
 		Version:         t.Version,
 		Nonce:           t.Nonce,
+		Sender:          address.Uint160ToString(t.Sender),
 		ValidUntilBlock: t.ValidUntilBlock,
 		Attributes:      t.Attributes,
 		Inputs:          t.Inputs,
@@ -334,6 +342,11 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Inputs = tx.Inputs
 	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts
+	sender, err := address.StringToUint160(tx.Sender)
+	if err != nil {
+		return errors.New("cannot unmarshal tx: bad sender")
+	}
+	t.Sender = sender
 	switch tx.Type {
 	case MinerType:
 		t.Data = &MinerTX{}

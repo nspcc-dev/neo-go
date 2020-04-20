@@ -59,10 +59,12 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	scriptOut := hash.Hash160(rawScript)
 
 	minerTx := transaction.NewMinerTXWithNonce(2083236893)
+	minerTx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 
 	issueTx := transaction.NewIssueTX()
 	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
 	issueTx.Nonce = 0
+	issueTx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 	issueTx.Outputs = []transaction.Output{
 		{
 			AssetID:    governingTokenTX.Hash(),
@@ -107,6 +109,7 @@ func init() {
 	governingTokenTX = *transaction.NewRegisterTX(registerTX)
 	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
 	governingTokenTX.Nonce = 0
+	governingTokenTX.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 
 	admin = hash.Hash160([]byte{byte(opcode.PUSHF)})
 	registerTX = &transaction.RegisterTX{
@@ -119,6 +122,7 @@ func init() {
 	utilityTokenTX = *transaction.NewRegisterTX(registerTX)
 	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
 	utilityTokenTX.Nonce = 0
+	utilityTokenTX.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 }
 
 // GoverningTokenID returns the governing token (NEO) hash.

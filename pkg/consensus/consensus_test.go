@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -25,6 +26,8 @@ func TestNewService(t *testing.T) {
 	srv := newTestService(t)
 	tx := transaction.NewMinerTX()
 	tx.ValidUntilBlock = 1
+	addSender(t, tx)
+	signTx(t, tx)
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
@@ -42,6 +45,8 @@ func TestService_GetVerified(t *testing.T) {
 		tx.ValidUntilBlock = 1
 		txs = append(txs, tx)
 	}
+	addSender(t, txs...)
+	signTx(t, txs...)
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
@@ -116,6 +121,8 @@ func TestService_getTx(t *testing.T) {
 	t.Run("transaction in mempool", func(t *testing.T) {
 		tx := transaction.NewMinerTXWithNonce(1234)
 		tx.ValidUntilBlock = 1
+		addSender(t, tx)
+		signTx(t, tx)
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))
@@ -259,3 +266,38 @@ func (fs *feer) NetworkFee(*transaction.Transaction) util.Fixed8 { return util.F
 func (fs *feer) IsLowPriority(util.Fixed8) bool                  { return false }
 func (fs *feer) FeePerByte(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
 func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.Fixed8(0) }
+
+func addSender(t *testing.T, txs ...*transaction.Transaction) {
+	// multisig address which possess all NEO
+	scriptHash, err := util.Uint160DecodeStringBE("d60ac443bb800fb08261e75fa5925d747d485861")
+	require.NoError(t, err)
+	for _, tx := range txs {
+		tx.Sender = scriptHash
+	}
+}
+
+func signTx(t *testing.T, txs ...*transaction.Transaction) {
+	validators := make([]*keys.PublicKey, 4)
+	privNetKeys := make([]*keys.PrivateKey, 4)
+	for i := 0; i < 4; i++ {
+		privateKey, publicKey := getTestValidator(i)
+		validators[i] = publicKey.PublicKey
+		privNetKeys[i] = privateKey.PrivateKey
+	}
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(3, validators)
+	require.NoError(t, err)
+	for _, tx := range txs {
+		data := tx.GetSignedPart()
+
+		var invoc []byte
+		for _, key := range privNetKeys {
+			signature := key.Sign(data)
+			invoc = append(invoc, append([]byte{byte(opcode.PUSHBYTES64)}, signature...)...)
+		}
+
+		tx.Scripts = []transaction.Witness{{
+			InvocationScript:   invoc,
+			VerificationScript: rawScript,
+		}}
+	}
+}

@@ -269,6 +269,7 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	tx.ValidUntilBlock = validUntilBlock
+	tx.Sender = scriptHash
 
 	tx.AddOutput(&transaction.Output{
 		AssetID:    core.UtilityTokenID(),
@@ -523,6 +524,7 @@ func transferAsset(ctx *cli.Context) error {
 	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	tx.Sender = from
 
 	toFlag := ctx.Generic("to").(*flags.Address)
 	if !toFlag.IsSet {
