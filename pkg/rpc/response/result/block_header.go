@@ -20,7 +20,7 @@ type (
 		Version       uint32              `json:"version"`
 		PrevBlockHash util.Uint256        `json:"previousblockhash"`
 		MerkleRoot    util.Uint256        `json:"merkleroot"`
-		Timestamp     uint32              `json:"time"`
+		Timestamp     uint64              `json:"time"`
 		Index         uint32              `json:"index"`
 		Nonce         string              `json:"nonce"`
 		NextConsensus string              `json:"nextconsensus"`

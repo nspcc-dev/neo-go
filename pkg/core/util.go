@@ -41,7 +41,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	base := block.Base{
 		Version:       0,
 		PrevHash:      util.Uint256{},
-		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
+		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
 		ConsensusData: 2083236893,
 		NextConsensus: nextConsensus,

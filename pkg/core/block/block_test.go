@@ -71,7 +71,7 @@ func newDumbBlock() *Block {
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
-			Timestamp:     uint32(100500),
+			Timestamp:     100500,
 			Index:         1,
 			ConsensusData: 1111,
 			NextConsensus: hash.Hash160([]byte("a")),

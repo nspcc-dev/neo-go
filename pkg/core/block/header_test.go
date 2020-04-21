@@ -16,7 +16,7 @@ func TestHeaderEncodeDecode(t *testing.T) {
 		Version:       0,
 		PrevHash:      hash.Sha256([]byte("prevhash")),
 		MerkleRoot:    hash.Sha256([]byte("merkleroot")),
-		Timestamp:     uint32(time.Now().UTC().Unix()),
+		Timestamp:     uint64(time.Now().UTC().Unix()),
 		Index:         3445,
 		ConsensusData: 394949,
 		NextConsensus: util.Uint160{},

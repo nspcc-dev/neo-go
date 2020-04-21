@@ -20,7 +20,7 @@ type NEP5TransferLog struct {
 }
 
 // NEP5TransferSize is a size of a marshaled NEP5Transfer struct in bytes.
-const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 4 + util.Uint256Size
+const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 8 + util.Uint256Size
 
 // NEP5Transfer represents a single NEP5 Transfer event.
 type NEP5Transfer struct {
@@ -36,7 +36,7 @@ type NEP5Transfer struct {
 	// Block is a number of block when the event occured.
 	Block uint32
 	// Timestamp is the timestamp of the block where transfer occured.
-	Timestamp uint32
+	Timestamp uint64
 	// Tx is a hash the transaction.
 	Tx util.Uint256
 }
@@ -135,7 +135,7 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(t.From[:])
 	w.WriteBytes(t.To[:])
 	w.WriteU32LE(t.Block)
-	w.WriteU32LE(t.Timestamp)
+	w.WriteU64LE(t.Timestamp)
 	w.WriteU64LE(uint64(t.Amount))
 }
 
@@ -146,6 +146,6 @@ func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(t.From[:])
 	r.ReadBytes(t.To[:])
 	t.Block = r.ReadU32LE()
-	t.Timestamp = r.ReadU32LE()
+	t.Timestamp = r.ReadU64LE()
 	t.Amount = int64(r.ReadU64LE())
 }

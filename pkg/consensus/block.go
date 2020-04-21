@@ -74,10 +74,10 @@ func (n *neoBlock) MerkleRoot() util.Uint256 { return n.Block.MerkleRoot }
 func (n *neoBlock) SetMerkleRoot(r util.Uint256) { n.Block.MerkleRoot = r }
 
 // Timestamp implements block.Block interface.
-func (n *neoBlock) Timestamp() uint32 { return n.Block.Timestamp }
+func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp }
 
 // SetTimestamp implements block.Block interface.
-func (n *neoBlock) SetTimestamp(ts uint32) { n.Block.Timestamp = ts }
+func (n *neoBlock) SetTimestamp(ts uint64) { n.Block.Timestamp = ts }
 
 // Index implements block.Block interface.
 func (n *neoBlock) Index() uint32 { return n.Block.Index }

@@ -243,7 +243,7 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	const txCount = 3
 
 	req := &prepareRequest{
-		timestamp:         rand.Uint32(),
+		timestamp:         rand.Uint64(),
 		nonce:             rand.Uint64(),
 		transactionHashes: make([]util.Uint256, txCount),
 		minerTx:           *transaction.NewMinerTX(),

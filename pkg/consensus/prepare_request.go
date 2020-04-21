@@ -9,7 +9,7 @@ import (
 
 // prepareRequest represents dBFT prepareRequest message.
 type prepareRequest struct {
-	timestamp         uint32
+	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
 	minerTx           transaction.Transaction
@@ -20,7 +20,7 @@ var _ payload.PrepareRequest = (*prepareRequest)(nil)
 
 // EncodeBinary implements io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
-	w.WriteU32LE(p.timestamp)
+	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
@@ -29,7 +29,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
-	p.timestamp = r.ReadU32LE()
+	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
@@ -37,10 +37,10 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 }
 
 // Timestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) Timestamp() uint32 { return p.timestamp }
+func (p *prepareRequest) Timestamp() uint64 { return p.timestamp }
 
 // SetTimestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetTimestamp(ts uint32) { p.timestamp = ts }
+func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts }
 
 // Nonce implements payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }

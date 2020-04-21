@@ -35,7 +35,7 @@ type NEP5Transfers struct {
 
 // NEP5Transfer represents single NEP5 transfer event.
 type NEP5Transfer struct {
-	Timestamp   uint32       `json:"timestamp"`
+	Timestamp   uint64       `json:"timestamp"`
 	Asset       util.Uint160 `json:"asset_hash"`
 	Address     string       `json:"transfer_address,omitempty"`
 	Amount      string       `json:"amount"`

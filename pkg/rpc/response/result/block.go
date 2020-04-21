@@ -36,7 +36,7 @@ type (
 		NextBlockHash     *util.Uint256 `json:"nextblockhash,omitempty"`
 		PreviousBlockHash util.Uint256  `json:"previousblockhash"`
 		MerkleRoot        util.Uint256  `json:"merkleroot"`
-		Time              uint32        `json:"time"`
+		Time              uint64        `json:"time"`
 		Index             uint32        `json:"index"`
 		Nonce             string        `json:"nonce"`
 		NextConsensus     string        `json:"nextconsensus"`
