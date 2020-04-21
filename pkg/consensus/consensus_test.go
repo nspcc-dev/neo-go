@@ -240,11 +240,11 @@ func (fs *feer) IsLowPriority(util.Fixed8) bool                  { return false 
 func (fs *feer) FeePerByte(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
 func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.Fixed8(0) }
 
+var neoOwner = testchain.MultisigScriptHash()
+
 func addSender(t *testing.T, txs ...*transaction.Transaction) {
-	// multisig address which possess all NEO
-	scriptHash := testchain.MultisigScriptHash()
 	for _, tx := range txs {
-		tx.Sender = scriptHash
+		tx.Sender = neoOwner
 	}
 }
 

@@ -29,7 +29,7 @@ import (
 )
 
 // multisig address which possess all NEO
-var neoOwner = testchain.MultisigScriptHash().StringBE()
+var neoOwner = testchain.MultisigScriptHash()
 
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
@@ -211,9 +211,7 @@ func TestCreateBasicChain(t *testing.T) {
 		PrevIndex: 0,
 	})
 
-	scriptHash, err := util.Uint160DecodeStringBE(neoOwner)
-	require.NoError(t, err)
-	txMoveNeo.Sender = scriptHash
+	txMoveNeo.Sender = neoOwner
 
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
@@ -226,13 +224,13 @@ func TestCreateBasicChain(t *testing.T) {
 	txMoveNeo.AddOutput(&transaction.Output{
 		AssetID:    GoverningTokenID(),
 		Amount:     neoRemainder,
-		ScriptHash: scriptHash,
+		ScriptHash: neoOwner,
 		Position:   1,
 	})
 	txMoveNeo.Data = new(transaction.ContractTX)
 
 	minerTx := nextMinerTx(validUntilBlock)
-	minerTx.Sender = scriptHash
+	minerTx.Sender = neoOwner
 
 	require.NoError(t, signTx(bc, minerTx, txMoveNeo))
 	b := bc.newBlock(minerTx, txMoveNeo)
@@ -492,12 +490,8 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 }
 
 func addSender(txs ...*transaction.Transaction) error {
-	scriptHash, err := util.Uint160DecodeStringBE(neoOwner)
-	if err != nil {
-		return errors.Wrap(err, "can't add sender to tx")
-	}
 	for _, tx := range txs {
-		tx.Sender = scriptHash
+		tx.Sender = neoOwner
 	}
 	return nil
 }
