@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/bits"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -32,20 +33,31 @@ func Bool(w *io.BinWriter, ok bool) {
 	Opcode(w, opcode.PUSHF)
 }
 
+func padRight(s int, buf []byte) []byte {
+	l := len(buf)
+	buf = buf[:s]
+	if buf[l-1]&0x80 != 0 {
+		for i := l; i < s; i++ {
+			buf[i] = 0xFF
+		}
+	}
+	return buf
+}
+
 // Int emits a int type to the given buffer.
 func Int(w *io.BinWriter, i int64) {
 	switch {
 	case i == -1:
 		Opcode(w, opcode.PUSHM1)
-	case i == 0:
-		Opcode(w, opcode.PUSHF)
-	case i > 0 && i < 16:
+	case i >= 0 && i < 16:
 		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
 		Opcode(w, val)
 	default:
-		bInt := big.NewInt(i)
-		val := IntToBytes(bInt)
-		Bytes(w, val)
+		buf := intToBytes(big.NewInt(i), make([]byte, 0, 32))
+		// l != 0 becase of switch
+		padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
+		Opcode(w, opcode.PUSHINT8+opcode.Opcode(padSize))
+		w.WriteBytes(padRight(1<<padSize, buf))
 	}
 }
 
@@ -82,9 +94,6 @@ func Bytes(w *io.BinWriter, b []byte) {
 	var n = len(b)
 
 	switch {
-	case n <= int(opcode.PUSHBYTES75):
-		Instruction(w, opcode.Opcode(n), b)
-		return
 	case n < 0x100:
 		Instruction(w, opcode.PUSHDATA1, []byte{byte(n)})
 	case n < 0x10000:

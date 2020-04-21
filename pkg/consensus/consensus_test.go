@@ -11,9 +11,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -249,14 +250,14 @@ func signTx(t *testing.T, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		data := tx.GetSignedPart()
 
-		var invoc []byte
+		buf := io.NewBufBinWriter()
 		for _, key := range privNetKeys {
 			signature := key.Sign(data)
-			invoc = append(invoc, append([]byte{byte(opcode.PUSHBYTES64)}, signature...)...)
+			emit.Bytes(buf.BinWriter, signature)
 		}
 
 		tx.Scripts = []transaction.Witness{{
-			InvocationScript:   invoc,
+			InvocationScript:   buf.Bytes(),
 			VerificationScript: rawScript,
 		}}
 	}

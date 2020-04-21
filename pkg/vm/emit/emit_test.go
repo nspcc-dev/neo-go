@@ -35,20 +35,49 @@ func TestEmitInt(t *testing.T) {
 		assert.EqualValues(t, opcode.PUSH10, result[0])
 	})
 
+	t.Run("big 1-byte int", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Int(buf.BinWriter, 42)
+		result := buf.Bytes()
+		assert.EqualValues(t, opcode.PUSHINT8, result[0])
+		assert.EqualValues(t, 42, result[1])
+	})
+
 	t.Run("2-byte int", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
-		Int(buf.BinWriter, 100)
+		Int(buf.BinWriter, 300)
 		result := buf.Bytes()
-		assert.EqualValues(t, opcode.PUSHBYTES1, result[0])
-		assert.EqualValues(t, 100, result[1])
+		assert.Equal(t, 3, len(result))
+		assert.EqualValues(t, opcode.PUSHINT16, result[0])
+		assert.EqualValues(t, 300, BytesToInt(result[1:]).Int64())
+	})
+
+	t.Run("3-byte int", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		Int(buf.BinWriter, 1<<20)
+		result := buf.Bytes()
+		assert.Equal(t, 5, len(result))
+		assert.EqualValues(t, opcode.PUSHINT32, result[0])
+		assert.EqualValues(t, 1<<20, BytesToInt(result[1:]).Int64())
 	})
 
 	t.Run("4-byte int", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
-		Int(buf.BinWriter, 1000)
+		Int(buf.BinWriter, 1<<28)
 		result := buf.Bytes()
-		assert.EqualValues(t, opcode.PUSHBYTES2, result[0])
-		assert.EqualValues(t, 1000, binary.LittleEndian.Uint16(result[1:3]))
+		assert.Equal(t, 5, len(result))
+		assert.EqualValues(t, opcode.PUSHINT32, result[0])
+		assert.EqualValues(t, 1<<28, BytesToInt(result[1:]).Int64())
+	})
+
+	t.Run("negative 3-byte int with padding", func(t *testing.T) {
+		const num = -(1 << 23)
+		buf := io.NewBufBinWriter()
+		Int(buf.BinWriter, num)
+		result := buf.Bytes()
+		assert.Equal(t, 5, len(result))
+		assert.EqualValues(t, opcode.PUSHINT32, result[0])
+		assert.EqualValues(t, num, BytesToInt(result[1:]).Int64())
 	})
 }
 
@@ -67,8 +96,9 @@ func TestBytes(t *testing.T) {
 		Bytes(buf.BinWriter, []byte{0, 1, 2, 3})
 
 		result := buf.Bytes()
-		assert.EqualValues(t, opcode.PUSHBYTES4, result[0])
-		assert.EqualValues(t, []byte{0, 1, 2, 3}, result[1:])
+		assert.EqualValues(t, opcode.PUSHDATA1, result[0])
+		assert.EqualValues(t, 4, result[1])
+		assert.EqualValues(t, []byte{0, 1, 2, 3}, result[2:])
 	})
 
 	t.Run("slice with len <= 255", func(t *testing.T) {
@@ -115,19 +145,21 @@ func TestEmitArray(t *testing.T) {
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()
-		assert.EqualValues(t, opcode.PUSHBYTES2, res[0])
-		assert.EqualValues(t, []byte{0xCA, 0xFE}, res[1:3])
-		assert.EqualValues(t, opcode.PUSHT, res[3])
-		assert.EqualValues(t, opcode.PUSHBYTES3, res[4])
-		assert.EqualValues(t, []byte("str"), res[5:8])
-		assert.EqualValues(t, opcode.PUSH1, res[8])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[0])
+		assert.EqualValues(t, 2, res[1])
+		assert.EqualValues(t, []byte{0xCA, 0xFE}, res[2:4])
+		assert.EqualValues(t, opcode.PUSHT, res[4])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[5])
+		assert.EqualValues(t, 3, res[6])
+		assert.EqualValues(t, []byte("str"), res[7:10])
+		assert.EqualValues(t, opcode.PUSH1, res[10])
 	})
 
 	t.Run("empty", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		Array(buf.BinWriter)
 		require.NoError(t, buf.Err)
-		assert.EqualValues(t, []byte{0, byte(opcode.PACK)}, buf.Bytes())
+		assert.EqualValues(t, []byte{byte(opcode.PUSH0), byte(opcode.PACK)}, buf.Bytes())
 	})
 
 	t.Run("invalid type", func(t *testing.T) {
@@ -150,8 +182,8 @@ func TestEmitString(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	str := "City Of Zion"
 	String(buf.BinWriter, str)
-	assert.Equal(t, buf.Len(), len(str)+1)
-	assert.Equal(t, buf.Bytes()[1:], []byte(str))
+	assert.Equal(t, buf.Len(), len(str)+2)
+	assert.Equal(t, buf.Bytes()[2:], []byte(str))
 }
 
 func TestEmitSyscall(t *testing.T) {

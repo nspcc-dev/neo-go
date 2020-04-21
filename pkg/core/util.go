@@ -45,7 +45,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		NextConsensus: nextConsensus,
 		Script: transaction.Witness{
 			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(opcode.PUSHT)},
+			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
 		},
 	}
 
@@ -64,7 +64,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	issueTx := transaction.NewIssueTX()
 	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
 	issueTx.Nonce = 0
-	issueTx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	issueTx.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 	issueTx.Outputs = []transaction.Output{
 		{
 			AssetID:    governingTokenTX.Hash(),
@@ -75,7 +75,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	issueTx.Scripts = []transaction.Witness{
 		{
 			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(opcode.PUSHT)},
+			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
 		},
 	}
 
@@ -97,7 +97,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 }
 
 func init() {
-	admin := hash.Hash160([]byte{byte(opcode.PUSHT)})
+	admin := hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 	registerTX := &transaction.RegisterTX{
 		AssetType: transaction.GoverningToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
@@ -109,9 +109,9 @@ func init() {
 	governingTokenTX = *transaction.NewRegisterTX(registerTX)
 	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
 	governingTokenTX.Nonce = 0
-	governingTokenTX.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	governingTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 
-	admin = hash.Hash160([]byte{byte(opcode.PUSHF)})
+	admin = hash.Hash160([]byte{0x00})
 	registerTX = &transaction.RegisterTX{
 		AssetType: transaction.UtilityToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
@@ -122,7 +122,7 @@ func init() {
 	utilityTokenTX = *transaction.NewRegisterTX(registerTX)
 	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
 	utilityTokenTX.Nonce = 0
-	utilityTokenTX.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	utilityTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 }
 
 // GoverningTokenID returns the governing token (NEO) hash.

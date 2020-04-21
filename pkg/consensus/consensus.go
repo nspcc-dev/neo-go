@@ -16,9 +16,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -394,17 +395,16 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 
 	sort.Sort(keys.PublicKeys(pubs))
 
-	var invoc []byte
+	buf := io.NewBufBinWriter()
 	for i, j := 0, 0; i < len(pubs) && j < m; i++ {
 		if sig, ok := sigs[pubs[i]]; ok {
-			invoc = append(invoc, byte(opcode.PUSHBYTES64))
-			invoc = append(invoc, sig...)
+			emit.Bytes(buf.BinWriter, sig)
 			j++
 		}
 	}
 
 	return &transaction.Witness{
-		InvocationScript:   invoc,
+		InvocationScript:   buf.Bytes(),
 		VerificationScript: verif,
 	}
 }

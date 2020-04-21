@@ -15,16 +15,15 @@ var (
 func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 	var nthings int
 
-	switch instr {
-	case opcode.PUSH1, opcode.PUSH2, opcode.PUSH3, opcode.PUSH4,
-		opcode.PUSH5, opcode.PUSH6, opcode.PUSH7, opcode.PUSH8,
-		opcode.PUSH9, opcode.PUSH10, opcode.PUSH11, opcode.PUSH12,
-		opcode.PUSH13, opcode.PUSH14, opcode.PUSH15, opcode.PUSH16:
+	switch {
+	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
 		nthings = int(instr-opcode.PUSH1) + 1
-	case opcode.PUSHBYTES1:
-		nthings = int(param[0])
-	case opcode.PUSHBYTES2:
-		nthings = int(binary.LittleEndian.Uint16(param))
+	case instr <= opcode.PUSHINT256:
+		n := emit.BytesToInt(param)
+		if !n.IsInt64() || n.Int64() > MaxArraySize {
+			return 0, false
+		}
+		nthings = int(n.Int64())
 	default:
 		return 0, false
 	}

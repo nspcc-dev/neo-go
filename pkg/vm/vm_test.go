@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -138,13 +139,6 @@ func TestPushBytes1to75(t *testing.T) {
 	}
 }
 
-func TestPushBytesNoParam(t *testing.T) {
-	prog := make([]byte, 1)
-	prog[0] = byte(opcode.PUSHBYTES1)
-	vm := load(prog)
-	checkVMFailed(t, vm)
-}
-
 func runVM(t *testing.T, vm *VM) {
 	err := vm.Run()
 	require.NoError(t, err)
@@ -177,6 +171,24 @@ func TestStackLimitPUSH1Bad(t *testing.T) {
 	}
 	v := load(prog)
 	checkVMFailed(t, v)
+}
+
+func testPUSHINT(t *testing.T, op opcode.Opcode, parameter []byte, expected *big.Int) {
+	prog := append([]byte{byte(op)}, parameter...)
+	v := load(prog)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.EqualValues(t, expected, v.estack.Pop().BigInt())
+}
+
+func TestPUSHINT(t *testing.T) {
+	for i := byte(0); i < 5; i++ {
+		op := opcode.PUSHINT8 + opcode.Opcode(i)
+		t.Run(op.String(), func(t *testing.T) {
+			buf := random.Bytes((8 << i) / 8)
+			testPUSHINT(t, op, buf, emit.BytesToInt(buf))
+		})
+	}
 }
 
 func TestPUSHNULL(t *testing.T) {
@@ -220,7 +232,7 @@ func appendBigStruct(size uint16) []opcode.Opcode {
 	}
 
 	return append(prog,
-		opcode.PUSHBYTES2, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
+		opcode.PUSHINT16, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
 		opcode.PACK, opcode.NEWSTRUCT,
 		opcode.DUP,
 		opcode.PUSH0, opcode.NEWARRAY, opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
@@ -277,13 +289,6 @@ func TestStackLimit(t *testing.T) {
 	}
 }
 
-func TestPushBytesShort(t *testing.T) {
-	prog := make([]byte, 10)
-	prog[0] = byte(opcode.PUSHBYTES10) // but only 9 left in the `prog`
-	vm := load(prog)
-	checkVMFailed(t, vm)
-}
-
 func TestPushm1to16(t *testing.T) {
 	var prog []byte
 	for i := int(opcode.PUSHM1); i <= int(opcode.PUSH16); i++ {
@@ -295,14 +300,10 @@ func TestPushm1to16(t *testing.T) {
 
 	vm := load(prog)
 	for i := int(opcode.PUSHM1); i <= int(opcode.PUSH16); i++ {
-		if i == 80 {
-			continue // nice opcode layout we got here.
-		}
 		err := vm.Step()
 		require.NoError(t, err)
 
 		elem := vm.estack.Pop()
-		assert.IsType(t, &BigIntegerItem{}, elem.value)
 		val := i - int(opcode.PUSH1) + 1
 		assert.Equal(t, elem.BigInt().Int64(), int64(val))
 	}
@@ -716,7 +717,7 @@ func TestSerializeInterop(t *testing.T) {
 
 func callNTimes(n uint16) []byte {
 	return makeProgram(
-		opcode.PUSHBYTES2, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
+		opcode.PUSHINT16, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
 		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
 		opcode.JMPIF, 0x4, 0, opcode.RET,
 		opcode.FROMALTSTACK, opcode.DEC,
@@ -1391,7 +1392,7 @@ func TestPICKITEMDupArray(t *testing.T) {
 }
 
 func TestPICKITEMDupMap(t *testing.T) {
-	prog := makeProgram(opcode.DUP, opcode.PUSHBYTES1, 42, opcode.PICKITEM, opcode.ABS)
+	prog := makeProgram(opcode.DUP, opcode.PUSHINT8, 42, opcode.PICKITEM, opcode.ABS)
 	vm := load(prog)
 	m := NewMapItem()
 	m.Add(makeStackItem([]byte{42}), makeStackItem(-1))
@@ -2036,12 +2037,12 @@ func TestOVERgood(t *testing.T) {
 }
 
 func TestOVERDup(t *testing.T) {
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
 		opcode.PUSH1,
 		opcode.OVER,
 		opcode.PUSH1,
 		opcode.LEFT,
-		opcode.PUSHBYTES1, 2,
+		opcode.PUSHDATA1, 1, 2,
 		opcode.CAT)
 	vm := load(prog)
 	runVM(t, vm)
@@ -2679,11 +2680,11 @@ func TestDupInt(t *testing.T) {
 }
 
 func TestDupByteArray(t *testing.T) {
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
 		opcode.DUP,
 		opcode.PUSH1,
 		opcode.LEFT,
-		opcode.PUSHBYTES1, 2,
+		opcode.PUSHDATA1, 1, 2,
 		opcode.CAT)
 	vm := load(prog)
 	runVM(t, vm)
@@ -2707,7 +2708,7 @@ func TestDupBool(t *testing.T) {
 func TestSHA1(t *testing.T) {
 	// 0x0100 hashes to 0e356ba505631fbf715758bed27d503f8b260e3a
 	res := "0e356ba505631fbf715758bed27d503f8b260e3a"
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
 		opcode.SHA1)
 	vm := load(prog)
 	runVM(t, vm)
@@ -2718,7 +2719,7 @@ func TestSHA1(t *testing.T) {
 func TestSHA256(t *testing.T) {
 	// 0x0100 hashes to 47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254
 	res := "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"
-	prog := makeProgram(opcode.PUSHBYTES2, 1, 0,
+	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
 		opcode.SHA256)
 	vm := load(prog)
 	runVM(t, vm)

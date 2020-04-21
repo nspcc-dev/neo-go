@@ -135,7 +135,7 @@ func (a *Account) SignTx(t *transaction.Transaction) error {
 	sign := a.privateKey.Sign(data)
 
 	t.Scripts = append(t.Scripts, transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHBYTES64)}, sign...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sign...),
 		VerificationScript: a.getVerificationScript(),
 	})
 

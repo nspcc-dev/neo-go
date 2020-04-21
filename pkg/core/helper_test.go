@@ -71,7 +71,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	}
 	_ = b.RebuildMerkleRoot()
 
-	invScript := make([]byte, 0)
+	buf := io.NewBufBinWriter()
 	for i := 0; i < testchain.Size(); i++ {
 		pKey := testchain.PrivateKey(i)
 		b := b.GetSignedPart()
@@ -79,10 +79,9 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		if len(sig) != 64 {
 			panic("wrong signature length")
 		}
-		invScript = append(invScript, byte(opcode.PUSHBYTES64))
-		invScript = append(invScript, sig...)
+		emit.Bytes(buf.BinWriter, sig)
 	}
-	b.Script.InvocationScript = invScript
+	b.Script.InvocationScript = buf.Bytes()
 	return b
 }
 
@@ -159,7 +158,9 @@ func newDumbBlock() *block.Block {
 
 func getInvocationScript(data []byte, priv *keys.PrivateKey) []byte {
 	signature := priv.Sign(data)
-	return append([]byte{byte(opcode.PUSHBYTES64)}, signature...)
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, signature)
+	return buf.Bytes()
 }
 
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data
