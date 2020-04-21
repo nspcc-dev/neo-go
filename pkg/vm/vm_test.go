@@ -1794,12 +1794,17 @@ func TestAppCallDynamicGood(t *testing.T) {
 }
 
 func TestSimpleCall(t *testing.T) {
-	progStr := "52c56b525a7c616516006c766b00527ac46203006c766b00c3616c756653c56b6c766b00527ac46c766b51527ac46203006c766b00c36c766b51c393616c7566"
-	result := 12
+	buf := io.NewBufBinWriter()
+	w := buf.BinWriter
+	emit.Opcode(w, opcode.PUSH2)
+	emit.Instruction(w, opcode.CALL, []byte{04, 00})
+	emit.Opcode(w, opcode.RET)
+	emit.Opcode(w, opcode.PUSH10)
+	emit.Opcode(w, opcode.ADD)
+	emit.Opcode(w, opcode.RET)
 
-	prog, err := hex.DecodeString(progStr)
-	require.NoError(t, err)
-	vm := load(prog)
+	result := 12
+	vm := load(buf.Bytes())
 	runVM(t, vm)
 	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
 }
