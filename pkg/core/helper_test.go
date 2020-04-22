@@ -203,6 +203,7 @@ func TestCreateBasicChain(t *testing.T) {
 	var neoAmount = util.Fixed8FromInt64(99999000)
 	var neoRemainder = util.Fixed8FromInt64(100000000) - neoAmount
 	bc := newTestChain(t)
+	defer bc.Close()
 
 	// Move almost all NEO to one simple account.
 	txMoveNeo := transaction.NewContractTX()
