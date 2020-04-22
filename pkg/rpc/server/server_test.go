@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -967,7 +966,6 @@ func TestRPC(t *testing.T) {
 				MerkleRoot:    hdr.MerkleRoot,
 				Timestamp:     hdr.Timestamp,
 				Index:         hdr.Index,
-				Nonce:         strconv.FormatUint(hdr.ConsensusData, 16),
 				NextConsensus: address.Uint160ToString(hdr.NextConsensus),
 				Script:        hdr.Script,
 				Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
@@ -1051,9 +1049,12 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*
 			PrevHash:      hdr.Hash(),
 			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
 			Index:         hdr.Index + index,
-			ConsensusData: 1111,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        1111,
 		},
 		Transactions: txs,
 	}

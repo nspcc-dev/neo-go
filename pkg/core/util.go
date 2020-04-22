@@ -43,7 +43,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		PrevHash:      util.Uint256{},
 		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
-		ConsensusData: 2083236893,
 		NextConsensus: nextConsensus,
 		Script: transaction.Witness{
 			InvocationScript:   []byte{},
@@ -89,6 +88,10 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			&utilityTokenTX,
 			issueTx,
 			deployNativeContracts(),
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        2083236893,
 		},
 	}
 

@@ -29,9 +29,6 @@ type Base struct {
 	// index/height of the block
 	Index uint32 `json:"height"`
 
-	// Random number also called nonce
-	ConsensusData uint64 `json:"nonce"`
-
 	// Contract address of the next miner
 	NextConsensus util.Uint160 `json:"next_consensus"`
 
@@ -120,7 +117,6 @@ func (b *Base) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteBytes(b.MerkleRoot[:])
 	bw.WriteU64LE(b.Timestamp)
 	bw.WriteU32LE(b.Index)
-	bw.WriteU64LE(b.ConsensusData)
 	bw.WriteBytes(b.NextConsensus[:])
 }
 
@@ -132,7 +128,6 @@ func (b *Base) decodeHashableFields(br *io.BinReader) {
 	br.ReadBytes(b.MerkleRoot[:])
 	b.Timestamp = br.ReadU64LE()
 	b.Index = br.ReadU32LE()
-	b.ConsensusData = br.ReadU64LE()
 	br.ReadBytes(b.NextConsensus[:])
 
 	// Make the hash of the block here so we dont need to do this

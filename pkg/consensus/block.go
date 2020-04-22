@@ -86,10 +86,10 @@ func (n *neoBlock) Index() uint32 { return n.Block.Index }
 func (n *neoBlock) SetIndex(i uint32) { n.Block.Index = i }
 
 // ConsensusData implements block.Block interface.
-func (n *neoBlock) ConsensusData() uint64 { return n.Block.ConsensusData }
+func (n *neoBlock) ConsensusData() uint64 { return n.Block.ConsensusData.Nonce }
 
 // SetConsensusData implements block.Block interface.
-func (n *neoBlock) SetConsensusData(nonce uint64) { n.Block.ConsensusData = nonce }
+func (n *neoBlock) SetConsensusData(nonce uint64) { n.Block.ConsensusData.Nonce = nonce }
 
 // NextConsensus implements block.Block interface.
 func (n *neoBlock) NextConsensus() util.Uint160 { return n.Block.NextConsensus }

@@ -73,12 +73,15 @@ func newDumbBlock() *Block {
 			MerkleRoot:    hash.Sha256([]byte("b")),
 			Timestamp:     100500,
 			Index:         1,
-			ConsensusData: 1111,
 			NextConsensus: hash.Hash160([]byte("a")),
 			Script: transaction.Witness{
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},
+		},
+		ConsensusData: ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
 			transaction.NewMinerTX(),

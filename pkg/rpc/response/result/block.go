@@ -27,6 +27,12 @@ type (
 		NetFee util.Fixed8 `json:"net_fee"`
 	}
 
+	// ConsensusData is a wrapper for block.ConsensusData
+	ConsensusData struct {
+		PrimaryIndex uint32 `json:"primary"`
+		Nonce        string `json:"nonce"`
+	}
+
 	// Block wrapper used for the representation of
 	// block.Block / block.Base on the RPC Server.
 	Block struct {
@@ -38,7 +44,7 @@ type (
 		MerkleRoot        util.Uint256  `json:"merkleroot"`
 		Time              uint64        `json:"time"`
 		Index             uint32        `json:"index"`
-		Nonce             string        `json:"nonce"`
+		ConsensusData     ConsensusData `json:"consensus_data"`
 		NextConsensus     string        `json:"nextconsensus"`
 
 		Confirmations uint32 `json:"confirmations"`
@@ -59,9 +65,12 @@ func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 		MerkleRoot:        b.MerkleRoot,
 		Time:              b.Timestamp,
 		Index:             b.Index,
-		Nonce:             fmt.Sprintf("%016x", b.ConsensusData),
-		NextConsensus:     address.Uint160ToString(b.NextConsensus),
-		Confirmations:     chain.BlockHeight() - b.Index - 1,
+		ConsensusData: ConsensusData{
+			PrimaryIndex: b.ConsensusData.PrimaryIndex,
+			Nonce:        fmt.Sprintf("%016x", b.ConsensusData.Nonce),
+		},
+		NextConsensus: address.Uint160ToString(b.NextConsensus),
+		Confirmations: chain.BlockHeight() - b.Index - 1,
 
 		Script: b.Script,
 

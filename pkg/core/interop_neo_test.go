@@ -136,16 +136,6 @@ func TestHeaderGetVersion_Negative(t *testing.T) {
 	require.Errorf(t, err, "value is not a header or block")
 }
 
-func TestHeaderGetConsensusData(t *testing.T) {
-	v, block, context, chain := createVMAndPushBlock(t)
-	defer chain.Close()
-
-	err := headerGetConsensusData(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().(*big.Int)
-	require.Equal(t, block.ConsensusData, value.Uint64())
-}
-
 func TestHeaderGetMerkleRoot(t *testing.T) {
 	v, block, context, chain := createVMAndPushBlock(t)
 	defer chain.Close()
