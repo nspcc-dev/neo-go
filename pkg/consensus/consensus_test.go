@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -216,35 +217,7 @@ func TestExport(t *testing.T) {
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {
-	var wif, password string
-
-	// Sorted by public key.
-	switch i {
-	case 0:
-		wif = "6PYXPEFeBxeDjqMiwRrSe81LnpL1cpw1WSwENJY1p4NtgSbfZPaUFy8Kkg"
-		password = "two"
-
-	case 1:
-		wif = "6PYWscJHQ76uctwuM7GRcAp6xfGjdYDKnbMtMnT6hcXxcNn7CywbQmvfSy"
-		password = "four"
-
-	case 2:
-		wif = "6PYKYQKRs758NBX4q5k6fSmduZDfEfQyoXMovQU5myKm2h5ArXuYpuMEaN"
-		password = "one"
-
-	case 3:
-		wif = "6PYRHjZrvxYqrHLpXz1aP6dBnrFkkxQMCdYsJi7YDPoQnQddvRuTzKGxME"
-		password = "three"
-
-	default:
-		return nil, nil
-	}
-
-	key, err := keys.NEP2Decrypt(wif, password)
-	if err != nil {
-		return nil, nil
-	}
-
+	key := testchain.PrivateKey(i)
 	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
 }
 
@@ -269,8 +242,7 @@ func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.F
 
 func addSender(t *testing.T, txs ...*transaction.Transaction) {
 	// multisig address which possess all NEO
-	scriptHash, err := util.Uint160DecodeStringBE("d60ac443bb800fb08261e75fa5925d747d485861")
-	require.NoError(t, err)
+	scriptHash := testchain.MultisigScriptHash()
 	for _, tx := range txs {
 		tx.Sender = scriptHash
 	}

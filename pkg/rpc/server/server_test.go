@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -86,7 +87,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getaccountstate": {
 		{
 			name:   "positive",
-			params: `["AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6"]`,
+			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(e *executor) interface{} { return &result.AccountState{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.AccountState)
@@ -160,12 +161,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive",
-			params: `["c4bba7ed4e624d038b844d6b6ff24518e7db0165"]`,
+			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.NEP5Balances)
 				require.True(t, ok)
-				require.Equal(t, "AQyx83BYr1PkyYhZhUAogaHdhkLVHn6htY", res.Address)
+				require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
 				require.Equal(t, 1, len(res.Balances))
 				require.Equal(t, "8.77", res.Balances[0].Amount)
 				require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
@@ -186,12 +187,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive",
-			params: `["AQyx83BYr1PkyYhZhUAogaHdhkLVHn6htY"]`,
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.NEP5Transfers)
 				require.True(t, ok)
-				require.Equal(t, "AQyx83BYr1PkyYhZhUAogaHdhkLVHn6htY", res.Address)
+				require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
 
 				assetHash, err := util.Uint160DecodeStringLE(testContractHash)
 				require.NoError(t, err)
@@ -204,7 +205,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.Equal(t, 1, len(res.Sent))
 				require.Equal(t, "1.23", res.Sent[0].Amount)
 				require.Equal(t, assetHash, res.Sent[0].Asset)
-				require.Equal(t, "AdB6ayKfBRJZasiXX4JL5N2YtmxftNp1b3", res.Sent[0].Address)
+				require.Equal(t, testchain.PrivateKeyByID(1).Address(), res.Sent[0].Address)
 			},
 		},
 	},
@@ -515,7 +516,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "normal address",
-			params: `["AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6"]`,
+			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
 				// hash of the issueTx
 				h, _ := util.Uint256DecodeStringBE("4cccf8f1a4cfa9ebd9344c312f8220199ee9000f14cb951f677601d208aa5af0")
@@ -530,7 +531,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Unclaimed: amount,
 						},
 					},
-					Address:   "AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6",
+					Address:   testchain.MultisigAddress(),
 					Unclaimed: amount,
 				}
 			},
@@ -612,7 +613,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive",
-			params: `["AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6"]`,
+			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
 				return &result.Unclaimed{}
 			},
@@ -628,7 +629,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getunspents": {
 		{
 			name:   "positive",
-			params: `["AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6"]`,
+			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(e *executor) interface{} { return &result.Unspents{} },
 			check: func(t *testing.T, e *executor, unsp interface{}) {
 				res, ok := unsp.(*result.Unspents)
@@ -973,7 +974,7 @@ func TestRPC(t *testing.T) {
 		assert.Equal(t, 0, txOut.N)
 		assert.Equal(t, "0xf5bc5a9ac7b85a47be381260a06b5a1e7a667ce8f7d7c8baa5cfc6465571377a", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
-		assert.Equal(t, "AbHd9dXYUryuCvMgXRUfdR6zC2CJixS6Q6", txOut.Address)
+		assert.Equal(t, testchain.MultisigAddress(), txOut.Address)
 	})
 
 	t.Run("getrawmempool", func(t *testing.T) {
