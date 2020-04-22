@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/dbft/block"
@@ -11,9 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -206,14 +202,6 @@ func newTestService(t *testing.T) *service {
 	require.NoError(t, err)
 
 	return srv.(*service)
-}
-
-func TestExport(t *testing.T) {
-	_, pub := getTestValidator(3)
-	s, _ := smartcontract.CreateMultiSigRedeemScript(1, keys.PublicKeys{pub.PublicKey})
-	fmt.Println(hex.EncodeToString(s))
-	u := hash.Hash160(s)
-	fmt.Println(address.Uint160ToString(u))
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {
