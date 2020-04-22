@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -27,15 +28,8 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-var privNetKeys = []string{
-	"KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY",
-	"KzfPUYDC9n2yf4fK5ro4C8KMcdeXtFuEnStycbZgX3GomiUsvX6W",
-	"KzgWE3u3EDp13XPXXuTKZxeJ3Gi8Bsm8f9ijY3ZsCKKRvZUo1Cdn",
-	"L2oEXKRAAMiPEZukwR5ho2S6SMeQLhcK9mF71ZnF7GvT8dU4Kkgz",
-}
-
 // multisig address which possess all NEO
-var neoOwner = "d60ac443bb800fb08261e75fa5925d747d485861"
+var neoOwner = testchain.MultisigScriptHash().StringBE()
 
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
@@ -78,11 +72,8 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	_ = b.RebuildMerkleRoot()
 
 	invScript := make([]byte, 0)
-	for _, wif := range privNetKeys {
-		pKey, err := keys.NewPrivateKeyFromWIF(wif)
-		if err != nil {
-			panic(err)
-		}
+	for i := 0; i < testchain.Size(); i++ {
+		pKey := testchain.PrivateKey(i)
 		b := b.GetSignedPart()
 		sig := pKey.Sign(b)
 		if len(sig) != 64 {
@@ -224,8 +215,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 	txMoveNeo.Sender = scriptHash
 
-	priv0, err := keys.NewPrivateKeyFromWIF(privNetKeys[0])
-	require.NoError(t, err)
+	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 	txMoveNeo.AddOutput(&transaction.Output{
 		AssetID:    GoverningTokenID(),
@@ -375,8 +365,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
-	priv1, err := keys.NewPrivateKeyFromWIF(privNetKeys[1])
-	require.NoError(t, err)
+	priv1 := testchain.PrivateKeyByID(1)
 	txNeo0to1 := transaction.NewContractTX()
 	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.ValidUntilBlock = validUntilBlock
@@ -526,11 +515,8 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 		data := tx.GetSignedPart()
 
 		var invoc []byte
-		for i := range privNetKeys {
-			priv, err := keys.NewPrivateKeyFromWIF(privNetKeys[i])
-			if err != nil {
-				return err
-			}
+		for i := 0; i < testchain.Size(); i++ {
+			priv := testchain.PrivateKey(i)
 			invoc = append(invoc, getInvocationScript(data, priv)...)
 		}
 
