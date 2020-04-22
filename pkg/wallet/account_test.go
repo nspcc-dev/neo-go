@@ -90,7 +90,7 @@ func TestContract_ScriptHash(t *testing.T) {
 
 func TestAccount_ConvertMultisig(t *testing.T) {
 	// test is based on a wallet1_solo.json accounts from neo-local
-	a, err := NewAccountFromEncryptedWIF("6PYKYQKRs758NBX4q5k6fSmduZDfEfQyoXMovQU5myKm2h5ArXuYpuMEaN", "one")
+	a, err := NewAccountFromWIF("KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY")
 	require.NoError(t, err)
 
 	hexs := []string{
