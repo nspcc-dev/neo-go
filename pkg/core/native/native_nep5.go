@@ -10,28 +10,31 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // nep5TokenNative represents NEP-5 token contract.
 type nep5TokenNative struct {
-	ContractMD
-	name        string
-	symbol      string
-	decimals    int64
-	factor      int64
-	totalSupply big.Int
-	onPersist   func(*interop.Context) error
-	incBalance  func(*interop.Context, *state.Account, *big.Int) error
+	interop.ContractMD
+	name       string
+	symbol     string
+	decimals   int64
+	factor     int64
+	onPersist  func(*interop.Context) error
+	incBalance func(*interop.Context, *state.Account, *big.Int) error
 }
 
-func (c *nep5TokenNative) Metadata() *ContractMD {
+// totalSupplyKey is the key used to store totalSupply value.
+var totalSupplyKey = []byte{11}
+
+func (c *nep5TokenNative) Metadata() *interop.ContractMD {
 	return &c.ContractMD
 }
 
-var _ Contract = (*nep5TokenNative)(nil)
+var _ interop.Contract = (*nep5TokenNative)(nil)
 
 func newNEP5Native(name string) *nep5TokenNative {
-	n := &nep5TokenNative{ContractMD: *NewContractMD(name)}
+	n := &nep5TokenNative{ContractMD: *interop.NewContractMD(name)}
 
 	desc := newDescriptor("name", smartcontract.StringType)
 	md := newMethodAndPrice(n.Name, 1, smartcontract.NoneFlag)
@@ -43,6 +46,10 @@ func newNEP5Native(name string) *nep5TokenNative {
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
 	md = newMethodAndPrice(n.Decimals, 1, smartcontract.NoneFlag)
+	n.AddMethod(md, desc, true)
+
+	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
@@ -63,7 +70,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 	return n
 }
 
-func (c *nep5TokenNative) Initialize() error {
+func (c *nep5TokenNative) Initialize(_ *interop.Context) error {
 	return nil
 }
 
@@ -77,6 +84,23 @@ func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []vm.StackItem) vm.StackI
 
 func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
 	return vm.NewBigIntegerItem(big.NewInt(c.decimals))
+}
+
+func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
+	return vm.NewBigIntegerItem(c.getTotalSupply(ic))
+}
+
+func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
+	si := ic.DAO.GetStorageItem(c.Hash, totalSupplyKey)
+	if si == nil {
+		return big.NewInt(0)
+	}
+	return emit.BytesToInt(si.Value)
+}
+
+func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
+	si := &state.StorageItem{Value: emit.IntToBytes(supply)}
+	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
 }
 
 func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.StackItem {
@@ -185,7 +209,12 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 		panic(err)
 	}
 
-	c.totalSupply.Add(&c.totalSupply, amount)
+	supply := c.getTotalSupply(ic)
+	supply.Add(supply, amount)
+	err = c.saveTotalSupply(ic, supply)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (c *nep5TokenNative) OnPersist(ic *interop.Context) error {
@@ -200,8 +229,8 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f Method, price int64, flags smartcontract.CallFlag) *MethodAndPrice {
-	return &MethodAndPrice{
+func newMethodAndPrice(f interop.Method, price int64, flags smartcontract.CallFlag) *interop.MethodAndPrice {
+	return &interop.MethodAndPrice{
 		Func:          f,
 		Price:         price,
 		RequiredFlags: flags,

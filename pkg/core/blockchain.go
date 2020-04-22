@@ -208,10 +208,6 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	if err = bc.registerNative(); err != nil {
-		return err
-	}
-
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
 		return err
@@ -269,34 +265,6 @@ func (bc *Blockchain) init() error {
 			bc.headerList.Add(h.Hash())
 		}
 	}
-
-	return nil
-}
-
-func (bc *Blockchain) registerNative() error {
-	gas := native.NewGAS()
-	neo := native.NewNEO()
-	neo.GAS = gas
-	gas.NEO = neo
-
-	data, err := bc.dao.GetNativeContractState(gas.Hash)
-	if err != nil {
-		return err
-	}
-	if err = gas.InitFromStore(data); err != nil {
-		return err
-	}
-
-	data, err = bc.dao.GetNativeContractState(neo.Hash)
-	if err != nil {
-		return err
-	}
-	if err = neo.InitFromStore(data); err != nil {
-		return err
-	}
-
-	bc.contracts.SetGAS(gas)
-	bc.contracts.SetNEO(neo)
 
 	return nil
 }
@@ -853,11 +821,6 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 // LastBatch returns last persisted storage batch.
 func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch
-}
-
-// RegisterNative registers native contract in the blockchain.
-func (bc *Blockchain) RegisterNative(c native.Contract) {
-	bc.contracts.Add(c)
 }
 
 // processOutputs processes transaction outputs.
@@ -2065,7 +2028,7 @@ func (bc *Blockchain) secondsPerBlock() int {
 }
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
-	ic := interop.NewContext(trigger, bc, d, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, bc.contracts.Contracts, block, tx, bc.log)
 	switch {
 	case tx != nil:
 		ic.Container = tx

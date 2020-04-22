@@ -6,14 +6,12 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // GAS represents GAS native contract.
@@ -24,13 +22,17 @@ type GAS struct {
 
 const gasSyscallName = "Neo.Native.Tokens.GAS"
 
+// GASFactor is a divisor for finding GAS integral value.
+const GASFactor = NEOTotalSupply
+const initialGAS = 30000000
+
 // NewGAS returns GAS native contract.
 func NewGAS() *GAS {
 	nep5 := newNEP5Native(gasSyscallName)
 	nep5.name = "GAS"
 	nep5.symbol = "gas"
 	nep5.decimals = 8
-	nep5.factor = 100000000
+	nep5.factor = GASFactor
 
 	g := &GAS{nep5TokenNative: *nep5}
 
@@ -42,16 +44,6 @@ func NewGAS() *GAS {
 	g.onPersist = chainOnPersist(g.onPersist, g.OnPersist)
 	g.incBalance = g.increaseBalance
 	return g
-}
-
-// initFromStore initializes variable contract parameters from the store.
-func (g *GAS) InitFromStore(data []byte) error {
-	g.totalSupply = *emit.BytesToInt(data)
-	return nil
-}
-
-func (g *GAS) serializeState() []byte {
-	return emit.IntToBytes(&g.totalSupply)
 }
 
 func (g *GAS) increaseBalance(_ *interop.Context, acc *state.Account, amount *big.Int) error {
@@ -66,22 +58,18 @@ func (g *GAS) increaseBalance(_ *interop.Context, acc *state.Account, amount *bi
 
 // Initialize initializes GAS contract.
 func (g *GAS) Initialize(ic *interop.Context) error {
-	data, err := ic.DAO.GetNativeContractState(g.Hash)
-	if err == nil {
-		return g.InitFromStore(data)
-	} else if err != storage.ErrKeyNotFound {
+	if err := g.nep5TokenNative.Initialize(ic); err != nil {
 		return err
 	}
-
-	if err := g.nep5TokenNative.Initialize(); err != nil {
-		return err
+	if g.nep5TokenNative.getTotalSupply(ic).Sign() != 0 {
+		return errors.New("already initialized")
 	}
 	h, _, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
 	}
-	g.mint(ic, h, big.NewInt(30000000*g.factor))
-	return ic.DAO.PutNativeContractState(g.Hash, g.serializeState())
+	g.mint(ic, h, big.NewInt(initialGAS*GASFactor))
+	return nil
 }
 
 // OnPersist implements Contract interface.
@@ -95,7 +83,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	//	netFee += tx.NetworkFee
 	//}
 	//g.mint(ic, <primary>, netFee)
-	return ic.DAO.PutNativeContractState(g.Hash, g.serializeState())
+	return nil
 }
 
 func (g *GAS) getSysFeeAmount(ic *interop.Context, args []vm.StackItem) vm.StackItem {

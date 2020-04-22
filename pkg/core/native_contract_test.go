@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -17,11 +16,15 @@ import (
 )
 
 type testNative struct {
-	meta   native.ContractMD
+	meta   interop.ContractMD
 	blocks chan uint32
 }
 
-func (tn *testNative) Metadata() *native.ContractMD {
+func (tn *testNative) Initialize(_ *interop.Context) error {
+	return nil
+}
+
+func (tn *testNative) Metadata() *interop.ContractMD {
 	return &tn.meta
 }
 
@@ -34,11 +37,16 @@ func (tn *testNative) OnPersist(ic *interop.Context) error {
 	}
 }
 
-var _ native.Contract = (*testNative)(nil)
+var _ interop.Contract = (*testNative)(nil)
+
+// registerNative registers native contract in the blockchain.
+func (bc *Blockchain) registerNative(c interop.Contract) {
+	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
+}
 
 func newTestNative() *testNative {
 	tn := &testNative{
-		meta:   *native.NewContractMD("Test.Native.Sum"),
+		meta:   *interop.NewContractMD("Test.Native.Sum"),
 		blocks: make(chan uint32, 1),
 	}
 	desc := &manifest.Method{
@@ -49,7 +57,7 @@ func newTestNative() *testNative {
 		},
 		ReturnType: smartcontract.IntegerType,
 	}
-	md := &native.MethodAndPrice{
+	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
 		Price:         1,
 		RequiredFlags: smartcontract.NoneFlag,
@@ -76,7 +84,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	defer chain.Close()
 
 	tn := newTestNative()
-	chain.RegisterNative(tn)
+	chain.registerNative(tn)
 
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))

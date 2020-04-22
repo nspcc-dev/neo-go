@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +25,9 @@ type NEO struct {
 }
 
 const neoSyscallName = "Neo.Native.Tokens.NEO"
+
+// NEOTotalSupply is the total amount of NEO in the system.
+const NEOTotalSupply = 100000000
 
 // NewNEO returns NEO native contract.
 func NewNEO() *NEO {
@@ -74,22 +76,19 @@ func NewNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
-	data, err := ic.DAO.GetNativeContractState(n.Hash)
-	if err == nil {
-		return n.InitFromStore(data)
-	} else if err != storage.ErrKeyNotFound {
+	if err := n.nep5TokenNative.Initialize(ic); err != nil {
 		return err
 	}
 
-	if err := n.nep5TokenNative.Initialize(); err != nil {
-		return err
+	if n.nep5TokenNative.getTotalSupply(ic).Sign() != 0 {
+		return errors.New("already initialized")
 	}
 
 	h, vs, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
 	}
-	n.mint(ic, h, big.NewInt(100000000*n.factor))
+	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
 	for i := range vs {
 		if err := n.registerValidatorInternal(ic, vs[i]); err != nil {
@@ -97,17 +96,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		}
 	}
 
-	return ic.DAO.PutNativeContractState(n.Hash, n.serializeState())
-}
-
-// initFromStore initializes variable contract parameters from the store.
-func (n *NEO) InitFromStore(data []byte) error {
-	n.totalSupply = *emit.BytesToInt(data)
 	return nil
-}
-
-func (n *NEO) serializeState() []byte {
-	return emit.IntToBytes(&n.totalSupply)
 }
 
 // OnPersist implements Contract interface.
@@ -119,7 +108,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	if err := ic.DAO.PutNextBlockValidators(pubs); err != nil {
 		return err
 	}
-	return ic.DAO.PutNativeContractState(n.Hash, n.serializeState())
+	return nil
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, acc *state.Account, amount *big.Int) error {

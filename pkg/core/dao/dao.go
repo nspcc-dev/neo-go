@@ -32,7 +32,6 @@ type DAO interface {
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
 	GetHeaderHashes() ([]util.Uint256, error)
-	GetNativeContractState(h util.Uint160) ([]byte, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetNextBlockValidators() (keys.PublicKeys, error)
@@ -55,7 +54,6 @@ type DAO interface {
 	PutAssetState(as *state.Asset) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
-	PutNativeContractState(h util.Uint160, value []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutNextBlockValidators(keys.PublicKeys) error
@@ -209,18 +207,6 @@ func (dao *Simple) PutContractState(cs *state.Contract) error {
 func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	return dao.Store.Delete(key)
-}
-
-// GetNativeContractState retrieves native contract state from the store.
-func (dao *Simple) GetNativeContractState(h util.Uint160) ([]byte, error) {
-	key := storage.AppendPrefix(storage.STNativeContract, h.BytesBE())
-	return dao.Store.Get(key)
-}
-
-// PutNativeContractState puts native contract state into the store.
-func (dao *Simple) PutNativeContractState(h util.Uint160, value []byte) error {
-	key := storage.AppendPrefix(storage.STNativeContract, h.BytesBE())
-	return dao.Store.Put(key, value)
 }
 
 // -- end contracts.
