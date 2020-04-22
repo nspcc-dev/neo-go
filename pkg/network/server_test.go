@@ -59,7 +59,16 @@ func TestServerNotSendsVerack(t *testing.T) {
 		p2 = newLocalPeer(t, s)
 	)
 	s.id = 1
-	go s.run()
+	finished := make(chan struct{})
+	go func() {
+		s.run()
+		close(finished)
+	}()
+	defer func() {
+		// close via quit as server was started via `run()`, not `Start()`
+		close(s.quit)
+		<-finished
+	}()
 
 	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
 	p.netaddr = *na
