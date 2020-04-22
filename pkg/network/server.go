@@ -803,9 +803,6 @@ func (s *Server) relayBlock(b *block.Block) {
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
 func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
-	if t.Type == transaction.MinerType {
-		return RelayInvalid
-	}
 	if err := s.chain.PoolTx(t); err != nil {
 		switch err {
 		case core.ErrAlreadyExists:

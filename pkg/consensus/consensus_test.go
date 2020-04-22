@@ -22,7 +22,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
-	tx := transaction.NewMinerTX()
+	tx := transaction.NewContractTX()
 	tx.ValidUntilBlock = 1
 	addSender(t, tx)
 	signTx(t, tx)
@@ -30,8 +30,8 @@ func TestNewService(t *testing.T) {
 
 	var txx []block.Transaction
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
-	require.Len(t, txx, 2)
-	require.Equal(t, tx, txx[1])
+	require.Len(t, txx, 1)
+	require.Equal(t, tx, txx[0])
 	srv.Chain.Close()
 }
 
@@ -39,7 +39,8 @@ func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
-		tx := transaction.NewMinerTXWithNonce(123 + uint32(i))
+		tx := transaction.NewContractTX()
+		tx.Nonce = 123 + uint32(i)
 		tx.ValidUntilBlock = 1
 		txs = append(txs, tx)
 	}
@@ -52,7 +53,9 @@ func TestService_GetVerified(t *testing.T) {
 	p := new(Payload)
 	p.message = &message{}
 	p.SetType(payload.PrepareRequestType)
-	p.SetPayload(&prepareRequest{transactionHashes: hashes, minerTx: *transaction.NewMinerTXWithNonce(999)})
+	tx := transaction.NewContractTX()
+	tx.Nonce = 999
+	p.SetPayload(&prepareRequest{transactionHashes: hashes})
 	p.SetValidatorIndex(1)
 
 	priv, _ := getTestValidator(1)
@@ -65,8 +68,8 @@ func TestService_GetVerified(t *testing.T) {
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
 		txx := srv.getVerifiedTx(10)
-		require.Equal(t, 2, len(txx), "there is only 1 tx in mempool")
-		require.Equal(t, txs[3], txx[1])
+		require.Equal(t, 1, len(txx), "there is only 1 tx in mempool")
+		require.Equal(t, txs[3], txx[0])
 	})
 
 	t.Run("more than half of the last proposal will be reused", func(t *testing.T) {
@@ -117,7 +120,8 @@ func TestService_getTx(t *testing.T) {
 	srv := newTestService(t)
 
 	t.Run("transaction in mempool", func(t *testing.T) {
-		tx := transaction.NewMinerTXWithNonce(1234)
+		tx := transaction.NewContractTX()
+		tx.Nonce = 1234
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
 		signTx(t, tx)
@@ -133,7 +137,8 @@ func TestService_getTx(t *testing.T) {
 	})
 
 	t.Run("transaction in local cache", func(t *testing.T) {
-		tx := transaction.NewMinerTXWithNonce(4321)
+		tx := transaction.NewContractTX()
+		tx.Nonce = 4321
 		tx.ValidUntilBlock = 1
 		h := tx.Hash()
 

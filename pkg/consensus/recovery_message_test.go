@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -32,7 +31,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		timestamp:         87,
 		nonce:             321,
 		transactionHashes: []util.Uint256{{1}},
-		minerTx:           *transaction.NewMinerTX(),
 		nextConsensus:     util.Uint160{1, 2},
 	}
 	p1 := new(Payload)

@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -90,13 +89,11 @@ func TestNativeContract_Invoke(t *testing.T) {
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	script := w.Bytes()
 	tx := transaction.NewInvocationTX(script, 0)
-	mn := transaction.NewMinerTXWithNonce(rand.Uint32())
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
-	mn.ValidUntilBlock = validUntil
-	require.NoError(t, addSender(tx, mn))
-	require.NoError(t, signTx(chain, tx, mn))
-	b := chain.newBlock(mn, tx)
+	require.NoError(t, addSender(tx))
+	require.NoError(t, signTx(chain, tx))
+	b := chain.newBlock(tx)
 	require.NoError(t, chain.AddBlock(b))
 
 	res, err := chain.GetAppExecResult(tx.Hash())

@@ -59,9 +59,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	}
 	scriptOut := hash.Hash160(rawScript)
 
-	minerTx := transaction.NewMinerTXWithNonce(2083236893)
-	minerTx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
-
 	issueTx := transaction.NewIssueTX()
 	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
 	issueTx.Nonce = 0
@@ -83,7 +80,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	b := &block.Block{
 		Base: base,
 		Transactions: []*transaction.Transaction{
-			minerTx,
 			&governingTokenTX,
 			&utilityTokenTX,
 			issueTx,

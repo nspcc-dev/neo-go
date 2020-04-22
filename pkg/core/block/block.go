@@ -2,7 +2,6 @@ package block
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Workiva/go-datastructures/queue"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -57,20 +56,6 @@ func (b *Block) RebuildMerkleRoot() error {
 
 // Verify verifies the integrity of the block.
 func (b *Block) Verify() error {
-	// There has to be some transaction inside.
-	if len(b.Transactions) == 0 {
-		return errors.New("no transactions")
-	}
-	// The first TX has to be a miner transaction.
-	if b.Transactions[0].Type != transaction.MinerType {
-		return fmt.Errorf("the first transaction is %s", b.Transactions[0].Type)
-	}
-	// If the first TX is a minerTX then all others cant.
-	for _, tx := range b.Transactions[1:] {
-		if tx.Type == transaction.MinerType {
-			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().StringLE())
-		}
-	}
 	merkle, err := b.computeMerkleTree()
 	if err != nil {
 		return err

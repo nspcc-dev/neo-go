@@ -148,9 +148,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case InvocationType:
 		t.Data = &InvocationTX{Version: t.Version}
 		t.Data.(*InvocationTX).DecodeBinary(r)
-	case MinerType:
-		t.Data = &MinerTX{}
-		t.Data.(*MinerTX).DecodeBinary(r)
 	case ClaimType:
 		t.Data = &ClaimTX{}
 		t.Data.(*ClaimTX).DecodeBinary(r)
@@ -335,8 +332,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	}
 	t.Sender = sender
 	switch tx.Type {
-	case MinerType:
-		t.Data = &MinerTX{}
 	case ClaimType:
 		t.Data = &ClaimTX{
 			Claims: tx.Claims,

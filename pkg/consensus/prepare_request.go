@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -12,7 +11,6 @@ type prepareRequest struct {
 	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
-	minerTx           transaction.Transaction
 	nextConsensus     util.Uint160
 }
 
@@ -24,7 +22,6 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(p.nonce)
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
-	p.minerTx.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -33,7 +30,6 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.nonce = r.ReadU64LE()
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
-	p.minerTx.DecodeBinary(r)
 }
 
 // Timestamp implements payload.PrepareRequest interface.

@@ -914,9 +914,6 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(block.Transactions) == 0 {
-		return nil, fmt.Errorf("only header is available")
-	}
 	for _, tx := range block.Transactions {
 		stx, _, err := bc.dao.GetTransaction(tx.Hash())
 		if err != nil {
@@ -1118,7 +1115,7 @@ func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
 // NetworkFee returns network fee.
 func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
 	// https://github.com/neo-project/neo/blob/master-2.x/neo/Network/P2P/Payloads/ClaimTransaction.cs#L16
-	if t.Type == transaction.ClaimType || t.Type == transaction.MinerType {
+	if t.Type == transaction.ClaimType {
 		return 0
 	}
 
@@ -1455,7 +1452,7 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 	}
 
 	switch t.Type {
-	case transaction.MinerType, transaction.ClaimType:
+	case transaction.ClaimType:
 		for _, r := range resultsIssue {
 			if r.AssetID != UtilityTokenID() {
 				return errors.New("miner or claim tx issues non-utility tokens")

@@ -53,12 +53,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["4108062977676178e8453a8ef84a702e01bb35af8a65c7529d04704fcb5f1e0e"]`,
+			params: `["fe1a3678b16eca35209acf85397708eb0f1668e4045ad4cd5d2453d3bc0a0a6d"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("4108062977676178e8453a8ef84a702e01bb35af8a65c7529d04704fcb5f1e0e")
+				expectedTxHash, err := util.Uint256DecodeStringLE("fe1a3678b16eca35209acf85397708eb0f1668e4045ad4cd5d2453d3bc0a0a6d")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -338,11 +338,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, block.Hash(), res.Hash)
 				for i := range res.Tx {
 					tx := res.Tx[i]
-					require.Equal(t, transaction.MinerType, tx.Transaction.Type)
+					require.Equal(t, transaction.ContractType, tx.Transaction.Type)
 
-					miner := block.Transactions[i]
+					actualTx := block.Transactions[i]
 					require.True(t, ok)
-					require.Equal(t, miner.Nonce, tx.Transaction.Nonce)
+					require.Equal(t, actualTx.Nonce, tx.Transaction.Nonce)
 					require.Equal(t, block.Transactions[i].Hash(), tx.Transaction.Hash())
 				}
 			},
@@ -743,7 +743,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["80001300000075a94799633ed955dd85a8af314a5b435ab51903b00400000001eb15931b0544cbb9a283f934ab89a23e73cf90b9ca097bb327a0bcdcddf8ce2e010001f5bc5a9ac7b85a47be381260a06b5a1e7a667ce8f7d7c8baa5cfc6465571377a0030d3dec386230075a94799633ed955dd85a8af314a5b435ab5190301420c4082632495e555507a056eae951ad1893f27163dde40505340f6cf9578e20c3d7ec0c7e00f93cb2e770a7ce3e8a2910deabdd01fd966507a7a29106dd2add583ee290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
+			params: `["80000b00000075a94799633ed955dd85a8af314a5b435ab51903b004000000011e4db58df4326140a371d0b0cabecea70226b93157dfb561c73ba8db599ebcb6010001f5bc5a9ac7b85a47be381260a06b5a1e7a667ce8f7d7c8baa5cfc6465571377a0030d3dec386230075a94799633ed955dd85a8af314a5b435ab5190301420c401b3040b6eea83bfbd555554c94e7a0e6077922769f3ac19c1183e14dfd1d6ef6a87658b5499921ac59ae2d2acac10d8f0f6147620e27616bb5b7305fb36b6ce0290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -857,7 +857,8 @@ func TestRPC(t *testing.T) {
 		require.NoError(t, err)
 		newTx := func() *transaction.Transaction {
 			height := chain.BlockHeight()
-			tx := transaction.NewMinerTXWithNonce(height + 1)
+			tx := transaction.NewContractTX()
+			tx.Nonce = height + 1
 			tx.ValidUntilBlock = height + 10
 			tx.Sender = acc.PrivateKey().GetScriptHash()
 			require.NoError(t, acc.SignTx(tx))
@@ -882,7 +883,7 @@ func TestRPC(t *testing.T) {
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		TXHash := block.Transactions[1].Hash()
+		TXHash := block.Transactions[0].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
 		result := checkErrGetResult(t, body, false)
@@ -894,7 +895,7 @@ func TestRPC(t *testing.T) {
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		TXHash := block.Transactions[1].Hash()
+		TXHash := block.Transactions[0].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
 		result := checkErrGetResult(t, body, false)
@@ -906,7 +907,7 @@ func TestRPC(t *testing.T) {
 
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		TXHash := block.Transactions[1].Hash()
+		TXHash := block.Transactions[0].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, handler, t)
 		txOut := checkErrGetResult(t, body, false)
@@ -979,7 +980,8 @@ func TestRPC(t *testing.T) {
 
 	t.Run("gettxout", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		tx := block.Transactions[3]
+		require.Equal(t, 4, len(block.Transactions))
+		tx := block.Transactions[2]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
 			`"`+tx.Hash().StringLE()+`"`, 0)
 		body := doRPCCall(rpc, handler, t)
@@ -1002,7 +1004,7 @@ func TestRPC(t *testing.T) {
 			expected = append(expected, tx.Tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := transaction.NewMinerTX()
+			tx := transaction.NewContractTX()
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
 		}

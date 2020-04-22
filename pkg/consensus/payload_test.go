@@ -246,11 +246,9 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 		timestamp:         rand.Uint64(),
 		nonce:             rand.Uint64(),
 		transactionHashes: make([]util.Uint256, txCount),
-		minerTx:           *transaction.NewMinerTX(),
 	}
 
-	req.transactionHashes[0] = req.minerTx.Hash()
-	for i := 1; i < txCount; i++ {
+	for i := 0; i < txCount; i++ {
 		req.transactionHashes[i] = random.Uint256()
 	}
 	req.nextConsensus = random.Uint160()
