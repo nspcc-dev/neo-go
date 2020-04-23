@@ -108,8 +108,8 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	case opcode.CALLE, opcode.CALLET:
 		numtoread = 22
 	default:
-		if instr >= opcode.PUSHBYTES1 && instr <= opcode.PUSHBYTES75 {
-			numtoread = int(instr)
+		if instr <= opcode.PUSHINT256 {
+			numtoread = 1 << instr
 		} else {
 			// No parameters, can just return.
 			return instr, nil, nil

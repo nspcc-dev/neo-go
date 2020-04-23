@@ -84,9 +84,13 @@ func getEffectiveSize(buf []byte, isNeg bool) int {
 //   when n == 0. For zero is equal to empty slice in NEO3.
 // https://github.com/neo-project/neo-vm/blob/master/src/neo-vm/Types/Integer.cs#L16
 func IntToBytes(n *big.Int) []byte {
+	return intToBytes(n, []byte{})
+}
+
+func intToBytes(n *big.Int, data []byte) []byte {
 	sign := n.Sign()
 	if sign == 0 {
-		return []byte{}
+		return data
 	}
 
 	var ws []big.Word
@@ -95,13 +99,19 @@ func IntToBytes(n *big.Int) []byte {
 	} else {
 		n1 := new(big.Int).Add(n, big.NewInt(1))
 		if n1.Sign() == 0 { // n == -1
-			return []byte{0xFF}
+			return append(data, 0xFF)
 		}
 
 		ws = n1.Bits()
 	}
 
-	data := wordsToBytes(ws)
+	lb := len(ws) * wordSizeBytes
+	if c := cap(data); c < lb {
+		data = make([]byte, lb, lb+1)
+	} else {
+		data = data[:lb]
+	}
+	data = wordsToBytes(ws, data)
 
 	size := len(data)
 	for ; data[size-1] == 0; size-- {
@@ -122,10 +132,7 @@ func IntToBytes(n *big.Int) []byte {
 	return data
 }
 
-func wordsToBytes(ws []big.Word) []byte {
-	lb := len(ws) * wordSizeBytes
-	bs := make([]byte, lb, lb+1)
-
+func wordsToBytes(ws []big.Word, bs []byte) []byte {
 	if wordSizeBytes == 8 {
 		for i := range ws {
 			binary.LittleEndian.PutUint64(bs[i*wordSizeBytes:], uint64(ws[i]))

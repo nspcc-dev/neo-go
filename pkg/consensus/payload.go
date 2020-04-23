@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 )
 
@@ -192,7 +192,9 @@ func (p *Payload) Sign(key *privateKey) error {
 		return err
 	}
 
-	p.Witness.InvocationScript = append([]byte{byte(opcode.PUSHBYTES64)}, sig...)
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, sig)
+	p.Witness.InvocationScript = buf.Bytes()
 	p.Witness.VerificationScript = key.PublicKey().GetVerificationScript()
 
 	return nil

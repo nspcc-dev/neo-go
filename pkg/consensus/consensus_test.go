@@ -1,8 +1,6 @@
 package consensus
 
 import (
-	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/dbft/block"
@@ -11,13 +9,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -208,14 +205,6 @@ func newTestService(t *testing.T) *service {
 	return srv.(*service)
 }
 
-func TestExport(t *testing.T) {
-	_, pub := getTestValidator(3)
-	s, _ := smartcontract.CreateMultiSigRedeemScript(1, keys.PublicKeys{pub.PublicKey})
-	fmt.Println(hex.EncodeToString(s))
-	u := hash.Hash160(s)
-	fmt.Println(address.Uint160ToString(u))
-}
-
 func getTestValidator(i int) (*privateKey, *publicKey) {
 	key := testchain.PrivateKey(i)
 	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
@@ -240,11 +229,11 @@ func (fs *feer) IsLowPriority(util.Fixed8) bool                  { return false 
 func (fs *feer) FeePerByte(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
 func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.Fixed8(0) }
 
+var neoOwner = testchain.MultisigScriptHash()
+
 func addSender(t *testing.T, txs ...*transaction.Transaction) {
-	// multisig address which possess all NEO
-	scriptHash := testchain.MultisigScriptHash()
 	for _, tx := range txs {
-		tx.Sender = scriptHash
+		tx.Sender = neoOwner
 	}
 }
 
@@ -261,14 +250,14 @@ func signTx(t *testing.T, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		data := tx.GetSignedPart()
 
-		var invoc []byte
+		buf := io.NewBufBinWriter()
 		for _, key := range privNetKeys {
 			signature := key.Sign(data)
-			invoc = append(invoc, append([]byte{byte(opcode.PUSHBYTES64)}, signature...)...)
+			emit.Bytes(buf.BinWriter, signature)
 		}
 
 		tx.Scripts = []transaction.Witness{{
-			InvocationScript:   invoc,
+			InvocationScript:   buf.Bytes(),
 			VerificationScript: rawScript,
 		}}
 	}
