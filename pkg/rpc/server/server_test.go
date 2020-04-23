@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -402,56 +403,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 	},
 	"getblockheader": {
-		{
-			name:   "positive, no verbose",
-			params: `["8c702625ab05236fda5763bbe168359b7747508e1387e4404217e0418846c94e"]`,
-			result: func(e *executor) interface{} {
-				expected := "000000007654fa898eba5ced6ab7a44fe1187e48b80ddd5340499fb2d312cc2fe4a6df1bb31cada0cb85914ee5bd6d11d25289a59203bf65f40232de8ffaa2bb7517f3b50a0ca05e010000005704000000000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c404def65e6b379e441fe1507d6d031c874e686b854b2afe9843fda5087f76e261e282b4db232079485dcf449678e2358a3d148835b85affba4ecd08a2bf1b556fe0c406b6218df12f8a7060379daf4eed312a85be51ea2fabee826a745547141694a3f49f8a61ac63db7ece1de7fbb54ecb9c5ac244a7fcdd794c9767b4cb2637a9c840c40ebaf64e3b76299d3ccc7e48e197a09af11cc0a80bd636cdef80312c61e24eebaace44cda90d17eb3ba85cfc08079676626966c75a48631b508c39375a8181ec40c402a77786cdaa5e93f0952c834cebdab25475beee0b60fce4263d85b7395bcde993ebee884667def21b7de494097f30c14c626357683680bdbace9667cc03b0da894130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb00"
-				return &expected
-			},
-		},
-		{
-			name:   "positive, verbose 0",
-			params: `["8c702625ab05236fda5763bbe168359b7747508e1387e4404217e0418846c94e", 0]`,
-			result: func(e *executor) interface{} {
-				expected := "000000007654fa898eba5ced6ab7a44fe1187e48b80ddd5340499fb2d312cc2fe4a6df1bb31cada0cb85914ee5bd6d11d25289a59203bf65f40232de8ffaa2bb7517f3b50a0ca05e010000005704000000000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c404def65e6b379e441fe1507d6d031c874e686b854b2afe9843fda5087f76e261e282b4db232079485dcf449678e2358a3d148835b85affba4ecd08a2bf1b556fe0c406b6218df12f8a7060379daf4eed312a85be51ea2fabee826a745547141694a3f49f8a61ac63db7ece1de7fbb54ecb9c5ac244a7fcdd794c9767b4cb2637a9c840c40ebaf64e3b76299d3ccc7e48e197a09af11cc0a80bd636cdef80312c61e24eebaace44cda90d17eb3ba85cfc08079676626966c75a48631b508c39375a8181ec40c402a77786cdaa5e93f0952c834cebdab25475beee0b60fce4263d85b7395bcde993ebee884667def21b7de494097f30c14c626357683680bdbace9667cc03b0da894130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb00"
-				return &expected
-			},
-		},
-		{
-			name:   "positive, verbose !=0",
-			params: `["8c702625ab05236fda5763bbe168359b7747508e1387e4404217e0418846c94e", 2]`,
-			result: func(e *executor) interface{} {
-				hash, err := util.Uint256DecodeStringLE("8c702625ab05236fda5763bbe168359b7747508e1387e4404217e0418846c94e")
-				if err != nil {
-					panic("can not decode hash parameter")
-				}
-				block, err := e.chain.GetBlock(hash)
-				if err != nil {
-					panic("unknown block (update block hash)")
-				}
-				header := block.Header()
-				expected := result.Header{
-					Hash:          header.Hash(),
-					Size:          io.GetVarSize(header),
-					Version:       header.Version,
-					PrevBlockHash: header.PrevHash,
-					MerkleRoot:    header.MerkleRoot,
-					Timestamp:     header.Timestamp,
-					Index:         header.Index,
-					Nonce:         strconv.FormatUint(header.ConsensusData, 16),
-					NextConsensus: address.Uint160ToString(header.NextConsensus),
-					Script:        header.Script,
-					Confirmations: e.chain.BlockHeight() - header.Index + 1,
-				}
-
-				nextHash := e.chain.GetHeaderHash(int(header.Index) + 1)
-				if !hash.Equals(util.Uint256{}) {
-					expected.NextBlockHash = &nextHash
-				}
-				return &expected
-			},
-		},
 		{
 			name:   "invalid verbose type",
 			params: `["614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f", true]`,
@@ -960,6 +911,55 @@ func TestRPC(t *testing.T) {
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
+	t.Run("getblockheader_positive", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getblockheader", "params": %s}`
+		testHeaderHash := chain.GetHeaderHash(1).StringLE()
+		hdr := e.getHeader(testHeaderHash)
+
+		runCase := func(t *testing.T, rpc string, expected, actual interface{}) {
+			body := doRPCCall(rpc, handler, t)
+			data := checkErrGetResult(t, body, false)
+			require.NoError(t, json.Unmarshal(data, actual))
+			require.Equal(t, expected, actual)
+		}
+
+		t.Run("no verbose", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			hdr.EncodeBinary(w.BinWriter)
+			require.NoError(t, w.Err)
+			encoded := hex.EncodeToString(w.Bytes())
+
+			t.Run("missing", func(t *testing.T) {
+				runCase(t, fmt.Sprintf(rpc, `["`+testHeaderHash+`"]`), &encoded, new(string))
+			})
+
+			t.Run("verbose=0", func(t *testing.T) {
+				runCase(t, fmt.Sprintf(rpc, `["`+testHeaderHash+`", 0]`), &encoded, new(string))
+			})
+		})
+
+		t.Run("verbose != 0", func(t *testing.T) {
+			nextHash := chain.GetHeaderHash(int(hdr.Index) + 1)
+			expected := &result.Header{
+				Hash:          hdr.Hash(),
+				Size:          io.GetVarSize(hdr),
+				Version:       hdr.Version,
+				PrevBlockHash: hdr.PrevHash,
+				MerkleRoot:    hdr.MerkleRoot,
+				Timestamp:     hdr.Timestamp,
+				Index:         hdr.Index,
+				Nonce:         strconv.FormatUint(hdr.ConsensusData, 16),
+				NextConsensus: address.Uint160ToString(hdr.NextConsensus),
+				Script:        hdr.Script,
+				Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
+				NextBlockHash: &nextHash,
+			}
+
+			rpc := fmt.Sprintf(rpc, `["`+testHeaderHash+`", 2]`)
+			runCase(t, rpc, expected, new(result.Header))
+		})
+	})
+
 	t.Run("gettxout", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		tx := block.Transactions[3]
@@ -1000,6 +1000,18 @@ func TestRPC(t *testing.T) {
 
 		assert.ElementsMatch(t, expected, actual)
 	})
+}
+
+func (e *executor) getHeader(s string) *block.Header {
+	hash, err := util.Uint256DecodeStringLE(s)
+	if err != nil {
+		panic("can not decode hash parameter")
+	}
+	block, err := e.chain.GetBlock(hash)
+	if err != nil {
+		panic("unknown block (update block hash)")
+	}
+	return block.Header()
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
