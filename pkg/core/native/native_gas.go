@@ -46,13 +46,18 @@ func NewGAS() *GAS {
 	return g
 }
 
-func (g *GAS) increaseBalance(_ *interop.Context, acc *state.Account, amount *big.Int) error {
+func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int) error {
+	acc, err := state.NEP5BalanceStateFromBytes(si.Value)
+	if err != nil {
+		return err
+	}
 	if sign := amount.Sign(); sign == 0 {
 		return nil
-	} else if sign == -1 && acc.GAS.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
+	} else if sign == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
 		return errors.New("insufficient funds")
 	}
-	acc.GAS.Balance.Add(&acc.GAS.Balance, amount)
+	acc.Balance.Add(&acc.Balance, amount)
+	si.Value = acc.Bytes()
 	return nil
 }
 

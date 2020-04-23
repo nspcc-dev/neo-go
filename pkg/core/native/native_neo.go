@@ -111,29 +111,34 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-func (n *NEO) increaseBalance(ic *interop.Context, acc *state.Account, amount *big.Int) error {
-	if sign := amount.Sign(); sign == 0 {
-		return nil
-	} else if sign == -1 && acc.NEO.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
-		return errors.New("insufficient funds")
-	}
-	if err := n.distributeGas(ic, acc); err != nil {
-		return err
-	}
-	acc.NEO.Balance.Add(&acc.NEO.Balance, amount)
-	return nil
-}
-
-func (n *NEO) distributeGas(ic *interop.Context, acc *state.Account) error {
-	if ic.Block == nil || ic.Block.Index == 0 {
-		return nil
-	}
-	sys, net, err := ic.Chain.CalculateClaimable(util.Fixed8(acc.NEO.Balance.Int64()), acc.NEO.BalanceHeight, ic.Block.Index)
+func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
+	acc, err := state.NEOBalanceStateFromBytes(si.Value)
 	if err != nil {
 		return err
 	}
-	acc.NEO.BalanceHeight = ic.Block.Index
-	n.GAS.mint(ic, acc.ScriptHash, big.NewInt(int64(sys+net)))
+	if sign := amount.Sign(); sign == 0 {
+		return nil
+	} else if sign == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
+		return errors.New("insufficient funds")
+	}
+	if err := n.distributeGas(ic, h, acc); err != nil {
+		return err
+	}
+	acc.Balance.Add(&acc.Balance, amount)
+	si.Value = acc.Bytes()
+	return nil
+}
+
+func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalanceState) error {
+	if ic.Block == nil || ic.Block.Index == 0 {
+		return nil
+	}
+	sys, net, err := ic.Chain.CalculateClaimable(util.Fixed8(acc.Balance.Int64()), acc.BalanceHeight, ic.Block.Index)
+	if err != nil {
+		return err
+	}
+	acc.BalanceHeight = ic.Block.Index
+	n.GAS.mint(ic, h, big.NewInt(int64(sys+net)))
 	return nil
 }
 
@@ -192,12 +197,21 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 	} else if !ok {
 		return errors.New("invalid signature")
 	}
-	acc, err := ic.DAO.GetAccountState(h)
+	key := makeAccountKey(h)
+	si := ic.DAO.GetStorageItem(n.Hash, key)
+	if si == nil {
+		return errors.New("invalid account")
+	}
+	acc, err := state.NEOBalanceStateFromBytes(si.Value)
 	if err != nil {
 		return err
 	}
-	balance := util.Fixed8(acc.NEO.Balance.Int64())
-	if err := ModifyAccountVotes(acc, ic.DAO, -balance); err != nil {
+	oldAcc, err := ic.DAO.GetAccountState(h)
+	if err != nil {
+		return err
+	}
+	balance := util.Fixed8(acc.Balance.Int64())
+	if err := ModifyAccountVotes(oldAcc, ic.DAO, -balance); err != nil {
 		return err
 	}
 	pubs = pubs.Unique()
@@ -212,7 +226,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		}
 		newPubs = append(newPubs, pub)
 	}
-	if lp, lv := len(newPubs), len(acc.Votes); lp != lv {
+	if lp, lv := len(newPubs), len(oldAcc.Votes); lp != lv {
 		vc, err := ic.DAO.GetValidatorsCount()
 		if err != nil {
 			return err
@@ -227,8 +241,11 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 			return err
 		}
 	}
-	acc.Votes = newPubs
-	return ModifyAccountVotes(acc, ic.DAO, balance)
+	oldAcc.Votes = newPubs
+	if err := ModifyAccountVotes(oldAcc, ic.DAO, balance); err != nil {
+		return err
+	}
+	return ic.DAO.PutAccountState(oldAcc)
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
