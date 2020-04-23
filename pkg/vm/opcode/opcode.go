@@ -141,13 +141,6 @@ const (
 	KEYS      Opcode = 0xCC
 	VALUES    Opcode = 0xCD
 
-	// Stack isolation
-	CALLI   Opcode = 0xE0
-	CALLE   Opcode = 0xE1
-	CALLED  Opcode = 0xE2
-	CALLET  Opcode = 0xE3
-	CALLEDT Opcode = 0xE4
-
 	// Exceptions
 	THROW      Opcode = 0xF0
 	THROWIFNOT Opcode = 0xF1

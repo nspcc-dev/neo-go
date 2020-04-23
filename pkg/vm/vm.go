@@ -529,8 +529,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		parameter = v.estack.Pop().Bytes()
-		fallthrough
-	case opcode.CALLED, opcode.CALLEDT:
 		if !ctx.hasDynamicInvoke {
 			panic("contract is not allowed to make dynamic invocations")
 		}
@@ -1280,75 +1278,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.NOP:
 		// unlucky ^^
-
-	case opcode.CALLI, opcode.CALLE, opcode.CALLED, opcode.CALLET, opcode.CALLEDT:
-		var (
-			tailCall    = (op == opcode.CALLET || op == opcode.CALLEDT)
-			hashOnStack = (op == opcode.CALLED || op == opcode.CALLEDT)
-			addElement  int
-			newCtx      *Context
-		)
-
-		if hashOnStack {
-			addElement = 1
-		}
-
-		rvcount := int(parameter[0])
-		pcount := int(parameter[1])
-		if v.estack.Len() < pcount+addElement {
-			panic("missing some parameters")
-		}
-		if tailCall {
-			if ctx.rvcount != rvcount {
-				panic("context and parameter rvcount mismatch")
-			}
-		} else {
-			v.checkInvocationStackSize()
-		}
-
-		if op == opcode.CALLI {
-			newCtx = ctx.Copy()
-		} else {
-			var hashBytes []byte
-
-			if hashOnStack {
-				hashBytes = v.estack.Pop().Bytes()
-			} else {
-				hashBytes = parameter[2:]
-			}
-
-			hash, err := util.Uint160DecodeBytesBE(hashBytes)
-			if err != nil {
-				panic(err)
-			}
-			script, hasDynamicInvoke := v.getScript(hash)
-			if script == nil {
-				panic(fmt.Sprintf("could not find script %s", hash))
-			}
-			newCtx = NewContext(script)
-			newCtx.scriptHash = hash
-			newCtx.hasDynamicInvoke = hasDynamicInvoke
-		}
-		newCtx.rvcount = rvcount
-		newCtx.estack = NewStack("evaluation")
-		newCtx.astack = NewStack("alt")
-		// Going backwards to naturally push things onto the new stack.
-		for i := pcount; i > 0; i-- {
-			elem := v.estack.RemoveAt(i - 1)
-			newCtx.estack.Push(elem)
-		}
-		if tailCall {
-			_ = v.istack.Pop()
-		}
-		v.istack.PushVal(newCtx)
-		v.estack = newCtx.estack
-		v.astack = newCtx.astack
-		if op == opcode.CALLI {
-			// CALLI is a bit different from other JMPs
-			// https://github.com/neo-project/neo-vm/blob/master-2.x/src/neo-vm/ExecutionEngine.cs#L1175
-			offset := v.getJumpOffset(newCtx, parameter[2:], 2)
-			v.jumpIf(newCtx, offset, true)
-		}
 
 	case opcode.THROW:
 		panic("THROW")

@@ -99,14 +99,12 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			numtoread = int(n)
 			c.nextip += 4
 		}
-	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL, opcode.CALLED, opcode.CALLEDT:
+	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL:
 		numtoread = 2
-	case opcode.CALLI, opcode.SYSCALL:
+	case opcode.SYSCALL:
 		numtoread = 4
 	case opcode.APPCALL, opcode.TAILCALL:
 		numtoread = 20
-	case opcode.CALLE, opcode.CALLET:
-		numtoread = 22
 	default:
 		if instr <= opcode.PUSHINT256 {
 			numtoread = 1 << instr
