@@ -456,19 +456,6 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	txNeoRound.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
-
-	// Blocks for `submitblock` test. If you are planning to modify test chain from `testblocks.acc`,
-	// please, update params value of `empty block` and `positive` tests.
-	var blocks []*block.Block
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	blocks = append(blocks, bc.newBlock(), bc.newBlock(minerTx))
-	for i, b := range blocks {
-		data, err := testserdes.EncodeBinary(b)
-		require.NoError(t, err)
-		t.Logf("\nblock %v for submitblock test:\n%s", i, hex.EncodeToString(data))
-	}
 }
 
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {

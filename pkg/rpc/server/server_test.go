@@ -12,9 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -23,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -770,17 +773,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"submitblock": {
 		{
-			// If you are planning to modify test chain from `testblocks.acc`, please, update param value (first block)
-			name:   "empty block",
-			params: `["0000000007b57cc5c1902010f968adc0cb96c87e1a97005ee1ddc8510cf6272e812221820000000000000000000000000000000000000000000000000000000000000000db0ca05ed10000005704000000000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c4050da0a5d3672a56ad442a1e58129e8df0ca4c3235e33e86b8332144a253c559a35742206f87866cfdb8f809cac8b4cc9bc901372161a7a577ed6490158c492a60c4007bb4e7776a3102c183ba8e5aec77b9a436e6629f67150a77689e25c32df427b5a4c77f2198f0554fbc1ef2f2e2605f3a84d5789a48e90883203d491172c3f0d0c4049b0a16bb1decc7673d9bdca2e3a613b1102a7774e405d3d1ce1fff276acb8d6d0eff980554792d21603b9d9b6dd50941ea3eda4efad4922b063571ea49108df0c401bb53c5d0fcf94beeb7c1f0d9d9998b7af5f29c906492d49f4650de250826926cfc2c7bdb6369139563a0ed74039c4fb69c0e63ced82fc2a2b74778c7287ca5694130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb00"]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid block height",
-			params: `["000000005fb86f62eafe8e9246bc0d1648e4e5c8389dee9fb7fe03fcc6772ec8c5e4ec2aedb908054ac1409be5f77d5369c6e03490b2f6676d68d0b3370f8159e0fdadf99bc05f5e030000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd0401406f299c82b513f59f5bd120317974852c9694c6e10db1ef2f1bb848b1a33e47a08f8dc03ee784166b2060a94cd4e7af88899b39787938f7f2763ea4d2182776ed40f3bafd85214fef38a4836ca97793001ea411f553c51e88781f7b916c59c145bff28314b6e7ea246789422a996fc4937e290a1b40f6b97c5222540f65b0d47aca40d2b3d19203d456428bfdb529e846285052105957385b65388b9a617f6e2d56a64ec41aa73439eafccb52987bb1975c9b67518b053d9e61b445e4a3377dbc206640bd688489bd62adf6bed9d61a73905b9591eb87053c6f0f4dd70f3bee7295541b490caef044b55b6f9f01dc4a05a756a3f2edd06f5adcbe4e984c1e552f9023f08b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae0100000000000000000000"]`,
-			fail:   true,
-		},
-		{
 			name:   "invalid hex",
 			params: `["000000005gb86f62eafe8e9246bc0d1648e4e5c8389dee9fb7fe03fcc6772ec8c5e4ec2aedb908054ac1409be5f77d5369c6e03490b2f6676d68d0b3370f8159e0fdadf99bc05f5e030000005704000000000000be48d3a3f5d10013ab9ffee489706078714f1ea201fd0401406f299c82b513f59f5bd120317974852c9694c6e10db1ef2f1bb848b1a33e47a08f8dc03ee784166b2060a94cd4e7af88899b39787938f7f2763ea4d2182776ed40f3bafd85214fef38a4836ca97793001ea411f553c51e88781f7b916c59c145bff28314b6e7ea246789422a996fc4937e290a1b40f6b97c5222540f65b0d47aca40d2b3d19203d456428bfdb529e846285052105957385b65388b9a617f6e2d56a64ec41aa73439eafccb52987bb1975c9b67518b053d9e61b445e4a3377dbc206640bd688489bd62adf6bed9d61a73905b9591eb87053c6f0f4dd70f3bee7295541b490caef044b55b6f9f01dc4a05a756a3f2edd06f5adcbe4e984c1e552f9023f08b532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae0100000000000000000000"]`,
 			fail:   true,
@@ -794,15 +786,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "no params",
 			params: `[]`,
 			fail:   true,
-		},
-		{
-			name: "positive",
-			// If you are planning to modify test chain from `testblocks.acc`, please, update param value (second block)
-			params: `["0000000007b57cc5c1902010f968adc0cb96c87e1a97005ee1ddc8510cf6272e81222182d13aba8fa5e27a16382d64ce3751b9ffaa3f81f634fbd4399bf048d58e7c5c7adb0ca05ed10000005704000000000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c405545b3ad5912f043ed975176ba1f02f64119f10d63385a472ecaef6aa4a2b04237946e66e74e53435a19abd59fb14dfa7d64d29a39b8655c23ed87c74d2674d70c40e6880ad9677b3b28f6c0a3c9172f8ff98dcc5ad7c78768e34481799edebcf5bbcafa583740808bf0668bdd07288b004b11f52db517ef68482e8cf1f5774ef6ba0c406ea533f7f49310e9156d7c6032fbc8a63d20777e9e850fdc0a0d3e3d9c5b9340e4d22eba14a8a1446b886a34dee437e6cfd4f2b6eed9048291610330968c225a0c401a7c49e25676aabd511bcf556970c28e530df561f89dd7d12285e848ef234273eca90a9344420ace9c84df798925d4c547ea120183ae5562b6507f55acb52c7e94130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb0100001400000075a94799633ed955dd85a8af314a5b435ab51903b004000000000001420c40b2eb026301528ce76f07caa304f26e3aaa08997e82f12a94350ec1354683d165f4a02c87f2250dae39abbf55dd9a0bd642ecbbbb17136ca2c202bc5757c1495c290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
-			result: func(e *executor) interface{} {
-				v := true
-				return &v
-			},
 		},
 	},
 	"validateaddress": {
@@ -861,6 +844,42 @@ func TestRPC(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("submit", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
+		t.Run("empty", func(t *testing.T) {
+			s := newBlock(t, chain, 1)
+			body := doRPCCall(fmt.Sprintf(rpc, s), handler, t)
+			checkErrGetResult(t, body, true)
+		})
+
+		wif := testchain.WIF(0)
+		acc, err := wallet.NewAccountFromWIF(wif)
+		require.NoError(t, err)
+		newTx := func() *transaction.Transaction {
+			height := chain.BlockHeight()
+			tx := transaction.NewMinerTXWithNonce(height + 1)
+			tx.ValidUntilBlock = height + 10
+			tx.Sender = acc.PrivateKey().GetScriptHash()
+			require.NoError(t, acc.SignTx(tx))
+			return tx
+		}
+
+		t.Run("invalid height", func(t *testing.T) {
+			b := newBlock(t, chain, 2, newTx())
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), handler, t)
+			checkErrGetResult(t, body, true)
+		})
+
+		t.Run("positive", func(t *testing.T) {
+			b := newBlock(t, chain, 1, newTx())
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), handler, t)
+			data := checkErrGetResult(t, body, false)
+			var res bool
+			require.NoError(t, json.Unmarshal(data, &res))
+			require.True(t, res)
+		})
+	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
@@ -1012,6 +1031,36 @@ func (e *executor) getHeader(s string) *block.Header {
 		panic("unknown block (update block hash)")
 	}
 	return block.Header()
+}
+
+func encodeBlock(t *testing.T, b *block.Block) string {
+	w := io.NewBufBinWriter()
+	b.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+	return hex.EncodeToString(w.Bytes())
+}
+
+func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*transaction.Transaction) *block.Block {
+	witness := transaction.Witness{VerificationScript: testchain.MultisigVerificationScript()}
+	height := bc.BlockHeight()
+	h := bc.GetHeaderHash(int(height))
+	hdr, err := bc.GetHeader(h)
+	require.NoError(t, err)
+	b := &block.Block{
+		Base: block.Base{
+			PrevHash:      hdr.Hash(),
+			Timestamp:     uint32(time.Now().UTC().Unix()) + hdr.Index,
+			Index:         hdr.Index + index,
+			ConsensusData: 1111,
+			NextConsensus: witness.ScriptHash(),
+			Script:        witness,
+		},
+		Transactions: txs,
+	}
+	_ = b.RebuildMerkleRoot()
+
+	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
+	return b
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
