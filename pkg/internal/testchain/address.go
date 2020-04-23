@@ -4,8 +4,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // privNetKeys is a list of unencrypted WIFs sorted by public key.
@@ -77,4 +79,18 @@ func MultisigScriptHash() util.Uint160 {
 // MultisigAddress return consensus address as string.
 func MultisigAddress() string {
 	return address.Uint160ToString(MultisigScriptHash())
+}
+
+// Sign signs data by all consensus nodes and returns invocation script.
+func Sign(data []byte) []byte {
+	buf := io.NewBufBinWriter()
+	for i := 0; i < Size(); i++ {
+		pKey := PrivateKey(i)
+		sig := pKey.Sign(data)
+		if len(sig) != 64 {
+			panic("wrong signature length")
+		}
+		emit.Bytes(buf.BinWriter, sig)
+	}
+	return buf.Bytes()
 }
