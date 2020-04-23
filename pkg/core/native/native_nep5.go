@@ -113,7 +113,7 @@ func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.
 
 func addrToStackItem(u *util.Uint160) vm.StackItem {
 	if u == nil {
-		return nil
+		return vm.NullItem{}
 	}
 	return vm.NewByteArrayItem(u.BytesBE())
 }
