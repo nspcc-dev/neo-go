@@ -99,3 +99,8 @@ func (n *neoBlock) SetNextConsensus(h util.Uint160) { n.Block.NextConsensus = h 
 
 // Signature implements block.Block interface.
 func (n *neoBlock) Signature() []byte { return n.signature }
+
+// SetPrimaryIndex is an auxiliary setter for ConsensusData's PrimaryIndex
+func (n *neoBlock) SetPrimaryIndex(primaryIndex uint32) {
+	n.Block.ConsensusData.PrimaryIndex = primaryIndex
+}

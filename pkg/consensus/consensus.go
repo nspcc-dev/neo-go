@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/dbft/merkle"
 	"github.com/nspcc-dev/dbft/payload"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -134,7 +135,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlock(func() block.Block { return new(neoBlock) }),
+		dbft.WithNewBlockFromContext(newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
@@ -477,4 +478,31 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	}
 
 	return
+}
+
+func newBlockFromContext(ctx *dbft.Context) block.Block {
+	block := new(neoBlock)
+	if ctx.TransactionHashes == nil {
+		return nil
+	}
+
+	block.Block.Timestamp = ctx.Timestamp / 1000000
+	block.Block.Index = ctx.BlockIndex
+	block.Block.NextConsensus = ctx.NextConsensus
+	block.Block.PrevHash = ctx.PrevHash
+	block.Block.Version = ctx.Version
+	block.Block.ConsensusData.Nonce = ctx.Nonce
+
+	primaryIndex := uint32(ctx.PrimaryIndex)
+	block.Block.ConsensusData.PrimaryIndex = primaryIndex
+	consensusData := coreb.ConsensusData{
+		PrimaryIndex: primaryIndex,
+		Nonce:        ctx.Nonce,
+	}
+
+	if len(ctx.TransactionHashes) != 0 {
+		mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
+		block.Block.MerkleRoot = mt.Root().Hash
+	}
+	return block
 }
