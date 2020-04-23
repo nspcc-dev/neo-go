@@ -719,9 +719,9 @@ func callNTimes(n uint16) []byte {
 	return makeProgram(
 		opcode.PUSHINT16, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
 		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
-		opcode.JMPIF, 0x4, 0, opcode.RET,
+		opcode.JMPIF, 0x3, opcode.RET,
 		opcode.FROMALTSTACK, opcode.DEC,
-		opcode.CALL, 0xF8, 0xFF) // -8 -> JMP to TOALTSTACK)
+		opcode.CALL, 0xF9) // -7 -> JMP to TOALTSTACK)
 }
 
 func TestInvocationLimitGood(t *testing.T) {
@@ -734,6 +734,96 @@ func TestInvocationLimitBad(t *testing.T) {
 	prog := callNTimes(MaxInvocationStackSize)
 	v := load(prog)
 	checkVMFailed(t, v)
+}
+
+func isLongJMP(op opcode.Opcode) bool {
+	return op == opcode.JMPL || op == opcode.JMPIFL || op == opcode.JMPIFNOTL ||
+		op == opcode.JMPEQL || op == opcode.JMPNEL ||
+		op == opcode.JMPGEL || op == opcode.JMPGTL ||
+		op == opcode.JMPLEL || op == opcode.JMPLTL
+}
+
+func getJMPProgram(op opcode.Opcode) []byte {
+	prog := []byte{byte(op)}
+	if isLongJMP(op) {
+		prog = append(prog, 0x07, 0x00, 0x00, 0x00)
+	} else {
+		prog = append(prog, 0x04)
+	}
+	return append(prog, byte(opcode.PUSH1), byte(opcode.RET), byte(opcode.PUSH2), byte(opcode.RET))
+}
+
+func testJMP(t *testing.T, op opcode.Opcode, res interface{}, items ...interface{}) {
+	prog := getJMPProgram(op)
+	v := load(prog)
+	for i := range items {
+		v.estack.PushVal(items[i])
+	}
+	if res == nil {
+		checkVMFailed(t, v)
+		return
+	}
+	runVM(t, v)
+	require.EqualValues(t, res, v.estack.Pop().BigInt().Int64())
+}
+
+func TestJMPs(t *testing.T) {
+	testCases := []struct {
+		name  string
+		items []interface{}
+	}{
+		{
+			name: "no condition",
+		},
+		{
+			name:  "single item (true)",
+			items: []interface{}{true},
+		},
+		{
+			name:  "single item (false)",
+			items: []interface{}{false},
+		},
+		{
+			name:  "24 and 42",
+			items: []interface{}{24, 42},
+		},
+		{
+			name:  "42 and 24",
+			items: []interface{}{42, 24},
+		},
+		{
+			name:  "42 and 42",
+			items: []interface{}{42, 42},
+		},
+	}
+
+	// 2 is true, 1 is false
+	results := map[opcode.Opcode][]interface{}{
+		opcode.JMP:      {2, 2, 2, 2, 2, 2},
+		opcode.JMPIF:    {nil, 2, 1, 2, 2, 2},
+		opcode.JMPIFNOT: {nil, 1, 2, 1, 1, 1},
+		opcode.JMPEQ:    {nil, nil, nil, 1, 1, 2},
+		opcode.JMPNE:    {nil, nil, nil, 2, 2, 1},
+		opcode.JMPGE:    {nil, nil, nil, 1, 2, 2},
+		opcode.JMPGT:    {nil, nil, nil, 1, 2, 1},
+		opcode.JMPLE:    {nil, nil, nil, 2, 1, 2},
+		opcode.JMPLT:    {nil, nil, nil, 2, 1, 1},
+	}
+
+	for i, tc := range testCases {
+		i := i
+		t.Run(tc.name, func(t *testing.T) {
+			for op := opcode.JMP; op < opcode.JMPLEL; op++ {
+				resOp := op
+				if isLongJMP(op) {
+					resOp--
+				}
+				t.Run(op.String(), func(t *testing.T) {
+					testJMP(t, op, results[resOp][i], tc.items...)
+				})
+			}
+		})
+	}
 }
 
 func TestNOTNoArgument(t *testing.T) {
@@ -1798,7 +1888,7 @@ func TestSimpleCall(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	w := buf.BinWriter
 	emit.Opcode(w, opcode.PUSH2)
-	emit.Instruction(w, opcode.CALL, []byte{04, 00})
+	emit.Instruction(w, opcode.CALL, []byte{03})
 	emit.Opcode(w, opcode.RET)
 	emit.Opcode(w, opcode.PUSH10)
 	emit.Opcode(w, opcode.ADD)

@@ -1118,16 +1118,25 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		arr := elem.Bytes()
 		v.estack.PushVal(len(arr))
 
-	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT:
+	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
+		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
+		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
+		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
 		offset := v.getJumpOffset(ctx, parameter, 0)
 		cond := true
-		if op != opcode.JMP {
-			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF)
+		switch op {
+		case opcode.JMP, opcode.JMPL:
+		case opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL:
+			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF || op == opcode.JMPIFL)
+		default:
+			b := v.estack.Pop().BigInt()
+			a := v.estack.Pop().BigInt()
+			cond = getJumpCondition(op, a, b)
 		}
 
 		v.jumpIf(ctx, offset, cond)
 
-	case opcode.CALL:
+	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
 
 		newCtx := ctx.Copy()
@@ -1293,6 +1302,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	return
 }
 
+// getJumpCondition performs opcode specific comparison of a and b
+func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
+	cmp := a.Cmp(b)
+	switch op {
+	case opcode.JMPEQ, opcode.JMPEQL:
+		return cmp == 0
+	case opcode.JMPNE, opcode.JMPNEL:
+		return cmp != 0
+	case opcode.JMPGT, opcode.JMPGTL:
+		return cmp > 0
+	case opcode.JMPGE, opcode.JMPGEL:
+		return cmp >= 0
+	case opcode.JMPLT, opcode.JMPLTL:
+		return cmp < 0
+	case opcode.JMPLE, opcode.JMPLEL:
+		return cmp <= 0
+	default:
+		panic(fmt.Sprintf("invalid JMP* opcode: %s", op))
+	}
+}
+
 // jumpIf performs jump to offset if cond is true.
 func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 	if cond {
@@ -1302,9 +1332,18 @@ func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 
 // getJumpOffset returns instruction number in a current context
 // to a which JMP should be performed.
-// parameter is interpreted as little-endian int16.
+// parameter should have length either 1 or 4 and
+// is interpreted as little-endian.
 func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
-	rOffset := int16(binary.LittleEndian.Uint16(parameter))
+	var rOffset int32
+	switch l := len(parameter); l {
+	case 1:
+		rOffset = int32(int8(parameter[0]))
+	case 4:
+		rOffset = int32(binary.LittleEndian.Uint32(parameter))
+	default:
+		panic(fmt.Sprintf("invalid JMP* parameter length: %d", l))
+	}
 	offset := ctx.ip + int(rOffset) + mod
 	if offset < 0 || offset > len(ctx.prog) {
 		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))

@@ -435,13 +435,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		if n.Cond != nil {
 			ast.Walk(c, n.Cond)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, lElse)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, lElse)
 		}
 
 		c.setLabel(lIf)
 		ast.Walk(c, n.Body)
 		if n.Else != nil {
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, lElseEnd)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, lElseEnd)
 		}
 
 		c.setLabel(lElse)
@@ -476,9 +476,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					ast.Walk(c, cc.List[j])
 					emit.Opcode(c.prog.BinWriter, eqOpcode)
 					if j == l-1 {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, lEnd)
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, lEnd)
 					} else {
-						emit.Jmp(c.prog.BinWriter, opcode.JMPIF, lStart)
+						emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, lStart)
 					}
 				}
 			}
@@ -487,12 +487,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			last := len(cc.Body) - 1
 			for j, stmt := range cc.Body {
 				if j == last && isFallthroughStmt(stmt) {
-					emit.Jmp(c.prog.BinWriter, opcode.JMP, startLabels[i+1])
+					emit.Jmp(c.prog.BinWriter, opcode.JMPL, startLabels[i+1])
 					break
 				}
 				ast.Walk(c, stmt)
 			}
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, switchEnd)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, switchEnd)
 			c.setLabel(lEnd)
 		}
 
@@ -562,9 +562,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			next := c.newLabel()
 			end := c.newLabel()
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIF, next)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, next)
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHF)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
 			c.setLabel(next)
 			ast.Walk(c, n.Y)
 			c.setLabel(end)
@@ -574,9 +574,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			next := c.newLabel()
 			end := c.newLabel()
 			ast.Walk(c, n.X)
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, next)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, next)
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHT)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
 			c.setLabel(next)
 			ast.Walk(c, n.Y)
 			c.setLabel(end)
@@ -686,7 +686,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case isSyscall(f):
 			c.convertSyscall(n, f.selector.Name, f.name)
 		default:
-			emit.Call(c.prog.BinWriter, opcode.CALL, f.label)
+			emit.Call(c.prog.BinWriter, opcode.CALLL, f.label)
 		}
 
 		return nil
@@ -782,10 +782,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		switch n.Tok {
 		case token.BREAK:
 			end := c.getLabelOffset(labelEnd, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, end)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, end)
 		case token.CONTINUE:
 			post := c.getLabelOffset(labelPost, label)
-			emit.Jmp(c.prog.BinWriter, opcode.JMP, post)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, post)
 		}
 
 		return nil
@@ -819,7 +819,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Cond)
 
 			// Jump if the condition is false
-			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, fend)
+			emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, fend)
 		}
 
 		// Walk body followed by the iterator (post stmt).
@@ -830,7 +830,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// Jump back to condition.
-		emit.Jmp(c.prog.BinWriter, opcode.JMP, fstart)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPL, fstart)
 		c.setLabel(fend)
 		c.dropStackLabel()
 
@@ -867,7 +867,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Opcode(c.prog.BinWriter, opcode.LTE) // finish if len <= i
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIF, end)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, end)
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
@@ -881,7 +881,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.setLabel(post)
 
 		emit.Opcode(c.prog.BinWriter, opcode.INC)
-		emit.Jmp(c.prog.BinWriter, opcode.JMP, start)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 
 		c.setLabel(end)
 		c.dropStackLabel()
@@ -1346,21 +1346,28 @@ func (c *codegen) writeJumps(b []byte) error {
 	ctx := vm.NewContext(b)
 	for op, _, err := ctx.Next(); err == nil && ctx.NextIP() < len(b); op, _, err = ctx.Next() {
 		switch op {
-		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL:
+		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
+			opcode.JMPEQ, opcode.JMPNE,
+			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
+			panic("short jumps are not yet supported")
+		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
+			opcode.JMPEQL, opcode.JMPNEL,
+			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
+			opcode.CALLL:
 			// we can't use arg returned by ctx.Next() because it is copied
 			nextIP := ctx.NextIP()
-			arg := b[nextIP-2:]
+			arg := b[nextIP-4:]
 
 			index := binary.LittleEndian.Uint16(arg)
 			if int(index) > len(c.l) {
 				return fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
 			}
-			offset := c.l[index] - nextIP + 3
-			if offset > math.MaxUint16 {
-				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d)",
-					nextIP-3, offset, math.MaxUint16)
+			offset := c.l[index] - nextIP + 5
+			if offset > math.MaxInt32 || offset < math.MinInt32 {
+				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
+					nextIP-5, offset, math.MaxInt32, math.MinInt32)
 			}
-			binary.LittleEndian.PutUint16(arg, uint16(offset))
+			binary.LittleEndian.PutUint32(arg, uint32(offset))
 		}
 	}
 	return nil

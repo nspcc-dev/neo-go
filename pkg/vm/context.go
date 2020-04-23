@@ -99,9 +99,13 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			numtoread = int(n)
 			c.nextip += 4
 		}
-	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL:
-		numtoread = 2
-	case opcode.SYSCALL:
+	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
+		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
+		opcode.CALL:
+		numtoread = 1
+	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
+		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
+		opcode.CALLL, opcode.SYSCALL:
 		numtoread = 4
 	case opcode.APPCALL, opcode.TAILCALL:
 		numtoread = 20
