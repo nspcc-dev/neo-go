@@ -125,7 +125,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, acc *state.Account, amount *b
 }
 
 func (n *NEO) distributeGas(ic *interop.Context, acc *state.Account) error {
-	if ic.Block == nil {
+	if ic.Block == nil || ic.Block.Index == 0 {
 		return nil
 	}
 	sys, net, err := ic.Chain.CalculateClaimable(util.Fixed8(acc.NEO.Balance.Int64()), acc.NEO.BalanceHeight, ic.Block.Index)
