@@ -160,7 +160,7 @@ const (
 	SETITEM      Opcode = 0xD0
 	REVERSEITEMS Opcode = 0xD1
 	REMOVE       Opcode = 0xD2
-	// CLEARITEMS   Opcode = 0xD3
+	CLEARITEMS   Opcode = 0xD3
 
 	// Exceptions
 	THROW      Opcode = 0xF0

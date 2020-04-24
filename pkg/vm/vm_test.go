@@ -2713,6 +2713,43 @@ func TestREMOVEMap(t *testing.T) {
 	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
 }
 
+func testCLEARITEMS(t *testing.T, item StackItem) {
+	prog := makeProgram(opcode.DUP, opcode.DUP, opcode.CLEARITEMS, opcode.SIZE)
+	v := load(prog)
+	v.estack.PushVal(item)
+	runVM(t, v)
+	require.Equal(t, 2, v.estack.Len())
+	require.EqualValues(t, 2, v.size) // empty collection + it's size
+	require.EqualValues(t, 0, v.estack.Pop().BigInt().Int64())
+}
+
+func TestCLEARITEMS(t *testing.T) {
+	arr := []StackItem{NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{1})}
+	m := NewMapItem()
+	m.Add(NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{}))
+	m.Add(NewByteArrayItem([]byte{42}), NewBigIntegerItem(big.NewInt(2)))
+
+	testCases := map[string]StackItem{
+		"empty Array":   NewArrayItem([]StackItem{}),
+		"filled Array":  NewArrayItem(arr),
+		"empty Struct":  NewStructItem([]StackItem{}),
+		"filled Struct": NewStructItem(arr),
+		"empty Map":     NewMapItem(),
+		"filled Map":    m,
+	}
+
+	for name, item := range testCases {
+		t.Run(name, func(t *testing.T) { testCLEARITEMS(t, item) })
+	}
+
+	t.Run("Integer", func(t *testing.T) {
+		prog := makeProgram(opcode.CLEARITEMS)
+		v := load(prog)
+		v.estack.PushVal(1)
+		checkVMFailed(t, v)
+	})
+}
+
 func TestSWAPGood(t *testing.T) {
 	prog := makeProgram(opcode.SWAP)
 	vm := load(prog)

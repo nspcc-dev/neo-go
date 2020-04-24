@@ -1106,6 +1106,28 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("REMOVE: invalid type")
 		}
 
+	case opcode.CLEARITEMS:
+		elem := v.estack.Pop()
+		switch t := elem.value.(type) {
+		case *ArrayItem:
+			for _, item := range t.value {
+				v.estack.updateSizeRemove(item)
+			}
+			t.value = t.value[:0]
+		case *StructItem:
+			for _, item := range t.value {
+				v.estack.updateSizeRemove(item)
+			}
+			t.value = t.value[:0]
+		case *MapItem:
+			for i := range t.value {
+				v.estack.updateSizeRemove(t.value[i].Value)
+			}
+			t.value = t.value[:0]
+		default:
+			panic("CLEARITEMS: invalid type")
+		}
+
 	case opcode.SIZE:
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
