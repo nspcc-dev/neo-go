@@ -71,17 +71,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	}
 	_ = b.RebuildMerkleRoot()
 
-	buf := io.NewBufBinWriter()
-	for i := 0; i < testchain.Size(); i++ {
-		pKey := testchain.PrivateKey(i)
-		b := b.GetSignedPart()
-		sig := pKey.Sign(b)
-		if len(sig) != 64 {
-			panic("wrong signature length")
-		}
-		emit.Bytes(buf.BinWriter, sig)
-	}
-	b.Script.InvocationScript = buf.Bytes()
+	b.Script.InvocationScript = testchain.Sign(b.GetSignedPart())
 	return b
 }
 
@@ -466,19 +456,6 @@ func TestCreateBasicChain(t *testing.T) {
 	bw := io.NewBufBinWriter()
 	txNeoRound.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
-
-	// Blocks for `submitblock` test. If you are planning to modify test chain from `testblocks.acc`,
-	// please, update params value of `empty block` and `positive` tests.
-	var blocks []*block.Block
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	blocks = append(blocks, bc.newBlock(), bc.newBlock(minerTx))
-	for i, b := range blocks {
-		data, err := testserdes.EncodeBinary(b)
-		require.NoError(t, err)
-		t.Logf("\nblock %v for submitblock test:\n%s", i, hex.EncodeToString(data))
-	}
 }
 
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
@@ -508,15 +485,8 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	}
 	for _, tx := range txs {
 		data := tx.GetSignedPart()
-
-		var invoc []byte
-		for i := 0; i < testchain.Size(); i++ {
-			priv := testchain.PrivateKey(i)
-			invoc = append(invoc, getInvocationScript(data, priv)...)
-		}
-
 		tx.Scripts = []transaction.Witness{{
-			InvocationScript:   invoc,
+			InvocationScript:   testchain.Sign(data),
 			VerificationScript: rawScript,
 		}}
 	}
