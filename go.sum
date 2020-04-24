@@ -131,6 +131,8 @@ github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1 h1:yEx9WznS+rjE0jl0
 github.com/nspcc-dev/dbft v0.0.0-20200219114139-199d286ed6c1/go.mod h1:O0qtn62prQSqizzoagHmuuKoz8QMkU3SzBoKdEvm3aQ=
 github.com/nspcc-dev/dbft v0.0.0-20200303183127-36d3da79c682 h1:63OWUolW4GcjJR7cThq8hLnMLTwL+sjO3Qf4fo4sx8w=
 github.com/nspcc-dev/dbft v0.0.0-20200303183127-36d3da79c682/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
+github.com/nspcc-dev/dbft v0.0.0-20200427132226-05feeca847dd h1:4XKbXahJWlhjVx2cETQz9edHQfe3BQ2JjNdvSKFBelY=
+github.com/nspcc-dev/dbft v0.0.0-20200427132226-05feeca847dd/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
 github.com/nspcc-dev/dbft v0.0.0-20200427132226-15a7927772a4 h1:3cFSp4v2u9+S7K1GdLUOP1680EiGEHSBvSI6G2n8XzY=
 github.com/nspcc-dev/dbft v0.0.0-20200427132226-15a7927772a4/go.mod h1:1FYQXSbb6/9HQIkoF8XO7W/S8N7AZRkBsgwbcXRvk0E=
 github.com/nspcc-dev/dbft v0.0.0-20200427132226-342f23599814 h1:iNqBioi0RU2VX9UiGl/GfQKBbZrDWq5KSxQG+dgTaqo=
