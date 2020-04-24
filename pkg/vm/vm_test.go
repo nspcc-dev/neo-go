@@ -1252,6 +1252,22 @@ func TestDECBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
+func TestNEWARRAY0(t *testing.T) {
+	prog := makeProgram(opcode.NEWARRAY0)
+	v := load(prog)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, &ArrayItem{[]StackItem{}}, v.estack.Pop().value)
+}
+
+func TestNEWSTRUCT0(t *testing.T) {
+	prog := makeProgram(opcode.NEWSTRUCT0)
+	v := load(prog)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, &StructItem{[]StackItem{}}, v.estack.Pop().value)
+}
+
 func TestNEWARRAYInteger(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)

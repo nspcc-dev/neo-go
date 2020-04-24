@@ -911,7 +911,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Cmp(big.NewInt(0)) != 0)
 
-	// Object operations.
+	// Object operations
+	case opcode.NEWARRAY0:
+		v.estack.PushVal(&ArrayItem{[]StackItem{}})
+
 	case opcode.NEWARRAY:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
@@ -929,6 +932,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			items := makeArrayOfFalses(int(n))
 			v.estack.PushVal(&ArrayItem{items})
 		}
+
+	case opcode.NEWSTRUCT0:
+		v.estack.PushVal(&StructItem{[]StackItem{}})
 
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
