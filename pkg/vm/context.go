@@ -101,7 +101,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		}
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
-		opcode.CALL, opcode.ISTYPE:
+		opcode.CALL, opcode.ISTYPE, opcode.NEWARRAYT:
 		numtoread = 1
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,

@@ -660,7 +660,7 @@ func TestSerializeArray(t *testing.T) {
 
 func TestSerializeArrayBad(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewArrayItem(makeArrayOfFalses(2))
+	item := NewArrayItem(makeArrayOfType(2, BooleanT))
 	item.value[1] = item
 
 	vm.estack.Push(&Element{value: item})
@@ -1337,7 +1337,7 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 opcode.Opcode, appended bool) {
 	vm := load(prog)
 	vm.Run()
 
-	arr := makeArrayOfFalses(4)
+	arr := makeArrayOfType(4, BooleanT)
 	arr[2] = makeStackItem(3)
 	arr[3] = makeStackItem(4)
 	if appended {
@@ -1377,6 +1377,32 @@ func TestNEWARRAYByteArray(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, &ArrayItem{[]StackItem{}}, vm.estack.Pop().value)
+}
+
+func testNEWARRAYT(t *testing.T, typ StackItemType, item StackItem) {
+	prog := makeProgram(opcode.NEWARRAYT, opcode.Opcode(typ), opcode.PUSH0, opcode.PICKITEM)
+	v := load(prog)
+	v.estack.PushVal(1)
+	if item == nil {
+		checkVMFailed(t, v)
+		return
+	}
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, item, v.estack.Pop().Item())
+}
+
+func TestNEWARRAYT(t *testing.T) {
+	testCases := map[StackItemType]StackItem{
+		BooleanT:   NewBoolItem(false),
+		IntegerT:   NewBigIntegerItem(big.NewInt(0)),
+		ByteArrayT: NewByteArrayItem([]byte{}),
+		ArrayT:     NullItem{},
+		0xFF:       nil,
+	}
+	for typ, item := range testCases {
+		t.Run(typ.String(), func(t *testing.T) { testNEWARRAYT(t, typ, item) })
+	}
 }
 
 func TestNEWARRAYBadSize(t *testing.T) {

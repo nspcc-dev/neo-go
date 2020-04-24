@@ -143,11 +143,11 @@ const (
 	CHECKMULTISIG Opcode = 0xAE
 
 	// Advanced data structures (arrays, structures, maps)
-	PACK      Opcode = 0xC0
-	UNPACK    Opcode = 0xC1
-	NEWARRAY0 Opcode = 0xC2
-	NEWARRAY  Opcode = 0xC3
-	// NEWARRAYT   Opcode = 0xC4
+	PACK         Opcode = 0xC0
+	UNPACK       Opcode = 0xC1
+	NEWARRAY0    Opcode = 0xC2
+	NEWARRAY     Opcode = 0xC3
+	NEWARRAYT    Opcode = 0xC4
 	NEWSTRUCT0   Opcode = 0xC5
 	NEWSTRUCT    Opcode = 0xC6
 	NEWMAP       Opcode = 0xC8

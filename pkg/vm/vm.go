@@ -919,7 +919,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NEWARRAY0:
 		v.estack.PushVal(&ArrayItem{[]StackItem{}})
 
-	case opcode.NEWARRAY:
+	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
 		case *StructItem:
@@ -933,7 +933,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long array")
 			}
-			items := makeArrayOfFalses(int(n))
+			typ := BooleanT
+			if op == opcode.NEWARRAYT {
+				typ = StackItemType(parameter[0])
+			}
+			items := makeArrayOfType(int(n), typ)
 			v.estack.PushVal(&ArrayItem{items})
 		}
 
@@ -954,7 +958,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long struct")
 			}
-			items := makeArrayOfFalses(int(n))
+			items := makeArrayOfType(int(n), BooleanT)
 			v.estack.PushVal(&StructItem{items})
 		}
 
@@ -1492,10 +1496,22 @@ func cloneIfStruct(item StackItem) StackItem {
 	}
 }
 
-func makeArrayOfFalses(n int) []StackItem {
+func makeArrayOfType(n int, typ StackItemType) []StackItem {
+	if !typ.IsValid() {
+		panic(fmt.Sprintf("invalid stack item type: %d", typ))
+	}
 	items := make([]StackItem, n)
 	for i := range items {
-		items[i] = &BoolItem{false}
+		switch typ {
+		case BooleanT:
+			items[i] = NewBoolItem(false)
+		case IntegerT:
+			items[i] = NewBigIntegerItem(big.NewInt(0))
+		case ByteArrayT:
+			items[i] = NewByteArrayItem([]byte{})
+		default:
+			items[i] = NullItem{}
+		}
 	}
 	return items
 }
