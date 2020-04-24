@@ -1058,7 +1058,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
-	case opcode.REVERSE:
+	case opcode.REVERSEITEMS:
 		a := v.estack.Pop().Array()
 		if len(a) > 1 {
 			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
@@ -1100,7 +1100,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("REMOVE: invalid type")
 		}
 
-	case opcode.ARRAYSIZE:
+	case opcode.SIZE:
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
@@ -1112,11 +1112,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			v.estack.PushVal(len(elem.Bytes()))
 		}
-
-	case opcode.SIZE:
-		elem := v.estack.Pop()
-		arr := elem.Bytes()
-		v.estack.PushVal(len(arr))
 
 	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,

@@ -1581,8 +1581,8 @@ func TestSIZEBool(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
-func TestARRAYSIZEArray(t *testing.T) {
-	prog := makeProgram(opcode.ARRAYSIZE)
+func TestSIZEArray(t *testing.T) {
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{
 		makeStackItem(1),
@@ -1593,8 +1593,8 @@ func TestARRAYSIZEArray(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
-func TestARRAYSIZEMap(t *testing.T) {
-	prog := makeProgram(opcode.ARRAYSIZE)
+func TestSIZEMap(t *testing.T) {
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -2534,19 +2534,19 @@ func TestUNPACKGood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(len(elements)+1).BigInt().Int64())
 }
 
-func TestREVERSEBadNotArray(t *testing.T) {
-	prog := makeProgram(opcode.REVERSE)
+func TestREVERSEITEMSBadNotArray(t *testing.T) {
+	prog := makeProgram(opcode.REVERSEITEMS)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
-func testREVERSEIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
+func testREVERSEITEMSIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
 	prog := makeProgram(
 		opcode.PUSH0, i1,
 		opcode.DUP, opcode.PUSH1, opcode.APPEND,
 		opcode.DUP, opcode.PUSH2, opcode.APPEND,
-		opcode.DUP, i2, opcode.REVERSE)
+		opcode.DUP, i2, opcode.REVERSEITEMS)
 	vm := load(prog)
 	vm.Run()
 
@@ -2567,15 +2567,15 @@ func testREVERSEIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
 	}
 }
 
-func TestREVERSEIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
+func TestREVERSEITEMSIssue437(t *testing.T) {
+	t.Run("Array+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
 }
 
-func TestREVERSEGoodOneElem(t *testing.T) {
-	prog := makeProgram(opcode.DUP, opcode.REVERSE)
+func TestREVERSEITEMSGoodOneElem(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 	elements := []int{22}
 	vm := load(prog)
 	vm.estack.PushVal(1)
@@ -2588,13 +2588,13 @@ func TestREVERSEGoodOneElem(t *testing.T) {
 	assert.Equal(t, int64(elements[0]), e.Int64())
 }
 
-func TestREVERSEGoodStruct(t *testing.T) {
+func TestREVERSEITEMSGoodStruct(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(opcode.DUP, opcode.REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 
@@ -2616,13 +2616,13 @@ func TestREVERSEGoodStruct(t *testing.T) {
 	}
 }
 
-func TestREVERSEGood(t *testing.T) {
+func TestREVERSEITEMSGood(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(opcode.DUP, opcode.REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 		vm.estack.PushVal(elements)
