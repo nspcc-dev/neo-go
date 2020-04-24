@@ -719,9 +719,9 @@ func callNTimes(n uint16) []byte {
 	return makeProgram(
 		opcode.PUSHINT16, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
 		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
-		opcode.JMPIF, 0x4, 0, opcode.RET,
+		opcode.JMPIF, 0x3, opcode.RET,
 		opcode.FROMALTSTACK, opcode.DEC,
-		opcode.CALL, 0xF8, 0xFF) // -8 -> JMP to TOALTSTACK)
+		opcode.CALL, 0xF9) // -7 -> JMP to TOALTSTACK)
 }
 
 func TestInvocationLimitGood(t *testing.T) {
@@ -734,6 +734,96 @@ func TestInvocationLimitBad(t *testing.T) {
 	prog := callNTimes(MaxInvocationStackSize)
 	v := load(prog)
 	checkVMFailed(t, v)
+}
+
+func isLongJMP(op opcode.Opcode) bool {
+	return op == opcode.JMPL || op == opcode.JMPIFL || op == opcode.JMPIFNOTL ||
+		op == opcode.JMPEQL || op == opcode.JMPNEL ||
+		op == opcode.JMPGEL || op == opcode.JMPGTL ||
+		op == opcode.JMPLEL || op == opcode.JMPLTL
+}
+
+func getJMPProgram(op opcode.Opcode) []byte {
+	prog := []byte{byte(op)}
+	if isLongJMP(op) {
+		prog = append(prog, 0x07, 0x00, 0x00, 0x00)
+	} else {
+		prog = append(prog, 0x04)
+	}
+	return append(prog, byte(opcode.PUSH1), byte(opcode.RET), byte(opcode.PUSH2), byte(opcode.RET))
+}
+
+func testJMP(t *testing.T, op opcode.Opcode, res interface{}, items ...interface{}) {
+	prog := getJMPProgram(op)
+	v := load(prog)
+	for i := range items {
+		v.estack.PushVal(items[i])
+	}
+	if res == nil {
+		checkVMFailed(t, v)
+		return
+	}
+	runVM(t, v)
+	require.EqualValues(t, res, v.estack.Pop().BigInt().Int64())
+}
+
+func TestJMPs(t *testing.T) {
+	testCases := []struct {
+		name  string
+		items []interface{}
+	}{
+		{
+			name: "no condition",
+		},
+		{
+			name:  "single item (true)",
+			items: []interface{}{true},
+		},
+		{
+			name:  "single item (false)",
+			items: []interface{}{false},
+		},
+		{
+			name:  "24 and 42",
+			items: []interface{}{24, 42},
+		},
+		{
+			name:  "42 and 24",
+			items: []interface{}{42, 24},
+		},
+		{
+			name:  "42 and 42",
+			items: []interface{}{42, 42},
+		},
+	}
+
+	// 2 is true, 1 is false
+	results := map[opcode.Opcode][]interface{}{
+		opcode.JMP:      {2, 2, 2, 2, 2, 2},
+		opcode.JMPIF:    {nil, 2, 1, 2, 2, 2},
+		opcode.JMPIFNOT: {nil, 1, 2, 1, 1, 1},
+		opcode.JMPEQ:    {nil, nil, nil, 1, 1, 2},
+		opcode.JMPNE:    {nil, nil, nil, 2, 2, 1},
+		opcode.JMPGE:    {nil, nil, nil, 1, 2, 2},
+		opcode.JMPGT:    {nil, nil, nil, 1, 2, 1},
+		opcode.JMPLE:    {nil, nil, nil, 2, 1, 2},
+		opcode.JMPLT:    {nil, nil, nil, 2, 1, 1},
+	}
+
+	for i, tc := range testCases {
+		i := i
+		t.Run(tc.name, func(t *testing.T) {
+			for op := opcode.JMP; op < opcode.JMPLEL; op++ {
+				resOp := op
+				if isLongJMP(op) {
+					resOp--
+				}
+				t.Run(op.String(), func(t *testing.T) {
+					testJMP(t, op, results[resOp][i], tc.items...)
+				})
+			}
+		})
+	}
 }
 
 func TestNOTNoArgument(t *testing.T) {
@@ -1798,7 +1888,7 @@ func TestSimpleCall(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	w := buf.BinWriter
 	emit.Opcode(w, opcode.PUSH2)
-	emit.Instruction(w, opcode.CALL, []byte{04, 00})
+	emit.Instruction(w, opcode.CALL, []byte{03})
 	emit.Opcode(w, opcode.RET)
 	emit.Opcode(w, opcode.PUSH10)
 	emit.Opcode(w, opcode.ADD)
@@ -3024,155 +3114,6 @@ func TestBitAndNumericOpcodes(t *testing.T) {
 			}
 		})
 	}
-}
-
-var stackIsolationTestCases = map[opcode.Opcode][]struct {
-	name   string
-	params []interface{}
-}{
-	opcode.CALLE: {
-		{
-			name: "no_params",
-		},
-		{
-			name:   "with_params",
-			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
-		},
-	},
-	opcode.CALLED: {
-		{
-			name: "no_paranms",
-		},
-		{
-			name:   "with_params",
-			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
-		},
-	},
-	opcode.CALLET: {
-		{
-			name: "no_params",
-		},
-		{
-			name:   "with_params",
-			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
-		},
-	},
-	opcode.CALLEDT: {
-		{
-			name: "no_params",
-		},
-		{
-			name:   "with_params",
-			params: []interface{}{big.NewInt(5), true, []byte{1, 2, 3}},
-		},
-	},
-}
-
-func TestStackIsolationOpcodes(t *testing.T) {
-	scriptHash := util.Uint160{1, 2, 3}
-	for code, codeTestCases := range stackIsolationTestCases {
-		t.Run(code.String(), func(t *testing.T) {
-			for _, testCase := range codeTestCases {
-				t.Run(testCase.name, func(t *testing.T) {
-					rvcount := len(testCase.params) + 1 // parameters + DEPTH
-					pcount := len(testCase.params)
-					prog := []byte{byte(code), byte(rvcount), byte(pcount)}
-					if code == opcode.CALLE || code == opcode.CALLET {
-						prog = append(prog, scriptHash.BytesBE()...)
-					}
-					prog = append(prog, byte(opcode.RET))
-
-					vm := load(prog)
-					vm.SetScriptGetter(func(in util.Uint160) ([]byte, bool) {
-						if in.Equals(scriptHash) {
-							return makeProgram(opcode.DEPTH), true
-						}
-						return nil, false
-					})
-					if code == opcode.CALLED || code == opcode.CALLEDT {
-						vm.Context().hasDynamicInvoke = true
-					}
-					if code == opcode.CALLET || code == opcode.CALLEDT {
-						vm.Context().rvcount = rvcount
-					}
-					// add extra parameter just to check that it won't appear on new estack
-					vm.estack.PushVal(7)
-					for _, param := range testCase.params {
-						vm.estack.PushVal(param)
-					}
-					if code == opcode.CALLED || code == opcode.CALLEDT {
-						vm.estack.PushVal(scriptHash.BytesBE())
-					}
-
-					runVM(t, vm)
-					elem := vm.estack.Pop() // depth should be equal to params count, as it's a separate execution context
-					assert.Equal(t, int64(pcount), elem.BigInt().Int64())
-					for i := pcount; i > 0; i-- {
-						p := vm.estack.Pop()
-						assert.Equal(t, testCase.params[i-1], p.value.Value())
-					}
-				})
-			}
-		})
-	}
-}
-
-func TestCALLIAltStack(t *testing.T) {
-	prog := []byte{
-		byte(opcode.PUSH1),
-		byte(opcode.DUP),
-		byte(opcode.TOALTSTACK),
-		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including  JMP parameters)
-		byte(opcode.FROMALTSTACK), // altstack is empty, so panic here
-		byte(opcode.RET),
-		byte(opcode.CALLI), byte(0), byte(0), 0xfc, 0xff, // to FROMALTSTACK (-4) with clean stacks
-		byte(opcode.RET),
-	}
-
-	vm := load(prog)
-	checkVMFailed(t, vm)
-}
-
-func TestCALLIDEPTH(t *testing.T) {
-	prog := []byte{
-		byte(opcode.PUSH3),
-		byte(opcode.PUSH2),
-		byte(opcode.PUSH1),
-		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including JMP parameters)
-		byte(opcode.DEPTH), // depth is 2, put it on stack
-		byte(opcode.RET),
-		byte(opcode.CALLI), byte(3), byte(2), 0xfc, 0xff, // to DEPTH (-4) with [21 on stack
-		byte(opcode.RET),
-	}
-
-	vm := load(prog)
-
-	runVM(t, vm)
-	assert.Equal(t, 4, vm.estack.Len())
-	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64()) // depth was 2
-	for i := 1; i < 4; i++ {
-		assert.Equal(t, int64(i), vm.estack.Pop().BigInt().Int64())
-	}
-}
-
-func TestCALLI(t *testing.T) {
-	prog := []byte{
-		byte(opcode.PUSH3),
-		byte(opcode.PUSH2),
-		byte(opcode.PUSH1),
-		byte(opcode.JMP), 0x5, 0, // to CALLI (+5 including JMP parameters)
-		byte(opcode.SUB), // 2 - 1
-		byte(opcode.RET),
-		byte(opcode.CALLI), byte(1), byte(2), 0xfc, 0xff, // to SUB (-4) with [21 on stack
-		byte(opcode.MUL), // 3 * 1
-		byte(opcode.RET),
-	}
-
-	vm := load(prog)
-
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {

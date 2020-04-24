@@ -42,14 +42,32 @@ const (
 	PUSH15 Opcode = 0x1F
 	PUSH16 Opcode = 0x20
 
+	// Flow control
+	NOP       Opcode = 0x21
+	JMP       Opcode = 0x22
+	JMPL      Opcode = 0x23
+	JMPIF     Opcode = 0x24
+	JMPIFL    Opcode = 0x25
+	JMPIFNOT  Opcode = 0x26
+	JMPIFNOTL Opcode = 0x27
+	JMPEQ     Opcode = 0x28
+	JMPEQL    Opcode = 0x29
+	JMPNE     Opcode = 0x2A
+	JMPNEL    Opcode = 0x2B
+	JMPGT     Opcode = 0x2C
+	JMPGTL    Opcode = 0x2D
+	JMPGE     Opcode = 0x2E
+	JMPGEL    Opcode = 0x2F
+	JMPLT     Opcode = 0x30
+	JMPLTL    Opcode = 0x31
+	JMPLE     Opcode = 0x32
+	JMPLEL    Opcode = 0x33
+	CALL      Opcode = 0x34
+	CALLL     Opcode = 0x35
+
+	// Legacy
 	OLDPUSH1 Opcode = 0x51
 
-	// Flow control
-	NOP      Opcode = 0x61
-	JMP      Opcode = 0x62
-	JMPIF    Opcode = 0x63
-	JMPIFNOT Opcode = 0x64
-	CALL     Opcode = 0x65
 	RET      Opcode = 0x66
 	APPCALL  Opcode = 0x67
 	SYSCALL  Opcode = 0x68
@@ -140,13 +158,6 @@ const (
 	HASKEY    Opcode = 0xCB
 	KEYS      Opcode = 0xCC
 	VALUES    Opcode = 0xCD
-
-	// Stack isolation
-	CALLI   Opcode = 0xE0
-	CALLE   Opcode = 0xE1
-	CALLED  Opcode = 0xE2
-	CALLET  Opcode = 0xE3
-	CALLEDT Opcode = 0xE4
 
 	// Exceptions
 	THROW      Opcode = 0xF0

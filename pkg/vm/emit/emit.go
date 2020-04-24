@@ -135,7 +135,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 		w.Err = fmt.Errorf("opcode %s is not a jump or call type", op.String())
 		return
 	}
-	buf := make([]byte, 2)
+	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint16(buf, label)
 	Instruction(w, op, buf)
 }
@@ -172,10 +172,7 @@ func AppCallWithOperation(w *io.BinWriter, scriptHash util.Uint160, operation st
 }
 
 func isInstructionJmp(op opcode.Opcode) bool {
-	if op == opcode.JMP || op == opcode.JMPIFNOT || op == opcode.JMPIF || op == opcode.CALL {
-		return true
-	}
-	return false
+	return opcode.JMP <= op && op <= opcode.CALLL
 }
 
 // InteropNameToID returns an identificator of the method based on its name.

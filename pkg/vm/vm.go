@@ -529,8 +529,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		parameter = v.estack.Pop().Bytes()
-		fallthrough
-	case opcode.CALLED, opcode.CALLEDT:
 		if !ctx.hasDynamicInvoke {
 			panic("contract is not allowed to make dynamic invocations")
 		}
@@ -1120,16 +1118,25 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		arr := elem.Bytes()
 		v.estack.PushVal(len(arr))
 
-	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT:
+	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
+		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
+		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
+		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
 		offset := v.getJumpOffset(ctx, parameter, 0)
 		cond := true
-		if op != opcode.JMP {
-			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF)
+		switch op {
+		case opcode.JMP, opcode.JMPL:
+		case opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL:
+			cond = v.estack.Pop().Bool() == (op == opcode.JMPIF || op == opcode.JMPIFL)
+		default:
+			b := v.estack.Pop().BigInt()
+			a := v.estack.Pop().BigInt()
+			cond = getJumpCondition(op, a, b)
 		}
 
 		v.jumpIf(ctx, offset, cond)
 
-	case opcode.CALL:
+	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
 
 		newCtx := ctx.Copy()
@@ -1281,75 +1288,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NOP:
 		// unlucky ^^
 
-	case opcode.CALLI, opcode.CALLE, opcode.CALLED, opcode.CALLET, opcode.CALLEDT:
-		var (
-			tailCall    = (op == opcode.CALLET || op == opcode.CALLEDT)
-			hashOnStack = (op == opcode.CALLED || op == opcode.CALLEDT)
-			addElement  int
-			newCtx      *Context
-		)
-
-		if hashOnStack {
-			addElement = 1
-		}
-
-		rvcount := int(parameter[0])
-		pcount := int(parameter[1])
-		if v.estack.Len() < pcount+addElement {
-			panic("missing some parameters")
-		}
-		if tailCall {
-			if ctx.rvcount != rvcount {
-				panic("context and parameter rvcount mismatch")
-			}
-		} else {
-			v.checkInvocationStackSize()
-		}
-
-		if op == opcode.CALLI {
-			newCtx = ctx.Copy()
-		} else {
-			var hashBytes []byte
-
-			if hashOnStack {
-				hashBytes = v.estack.Pop().Bytes()
-			} else {
-				hashBytes = parameter[2:]
-			}
-
-			hash, err := util.Uint160DecodeBytesBE(hashBytes)
-			if err != nil {
-				panic(err)
-			}
-			script, hasDynamicInvoke := v.getScript(hash)
-			if script == nil {
-				panic(fmt.Sprintf("could not find script %s", hash))
-			}
-			newCtx = NewContext(script)
-			newCtx.scriptHash = hash
-			newCtx.hasDynamicInvoke = hasDynamicInvoke
-		}
-		newCtx.rvcount = rvcount
-		newCtx.estack = NewStack("evaluation")
-		newCtx.astack = NewStack("alt")
-		// Going backwards to naturally push things onto the new stack.
-		for i := pcount; i > 0; i-- {
-			elem := v.estack.RemoveAt(i - 1)
-			newCtx.estack.Push(elem)
-		}
-		if tailCall {
-			_ = v.istack.Pop()
-		}
-		v.istack.PushVal(newCtx)
-		v.estack = newCtx.estack
-		v.astack = newCtx.astack
-		if op == opcode.CALLI {
-			// CALLI is a bit different from other JMPs
-			// https://github.com/neo-project/neo-vm/blob/master-2.x/src/neo-vm/ExecutionEngine.cs#L1175
-			offset := v.getJumpOffset(newCtx, parameter[2:], 2)
-			v.jumpIf(newCtx, offset, true)
-		}
-
 	case opcode.THROW:
 		panic("THROW")
 
@@ -1364,6 +1302,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	return
 }
 
+// getJumpCondition performs opcode specific comparison of a and b
+func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
+	cmp := a.Cmp(b)
+	switch op {
+	case opcode.JMPEQ, opcode.JMPEQL:
+		return cmp == 0
+	case opcode.JMPNE, opcode.JMPNEL:
+		return cmp != 0
+	case opcode.JMPGT, opcode.JMPGTL:
+		return cmp > 0
+	case opcode.JMPGE, opcode.JMPGEL:
+		return cmp >= 0
+	case opcode.JMPLT, opcode.JMPLTL:
+		return cmp < 0
+	case opcode.JMPLE, opcode.JMPLEL:
+		return cmp <= 0
+	default:
+		panic(fmt.Sprintf("invalid JMP* opcode: %s", op))
+	}
+}
+
 // jumpIf performs jump to offset if cond is true.
 func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 	if cond {
@@ -1373,9 +1332,18 @@ func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 
 // getJumpOffset returns instruction number in a current context
 // to a which JMP should be performed.
-// parameter is interpreted as little-endian int16.
+// parameter should have length either 1 or 4 and
+// is interpreted as little-endian.
 func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
-	rOffset := int16(binary.LittleEndian.Uint16(parameter))
+	var rOffset int32
+	switch l := len(parameter); l {
+	case 1:
+		rOffset = int32(int8(parameter[0]))
+	case 4:
+		rOffset = int32(binary.LittleEndian.Uint32(parameter))
+	default:
+		panic(fmt.Sprintf("invalid JMP* parameter length: %d", l))
+	}
 	offset := ctx.ip + int(rOffset) + mod
 	if offset < 0 || offset > len(ctx.prog) {
 		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
