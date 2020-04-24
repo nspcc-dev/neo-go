@@ -20,6 +20,7 @@ type Base struct {
 	// Root hash of a transaction list.
 	MerkleRoot util.Uint256 `json:"merkleroot"`
 
+	// Timestamp is a millisecond-precision timestamp.
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.

@@ -1049,7 +1049,7 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*
 	b := &block.Block{
 		Base: block.Base{
 			PrevHash:      hdr.Hash(),
-			Timestamp:     uint64(time.Now().UTC().Unix()) + uint64(hdr.Index),
+			Timestamp:     (uint64(time.Now().UTC().Unix()) + uint64(hdr.Index)) * 1000,
 			Index:         hdr.Index + index,
 			ConsensusData: 1111,
 			NextConsensus: witness.ScriptHash(),

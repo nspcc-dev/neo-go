@@ -29,7 +29,12 @@ func TestNeoBlock_Setters(t *testing.T) {
 	require.EqualValues(t, 12, b.Index())
 
 	b.SetTimestamp(777)
-	require.EqualValues(t, 777, b.Timestamp())
+	// 777ns -> 0ms -> 0ns
+	require.EqualValues(t, 0, b.Timestamp())
+
+	b.SetTimestamp(7777777)
+	// 7777777ns -> 7ms -> 7000000ns
+	require.EqualValues(t, 7000000, b.Timestamp())
 
 	b.SetConsensusData(456)
 	require.EqualValues(t, 456, b.ConsensusData())
