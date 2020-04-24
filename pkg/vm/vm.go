@@ -565,6 +565,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		res := v.estack.Pop().value.Equals(NullItem{})
 		v.estack.PushVal(res)
 
+	case opcode.ISTYPE:
+		res := v.estack.Pop().Item()
+		v.estack.PushVal(res.Type() == StackItemType(parameter[0]))
+
 	// Stack operations.
 	case opcode.TOALTSTACK:
 		v.astack.Push(v.estack.Pop())

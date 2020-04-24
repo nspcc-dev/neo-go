@@ -28,6 +28,8 @@ type StackItem interface {
 	Equals(s StackItem) bool
 	// ToContractParameter converts StackItem to smartcontract.Parameter
 	ToContractParameter(map[StackItem]bool) smartcontract.Parameter
+	// Type returns stack item type.
+	Type() StackItemType
 }
 
 func makeStackItem(v interface{}) StackItem {
@@ -177,6 +179,9 @@ func (i *StructItem) ToContractParameter(seen map[StackItem]bool) smartcontract.
 	}
 }
 
+// Type implements StackItem interface.
+func (i *StructItem) Type() StackItemType { return StructT }
+
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
 func (i *StructItem) Clone() *StructItem {
@@ -234,6 +239,9 @@ func (i NullItem) ToContractParameter(map[StackItem]bool) smartcontract.Paramete
 		Type: smartcontract.AnyType,
 	}
 }
+
+// Type implements StackItem interface.
+func (i NullItem) Type() StackItemType { return AnyT }
 
 // BigIntegerItem represents a big integer on the stack.
 type BigIntegerItem struct {
@@ -299,6 +307,9 @@ func (i *BigIntegerItem) ToContractParameter(map[StackItem]bool) smartcontract.P
 		Value: i.value.Int64(),
 	}
 }
+
+// Type implements StackItem interface.
+func (i *BigIntegerItem) Type() StackItemType { return IntegerT }
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
@@ -380,6 +391,9 @@ func (i *BoolItem) ToContractParameter(map[StackItem]bool) smartcontract.Paramet
 	}
 }
 
+// Type implements StackItem interface.
+func (i *BoolItem) Type() StackItemType { return BooleanT }
+
 // ByteArrayItem represents a byte array on the stack.
 type ByteArrayItem struct {
 	value []byte
@@ -441,6 +455,9 @@ func (i *ByteArrayItem) ToContractParameter(map[StackItem]bool) smartcontract.Pa
 		Value: i.value,
 	}
 }
+
+// Type implements StackItem interface.
+func (i *ByteArrayItem) Type() StackItemType { return ByteArrayT }
 
 // ArrayItem represents a new ArrayItem object.
 type ArrayItem struct {
@@ -505,6 +522,9 @@ func (i *ArrayItem) ToContractParameter(seen map[StackItem]bool) smartcontract.P
 		Value: value,
 	}
 }
+
+// Type implements StackItem interface.
+func (i *ArrayItem) Type() StackItemType { return ArrayT }
 
 // MapElement is a key-value pair of StackItems.
 type MapElement struct {
@@ -590,6 +610,9 @@ func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Par
 		Value: value,
 	}
 }
+
+// Type implements StackItem interface.
+func (i *MapItem) Type() StackItemType { return MapT }
 
 // Add adds key-value pair to the map.
 func (i *MapItem) Add(key, value StackItem) {
@@ -677,6 +700,9 @@ func (i *InteropItem) ToContractParameter(map[StackItem]bool) smartcontract.Para
 		Value: nil,
 	}
 }
+
+// Type implements StackItem interface.
+func (i *InteropItem) Type() StackItemType { return InteropT }
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *InteropItem) MarshalJSON() ([]byte, error) {

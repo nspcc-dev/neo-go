@@ -101,7 +101,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		}
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
-		opcode.CALL:
+		opcode.CALL, opcode.ISTYPE:
 		numtoread = 1
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
@@ -185,6 +185,9 @@ func (c *Context) TryBytes() ([]byte, error) {
 func (c *Context) TryInteger() (*big.Int, error) {
 	return nil, errors.New("can't convert Context to Integer")
 }
+
+// Type implements StackItem interface.
+func (c *Context) Type() StackItemType { panic("Context cannot appear on evaluation stack") }
 
 // Equals implements StackItem interface.
 func (c *Context) Equals(s StackItem) bool {

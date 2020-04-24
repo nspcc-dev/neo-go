@@ -216,6 +216,46 @@ func TestISNULL(t *testing.T) {
 	})
 }
 
+func testISTYPE(t *testing.T, result bool, typ StackItemType, item StackItem) {
+	prog := []byte{byte(opcode.ISTYPE), byte(typ)}
+	v := load(prog)
+	v.estack.PushVal(item)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, result, v.estack.Pop().Bool())
+}
+
+func TestISTYPE(t *testing.T) {
+	t.Run("Integer", func(t *testing.T) {
+		testISTYPE(t, true, IntegerT, NewBigIntegerItem(big.NewInt(42)))
+		testISTYPE(t, false, IntegerT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Boolean", func(t *testing.T) {
+		testISTYPE(t, true, BooleanT, NewBoolItem(true))
+		testISTYPE(t, false, BooleanT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("ByteArray", func(t *testing.T) {
+		testISTYPE(t, true, ByteArrayT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, false, ByteArrayT, NewBigIntegerItem(big.NewInt(42)))
+	})
+	t.Run("Array", func(t *testing.T) {
+		testISTYPE(t, true, ArrayT, NewArrayItem([]StackItem{}))
+		testISTYPE(t, false, ArrayT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Struct", func(t *testing.T) {
+		testISTYPE(t, true, StructT, NewStructItem([]StackItem{}))
+		testISTYPE(t, false, StructT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Map", func(t *testing.T) {
+		testISTYPE(t, true, MapT, NewMapItem())
+		testISTYPE(t, false, MapT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Interop", func(t *testing.T) {
+		testISTYPE(t, true, InteropT, NewInteropItem(42))
+		testISTYPE(t, false, InteropT, NewByteArrayItem([]byte{}))
+	})
+}
+
 // appendBigStruct returns a program which:
 // 1. pushes size Structs on stack
 // 2. packs them into a new struct
@@ -685,7 +725,7 @@ func TestSerializeMap(t *testing.T) {
 }
 
 func TestSerializeMapCompat(t *testing.T) {
-	resHex := "820100036b6579000576616c7565"
+	resHex := "480128036b6579280576616c7565"
 	res, err := hex.DecodeString(resHex)
 	require.NoError(t, err)
 

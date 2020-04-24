@@ -7,16 +7,60 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
-type stackItemType byte
+// StackItemType represents type of the stack item.
+type StackItemType byte
 
+// This block defines all known stack item types.
 const (
-	byteArrayT stackItemType = 0x00
-	booleanT   stackItemType = 0x01
-	integerT   stackItemType = 0x02
-	arrayT     stackItemType = 0x80
-	structT    stackItemType = 0x81
-	mapT       stackItemType = 0x82
+	AnyT       StackItemType = 0x00
+	PointerT   StackItemType = 0x10
+	BooleanT   StackItemType = 0x20
+	IntegerT   StackItemType = 0x21
+	ByteArrayT StackItemType = 0x28
+	BufferT    StackItemType = 0x30
+	ArrayT     StackItemType = 0x40
+	StructT    StackItemType = 0x41
+	MapT       StackItemType = 0x48
+	InteropT   StackItemType = 0x60
 )
+
+// String implements fmt.Stringer interface.
+func (t StackItemType) String() string {
+	switch t {
+	case AnyT:
+		return "Any"
+	case PointerT:
+		return "Pointer"
+	case BooleanT:
+		return "Boolean"
+	case IntegerT:
+		return "Integer"
+	case ByteArrayT:
+		return "ByteArray"
+	case BufferT:
+		return "Buffer"
+	case ArrayT:
+		return "Array"
+	case StructT:
+		return "Struct"
+	case MapT:
+		return "Map"
+	case InteropT:
+		return "Interop"
+	default:
+		return "INVALID"
+	}
+}
+
+// IsValid checks if s is a well defined stack item type.
+func (t StackItemType) IsValid() bool {
+	switch t {
+	case AnyT, PointerT, BooleanT, IntegerT, ByteArrayT, BufferT, ArrayT, StructT, MapT, InteropT:
+		return true
+	default:
+		return false
+	}
+}
 
 // SerializeItem encodes given StackItem into the byte slice.
 func SerializeItem(item StackItem) ([]byte, error) {
@@ -43,13 +87,13 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 	switch t := item.(type) {
 	case *ByteArrayItem:
-		w.WriteBytes([]byte{byte(byteArrayT)})
+		w.WriteBytes([]byte{byte(ByteArrayT)})
 		w.WriteVarBytes(t.value)
 	case *BoolItem:
-		w.WriteBytes([]byte{byte(booleanT)})
+		w.WriteBytes([]byte{byte(BooleanT)})
 		w.WriteBool(t.value)
 	case *BigIntegerItem:
-		w.WriteBytes([]byte{byte(integerT)})
+		w.WriteBytes([]byte{byte(IntegerT)})
 		w.WriteVarBytes(emit.IntToBytes(t.value))
 	case *InteropItem:
 		w.Err = errors.New("interop item can't be serialized")
@@ -58,9 +102,9 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 
 		_, isArray := t.(*ArrayItem)
 		if isArray {
-			w.WriteBytes([]byte{byte(arrayT)})
+			w.WriteBytes([]byte{byte(ArrayT)})
 		} else {
-			w.WriteBytes([]byte{byte(structT)})
+			w.WriteBytes([]byte{byte(StructT)})
 		}
 
 		arr := t.Value().([]StackItem)
@@ -71,7 +115,7 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	case *MapItem:
 		seen[item] = true
 
-		w.WriteBytes([]byte{byte(mapT)})
+		w.WriteBytes([]byte{byte(MapT)})
 		w.WriteVarUint(uint64(len(t.value)))
 		for i := range t.value {
 			serializeItemTo(t.value[i].Key, w, seen)
@@ -100,31 +144,31 @@ func DecodeBinaryStackItem(r *io.BinReader) StackItem {
 		return nil
 	}
 
-	switch stackItemType(t) {
-	case byteArrayT:
+	switch StackItemType(t) {
+	case ByteArrayT:
 		data := r.ReadVarBytes()
 		return NewByteArrayItem(data)
-	case booleanT:
+	case BooleanT:
 		var b = r.ReadBool()
 		return NewBoolItem(b)
-	case integerT:
+	case IntegerT:
 		data := r.ReadVarBytes()
 		num := emit.BytesToInt(data)
 		return &BigIntegerItem{
 			value: num,
 		}
-	case arrayT, structT:
+	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
 		arr := make([]StackItem, size)
 		for i := 0; i < size; i++ {
 			arr[i] = DecodeBinaryStackItem(r)
 		}
 
-		if stackItemType(t) == arrayT {
+		if StackItemType(t) == ArrayT {
 			return &ArrayItem{value: arr}
 		}
 		return &StructItem{value: arr}
-	case mapT:
+	case MapT:
 		size := int(r.ReadVarUint())
 		m := NewMapItem()
 		for i := 0; i < size; i++ {

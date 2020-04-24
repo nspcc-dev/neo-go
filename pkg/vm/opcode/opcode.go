@@ -162,6 +162,9 @@ const (
 	REMOVE       Opcode = 0xD2
 	CLEARITEMS   Opcode = 0xD3
 
+	// Types
+	ISTYPE Opcode = 0xD9
+
 	// Exceptions
 	THROW      Opcode = 0xF0
 	THROWIFNOT Opcode = 0xF1
