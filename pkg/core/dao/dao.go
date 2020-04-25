@@ -37,6 +37,7 @@ type DAO interface {
 	GetNextBlockValidators() (keys.PublicKeys, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
+	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
@@ -471,9 +472,19 @@ func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error 
 
 // GetStorageItems returns all storage items for a given scripthash.
 func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
+	return dao.GetStorageItemsWithPrefix(hash, nil)
+}
+
+// GetStorageItemsWithPrefix returns all storage items with given prefix for a
+// given scripthash.
+func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error) {
 	var siMap = make(map[string]*state.StorageItem)
 	var err error
 
+	lookupKey := storage.AppendPrefix(storage.STStorage, hash.BytesLE())
+	if prefix != nil {
+		lookupKey = append(lookupKey, prefix...)
+	}
 	saveToMap := func(k, v []byte) {
 		if err != nil {
 			return
@@ -487,9 +498,9 @@ func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.Storage
 		}
 
 		// Cut prefix and hash.
-		siMap[string(k[21:])] = si
+		siMap[string(k[len(lookupKey):])] = si
 	}
-	dao.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
+	dao.Store.Seek(lookupKey, saveToMap)
 	if err != nil {
 		return nil, err
 	}

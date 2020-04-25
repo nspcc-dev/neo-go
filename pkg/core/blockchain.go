@@ -861,9 +861,9 @@ func processTXWithValidatorsSubtract(output *transaction.Output, account *state.
 
 // modAccountVotes adds given value to given account voted validators.
 func modAccountVotes(account *state.Account, dao *dao.Cached, value util.Fixed8) error {
-	if err := native.ModifyAccountVotes(account, dao, value); err != nil {
-		return err
-	}
+	//	if err := native.ModifyAccountVotes(account, dao, value); err != nil {
+	//		return err
+	//	}
 	if len(account.Votes) > 0 {
 		vc, err := dao.GetValidatorsCount()
 		if err != nil {
