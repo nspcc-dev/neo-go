@@ -14,10 +14,8 @@ const (
 	MinerType      TXType = 0x00
 	IssueType      TXType = 0x01
 	ClaimType      TXType = 0x02
-	EnrollmentType TXType = 0x20
 	RegisterType   TXType = 0x40
 	ContractType   TXType = 0x80
-	StateType      TXType = 0x90
 	InvocationType TXType = 0xd1
 )
 
@@ -30,14 +28,10 @@ func (t TXType) String() string {
 		return "IssueTransaction"
 	case ClaimType:
 		return "ClaimTransaction"
-	case EnrollmentType:
-		return "EnrollmentTransaction"
 	case RegisterType:
 		return "RegisterTransaction"
 	case ContractType:
 		return "ContractTransaction"
-	case StateType:
-		return "StateTransaction"
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
@@ -70,14 +64,10 @@ func TXTypeFromString(jsonString string) (TXType, error) {
 		return IssueType, nil
 	case "ClaimTransaction":
 		return ClaimType, nil
-	case "EnrollmentTransaction":
-		return EnrollmentType, nil
 	case "RegisterTransaction":
 		return RegisterType, nil
 	case "ContractTransaction":
 		return ContractType, nil
-	case "StateTransaction":
-		return StateType, nil
 	case "InvocationTransaction":
 		return InvocationType, nil
 	default:

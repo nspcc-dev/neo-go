@@ -831,23 +831,6 @@ func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
 	return nil
 }
 
-func (bc *Blockchain) processAccountStateDescriptor(descriptor *transaction.StateDescriptor, t *transaction.Transaction, dao *dao.Cached) error {
-	hash, err := util.Uint160DecodeBytesBE(descriptor.Key)
-	if err != nil {
-		return err
-	}
-
-	if descriptor.Field == "Votes" {
-		votes := keys.PublicKeys{}
-		if err := votes.DecodeBytes(descriptor.Value); err != nil {
-			return err
-		}
-		ic := bc.newInteropContext(trigger.Application, dao, nil, t)
-		return bc.contracts.NEO.VoteInternal(ic, hash, votes)
-	}
-	return nil
-}
-
 // persist flushes current in-memory Store contents to the persistent storage.
 func (bc *Blockchain) persist() error {
 	var (
@@ -1268,63 +1251,6 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		if inv.Gas.FractionalValue() != 0 {
 			return errors.New("invocation gas can only be integer")
 		}
-	case transaction.StateType:
-		stx := t.Data.(*transaction.StateTX)
-		for _, desc := range stx.Descriptors {
-			switch desc.Type {
-			case transaction.Account:
-				if desc.Field != "Votes" {
-					return errors.New("bad field in account descriptor")
-				}
-				votes := keys.PublicKeys{}
-				err := votes.DecodeBytes(desc.Value)
-				if err != nil {
-					return err
-				}
-				if len(votes) > native.MaxValidatorsVoted {
-					return errors.New("voting candidate limit exceeded")
-				}
-				hash, err := util.Uint160DecodeBytesBE(desc.Key)
-				if err != nil {
-					return err
-				}
-				account, err := bc.dao.GetAccountStateOrNew(hash)
-				if err != nil {
-					return err
-				}
-				if account.IsFrozen {
-					return errors.New("account is frozen")
-				}
-				if votes.Len() > 0 {
-					balance := account.GetBalanceValues()[GoverningTokenID()]
-					if balance == 0 {
-						return errors.New("no governing tokens available to vote")
-					}
-					validators, err := bc.GetEnrollments()
-					if err != nil {
-						return err
-					}
-					for _, k := range votes {
-						var isRegistered bool
-						for i := range validators {
-							if k.Equal(validators[i].Key) {
-								isRegistered = true
-								break
-							}
-						}
-						if !isRegistered {
-							return errors.New("vote for unregistered validator")
-						}
-					}
-				}
-			case transaction.Validator:
-				if desc.Field != "Registered" {
-					return errors.New("bad field in validator descriptor")
-				}
-			default:
-				return errors.New("bad descriptor type")
-			}
-		}
 	}
 
 	return bc.verifyTxWitnesses(t, block)
@@ -1662,9 +1588,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		for i := range refs {
 			hashes[refs[i].Out.ScriptHash] = true
 		}
-	case transaction.EnrollmentType:
-		etx := t.Data.(*transaction.EnrollmentTX)
-		hashes[etx.PublicKey.GetScriptHash()] = true
 	case transaction.IssueType:
 		for _, res := range refsAndOutsToResults(references, t.Outputs) {
 			if res.Amount < 0 {
@@ -1678,31 +1601,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	case transaction.RegisterType:
 		reg := t.Data.(*transaction.RegisterTX)
 		hashes[reg.Owner.GetScriptHash()] = true
-	case transaction.StateType:
-		stx := t.Data.(*transaction.StateTX)
-		for _, desc := range stx.Descriptors {
-			switch desc.Type {
-			case transaction.Account:
-				if desc.Field != "Votes" {
-					return nil, errors.New("bad account state descriptor")
-				}
-				hash, err := util.Uint160DecodeBytesBE(desc.Key)
-				if err != nil {
-					return nil, err
-				}
-				hashes[hash] = true
-			case transaction.Validator:
-				if desc.Field != "Registered" {
-					return nil, errors.New("bad validator state descriptor")
-				}
-				key := &keys.PublicKey{}
-				err := key.DecodeBytes(desc.Key)
-				if err != nil {
-					return nil, err
-				}
-				hashes[key.GetScriptHash()] = true
-			}
-		}
 	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))

@@ -9,7 +9,6 @@ ProtocolConfiguration:
   SeedList:
     - 172.200.0.1:20333
   SystemFee:
-    EnrollmentTransaction: 1000
     IssueTransaction: 500
     RegisterTransaction: 10000
   VerifyBlocks: true

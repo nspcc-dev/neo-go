@@ -154,32 +154,6 @@ func TestMarshalUnmarshalJSONClaimTX(t *testing.T) {
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }
 
-func TestMarshalUnmarshalJSONEnrollmentTX(t *testing.T) {
-	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
-	pubKey, err := keys.NewPublicKeyFromString(str)
-	require.NoError(t, err)
-	tx := &Transaction{
-		Type:       EnrollmentType,
-		Version:    5,
-		Data:       &EnrollmentTX{PublicKey: *pubKey},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 	tx := &Transaction{
 		Type:    InvocationType,
@@ -218,36 +192,6 @@ func TestMarshalUnmarshalJSONRegisterTX(t *testing.T) {
 			Precision: 0,
 			Owner:     keys.PublicKey{},
 			Admin:     util.Uint160{},
-		},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
-func TestMarshalUnmarshalJSONStateTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    StateType,
-		Version: 5,
-		Data: &StateTX{
-			Descriptors: []*StateDescriptor{&StateDescriptor{
-				Type:  Validator,
-				Key:   []byte{1, 2, 3},
-				Value: []byte{4, 5, 6},
-				Field: "Field",
-			}},
 		},
 		Attributes: []Attribute{},
 		Inputs: []Input{{
