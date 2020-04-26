@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -16,6 +17,7 @@ type NEP5BalanceState struct {
 type NEOBalanceState struct {
 	NEP5BalanceState
 	BalanceHeight uint32
+	Votes         keys.PublicKeys
 }
 
 // NEP5BalanceStateFromBytes converts serialized NEP5BalanceState to structure.
@@ -85,10 +87,12 @@ func (s *NEOBalanceState) Bytes() []byte {
 func (s *NEOBalanceState) EncodeBinary(w *io.BinWriter) {
 	s.NEP5BalanceState.EncodeBinary(w)
 	w.WriteU32LE(s.BalanceHeight)
+	w.WriteArray(s.Votes)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
 	s.NEP5BalanceState.DecodeBinary(r)
 	s.BalanceHeight = r.ReadU32LE()
+	r.ReadArray(&s.Votes)
 }

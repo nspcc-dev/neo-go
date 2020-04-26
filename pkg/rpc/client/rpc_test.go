@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -49,7 +48,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Version:    0,
 					ScriptHash: scriptHash,
 					IsFrozen:   false,
-					Votes:      []*keys.PublicKey{},
 					Balances: result.Balances{
 						result.Balance{
 							Asset: core.GoverningTokenID(),

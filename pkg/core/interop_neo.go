@@ -404,24 +404,6 @@ func accountGetScriptHash(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// accountGetVotes returns votes of a given account.
-func accountGetVotes(ic *interop.Context, v *vm.VM) error {
-	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*state.Account)
-	if !ok {
-		return fmt.Errorf("%T is not an account state", acc)
-	}
-	if len(acc.Votes) > vm.MaxArraySize {
-		return errors.New("too many votes")
-	}
-	votes := make([]vm.StackItem, 0, len(acc.Votes))
-	for _, key := range acc.Votes {
-		votes = append(votes, vm.NewByteArrayItem(key.Bytes()))
-	}
-	v.Estack().PushVal(votes)
-	return nil
-}
-
 // accountIsStandard checks whether given account is standard.
 func accountIsStandard(ic *interop.Context, v *vm.VM) error {
 	accbytes := v.Estack().Pop().Bytes()

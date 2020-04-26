@@ -166,12 +166,8 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	if amount.Sign() == 0 {
 		return nil
 	}
-	oldAcc, err := ic.DAO.GetAccountState(h)
-	if err != nil {
-		return err
-	}
-	if len(oldAcc.Votes) > 0 {
-		if err := n.ModifyAccountVotes(oldAcc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
+	if len(acc.Votes) > 0 {
+		if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
 			return err
 		}
 		siVC := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
@@ -182,7 +178,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		if err != nil {
 			return err
 		}
-		vc[len(oldAcc.Votes)-1].Add(&vc[len(oldAcc.Votes)-1], amount)
+		vc[len(acc.Votes)-1].Add(&vc[len(acc.Votes)-1], amount)
 		siVC.Value = vc.Bytes()
 		if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, siVC); err != nil {
 			return err
@@ -276,11 +272,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 	if err != nil {
 		return err
 	}
-	oldAcc, err := ic.DAO.GetAccountState(h)
-	if err != nil {
-		return err
-	}
-	if err := n.ModifyAccountVotes(oldAcc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
 		return err
 	}
 	pubs = pubs.Unique()
@@ -292,7 +284,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		}
 		newPubs = append(newPubs, pub)
 	}
-	if lp, lv := len(newPubs), len(oldAcc.Votes); lp != lv {
+	if lp, lv := len(newPubs), len(acc.Votes); lp != lv {
 		si := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
 		if si == nil {
 			return errors.New("validators count uninitialized")
@@ -312,15 +304,16 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 			return err
 		}
 	}
-	oldAcc.Votes = newPubs
-	if err := n.ModifyAccountVotes(oldAcc, ic.DAO, &acc.Balance); err != nil {
+	acc.Votes = newPubs
+	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance); err != nil {
 		return err
 	}
-	return ic.DAO.PutAccountState(oldAcc)
+	si.Value = acc.Bytes()
+	return ic.DAO.PutStorageItem(n.Hash, key, si)
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
-func (n *NEO) ModifyAccountVotes(acc *state.Account, d dao.DAO, value *big.Int) error {
+func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int) error {
 	for _, vote := range acc.Votes {
 		key := makeValidatorKey(vote)
 		si := d.GetStorageItem(n.Hash, key)

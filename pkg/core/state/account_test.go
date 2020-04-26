@@ -3,7 +3,6 @@ package state
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -14,7 +13,6 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 	var (
 		n        = 10
 		balances = make(map[util.Uint256][]UnspentBalance)
-		votes    = make([]*keys.PublicKey, n)
 	)
 	for i := 0; i < n; i++ {
 		asset := random.Uint256()
@@ -25,16 +23,12 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 				Value: util.Fixed8(int64(random.Int(1, 10000))),
 			})
 		}
-		k, err := keys.NewPrivateKey()
-		assert.Nil(t, err)
-		votes[i] = k.PublicKey()
 	}
 
 	a := &Account{
 		Version:    0,
 		ScriptHash: random.Uint160(),
 		IsFrozen:   true,
-		Votes:      votes,
 		Balances:   balances,
 		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}

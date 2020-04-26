@@ -417,17 +417,6 @@ func TestAccountGetScriptHash(t *testing.T) {
 	require.Equal(t, accState.ScriptHash.BytesBE(), hash)
 }
 
-func TestAccountGetVotes(t *testing.T) {
-	v, accState, context, chain := createVMAndAccState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(accState))
-
-	err := accountGetVotes(context, v)
-	require.NoError(t, err)
-	votes := v.Estack().Pop().Value().([]vm.StackItem)
-	require.Equal(t, vm.NewByteArrayItem(accState.Votes[0].Bytes()), votes[0])
-}
-
 func TestContractGetScript(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
@@ -602,9 +591,6 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
 	accountState := state.NewAccount(hash)
-
-	key := &keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)}
-	accountState.Votes = []*keys.PublicKey{key}
 
 	require.NoError(t, err)
 	chain := newTestChain(t)
