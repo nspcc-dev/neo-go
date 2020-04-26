@@ -158,13 +158,14 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	if err != nil {
 		return err
 	}
-	if sign := amount.Sign(); sign == 0 {
-		return nil
-	} else if sign == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
+	if amount.Sign() == -1 && acc.Balance.Cmp(new(big.Int).Neg(amount)) == -1 {
 		return errors.New("insufficient funds")
 	}
 	if err := n.distributeGas(ic, h, acc); err != nil {
 		return err
+	}
+	if amount.Sign() == 0 {
+		return nil
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	si.Value = acc.Bytes()
