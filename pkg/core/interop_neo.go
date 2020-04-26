@@ -236,13 +236,6 @@ func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// bcGetValidators returns validators.
-func bcGetValidators(ic *interop.Context, v *vm.VM) error {
-	validators := ic.DAO.GetValidators()
-	v.Estack().PushVal(validators)
-	return nil
-}
-
 // popInputFromVM returns transaction.Input from the first estack element.
 func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
 	inInterface := v.Estack().Pop().Value()

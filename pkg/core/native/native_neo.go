@@ -31,12 +31,6 @@ type keyWithVotes struct {
 	Votes *big.Int
 }
 
-// pkeyWithVotes is a deserialized key with votes balance.
-type pkeyWithVotes struct {
-	Key   *keys.PublicKey
-	Votes *big.Int
-}
-
 const (
 	neoSyscallName = "Neo.Native.Tokens.NEO"
 	// NEOTotalSupply is the total amount of NEO in the system.
@@ -349,6 +343,24 @@ func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
 	return arr, nil
 }
 
+// GetRegisteredValidators returns current registered validators list with keys
+// and votes.
+func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
+	kvs, err := n.getRegisteredValidators(d)
+	if err != nil {
+		return nil, err
+	}
+	arr := make([]state.Validator, len(kvs))
+	for i := range kvs {
+		arr[i].Key, err = keys.NewPublicKeyFromBytes([]byte(kvs[i].Key))
+		if err != nil {
+			return nil, err
+		}
+		arr[i].Votes = kvs[i].Votes
+	}
+	return arr, nil
+}
+
 func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
 	validators, err := n.getRegisteredValidators(ic.DAO)
 	if err != nil {
@@ -374,17 +386,9 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	if err != nil {
 		return nil, err
 	}
-	validatorsBytes, err := n.getRegisteredValidators(d)
+	validators, err := n.GetRegisteredValidators(d)
 	if err != nil {
 		return nil, err
-	}
-	validators := make([]pkeyWithVotes, len(validatorsBytes))
-	for i := range validatorsBytes {
-		validators[i].Key, err = keys.NewPublicKeyFromBytes([]byte(validatorsBytes[i].Key))
-		if err != nil {
-			return nil, err
-		}
-		validators[i].Votes = validatorsBytes[i].Votes
 	}
 	sort.Slice(validators, func(i, j int) bool {
 		// The most-voted validators should end up in the front of the list.
@@ -446,7 +450,7 @@ func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []vm.StackItem) vm.S
 func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	si := d.GetStorageItem(n.Hash, nextValidatorsKey)
 	if si == nil {
-		return bc.GetStandByValidators()
+		return n.GetValidatorsInternal(bc, d)
 	}
 	pubs := keys.PublicKeys{}
 	err := pubs.DecodeBytes(si.Value)

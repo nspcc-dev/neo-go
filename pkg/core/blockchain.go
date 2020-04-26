@@ -630,14 +630,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 			}
-		case *transaction.EnrollmentTX:
-			if err := processEnrollmentTX(cache, t); err != nil {
-				return err
-			}
-		case *transaction.StateTX:
-			if err := bc.processStateTX(cache, tx, t); err != nil {
-				return err
-			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 			v := SpawnVM(systemInterop)
@@ -835,26 +827,6 @@ func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
 		if err = dao.PutAccountState(account); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func processValidatorStateDescriptor(descriptor *transaction.StateDescriptor, dao *dao.Cached) error {
-	publicKey := &keys.PublicKey{}
-	err := publicKey.DecodeBytes(descriptor.Key)
-	if err != nil {
-		return err
-	}
-	validatorState, err := dao.GetValidatorStateOrNew(publicKey)
-	if err != nil {
-		return err
-	}
-	if descriptor.Field == "Registered" {
-		if len(descriptor.Value) == 1 {
-			validatorState.Registered = descriptor.Value[0] != 0
-			return dao.PutValidatorState(validatorState)
-		}
-		return errors.New("bad descriptor value")
 	}
 	return nil
 }
@@ -1335,7 +1307,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 					for _, k := range votes {
 						var isRegistered bool
 						for i := range validators {
-							if k.Equal(validators[i].PublicKey) {
+							if k.Equal(validators[i].Key) {
 								isRegistered = true
 								break
 							}
@@ -1631,128 +1603,14 @@ func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 	return getValidators(bc.config)
 }
 
-// GetValidators returns validators.
-// Golang implementation of GetValidators method in C# (https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/Persistence/Snapshot.cs#L182)
-func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error) {
-	cache := dao.NewCached(bc.dao)
-	if len(txes) > 0 {
-		for _, tx := range txes {
-			// iterate through outputs
-			for index, output := range tx.Outputs {
-				accountState, err := cache.GetAccountStateOrNew(output.ScriptHash)
-				if err != nil {
-					return nil, err
-				}
-				accountState.Balances[output.AssetID] = append(accountState.Balances[output.AssetID], state.UnspentBalance{
-					Tx:    tx.Hash(),
-					Index: uint16(index),
-					Value: output.Amount,
-				})
-				if err := cache.PutAccountState(accountState); err != nil {
-					return nil, err
-				}
-			}
-
-			// group inputs by the same previous hash and iterate through inputs
-			group := make(map[util.Uint256][]*transaction.Input)
-			for i := range tx.Inputs {
-				hash := tx.Inputs[i].PrevHash
-				group[hash] = append(group[hash], &tx.Inputs[i])
-			}
-
-			for hash, inputs := range group {
-				unspent, err := cache.GetUnspentCoinState(hash)
-				if err != nil {
-					return nil, err
-				}
-				// process inputs
-				for _, input := range inputs {
-					prevOutput := &unspent.States[input.PrevIndex].Output
-					accountState, err := cache.GetAccountStateOrNew(prevOutput.ScriptHash)
-					if err != nil {
-						return nil, err
-					}
-
-					delete(accountState.Balances, prevOutput.AssetID)
-					if err = cache.PutAccountState(accountState); err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			switch t := tx.Data.(type) {
-			case *transaction.EnrollmentTX:
-				if err := processEnrollmentTX(cache, t); err != nil {
-					return nil, err
-				}
-			case *transaction.StateTX:
-				if err := bc.processStateTX(cache, tx, t); err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
-
-	return bc.contracts.NEO.GetValidatorsInternal(bc, cache)
+// GetValidators returns next block validators.
+func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
 }
 
-// GetEnrollments returns all registered validators and non-registered SB validators
-func (bc *Blockchain) GetEnrollments() ([]*state.Validator, error) {
-	validators := bc.dao.GetValidators()
-	standByValidators, err := bc.GetStandByValidators()
-	if err != nil {
-		return nil, err
-	}
-	uniqueSBValidators := standByValidators.Unique()
-
-	var result []*state.Validator
-	for _, validator := range validators {
-		if validator.Registered {
-			result = append(result, validator)
-		}
-	}
-	for _, sBValidator := range uniqueSBValidators {
-		isAdded := false
-		for _, v := range result {
-			if v.PublicKey == sBValidator {
-				isAdded = true
-				break
-			}
-		}
-		if !isAdded {
-			result = append(result, &state.Validator{
-				PublicKey:  sBValidator,
-				Registered: false,
-				Votes:      0,
-			})
-		}
-	}
-	return result, nil
-}
-
-func (bc *Blockchain) processStateTX(dao *dao.Cached, t *transaction.Transaction, tx *transaction.StateTX) error {
-	for _, desc := range tx.Descriptors {
-		switch desc.Type {
-		case transaction.Account:
-			if err := bc.processAccountStateDescriptor(desc, t, dao); err != nil {
-				return err
-			}
-		case transaction.Validator:
-			if err := processValidatorStateDescriptor(desc, dao); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func processEnrollmentTX(dao *dao.Cached, tx *transaction.EnrollmentTX) error {
-	validatorState, err := dao.GetValidatorStateOrNew(&tx.PublicKey)
-	if err != nil {
-		return err
-	}
-	validatorState.Registered = true
-	return dao.PutValidatorState(validatorState)
+// GetEnrollments returns all registered validators.
+func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
+	return bc.contracts.NEO.GetRegisteredValidators(bc.dao)
 }
 
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use

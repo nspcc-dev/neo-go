@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -20,7 +19,6 @@ type DAO interface {
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(scripthash util.Uint160, key []byte) error
-	DeleteValidatorState(vs *state.Validator) error
 	GetAccountState(hash util.Uint160) (*state.Account, error)
 	GetAccountStateOrNew(hash util.Uint160) (*state.Account, error)
 	GetAndDecode(entity io.Serializable, key []byte) error
@@ -39,9 +37,6 @@ type DAO interface {
 	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
-	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
-	GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error)
-	GetValidators() []*state.Validator
 	GetVersion() (string, error)
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
@@ -57,7 +52,6 @@ type DAO interface {
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
-	PutValidatorState(vs *state.Validator) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block, sysFee uint32) error
 	StoreAsCurrentBlock(block *block.Block) error
@@ -306,61 +300,6 @@ func (dao *Simple) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin
 }
 
 // -- end unspent coins.
-
-// -- start validator.
-
-// GetValidatorStateOrNew gets validator from store or created new one in case of error.
-func (dao *Simple) GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error) {
-	validatorState, err := dao.GetValidatorState(publicKey)
-	if err != nil {
-		if err != storage.ErrKeyNotFound {
-			return nil, err
-		}
-		validatorState = &state.Validator{PublicKey: publicKey}
-	}
-	return validatorState, nil
-
-}
-
-// GetValidators returns all validators from store.
-func (dao *Simple) GetValidators() []*state.Validator {
-	var validators []*state.Validator
-	dao.Store.Seek(storage.STValidator.Bytes(), func(k, v []byte) {
-		r := io.NewBinReaderFromBuf(v)
-		validator := &state.Validator{}
-		validator.DecodeBinary(r)
-		if r.Err != nil {
-			return
-		}
-		validators = append(validators, validator)
-	})
-	return validators
-}
-
-// GetValidatorState returns validator by publicKey.
-func (dao *Simple) GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error) {
-	validatorState := &state.Validator{}
-	key := storage.AppendPrefix(storage.STValidator, publicKey.Bytes())
-	err := dao.GetAndDecode(validatorState, key)
-	if err != nil {
-		return nil, err
-	}
-	return validatorState, nil
-}
-
-// PutValidatorState puts given Validator into the given store.
-func (dao *Simple) PutValidatorState(vs *state.Validator) error {
-	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
-	return dao.Put(vs, key)
-}
-
-// DeleteValidatorState deletes given Validator into the given store.
-func (dao *Simple) DeleteValidatorState(vs *state.Validator) error {
-	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
-	return dao.Store.Delete(key)
-}
-
-// -- end validator.
 
 // -- start notification event.
 

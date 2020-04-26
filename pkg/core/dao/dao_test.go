@@ -113,61 +113,6 @@ func TestPutGetUnspentCoinState(t *testing.T) {
 	require.Equal(t, unspentCoinState, gotUnspentCoinState)
 }
 
-func TestGetValidatorStateOrNew_New(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	publicKey := &keys.PublicKey{}
-	validatorState, err := dao.GetValidatorStateOrNew(publicKey)
-	require.NoError(t, err)
-	require.NotNil(t, validatorState)
-}
-
-func TestPutGetValidatorState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	publicKey := &keys.PublicKey{}
-	validatorState := &state.Validator{
-		PublicKey:  publicKey,
-		Registered: false,
-		Votes:      0,
-	}
-	err := dao.PutValidatorState(validatorState)
-	require.NoError(t, err)
-	gotValidatorState, err := dao.GetValidatorState(publicKey)
-	require.NoError(t, err)
-	require.Equal(t, validatorState, gotValidatorState)
-}
-
-func TestDeleteValidatorState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	publicKey := &keys.PublicKey{}
-	validatorState := &state.Validator{
-		PublicKey:  publicKey,
-		Registered: false,
-		Votes:      0,
-	}
-	err := dao.PutValidatorState(validatorState)
-	require.NoError(t, err)
-	err = dao.DeleteValidatorState(validatorState)
-	require.NoError(t, err)
-	gotValidatorState, err := dao.GetValidatorState(publicKey)
-	require.Error(t, err)
-	require.Nil(t, gotValidatorState)
-}
-
-func TestGetValidators(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	publicKey := &keys.PublicKey{}
-	validatorState := &state.Validator{
-		PublicKey:  publicKey,
-		Registered: false,
-		Votes:      0,
-	}
-	err := dao.PutValidatorState(validatorState)
-	require.NoError(t, err)
-	validators := dao.GetValidators()
-	require.Equal(t, validatorState, validators[0])
-	require.Len(t, validators, 1)
-}
-
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()

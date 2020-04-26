@@ -96,13 +96,13 @@ func (chain testChain) GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog {
 func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {
 	panic("TODO")
 }
-func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.PublicKey, error) {
+func (chain testChain) GetValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 func (chain testChain) GetStandByValidators() (keys.PublicKeys, error) {
 	panic("TODO")
 }
-func (chain testChain) GetEnrollments() ([]*state.Validator, error) {
+func (chain testChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
 }
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
