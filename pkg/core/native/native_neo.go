@@ -167,6 +167,27 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	if amount.Sign() == 0 {
 		return nil
 	}
+	oldAcc, err := ic.DAO.GetAccountState(h)
+	if err != nil {
+		return err
+	}
+	if err := n.ModifyAccountVotes(oldAcc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
+		return err
+	}
+	siVC := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
+	if siVC == nil {
+		return errors.New("validators count uninitialized")
+	}
+	vc, err := ValidatorsCountFromBytes(siVC.Value)
+	if err != nil {
+		return err
+	}
+	vc[len(oldAcc.Votes)-1].Add(&vc[len(oldAcc.Votes)-1], amount)
+	siVC.Value = vc.Bytes()
+	if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, siVC); err != nil {
+		return err
+	}
+
 	acc.Balance.Add(&acc.Balance, amount)
 	si.Value = acc.Bytes()
 	return nil
