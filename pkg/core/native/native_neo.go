@@ -147,10 +147,9 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := ic.DAO.PutNextBlockValidators(pubs); err != nil {
-		return err
-	}
-	return nil
+	si := new(state.StorageItem)
+	si.Value = pubs.Bytes()
+	return ic.DAO.PutStorageItem(n.Hash, nextValidatorsKey, si)
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
@@ -171,23 +170,24 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	if err != nil {
 		return err
 	}
-	if err := n.ModifyAccountVotes(oldAcc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
-		return err
+	if len(oldAcc.Votes) > 0 {
+		if err := n.ModifyAccountVotes(oldAcc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
+			return err
+		}
+		siVC := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
+		if siVC == nil {
+			return errors.New("validators count uninitialized")
+		}
+		vc, err := ValidatorsCountFromBytes(siVC.Value)
+		if err != nil {
+			return err
+		}
+		vc[len(oldAcc.Votes)-1].Add(&vc[len(oldAcc.Votes)-1], amount)
+		siVC.Value = vc.Bytes()
+		if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, siVC); err != nil {
+			return err
+		}
 	}
-	siVC := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
-	if siVC == nil {
-		return errors.New("validators count uninitialized")
-	}
-	vc, err := ValidatorsCountFromBytes(siVC.Value)
-	if err != nil {
-		return err
-	}
-	vc[len(oldAcc.Votes)-1].Add(&vc[len(oldAcc.Votes)-1], amount)
-	siVC.Value = vc.Bytes()
-	if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, siVC); err != nil {
-		return err
-	}
-
 	acc.Balance.Add(&acc.Balance, amount)
 	si.Value = acc.Bytes()
 	return nil
@@ -372,7 +372,7 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []vm.StackItem)
 }
 
 // GetValidatorsInternal returns a list of current validators.
-func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) ([]*keys.PublicKey, error) {
+func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	si := d.GetStorageItem(n.Hash, validatorsCountKey)
 	if si == nil {
 		return nil, errors.New("validators count uninitialized")
@@ -450,14 +450,17 @@ func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []vm.StackItem) vm.S
 }
 
 // GetNextBlockValidatorsInternal returns next block validators.
-func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) ([]*keys.PublicKey, error) {
-	result, err := d.GetNextBlockValidators()
-	if err != nil {
-		return nil, err
-	} else if result == nil {
+func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+	si := d.GetStorageItem(n.Hash, nextValidatorsKey)
+	if si == nil {
 		return bc.GetStandByValidators()
 	}
-	return result, nil
+	pubs := keys.PublicKeys{}
+	err := pubs.DecodeBytes(si.Value)
+	if err != nil {
+		return nil, err
+	}
+	return pubs, nil
 }
 
 func pubsToArray(pubs keys.PublicKeys) vm.StackItem {

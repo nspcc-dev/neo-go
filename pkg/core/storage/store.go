@@ -12,7 +12,6 @@ const (
 	STAccount        KeyPrefix = 0x40
 	STCoin           KeyPrefix = 0x44
 	STSpentCoin      KeyPrefix = 0x45
-	STNextValidators KeyPrefix = 0x47
 	STValidator      KeyPrefix = 0x48
 	STAsset          KeyPrefix = 0x4c
 	STNotification   KeyPrefix = 0x4d
