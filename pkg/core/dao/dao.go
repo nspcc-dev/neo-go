@@ -43,7 +43,6 @@ type DAO interface {
 	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
 	GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error)
 	GetValidators() []*state.Validator
-	GetValidatorsCount() (*state.ValidatorsCount, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
@@ -61,7 +60,6 @@ type DAO interface {
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
 	PutValidatorState(vs *state.Validator) error
-	PutValidatorsCount(vc *state.ValidatorsCount) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block, sysFee uint32) error
 	StoreAsCurrentBlock(block *block.Block) error
@@ -394,24 +392,6 @@ func (dao *Simple) PutValidatorState(vs *state.Validator) error {
 func (dao *Simple) DeleteValidatorState(vs *state.Validator) error {
 	key := storage.AppendPrefix(storage.STValidator, vs.PublicKey.Bytes())
 	return dao.Store.Delete(key)
-}
-
-// GetValidatorsCount returns current ValidatorsCount or new one if there is none
-// in the DB.
-func (dao *Simple) GetValidatorsCount() (*state.ValidatorsCount, error) {
-	vc := &state.ValidatorsCount{}
-	key := []byte{byte(storage.IXValidatorsCount)}
-	err := dao.GetAndDecode(vc, key)
-	if err != nil && err != storage.ErrKeyNotFound {
-		return nil, err
-	}
-	return vc, nil
-}
-
-// PutValidatorsCount put given ValidatorsCount in the store.
-func (dao *Simple) PutValidatorsCount(vc *state.ValidatorsCount) error {
-	key := []byte{byte(storage.IXValidatorsCount)}
-	return dao.Put(vc, key)
 }
 
 // -- end validator.

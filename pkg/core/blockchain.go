@@ -523,9 +523,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if err != nil {
 						return err
 					}
-					if err = processTXWithValidatorsSubtract(prevTXOutput, account, cache); err != nil {
-						return err
-					}
 				}
 
 				balancesLen := len(account.Balances[prevTXOutput.AssetID])
@@ -836,42 +833,6 @@ func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
 			Value: output.Amount,
 		})
 		if err = dao.PutAccountState(account); err != nil {
-			return err
-		}
-		if err = processTXWithValidatorsAdd(&output, account, dao); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func processTXWithValidatorsAdd(output *transaction.Output, account *state.Account, dao *dao.Cached) error {
-	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
-		return modAccountVotes(account, dao, output.Amount)
-	}
-	return nil
-}
-
-func processTXWithValidatorsSubtract(output *transaction.Output, account *state.Account, dao *dao.Cached) error {
-	if output.AssetID.Equals(GoverningTokenID()) && len(account.Votes) > 0 {
-		return modAccountVotes(account, dao, -output.Amount)
-	}
-	return nil
-}
-
-// modAccountVotes adds given value to given account voted validators.
-func modAccountVotes(account *state.Account, dao *dao.Cached, value util.Fixed8) error {
-	//	if err := native.ModifyAccountVotes(account, dao, value); err != nil {
-	//		return err
-	//	}
-	if len(account.Votes) > 0 {
-		vc, err := dao.GetValidatorsCount()
-		if err != nil {
-			return err
-		}
-		vc[len(account.Votes)-1] += value
-		err = dao.PutValidatorsCount(vc)
-		if err != nil {
 			return err
 		}
 	}
@@ -1348,7 +1309,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 				if err != nil {
 					return err
 				}
-				if len(votes) > state.MaxValidatorsVoted {
+				if len(votes) > native.MaxValidatorsVoted {
 					return errors.New("voting candidate limit exceeded")
 				}
 				hash, err := util.Uint160DecodeBytesBE(desc.Key)
@@ -1690,9 +1651,6 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 				if err := cache.PutAccountState(accountState); err != nil {
 					return nil, err
 				}
-				if err = processTXWithValidatorsAdd(&output, accountState, cache); err != nil {
-					return nil, err
-				}
 			}
 
 			// group inputs by the same previous hash and iterate through inputs
@@ -1715,10 +1673,6 @@ func (bc *Blockchain) GetValidators(txes ...*transaction.Transaction) ([]*keys.P
 						return nil, err
 					}
 
-					// process account state votes: if there are any -> validators will be updated.
-					if err = processTXWithValidatorsSubtract(prevOutput, accountState, cache); err != nil {
-						return nil, err
-					}
 					delete(accountState.Balances, prevOutput.AssetID)
 					if err = cache.PutAccountState(accountState); err != nil {
 						return nil, err

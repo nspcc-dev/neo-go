@@ -45,6 +45,15 @@ const (
 	prefixValidator = 33
 )
 
+var (
+	// validatorsCountKey is a key used to store validators count
+	// used to determine the real number of validators.
+	validatorsCountKey = []byte{15}
+	// nextValidatorsKey is a key used to store validators for the
+	// next block.
+	nextValidatorsKey = []byte{14}
+)
+
 // makeValidatorKey creates a key from account script hash.
 func makeValidatorKey(key *keys.PublicKey) []byte {
 	b := key.Bytes()
@@ -102,6 +111,8 @@ func NewNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
+	var si state.StorageItem
+
 	if err := n.nep5TokenNative.Initialize(ic); err != nil {
 		return err
 	}
@@ -110,6 +121,11 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return errors.New("already initialized")
 	}
 
+	vc := new(ValidatorsCount)
+	si.Value = vc.Bytes()
+	if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, &si); err != nil {
+		return err
+	}
 	h, vs, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
@@ -255,17 +271,22 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		newPubs = append(newPubs, pub)
 	}
 	if lp, lv := len(newPubs), len(oldAcc.Votes); lp != lv {
-		vc, err := ic.DAO.GetValidatorsCount()
+		si := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
+		if si == nil {
+			return errors.New("validators count uninitialized")
+		}
+		vc, err := ValidatorsCountFromBytes(si.Value)
 		if err != nil {
 			return err
 		}
 		if lv > 0 {
-			vc[lv-1] -= util.Fixed8(acc.Balance.Int64())
+			vc[lv-1].Sub(&vc[lv-1], &acc.Balance)
 		}
 		if len(newPubs) > 0 {
-			vc[lp-1] += util.Fixed8(acc.Balance.Int64())
+			vc[lp-1].Add(&vc[lp-1], &acc.Balance)
 		}
-		if err := ic.DAO.PutValidatorsCount(vc); err != nil {
+		si.Value = vc.Bytes()
+		if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, si); err != nil {
 			return err
 		}
 	}
@@ -330,17 +351,14 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []vm.StackItem)
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) ([]*keys.PublicKey, error) {
-	validatorsCount, err := d.GetValidatorsCount()
+	si := d.GetStorageItem(n.Hash, validatorsCountKey)
+	if si == nil {
+		return nil, errors.New("validators count uninitialized")
+	}
+	validatorsCount, err := ValidatorsCountFromBytes(si.Value)
 	if err != nil {
 		return nil, err
-	} else if len(validatorsCount) == 0 {
-		sb, err := bc.GetStandByValidators()
-		if err != nil {
-			return nil, err
-		}
-		return sb, nil
 	}
-
 	validatorsBytes, err := n.getRegisteredValidators(d)
 	if err != nil {
 		return nil, err

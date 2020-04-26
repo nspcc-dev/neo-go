@@ -7,24 +7,23 @@ import (
 
 // KeyPrefix constants.
 const (
-	DataBlock         KeyPrefix = 0x01
-	DataTransaction   KeyPrefix = 0x02
-	STAccount         KeyPrefix = 0x40
-	STCoin            KeyPrefix = 0x44
-	STSpentCoin       KeyPrefix = 0x45
-	STNextValidators  KeyPrefix = 0x47
-	STValidator       KeyPrefix = 0x48
-	STAsset           KeyPrefix = 0x4c
-	STNotification    KeyPrefix = 0x4d
-	STContract        KeyPrefix = 0x50
-	STStorage         KeyPrefix = 0x70
-	STNEP5Transfers   KeyPrefix = 0x72
-	STNEP5Balances    KeyPrefix = 0x73
-	IXHeaderHashList  KeyPrefix = 0x80
-	IXValidatorsCount KeyPrefix = 0x90
-	SYSCurrentBlock   KeyPrefix = 0xc0
-	SYSCurrentHeader  KeyPrefix = 0xc1
-	SYSVersion        KeyPrefix = 0xf0
+	DataBlock        KeyPrefix = 0x01
+	DataTransaction  KeyPrefix = 0x02
+	STAccount        KeyPrefix = 0x40
+	STCoin           KeyPrefix = 0x44
+	STSpentCoin      KeyPrefix = 0x45
+	STNextValidators KeyPrefix = 0x47
+	STValidator      KeyPrefix = 0x48
+	STAsset          KeyPrefix = 0x4c
+	STNotification   KeyPrefix = 0x4d
+	STContract       KeyPrefix = 0x50
+	STStorage        KeyPrefix = 0x70
+	STNEP5Transfers  KeyPrefix = 0x72
+	STNEP5Balances   KeyPrefix = 0x73
+	IXHeaderHashList KeyPrefix = 0x80
+	SYSCurrentBlock  KeyPrefix = 0xc0
+	SYSCurrentHeader KeyPrefix = 0xc1
+	SYSVersion       KeyPrefix = 0xf0
 )
 
 // ErrKeyNotFound is an error returned by Store implementations
