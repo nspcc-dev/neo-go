@@ -85,7 +85,6 @@ func _() {
 	_ = x[SUBSTR-127]
 	_ = x[LEFT-128]
 	_ = x[RIGHT-129]
-	_ = x[SIZE-130]
 	_ = x[INVERT-131]
 	_ = x[AND-132]
 	_ = x[OR-133]
@@ -123,25 +122,30 @@ func _() {
 	_ = x[CHECKSIG-172]
 	_ = x[VERIFY-173]
 	_ = x[CHECKMULTISIG-174]
-	_ = x[ARRAYSIZE-192]
-	_ = x[PACK-193]
-	_ = x[UNPACK-194]
-	_ = x[PICKITEM-195]
-	_ = x[SETITEM-196]
-	_ = x[NEWARRAY-197]
+	_ = x[PACK-192]
+	_ = x[UNPACK-193]
+	_ = x[NEWARRAY0-194]
+	_ = x[NEWARRAY-195]
+	_ = x[NEWARRAYT-196]
+	_ = x[NEWSTRUCT0-197]
 	_ = x[NEWSTRUCT-198]
-	_ = x[NEWMAP-199]
-	_ = x[APPEND-200]
-	_ = x[REVERSE-201]
-	_ = x[REMOVE-202]
+	_ = x[NEWMAP-200]
+	_ = x[SIZE-202]
 	_ = x[HASKEY-203]
 	_ = x[KEYS-204]
 	_ = x[VALUES-205]
+	_ = x[PICKITEM-206]
+	_ = x[APPEND-207]
+	_ = x[SETITEM-208]
+	_ = x[REVERSEITEMS-209]
+	_ = x[REMOVE-210]
+	_ = x[CLEARITEMS-211]
+	_ = x[ISTYPE-217]
 	_ = x[THROW-240]
 	_ = x[THROWIFNOT-241]
 }
 
-const _Opcode_name = "PUSHINT8PUSHINT16PUSHINT32PUSHINT64PUSHINT128PUSHINT256PUSHNULLPUSHDATA1PUSHDATA2PUSHDATA4PUSHM1PUSH0PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMP_LJMPIFJMPIF_LJMPIFNOTJMPIFNOT_LJMPEQJMPEQ_LJMPNEJMPNE_LJMPGTJMPGT_LJMPGEJMPGE_LJMPLTJMPLT_LJMPLEJMPLE_LCALLCALL_LOLDPUSH1RETAPPCALLSYSCALLTAILCALLDUPFROMALTSTACKTOALTSTACKFROMALTSTACKXDROPISNULLXSWAPXTUCKDEPTHDROPDUPNIPOVERPICKROLLROTSWAPTUCKCATSUBSTRLEFTRIGHTSIZEINVERTANDORXOREQUALINCDECSIGNNEGATEABSNOTNZADDSUBMULDIVMODSHLSHRBOOLANDBOOLORNUMEQUALNUMNOTEQUALLTGTLTEGTEMINMAXWITHINSHA1SHA256HASH160HASH256CHECKSIGVERIFYCHECKMULTISIGARRAYSIZEPACKUNPACKPICKITEMSETITEMNEWARRAYNEWSTRUCTNEWMAPAPPENDREVERSEREMOVEHASKEYKEYSVALUESTHROWTHROWIFNOT"
+const _Opcode_name = "PUSHINT8PUSHINT16PUSHINT32PUSHINT64PUSHINT128PUSHINT256PUSHNULLPUSHDATA1PUSHDATA2PUSHDATA4PUSHM1PUSH0PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMPLJMPIFJMPIFLJMPIFNOTJMPIFNOTLJMPEQJMPEQLJMPNEJMPNELJMPGTJMPGTLJMPGEJMPGELJMPLTJMPLTLJMPLEJMPLELCALLCALLLOLDPUSH1RETAPPCALLSYSCALLTAILCALLDUPFROMALTSTACKTOALTSTACKFROMALTSTACKXDROPISNULLXSWAPXTUCKDEPTHDROPDUPNIPOVERPICKROLLROTSWAPTUCKCATSUBSTRLEFTRIGHTINVERTANDORXOREQUALINCDECSIGNNEGATEABSNOTNZADDSUBMULDIVMODSHLSHRBOOLANDBOOLORNUMEQUALNUMNOTEQUALLTGTLTEGTEMINMAXWITHINSHA1SHA256HASH160HASH256CHECKSIGVERIFYCHECKMULTISIGPACKUNPACKNEWARRAY0NEWARRAYNEWARRAYTNEWSTRUCT0NEWSTRUCTNEWMAPSIZEHASKEYKEYSVALUESPICKITEMAPPENDSETITEMREVERSEITEMSREMOVECLEARITEMSISTYPETHROWTHROWIFNOT"
 
 var _Opcode_map = map[Opcode]string{
 	0:   _Opcode_name[0:8],
@@ -174,105 +178,109 @@ var _Opcode_map = map[Opcode]string{
 	32:  _Opcode_name[182:188],
 	33:  _Opcode_name[188:191],
 	34:  _Opcode_name[191:194],
-	35:  _Opcode_name[194:199],
-	36:  _Opcode_name[199:204],
-	37:  _Opcode_name[204:211],
-	38:  _Opcode_name[211:219],
-	39:  _Opcode_name[219:229],
-	40:  _Opcode_name[229:234],
-	41:  _Opcode_name[234:241],
-	42:  _Opcode_name[241:246],
-	43:  _Opcode_name[246:253],
-	44:  _Opcode_name[253:258],
-	45:  _Opcode_name[258:265],
-	46:  _Opcode_name[265:270],
-	47:  _Opcode_name[270:277],
-	48:  _Opcode_name[277:282],
-	49:  _Opcode_name[282:289],
-	50:  _Opcode_name[289:294],
-	51:  _Opcode_name[294:301],
-	52:  _Opcode_name[301:305],
-	53:  _Opcode_name[305:311],
-	81:  _Opcode_name[311:319],
-	102: _Opcode_name[319:322],
-	103: _Opcode_name[322:329],
-	104: _Opcode_name[329:336],
-	105: _Opcode_name[336:344],
-	106: _Opcode_name[344:359],
-	107: _Opcode_name[359:369],
-	108: _Opcode_name[369:381],
-	109: _Opcode_name[381:386],
-	112: _Opcode_name[386:392],
-	114: _Opcode_name[392:397],
-	115: _Opcode_name[397:402],
-	116: _Opcode_name[402:407],
-	117: _Opcode_name[407:411],
-	118: _Opcode_name[411:414],
-	119: _Opcode_name[414:417],
-	120: _Opcode_name[417:421],
-	121: _Opcode_name[421:425],
-	122: _Opcode_name[425:429],
-	123: _Opcode_name[429:432],
-	124: _Opcode_name[432:436],
-	125: _Opcode_name[436:440],
-	126: _Opcode_name[440:443],
-	127: _Opcode_name[443:449],
-	128: _Opcode_name[449:453],
-	129: _Opcode_name[453:458],
-	130: _Opcode_name[458:462],
-	131: _Opcode_name[462:468],
-	132: _Opcode_name[468:471],
-	133: _Opcode_name[471:473],
-	134: _Opcode_name[473:476],
-	135: _Opcode_name[476:481],
-	139: _Opcode_name[481:484],
-	140: _Opcode_name[484:487],
-	141: _Opcode_name[487:491],
-	143: _Opcode_name[491:497],
-	144: _Opcode_name[497:500],
-	145: _Opcode_name[500:503],
-	146: _Opcode_name[503:505],
-	147: _Opcode_name[505:508],
-	148: _Opcode_name[508:511],
-	149: _Opcode_name[511:514],
-	150: _Opcode_name[514:517],
-	151: _Opcode_name[517:520],
-	152: _Opcode_name[520:523],
-	153: _Opcode_name[523:526],
-	154: _Opcode_name[526:533],
-	155: _Opcode_name[533:539],
-	156: _Opcode_name[539:547],
-	158: _Opcode_name[547:558],
-	159: _Opcode_name[558:560],
-	160: _Opcode_name[560:562],
-	161: _Opcode_name[562:565],
-	162: _Opcode_name[565:568],
-	163: _Opcode_name[568:571],
-	164: _Opcode_name[571:574],
-	165: _Opcode_name[574:580],
-	167: _Opcode_name[580:584],
-	168: _Opcode_name[584:590],
-	169: _Opcode_name[590:597],
-	170: _Opcode_name[597:604],
-	172: _Opcode_name[604:612],
-	173: _Opcode_name[612:618],
-	174: _Opcode_name[618:631],
-	192: _Opcode_name[631:640],
-	193: _Opcode_name[640:644],
-	194: _Opcode_name[644:650],
-	195: _Opcode_name[650:658],
-	196: _Opcode_name[658:665],
-	197: _Opcode_name[665:673],
-	198: _Opcode_name[673:682],
-	199: _Opcode_name[682:688],
-	200: _Opcode_name[688:694],
-	201: _Opcode_name[694:701],
-	202: _Opcode_name[701:707],
-	203: _Opcode_name[707:713],
-	204: _Opcode_name[713:717],
-	205: _Opcode_name[717:723],
-	240: _Opcode_name[723:728],
-	241: _Opcode_name[728:738],
+	35:  _Opcode_name[194:198],
+	36:  _Opcode_name[198:203],
+	37:  _Opcode_name[203:209],
+	38:  _Opcode_name[209:217],
+	39:  _Opcode_name[217:226],
+	40:  _Opcode_name[226:231],
+	41:  _Opcode_name[231:237],
+	42:  _Opcode_name[237:242],
+	43:  _Opcode_name[242:248],
+	44:  _Opcode_name[248:253],
+	45:  _Opcode_name[253:259],
+	46:  _Opcode_name[259:264],
+	47:  _Opcode_name[264:270],
+	48:  _Opcode_name[270:275],
+	49:  _Opcode_name[275:281],
+	50:  _Opcode_name[281:286],
+	51:  _Opcode_name[286:292],
+	52:  _Opcode_name[292:296],
+	53:  _Opcode_name[296:301],
+	81:  _Opcode_name[301:309],
+	102: _Opcode_name[309:312],
+	103: _Opcode_name[312:319],
+	104: _Opcode_name[319:326],
+	105: _Opcode_name[326:334],
+	106: _Opcode_name[334:349],
+	107: _Opcode_name[349:359],
+	108: _Opcode_name[359:371],
+	109: _Opcode_name[371:376],
+	112: _Opcode_name[376:382],
+	114: _Opcode_name[382:387],
+	115: _Opcode_name[387:392],
+	116: _Opcode_name[392:397],
+	117: _Opcode_name[397:401],
+	118: _Opcode_name[401:404],
+	119: _Opcode_name[404:407],
+	120: _Opcode_name[407:411],
+	121: _Opcode_name[411:415],
+	122: _Opcode_name[415:419],
+	123: _Opcode_name[419:422],
+	124: _Opcode_name[422:426],
+	125: _Opcode_name[426:430],
+	126: _Opcode_name[430:433],
+	127: _Opcode_name[433:439],
+	128: _Opcode_name[439:443],
+	129: _Opcode_name[443:448],
+	131: _Opcode_name[448:454],
+	132: _Opcode_name[454:457],
+	133: _Opcode_name[457:459],
+	134: _Opcode_name[459:462],
+	135: _Opcode_name[462:467],
+	139: _Opcode_name[467:470],
+	140: _Opcode_name[470:473],
+	141: _Opcode_name[473:477],
+	143: _Opcode_name[477:483],
+	144: _Opcode_name[483:486],
+	145: _Opcode_name[486:489],
+	146: _Opcode_name[489:491],
+	147: _Opcode_name[491:494],
+	148: _Opcode_name[494:497],
+	149: _Opcode_name[497:500],
+	150: _Opcode_name[500:503],
+	151: _Opcode_name[503:506],
+	152: _Opcode_name[506:509],
+	153: _Opcode_name[509:512],
+	154: _Opcode_name[512:519],
+	155: _Opcode_name[519:525],
+	156: _Opcode_name[525:533],
+	158: _Opcode_name[533:544],
+	159: _Opcode_name[544:546],
+	160: _Opcode_name[546:548],
+	161: _Opcode_name[548:551],
+	162: _Opcode_name[551:554],
+	163: _Opcode_name[554:557],
+	164: _Opcode_name[557:560],
+	165: _Opcode_name[560:566],
+	167: _Opcode_name[566:570],
+	168: _Opcode_name[570:576],
+	169: _Opcode_name[576:583],
+	170: _Opcode_name[583:590],
+	172: _Opcode_name[590:598],
+	173: _Opcode_name[598:604],
+	174: _Opcode_name[604:617],
+	192: _Opcode_name[617:621],
+	193: _Opcode_name[621:627],
+	194: _Opcode_name[627:636],
+	195: _Opcode_name[636:644],
+	196: _Opcode_name[644:653],
+	197: _Opcode_name[653:663],
+	198: _Opcode_name[663:672],
+	200: _Opcode_name[672:678],
+	202: _Opcode_name[678:682],
+	203: _Opcode_name[682:688],
+	204: _Opcode_name[688:692],
+	205: _Opcode_name[692:698],
+	206: _Opcode_name[698:706],
+	207: _Opcode_name[706:712],
+	208: _Opcode_name[712:719],
+	209: _Opcode_name[719:731],
+	210: _Opcode_name[731:737],
+	211: _Opcode_name[737:747],
+	217: _Opcode_name[747:753],
+	240: _Opcode_name[753:758],
+	241: _Opcode_name[758:768],
 }
 
 func (i Opcode) String() string {

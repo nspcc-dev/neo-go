@@ -216,6 +216,46 @@ func TestISNULL(t *testing.T) {
 	})
 }
 
+func testISTYPE(t *testing.T, result bool, typ StackItemType, item StackItem) {
+	prog := []byte{byte(opcode.ISTYPE), byte(typ)}
+	v := load(prog)
+	v.estack.PushVal(item)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, result, v.estack.Pop().Bool())
+}
+
+func TestISTYPE(t *testing.T) {
+	t.Run("Integer", func(t *testing.T) {
+		testISTYPE(t, true, IntegerT, NewBigIntegerItem(big.NewInt(42)))
+		testISTYPE(t, false, IntegerT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Boolean", func(t *testing.T) {
+		testISTYPE(t, true, BooleanT, NewBoolItem(true))
+		testISTYPE(t, false, BooleanT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("ByteArray", func(t *testing.T) {
+		testISTYPE(t, true, ByteArrayT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, false, ByteArrayT, NewBigIntegerItem(big.NewInt(42)))
+	})
+	t.Run("Array", func(t *testing.T) {
+		testISTYPE(t, true, ArrayT, NewArrayItem([]StackItem{}))
+		testISTYPE(t, false, ArrayT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Struct", func(t *testing.T) {
+		testISTYPE(t, true, StructT, NewStructItem([]StackItem{}))
+		testISTYPE(t, false, StructT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Map", func(t *testing.T) {
+		testISTYPE(t, true, MapT, NewMapItem())
+		testISTYPE(t, false, MapT, NewByteArrayItem([]byte{}))
+	})
+	t.Run("Interop", func(t *testing.T) {
+		testISTYPE(t, true, InteropT, NewInteropItem(42))
+		testISTYPE(t, false, InteropT, NewByteArrayItem([]byte{}))
+	})
+}
+
 // appendBigStruct returns a program which:
 // 1. pushes size Structs on stack
 // 2. packs them into a new struct
@@ -620,7 +660,7 @@ func TestSerializeArray(t *testing.T) {
 
 func TestSerializeArrayBad(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewArrayItem(makeArrayOfFalses(2))
+	item := NewArrayItem(makeArrayOfType(2, BooleanT))
 	item.value[1] = item
 
 	vm.estack.Push(&Element{value: item})
@@ -685,7 +725,7 @@ func TestSerializeMap(t *testing.T) {
 }
 
 func TestSerializeMapCompat(t *testing.T) {
-	resHex := "820100036b6579000576616c7565"
+	resHex := "480128036b6579280576616c7565"
 	res, err := hex.DecodeString(resHex)
 	require.NoError(t, err)
 
@@ -1252,6 +1292,22 @@ func TestDECBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
+func TestNEWARRAY0(t *testing.T) {
+	prog := makeProgram(opcode.NEWARRAY0)
+	v := load(prog)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, &ArrayItem{[]StackItem{}}, v.estack.Pop().value)
+}
+
+func TestNEWSTRUCT0(t *testing.T) {
+	prog := makeProgram(opcode.NEWSTRUCT0)
+	v := load(prog)
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, &StructItem{[]StackItem{}}, v.estack.Pop().value)
+}
+
 func TestNEWARRAYInteger(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY)
 	vm := load(prog)
@@ -1281,7 +1337,7 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 opcode.Opcode, appended bool) {
 	vm := load(prog)
 	vm.Run()
 
-	arr := makeArrayOfFalses(4)
+	arr := makeArrayOfType(4, BooleanT)
 	arr[2] = makeStackItem(3)
 	arr[3] = makeStackItem(4)
 	if appended {
@@ -1321,6 +1377,32 @@ func TestNEWARRAYByteArray(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, &ArrayItem{[]StackItem{}}, vm.estack.Pop().value)
+}
+
+func testNEWARRAYT(t *testing.T, typ StackItemType, item StackItem) {
+	prog := makeProgram(opcode.NEWARRAYT, opcode.Opcode(typ), opcode.PUSH0, opcode.PICKITEM)
+	v := load(prog)
+	v.estack.PushVal(1)
+	if item == nil {
+		checkVMFailed(t, v)
+		return
+	}
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, item, v.estack.Pop().Item())
+}
+
+func TestNEWARRAYT(t *testing.T) {
+	testCases := map[StackItemType]StackItem{
+		BooleanT:   NewBoolItem(false),
+		IntegerT:   NewBigIntegerItem(big.NewInt(0)),
+		ByteArrayT: NewByteArrayItem([]byte{}),
+		ArrayT:     NullItem{},
+		0xFF:       nil,
+	}
+	for typ, item := range testCases {
+		t.Run(typ.String(), func(t *testing.T) { testNEWARRAYT(t, typ, item) })
+	}
 }
 
 func TestNEWARRAYBadSize(t *testing.T) {
@@ -1581,8 +1663,8 @@ func TestSIZEBool(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
-func TestARRAYSIZEArray(t *testing.T) {
-	prog := makeProgram(opcode.ARRAYSIZE)
+func TestSIZEArray(t *testing.T) {
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 	vm.estack.PushVal([]StackItem{
 		makeStackItem(1),
@@ -1593,8 +1675,8 @@ func TestARRAYSIZEArray(t *testing.T) {
 	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
 }
 
-func TestARRAYSIZEMap(t *testing.T) {
-	prog := makeProgram(opcode.ARRAYSIZE)
+func TestSIZEMap(t *testing.T) {
+	prog := makeProgram(opcode.SIZE)
 	vm := load(prog)
 
 	m := NewMapItem()
@@ -2534,19 +2616,19 @@ func TestUNPACKGood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(len(elements)+1).BigInt().Int64())
 }
 
-func TestREVERSEBadNotArray(t *testing.T) {
-	prog := makeProgram(opcode.REVERSE)
+func TestREVERSEITEMSBadNotArray(t *testing.T) {
+	prog := makeProgram(opcode.REVERSEITEMS)
 	vm := load(prog)
 	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 
-func testREVERSEIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
+func testREVERSEITEMSIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
 	prog := makeProgram(
 		opcode.PUSH0, i1,
 		opcode.DUP, opcode.PUSH1, opcode.APPEND,
 		opcode.DUP, opcode.PUSH2, opcode.APPEND,
-		opcode.DUP, i2, opcode.REVERSE)
+		opcode.DUP, i2, opcode.REVERSEITEMS)
 	vm := load(prog)
 	vm.Run()
 
@@ -2567,15 +2649,15 @@ func testREVERSEIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
 	}
 }
 
-func TestREVERSEIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testREVERSEIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
+func TestREVERSEITEMSIssue437(t *testing.T) {
+	t.Run("Array+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, opcode.NEWARRAY, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, opcode.NEWSTRUCT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, opcode.NEWSTRUCT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, opcode.NEWARRAY, false) })
 }
 
-func TestREVERSEGoodOneElem(t *testing.T) {
-	prog := makeProgram(opcode.DUP, opcode.REVERSE)
+func TestREVERSEITEMSGoodOneElem(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 	elements := []int{22}
 	vm := load(prog)
 	vm.estack.PushVal(1)
@@ -2588,13 +2670,13 @@ func TestREVERSEGoodOneElem(t *testing.T) {
 	assert.Equal(t, int64(elements[0]), e.Int64())
 }
 
-func TestREVERSEGoodStruct(t *testing.T) {
+func TestREVERSEITEMSGoodStruct(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(opcode.DUP, opcode.REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 
@@ -2616,13 +2698,13 @@ func TestREVERSEGoodStruct(t *testing.T) {
 	}
 }
 
-func TestREVERSEGood(t *testing.T) {
+func TestREVERSEITEMSGood(t *testing.T) {
 	eodd := []int{22, 34, 42, 55, 81}
 	even := []int{22, 34, 42, 55, 81, 99}
 	eall := [][]int{eodd, even}
 
 	for _, elements := range eall {
-		prog := makeProgram(opcode.DUP, opcode.REVERSE)
+		prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 		vm := load(prog)
 		vm.estack.PushVal(1)
 		vm.estack.PushVal(elements)
@@ -2695,6 +2777,43 @@ func TestREMOVEMap(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+}
+
+func testCLEARITEMS(t *testing.T, item StackItem) {
+	prog := makeProgram(opcode.DUP, opcode.DUP, opcode.CLEARITEMS, opcode.SIZE)
+	v := load(prog)
+	v.estack.PushVal(item)
+	runVM(t, v)
+	require.Equal(t, 2, v.estack.Len())
+	require.EqualValues(t, 2, v.size) // empty collection + it's size
+	require.EqualValues(t, 0, v.estack.Pop().BigInt().Int64())
+}
+
+func TestCLEARITEMS(t *testing.T) {
+	arr := []StackItem{NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{1})}
+	m := NewMapItem()
+	m.Add(NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{}))
+	m.Add(NewByteArrayItem([]byte{42}), NewBigIntegerItem(big.NewInt(2)))
+
+	testCases := map[string]StackItem{
+		"empty Array":   NewArrayItem([]StackItem{}),
+		"filled Array":  NewArrayItem(arr),
+		"empty Struct":  NewStructItem([]StackItem{}),
+		"filled Struct": NewStructItem(arr),
+		"empty Map":     NewMapItem(),
+		"filled Map":    m,
+	}
+
+	for name, item := range testCases {
+		t.Run(name, func(t *testing.T) { testCLEARITEMS(t, item) })
+	}
+
+	t.Run("Integer", func(t *testing.T) {
+		prog := makeProgram(opcode.CLEARITEMS)
+		v := load(prog)
+		v.estack.PushVal(1)
+		checkVMFailed(t, v)
+	})
 }
 
 func TestSWAPGood(t *testing.T) {

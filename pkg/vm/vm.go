@@ -565,6 +565,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		res := v.estack.Pop().value.Equals(NullItem{})
 		v.estack.PushVal(res)
 
+	case opcode.ISTYPE:
+		res := v.estack.Pop().Item()
+		v.estack.PushVal(res.Type() == StackItemType(parameter[0]))
+
 	// Stack operations.
 	case opcode.TOALTSTACK:
 		v.astack.Push(v.estack.Pop())
@@ -911,8 +915,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(x.Cmp(big.NewInt(0)) != 0)
 
-	// Object operations.
-	case opcode.NEWARRAY:
+	// Object operations
+	case opcode.NEWARRAY0:
+		v.estack.PushVal(&ArrayItem{[]StackItem{}})
+
+	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
 		case *StructItem:
@@ -926,9 +933,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long array")
 			}
-			items := makeArrayOfFalses(int(n))
+			typ := BooleanT
+			if op == opcode.NEWARRAYT {
+				typ = StackItemType(parameter[0])
+			}
+			items := makeArrayOfType(int(n), typ)
 			v.estack.PushVal(&ArrayItem{items})
 		}
+
+	case opcode.NEWSTRUCT0:
+		v.estack.PushVal(&StructItem{[]StackItem{}})
 
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
@@ -944,7 +958,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long struct")
 			}
-			items := makeArrayOfFalses(int(n))
+			items := makeArrayOfType(int(n), BooleanT)
 			v.estack.PushVal(&StructItem{items})
 		}
 
@@ -1058,7 +1072,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
-	case opcode.REVERSE:
+	case opcode.REVERSEITEMS:
 		a := v.estack.Pop().Array()
 		if len(a) > 1 {
 			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
@@ -1100,7 +1114,29 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("REMOVE: invalid type")
 		}
 
-	case opcode.ARRAYSIZE:
+	case opcode.CLEARITEMS:
+		elem := v.estack.Pop()
+		switch t := elem.value.(type) {
+		case *ArrayItem:
+			for _, item := range t.value {
+				v.estack.updateSizeRemove(item)
+			}
+			t.value = t.value[:0]
+		case *StructItem:
+			for _, item := range t.value {
+				v.estack.updateSizeRemove(item)
+			}
+			t.value = t.value[:0]
+		case *MapItem:
+			for i := range t.value {
+				v.estack.updateSizeRemove(t.value[i].Value)
+			}
+			t.value = t.value[:0]
+		default:
+			panic("CLEARITEMS: invalid type")
+		}
+
+	case opcode.SIZE:
 		elem := v.estack.Pop()
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
@@ -1112,11 +1148,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			v.estack.PushVal(len(elem.Bytes()))
 		}
-
-	case opcode.SIZE:
-		elem := v.estack.Pop()
-		arr := elem.Bytes()
-		v.estack.PushVal(len(arr))
 
 	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
@@ -1465,10 +1496,22 @@ func cloneIfStruct(item StackItem) StackItem {
 	}
 }
 
-func makeArrayOfFalses(n int) []StackItem {
+func makeArrayOfType(n int, typ StackItemType) []StackItem {
+	if !typ.IsValid() {
+		panic(fmt.Sprintf("invalid stack item type: %d", typ))
+	}
 	items := make([]StackItem, n)
 	for i := range items {
-		items[i] = &BoolItem{false}
+		switch typ {
+		case BooleanT:
+			items[i] = NewBoolItem(false)
+		case IntegerT:
+			items[i] = NewBigIntegerItem(big.NewInt(0))
+		case ByteArrayT:
+			items[i] = NewByteArrayItem([]byte{})
+		default:
+			items[i] = NullItem{}
+		}
 	}
 	return items
 }

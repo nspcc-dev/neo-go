@@ -398,7 +398,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.High)
 		} else {
 			emit.Opcode(c.prog.BinWriter, opcode.OVER)
-			emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
+			emit.Opcode(c.prog.BinWriter, opcode.SIZE)
 		}
 
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
@@ -858,7 +858,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		ast.Walk(c, n.X)
 
-		emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
 		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 
 		c.pushStackLabel(label, 2)
@@ -1030,13 +1030,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 
 	switch name {
 	case "len":
-		arg := expr.Args[0]
-		typ := c.typeInfo.Types[arg].Type
-		if isStringType(typ) {
-			emit.Opcode(c.prog.BinWriter, opcode.SIZE)
-		} else {
-			emit.Opcode(c.prog.BinWriter, opcode.ARRAYSIZE)
-		}
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type

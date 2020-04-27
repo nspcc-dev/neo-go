@@ -98,7 +98,6 @@ const (
 	SUBSTR Opcode = 0x7F
 	LEFT   Opcode = 0x80
 	RIGHT  Opcode = 0x81
-	SIZE   Opcode = 0x82
 
 	// Bitwise logic
 	INVERT Opcode = 0x83
@@ -144,20 +143,27 @@ const (
 	CHECKMULTISIG Opcode = 0xAE
 
 	// Advanced data structures (arrays, structures, maps)
-	ARRAYSIZE Opcode = 0xC0
-	PACK      Opcode = 0xC1
-	UNPACK    Opcode = 0xC2
-	PICKITEM  Opcode = 0xC3
-	SETITEM   Opcode = 0xC4
-	NEWARRAY  Opcode = 0xC5
-	NEWSTRUCT Opcode = 0xC6
-	NEWMAP    Opcode = 0xC7
-	APPEND    Opcode = 0xC8
-	REVERSE   Opcode = 0xC9
-	REMOVE    Opcode = 0xCA
-	HASKEY    Opcode = 0xCB
-	KEYS      Opcode = 0xCC
-	VALUES    Opcode = 0xCD
+	PACK         Opcode = 0xC0
+	UNPACK       Opcode = 0xC1
+	NEWARRAY0    Opcode = 0xC2
+	NEWARRAY     Opcode = 0xC3
+	NEWARRAYT    Opcode = 0xC4
+	NEWSTRUCT0   Opcode = 0xC5
+	NEWSTRUCT    Opcode = 0xC6
+	NEWMAP       Opcode = 0xC8
+	SIZE         Opcode = 0xCA
+	HASKEY       Opcode = 0xCB
+	KEYS         Opcode = 0xCC
+	VALUES       Opcode = 0xCD
+	PICKITEM     Opcode = 0xCE
+	APPEND       Opcode = 0xCF
+	SETITEM      Opcode = 0xD0
+	REVERSEITEMS Opcode = 0xD1
+	REMOVE       Opcode = 0xD2
+	CLEARITEMS   Opcode = 0xD3
+
+	// Types
+	ISTYPE Opcode = 0xD9
 
 	// Exceptions
 	THROW      Opcode = 0xF0
