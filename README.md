@@ -67,6 +67,8 @@ Build the **neo-go** CLI:
 make build
 ```
 
+### Running
+
 Quick start a NEO node on the private network. This requires the [neo-privatenet](https://hub.docker.com/r/cityofzion/neo-privatenet/) Docker image running on your machine.
 
 ```
@@ -90,7 +92,27 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-#Developer notes
+#### Importing mainnet/testnet dump files
+
+If you want to jump-start your mainnet or testnet node with [chain archives
+provided by NGD](https://sync.ngd.network/) follow these instructions:
+```
+$ wget .../chain.acc.zip # chain dump file
+$ unzip chain.acc.zip
+$ ./bin/neo-go db restore -m -i chain.acc # for testnet use '-t' flag instead of '-m'
+```
+
+The process differs from the C# node in that block importing is a separate
+mode, after it ends the node can be started normally.
+
+## Smart contract development
+
+Please refer to [neo-go smart contract development
+workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) that shows some
+simple contracts that can be compiled/deployed/run using neo-go compiler, SDK
+and private network.
+
+# Developer notes
 Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
 [Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
 
@@ -103,7 +125,7 @@ In `config/protocol.*.yml` there is
 ```
 where you can switch on/off and define port. Prometheus is enabled and Pprof is disabled by default.
 
-# Contributing
+## Contributing
 
 Feel free to contribute to this project after reading the
 [contributing guidelines](CONTRIBUTING.md).
