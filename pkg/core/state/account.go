@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -32,9 +31,6 @@ type Account struct {
 	Version    uint8
 	ScriptHash util.Uint160
 	IsFrozen   bool
-	Votes      []*keys.PublicKey
-	GAS        NEP5BalanceState
-	NEO        NEOBalanceState
 	Balances   map[util.Uint256][]UnspentBalance
 	Unclaimed  UnclaimedBalances
 }
@@ -45,7 +41,6 @@ func NewAccount(scriptHash util.Uint160) *Account {
 		Version:    0,
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
-		Votes:      []*keys.PublicKey{},
 		Balances:   make(map[util.Uint256][]UnspentBalance),
 		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}
@@ -56,9 +51,6 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 	s.Version = uint8(br.ReadB())
 	br.ReadBytes(s.ScriptHash[:])
 	s.IsFrozen = br.ReadBool()
-	br.ReadArray(&s.Votes)
-	s.GAS.DecodeBinary(br)
-	s.NEO.DecodeBinary(br)
 
 	s.Balances = make(map[util.Uint256][]UnspentBalance)
 	lenBalances := br.ReadVarUint()
@@ -83,9 +75,6 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(s.Version))
 	bw.WriteBytes(s.ScriptHash[:])
 	bw.WriteBool(s.IsFrozen)
-	bw.WriteArray(s.Votes)
-	s.GAS.EncodeBinary(bw)
-	s.NEO.EncodeBinary(bw)
 
 	bw.WriteVarUint(uint64(len(s.Balances)))
 	for k, v := range s.Balances {

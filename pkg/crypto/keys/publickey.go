@@ -35,6 +35,16 @@ func (keys *PublicKeys) DecodeBytes(data []byte) error {
 	return b.Err
 }
 
+// Bytes encodes PublicKeys to the new slice of bytes.
+func (keys *PublicKeys) Bytes() []byte {
+	buf := io.NewBufBinWriter()
+	buf.WriteArray(*keys)
+	if buf.Err != nil {
+		panic(buf.Err)
+	}
+	return buf.Bytes()
+}
+
 // Contains checks whether passed param contained in PublicKeys.
 func (keys PublicKeys) Contains(pKey *PublicKey) bool {
 	for _, key := range keys {

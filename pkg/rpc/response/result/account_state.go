@@ -5,18 +5,16 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // AccountState wrapper used for the representation of
 // state.Account on the RPC Server.
 type AccountState struct {
-	Version    uint8             `json:"version"`
-	ScriptHash util.Uint160      `json:"script_hash"`
-	IsFrozen   bool              `json:"frozen"`
-	Votes      []*keys.PublicKey `json:"votes"`
-	Balances   []Balance         `json:"balances"`
+	Version    uint8        `json:"version"`
+	ScriptHash util.Uint160 `json:"script_hash"`
+	IsFrozen   bool         `json:"frozen"`
+	Balances   []Balance    `json:"balances"`
 }
 
 // Balances type for sorting balances in rpc response.
@@ -48,7 +46,6 @@ func NewAccountState(a *state.Account) AccountState {
 		Version:    a.Version,
 		ScriptHash: a.ScriptHash,
 		IsFrozen:   a.IsFrozen,
-		Votes:      a.Votes,
 		Balances:   balances,
 	}
 }

@@ -47,9 +47,8 @@ type (
 
 	// SystemFee fees related to system.
 	SystemFee struct {
-		EnrollmentTransaction int64 `yaml:"EnrollmentTransaction"`
-		IssueTransaction      int64 `yaml:"IssueTransaction"`
-		RegisterTransaction   int64 `yaml:"RegisterTransaction"`
+		IssueTransaction    int64 `yaml:"IssueTransaction"`
+		RegisterTransaction int64 `yaml:"RegisterTransaction"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.
@@ -75,8 +74,6 @@ func (n NetMode) String() string {
 // TryGetValue returns the system fee base on transaction type.
 func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
 	switch txType {
-	case transaction.EnrollmentType:
-		return util.Fixed8FromInt64(s.EnrollmentTransaction)
 	case transaction.IssueType:
 		return util.Fixed8FromInt64(s.IssueTransaction)
 	case transaction.RegisterType:

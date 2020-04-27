@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -164,12 +163,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case IssueType:
 		t.Data = &IssueTX{}
 		t.Data.(*IssueTX).DecodeBinary(r)
-	case EnrollmentType:
-		t.Data = &EnrollmentTX{}
-		t.Data.(*EnrollmentTX).DecodeBinary(r)
-	case StateType:
-		t.Data = &StateTX{}
-		t.Data.(*StateTX).DecodeBinary(r)
 	default:
 		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
@@ -281,12 +274,10 @@ type transactionJSON struct {
 	Outputs         []Output     `json:"vout"`
 	Scripts         []Witness    `json:"scripts"`
 
-	Claims      []Input            `json:"claims,omitempty"`
-	PublicKey   *keys.PublicKey    `json:"pubkey,omitempty"`
-	Script      string             `json:"script,omitempty"`
-	Gas         util.Fixed8        `json:"gas,omitempty"`
-	Asset       *registeredAsset   `json:"asset,omitempty"`
-	Descriptors []*StateDescriptor `json:"descriptors,omitempty"`
+	Claims []Input          `json:"claims,omitempty"`
+	Script string           `json:"script,omitempty"`
+	Gas    util.Fixed8      `json:"gas,omitempty"`
+	Asset  *registeredAsset `json:"asset,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -307,8 +298,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	switch t.Type {
 	case ClaimType:
 		tx.Claims = t.Data.(*ClaimTX).Claims
-	case EnrollmentType:
-		tx.PublicKey = &t.Data.(*EnrollmentTX).PublicKey
 	case InvocationType:
 		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
 		tx.Gas = t.Data.(*InvocationTX).Gas
@@ -322,8 +311,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 			Owner:     transaction.Owner,
 			Admin:     address.Uint160ToString(transaction.Admin),
 		}
-	case StateType:
-		tx.Descriptors = t.Data.(*StateTX).Descriptors
 	}
 	return json.Marshal(tx)
 }
@@ -354,10 +341,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 		t.Data = &ClaimTX{
 			Claims: tx.Claims,
 		}
-	case EnrollmentType:
-		t.Data = &EnrollmentTX{
-			PublicKey: *tx.PublicKey,
-		}
 	case InvocationType:
 		bytes, err := hex.DecodeString(tx.Script)
 		if err != nil {
@@ -380,10 +363,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 			Precision: tx.Asset.Precision,
 			Owner:     tx.Asset.Owner,
 			Admin:     admin,
-		}
-	case StateType:
-		t.Data = &StateTX{
-			Descriptors: tx.Descriptors,
 		}
 	case ContractType:
 		t.Data = &ContractTX{}

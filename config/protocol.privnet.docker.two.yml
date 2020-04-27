@@ -15,7 +15,6 @@ ProtocolConfiguration:
     - 172.200.0.3:20335
     - 172.200.0.4:20336
   SystemFee:
-    EnrollmentTransaction: 1000
     IssueTransaction: 500
     RegisterTransaction: 10000
   VerifyBlocks: true

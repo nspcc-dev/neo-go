@@ -24,7 +24,6 @@ ProtocolConfiguration:
   - seed9.ngd.network:10333
   - seed10.ngd.network:10333
   SystemFee:
-    EnrollmentTransaction: 1000
     IssueTransaction: 500
     RegisterTransaction: 10000
   VerifyBlocks: true

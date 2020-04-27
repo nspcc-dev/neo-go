@@ -115,7 +115,6 @@ var systemInterops = []interop.Function{
 var neoInterops = []interop.Function{
 	{Name: "Neo.Account.GetBalance", Func: accountGetBalance, Price: 1},
 	{Name: "Neo.Account.GetScriptHash", Func: accountGetScriptHash, Price: 1},
-	{Name: "Neo.Account.GetVotes", Func: accountGetVotes, Price: 1},
 	{Name: "Neo.Account.IsStandard", Func: accountIsStandard, Price: 100},
 	{Name: "Neo.Asset.Create", Func: assetCreate, Price: 0},
 	{Name: "Neo.Asset.GetAdmin", Func: assetGetAdmin, Price: 1},
@@ -140,7 +139,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
 	{Name: "Neo.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
 	{Name: "Neo.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
-	{Name: "Neo.Blockchain.GetValidators", Func: bcGetValidators, Price: 200},
 	{Name: "Neo.Contract.Create", Func: contractCreate, Price: 0},
 	{Name: "Neo.Contract.Destroy", Func: contractDestroy, Price: 1},
 	{Name: "Neo.Contract.GetScript", Func: contractGetScript, Price: 1},
@@ -204,7 +202,6 @@ var neoInterops = []interop.Function{
 	// Old compatibility APIs.
 	{Name: "AntShares.Account.GetBalance", Func: accountGetBalance, Price: 1},
 	{Name: "AntShares.Account.GetScriptHash", Func: accountGetScriptHash, Price: 1},
-	{Name: "AntShares.Account.GetVotes", Func: accountGetVotes, Price: 1},
 	{Name: "AntShares.Asset.Create", Func: assetCreate, Price: 0},
 	{Name: "AntShares.Asset.GetAdmin", Func: assetGetAdmin, Price: 1},
 	{Name: "AntShares.Asset.GetAmount", Func: assetGetAmount, Price: 1},
@@ -227,7 +224,6 @@ var neoInterops = []interop.Function{
 	{Name: "AntShares.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "AntShares.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
 	{Name: "AntShares.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
-	{Name: "AntShares.Blockchain.GetValidators", Func: bcGetValidators, Price: 200},
 	{Name: "AntShares.Contract.Create", Func: contractCreate, Price: 0},
 	{Name: "AntShares.Contract.Destroy", Func: contractDestroy, Price: 1},
 	{Name: "AntShares.Contract.GetScript", Func: contractGetScript, Price: 1},

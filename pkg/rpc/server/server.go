@@ -815,9 +815,9 @@ func (s *Server) getValidators(_ request.Params) (interface{}, error) {
 	var res []result.Validator
 	for _, v := range enrollments {
 		res = append(res, result.Validator{
-			PublicKey: *v.PublicKey,
-			Votes:     v.Votes,
-			Active:    validators.Contains(v.PublicKey),
+			PublicKey: *v.Key,
+			Votes:     v.Votes.Int64(),
+			Active:    validators.Contains(v.Key),
 		})
 	}
 	return res, nil

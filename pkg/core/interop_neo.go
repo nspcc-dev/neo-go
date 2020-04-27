@@ -236,13 +236,6 @@ func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// bcGetValidators returns validators.
-func bcGetValidators(ic *interop.Context, v *vm.VM) error {
-	validators := ic.DAO.GetValidators()
-	v.Estack().PushVal(validators)
-	return nil
-}
-
 // popInputFromVM returns transaction.Input from the first estack element.
 func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
 	inInterface := v.Estack().Pop().Value()
@@ -401,24 +394,6 @@ func accountGetScriptHash(ic *interop.Context, v *vm.VM) error {
 		return fmt.Errorf("%T is not an account state", acc)
 	}
 	v.Estack().PushVal(acc.ScriptHash.BytesBE())
-	return nil
-}
-
-// accountGetVotes returns votes of a given account.
-func accountGetVotes(ic *interop.Context, v *vm.VM) error {
-	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*state.Account)
-	if !ok {
-		return fmt.Errorf("%T is not an account state", acc)
-	}
-	if len(acc.Votes) > vm.MaxArraySize {
-		return errors.New("too many votes")
-	}
-	votes := make([]vm.StackItem, 0, len(acc.Votes))
-	for _, key := range acc.Votes {
-		votes = append(votes, vm.NewByteArrayItem(key.Bytes()))
-	}
-	v.Estack().PushVal(votes)
 	return nil
 }
 

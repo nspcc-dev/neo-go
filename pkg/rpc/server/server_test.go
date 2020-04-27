@@ -408,7 +408,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockheader": {
 		{
 			name:   "invalid verbose type",
-			params: `["614a9085dc55fd0539ad3a9d68d8b8e7c52328da905c87bfe8cfca57a5c3c02f", true]`,
+			params: `["9673799c5b5a294427401cb07d6cc615ada3a0d5c5bf7ed6f0f54f24abb2e2ac", true]`,
 			fail:   true,
 		},
 		{

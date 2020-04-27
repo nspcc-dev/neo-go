@@ -195,7 +195,7 @@ func TestCreateBasicChain(t *testing.T) {
 	// use output of issue tx from genesis block as an input
 	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
 	require.NoError(t, err)
-	require.Equal(t, 4, len(genesisBlock.Transactions))
+	require.Equal(t, 5, len(genesisBlock.Transactions))
 	h := genesisBlock.Transactions[3].Hash()
 	txMoveNeo.AddInput(&transaction.Input{
 		PrevHash:  h,

@@ -10,28 +10,42 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
+
+// prefixAccount is the standard prefix used to store account data.
+const prefixAccount = 20
+
+// makeAccountKey creates a key from account script hash.
+func makeAccountKey(h util.Uint160) []byte {
+	k := make([]byte, util.Uint160Size+1)
+	k[0] = prefixAccount
+	copy(k[1:], h.BytesBE())
+	return k
+}
 
 // nep5TokenNative represents NEP-5 token contract.
 type nep5TokenNative struct {
-	ContractMD
-	name        string
-	symbol      string
-	decimals    int64
-	factor      int64
-	totalSupply big.Int
-	onPersist   func(*interop.Context) error
-	incBalance  func(*interop.Context, *state.Account, *big.Int) error
+	interop.ContractMD
+	name       string
+	symbol     string
+	decimals   int64
+	factor     int64
+	onPersist  func(*interop.Context) error
+	incBalance func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int) error
 }
 
-func (c *nep5TokenNative) Metadata() *ContractMD {
+// totalSupplyKey is the key used to store totalSupply value.
+var totalSupplyKey = []byte{11}
+
+func (c *nep5TokenNative) Metadata() *interop.ContractMD {
 	return &c.ContractMD
 }
 
-var _ Contract = (*nep5TokenNative)(nil)
+var _ interop.Contract = (*nep5TokenNative)(nil)
 
 func newNEP5Native(name string) *nep5TokenNative {
-	n := &nep5TokenNative{ContractMD: *NewContractMD(name)}
+	n := &nep5TokenNative{ContractMD: *interop.NewContractMD(name)}
 
 	desc := newDescriptor("name", smartcontract.StringType)
 	md := newMethodAndPrice(n.Name, 1, smartcontract.NoneFlag)
@@ -43,6 +57,10 @@ func newNEP5Native(name string) *nep5TokenNative {
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
 	md = newMethodAndPrice(n.Decimals, 1, smartcontract.NoneFlag)
+	n.AddMethod(md, desc, true)
+
+	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
+	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
@@ -63,7 +81,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 	return n
 }
 
-func (c *nep5TokenNative) Initialize() error {
+func (c *nep5TokenNative) Initialize(_ *interop.Context) error {
 	return nil
 }
 
@@ -79,6 +97,23 @@ func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []vm.StackItem) vm.Stac
 	return vm.NewBigIntegerItem(big.NewInt(c.decimals))
 }
 
+func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
+	return vm.NewBigIntegerItem(c.getTotalSupply(ic))
+}
+
+func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
+	si := ic.DAO.GetStorageItem(c.Hash, totalSupplyKey)
+	if si == nil {
+		return big.NewInt(0)
+	}
+	return emit.BytesToInt(si.Value)
+}
+
+func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
+	si := &state.StorageItem{Value: emit.IntToBytes(supply)}
+	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
+}
+
 func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.StackItem {
 	from := toUint160(args[0])
 	to := toUint160(args[1])
@@ -89,7 +124,7 @@ func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.
 
 func addrToStackItem(u *util.Uint160) vm.StackItem {
 	if u == nil {
-		return nil
+		return vm.NullItem{}
 	}
 	return vm.NewByteArrayItem(u.BytesBE())
 }
@@ -112,9 +147,10 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		return errors.New("negative amount")
 	}
 
-	accFrom, err := ic.DAO.GetAccountStateOrNew(from)
-	if err != nil {
-		return err
+	keyFrom := makeAccountKey(from)
+	siFrom := ic.DAO.GetStorageItem(c.Hash, keyFrom)
+	if siFrom == nil {
+		return errors.New("insufficient funds")
 	}
 
 	isEmpty := from.Equals(to) || amount.Sign() == 0
@@ -122,22 +158,23 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	if isEmpty {
 		inc = big.NewInt(0)
 	}
-	if err := c.incBalance(ic, accFrom, inc); err != nil {
+	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
 		return err
 	}
-	if err := ic.DAO.PutAccountState(accFrom); err != nil {
+	if err := ic.DAO.PutStorageItem(c.Hash, keyFrom, siFrom); err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		accTo, err := ic.DAO.GetAccountStateOrNew(to)
-		if err != nil {
+		keyTo := makeAccountKey(to)
+		siTo := ic.DAO.GetStorageItem(c.Hash, keyTo)
+		if siTo == nil {
+			siTo = new(state.StorageItem)
+		}
+		if err := c.incBalance(ic, to, siTo, amount); err != nil {
 			return err
 		}
-		if err := c.incBalance(ic, accTo, amount); err != nil {
-			return err
-		}
-		if err := ic.DAO.PutAccountState(accTo); err != nil {
+		if err := ic.DAO.PutStorageItem(c.Hash, keyTo, siTo); err != nil {
 			return err
 		}
 	}
@@ -174,18 +211,24 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 		return
 	}
 
-	acc, err := ic.DAO.GetAccountStateOrNew(h)
-	if err != nil {
+	key := makeAccountKey(h)
+	si := ic.DAO.GetStorageItem(c.Hash, key)
+	if si == nil {
+		si = new(state.StorageItem)
+	}
+	if err := c.incBalance(ic, h, si, amount); err != nil {
 		panic(err)
 	}
-	if err := c.incBalance(ic, acc, amount); err != nil {
-		panic(err)
-	}
-	if err := ic.DAO.PutAccountState(acc); err != nil {
+	if err := ic.DAO.PutStorageItem(c.Hash, key, si); err != nil {
 		panic(err)
 	}
 
-	c.totalSupply.Add(&c.totalSupply, amount)
+	supply := c.getTotalSupply(ic)
+	supply.Add(supply, amount)
+	err := c.saveTotalSupply(ic, supply)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (c *nep5TokenNative) OnPersist(ic *interop.Context) error {
@@ -200,8 +243,8 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f Method, price int64, flags smartcontract.CallFlag) *MethodAndPrice {
-	return &MethodAndPrice{
+func newMethodAndPrice(f interop.Method, price int64, flags smartcontract.CallFlag) *interop.MethodAndPrice {
+	return &interop.MethodAndPrice{
 		Func:          f,
 		Price:         price,
 		RequiredFlags: flags,

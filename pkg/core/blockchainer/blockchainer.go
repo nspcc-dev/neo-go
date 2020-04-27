@@ -24,7 +24,7 @@ type Blockchainer interface {
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
-	GetEnrollments() ([]*state.Validator, error)
+	GetEnrollments() ([]state.Validator, error)
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256
@@ -36,7 +36,7 @@ type Blockchainer interface {
 	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
 	GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
-	GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error)
+	GetValidators() ([]*keys.PublicKey, error)
 	GetStandByValidators() (keys.PublicKeys, error)
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
