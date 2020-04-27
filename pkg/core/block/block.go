@@ -56,6 +56,17 @@ func (b *Block) RebuildMerkleRoot() error {
 
 // Verify verifies the integrity of the block.
 func (b *Block) Verify() error {
+	if b.Transactions != nil {
+		hashes := map[util.Uint256]bool{}
+		for _, tx := range b.Transactions {
+			if !hashes[tx.Hash()] {
+				hashes[tx.Hash()] = true
+			} else {
+				return errors.New("transaction duplication is not allowed")
+			}
+		}
+	}
+
 	merkle, err := b.computeMerkleTree()
 	if err != nil {
 		return err
@@ -142,15 +153,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		txes[i] = tx
 	}
 	b.Transactions = txes
-	merkle, err := b.computeMerkleTree()
-	if err != nil {
-		br.Err = err
-		return
-	}
-	if !b.MerkleRoot.Equals(merkle.Root()) {
-		br.Err = errors.New("MerkleRoot mismatch")
-		return
-	}
+	br.Err = b.Verify()
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
