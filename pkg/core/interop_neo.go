@@ -48,16 +48,6 @@ func headerGetVersion(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// headerGetConsensusData returns consensus data from the header.
-func headerGetConsensusData(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.ConsensusData)
-	return nil
-}
-
 // headerGetMerkleRoot returns version from the header.
 func headerGetMerkleRoot(ic *interop.Context, v *vm.VM) error {
 	header, err := popHeaderFromVM(v)

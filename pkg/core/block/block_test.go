@@ -71,17 +71,19 @@ func newDumbBlock() *Block {
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
-			Timestamp:     uint32(100500),
+			Timestamp:     100500,
 			Index:         1,
-			ConsensusData: 1111,
 			NextConsensus: hash.Hash160([]byte("a")),
 			Script: transaction.Witness{
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},
 		},
+		ConsensusData: ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        1111,
+		},
 		Transactions: []*transaction.Transaction{
-			transaction.NewMinerTX(),
 			transaction.NewIssueTX(),
 		},
 	}
@@ -99,25 +101,9 @@ func TestBlockVerify(t *testing.T) {
 	assert.Nil(t, block.RebuildMerkleRoot())
 	assert.Nil(t, block.Verify())
 
-	block.Transactions = []*transaction.Transaction{
-		transaction.NewIssueTX(),
-		transaction.NewMinerTX(),
-	}
+	block.Transactions = []*transaction.Transaction{}
 	assert.NoError(t, block.RebuildMerkleRoot())
-	assert.NotNil(t, block.Verify())
-
-	block.Transactions = []*transaction.Transaction{
-		transaction.NewIssueTX(),
-		transaction.NewMinerTX(),
-	}
-	assert.NoError(t, block.RebuildMerkleRoot())
-	assert.NotNil(t, block.Verify())
-	block.Transactions = []*transaction.Transaction{
-		transaction.NewMinerTX(),
-		transaction.NewIssueTX(),
-		transaction.NewIssueTX(),
-	}
-	assert.NotNil(t, block.Verify())
+	assert.Nil(t, block.Verify())
 }
 
 //TODO NEO3.0: Update binary

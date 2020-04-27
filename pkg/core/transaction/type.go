@@ -11,7 +11,6 @@ type TXType uint8
 
 // Constants for all valid transaction types.
 const (
-	MinerType      TXType = 0x00
 	IssueType      TXType = 0x01
 	ClaimType      TXType = 0x02
 	RegisterType   TXType = 0x40
@@ -22,8 +21,6 @@ const (
 // String implements the stringer interface.
 func (t TXType) String() string {
 	switch t {
-	case MinerType:
-		return "MinerTransaction"
 	case IssueType:
 		return "IssueTransaction"
 	case ClaimType:
@@ -58,8 +55,6 @@ func (t *TXType) UnmarshalJSON(data []byte) error {
 // TXTypeFromString searches for TXType by string name.
 func TXTypeFromString(jsonString string) (TXType, error) {
 	switch jsonString = strings.TrimSpace(jsonString); jsonString {
-	case "MinerTransaction":
-		return MinerType, nil
 	case "IssueTransaction":
 		return IssueType, nil
 	case "ClaimTransaction":

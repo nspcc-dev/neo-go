@@ -120,12 +120,6 @@ func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
 }
 
-func TestMarshalUnmarshalJSONMinerTX(t *testing.T) {
-	tx := NewMinerTX()
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
 func TestMarshalUnmarshalJSONClaimTX(t *testing.T) {
 	tx := &Transaction{
 		Type:    ClaimType,

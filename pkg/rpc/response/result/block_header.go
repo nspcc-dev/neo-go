@@ -1,8 +1,6 @@
 package result
 
 import (
-	"strconv"
-
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -20,9 +18,8 @@ type (
 		Version       uint32              `json:"version"`
 		PrevBlockHash util.Uint256        `json:"previousblockhash"`
 		MerkleRoot    util.Uint256        `json:"merkleroot"`
-		Timestamp     uint32              `json:"time"`
+		Timestamp     uint64              `json:"time"`
 		Index         uint32              `json:"index"`
-		Nonce         string              `json:"nonce"`
 		NextConsensus string              `json:"nextconsensus"`
 		Script        transaction.Witness `json:"script"`
 		Confirmations uint32              `json:"confirmations"`
@@ -40,7 +37,6 @@ func NewHeader(h *block.Header, chain blockchainer.Blockchainer) Header {
 		MerkleRoot:    h.MerkleRoot,
 		Timestamp:     h.Timestamp,
 		Index:         h.Index,
-		Nonce:         strconv.FormatUint(h.ConsensusData, 16),
 		NextConsensus: address.Uint160ToString(h.NextConsensus),
 		Script:        h.Script,
 		Confirmations: chain.BlockHeight() - h.Index + 1,

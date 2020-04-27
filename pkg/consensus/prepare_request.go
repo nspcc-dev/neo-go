@@ -2,17 +2,15 @@ package consensus
 
 import (
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // prepareRequest represents dBFT prepareRequest message.
 type prepareRequest struct {
-	timestamp         uint32
+	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
-	minerTx           transaction.Transaction
 	nextConsensus     util.Uint160
 }
 
@@ -20,27 +18,25 @@ var _ payload.PrepareRequest = (*prepareRequest)(nil)
 
 // EncodeBinary implements io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
-	w.WriteU32LE(p.timestamp)
+	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
-	p.minerTx.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
-	p.timestamp = r.ReadU32LE()
+	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
-	p.minerTx.DecodeBinary(r)
 }
 
 // Timestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) Timestamp() uint32 { return p.timestamp }
+func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * 1000000 }
 
 // SetTimestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetTimestamp(ts uint32) { p.timestamp = ts }
+func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / 1000000 }
 
 // Nonce implements payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }

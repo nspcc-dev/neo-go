@@ -23,7 +23,7 @@ type TransactionMetadata struct {
 	NetFee        util.Fixed8  `json:"net_fee"`
 	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
 	Confirmations int          `json:"confirmations,omitempty"`
-	Timestamp     uint32       `json:"blocktime,omitempty"`
+	Timestamp     uint64       `json:"blocktime,omitempty"`
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.

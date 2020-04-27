@@ -2,7 +2,6 @@ package block
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Workiva/go-datastructures/queue"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -15,6 +14,9 @@ import (
 type Block struct {
 	// The base of the block.
 	Base
+
+	// Primary index and nonce
+	ConsensusData ConsensusData `json:"consensus_data"`
 
 	// Transaction list.
 	Transactions []*transaction.Transaction `json:"tx"`
@@ -30,10 +32,12 @@ func (b *Block) Header() *Header {
 	}
 }
 
-func merkleTreeFromTransactions(txes []*transaction.Transaction) (*hash.MerkleTree, error) {
-	hashes := make([]util.Uint256, len(txes))
-	for i, tx := range txes {
-		hashes[i] = tx.Hash()
+// computeMerkleTree computes Merkle tree based on actual block's data.
+func (b *Block) computeMerkleTree() (*hash.MerkleTree, error) {
+	hashes := make([]util.Uint256, len(b.Transactions)+1)
+	hashes[0] = b.ConsensusData.Hash()
+	for i, tx := range b.Transactions {
+		hashes[i+1] = tx.Hash()
 	}
 
 	return hash.NewMerkleTree(hashes)
@@ -41,7 +45,7 @@ func merkleTreeFromTransactions(txes []*transaction.Transaction) (*hash.MerkleTr
 
 // RebuildMerkleRoot rebuilds the merkleroot of the block.
 func (b *Block) RebuildMerkleRoot() error {
-	merkle, err := merkleTreeFromTransactions(b.Transactions)
+	merkle, err := b.computeMerkleTree()
 	if err != nil {
 		return err
 	}
@@ -52,21 +56,18 @@ func (b *Block) RebuildMerkleRoot() error {
 
 // Verify verifies the integrity of the block.
 func (b *Block) Verify() error {
-	// There has to be some transaction inside.
-	if len(b.Transactions) == 0 {
-		return errors.New("no transactions")
-	}
-	// The first TX has to be a miner transaction.
-	if b.Transactions[0].Type != transaction.MinerType {
-		return fmt.Errorf("the first transaction is %s", b.Transactions[0].Type)
-	}
-	// If the first TX is a minerTX then all others cant.
-	for _, tx := range b.Transactions[1:] {
-		if tx.Type == transaction.MinerType {
-			return fmt.Errorf("miner transaction %s is not the first one", tx.Hash().StringLE())
+	if b.Transactions != nil {
+		hashes := map[util.Uint256]bool{}
+		for _, tx := range b.Transactions {
+			if !hashes[tx.Hash()] {
+				hashes[tx.Hash()] = true
+			} else {
+				return errors.New("transaction duplication is not allowed")
+			}
 		}
 	}
-	merkle, err := merkleTreeFromTransactions(b.Transactions)
+
+	merkle, err := b.computeMerkleTree()
 	if err != nil {
 		return err
 	}
@@ -92,12 +93,18 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 
 	block.Script.DecodeBinary(br)
 
-	lenTX := br.ReadVarUint()
-	block.Transactions = make([]*transaction.Transaction, lenTX)
-	for i := 0; i < int(lenTX); i++ {
-		var hash util.Uint256
-		hash.DecodeBinary(br)
-		block.Transactions[i] = transaction.NewTrimmedTX(hash)
+	lenHashes := br.ReadVarUint()
+	if lenHashes > 0 {
+		var consensusDataHash util.Uint256
+		consensusDataHash.DecodeBinary(br)
+		lenTX := lenHashes - 1
+		block.Transactions = make([]*transaction.Transaction, lenTX)
+		for i := 0; i < int(lenTX); i++ {
+			var hash util.Uint256
+			hash.DecodeBinary(br)
+			block.Transactions[i] = transaction.NewTrimmedTX(hash)
+		}
+		block.ConsensusData.DecodeBinary(br)
 	}
 
 	return block, br.Err
@@ -112,14 +119,20 @@ func (b *Block) Trim() ([]byte, error) {
 	buf.WriteB(1)
 	b.Script.EncodeBinary(buf.BinWriter)
 
-	buf.WriteVarUint(uint64(len(b.Transactions)))
+	buf.WriteVarUint(uint64(len(b.Transactions)) + 1)
+	hash := b.ConsensusData.Hash()
+	hash.EncodeBinary(buf.BinWriter)
+
 	for _, tx := range b.Transactions {
 		h := tx.Hash()
 		h.EncodeBinary(buf.BinWriter)
 	}
+
+	b.ConsensusData.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return nil, buf.Err
 	}
+
 	return buf.Bytes(), nil
 }
 
@@ -127,14 +140,31 @@ func (b *Block) Trim() ([]byte, error) {
 // Serializable interface.
 func (b *Block) DecodeBinary(br *io.BinReader) {
 	b.Base.DecodeBinary(br)
-	br.ReadArray(&b.Transactions)
+	contentsCount := br.ReadVarUint()
+	if contentsCount == 0 {
+		br.Err = errors.New("invalid block format")
+		return
+	}
+	b.ConsensusData.DecodeBinary(br)
+	txes := make([]*transaction.Transaction, contentsCount-1)
+	for i := 0; i < int(contentsCount)-1; i++ {
+		tx := new(transaction.Transaction)
+		tx.DecodeBinary(br)
+		txes[i] = tx
+	}
+	b.Transactions = txes
+	br.Err = b.Verify()
 }
 
 // EncodeBinary encodes the block to the given BinWriter, implementing
 // Serializable interface.
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	b.Base.EncodeBinary(bw)
-	bw.WriteArray(b.Transactions)
+	bw.WriteVarUint(uint64(len(b.Transactions) + 1))
+	b.ConsensusData.EncodeBinary(bw)
+	for i := 0; i < len(b.Transactions); i++ {
+		b.Transactions[i].EncodeBinary(bw)
+	}
 }
 
 // Compare implements the queue Item interface.

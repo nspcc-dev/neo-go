@@ -51,7 +51,6 @@ func TestUnexpectedNonInterops(t *testing.T) {
 		contractGetScript,
 		contractGetStorageContext,
 		contractIsPayable,
-		headerGetConsensusData,
 		headerGetHash,
 		headerGetIndex,
 		headerGetMerkleRoot,

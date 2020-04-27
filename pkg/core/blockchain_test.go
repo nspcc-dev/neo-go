@@ -97,7 +97,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	tx := transaction.NewMinerTX()
+	tx := transaction.NewContractTX()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	assert.Nil(t, addSender(tx))
 	assert.Nil(t, signTx(bc, tx))

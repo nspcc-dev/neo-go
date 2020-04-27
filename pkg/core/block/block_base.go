@@ -20,16 +20,14 @@ type Base struct {
 	// Root hash of a transaction list.
 	MerkleRoot util.Uint256 `json:"merkleroot"`
 
+	// Timestamp is a millisecond-precision timestamp.
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
-	Timestamp uint32 `json:"time"`
+	Timestamp uint64 `json:"time"`
 
 	// index/height of the block
 	Index uint32 `json:"height"`
-
-	// Random number also called nonce
-	ConsensusData uint64 `json:"nonce"`
 
 	// Contract address of the next miner
 	NextConsensus util.Uint160 `json:"next_consensus"`
@@ -117,9 +115,8 @@ func (b *Base) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU32LE(b.Version)
 	bw.WriteBytes(b.PrevHash[:])
 	bw.WriteBytes(b.MerkleRoot[:])
-	bw.WriteU32LE(b.Timestamp)
+	bw.WriteU64LE(b.Timestamp)
 	bw.WriteU32LE(b.Index)
-	bw.WriteU64LE(b.ConsensusData)
 	bw.WriteBytes(b.NextConsensus[:])
 }
 
@@ -129,9 +126,8 @@ func (b *Base) decodeHashableFields(br *io.BinReader) {
 	b.Version = br.ReadU32LE()
 	br.ReadBytes(b.PrevHash[:])
 	br.ReadBytes(b.MerkleRoot[:])
-	b.Timestamp = br.ReadU32LE()
+	b.Timestamp = br.ReadU64LE()
 	b.Index = br.ReadU32LE()
-	b.ConsensusData = br.ReadU64LE()
 	br.ReadBytes(b.NextConsensus[:])
 
 	// Make the hash of the block here so we dont need to do this

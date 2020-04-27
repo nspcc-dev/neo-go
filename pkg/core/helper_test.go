@@ -61,11 +61,14 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		Base: block.Base{
 			Version:       0,
 			PrevHash:      prev,
-			Timestamp:     uint32(time.Now().UTC().Unix()) + index,
+			Timestamp:     uint64(time.Now().UTC().Unix()) + uint64(index),
 			Index:         index,
-			ConsensusData: 1111,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        1111,
 		},
 		Transactions: txs,
 	}
@@ -80,17 +83,7 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	lastHash := bc.topBlock.Load().(*block.Block).Hash()
 	lastIndex := bc.topBlock.Load().(*block.Block).Index
 	for i := 0; i < n; i++ {
-		minerTx := transaction.NewMinerTXWithNonce(uint32(1234 + i))
-		minerTx.ValidUntilBlock = lastIndex + uint32(i) + 1
-		err := addSender(minerTx)
-		if err != nil {
-			return nil, err
-		}
-		err = signTx(bc, minerTx)
-		if err != nil {
-			return nil, err
-		}
-		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash, minerTx)
+		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash)
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err
 		}
@@ -130,17 +123,19 @@ func newDumbBlock() *block.Block {
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
-			Timestamp:     uint32(100500),
+			Timestamp:     100500,
 			Index:         1,
-			ConsensusData: 1111,
 			NextConsensus: hash.Hash160([]byte("a")),
 			Script: transaction.Witness{
 				VerificationScript: []byte{0x51}, // PUSH1
 				InvocationScript:   []byte{0x61}, // NOP
 			},
 		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        1111,
+		},
 		Transactions: []*transaction.Transaction{
-			{Type: transaction.MinerType},
 			{Type: transaction.IssueType},
 		},
 	}
@@ -175,13 +170,6 @@ func TestCreateBasicChain(t *testing.T) {
 		return testNonce
 	}
 
-	// Creates new miner tx with specified validUntilBlock field
-	nextMinerTx := func(validUntilBlock uint32) *transaction.Transaction {
-		minerTx := transaction.NewMinerTXWithNonce(getNextNonce())
-		minerTx.ValidUntilBlock = validUntilBlock
-		return minerTx
-	}
-
 	var neoAmount = util.Fixed8FromInt64(99999000)
 	var neoRemainder = util.Fixed8FromInt64(100000000) - neoAmount
 	bc := newTestChain(t)
@@ -195,8 +183,8 @@ func TestCreateBasicChain(t *testing.T) {
 	// use output of issue tx from genesis block as an input
 	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
 	require.NoError(t, err)
-	require.Equal(t, 5, len(genesisBlock.Transactions))
-	h := genesisBlock.Transactions[3].Hash()
+	require.Equal(t, 4, len(genesisBlock.Transactions))
+	h := genesisBlock.Transactions[2].Hash()
 	txMoveNeo.AddInput(&transaction.Input{
 		PrevHash:  h,
 		PrevIndex: 0,
@@ -219,12 +207,8 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   1,
 	})
 	txMoveNeo.Data = new(transaction.ContractTX)
-
-	minerTx := nextMinerTx(validUntilBlock)
-	minerTx.Sender = neoOwner
-
-	require.NoError(t, signTx(bc, minerTx, txMoveNeo))
-	b := bc.newBlock(minerTx, txMoveNeo)
+	require.NoError(t, signTx(bc, txMoveNeo))
+	b := bc.newBlock(txMoveNeo)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 
@@ -258,10 +242,7 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	txNeoRound.Data = new(transaction.ContractTX)
 	require.NoError(t, acc0.SignTx(txNeoRound))
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, txNeoRound)
+	b = bc.newBlock(txNeoRound)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txNeoRound: %s", txNeoRound.Hash().StringLE())
 
@@ -285,10 +266,7 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	require.NoError(t, acc0.SignTx(txClaim))
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, txClaim)
+	b = bc.newBlock(txClaim)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txClaim: %s", txClaim.Hash().StringLE())
 
@@ -331,10 +309,7 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 	gasOwned -= invFee
 	require.NoError(t, acc0.SignTx(txDeploy))
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, txDeploy)
+	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
 
@@ -347,10 +322,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Sender = priv0ScriptHash
 	require.NoError(t, acc0.SignTx(txInv))
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, txInv)
+	b = bc.newBlock(txInv)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txInv: %s", txInv.Hash().StringLE())
 
@@ -376,10 +348,7 @@ func TestCreateBasicChain(t *testing.T) {
 	})
 
 	require.NoError(t, acc0.SignTx(txNeo0to1))
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, txNeo0to1)
+	b = bc.newBlock(txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
 	sh := hash.Hash160(avm)
@@ -396,10 +365,7 @@ func TestCreateBasicChain(t *testing.T) {
 	transferTx.Sender = priv0ScriptHash
 	require.NoError(t, acc0.SignTx(transferTx))
 
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, initTx, transferTx)
+	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
@@ -408,10 +374,7 @@ func TestCreateBasicChain(t *testing.T) {
 	transferTx.Sender = priv0ScriptHash
 	require.NoError(t, acc0.SignTx(transferTx))
 
-	minerTx = nextMinerTx(validUntilBlock)
-	minerTx.Sender = priv0ScriptHash
-	require.NoError(t, acc0.SignTx(minerTx))
-	b = bc.newBlock(minerTx, transferTx)
+	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
 	if saveChain {

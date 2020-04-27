@@ -41,9 +41,8 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	base := block.Base{
 		Version:       0,
 		PrevHash:      util.Uint256{},
-		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
+		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
-		ConsensusData: 2083236893,
 		NextConsensus: nextConsensus,
 		Script: transaction.Witness{
 			InvocationScript:   []byte{},
@@ -59,9 +58,6 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		return nil, err
 	}
 	scriptOut := hash.Hash160(rawScript)
-
-	minerTx := transaction.NewMinerTXWithNonce(2083236893)
-	minerTx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 
 	issueTx := transaction.NewIssueTX()
 	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
@@ -84,11 +80,14 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	b := &block.Block{
 		Base: base,
 		Transactions: []*transaction.Transaction{
-			minerTx,
 			&governingTokenTX,
 			&utilityTokenTX,
 			issueTx,
 			deployNativeContracts(),
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        2083236893,
 		},
 	}
 

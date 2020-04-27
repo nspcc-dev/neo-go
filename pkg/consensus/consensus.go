@@ -2,15 +2,14 @@ package consensus
 
 import (
 	"errors"
-	"math/rand"
 	"sort"
 	"time"
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/dbft/merkle"
 	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -136,7 +135,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlock(func() block.Block { return new(neoBlock) }),
+		dbft.WithNewBlockFromContext(newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
@@ -276,7 +275,6 @@ func (s *service) OnPayload(cp *Payload) {
 	switch cp.Type() {
 	case payload.PrepareRequestType:
 		req := cp.GetPrepareRequest().(*prepareRequest)
-		s.txx.Add(&req.minerTx)
 		s.lastProposal = req.transactionHashes
 	}
 
@@ -316,12 +314,6 @@ func (s *service) GetPayload(h util.Uint256) *Payload {
 }
 
 func (s *service) broadcast(p payload.ConsensusPayload) {
-	switch p.Type() {
-	case payload.PrepareRequestType:
-		pr := p.GetPrepareRequest().(*prepareRequest)
-		pr.minerTx = *s.txx.Get(pr.transactionHashes[0]).(*transaction.Transaction)
-	}
-
 	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
 		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
@@ -442,39 +434,10 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 		txx = s.Config.Chain.ApplyPolicyToTxSet(txx)
 	}
 
-	res := make([]block.Transaction, len(txx)+1)
-	var netFee util.Fixed8
+	res := make([]block.Transaction, len(txx))
 	for i := range txx {
-		res[i+1] = txx[i].Tx
-		netFee += txx[i].Fee
+		res[i] = txx[i].Tx
 	}
-
-	var txOuts []transaction.Output
-	if netFee != 0 {
-		sh := s.wallet.GetChangeAddress()
-		if sh.Equals(util.Uint160{}) {
-			pk := s.dbft.Pub.(*publicKey)
-			sh = pk.GetScriptHash()
-		}
-		txOuts = []transaction.Output{{
-			AssetID:    core.UtilityTokenID(),
-			Amount:     netFee,
-			ScriptHash: sh,
-		}}
-	}
-	for {
-		minerTx := transaction.NewMinerTX()
-		minerTx.Outputs = txOuts
-		minerTx.ValidUntilBlock = s.dbft.BlockIndex
-		minerTx.Nonce = rand.Uint32()
-		res[0] = minerTx
-
-		if tx, _, _ := s.Chain.GetTransaction(res[0].Hash()); tx == nil {
-			break
-		}
-	}
-
-	s.txx.Add(res[0])
 
 	return res
 }
@@ -515,4 +478,31 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	}
 
 	return
+}
+
+func newBlockFromContext(ctx *dbft.Context) block.Block {
+	block := new(neoBlock)
+	if ctx.TransactionHashes == nil {
+		return nil
+	}
+
+	block.Block.Timestamp = ctx.Timestamp / 1000000
+	block.Block.Index = ctx.BlockIndex
+	block.Block.NextConsensus = ctx.NextConsensus
+	block.Block.PrevHash = ctx.PrevHash
+	block.Block.Version = ctx.Version
+	block.Block.ConsensusData.Nonce = ctx.Nonce
+
+	primaryIndex := uint32(ctx.PrimaryIndex)
+	block.Block.ConsensusData.PrimaryIndex = primaryIndex
+	consensusData := coreb.ConsensusData{
+		PrimaryIndex: primaryIndex,
+		Nonce:        ctx.Nonce,
+	}
+
+	if len(ctx.TransactionHashes) != 0 {
+		mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
+		block.Block.MerkleRoot = mt.Root().Hash
+	}
+	return block
 }
