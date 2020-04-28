@@ -20,6 +20,8 @@ type StackItem interface {
 	Value() interface{}
 	// Dup duplicates current StackItem.
 	Dup() StackItem
+	// Bool converts StackItem to a boolean value.
+	Bool() bool
 	// TryBytes converts StackItem to a byte slice.
 	TryBytes() ([]byte, error)
 	// TryInteger converts StackItem to an integer.
@@ -133,6 +135,9 @@ func (i *StructItem) Dup() StackItem {
 	return i
 }
 
+// Bool implements StackItem interface.
+func (i *StructItem) Bool() bool { return true }
+
 // TryBytes implements StackItem interface.
 func (i *StructItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Struct to ByteArray")
@@ -217,6 +222,9 @@ func (i NullItem) Dup() StackItem {
 	return i
 }
 
+// Bool implements StackItem interface.
+func (i NullItem) Bool() bool { return false }
+
 // TryBytes implements StackItem interface.
 func (i NullItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Null to ByteArray")
@@ -258,6 +266,11 @@ func NewBigIntegerItem(value *big.Int) *BigIntegerItem {
 // Bytes converts i to a slice of bytes.
 func (i *BigIntegerItem) Bytes() []byte {
 	return emit.IntToBytes(i.value)
+}
+
+// Bool implements StackItem interface.
+func (i *BigIntegerItem) Bool() bool {
+	return i.value.Sign() != 0
 }
 
 // TryBytes implements StackItem interface.
@@ -347,6 +360,9 @@ func (i *BoolItem) Dup() StackItem {
 	return &BoolItem{i.value}
 }
 
+// Bool implements StackItem interface.
+func (i *BoolItem) Bool() bool { return i.value }
+
 // Bytes converts BoolItem to bytes.
 func (i *BoolItem) Bytes() []byte {
 	if i.value {
@@ -420,6 +436,19 @@ func (i *ByteArrayItem) String() string {
 	return "ByteArray"
 }
 
+// Bool implements StackItem interface.
+func (i *ByteArrayItem) Bool() bool {
+	if len(i.value) > MaxBigIntegerSizeBits/8 {
+		return true
+	}
+	for _, b := range i.value {
+		if b != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // TryBytes implements StackItem interface.
 func (i *ByteArrayItem) TryBytes() ([]byte, error) {
 	return i.value, nil
@@ -484,6 +513,9 @@ func (i *ArrayItem) MarshalJSON() ([]byte, error) {
 func (i *ArrayItem) String() string {
 	return "Array"
 }
+
+// Bool implements StackItem interface.
+func (i *ArrayItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *ArrayItem) TryBytes() ([]byte, error) {
@@ -552,6 +584,9 @@ func NewMapItem() *MapItem {
 func (i *MapItem) Value() interface{} {
 	return i.value
 }
+
+// Bool implements StackItem interface.
+func (i *MapItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *MapItem) TryBytes() ([]byte, error) {
@@ -671,6 +706,9 @@ func (i *InteropItem) Dup() StackItem {
 	// reference type
 	return i
 }
+
+// Bool implements StackItem interface.
+func (i *InteropItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *InteropItem) TryBytes() ([]byte, error) {

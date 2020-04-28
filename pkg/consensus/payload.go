@@ -222,9 +222,7 @@ func (p *Payload) Verify(scriptHash util.Uint160) bool {
 		return false
 	}
 
-	res, err := v.Estack().Pop().TryBool()
-
-	return err == nil && res
+	return v.Estack().Pop().Bool()
 }
 
 // DecodeBinaryUnsigned reads payload from w excluding signature.

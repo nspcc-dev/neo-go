@@ -80,38 +80,10 @@ func (e *Element) BigInt() *big.Int {
 	return val
 }
 
-// TryBool attempts to get the underlying value of the element as a boolean.
-// Returns error if can't convert value to boolean type.
-func (e *Element) TryBool() (bool, error) {
-	switch t := e.value.(type) {
-	case *BigIntegerItem:
-		return t.value.Int64() != 0, nil
-	case *BoolItem:
-		return t.value, nil
-	case *ArrayItem, *StructItem:
-		return true, nil
-	case *ByteArrayItem:
-		for _, b := range t.value {
-			if b != 0 {
-				return true, nil
-			}
-		}
-		return false, nil
-	case *InteropItem:
-		return t.value != nil, nil
-	default:
-		return false, fmt.Errorf("can't convert to bool: " + t.String())
-	}
-}
-
 // Bool attempts to get the underlying value of the element as a boolean.
 // Will panic if the assertion failed which will be caught by the VM.
 func (e *Element) Bool() bool {
-	val, err := e.TryBool()
-	if err != nil {
-		panic(err)
-	}
-	return val
+	return e.value.Bool()
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.

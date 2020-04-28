@@ -176,6 +176,9 @@ func (c *Context) Dup() StackItem {
 	return c
 }
 
+// Bool implements StackItem interface.
+func (c *Context) Bool() bool { panic("can't convert Context to Bool") }
+
 // TryBytes implements StackItem interface.
 func (c *Context) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Context to ByteArray")

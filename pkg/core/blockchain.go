@@ -1978,11 +1978,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
-		res, err := resEl.TryBool()
-		if err != nil {
-			return err
-		}
-		if !res {
+		if !resEl.Bool() {
 			return errors.Errorf("signature check failed")
 		}
 		if useKeys {
