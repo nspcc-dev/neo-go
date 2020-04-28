@@ -3,7 +3,9 @@ package compiler
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -113,6 +115,56 @@ func methodStruct() struct{} { return struct{}{} }
 		require.True(t, int(index) < len(buf))
 		require.EqualValues(t, opcode.RET, buf[index])
 	}
+
+	t.Run("convert to ABI", func(t *testing.T) {
+		author := "Joe"
+		email := "Joe@ex.com"
+		version := "1.0"
+		title := "MyProj"
+		description := "Description"
+		actual := d.convertToABI(buf, &smartcontract.ContractDetails{
+			Author:               author,
+			Email:                email,
+			Version:              version,
+			ProjectName:          title,
+			Description:          description,
+			HasStorage:           true,
+			HasDynamicInvocation: false,
+			IsPayable:            false,
+			ReturnType:           smartcontract.BoolType,
+			Parameters: []smartcontract.ParamType{
+				smartcontract.StringType,
+			},
+		})
+		expected := ABI{
+			Hash: hash.Hash160(buf),
+			Metadata: Metadata{
+				Author:               author,
+				Email:                email,
+				Version:              version,
+				Title:                title,
+				Description:          description,
+				HasStorage:           true,
+				HasDynamicInvocation: false,
+				IsPayable:            false,
+			},
+			EntryPoint: mainIdent,
+			Functions: []Method{
+				{
+					Name: mainIdent,
+					Parameters: []DebugParam{
+						{
+							Name: "op",
+							Type: "String",
+						},
+					},
+					ReturnType: "Boolean",
+				},
+			},
+			Events: []Event{},
+		}
+		assert.Equal(t, expected, actual)
+	})
 }
 
 func TestSequencePoints(t *testing.T) {

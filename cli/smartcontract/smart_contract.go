@@ -97,6 +97,14 @@ func NewCommands() []cli.Command {
 						Name:  "debug, d",
 						Usage: "Emit debug info in a separate file",
 					},
+					cli.StringFlag{
+						Name:  "abi, a",
+						Usage: "Emit application binary interface (.abi.json) file into separate file using configuration input file (*.yml)",
+					},
+					cli.StringFlag{
+						Name:  "config, c",
+						Usage: "Configuration input file (*.yml)",
+					},
 				},
 			},
 			{
@@ -349,11 +357,25 @@ func contractCompile(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
+	abi := ctx.String("abi")
+	confFile := ctx.String("config")
+	if len(abi) != 0 && len(confFile) == 0 {
+		return cli.NewExitError(errNoConfFile, 1)
+	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
 		DebugInfo: ctx.String("debug"),
+		ABIInfo:   abi,
+	}
+
+	if len(confFile) != 0 {
+		conf, err := parseContractConfig(confFile)
+		if err != nil {
+			return err
+		}
+		o.ContractDetails = &conf.Contract
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -614,15 +636,9 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	confBytes, err := ioutil.ReadFile(confFile)
+	conf, err := parseContractConfig(confFile)
 	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	conf := ProjectConfig{}
-	err = yaml.Unmarshal(confBytes, &conf)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
+		return err
 	}
 
 	c, err := client.New(context.TODO(), endpoint, client.Options{})
@@ -643,4 +659,18 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), hash.Hash160(avm).StringLE())
 	return nil
+}
+
+func parseContractConfig(confFile string) (ProjectConfig, error) {
+	conf := ProjectConfig{}
+	confBytes, err := ioutil.ReadFile(confFile)
+	if err != nil {
+		return conf, cli.NewExitError(err, 1)
+	}
+
+	err = yaml.Unmarshal(confBytes, &conf)
+	if err != nil {
+		return conf, cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
+	}
+	return conf, nil
 }
