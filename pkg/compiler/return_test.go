@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+func TestReturnInt64(t *testing.T) {
+	src := `package foo
+	func Main() int64 {
+		return 1
+	}`
+	eval(t, src, big.NewInt(1))
+}
+
 func TestMultipleReturn1(t *testing.T) {
 	src := `
 		package hello
