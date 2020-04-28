@@ -31,6 +31,7 @@ func Bool(w *io.BinWriter, ok bool) {
 		return
 	}
 	Opcode(w, opcode.PUSHF)
+	Instruction(w, opcode.CONVERT, []byte{0x20}) // 0x20 for Boolean type
 }
 
 func padRight(s int, buf []byte) []byte {

@@ -46,7 +46,7 @@ func TestConvert(t *testing.T) {
 		{"int64", "[]byte{0, 1, 0}", big.NewInt(256)},
 		{"int64", "[]byte{0}", big.NewInt(0)},
 		{"[]byte", "true", []byte{1}},
-		{"[]byte", "false", []byte{}},
+		{"[]byte", "false", []byte{0}},
 		{"[]byte", "12", []byte{0x0C}},
 		{"[]byte", "0", []byte{}},
 		{"[]byte", "[]byte{0, 1, 0}", []byte{0, 1, 0}},
