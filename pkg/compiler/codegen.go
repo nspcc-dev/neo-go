@@ -1055,6 +1055,15 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
+	case "ToInteger", "ToByteArray", "ToBool":
+		typ := vm.IntegerT
+		switch name {
+		case "ToByteArray":
+			typ = vm.ByteArrayT
+		case "ToBool":
+			typ = vm.BooleanT
+		}
+		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 	case "SHA256":
 		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":

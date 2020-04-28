@@ -17,6 +17,7 @@ var (
 		"AppCall",
 		"FromAddress", "Equals",
 		"panic",
+		"ToBool", "ToByteArray", "ToInteger",
 	}
 )
 
