@@ -111,11 +111,11 @@ func (s *Server) Start(errChan chan error) {
 		s.log.Info("RPC server is not enabled")
 		return
 	}
-	s.Handler = http.HandlerFunc(s.requestHandler)
+	s.Handler = http.HandlerFunc(s.handleHTTPRequest)
 	s.log.Info("starting rpc-server", zap.String("endpoint", s.Addr))
 
 	if cfg := s.config.TLSConfig; cfg.Enabled {
-		s.https.Handler = http.HandlerFunc(s.requestHandler)
+		s.https.Handler = http.HandlerFunc(s.handleHTTPRequest)
 		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
 		go func() {
 			err := s.https.ListenAndServeTLS(cfg.CertFile, cfg.KeyFile)
@@ -149,7 +149,7 @@ func (s *Server) Shutdown() error {
 	return err
 }
 
-func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request) {
+func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
 	req := request.NewIn()
 
 	if httpRequest.Method != "POST" {
@@ -169,16 +169,16 @@ func (s *Server) requestHandler(w http.ResponseWriter, httpRequest *http.Request
 		return
 	}
 
+	s.handleRequest(w, req)
+}
+
+func (s *Server) handleRequest(w http.ResponseWriter, req *request.In) {
 	reqParams, err := req.Params()
 	if err != nil {
 		s.WriteErrorResponse(req, w, response.NewInvalidParamsError("Problem parsing request parameters", err))
 		return
 	}
 
-	s.methodHandler(w, req, *reqParams)
-}
-
-func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams request.Params) {
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
 		zap.String("params", fmt.Sprintf("%v", reqParams)))
@@ -192,7 +192,7 @@ func (s *Server) methodHandler(w http.ResponseWriter, req *request.In, reqParams
 
 	handler, ok := rpcHandlers[req.Method]
 	if ok {
-		results, resultsErr = handler(s, reqParams)
+		results, resultsErr = handler(s, *reqParams)
 	} else {
 		resultsErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	}
