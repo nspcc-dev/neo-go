@@ -72,8 +72,8 @@ type DebugRange struct {
 
 // DebugParam represents variables's name and type.
 type DebugParam struct {
-	Name string
-	Type string
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {

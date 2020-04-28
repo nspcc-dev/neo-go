@@ -11,10 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/tools/go/loader"
 )
 
 const fileExt = "avm"
+const abiExt = "abi.json"
 
 // Options contains all the parameters that affect the behaviour of the compiler.
 type Options struct {
@@ -71,8 +75,42 @@ func CompileWithDebugInfo(r io.Reader) ([]byte, *DebugInfo, error) {
 	return CodeGen(ctx)
 }
 
+// ABI represents ABI contract info in compatible with NEO Blockchain Toolkit format
+type ABI struct {
+	Hash       util.Uint160 `json:"hash"`
+	Metadata   Metadata     `json:"metadata"`
+	EntryPoint string       `json:"entrypoint"`
+	Functions  []Method     `json:"functions"`
+	Events     []Event      `json:"events"`
+}
+
+// Metadata represents ABI contract metadata
+type Metadata struct {
+	Author               string `json:"author"`
+	Email                string `json:"email"`
+	Version              string `json:"version"`
+	Title                string `json:"title"`
+	Description          string `json:"description"`
+	HasStorage           bool   `json:"has-storage"`
+	HasDynamicInvocation bool   `json:"has-dynamic-invoke"`
+	IsPayable            bool   `json:"is-payable"`
+}
+
+// Method represents ABI method's metadata.
+type Method struct {
+	Name       string       `json:"name"`
+	Parameters []DebugParam `json:"parameters"`
+	ReturnType string       `json:"returntype"`
+}
+
+// Event represents ABI event's metadata.
+type Event struct {
+	Name       string       `json:"name"`
+	Parameters []DebugParam `json:"parameters"`
+}
+
 // CompileAndSave will compile and save the file to disk.
-func CompileAndSave(src string, o *Options) ([]byte, error) {
+func CompileAndSave(src string, contractDetails *request.ContractDetails, o *Options) ([]byte, error) {
 	if !strings.HasSuffix(src, ".go") {
 		return nil, fmt.Errorf("%s is not a Go file", src)
 	}
@@ -105,5 +143,51 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return b, err
 	}
-	return b, ioutil.WriteFile(o.DebugInfo, data, os.ModePerm)
+	if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
+		return b, err
+	}
+	if contractDetails == nil {
+		return b, nil
+	}
+	abiOut := fmt.Sprintf("%s.%s", o.Outfile, abiExt)
+	abi := convertToABI(b, di, contractDetails)
+	abiData, err := json.Marshal(abi)
+	if err != nil {
+		return b, err
+	}
+	return b, ioutil.WriteFile(abiOut, abiData, os.ModePerm)
+}
+
+func convertToABI(contract []byte, di *DebugInfo, cd *request.ContractDetails) ABI {
+	methods := make([]Method, len(di.Methods))
+	for i, method := range di.Methods {
+		methods[i] = Method{
+			Name:       method.Name.Name,
+			Parameters: method.Parameters,
+			ReturnType: method.ReturnType,
+		}
+	}
+	events := make([]Event, len(di.Events))
+	for i, event := range di.Events {
+		events[i] = Event{
+			Name:       event.Name,
+			Parameters: event.Parameters,
+		}
+	}
+	return ABI{
+		Hash: hash.Hash160(contract),
+		Metadata: Metadata{
+			Author:               cd.Author,
+			Email:                cd.Email,
+			Version:              cd.Version,
+			Title:                cd.ProjectName,
+			Description:          cd.Description,
+			HasStorage:           cd.HasStorage,
+			HasDynamicInvocation: cd.HasDynamicInvocation,
+			IsPayable:            cd.IsPayable,
+		},
+		EntryPoint: di.EntryPoint,
+		Functions:  methods,
+		Events:     events,
+	}
 }
