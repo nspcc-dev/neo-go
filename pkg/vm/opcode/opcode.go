@@ -161,8 +161,9 @@ const (
 	CLEARITEMS   Opcode = 0xD3
 
 	// Types
-	ISNULL Opcode = 0xD8
-	ISTYPE Opcode = 0xD9
+	ISNULL  Opcode = 0xD8
+	ISTYPE  Opcode = 0xD9
+	CONVERT Opcode = 0xDB
 
 	// Exceptions
 	THROW      Opcode = 0xF0

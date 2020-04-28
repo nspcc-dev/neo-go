@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -253,6 +254,128 @@ func TestISTYPE(t *testing.T) {
 	t.Run("Interop", func(t *testing.T) {
 		testISTYPE(t, true, InteropT, NewInteropItem(42))
 		testISTYPE(t, false, InteropT, NewByteArrayItem([]byte{}))
+	})
+}
+
+func testCONVERT(isErr bool, to StackItemType, item, res StackItem) func(t *testing.T) {
+	return func(t *testing.T) {
+		prog := []byte{byte(opcode.CONVERT), byte(to)}
+		v := load(prog)
+		v.estack.PushVal(item)
+		if isErr {
+			checkVMFailed(t, v)
+			return
+		}
+		runVM(t, v)
+		require.Equal(t, 1, v.estack.Len())
+		require.Equal(t, res, v.estack.Pop().value)
+	}
+}
+
+func TestCONVERT(t *testing.T) {
+	type convertTC struct {
+		item, res StackItem
+	}
+	arr := []StackItem{
+		NewBigIntegerItem(big.NewInt(7)),
+		NewByteArrayItem([]byte{4, 8, 15}),
+	}
+	m := NewMapItem()
+	m.Add(NewByteArrayItem([]byte{1}), NewByteArrayItem([]byte{2}))
+
+	getName := func(item StackItem, typ StackItemType) string { return fmt.Sprintf("%s->%s", item, typ) }
+
+	t.Run("->Bool", func(t *testing.T) {
+		testBool := func(a, b StackItem) func(t *testing.T) {
+			return testCONVERT(false, BooleanT, a, b)
+		}
+
+		trueCases := []StackItem{
+			NewBoolItem(true), NewBigIntegerItem(big.NewInt(11)), NewByteArrayItem([]byte{1, 2, 3}),
+			NewArrayItem(arr), NewArrayItem(nil),
+			NewStructItem(arr), NewStructItem(nil),
+			NewMapItem(), m, NewInteropItem(struct{}{}),
+		}
+		for i := range trueCases {
+			t.Run(getName(trueCases[i], BooleanT), testBool(trueCases[i], NewBoolItem(true)))
+		}
+
+		falseCases := []StackItem{
+			NewBigIntegerItem(big.NewInt(0)), NewByteArrayItem([]byte{0, 0}), NewBoolItem(false),
+		}
+		for i := range falseCases {
+			testBool(falseCases[i], NewBoolItem(false))
+		}
+	})
+
+	t.Run("compound/interop -> basic", func(t *testing.T) {
+		types := []StackItemType{IntegerT, ByteArrayT}
+		items := []StackItem{NewArrayItem(nil), NewStructItem(nil), NewMapItem(), NewInteropItem(struct{}{})}
+		for _, typ := range types {
+			for j := range items {
+				t.Run(getName(items[j], typ), testCONVERT(true, typ, items[j], nil))
+			}
+		}
+	})
+
+	t.Run("primitive -> Integer/ByteArray", func(t *testing.T) {
+		n := big.NewInt(42)
+		b := emit.IntToBytes(n)
+
+		itemInt := NewBigIntegerItem(n)
+		itemBytes := NewByteArrayItem(b)
+
+		trueCases := map[StackItemType][]convertTC{
+			IntegerT: {
+				{itemInt, itemInt},
+				{itemBytes, itemInt},
+				{NewBoolItem(true), NewBigIntegerItem(big.NewInt(1))},
+				{NewBoolItem(false), NewBigIntegerItem(big.NewInt(0))},
+			},
+			ByteArrayT: {
+				{itemInt, itemBytes},
+				{itemBytes, itemBytes},
+				{NewBoolItem(true), NewByteArrayItem([]byte{1})},
+				{NewBoolItem(false), NewByteArrayItem([]byte{0})},
+			},
+		}
+
+		for typ := range trueCases {
+			for _, tc := range trueCases[typ] {
+				t.Run(getName(tc.item, typ), testCONVERT(false, typ, tc.item, tc.res))
+			}
+		}
+	})
+
+	t.Run("Struct<->Array", func(t *testing.T) {
+		arrayItem := NewArrayItem(arr)
+		structItem := NewStructItem(arr)
+		t.Run("Array->Array", testCONVERT(false, ArrayT, arrayItem, arrayItem))
+		t.Run("Array->Struct", testCONVERT(false, StructT, arrayItem, structItem))
+		t.Run("Struct->Array", testCONVERT(false, ArrayT, structItem, arrayItem))
+		t.Run("Struct->Struct", testCONVERT(false, StructT, structItem, structItem))
+	})
+
+	t.Run("Map->Map", testCONVERT(false, MapT, m, m))
+
+	t.Run("Null->", func(t *testing.T) {
+		types := []StackItemType{
+			BooleanT, ByteArrayT, IntegerT, ArrayT, StructT, MapT, InteropT,
+		}
+		for i := range types {
+			t.Run(types[i].String(), testCONVERT(false, types[i], NullItem{}, NullItem{}))
+		}
+	})
+
+	t.Run("->Any", func(t *testing.T) {
+		items := []StackItem{
+			NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{1}), NewBoolItem(true),
+			NewArrayItem(arr), NewStructItem(arr), m, NewInteropItem(struct{}{}),
+		}
+
+		for i := range items {
+			t.Run(items[i].String(), testCONVERT(true, AnyT, items[i], nil))
+		}
 	})
 }
 

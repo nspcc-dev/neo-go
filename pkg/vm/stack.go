@@ -80,8 +80,7 @@ func (e *Element) BigInt() *big.Int {
 	return val
 }
 
-// Bool attempts to get the underlying value of the element as a boolean.
-// Will panic if the assertion failed which will be caught by the VM.
+// Bool converts an underlying value of the element to a boolean.
 func (e *Element) Bool() bool {
 	return e.value.Bool()
 }
