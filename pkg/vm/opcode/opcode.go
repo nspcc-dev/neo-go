@@ -73,8 +73,6 @@ const (
 	SYSCALL  Opcode = 0x68
 	TAILCALL Opcode = 0x69
 
-	ISNULL Opcode = 0x70
-
 	// Stack
 	DUPFROMALTSTACK Opcode = 0x6A
 	TOALTSTACK      Opcode = 0x6B
@@ -163,7 +161,9 @@ const (
 	CLEARITEMS   Opcode = 0xD3
 
 	// Types
-	ISTYPE Opcode = 0xD9
+	ISNULL  Opcode = 0xD8
+	ISTYPE  Opcode = 0xD9
+	CONVERT Opcode = 0xDB
 
 	// Exceptions
 	THROW      Opcode = 0xF0

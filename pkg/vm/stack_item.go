@@ -20,6 +20,8 @@ type StackItem interface {
 	Value() interface{}
 	// Dup duplicates current StackItem.
 	Dup() StackItem
+	// Bool converts StackItem to a boolean value.
+	Bool() bool
 	// TryBytes converts StackItem to a byte slice.
 	TryBytes() ([]byte, error)
 	// TryInteger converts StackItem to an integer.
@@ -30,7 +32,11 @@ type StackItem interface {
 	ToContractParameter(map[StackItem]bool) smartcontract.Parameter
 	// Type returns stack item type.
 	Type() StackItemType
+	// Convert converts StackItem to another type.
+	Convert(StackItemType) (StackItem, error)
 }
+
+var errInvalidConversion = errors.New("invalid conversion type")
 
 func makeStackItem(v interface{}) StackItem {
 	switch val := v.(type) {
@@ -106,6 +112,33 @@ func makeStackItem(v interface{}) StackItem {
 	}
 }
 
+// convertPrimitive converts primitive item to a specified type.
+func convertPrimitive(item StackItem, typ StackItemType) (StackItem, error) {
+	if item.Type() == typ {
+		return item, nil
+	}
+	switch typ {
+	case IntegerT:
+		bi, err := item.TryInteger()
+		if err != nil {
+			return nil, err
+		}
+		return NewBigIntegerItem(bi), nil
+	case ByteArrayT:
+		b, err := item.TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		return NewByteArrayItem(b), nil
+	case BufferT:
+		panic("TODO") // #877
+	case BooleanT:
+		return NewBoolItem(item.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
+
 // StructItem represents a struct on the stack.
 type StructItem struct {
 	value []StackItem
@@ -132,6 +165,9 @@ func (i *StructItem) Dup() StackItem {
 	// it's a reference type, so no copying here.
 	return i
 }
+
+// Bool implements StackItem interface.
+func (i *StructItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *StructItem) TryBytes() ([]byte, error) {
@@ -182,6 +218,20 @@ func (i *StructItem) ToContractParameter(seen map[StackItem]bool) smartcontract.
 // Type implements StackItem interface.
 func (i *StructItem) Type() StackItemType { return StructT }
 
+// Convert implements StackItem interface.
+func (i *StructItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case StructT:
+		return i, nil
+	case ArrayT:
+		return NewArrayItem(i.value), nil
+	case BooleanT:
+		return NewBoolItem(i.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
+
 // Clone returns a Struct with all Struct fields copied by value.
 // Array fields are still copied by reference.
 func (i *StructItem) Clone() *StructItem {
@@ -217,6 +267,9 @@ func (i NullItem) Dup() StackItem {
 	return i
 }
 
+// Bool implements StackItem interface.
+func (i NullItem) Bool() bool { return false }
+
 // TryBytes implements StackItem interface.
 func (i NullItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Null to ByteArray")
@@ -243,6 +296,14 @@ func (i NullItem) ToContractParameter(map[StackItem]bool) smartcontract.Paramete
 // Type implements StackItem interface.
 func (i NullItem) Type() StackItemType { return AnyT }
 
+// Convert implements StackItem interface.
+func (i NullItem) Convert(typ StackItemType) (StackItem, error) {
+	if typ == AnyT || !typ.IsValid() {
+		return nil, errInvalidConversion
+	}
+	return i, nil
+}
+
 // BigIntegerItem represents a big integer on the stack.
 type BigIntegerItem struct {
 	value *big.Int
@@ -258,6 +319,11 @@ func NewBigIntegerItem(value *big.Int) *BigIntegerItem {
 // Bytes converts i to a slice of bytes.
 func (i *BigIntegerItem) Bytes() []byte {
 	return emit.IntToBytes(i.value)
+}
+
+// Bool implements StackItem interface.
+func (i *BigIntegerItem) Bool() bool {
+	return i.value.Sign() != 0
 }
 
 // TryBytes implements StackItem interface.
@@ -311,6 +377,11 @@ func (i *BigIntegerItem) ToContractParameter(map[StackItem]bool) smartcontract.P
 // Type implements StackItem interface.
 func (i *BigIntegerItem) Type() StackItemType { return IntegerT }
 
+// Convert implements StackItem interface.
+func (i *BigIntegerItem) Convert(typ StackItemType) (StackItem, error) {
+	return convertPrimitive(i, typ)
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 func (i *BigIntegerItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
@@ -346,6 +417,9 @@ func (i *BoolItem) String() string {
 func (i *BoolItem) Dup() StackItem {
 	return &BoolItem{i.value}
 }
+
+// Bool implements StackItem interface.
+func (i *BoolItem) Bool() bool { return i.value }
 
 // Bytes converts BoolItem to bytes.
 func (i *BoolItem) Bytes() []byte {
@@ -394,6 +468,11 @@ func (i *BoolItem) ToContractParameter(map[StackItem]bool) smartcontract.Paramet
 // Type implements StackItem interface.
 func (i *BoolItem) Type() StackItemType { return BooleanT }
 
+// Convert implements StackItem interface.
+func (i *BoolItem) Convert(typ StackItemType) (StackItem, error) {
+	return convertPrimitive(i, typ)
+}
+
 // ByteArrayItem represents a byte array on the stack.
 type ByteArrayItem struct {
 	value []byte
@@ -418,6 +497,19 @@ func (i *ByteArrayItem) MarshalJSON() ([]byte, error) {
 
 func (i *ByteArrayItem) String() string {
 	return "ByteArray"
+}
+
+// Bool implements StackItem interface.
+func (i *ByteArrayItem) Bool() bool {
+	if len(i.value) > MaxBigIntegerSizeBits/8 {
+		return true
+	}
+	for _, b := range i.value {
+		if b != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // TryBytes implements StackItem interface.
@@ -459,6 +551,11 @@ func (i *ByteArrayItem) ToContractParameter(map[StackItem]bool) smartcontract.Pa
 // Type implements StackItem interface.
 func (i *ByteArrayItem) Type() StackItemType { return ByteArrayT }
 
+// Convert implements StackItem interface.
+func (i *ByteArrayItem) Convert(typ StackItemType) (StackItem, error) {
+	return convertPrimitive(i, typ)
+}
+
 // ArrayItem represents a new ArrayItem object.
 type ArrayItem struct {
 	value []StackItem
@@ -484,6 +581,9 @@ func (i *ArrayItem) MarshalJSON() ([]byte, error) {
 func (i *ArrayItem) String() string {
 	return "Array"
 }
+
+// Bool implements StackItem interface.
+func (i *ArrayItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *ArrayItem) TryBytes() ([]byte, error) {
@@ -526,6 +626,20 @@ func (i *ArrayItem) ToContractParameter(seen map[StackItem]bool) smartcontract.P
 // Type implements StackItem interface.
 func (i *ArrayItem) Type() StackItemType { return ArrayT }
 
+// Convert implements StackItem interface.
+func (i *ArrayItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case ArrayT:
+		return i, nil
+	case StructT:
+		return NewStructItem(i.value), nil
+	case BooleanT:
+		return NewBoolItem(i.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
+
 // MapElement is a key-value pair of StackItems.
 type MapElement struct {
 	Key   StackItem
@@ -552,6 +666,9 @@ func NewMapItem() *MapItem {
 func (i *MapItem) Value() interface{} {
 	return i.value
 }
+
+// Bool implements StackItem interface.
+func (i *MapItem) Bool() bool { return true }
 
 // TryBytes implements StackItem interface.
 func (i *MapItem) TryBytes() ([]byte, error) {
@@ -614,6 +731,18 @@ func (i *MapItem) ToContractParameter(seen map[StackItem]bool) smartcontract.Par
 // Type implements StackItem interface.
 func (i *MapItem) Type() StackItemType { return MapT }
 
+// Convert implements StackItem interface.
+func (i *MapItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case MapT:
+		return i, nil
+	case BooleanT:
+		return NewBoolItem(i.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
+
 // Add adds key-value pair to the map.
 func (i *MapItem) Add(key, value StackItem) {
 	if !isValidMapKey(key) {
@@ -672,6 +801,9 @@ func (i *InteropItem) Dup() StackItem {
 	return i
 }
 
+// Bool implements StackItem interface.
+func (i *InteropItem) Bool() bool { return true }
+
 // TryBytes implements StackItem interface.
 func (i *InteropItem) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Interop to ByteArray")
@@ -703,6 +835,18 @@ func (i *InteropItem) ToContractParameter(map[StackItem]bool) smartcontract.Para
 
 // Type implements StackItem interface.
 func (i *InteropItem) Type() StackItemType { return InteropT }
+
+// Convert implements StackItem interface.
+func (i *InteropItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case InteropT:
+		return i, nil
+	case BooleanT:
+		return NewBoolItem(i.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
 
 // MarshalJSON implements the json.Marshaler interface.
 func (i *InteropItem) MarshalJSON() ([]byte, error) {

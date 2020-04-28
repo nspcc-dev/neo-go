@@ -123,7 +123,9 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 
 func (c *codegen) convertBasicType(t types.TypeAndValue, typ *types.Basic) {
 	switch typ.Kind() {
-	case types.Int, types.UntypedInt, types.Uint:
+	case types.Int, types.UntypedInt, types.Uint,
+		types.Int16, types.Uint16,
+		types.Int32, types.Uint32, types.Int64, types.Uint64:
 		val, _ := constant.Int64Val(t.Value)
 		emit.Int(c.prog.BinWriter, val)
 	case types.String, types.UntypedString:
@@ -1053,6 +1055,15 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
+	case "ToInteger", "ToByteArray", "ToBool":
+		typ := vm.IntegerT
+		switch name {
+		case "ToByteArray":
+			typ = vm.ByteArrayT
+		case "ToBool":
+			typ = vm.BooleanT
+		}
+		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 	case "SHA256":
 		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":
