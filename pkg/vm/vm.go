@@ -726,17 +726,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.Pop()
 
-	case opcode.EQUAL:
-		b := v.estack.Pop()
-		if b == nil {
-			panic("no top-level element found")
-		}
-		a := v.estack.Pop()
-		if a == nil {
-			panic("no second-to-the-top element found")
-		}
-		v.estack.PushVal(a.value.Equals(b.value))
-
 	// Bit operations.
 	case opcode.INVERT:
 		// inplace
@@ -759,7 +748,42 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Xor(b, a))
 
+	case opcode.EQUAL:
+		b := v.estack.Pop()
+		if b == nil {
+			panic("no top-level element found")
+		}
+		a := v.estack.Pop()
+		if a == nil {
+			panic("no second-to-the-top element found")
+		}
+		v.estack.PushVal(a.value.Equals(b.value))
+
 	// Numeric operations.
+	case opcode.SIGN:
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Sign())
+
+	case opcode.ABS:
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Abs(x))
+
+	case opcode.NEGATE:
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Neg(x))
+
+	case opcode.INC:
+		x := v.estack.Pop().BigInt()
+		a := new(big.Int).Add(x, big.NewInt(1))
+		v.checkBigIntSize(a)
+		v.estack.PushVal(a)
+
+	case opcode.DEC:
+		x := v.estack.Pop().BigInt()
+		a := new(big.Int).Sub(x, big.NewInt(1))
+		v.checkBigIntSize(a)
+		v.estack.PushVal(a)
+
 	case opcode.ADD:
 		a := v.estack.Pop().BigInt()
 		v.checkBigIntSize(a)
@@ -780,14 +804,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.checkBigIntSize(c)
 		v.estack.PushVal(c)
 
-	case opcode.DIV:
-		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
-		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
-
-		v.estack.PushVal(new(big.Int).Quo(a, b))
-
 	case opcode.MUL:
 		a := v.estack.Pop().BigInt()
 		v.checkBigIntSize(a)
@@ -797,6 +813,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		c := new(big.Int).Mul(a, b)
 		v.checkBigIntSize(c)
 		v.estack.PushVal(c)
+
+	case opcode.DIV:
+		b := v.estack.Pop().BigInt()
+		v.checkBigIntSize(b)
+		a := v.estack.Pop().BigInt()
+		v.checkBigIntSize(a)
+
+		v.estack.PushVal(new(big.Int).Quo(a, b))
 
 	case opcode.MOD:
 		b := v.estack.Pop().BigInt()
@@ -826,6 +850,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.checkBigIntSize(&item)
 		v.estack.PushVal(&item)
 
+	case opcode.NOT:
+		x := v.estack.Pop().Bool()
+		v.estack.PushVal(!x)
+
 	case opcode.BOOLAND:
 		b := v.estack.Pop().Bool()
 		a := v.estack.Pop().Bool()
@@ -835,6 +863,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		b := v.estack.Pop().Bool()
 		a := v.estack.Pop().Bool()
 		v.estack.PushVal(a || b)
+
+	case opcode.NZ:
+		x := v.estack.Pop().BigInt()
+		v.estack.PushVal(x.Sign() != 0)
 
 	case opcode.NUMEQUAL:
 		b := v.estack.Pop().BigInt()
@@ -851,15 +883,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) == -1)
 
-	case opcode.GT:
-		b := v.estack.Pop().BigInt()
-		a := v.estack.Pop().BigInt()
-		v.estack.PushVal(a.Cmp(b) == 1)
-
 	case opcode.LTE:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(b) <= 0)
+
+	case opcode.GT:
+		b := v.estack.Pop().BigInt()
+		a := v.estack.Pop().BigInt()
+		v.estack.PushVal(a.Cmp(b) == 1)
 
 	case opcode.GTE:
 		b := v.estack.Pop().BigInt()
@@ -889,38 +921,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		x := v.estack.Pop().BigInt()
 		v.estack.PushVal(a.Cmp(x) <= 0 && x.Cmp(b) == -1)
-
-	case opcode.INC:
-		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Add(x, big.NewInt(1))
-		v.checkBigIntSize(a)
-		v.estack.PushVal(a)
-
-	case opcode.DEC:
-		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Sub(x, big.NewInt(1))
-		v.checkBigIntSize(a)
-		v.estack.PushVal(a)
-
-	case opcode.SIGN:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Sign())
-
-	case opcode.NEGATE:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Neg(x))
-
-	case opcode.ABS:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Abs(x))
-
-	case opcode.NOT:
-		x := v.estack.Pop().Bool()
-		v.estack.PushVal(!x)
-
-	case opcode.NZ:
-		x := v.estack.Pop().BigInt()
-		v.estack.PushVal(x.Cmp(big.NewInt(0)) != 0)
 
 	// Object operations
 	case opcode.NEWARRAY0:

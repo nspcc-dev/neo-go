@@ -98,38 +98,38 @@ const (
 	RIGHT  Opcode = 0x81
 
 	// Bitwise logic
-	INVERT Opcode = 0x83
-	AND    Opcode = 0x84
-	OR     Opcode = 0x85
-	XOR    Opcode = 0x86
-	EQUAL  Opcode = 0x87
+	INVERT Opcode = 0x90
+	AND    Opcode = 0x91
+	OR     Opcode = 0x92
+	XOR    Opcode = 0x93
+	EQUAL  Opcode = 0x97
 
 	// Arithmetic
-	INC         Opcode = 0x8B
-	DEC         Opcode = 0x8C
-	SIGN        Opcode = 0x8D
-	NEGATE      Opcode = 0x8F
-	ABS         Opcode = 0x90
-	NOT         Opcode = 0x91
-	NZ          Opcode = 0x92
-	ADD         Opcode = 0x93
-	SUB         Opcode = 0x94
-	MUL         Opcode = 0x95
-	DIV         Opcode = 0x96
-	MOD         Opcode = 0x97
-	SHL         Opcode = 0x98
-	SHR         Opcode = 0x99
-	BOOLAND     Opcode = 0x9A
-	BOOLOR      Opcode = 0x9B
-	NUMEQUAL    Opcode = 0x9C
-	NUMNOTEQUAL Opcode = 0x9E
-	LT          Opcode = 0x9F
-	GT          Opcode = 0xA0
-	LTE         Opcode = 0xA1
-	GTE         Opcode = 0xA2
-	MIN         Opcode = 0xA3
-	MAX         Opcode = 0xA4
-	WITHIN      Opcode = 0xA5
+	SIGN        Opcode = 0x99
+	ABS         Opcode = 0x9A
+	NEGATE      Opcode = 0x9B
+	INC         Opcode = 0x9C
+	DEC         Opcode = 0x9D
+	ADD         Opcode = 0x9E
+	SUB         Opcode = 0x9F
+	MUL         Opcode = 0xA0
+	DIV         Opcode = 0xA1
+	MOD         Opcode = 0xA2
+	SHL         Opcode = 0xA8
+	SHR         Opcode = 0xA9
+	NOT         Opcode = 0xAA
+	BOOLAND     Opcode = 0xAB
+	BOOLOR      Opcode = 0xAC
+	NZ          Opcode = 0xB1
+	NUMEQUAL    Opcode = 0xB3
+	NUMNOTEQUAL Opcode = 0xB4
+	LT          Opcode = 0xB5
+	LTE         Opcode = 0xB6
+	GT          Opcode = 0xB7
+	GTE         Opcode = 0xB8
+	MIN         Opcode = 0xB9
+	MAX         Opcode = 0xBA
+	WITHIN      Opcode = 0xBB
 
 	// Advanced data structures (arrays, structures, maps)
 	PACK         Opcode = 0xC0
