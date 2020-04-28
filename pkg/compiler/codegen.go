@@ -1065,9 +1065,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 	case "SHA256":
-		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
-	case "SHA1":
-		emit.Opcode(c.prog.BinWriter, opcode.SHA1)
+		emit.Syscall(c.prog.BinWriter, "Neo.Crypto.SHA256")
 	case "AppCall":
 		numArgs := len(expr.Args) - 1
 		c.emitReverse(numArgs)

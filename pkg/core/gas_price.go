@@ -25,10 +25,6 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 	case opcode.SYSCALL:
 		interopID := vm.GetInteropID(parameter)
 		return getSyscallPrice(v, interopID)
-	case opcode.SHA1, opcode.SHA256:
-		return toFixed8(10)
-	case opcode.HASH160, opcode.HASH256:
-		return toFixed8(20)
 	default:
 		return toFixed8(1)
 	}
