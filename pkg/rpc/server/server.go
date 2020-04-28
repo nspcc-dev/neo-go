@@ -153,7 +153,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 	req := request.NewIn()
 
 	if httpRequest.Method != "POST" {
-		s.WriteErrorResponse(
+		s.writeHTTPErrorResponse(
 			req,
 			w,
 			response.NewInvalidParamsError(
@@ -165,44 +165,32 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		s.WriteErrorResponse(req, w, response.NewParseError("Problem parsing JSON-RPC request body", err))
+		s.writeHTTPErrorResponse(req, w, response.NewParseError("Problem parsing JSON-RPC request body", err))
 		return
 	}
 
-	s.handleRequest(w, req)
+	resp := s.handleRequest(req)
+	s.writeHTTPServerResponse(req, w, resp)
 }
 
-func (s *Server) handleRequest(w http.ResponseWriter, req *request.In) {
+func (s *Server) handleRequest(req *request.In) response.Raw {
 	reqParams, err := req.Params()
 	if err != nil {
-		s.WriteErrorResponse(req, w, response.NewInvalidParamsError("Problem parsing request parameters", err))
-		return
+		return s.packResponseToRaw(req, nil, response.NewInvalidParamsError("Problem parsing request parameters", err))
 	}
 
 	s.log.Debug("processing rpc request",
 		zap.String("method", req.Method),
 		zap.String("params", fmt.Sprintf("%v", reqParams)))
 
-	var (
-		results    interface{}
-		resultsErr *response.Error
-	)
-
 	incCounter(req.Method)
 
 	handler, ok := rpcHandlers[req.Method]
-	if ok {
-		results, resultsErr = handler(s, *reqParams)
-	} else {
-		resultsErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
+	if !ok {
+		return s.packResponseToRaw(req, nil, response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil))
 	}
-
-	if resultsErr != nil {
-		s.WriteErrorResponse(req, w, resultsErr)
-		return
-	}
-
-	s.WriteResponse(req, w, results)
+	res, resErr := handler(s, *reqParams)
+	return s.packResponseToRaw(req, res, resErr)
 }
 
 func (s *Server) getBestBlockHash(_ request.Params) (interface{}, *response.Error) {
@@ -973,18 +961,33 @@ func (s *Server) blockHeightFromParam(param *request.Param) (int, *response.Erro
 	return num, nil
 }
 
-// WriteErrorResponse writes an error response to the ResponseWriter.
-func (s *Server) WriteErrorResponse(r *request.In, w http.ResponseWriter, jsonErr *response.Error) {
+func (s *Server) packResponseToRaw(r *request.In, result interface{}, respErr *response.Error) response.Raw {
 	resp := response.Raw{
 		HeaderAndError: response.HeaderAndError{
 			Header: response.Header{
 				JSONRPC: r.JSONRPC,
 				ID:      r.RawID,
 			},
-			Error: jsonErr,
 		},
 	}
+	if respErr != nil {
+		resp.Error = respErr
+	} else {
+		resJSON, err := json.Marshal(result)
+		if err != nil {
+			s.log.Error("failed to marshal result",
+				zap.Error(err),
+				zap.String("method", r.Method))
+			resp.Error = response.NewInternalServerError("failed to encode result", err)
+		} else {
+			resp.Result = resJSON
+		}
+	}
+	return resp
+}
 
+// logRequestError is a request error logger.
+func (s *Server) logRequestError(r *request.In, jsonErr *response.Error) {
 	logFields := []zap.Field{
 		zap.Error(jsonErr.Cause),
 		zap.String("method", r.Method),
@@ -996,35 +999,20 @@ func (s *Server) WriteErrorResponse(r *request.In, w http.ResponseWriter, jsonEr
 	}
 
 	s.log.Error("Error encountered with rpc request", logFields...)
-
-	w.WriteHeader(jsonErr.HTTPCode)
-	s.writeServerResponse(r, w, resp)
 }
 
-// WriteResponse encodes the response and writes it to the ResponseWriter.
-func (s *Server) WriteResponse(r *request.In, w http.ResponseWriter, result interface{}) {
-	resJSON, err := json.Marshal(result)
-	if err != nil {
-		s.log.Error("Error encountered while encoding response",
-			zap.String("err", err.Error()),
-			zap.String("method", r.Method))
-		return
-	}
-
-	resp := response.Raw{
-		HeaderAndError: response.HeaderAndError{
-			Header: response.Header{
-				JSONRPC: r.JSONRPC,
-				ID:      r.RawID,
-			},
-		},
-		Result: resJSON,
-	}
-
-	s.writeServerResponse(r, w, resp)
+// writeHTTPErrorResponse writes an error response to the ResponseWriter.
+func (s *Server) writeHTTPErrorResponse(r *request.In, w http.ResponseWriter, jsonErr *response.Error) {
+	resp := s.packResponseToRaw(r, nil, jsonErr)
+	s.writeHTTPServerResponse(r, w, resp)
 }
 
-func (s *Server) writeServerResponse(r *request.In, w http.ResponseWriter, resp response.Raw) {
+func (s *Server) writeHTTPServerResponse(r *request.In, w http.ResponseWriter, resp response.Raw) {
+	// Errors can happen in many places and we can only catch ALL of them here.
+	if resp.Error != nil {
+		s.logRequestError(r, resp.Error)
+		w.WriteHeader(resp.Error.HTTPCode)
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if s.config.EnableCORSWorkaround {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
