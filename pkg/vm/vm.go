@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -1313,17 +1311,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			panic("wrong collection type")
 		}
-
-	// Cryptographic operations.
-	case opcode.SHA1:
-		b := v.estack.Pop().Bytes()
-		sha := sha1.New()
-		sha.Write(b)
-		v.estack.PushVal(sha.Sum(nil))
-
-	case opcode.SHA256:
-		b := v.estack.Pop().Bytes()
-		v.estack.PushVal(hash.Sha256(b).BytesBE())
 
 	case opcode.NOP:
 		// unlucky ^^

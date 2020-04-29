@@ -3037,28 +3037,6 @@ func TestDupBool(t *testing.T) {
 	assert.Equal(t, true, vm.estack.Pop().Bool())
 }
 
-func TestSHA1(t *testing.T) {
-	// 0x0100 hashes to 0e356ba505631fbf715758bed27d503f8b260e3a
-	res := "0e356ba505631fbf715758bed27d503f8b260e3a"
-	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
-		opcode.SHA1)
-	vm := load(prog)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
-}
-
-func TestSHA256(t *testing.T) {
-	// 0x0100 hashes to 47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254
-	res := "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"
-	prog := makeProgram(opcode.PUSHDATA1, 2, 1, 0,
-		opcode.SHA256)
-	vm := load(prog)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, res, hex.EncodeToString(vm.estack.Pop().Bytes()))
-}
-
 var opcodesTestCases = map[opcode.Opcode][]struct {
 	name     string
 	args     []interface{}

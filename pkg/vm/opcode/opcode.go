@@ -131,15 +131,6 @@ const (
 	MAX         Opcode = 0xA4
 	WITHIN      Opcode = 0xA5
 
-	// Crypto
-	SHA1          Opcode = 0xA7
-	SHA256        Opcode = 0xA8
-	HASH160       Opcode = 0xA9
-	HASH256       Opcode = 0xAA
-	CHECKSIG      Opcode = 0xAC
-	VERIFY        Opcode = 0xAD
-	CHECKMULTISIG Opcode = 0xAE
-
 	// Advanced data structures (arrays, structures, maps)
 	PACK         Opcode = 0xC0
 	UNPACK       Opcode = 0xC1
