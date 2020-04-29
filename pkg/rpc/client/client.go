@@ -31,9 +31,6 @@ const (
 // Client represents the middleman for executing JSON RPC calls
 // to remote NEO RPC nodes.
 type Client struct {
-	// The underlying http client. It's never a good practice to use
-	// the http.DefaultClient, therefore we will role our own.
-	cliMu      *sync.Mutex
 	cli        *http.Client
 	endpoint   *url.URL
 	ctx        context.Context
@@ -49,11 +46,11 @@ type Client struct {
 // All Values are optional. If any duration is not specified
 // a default of 3 seconds will be used.
 type Options struct {
-	Cert        string
-	Key         string
-	CACert      string
-	DialTimeout time.Duration
-	Client      *http.Client
+	Cert           string
+	Key            string
+	CACert         string
+	DialTimeout    time.Duration
+	RequestTimeout time.Duration
 	// Version is the version of the client that will be send
 	// along with the request body. If no version is specified
 	// the default version (currently 2.0) will be used.
@@ -79,32 +76,34 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 		return nil, err
 	}
 
+	if opts.DialTimeout <= 0 {
+		opts.DialTimeout = defaultDialTimeout
+	}
+
+	if opts.RequestTimeout <= 0 {
+		opts.RequestTimeout = defaultRequestTimeout
+	}
+
 	if opts.Version == "" {
 		opts.Version = defaultClientVersion
 	}
 
-	if opts.Client == nil {
-		opts.Client = &http.Client{
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout: opts.DialTimeout,
-				}).DialContext,
-			},
-		}
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: opts.DialTimeout,
+			}).DialContext,
+		},
+		Timeout: opts.RequestTimeout,
 	}
 
 	// TODO(@antdm): Enable SSL.
 	if opts.Cert != "" && opts.Key != "" {
 	}
 
-	if opts.Client.Timeout == 0 {
-		opts.Client.Timeout = defaultRequestTimeout
-	}
-
 	return &Client{
 		ctx:        ctx,
-		cli:        opts.Client,
-		cliMu:      new(sync.Mutex),
+		cli:        httpClient,
 		balancerMu: new(sync.Mutex),
 		wifMu:      new(sync.Mutex),
 		endpoint:   url,
@@ -154,23 +153,6 @@ func (c *Client) SetBalancer(b request.BalanceGetter) {
 	}
 }
 
-// Client is a getter for client field.
-func (c *Client) Client() *http.Client {
-	c.cliMu.Lock()
-	defer c.cliMu.Unlock()
-	return c.cli
-}
-
-// SetClient is a setter for client field.
-func (c *Client) SetClient(cli *http.Client) {
-	c.cliMu.Lock()
-	defer c.cliMu.Unlock()
-
-	if cli != nil {
-		c.cli = cli
-	}
-}
-
 // CalculateInputs creates input transactions for the specified amount of given
 // asset belonging to specified address. This implementation uses GetUnspents
 // JSON-RPC call internally, so make sure your RPC server supports that.
@@ -211,7 +193,7 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 	if err != nil {
 		return err
 	}
-	resp, err := c.Client().Do(req)
+	resp, err := c.cli.Do(req)
 	if err != nil {
 		return err
 	}
