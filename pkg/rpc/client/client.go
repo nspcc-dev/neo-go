@@ -32,7 +32,6 @@ type Client struct {
 	cli      *http.Client
 	endpoint *url.URL
 	ctx      context.Context
-	version  string
 	wifMu    *sync.Mutex
 	wif      *keys.WIF
 	balancer request.BalanceGetter
@@ -56,10 +55,6 @@ type Options struct {
 	CACert         string
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration
-	// Version is the version of the client that will be send
-	// along with the request body. If no version is specified
-	// the default version (currently 2.0) will be used.
-	Version string
 }
 
 // New returns a new Client ready to use.
@@ -75,10 +70,6 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 
 	if opts.RequestTimeout <= 0 {
 		opts.RequestTimeout = defaultRequestTimeout
-	}
-
-	if opts.Version == "" {
-		opts.Version = defaultClientVersion
 	}
 
 	httpClient := &http.Client{
@@ -99,7 +90,6 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 		cli:      httpClient,
 		wifMu:    new(sync.Mutex),
 		endpoint: url,
-		version:  opts.Version,
 	}
 	if opts.Balancer == nil {
 		opts.Balancer = cl
@@ -157,7 +147,7 @@ func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.F
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
 	var (
 		r = request.Raw{
-			JSONRPC:   c.version,
+			JSONRPC:   request.JSONRPCVersion,
 			Method:    method,
 			RawParams: p.Values,
 			ID:        1,
