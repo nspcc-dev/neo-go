@@ -28,6 +28,9 @@ func methodInt(a string) int {
 	}
 	return 3
 }
+func methodConcat(a, b string, c string) string{
+	return a + b + c
+}
 func methodString() string { return "" }
 func methodByteArray() []byte { return nil }
 func methodArray() []bool { return nil }
@@ -48,6 +51,7 @@ func methodStruct() struct{} { return struct{}{} }
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
 			"methodInt":    "Integer",
+			"methodConcat": "String",
 			"methodString": "String", "methodByteArray": "ByteArray",
 			"methodArray": "Array", "methodStruct": "Struct",
 			"Main": "Boolean",
@@ -66,6 +70,39 @@ func methodStruct() struct{} { return struct{}{} }
 			v, ok := vars[d.Methods[i].Name.Name]
 			if ok {
 				require.Equal(t, v, d.Methods[i].Variables)
+			}
+		}
+	})
+
+	t.Run("param types", func(t *testing.T) {
+		paramTypes := map[string][]DebugParam{
+			"methodInt": {{
+				Name: "a",
+				Type: "String",
+			}},
+			"methodConcat": {
+				{
+					Name: "a",
+					Type: "String",
+				},
+				{
+					Name: "b",
+					Type: "String",
+				},
+				{
+					Name: "c",
+					Type: "String",
+				},
+			},
+			"Main": {{
+				Name: "op",
+				Type: "String",
+			}},
+		}
+		for i := range d.Methods {
+			v, ok := paramTypes[d.Methods[i].Name.Name]
+			if ok {
+				require.Equal(t, v, d.Methods[i].Parameters)
 			}
 		}
 	})

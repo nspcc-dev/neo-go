@@ -112,7 +112,7 @@ func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
 func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebugInfo {
 	ps := scope.decl.Type.Params
 	params := make([]DebugParam, 0, ps.NumFields())
-	for i := range params {
+	for i := range ps.List {
 		for j := range ps.List[i].Names {
 			params = append(params, DebugParam{
 				Name: ps.List[i].Names[j].Name,
