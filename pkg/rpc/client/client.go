@@ -34,9 +34,10 @@ type Client struct {
 	cli      *http.Client
 	endpoint *url.URL
 	ctx      context.Context
+	opts     Options
+	requestF func(*request.Raw) (*response.Raw, error)
 	wifMu    *sync.Mutex
 	wif      *keys.WIF
-	balancer request.BalanceGetter
 	cache    cache
 }
 
@@ -109,7 +110,8 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	if opts.Balancer == nil {
 		opts.Balancer = cl
 	}
-	cl.balancer = opts.Balancer
+	cl.opts = opts
+	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
 }
 
@@ -167,12 +169,14 @@ func (c *Client) performRequest(method string, p request.RawParams, v interface{
 		ID:        1,
 	}
 
-	raw, err := c.makeHTTPRequest(&r)
+	raw, err := c.requestF(&r)
 
 	if raw != nil && raw.Error != nil {
 		return raw.Error
 	} else if err != nil {
 		return err
+	} else if raw == nil || raw.Result == nil {
+		return errors.New("no result returned")
 	}
 	return json.Unmarshal(raw.Result, v)
 }
