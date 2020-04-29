@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -814,6 +815,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 }
 
 func TestRPC(t *testing.T) {
+	t.Run("http", func(t *testing.T) {
+		testRPCProtocol(t, doRPCCallOverHTTP)
+	})
+
+	t.Run("websocket", func(t *testing.T) {
+		testRPCProtocol(t, doRPCCallOverWS)
+	})
+}
+
+// testRPCProtocol runs a full set of tests using given callback to make actual
+// calls. Some tests change the chain state, thus we reinitialize the chain from
+// scratch here.
+func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []byte) {
 	chain, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
@@ -1082,7 +1096,20 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 	return resp.Result
 }
 
-func doRPCCall(rpcCall string, url string, t *testing.T) []byte {
+func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
+	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+	url = "ws" + strings.TrimPrefix(url, "http")
+	c, _, err := dialer.Dial(url+"/ws", nil)
+	require.NoError(t, err)
+	c.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, c.WriteMessage(1, []byte(rpcCall)))
+	c.SetReadDeadline(time.Now().Add(time.Second))
+	_, body, err := c.ReadMessage()
+	require.NoError(t, err)
+	return bytes.TrimSpace(body)
+}
+
+func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	cl := http.Client{Timeout: time.Second}
 	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
