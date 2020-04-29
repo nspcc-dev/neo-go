@@ -29,20 +29,25 @@ const (
 // Client represents the middleman for executing JSON RPC calls
 // to remote NEO RPC nodes.
 type Client struct {
-	cli        *http.Client
-	endpoint   *url.URL
-	ctx        context.Context
-	version    string
-	wifMu      *sync.Mutex
-	wif        *keys.WIF
-	balancerMu *sync.Mutex
-	balancer   request.BalanceGetter
+	cli      *http.Client
+	endpoint *url.URL
+	ctx      context.Context
+	version  string
+	wifMu    *sync.Mutex
+	wif      *keys.WIF
+	balancer request.BalanceGetter
 }
 
 // Options defines options for the RPC client.
 // All Values are optional. If any duration is not specified
 // a default of 3 seconds will be used.
 type Options struct {
+	// Balancer is an implementation of request.BalanceGetter interface,
+	// if not set then the default Client's implementation will be used, but
+	// it relies on server support for `getunspents` RPC call which is
+	// standard for neo-go, but only implemented as a plugin for C# node. So
+	// you can override it here to use NeoScanServer for example.
+	Balancer       request.BalanceGetter
 	Cert           string
 	Key            string
 	CACert         string
@@ -86,14 +91,18 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	if opts.Cert != "" && opts.Key != "" {
 	}
 
-	return &Client{
-		ctx:        ctx,
-		cli:        httpClient,
-		balancerMu: new(sync.Mutex),
-		wifMu:      new(sync.Mutex),
-		endpoint:   url,
-		version:    opts.Version,
-	}, nil
+	cl := &Client{
+		ctx:      ctx,
+		cli:      httpClient,
+		wifMu:    new(sync.Mutex),
+		endpoint: url,
+		version:  opts.Version,
+	}
+	if opts.Balancer == nil {
+		opts.Balancer = cl
+	}
+	cl.balancer = opts.Balancer
+	return cl, nil
 }
 
 // WIF returns WIF structure associated with the client.
@@ -121,26 +130,10 @@ func (c *Client) SetWIF(wif string) error {
 	return nil
 }
 
-// Balancer is a getter for balance field.
-func (c *Client) Balancer() request.BalanceGetter {
-	c.balancerMu.Lock()
-	defer c.balancerMu.Unlock()
-	return c.balancer
-}
-
-// SetBalancer is a setter for balance field.
-func (c *Client) SetBalancer(b request.BalanceGetter) {
-	c.balancerMu.Lock()
-	defer c.balancerMu.Unlock()
-
-	if b != nil {
-		c.balancer = b
-	}
-}
-
-// CalculateInputs creates input transactions for the specified amount of given
-// asset belonging to specified address. This implementation uses GetUnspents
-// JSON-RPC call internally, so make sure your RPC server suppors that.
+// CalculateInputs implements request.BalanceGetter interface and returns inputs
+// array for the specified amount of given asset belonging to specified address.
+// This implementation uses GetUnspents JSON-RPC call internally, so make sure
+// your RPC server supports that.
 func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
 	var utxos state.UnspentBalances
 
