@@ -482,7 +482,7 @@ func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.F
 			Address:  address,
 			Value:    amount,
 			WIF:      c.WIF(),
-			Balancer: c.Balancer(),
+			Balancer: c.balancer,
 		}
 		resp util.Uint256
 	)
