@@ -1067,31 +1067,6 @@ func TestADDBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func testBigArgument(t *testing.T, inst opcode.Opcode) {
-	prog := makeProgram(inst)
-	x := getBigInt(MaxBigIntegerSizeBits, 0)
-	t.Run(inst.String()+" big 1-st argument", func(t *testing.T) {
-		vm := load(prog)
-		vm.estack.PushVal(x)
-		vm.estack.PushVal(0)
-		checkVMFailed(t, vm)
-	})
-	t.Run(inst.String()+" big 2-nd argument", func(t *testing.T) {
-		vm := load(prog)
-		vm.estack.PushVal(0)
-		vm.estack.PushVal(x)
-		checkVMFailed(t, vm)
-	})
-}
-
-func TestArithBigArgument(t *testing.T) {
-	testBigArgument(t, opcode.ADD)
-	testBigArgument(t, opcode.SUB)
-	testBigArgument(t, opcode.MUL)
-	testBigArgument(t, opcode.DIV)
-	testBigArgument(t, opcode.MOD)
-}
-
 func TestMul(t *testing.T) {
 	prog := makeProgram(opcode.MUL)
 	vm := load(prog)
@@ -1190,14 +1165,6 @@ func TestSHRNegative(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
-func TestSHRBigArgument(t *testing.T) {
-	prog := makeProgram(opcode.SHR)
-	vm := load(prog)
-	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
-	vm.estack.PushVal(1)
-	checkVMFailed(t, vm)
-}
-
 func TestSHLGood(t *testing.T) {
 	prog := makeProgram(opcode.SHL)
 	vm := load(prog)
@@ -1231,14 +1198,6 @@ func TestSHLBigResult(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits/2, 0))
 	vm.estack.PushVal(MaxBigIntegerSizeBits / 2)
-	checkVMFailed(t, vm)
-}
-
-func TestSHLBigArgument(t *testing.T) {
-	prog := makeProgram(opcode.SHR)
-	vm := load(prog)
-	vm.estack.PushVal(getBigInt(MaxBigIntegerSizeBits, 0))
-	vm.estack.PushVal(1)
 	checkVMFailed(t, vm)
 }
 

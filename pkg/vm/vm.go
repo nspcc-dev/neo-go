@@ -775,58 +775,43 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
 		a := new(big.Int).Add(x, big.NewInt(1))
-		v.checkBigIntSize(a)
 		v.estack.PushVal(a)
 
 	case opcode.DEC:
 		x := v.estack.Pop().BigInt()
 		a := new(big.Int).Sub(x, big.NewInt(1))
-		v.checkBigIntSize(a)
 		v.estack.PushVal(a)
 
 	case opcode.ADD:
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
 
 		c := new(big.Int).Add(a, b)
-		v.checkBigIntSize(c)
 		v.estack.PushVal(c)
 
 	case opcode.SUB:
 		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 
 		c := new(big.Int).Sub(a, b)
-		v.checkBigIntSize(c)
 		v.estack.PushVal(c)
 
 	case opcode.MUL:
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
 
 		c := new(big.Int).Mul(a, b)
-		v.checkBigIntSize(c)
 		v.estack.PushVal(c)
 
 	case opcode.DIV:
 		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 
 		v.estack.PushVal(new(big.Int).Quo(a, b))
 
 	case opcode.MOD:
 		b := v.estack.Pop().BigInt()
-		v.checkBigIntSize(b)
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 
 		v.estack.PushVal(new(big.Int).Rem(a, b))
 
@@ -838,7 +823,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(fmt.Sprintf("operand must be between %d and %d", 0, maxSHLArg))
 		}
 		a := v.estack.Pop().BigInt()
-		v.checkBigIntSize(a)
 
 		var item big.Int
 		if op == opcode.SHL {
@@ -847,7 +831,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Rsh(a, uint(b))
 		}
 
-		v.checkBigIntSize(&item)
 		v.estack.PushVal(&item)
 
 	case opcode.NOT:
@@ -1524,12 +1507,6 @@ func validateMapKey(key *Element) {
 func (v *VM) checkInvocationStackSize() {
 	if v.istack.len >= MaxInvocationStackSize {
 		panic("invocation stack is too big")
-	}
-}
-
-func (v *VM) checkBigIntSize(a *big.Int) {
-	if a.BitLen() > MaxBigIntegerSizeBits {
-		panic("big integer is too big")
 	}
 }
 
