@@ -78,7 +78,7 @@ func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID 
 
 // DetailsToSCProperties extract the fields needed from ContractDetails
 // and converts them to smartcontract.PropertyState.
-func DetailsToSCProperties(contract *ContractDetails) smartcontract.PropertyState {
+func DetailsToSCProperties(contract *smartcontract.ContractDetails) smartcontract.PropertyState {
 	var props smartcontract.PropertyState
 	if contract.HasStorage {
 		props |= smartcontract.HasStorage
@@ -94,7 +94,7 @@ func DetailsToSCProperties(contract *ContractDetails) smartcontract.PropertyStat
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata.
-func CreateDeploymentScript(avm []byte, contract *ContractDetails) ([]byte, error) {
+func CreateDeploymentScript(avm []byte, contract *smartcontract.ContractDetails) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte(contract.Description))
 	emit.Bytes(script.BinWriter, []byte(contract.Email))
