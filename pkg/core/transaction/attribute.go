@@ -31,8 +31,6 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 		Hash6, Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13,
 		Hash14, Hash15:
 		datasize = 32
-	case Script:
-		datasize = 20
 	case DescriptionURL:
 		// It's not VarUint as per C# implementation, dunno why
 		var urllen = br.ReadB()
@@ -62,7 +60,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	case DescriptionURL:
 		bw.WriteB(byte(len(attr.Data)))
 		fallthrough
-	case Script, ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5, Hash6,
+	case ContractHash, Vote, Hash1, Hash2, Hash3, Hash4, Hash5, Hash6,
 		Hash7, Hash8, Hash9, Hash10, Hash11, Hash12, Hash13, Hash14, Hash15:
 		bw.WriteBytes(attr.Data)
 	default:
