@@ -3,11 +3,13 @@ package client
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -1427,7 +1429,22 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	},
 }
 
-func TestRPCClient(t *testing.T) {
+func TestRPCClients(t *testing.T) {
+	t.Run("Client", func(t *testing.T) {
+		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
+			return New(ctx, endpoint, opts)
+		})
+	})
+	t.Run("WSClient", func(t *testing.T) {
+		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
+			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), opts)
+			require.NoError(t, err)
+			return &wsc.Client, nil
+		})
+	})
+}
+
+func testRPCClient(t *testing.T, newClient func(context.Context, string, Options) (*Client, error)) {
 	for method, testBatch := range rpcClientTestCases {
 		t.Run(method, func(t *testing.T) {
 			for _, testCase := range testBatch {
@@ -1437,7 +1454,7 @@ func TestRPCClient(t *testing.T) {
 
 					endpoint := srv.URL
 					opts := Options{}
-					c, err := New(context.TODO(), endpoint, opts)
+					c, err := newClient(context.TODO(), endpoint, opts)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -1461,7 +1478,7 @@ func TestRPCClient(t *testing.T) {
 
 		endpoint := srv.URL
 		opts := Options{}
-		c, err := New(context.TODO(), endpoint, opts)
+		c, err := newClient(context.TODO(), endpoint, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1475,8 +1492,31 @@ func TestRPCClient(t *testing.T) {
 	}
 }
 
+func httpURLtoWS(url string) string {
+	return "ws" + strings.TrimPrefix(url, "http") + "/ws"
+}
+
 func initTestServer(t *testing.T, resp string) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/ws" && req.Method == "GET" {
+			var upgrader = websocket.Upgrader{}
+			ws, err := upgrader.Upgrade(w, req, nil)
+			require.NoError(t, err)
+			for {
+				ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+				_, _, err = ws.ReadMessage()
+				if err != nil {
+					break
+				}
+				ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.WriteMessage(1, []byte(resp))
+				if err != nil {
+					break
+				}
+			}
+			ws.Close()
+			return
+		}
 		requestHandler(t, w, resp)
 	}))
 
@@ -1485,10 +1525,9 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 
 func requestHandler(t *testing.T, w http.ResponseWriter, resp string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
-	err := encoder.Encode(json.RawMessage(resp))
+	_, err := w.Write([]byte(resp))
 
 	if err != nil {
-		t.Fatalf("Error encountered while encoding response: %s", err.Error())
+		t.Fatalf("Error writing response: %s", err.Error())
 	}
 }
