@@ -145,47 +145,57 @@ func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.F
 }
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
+	var r = request.Raw{
+		JSONRPC:   request.JSONRPCVersion,
+		Method:    method,
+		RawParams: p.Values,
+		ID:        1,
+	}
+
+	raw, err := c.makeHTTPRequest(&r)
+
+	if raw != nil && raw.Error != nil {
+		return raw.Error
+	} else if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw.Result, v)
+}
+
+func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
 	var (
-		r = request.Raw{
-			JSONRPC:   request.JSONRPCVersion,
-			Method:    method,
-			RawParams: p.Values,
-			ID:        1,
-		}
 		buf = new(bytes.Buffer)
-		raw = &response.Raw{}
+		raw = new(response.Raw)
 	)
 
 	if err := json.NewEncoder(buf).Encode(r); err != nil {
-		return err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", c.endpoint.String(), buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := c.cli.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	// The node might send us proper JSON anyway, so look there first and if
 	// it parses, then it has more relevant data than HTTP error code.
 	err = json.NewDecoder(resp.Body).Decode(raw)
-	if err == nil {
-		if raw.Error != nil {
-			err = raw.Error
+	if err != nil {
+		if resp.StatusCode != http.StatusOK {
+			err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
 		} else {
-			err = json.Unmarshal(raw.Result, v)
+			err = errors.Wrap(err, "JSON decoding")
 		}
-	} else if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
-	} else {
-		err = errors.Wrap(err, "JSON decoding")
 	}
-
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return raw, nil
 }
 
 // Ping attempts to create a connection to the endpoint.
