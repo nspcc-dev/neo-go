@@ -39,15 +39,18 @@ type Client struct {
 }
 
 // Options defines options for the RPC client.
-// All Values are optional. If any duration is not specified
-// a default of 3 seconds will be used.
+// All values are optional. If any duration is not specified
+// a default of 4 seconds will be used.
 type Options struct {
 	// Balancer is an implementation of request.BalanceGetter interface,
 	// if not set then the default Client's implementation will be used, but
 	// it relies on server support for `getunspents` RPC call which is
 	// standard for neo-go, but only implemented as a plugin for C# node. So
 	// you can override it here to use NeoScanServer for example.
-	Balancer       request.BalanceGetter
+	Balancer request.BalanceGetter
+
+	// Cert is a client-side certificate, it doesn't work at the moment along
+	// with the other two options below.
 	Cert           string
 	Key            string
 	CACert         string
