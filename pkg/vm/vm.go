@@ -34,6 +34,13 @@ func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
 // StateMessage is a vm state message which could be used as additional info for example by cli.
 type StateMessage string
 
+// ScriptHashGetter defines an interface for getting calling, entry and current script hashes.
+type ScriptHashGetter interface {
+	GetCallingScriptHash() util.Uint160
+	GetEntryScriptHash() util.Uint160
+	GetCurrentScriptHash() util.Uint160
+}
+
 const (
 	// MaxArraySize is the maximum array size allowed in the VM.
 	MaxArraySize = 1024
@@ -1526,4 +1533,19 @@ func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
 		v.keys[s] = pkey
 	}
 	return pkey
+}
+
+// GetCallingScriptHash implements ScriptHashGetter interface
+func (v *VM) GetCallingScriptHash() util.Uint160 {
+	return v.GetContextScriptHash(1)
+}
+
+// GetEntryScriptHash implements ScriptHashGetter interface
+func (v *VM) GetEntryScriptHash() util.Uint160 {
+	return v.GetContextScriptHash(v.Istack().Len() - 1)
+}
+
+// GetCurrentScriptHash implements ScriptHashGetter interface
+func (v *VM) GetCurrentScriptHash() util.Uint160 {
+	return v.GetContextScriptHash(0)
 }

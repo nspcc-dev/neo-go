@@ -39,6 +39,7 @@ func NewRegisterTX(register *RegisterTX) *Transaction {
 		Nonce:      rand.Uint32(),
 		Data:       register,
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},

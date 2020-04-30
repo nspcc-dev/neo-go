@@ -601,7 +601,7 @@ func assetCreate(ic *interop.Context, v *vm.VM) error {
 	if owner.IsInfinity() {
 		return errors.New("can't have infinity as an owner key")
 	}
-	witnessOk, err := runtime.CheckKeyedWitness(ic, owner)
+	witnessOk, err := runtime.CheckKeyedWitness(ic, v, owner)
 	if err != nil {
 		return err
 	}

@@ -31,6 +31,7 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 			Version: 1,
 		},
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},

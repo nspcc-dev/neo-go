@@ -19,6 +19,9 @@ const (
 	// MaxValidUntilBlockIncrement is the upper increment size of blockhain height in blocs after
 	// exceeding that a transaction should fail validation. It is set to be 2102400.
 	MaxValidUntilBlockIncrement = 2102400
+	// MaxCosigners is maximum number of cosigners that can be contained within a transaction.
+	// It is set to be 16.
+	MaxCosigners = 16
 )
 
 // Transaction is a process recorded in the NEO blockchain.
@@ -45,6 +48,9 @@ type Transaction struct {
 
 	// Transaction attributes.
 	Attributes []Attribute
+
+	// Transaction cosigners (not include Sender).
+	Cosigners []Cosigner
 
 	// The inputs of the transaction.
 	Inputs []Input
@@ -118,6 +124,17 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.decodeData(br)
 
 	br.ReadArray(&t.Attributes)
+
+	br.ReadArray(&t.Cosigners, MaxCosigners)
+	for i := 0; i < len(t.Cosigners); i++ {
+		for j := i + 1; j < len(t.Cosigners); j++ {
+			if t.Cosigners[i].Account.Equals(t.Cosigners[j].Account) {
+				br.Err = errors.New("transaction cosigners should be unique")
+				return
+			}
+		}
+	}
+
 	br.ReadArray(&t.Inputs)
 	br.ReadArray(&t.Outputs)
 	for i := range t.Outputs {
@@ -184,6 +201,9 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 
 	// Attributes
 	bw.WriteArray(t.Attributes)
+
+	// Cosigners
+	bw.WriteArray(t.Cosigners)
 
 	// Inputs
 	bw.WriteArray(t.Inputs)
@@ -259,6 +279,7 @@ type transactionJSON struct {
 	Sender          string       `json:"sender"`
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
+	Cosigners       []Cosigner   `json:"cosigners"`
 	Inputs          []Input      `json:"vin"`
 	Outputs         []Output     `json:"vout"`
 	Scripts         []Witness    `json:"scripts"`
@@ -280,6 +301,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Sender:          address.Uint160ToString(t.Sender),
 		ValidUntilBlock: t.ValidUntilBlock,
 		Attributes:      t.Attributes,
+		Cosigners:       t.Cosigners,
 		Inputs:          t.Inputs,
 		Outputs:         t.Outputs,
 		Scripts:         t.Scripts,
@@ -315,6 +337,7 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Nonce = tx.Nonce
 	t.ValidUntilBlock = tx.ValidUntilBlock
 	t.Attributes = tx.Attributes
+	t.Cosigners = tx.Cosigners
 	t.Inputs = tx.Inputs
 	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts

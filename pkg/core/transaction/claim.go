@@ -19,6 +19,7 @@ func NewClaimTX(claim *ClaimTX) *Transaction {
 		Nonce:      rand.Uint32(),
 		Data:       claim,
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},
