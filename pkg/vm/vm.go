@@ -748,7 +748,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		a := v.estack.Pop().BigInt()
 		v.estack.PushVal(new(big.Int).Xor(b, a))
 
-	case opcode.EQUAL:
+	case opcode.EQUAL, opcode.NOTEQUAL:
 		b := v.estack.Pop()
 		if b == nil {
 			panic("no top-level element found")
@@ -757,7 +757,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if a == nil {
 			panic("no second-to-the-top element found")
 		}
-		v.estack.PushVal(a.value.Equals(b.value))
+		v.estack.PushVal(a.value.Equals(b.value) == (op == opcode.EQUAL))
 
 	// Numeric operations.
 	case opcode.SIGN:

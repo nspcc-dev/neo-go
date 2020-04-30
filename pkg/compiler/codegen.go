@@ -616,8 +616,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			case n.Op == token.NEQ:
 				// VM has separate opcodes for number and string equality
 				if isStringType(c.typeInfo.Types[n.X].Type) {
-					emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
-					emit.Opcode(c.prog.BinWriter, opcode.NOT)
+					emit.Opcode(c.prog.BinWriter, opcode.NOTEQUAL)
 				} else {
 					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
 				}

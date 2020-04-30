@@ -98,11 +98,12 @@ const (
 	RIGHT  Opcode = 0x81
 
 	// Bitwise logic
-	INVERT Opcode = 0x90
-	AND    Opcode = 0x91
-	OR     Opcode = 0x92
-	XOR    Opcode = 0x93
-	EQUAL  Opcode = 0x97
+	INVERT   Opcode = 0x90
+	AND      Opcode = 0x91
+	OR       Opcode = 0x92
+	XOR      Opcode = 0x93
+	EQUAL    Opcode = 0x97
+	NOTEQUAL Opcode = 0x98
 
 	// Arithmetic
 	SIGN        Opcode = 0x99

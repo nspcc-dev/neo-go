@@ -1319,6 +1319,24 @@ func TestEQUALMapFalse(t *testing.T) {
 	assert.Equal(t, &BoolItem{false}, vm.estack.Pop().value)
 }
 
+func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func(t *testing.T) {
+	return func(t *testing.T) {
+		v := load(prog)
+		for i := range args {
+			v.estack.PushVal(args[i])
+		}
+		runVM(t, v)
+		require.Equal(t, 1, v.estack.Len())
+		require.Equal(t, makeStackItem(result), v.estack.Pop().value)
+	}
+}
+
+func TestNOTEQUALByteArray(t *testing.T) {
+	prog := makeProgram(opcode.NOTEQUAL)
+	t.Run("True", getTestFuncForVM(prog, true, []byte{1, 2}, []byte{0, 1, 2}))
+	t.Run("False", getTestFuncForVM(prog, false, []byte{1, 2}, []byte{1, 2}))
+}
+
 func TestNumEqual(t *testing.T) {
 	prog := makeProgram(opcode.NUMEQUAL)
 	vm := load(prog)
