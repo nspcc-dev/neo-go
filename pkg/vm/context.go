@@ -226,7 +226,11 @@ func (c *Context) String() string {
 // GetContextScriptHash returns script hash of the invocation stack element
 // number n.
 func (v *VM) GetContextScriptHash(n int) util.Uint160 {
-	ctxIface := v.Istack().Peek(n).Value()
+	element := v.Istack().Peek(n)
+	if element == nil {
+		return util.Uint160{}
+	}
+	ctxIface := element.Value()
 	ctx := ctxIface.(*Context)
 	return ctx.ScriptHash()
 }
