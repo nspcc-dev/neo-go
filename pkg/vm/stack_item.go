@@ -85,9 +85,7 @@ func makeStackItem(v interface{}) StackItem {
 			value: val,
 		}
 	case *big.Int:
-		return &BigIntegerItem{
-			value: val,
-		}
+		return NewBigIntegerItem(val)
 	case StackItem:
 		return val
 	case []int:
@@ -311,6 +309,9 @@ type BigIntegerItem struct {
 
 // NewBigIntegerItem returns an new BigIntegerItem object.
 func NewBigIntegerItem(value *big.Int) *BigIntegerItem {
+	if value.BitLen() > MaxBigIntegerSizeBits {
+		panic("integer is too big")
+	}
 	return &BigIntegerItem{
 		value: value,
 	}
@@ -519,7 +520,11 @@ func (i *ByteArrayItem) TryBytes() ([]byte, error) {
 
 // TryInteger implements StackItem interface.
 func (i *ByteArrayItem) TryInteger() (*big.Int, error) {
-	return emit.BytesToInt(i.value), nil
+	bi := emit.BytesToInt(i.value)
+	if bi.BitLen() > MaxBigIntegerSizeBits {
+		return nil, errors.New("integer is too big")
+	}
+	return bi, nil
 }
 
 // Equals implements StackItem interface.
