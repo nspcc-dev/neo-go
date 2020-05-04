@@ -39,6 +39,7 @@ func NewRegisterTX(register *RegisterTX) *Transaction {
 		Nonce:      rand.Uint32(),
 		Data:       register,
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},
@@ -57,7 +58,7 @@ func (tx *RegisterTX) DecodeBinary(br *io.BinReader) {
 
 	tx.Owner.DecodeBinary(br)
 
-	br.ReadBytes(tx.Admin[:])
+	tx.Admin.DecodeBinary(br)
 }
 
 // EncodeBinary implements Serializable interface.
@@ -67,7 +68,7 @@ func (tx *RegisterTX) EncodeBinary(bw *io.BinWriter) {
 	tx.Amount.EncodeBinary(bw)
 	bw.WriteB(byte(tx.Precision))
 	bw.WriteBytes(tx.Owner.Bytes())
-	bw.WriteBytes(tx.Admin[:])
+	tx.Admin.EncodeBinary(bw)
 }
 
 // registeredAsset is a wrapper for RegisterTransaction

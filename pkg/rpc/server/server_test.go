@@ -53,12 +53,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["953b6e5ba85dd068c2eba5afd2ffdf8ff832b3a791976e2fd896baf5737b2616"]`,
+			params: `["9872fd330d63d64beba7122fcc9678e7f380d2163acff6a7d4f67a3c01cd67d1"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("953b6e5ba85dd068c2eba5afd2ffdf8ff832b3a791976e2fd896baf5737b2616")
+				expectedTxHash, err := util.Uint256DecodeStringLE("9872fd330d63d64beba7122fcc9678e7f380d2163acff6a7d4f67a3c01cd67d1")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -253,7 +253,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getassetstate": {
 		{
 			name:   "positive",
-			params: `["b16384a950ed01ed5fc15c03fe7b98228871cb43b1bc22d67029449fc854d104"]`,
+			params: `["8ef63ccd6f4ea20a93e7f4e84b2d43f778077612b241d617e42e1750cca4f2c5"]`,
 			result: func(e *executor) interface{} { return &result.AssetState{} },
 			check: func(t *testing.T, e *executor, as interface{}) {
 				res, ok := as.(*result.AssetState)
@@ -472,7 +472,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
 				// hash of the issueTx
-				h, _ := util.Uint256DecodeStringBE("8a4711012932f4f79f9534803feab0ef85e7a313c52a36f5d56b9f8ec190bd92")
+				h, _ := util.Uint256DecodeStringBE("99bd2bb2791887ddd3f64dac70ac15339956c76e7c306a1202372ff24fe30635")
 				amount := util.Fixed8FromInt64(1 * 8) // (endHeight - startHeight) * genAmount[0]
 				return &result.ClaimableInfo{
 					Spents: []result.Claimable{
@@ -531,7 +531,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["5f1e841f625d52dd3d73bbf5203f8468835353b7c476a4d367161ea959944981"]`,
+			params: `["1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6"]`,
 			result: func(e *executor) interface{} {
 				h := 1
 				return &h
@@ -743,7 +743,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["80000b00000075a94799633ed955dd85a8af314a5b435ab51903b004000000011e4db58df4326140a371d0b0cabecea70226b93157dfb561c73ba8db599ebcb6010001f5bc5a9ac7b85a47be381260a06b5a1e7a667ce8f7d7c8baa5cfc6465571377a0030d3dec386230075a94799633ed955dd85a8af314a5b435ab5190301420c401b3040b6eea83bfbd555554c94e7a0e6077922769f3ac19c1183e14dfd1d6ef6a87658b5499921ac59ae2d2acac10d8f0f6147620e27616bb5b7305fb36b6ce0290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
+			params: `["80000b00000075a94799633ed955dd85a8af314a5b435ab51903b0040000000001e53e6c239e3d8441f623ea7b48cdea60c6ae0426a8bac04296002babfeafe5a4010001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d0030d3dec386230075a94799633ed955dd85a8af314a5b435ab5190301420c408378eb6bdba1f14540cf2920a4d49c52327f617dc861a21d1c085346aaae2abd410e28dc6a03471a78e71246696a591b9677a71144dfba557d1c781c8c97e350290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -890,7 +890,7 @@ func TestRPC(t *testing.T) {
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "400000000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
+		assert.Equal(t, "400000000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000", res)
 	})
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
@@ -902,7 +902,7 @@ func TestRPC(t *testing.T) {
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "400000000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b00000000", res)
+		assert.Equal(t, "400000000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000455b7b226c616e67223a227a682d434e222c226e616d65223a22e5b08fe89a81e882a1227d2c7b226c616e67223a22656e222c226e616d65223a22416e745368617265227d5d0000c16ff28623000000da1745e9b549bd0bfa1a569971c77eba30cd5a4b0000000000", res)
 	})
 
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
@@ -991,7 +991,7 @@ func TestRPC(t *testing.T) {
 		err := json.Unmarshal(res, &txOut)
 		require.NoErrorf(t, err, "could not parse response: %s", res)
 		assert.Equal(t, 0, txOut.N)
-		assert.Equal(t, "0xf5bc5a9ac7b85a47be381260a06b5a1e7a667ce8f7d7c8baa5cfc6465571377a", txOut.Asset)
+		assert.Equal(t, "0xdcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d", txOut.Asset)
 		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
 		assert.Equal(t, testchain.MultisigAddress(), txOut.Address)
 	})

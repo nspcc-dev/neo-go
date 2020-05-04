@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // Uint160Size is the size of Uint160 in bytes.
@@ -130,4 +132,14 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
 	return []byte(`"0x` + u.StringLE() + `"`), nil
+}
+
+// EncodeBinary implements Serializable interface.
+func (u *Uint160) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteBytes(u[:])
+}
+
+// DecodeBinary implements Serializable interface.
+func (u *Uint160) DecodeBinary(br *io.BinReader) {
+	br.ReadBytes(u[:])
 }

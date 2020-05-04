@@ -251,7 +251,7 @@ func (n *NEO) vote(ic *interop.Context, args []vm.StackItem) vm.StackItem {
 
 // VoteInternal votes from account h for validarors specified in pubs.
 func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.PublicKeys) error {
-	ok, err := runtime.CheckHashedWitness(ic, h)
+	ok, err := runtime.CheckHashedWitness(ic, neoScriptHash{hash: n.Hash}, h)
 	if err != nil {
 		return err
 	} else if !ok {
@@ -478,4 +478,25 @@ func toPublicKey(s vm.StackItem) *keys.PublicKey {
 		panic(err)
 	}
 	return pub
+}
+
+// scriptHash is an auxiliary structure which implements ScriptHashGetter
+// interface over NEO native contract and is used for runtime.CheckHashedWitness
+type neoScriptHash struct {
+	hash util.Uint160
+}
+
+// GetCallingScriptHash implements ScriptHashGetter interface
+func (s neoScriptHash) GetCallingScriptHash() util.Uint160 {
+	return util.Uint160{}
+}
+
+// GetEntryScriptHash implements ScriptHashGetter interface
+func (s neoScriptHash) GetEntryScriptHash() util.Uint160 {
+	return s.hash
+}
+
+// GetCurrentScriptHash implements ScriptHashGetter interface
+func (s neoScriptHash) GetCurrentScriptHash() util.Uint160 {
+	return s.hash
 }

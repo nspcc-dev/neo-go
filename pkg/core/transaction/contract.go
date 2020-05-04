@@ -18,6 +18,7 @@ func NewContractTX() *Transaction {
 		Nonce:      rand.Uint32(),
 		Data:       &ContractTX{},
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},

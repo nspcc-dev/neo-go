@@ -18,6 +18,7 @@ func NewIssueTX() *Transaction {
 		Nonce:      rand.Uint32(),
 		Data:       &IssueTX{},
 		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
 		Outputs:    []Output{},
 		Scripts:    []Witness{},

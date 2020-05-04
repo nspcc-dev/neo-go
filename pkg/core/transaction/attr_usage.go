@@ -10,7 +10,6 @@ const (
 	ContractHash   AttrUsage = 0x00
 	ECDH02         AttrUsage = 0x02
 	ECDH03         AttrUsage = 0x03
-	Script         AttrUsage = 0x20
 	Vote           AttrUsage = 0x30
 	CertURL        AttrUsage = 0x80
 	DescriptionURL AttrUsage = 0x81

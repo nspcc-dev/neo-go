@@ -79,15 +79,11 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 
 	tx := transaction.NewInvocationTX([]byte{0x51}, 1)
 	tx.Version = 0
+	tx.Sender = fromAddressHash
 	tx.Attributes = append(tx.Attributes,
 		transaction.Attribute{
 			Usage: transaction.Description,
 			Data:  []byte(randString(10)),
-		})
-	tx.Attributes = append(tx.Attributes,
-		transaction.Attribute{
-			Usage: transaction.Script,
-			Data:  fromAddressHash.BytesBE(),
 		})
 	return tx
 }

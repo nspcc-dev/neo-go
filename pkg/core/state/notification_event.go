@@ -28,13 +28,13 @@ type AppExecResult struct {
 
 // EncodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
-	w.WriteBytes(ne.ScriptHash[:])
+	ne.ScriptHash.EncodeBinary(w)
 	vm.EncodeBinaryStackItem(ne.Item, w)
 }
 
 // DecodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
-	r.ReadBytes(ne.ScriptHash[:])
+	ne.ScriptHash.DecodeBinary(r)
 	ne.Item = vm.DecodeBinaryStackItem(r)
 }
 

@@ -1548,17 +1548,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	for i := range references {
 		hashes[references[i].Out.ScriptHash] = true
 	}
-	for _, a := range t.Attributes {
-		if a.Usage == transaction.Script {
-			h, err := util.Uint160DecodeBytesBE(a.Data)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := hashes[h]; !ok {
-				hashes[h] = true
-			}
-		}
-	}
 
 	for a, outputs := range t.GroupOutputByAssetID() {
 		as := bc.GetAssetState(a)
@@ -1575,6 +1564,9 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		}
 	}
 	hashes[t.Sender] = true
+	for _, c := range t.Cosigners {
+		hashes[c.Account] = true
+	}
 	switch t.Type {
 	case transaction.ClaimType:
 		claim := t.Data.(*transaction.ClaimTX)

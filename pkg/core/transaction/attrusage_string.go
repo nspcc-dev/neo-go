@@ -11,7 +11,6 @@ func _() {
 	_ = x[ContractHash-0]
 	_ = x[ECDH02-2]
 	_ = x[ECDH03-3]
-	_ = x[Script-32]
 	_ = x[Vote-48]
 	_ = x[CertURL-128]
 	_ = x[DescriptionURL-129]
@@ -52,19 +51,18 @@ func _() {
 const (
 	_AttrUsage_name_0 = "ContractHash"
 	_AttrUsage_name_1 = "ECDH02ECDH03"
-	_AttrUsage_name_2 = "Script"
-	_AttrUsage_name_3 = "Vote"
-	_AttrUsage_name_4 = "CertURLDescriptionURL"
-	_AttrUsage_name_5 = "Description"
-	_AttrUsage_name_6 = "Hash1Hash2Hash3Hash4Hash5Hash6Hash7Hash8Hash9Hash10Hash11Hash12Hash13Hash14Hash15"
-	_AttrUsage_name_7 = "RemarkRemark1Remark2Remark3Remark4Remark5Remark6Remark7Remark8Remark9Remark10Remark11Remark12Remark13Remark14Remark15"
+	_AttrUsage_name_2 = "Vote"
+	_AttrUsage_name_3 = "CertURLDescriptionURL"
+	_AttrUsage_name_4 = "Description"
+	_AttrUsage_name_5 = "Hash1Hash2Hash3Hash4Hash5Hash6Hash7Hash8Hash9Hash10Hash11Hash12Hash13Hash14Hash15"
+	_AttrUsage_name_6 = "RemarkRemark1Remark2Remark3Remark4Remark5Remark6Remark7Remark8Remark9Remark10Remark11Remark12Remark13Remark14Remark15"
 )
 
 var (
 	_AttrUsage_index_1 = [...]uint8{0, 6, 12}
-	_AttrUsage_index_4 = [...]uint8{0, 7, 21}
-	_AttrUsage_index_6 = [...]uint8{0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 51, 57, 63, 69, 75, 81}
-	_AttrUsage_index_7 = [...]uint8{0, 6, 13, 20, 27, 34, 41, 48, 55, 62, 69, 77, 85, 93, 101, 109, 117}
+	_AttrUsage_index_3 = [...]uint8{0, 7, 21}
+	_AttrUsage_index_5 = [...]uint8{0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 51, 57, 63, 69, 75, 81}
+	_AttrUsage_index_6 = [...]uint8{0, 6, 13, 20, 27, 34, 41, 48, 55, 62, 69, 77, 85, 93, 101, 109, 117}
 )
 
 func (i AttrUsage) String() string {
@@ -74,21 +72,19 @@ func (i AttrUsage) String() string {
 	case 2 <= i && i <= 3:
 		i -= 2
 		return _AttrUsage_name_1[_AttrUsage_index_1[i]:_AttrUsage_index_1[i+1]]
-	case i == 32:
-		return _AttrUsage_name_2
 	case i == 48:
-		return _AttrUsage_name_3
+		return _AttrUsage_name_2
 	case 128 <= i && i <= 129:
 		i -= 128
-		return _AttrUsage_name_4[_AttrUsage_index_4[i]:_AttrUsage_index_4[i+1]]
+		return _AttrUsage_name_3[_AttrUsage_index_3[i]:_AttrUsage_index_3[i+1]]
 	case i == 144:
-		return _AttrUsage_name_5
+		return _AttrUsage_name_4
 	case 161 <= i && i <= 175:
 		i -= 161
-		return _AttrUsage_name_6[_AttrUsage_index_6[i]:_AttrUsage_index_6[i+1]]
+		return _AttrUsage_name_5[_AttrUsage_index_5[i]:_AttrUsage_index_5[i+1]]
 	case 240 <= i && i <= 255:
 		i -= 240
-		return _AttrUsage_name_7[_AttrUsage_index_7[i]:_AttrUsage_index_7[i+1]]
+		return _AttrUsage_name_6[_AttrUsage_index_6[i]:_AttrUsage_index_6[i+1]]
 	default:
 		return "AttrUsage(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
