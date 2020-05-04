@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -28,7 +30,7 @@ import (
 
 type executor struct {
 	chain   *core.Blockchain
-	handler http.HandlerFunc
+	httpSrv *httptest.Server
 }
 
 const (
@@ -881,18 +883,31 @@ var rpcTestCases = map[string][]rpcTestCase{
 }
 
 func TestRPC(t *testing.T) {
-	chain, handler := initServerWithInMemoryChain(t)
+	t.Run("http", func(t *testing.T) {
+		testRPCProtocol(t, doRPCCallOverHTTP)
+	})
+
+	t.Run("websocket", func(t *testing.T) {
+		testRPCProtocol(t, doRPCCallOverWS)
+	})
+}
+
+// testRPCProtocol runs a full set of tests using given callback to make actual
+// calls. Some tests change the chain state, thus we reinitialize the chain from
+// scratch here.
+func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []byte) {
+	chain, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
 
-	e := &executor{chain: chain, handler: handler}
+	e := &executor{chain: chain, httpSrv: httpSrv}
 	for method, cases := range rpcTestCases {
 		t.Run(method, func(t *testing.T) {
 			rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
 
 			for _, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
-					body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), handler, t)
+					body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
 					result := checkErrGetResult(t, body, tc.fail)
 					if tc.fail {
 						return
@@ -916,7 +931,7 @@ func TestRPC(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[1].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.StringLE())
-		body := doRPCCall(rpc, handler, t)
+		body := doRPCCall(rpc, httpSrv.URL, t)
 		result := checkErrGetResult(t, body, false)
 		var res string
 		err := json.Unmarshal(result, &res)
@@ -928,7 +943,7 @@ func TestRPC(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[1].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.StringLE())
-		body := doRPCCall(rpc, handler, t)
+		body := doRPCCall(rpc, httpSrv.URL, t)
 		result := checkErrGetResult(t, body, false)
 		var res string
 		err := json.Unmarshal(result, &res)
@@ -940,7 +955,7 @@ func TestRPC(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
 		TXHash := block.Transactions[1].Hash()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
-		body := doRPCCall(rpc, handler, t)
+		body := doRPCCall(rpc, httpSrv.URL, t)
 		txOut := checkErrGetResult(t, body, false)
 		actual := result.TransactionOutputRaw{}
 		err := json.Unmarshal(txOut, &actual)
@@ -966,7 +981,7 @@ func TestRPC(t *testing.T) {
 		tx := block.Transactions[3]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
 			`"`+tx.Hash().StringLE()+`"`, 0)
-		body := doRPCCall(rpc, handler, t)
+		body := doRPCCall(rpc, httpSrv.URL, t)
 		res := checkErrGetResult(t, body, false)
 
 		var txOut result.TransactionOutput
@@ -997,7 +1012,7 @@ func TestRPC(t *testing.T) {
 		}
 
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getrawmempool", "params": []}`
-		body := doRPCCall(rpc, handler, t)
+		body := doRPCCall(rpc, httpSrv.URL, t)
 		res := checkErrGetResult(t, body, false)
 
 		var actual []util.Uint256
@@ -1027,12 +1042,23 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 	return resp.Result
 }
 
-func doRPCCall(rpcCall string, handler http.HandlerFunc, t *testing.T) []byte {
-	req := httptest.NewRequest("POST", "http://0.0.0.0:20333/", strings.NewReader(rpcCall))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	handler(w, req)
-	resp := w.Result()
+func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
+	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+	url = "ws" + strings.TrimPrefix(url, "http")
+	c, _, err := dialer.Dial(url+"/ws", nil)
+	require.NoError(t, err)
+	c.SetWriteDeadline(time.Now().Add(time.Second))
+	require.NoError(t, c.WriteMessage(1, []byte(rpcCall)))
+	c.SetReadDeadline(time.Now().Add(time.Second))
+	_, body, err := c.ReadMessage()
+	require.NoError(t, err)
+	return bytes.TrimSpace(body)
+}
+
+func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
+	cl := http.Client{Timeout: time.Second}
+	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
+	require.NoErrorf(t, err, "could not make a POST request")
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
