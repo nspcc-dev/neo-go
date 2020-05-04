@@ -849,7 +849,7 @@ func TestRPC(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
 		t.Run("empty", func(t *testing.T) {
 			s := newBlock(t, chain, 1)
-			body := doRPCCall(fmt.Sprintf(rpc, s), httpSrv.URL, t)
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
 		})
 
