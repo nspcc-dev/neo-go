@@ -8,6 +8,10 @@ import (
 	"go/types"
 	"strconv"
 	"strings"
+
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // DebugInfo represents smart-contract debug information.
@@ -72,8 +76,42 @@ type DebugRange struct {
 
 // DebugParam represents variables's name and type.
 type DebugParam struct {
-	Name string
-	Type string
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// ABI represents ABI contract info in compatible with NEO Blockchain Toolkit format
+type ABI struct {
+	Hash       util.Uint160 `json:"hash"`
+	Metadata   Metadata     `json:"metadata"`
+	EntryPoint string       `json:"entrypoint"`
+	Functions  []Method     `json:"functions"`
+	Events     []Event      `json:"events"`
+}
+
+// Metadata represents ABI contract metadata
+type Metadata struct {
+	Author               string `json:"author"`
+	Email                string `json:"email"`
+	Version              string `json:"version"`
+	Title                string `json:"title"`
+	Description          string `json:"description"`
+	HasStorage           bool   `json:"has-storage"`
+	HasDynamicInvocation bool   `json:"has-dynamic-invoke"`
+	IsPayable            bool   `json:"is-payable"`
+}
+
+// Method represents ABI method's metadata.
+type Method struct {
+	Name       string       `json:"name"`
+	Parameters []DebugParam `json:"parameters"`
+	ReturnType string       `json:"returntype"`
+}
+
+// Event represents ABI event's metadata.
+type Event struct {
+	Name       string       `json:"name"`
+	Parameters []DebugParam `json:"parameters"`
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {
@@ -112,7 +150,7 @@ func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
 func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebugInfo {
 	ps := scope.decl.Type.Params
 	params := make([]DebugParam, 0, ps.NumFields())
-	for i := range params {
+	for i := range ps.List {
 		for j := range ps.List[i].Names {
 			params = append(params, DebugParam{
 				Name: ps.List[i].Names[j].Name,
@@ -259,4 +297,41 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 		return "", "", errors.New("invalid range format")
 	}
 	return ss[0], ss[1], nil
+}
+
+func (di *DebugInfo) convertToABI(contract []byte, cd *smartcontract.ContractDetails) ABI {
+	methods := make([]Method, 0)
+	for _, method := range di.Methods {
+		if method.Name.Name == di.EntryPoint {
+			methods = append(methods, Method{
+				Name:       method.Name.Name,
+				Parameters: method.Parameters,
+				ReturnType: cd.ReturnType.String(),
+			})
+			break
+		}
+	}
+	events := make([]Event, len(di.Events))
+	for i, event := range di.Events {
+		events[i] = Event{
+			Name:       event.Name,
+			Parameters: event.Parameters,
+		}
+	}
+	return ABI{
+		Hash: hash.Hash160(contract),
+		Metadata: Metadata{
+			Author:               cd.Author,
+			Email:                cd.Email,
+			Version:              cd.Version,
+			Title:                cd.ProjectName,
+			Description:          cd.Description,
+			HasStorage:           cd.HasStorage,
+			HasDynamicInvocation: cd.HasDynamicInvocation,
+			IsPayable:            cd.IsPayable,
+		},
+		EntryPoint: di.EntryPoint,
+		Functions:  methods,
+		Events:     events,
+	}
 }
