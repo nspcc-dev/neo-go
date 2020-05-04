@@ -1,6 +1,4 @@
-package request
-
-import "github.com/nspcc-dev/neo-go/pkg/smartcontract"
+package smartcontract
 
 // ContractDetails contains contract metadata.
 type ContractDetails struct {
@@ -12,6 +10,6 @@ type ContractDetails struct {
 	HasStorage           bool
 	HasDynamicInvocation bool
 	IsPayable            bool
-	ReturnType           smartcontract.ParamType
-	Parameters           []smartcontract.ParamType
+	ReturnType           ParamType
+	Parameters           []ParamType
 }

@@ -3,7 +3,9 @@ package compiler
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,6 +30,9 @@ func methodInt(a string) int {
 	}
 	return 3
 }
+func methodConcat(a, b string, c string) string{
+	return a + b + c
+}
 func methodString() string { return "" }
 func methodByteArray() []byte { return nil }
 func methodArray() []bool { return nil }
@@ -48,6 +53,7 @@ func methodStruct() struct{} { return struct{}{} }
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
 			"methodInt":    "Integer",
+			"methodConcat": "String",
 			"methodString": "String", "methodByteArray": "ByteArray",
 			"methodArray": "Array", "methodStruct": "Struct",
 			"Main": "Boolean",
@@ -70,12 +76,95 @@ func methodStruct() struct{} { return struct{}{} }
 		}
 	})
 
+	t.Run("param types", func(t *testing.T) {
+		paramTypes := map[string][]DebugParam{
+			"methodInt": {{
+				Name: "a",
+				Type: "String",
+			}},
+			"methodConcat": {
+				{
+					Name: "a",
+					Type: "String",
+				},
+				{
+					Name: "b",
+					Type: "String",
+				},
+				{
+					Name: "c",
+					Type: "String",
+				},
+			},
+			"Main": {{
+				Name: "op",
+				Type: "String",
+			}},
+		}
+		for i := range d.Methods {
+			v, ok := paramTypes[d.Methods[i].Name.Name]
+			if ok {
+				require.Equal(t, v, d.Methods[i].Parameters)
+			}
+		}
+	})
+
 	// basic check that last instruction of every method is indeed RET
 	for i := range d.Methods {
 		index := d.Methods[i].Range.End
 		require.True(t, int(index) < len(buf))
 		require.EqualValues(t, opcode.RET, buf[index])
 	}
+
+	t.Run("convert to ABI", func(t *testing.T) {
+		author := "Joe"
+		email := "Joe@ex.com"
+		version := "1.0"
+		title := "MyProj"
+		description := "Description"
+		actual := d.convertToABI(buf, &smartcontract.ContractDetails{
+			Author:               author,
+			Email:                email,
+			Version:              version,
+			ProjectName:          title,
+			Description:          description,
+			HasStorage:           true,
+			HasDynamicInvocation: false,
+			IsPayable:            false,
+			ReturnType:           smartcontract.BoolType,
+			Parameters: []smartcontract.ParamType{
+				smartcontract.StringType,
+			},
+		})
+		expected := ABI{
+			Hash: hash.Hash160(buf),
+			Metadata: Metadata{
+				Author:               author,
+				Email:                email,
+				Version:              version,
+				Title:                title,
+				Description:          description,
+				HasStorage:           true,
+				HasDynamicInvocation: false,
+				IsPayable:            false,
+			},
+			EntryPoint: mainIdent,
+			Functions: []Method{
+				{
+					Name: mainIdent,
+					Parameters: []DebugParam{
+						{
+							Name: "op",
+							Type: "String",
+						},
+					},
+					ReturnType: "Boolean",
+				},
+			},
+			Events: []Event{},
+		}
+		assert.Equal(t, expected, actual)
+	})
 }
 
 func TestSequencePoints(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -26,6 +27,12 @@ type Options struct {
 
 	// The name of the output for debug info.
 	DebugInfo string
+
+	// The name of the output for application binary interface info.
+	ABIInfo string
+
+	// Contract metadata.
+	ContractDetails *smartcontract.ContractDetails
 }
 
 type buildInfo struct {
@@ -105,5 +112,16 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return b, err
 	}
-	return b, ioutil.WriteFile(o.DebugInfo, data, os.ModePerm)
+	if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
+		return b, err
+	}
+	if o.ABIInfo == "" {
+		return b, err
+	}
+	abi := di.convertToABI(b, o.ContractDetails)
+	abiData, err := json.Marshal(abi)
+	if err != nil {
+		return b, err
+	}
+	return b, ioutil.WriteFile(o.ABIInfo, abiData, os.ModePerm)
 }
