@@ -112,7 +112,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Type = TXType(br.ReadB())
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
-	br.ReadBytes(t.Sender[:])
+	t.Sender.DecodeBinary(br)
 
 	t.ValidUntilBlock = br.ReadU32LE()
 	t.decodeData(br)
@@ -174,7 +174,7 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
-	bw.WriteBytes(t.Sender[:])
+	t.Sender.EncodeBinary(bw)
 	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.

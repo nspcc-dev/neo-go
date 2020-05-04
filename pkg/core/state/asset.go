@@ -37,11 +37,11 @@ func (a *Asset) DecodeBinary(br *io.BinReader) {
 	a.Available.DecodeBinary(br)
 	a.Precision = uint8(br.ReadB())
 	a.FeeMode = uint8(br.ReadB())
-	br.ReadBytes(a.FeeAddress[:])
+	a.FeeAddress.DecodeBinary(br)
 
 	a.Owner.DecodeBinary(br)
-	br.ReadBytes(a.Admin[:])
-	br.ReadBytes(a.Issuer[:])
+	a.Admin.DecodeBinary(br)
+	a.Issuer.DecodeBinary(br)
 	a.Expiration = br.ReadU32LE()
 	a.IsFrozen = br.ReadBool()
 }
@@ -55,12 +55,12 @@ func (a *Asset) EncodeBinary(bw *io.BinWriter) {
 	a.Available.EncodeBinary(bw)
 	bw.WriteB(byte(a.Precision))
 	bw.WriteB(byte(a.FeeMode))
-	bw.WriteBytes(a.FeeAddress[:])
+	a.FeeAddress.EncodeBinary(bw)
 
 	a.Owner.EncodeBinary(bw)
 
-	bw.WriteBytes(a.Admin[:])
-	bw.WriteBytes(a.Issuer[:])
+	a.Admin.EncodeBinary(bw)
+	a.Issuer.EncodeBinary(bw)
 	bw.WriteU32LE(a.Expiration)
 	bw.WriteBool(a.IsFrozen)
 }
