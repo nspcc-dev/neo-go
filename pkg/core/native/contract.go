@@ -69,7 +69,7 @@ func (cs *Contracts) GetNativeInterop(ic *interop.Context) func(uint32) *vm.Inte
 // getNativeInterop returns native contract interop.
 func getNativeInterop(ic *interop.Context, c interop.Contract) func(v *vm.VM) error {
 	return func(v *vm.VM) error {
-		h := v.GetContextScriptHash(0)
+		h := v.GetCurrentScriptHash()
 		if !h.Equals(c.Metadata().Hash) {
 			return errors.New("invalid hash")
 		}

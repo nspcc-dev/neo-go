@@ -223,9 +223,9 @@ func (c *Context) String() string {
 	return "execution context"
 }
 
-// GetContextScriptHash returns script hash of the invocation stack element
+// getContextScriptHash returns script hash of the invocation stack element
 // number n.
-func (v *VM) GetContextScriptHash(n int) util.Uint160 {
+func (v *VM) getContextScriptHash(n int) util.Uint160 {
 	element := v.Istack().Peek(n)
 	if element == nil {
 		return util.Uint160{}
@@ -238,7 +238,7 @@ func (v *VM) GetContextScriptHash(n int) util.Uint160 {
 // PushContextScriptHash pushes to evaluation stack the script hash of the
 // invocation stack element number n.
 func (v *VM) PushContextScriptHash(n int) error {
-	h := v.GetContextScriptHash(n)
+	h := v.getContextScriptHash(n)
 	v.Estack().PushVal(h.BytesBE())
 	return nil
 }

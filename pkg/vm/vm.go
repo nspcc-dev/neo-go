@@ -1537,15 +1537,15 @@ func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
 
 // GetCallingScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCallingScriptHash() util.Uint160 {
-	return v.GetContextScriptHash(1)
+	return v.getContextScriptHash(1)
 }
 
 // GetEntryScriptHash implements ScriptHashGetter interface
 func (v *VM) GetEntryScriptHash() util.Uint160 {
-	return v.GetContextScriptHash(v.Istack().Len() - 1)
+	return v.getContextScriptHash(v.Istack().Len() - 1)
 }
 
 // GetCurrentScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
-	return v.GetContextScriptHash(0)
+	return v.getContextScriptHash(0)
 }

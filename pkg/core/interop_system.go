@@ -292,7 +292,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
 	}
-	ne := state.NotificationEvent{ScriptHash: v.GetContextScriptHash(0), Item: item}
+	ne := state.NotificationEvent{ScriptHash: v.GetCurrentScriptHash(), Item: item}
 	ic.Notifications = append(ic.Notifications, ne)
 	return nil
 }
@@ -301,7 +301,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 func runtimeLog(ic *interop.Context, v *vm.VM) error {
 	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
 	ic.Log.Info("runtime log",
-		zap.Stringer("script", v.GetContextScriptHash(0)),
+		zap.Stringer("script", v.GetCurrentScriptHash()),
 		zap.String("logs", msg))
 	return nil
 }
@@ -383,7 +383,7 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 // storageGetContext returns storage context (scripthash).
 func storageGetContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
-		ScriptHash: v.GetContextScriptHash(0),
+		ScriptHash: v.GetCurrentScriptHash(),
 		ReadOnly:   false,
 	}
 	v.Estack().PushVal(vm.NewInteropItem(sc))
@@ -393,7 +393,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 // storageGetReadOnlyContext returns read-only context (scripthash).
 func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 	sc := &StorageContext{
-		ScriptHash: v.GetContextScriptHash(0),
+		ScriptHash: v.GetCurrentScriptHash(),
 		ReadOnly:   true,
 	}
 	v.Estack().PushVal(vm.NewInteropItem(sc))
@@ -475,7 +475,7 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 	if ic.Trigger != trigger.Application {
 		return errors.New("can't destroy contract when not triggered by application")
 	}
-	hash := v.GetContextScriptHash(0)
+	hash := v.GetCurrentScriptHash()
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
 		return nil
