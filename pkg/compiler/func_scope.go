@@ -42,8 +42,12 @@ type funcScope struct {
 }
 
 func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
+	var name string
+	if decl.Name != nil {
+		name = decl.Name.Name
+	}
 	return &funcScope{
-		name:      decl.Name.Name,
+		name:      name,
 		decl:      decl,
 		label:     label,
 		locals:    map[string]int{},

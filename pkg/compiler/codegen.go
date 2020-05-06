@@ -37,6 +37,9 @@ type codegen struct {
 	// A mapping of func identifiers with their scope.
 	funcs map[string]*funcScope
 
+	// A mapping of lambda functions into their scope.
+	lambda map[string]*funcScope
+
 	// Current funcScope being converted.
 	scope *funcScope
 
@@ -204,8 +207,8 @@ func (c *codegen) convertGlobals(f ast.Node) {
 
 func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	var (
-		f  *funcScope
-		ok bool
+		f            *funcScope
+		ok, isLambda bool
 	)
 
 	f, ok = c.funcs[decl.Name.Name]
@@ -214,6 +217,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 		if isSyscall(f) {
 			return
 		}
+		c.setLabel(f.label)
+	} else if f, ok = c.lambda[decl.Name.Name]; ok {
+		isLambda = ok
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
@@ -275,6 +281,13 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	}
 
 	f.rng.End = uint16(c.prog.Len() - 1)
+
+	if !isLambda {
+		for _, f := range c.lambda {
+			c.convertFuncDecl(file, f.decl)
+		}
+		c.lambda = make(map[string]*funcScope)
+	}
 }
 
 func (c *codegen) Visit(node ast.Node) ast.Visitor {
@@ -521,6 +534,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.FuncLit:
+		l := c.newLabel()
+		c.newLambda(l, n)
+		buf := make([]byte, 4)
+		binary.LittleEndian.PutUint16(buf, l)
+		emit.Instruction(c.prog.BinWriter, opcode.PUSHA, buf)
+		return nil
+
 	case *ast.BasicLit:
 		c.emitLoadConst(c.typeInfo.Types[n])
 		return nil
@@ -646,6 +667,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		var (
 			f         *funcScope
 			ok        bool
+			name      string
 			numArgs   = len(n.Args)
 			isBuiltin = isBuiltin(n.Fun)
 		)
@@ -654,8 +676,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
 			if !ok && !isBuiltin {
-				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Name)
-				return nil
+				name = fun.Name
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
@@ -700,6 +721,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Use the ident to check, builtins are not in func scopes.
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
+		case name != "":
+			// Function was not found thus is can be only an invocation of func-typed variable.
+			c.emitLoadLocal(name)
+			emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
 			c.convertSyscall(n, f.selector.Name, f.name)
 		default:
@@ -1264,6 +1289,15 @@ func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
 	return f
 }
 
+func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
+	name := fmt.Sprintf("lambda@%d", u)
+	c.lambda[name] = newFuncScope(&ast.FuncDecl{
+		Name: ast.NewIdent(name),
+		Type: lit.Type,
+		Body: lit.Body,
+	}, u)
+}
+
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Resolve the entrypoint of the program.
 	main, mainFile := resolveEntryPoint(mainIdent, pkg)
@@ -1319,6 +1353,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		prog:      io.NewBufBinWriter(),
 		l:         []int{},
 		funcs:     map[string]*funcScope{},
+		lambda:    map[string]*funcScope{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
 
@@ -1364,7 +1399,7 @@ func (c *codegen) writeJumps(b []byte) error {
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
-			opcode.CALLL:
+			opcode.CALLL, opcode.PUSHA:
 			// we can't use arg returned by ctx.Next() because it is copied
 			nextIP := ctx.NextIP()
 			arg := b[nextIP-4:]
@@ -1373,7 +1408,12 @@ func (c *codegen) writeJumps(b []byte) error {
 			if int(index) > len(c.l) {
 				return fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
 			}
-			offset := c.l[index] - nextIP + 5
+			var offset int
+			if op == opcode.PUSHA {
+				offset = c.l[index]
+			} else {
+				offset = c.l[index] - nextIP + 5
+			}
 			if offset > math.MaxInt32 || offset < math.MinInt32 {
 				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
 					nextIP-5, offset, math.MaxInt32, math.MinInt32)
