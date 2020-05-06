@@ -1049,20 +1049,30 @@ func runWithArgs(t *testing.T, prog []byte, result interface{}, args ...interfac
 	getTestFuncForVM(prog, result, args...)(t)
 }
 
-func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func(t *testing.T) {
+func getCustomTestFuncForVM(prog []byte, check func(t *testing.T, v *VM), args ...interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
 		v := load(prog)
 		for i := range args {
 			v.estack.PushVal(args[i])
 		}
-		if result == nil {
+		if check == nil {
 			checkVMFailed(t, v)
 			return
 		}
 		runVM(t, v)
-		require.Equal(t, 1, v.estack.Len())
-		require.Equal(t, makeStackItem(result), v.estack.Pop().value)
+		check(t, v)
 	}
+}
+
+func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func(t *testing.T) {
+	var f func(t *testing.T, v *VM)
+	if result != nil {
+		f = func(t *testing.T, v *VM) {
+			require.Equal(t, 1, v.estack.Len())
+			require.Equal(t, makeStackItem(result), v.estack.Pop().value)
+		}
+	}
+	return getCustomTestFuncForVM(prog, f, args...)
 }
 
 func TestNOTEQUALByteArray(t *testing.T) {
@@ -1568,29 +1578,35 @@ func TestROLLGood(t *testing.T) {
 	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
 }
 
-func TestXTUCK(t *testing.T) {
-	prog := makeProgram(opcode.XTUCK)
-	t.Run("NoItem", getTestFuncForVM(prog, nil, 1))
-	t.Run("NoN", getTestFuncForVM(prog, nil, 1, 2))
-	t.Run("Negative", getTestFuncForVM(prog, nil, -1))
-	t.Run("Zero", getTestFuncForVM(prog, nil, 1, 0))
+func getCheckEStackFunc(items ...interface{}) func(t *testing.T, v *VM) {
+	return func(t *testing.T, v *VM) {
+		require.Equal(t, len(items), v.estack.Len())
+		for i := 0; i < len(items); i++ {
+			assert.Equal(t, makeStackItem(items[i]), v.estack.Peek(i).Item())
+		}
+	}
 }
 
-func TestXTUCKgood(t *testing.T) {
-	prog := makeProgram(opcode.XTUCK)
-	topelement := 5
-	xtuckdepth := 3
-	vm := load(prog)
-	vm.estack.PushVal(0)
-	vm.estack.PushVal(1)
-	vm.estack.PushVal(2)
-	vm.estack.PushVal(3)
-	vm.estack.PushVal(4)
-	vm.estack.PushVal(topelement)
-	vm.estack.PushVal(xtuckdepth)
-	runVM(t, vm)
-	assert.Equal(t, int64(topelement), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(topelement), vm.estack.Peek(xtuckdepth).BigInt().Int64())
+func TestREVERSE3(t *testing.T) {
+	prog := makeProgram(opcode.REVERSE3)
+	t.Run("SmallStack", getTestFuncForVM(prog, nil, 1, 2))
+	t.Run("Good", getCustomTestFuncForVM(prog, getCheckEStackFunc(1, 2, 3), 1, 2, 3))
+}
+
+func TestREVERSE4(t *testing.T) {
+	prog := makeProgram(opcode.REVERSE4)
+	t.Run("SmallStack", getTestFuncForVM(prog, nil, 1, 2, 3))
+	t.Run("Good", getCustomTestFuncForVM(prog, getCheckEStackFunc(1, 2, 3, 4), 1, 2, 3, 4))
+}
+
+func TestREVERSEN(t *testing.T) {
+	prog := makeProgram(opcode.REVERSEN)
+	t.Run("NoArgument", getTestFuncForVM(prog, nil))
+	t.Run("SmallStack", getTestFuncForVM(prog, nil, 1, 2, 3))
+	t.Run("NegativeArgument", getTestFuncForVM(prog, nil, 1, 2, -1))
+	t.Run("Zero", getCustomTestFuncForVM(prog, getCheckEStackFunc(3, 2, 1), 1, 2, 3, 0))
+	t.Run("OneItem", getCustomTestFuncForVM(prog, getCheckEStackFunc(42), 42, 1))
+	t.Run("Good", getCustomTestFuncForVM(prog, getCheckEStackFunc(1, 2, 3, 4, 5), 1, 2, 3, 4, 5, 5))
 }
 
 func TestTUCKbadNoitems(t *testing.T) {
@@ -1698,6 +1714,15 @@ func TestXDROPgood(t *testing.T) {
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, int64(2), vm.estack.Peek(0).BigInt().Int64())
 	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+}
+
+func TestCLEAR(t *testing.T) {
+	prog := makeProgram(opcode.CLEAR)
+	v := load(prog)
+	v.estack.PushVal(123)
+	require.Equal(t, 1, v.estack.Len())
+	require.NoError(t, v.Run())
+	require.Equal(t, 0, v.estack.Len())
 }
 
 func TestINVERTbadNoitem(t *testing.T) {
@@ -2043,34 +2068,6 @@ func TestSWAP(t *testing.T) {
 	prog := makeProgram(opcode.SWAP)
 	t.Run("EmptyStack", getTestFuncForVM(prog, nil))
 	t.Run("SmallStack", getTestFuncForVM(prog, nil, 4))
-}
-
-func TestXSWAPGood(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	vm := load(prog)
-	vm.estack.PushVal(1)
-	vm.estack.PushVal(2)
-	vm.estack.PushVal(3)
-	vm.estack.PushVal(4)
-	vm.estack.PushVal(5)
-	vm.estack.PushVal(3)
-	runVM(t, vm)
-	assert.Equal(t, 5, vm.estack.Len())
-	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(5), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-}
-
-func TestXSWAPBad1(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	runWithArgs(t, prog, nil, 1, 2, -1)
-}
-
-func TestXSWAPBad2(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	runWithArgs(t, prog, nil, 1, 2, 3, 4, 4)
 }
 
 func TestDupInt(t *testing.T) {

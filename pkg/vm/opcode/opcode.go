@@ -65,31 +65,33 @@ const (
 	CALL      Opcode = 0x34
 	CALLL     Opcode = 0x35
 
-	// Legacy
-	OLDPUSH1 Opcode = 0x51
+	// Stack
+	DEPTH    Opcode = 0x43
+	DROP     Opcode = 0x45
+	NIP      Opcode = 0x46
+	XDROP    Opcode = 0x48
+	CLEAR    Opcode = 0x49
+	DUP      Opcode = 0x4A
+	OVER     Opcode = 0x4B
+	PICK     Opcode = 0x4D
+	TUCK     Opcode = 0x4E
+	SWAP     Opcode = 0x50
+	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
+	ROT      Opcode = 0x51
+	ROLL     Opcode = 0x52
+	REVERSE3 Opcode = 0x53
+	REVERSE4 Opcode = 0x54
+	REVERSEN Opcode = 0x55
 
 	RET      Opcode = 0x66
 	APPCALL  Opcode = 0x67
 	SYSCALL  Opcode = 0x68
 	TAILCALL Opcode = 0x69
 
-	// Stack
+	// Old stack opcodes
 	DUPFROMALTSTACK Opcode = 0x6A
 	TOALTSTACK      Opcode = 0x6B
 	FROMALTSTACK    Opcode = 0x6C
-	XDROP           Opcode = 0x6D
-	XSWAP           Opcode = 0x72
-	XTUCK           Opcode = 0x73
-	DEPTH           Opcode = 0x74
-	DROP            Opcode = 0x75
-	DUP             Opcode = 0x76
-	NIP             Opcode = 0x77
-	OVER            Opcode = 0x78
-	PICK            Opcode = 0x79
-	ROLL            Opcode = 0x7A
-	ROT             Opcode = 0x7B
-	SWAP            Opcode = 0x7C
-	TUCK            Opcode = 0x7D
 
 	// Splice
 	CAT    Opcode = 0x7E
