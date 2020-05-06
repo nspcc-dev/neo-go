@@ -860,8 +860,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 	t.Run("submit", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
-		t.Run("empty", func(t *testing.T) {
+		t.Run("invalid signature", func(t *testing.T) {
 			s := newBlock(t, chain, 1)
+			s.Script.VerificationScript[8] ^= 0xff
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
 		})
