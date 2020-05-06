@@ -261,8 +261,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	ast.Walk(c, decl.Body)
 
-	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
-	if !hasReturnStmt(decl) {
+	// If we have reached the end of the function without encountering `return` statement,
+	// we should clean alt.stack manually.
+	// This can be the case with void and named-return functions.
+	if !lastStmtIsReturn(decl) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)

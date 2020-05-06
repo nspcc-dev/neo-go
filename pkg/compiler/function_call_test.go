@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -130,5 +131,30 @@ func TestFunctionWithVoidReturn(t *testing.T) {
 	t.Run("SingleReturn", func(t *testing.T) {
 		src := fmt.Sprintf(src, "return")
 		eval(t, src, big.NewInt(6))
+	})
+}
+
+func TestFunctionWithVoidReturnBranch(t *testing.T) {
+	src := `
+		package testcase
+		func Main() int {
+			x := %t
+			f(x)
+			return 2
+		}
+
+		func f(x bool) {
+			if x {
+				return
+			}
+		}
+	`
+	t.Run("ReturnBranch", func(t *testing.T) {
+		src := fmt.Sprintf(src, true)
+		eval(t, src, big.NewInt(2))
+	})
+	t.Run("NoReturn", func(t *testing.T) {
+		src := fmt.Sprintf(src, false)
+		eval(t, src, big.NewInt(2))
 	})
 }
