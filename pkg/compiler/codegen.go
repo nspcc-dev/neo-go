@@ -263,8 +263,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	ast.Walk(c, decl.Body)
 
-	// If this function returns the void (no return stmt) we will cleanup its junk on the stack.
-	if !hasReturnStmt(decl) {
+	// If we have reached the end of the function without encountering `return` statement,
+	// we should clean alt.stack manually.
+	// This can be the case with void and named-return functions.
+	if !lastStmtIsReturn(decl) {
 		c.saveSequencePoint(decl.Body)
 		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
@@ -419,9 +421,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		c.dropItems(cnt)
 
-		// first result should be on top of the stack
-		for i := len(n.Results) - 1; i >= 0; i-- {
-			ast.Walk(c, n.Results[i])
+		if len(n.Results) == 0 {
+			results := c.scope.decl.Type.Results
+			if results.NumFields() != 0 {
+				// function with named returns
+				for i := len(results.List) - 1; i >= 0; i-- {
+					names := results.List[i].Names
+					for j := len(names) - 1; j >= 0; j-- {
+						c.emitLoadLocal(names[j].Name)
+					}
+				}
+			}
+		} else {
+			// first result should be on top of the stack
+			for i := len(n.Results) - 1; i >= 0; i-- {
+				ast.Walk(c, n.Results[i])
+			}
 		}
 
 		c.saveSequencePoint(n)
