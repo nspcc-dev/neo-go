@@ -589,25 +589,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.DUPFROMALTSTACK:
 		v.estack.Push(v.astack.Dup(0))
 
-	case opcode.DUP:
-		v.estack.Push(v.estack.Dup(0))
-
-	case opcode.SWAP:
-		err := v.estack.Swap(1, 0)
-		if err != nil {
-			panic(err.Error())
-		}
-
-	case opcode.TUCK:
-		a := v.estack.Dup(0)
-		if a == nil {
-			panic("no top-level element found")
-		}
-		if v.estack.Len() < 2 {
-			panic("can't TUCK with a one-element stack")
-		}
-		v.estack.InsertAt(a, 2)
-
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
@@ -652,16 +633,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
 
-	case opcode.XDROP:
-		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 {
-			panic("invalid length")
-		}
-		e := v.estack.RemoveAt(n)
-		if e == nil {
-			panic("bad index")
-		}
-
 	case opcode.XSWAP:
 		n := int(v.estack.Pop().BigInt().Int64())
 		err := v.estack.Swap(n, 0)
@@ -683,20 +654,33 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.InsertAt(a, n)
 
-	case opcode.ROT:
-		err := v.estack.Roll(2)
-		if err != nil {
-			panic(err.Error())
-		}
-
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
+
+	case opcode.DROP:
+		if v.estack.Len() < 1 {
+			panic("stack is too small")
+		}
+		v.estack.Pop()
 
 	case opcode.NIP:
 		elem := v.estack.RemoveAt(1)
 		if elem == nil {
 			panic("no second element found")
 		}
+
+	case opcode.XDROP:
+		n := int(v.estack.Pop().BigInt().Int64())
+		if n < 0 {
+			panic("invalid length")
+		}
+		e := v.estack.RemoveAt(n)
+		if e == nil {
+			panic("bad index")
+		}
+
+	case opcode.DUP:
+		v.estack.Push(v.estack.Dup(0))
 
 	case opcode.OVER:
 		a := v.estack.Dup(1)
@@ -716,18 +700,34 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.Push(a)
 
+	case opcode.TUCK:
+		a := v.estack.Dup(0)
+		if a == nil {
+			panic("no top-level element found")
+		}
+		if v.estack.Len() < 2 {
+			panic("can't TUCK with a one-element stack")
+		}
+		v.estack.InsertAt(a, 2)
+
+	case opcode.SWAP:
+		err := v.estack.Swap(1, 0)
+		if err != nil {
+			panic(err.Error())
+		}
+
+	case opcode.ROT:
+		err := v.estack.Roll(2)
+		if err != nil {
+			panic(err.Error())
+		}
+
 	case opcode.ROLL:
 		n := int(v.estack.Pop().BigInt().Int64())
 		err := v.estack.Roll(n)
 		if err != nil {
 			panic(err.Error())
 		}
-
-	case opcode.DROP:
-		if v.estack.Len() < 1 {
-			panic("stack is too small")
-		}
-		v.estack.Pop()
 
 	// Bit operations.
 	case opcode.INVERT:
