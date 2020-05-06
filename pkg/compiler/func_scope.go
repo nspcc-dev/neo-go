@@ -84,6 +84,11 @@ func (c *funcScope) stackSize() int64 {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
+		case *ast.FuncType:
+			num := n.Results.NumFields()
+			if num != 0 && len(n.Results.List[0].Names) != 0 {
+				size += num
+			}
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
 				size += len(n.Rhs)
