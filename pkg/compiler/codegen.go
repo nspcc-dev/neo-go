@@ -249,9 +249,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// Load the arguments in scope.
 	for _, arg := range decl.Type.Params.List {
-		name := arg.Names[0].Name // for now.
-		l := c.scope.newLocal(name)
-		c.emitStoreLocal(l)
+		for _, id := range arg.Names {
+			l := c.scope.newLocal(id.Name)
+			c.emitStoreLocal(l)
+		}
 	}
 	// Load in all the global variables in to the scope of the function.
 	// This is not necessary for syscalls.
