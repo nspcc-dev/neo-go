@@ -1,7 +1,9 @@
 package dao
 
 import (
+	"bytes"
 	"errors"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -18,6 +20,7 @@ type Cached struct {
 	unspents  map[util.Uint256]*state.UnspentCoin
 	balances  map[util.Uint160]*state.NEP5Balances
 	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
+	storage   *itemCache
 }
 
 // NewCached returns new Cached wrapping around given backing store.
@@ -27,7 +30,16 @@ func NewCached(d DAO) *Cached {
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
-	return &Cached{d.GetWrapped(), accs, ctrs, unspents, balances, transfers}
+	st := newItemCache()
+	dao := d.GetWrapped()
+	if cd, ok := dao.(*Cached); ok {
+		for h, m := range cd.storage.st {
+			for _, k := range cd.storage.keys[h] {
+				st.put(h, []byte(k), m[k].State, copyItem(&m[k].StorageItem))
+			}
+		}
+	}
+	return &Cached{dao, accs, ctrs, unspents, balances, transfers, st}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying store
@@ -140,6 +152,10 @@ func (cd *Cached) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.N
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store.
 func (cd *Cached) Persist() (int, error) {
+	if err := cd.FlushStorage(); err != nil {
+		return 0, err
+	}
+
 	lowerCache, ok := cd.DAO.(*Cached)
 	// If the lower DAO is Cached, we only need to flush the MemCached DB.
 	// This actually breaks DAO interface incapsulation, but for our current
@@ -148,6 +164,9 @@ func (cd *Cached) Persist() (int, error) {
 	if ok {
 		var simpleCache *Simple
 		for simpleCache == nil {
+			if err := lowerCache.FlushStorage(); err != nil {
+				return 0, err
+			}
 			simpleCache, ok = lowerCache.DAO.(*Simple)
 			if !ok {
 				lowerCache, ok = cd.DAO.(*Cached)
@@ -200,5 +219,137 @@ func (cd *Cached) GetWrapped() DAO {
 		cd.unspents,
 		cd.balances,
 		cd.transfers,
+		cd.storage,
 	}
+}
+
+// FlushStorage flushes storage changes to the underlying DAO.
+func (cd *Cached) FlushStorage() error {
+	if d, ok := cd.DAO.(*Cached); ok {
+		d.storage.st = cd.storage.st
+		d.storage.keys = cd.storage.keys
+		return nil
+	}
+	for h, items := range cd.storage.st {
+		for _, k := range cd.storage.keys[h] {
+			ti := items[k]
+			switch ti.State {
+			case putOp, addOp:
+				err := cd.DAO.PutStorageItem(h, []byte(k), &ti.StorageItem)
+				if err != nil {
+					return err
+				}
+			case delOp:
+				err := cd.DAO.DeleteStorageItem(h, []byte(k))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func copyItem(si *state.StorageItem) *state.StorageItem {
+	val := make([]byte, len(si.Value))
+	copy(val, si.Value)
+	return &state.StorageItem{
+		Value:   val,
+		IsConst: si.IsConst,
+	}
+}
+
+// GetStorageItem returns StorageItem if it exists in the given store.
+func (cd *Cached) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
+	ti := cd.storage.getItem(scripthash, key)
+	if ti != nil {
+		if ti.State == delOp {
+			return nil
+		}
+		return copyItem(&ti.StorageItem)
+	}
+
+	si := cd.DAO.GetStorageItem(scripthash, key)
+	if si != nil {
+		cd.storage.put(scripthash, key, getOp, si)
+		return copyItem(si)
+	}
+	return nil
+}
+
+// PutStorageItem puts given StorageItem for given script with given
+// key into the given store.
+func (cd *Cached) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
+	item := copyItem(si)
+	ti := cd.storage.getItem(scripthash, key)
+	if ti != nil {
+		if ti.State == delOp || ti.State == getOp {
+			ti.State = putOp
+		}
+		ti.StorageItem = *item
+		return nil
+	}
+
+	op := addOp
+	if it := cd.DAO.GetStorageItem(scripthash, key); it != nil {
+		op = putOp
+	}
+	cd.storage.put(scripthash, key, op, item)
+	return nil
+}
+
+// DeleteStorageItem drops storage item for the given script with the
+// given key from the store.
+func (cd *Cached) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
+	ti := cd.storage.getItem(scripthash, key)
+	if ti != nil {
+		ti.State = delOp
+		ti.Value = nil
+		return nil
+	}
+
+	it := cd.DAO.GetStorageItem(scripthash, key)
+	if it != nil {
+		cd.storage.put(scripthash, key, delOp, it)
+	}
+	return nil
+}
+
+// GetStorageItems returns all storage items for a given scripthash.
+func (cd *Cached) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
+	items, err := cd.DAO.GetStorageItems(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	cache := cd.storage.getItems(hash)
+	if len(cache) == 0 {
+		return items, nil
+	}
+
+	result := make([]StorageItemWithKey, 0, len(items))
+	for i := range items {
+		_, ok := cache[string(items[i].Key)]
+		if !ok {
+			result = append(result, items[i])
+		}
+	}
+	sort.Slice(result, func(i, j int) bool { return bytes.Compare(result[i].Key, result[j].Key) == -1 })
+
+	for _, k := range cd.storage.keys[hash] {
+		v := cache[k]
+		if v.State != delOp {
+			val := make([]byte, len(v.StorageItem.Value))
+			copy(val, v.StorageItem.Value)
+			result = append(result, StorageItemWithKey{
+				StorageItem: state.StorageItem{
+					Value:   val,
+					IsConst: v.StorageItem.IsConst,
+				},
+				Key: []byte(k),
+			})
+		}
+	}
+
+	return result, nil
 }

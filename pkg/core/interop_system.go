@@ -561,8 +561,8 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 		if err != nil {
 			return err
 		}
-		for k := range siMap {
-			_ = ic.dao.DeleteStorageItem(hash, []byte(k))
+		for i := range siMap {
+			_ = ic.dao.DeleteStorageItem(hash, siMap[i].Key)
 		}
 	}
 	return nil
