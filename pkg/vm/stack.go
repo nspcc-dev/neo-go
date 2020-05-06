@@ -353,9 +353,31 @@ func (s *Stack) Swap(n1, n2 int) error {
 	if n1 == n2 {
 		return nil
 	}
+	s.swap(n1, n2)
+	return nil
+}
+
+func (s *Stack) swap(n1, n2 int) {
 	a := s.Peek(n1)
 	b := s.Peek(n2)
 	a.value, b.value = b.value, a.value
+}
+
+// ReverseTop reverses top n items of the stack.
+func (s *Stack) ReverseTop(n int) error {
+	if n < 0 {
+		return errors.New("negative index")
+	} else if n > s.len {
+		return errors.New("too big index")
+	} else if n <= 1 {
+		return nil
+	}
+
+	for i, j := 0, n-1; i < j; {
+		s.swap(i, j)
+		i++
+		j--
+	}
 	return nil
 }
 

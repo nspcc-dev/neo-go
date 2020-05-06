@@ -732,6 +732,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(err.Error())
 		}
 
+	case opcode.REVERSE3, opcode.REVERSE4, opcode.REVERSEN:
+		n := 3
+		switch op {
+		case opcode.REVERSE4:
+			n = 4
+		case opcode.REVERSEN:
+			n = int(v.estack.Pop().BigInt().Int64())
+		}
+		if err := v.estack.ReverseTop(n); err != nil {
+			panic(err.Error())
+		}
+
 	// Bit operations.
 	case opcode.INVERT:
 		// inplace

@@ -79,9 +79,9 @@ const (
 	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
 	ROT      Opcode = 0x51
 	ROLL     Opcode = 0x52
-	// REVERSE3 Opcode = 0x53
-	// REVERSE4 Opcode = 0x54
-	// REVERSEN Opcode = 0x55
+	REVERSE3 Opcode = 0x53
+	REVERSE4 Opcode = 0x54
+	REVERSEN Opcode = 0x55
 
 	RET      Opcode = 0x66
 	APPCALL  Opcode = 0x67

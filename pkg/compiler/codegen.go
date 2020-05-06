@@ -940,13 +940,12 @@ func (c *codegen) emitReverse(num int) {
 	case 2:
 		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 	case 3:
-		emit.Int(c.prog.BinWriter, 2)
-		emit.Opcode(c.prog.BinWriter, opcode.XSWAP)
+		emit.Opcode(c.prog.BinWriter, opcode.REVERSE3)
+	case 4:
+		emit.Opcode(c.prog.BinWriter, opcode.REVERSE4)
 	default:
-		for i := 1; i < num; i++ {
-			emit.Int(c.prog.BinWriter, int64(i))
-			emit.Opcode(c.prog.BinWriter, opcode.ROLL)
-		}
+		emit.Int(c.prog.BinWriter, int64(num))
+		emit.Opcode(c.prog.BinWriter, opcode.REVERSEN)
 	}
 }
 
