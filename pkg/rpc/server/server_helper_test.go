@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFunc) {
+func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *httptest.Server) {
 	var nBlocks uint32
 
 	net := config.ModeUnitTestNet
@@ -55,9 +56,11 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, http.HandlerFu
 	server, err := network.NewServer(serverConfig, chain, logger)
 	require.NoError(t, err)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, logger)
-	handler := http.HandlerFunc(rpcServer.requestHandler)
 
-	return chain, handler
+	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
+	srv := httptest.NewServer(handler)
+
+	return chain, srv
 }
 
 type FeerStub struct{}
