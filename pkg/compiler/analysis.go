@@ -133,16 +133,13 @@ func (f funcUsage) funcUsed(name string) bool {
 	return ok
 }
 
-// hasReturnStmt looks if the given FuncDecl has a return statement.
-func hasReturnStmt(decl ast.Node) (b bool) {
-	ast.Inspect(decl, func(node ast.Node) bool {
-		if _, ok := node.(*ast.ReturnStmt); ok {
-			b = true
-			return false
-		}
-		return true
-	})
-	return
+// lastStmtIsReturn checks if last statement of the declaration was return statement..
+func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
+	if l := len(decl.Body.List); l != 0 {
+		_, ok := decl.Body.List[l-1].(*ast.ReturnStmt)
+		return ok
+	}
+	return false
 }
 
 func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
