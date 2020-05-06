@@ -105,7 +105,7 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 	// 2 round trips instead of one.
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, token.Hash, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	tx := transaction.NewInvocationTX(w.Bytes(), gas)
 	tx.Sender = from

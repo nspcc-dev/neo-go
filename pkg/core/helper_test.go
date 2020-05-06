@@ -424,7 +424,7 @@ func TestCreateBasicChain(t *testing.T) {
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
 	return transaction.NewInvocationTX(script, 0)

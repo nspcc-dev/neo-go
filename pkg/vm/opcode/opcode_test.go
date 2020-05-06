@@ -9,10 +9,10 @@ import (
 // Nothing more to test here, really.
 func TestStringer(t *testing.T) {
 	tests := map[Opcode]string{
-		ADD:        "ADD",
-		SUB:        "SUB",
-		THROWIFNOT: "THROWIFNOT",
-		0xff:       "Opcode(255)",
+		ADD:    "ADD",
+		SUB:    "SUB",
+		ASSERT: "ASSERT",
+		0xff:   "Opcode(255)",
 	}
 	for o, s := range tests {
 		assert.Equal(t, s, o.String())
