@@ -121,7 +121,14 @@ func TestFunctionWithVoidReturn(t *testing.T) {
 			return x + y
 		}
 
-		func getSomeInteger() { }
+		func getSomeInteger() { %s }
 	`
-	eval(t, src, big.NewInt(6))
+	t.Run("EmptyBody", func(t *testing.T) {
+		src := fmt.Sprintf(src, "")
+		eval(t, src, big.NewInt(6))
+	})
+	t.Run("SingleReturn", func(t *testing.T) {
+		src := fmt.Sprintf(src, "return")
+		eval(t, src, big.NewInt(6))
+	})
 }
