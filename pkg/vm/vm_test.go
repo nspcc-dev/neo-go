@@ -909,6 +909,21 @@ func TestJMPs(t *testing.T) {
 	}
 }
 
+func TestPUSHA(t *testing.T) {
+	t.Run("Negative", getTestFuncForVM(makeProgram(opcode.PUSHA, 0xFF, 0xFF, 0xFF, 0xFF), nil))
+	t.Run("TooBig", getTestFuncForVM(makeProgram(opcode.PUSHA, 10, 0, 0, 0), nil))
+	t.Run("Good", func(t *testing.T) {
+		prog := makeProgram(opcode.PUSHA, 2, 0, 0, 0)
+		runWithArgs(t, prog, NewPointerItem(2, prog))
+	})
+}
+
+func TestCALLA(t *testing.T) {
+	prog := makeProgram(opcode.CALLA, opcode.PUSH2, opcode.ADD, opcode.RET, opcode.PUSH3, opcode.RET)
+	t.Run("InvalidScript", getTestFuncForVM(prog, nil, NewPointerItem(4, []byte{1})))
+	t.Run("Good", getTestFuncForVM(prog, 5, NewPointerItem(4, prog)))
+}
+
 func TestNOT(t *testing.T) {
 	prog := makeProgram(opcode.NOT)
 	t.Run("Bool", getTestFuncForVM(prog, true, false))

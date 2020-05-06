@@ -198,6 +198,9 @@ func (v *VM) PrintOps() {
 			case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL:
 				offset := int16(binary.LittleEndian.Uint16(parameter))
 				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
+			case opcode.PUSHA:
+				offset := int32(binary.LittleEndian.Uint32(parameter))
+				desc = fmt.Sprintf("%d (%x)", offset, parameter)
 			case opcode.SYSCALL:
 				desc = fmt.Sprintf("%q", parameter)
 			default:
@@ -528,6 +531,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushVal(parameter)
+
+	case opcode.PUSHA:
+		n := int32(binary.LittleEndian.Uint32(parameter))
+		if n < 0 || int(n) > len(ctx.prog) {
+			panic(fmt.Sprintf("invalid pointer offset (%d)", n))
+		}
+		ptr := NewPointerItem(int(n), ctx.prog)
+		v.estack.PushVal(ptr)
 
 	case opcode.PUSHNULL:
 		v.estack.PushVal(NullItem{})
@@ -1133,6 +1144,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		offset := v.getJumpOffset(newCtx, parameter, 0)
 		v.jumpIf(newCtx, offset, true)
+
+	case opcode.CALLA:
+		ptr := v.estack.Pop().Item().(*PointerItem)
+		if ptr.hash != ctx.ScriptHash() {
+			panic("invalid script in pointer")
+		}
+
+		newCtx := ctx.Copy()
+		newCtx.rvcount = -1
+		v.istack.PushVal(newCtx)
+		v.jumpIf(newCtx, ptr.pos, true)
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)

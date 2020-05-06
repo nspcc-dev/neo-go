@@ -15,6 +15,7 @@ const (
 	PUSHINT128 Opcode = 0x04
 	PUSHINT256 Opcode = 0x05
 
+	PUSHA    Opcode = 0x0A
 	PUSHNULL Opcode = 0x0B
 
 	PUSHDATA1 Opcode = 0x0C
@@ -64,6 +65,7 @@ const (
 	JMPLEL    Opcode = 0x33
 	CALL      Opcode = 0x34
 	CALLL     Opcode = 0x35
+	CALLA     Opcode = 0x36
 
 	// Exceptions
 	ABORT  Opcode = 0x37
