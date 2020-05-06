@@ -66,11 +66,11 @@ const (
 	CALLL     Opcode = 0x35
 
 	// Stack
-	DEPTH Opcode = 0x43
-	DROP  Opcode = 0x45
-	NIP   Opcode = 0x46
-	XDROP Opcode = 0x48
-	// CLEAR    Opcode = 0x49
+	DEPTH    Opcode = 0x43
+	DROP     Opcode = 0x45
+	NIP      Opcode = 0x46
+	XDROP    Opcode = 0x48
+	CLEAR    Opcode = 0x49
 	DUP      Opcode = 0x4A
 	OVER     Opcode = 0x4B
 	PICK     Opcode = 0x4D

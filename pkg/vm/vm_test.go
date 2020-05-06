@@ -1700,6 +1700,15 @@ func TestXDROPgood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
 }
 
+func TestCLEAR(t *testing.T) {
+	prog := makeProgram(opcode.CLEAR)
+	v := load(prog)
+	v.estack.PushVal(123)
+	require.Equal(t, 1, v.estack.Len())
+	require.NoError(t, v.Run())
+	require.Equal(t, 0, v.estack.Len())
+}
+
 func TestINVERTbadNoitem(t *testing.T) {
 	prog := makeProgram(opcode.INVERT)
 	runWithArgs(t, prog, nil)

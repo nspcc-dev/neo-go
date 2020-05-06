@@ -679,6 +679,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("bad index")
 		}
 
+	case opcode.CLEAR:
+		v.estack.Clear()
+
 	case opcode.DUP:
 		v.estack.Push(v.estack.Dup(0))
 
