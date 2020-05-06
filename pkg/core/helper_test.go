@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -139,13 +138,6 @@ func newDumbBlock() *block.Block {
 			{Type: transaction.IssueType},
 		},
 	}
-}
-
-func getInvocationScript(data []byte, priv *keys.PrivateKey) []byte {
-	signature := priv.Sign(data)
-	buf := io.NewBufBinWriter()
-	emit.Bytes(buf.BinWriter, signature)
-	return buf.Bytes()
 }
 
 // This function generates "../rpc/testdata/testblocks.acc" file which contains data
@@ -424,7 +416,7 @@ func TestCreateBasicChain(t *testing.T) {
 func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
 	return transaction.NewInvocationTX(script, 0)

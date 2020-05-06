@@ -1298,9 +1298,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.THROW:
 		panic("THROW")
 
-	case opcode.THROWIFNOT:
+	case opcode.ABORT:
+		panic("ABORT")
+
+	case opcode.ASSERT:
 		if !v.estack.Pop().Bool() {
-			panic("THROWIFNOT")
+			panic("ASSERT failed")
 		}
 
 	default:

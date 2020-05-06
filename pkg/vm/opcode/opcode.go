@@ -65,6 +65,11 @@ const (
 	CALL      Opcode = 0x34
 	CALLL     Opcode = 0x35
 
+	// Exceptions
+	ABORT  Opcode = 0x37
+	ASSERT Opcode = 0x38
+	THROW  Opcode = 0x3A
+
 	// Stack
 	DEPTH    Opcode = 0x43
 	DROP     Opcode = 0x45
@@ -158,8 +163,4 @@ const (
 	ISNULL  Opcode = 0xD8
 	ISTYPE  Opcode = 0xD9
 	CONVERT Opcode = 0xDB
-
-	// Exceptions
-	THROW      Opcode = 0xF0
-	THROWIFNOT Opcode = 0xF1
 )
