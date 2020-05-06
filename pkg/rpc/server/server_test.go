@@ -1091,6 +1091,7 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	if expectingFail {
+		require.NotNil(t, resp.Error)
 		assert.NotEqual(t, 0, resp.Error.Code)
 		assert.NotEqual(t, "", resp.Error.Message)
 	} else {
