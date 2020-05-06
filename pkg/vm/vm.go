@@ -633,27 +633,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		s := v.estack.Pop().Bytes()
 		v.estack.PushVal(s[len(s)-l:])
 
-	case opcode.XSWAP:
-		n := int(v.estack.Pop().BigInt().Int64())
-		err := v.estack.Swap(n, 0)
-		if err != nil {
-			panic(err.Error())
-		}
-
-	case opcode.XTUCK:
-		n := int(v.estack.Pop().BigInt().Int64())
-		if n <= 0 {
-			panic("XTUCK: invalid length")
-		}
-		a := v.estack.Dup(0)
-		if a == nil {
-			panic("no top-level element found")
-		}
-		if n > v.estack.Len() {
-			panic("can't push to the position specified")
-		}
-		v.estack.InsertAt(a, n)
-
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
 

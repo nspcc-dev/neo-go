@@ -1609,31 +1609,6 @@ func TestREVERSEN(t *testing.T) {
 	t.Run("Good", getCustomTestFuncForVM(prog, getCheckEStackFunc(1, 2, 3, 4, 5), 1, 2, 3, 4, 5, 5))
 }
 
-func TestXTUCK(t *testing.T) {
-	prog := makeProgram(opcode.XTUCK)
-	t.Run("NoItem", getTestFuncForVM(prog, nil, 1))
-	t.Run("NoN", getTestFuncForVM(prog, nil, 1, 2))
-	t.Run("Negative", getTestFuncForVM(prog, nil, -1))
-	t.Run("Zero", getTestFuncForVM(prog, nil, 1, 0))
-}
-
-func TestXTUCKgood(t *testing.T) {
-	prog := makeProgram(opcode.XTUCK)
-	topelement := 5
-	xtuckdepth := 3
-	vm := load(prog)
-	vm.estack.PushVal(0)
-	vm.estack.PushVal(1)
-	vm.estack.PushVal(2)
-	vm.estack.PushVal(3)
-	vm.estack.PushVal(4)
-	vm.estack.PushVal(topelement)
-	vm.estack.PushVal(xtuckdepth)
-	runVM(t, vm)
-	assert.Equal(t, int64(topelement), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(topelement), vm.estack.Peek(xtuckdepth).BigInt().Int64())
-}
-
 func TestTUCKbadNoitems(t *testing.T) {
 	prog := makeProgram(opcode.TUCK)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
@@ -2093,34 +2068,6 @@ func TestSWAP(t *testing.T) {
 	prog := makeProgram(opcode.SWAP)
 	t.Run("EmptyStack", getTestFuncForVM(prog, nil))
 	t.Run("SmallStack", getTestFuncForVM(prog, nil, 4))
-}
-
-func TestXSWAPGood(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	vm := load(prog)
-	vm.estack.PushVal(1)
-	vm.estack.PushVal(2)
-	vm.estack.PushVal(3)
-	vm.estack.PushVal(4)
-	vm.estack.PushVal(5)
-	vm.estack.PushVal(3)
-	runVM(t, vm)
-	assert.Equal(t, 5, vm.estack.Len())
-	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(5), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-}
-
-func TestXSWAPBad1(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	runWithArgs(t, prog, nil, 1, 2, -1)
-}
-
-func TestXSWAPBad2(t *testing.T) {
-	prog := makeProgram(opcode.XSWAP)
-	runWithArgs(t, prog, nil, 1, 2, 3, 4, 4)
 }
 
 func TestDupInt(t *testing.T) {

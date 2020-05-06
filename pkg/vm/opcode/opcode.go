@@ -92,8 +92,6 @@ const (
 	DUPFROMALTSTACK Opcode = 0x6A
 	TOALTSTACK      Opcode = 0x6B
 	FROMALTSTACK    Opcode = 0x6C
-	XSWAP           Opcode = 0x72
-	XTUCK           Opcode = 0x73
 
 	// Splice
 	CAT    Opcode = 0x7E
