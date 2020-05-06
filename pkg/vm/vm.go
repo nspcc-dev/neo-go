@@ -553,10 +553,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		val := int(op) - int(opcode.PUSH1) + 1
 		v.estack.PushVal(val)
 
-	case opcode.OLDPUSH1:
-		// FIXME remove this after Issue transactions will be removed
-		v.estack.PushVal(1)
-
 	case opcode.PUSH0:
 		v.estack.PushVal([]byte{})
 
