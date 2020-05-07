@@ -63,7 +63,9 @@ var (
 	persistInterval   = 1 * time.Second
 )
 
-// Blockchain represents the blockchain.
+// Blockchain represents the blockchain. It maintans internal state representing
+// the state of the ledger that can be accessed in various ways and changed by
+// adding new blocks or headers.
 type Blockchain struct {
 	config config.ProtocolConfiguration
 
@@ -127,7 +129,8 @@ type Blockchain struct {
 type headersOpFunc func(headerList *HeaderHashList)
 
 // NewBlockchain returns a new blockchain object the will use the
-// given Store as its underlying storage.
+// given Store as its underlying storage. For it to work correctly you need
+// to spawn a goroutine for its Run method after this initialization.
 func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.Logger) (*Blockchain, error) {
 	if log == nil {
 		return nil, errors.New("empty logger")
@@ -264,7 +267,8 @@ func (bc *Blockchain) init() error {
 	return nil
 }
 
-// Run runs chain loop.
+// Run runs chain loop, it needs to be run as goroutine and executing it is
+// critical for correct Blockchain operation.
 func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
