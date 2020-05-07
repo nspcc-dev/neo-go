@@ -75,6 +75,8 @@ type VM struct {
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
 
+	static *Slot
+
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
 
@@ -557,15 +559,80 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.PushVal(result)
 
-	// Stack operations.
-	case opcode.TOALTSTACK:
-		v.astack.Push(v.estack.Pop())
+	case opcode.INITSSLOT:
+		if v.static != nil {
+			panic("already initialized")
+		}
+		if parameter[0] == 0 {
+			panic("zero argument")
+		}
+		v.static = v.newSlot(int(parameter[0]))
 
-	case opcode.FROMALTSTACK:
-		v.estack.Push(v.astack.Pop())
+	case opcode.INITSLOT:
+		if ctx.local != nil || ctx.arguments != nil {
+			panic("already initialized")
+		}
+		if parameter[0] == 0 && parameter[1] == 0 {
+			panic("zero argument")
+		}
+		if parameter[0] > 0 {
+			ctx.local = v.newSlot(int(parameter[0]))
+		}
+		if parameter[1] > 0 {
+			sz := int(parameter[1])
+			ctx.arguments = v.newSlot(sz)
+			for i := 0; i < sz; i++ {
+				ctx.arguments.Set(i, v.estack.Pop().Item())
+			}
+		}
 
-	case opcode.DUPFROMALTSTACK:
-		v.estack.Push(v.astack.Dup(0))
+	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
+		item := v.static.Get(int(op - opcode.LDSFLD0))
+		v.estack.PushVal(item)
+
+	case opcode.LDSFLD:
+		item := v.static.Get(int(parameter[0]))
+		v.estack.PushVal(item)
+
+	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
+		item := v.estack.Pop().Item()
+		v.static.Set(int(op-opcode.STSFLD0), item)
+
+	case opcode.STSFLD:
+		item := v.estack.Pop().Item()
+		v.static.Set(int(parameter[0]), item)
+
+	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
+		item := ctx.local.Get(int(op - opcode.LDLOC0))
+		v.estack.PushVal(item)
+
+	case opcode.LDLOC:
+		item := ctx.local.Get(int(parameter[0]))
+		v.estack.PushVal(item)
+
+	case opcode.STLOC0, opcode.STLOC1, opcode.STLOC2, opcode.STLOC3, opcode.STLOC4, opcode.STLOC5, opcode.STLOC6:
+		item := v.estack.Pop().Item()
+		ctx.local.Set(int(op-opcode.STLOC0), item)
+
+	case opcode.STLOC:
+		item := v.estack.Pop().Item()
+		ctx.local.Set(int(parameter[0]), item)
+
+	case opcode.LDARG0, opcode.LDARG1, opcode.LDARG2, opcode.LDARG3, opcode.LDARG4, opcode.LDARG5, opcode.LDARG6:
+		item := ctx.arguments.Get(int(op - opcode.LDARG0))
+		v.estack.PushVal(item)
+
+	case opcode.LDARG:
+		item := ctx.arguments.Get(int(parameter[0]))
+		v.estack.PushVal(item)
+
+	case opcode.STARG0, opcode.STARG1, opcode.STARG2, opcode.STARG3, opcode.STARG4, opcode.STARG5, opcode.STARG6:
+		item := v.estack.Pop().Item()
+		ctx.arguments.Set(int(op-opcode.STARG0), item)
+
+	case opcode.STARG:
+		item := v.estack.Pop().Item()
+		ctx.arguments.Set(int(parameter[0]), item)
 
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
@@ -1134,8 +1201,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
-
 		newCtx := ctx.Copy()
+		newCtx.local = nil
+		newCtx.arguments = nil
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 
@@ -1149,6 +1217,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		newCtx := ctx.Copy()
+		newCtx.local = nil
+		newCtx.arguments = nil
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 		v.jumpIf(newCtx, ptr.pos, true)

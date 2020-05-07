@@ -82,9 +82,56 @@ func _() {
 	_ = x[REVERSE3-83]
 	_ = x[REVERSE4-84]
 	_ = x[REVERSEN-85]
-	_ = x[DUPFROMALTSTACK-106]
-	_ = x[TOALTSTACK-107]
-	_ = x[FROMALTSTACK-108]
+	_ = x[INITSSLOT-86]
+	_ = x[INITSLOT-87]
+	_ = x[LDSFLD0-88]
+	_ = x[LDSFLD1-89]
+	_ = x[LDSFLD2-90]
+	_ = x[LDSFLD3-91]
+	_ = x[LDSFLD4-92]
+	_ = x[LDSFLD5-93]
+	_ = x[LDSFLD6-94]
+	_ = x[LDSFLD-95]
+	_ = x[STSFLD0-96]
+	_ = x[STSFLD1-97]
+	_ = x[STSFLD2-98]
+	_ = x[STSFLD3-99]
+	_ = x[STSFLD4-100]
+	_ = x[STSFLD5-101]
+	_ = x[STSFLD6-102]
+	_ = x[STSFLD-103]
+	_ = x[LDLOC0-104]
+	_ = x[LDLOC1-105]
+	_ = x[LDLOC2-106]
+	_ = x[LDLOC3-107]
+	_ = x[LDLOC4-108]
+	_ = x[LDLOC5-109]
+	_ = x[LDLOC6-110]
+	_ = x[LDLOC-111]
+	_ = x[STLOC0-112]
+	_ = x[STLOC1-113]
+	_ = x[STLOC2-114]
+	_ = x[STLOC3-115]
+	_ = x[STLOC4-116]
+	_ = x[STLOC5-117]
+	_ = x[STLOC6-118]
+	_ = x[STLOC-119]
+	_ = x[LDARG0-120]
+	_ = x[LDARG1-121]
+	_ = x[LDARG2-122]
+	_ = x[LDARG3-123]
+	_ = x[LDARG4-124]
+	_ = x[LDARG5-125]
+	_ = x[LDARG6-126]
+	_ = x[LDARG-127]
+	_ = x[STARG0-128]
+	_ = x[STARG1-129]
+	_ = x[STARG2-130]
+	_ = x[STARG3-131]
+	_ = x[STARG4-132]
+	_ = x[STARG5-133]
+	_ = x[STARG6-134]
+	_ = x[STARG-135]
 	_ = x[CAT-139]
 	_ = x[SUBSTR-140]
 	_ = x[LEFT-141]
@@ -143,7 +190,7 @@ func _() {
 	_ = x[CONVERT-219]
 }
 
-const _Opcode_name = "PUSHINT8PUSHINT16PUSHINT32PUSHINT64PUSHINT128PUSHINT256PUSHAPUSHNULLPUSHDATA1PUSHDATA2PUSHDATA4PUSHM1PUSH0PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMPLJMPIFJMPIFLJMPIFNOTJMPIFNOTLJMPEQJMPEQLJMPNEJMPNELJMPGTJMPGTLJMPGEJMPGELJMPLTJMPLTLJMPLEJMPLELCALLCALLLCALLAABORTASSERTTHROWRETSYSCALLDEPTHDROPNIPXDROPCLEARDUPOVERPICKTUCKSWAPOLDPUSH1ROLLREVERSE3REVERSE4REVERSENDUPFROMALTSTACKTOALTSTACKFROMALTSTACKCATSUBSTRLEFTRIGHTINVERTANDORXOREQUALNOTEQUALSIGNABSNEGATEINCDECADDSUBMULDIVMODSHLSHRNOTBOOLANDBOOLORNZNUMEQUALNUMNOTEQUALLTLTEGTGTEMINMAXWITHINPACKUNPACKNEWARRAY0NEWARRAYNEWARRAYTNEWSTRUCT0NEWSTRUCTNEWMAPSIZEHASKEYKEYSVALUESPICKITEMAPPENDSETITEMREVERSEITEMSREMOVECLEARITEMSISNULLISTYPECONVERT"
+const _Opcode_name = "PUSHINT8PUSHINT16PUSHINT32PUSHINT64PUSHINT128PUSHINT256PUSHAPUSHNULLPUSHDATA1PUSHDATA2PUSHDATA4PUSHM1PUSH0PUSH1PUSH2PUSH3PUSH4PUSH5PUSH6PUSH7PUSH8PUSH9PUSH10PUSH11PUSH12PUSH13PUSH14PUSH15PUSH16NOPJMPJMPLJMPIFJMPIFLJMPIFNOTJMPIFNOTLJMPEQJMPEQLJMPNEJMPNELJMPGTJMPGTLJMPGEJMPGELJMPLTJMPLTLJMPLEJMPLELCALLCALLLCALLAABORTASSERTTHROWRETSYSCALLDEPTHDROPNIPXDROPCLEARDUPOVERPICKTUCKSWAPOLDPUSH1ROLLREVERSE3REVERSE4REVERSENINITSSLOTINITSLOTLDSFLD0LDSFLD1LDSFLD2LDSFLD3LDSFLD4LDSFLD5LDSFLD6LDSFLDSTSFLD0STSFLD1STSFLD2STSFLD3STSFLD4STSFLD5STSFLD6STSFLDLDLOC0LDLOC1LDLOC2LDLOC3LDLOC4LDLOC5LDLOC6LDLOCSTLOC0STLOC1STLOC2STLOC3STLOC4STLOC5STLOC6STLOCLDARG0LDARG1LDARG2LDARG3LDARG4LDARG5LDARG6LDARGSTARG0STARG1STARG2STARG3STARG4STARG5STARG6STARGCATSUBSTRLEFTRIGHTINVERTANDORXOREQUALNOTEQUALSIGNABSNEGATEINCDECADDSUBMULDIVMODSHLSHRNOTBOOLANDBOOLORNZNUMEQUALNUMNOTEQUALLTLTEGTGTEMINMAXWITHINPACKUNPACKNEWARRAY0NEWARRAYNEWARRAYTNEWSTRUCT0NEWSTRUCTNEWMAPSIZEHASKEYKEYSVALUESPICKITEMAPPENDSETITEMREVERSEITEMSREMOVECLEARITEMSISNULLISTYPECONVERT"
 
 var _Opcode_map = map[Opcode]string{
 	0:   _Opcode_name[0:8],
@@ -217,65 +264,112 @@ var _Opcode_map = map[Opcode]string{
 	83:  _Opcode_name[390:398],
 	84:  _Opcode_name[398:406],
 	85:  _Opcode_name[406:414],
-	106: _Opcode_name[414:429],
-	107: _Opcode_name[429:439],
-	108: _Opcode_name[439:451],
-	139: _Opcode_name[451:454],
-	140: _Opcode_name[454:460],
-	141: _Opcode_name[460:464],
-	142: _Opcode_name[464:469],
-	144: _Opcode_name[469:475],
-	145: _Opcode_name[475:478],
-	146: _Opcode_name[478:480],
-	147: _Opcode_name[480:483],
-	151: _Opcode_name[483:488],
-	152: _Opcode_name[488:496],
-	153: _Opcode_name[496:500],
-	154: _Opcode_name[500:503],
-	155: _Opcode_name[503:509],
-	156: _Opcode_name[509:512],
-	157: _Opcode_name[512:515],
-	158: _Opcode_name[515:518],
-	159: _Opcode_name[518:521],
-	160: _Opcode_name[521:524],
-	161: _Opcode_name[524:527],
-	162: _Opcode_name[527:530],
-	168: _Opcode_name[530:533],
-	169: _Opcode_name[533:536],
-	170: _Opcode_name[536:539],
-	171: _Opcode_name[539:546],
-	172: _Opcode_name[546:552],
-	177: _Opcode_name[552:554],
-	179: _Opcode_name[554:562],
-	180: _Opcode_name[562:573],
-	181: _Opcode_name[573:575],
-	182: _Opcode_name[575:578],
-	183: _Opcode_name[578:580],
-	184: _Opcode_name[580:583],
-	185: _Opcode_name[583:586],
-	186: _Opcode_name[586:589],
-	187: _Opcode_name[589:595],
-	192: _Opcode_name[595:599],
-	193: _Opcode_name[599:605],
-	194: _Opcode_name[605:614],
-	195: _Opcode_name[614:622],
-	196: _Opcode_name[622:631],
-	197: _Opcode_name[631:641],
-	198: _Opcode_name[641:650],
-	200: _Opcode_name[650:656],
-	202: _Opcode_name[656:660],
-	203: _Opcode_name[660:666],
-	204: _Opcode_name[666:670],
-	205: _Opcode_name[670:676],
-	206: _Opcode_name[676:684],
-	207: _Opcode_name[684:690],
-	208: _Opcode_name[690:697],
-	209: _Opcode_name[697:709],
-	210: _Opcode_name[709:715],
-	211: _Opcode_name[715:725],
-	216: _Opcode_name[725:731],
-	217: _Opcode_name[731:737],
-	219: _Opcode_name[737:744],
+	86:  _Opcode_name[414:423],
+	87:  _Opcode_name[423:431],
+	88:  _Opcode_name[431:438],
+	89:  _Opcode_name[438:445],
+	90:  _Opcode_name[445:452],
+	91:  _Opcode_name[452:459],
+	92:  _Opcode_name[459:466],
+	93:  _Opcode_name[466:473],
+	94:  _Opcode_name[473:480],
+	95:  _Opcode_name[480:486],
+	96:  _Opcode_name[486:493],
+	97:  _Opcode_name[493:500],
+	98:  _Opcode_name[500:507],
+	99:  _Opcode_name[507:514],
+	100: _Opcode_name[514:521],
+	101: _Opcode_name[521:528],
+	102: _Opcode_name[528:535],
+	103: _Opcode_name[535:541],
+	104: _Opcode_name[541:547],
+	105: _Opcode_name[547:553],
+	106: _Opcode_name[553:559],
+	107: _Opcode_name[559:565],
+	108: _Opcode_name[565:571],
+	109: _Opcode_name[571:577],
+	110: _Opcode_name[577:583],
+	111: _Opcode_name[583:588],
+	112: _Opcode_name[588:594],
+	113: _Opcode_name[594:600],
+	114: _Opcode_name[600:606],
+	115: _Opcode_name[606:612],
+	116: _Opcode_name[612:618],
+	117: _Opcode_name[618:624],
+	118: _Opcode_name[624:630],
+	119: _Opcode_name[630:635],
+	120: _Opcode_name[635:641],
+	121: _Opcode_name[641:647],
+	122: _Opcode_name[647:653],
+	123: _Opcode_name[653:659],
+	124: _Opcode_name[659:665],
+	125: _Opcode_name[665:671],
+	126: _Opcode_name[671:677],
+	127: _Opcode_name[677:682],
+	128: _Opcode_name[682:688],
+	129: _Opcode_name[688:694],
+	130: _Opcode_name[694:700],
+	131: _Opcode_name[700:706],
+	132: _Opcode_name[706:712],
+	133: _Opcode_name[712:718],
+	134: _Opcode_name[718:724],
+	135: _Opcode_name[724:729],
+	139: _Opcode_name[729:732],
+	140: _Opcode_name[732:738],
+	141: _Opcode_name[738:742],
+	142: _Opcode_name[742:747],
+	144: _Opcode_name[747:753],
+	145: _Opcode_name[753:756],
+	146: _Opcode_name[756:758],
+	147: _Opcode_name[758:761],
+	151: _Opcode_name[761:766],
+	152: _Opcode_name[766:774],
+	153: _Opcode_name[774:778],
+	154: _Opcode_name[778:781],
+	155: _Opcode_name[781:787],
+	156: _Opcode_name[787:790],
+	157: _Opcode_name[790:793],
+	158: _Opcode_name[793:796],
+	159: _Opcode_name[796:799],
+	160: _Opcode_name[799:802],
+	161: _Opcode_name[802:805],
+	162: _Opcode_name[805:808],
+	168: _Opcode_name[808:811],
+	169: _Opcode_name[811:814],
+	170: _Opcode_name[814:817],
+	171: _Opcode_name[817:824],
+	172: _Opcode_name[824:830],
+	177: _Opcode_name[830:832],
+	179: _Opcode_name[832:840],
+	180: _Opcode_name[840:851],
+	181: _Opcode_name[851:853],
+	182: _Opcode_name[853:856],
+	183: _Opcode_name[856:858],
+	184: _Opcode_name[858:861],
+	185: _Opcode_name[861:864],
+	186: _Opcode_name[864:867],
+	187: _Opcode_name[867:873],
+	192: _Opcode_name[873:877],
+	193: _Opcode_name[877:883],
+	194: _Opcode_name[883:892],
+	195: _Opcode_name[892:900],
+	196: _Opcode_name[900:909],
+	197: _Opcode_name[909:919],
+	198: _Opcode_name[919:928],
+	200: _Opcode_name[928:934],
+	202: _Opcode_name[934:938],
+	203: _Opcode_name[938:944],
+	204: _Opcode_name[944:948],
+	205: _Opcode_name[948:954],
+	206: _Opcode_name[954:962],
+	207: _Opcode_name[962:968],
+	208: _Opcode_name[968:975],
+	209: _Opcode_name[975:987],
+	210: _Opcode_name[987:993],
+	211: _Opcode_name[993:1003],
+	216: _Opcode_name[1003:1009],
+	217: _Opcode_name[1009:1015],
+	219: _Opcode_name[1015:1022],
 }
 
 func (i Opcode) String() string {

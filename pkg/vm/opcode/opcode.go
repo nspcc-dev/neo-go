@@ -93,10 +93,57 @@ const (
 	REVERSE4 Opcode = 0x54
 	REVERSEN Opcode = 0x55
 
-	// Old stack opcodes
-	DUPFROMALTSTACK Opcode = 0x6A
-	TOALTSTACK      Opcode = 0x6B
-	FROMALTSTACK    Opcode = 0x6C
+	// Slots
+	INITSSLOT Opcode = 0x56
+	INITSLOT  Opcode = 0x57
+	LDSFLD0   Opcode = 0x58
+	LDSFLD1   Opcode = 0x59
+	LDSFLD2   Opcode = 0x5A
+	LDSFLD3   Opcode = 0x5B
+	LDSFLD4   Opcode = 0x5C
+	LDSFLD5   Opcode = 0x5D
+	LDSFLD6   Opcode = 0x5E
+	LDSFLD    Opcode = 0x5F
+	STSFLD0   Opcode = 0x60
+	STSFLD1   Opcode = 0x61
+	STSFLD2   Opcode = 0x62
+	STSFLD3   Opcode = 0x63
+	STSFLD4   Opcode = 0x64
+	STSFLD5   Opcode = 0x65
+	STSFLD6   Opcode = 0x66
+	STSFLD    Opcode = 0x67
+	LDLOC0    Opcode = 0x68
+	LDLOC1    Opcode = 0x69
+	LDLOC2    Opcode = 0x6A
+	LDLOC3    Opcode = 0x6B
+	LDLOC4    Opcode = 0x6C
+	LDLOC5    Opcode = 0x6D
+	LDLOC6    Opcode = 0x6E
+	LDLOC     Opcode = 0x6F
+	STLOC0    Opcode = 0x70
+	STLOC1    Opcode = 0x71
+	STLOC2    Opcode = 0x72
+	STLOC3    Opcode = 0x73
+	STLOC4    Opcode = 0x74
+	STLOC5    Opcode = 0x75
+	STLOC6    Opcode = 0x76
+	STLOC     Opcode = 0x77
+	LDARG0    Opcode = 0x78
+	LDARG1    Opcode = 0x79
+	LDARG2    Opcode = 0x7A
+	LDARG3    Opcode = 0x7B
+	LDARG4    Opcode = 0x7C
+	LDARG5    Opcode = 0x7D
+	LDARG6    Opcode = 0x7E
+	LDARG     Opcode = 0x7F
+	STARG0    Opcode = 0x80
+	STARG1    Opcode = 0x81
+	STARG2    Opcode = 0x82
+	STARG3    Opcode = 0x83
+	STARG4    Opcode = 0x84
+	STARG5    Opcode = 0x85
+	STARG6    Opcode = 0x86
+	STARG     Opcode = 0x87
 
 	// Splice
 	CAT    Opcode = 0x8B

@@ -34,6 +34,9 @@ type Context struct {
 	// Alt stack pointer.
 	astack *Stack
 
+	local     *Slot
+	arguments *Slot
+
 	// Script hash of the prog.
 	scriptHash util.Uint160
 
@@ -107,8 +110,11 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		}
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
-		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT:
+		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT,
+		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
 		numtoread = 1
+	case opcode.INITSLOT:
+		numtoread = 2
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
 		opcode.CALLL, opcode.SYSCALL, opcode.PUSHA:

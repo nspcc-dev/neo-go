@@ -115,6 +115,10 @@ type Event struct {
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {
+	if c.scope == nil {
+		// do not save globals for now
+		return
+	}
 	fset := c.buildInfo.program.Fset
 	start := fset.Position(n.Pos())
 	end := fset.Position(n.End())
@@ -143,6 +147,10 @@ func (c *codegen) emitDebugInfo() *DebugInfo {
 }
 
 func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
+	if c.scope == nil {
+		// do not save globals for now
+		return
+	}
 	typ := c.scTypeFromExpr(expr)
 	c.scope.variables = append(c.scope.variables, name+","+typ)
 }

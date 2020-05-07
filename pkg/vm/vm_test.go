@@ -370,10 +370,12 @@ func appendBigStruct(size uint16) []opcode.Opcode {
 	}
 
 	return append(prog,
+		opcode.INITSSLOT, 1,
 		opcode.PUSHINT16, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
 		opcode.PACK, opcode.NEWSTRUCT,
+		opcode.STSFLD0, opcode.LDSFLD0,
 		opcode.DUP,
-		opcode.PUSH0, opcode.NEWARRAY, opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
+		opcode.PUSH0, opcode.NEWARRAY,
 		opcode.SWAP,
 		opcode.APPEND, opcode.RET)
 }
@@ -397,17 +399,17 @@ func TestStackLimit(t *testing.T) {
 	}{
 		{opcode.PUSH2, 1},
 		{opcode.NEWARRAY, 3}, // array + 2 items
-		{opcode.TOALTSTACK, 3},
-		{opcode.DUPFROMALTSTACK, 4},
+		{opcode.STSFLD0, 3},
+		{opcode.LDSFLD0, 4},
 		{opcode.NEWSTRUCT, 6}, // all items are copied
 		{opcode.NEWMAP, 7},
 		{opcode.DUP, 8},
 		{opcode.PUSH2, 9},
-		{opcode.DUPFROMALTSTACK, 10},
+		{opcode.LDSFLD0, 10},
 		{opcode.SETITEM, 8}, // -3 items and 1 new element in map
 		{opcode.DUP, 9},
 		{opcode.PUSH2, 10},
-		{opcode.DUPFROMALTSTACK, 11},
+		{opcode.LDSFLD0, 11},
 		{opcode.SETITEM, 8}, // -3 items and no new elements in map
 		{opcode.DUP, 9},
 		{opcode.PUSH2, 10},
@@ -415,15 +417,18 @@ func TestStackLimit(t *testing.T) {
 		{opcode.DROP, 6},   // DROP map with no elements
 	}
 
-	prog := make([]opcode.Opcode, len(expected))
+	prog := make([]opcode.Opcode, len(expected)+2)
+	prog[0] = opcode.INITSSLOT
+	prog[1] = 1
 	for i := range expected {
-		prog[i] = expected[i].inst
+		prog[i+2] = expected[i].inst
 	}
 
 	vm := load(makeProgram(prog...))
+	require.NoError(t, vm.Step(), "failed to initialize static slot")
 	for i := range expected {
 		require.NoError(t, vm.Step())
-		require.Equal(t, expected[i].size, vm.refs.size)
+		require.Equal(t, expected[i].size, vm.refs.size, "i: %d", i)
 	}
 }
 
@@ -477,18 +482,18 @@ func TestPushData4BigN(t *testing.T) {
 }
 
 func getEnumeratorProg(n int, isIter bool) (prog []byte) {
-	prog = append(prog, byte(opcode.TOALTSTACK))
+	prog = []byte{byte(opcode.INITSSLOT), 1, byte(opcode.STSFLD0)}
 	for i := 0; i < n; i++ {
-		prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+		prog = append(prog, byte(opcode.LDSFLD0))
 		prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
-		prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+		prog = append(prog, byte(opcode.LDSFLD0))
 		prog = append(prog, getSyscallProg("Neo.Enumerator.Value")...)
 		if isIter {
-			prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+			prog = append(prog, byte(opcode.LDSFLD0))
 			prog = append(prog, getSyscallProg("Neo.Iterator.Key")...)
 		}
 	}
-	prog = append(prog, byte(opcode.DUPFROMALTSTACK))
+	prog = append(prog, byte(opcode.LDSFLD0))
 	prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
 
 	return
@@ -583,7 +588,6 @@ func TestIteratorConcat(t *testing.T) {
 func TestIteratorKeys(t *testing.T) {
 	prog := getSyscallProg("Neo.Iterator.Create")
 	prog = append(prog, getSyscallProg("Neo.Iterator.Keys")...)
-	prog = append(prog, byte(opcode.TOALTSTACK), byte(opcode.DUPFROMALTSTACK))
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -604,7 +608,6 @@ func TestIteratorKeys(t *testing.T) {
 func TestIteratorValues(t *testing.T) {
 	prog := getSyscallProg("Neo.Iterator.Create")
 	prog = append(prog, getSyscallProg("Neo.Iterator.Values")...)
-	prog = append(prog, byte(opcode.TOALTSTACK), byte(opcode.DUPFROMALTSTACK))
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -716,11 +719,11 @@ func TestSerializeArrayBad(t *testing.T) {
 }
 
 func TestSerializeDupInteger(t *testing.T) {
-	prog := []byte{
-		byte(opcode.PUSH0), byte(opcode.NEWARRAY),
-		byte(opcode.DUP), byte(opcode.PUSH2), byte(opcode.DUP), byte(opcode.TOALTSTACK), byte(opcode.APPEND),
-		byte(opcode.DUP), byte(opcode.FROMALTSTACK), byte(opcode.APPEND),
-	}
+	prog := makeProgram(
+		opcode.PUSH0, opcode.NEWARRAY, opcode.INITSSLOT, 1,
+		opcode.DUP, opcode.PUSH2, opcode.DUP, opcode.STSFLD0, opcode.APPEND,
+		opcode.DUP, opcode.LDSFLD0, opcode.APPEND,
+	)
 	vm := load(append(prog, getSerializeProg()...))
 
 	runVM(t, vm)
@@ -801,9 +804,10 @@ func TestSerializeInterop(t *testing.T) {
 func callNTimes(n uint16) []byte {
 	return makeProgram(
 		opcode.PUSHINT16, opcode.Opcode(n), opcode.Opcode(n>>8), // little-endian
-		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK,
+		opcode.INITSSLOT, 1,
+		opcode.STSFLD0, opcode.LDSFLD0,
 		opcode.JMPIF, 0x3, opcode.RET,
-		opcode.FROMALTSTACK, opcode.DEC,
+		opcode.LDSFLD0, opcode.DEC,
 		opcode.CALL, 0xF9) // -7 -> JMP to TOALTSTACK)
 }
 
@@ -1171,9 +1175,10 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 opcode.Opcode, appended bool) {
 	prog := makeProgram(
 		opcode.PUSH2, i1,
 		opcode.DUP, opcode.PUSH3, opcode.APPEND,
-		opcode.TOALTSTACK, opcode.DUPFROMALTSTACK, i2,
+		opcode.INITSSLOT, 1,
+		opcode.STSFLD0, opcode.LDSFLD0, i2,
 		opcode.DUP, opcode.PUSH4, opcode.APPEND,
-		opcode.FROMALTSTACK, opcode.PUSH5, opcode.APPEND)
+		opcode.LDSFLD0, opcode.PUSH5, opcode.APPEND)
 	vm := load(prog)
 	vm.Run()
 
@@ -1233,8 +1238,8 @@ func TestAPPEND(t *testing.T) {
 }
 
 func TestAPPENDCloneStruct(t *testing.T) {
-	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.NEWSTRUCT, opcode.TOALTSTACK,
-		opcode.DUPFROMALTSTACK, opcode.APPEND, opcode.FROMALTSTACK, opcode.PUSH1, opcode.APPEND)
+	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.NEWSTRUCT, opcode.INITSSLOT, 1, opcode.STSFLD0,
+		opcode.LDSFLD0, opcode.APPEND, opcode.LDSFLD0, opcode.PUSH1, opcode.APPEND)
 	arr := []StackItem{&StructItem{[]StackItem{}}}
 	runWithArgs(t, prog, NewArrayItem(arr), NewArrayItem(nil))
 }
@@ -2359,6 +2364,42 @@ func TestBitAndNumericOpcodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSLOTOpcodes(t *testing.T) {
+	t.Run("Fail", func(t *testing.T) {
+		t.Run("EmptyStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 0), nil))
+		t.Run("EmptyLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 0), nil))
+		t.Run("NotEnoughArguments", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 0, 2), nil, 1))
+		t.Run("DoubleStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 1, opcode.INITSSLOT, 1), nil))
+		t.Run("DoubleLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 1, 0, opcode.INITSLOT, 1, 0), nil))
+		t.Run("DoubleArgument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 1, opcode.INITSLOT, 0, 1), nil, 1, 2))
+		t.Run("LoadBigStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDSFLD2), nil))
+		t.Run("LoadBigLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 2, opcode.LDLOC2), nil, 1, 2))
+		t.Run("LoadBigArgument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 2, opcode.LDARG2), nil, 1, 2))
+		t.Run("StoreBigStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.STSFLD2), nil, 0))
+		t.Run("StoreBigLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 2, opcode.STLOC2), nil, 0, 1, 2))
+		t.Run("StoreBigArgument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 2, opcode.STARG2), nil, 0, 1, 2))
+	})
+
+	t.Run("Default", func(t *testing.T) {
+		t.Run("DefaultStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDSFLD1), NullItem{}))
+		t.Run("DefaultLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 0, opcode.LDLOC1), NullItem{}))
+		t.Run("DefaultArgument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 2, opcode.LDARG1), 2, 2, 1))
+	})
+
+	t.Run("Set/Get", func(t *testing.T) {
+		t.Run("FailCrossLoads", func(t *testing.T) {
+			t.Run("Static/Local", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDLOC1), nil))
+			t.Run("Static/Argument", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDARG1), nil))
+			t.Run("Local/Argument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 2, opcode.LDLOC1), nil))
+			t.Run("Argument/Local", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 0, opcode.LDARG1), nil))
+		})
+
+		t.Run("Static", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 8, opcode.STSFLD, 7, opcode.LDSFLD, 7), 42, 42))
+		t.Run("Local", getTestFuncForVM(makeProgram(opcode.INITSLOT, 8, 0, opcode.STLOC, 7, opcode.LDLOC, 7), 42, 42))
+		t.Run("Argument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 2, opcode.STARG, 1, opcode.LDARG, 1), 42, 42, 1, 2))
+	})
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {
