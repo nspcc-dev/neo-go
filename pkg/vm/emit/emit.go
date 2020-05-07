@@ -144,11 +144,8 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 // AppCall emits an appcall, if tailCall is true, tailCall opcode will be
 // emitted instead.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160, tailCall bool) {
-	op := opcode.APPCALL
-	if tailCall {
-		op = opcode.TAILCALL
-	}
-	Instruction(w, op, scriptHash.BytesBE())
+	Bytes(w, scriptHash.BytesBE())
+	Syscall(w, "System.Contract.Call")
 }
 
 // AppCallWithOperationAndArgs emits an APPCALL with the given operation and arguments.

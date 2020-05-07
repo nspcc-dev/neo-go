@@ -6,10 +6,17 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestFromAddress(t *testing.T) {
@@ -51,6 +58,14 @@ func TestFromAddress(t *testing.T) {
 	})
 }
 
+func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
+	b, err := compiler.Compile(strings.NewReader(src))
+	require.NoError(t, err)
+	v := core.SpawnVM(ic)
+	v.Load(b)
+	return v
+}
+
 func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
@@ -62,19 +77,13 @@ func TestAppCall(t *testing.T) {
 	inner, err := compiler.Compile(strings.NewReader(srcInner))
 	require.NoError(t, err)
 
-	ih := hash.Hash160(inner)
-	getScript := func(u util.Uint160) ([]byte, bool) {
-		if u.Equals(ih) {
-			return inner, true
-		}
-		return nil, false
-	}
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore()), nil, nil, nil, zaptest.NewLogger(t))
+	require.NoError(t, ic.DAO.PutContractState(&state.Contract{Script: inner}))
 
+	ih := hash.Hash160(inner)
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))
-		v := vmAndCompile(t, src)
-		v.SetScriptGetter(getScript)
-
+		v := spawnVM(t, ic, src)
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
@@ -85,9 +94,7 @@ func TestAppCall(t *testing.T) {
 		h[0] = ^h[0]
 
 		src := getAppCallScript(fmt.Sprintf("%#v", h.BytesBE()))
-		v := vmAndCompile(t, src)
-		v.SetScriptGetter(getScript)
-
+		v := spawnVM(t, ic, src)
 		require.Error(t, v.Run())
 	})
 
@@ -111,9 +118,7 @@ func TestAppCall(t *testing.T) {
 		}
 		`
 
-		v := vmAndCompile(t, src)
-		v.SetScriptGetter(getScript)
-
+		v := spawnVM(t, ic, src)
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})

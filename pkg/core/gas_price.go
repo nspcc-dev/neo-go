@@ -20,8 +20,6 @@ func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
 	}
 
 	switch op {
-	case opcode.APPCALL, opcode.TAILCALL:
-		return toFixed8(10)
 	case opcode.SYSCALL:
 		interopID := vm.GetInteropID(parameter)
 		return getSyscallPrice(v, interopID)

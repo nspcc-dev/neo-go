@@ -1413,69 +1413,6 @@ func TestSIGN(t *testing.T) {
 	t.Run("ByteArray", getTestFuncForVM(prog, 1, []byte{0, 1}))
 }
 
-func TestAppCall(t *testing.T) {
-	prog := []byte{byte(opcode.APPCALL)}
-	hash := util.Uint160{1, 2}
-	prog = append(prog, hash.BytesBE()...)
-	prog = append(prog, byte(opcode.RET))
-
-	vm := load(prog)
-	vm.SetScriptGetter(func(in util.Uint160) ([]byte, bool) {
-		if in.Equals(hash) {
-			return makeProgram(opcode.DEPTH), true
-		}
-		return nil, false
-	})
-	vm.estack.PushVal(2)
-
-	runVM(t, vm)
-	elem := vm.estack.Pop() // depth should be 1
-	assert.Equal(t, int64(1), elem.BigInt().Int64())
-}
-
-func TestAppCallDynamicBad(t *testing.T) {
-	prog := []byte{byte(opcode.APPCALL)}
-	hash := util.Uint160{}
-	prog = append(prog, hash.BytesBE()...)
-	prog = append(prog, byte(opcode.RET))
-
-	vm := load(prog)
-	vm.SetScriptGetter(func(in util.Uint160) ([]byte, bool) {
-		if in.Equals(hash) {
-			return makeProgram(opcode.DEPTH), true
-		}
-		return nil, false
-	})
-	vm.estack.PushVal(2)
-	vm.estack.PushVal(hash.BytesBE())
-
-	checkVMFailed(t, vm)
-}
-
-func TestAppCallDynamicGood(t *testing.T) {
-	prog := []byte{byte(opcode.APPCALL)}
-	zeroHash := util.Uint160{}
-	hash := util.Uint160{1, 2, 3}
-	prog = append(prog, zeroHash.BytesBE()...)
-	prog = append(prog, byte(opcode.RET))
-
-	vm := load(prog)
-	vm.SetScriptGetter(func(in util.Uint160) ([]byte, bool) {
-		if in.Equals(hash) {
-			return makeProgram(opcode.DEPTH), true
-		}
-		return nil, false
-	})
-	vm.estack.PushVal(42)
-	vm.estack.PushVal(42)
-	vm.estack.PushVal(hash.BytesBE())
-	vm.Context().hasDynamicInvoke = true
-
-	runVM(t, vm)
-	elem := vm.estack.Pop() // depth should be 2
-	assert.Equal(t, int64(2), elem.BigInt().Int64())
-}
-
 func TestSimpleCall(t *testing.T) {
 	buf := io.NewBufBinWriter()
 	w := buf.BinWriter

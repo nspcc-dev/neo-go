@@ -24,11 +24,11 @@ import (
 // up for current blockchain.
 func SpawnVM(ic *interop.Context) *vm.VM {
 	vm := vm.New()
-	bc := ic.Chain.(*Blockchain)
-	vm.SetScriptGetter(ic.GetContract)
 	vm.RegisterInteropGetter(getSystemInterop(ic))
 	vm.RegisterInteropGetter(getNeoInterop(ic))
-	vm.RegisterInteropGetter(bc.contracts.GetNativeInterop(ic))
+	if ic.Chain != nil {
+		vm.RegisterInteropGetter(ic.Chain.(*Blockchain).contracts.GetNativeInterop(ic))
+	}
 	return vm
 }
 

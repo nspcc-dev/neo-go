@@ -54,12 +54,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["caccb0e0465d87970190c90094e3fb54dbbcfa3e48683bd9a54b1fb834118d87"]`,
+			params: `["c296c0929350d051b9b40cace54db5a3eac4b730a8851e958795d44918f23c08"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("caccb0e0465d87970190c90094e3fb54dbbcfa3e48683bd9a54b1fb834118d87")
+				expectedTxHash, err := util.Uint256DecodeStringLE("c296c0929350d051b9b40cace54db5a3eac4b730a8851e958795d44918f23c08")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -647,7 +647,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
-				assert.Equal(t, "0c06717765727479676f459162ceeb248b071ec157d9e4f6fd26fdbe50", res.Script)
+				assert.Equal(t, "0c067177657274790c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52", res.Script)
 				assert.NotEqual(t, "", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
 			},

@@ -91,9 +91,6 @@ const (
 	REVERSE4 Opcode = 0x54
 	REVERSEN Opcode = 0x55
 
-	APPCALL  Opcode = 0x67
-	TAILCALL Opcode = 0x69
-
 	// Old stack opcodes
 	DUPFROMALTSTACK Opcode = 0x6A
 	TOALTSTACK      Opcode = 0x6B
