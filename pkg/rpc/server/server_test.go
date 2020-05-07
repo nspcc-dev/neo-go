@@ -48,18 +48,18 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "2077e1382aab3983aa342e68f7bbc94e69f204b9"
+const testContractHash = "a4bea0d56fad00a972135d54b381516205d78484"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["16c26d67f06770a5b0cda4b1c5ccc28d12c0197c7239a7fe30c2eb523b58f54d"]`,
+			params: `["caccb0e0465d87970190c90094e3fb54dbbcfa3e48683bd9a54b1fb834118d87"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("16c26d67f06770a5b0cda4b1c5ccc28d12c0197c7239a7fe30c2eb523b58f54d")
+				expectedTxHash, err := util.Uint256DecodeStringLE("caccb0e0465d87970190c90094e3fb54dbbcfa3e48683bd9a54b1fb834118d87")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -473,7 +473,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
 				// hash of the issueTx
-				h, _ := util.Uint256DecodeStringBE("99bd2bb2791887ddd3f64dac70ac15339956c76e7c306a1202372ff24fe30635")
+				h, _ := util.Uint256DecodeStringBE("3b76c9b726ffa9074a69441bf946c4c70b83474b3cf522ea3ba9dcd71c1a3db8")
 				amount := util.Fixed8FromInt64(1 * 8) // (endHeight - startHeight) * genAmount[0]
 				return &result.ClaimableInfo{
 					Spents: []result.Claimable{
@@ -532,7 +532,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6"]`,
+			params: `["a05ea6d90b761ec5430f29d25036fdad04efe731b6a5906f4fd1e19048dee0f2"]`,
 			result: func(e *executor) interface{} {
 				h := 1
 				return &h
@@ -744,7 +744,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["80000b00000075a94799633ed955dd85a8af314a5b435ab51903b0040000000001e53e6c239e3d8441f623ea7b48cdea60c6ae0426a8bac04296002babfeafe5a4010001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d0030d3dec386230075a94799633ed955dd85a8af314a5b435ab5190301420c408378eb6bdba1f14540cf2920a4d49c52327f617dc861a21d1c085346aaae2abd410e28dc6a03471a78e71246696a591b9677a71144dfba557d1c781c8c97e350290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"]`,
+			params: `["80000b000000316e851039019d39dfc2c37d6c3fee19fd580987b0040000000001241a237db30af3b33d29518288e0c9b542475733f78f4c6d7416cba89c1f1a67010001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d0030d3dec3862300316e851039019d39dfc2c37d6c3fee19fd58098701420c40c3c3fedb73e36a8e78bae80ba07c20b34f5af6bba36dccbe0cdc7d4e1237f85eec36e63cb762e1e6ce031a6c752e1ce19a3994d15191a6b75f1a02ede7f9d117290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v

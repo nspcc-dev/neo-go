@@ -70,6 +70,9 @@ const (
 	ASSERT Opcode = 0x38
 	THROW  Opcode = 0x3A
 
+	RET     Opcode = 0x40
+	SYSCALL Opcode = 0x41
+
 	// Stack
 	DEPTH    Opcode = 0x43
 	DROP     Opcode = 0x45
@@ -88,9 +91,7 @@ const (
 	REVERSE4 Opcode = 0x54
 	REVERSEN Opcode = 0x55
 
-	RET      Opcode = 0x66
 	APPCALL  Opcode = 0x67
-	SYSCALL  Opcode = 0x68
 	TAILCALL Opcode = 0x69
 
 	// Old stack opcodes
