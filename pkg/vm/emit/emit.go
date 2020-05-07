@@ -141,9 +141,8 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	Instruction(w, op, buf)
 }
 
-// AppCall emits an appcall, if tailCall is true, tailCall opcode will be
-// emitted instead.
-func AppCall(w *io.BinWriter, scriptHash util.Uint160, tailCall bool) {
+// AppCall emits call to provided contract.
+func AppCall(w *io.BinWriter, scriptHash util.Uint160) {
 	Bytes(w, scriptHash.BytesBE())
 	Syscall(w, "System.Contract.Call")
 }
@@ -152,21 +151,21 @@ func AppCall(w *io.BinWriter, scriptHash util.Uint160, tailCall bool) {
 func AppCallWithOperationAndArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, args ...interface{}) {
 	Array(w, args...)
 	String(w, operation)
-	AppCall(w, scriptHash, false)
+	AppCall(w, scriptHash)
 }
 
 // AppCallWithOperationAndData emits an appcall with the given operation and data.
 func AppCallWithOperationAndData(w *io.BinWriter, scriptHash util.Uint160, operation string, data []byte) {
 	Bytes(w, data)
 	String(w, operation)
-	AppCall(w, scriptHash, false)
+	AppCall(w, scriptHash)
 }
 
 // AppCallWithOperation emits an appcall with the given operation.
 func AppCallWithOperation(w *io.BinWriter, scriptHash util.Uint160, operation string) {
 	Bool(w, false)
 	String(w, operation)
-	AppCall(w, scriptHash, false)
+	AppCall(w, scriptHash)
 }
 
 func isInstructionJmp(op opcode.Opcode) bool {

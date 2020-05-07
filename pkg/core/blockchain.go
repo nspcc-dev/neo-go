@@ -1616,7 +1616,7 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 
 	if len(verification) == 0 {
 		bb := io.NewBufBinWriter()
-		emit.AppCall(bb.BinWriter, hash, false)
+		emit.AppCall(bb.BinWriter, hash)
 		verification = bb.Bytes()
 	} else if h := witness.ScriptHash(); hash != h {
 		return nil, errors.New("witness hash mismatch")

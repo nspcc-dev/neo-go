@@ -210,7 +210,7 @@ func CreateFunctionInvocationScript(contract util.Uint160, params Params) ([]byt
 		}
 	}
 
-	emit.AppCall(script.BinWriter, contract, false)
+	emit.AppCall(script.BinWriter, contract)
 	return script.Bytes(), nil
 }
 
@@ -224,6 +224,6 @@ func CreateInvocationScript(contract util.Uint160, funcParams []Param) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	emit.AppCall(script.BinWriter, contract, false)
+	emit.AppCall(script.BinWriter, contract)
 	return script.Bytes(), nil
 }
