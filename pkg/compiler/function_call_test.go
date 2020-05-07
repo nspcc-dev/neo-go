@@ -158,3 +158,14 @@ func TestFunctionWithVoidReturnBranch(t *testing.T) {
 		eval(t, src, big.NewInt(2))
 	})
 }
+
+func TestFunctionWithMultipleArgumentNames(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		return add(1, 2)
+	}
+	func add(a, b int) int {
+		return a + b
+	}`
+	eval(t, src, big.NewInt(3))
+}
