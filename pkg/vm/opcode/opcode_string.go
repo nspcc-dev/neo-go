@@ -85,10 +85,10 @@ func _() {
 	_ = x[DUPFROMALTSTACK-106]
 	_ = x[TOALTSTACK-107]
 	_ = x[FROMALTSTACK-108]
-	_ = x[CAT-126]
-	_ = x[SUBSTR-127]
-	_ = x[LEFT-128]
-	_ = x[RIGHT-129]
+	_ = x[CAT-139]
+	_ = x[SUBSTR-140]
+	_ = x[LEFT-141]
+	_ = x[RIGHT-142]
 	_ = x[INVERT-144]
 	_ = x[AND-145]
 	_ = x[OR-146]
@@ -220,10 +220,10 @@ var _Opcode_map = map[Opcode]string{
 	106: _Opcode_name[414:429],
 	107: _Opcode_name[429:439],
 	108: _Opcode_name[439:451],
-	126: _Opcode_name[451:454],
-	127: _Opcode_name[454:460],
-	128: _Opcode_name[460:464],
-	129: _Opcode_name[464:469],
+	139: _Opcode_name[451:454],
+	140: _Opcode_name[454:460],
+	141: _Opcode_name[460:464],
+	142: _Opcode_name[464:469],
 	144: _Opcode_name[469:475],
 	145: _Opcode_name[475:478],
 	146: _Opcode_name[478:480],

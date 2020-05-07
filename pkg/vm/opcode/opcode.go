@@ -99,10 +99,10 @@ const (
 	FROMALTSTACK    Opcode = 0x6C
 
 	// Splice
-	CAT    Opcode = 0x7E
-	SUBSTR Opcode = 0x7F
-	LEFT   Opcode = 0x80
-	RIGHT  Opcode = 0x81
+	CAT    Opcode = 0x8B
+	SUBSTR Opcode = 0x8C
+	LEFT   Opcode = 0x8D
+	RIGHT  Opcode = 0x8E
 
 	// Bitwise logic
 	INVERT   Opcode = 0x90
