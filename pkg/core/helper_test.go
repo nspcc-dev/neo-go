@@ -59,6 +59,9 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	witness := transaction.Witness{
 		VerificationScript: valScript,
 	}
+	if len(txs) == 0 {
+		txs = []*transaction.Transaction{newMinerTX()}
+	}
 	b := &block.Block{
 		Base: block.Base{
 			Version:       0,
@@ -71,7 +74,10 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		},
 		Transactions: txs,
 	}
-	_ = b.RebuildMerkleRoot()
+	err := b.RebuildMerkleRoot()
+	if err != nil {
+		panic(err)
+	}
 
 	invScript := make([]byte, 0)
 	for _, wif := range privNetKeys {
