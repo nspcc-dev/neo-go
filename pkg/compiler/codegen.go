@@ -410,6 +410,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					if !multiRet {
 						c.registerDebugVariable(t.Name, n.Rhs[i])
 					}
+					if t.Name != "_" {
+						c.scope.newLocal(t.Name)
+					}
 					fallthrough
 				default:
 					if i == 0 || !multiRet {
