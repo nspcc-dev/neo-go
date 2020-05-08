@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -467,6 +468,39 @@ func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
 		stc = stx
 	}
 	v.Estack().PushVal(vm.NewInteropItem(stc))
+	return nil
+}
+
+// contractCall calls a contract.
+func contractCall(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	method := v.Estack().Pop().Item()
+	args := v.Estack().Pop().Item()
+	return contractCallExInternal(ic, v, h, method, args, smartcontract.All)
+}
+
+// contractCallEx calls a contract with flags.
+func contractCallEx(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	method := v.Estack().Pop().Item()
+	args := v.Estack().Pop().Item()
+	flags := smartcontract.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
+	return contractCallExInternal(ic, v, h, method, args, flags)
+}
+
+func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method vm.StackItem, args vm.StackItem, _ smartcontract.CallFlag) error {
+	u, err := util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return errors.New("invalid contract hash")
+	}
+	script, _ := ic.GetContract(u)
+	if script == nil {
+		return errors.New("contract not found")
+	}
+	// TODO perform flags checking after #923
+	v.LoadScript(script)
+	v.Estack().PushVal(args)
+	v.Estack().PushVal(method)
 	return nil
 }
 

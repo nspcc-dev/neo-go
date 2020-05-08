@@ -1081,16 +1081,12 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "SHA256":
 		emit.Syscall(c.prog.BinWriter, "Neo.Crypto.SHA256")
 	case "AppCall":
-		numArgs := len(expr.Args) - 1
-		c.emitReverse(numArgs)
-
-		emit.Opcode(c.prog.BinWriter, opcode.APPCALL)
+		c.emitReverse(len(expr.Args))
 		buf := c.getByteArray(expr.Args[0])
 		if len(buf) != 20 {
 			c.prog.Err = errors.New("invalid script hash")
 		}
-
-		c.prog.WriteBytes(buf)
+		emit.Syscall(c.prog.BinWriter, "System.Contract.Call")
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
@@ -1112,16 +1108,14 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 // transformArgs returns a list of function arguments
 // which should be put on stack.
 // There are special cases for builtins:
-// 1. When using AppCall, script hash is a part of the instruction so
-//    it should be emitted after APPCALL.
-// 2. With FromAddress, parameter conversion is happening at compile-time
+// 1. With FromAddress, parameter conversion is happening at compile-time
 //    so there is no need to push parameters on stack and perform an actual call
-// 3. With panic, generated code depends on if argument was nil or a string so
+// 2. With panic, generated code depends on if argument was nil or a string so
 //    it should be handled accordingly.
 func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:
-		if f.Sel.Name == "AppCall" || f.Sel.Name == "FromAddress" {
+		if f.Sel.Name == "FromAddress" {
 			return args[1:]
 		}
 	case *ast.Ident:

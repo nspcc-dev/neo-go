@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -84,6 +85,9 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	tn := newTestNative()
 	chain.registerNative(tn)
+
+	err := chain.dao.PutContractState(&state.Contract{Script: tn.meta.Script})
+	require.NoError(t, err)
 
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))

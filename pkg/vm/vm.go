@@ -71,9 +71,6 @@ type VM struct {
 	// callback to get interop price
 	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
 
-	// callback to get scripts.
-	getScript func(util.Uint160) ([]byte, bool)
-
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
@@ -95,7 +92,6 @@ type VM struct {
 func New() *VM {
 	vm := &VM{
 		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
-		getScript:  nil,
 		state:      haltState,
 		istack:     NewStack("invocation"),
 
@@ -204,8 +200,6 @@ func (v *VM) PrintOps() {
 				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
 			case opcode.SYSCALL:
 				desc = fmt.Sprintf("%q", parameter)
-			case opcode.APPCALL, opcode.TAILCALL:
-				desc = fmt.Sprintf("%x", parameter)
 			default:
 				if utf8.Valid(parameter) {
 					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
@@ -477,11 +471,6 @@ func (v *VM) SetCheckedHash(h []byte) {
 	copy(v.checkhash, h)
 }
 
-// SetScriptGetter sets the script getter for CALL instructions.
-func (v *VM) SetScriptGetter(gs func(util.Uint160) ([]byte, bool)) {
-	v.getScript = gs
-}
-
 // GetInteropID converts instruction parameter to an interop ID.
 func GetInteropID(parameter []byte) uint32 {
 	return binary.LittleEndian.Uint32(parameter)
@@ -517,25 +506,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.gasConsumed += v.getPrice(v, op, parameter)
 		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
 			panic("gas limit is exceeded")
-		}
-	}
-
-	switch op {
-	case opcode.APPCALL, opcode.TAILCALL:
-		isZero := true
-		for i := range parameter {
-			if parameter[i] != 0 {
-				isZero = false
-				break
-			}
-		}
-		if !isZero {
-			break
-		}
-
-		parameter = v.estack.Pop().Bytes()
-		if !ctx.hasDynamicInvoke {
-			panic("contract is not allowed to make dynamic invocations")
 		}
 	}
 
@@ -1174,31 +1144,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if err := ifunc.Func(v); err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
-
-	case opcode.APPCALL, opcode.TAILCALL:
-		if v.getScript == nil {
-			panic("no getScript callback is set up")
-		}
-
-		if op == opcode.APPCALL {
-			v.checkInvocationStackSize()
-		}
-
-		hash, err := util.Uint160DecodeBytesBE(parameter)
-		if err != nil {
-			panic(err)
-		}
-
-		script, hasDynamicInvoke := v.getScript(hash)
-		if script == nil {
-			panic("could not find script")
-		}
-
-		if op == opcode.TAILCALL {
-			_ = v.istack.Pop()
-		}
-
-		v.loadScriptWithHash(script, hash, hasDynamicInvoke)
 
 	case opcode.RET:
 		oldCtx := v.istack.Pop().Value().(*Context)

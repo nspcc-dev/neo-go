@@ -84,6 +84,16 @@ type ContractMD struct {
 	Methods     map[string]MethodAndPrice
 }
 
+// GetContract returns script of the contract with the specified hash.
+func (ic *Context) GetContract(h util.Uint160) ([]byte, bool) {
+	cs, err := ic.DAO.GetContractState(h)
+	if err != nil {
+		return nil, false
+	}
+	hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
+	return cs.Script, hasDynamicInvoke
+}
+
 // NewContractMD returns Contract with the specified list of methods.
 func NewContractMD(name string) *ContractMD {
 	c := &ContractMD{

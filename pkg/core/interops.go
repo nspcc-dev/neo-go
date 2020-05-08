@@ -16,8 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -26,22 +24,11 @@ import (
 // up for current blockchain.
 func SpawnVM(ic *interop.Context) *vm.VM {
 	vm := vm.New()
-	bc := ic.Chain.(*Blockchain)
-	vm.SetScriptGetter(func(hash util.Uint160) ([]byte, bool) {
-		if c := bc.contracts.ByHash(hash); c != nil {
-			meta := c.Metadata()
-			return meta.Script, (meta.Manifest.Features&smartcontract.HasDynamicInvoke != 0)
-		}
-		cs, err := ic.DAO.GetContractState(hash)
-		if err != nil {
-			return nil, false
-		}
-		hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
-		return cs.Script, hasDynamicInvoke
-	})
 	vm.RegisterInteropGetter(getSystemInterop(ic))
 	vm.RegisterInteropGetter(getNeoInterop(ic))
-	vm.RegisterInteropGetter(bc.contracts.GetNativeInterop(ic))
+	if ic.Chain != nil {
+		vm.RegisterInteropGetter(ic.Chain.(*Blockchain).contracts.GetNativeInterop(ic))
+	}
 	return vm
 }
 
@@ -84,6 +71,8 @@ var systemInterops = []interop.Function{
 	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
 	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 200},
 	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
+	{Name: "System.Contract.Call", Func: contractCall, Price: 1},
+	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1},
 	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1},
 	{Name: "System.Contract.GetStorageContext", Func: contractGetStorageContext, Price: 1},
 	{Name: "System.ExecutionEngine.GetCallingScriptHash", Func: engineGetCallingScriptHash, Price: 1},

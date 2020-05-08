@@ -113,8 +113,6 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
 		opcode.CALLL, opcode.SYSCALL:
 		numtoread = 4
-	case opcode.APPCALL, opcode.TAILCALL:
-		numtoread = 20
 	default:
 		if instr <= opcode.PUSHINT256 {
 			numtoread = 1 << instr
