@@ -8,7 +8,7 @@ import (
 )
 
 func TestSlot_Get(t *testing.T) {
-	s := newSlot(3)
+	s := newSlot(3, newRefCounter())
 	require.NotNil(t, s)
 	require.Equal(t, 3, s.Size())
 
