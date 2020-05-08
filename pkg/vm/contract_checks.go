@@ -36,65 +36,65 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 // IsMultiSigContract checks whether the passed script is a multi-signature
 // contract.
 func IsMultiSigContract(script []byte) bool {
-	_, ok := ParseMultiSigContract(script)
+	_, _, ok := ParseMultiSigContract(script)
 	return ok
 }
 
-// ParseMultiSigContract returns list of public keys from the verification
-// script of the contract.
-func ParseMultiSigContract(script []byte) ([][]byte, bool) {
+// ParseMultiSigContract returns number of signatures and list of public keys
+// from the verification script of the contract.
+func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 	var nsigs, nkeys int
 
 	ctx := NewContext(script)
 	instr, param, err := ctx.Next()
 	if err != nil {
-		return nil, false
+		return nsigs, nil, false
 	}
 	nsigs, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return nil, false
+		return nsigs, nil, false
 	}
 	var pubs [][]byte
 	for {
 		instr, param, err = ctx.Next()
 		if err != nil {
-			return nil, false
+			return nsigs, nil, false
 		}
 		if instr != opcode.PUSHDATA1 {
 			break
 		}
 		if len(param) < 33 {
-			return nil, false
+			return nsigs, nil, false
 		}
 		pubs = append(pubs, param)
 		nkeys++
 		if nkeys > MaxArraySize {
-			return nil, false
+			return nsigs, nil, false
 		}
 	}
 	if nkeys < nsigs {
-		return nil, false
+		return nsigs, nil, false
 	}
 	nkeys2, ok := getNumOfThingsFromInstr(instr, param)
 	if !ok {
-		return nil, false
+		return nsigs, nil, false
 	}
 	if nkeys2 != nkeys {
-		return nil, false
+		return nsigs, nil, false
 	}
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.PUSHNULL {
-		return nil, false
+		return nsigs, nil, false
 	}
 	instr, param, err = ctx.Next()
 	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != multisigInteropID {
-		return nil, false
+		return nsigs, nil, false
 	}
 	instr, _, err = ctx.Next()
 	if err != nil || instr != opcode.RET || ctx.ip != len(script) {
-		return nil, false
+		return nsigs, nil, false
 	}
-	return pubs, true
+	return nsigs, pubs, true
 }
 
 // IsSignatureContract checks whether the passed script is a signature check

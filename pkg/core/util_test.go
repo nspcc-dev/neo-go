@@ -20,7 +20,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	// have been changed. Consequently, hash of the genesis block has been changed.
 	// Update expected genesis block hash for better times.
 	// Old hash is "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"
-	expect := "56bb42c251ea2b216c5ee8306e94fe040613bc626a3813aa32fe07e7607b3a1a"
+	expect := "1d4156d233220b893797a684fbb827bb2163b5042edd10653bbc1b2769adbb8d"
 	assert.Equal(t, expect, block.Hash().StringLE())
 }
 
@@ -47,7 +47,7 @@ func TestUtilityTokenTX(t *testing.T) {
 	//TODO: After we added Nonce field to transaction.Transaction, UtilityTockenTx hash
 	// has been changed. Update it for better times.
 	// Old hash is "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-	expect := "8ef63ccd6f4ea20a93e7f4e84b2d43f778077612b241d617e42e1750cca4f2c5"
+	expect := "f882fb865bab84b99623f21eedd902286af7da8d8a4609d7acefce04c851dc1c"
 	assert.Equal(t, expect, UtilityTokenID().StringLE())
 }
 
@@ -55,6 +55,6 @@ func TestGoverningTokenTX(t *testing.T) {
 	//TODO: After we added Nonce field to transaction.Transaction, GoveringTockenTx hash
 	// has been changed. Update it for better times.
 	// Old hash is "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
-	expect := "7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc"
+	expect := "1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78"
 	assert.Equal(t, expect, GoverningTokenID().StringLE())
 }

@@ -38,6 +38,12 @@ type Transaction struct {
 	// Address signed the transaction.
 	Sender util.Uint160
 
+	// Fee to be burned.
+	SystemFee util.Fixed8
+
+	// Fee to be distributed to consensus nodes.
+	NetworkFee util.Fixed8
+
 	// Maximum blockchain height exceeding which
 	// transaction should fail verification.
 	ValidUntilBlock uint32
@@ -119,7 +125,20 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.Version = uint8(br.ReadB())
 	t.Nonce = br.ReadU32LE()
 	t.Sender.DecodeBinary(br)
-
+	t.SystemFee.DecodeBinary(br)
+	if t.SystemFee < 0 {
+		br.Err = errors.New("negative system fee")
+		return
+	}
+	t.NetworkFee.DecodeBinary(br)
+	if t.NetworkFee < 0 {
+		br.Err = errors.New("negative network fee")
+		return
+	}
+	if t.NetworkFee+t.SystemFee < t.SystemFee {
+		br.Err = errors.New("too big fees: int 64 overflow")
+		return
+	}
 	t.ValidUntilBlock = br.ReadU32LE()
 	t.decodeData(br)
 
@@ -192,6 +211,8 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
 	t.Sender.EncodeBinary(bw)
+	t.SystemFee.EncodeBinary(bw)
+	t.NetworkFee.EncodeBinary(bw)
 	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.
@@ -268,6 +289,12 @@ func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	return tx, nil
 }
 
+// FeePerByte returns NetworkFee of the transaction divided by
+// its size
+func (t *Transaction) FeePerByte() util.Fixed8 {
+	return util.Fixed8(int64(t.NetworkFee) / int64(io.GetVarSize(t)))
+}
+
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
@@ -277,6 +304,8 @@ type transactionJSON struct {
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`
 	Sender          string       `json:"sender"`
+	SystemFee       util.Fixed8  `json:"sys_fee"`
+	NetworkFee      util.Fixed8  `json:"net_fee"`
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`
@@ -305,6 +334,8 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Inputs:          t.Inputs,
 		Outputs:         t.Outputs,
 		Scripts:         t.Scripts,
+		SystemFee:       t.SystemFee,
+		NetworkFee:      t.NetworkFee,
 	}
 	switch t.Type {
 	case ClaimType:
@@ -341,6 +372,8 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Inputs = tx.Inputs
 	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts
+	t.SystemFee = tx.SystemFee
+	t.NetworkFee = tx.NetworkFee
 	sender, err := address.StringToUint160(tx.Sender)
 	if err != nil {
 		return errors.New("cannot unmarshal tx: bad sender")

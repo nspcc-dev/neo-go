@@ -13,25 +13,15 @@ import (
 
 type FeerStub struct {
 	lowPriority bool
-	sysFee      util.Fixed8
-	netFee      util.Fixed8
-	perByteFee  util.Fixed8
-}
-
-func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
-	return fs.netFee
+	feePerByte  util.Fixed8
 }
 
 func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
 	return fs.lowPriority
 }
 
-func (fs *FeerStub) FeePerByte(*transaction.Transaction) util.Fixed8 {
-	return fs.perByteFee
-}
-
-func (fs *FeerStub) SystemFee(*transaction.Transaction) util.Fixed8 {
-	return fs.sysFee
+func (fs *FeerStub) FeePerByte() util.Fixed8 {
+	return fs.feePerByte
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
@@ -235,18 +225,27 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
 	// Fees are also prioritized.
-	fs.netFee = util.Fixed8FromFloat(0.0001)
 	for i := 0; i < mempoolSize-1; i++ {
 		tx := transaction.NewContractTX()
+		tx.Attributes = append(tx.Attributes, transaction.Attribute{
+			Usage: transaction.Hash1,
+			Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
+		})
+		tx.NetworkFee = util.Fixed8FromFloat(0.0001)
 		tx.Nonce = txcnt
 		txcnt++
+		// size is 84, networkFee is 0.0001 => feePerByte is 0.00000119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
 	// Less prioritized txes are not allowed anymore.
-	fs.netFee = util.Fixed8FromFloat(0.00001)
 	tx := transaction.NewContractTX()
+	tx.Attributes = append(tx.Attributes, transaction.Attribute{
+		Usage: transaction.Hash1,
+		Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
+	})
+	tx.NetworkFee = util.Fixed8FromFloat(0.00001)
 	tx.Nonce = txcnt
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
@@ -257,10 +256,12 @@ func TestOverCapacity(t *testing.T) {
 	require.True(t, mp.ContainsKey(claim.Hash()))
 
 	// Low net fee, but higher per-byte fee is still a better combination.
-	fs.perByteFee = util.Fixed8FromFloat(0.001)
 	tx = transaction.NewContractTX()
 	tx.Nonce = txcnt
+	tx.NetworkFee = util.Fixed8FromFloat(0.00007)
 	txcnt++
+	// size is 51 (no attributes), networkFee is 0.00007 (<0.0001)
+	// => feePerByte is 0.00000137 (>0.00000119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))

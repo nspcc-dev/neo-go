@@ -1,8 +1,6 @@
 package result
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -14,19 +12,6 @@ import (
 )
 
 type (
-	// Tx wrapper used for the representation of
-	// transaction on the RPC Server.
-	Tx struct {
-		*transaction.Transaction
-		Fees
-	}
-
-	// Fees is an auxilliary struct for proper Tx marshaling.
-	Fees struct {
-		SysFee util.Fixed8 `json:"sys_fee"`
-		NetFee util.Fixed8 `json:"net_fee"`
-	}
-
 	// ConsensusData is a wrapper for block.ConsensusData
 	ConsensusData struct {
 		PrimaryIndex uint32 `json:"primary"`
@@ -51,7 +36,7 @@ type (
 
 		Script transaction.Witness `json:"script"`
 
-		Tx []Tx `json:"tx"`
+		Tx []*transaction.Transaction `json:"tx"`
 	}
 )
 
@@ -74,7 +59,7 @@ func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 
 		Script: b.Script,
 
-		Tx: make([]Tx, 0, len(b.Transactions)),
+		Tx: b.Transactions,
 	}
 
 	hash := chain.GetHeaderHash(int(b.Index) + 1)
@@ -82,60 +67,5 @@ func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 		res.NextBlockHash = &hash
 	}
 
-	for i := range b.Transactions {
-		res.Tx = append(res.Tx, Tx{
-			Transaction: b.Transactions[i],
-			Fees: Fees{
-				SysFee: chain.SystemFee(b.Transactions[i]),
-				NetFee: chain.NetworkFee(b.Transactions[i]),
-			},
-		})
-	}
-
 	return res
-}
-
-// MarshalJSON implements json.Marshaler interface.
-func (t Tx) MarshalJSON() ([]byte, error) {
-	output, err := json.Marshal(&Fees{
-		SysFee: t.SysFee,
-		NetFee: t.NetFee,
-	})
-	if err != nil {
-		return nil, err
-	}
-	txBytes, err := json.Marshal(t.Transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	// We have to keep both transaction.Transaction and tx at the same level in json in order to match C# API,
-	// so there's no way to marshall Tx correctly with standard json.Marshaller tool.
-	if output[len(output)-1] != '}' || txBytes[0] != '{' {
-		return nil, errors.New("can't merge internal jsons")
-	}
-	output[len(output)-1] = ','
-	output = append(output, txBytes[1:]...)
-	return output, nil
-}
-
-// UnmarshalJSON implements json.Marshaler interface.
-func (t *Tx) UnmarshalJSON(data []byte) error {
-	// As transaction.Transaction and tx are at the same level in json, do unmarshalling
-	// separately for both structs.
-	output := new(Fees)
-	err := json.Unmarshal(data, output)
-	if err != nil {
-		return err
-	}
-	t.SysFee = output.SysFee
-	t.NetFee = output.NetFee
-
-	transaction := new(transaction.Transaction)
-	err = json.Unmarshal(data, transaction)
-	if err != nil {
-		return err
-	}
-	t.Transaction = transaction
-	return nil
 }

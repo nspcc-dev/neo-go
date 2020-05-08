@@ -2,6 +2,7 @@ package native
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -80,15 +81,20 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (g *GAS) OnPersist(ic *interop.Context) error {
-	//for _ ,tx := range ic.block.Transactions {
-	//	g.burn(ic, tx.Sender, tx.SystemFee + tx.NetworkFee)
-	//}
-	//validators := g.NEO.getNextBlockValidators(ic)
-	//var netFee util.Fixed8
-	//for _, tx := range ic.block.Transactions {
-	//	netFee += tx.NetworkFee
-	//}
-	//g.mint(ic, <primary>, netFee)
+	for _, tx := range ic.Block.Transactions {
+		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
+		g.burn(ic, tx.Sender, absAmount)
+	}
+	validators, err := g.NEO.GetValidatorsInternal(ic.Chain, ic.DAO)
+	if err != nil {
+		return fmt.Errorf("cannot get block validators: %v", err)
+	}
+	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
+	var netFee util.Fixed8
+	for _, tx := range ic.Block.Transactions {
+		netFee += tx.NetworkFee
+	}
+	g.mint(ic, primary, big.NewInt(int64(netFee)))
 	return nil
 }
 

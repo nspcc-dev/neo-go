@@ -38,15 +38,7 @@ func (chain testChain) References(t *transaction.Transaction) ([]transaction.InO
 	panic("TODO")
 }
 
-func (chain testChain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
-	panic("TODO")
-}
-
-func (chain testChain) SystemFee(t *transaction.Transaction) util.Fixed8 {
-	panic("TODO")
-}
-
-func (chain testChain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
+func (chain testChain) FeePerByte() util.Fixed8 {
 	panic("TODO")
 }
 

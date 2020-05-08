@@ -798,7 +798,7 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 
 	var blockSysFee util.Fixed8
 	for _, tx := range block.Transactions {
-		blockSysFee += s.chain.SystemFee(tx)
+		blockSysFee += tx.SystemFee
 	}
 
 	return blockSysFee, nil

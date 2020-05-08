@@ -268,3 +268,26 @@ func toUint160(s vm.StackItem) util.Uint160 {
 	}
 	return u
 }
+
+// scriptHash is an auxiliary structure which implements ScriptHashGetter
+// interface over NEP5 native contract and is used for runtime.CheckHashedWitness
+type nep5ScriptHash struct {
+	callingScriptHash util.Uint160
+	entryScriptHash   util.Uint160
+	currentScriptHash util.Uint160
+}
+
+// GetCallingScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetCallingScriptHash() util.Uint160 {
+	return s.callingScriptHash
+}
+
+// GetEntryScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetEntryScriptHash() util.Uint160 {
+	return s.entryScriptHash
+}
+
+// GetCurrentScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetCurrentScriptHash() util.Uint160 {
+	return s.currentScriptHash
+}

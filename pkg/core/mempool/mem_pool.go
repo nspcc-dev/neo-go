@@ -25,11 +25,9 @@ var (
 
 // item represents a transaction in the the Memory pool.
 type item struct {
-	txn        *transaction.Transaction
-	timeStamp  time.Time
-	perByteFee util.Fixed8
-	netFee     util.Fixed8
-	isLowPrio  bool
+	txn       *transaction.Transaction
+	timeStamp time.Time
+	isLowPrio bool
 }
 
 // items is a slice of item.
@@ -88,11 +86,11 @@ func (p *item) CompareTo(otherP *item) int {
 	}
 
 	// Fees sorted ascending.
-	if ret := p.perByteFee.CompareTo(otherP.perByteFee); ret != 0 {
+	if ret := p.txn.FeePerByte().CompareTo(otherP.txn.FeePerByte()); ret != 0 {
 		return ret
 	}
 
-	if ret := p.netFee.CompareTo(otherP.netFee); ret != 0 {
+	if ret := p.txn.NetworkFee.CompareTo(otherP.txn.NetworkFee); ret != 0 {
 		return ret
 	}
 
@@ -161,12 +159,10 @@ func dropInputFromSortedSlice(slice *[]*transaction.Input, input *transaction.In
 // Add tries to add given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	var pItem = &item{
-		txn:        t,
-		timeStamp:  time.Now().UTC(),
-		perByteFee: fee.FeePerByte(t),
-		netFee:     fee.NetworkFee(t),
+		txn:       t,
+		timeStamp: time.Now().UTC(),
 	}
-	pItem.isLowPrio = fee.IsLowPriority(pItem.netFee)
+	pItem.isLowPrio = fee.IsLowPriority(pItem.txn.NetworkFee)
 	mp.lock.Lock()
 	if !mp.checkTxConflicts(t) {
 		mp.lock.Unlock()
@@ -307,7 +303,7 @@ func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, util.F
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if pItem, ok := mp.verifiedMap[hash]; ok {
-		return pItem.txn, pItem.netFee, ok
+		return pItem.txn, pItem.txn.NetworkFee, ok
 	}
 
 	return nil, 0, false
@@ -323,7 +319,7 @@ func (mp *Pool) GetVerifiedTransactions() []TxWithFee {
 
 	for i := range mp.verifiedTxes {
 		t[i].Tx = mp.verifiedTxes[i].txn
-		t[i].Fee = mp.verifiedTxes[i].netFee
+		t[i].Fee = mp.verifiedTxes[i].txn.NetworkFee
 	}
 
 	return t

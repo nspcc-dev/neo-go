@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -107,8 +108,21 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 	emit.AppCallWithOperationAndArgs(w.BinWriter, token.Hash, "transfer", from, to, amount)
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
-	tx := transaction.NewInvocationTX(w.Bytes(), gas)
+	script := w.Bytes()
+	tx := transaction.NewInvocationTX(script, gas)
 	tx.Sender = from
+
+	result, err := c.InvokeScript(hex.EncodeToString(script))
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("can't add system fee to transaction: %v", err)
+	}
+	gasConsumed, err := util.Fixed8FromString(result.GasConsumed)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("can't add system fee to transaction: %v", err)
+	}
+	if gasConsumed > 0 {
+		tx.SystemFee = gasConsumed
+	}
 
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
@@ -117,6 +131,11 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 
 	if err := request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
 		return util.Uint256{}, fmt.Errorf("can't add GAS to transaction: %v", err)
+	}
+
+	err = c.AddNetworkFee(tx, acc)
+	if err != nil {
+		return util.Uint256{}, fmt.Errorf("can't add network fee to transaction: %v", err)
 	}
 
 	if err := acc.SignTx(tx); err != nil {
