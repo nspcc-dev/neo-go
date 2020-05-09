@@ -123,8 +123,9 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	}
 }
 
-// Start creates a new JSON-RPC server
-// listening on the configured port.
+// Start creates a new JSON-RPC server listening on the configured port. It's
+// supposed to be run as a separate goroutine (like http.Server's Serve) and it
+// returns its errors via given errChan.
 func (s *Server) Start(errChan chan error) {
 	if !s.config.Enabled {
 		s.log.Info("RPC server is not enabled")

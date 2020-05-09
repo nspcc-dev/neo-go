@@ -875,9 +875,10 @@ func TestRPC(t *testing.T) {
 // calls. Some tests change the chain state, thus we reinitialize the chain from
 // scratch here.
 func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []byte) {
-	chain, httpSrv := initServerWithInMemoryChain(t)
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
+	defer rpcSrv.Shutdown()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	for method, cases := range rpcTestCases {
