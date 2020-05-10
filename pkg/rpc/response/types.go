@@ -37,3 +37,12 @@ type GetRawTx struct {
 	HeaderAndError
 	Result *result.TransactionOutputRaw `json:"result"`
 }
+
+// Notification is a type used to represent wire format of events, they're
+// special in that they look like requests but they don't have IDs and their
+// "method" is actually an event name.
+type Notification struct {
+	JSONRPC string        `json:"jsonrpc"`
+	Event   EventID       `json:"method"`
+	Payload []interface{} `json:"params"`
+}
