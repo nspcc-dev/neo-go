@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -42,6 +43,19 @@ type (
 		coreServer *network.Server
 		log        *zap.Logger
 		https      *http.Server
+		shutdown   chan struct{}
+
+		subsLock         sync.RWMutex
+		subscribers      map[*subscriber]bool
+		subsGroup        sync.WaitGroup
+		blockSubs        int
+		executionSubs    int
+		notificationSubs int
+		transactionSubs  int
+		blockCh          chan *block.Block
+		executionCh      chan *state.AppExecResult
+		notificationCh   chan *state.NotificationEvent
+		transactionCh    chan *transaction.Transaction
 	}
 )
 
@@ -57,6 +71,11 @@ const (
 
 	// Write deadline.
 	wsWriteLimit = wsPingPeriod / 2
+
+	// Maximum number of subscribers per Server. Each websocket client is
+	// treated like subscriber, so technically it's a limit on websocket
+	// connections.
+	maxSubscribers = 64
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
@@ -92,6 +111,11 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"validateaddress":      (*Server).validateAddress,
 }
 
+var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
+	"subscribe":   (*Server).subscribe,
+	"unsubscribe": (*Server).unsubscribe,
+}
+
 var invalidBlockHeightError = func(index int, height int) *response.Error {
 	return response.NewRPCError(fmt.Sprintf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height), "", nil)
 }
@@ -120,6 +144,14 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		coreServer: coreServer,
 		log:        log,
 		https:      tlsServer,
+		shutdown:   make(chan struct{}),
+
+		subscribers: make(map[*subscriber]bool),
+		// These are NOT buffered to preserve original order of events.
+		blockCh:        make(chan *block.Block),
+		executionCh:    make(chan *state.AppExecResult),
+		notificationCh: make(chan *state.NotificationEvent),
+		transactionCh:  make(chan *transaction.Transaction),
 	}
 }
 
@@ -134,6 +166,7 @@ func (s *Server) Start(errChan chan error) {
 	s.Handler = http.HandlerFunc(s.handleHTTPRequest)
 	s.log.Info("starting rpc-server", zap.String("endpoint", s.Addr))
 
+	go s.handleSubEvents()
 	if cfg := s.config.TLSConfig; cfg.Enabled {
 		s.https.Handler = http.HandlerFunc(s.handleHTTPRequest)
 		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
@@ -156,6 +189,10 @@ func (s *Server) Start(errChan chan error) {
 // method.
 func (s *Server) Shutdown() error {
 	var httpsErr error
+
+	// Signal to websocket writer routines and handleSubEvents.
+	close(s.shutdown)
+
 	if s.config.TLSConfig.Enabled {
 		s.log.Info("shutting down rpc-server (https)", zap.String("endpoint", s.https.Addr))
 		httpsErr = s.https.Shutdown(context.Background())
@@ -163,6 +200,10 @@ func (s *Server) Shutdown() error {
 
 	s.log.Info("shutting down rpc-server", zap.String("endpoint", s.Addr))
 	err := s.Server.Shutdown(context.Background())
+
+	// Wait for handleSubEvents to finish.
+	<-s.executionCh
+
 	if err == nil {
 		return httpsErr
 	}
@@ -170,19 +211,39 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
+	req := request.NewIn()
+
 	if httpRequest.URL.Path == "/ws" && httpRequest.Method == "GET" {
+		// Technically there is a race between this check and
+		// s.subscribers modification 20 lines below, but it's tiny
+		// and not really critical to bother with it. Some additional
+		// clients may sneak in, no big deal.
+		s.subsLock.RLock()
+		numOfSubs := len(s.subscribers)
+		s.subsLock.RUnlock()
+		if numOfSubs >= maxSubscribers {
+			s.writeHTTPErrorResponse(
+				req,
+				w,
+				response.NewInternalServerError("websocket users limit reached", nil),
+			)
+			return
+		}
 		ws, err := upgrader.Upgrade(w, httpRequest, nil)
 		if err != nil {
 			s.log.Info("websocket connection upgrade failed", zap.Error(err))
 			return
 		}
 		resChan := make(chan response.Raw)
-		go s.handleWsWrites(ws, resChan)
-		s.handleWsReads(ws, resChan)
+		subChan := make(chan *websocket.PreparedMessage, notificationBufSize)
+		subscr := &subscriber{writer: subChan, ws: ws}
+		s.subsLock.Lock()
+		s.subscribers[subscr] = true
+		s.subsLock.Unlock()
+		go s.handleWsWrites(ws, resChan, subChan)
+		s.handleWsReads(ws, resChan, subscr)
 		return
 	}
-
-	req := request.NewIn()
 
 	if httpRequest.Method != "POST" {
 		s.writeHTTPErrorResponse(
@@ -201,11 +262,14 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		return
 	}
 
-	resp := s.handleRequest(req)
+	resp := s.handleRequest(req, nil)
 	s.writeHTTPServerResponse(req, w, resp)
 }
 
-func (s *Server) handleRequest(req *request.In) response.Raw {
+func (s *Server) handleRequest(req *request.In, sub *subscriber) response.Raw {
+	var res interface{}
+	var resErr *response.Error
+
 	reqParams, err := req.Params()
 	if err != nil {
 		return s.packResponseToRaw(req, nil, response.NewInvalidParamsError("Problem parsing request parameters", err))
@@ -217,20 +281,37 @@ func (s *Server) handleRequest(req *request.In) response.Raw {
 
 	incCounter(req.Method)
 
+	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil)
 	handler, ok := rpcHandlers[req.Method]
-	if !ok {
-		return s.packResponseToRaw(req, nil, response.NewMethodNotFoundError(fmt.Sprintf("Method '%s' not supported", req.Method), nil))
+	if ok {
+		res, resErr = handler(s, *reqParams)
+	} else if sub != nil {
+		handler, ok := rpcWsHandlers[req.Method]
+		if ok {
+			res, resErr = handler(s, *reqParams, sub)
+		}
 	}
-	res, resErr := handler(s, *reqParams)
 	return s.packResponseToRaw(req, res, resErr)
 }
 
-func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan response.Raw) {
+func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan response.Raw, subChan <-chan *websocket.PreparedMessage) {
 	pingTicker := time.NewTicker(wsPingPeriod)
 	defer ws.Close()
 	defer pingTicker.Stop()
 	for {
 		select {
+		case <-s.shutdown:
+			// Signal to the reader routine.
+			ws.Close()
+			return
+		case event, ok := <-subChan:
+			if !ok {
+				return
+			}
+			ws.SetWriteDeadline(time.Now().Add(wsWriteLimit))
+			if err := ws.WritePreparedMessage(event); err != nil {
+				return
+			}
 		case res, ok := <-resChan:
 			if !ok {
 				return
@@ -248,22 +329,36 @@ func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan response.Raw)
 	}
 }
 
-func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.Raw) {
+func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.Raw, subscr *subscriber) {
 	ws.SetReadLimit(wsReadLimit)
 	ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(wsPongLimit)); return nil })
+requestloop:
 	for {
 		req := new(request.In)
 		err := ws.ReadJSON(req)
 		if err != nil {
 			break
 		}
-		res := s.handleRequest(req)
+		res := s.handleRequest(req, subscr)
 		if res.Error != nil {
 			s.logRequestError(req, res.Error)
 		}
-		resChan <- res
+		select {
+		case <-s.shutdown:
+			break requestloop
+		case resChan <- res:
+		}
+
 	}
+	s.subsLock.Lock()
+	delete(s.subscribers, subscr)
+	for _, e := range subscr.feeds {
+		if e != response.InvalidEventID {
+			s.unsubscribeFromChannel(e)
+		}
+	}
+	s.subsLock.Unlock()
 	close(resChan)
 	ws.Close()
 }
@@ -1022,6 +1117,201 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *res
 	}
 
 	return results, resultsErr
+}
+
+// subscribe handles subscription requests from websocket clients.
+func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface{}, *response.Error) {
+	p, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	streamName, err := p.GetString()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	event, err := response.GetEventIDFromString(streamName)
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	s.subsLock.Lock()
+	defer s.subsLock.Unlock()
+	select {
+	case <-s.shutdown:
+		return nil, response.NewInternalServerError("server is shutting down", nil)
+	default:
+	}
+	var id int
+	for ; id < len(sub.feeds); id++ {
+		if sub.feeds[id] == response.InvalidEventID {
+			break
+		}
+	}
+	if id == len(sub.feeds) {
+		return nil, response.NewInternalServerError("maximum number of subscriptions is reached", nil)
+	}
+	sub.feeds[id] = event
+	s.subscribeToChannel(event)
+	return strconv.FormatInt(int64(id), 10), nil
+}
+
+// subscribeToChannel subscribes RPC server to appropriate chain events if
+// it's not yet subscribed for them. It's supposed to be called with s.subsLock
+// taken by the caller.
+func (s *Server) subscribeToChannel(event response.EventID) {
+	switch event {
+	case response.BlockEventID:
+		if s.blockSubs == 0 {
+			s.chain.SubscribeForBlocks(s.blockCh)
+		}
+		s.blockSubs++
+	case response.TransactionEventID:
+		if s.transactionSubs == 0 {
+			s.chain.SubscribeForTransactions(s.transactionCh)
+		}
+		s.transactionSubs++
+	case response.NotificationEventID:
+		if s.notificationSubs == 0 {
+			s.chain.SubscribeForNotifications(s.notificationCh)
+		}
+		s.notificationSubs++
+	case response.ExecutionEventID:
+		if s.executionSubs == 0 {
+			s.chain.SubscribeForExecutions(s.executionCh)
+		}
+		s.executionSubs++
+	}
+}
+
+// unsubscribe handles unsubscription requests from websocket clients.
+func (s *Server) unsubscribe(reqParams request.Params, sub *subscriber) (interface{}, *response.Error) {
+	p, ok := reqParams.Value(0)
+	if !ok {
+		return nil, response.ErrInvalidParams
+	}
+	id, err := p.GetInt()
+	if err != nil || id < 0 {
+		return nil, response.ErrInvalidParams
+	}
+	s.subsLock.Lock()
+	defer s.subsLock.Unlock()
+	if len(sub.feeds) <= id || sub.feeds[id] == response.InvalidEventID {
+		return nil, response.ErrInvalidParams
+	}
+	event := sub.feeds[id]
+	sub.feeds[id] = response.InvalidEventID
+	s.unsubscribeFromChannel(event)
+	return true, nil
+}
+
+// unsubscribeFromChannel unsubscribes RPC server from appropriate chain events
+// if there are no other subscribers for it. It's supposed to be called with
+// s.subsLock taken by the caller.
+func (s *Server) unsubscribeFromChannel(event response.EventID) {
+	switch event {
+	case response.BlockEventID:
+		s.blockSubs--
+		if s.blockSubs == 0 {
+			s.chain.UnsubscribeFromBlocks(s.blockCh)
+		}
+	case response.TransactionEventID:
+		s.transactionSubs--
+		if s.transactionSubs == 0 {
+			s.chain.UnsubscribeFromTransactions(s.transactionCh)
+		}
+	case response.NotificationEventID:
+		s.notificationSubs--
+		if s.notificationSubs == 0 {
+			s.chain.UnsubscribeFromNotifications(s.notificationCh)
+		}
+	case response.ExecutionEventID:
+		s.executionSubs--
+		if s.executionSubs == 0 {
+			s.chain.UnsubscribeFromExecutions(s.executionCh)
+		}
+	}
+}
+
+func (s *Server) handleSubEvents() {
+chloop:
+	for {
+		var resp = response.Notification{
+			JSONRPC: request.JSONRPCVersion,
+			Payload: make([]interface{}, 1),
+		}
+		var msg *websocket.PreparedMessage
+		select {
+		case <-s.shutdown:
+			break chloop
+		case b := <-s.blockCh:
+			resp.Event = response.BlockEventID
+			resp.Payload[0] = b
+		case execution := <-s.executionCh:
+			resp.Event = response.ExecutionEventID
+			resp.Payload[0] = result.NewApplicationLog(execution, util.Uint160{})
+		case notification := <-s.notificationCh:
+			resp.Event = response.NotificationEventID
+			resp.Payload[0] = result.StateEventToResultNotification(*notification)
+		case tx := <-s.transactionCh:
+			resp.Event = response.TransactionEventID
+			resp.Payload[0] = tx
+		}
+		s.subsLock.RLock()
+	subloop:
+		for sub := range s.subscribers {
+			for _, subID := range sub.feeds {
+				if subID == resp.Event {
+					if msg == nil {
+						b, err := json.Marshal(resp)
+						if err != nil {
+							s.log.Error("failed to marshal notification",
+								zap.Error(err),
+								zap.String("type", resp.Event.String()))
+							break subloop
+						}
+						msg, err = websocket.NewPreparedMessage(websocket.TextMessage, b)
+						if err != nil {
+							s.log.Error("failed to prepare notification message",
+								zap.Error(err),
+								zap.String("type", resp.Event.String()))
+							break subloop
+						}
+					}
+					sub.writer <- msg
+					// The message is sent only once per subscriber.
+					break
+				}
+			}
+		}
+		s.subsLock.RUnlock()
+	}
+	// It's important to do it with lock held because no subscription routine
+	// should be running concurrently to this one. And even if one is to run
+	// after unlock, it'll see closed s.shutdown and won't subscribe.
+	s.subsLock.Lock()
+	// There might be no subscription in reality, but it's not a problem as
+	// core.Blockchain allows unsubscribing non-subscribed channels.
+	s.chain.UnsubscribeFromBlocks(s.blockCh)
+	s.chain.UnsubscribeFromTransactions(s.transactionCh)
+	s.chain.UnsubscribeFromNotifications(s.notificationCh)
+	s.chain.UnsubscribeFromExecutions(s.executionCh)
+	s.subsLock.Unlock()
+drainloop:
+	for {
+		select {
+		case <-s.blockCh:
+		case <-s.executionCh:
+		case <-s.notificationCh:
+		case <-s.transactionCh:
+		default:
+			break drainloop
+		}
+	}
+	// It's not required closing these, but since they're drained already
+	// this is safe and it also allows to give a signal to Shutdown routine.
+	close(s.blockCh)
+	close(s.transactionCh)
+	close(s.notificationCh)
+	close(s.executionCh)
 }
 
 func (s *Server) blockHeightFromParam(param *request.Param) (int, *response.Error) {
