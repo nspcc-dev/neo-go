@@ -125,7 +125,7 @@ readloop:
 			}
 			var slice []json.RawMessage
 			err = json.Unmarshal(rr.RawParams, &slice)
-			if err != nil || len(slice) != 1 {
+			if err != nil || (event != response.MissedEventID && len(slice) != 1) {
 				// Bad event received.
 				break
 			}
@@ -139,14 +139,18 @@ readloop:
 				val = new(result.NotificationEvent)
 			case response.ExecutionEventID:
 				val = new(result.ApplicationLog)
+			case response.MissedEventID:
+				// No value.
 			default:
 				// Bad event received.
 				break readloop
 			}
-			err = json.Unmarshal(slice[0], val)
-			if err != nil || len(slice) != 1 {
-				// Bad event received.
-				break
+			if event != response.MissedEventID {
+				err = json.Unmarshal(slice[0], val)
+				if err != nil || len(slice) != 1 {
+					// Bad event received.
+					break
+				}
 			}
 			c.Notifications <- Notification{event, val}
 		} else if rr.RawID != nil && (rr.Error != nil || rr.Result != nil) {

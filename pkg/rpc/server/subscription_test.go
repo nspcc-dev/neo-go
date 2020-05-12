@@ -160,6 +160,7 @@ func TestBadSubUnsub(t *testing.T) {
 		"no params":              `{"jsonrpc": "2.0", "method": "subscribe", "params": [], "id": 1}`,
 		"bad (non-string) event": `{"jsonrpc": "2.0", "method": "subscribe", "params": [1], "id": 1}`,
 		"bad (wrong) event":      `{"jsonrpc": "2.0", "method": "subscribe", "params": ["block_removed"], "id": 1}`,
+		"missed event":           `{"jsonrpc": "2.0", "method": "subscribe", "params": ["event_missed"], "id": 1}`,
 	}
 	var unsubCases = map[string]string{
 		"no params":         `{"jsonrpc": "2.0", "method": "unsubscribe", "params": [], "id": 1}`,
