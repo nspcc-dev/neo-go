@@ -642,6 +642,29 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		v.estack.PushVal(NewBufferItem(make([]byte, n)))
 
+	case opcode.MEMCPY:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 {
+			panic("invalid size")
+		}
+		si := toInt(v.estack.Pop().BigInt())
+		if si < 0 {
+			panic("invalid source index")
+		}
+		src := v.estack.Pop().Bytes()
+		if sum := si + n; sum < 0 || sum > len(src) {
+			panic("size is too big")
+		}
+		di := toInt(v.estack.Pop().BigInt())
+		if di < 0 {
+			panic("invalid destination index")
+		}
+		dst := v.estack.Pop().value.(*BufferItem).value
+		if sum := si + n; sum < 0 || sum > len(dst) {
+			panic("size is too big")
+		}
+		copy(dst[di:], src[si:si+n])
+
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()

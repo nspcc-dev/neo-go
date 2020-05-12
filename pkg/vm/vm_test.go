@@ -1161,6 +1161,19 @@ func TestNEWBUFFER(t *testing.T) {
 	t.Run("TooBig", getTestFuncForVM(prog, nil, MaxItemSize+1))
 }
 
+func TestMEMCPY(t *testing.T) {
+	prog := makeProgram(opcode.MEMCPY)
+	t.Run("Good", func(t *testing.T) {
+		buf := NewBufferItem([]byte{0, 1, 2, 3})
+		runWithArgs(t, prog, NewBufferItem([]byte{0, 6, 7, 3}), buf, buf, 1, []byte{4, 5, 6, 7}, 2, 2)
+	})
+	t.Run("NegativeSize", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, 0, -1))
+	t.Run("NegativeSrcIndex", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, -1, 1))
+	t.Run("NegativeDstIndex", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), -1, []byte{2}, 0, 1))
+	t.Run("BigSizeSrc", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, 0, 2))
+	t.Run("BigSizeDst", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2, 3, 4}, 0, 3))
+}
+
 func TestNEWARRAY0(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY0)
 	runWithArgs(t, prog, []StackItem{})

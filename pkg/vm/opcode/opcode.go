@@ -147,6 +147,7 @@ const (
 
 	// Splice
 	NEWBUFFER Opcode = 0x88
+	MEMCPY    Opcode = 0x89
 	CAT       Opcode = 0x8B
 	SUBSTR    Opcode = 0x8C
 	LEFT      Opcode = 0x8D
