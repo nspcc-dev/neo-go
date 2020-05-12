@@ -58,7 +58,7 @@ func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int)
 
 // CanTransfer returns the amount it can transfer
 func (t Token) CanTransfer(ctx storage.Context, from []byte, to []byte, amount int) int {
-	if len(to) != 20 && !IsUsableAddress(from) {
+	if len(to) != 20 || !IsUsableAddress(from) {
 		return -1
 	}
 
