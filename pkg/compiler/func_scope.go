@@ -27,7 +27,8 @@ type funcScope struct {
 	variables []string
 
 	// Local variables
-	locals map[string]int
+	locals    map[string]int
+	arguments map[string]int
 
 	// voidCalls are basically functions that return their value
 	// into nothing. The stack has their return value but there
@@ -51,6 +52,7 @@ func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		decl:      decl,
 		label:     label,
 		locals:    map[string]int{},
+		arguments: map[string]int{},
 		voidCalls: map[*ast.CallExpr]bool{},
 		variables: []string{},
 		i:         -1,
@@ -84,7 +86,7 @@ func (c *funcScope) analyzeVoidCalls(node ast.Node) bool {
 	return true
 }
 
-func (c *funcScope) stackSize() int64 {
+func (c *funcScope) countLocals() int {
 	size := 0
 	ast.Inspect(c.decl, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -110,28 +112,38 @@ func (c *funcScope) stackSize() int64 {
 		}
 		return true
 	})
+	return size
+}
 
-	numArgs := len(c.decl.Type.Params.List)
-	// Also take care of struct methods recv: e.g. (t Token).Foo().
+func (c *funcScope) countArgs() int {
+	n := c.decl.Type.Params.NumFields()
 	if c.decl.Recv != nil {
-		numArgs += len(c.decl.Recv.List)
+		n += c.decl.Recv.NumFields()
 	}
+	return n
+}
+
+func (c *funcScope) stackSize() int64 {
+	size := c.countLocals()
+	numArgs := c.countArgs()
 	return int64(size + numArgs + len(c.voidCalls))
+}
+
+// newVariable creates a new local variable or argument in the scope of the function.
+func (c *funcScope) newVariable(t varType, name string) int {
+	c.i++
+	switch t {
+	case varLocal:
+		c.locals[name] = c.i
+	case varArgument:
+		c.arguments[name] = c.i
+	default:
+		panic("invalid type")
+	}
+	return c.i
 }
 
 // newLocal creates a new local variable into the scope of the function.
 func (c *funcScope) newLocal(name string) int {
-	c.i++
-	c.locals[name] = c.i
-	return c.i
-}
-
-// loadLocal loads the position of a local variable inside the scope of the function.
-func (c *funcScope) loadLocal(name string) int {
-	i, ok := c.locals[name]
-	if !ok {
-		// should emit a compiler warning.
-		return c.newLocal(name)
-	}
-	return i
+	return c.newVariable(varLocal, name)
 }

@@ -1,11 +1,14 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -45,6 +48,24 @@ func typeAndValueForField(fld *types.Var) (types.TypeAndValue, error) {
 		}
 	}
 	return types.TypeAndValue{}, nil
+}
+
+// newGlobal creates new global variable.
+func (c *codegen) newGlobal(name string) {
+	c.globals[name] = len(c.globals)
+}
+
+// traverseGlobals visits and initializes global variables.
+func (c *codegen) traverseGlobals(f ast.Node) {
+	n := countGlobals(f)
+	if n != 0 {
+		if n > 255 {
+			c.prog.BinWriter.Err = errors.New("too many global variables")
+			return
+		}
+		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+	}
+	c.convertGlobals(f)
 }
 
 // countGlobals counts the global variables in the program to add

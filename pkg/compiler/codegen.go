@@ -43,6 +43,8 @@ type codegen struct {
 	// Current funcScope being converted.
 	scope *funcScope
 
+	globals map[string]int
+
 	// A mapping from label's names to their ids.
 	labels map[labelWithType]uint16
 	// A list of nested label names together with evaluation stack depth.
@@ -81,6 +83,14 @@ type labelWithStackSize struct {
 	name string
 	sz   int
 }
+
+type varType int
+
+const (
+	varGlobal varType = iota
+	varLocal
+	varArgument
+)
 
 // newLabel creates a new label to jump to
 func (c *codegen) newLabel() (l uint16) {
@@ -147,34 +157,6 @@ func (c *codegen) convertBasicType(t types.TypeAndValue, typ *types.Basic) {
 	}
 }
 
-func (c *codegen) emitLoadLocal(name string) {
-	pos := c.scope.loadLocal(name)
-	if pos < 0 {
-		c.prog.Err = fmt.Errorf("cannot load local variable with position: %d", pos)
-		return
-	}
-	c.emitLoadLocalPos(pos)
-}
-
-func (c *codegen) emitLoadLocalPos(pos int) {
-	emit.Opcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
-	emit.Int(c.prog.BinWriter, int64(pos))
-	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
-}
-
-func (c *codegen) emitStoreLocal(pos int) {
-	emit.Opcode(c.prog.BinWriter, opcode.DUPFROMALTSTACK)
-
-	if pos < 0 {
-		c.prog.Err = fmt.Errorf("invalid position to store local: %d", pos)
-		return
-	}
-
-	emit.Int(c.prog.BinWriter, int64(pos))
-	emit.Opcode(c.prog.BinWriter, opcode.ROT)
-	emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-}
-
 func (c *codegen) emitLoadField(i int) {
 	emit.Int(c.prog.BinWriter, int64(i))
 	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
@@ -184,6 +166,81 @@ func (c *codegen) emitStoreStructField(i int) {
 	emit.Int(c.prog.BinWriter, int64(i))
 	emit.Opcode(c.prog.BinWriter, opcode.ROT)
 	emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+}
+
+// getVarIndex returns variable type and position in corresponding slot,
+// according to current scope.
+func (c *codegen) getVarIndex(name string) (varType, int) {
+	if c.scope != nil {
+		if i, ok := c.scope.arguments[name]; ok {
+			return varArgument, i
+		} else if i, ok := c.scope.locals[name]; ok {
+			return varLocal, i
+		}
+	}
+	if i, ok := c.globals[name]; ok {
+		return varGlobal, i
+	}
+
+	return varLocal, c.scope.newVariable(varLocal, name)
+}
+
+func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
+	switch t {
+	case varGlobal:
+		return opcode.LDSFLD0, opcode.STSFLD0
+	case varLocal:
+		return opcode.LDLOC0, opcode.STLOC0
+	case varArgument:
+		return opcode.LDARG0, opcode.STARG0
+	default:
+		panic("invalid type")
+	}
+}
+
+// emitLoadVar loads specified variable to the evaluation stack.
+func (c *codegen) emitLoadVar(name string) {
+	t, i := c.getVarIndex(name)
+	base, _ := getBaseOpcode(t)
+	if i < 7 {
+		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
+	} else {
+		emit.Instruction(c.prog.BinWriter, base+7, []byte{byte(i)})
+	}
+}
+
+// emitStoreVar stores top value from the evaluation stack in the specified variable.
+func (c *codegen) emitStoreVar(name string) {
+	t, i := c.getVarIndex(name)
+	_, base := getBaseOpcode(t)
+	if i < 7 {
+		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
+	} else {
+		emit.Instruction(c.prog.BinWriter, base+7, []byte{byte(i)})
+	}
+}
+
+func (c *codegen) emitDefault(n ast.Expr) {
+	tv, ok := c.typeInfo.Types[n]
+	if !ok {
+		c.prog.Err = errors.New("invalid type")
+		return
+	}
+	if t, ok := tv.Type.(*types.Basic); ok {
+		info := t.Info()
+		switch {
+		case info&types.IsInteger != 0:
+			emit.Int(c.prog.BinWriter, 0)
+		case info&types.IsString != 0:
+			emit.Bytes(c.prog.BinWriter, []byte{})
+		case info&types.IsBoolean != 0:
+			emit.Bool(c.prog.BinWriter, false)
+		default:
+			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
+		}
+		return
+	}
+	emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 }
 
 // convertGlobals traverses the AST and only converts global declarations.
@@ -231,9 +288,17 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	// All globals copied into the scope of the function need to be added
 	// to the stack size of the function.
-	emit.Int(c.prog.BinWriter, f.stackSize()+countGlobals(file))
-	emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-	emit.Opcode(c.prog.BinWriter, opcode.TOALTSTACK)
+	sizeLoc := f.countLocals()
+	if sizeLoc > 255 {
+		c.prog.Err = errors.New("maximum of 255 local variables is allowed")
+	}
+	sizeArg := f.countArgs()
+	if sizeArg > 255 {
+		c.prog.Err = errors.New("maximum of 255 local variables is allowed")
+	}
+	if sizeLoc != 0 || sizeArg != 0 {
+		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
+	}
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -250,22 +315,17 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 				c.prog.Err = fmt.Errorf("method receives for non-struct types is not yet supported")
 				return
 			}
-			l := c.scope.newLocal(ident.Name)
-			c.emitStoreLocal(l)
+			// only create an argument here, it will be stored via INITSLOT
+			c.scope.newVariable(varArgument, ident.Name)
 		}
 	}
 
 	// Load the arguments in scope.
 	for _, arg := range decl.Type.Params.List {
 		for _, id := range arg.Names {
-			l := c.scope.newLocal(id.Name)
-			c.emitStoreLocal(l)
+			// only create an argument here, it will be stored via INITSLOT
+			c.scope.newVariable(varArgument, id.Name)
 		}
-	}
-	// Load in all the global variables in to the scope of the function.
-	// This is not necessary for syscalls.
-	if !isSyscall(f) {
-		c.convertGlobals(file)
 	}
 
 	ast.Walk(c, decl.Body)
@@ -275,8 +335,6 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// This can be the case with void and named-return functions.
 	if !lastStmtIsReturn(decl) {
 		c.saveSequencePoint(decl.Body)
-		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
-		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 	}
 
@@ -305,25 +363,32 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
 				for _, id := range t.Names {
-					c.scope.newLocal(id.Name)
+					if c.scope == nil {
+						// it is a global declaration
+						c.newGlobal(id.Name)
+					} else {
+						c.scope.newLocal(id.Name)
+					}
 					c.registerDebugVariable(id.Name, t.Type)
 				}
 				if len(t.Values) != 0 {
 					for i, val := range t.Values {
 						ast.Walk(c, val)
-						l := c.scope.loadLocal(t.Names[i].Name)
-						c.emitStoreLocal(l)
+						c.emitStoreVar(t.Names[i].Name)
 					}
 				} else if c.isCompoundArrayType(t.Type) {
 					emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 					emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-					l := c.scope.loadLocal(t.Names[0].Name)
-					c.emitStoreLocal(l)
+					c.emitStoreVar(t.Names[0].Name)
 				} else if n, ok := c.isStructType(t.Type); ok {
 					emit.Int(c.prog.BinWriter, int64(n))
 					emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-					l := c.scope.loadLocal(t.Names[0].Name)
-					c.emitStoreLocal(l)
+					c.emitStoreVar(t.Names[0].Name)
+				} else {
+					for _, id := range t.Names {
+						c.emitDefault(t.Type)
+						c.emitStoreVar(id.Name)
+					}
 				}
 			}
 		}
@@ -337,14 +402,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			case *ast.Ident:
 				switch n.Tok {
 				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
-					c.emitLoadLocal(t.Name)
+					c.emitLoadVar(t.Name)
 					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
 					c.convertToken(n.Tok)
-					l := c.scope.loadLocal(t.Name)
-					c.emitStoreLocal(l)
+					c.emitStoreVar(t.Name)
 				case token.DEFINE:
 					if !multiRet {
 						c.registerDebugVariable(t.Name, n.Rhs[i])
+					}
+					if t.Name != "_" {
+						c.scope.newLocal(t.Name)
 					}
 					fallthrough
 				default:
@@ -355,8 +422,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					if t.Name == "_" {
 						emit.Opcode(c.prog.BinWriter, opcode.DROP)
 					} else {
-						l := c.scope.loadLocal(t.Name)
-						c.emitStoreLocal(l)
+						c.emitStoreVar(t.Name)
 					}
 				}
 
@@ -366,7 +432,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					ast.Walk(c, n.Rhs[i])
 					typ := c.typeInfo.ObjectOf(expr).Type().Underlying()
 					if strct, ok := typ.(*types.Struct); ok {
-						c.emitLoadLocal(expr.Name)            // load the struct
+						c.emitLoadVar(expr.Name)              // load the struct
 						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
 						c.emitStoreStructField(i)             // store the field
 					}
@@ -380,7 +446,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			case *ast.IndexExpr:
 				ast.Walk(c, n.Rhs[i])
 				name := t.X.(*ast.Ident).Name
-				c.emitLoadLocal(name)
+				c.emitLoadVar(name)
 				switch ind := t.Index.(type) {
 				case *ast.BasicLit:
 					indexStr := ind.Value
@@ -391,7 +457,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					}
 					c.emitStoreStructField(index)
 				case *ast.Ident:
-					c.emitLoadLocal(ind.Name)
+					c.emitLoadVar(ind.Name)
 					emit.Opcode(c.prog.BinWriter, opcode.ROT)
 					emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 				default:
@@ -404,7 +470,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SliceExpr:
 		name := n.X.(*ast.Ident).Name
-		c.emitLoadLocal(name)
+		c.emitLoadVar(name)
 
 		if n.Low != nil {
 			ast.Walk(c, n.Low)
@@ -442,7 +508,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := len(results.List) - 1; i >= 0; i-- {
 					names := results.List[i].Names
 					for j := len(names) - 1; j >= 0; j-- {
-						c.emitLoadLocal(names[j].Name)
+						c.emitLoadVar(names[j].Name)
 					}
 				}
 			}
@@ -454,8 +520,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		c.saveSequencePoint(n)
-		emit.Opcode(c.prog.BinWriter, opcode.FROMALTSTACK)
-		emit.Opcode(c.prog.BinWriter, opcode.DROP) // Cleanup the stack.
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		return nil
 
@@ -557,7 +621,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		} else if tv := c.typeInfo.Types[n]; tv.Value != nil {
 			c.emitLoadConst(tv)
 		} else {
-			c.emitLoadLocal(n.Name)
+			c.emitLoadVar(n.Name)
 		}
 		return nil
 
@@ -723,7 +787,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertBuiltin(n)
 		case name != "":
 			// Function was not found thus is can be only an invocation of func-typed variable.
-			c.emitLoadLocal(name)
+			c.emitLoadVar(name)
 			emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 		case isSyscall(f):
 			c.convertSyscall(n, f.selector.Name, f.name)
@@ -738,7 +802,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case *ast.Ident:
 			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
 			if strct, ok := typ.(*types.Struct); ok {
-				c.emitLoadLocal(t.Name) // load the struct
+				c.emitLoadVar(t.Name) // load the struct
 				i := indexOfStruct(strct, n.Sel.Name)
 				c.emitLoadField(i) // load the field
 			}
@@ -777,8 +841,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// for i := 0; i < 10; i++ {}
 		// Where the post stmt is ( i++ )
 		if ident, ok := n.X.(*ast.Ident); ok {
-			pos := c.scope.loadLocal(ident.Name)
-			c.emitStoreLocal(pos)
+			c.emitStoreVar(ident.Name)
 		}
 		return nil
 
@@ -913,9 +976,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-
-			pos := c.scope.loadLocal(n.Key.(*ast.Ident).Name)
-			c.emitStoreLocal(pos)
+			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
@@ -1315,6 +1376,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 		}
 	}
 
+	c.traverseGlobals(mainFile)
+
 	// convert the entry point first.
 	c.convertFuncDecl(mainFile, main)
 
@@ -1354,6 +1417,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		l:         []int{},
 		funcs:     map[string]*funcScope{},
 		lambda:    map[string]*funcScope{},
+		globals:   map[string]int{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
 
