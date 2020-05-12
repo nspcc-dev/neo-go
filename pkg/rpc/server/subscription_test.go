@@ -160,6 +160,7 @@ func TestBadSubUnsub(t *testing.T) {
 		"no params":              `{"jsonrpc": "2.0", "method": "subscribe", "params": [], "id": 1}`,
 		"bad (non-string) event": `{"jsonrpc": "2.0", "method": "subscribe", "params": [1], "id": 1}`,
 		"bad (wrong) event":      `{"jsonrpc": "2.0", "method": "subscribe", "params": ["block_removed"], "id": 1}`,
+		"missed event":           `{"jsonrpc": "2.0", "method": "subscribe", "params": ["event_missed"], "id": 1}`,
 	}
 	var unsubCases = map[string]string{
 		"no params":         `{"jsonrpc": "2.0", "method": "unsubscribe", "params": [], "id": 1}`,
@@ -224,4 +225,43 @@ func TestWSClientsLimit(t *testing.T) {
 	for i := 0; i < len(wss); i++ {
 		doSomeWSRequest(t, wss[i])
 	}
+}
+
+// The purpose of this test is to overflow buffers on server side to
+// receive a 'missed' event. But it's actually hard to tell when exactly
+// that's going to happen because of network-level buffering, typical
+// number seen in tests is around ~3500 events, but it's not reliable enough,
+// thus this test is disabled.
+func testSubscriptionOverflow(t *testing.T) {
+	const blockCnt = notificationBufSize * 5
+	var receivedMiss bool
+
+	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
+
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	resp := callWSGetRaw(t, c, `{"jsonrpc": "2.0","method": "subscribe","params": ["block_added"],"id": 1}`, respMsgs)
+	require.Nil(t, resp.Error)
+	require.NotNil(t, resp.Result)
+
+	// Push a lot of new blocks, but don't read events for them.
+	for i := 0; i < blockCnt; i++ {
+		b := newBlock(t, chain, 1)
+		require.NoError(t, chain.AddBlock(b))
+	}
+	for i := 0; i < blockCnt; i++ {
+		resp := getNotification(t, respMsgs)
+		if resp.Event != response.BlockEventID {
+			require.Equal(t, response.MissedEventID, resp.Event)
+			receivedMiss = true
+			break
+		}
+	}
+	require.Equal(t, true, receivedMiss)
+	// `Missed` is the last event and there is nothing afterwards.
+	require.Equal(t, 0, len(respMsgs))
+
+	finishedFlag.CAS(false, true)
+	c.Close()
 }

@@ -3,14 +3,15 @@ package server
 import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"go.uber.org/atomic"
 )
 
 type (
 	// subscriber is an event subscriber.
 	subscriber struct {
-		writer chan<- *websocket.PreparedMessage
-		ws     *websocket.Conn
-
+		writer    chan<- *websocket.PreparedMessage
+		ws        *websocket.Conn
+		overflown atomic.Bool
 		// These work like slots as there is not a lot of them (it's
 		// cheaper doing it this way rather than creating a map),
 		// pointing to EventID is an obvious overkill at the moment, but
