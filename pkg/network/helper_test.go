@@ -145,7 +145,33 @@ func (chain testChain) PoolTx(*transaction.Transaction) error {
 	panic("TODO")
 }
 
+func (chain testChain) SubscribeForBlocks(ch chan<- *block.Block) {
+	panic("TODO")
+}
+func (chain testChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
+	panic("TODO")
+}
+func (chain testChain) SubscribeForNotifications(ch chan<- *state.NotificationEvent) {
+	panic("TODO")
+}
+func (chain testChain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
+	panic("TODO")
+}
+
 func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
+	panic("TODO")
+}
+
+func (chain testChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
+	panic("TODO")
+}
+func (chain testChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
+	panic("TODO")
+}
+func (chain testChain) UnsubscribeFromNotifications(ch chan<- *state.NotificationEvent) {
+	panic("TODO")
+}
+func (chain testChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
 

@@ -2,12 +2,17 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,4 +238,107 @@ func TestClose(t *testing.T) {
 
 	// This should never be executed.
 	assert.Nil(t, t)
+}
+
+func TestSubscriptions(t *testing.T) {
+	// We use buffering here as a substitute for reader goroutines, events
+	// get queued up and we read them one by one here.
+	const chBufSize = 16
+	blockCh := make(chan *block.Block, chBufSize)
+	txCh := make(chan *transaction.Transaction, chBufSize)
+	notificationCh := make(chan *state.NotificationEvent, chBufSize)
+	executionCh := make(chan *state.AppExecResult, chBufSize)
+
+	bc := newTestChain(t)
+	bc.SubscribeForBlocks(blockCh)
+	bc.SubscribeForTransactions(txCh)
+	bc.SubscribeForNotifications(notificationCh)
+	bc.SubscribeForExecutions(executionCh)
+
+	assert.Empty(t, notificationCh)
+	assert.Empty(t, executionCh)
+	assert.Empty(t, blockCh)
+	assert.Empty(t, txCh)
+
+	blocks, err := bc.genBlocks(1)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return len(blockCh) != 0 }, time.Second, 10*time.Millisecond)
+	assert.Empty(t, notificationCh)
+	assert.Empty(t, executionCh)
+	assert.Empty(t, txCh)
+
+	b := <-blockCh
+	assert.Equal(t, blocks[0], b)
+	assert.Empty(t, blockCh)
+
+	script := io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte("yay!"))
+	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	require.NoError(t, script.Err)
+	txGood1 := transaction.NewInvocationTX(script.Bytes(), 0)
+	txGood1.Sender = neoOwner
+	txGood1.Nonce = 1
+	txGood1.ValidUntilBlock = 100500
+	require.NoError(t, signTx(bc, txGood1))
+
+	// Reset() reuses the script buffer and we need to keep scripts.
+	script = io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte("nay!"))
+	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	emit.Opcode(script.BinWriter, opcode.THROW)
+	require.NoError(t, script.Err)
+	txBad := transaction.NewInvocationTX(script.Bytes(), 0)
+	txBad.Sender = neoOwner
+	txBad.Nonce = 2
+	txBad.ValidUntilBlock = 100500
+	require.NoError(t, signTx(bc, txBad))
+
+	script = io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
+	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	require.NoError(t, script.Err)
+	txGood2 := transaction.NewInvocationTX(script.Bytes(), 0)
+	txGood2.Sender = neoOwner
+	txGood2.Nonce = 3
+	txGood2.ValidUntilBlock = 100500
+	require.NoError(t, signTx(bc, txGood2))
+
+	invBlock := newBlock(bc.config, bc.BlockHeight()+1, bc.CurrentHeaderHash(), txGood1, txBad, txGood2)
+	require.NoError(t, bc.AddBlock(invBlock))
+
+	require.Eventually(t, func() bool {
+		return len(blockCh) != 0 && len(txCh) != 0 &&
+			len(notificationCh) != 0 && len(executionCh) != 0
+	}, time.Second, 10*time.Millisecond)
+
+	b = <-blockCh
+	require.Equal(t, invBlock, b)
+	assert.Empty(t, blockCh)
+
+	// Follow in-block transaction order.
+	for _, txExpected := range invBlock.Transactions {
+		tx := <-txCh
+		require.Equal(t, txExpected, tx)
+		if txExpected.Type == transaction.InvocationType {
+			exec := <-executionCh
+			require.Equal(t, tx.Hash(), exec.TxHash)
+			if exec.VMState == "HALT" {
+				notif := <-notificationCh
+				inv := tx.Data.(*transaction.InvocationTX)
+				require.Equal(t, hash.Hash160(inv.Script), notif.ScriptHash)
+			}
+		}
+	}
+	assert.Empty(t, txCh)
+	assert.Empty(t, notificationCh)
+	assert.Empty(t, executionCh)
+
+	bc.UnsubscribeFromBlocks(blockCh)
+	bc.UnsubscribeFromTransactions(txCh)
+	bc.UnsubscribeFromNotifications(notificationCh)
+	bc.UnsubscribeFromExecutions(executionCh)
+
+	// Ensure that new blocks are processed correctly after unsubscription.
+	_, err = bc.genBlocks(2 * chBufSize)
+	require.NoError(t, err)
 }
