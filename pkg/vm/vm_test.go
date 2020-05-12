@@ -423,7 +423,7 @@ func TestStackLimit(t *testing.T) {
 	vm := load(makeProgram(prog...))
 	for i := range expected {
 		require.NoError(t, vm.Step())
-		require.Equal(t, expected[i].size, vm.size)
+		require.Equal(t, expected[i].size, vm.refs.size)
 	}
 }
 
@@ -1980,7 +1980,7 @@ func testCLEARITEMS(t *testing.T, item StackItem) {
 	v.estack.PushVal(item)
 	runVM(t, v)
 	require.Equal(t, 2, v.estack.Len())
-	require.EqualValues(t, 2, v.size) // empty collection + it's size
+	require.EqualValues(t, 2, v.refs.size) // empty collection + it's size
 	require.EqualValues(t, 0, v.estack.Pop().BigInt().Int64())
 }
 

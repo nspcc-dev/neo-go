@@ -78,8 +78,7 @@ type VM struct {
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
 
-	itemCount map[StackItem]int
-	size      int
+	refs *refCounter
 
 	gasConsumed util.Fixed8
 	gasLimit    util.Fixed8
@@ -94,9 +93,8 @@ func New() *VM {
 		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
 		state:      haltState,
 		istack:     NewStack("invocation"),
-
-		itemCount: make(map[StackItem]int),
-		keys:      make(map[string]*keys.PublicKey),
+		refs:       newRefCounter(),
+		keys:       make(map[string]*keys.PublicKey),
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
@@ -108,8 +106,7 @@ func New() *VM {
 
 func (v *VM) newItemStack(n string) *Stack {
 	s := NewStack(n)
-	s.size = &v.size
-	s.itemCount = v.itemCount
+	s.refs = v.refs
 
 	return s
 }
@@ -499,7 +496,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if errRecover := recover(); errRecover != nil {
 			v.state = faultState
 			err = newError(ctx.ip, op, errRecover)
-		} else if v.size > MaxStackSize {
+		} else if v.refs.size > MaxStackSize {
 			v.state = faultState
 			err = newError(ctx.ip, op, "stack is too big")
 		}
@@ -955,7 +952,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("APPEND: not of underlying type Array")
 		}
 
-		v.estack.updateSizeAdd(val)
+		v.refs.Add(val)
 
 	case opcode.PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
@@ -1024,17 +1021,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
 			}
-			v.estack.updateSizeRemove(arr[index])
+			v.refs.Remove(arr[index])
 			arr[index] = item
-			v.estack.updateSizeAdd(arr[index])
+			v.refs.Add(arr[index])
 		case *MapItem:
 			if t.Has(key.value) {
-				v.estack.updateSizeRemove(item)
+				v.refs.Remove(item)
 			} else if len(t.value) >= MaxArraySize {
 				panic("too big map")
 			}
 			t.Add(key.value, item)
-			v.estack.updateSizeAdd(item)
+			v.refs.Add(item)
 
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
@@ -1059,7 +1056,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.estack.updateSizeRemove(a[k])
+			v.refs.Remove(a[k])
 			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *StructItem:
@@ -1068,14 +1065,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.estack.updateSizeRemove(a[k])
+			v.refs.Remove(a[k])
 			a = append(a[:k], a[k+1:]...)
 			t.value = a
 		case *MapItem:
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
-				v.estack.updateSizeRemove(t.value[index].Value)
+				v.refs.Remove(t.value[index].Value)
 				t.Drop(index)
 			}
 		default:
@@ -1087,17 +1084,17 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		switch t := elem.value.(type) {
 		case *ArrayItem:
 			for _, item := range t.value {
-				v.estack.updateSizeRemove(item)
+				v.refs.Remove(item)
 			}
 			t.value = t.value[:0]
 		case *StructItem:
 			for _, item := range t.value {
-				v.estack.updateSizeRemove(item)
+				v.refs.Remove(item)
 			}
 			t.value = t.value[:0]
 		case *MapItem:
 			for i := range t.value {
-				v.estack.updateSizeRemove(t.value[i].Value)
+				v.refs.Remove(t.value[i].Value)
 			}
 			t.value = t.value[:0]
 		default:
