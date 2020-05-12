@@ -802,12 +802,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		}
 	}
-	bc.lock.Lock()
-	defer bc.lock.Unlock()
-
-	if bc.config.SaveStorageBatch {
-		bc.lastBatch = cache.DAO.GetBatch()
-	}
 
 	for i := range bc.contracts.Contracts {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, nil)
@@ -816,14 +810,22 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 	}
 
+	if bc.config.SaveStorageBatch {
+		bc.lastBatch = cache.DAO.GetBatch()
+	}
+
+	bc.lock.Lock()
 	_, err := cache.Persist()
 	if err != nil {
+		bc.lock.Unlock()
 		return err
 	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
-	updateBlockHeightMetric(block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
+	bc.lock.Unlock()
+
+	updateBlockHeightMetric(block.Index)
 	// Genesis block is stored when Blockchain is not yet running, so there
 	// is no one to read this event. And it doesn't make much sense as event
 	// anyway.
