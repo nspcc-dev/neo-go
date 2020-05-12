@@ -127,6 +127,10 @@ var stringerTestCases = []struct {
 		input:  NewInteropItem(nil),
 		result: "InteropItem",
 	},
+	{
+		input:  NewPointerItem(0, nil),
+		result: "Pointer",
+	},
 }
 
 func TestStringer(t *testing.T) {
@@ -312,6 +316,32 @@ var equalsTestCases = map[string][]struct {
 			item1:  NewInteropItem(3),
 			item2:  NewInteropItem(3),
 			result: true,
+		},
+	},
+	"pointer": {
+		{
+			item1:  NewPointerItem(0, []byte{}),
+			result: false,
+		},
+		{
+			item1:  NewPointerItem(1, []byte{1}),
+			item2:  NewPointerItem(1, []byte{1}),
+			result: true,
+		},
+		{
+			item1:  NewPointerItem(1, []byte{1}),
+			item2:  NewPointerItem(2, []byte{1}),
+			result: false,
+		},
+		{
+			item1:  NewPointerItem(1, []byte{1}),
+			item2:  NewPointerItem(1, []byte{2}),
+			result: false,
+		},
+		{
+			item1:  NewPointerItem(0, []byte{}),
+			item2:  NewBigIntegerItem(big.NewInt(0)),
+			result: false,
 		},
 	},
 }

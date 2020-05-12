@@ -10,7 +10,9 @@ import (
 	"math/big"
 	"reflect"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
@@ -856,4 +858,85 @@ func (i *InteropItem) Convert(typ StackItemType) (StackItem, error) {
 // MarshalJSON implements the json.Marshaler interface.
 func (i *InteropItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
+}
+
+// PointerItem represents VM-level instruction pointer.
+type PointerItem struct {
+	pos    int
+	script []byte
+	hash   util.Uint160
+}
+
+// NewPointerItem returns new pointer on the specified position.
+func NewPointerItem(pos int, script []byte) *PointerItem {
+	return &PointerItem{
+		pos:    pos,
+		script: script,
+		hash:   hash.Hash160(script),
+	}
+}
+
+// String implements StackItem interface.
+func (p *PointerItem) String() string {
+	return "Pointer"
+}
+
+// Value implements StackItem interface.
+func (p *PointerItem) Value() interface{} {
+	return p.pos
+}
+
+// Dup implements StackItem interface.
+func (p *PointerItem) Dup() StackItem {
+	return &PointerItem{
+		pos:    p.pos,
+		script: p.script,
+		hash:   p.hash,
+	}
+}
+
+// Bool implements StackItem interface.
+func (p *PointerItem) Bool() bool {
+	return true
+}
+
+// TryBytes implements StackItem interface.
+func (p *PointerItem) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Pointer to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (p *PointerItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Pointer to Integer")
+}
+
+// Equals implements StackItem interface.
+func (p *PointerItem) Equals(s StackItem) bool {
+	if p == s {
+		return true
+	}
+	ptr, ok := s.(*PointerItem)
+	return ok && p.pos == ptr.pos && p.hash == ptr.hash
+}
+
+// ToContractParameter implements StackItem interface.
+func (p *PointerItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
+	return smartcontract.NewParameter(smartcontract.AnyType)
+}
+
+// Type implements StackItem interface.
+func (p *PointerItem) Type() StackItemType {
+	return PointerT
+}
+
+// Convert implements StackItem interface.
+func (p *PointerItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case PointerT:
+		return p, nil
+	case BooleanT:
+		return NewBoolItem(p.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
 }

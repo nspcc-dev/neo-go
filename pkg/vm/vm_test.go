@@ -266,6 +266,7 @@ func TestCONVERT(t *testing.T) {
 			NewArrayItem(arr), NewArrayItem(nil),
 			NewStructItem(arr), NewStructItem(nil),
 			NewMapItem(), m, NewInteropItem(struct{}{}),
+			NewPointerItem(0, []byte{}),
 		}
 		for i := range trueCases {
 			t.Run(getName(trueCases[i], BooleanT), testBool(trueCases[i], NewBoolItem(true)))
@@ -329,9 +330,12 @@ func TestCONVERT(t *testing.T) {
 
 	t.Run("Map->Map", testCONVERT(MapT, m, m))
 
+	ptr := NewPointerItem(1, []byte{1})
+	t.Run("Pointer->Pointer", testCONVERT(PointerT, ptr, ptr))
+
 	t.Run("Null->", func(t *testing.T) {
 		types := []StackItemType{
-			BooleanT, ByteArrayT, IntegerT, ArrayT, StructT, MapT, InteropT,
+			BooleanT, ByteArrayT, IntegerT, ArrayT, StructT, MapT, InteropT, PointerT,
 		}
 		for i := range types {
 			t.Run(types[i].String(), testCONVERT(types[i], NullItem{}, NullItem{}))
@@ -903,6 +907,21 @@ func TestJMPs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPUSHA(t *testing.T) {
+	t.Run("Negative", getTestFuncForVM(makeProgram(opcode.PUSHA, 0xFF, 0xFF, 0xFF, 0xFF), nil))
+	t.Run("TooBig", getTestFuncForVM(makeProgram(opcode.PUSHA, 10, 0, 0, 0), nil))
+	t.Run("Good", func(t *testing.T) {
+		prog := makeProgram(opcode.PUSHA, 2, 0, 0, 0)
+		runWithArgs(t, prog, NewPointerItem(2, prog))
+	})
+}
+
+func TestCALLA(t *testing.T) {
+	prog := makeProgram(opcode.CALLA, opcode.PUSH2, opcode.ADD, opcode.RET, opcode.PUSH3, opcode.RET)
+	t.Run("InvalidScript", getTestFuncForVM(prog, nil, NewPointerItem(4, []byte{1})))
+	t.Run("Good", getTestFuncForVM(prog, 5, NewPointerItem(4, prog)))
 }
 
 func TestNOT(t *testing.T) {
