@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"text/tabwriter"
@@ -1100,16 +1101,36 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			t.Add(key.value, item)
 			v.refs.Add(item)
 
+		case *BufferItem:
+			index := toInt(key.BigInt())
+			if index < 0 || index >= len(t.value) {
+				panic("invalid index")
+			}
+			bi, err := item.TryInteger()
+			b := toInt(bi)
+			if err != nil || b < math.MinInt8 || b > math.MaxUint8 {
+				panic("invalid value")
+			}
+			t.value[index] = byte(b)
+
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
 	case opcode.REVERSEITEMS:
-		a := v.estack.Pop().Array()
-		if len(a) > 1 {
-			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
+		item := v.estack.Pop()
+		switch t := item.value.(type) {
+		case *ArrayItem, *StructItem:
+			a := t.Value().([]StackItem)
+			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
 			}
+		case *BufferItem:
+			for i, j := 0, len(t.value)-1; i < j; i, j = i+1, j-1 {
+				t.value[i], t.value[j] = t.value[j], t.value[i]
+			}
+		default:
+			panic(fmt.Sprintf("invalid item type %s", t))
 		}
 	case opcode.REMOVE:
 		key := v.estack.Pop()
@@ -1322,6 +1343,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.estack.PushVal(index < int64(len(c.Array())))
 		case *MapItem:
 			v.estack.PushVal(t.Has(key.Item()))
+		case *BufferItem:
+			index := key.BigInt().Int64()
+			if index < 0 {
+				panic("negative index")
+			}
+			v.estack.PushVal(index < int64(len(t.value)))
 		default:
 			panic("wrong collection type")
 		}
@@ -1575,4 +1602,16 @@ func (v *VM) GetEntryScriptHash() util.Uint160 {
 // GetCurrentScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
+}
+
+// toInt converts an item to a 32-bit int.
+func toInt(i *big.Int) int {
+	if !i.IsInt64() {
+		panic("not an int32")
+	}
+	n := i.Int64()
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		panic("not an int32")
+	}
+	return int(n)
 }

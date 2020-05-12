@@ -937,6 +937,8 @@ func TestNOT(t *testing.T) {
 	t.Run("ByteArray0", getTestFuncForVM(prog, true, []byte{0, 0}))
 	t.Run("ByteArray1", getTestFuncForVM(prog, false, []byte{0, 1}))
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
+	t.Run("Buffer0", getTestFuncForVM(prog, false, NewBufferItem([]byte{})))
+	t.Run("Buffer1", getTestFuncForVM(prog, false, NewBufferItem([]byte{1})))
 }
 
 // getBigInt returns 2^a+b
@@ -1056,6 +1058,7 @@ func TestEQUALTrue(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.EQUAL)
 	t.Run("Array", getTestFuncForVM(prog, true, []StackItem{}))
 	t.Run("Map", getTestFuncForVM(prog, true, NewMapItem()))
+	t.Run("Buffer", getTestFuncForVM(prog, true, NewBufferItem([]byte{1, 2})))
 }
 
 func TestEQUAL(t *testing.T) {
@@ -1066,6 +1069,7 @@ func TestEQUAL(t *testing.T) {
 	t.Run("IntegerByteArray", getTestFuncForVM(prog, true, []byte{16}, 16))
 	t.Run("Map", getTestFuncForVM(prog, false, NewMapItem(), NewMapItem()))
 	t.Run("Array", getTestFuncForVM(prog, false, []StackItem{}, []StackItem{}))
+	t.Run("Buffer", getTestFuncForVM(prog, false, NewBufferItem([]byte{42}), NewBufferItem([]byte{42})))
 }
 
 func runWithArgs(t *testing.T, prog []byte, result interface{}, args ...interface{}) {
@@ -1270,6 +1274,7 @@ func TestPICKITEM(t *testing.T) {
 	t.Run("bad index", getTestFuncForVM(prog, nil, []StackItem{}, 0))
 	t.Run("Array", getTestFuncForVM(prog, 2, []StackItem{makeStackItem(1), makeStackItem(2)}, 1))
 	t.Run("ByteArray", getTestFuncForVM(prog, 2, []byte{1, 2}, 1))
+	t.Run("Buffer", getTestFuncForVM(prog, 2, NewBufferItem([]byte{1, 2}), 1))
 }
 
 func TestPICKITEMDupArray(t *testing.T) {
@@ -1303,6 +1308,13 @@ func TestPICKITEMMap(t *testing.T) {
 	m := NewMapItem()
 	m.Add(makeStackItem(5), makeStackItem(3))
 	runWithArgs(t, prog, 3, m, 5)
+}
+
+func TestSETITEMBuffer(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.REVERSE4, opcode.SETITEM)
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte{0, 42, 2}), 42, 1, NewBufferItem([]byte{0, 1, 2})))
+	t.Run("BadIndex", getTestFuncForVM(prog, nil, 42, -1, NewBufferItem([]byte{0, 1, 2})))
+	t.Run("BadValue", getTestFuncForVM(prog, nil, 256, 1, NewBufferItem([]byte{0, 1, 2})))
 }
 
 func TestSETITEMMap(t *testing.T) {
@@ -1341,6 +1353,7 @@ func TestSIZE(t *testing.T) {
 	prog := makeProgram(opcode.SIZE)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("ByteArray", getTestFuncForVM(prog, 2, []byte{0, 1}))
+	t.Run("Buffer", getTestFuncForVM(prog, 2, NewBufferItem([]byte{0, 1})))
 	t.Run("Bool", getTestFuncForVM(prog, 1, false))
 	t.Run("Array", getTestFuncForVM(prog, 2, []StackItem{makeStackItem(1), makeStackItem([]byte{})}))
 	t.Run("Map", func(t *testing.T) {
@@ -1415,6 +1428,12 @@ func TestHASKEY(t *testing.T) {
 	t.Run("Struct", func(t *testing.T) {
 		t.Run("True", getTestFuncForVM(prog, true, NewStructItem(arr), 4))
 		t.Run("False", getTestFuncForVM(prog, false, NewStructItem(arr), 5))
+	})
+
+	t.Run("Buffer", func(t *testing.T) {
+		t.Run("True", getTestFuncForVM(prog, true, NewBufferItem([]byte{5, 5, 5}), 2))
+		t.Run("False", getTestFuncForVM(prog, false, NewBufferItem([]byte{5, 5, 5}), 3))
+		t.Run("Negative", getTestFuncForVM(prog, nil, NewBufferItem([]byte{5, 5, 5}), -1))
 	})
 }
 
@@ -1838,11 +1857,10 @@ func TestUNPACKGood(t *testing.T) {
 	assert.Equal(t, int64(1), vm.estack.Peek(len(elements)+1).BigInt().Int64())
 }
 
-func TestREVERSEITEMSBadNotArray(t *testing.T) {
-	prog := makeProgram(opcode.REVERSEITEMS)
-	vm := load(prog)
-	vm.estack.PushVal(1)
-	checkVMFailed(t, vm)
+func TestREVERSEITEMS(t *testing.T) {
+	prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
+	t.Run("InvalidItem", getTestFuncForVM(prog, nil, 1))
+	t.Run("Buffer", getTestFuncForVM(prog, NewBufferItem([]byte{3, 2, 1}), NewBufferItem([]byte{1, 2, 3})))
 }
 
 func testREVERSEITEMSIssue437(t *testing.T, i1, i2 opcode.Opcode, reversed bool) {
