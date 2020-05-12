@@ -635,6 +635,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		item := v.estack.Pop().Item()
 		ctx.arguments.Set(int(parameter[0]), item)
 
+	case opcode.NEWBUFFER:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > MaxItemSize {
+			panic("invalid size")
+		}
+		v.estack.PushVal(NewBufferItem(make([]byte, n)))
+
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()

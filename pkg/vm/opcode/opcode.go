@@ -146,10 +146,11 @@ const (
 	STARG     Opcode = 0x87
 
 	// Splice
-	CAT    Opcode = 0x8B
-	SUBSTR Opcode = 0x8C
-	LEFT   Opcode = 0x8D
-	RIGHT  Opcode = 0x8E
+	NEWBUFFER Opcode = 0x88
+	CAT       Opcode = 0x8B
+	SUBSTR    Opcode = 0x8C
+	LEFT      Opcode = 0x8D
+	RIGHT     Opcode = 0x8E
 
 	// Bitwise logic
 	INVERT   Opcode = 0x90

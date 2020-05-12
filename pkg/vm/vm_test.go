@@ -1154,6 +1154,13 @@ func TestDECBigResult(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
+func TestNEWBUFFER(t *testing.T) {
+	prog := makeProgram(opcode.NEWBUFFER)
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte{0, 0, 0}), 3))
+	t.Run("Negative", getTestFuncForVM(prog, nil, -1))
+	t.Run("TooBig", getTestFuncForVM(prog, nil, MaxItemSize+1))
+}
+
 func TestNEWARRAY0(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY0)
 	runWithArgs(t, prog, []StackItem{})
