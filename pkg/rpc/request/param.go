@@ -191,7 +191,11 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 			case *NotificationFilter:
 				p.Value = *val
 			case *ExecutionFilter:
-				p.Value = *val
+				if (*val).State == "HALT" || (*val).State == "FAULT" {
+					p.Value = *val
+				} else {
+					continue
+				}
 			case *[]Param:
 				p.Value = *val
 			}

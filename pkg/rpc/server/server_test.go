@@ -910,7 +910,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("submit", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
 		t.Run("invalid signature", func(t *testing.T) {
-			s := newBlock(t, chain, 1)
+			s := newBlock(t, chain, 1, 0)
 			s.Script.VerificationScript[8] ^= 0xff
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
@@ -940,13 +940,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		}
 
 		t.Run("invalid height", func(t *testing.T) {
-			b := newBlock(t, chain, 2, newTx())
+			b := newBlock(t, chain, 2, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
 		})
 
 		t.Run("positive", func(t *testing.T) {
-			b := newBlock(t, chain, 1, newTx())
+			b := newBlock(t, chain, 1, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
 			var res bool
@@ -1114,7 +1114,7 @@ func encodeBlock(t *testing.T, b *block.Block) string {
 	return hex.EncodeToString(w.Bytes())
 }
 
-func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*transaction.Transaction) *block.Block {
+func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
 	witness := transaction.Witness{VerificationScript: testchain.MultisigVerificationScript()}
 	height := bc.BlockHeight()
 	h := bc.GetHeaderHash(int(height))
@@ -1129,7 +1129,7 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*
 			Script:        witness,
 		},
 		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
+			PrimaryIndex: primary,
 			Nonce:        1111,
 		},
 		Transactions: txs,
