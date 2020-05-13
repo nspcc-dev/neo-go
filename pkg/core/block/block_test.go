@@ -188,6 +188,8 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	data, err := testserdes.EncodeBinary(&b)
 	assert.NoError(t, err)
 	assert.Equal(t, rawtx, hex.EncodeToString(data))
+
+	testserdes.MarshalUnmarshalJSON(t, &b, new(Block))
 }
 
 func TestBlockSizeCalculation(t *testing.T) {

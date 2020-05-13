@@ -199,7 +199,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 				resp := getNotification(t, respMsgs)
 				rmap := resp.Payload[0].(map[string]interface{})
 				if resp.Event == response.BlockEventID {
-					index := rmap["height"].(float64)
+					index := rmap["index"].(float64)
 					if uint32(index) == lastBlock {
 						break
 					}
