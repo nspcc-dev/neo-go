@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,10 +24,16 @@ func TestWSClientClose(t *testing.T) {
 
 func TestWSClientSubscription(t *testing.T) {
 	var cases = map[string]func(*WSClient) (string, error){
-		"blocks":        (*WSClient).SubscribeForNewBlocks,
-		"transactions":  (*WSClient).SubscribeForNewTransactions,
-		"notifications": (*WSClient).SubscribeForExecutionNotifications,
-		"executions":    (*WSClient).SubscribeForTransactionExecutions,
+		"blocks": (*WSClient).SubscribeForNewBlocks,
+		"transactions": func(wsc *WSClient) (string, error) {
+			return wsc.SubscribeForNewTransactions(nil)
+		},
+		"notifications": func(wsc *WSClient) (string, error) {
+			return wsc.SubscribeForExecutionNotifications(nil)
+		},
+		"executions": func(wsc *WSClient) (string, error) {
+			return wsc.SubscribeForTransactionExecutions(nil)
+		},
 	}
 	t.Run("good", func(t *testing.T) {
 		for name, f := range cases {
@@ -144,4 +153,97 @@ func TestWSClientEvents(t *testing.T) {
 	}
 	// Connection closed by server.
 	require.Equal(t, false, ok)
+}
+
+func TestWSExecutionVMStateCheck(t *testing.T) {
+	// Will answer successfully if request slips through.
+	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
+	defer srv.Close()
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	require.NoError(t, err)
+	filter := "NONE"
+	_, err = wsc.SubscribeForTransactionExecutions(&filter)
+	require.Error(t, err)
+	wsc.Close()
+}
+
+func TestWSFilteredSubscriptions(t *testing.T) {
+	var cases = []struct {
+		name       string
+		clientCode func(*testing.T, *WSClient)
+		serverCode func(*testing.T, *request.Params)
+	}{
+		{"transactions",
+			func(t *testing.T, wsc *WSClient) {
+				tt := transaction.InvocationType
+				_, err := wsc.SubscribeForNewTransactions(&tt)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *request.Params) {
+				param, ok := p.Value(1)
+				require.Equal(t, true, ok)
+				require.Equal(t, request.TxFilterT, param.Type)
+				filt, ok := param.Value.(request.TxFilter)
+				require.Equal(t, true, ok)
+				require.Equal(t, transaction.InvocationType, filt.Type)
+			},
+		},
+		{"notifications",
+			func(t *testing.T, wsc *WSClient) {
+				contract := util.Uint160{1, 2, 3, 4, 5}
+				_, err := wsc.SubscribeForExecutionNotifications(&contract)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *request.Params) {
+				param, ok := p.Value(1)
+				require.Equal(t, true, ok)
+				require.Equal(t, request.NotificationFilterT, param.Type)
+				filt, ok := param.Value.(request.NotificationFilter)
+				require.Equal(t, true, ok)
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, filt.Contract)
+			},
+		},
+		{"executions",
+			func(t *testing.T, wsc *WSClient) {
+				state := "FAULT"
+				_, err := wsc.SubscribeForTransactionExecutions(&state)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *request.Params) {
+				param, ok := p.Value(1)
+				require.Equal(t, true, ok)
+				require.Equal(t, request.ExecutionFilterT, param.Type)
+				filt, ok := param.Value.(request.ExecutionFilter)
+				require.Equal(t, true, ok)
+				require.Equal(t, "FAULT", filt.State)
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == "/ws" && req.Method == "GET" {
+					var upgrader = websocket.Upgrader{}
+					ws, err := upgrader.Upgrade(w, req, nil)
+					require.NoError(t, err)
+					ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+					req := request.In{}
+					err = ws.ReadJSON(&req)
+					require.NoError(t, err)
+					params, err := req.Params()
+					require.NoError(t, err)
+					c.serverCode(t, params)
+					ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					err = ws.WriteMessage(1, []byte(`{"jsonrpc": "2.0", "id": 1, "result": "0"}`))
+					require.NoError(t, err)
+					ws.Close()
+				}
+			}))
+			defer srv.Close()
+			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+			require.NoError(t, err)
+			c.clientCode(t, wsc)
+			wsc.Close()
+		})
+	}
 }

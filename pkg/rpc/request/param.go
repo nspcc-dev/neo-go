@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -29,6 +30,23 @@ type (
 		Type  smartcontract.ParamType `json:"type"`
 		Value Param                   `json:"value"`
 	}
+	// TxFilter is a wrapper structure for transaction event filter. The only
+	// allowed filter is a transaction type for now.
+	TxFilter struct {
+		Type transaction.TXType `json:"type"`
+	}
+	// NotificationFilter is a wrapper structure representing filter used for
+	// notifications generated during transaction execution. Notifications can
+	// only be filtered by contract hash.
+	NotificationFilter struct {
+		Contract util.Uint160 `json:"contract"`
+	}
+	// ExecutionFilter is a wrapper structure used for transaction execution
+	// events. It allows to choose failing or successful transactions based
+	// on their VM state.
+	ExecutionFilter struct {
+		State string `json:"state"`
+	}
 )
 
 // These are parameter types accepted by RPC server.
@@ -38,6 +56,9 @@ const (
 	NumberT
 	ArrayT
 	FuncParamT
+	TxFilterT
+	NotificationFilterT
+	ExecutionFilterT
 )
 
 func (p Param) String() string {
@@ -130,38 +151,43 @@ func (p Param) GetBytesHex() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (p *Param) UnmarshalJSON(data []byte) error {
 	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		p.Type = StringT
-		p.Value = s
-
-		return nil
-	}
-
 	var num float64
-	if err := json.Unmarshal(data, &num); err == nil {
-		p.Type = NumberT
-		p.Value = int(num)
-
-		return nil
+	// To unmarshal correctly we need to pass pointers into the decoder.
+	var attempts = [...]Param{
+		{NumberT, &num},
+		{StringT, &s},
+		{FuncParamT, &FuncParam{}},
+		{TxFilterT, &TxFilter{}},
+		{NotificationFilterT, &NotificationFilter{}},
+		{ExecutionFilterT, &ExecutionFilter{}},
+		{ArrayT, &[]Param{}},
 	}
 
-	r := bytes.NewReader(data)
-	jd := json.NewDecoder(r)
-	jd.DisallowUnknownFields()
-	var fp FuncParam
-	if err := jd.Decode(&fp); err == nil {
-		p.Type = FuncParamT
-		p.Value = fp
-
-		return nil
-	}
-
-	var ps []Param
-	if err := json.Unmarshal(data, &ps); err == nil {
-		p.Type = ArrayT
-		p.Value = ps
-
-		return nil
+	for _, cur := range attempts {
+		r := bytes.NewReader(data)
+		jd := json.NewDecoder(r)
+		jd.DisallowUnknownFields()
+		if err := jd.Decode(cur.Value); err == nil {
+			p.Type = cur.Type
+			// But we need to store actual values, not pointers.
+			switch val := cur.Value.(type) {
+			case *float64:
+				p.Value = int(*val)
+			case *string:
+				p.Value = *val
+			case *FuncParam:
+				p.Value = *val
+			case *TxFilter:
+				p.Value = *val
+			case *NotificationFilter:
+				p.Value = *val
+			case *ExecutionFilter:
+				p.Value = *val
+			case *[]Param:
+				p.Value = *val
+			}
+			return nil
+		}
 	}
 
 	return errors.New("unknown type")
