@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // WSClient is a websocket-enabled RPC client that can be used with appropriate
@@ -239,30 +240,51 @@ func (c *WSClient) performUnsubscription(id string) error {
 }
 
 // SubscribeForNewBlocks adds subscription for new block events to this instance
-// of client.
-func (c *WSClient) SubscribeForNewBlocks() (string, error) {
+// of client. It can filtered by primary consensus node index, nil value doesn't
+// add any filters.
+func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 	params := request.NewRawParams("block_added")
+	if primary != nil {
+		params.Values = append(params.Values, request.BlockFilter{Primary: *primary})
+	}
 	return c.performSubscription(params)
 }
 
 // SubscribeForNewTransactions adds subscription for new transaction events to
-// this instance of client.
-func (c *WSClient) SubscribeForNewTransactions() (string, error) {
+// this instance of client. It can be filtered by sender and/or cosigner, nil
+// value is treated as missing filter.
+func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, cosigner *util.Uint160) (string, error) {
 	params := request.NewRawParams("transaction_added")
+	if sender != nil || cosigner != nil {
+		params.Values = append(params.Values, request.TxFilter{Sender: sender, Cosigner: cosigner})
+	}
 	return c.performSubscription(params)
 }
 
 // SubscribeForExecutionNotifications adds subscription for notifications
-// generated during transaction execution to this instance of client.
-func (c *WSClient) SubscribeForExecutionNotifications() (string, error) {
+// generated during transaction execution to this instance of client. It can be
+// filtered by contract's hash (that emits notifications), nil value puts no such
+// restrictions.
+func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160) (string, error) {
 	params := request.NewRawParams("notification_from_execution")
+	if contract != nil {
+		params.Values = append(params.Values, request.NotificationFilter{Contract: *contract})
+	}
 	return c.performSubscription(params)
 }
 
 // SubscribeForTransactionExecutions adds subscription for application execution
-// results generated during transaction execution to this instance of client.
-func (c *WSClient) SubscribeForTransactionExecutions() (string, error) {
+// results generated during transaction execution to this instance of client. Can
+// be filtered by state (HALT/FAULT) to check for successful or failing
+// transactions, nil value means no filtering.
+func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
 	params := request.NewRawParams("transaction_executed")
+	if state != nil {
+		if *state != "HALT" && *state != "FAULT" {
+			return "", errors.New("bad state parameter")
+		}
+		params.Values = append(params.Values, request.ExecutionFilter{State: *state})
+	}
 	return c.performSubscription(params)
 }
 
