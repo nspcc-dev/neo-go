@@ -201,6 +201,17 @@ var sliceTestCases = []testCase{
 		}`,
 		[]byte{0x61, 0x62, 0x63},
 	},
+	{
+		"declare and append byte-slice",
+		`package foo
+		func Main() []byte {
+			var a []byte
+			a = append(a, 1)
+			a = append(a, 2)
+			return a
+		}`,
+		[]byte{1, 2},
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
