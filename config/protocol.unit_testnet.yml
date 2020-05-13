@@ -49,9 +49,10 @@ ApplicationConfiguration:
   AttemptConnPeers: 5
   MinPeers: 1
   RPC:
+    Address: 127.0.0.1
     Enabled: true
     EnableCORSWorkaround: false
-    Port: 20332
+    Port: 0 # let the system choose port dynamically
   Prometheus:
     Enabled: false #since it's not useful for unit tests.
     Port: 2112
