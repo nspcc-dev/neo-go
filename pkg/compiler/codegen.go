@@ -133,6 +133,7 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 
 	switch typ.Kind() {
 	case types.Int, types.UntypedInt, types.Uint,
+		types.Int8, types.Uint8,
 		types.Int16, types.Uint16,
 		types.Int32, types.Uint32, types.Int64, types.Uint64:
 		val, _ := constant.Int64Val(t.Value)
@@ -143,10 +144,6 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	case types.Bool, types.UntypedBool:
 		val := constant.BoolVal(t.Value)
 		emit.Bool(c.prog.BinWriter, val)
-	case types.Byte:
-		val, _ := constant.Int64Val(t.Value)
-		b := byte(val)
-		emit.Bytes(c.prog.BinWriter, []byte{b})
 	default:
 		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this basic type: %v", t)
 		return
