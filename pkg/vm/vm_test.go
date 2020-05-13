@@ -1753,9 +1753,9 @@ func TestCAT(t *testing.T) {
 		arg := make([]byte, MaxItemSize/2+1)
 		runWithArgs(t, prog, nil, arg, arg)
 	})
-	t.Run("Good", getTestFuncForVM(prog, []byte("abcdef"), []byte("abc"), []byte("def")))
-	t.Run("Int0ByteArray", getTestFuncForVM(prog, []byte{}, 0, []byte{}))
-	t.Run("ByteArrayInt1", getTestFuncForVM(prog, []byte{1}, []byte{}, 1))
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("abcdef")), []byte("abc"), []byte("def")))
+	t.Run("Int0ByteArray", getTestFuncForVM(prog, NewBufferItem([]byte{}), 0, []byte{}))
+	t.Run("ByteArrayInt1", getTestFuncForVM(prog, NewBufferItem([]byte{1}), []byte{}, 1))
 }
 
 func TestSUBSTR(t *testing.T) {
@@ -1763,7 +1763,7 @@ func TestSUBSTR(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("OneArgument", getTestFuncForVM(prog, nil, 1))
 	t.Run("TwoArguments", getTestFuncForVM(prog, nil, 0, 2))
-	t.Run("Good", getTestFuncForVM(prog, []byte("bc"), []byte("abcdef"), 1, 2))
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("bc")), []byte("abcdef"), 1, 2))
 	t.Run("BadOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), 7, 1))
 	t.Run("BigLen", getTestFuncForVM(prog, nil, []byte("abcdef"), 1, 6))
 	t.Run("NegativeOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), -1, 3))
@@ -1786,8 +1786,8 @@ func TestLEFT(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("NoString", getTestFuncForVM(prog, nil, 2))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
-	t.Run("Good", getTestFuncForVM(prog, "ab", "abcdef", 2))
-	t.Run("GoodBigLen", getTestFuncForVM(prog, "abcdef", "abcdef", 8))
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("ab")), "abcdef", 2))
+	t.Run("GoodBigLen", getTestFuncForVM(prog, NewBufferItem([]byte("abcdef")), "abcdef", 8))
 }
 
 func TestRIGHT(t *testing.T) {
@@ -1795,7 +1795,7 @@ func TestRIGHT(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("NoString", getTestFuncForVM(prog, nil, 2))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
-	t.Run("Good", getTestFuncForVM(prog, "ef", "abcdef", 2))
+	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("ef")), "abcdef", 2))
 	t.Run("BadLen", getTestFuncForVM(prog, nil, "abcdef", 8))
 }
 
