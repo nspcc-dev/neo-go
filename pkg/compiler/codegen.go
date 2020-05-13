@@ -716,6 +716,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
 			ast.Walk(c, n.Args[0])
+			c.emitConvert(vm.BufferT)
 			return nil
 		}
 
@@ -1096,7 +1097,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		case "ToBool":
 			typ = vm.BooleanT
 		}
-		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+		c.emitConvert(typ)
 	case "SHA256":
 		emit.Syscall(c.prog.BinWriter, "Neo.Crypto.SHA256")
 	case "AppCall":
@@ -1121,6 +1122,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		bytes := uint160.BytesBE()
 		emit.Bytes(c.prog.BinWriter, bytes)
+		c.emitConvert(vm.BufferT)
 	}
 }
 
@@ -1146,6 +1148,11 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 	return args
 }
 
+// emitConvert converts top stack item to the specified type.
+func (c *codegen) emitConvert(typ vm.StackItemType) {
+	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+}
+
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 	buf := make([]byte, len(lit.Elts))
 	for i := 0; i < len(lit.Elts); i++ {
@@ -1154,6 +1161,7 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 		buf[i] = byte(val)
 	}
 	emit.Bytes(c.prog.BinWriter, buf)
+	c.emitConvert(vm.BufferT)
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {
