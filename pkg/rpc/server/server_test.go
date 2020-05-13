@@ -384,9 +384,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(3))
 				require.NoErrorf(t, err, "could not get block")
 
-				assert.Equal(t, block.Hash(), res.Hash)
-				for i := range res.Tx {
-					tx := res.Tx[i]
+				assert.Equal(t, block.Hash(), res.Hash())
+				for i, tx := range res.Transactions {
 					require.Equal(t, transaction.ContractType, tx.Type)
 
 					actualTx := block.Transactions[i]
