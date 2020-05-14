@@ -23,6 +23,8 @@ const (
 	NotificationEventID
 	// ExecutionEventID is used for `transaction_executed` events.
 	ExecutionEventID
+	// MissedEventID notifies user of missed events.
+	MissedEventID EventID = 255
 )
 
 // String is a good old Stringer implementation.
@@ -36,6 +38,8 @@ func (e EventID) String() string {
 		return "notification_from_execution"
 	case ExecutionEventID:
 		return "transaction_executed"
+	case MissedEventID:
+		return "event_missed"
 	default:
 		return "unknown"
 	}
@@ -52,6 +56,8 @@ func GetEventIDFromString(s string) (EventID, error) {
 		return NotificationEventID, nil
 	case "transaction_executed":
 		return ExecutionEventID, nil
+	case "event_missed":
+		return MissedEventID, nil
 	default:
 		return 255, errors.New("invalid stream name")
 	}

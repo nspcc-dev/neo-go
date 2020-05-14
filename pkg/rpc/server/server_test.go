@@ -336,7 +336,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(2))
 				require.NoErrorf(t, err, "could not get block")
 
-				assert.Equal(t, block.Hash(), res.Hash)
+				assert.Equal(t, block.Hash(), res.Hash())
 				for i := range res.Tx {
 					tx := res.Tx[i]
 					require.Equal(t, transaction.MinerType, tx.Transaction.Type)
@@ -1035,6 +1035,7 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	if expectingFail {
+		require.NotNil(t, resp.Error)
 		assert.NotEqual(t, 0, resp.Error.Code)
 		assert.NotEqual(t, "", resp.Error.Message)
 	} else {

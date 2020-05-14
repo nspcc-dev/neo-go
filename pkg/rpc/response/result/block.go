@@ -3,12 +3,10 @@ package result
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -30,42 +28,29 @@ type (
 	// Block wrapper used for the representation of
 	// block.Block / block.Base on the RPC Server.
 	Block struct {
-		Hash              util.Uint256  `json:"hash"`
-		Size              int           `json:"size"`
-		Version           uint32        `json:"version"`
-		NextBlockHash     *util.Uint256 `json:"nextblockhash,omitempty"`
-		PreviousBlockHash util.Uint256  `json:"previousblockhash"`
-		MerkleRoot        util.Uint256  `json:"merkleroot"`
-		Time              uint32        `json:"time"`
-		Index             uint32        `json:"index"`
-		Nonce             string        `json:"nonce"`
-		NextConsensus     string        `json:"nextconsensus"`
+		*block.Base
+		BlockMetadataAndTx
+	}
 
-		Confirmations uint32 `json:"confirmations"`
-
-		Script transaction.Witness `json:"script"`
-
-		Tx []Tx `json:"tx"`
+	// BlockMetadataAndTx is an additional metadata added to standard
+	// block.Base plus specially encoded transactions.
+	BlockMetadataAndTx struct {
+		Size          int           `json:"size"`
+		NextBlockHash *util.Uint256 `json:"nextblockhash,omitempty"`
+		Confirmations uint32        `json:"confirmations"`
+		Tx            []Tx          `json:"tx"`
 	}
 )
 
 // NewBlock creates a new Block wrapper.
 func NewBlock(b *block.Block, chain core.Blockchainer) Block {
 	res := Block{
-		Version:           b.Version,
-		Hash:              b.Hash(),
-		Size:              io.GetVarSize(b),
-		PreviousBlockHash: b.PrevHash,
-		MerkleRoot:        b.MerkleRoot,
-		Time:              b.Timestamp,
-		Index:             b.Index,
-		Nonce:             fmt.Sprintf("%016x", b.ConsensusData),
-		NextConsensus:     address.Uint160ToString(b.NextConsensus),
-		Confirmations:     chain.BlockHeight() - b.Index - 1,
-
-		Script: b.Script,
-
-		Tx: make([]Tx, 0, len(b.Transactions)),
+		Base: &b.Base,
+		BlockMetadataAndTx: BlockMetadataAndTx{
+			Size:          io.GetVarSize(b),
+			Confirmations: chain.BlockHeight() - b.Index - 1,
+			Tx:            make([]Tx, 0, len(b.Transactions)),
+		},
 	}
 
 	hash := chain.GetHeaderHash(int(b.Index) + 1)
@@ -128,5 +113,46 @@ func (t *Tx) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	t.Transaction = transaction
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (b Block) MarshalJSON() ([]byte, error) {
+	output, err := json.Marshal(b.BlockMetadataAndTx)
+	if err != nil {
+		return nil, err
+	}
+	baseBytes, err := json.Marshal(b.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	// We have to keep both "fields" at the same level in json in order to
+	// match C# API, so there's no way to marshall Block correctly with
+	// standard json.Marshaller tool.
+	if output[len(output)-1] != '}' || baseBytes[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	output[len(output)-1] = ','
+	output = append(output, baseBytes[1:]...)
+	return output, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (b *Block) UnmarshalJSON(data []byte) error {
+	// As block.Base and BlockMetadataAndTx are at the same level in json,
+	// do unmarshalling separately for both structs.
+	metaTx := new(BlockMetadataAndTx)
+	base := new(block.Base)
+	err := json.Unmarshal(data, metaTx)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, base)
+	if err != nil {
+		return err
+	}
+	b.Base = base
+	b.BlockMetadataAndTx = *metaTx
 	return nil
 }

@@ -1,6 +1,7 @@
 package block
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -17,10 +18,15 @@ type Block struct {
 	Base
 
 	// Transaction list.
-	Transactions []*transaction.Transaction `json:"tx"`
+	Transactions []*transaction.Transaction
 
 	// True if this block is created from trimmed data.
-	Trimmed bool `json:"-"`
+	Trimmed bool
+}
+
+// auxTxes is used for JSON i/o.
+type auxTxes struct {
+	Transactions []*transaction.Transaction `json:"tx"`
 }
 
 // Header returns the Header of the Block.
@@ -148,4 +154,43 @@ func (b *Block) Compare(item queue.Item) int {
 	default:
 		return -1
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (b Block) MarshalJSON() ([]byte, error) {
+	txes, err := json.Marshal(auxTxes{b.Transactions})
+	if err != nil {
+		return nil, err
+	}
+	baseBytes, err := json.Marshal(b.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stitch them together.
+	if baseBytes[len(baseBytes)-1] != '}' || txes[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	baseBytes[len(baseBytes)-1] = ','
+	baseBytes = append(baseBytes, txes[1:]...)
+	return baseBytes, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (b *Block) UnmarshalJSON(data []byte) error {
+	// As Base and txes are at the same level in json,
+	// do unmarshalling separately for both structs.
+	txes := new(auxTxes)
+	err := json.Unmarshal(data, txes)
+	if err != nil {
+		return err
+	}
+	base := new(Base)
+	err = json.Unmarshal(data, base)
+	if err != nil {
+		return err
+	}
+	b.Base = *base
+	b.Transactions = txes.Transactions
+	return nil
 }

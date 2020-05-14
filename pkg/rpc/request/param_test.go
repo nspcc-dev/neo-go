@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -13,7 +14,12 @@ import (
 )
 
 func TestParam_UnmarshalJSON(t *testing.T) {
-	msg := `["str1", 123, ["str2", 3], [{"type": "String", "value": "jajaja"}]]`
+	msg := `["str1", 123, ["str2", 3], [{"type": "String", "value": "jajaja"}],
+                 {"type": "MinerTransaction"},
+                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"state": "HALT"}]`
+	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
+	require.NoError(t, err)
 	expected := Params{
 		{
 			Type:  StringT,
@@ -50,6 +56,18 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			Type:  TxFilterT,
+			Value: TxFilter{Type: transaction.MinerType},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Contract: contr},
+		},
+		{
+			Type:  ExecutionFilterT,
+			Value: ExecutionFilter{State: "HALT"},
 		},
 	}
 
