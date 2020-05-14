@@ -28,21 +28,22 @@ const initialGAS = 30000000
 
 // NewGAS returns GAS native contract.
 func NewGAS() *GAS {
+	g := &GAS{}
 	nep5 := newNEP5Native(gasSyscallName)
 	nep5.name = "GAS"
 	nep5.symbol = "gas"
 	nep5.decimals = 8
 	nep5.factor = GASFactor
+	nep5.onPersist = chainOnPersist(g.onPersist, g.OnPersist)
+	nep5.incBalance = g.increaseBalance
 
-	g := &GAS{nep5TokenNative: *nep5}
+	g.nep5TokenNative = *nep5
 
 	desc := newDescriptor("getSysFeeAmount", smartcontract.IntegerType,
 		manifest.NewParameter("index", smartcontract.IntegerType))
 	md := newMethodAndPrice(g.getSysFeeAmount, 1, smartcontract.NoneFlag)
 	g.AddMethod(md, desc, true)
 
-	g.onPersist = chainOnPersist(g.onPersist, g.OnPersist)
-	g.incBalance = g.increaseBalance
 	return g
 }
 

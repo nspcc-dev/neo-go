@@ -60,13 +60,16 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 
 // NewNEO returns NEO native contract.
 func NewNEO() *NEO {
+	n := &NEO{}
 	nep5 := newNEP5Native(neoSyscallName)
 	nep5.name = "NEO"
 	nep5.symbol = "neo"
 	nep5.decimals = 0
 	nep5.factor = 1
+	nep5.onPersist = chainOnPersist(n.onPersist, n.OnPersist)
+	nep5.incBalance = n.increaseBalance
 
-	n := &NEO{nep5TokenNative: *nep5}
+	n.nep5TokenNative = *nep5
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
@@ -96,9 +99,6 @@ func NewNEO() *NEO {
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getNextBlockValidators, 1, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
-
-	n.onPersist = chainOnPersist(n.onPersist, n.OnPersist)
-	n.incBalance = n.increaseBalance
 
 	return n
 }
