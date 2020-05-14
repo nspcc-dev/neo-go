@@ -338,6 +338,29 @@ var structTestCases = []testCase{
 		}`,
 		big.NewInt(2),
 	},
+	{
+		"uninitialized struct fields",
+		`package foo
+		type Foo struct {
+			i int
+			m map[string]int
+			b []byte
+			a []int
+			s struct { ii int }
+		}
+		func NewFoo() Foo { return Foo{} }
+		func Main() int {
+			foo := NewFoo()
+			if foo.i != 0 { return 1 }
+			if len(foo.m) != 0 { return 1 }
+			if len(foo.b) != 0 { return 1 }
+			if len(foo.a) != 0 { return 1 }
+			s := foo.s
+			if s.ii != 0 { return 1 }
+			return 2
+		}`,
+		big.NewInt(2),
+	},
 }
 
 func TestStructs(t *testing.T) {

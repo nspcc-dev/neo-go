@@ -533,6 +533,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.emitLoadConst(value)
 		} else if tv := c.typeInfo.Types[n]; tv.Value != nil {
 			c.emitLoadConst(tv)
+		} else if n.Name == "nil" {
+			c.emitDefault(new(types.Slice))
 		} else {
 			c.emitLoadLocal(n.Name)
 		}
@@ -1230,8 +1232,29 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitLoadConst(typeAndVal)
+		c.emitDefault(typeAndVal.Type)
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+	}
+}
+
+func (c *codegen) emitDefault(typ types.Type) {
+	switch t := c.scTypeFromGo(typ); t {
+	case "Integer":
+		emit.Int(c.prog.BinWriter, 0)
+	case "Boolean":
+		emit.Bool(c.prog.BinWriter, false)
+	case "String":
+		emit.String(c.prog.BinWriter, "")
+	case "Map":
+		emit.Opcode(c.prog.BinWriter, opcode.NEWMAP)
+	case "Struct":
+		emit.Int(c.prog.BinWriter, int64(typ.(*types.Struct).NumFields()))
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	case "Array":
+		emit.Int(c.prog.BinWriter, 0)
+		emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+	case "ByteArray":
+		emit.Bytes(c.prog.BinWriter, []byte{})
 	}
 }
 

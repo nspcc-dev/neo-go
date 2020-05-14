@@ -44,8 +44,9 @@ func typeAndValueForField(fld *types.Var) (types.TypeAndValue, error) {
 		default:
 			return types.TypeAndValue{}, fmt.Errorf("could not initialize struct field %s to zero, type: %s", fld.Name(), t)
 		}
+	default:
+		return types.TypeAndValue{Type: t}, nil
 	}
-	return types.TypeAndValue{}, nil
 }
 
 // countGlobals counts the global variables in the program to add
