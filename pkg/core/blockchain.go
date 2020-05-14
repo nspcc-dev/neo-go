@@ -651,16 +651,26 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						continue
 					}
 					op, ok := arr[0].Value().([]byte)
-					if !ok || string(op) != "transfer" {
+					if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
 						continue
 					}
-					from, ok := arr[1].Value().([]byte)
-					if !ok {
-						continue
+					var from []byte
+					fromValue := arr[1].Value()
+					// we don't have `from` set when we are minting tokens
+					if fromValue != nil {
+						from, ok = fromValue.([]byte)
+						if !ok {
+							continue
+						}
 					}
-					to, ok := arr[2].Value().([]byte)
-					if !ok {
-						continue
+					var to []byte
+					toValue := arr[2].Value()
+					// we don't have `to` set when we are burning tokens
+					if toValue != nil {
+						to, ok = toValue.([]byte)
+						if !ok {
+							continue
+						}
 					}
 					amount, ok := arr[3].Value().(*big.Int)
 					if !ok {
