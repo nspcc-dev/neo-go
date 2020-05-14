@@ -31,6 +31,117 @@ type rpcClientTestCase struct {
 	check          func(t *testing.T, c *Client, result interface{})
 }
 
+// getResultBlock202 returns data for block number 1 which is used by several tests.
+func getResultBlock202() *result.Block {
+	nextBlockHash, err := util.Uint256DecodeStringLE("13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22")
+	if err != nil {
+		panic(err)
+	}
+	prevBlockHash, err := util.Uint256DecodeStringLE("93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef")
+	if err != nil {
+		panic(err)
+	}
+	merkleRoot, err := util.Uint256DecodeStringLE("b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d")
+	if err != nil {
+		panic(err)
+	}
+	invScript, err := hex.DecodeString("0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996")
+	if err != nil {
+		panic(err)
+	}
+	verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb")
+	if err != nil {
+		panic(err)
+	}
+	sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
+	if err != nil {
+		panic(err)
+	}
+	txInvScript, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
+	if err != nil {
+		panic(err)
+	}
+	txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
+	if err != nil {
+		panic(err)
+	}
+	vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
+	if err != nil {
+		panic(err)
+	}
+	outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
+	if err != nil {
+		panic(err)
+	}
+	tx := transaction.NewContractTX()
+	tx.Nonce = 3
+	tx.ValidUntilBlock = 1200
+	tx.Sender = sender
+	tx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   txInvScript,
+			VerificationScript: txVerifScript,
+		},
+	}
+	tx.Inputs = []transaction.Input{
+		{
+			PrevHash:  vin,
+			PrevIndex: 0,
+		},
+	}
+	tx.Outputs = []transaction.Output{
+		{
+			AssetID:    core.GoverningTokenID(),
+			Amount:     util.Fixed8FromInt64(99999000),
+			ScriptHash: outAddress,
+			Position:   0,
+		},
+	}
+
+	var nonce uint64
+	i, err := fmt.Sscanf("0000000000000457", "%016x", &nonce)
+	if i != 1 {
+		panic("can't decode nonce")
+	}
+	if err != nil {
+		panic(err)
+	}
+	nextCon, err := address.StringToUint160("AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL")
+	if err != nil {
+		panic(err)
+	}
+	blck := &block.Block{
+		Base: block.Base{
+			Version:       0,
+			PrevHash:      prevBlockHash,
+			MerkleRoot:    merkleRoot,
+			Timestamp:     1589300496,
+			Index:         202,
+			NextConsensus: nextCon,
+			Script: transaction.Witness{
+				InvocationScript:   invScript,
+				VerificationScript: verifScript,
+			},
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        nonce,
+		},
+		Transactions: []*transaction.Transaction{tx},
+	}
+	// Update hashes for correct result comparison.
+	_ = tx.Hash()
+	_ = blck.Hash()
+	return &result.Block{
+		Block: blck,
+		BlockMetadata: result.BlockMetadata{
+			Size:          781,
+			Confirmations: 6,
+			NextBlockHash: &nextBlockHash,
+		},
+	}
+}
+
 // rpcClientTestCases contains `serverResponse` json data fetched from examples
 // published in official C# JSON-RPC API v2.10.3 reference
 // (see https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)
@@ -159,113 +270,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","size":781,"version":0,"nextblockhash":"0x13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22","previousblockhash":"0x93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef","merkleroot":"0xb8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d","time":1589300496,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL","confirmations":6,"witnesses":[{"invocation":"0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"}],"tx":[{"txid":"0x96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581","size":254,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","sys_fee":"0","net_fee":"0","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370","vout":0}],"vout":[{"address":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}]}]}}`,
 			result: func(c *Client) interface{} {
-				nextBlockHash, err := util.Uint256DecodeStringLE("13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22")
-				if err != nil {
-					panic(err)
-				}
-				prevBlockHash, err := util.Uint256DecodeStringLE("93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef")
-				if err != nil {
-					panic(err)
-				}
-				merkleRoot, err := util.Uint256DecodeStringLE("b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d")
-				if err != nil {
-					panic(err)
-				}
-				invScript, err := hex.DecodeString("0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996")
-				if err != nil {
-					panic(err)
-				}
-				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb")
-				if err != nil {
-					panic(err)
-				}
-				sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
-				if err != nil {
-					panic(err)
-				}
-				txInvScript, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
-				if err != nil {
-					panic(err)
-				}
-				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
-				if err != nil {
-					panic(err)
-				}
-				vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
-				if err != nil {
-					panic(err)
-				}
-				outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
-				if err != nil {
-					panic(err)
-				}
-				tx := transaction.NewContractTX()
-				tx.Nonce = 3
-				tx.ValidUntilBlock = 1200
-				tx.Sender = sender
-				tx.Scripts = []transaction.Witness{
-					{
-						InvocationScript:   txInvScript,
-						VerificationScript: txVerifScript,
-					},
-				}
-				tx.Inputs = []transaction.Input{
-					{
-						PrevHash:  vin,
-						PrevIndex: 0,
-					},
-				}
-				tx.Outputs = []transaction.Output{
-					{
-						AssetID:    core.GoverningTokenID(),
-						Amount:     util.Fixed8FromInt64(99999000),
-						ScriptHash: outAddress,
-						Position:   0,
-					},
-				}
-
-				var nonce uint64
-				i, err := fmt.Sscanf("0000000000000457", "%016x", &nonce)
-				if i != 1 {
-					panic("can't decode nonce")
-				}
-				if err != nil {
-					panic(err)
-				}
-				nextCon, err := address.StringToUint160("AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL")
-				if err != nil {
-					panic(err)
-				}
-				blck := &block.Block{
-					Base: block.Base{
-						Version:       0,
-						PrevHash:      prevBlockHash,
-						MerkleRoot:    merkleRoot,
-						Timestamp:     1589300496,
-						Index:         202,
-						NextConsensus: nextCon,
-						Script: transaction.Witness{
-							InvocationScript:   invScript,
-							VerificationScript: verifScript,
-						},
-					},
-					ConsensusData: block.ConsensusData{
-						PrimaryIndex: 0,
-						Nonce:        nonce,
-					},
-					Transactions: []*transaction.Transaction{tx},
-				}
-				// Update hashes for correct result comparison.
-				_ = tx.Hash()
-				_ = blck.Hash()
-				return &result.Block{
-					Block: blck,
-					BlockMetadata: result.BlockMetadata{
-						Size:          781,
-						Confirmations: 6,
-						NextBlockHash: &nextBlockHash,
-					},
-				}
+				return getResultBlock202()
 			},
 		},
 		{
@@ -301,113 +306,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","size":781,"version":0,"nextblockhash":"0x13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22","previousblockhash":"0x93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef","merkleroot":"0xb8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d","time":1589300496,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL","confirmations":6,"witnesses":[{"invocation":"0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"}],"tx":[{"txid":"0x96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581","size":254,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","sys_fee":"0","net_fee":"0","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370","vout":0}],"vout":[{"address":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}]}]}}`,
 			result: func(c *Client) interface{} {
-				nextBlockHash, err := util.Uint256DecodeStringLE("13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22")
-				if err != nil {
-					panic(err)
-				}
-				prevBlockHash, err := util.Uint256DecodeStringLE("93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef")
-				if err != nil {
-					panic(err)
-				}
-				merkleRoot, err := util.Uint256DecodeStringLE("b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d")
-				if err != nil {
-					panic(err)
-				}
-				invScript, err := hex.DecodeString("0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996")
-				if err != nil {
-					panic(err)
-				}
-				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb")
-				if err != nil {
-					panic(err)
-				}
-				sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
-				if err != nil {
-					panic(err)
-				}
-				txInvScript, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
-				if err != nil {
-					panic(err)
-				}
-				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
-				if err != nil {
-					panic(err)
-				}
-				vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
-				if err != nil {
-					panic(err)
-				}
-				outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
-				if err != nil {
-					panic(err)
-				}
-				tx := transaction.NewContractTX()
-				tx.Nonce = 3
-				tx.ValidUntilBlock = 1200
-				tx.Sender = sender
-				tx.Scripts = []transaction.Witness{
-					{
-						InvocationScript:   txInvScript,
-						VerificationScript: txVerifScript,
-					},
-				}
-				tx.Inputs = []transaction.Input{
-					{
-						PrevHash:  vin,
-						PrevIndex: 0,
-					},
-				}
-				tx.Outputs = []transaction.Output{
-					{
-						AssetID:    core.GoverningTokenID(),
-						Amount:     util.Fixed8FromInt64(99999000),
-						ScriptHash: outAddress,
-						Position:   0,
-					},
-				}
-
-				var nonce uint64
-				i, err := fmt.Sscanf("0000000000000457", "%016x", &nonce)
-				if i != 1 {
-					panic("can't decode nonce")
-				}
-				if err != nil {
-					panic(err)
-				}
-				nextCon, err := address.StringToUint160("AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL")
-				if err != nil {
-					panic(err)
-				}
-				blck := &block.Block{
-					Base: block.Base{
-						Version:       0,
-						PrevHash:      prevBlockHash,
-						MerkleRoot:    merkleRoot,
-						Timestamp:     1589300496,
-						Index:         202,
-						NextConsensus: nextCon,
-						Script: transaction.Witness{
-							InvocationScript:   invScript,
-							VerificationScript: verifScript,
-						},
-					},
-					ConsensusData: block.ConsensusData{
-						PrimaryIndex: 0,
-						Nonce:        nonce,
-					},
-					Transactions: []*transaction.Transaction{tx},
-				}
-				// Update hashes for correct result comparison.
-				_ = tx.Hash()
-				_ = blck.Hash()
-				return &result.Block{
-					Block: blck,
-					BlockMetadata: result.BlockMetadata{
-						Size:          781,
-						Confirmations: 6,
-						NextBlockHash: &nextBlockHash,
-					},
-				}
+				return getResultBlock202()
 			},
 		},
 	},
@@ -463,53 +362,27 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "verbose_positive",
 			invoke: func(c *Client) (i interface{}, err error) {
-				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
+				hash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
 				}
 				return c.GetBlockHeaderVerbose(hash)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xe93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c","size":442,"version":0,"previousblockhash":"0x996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099","merkleroot":"0xcb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2","time":1541215200,"index":1,"nonce":"51b484a2fe49ed4d","nextconsensus":"AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU","witnesses":[{"invocation":"40356a91d94e398170e47447d6a0f60aa5470e209782a5452403115a49166db3e1c4a3898122db19f779c30f8ccd0b7d401acdf71eda340655e4ae5237a64961bf4034dd47955e5a71627dafc39dd92999140e9eaeec6b11dbb2b313efa3f1093ed915b4455e199c69ec53778f94ffc236b92f8b97fff97a1f6bbb3770c0c0b3844a40fbe743bd5c90b2f5255e0b073281d7aeb2fb516572f36bec8446bcc37ac755cbf10d08b16c95644db1b2dddc2df5daa377880b20198fc7b967ac6e76474b22df","verification":"532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae"}],"confirmations":20061,"nextblockhash":"0xcc37d5bc460e72c9423015cb8d579c13e7b03b93bfaa1a23cf4fa777988e035f"}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","size":781,"version":0,"nextblockhash":"0x13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22","previousblockhash":"0x93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef","merkleroot":"0xb8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d","time":1589300496,"index":202,"nextconsensus":"AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL","confirmations":6,"witnesses":[{"invocation":"0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"}]}}`,
 			result: func(c *Client) interface{} {
-				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
-				if err != nil {
-					panic(err)
-				}
-				nextBlockHash, err := util.Uint256DecodeStringLE("cc37d5bc460e72c9423015cb8d579c13e7b03b93bfaa1a23cf4fa777988e035f")
-				if err != nil {
-					panic(err)
-				}
-				prevBlockHash, err := util.Uint256DecodeStringLE("996e37358dc369912041f966f8c5d8d3a8255ba5dcbd3447f8a82b55db869099")
-				if err != nil {
-					panic(err)
-				}
-				merkleRoot, err := util.Uint256DecodeStringLE("cb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2")
-				if err != nil {
-					panic(err)
-				}
-				invScript, err := hex.DecodeString("40356a91d94e398170e47447d6a0f60aa5470e209782a5452403115a49166db3e1c4a3898122db19f779c30f8ccd0b7d401acdf71eda340655e4ae5237a64961bf4034dd47955e5a71627dafc39dd92999140e9eaeec6b11dbb2b313efa3f1093ed915b4455e199c69ec53778f94ffc236b92f8b97fff97a1f6bbb3770c0c0b3844a40fbe743bd5c90b2f5255e0b073281d7aeb2fb516572f36bec8446bcc37ac755cbf10d08b16c95644db1b2dddc2df5daa377880b20198fc7b967ac6e76474b22df")
-				if err != nil {
-					panic(err)
-				}
-				verifScript, err := hex.DecodeString("532102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd622102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc22103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee69954ae")
-				if err != nil {
-					panic(err)
-				}
+				b := getResultBlock202()
 				return &result.Header{
-					Hash:          hash,
-					Size:          442,
-					Version:       0,
-					NextBlockHash: &nextBlockHash,
-					PrevBlockHash: prevBlockHash,
-					MerkleRoot:    merkleRoot,
-					Timestamp:     1541215200,
-					Index:         1,
-					NextConsensus: "AZ81H31DMWzbSnFDLFkzh9vHwaDLayV7fU",
-					Confirmations: 20061,
-					Witnesses: []transaction.Witness{{
-						InvocationScript:   invScript,
-						VerificationScript: verifScript,
-					}},
+					Hash:          b.Hash(),
+					Size:          781,
+					Version:       b.Version,
+					NextBlockHash: b.NextBlockHash,
+					PrevBlockHash: b.PrevHash,
+					MerkleRoot:    b.MerkleRoot,
+					Timestamp:     b.Timestamp,
+					Index:         b.Index,
+					NextConsensus: address.Uint160ToString(b.NextConsensus),
+					Witnesses:     []transaction.Witness{b.Script},
+					Confirmations: 6,
 				}
 			},
 		},
