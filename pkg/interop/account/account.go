@@ -34,3 +34,10 @@ func GetVotes(a Account) [][]byte {
 func GetBalance(a Account, assetID []byte) int {
 	return 0
 }
+
+// IsStandard checks whether given account uses standard (CHECKSIG or
+// CHECKMULTISIG) contract. It only works for deployed contracts and uses
+// `Neo.Account.IsStandard` syscall internally.
+func IsStandard(a Account) bool {
+	return false
+}
