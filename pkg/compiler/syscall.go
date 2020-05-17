@@ -59,10 +59,15 @@ var syscalls = map[string]map[string]string{
 		"GetScript":       "Neo.Transaction.GetScript",
 	},
 	"asset": {
+		"Create":       "Neo.Asset.Create",
+		"GetAdmin":     "Neo.Asset.GetAdmin",
+		"GetAmount":    "Neo.Asset.GetAmount",
 		"GetAssetID":   "Neo.Asset.GetAssetID",
 		"GetAssetType": "Neo.Asset.GetAssetType",
-		"GetAmount":    "Neo.Asset.GetAmount",
-		"Create":       "Neo.Asset.Create",
+		"GetAvailable": "Neo.Asset.GetAvailable",
+		"GetIssuer":    "Neo.Asset.GetIssuer",
+		"GetOwner":     "Neo.Asset.GetOwner",
+		"GetPrecision": "Neo.Asset.GetPrecision",
 		"Renew":        "Neo.Asset.Renew",
 	},
 	"contract": {
