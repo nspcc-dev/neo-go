@@ -7,6 +7,10 @@ var syscalls = map[string]map[string]string{
 		"GetVotes":      "Neo.Account.GetVotes",
 		"IsStandard":    "Neo.Account.IsStandard",
 	},
+	"attribute": {
+		"GetUsage": "Neo.Attribute.GetUsage",
+		"GetData":  "Neo.Attribute.GetData",
+	},
 	"storage": {
 		"GetContext": "Neo.Storage.GetContext",
 		"Put":        "Neo.Storage.Put",
