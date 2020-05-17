@@ -1,6 +1,12 @@
 package compiler
 
 var syscalls = map[string]map[string]string{
+	"account": {
+		"GetBalance":    "Neo.Account.GetBalance",
+		"GetScriptHash": "Neo.Account.GetScriptHash",
+		"GetVotes":      "Neo.Account.GetVotes",
+		"IsStandard":    "Neo.Account.IsStandard",
+	},
 	"storage": {
 		"GetContext": "Neo.Storage.GetContext",
 		"Put":        "Neo.Storage.Put",
