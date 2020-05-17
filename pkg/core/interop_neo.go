@@ -236,7 +236,14 @@ func (ic *interopContext) witnessGetVerificationScript(v *vm.VM) error {
 
 // bcGetValidators returns validators.
 func (ic *interopContext) bcGetValidators(v *vm.VM) error {
-	validators := ic.dao.GetValidators()
+	valStates := ic.dao.GetValidators()
+	if len(valStates) > vm.MaxArraySize {
+		return errors.New("too many validators")
+	}
+	validators := make([]vm.StackItem, 0, len(valStates))
+	for _, val := range valStates {
+		validators = append(validators, vm.NewByteArrayItem(val.PublicKey.Bytes()))
+	}
 	v.Estack().PushVal(validators)
 	return nil
 }
