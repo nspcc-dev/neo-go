@@ -1,3 +1,6 @@
+/*
+Package blockchain provides functions to access various blockchain data.
+*/
 package blockchain
 
 import (
@@ -9,45 +12,65 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/transaction"
 )
 
-// Package blockchain provides function signatures that can be used inside
-// smart contracts that are written in the neo-go framework.
-
-// GetHeight returns the height of te block recorded in the current execution scope.
+// GetHeight returns current block height (index of the last accepted block).
+// Note that when transaction is being run as a part of new block this block is
+// considered as not yet accepted (persisted) and thus you'll get an index of
+// the previous (already accepted) block. This function uses
+// `Neo.Blockchain.GetHeight` syscall.
 func GetHeight() int {
 	return 0
 }
 
-// GetHeader returns the header found by the given hash or index.
+// GetHeader returns header found by the given hash (256 bit hash in BE format
+// represented as a slice of 32 bytes) or index (integer). Refer to the `header`
+// package for possible uses of returned structure. This function uses
+// `Neo.Blockchain.GetHeader` syscall.
 func GetHeader(heightOrHash interface{}) header.Header {
 	return header.Header{}
 }
 
-// GetBlock returns the block found by the given hash or index.
+// GetBlock returns block found by the given hash or index (with the same
+// encoding as for GetHeader). Refer to the `block` package for possible uses
+// of returned structure. This function uses `Neo.Blockchain.GetBlock` syscall.
 func GetBlock(heightOrHash interface{}) block.Block {
 	return block.Block{}
 }
 
-// GetTransaction returns the transaction found by the given hash.
+// GetTransaction returns transaction found by the given (256 bit in BE format
+// represented as a slice of 32 bytes). Refer to the `transaction` package for
+// possible uses of returned structure. This function uses
+// `Neo.Blockchain.GetTransaction` syscall.
 func GetTransaction(hash []byte) transaction.Transaction {
 	return transaction.Transaction{}
 }
 
-// GetContract returns the contract found by the given script hash.
+// GetContract returns contract found by the given script hash (160 bit in BE
+// format represented as a slice of 20 bytes). Refer to the `contract` package
+// for details on how to use the returned structure. This function uses
+// `Neo.Blockchain.GetContract` syscall.
 func GetContract(scriptHash []byte) contract.Contract {
 	return contract.Contract{}
 }
 
-// GetAccount returns the account found by the given script hash.
+// GetAccount returns account found by the given script hash (160 bit in BE
+// format represented as a slice of 20 bytes). Refer to the `account` package
+// for details on how to use the returned structure. This function uses
+// `Neo.Blockchain.GetAccount` syscall.
 func GetAccount(scriptHash []byte) account.Account {
 	return account.Account{}
 }
 
-// GetValidators returns a slice of validator addresses.
+// GetValidators returns a slice of current validators public keys represented
+// as a compressed serialized byte slice (33 bytes long). This function uses
+// `Neo.Blockchain.GetValidators` syscall.
 func GetValidators() [][]byte {
 	return nil
 }
 
-// GetAsset returns the asset found by the given asset id.
+// GetAsset returns asset found by the given asset ID (256 bit in BE format
+// represented as a slice of 32 bytes). Refer to the `asset` package for
+// possible uses of returned structure. This function uses
+// `Neo.Blockchain.GetAsset` syscall.
 func GetAsset(assetID []byte) asset.Asset {
 	return asset.Asset{}
 }
