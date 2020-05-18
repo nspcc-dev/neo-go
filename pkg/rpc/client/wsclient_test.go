@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -246,4 +247,18 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			wsc.Close()
 		})
 	}
+}
+
+func TestNewWS(t *testing.T) {
+	srv := initTestServer(t, "")
+	defer srv.Close()
+
+	t.Run("good", func(t *testing.T) {
+		_, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		require.NoError(t, err)
+	})
+	t.Run("bad URL", func(t *testing.T) {
+		_, err := NewWS(context.TODO(), strings.Trim(srv.URL, "http://"), Options{})
+		require.Error(t, err)
+	})
 }
