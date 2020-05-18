@@ -317,38 +317,36 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		c.saveSequencePoint(n)
+		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
+		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
+		if isAssignOp {
+			// RHS can contain exactly one expression, thus there is no need to iterate.
+			ast.Walk(c, n.Lhs[0])
+			ast.Walk(c, n.Rhs[0])
+			c.convertToken(n.Tok)
+		}
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
-				switch n.Tok {
-				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
-					c.emitLoadLocal(t.Name)
-					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
-					c.convertToken(n.Tok)
+				if n.Tok == token.DEFINE && !multiRet {
+					c.registerDebugVariable(t.Name, n.Rhs[i])
+				}
+				if !isAssignOp && (i == 0 || !multiRet) {
+					ast.Walk(c, n.Rhs[i])
+				}
+				if t.Name == "_" {
+					emit.Opcode(c.prog.BinWriter, opcode.DROP)
+				} else {
 					l := c.scope.loadLocal(t.Name)
 					c.emitStoreLocal(l)
-				case token.DEFINE:
-					if !multiRet {
-						c.registerDebugVariable(t.Name, n.Rhs[i])
-					}
-					fallthrough
-				default:
-					if i == 0 || !multiRet {
-						ast.Walk(c, n.Rhs[i])
-					}
-
-					if t.Name == "_" {
-						emit.Opcode(c.prog.BinWriter, opcode.DROP)
-					} else {
-						l := c.scope.loadLocal(t.Name)
-						c.emitStoreLocal(l)
-					}
 				}
 
 			case *ast.SelectorExpr:
 				switch expr := t.X.(type) {
 				case *ast.Ident:
-					ast.Walk(c, n.Rhs[i])
+					if !isAssignOp {
+						ast.Walk(c, n.Rhs[i])
+					}
 					typ := c.typeInfo.ObjectOf(expr).Type().Underlying()
 					if strct, ok := typ.(*types.Struct); ok {
 						c.emitLoadLocal(expr.Name)            // load the struct
@@ -363,7 +361,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				ast.Walk(c, n.Rhs[i])
+				if !isAssignOp {
+					ast.Walk(c, n.Rhs[i])
+				}
 				name := t.X.(*ast.Ident).Name
 				c.emitLoadLocal(name)
 				switch ind := t.Index.(type) {

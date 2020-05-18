@@ -34,6 +34,16 @@ var sliceTestCases = []testCase{
 		big.NewInt(42),
 	},
 	{
+		"increase slice element with +=",
+		`package foo
+		func Main() int {
+			a := []int{1, 2, 3}
+			a[1] += 40
+			return a[1]
+		}`,
+		big.NewInt(42),
+	},
+	{
 		"complex test",
 		`
 		package foo
