@@ -10,12 +10,25 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 
 // Context represents storage context that is mandatory for Put/Get/Delete
 // operations. It's an opaque type that can only be created properly by
-// GetContext. It's similar to Neo .net framework's StorageContext class.
+// GetContext, GetReadOnlyContext or ConvertContextToReadOnly. It's similar
+// to Neo .net framework's StorageContext class.
 type Context struct{}
+
+// ConvertContextToReadOnly returns new context from the given one, but with
+// writing capability turned off, so that you could only invoke Get and Find
+// using this new Context. If Context is already read-only this function is a
+// no-op. It uses `Neo.StorageContext.AsReadOnly` syscall.
+func ConvertContextToReadOnly(ctx Context) Context { return Context{} }
 
 // GetContext returns current contract's (that invokes this function) storage
 // context. It uses `Neo.Storage.GetContext` syscall.
 func GetContext() Context { return Context{} }
+
+// GetReadOnlyContext returns current contract's (that invokes this function)
+// storage context in read-only mode, you can use this context for Get and Find
+// functions, but using it for Put and Delete will fail. It uses
+// `Neo.Storage.GetReadOnlyContext` syscall.
+func GetReadOnlyContext() Context { return Context{} }
 
 // Put saves given value with given key in the storage using given Context.
 // Even though it accepts interface{} for both, you can only pass simple types
