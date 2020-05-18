@@ -16,7 +16,7 @@ var (
 		"SHA1", "Hash256", "Hash160",
 		"VerifySignature", "AppCall",
 		"FromAddress", "Equals",
-		"panic",
+		"panic", "DynAppCall",
 	}
 )
 

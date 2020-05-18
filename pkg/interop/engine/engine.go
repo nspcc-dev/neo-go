@@ -54,3 +54,13 @@ func GetEntryScriptHash() []byte {
 func AppCall(scriptHash []byte, args ...interface{}) interface{} {
 	return nil
 }
+
+// DynAppCall executes previously deployed blockchain contract with specified
+// hash (160 bit in BE form represented as 20-byte slice) using provided
+// arguments. It returns whatever this contract returns. It differs from AppCall
+// in that you can use it for truly dynamic scriptHash values, but at the same
+// time using it requires HasDynamicInvoke property set for a contract doing
+// this call. This function uses `APPCALL` opcode.
+func DynAppCall(scriptHash []byte, args ...interface{}) interface{} {
+	return nil
+}

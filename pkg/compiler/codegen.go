@@ -1085,14 +1085,23 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emit.Opcode(c.prog.BinWriter, opcode.HASH160)
 	case "VerifySignature":
 		emit.Opcode(c.prog.BinWriter, opcode.VERIFY)
-	case "AppCall":
-		numArgs := len(expr.Args) - 1
+	case "AppCall", "DynAppCall":
+		numArgs := len(expr.Args)
+		if name == "AppCall" {
+			numArgs--
+		}
 		c.emitReverse(numArgs)
 
 		emit.Opcode(c.prog.BinWriter, opcode.APPCALL)
-		buf := c.getByteArray(expr.Args[0])
-		if len(buf) != 20 {
-			c.prog.Err = errors.New("invalid script hash")
+		var buf []byte
+		if name == "AppCall" {
+			buf = c.getByteArray(expr.Args[0])
+			if len(buf) != 20 {
+				c.prog.Err = errors.New("invalid script hash")
+			}
+		} else {
+			// Zeroes for DynAppCall.
+			buf = make([]byte, 20)
 		}
 
 		c.prog.WriteBytes(buf)
