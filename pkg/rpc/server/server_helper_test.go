@@ -71,3 +71,7 @@ func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
 func (fs *FeerStub) FeePerByte() util.Fixed8 {
 	return 0
 }
+
+func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
+	return util.Fixed8FromInt64(1000000)
+}

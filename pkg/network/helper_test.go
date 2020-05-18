@@ -137,6 +137,10 @@ func (chain testChain) IsLowPriority(util.Fixed8) bool {
 	panic("TODO")
 }
 
+func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) util.Fixed8 {
+	panic("TODO")
+}
+
 func (chain testChain) PoolTx(*transaction.Transaction) error {
 	panic("TODO")
 }

@@ -8,4 +8,5 @@ import (
 type Feer interface {
 	IsLowPriority(util.Fixed8) bool
 	FeePerByte() util.Fixed8
+	GetUtilityTokenBalance(util.Uint160) util.Fixed8
 }

@@ -723,7 +723,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	updateBlockHeightMetric(block.Index)
-	bc.memPool.RemoveStale(bc.isTxStillRelevant)
+	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
 	return nil
 }
 
@@ -815,6 +815,11 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 		return nil
 	}
 	return bs
+}
+
+// GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
+func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
+	return util.Fixed8FromInt64(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
 }
 
 // LastBatch returns last persisted storage batch.
@@ -1171,7 +1176,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
-	balance := util.Fixed8FromInt64(bc.GetNEP5Balances(t.Sender).Trackers[bc.contracts.GAS.Hash].Balance)
+	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee.Add(t.NetworkFee)
 	if balance.LessThan(need) {
 		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
@@ -1189,7 +1194,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		return errors.New("invalid transaction's inputs")
 	}
 	if block == nil {
-		if ok := bc.memPool.Verify(t); !ok {
+		if ok := bc.memPool.Verify(t, bc); !ok {
 			return errors.New("invalid transaction due to conflicts with the memory pool")
 		}
 	}

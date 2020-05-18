@@ -24,6 +24,10 @@ func (fs *FeerStub) FeePerByte() util.Fixed8 {
 	return fs.feePerByte
 }
 
+func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) util.Fixed8 {
+	return util.Fixed8FromInt64(10000)
+}
+
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := NewMemPool(10)
 	tx := transaction.NewContractTX()
@@ -111,7 +115,7 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 			return false
 		}
 		return true
-	})
+	}, &FeerStub{})
 	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
 	assert.Equal(t, len(claim2.Claims), len(mp.claims))
@@ -124,24 +128,24 @@ func TestMemPoolVerifyInputs(t *testing.T) {
 	tx.Nonce = 1
 	inhash1 := random.Uint256()
 	tx.Inputs = append(tx.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 0})
-	require.Equal(t, true, mp.Verify(tx))
+	require.Equal(t, true, mp.Verify(tx, &FeerStub{}))
 	require.NoError(t, mp.Add(tx, &FeerStub{}))
 
 	tx2 := transaction.NewContractTX()
 	tx2.Nonce = 2
 	inhash2 := random.Uint256()
 	tx2.Inputs = append(tx2.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
-	require.Equal(t, true, mp.Verify(tx2))
+	require.Equal(t, true, mp.Verify(tx2, &FeerStub{}))
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 
 	tx3 := transaction.NewContractTX()
 	tx3.Nonce = 3
 	// Different index number, but the same PrevHash as in tx1.
 	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 1})
-	require.Equal(t, true, mp.Verify(tx3))
+	require.Equal(t, true, mp.Verify(tx3, &FeerStub{}))
 	// The same input as in tx2.
 	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
-	require.Equal(t, false, mp.Verify(tx3))
+	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
@@ -156,30 +160,30 @@ func TestMemPoolVerifyClaims(t *testing.T) {
 		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash1, PrevIndex: uint16(i)})
 		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
 	}
-	require.Equal(t, true, mp.Verify(tx1))
+	require.Equal(t, true, mp.Verify(tx1, &FeerStub{}))
 	require.NoError(t, mp.Add(tx1, &FeerStub{}))
 
 	tx2, claim2 := newClaimTX()
 	for i := 0; i < 10; i++ {
 		claim2.Claims = append(claim2.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i + 10)})
 	}
-	require.Equal(t, true, mp.Verify(tx2))
+	require.Equal(t, true, mp.Verify(tx2, &FeerStub{}))
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 
 	tx3, claim3 := newClaimTX()
 	claim3.Claims = append(claim3.Claims, transaction.Input{PrevHash: hash1, PrevIndex: 0})
-	require.Equal(t, false, mp.Verify(tx3))
+	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
 func TestMemPoolVerifyIssue(t *testing.T) {
 	mp := NewMemPool(50)
 	tx1 := newIssueTX()
-	require.Equal(t, true, mp.Verify(tx1))
+	require.Equal(t, true, mp.Verify(tx1, &FeerStub{}))
 	require.NoError(t, mp.Add(tx1, &FeerStub{}))
 
 	tx2 := newIssueTX()
-	require.Equal(t, false, mp.Verify(tx2))
+	require.Equal(t, false, mp.Verify(tx2, &FeerStub{}))
 	require.Error(t, mp.Add(tx2, &FeerStub{}))
 }
 
@@ -335,11 +339,84 @@ func TestRemoveStale(t *testing.T) {
 			}
 		}
 		return false
-	})
+	}, &FeerStub{})
 	require.Equal(t, mempoolSize/2, mp.Count())
 	verTxes := mp.GetVerifiedTransactions()
 	for _, txf := range verTxes {
 		require.NotContains(t, txes1, txf.Tx)
 		require.Contains(t, txes2, txf.Tx)
 	}
+}
+
+func TestMemPoolFees(t *testing.T) {
+	mp := NewMemPool(10)
+	sender0 := util.Uint160{1, 2, 3}
+	tx0 := transaction.NewContractTX()
+	tx0.NetworkFee = util.Fixed8FromInt64(11000)
+	tx0.Sender = sender0
+	// insufficient funds to add transaction, but balance should be stored
+	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
+	require.Error(t, mp.Add(tx0, &FeerStub{}))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: util.Fixed8FromInt64(10000),
+		feeSum:  0,
+	}, mp.fees[sender0])
+
+	// no problems with adding another transaction with lower fee
+	tx1 := transaction.NewContractTX()
+	tx1.NetworkFee = util.Fixed8FromInt64(7000)
+	tx1.Sender = sender0
+	require.NoError(t, mp.Add(tx1, &FeerStub{}))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: util.Fixed8FromInt64(10000),
+		feeSum:  util.Fixed8FromInt64(7000),
+	}, mp.fees[sender0])
+
+	// balance shouldn't change after adding one more transaction
+	tx2 := transaction.NewContractTX()
+	tx2.NetworkFee = util.Fixed8FromFloat(3000)
+	tx2.Sender = sender0
+	require.NoError(t, mp.Add(tx2, &FeerStub{}))
+	require.Equal(t, 2, len(mp.verifiedTxes))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: util.Fixed8FromInt64(10000),
+		feeSum:  util.Fixed8FromInt64(10000),
+	}, mp.fees[sender0])
+
+	// can't add more transactions as we don't have enough GAS
+	tx3 := transaction.NewContractTX()
+	tx3.NetworkFee = util.Fixed8FromFloat(0.5)
+	tx3.Sender = sender0
+	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
+	require.Error(t, mp.Add(tx3, &FeerStub{}))
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: util.Fixed8FromInt64(10000),
+		feeSum:  util.Fixed8FromInt64(10000),
+	}, mp.fees[sender0])
+
+	// check whether sender's fee updates correctly
+	mp.RemoveStale(func(t *transaction.Transaction) bool {
+		if t == tx2 {
+			return true
+		}
+		return false
+	}, &FeerStub{})
+	require.Equal(t, 1, len(mp.fees))
+	require.Equal(t, utilityBalanceAndFees{
+		balance: util.Fixed8FromInt64(10000),
+		feeSum:  util.Fixed8FromFloat(3000),
+	}, mp.fees[sender0])
+
+	// there should be nothing left
+	mp.RemoveStale(func(t *transaction.Transaction) bool {
+		if t == tx3 {
+			return true
+		}
+		return false
+	}, &FeerStub{})
+	require.Equal(t, 0, len(mp.fees))
 }
