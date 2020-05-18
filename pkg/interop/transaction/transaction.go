@@ -48,3 +48,10 @@ func GetInputs(t Transaction) []input.Input {
 func GetOutputs(t Transaction) []output.Output {
 	return []output.Output{}
 }
+
+// GetScript returns the script stored in a given Invocation transaction.
+// Calling it for any other Transaction type would lead to failure. It uses
+// `Neo.InvocationTransaction.GetScript` syscall.
+func GetScript(t Transaction) []byte {
+	return nil
+}
