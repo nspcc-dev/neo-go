@@ -18,6 +18,15 @@ func Create(items []interface{}) Iterator {
 	return Iterator{}
 }
 
+// Concat concatenates two given iterators returning one that will range on
+// a first and then continue with b. Iterator positions are not reset for a
+// and b, so if any of them was already advanced by Next the resulting
+// Iterator will point at this new position and never go back to previous
+// key-value pairs. This function uses `Neo.Iterator.Concat` syscall.
+func Concat(a, b Iterator) Iterator {
+	return Iterator{}
+}
+
 // Key returns iterator's key at current position. It's only valid to call after
 // successful Next call. This function uses `Neo.Iterator.Key` syscall.
 func Key(it Iterator) interface{} {
