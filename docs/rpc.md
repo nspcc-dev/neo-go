@@ -65,6 +65,18 @@ which would yield the response:
 | `submitblock` |
 | `validateaddress` |
 
+#### Implementation notices
+
+##### `invokefunction` and `invoke`
+
+neo-go's implementation of `invokefunction` and `invoke` does not return `tx`
+field in the answer because that requires signing the transaction with some
+key in the server which doesn't fit the model of our node-client interactions.
+Lacking this signature the transaction is almost useless, so there is no point
+in returning it.
+
+Both methods also don't currently support arrays in function parameters.
+
 ### Unsupported methods
 
 Methods listed down below are not going to be supported for various reasons
@@ -86,17 +98,24 @@ and we're not accepting issues related to them.
 | `sendmany` | Not applicable to neo-go, see `claimgas` comment |
 | `sendtoaddress` | Not applicable to neo-go, see `claimgas` comment |
 
-#### Implementation notices
+### Extensions
 
-##### `invokefunction` and `invoke`
+Some additional extensions are implemented as a part of this RPC server.
 
-neo-go's implementation of `invokefunction` and `invoke` does not return `tx`
-field in the answer because that requires signing the transaction with some
-key in the server which doesn't fit the model of our node-client interactions.
-Lacking this signature the transaction is almost useless, so there is no point
-in returning it.
+#### Websocket server
 
-Both methods also don't currently support arrays in function parameters.
+This server accepts websocket connections on `ws://$BASE_URL/ws` address. You
+can use it to perform regular RPC calls over websockets (it's supposed to be a
+little faster than going regular HTTP route) and you can also use it for
+additional functionality provided only via websockets (like notifications).
+
+#### Notification subsystem
+
+Notification subsystem consists of two additional RPC methods (`subscribe` and
+`unsubscribe` working only over websocket connection) that allow to subscribe
+to various blockchain events (with simple event filtering) and receive them on
+the client as JSON-RPC notifications. More details on that are written in the
+[notifications specification](notifications.md).
 
 ## Reference
 
