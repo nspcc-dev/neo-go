@@ -33,12 +33,6 @@ func GetReferences(t Transaction) []interface{} {
 	return []interface{}{}
 }
 
-// GetUnspentCoins returns the unspent coins for the given transaction.
-// FIXME: What is the correct return type for this?
-func GetUnspentCoins(t Transaction) interface{} {
-	return 0
-}
-
 // GetInputs returns the inputs of the given transaction.
 func GetInputs(t Transaction) []input.Input {
 	return []input.Input{}

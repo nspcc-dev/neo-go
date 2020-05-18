@@ -504,12 +504,6 @@ GetReferences(t Transacfion) interface{}
 ```
 Returns the references of the given transaction.
 
-#### GetUnspentCoins
-```
-GetUnspentCoins(t Transacfion) interface{} 
-```
-Returns the unspent coins of the given transaction.
-
 #### GetOutputs
 ```
 GetOutputs(t Transacfion) []output.Output 
