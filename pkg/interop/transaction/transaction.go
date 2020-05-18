@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/attribute"
 	"github.com/nspcc-dev/neo-go/pkg/interop/input"
 	"github.com/nspcc-dev/neo-go/pkg/interop/output"
+	"github.com/nspcc-dev/neo-go/pkg/interop/witness"
 )
 
 // Transaction represents a NEO transaction, it's an opaque data structure
@@ -71,4 +72,11 @@ func GetOutputs(t Transaction) []output.Output {
 // `Neo.InvocationTransaction.GetScript` syscall.
 func GetScript(t Transaction) []byte {
 	return nil
+}
+
+// GetWitnesses returns a slice of witnesses of a given Transaction. Refer to
+// witness package on how to use them. This function uses
+// `Neo.Transaction.GetWitnesses` syscall.
+func GetWitnesses(t Transaction) []witness.Witness {
+	return []witness.Witness{}
 }

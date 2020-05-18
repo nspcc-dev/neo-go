@@ -69,6 +69,7 @@ var syscalls = map[string]map[string]string{
 		"GetReferences": "Neo.Transaction.GetReferences",
 		"GetScript":     "Neo.InvocationTransaction.GetScript",
 		"GetType":       "Neo.Transaction.GetType",
+		"GetWitnesses":  "Neo.Transaction.GetWitnesses",
 	},
 	"asset": {
 		"Create":       "Neo.Asset.Create",
@@ -113,5 +114,8 @@ var syscalls = map[string]map[string]string{
 		"Next":   "Neo.Iterator.Next",
 		"Value":  "Neo.Iterator.Value",
 		"Values": "Neo.Iterator.Values",
+	},
+	"witness": {
+		"GetVerificationScript": "Neo.Witness.GetVerificationScript",
 	},
 }
