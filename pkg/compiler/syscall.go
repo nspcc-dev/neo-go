@@ -18,11 +18,13 @@ var syscalls = map[string]map[string]string{
 		"Value":  "Neo.Enumerator.Value",
 	},
 	"storage": {
-		"GetContext": "Neo.Storage.GetContext",
-		"Put":        "Neo.Storage.Put",
-		"Get":        "Neo.Storage.Get",
-		"Delete":     "Neo.Storage.Delete",
-		"Find":       "Neo.Storage.Find",
+		"ConvertContextToReadOnly": "Neo.StorageContext.AsReadOnly",
+		"Delete":                   "Neo.Storage.Delete",
+		"Find":                     "Neo.Storage.Find",
+		"Get":                      "Neo.Storage.Get",
+		"GetContext":               "Neo.Storage.GetContext",
+		"GetReadOnlyContext":       "Neo.Storage.GetReadOnlyContext",
+		"Put":                      "Neo.Storage.Put",
 	},
 	"runtime": {
 		"GetTrigger":   "Neo.Runtime.GetTrigger",
