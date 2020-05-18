@@ -69,7 +69,7 @@ var syscalls = map[string]map[string]string{
 		"GetOutputs":      "Neo.Transaction.GetOutputs",
 		"GetReferences":   "Neo.Transaction.GetReferences",
 		"GetUnspentCoins": "Neo.Transaction.GetUnspentCoins",
-		"GetScript":       "Neo.Transaction.GetScript",
+		"GetScript":       "Neo.InvocationTransaction.GetScript",
 	},
 	"asset": {
 		"Create":       "Neo.Asset.Create",
