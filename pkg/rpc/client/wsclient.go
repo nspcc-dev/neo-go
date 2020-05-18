@@ -71,6 +71,10 @@ const (
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
 	cl, err := New(ctx, endpoint, opts)
+	if err != nil {
+		return nil, err
+	}
+
 	cl.cli = nil
 
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
