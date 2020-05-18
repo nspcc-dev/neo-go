@@ -11,6 +11,12 @@ var syscalls = map[string]map[string]string{
 		"GetUsage": "Neo.Attribute.GetUsage",
 		"GetData":  "Neo.Attribute.GetData",
 	},
+	"enumerator": {
+		"Concat": "Neo.Enumerator.Concat",
+		"Create": "Neo.Enumerator.Create",
+		"Next":   "Neo.Enumerator.Next",
+		"Value":  "Neo.Enumerator.Value",
+	},
 	"storage": {
 		"GetContext": "Neo.Storage.GetContext",
 		"Put":        "Neo.Storage.Put",
