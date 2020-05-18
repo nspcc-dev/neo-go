@@ -384,34 +384,36 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		c.saveSequencePoint(n)
+		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
+		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
+		if isAssignOp {
+			// RHS can contain exactly one expression, thus there is no need to iterate.
+			ast.Walk(c, n.Lhs[0])
+			ast.Walk(c, n.Rhs[0])
+			c.convertToken(n.Tok)
+		}
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
-				switch n.Tok {
-				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
-					c.emitLoadVar(t.Name)
-					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
-					c.convertToken(n.Tok)
-					c.emitStoreVar(t.Name)
-				case token.DEFINE:
+				if n.Tok == token.DEFINE {
 					if !multiRet {
 						c.registerDebugVariable(t.Name, n.Rhs[i])
 					}
 					if t.Name != "_" {
 						c.scope.newLocal(t.Name)
 					}
-					fallthrough
-				default:
-					if i == 0 || !multiRet {
-						ast.Walk(c, n.Rhs[i])
-					}
-					c.emitStoreVar(t.Name)
 				}
+				if !isAssignOp && (i == 0 || !multiRet) {
+					ast.Walk(c, n.Rhs[i])
+				}
+				c.emitStoreVar(t.Name)
 
 			case *ast.SelectorExpr:
 				switch expr := t.X.(type) {
 				case *ast.Ident:
-					ast.Walk(c, n.Rhs[i])
+					if !isAssignOp {
+						ast.Walk(c, n.Rhs[i])
+					}
 					if strct, ok := c.typeOf(expr).Underlying().(*types.Struct); ok {
 						c.emitLoadVar(expr.Name)              // load the struct
 						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
@@ -425,7 +427,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				ast.Walk(c, n.Rhs[i])
+				if !isAssignOp {
+					ast.Walk(c, n.Rhs[i])
+				}
 				name := t.X.(*ast.Ident).Name
 				c.emitLoadVar(name)
 				ast.Walk(c, t.Index)
