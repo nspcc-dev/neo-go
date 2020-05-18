@@ -1,3 +1,6 @@
+/*
+Package transaction provides functions to work with transactions.
+*/
 package transaction
 
 import (
@@ -6,39 +9,59 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/output"
 )
 
-// Package transaction provides function signatures that can be used inside
-// smart contracts that are written in the neo-go framework.
-
-// Transaction stubs a NEO transaction type.
+// Transaction represents a NEO transaction, it's an opaque data structure
+// that can be used with functions from this package. It's similar to
+// Transaction class in Neo .net framework.
 type Transaction struct{}
 
-// GetHash returns the hash of the given transaction.
+// GetHash returns the hash (256 bit BE value in a 32 byte slice) of the given
+// transaction (which also is its ID). Is uses `Neo.Transaction.GetHash` syscall.
 func GetHash(t Transaction) []byte {
 	return nil
 }
 
-// GetType returns the type of the given transaction.
+// GetType returns the type of the given transaction. Possible values:
+//     MinerTransaction      = 0x00
+//     IssueTransaction      = 0x01
+//     ClaimTransaction      = 0x02
+//     EnrollmentTransaction = 0x20
+//     RegisterTransaction   = 0x40
+//     ContractTransaction   = 0x80
+//     StateType             = 0x90
+//     AgencyTransaction     = 0xb0
+//     PublishTransaction    = 0xd0
+//     InvocationTransaction = 0xd1
+// It uses `Neo.Transaction.GetType` syscall.
 func GetType(t Transaction) byte {
 	return 0x00
 }
 
-// GetAttributes returns a slice of attributes for the given transaction.
+// GetAttributes returns a slice of attributes for agiven transaction. Refer to
+// attribute package on how to use them. This function uses
+// `Neo.Transaction.GetAttributes` syscall.
 func GetAttributes(t Transaction) []attribute.Attribute {
 	return []attribute.Attribute{}
 }
 
-// GetReferences returns a slice of references for the given transaction.
-// FIXME: What is the correct return type for this?
+// GetReferences returns a slice of references for a given Transaction. Elements
+// of this slice can be casted to any of input.Input or output.Output, depending
+// on which information you're interested in (as reference technically contains
+// both input and corresponding output), refer to input and output package on
+// how to use them. This function uses `Neo.Transaction.GetReferences` syscall.
 func GetReferences(t Transaction) []interface{} {
 	return []interface{}{}
 }
 
-// GetInputs returns the inputs of the given transaction.
+// GetInputs returns a slice of inputs of a given Transaction. Refer to input
+// package on how to use them. This function uses `Neo.Transaction.GetInputs`
+// syscall.
 func GetInputs(t Transaction) []input.Input {
 	return []input.Input{}
 }
 
-// GetOutputs returns the outputs of the given transaction.
+// GetOutputs returns a slice of outputs of a given Transaction. Refer to output
+// package on how to use them. This function uses `Neo.Transaction.GetOutputs`
+// syscall.
 func GetOutputs(t Transaction) []output.Output {
 	return []output.Output{}
 }
