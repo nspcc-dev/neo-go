@@ -92,7 +92,16 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-#Developer notes
+## Smart contract development
+
+Please refer to [neo-go smart contract development
+workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) that shows some
+simple contracts that can be compiled/deployed/run using neo-go compiler, SDK
+and private network. For details on how Go code is translated to Neo VM
+bytecode and what you can and can not do in smart contract please refer to the
+[compiler documentation](docs/compiler.md).
+
+# Developer notes
 Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
 [Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
 
