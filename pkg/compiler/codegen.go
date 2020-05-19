@@ -216,13 +216,9 @@ func (c *codegen) emitStoreVar(name string) {
 	}
 }
 
-func (c *codegen) emitDefault(n ast.Expr) {
-	tv, ok := c.typeInfo.Types[n]
-	if !ok {
-		c.prog.Err = errors.New("invalid type")
-		return
-	}
-	if t, ok := tv.Type.(*types.Basic); ok {
+func (c *codegen) emitDefault(t types.Type) {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
 		info := t.Info()
 		switch {
 		case info&types.IsInteger != 0:
@@ -234,9 +230,16 @@ func (c *codegen) emitDefault(n ast.Expr) {
 		default:
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		}
-		return
+	case *types.Slice:
+		if isCompoundSlice(t) {
+			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+		}
+	case *types.Struct:
+		emit.Int(c.prog.BinWriter, int64(t.NumFields()))
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	default:
+		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 	}
-	emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 }
 
 // convertGlobals traverses the AST and only converts global declarations.
@@ -363,14 +366,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := range t.Names {
 					if len(t.Values) != 0 {
 						ast.Walk(c, t.Values[i])
-					} else if typ := c.typeOf(t.Type); isCompoundSlice(typ) {
-						emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
-						emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-					} else if s, ok := typ.Underlying().(*types.Struct); ok {
-						emit.Int(c.prog.BinWriter, int64(s.NumFields()))
-						emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
 					} else {
-						c.emitDefault(t.Type)
+						c.emitDefault(c.typeOf(t.Type))
 					}
 					c.emitStoreVar(t.Names[i].Name)
 				}
