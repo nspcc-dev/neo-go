@@ -43,3 +43,15 @@ func TestMultiDeclarationLocal(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(6))
 }
+
+func TestMultiDeclarationLocalCompound(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		var a, b, c []int
+		a = append(a, 1)
+		b = append(b, 2)
+		c = append(c, 3)
+		return a[0] + b[0] + c[0]
+	}`
+	eval(t, src, big.NewInt(6))
+}

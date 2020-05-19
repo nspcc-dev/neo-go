@@ -360,27 +360,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					}
 					c.registerDebugVariable(id.Name, t.Type)
 				}
-				if len(t.Values) != 0 {
-					for i, val := range t.Values {
-						ast.Walk(c, val)
-						c.emitStoreVar(t.Names[i].Name)
-					}
-				} else {
-					typ := c.typeOf(t.Type)
-					if isCompoundSlice(typ) {
+				for i := range t.Names {
+					if len(t.Values) != 0 {
+						ast.Walk(c, t.Values[i])
+					} else if typ := c.typeOf(t.Type); isCompoundSlice(typ) {
 						emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 						emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-						c.emitStoreVar(t.Names[0].Name)
 					} else if s, ok := typ.Underlying().(*types.Struct); ok {
 						emit.Int(c.prog.BinWriter, int64(s.NumFields()))
 						emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-						c.emitStoreVar(t.Names[0].Name)
 					} else {
-						for _, id := range t.Names {
-							c.emitDefault(t.Type)
-							c.emitStoreVar(id.Name)
-						}
+						c.emitDefault(t.Type)
 					}
+					c.emitStoreVar(t.Names[i].Name)
 				}
 			}
 		}
