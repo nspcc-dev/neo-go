@@ -233,6 +233,8 @@ func (c *codegen) emitDefault(t types.Type) {
 	case *types.Slice:
 		if isCompoundSlice(t) {
 			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+		} else {
+			emit.Bytes(c.prog.BinWriter, []byte{})
 		}
 	case *types.Struct:
 		emit.Int(c.prog.BinWriter, int64(t.NumFields()))

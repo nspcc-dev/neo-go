@@ -131,6 +131,17 @@ var sliceTestCases = []testCase{
 		[]byte{2, 3},
 	},
 	{
+		"declare byte slice",
+		`package foo
+		func Main() []byte {
+			var a []byte
+			a = append(a, 1)
+			a = append(a, 2)
+			return a
+		}`,
+		[]byte{1, 2},
+	},
+	{
 		"declare compound slice",
 		`package foo
 		func Main() []string {
