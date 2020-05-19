@@ -3,13 +3,9 @@ package compiler_test
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/compiler"
-
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEntryPointWithMethod(t *testing.T) {
@@ -707,20 +703,20 @@ func TestForLoopRangeNoVariable(t *testing.T) {
 	eval(t, src, big.NewInt(3))
 }
 
-func TestForLoopRangeCompilerError(t *testing.T) {
+func TestForLoopRangeValue(t *testing.T) {
 	src := `
 	package foo
-	func f(a int) int { return 0 }
+	func f(a int) int { return a }
 	func Main() int {
-		arr := []int{1, 2, 3}
+		var sum int
+		arr := []int{1, 9, 4}
 		for _, v := range arr {
-			f(v)
+			sum += f(v)
 		}
-		return 0
+		return sum
 	}`
 
-	_, err := compiler.Compile(strings.NewReader(src))
-	require.Error(t, err)
+	eval(t, src, big.NewInt(14))
 }
 
 func TestForLoopComplexConditions(t *testing.T) {

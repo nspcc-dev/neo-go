@@ -104,6 +104,15 @@ func (c *funcScope) countLocals() int {
 		// This handles the inline GenDecl like "var x = 2"
 		case *ast.ValueSpec:
 			size += len(n.Names)
+		case *ast.RangeStmt:
+			if n.Tok == token.DEFINE {
+				if n.Key != nil {
+					size++
+				}
+				if n.Value != nil {
+					size++
+				}
+			}
 		}
 		return true
 	})

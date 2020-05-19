@@ -883,13 +883,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
-		// currently only simple for-range loops are supported
-		// for i := range ...
-		if n.Value != nil {
-			c.prog.Err = errors.New("range loops with value variable are not supported")
-			return nil
-		}
-
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
@@ -913,6 +906,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
 			emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Key")
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
+		}
+		if n.Value != nil {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Value")
+			c.emitStoreVar(n.Value.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
