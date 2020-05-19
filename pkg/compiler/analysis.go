@@ -70,16 +70,16 @@ func (c *codegen) traverseGlobals(f ast.Node) {
 
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
-func countGlobals(f ast.Node) (i int64) {
+func countGlobals(f ast.Node) (i int) {
 	ast.Inspect(f, func(node ast.Node) bool {
-		switch node.(type) {
+		switch n := node.(type) {
 		// Skip all function declarations.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls we are sure that each value spec
 		// is a global declared variable or constant.
 		case *ast.ValueSpec:
-			i++
+			i += len(n.Names)
 		}
 		return true
 	})
