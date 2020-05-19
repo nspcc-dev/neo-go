@@ -900,20 +900,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
+		emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Create")
 
-		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
-		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
-
-		c.pushStackLabel(label, 2)
+		c.pushStackLabel(label, 1)
 		c.setLabel(start)
 
-		emit.Opcode(c.prog.BinWriter, opcode.OVER)
-		emit.Opcode(c.prog.BinWriter, opcode.OVER)
-		emit.Opcode(c.prog.BinWriter, opcode.LTE) // finish if len <= i
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, end)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Next")
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Key")
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
 
@@ -921,7 +919,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(post)
 
-		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 
 		c.setLabel(end)
