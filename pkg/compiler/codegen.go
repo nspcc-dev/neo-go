@@ -207,6 +207,10 @@ func (c *codegen) emitLoadVar(name string) {
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
 func (c *codegen) emitStoreVar(name string) {
+	if name == "_" {
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		return
+	}
 	t, i := c.getVarIndex(name)
 	_, base := getBaseOpcode(t)
 	if i < 7 {
@@ -401,12 +405,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					if i == 0 || !multiRet {
 						ast.Walk(c, n.Rhs[i])
 					}
-
-					if t.Name == "_" {
-						emit.Opcode(c.prog.BinWriter, opcode.DROP)
-					} else {
-						c.emitStoreVar(t.Name)
-					}
+					c.emitStoreVar(t.Name)
 				}
 
 			case *ast.SelectorExpr:
