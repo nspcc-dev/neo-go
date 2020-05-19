@@ -86,32 +86,10 @@ func countGlobals(f ast.Node) (i int64) {
 	return
 }
 
-// isIdentBool looks if the given ident is a boolean.
-func isIdentBool(ident *ast.Ident) bool {
-	return ident.Name == "true" || ident.Name == "false"
-}
-
 // isExprNil looks if the given expression is a `nil`.
 func isExprNil(e ast.Expr) bool {
 	v, ok := e.(*ast.Ident)
 	return ok && v.Name == "nil"
-}
-
-// makeBoolFromIdent creates a bool type from an *ast.Ident.
-func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) (types.TypeAndValue, error) {
-	var b bool
-	switch ident.Name {
-	case "true":
-		b = true
-	case "false":
-		b = false
-	default:
-		return types.TypeAndValue{}, fmt.Errorf("givent identifier cannot be converted to a boolean => %s", ident.Name)
-	}
-	return types.TypeAndValue{
-		Type:  tinfo.ObjectOf(ident).Type(),
-		Value: constant.MakeBool(b),
-	}, nil
 }
 
 // resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.

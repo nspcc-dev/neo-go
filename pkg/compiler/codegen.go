@@ -610,14 +610,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.Ident:
-		if isIdentBool(n) {
-			value, err := makeBoolFromIdent(n, c.typeInfo)
-			if err != nil {
-				c.prog.Err = err
-				return nil
-			}
-			c.emitLoadConst(value)
-		} else if tv := c.typeAndValueOf(n); tv.Value != nil {
+		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
 		} else {
 			c.emitLoadVar(n.Name)
