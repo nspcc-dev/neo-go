@@ -27,6 +27,7 @@ type interopContext struct {
 	block         *block.Block
 	tx            *transaction.Transaction
 	dao           *dao.Cached
+	lowerDao      dao.DAO
 	notifications []state.NotificationEvent
 	log           *zap.Logger
 }
@@ -34,7 +35,7 @@ type interopContext struct {
 func newInteropContext(trigger trigger.Type, bc Blockchainer, d dao.DAO, block *block.Block, tx *transaction.Transaction, log *zap.Logger) *interopContext {
 	dao := dao.NewCached(d)
 	nes := make([]state.NotificationEvent, 0)
-	return &interopContext{bc, trigger, block, tx, dao, nes, log}
+	return &interopContext{bc, trigger, block, tx, dao, d, nes, log}
 }
 
 // SpawnVM returns a VM with script getter and interop functions set

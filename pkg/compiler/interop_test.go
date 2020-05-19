@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,6 +53,19 @@ func TestFromAddress(t *testing.T) {
 }
 
 func TestAppCall(t *testing.T) {
+	const srcDynApp = `
+	package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+	func Main(h []byte) []byte {
+		x := []byte{1, 2}
+		y := []byte{3, 4}
+		result := engine.DynAppCall(h, x, y)
+		return result.([]byte)
+	}
+`
+
+	var hasDynamicInvoke bool
+
 	srcInner := `
 	package foo
 	func Main(a []byte, b []byte) []byte {
@@ -62,13 +76,30 @@ func TestAppCall(t *testing.T) {
 	inner, err := compiler.Compile(strings.NewReader(srcInner))
 	require.NoError(t, err)
 
+	dynapp, err := compiler.Compile(strings.NewReader(srcDynApp))
+	require.NoError(t, err)
+
 	ih := hash.Hash160(inner)
+	dh := hash.Hash160(dynapp)
 	getScript := func(u util.Uint160) ([]byte, bool) {
 		if u.Equals(ih) {
 			return inner, true
 		}
+		if u.Equals(dh) {
+			return dynapp, hasDynamicInvoke
+		}
 		return nil, false
 	}
+
+	dynEntryScript := `
+	package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+	func Main(h []byte) interface{} {
+		return engine.AppCall(` + fmt.Sprintf("%#v", dh.BytesBE()) + `, h)
+	}
+`
+	dynentry, err := compiler.Compile(strings.NewReader(dynEntryScript))
+	require.NoError(t, err)
 
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))
@@ -117,6 +148,38 @@ func TestAppCall(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
+	})
+
+	t.Run("dynamic", func(t *testing.T) {
+		t.Run("valid script", func(t *testing.T) {
+			hasDynamicInvoke = true
+			v := vm.New()
+			v.Load(dynentry)
+			v.SetScriptGetter(getScript)
+			v.Estack().PushVal(ih.BytesBE())
+
+			require.NoError(t, v.Run())
+
+			assertResult(t, v, []byte{1, 2, 3, 4})
+		})
+		t.Run("invalid script", func(t *testing.T) {
+			hasDynamicInvoke = true
+			v := vm.New()
+			v.Load(dynentry)
+			v.SetScriptGetter(getScript)
+			v.Estack().PushVal([]byte{1})
+
+			require.Error(t, v.Run())
+		})
+		t.Run("no dynamic invoke", func(t *testing.T) {
+			hasDynamicInvoke = false
+			v := vm.New()
+			v.Load(dynentry)
+			v.SetScriptGetter(getScript)
+			v.Estack().PushVal(ih.BytesBE())
+
+			require.Error(t, v.Run())
+		})
 	})
 }
 

@@ -31,8 +31,6 @@ TAGS
 # leveldb 
 chains/
 chain/
-blockchain/
-blockchains/
 
 # patch
 *.orig

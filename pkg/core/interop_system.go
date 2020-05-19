@@ -575,8 +575,12 @@ func (ic *interopContext) contractGetStorageContext(v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not a contract state", cs)
 	}
-	contractState, err := ic.dao.GetContractState(cs.ScriptHash())
-	if contractState == nil || err != nil {
+	_, err := ic.dao.GetContractState(cs.ScriptHash())
+	if err != nil {
+		return fmt.Errorf("non-existent contract")
+	}
+	_, err = ic.lowerDao.GetContractState(cs.ScriptHash())
+	if err == nil {
 		return fmt.Errorf("contract was not created in this transaction")
 	}
 	stc := &StorageContext{
