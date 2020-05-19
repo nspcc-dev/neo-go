@@ -135,6 +135,17 @@ var structTestCases = []testCase{
 		big.NewInt(14),
 	},
 	{
+		"increase struct field with +=",
+		`package foo
+		type token struct { x int }
+		func Main() int {
+		t := token{x: 2}
+		t.x += 3
+		return t.x
+		}`,
+		big.NewInt(5),
+	},
+	{
 		"assign a struct field to a struct field",
 		`
 		package foo
