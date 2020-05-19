@@ -178,6 +178,12 @@ func TestCreateBasicChain(t *testing.T) {
 	txMoveNeo.ValidUntilBlock = validUntilBlock
 	txMoveNeo.Nonce = getNextNonce()
 	txMoveNeo.Sender = neoOwner
+	txMoveNeo.Cosigners = []transaction.Cosigner{{
+		Account:          neoOwner,
+		Scopes:           transaction.CalledByEntry,
+		AllowedContracts: nil,
+		AllowedGroups:    nil,
+	}}
 
 	// use output of issue tx from genesis block as an input
 	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
@@ -362,6 +368,14 @@ func TestCreateBasicChain(t *testing.T) {
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Sender = priv0ScriptHash
+	transferTx.Cosigners = []transaction.Cosigner{
+		{
+			Account:          priv0ScriptHash,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
 	require.NoError(t, acc0.SignTx(transferTx))
 
@@ -373,6 +387,14 @@ func TestCreateBasicChain(t *testing.T) {
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Sender = priv0ScriptHash
+	transferTx.Cosigners = []transaction.Cosigner{
+		{
+			Account:          priv0ScriptHash,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
 	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
 	require.NoError(t, acc0.SignTx(transferTx))
 

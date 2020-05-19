@@ -111,6 +111,14 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 	script := w.Bytes()
 	tx := transaction.NewInvocationTX(script, gas)
 	tx.Sender = from
+	tx.Cosigners = []transaction.Cosigner{
+		{
+			Account:          from,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
 
 	result, err := c.InvokeScript(hex.EncodeToString(script))
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -145,6 +146,17 @@ func (c *nep5TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint1
 func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
+	}
+
+	ok, err := runtime.CheckHashedWitness(ic, nep5ScriptHash{
+		callingScriptHash: c.Hash,
+		entryScriptHash:   c.Hash,
+		currentScriptHash: c.Hash,
+	}, from)
+	if err != nil {
+		return err
+	} else if !ok {
+		return errors.New("invalid signature")
 	}
 
 	keyFrom := makeAccountKey(from)
