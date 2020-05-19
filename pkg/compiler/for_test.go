@@ -719,6 +719,24 @@ func TestForLoopRangeValue(t *testing.T) {
 	eval(t, src, big.NewInt(14))
 }
 
+func TestForLoopRangeMap(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		m := map[int]int{
+			1: 13,
+			11: 17,
+		}
+		var sum int
+		for i, v := range m {
+			sum += i
+			sum += v
+		}
+		return sum
+	}`
+
+	eval(t, src, big.NewInt(42))
+}
+
 func TestForLoopComplexConditions(t *testing.T) {
 	src := `
 	package foo
