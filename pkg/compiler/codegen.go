@@ -304,15 +304,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
-			ident := arg.Names[0]
-			// Currently only method receives for struct types is supported.
-			_, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
-			if !ok {
-				c.prog.Err = fmt.Errorf("method receives for non-struct types is not yet supported")
-				return
-			}
 			// only create an argument here, it will be stored via INITSLOT
-			c.scope.newVariable(varArgument, ident.Name)
+			c.scope.newVariable(varArgument, arg.Names[0].Name)
 		}
 	}
 
