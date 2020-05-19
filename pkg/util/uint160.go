@@ -101,7 +101,7 @@ func (u Uint160) Reverse() (r Uint160) {
 	return
 }
 
-// Equals returns true if both Uint256 values are the same.
+// Equals returns true if both Uint160 values are the same.
 func (u Uint160) Equals(other Uint160) bool {
 	return u == other
 }
