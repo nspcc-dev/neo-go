@@ -205,9 +205,7 @@ func (c *nep5TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.
 }
 
 func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount *big.Int) {
-	if sign := amount.Sign(); sign == -1 {
-		panic("negative amount")
-	} else if sign == 0 {
+	if amount.Sign() == 0 {
 		return
 	}
 
