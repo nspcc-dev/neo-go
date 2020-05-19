@@ -10,7 +10,6 @@ import (
 	"go/types"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -446,23 +445,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				ast.Walk(c, n.Rhs[i])
 				name := t.X.(*ast.Ident).Name
 				c.emitLoadVar(name)
-				switch ind := t.Index.(type) {
-				case *ast.BasicLit:
-					indexStr := ind.Value
-					index, err := strconv.Atoi(indexStr)
-					if err != nil {
-						c.prog.Err = fmt.Errorf("failed to convert slice index to integer")
-						return nil
-					}
-					c.emitStoreStructField(index)
-				case *ast.Ident:
-					c.emitLoadVar(ind.Name)
-					emit.Opcode(c.prog.BinWriter, opcode.ROT)
-					emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-				default:
-					c.prog.Err = fmt.Errorf("unsupported index expression")
-					return nil
-				}
+				ast.Walk(c, t.Index)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 			}
 		}
 		return nil
@@ -832,14 +817,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Walk the expression, this could be either an Ident or SelectorExpr.
 		// This will load local whatever X is.
 		ast.Walk(c, n.X)
-
-		switch n.Index.(type) {
-		case *ast.BasicLit:
-			c.emitLoadConst(c.typeAndValueOf(n.Index))
-		default:
-			ast.Walk(c, n.Index)
-		}
-
+		ast.Walk(c, n.Index)
 		emit.Opcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
 
 		return nil
