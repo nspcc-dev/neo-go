@@ -11,20 +11,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
-const (
-	// The minimum size of a valid message.
-	minMessageSize = 24
-	cmdSize        = 12
-)
+//go:generate stringer -type=CommandType
 
 // Message is the complete message send between nodes.
 type Message struct {
 	// NetMode of the node that sends this message.
 	Magic config.NetMode
 
-	// Command is utf8 code, of which the length is 12 bytes,
-	// the extra part is filled with 0.
-	Command [cmdSize]byte
+	// Command is byte command code.
+	Command CommandType
 
 	// Length of the payload.
 	Length uint32
@@ -34,30 +29,41 @@ type Message struct {
 }
 
 // CommandType represents the type of a message command.
-type CommandType string
+type CommandType byte
 
 // Valid protocol commands used to send between nodes.
 const (
-	CMDAddr        CommandType = "addr"
-	CMDBlock       CommandType = "block"
-	CMDConsensus   CommandType = "consensus"
-	CMDFilterAdd   CommandType = "filteradd"
-	CMDFilterClear CommandType = "filterclear"
-	CMDFilterLoad  CommandType = "filterload"
-	CMDGetAddr     CommandType = "getaddr"
-	CMDGetBlocks   CommandType = "getblocks"
-	CMDGetData     CommandType = "getdata"
-	CMDGetHeaders  CommandType = "getheaders"
-	CMDHeaders     CommandType = "headers"
-	CMDInv         CommandType = "inv"
-	CMDMempool     CommandType = "mempool"
-	CMDMerkleBlock CommandType = "merkleblock"
-	CMDPing        CommandType = "ping"
-	CMDPong        CommandType = "pong"
-	CMDTX          CommandType = "tx"
-	CMDUnknown     CommandType = "unknown"
-	CMDVerack      CommandType = "verack"
-	CMDVersion     CommandType = "version"
+	// handshaking
+	CMDVersion CommandType = 0x00
+	CMDVerack  CommandType = 0x01
+
+	// connectivity
+	CMDGetAddr CommandType = 0x10
+	CMDAddr    CommandType = 0x11
+	CMDPing    CommandType = 0x18
+	CMDPong    CommandType = 0x19
+
+	// synchronization
+	CMDGetHeaders CommandType = 0x20
+	CMDHeaders    CommandType = 0x21
+	CMDGetBlocks  CommandType = 0x24
+	CMDMempool    CommandType = 0x25
+	CMDInv        CommandType = 0x27
+	CMDGetData    CommandType = 0x28
+	CMDUnknown    CommandType = 0x2a
+	CMDTX         CommandType = 0x2b
+	CMDBlock      CommandType = 0x2c
+	CMDConsensus  CommandType = 0x2d
+	CMDReject     CommandType = 0x2f
+
+	// SPV protocol
+	CMDFilterLoad  CommandType = 0x30
+	CMDFilterAdd   CommandType = 0x31
+	CMDFilterClear CommandType = 0x32
+	CMDMerkleBlock CommandType = 0x38
+
+	// others
+	CMDAlert CommandType = 0x40
 )
 
 // NewMessage returns a new message with the given payload.
@@ -78,63 +84,16 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 
 	return &Message{
 		Magic:   magic,
-		Command: cmdToByteArray(cmd),
+		Command: cmd,
 		Length:  size,
 		Payload: p,
-	}
-}
-
-// CommandType converts the 12 byte command slice to a CommandType.
-func (m *Message) CommandType() CommandType {
-	cmd := cmdByteArrayToString(m.Command)
-	switch cmd {
-	case "addr":
-		return CMDAddr
-	case "block":
-		return CMDBlock
-	case "consensus":
-		return CMDConsensus
-	case "filteradd":
-		return CMDFilterAdd
-	case "filterclear":
-		return CMDFilterClear
-	case "filterload":
-		return CMDFilterLoad
-	case "getaddr":
-		return CMDGetAddr
-	case "getblocks":
-		return CMDGetBlocks
-	case "getdata":
-		return CMDGetData
-	case "getheaders":
-		return CMDGetHeaders
-	case "headers":
-		return CMDHeaders
-	case "inv":
-		return CMDInv
-	case "mempool":
-		return CMDMempool
-	case "merkleblock":
-		return CMDMerkleBlock
-	case "ping":
-		return CMDPing
-	case "pong":
-		return CMDPong
-	case "tx":
-		return CMDTX
-	case "verack":
-		return CMDVerack
-	case "version":
-		return CMDVersion
-	default:
-		return CMDUnknown
 	}
 }
 
 // Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
 	m.Magic = config.NetMode(br.ReadU32LE())
-	br.ReadBytes(m.Command[:])
+	m.Command = CommandType(br.ReadB())
 	m.Length = br.ReadU32LE()
 	if br.Err != nil {
 		return br.Err
@@ -155,7 +114,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 
 	r := io.NewBinReaderFromBuf(buf)
 	var p payload.Payload
-	switch m.CommandType() {
+	switch m.Command {
 	case CMDVersion:
 		p = &payload.Version{}
 	case CMDInv, CMDGetData:
@@ -179,7 +138,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
 	default:
-		return fmt.Errorf("can't decode command %s", cmdByteArrayToString(m.Command))
+		return fmt.Errorf("can't decode command %s", m.Command.String())
 	}
 	p.DecodeBinary(r)
 	if r.Err == nil || r.Err == payload.ErrTooManyHeaders {
@@ -192,7 +151,7 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
 	br.WriteU32LE(uint32(m.Magic))
-	br.WriteBytes(m.Command[:])
+	br.WriteB(byte(m.Command))
 	br.WriteU32LE(m.Length)
 	if m.Payload != nil {
 		m.Payload.EncodeBinary(br)
@@ -214,31 +173,4 @@ func (m *Message) Bytes() ([]byte, error) {
 		return nil, w.Err
 	}
 	return w.Bytes(), nil
-}
-
-// convert a command (string) to a byte slice filled with 0 bytes till
-// size 12.
-func cmdToByteArray(cmd CommandType) [cmdSize]byte {
-	cmdLen := len(cmd)
-	if cmdLen > cmdSize {
-		panic("exceeded command max length of size 12")
-	}
-
-	// The command can have max 12 bytes, rest is filled with 0.
-	b := [cmdSize]byte{}
-	for i := 0; i < cmdLen; i++ {
-		b[i] = cmd[i]
-	}
-
-	return b
-}
-
-func cmdByteArrayToString(cmd [cmdSize]byte) string {
-	buf := make([]byte, 0, cmdSize)
-	for i := 0; i < cmdSize; i++ {
-		if cmd[i] != 0 {
-			buf = append(buf, cmd[i])
-		}
-	}
-	return string(buf)
 }

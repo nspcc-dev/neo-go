@@ -671,7 +671,7 @@ func (s *Server) requestBlocks(p Peer) error {
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	s.log.Debug("got msg",
 		zap.Stringer("addr", peer.RemoteAddr()),
-		zap.String("type", string(msg.CommandType())))
+		zap.String("type", msg.Command.String()))
 
 	// Make sure both server and peer are operating on
 	// the same network.
@@ -685,7 +685,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 				return errInvalidInvType
 			}
 		}
-		switch msg.CommandType() {
+		switch msg.Command {
 		case CMDAddr:
 			addrs := msg.Payload.(*payload.AddressList)
 			return s.handleAddrCmd(peer, addrs)
@@ -723,10 +723,10 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			pong := msg.Payload.(*payload.Ping)
 			return s.handlePong(peer, pong)
 		case CMDVersion, CMDVerack:
-			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
+			return fmt.Errorf("received '%s' after the handshake", msg.Command.String())
 		}
 	} else {
-		switch msg.CommandType() {
+		switch msg.Command {
 		case CMDVersion:
 			version := msg.Payload.(*payload.Version)
 			return s.handleVersionCmd(peer, version)
@@ -739,7 +739,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 
 			s.tryStartConsensus()
 		default:
-			return fmt.Errorf("received '%s' during handshake", msg.CommandType())
+			return fmt.Errorf("received '%s' during handshake", msg.Command.String())
 		}
 	}
 	return nil

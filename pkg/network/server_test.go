@@ -18,7 +18,7 @@ func TestSendVersion(t *testing.T) {
 	s.UserAgent = "/test/"
 
 	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.Equal(t, CMDVersion, msg.CommandType())
+		assert.Equal(t, CMDVersion, msg.Command)
 		assert.IsType(t, msg.Payload, &payload.Version{})
 		version := msg.Payload.(*payload.Version)
 		assert.NotZero(t, version.Nonce)
@@ -43,7 +43,7 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 
 	// Should have a verack
 	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.Equal(t, CMDVerack, msg.CommandType())
+		assert.Equal(t, CMDVerack, msg.Command)
 	}
 	version := payload.NewVersion(1337, 3000, "/NEO-GO/", 0, true)
 
@@ -101,7 +101,7 @@ func TestRequestHeaders(t *testing.T) {
 	)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		assert.IsType(t, &payload.GetBlocks{}, msg.Payload)
-		assert.Equal(t, CMDGetHeaders, msg.CommandType())
+		assert.Equal(t, CMDGetHeaders, msg.Command)
 	}
 	s.requestHeaders(p)
 }
