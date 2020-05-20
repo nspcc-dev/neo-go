@@ -11,6 +11,8 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -146,7 +148,9 @@ func testFile(t *testing.T, filename string) {
 							ctx := vm.istack.Peek(i).Value().(*Context)
 							if ctx.nextip < len(ctx.prog) {
 								require.Equal(t, s.InstructionPointer, ctx.nextip)
-								require.Equal(t, s.Instruction, opcode.Opcode(ctx.prog[ctx.nextip]).String())
+								op, err := opcode.FromString(s.Instruction)
+								require.NoError(t, err)
+								require.Equal(t, op, opcode.Opcode(ctx.prog[ctx.nextip]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
 							compareStacks(t, s.AStack, vm.astack)
@@ -291,13 +295,46 @@ func (v *vmUTState) UnmarshalJSON(data []byte) error {
 }
 
 func (v *vmUTScript) UnmarshalJSON(data []byte) error {
-	b, err := decodeBytes(data)
-	if err != nil {
+	var ops []string
+	if err := json.Unmarshal(data, &ops); err != nil {
 		return err
 	}
 
-	*v = vmUTScript(b)
+	var script []byte
+	for i := range ops {
+		if b, ok := decodeSingle(ops[i]); ok {
+			script = append(script, b...)
+		} else {
+			const regex = `(?P<hex>(?:0x)?[0-9a-zA-Z]+)\*(?P<num>[0-9]+)`
+			re := regexp.MustCompile(regex)
+			ss := re.FindStringSubmatch(ops[i])
+			if len(ss) != 3 {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			b, ok := decodeSingle(ss[1])
+			if !ok {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			num, err := strconv.Atoi(ss[2])
+			if err != nil {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			for i := 0; i < num; i++ {
+				script = append(script, b...)
+			}
+		}
+	}
+
+	*v = script
 	return nil
+}
+
+func decodeSingle(s string) ([]byte, bool) {
+	if op, err := opcode.FromString(s); err == nil {
+		return []byte{byte(op)}, true
+	}
+	b, err := decodeHex(s)
+	return b, err == nil
 }
 
 func (v *vmUTActionType) UnmarshalJSON(data []byte) error {
@@ -366,12 +403,18 @@ func decodeBytes(data []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	hdata := data[3 : len(data)-1]
-	if b, err := hex.DecodeString(string(hdata)); err == nil {
+	data = data[1 : len(data)-1] // strip quotes
+	if b, err := decodeHex(string(data)); err == nil {
 		return b, nil
 	}
 
-	data = data[1 : len(data)-1]
 	r := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(data))
 	return ioutil.ReadAll(r)
+}
+
+func decodeHex(s string) ([]byte, error) {
+	if strings.HasPrefix(s, "0x") {
+		s = s[2:]
+	}
+	return hex.DecodeString(s)
 }
