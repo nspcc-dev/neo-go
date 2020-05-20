@@ -19,3 +19,39 @@ func TestChangeGlobal(t *testing.T) {
 
 	eval(t, src, big.NewInt(42))
 }
+
+func TestMultiDeclaration(t *testing.T) {
+	src := `package foo
+	var a, b, c int
+	func Main() int {
+		a = 1
+		b = 2
+		c = 3
+		return a + b + c
+	}`
+	eval(t, src, big.NewInt(6))
+}
+
+func TestMultiDeclarationLocal(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		var a, b, c int
+		a = 1
+		b = 2
+		c = 3
+		return a + b + c
+	}`
+	eval(t, src, big.NewInt(6))
+}
+
+func TestMultiDeclarationLocalCompound(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		var a, b, c []int
+		a = append(a, 1)
+		b = append(b, 2)
+		c = append(c, 3)
+		return a[0] + b[0] + c[0]
+	}`
+	eval(t, src, big.NewInt(6))
+}

@@ -70,48 +70,26 @@ func (c *codegen) traverseGlobals(f ast.Node) {
 
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
-func countGlobals(f ast.Node) (i int64) {
+func countGlobals(f ast.Node) (i int) {
 	ast.Inspect(f, func(node ast.Node) bool {
-		switch node.(type) {
+		switch n := node.(type) {
 		// Skip all function declarations.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls we are sure that each value spec
 		// is a global declared variable or constant.
 		case *ast.ValueSpec:
-			i++
+			i += len(n.Names)
 		}
 		return true
 	})
 	return
 }
 
-// isIdentBool looks if the given ident is a boolean.
-func isIdentBool(ident *ast.Ident) bool {
-	return ident.Name == "true" || ident.Name == "false"
-}
-
 // isExprNil looks if the given expression is a `nil`.
 func isExprNil(e ast.Expr) bool {
 	v, ok := e.(*ast.Ident)
 	return ok && v.Name == "nil"
-}
-
-// makeBoolFromIdent creates a bool type from an *ast.Ident.
-func makeBoolFromIdent(ident *ast.Ident, tinfo *types.Info) (types.TypeAndValue, error) {
-	var b bool
-	switch ident.Name {
-	case "true":
-		b = true
-	case "false":
-		b = false
-	default:
-		return types.TypeAndValue{}, fmt.Errorf("givent identifier cannot be converted to a boolean => %s", ident.Name)
-	}
-	return types.TypeAndValue{
-		Type:  tinfo.ObjectOf(ident).Type(),
-		Value: constant.MakeBool(b),
-	}, nil
 }
 
 // resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.
@@ -205,62 +183,10 @@ func isBuiltin(expr ast.Expr) bool {
 	return false
 }
 
-func (c *codegen) isCompoundArrayType(t ast.Expr) bool {
-	switch s := t.(type) {
-	case *ast.ArrayType:
-		return true
-	case *ast.Ident:
-		arr, ok := c.typeInfo.Types[s].Type.Underlying().(*types.Slice)
-		return ok && !isByte(arr.Elem())
-	}
-	return false
-}
-
-func isByte(t types.Type) bool {
-	e, ok := t.(*types.Basic)
-	return ok && e.Kind() == types.Byte
-}
-
-func (c *codegen) isStructType(t ast.Expr) (int, bool) {
-	switch s := t.(type) {
-	case *ast.StructType:
-		return s.Fields.NumFields(), true
-	case *ast.Ident:
-		st, ok := c.typeInfo.Types[s].Type.Underlying().(*types.Struct)
-		if ok {
-			return st.NumFields(), true
-		}
-	}
-	return 0, false
-}
-
-func isByteArray(lit *ast.CompositeLit, tInfo *types.Info) bool {
-	if len(lit.Elts) == 0 {
-		if typ, ok := lit.Type.(*ast.ArrayType); ok {
-			if name, ok := typ.Elt.(*ast.Ident); ok {
-				return name.Name == "byte" || name.Name == "uint8"
-			}
-		}
-
-		return false
-	}
-
-	typ := tInfo.Types[lit.Elts[0]].Type.Underlying()
-	return isByte(typ)
-}
-
 func isSyscall(fun *funcScope) bool {
 	if fun.selector == nil {
 		return false
 	}
 	_, ok := syscalls[fun.selector.Name][fun.name]
 	return ok
-}
-
-func isByteArrayType(t types.Type) bool {
-	return t.String() == "[]byte"
-}
-
-func isStringType(t types.Type) bool {
-	return t.String() == "string"
 }

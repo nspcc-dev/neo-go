@@ -191,7 +191,11 @@ func (c *codegen) scReturnTypeFromScope(scope *funcScope) string {
 }
 
 func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
-	switch t := c.typeInfo.Types[typ].Type.(type) {
+	t := c.typeOf(typ)
+	if c.typeOf(typ) == nil {
+		return "Any"
+	}
+	switch t := t.Underlying().(type) {
 	case *types.Basic:
 		info := t.Info()
 		switch {
@@ -209,7 +213,7 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 	case *types.Struct:
 		return "Struct"
 	case *types.Slice:
-		if isByteArrayType(t) {
+		if isByte(t.Elem()) {
 			return "ByteArray"
 		}
 		return "Array"

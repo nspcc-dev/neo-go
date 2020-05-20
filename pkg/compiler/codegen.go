@@ -10,7 +10,6 @@ import (
 	"go/types"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -125,16 +124,13 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	if c.prog.Err != nil {
 		return
 	}
-	switch typ := t.Type.Underlying().(type) {
-	case *types.Basic:
-		c.convertBasicType(t, typ)
-	default:
+
+	typ, ok := t.Type.Underlying().(*types.Basic)
+	if !ok {
 		c.prog.Err = fmt.Errorf("compiler doesn't know how to convert this constant: %v", t)
 		return
 	}
-}
 
-func (c *codegen) convertBasicType(t types.TypeAndValue, typ *types.Basic) {
 	switch typ.Kind() {
 	case types.Int, types.UntypedInt, types.Uint,
 		types.Int16, types.Uint16,
@@ -211,6 +207,10 @@ func (c *codegen) emitLoadVar(name string) {
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
 func (c *codegen) emitStoreVar(name string) {
+	if name == "_" {
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		return
+	}
 	t, i := c.getVarIndex(name)
 	_, base := getBaseOpcode(t)
 	if i < 7 {
@@ -220,13 +220,9 @@ func (c *codegen) emitStoreVar(name string) {
 	}
 }
 
-func (c *codegen) emitDefault(n ast.Expr) {
-	tv, ok := c.typeInfo.Types[n]
-	if !ok {
-		c.prog.Err = errors.New("invalid type")
-		return
-	}
-	if t, ok := tv.Type.(*types.Basic); ok {
+func (c *codegen) emitDefault(t types.Type) {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
 		info := t.Info()
 		switch {
 		case info&types.IsInteger != 0:
@@ -238,9 +234,18 @@ func (c *codegen) emitDefault(n ast.Expr) {
 		default:
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		}
-		return
+	case *types.Slice:
+		if isCompoundSlice(t) {
+			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+		} else {
+			emit.Bytes(c.prog.BinWriter, []byte{})
+		}
+	case *types.Struct:
+		emit.Int(c.prog.BinWriter, int64(t.NumFields()))
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	default:
+		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 	}
-	emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 }
 
 // convertGlobals traverses the AST and only converts global declarations.
@@ -308,15 +313,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
-			ident := arg.Names[0]
-			// Currently only method receives for struct types is supported.
-			_, ok := c.typeInfo.Defs[ident].Type().Underlying().(*types.Struct)
-			if !ok {
-				c.prog.Err = fmt.Errorf("method receives for non-struct types is not yet supported")
-				return
-			}
 			// only create an argument here, it will be stored via INITSLOT
-			c.scope.newVariable(varArgument, ident.Name)
+			c.scope.newVariable(varArgument, arg.Names[0].Name)
 		}
 	}
 
@@ -371,24 +369,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					}
 					c.registerDebugVariable(id.Name, t.Type)
 				}
-				if len(t.Values) != 0 {
-					for i, val := range t.Values {
-						ast.Walk(c, val)
-						c.emitStoreVar(t.Names[i].Name)
+				for i := range t.Names {
+					if len(t.Values) != 0 {
+						ast.Walk(c, t.Values[i])
+					} else {
+						c.emitDefault(c.typeOf(t.Type))
 					}
-				} else if c.isCompoundArrayType(t.Type) {
-					emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
-					emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
-					c.emitStoreVar(t.Names[0].Name)
-				} else if n, ok := c.isStructType(t.Type); ok {
-					emit.Int(c.prog.BinWriter, int64(n))
-					emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
-					c.emitStoreVar(t.Names[0].Name)
-				} else {
-					for _, id := range t.Names {
-						c.emitDefault(t.Type)
-						c.emitStoreVar(id.Name)
-					}
+					c.emitStoreVar(t.Names[i].Name)
 				}
 			}
 		}
@@ -397,41 +384,37 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		c.saveSequencePoint(n)
+		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
+		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
+		if isAssignOp {
+			// RHS can contain exactly one expression, thus there is no need to iterate.
+			ast.Walk(c, n.Lhs[0])
+			ast.Walk(c, n.Rhs[0])
+			c.convertToken(n.Tok)
+		}
 		for i := 0; i < len(n.Lhs); i++ {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
-				switch n.Tok {
-				case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
-					c.emitLoadVar(t.Name)
-					ast.Walk(c, n.Rhs[0]) // can only add assign to 1 expr on the RHS
-					c.convertToken(n.Tok)
-					c.emitStoreVar(t.Name)
-				case token.DEFINE:
+				if n.Tok == token.DEFINE {
 					if !multiRet {
 						c.registerDebugVariable(t.Name, n.Rhs[i])
 					}
 					if t.Name != "_" {
 						c.scope.newLocal(t.Name)
 					}
-					fallthrough
-				default:
-					if i == 0 || !multiRet {
-						ast.Walk(c, n.Rhs[i])
-					}
-
-					if t.Name == "_" {
-						emit.Opcode(c.prog.BinWriter, opcode.DROP)
-					} else {
-						c.emitStoreVar(t.Name)
-					}
 				}
+				if !isAssignOp && (i == 0 || !multiRet) {
+					ast.Walk(c, n.Rhs[i])
+				}
+				c.emitStoreVar(t.Name)
 
 			case *ast.SelectorExpr:
 				switch expr := t.X.(type) {
 				case *ast.Ident:
-					ast.Walk(c, n.Rhs[i])
-					typ := c.typeInfo.ObjectOf(expr).Type().Underlying()
-					if strct, ok := typ.(*types.Struct); ok {
+					if !isAssignOp {
+						ast.Walk(c, n.Rhs[i])
+					}
+					if strct, ok := c.typeOf(expr).Underlying().(*types.Struct); ok {
 						c.emitLoadVar(expr.Name)              // load the struct
 						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
 						c.emitStoreStructField(i)             // store the field
@@ -444,26 +427,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// Assignments to index expressions.
 			// slice[0] = 10
 			case *ast.IndexExpr:
-				ast.Walk(c, n.Rhs[i])
+				if !isAssignOp {
+					ast.Walk(c, n.Rhs[i])
+				}
 				name := t.X.(*ast.Ident).Name
 				c.emitLoadVar(name)
-				switch ind := t.Index.(type) {
-				case *ast.BasicLit:
-					indexStr := ind.Value
-					index, err := strconv.Atoi(indexStr)
-					if err != nil {
-						c.prog.Err = fmt.Errorf("failed to convert slice index to integer")
-						return nil
-					}
-					c.emitStoreStructField(index)
-				case *ast.Ident:
-					c.emitLoadVar(ind.Name)
-					emit.Opcode(c.prog.BinWriter, opcode.ROT)
-					emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-				default:
-					c.prog.Err = fmt.Errorf("unsupported index expression")
-					return nil
-				}
+				ast.Walk(c, t.Index)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 			}
 		}
 		return nil
@@ -607,18 +578,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BasicLit:
-		c.emitLoadConst(c.typeInfo.Types[n])
+		c.emitLoadConst(c.typeAndValueOf(n))
 		return nil
 
 	case *ast.Ident:
-		if isIdentBool(n) {
-			value, err := makeBoolFromIdent(n, c.typeInfo)
-			if err != nil {
-				c.prog.Err = err
-				return nil
-			}
-			c.emitLoadConst(value)
-		} else if tv := c.typeInfo.Types[n]; tv.Value != nil {
+		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
 		} else {
 			c.emitLoadVar(n.Name)
@@ -626,19 +590,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CompositeLit:
-		var typ types.Type
-
-		switch t := n.Type.(type) {
-		case *ast.Ident:
-			typ = c.typeInfo.ObjectOf(t).Type().Underlying()
-		case *ast.SelectorExpr:
-			typ = c.typeInfo.ObjectOf(t.Sel).Type().Underlying()
-		case *ast.MapType:
-			typ = c.typeInfo.TypeOf(t)
+		typ := c.typeOf(n.Type).Underlying()
+		switch n.Type.(type) {
+		case *ast.Ident, *ast.SelectorExpr, *ast.MapType:
+			switch typ.(type) {
+			case *types.Struct:
+				c.convertStruct(n)
+			case *types.Map:
+				c.convertMap(n)
+			}
 		default:
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
-			if isByteArray(n, c.typeInfo) {
+			if isByteSlice(typ) {
 				c.convertByteArray(n)
 				return nil
 			}
@@ -647,14 +611,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			emit.Int(c.prog.BinWriter, int64(ln))
 			emit.Opcode(c.prog.BinWriter, opcode.PACK)
-			return nil
-		}
-
-		switch typ.(type) {
-		case *types.Struct:
-			c.convertStruct(n)
-		case *types.Map:
-			c.convertMap(n)
 		}
 
 		return nil
@@ -693,7 +649,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// example:
 			// const x = 10
 			// x + 2 will results into 12
-			tinfo := c.typeInfo.Types[n]
+			tinfo := c.typeAndValueOf(n)
 			if tinfo.Value != nil {
 				c.emitLoadConst(tinfo)
 				return nil
@@ -705,7 +661,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			switch {
 			case n.Op == token.ADD:
 				// VM has separate opcodes for number and string concatenation
-				if isStringType(tinfo.Type) {
+				if isString(tinfo.Type) {
 					emit.Opcode(c.prog.BinWriter, opcode.CAT)
 				} else {
 					emit.Opcode(c.prog.BinWriter, opcode.ADD)
@@ -716,7 +672,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emit.Opcode(c.prog.BinWriter, op)
 			case n.Op == token.NEQ:
 				// VM has separate opcodes for number and string equality
-				if isStringType(c.typeInfo.Types[n.X].Type) {
+				if isString(c.typeOf(n.X)) {
 					emit.Opcode(c.prog.BinWriter, opcode.NOTEQUAL)
 				} else {
 					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
@@ -800,8 +756,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.SelectorExpr:
 		switch t := n.X.(type) {
 		case *ast.Ident:
-			typ := c.typeInfo.ObjectOf(t).Type().Underlying()
-			if strct, ok := typ.(*types.Struct); ok {
+			if strct, ok := c.typeOf(t).Underlying().(*types.Struct); ok {
 				c.emitLoadVar(t.Name) // load the struct
 				i := indexOfStruct(strct, n.Sel.Name)
 				c.emitLoadField(i) // load the field
@@ -849,21 +804,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Walk the expression, this could be either an Ident or SelectorExpr.
 		// This will load local whatever X is.
 		ast.Walk(c, n.X)
-
-		switch n.Index.(type) {
-		case *ast.BasicLit:
-			t := c.typeInfo.Types[n.Index]
-			switch typ := t.Type.Underlying().(type) {
-			case *types.Basic:
-				c.convertBasicType(t, typ)
-			default:
-				c.prog.Err = fmt.Errorf("compiler can't use following type as an index: %T", typ)
-				return nil
-			}
-		default:
-			ast.Walk(c, n.Index)
-		}
-
+		ast.Walk(c, n.Index)
 		emit.Opcode(c.prog.BinWriter, opcode.PICKITEM) // just pickitem here
 
 		return nil
@@ -945,13 +886,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
-		// currently only simple for-range loops are supported
-		// for i := range ...
-		if n.Value != nil {
-			c.prog.Err = errors.New("range loops with value variable are not supported")
-			return nil
-		}
-
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
@@ -962,28 +896,30 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
+		emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Create")
 
-		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
-		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
-
-		c.pushStackLabel(label, 2)
+		c.pushStackLabel(label, 1)
 		c.setLabel(start)
 
-		emit.Opcode(c.prog.BinWriter, opcode.OVER)
-		emit.Opcode(c.prog.BinWriter, opcode.OVER)
-		emit.Opcode(c.prog.BinWriter, opcode.LTE) // finish if len <= i
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFL, end)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Next")
+		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Key")
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
+		}
+		if n.Value != nil {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Value")
+			c.emitStoreVar(n.Value.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
 
 		c.setLabel(post)
 
-		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 
 		c.setLabel(end)
@@ -1067,7 +1003,7 @@ func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 }
 
 func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
-	t, ok := c.typeInfo.Types[expr].Type.Underlying().(*types.Basic)
+	t, ok := c.typeOf(expr).Underlying().(*types.Basic)
 	if ok && t.Info()&types.IsNumeric != 0 {
 		return opcode.NUMEQUAL
 	}
@@ -1080,18 +1016,18 @@ func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
 func (c *codegen) getByteArray(expr ast.Expr) []byte {
 	switch t := expr.(type) {
 	case *ast.CompositeLit:
-		if !isByteArray(t, c.typeInfo) {
+		if !isByteSlice(c.typeOf(t.Type)) {
 			return nil
 		}
 		buf := make([]byte, len(t.Elts))
 		for i := 0; i < len(t.Elts); i++ {
-			t := c.typeInfo.Types[t.Elts[i]]
+			t := c.typeAndValueOf(t.Elts[i])
 			val, _ := constant.Int64Val(t.Value)
 			buf[i] = byte(val)
 		}
 		return buf
 	case *ast.CallExpr:
-		if tv := c.typeInfo.Types[t.Args[0]]; tv.Value != nil {
+		if tv := c.typeAndValueOf(t.Args[0]); tv.Value != nil {
 			val := constant.StringVal(tv.Value)
 			return []byte(val)
 		}
@@ -1136,7 +1072,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
-		if isByteArrayType(typ) {
+		if isByteSlice(typ) {
 			emit.Opcode(c.prog.BinWriter, opcode.CAT)
 		} else {
 			emit.Opcode(c.prog.BinWriter, opcode.OVER)
@@ -1148,7 +1084,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		if isExprNil(arg) {
 			emit.Opcode(c.prog.BinWriter, opcode.DROP)
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
-		} else if isStringType(c.typeInfo.Types[arg].Type) {
+		} else if isString(c.typeInfo.Types[arg].Type) {
 			ast.Walk(c, arg)
 			emit.Syscall(c.prog.BinWriter, "Neo.Runtime.Log")
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
@@ -1216,7 +1152,7 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 	buf := make([]byte, len(lit.Elts))
 	for i := 0; i < len(lit.Elts); i++ {
-		t := c.typeInfo.Types[lit.Elts[i]]
+		t := c.typeAndValueOf(lit.Elts[i])
 		val, _ := constant.Int64Val(t.Value)
 		buf[i] = byte(val)
 	}
@@ -1237,7 +1173,7 @@ func (c *codegen) convertMap(lit *ast.CompositeLit) {
 func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
-	strct, ok := c.typeInfo.TypeOf(lit).Underlying().(*types.Struct)
+	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
 	if !ok {
 		c.prog.Err = fmt.Errorf("the given literal is not of type struct: %v", lit)
 		return

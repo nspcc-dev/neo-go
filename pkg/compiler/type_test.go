@@ -1,6 +1,9 @@
 package compiler_test
 
-import "testing"
+import (
+	"math/big"
+	"testing"
+)
 
 func TestCustomType(t *testing.T) {
 	src := `
@@ -21,4 +24,16 @@ func TestCustomType(t *testing.T) {
 		}
 	`
 	eval(t, src, []byte("some short string"))
+}
+
+func TestCustomTypeMethods(t *testing.T) {
+	src := `package foo
+	type bar int
+	func (b bar) add(a bar) bar { return a + b }
+	func Main() bar {
+		var b bar
+		b = 10
+		return b.add(32)
+	}`
+	eval(t, src, big.NewInt(42))
 }
