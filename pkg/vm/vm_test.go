@@ -1188,7 +1188,7 @@ func TestNEWARRAYArray(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY)
 	t.Run("ByteArray", getTestFuncForVM(prog, NewArrayItem([]StackItem{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
-	t.Run("Integer", getTestFuncForVM(prog, []StackItem{NewBoolItem(false)}, 1))
+	t.Run("Integer", getTestFuncForVM(prog, []StackItem{NullItem{}}, 1))
 
 	arr := []StackItem{makeStackItem(42)}
 	t.Run("Array", getTestFuncForVM(prog, arr, arr))
@@ -1206,7 +1206,7 @@ func testNEWARRAYIssue437(t *testing.T, i1, i2 opcode.Opcode, appended bool) {
 	vm := load(prog)
 	vm.Run()
 
-	arr := makeArrayOfType(4, BooleanT)
+	arr := makeArrayOfType(4, AnyT)
 	arr[2] = makeStackItem(3)
 	arr[3] = makeStackItem(4)
 	if appended {
@@ -1247,7 +1247,7 @@ func TestNEWSTRUCT(t *testing.T) {
 	prog := makeProgram(opcode.NEWSTRUCT)
 	t.Run("ByteArray", getTestFuncForVM(prog, NewStructItem([]StackItem{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
-	t.Run("Integer", getTestFuncForVM(prog, NewStructItem([]StackItem{NewBoolItem(false)}), 1))
+	t.Run("Integer", getTestFuncForVM(prog, NewStructItem([]StackItem{NullItem{}}), 1))
 
 	arr := []StackItem{makeStackItem(42)}
 	t.Run("Array", getTestFuncForVM(prog, NewStructItem(arr), NewArrayItem(arr)))

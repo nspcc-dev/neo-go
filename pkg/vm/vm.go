@@ -993,7 +993,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long array")
 			}
-			typ := BooleanT
+			typ := AnyT
 			if op == opcode.NEWARRAYT {
 				typ = StackItemType(parameter[0])
 			}
@@ -1018,7 +1018,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if n > MaxArraySize {
 				panic("too long struct")
 			}
-			items := makeArrayOfType(int(n), BooleanT)
+			items := makeArrayOfType(int(n), AnyT)
 			v.estack.PushVal(&StructItem{items})
 		}
 
