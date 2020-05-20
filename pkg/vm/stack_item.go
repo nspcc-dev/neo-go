@@ -524,11 +524,10 @@ func (i *ByteArrayItem) TryBytes() ([]byte, error) {
 
 // TryInteger implements StackItem interface.
 func (i *ByteArrayItem) TryInteger() (*big.Int, error) {
-	bi := emit.BytesToInt(i.value)
-	if bi.BitLen() > MaxBigIntegerSizeBits {
+	if len(i.value) > MaxBigIntegerSizeBits/8 {
 		return nil, errors.New("integer is too big")
 	}
-	return bi, nil
+	return emit.BytesToInt(i.value), nil
 }
 
 // Equals implements StackItem interface.
