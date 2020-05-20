@@ -78,14 +78,17 @@ const (
 	vmStepOut  vmUTActionType = "StepOut"
 	vmStepOver vmUTActionType = "StepOver"
 
-	typeArray     vmUTStackItemType = "Array"
-	typeBoolean   vmUTStackItemType = "Boolean"
-	typeByteArray vmUTStackItemType = "ByteArray"
-	typeInteger   vmUTStackItemType = "Integer"
-	typeInterop   vmUTStackItemType = "Interop"
-	typeMap       vmUTStackItemType = "Map"
-	typeString    vmUTStackItemType = "String"
-	typeStruct    vmUTStackItemType = "Struct"
+	typeArray      vmUTStackItemType = "array"
+	typeBoolean    vmUTStackItemType = "boolean"
+	typeBuffer     vmUTStackItemType = "buffer"
+	typeByteString vmUTStackItemType = "bytestring"
+	typeInteger    vmUTStackItemType = "integer"
+	typeInterop    vmUTStackItemType = "interop"
+	typeMap        vmUTStackItemType = "map"
+	typeNull       vmUTStackItemType = "null"
+	typePointer    vmUTStackItemType = "pointer"
+	typeString     vmUTStackItemType = "string"
+	typeStruct     vmUTStackItemType = "struct"
 
 	testsDir = "testdata/neo-vm/tests/neo-vm.Tests/Tests/"
 )
@@ -182,6 +185,10 @@ func compareItems(t *testing.T, a, b StackItem) {
 		default:
 			require.Fail(t, "wrong type")
 		}
+	case *PointerItem:
+		p, ok := b.(*PointerItem)
+		require.True(t, ok)
+		require.Equal(t, si.pos, p.pos) // there no script in test files
 	default:
 		require.Equal(t, a, b)
 	}
@@ -206,7 +213,7 @@ func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
 }
 
 func (v *vmUTStackItem) toStackItem() StackItem {
-	switch v.Type {
+	switch v.Type.toLower() {
 	case typeArray:
 		items := v.Value.([]vmUTStackItem)
 		result := make([]StackItem, len(items))
@@ -229,10 +236,16 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 		return result
 	case typeInterop:
 		panic("not implemented")
-	case typeByteArray:
+	case typeByteString:
 		return &ByteArrayItem{
 			v.Value.([]byte),
 		}
+	case typeBuffer:
+		return &BufferItem{v.Value.([]byte)}
+	case typePointer:
+		return NewPointerItem(v.Value.(int), nil)
+	case typeNull:
+		return NullItem{}
 	case typeBoolean:
 		return &BoolItem{
 			v.Value.(bool),
@@ -251,7 +264,7 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 			value: result,
 		}
 	default:
-		panic("invalid type")
+		panic(fmt.Sprintf("invalid type: %s", v.Type))
 	}
 }
 
@@ -276,6 +289,10 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 			require.NoError(t, err)
 		}
 	}
+}
+
+func (v vmUTStackItemType) toLower() vmUTStackItemType {
+	return vmUTStackItemType(strings.ToLower(string(v)))
 }
 
 func (v *vmUTScript) UnmarshalJSON(data []byte) error {
@@ -333,14 +350,14 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 
 	v.Type = si.Type
 
-	switch si.Type {
+	switch typ := si.Type.toLower(); typ {
 	case typeArray, typeStruct:
 		var a []vmUTStackItem
 		if err := json.Unmarshal(si.Value, &a); err != nil {
 			return err
 		}
 		v.Value = a
-	case typeInteger:
+	case typeInteger, typePointer:
 		num := new(big.Int)
 		var a int64
 		var s string
@@ -351,20 +368,24 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 		} else {
 			panic(fmt.Sprintf("invalid integer: %v", si.Value))
 		}
-		v.Value = num
+		if typ == typePointer {
+			v.Value = int(num.Int64())
+		} else {
+			v.Value = num
+		}
 	case typeBoolean:
 		var b bool
 		if err := json.Unmarshal(si.Value, &b); err != nil {
 			return err
 		}
 		v.Value = b
-	case typeByteArray:
+	case typeByteString, typeBuffer:
 		b, err := decodeBytes(si.Value)
 		if err != nil {
 			return err
 		}
 		v.Value = b
-	case typeInterop:
+	case typeInterop, typeNull:
 		v.Value = nil
 	case typeMap:
 		var m map[string]vmUTStackItem
