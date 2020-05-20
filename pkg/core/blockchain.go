@@ -1721,6 +1721,16 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true)
 }
 
+// GoverningTokenHash returns the governing token (NEO) native contract hash.
+func (bc *Blockchain) GoverningTokenHash() util.Uint160 {
+	return bc.contracts.NEO.Hash
+}
+
+// UtilityTokenHash returns the utility token (GAS) native contract hash.
+func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
+	return bc.contracts.GAS.Hash
+}
+
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {
 	buf := io.NewBufBinWriter()
 	buf.WriteBytes(h.BytesLE())
