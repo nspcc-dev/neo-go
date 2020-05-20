@@ -407,20 +407,17 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitStoreVar(t.Name)
 
 			case *ast.SelectorExpr:
-				switch expr := t.X.(type) {
-				case *ast.Ident:
-					if !isAssignOp {
-						ast.Walk(c, n.Rhs[i])
-					}
-					if strct, ok := c.typeOf(expr).Underlying().(*types.Struct); ok {
-						c.emitLoadVar(expr.Name)              // load the struct
-						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
-						c.emitStoreStructField(i)             // store the field
-					}
-				default:
+				if !isAssignOp {
+					ast.Walk(c, n.Rhs[i])
+				}
+				strct, ok := c.typeOf(t.X).Underlying().(*types.Struct)
+				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
 				}
+				ast.Walk(c, t.X)                      // load the struct
+				i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
+				c.emitStoreStructField(i)             // store the field
 
 			// Assignments to index expressions.
 			// slice[0] = 10
