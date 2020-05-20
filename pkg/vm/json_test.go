@@ -229,9 +229,11 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 		items := v.Value.(map[string]vmUTStackItem)
 		result := NewMapItem()
 		for k, v := range items {
-			var item vmUTStackItem
-			_ = json.Unmarshal([]byte(`"`+k+`"`), &item)
-			result.Add(item.toStackItem(), v.toStackItem())
+			item := jsonStringToInteger(k)
+			if item == nil {
+				panic(fmt.Sprintf("can't unmarshal StackItem %s", k))
+			}
+			result.Add(item, v.toStackItem())
 		}
 		return result
 	case typeInterop:
@@ -289,6 +291,14 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 			require.NoError(t, err)
 		}
 	}
+}
+
+func jsonStringToInteger(s string) StackItem {
+	b, err := decodeHex(s)
+	if err == nil {
+		return NewBigIntegerItem(new(big.Int).SetBytes(b))
+	}
+	return nil
 }
 
 func (v vmUTStackItemType) toLower() vmUTStackItemType {
