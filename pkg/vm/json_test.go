@@ -73,10 +73,10 @@ type stackItemAUX struct {
 }
 
 const (
-	vmExecute  vmUTActionType = "Execute"
-	vmStepInto vmUTActionType = "StepInto"
-	vmStepOut  vmUTActionType = "StepOut"
-	vmStepOver vmUTActionType = "StepOver"
+	vmExecute  vmUTActionType = "execute"
+	vmStepInto vmUTActionType = "stepinto"
+	vmStepOut  vmUTActionType = "stepout"
+	vmStepOver vmUTActionType = "stepover"
 
 	typeArray      vmUTStackItemType = "array"
 	typeBoolean    vmUTStackItemType = "boolean"
@@ -271,7 +271,7 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 func execStep(t *testing.T, v *VM, step vmUTStep) {
 	for i, a := range step.Actions {
 		var err error
-		switch a {
+		switch a.toLower() {
 		case vmExecute:
 			err = v.Run()
 		case vmStepInto:
@@ -336,6 +336,10 @@ func decodeSingle(s string) ([]byte, bool) {
 	}
 	b, err := decodeHex(s)
 	return b, err == nil
+}
+
+func (v vmUTActionType) toLower() vmUTActionType {
+	return vmUTActionType(strings.ToLower(string(v)))
 }
 
 func (v *vmUTActionType) UnmarshalJSON(data []byte) error {
