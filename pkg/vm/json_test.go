@@ -44,7 +44,7 @@ type (
 	}
 
 	vmUTExecutionEngineState struct {
-		State           vmUTState                   `json:"state"`
+		State           State                       `json:"state"`
 		ResultStack     []vmUTStackItem             `json:"resultStack"`
 		InvocationStack []vmUTExecutionContextState `json:"invocationStack"`
 	}
@@ -60,8 +60,6 @@ type (
 		Actions []vmUTActionType         `json:"actions"`
 		Result  vmUTExecutionEngineState `json:"result"`
 	}
-
-	vmUTState State
 
 	vmUTStackItemType string
 )
@@ -138,8 +136,8 @@ func testFile(t *testing.T, filename string) {
 				for i := range test.Steps {
 					execStep(t, vm, test.Steps[i])
 					result := test.Steps[i].Result
-					require.Equal(t, State(result.State), vm.state)
-					if result.State == vmUTState(faultState) { // do not compare stacks on fault
+					require.Equal(t, result.State, vm.state)
+					if result.State == faultState { // do not compare stacks on fault
 						continue
 					}
 
@@ -278,20 +276,6 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 			require.NoError(t, err)
 		}
 	}
-}
-
-func (v *vmUTState) UnmarshalJSON(data []byte) error {
-	switch s := string(data); s {
-	case `"Break"`:
-		*v = vmUTState(breakState)
-	case `"Fault"`:
-		*v = vmUTState(faultState)
-	case `"Halt"`:
-		*v = vmUTState(haltState)
-	default:
-		panic(fmt.Sprintf("invalid state: %s", s))
-	}
-	return nil
 }
 
 func (v *vmUTScript) UnmarshalJSON(data []byte) error {
