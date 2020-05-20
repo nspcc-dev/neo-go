@@ -239,8 +239,15 @@ func (c *codegen) emitDefault(t types.Type) {
 			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
 		}
 	case *types.Struct:
-		emit.Int(c.prog.BinWriter, int64(t.NumFields()))
+		num := t.NumFields()
+		emit.Int(c.prog.BinWriter, int64(num))
 		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+		for i := 0; i < num; i++ {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Int(c.prog.BinWriter, int64(i))
+			c.emitDefault(t.Field(i).Type())
+			emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+		}
 	default:
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 	}
@@ -1211,15 +1218,9 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 			continue
 		}
 
-		typeAndVal, err := typeAndValueForField(sField)
-		if err != nil {
-			c.prog.Err = err
-			return
-		}
-
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitLoadConst(typeAndVal)
+		c.emitDefault(sField.Type())
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }

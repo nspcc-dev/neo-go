@@ -2,9 +2,7 @@ package compiler
 
 import (
 	"errors"
-	"fmt"
 	"go/ast"
-	"go/constant"
 	"go/types"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -22,33 +20,6 @@ var (
 		"ToBool", "ToByteArray", "ToInteger",
 	}
 )
-
-// typeAndValueForField returns a zero initialized typeAndValue for the given type.Var.
-func typeAndValueForField(fld *types.Var) (types.TypeAndValue, error) {
-	switch t := fld.Type().(type) {
-	case *types.Basic:
-		switch t.Kind() {
-		case types.Int:
-			return types.TypeAndValue{
-				Type:  t,
-				Value: constant.MakeInt64(0),
-			}, nil
-		case types.String:
-			return types.TypeAndValue{
-				Type:  t,
-				Value: constant.MakeString(""),
-			}, nil
-		case types.Bool, types.UntypedBool:
-			return types.TypeAndValue{
-				Type:  t,
-				Value: constant.MakeBool(false),
-			}, nil
-		default:
-			return types.TypeAndValue{}, fmt.Errorf("could not initialize struct field %s to zero, type: %s", fld.Name(), t)
-		}
-	}
-	return types.TypeAndValue{}, nil
-}
 
 // newGlobal creates new global variable.
 func (c *codegen) newGlobal(name string) {
