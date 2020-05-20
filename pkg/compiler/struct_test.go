@@ -338,6 +338,20 @@ var structTestCases = []testCase{
 		}`,
 		big.NewInt(2),
 	},
+	{
+		"nested selectors (simple read)",
+		`package foo
+		type S1 struct { x, y S2 }
+		type S2 struct { a, b int }
+		func Main() int {
+			var s1 S1
+			var s2 S2
+			s2.a = 3
+			s1.y = s2
+			return s1.y.a
+		}`,
+		big.NewInt(3),
+	},
 }
 
 func TestStructs(t *testing.T) {

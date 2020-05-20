@@ -753,17 +753,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
-		switch t := n.X.(type) {
-		case *ast.Ident:
-			if strct, ok := c.typeOf(t).Underlying().(*types.Struct); ok {
-				c.emitLoadVar(t.Name) // load the struct
-				i := indexOfStruct(strct, n.Sel.Name)
-				c.emitLoadField(i) // load the field
-			}
-		default:
-			c.prog.Err = fmt.Errorf("nested selectors not supported yet")
+		strct, ok := c.typeOf(n.X).Underlying().(*types.Struct)
+		if !ok {
+			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
 		}
+		ast.Walk(c, n.X) // load the struct
+		i := indexOfStruct(strct, n.Sel.Name)
+		c.emitLoadField(i) // load the field
 		return nil
 
 	case *ast.UnaryExpr:
