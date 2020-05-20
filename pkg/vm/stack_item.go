@@ -517,7 +517,9 @@ func (i *ByteArrayItem) Bool() bool {
 
 // TryBytes implements StackItem interface.
 func (i *ByteArrayItem) TryBytes() ([]byte, error) {
-	return i.value, nil
+	val := make([]byte, len(i.value))
+	copy(val, i.value)
+	return val, nil
 }
 
 // TryInteger implements StackItem interface.
