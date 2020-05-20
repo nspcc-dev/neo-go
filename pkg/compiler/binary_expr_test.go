@@ -26,7 +26,7 @@ var binaryExprTestCases = []testCase{
 			return x
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"simple div",
@@ -97,7 +97,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"compare equal strings with eql",
@@ -139,7 +139,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"compare equal ints with eql",
@@ -167,7 +167,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"compare not equal ints with eql",
@@ -181,7 +181,7 @@ var binaryExprTestCases = []testCase{
 			return 0
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"compare not equal ints with neq",

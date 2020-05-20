@@ -518,16 +518,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	}
 
 	switch op {
-	case opcode.PUSHM1, opcode.PUSH1, opcode.PUSH2, opcode.PUSH3,
+	case opcode.PUSHM1, opcode.PUSH0, opcode.PUSH1, opcode.PUSH2, opcode.PUSH3,
 		opcode.PUSH4, opcode.PUSH5, opcode.PUSH6, opcode.PUSH7,
 		opcode.PUSH8, opcode.PUSH9, opcode.PUSH10, opcode.PUSH11,
 		opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15,
 		opcode.PUSH16:
-		val := int(op) - int(opcode.PUSH1) + 1
+		val := int(op) - int(opcode.PUSH0)
 		v.estack.PushVal(val)
-
-	case opcode.PUSH0:
-		v.estack.PushVal([]byte{})
 
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushVal(parameter)

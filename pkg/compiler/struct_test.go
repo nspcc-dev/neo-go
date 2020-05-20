@@ -255,7 +255,7 @@ var structTestCases = []testCase{
 			return t.y
 		}
 		`,
-		[]byte{},
+		big.NewInt(0),
 	},
 	{
 		"test return struct from func",

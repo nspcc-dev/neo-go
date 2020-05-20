@@ -32,7 +32,7 @@ func TestImportStruct(t *testing.T) {
 			 return b.Y
 	 	}
 	 `
-	eval(t, src, []byte{})
+	eval(t, src, big.NewInt(0))
 }
 
 func TestMultipleDirFileImport(t *testing.T) {
