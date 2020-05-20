@@ -212,6 +212,16 @@ var sliceTestCases = []testCase{
 		}`,
 		[]byte{1, 2},
 	},
+	{
+		"nested slice assignment",
+		`package foo
+		func Main() int {
+			a := [][]int{[]int{1, 2}, []int{3, 4}}
+			a[1][0] = 42
+			return a[1][0]
+		}`,
+		big.NewInt(42),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {

@@ -432,8 +432,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				if !isAssignOp {
 					ast.Walk(c, n.Rhs[i])
 				}
-				name := t.X.(*ast.Ident).Name
-				c.emitLoadVar(name)
+				ast.Walk(c, t.X)
 				ast.Walk(c, t.Index)
 				emit.Opcode(c.prog.BinWriter, opcode.ROT)
 				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
