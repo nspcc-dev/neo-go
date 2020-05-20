@@ -375,6 +375,10 @@ var marshalJSONTestCases = []struct {
 		result: []byte(`"010203"`),
 	},
 	{
+		input:  NewBufferItem([]byte{1, 2, 3}),
+		result: []byte(`"010203"`),
+	},
+	{
 		input:  &ArrayItem{value: []StackItem{&BigIntegerItem{value: big.NewInt(3)}, &ByteArrayItem{value: []byte{1, 2, 3}}}},
 		result: []byte(`[3,"010203"]`),
 	},
@@ -430,6 +434,10 @@ var toContractParameterTestCases = []struct {
 	},
 	{
 		input:  NewByteArrayItem([]byte{0x01, 0x02, 0x03}),
+		result: smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
+	},
+	{
+		input:  NewBufferItem([]byte{0x01, 0x02, 0x03}),
 		result: smartcontract.Parameter{Type: smartcontract.ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
 	},
 	{

@@ -36,6 +36,17 @@ func TestShortHandMultiConst(t *testing.T) {
 	eval(t, src, big.NewInt(6))
 }
 
+func TestByteConstant(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/convert"
+	const a byte = 0xFF
+	func Main() int64 {
+		x := convert.ToInteger(a)
+		return x+1
+	}`
+	eval(t, src, big.NewInt(0x100))
+}
+
 func TestGlobalsWithFunctionParams(t *testing.T) {
 	src := `
 		package foobar

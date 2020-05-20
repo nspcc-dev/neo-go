@@ -89,6 +89,9 @@ func serializeItemTo(item StackItem, w *io.BinWriter, seen map[StackItem]bool) {
 	case *ByteArrayItem:
 		w.WriteBytes([]byte{byte(ByteArrayT)})
 		w.WriteVarBytes(t.value)
+	case *BufferItem:
+		w.WriteBytes([]byte{byte(BufferT)})
+		w.WriteVarBytes(t.value)
 	case *BoolItem:
 		w.WriteBytes([]byte{byte(BooleanT)})
 		w.WriteBool(t.value)

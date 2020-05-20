@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"text/tabwriter"
@@ -634,6 +635,36 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		item := v.estack.Pop().Item()
 		ctx.arguments.Set(int(parameter[0]), item)
 
+	case opcode.NEWBUFFER:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 || n > MaxItemSize {
+			panic("invalid size")
+		}
+		v.estack.PushVal(NewBufferItem(make([]byte, n)))
+
+	case opcode.MEMCPY:
+		n := toInt(v.estack.Pop().BigInt())
+		if n < 0 {
+			panic("invalid size")
+		}
+		si := toInt(v.estack.Pop().BigInt())
+		if si < 0 {
+			panic("invalid source index")
+		}
+		src := v.estack.Pop().Bytes()
+		if sum := si + n; sum < 0 || sum > len(src) {
+			panic("size is too big")
+		}
+		di := toInt(v.estack.Pop().BigInt())
+		if di < 0 {
+			panic("invalid destination index")
+		}
+		dst := v.estack.Pop().value.(*BufferItem).value
+		if sum := si + n; sum < 0 || sum > len(dst) {
+			panic("size is too big")
+		}
+		copy(dst[di:], src[si:si+n])
+
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
@@ -641,7 +672,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(fmt.Sprintf("too big item: %d", l))
 		}
 		ab := append(a, b...)
-		v.estack.PushVal(ab)
+		v.estack.PushVal(NewBufferItem(ab))
 
 	case opcode.SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -657,7 +688,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if last > len(s) {
 			panic("invalid offset")
 		}
-		v.estack.PushVal(s[o:last])
+		v.estack.PushVal(NewBufferItem(s[o:last]))
 
 	case opcode.LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -668,7 +699,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if t := len(s); l > t {
 			l = t
 		}
-		v.estack.PushVal(s[:l])
+		v.estack.PushVal(NewBufferItem(s[:l]))
 
 	case opcode.RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -676,7 +707,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative length")
 		}
 		s := v.estack.Pop().Bytes()
-		v.estack.PushVal(s[len(s)-l:])
+		v.estack.PushVal(NewBufferItem(s[len(s)-l:]))
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
@@ -1100,16 +1131,36 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			t.Add(key.value, item)
 			v.refs.Add(item)
 
+		case *BufferItem:
+			index := toInt(key.BigInt())
+			if index < 0 || index >= len(t.value) {
+				panic("invalid index")
+			}
+			bi, err := item.TryInteger()
+			b := toInt(bi)
+			if err != nil || b < math.MinInt8 || b > math.MaxUint8 {
+				panic("invalid value")
+			}
+			t.value[index] = byte(b)
+
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
 		}
 
 	case opcode.REVERSEITEMS:
-		a := v.estack.Pop().Array()
-		if len(a) > 1 {
-			for i, j := 0, len(a)-1; i <= j; i, j = i+1, j-1 {
+		item := v.estack.Pop()
+		switch t := item.value.(type) {
+		case *ArrayItem, *StructItem:
+			a := t.Value().([]StackItem)
+			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
 			}
+		case *BufferItem:
+			for i, j := 0, len(t.value)-1; i < j; i, j = i+1, j-1 {
+				t.value[i], t.value[j] = t.value[j], t.value[i]
+			}
+		default:
+			panic(fmt.Sprintf("invalid item type %s", t))
 		}
 	case opcode.REMOVE:
 		key := v.estack.Pop()
@@ -1322,6 +1373,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.estack.PushVal(index < int64(len(c.Array())))
 		case *MapItem:
 			v.estack.PushVal(t.Has(key.Item()))
+		case *BufferItem:
+			index := key.BigInt().Int64()
+			if index < 0 {
+				panic("negative index")
+			}
+			v.estack.PushVal(index < int64(len(t.value)))
 		default:
 			panic("wrong collection type")
 		}
@@ -1575,4 +1632,16 @@ func (v *VM) GetEntryScriptHash() util.Uint160 {
 // GetCurrentScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
+}
+
+// toInt converts an item to a 32-bit int.
+func toInt(i *big.Int) int {
+	if !i.IsInt64() {
+		panic("not an int32")
+	}
+	n := i.Int64()
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		panic("not an int32")
+	}
+	return int(n)
 }

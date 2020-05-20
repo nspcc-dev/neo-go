@@ -124,14 +124,15 @@ func convertPrimitive(item StackItem, typ StackItemType) (StackItem, error) {
 			return nil, err
 		}
 		return NewBigIntegerItem(bi), nil
-	case ByteArrayT:
+	case ByteArrayT, BufferT:
 		b, err := item.TryBytes()
 		if err != nil {
 			return nil, err
 		}
+		if typ == BufferT {
+			return NewBufferItem(b), nil
+		}
 		return NewByteArrayItem(b), nil
-	case BufferT:
-		panic("TODO") // #877
 	case BooleanT:
 		return NewBoolItem(item.Bool()), nil
 	default:
@@ -517,16 +518,17 @@ func (i *ByteArrayItem) Bool() bool {
 
 // TryBytes implements StackItem interface.
 func (i *ByteArrayItem) TryBytes() ([]byte, error) {
-	return i.value, nil
+	val := make([]byte, len(i.value))
+	copy(val, i.value)
+	return val, nil
 }
 
 // TryInteger implements StackItem interface.
 func (i *ByteArrayItem) TryInteger() (*big.Int, error) {
-	bi := emit.BytesToInt(i.value)
-	if bi.BitLen() > MaxBigIntegerSizeBits {
+	if len(i.value) > MaxBigIntegerSizeBits/8 {
 		return nil, errors.New("integer is too big")
 	}
-	return bi, nil
+	return emit.BytesToInt(i.value), nil
 }
 
 // Equals implements StackItem interface.
@@ -936,6 +938,92 @@ func (p *PointerItem) Convert(typ StackItemType) (StackItem, error) {
 		return p, nil
 	case BooleanT:
 		return NewBoolItem(p.Bool()), nil
+	default:
+		return nil, errInvalidConversion
+	}
+}
+
+// BufferItem represents represents Buffer stack item.
+type BufferItem struct {
+	value []byte
+}
+
+// NewBufferItem returns a new BufferItem object.
+func NewBufferItem(b []byte) *BufferItem {
+	return &BufferItem{
+		value: b,
+	}
+}
+
+// Value implements StackItem interface.
+func (i *BufferItem) Value() interface{} {
+	return i.value
+}
+
+// String implements fmt.Stringer interface.
+func (i *BufferItem) String() string {
+	return "Buffer"
+}
+
+// Bool implements StackItem interface.
+func (i *BufferItem) Bool() bool {
+	return true
+}
+
+// TryBytes implements StackItem interface.
+func (i *BufferItem) TryBytes() ([]byte, error) {
+	val := make([]byte, len(i.value))
+	copy(val, i.value)
+	return val, nil
+}
+
+// TryInteger implements StackItem interface.
+func (i *BufferItem) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Buffer to Integer")
+}
+
+// Equals implements StackItem interface.
+func (i *BufferItem) Equals(s StackItem) bool {
+	return i == s
+}
+
+// Dup implements StackItem interface.
+func (i *BufferItem) Dup() StackItem {
+	return i
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (i *BufferItem) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(i.value))
+}
+
+// ToContractParameter implements StackItem interface.
+func (i *BufferItem) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.ByteArrayType,
+		Value: i.value,
+	}
+}
+
+// Type implements StackItem interface.
+func (i *BufferItem) Type() StackItemType { return BufferT }
+
+// Convert implements StackItem interface.
+func (i *BufferItem) Convert(typ StackItemType) (StackItem, error) {
+	switch typ {
+	case BooleanT:
+		return NewBoolItem(i.Bool()), nil
+	case BufferT:
+		return i, nil
+	case ByteArrayT:
+		val := make([]byte, len(i.value))
+		copy(val, i.value)
+		return NewByteArrayItem(val), nil
+	case IntegerT:
+		if len(i.value) > MaxBigIntegerSizeBits/8 {
+			return nil, errInvalidConversion
+		}
+		return NewBigIntegerItem(emit.BytesToInt(i.value)), nil
 	default:
 		return nil, errInvalidConversion
 	}
