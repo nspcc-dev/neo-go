@@ -86,8 +86,8 @@ const (
 	PICK     Opcode = 0x4D
 	TUCK     Opcode = 0x4E
 	SWAP     Opcode = 0x50
-	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
 	ROT      Opcode = 0x51
+	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
 	ROLL     Opcode = 0x52
 	REVERSE3 Opcode = 0x53
 	REVERSE4 Opcode = 0x54
