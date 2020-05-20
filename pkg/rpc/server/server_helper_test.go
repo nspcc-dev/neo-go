@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -65,18 +64,14 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *httptest.Serv
 
 type FeerStub struct{}
 
-func (fs *FeerStub) NetworkFee(*transaction.Transaction) util.Fixed8 {
-	return 0
-}
-
 func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
 	return false
 }
 
-func (fs *FeerStub) FeePerByte(*transaction.Transaction) util.Fixed8 {
+func (fs *FeerStub) FeePerByte() util.Fixed8 {
 	return 0
 }
 
-func (fs *FeerStub) SystemFee(*transaction.Transaction) util.Fixed8 {
-	return 0
+func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
+	return util.Fixed8FromInt64(1000000)
 }

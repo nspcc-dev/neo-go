@@ -70,7 +70,7 @@ func (c *ParameterContext) GetWitness(ctr *wallet.Contract) (*transaction.Witnes
 // AddSignature adds a signature for the specified contract and public key.
 func (c *ParameterContext) AddSignature(ctr *wallet.Contract, pub *keys.PublicKey, sig []byte) error {
 	item := c.getItemForContract(ctr)
-	if pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
+	if _, pubs, ok := vm.ParseMultiSigContract(ctr.Script); ok {
 		if item.GetSignature(pub) != nil {
 			return errors.New("signature is already added")
 		}

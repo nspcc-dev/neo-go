@@ -40,7 +40,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAccountState("")
 			},
-			serverResponse: `{"jsonrpc":"2.0","id": 1,"result":{"version":0,"script_hash":"0x1179716da2e9523d153a35fb3ad10c561b1e5b1a","frozen":false,"votes":[],"balances":[{"asset":"0x7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc","value":"94"}]}}`,
+			serverResponse: `{"jsonrpc":"2.0","id": 1,"result":{"version":0,"script_hash":"0x1179716da2e9523d153a35fb3ad10c561b1e5b1a","frozen":false,"votes":[],"balances":[{"asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","value":"94"}]}}`,
 			result: func(c *Client) interface{} {
 				scriptHash, err := util.Uint160DecodeStringLE("1179716da2e9523d153a35fb3ad10c561b1e5b1a")
 				if err != nil {
@@ -98,7 +98,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetAssetState(util.Uint256{})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0x7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
 			result: func(c *Client) interface{} {
 				return &result.AssetState{
 					ID:         core.GoverningTokenID(),
@@ -138,17 +138,17 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBlockByIndex(202)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"0000000039f06b13aa6ee24d37db9b7868533b7988a6fb1e59c3fa6677dab7fd1f51326405f4fa24f061ffa04ab3127994530ee04c5e578a7b8109133dd142b6a31192cd9debaa5e00000000ca000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b77601094130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb0200570400000000000080000300000075a94799633ed955dd85a8af314a5b435ab51903b0040000000001f6c31d4dd9edf7aea24168885ae82dc574d25e35a9b9b3063f3ea44226a3081f000001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d00184a27db86230075a94799633ed955dd85a8af314a5b435ab5190301420c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"00000000ef9039404248180eb395d8ff59f985286b6852a68275a487e473114c4240b5938dccbfab32ee60f8b0d16144f258cc30d4f6795522fbd60109e2ed8d1423e9b810cdba5e00000000ca000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c312399694130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb02005704000000000000800003000000316e851039019d39dfc2c37d6c3fee19fd58098700000000000000000000000000000000b004000000000170f3b507ea9eae15ebb7f10195c1239bbaa12ca996ff070e4a8501131045e033000001787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a00184a27db862300316e851039019d39dfc2c37d6c3fee19fd58098701420c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}`,
 			result:         func(c *Client) interface{} { return &block.Block{} },
 			check: func(t *testing.T, c *Client, result interface{}) {
 				res, ok := result.(*block.Block)
 				require.True(t, ok)
 				assert.Equal(t, uint32(0), res.Version)
-				assert.Equal(t, "75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45", res.Hash().StringLE())
-				assert.Equal(t, "6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039", res.PrevHash.StringLE())
-				assert.Equal(t, "cd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405", res.MerkleRoot.StringLE())
+				assert.Equal(t, "cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86", res.Hash().StringLE())
+				assert.Equal(t, "93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef", res.PrevHash.StringLE())
+				assert.Equal(t, "b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d", res.MerkleRoot.StringLE())
 				assert.Equal(t, 1, len(res.Transactions))
-				assert.Equal(t, "115975f7d1e9c4577ec839c6ea4ae32727616284e2d7cdc5a49e4e421b32e505", res.Transactions[0].Hash().StringLE())
+				assert.Equal(t, "96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581", res.Transactions[0].Hash().StringLE())
 			},
 		},
 		{
@@ -156,49 +156,49 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (i interface{}, err error) {
 				return c.GetBlockByIndexVerbose(202)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0x75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45","size":765,"version":0,"nextblockhash":"0xec27fed4ff8ad6a87bdd29aecee43e9ecb4e336321dac875d0b14d2aab1c5798","previousblockhash":"0x6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039","merkleroot":"0xcd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405","time":1588259741,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"Ad1wDxzcRiRSryvJobNV211Tv7UUiziPXy","confirmations":6,"script":{"invocation":"0c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b776010","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb"},"tx":[{"sys_fee":"0","net_fee":"0","txid":"0x115975f7d1e9c4577ec839c6ea4ae32727616284e2d7cdc5a49e4e421b32e505","size":238,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6","vout":0}],"vout":[{"address":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","asset":"0x7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}]}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","size":781,"version":0,"nextblockhash":"0x13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22","previousblockhash":"0x93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef","merkleroot":"0xb8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d","time":1589300496,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL","confirmations":6,"script":{"invocation":"0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"},"tx":[{"txid":"0x96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581","size":254,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","sys_fee":"0","net_fee":"0","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370","vout":0}],"vout":[{"address":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}]}]}}`,
 			result: func(c *Client) interface{} {
-				hash, err := util.Uint256DecodeStringLE("75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45")
+				hash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
 				}
-				nextBlockHash, err := util.Uint256DecodeStringLE("ec27fed4ff8ad6a87bdd29aecee43e9ecb4e336321dac875d0b14d2aab1c5798")
+				nextBlockHash, err := util.Uint256DecodeStringLE("13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22")
 				if err != nil {
 					panic(err)
 				}
-				prevBlockHash, err := util.Uint256DecodeStringLE("6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039")
+				prevBlockHash, err := util.Uint256DecodeStringLE("93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef")
 				if err != nil {
 					panic(err)
 				}
-				merkleRoot, err := util.Uint256DecodeStringLE("cd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405")
+				merkleRoot, err := util.Uint256DecodeStringLE("b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d")
 				if err != nil {
 					panic(err)
 				}
-				invScript, err := hex.DecodeString("0c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b776010")
+				invScript, err := hex.DecodeString("0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996")
 				if err != nil {
 					panic(err)
 				}
-				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb")
+				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb")
 				if err != nil {
 					panic(err)
 				}
-				sender, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
-				txInvScript, err := hex.DecodeString("0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff")
+				txInvScript, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
 				if err != nil {
 					panic(err)
 				}
-				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4")
+				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
 				if err != nil {
 					panic(err)
 				}
-				vin, err := util.Uint256DecodeStringLE("1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6")
+				vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
 				if err != nil {
 					panic(err)
 				}
-				outAddress, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
@@ -231,14 +231,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				_ = tx.Hash()
 				return &result.Block{
 					Hash:              hash,
-					Size:              765,
+					Size:              781,
 					Version:           0,
 					NextBlockHash:     &nextBlockHash,
 					PreviousBlockHash: prevBlockHash,
 					MerkleRoot:        merkleRoot,
-					Time:              1588259741,
+					Time:              1589300496,
 					Index:             202,
-					NextConsensus:     "Ad1wDxzcRiRSryvJobNV211Tv7UUiziPXy",
+					NextConsensus:     "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
 					Confirmations:     6,
 					ConsensusData: result.ConsensusData{
 						PrimaryIndex: 0,
@@ -248,90 +248,84 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						InvocationScript:   invScript,
 						VerificationScript: verifScript,
 					},
-					Tx: []result.Tx{{
-						Transaction: tx,
-						Fees: result.Fees{
-							SysFee: 0,
-							NetFee: 0,
-						},
-					}},
+					Tx: []*transaction.Transaction{tx},
 				}
 			},
 		},
 		{
 			name: "byHash_positive",
 			invoke: func(c *Client) (interface{}, error) {
-				hash, err := util.Uint256DecodeStringLE("45bc7f077a4381c9836164b242af97ffa59e5d233ccba4929796ce873474ab75")
+				hash, err := util.Uint256DecodeStringLE("86fe1061140b2ea791b0739fb9732abc6e5e47de4927228a1ac41de3d93eb7cb")
 				if err != nil {
 					panic(err)
 				}
 				return c.GetBlockByHash(hash)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"0000000039f06b13aa6ee24d37db9b7868533b7988a6fb1e59c3fa6677dab7fd1f51326405f4fa24f061ffa04ab3127994530ee04c5e578a7b8109133dd142b6a31192cd9debaa5e00000000ca000000e903736ceceeceae1806eee0e3ec61e7cce476ce01fd08010c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b77601094130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb0200570400000000000080000300000075a94799633ed955dd85a8af314a5b435ab51903b0040000000001f6c31d4dd9edf7aea24168885ae82dc574d25e35a9b9b3063f3ea44226a3081f000001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d00184a27db86230075a94799633ed955dd85a8af314a5b435ab5190301420c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"00000000ef9039404248180eb395d8ff59f985286b6852a68275a487e473114c4240b5938dccbfab32ee60f8b0d16144f258cc30d4f6795522fbd60109e2ed8d1423e9b810cdba5e00000000ca000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c312399694130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb02005704000000000000800003000000316e851039019d39dfc2c37d6c3fee19fd58098700000000000000000000000000000000b004000000000170f3b507ea9eae15ebb7f10195c1239bbaa12ca996ff070e4a8501131045e033000001787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a00184a27db862300316e851039019d39dfc2c37d6c3fee19fd58098701420c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}`,
 			result:         func(c *Client) interface{} { return &block.Block{} },
 			check: func(t *testing.T, c *Client, result interface{}) {
 				res, ok := result.(*block.Block)
 				require.True(t, ok)
 				assert.Equal(t, uint32(0), res.Version)
-				assert.Equal(t, "75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45", res.Hash().StringLE())
-				assert.Equal(t, "6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039", res.PrevHash.StringLE())
-				assert.Equal(t, "cd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405", res.MerkleRoot.StringLE())
+				assert.Equal(t, "cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86", res.Hash().StringLE())
+				assert.Equal(t, "93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef", res.PrevHash.StringLE())
+				assert.Equal(t, "b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d", res.MerkleRoot.StringLE())
 				assert.Equal(t, 1, len(res.Transactions))
-				assert.Equal(t, "115975f7d1e9c4577ec839c6ea4ae32727616284e2d7cdc5a49e4e421b32e505", res.Transactions[0].Hash().StringLE())
+				assert.Equal(t, "96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581", res.Transactions[0].Hash().StringLE())
 			},
 		},
 		{
 			name: "byHash_verbose_positive",
 			invoke: func(c *Client) (i interface{}, err error) {
-				hash, err := util.Uint256DecodeStringLE("45bc7f077a4381c9836164b242af97ffa59e5d233ccba4929796ce873474ab75")
+				hash, err := util.Uint256DecodeStringLE("86fe1061140b2ea791b0739fb9732abc6e5e47de4927228a1ac41de3d93eb7cb")
 				if err != nil {
 					panic(err)
 				}
 				return c.GetBlockByHashVerbose(hash)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0x75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45","size":765,"version":0,"nextblockhash":"0xec27fed4ff8ad6a87bdd29aecee43e9ecb4e336321dac875d0b14d2aab1c5798","previousblockhash":"0x6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039","merkleroot":"0xcd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405","time":1588259741,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"Ad1wDxzcRiRSryvJobNV211Tv7UUiziPXy","confirmations":6,"script":{"invocation":"0c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b776010","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb"},"tx":[{"sys_fee":"0","net_fee":"0","txid":"0x115975f7d1e9c4577ec839c6ea4ae32727616284e2d7cdc5a49e4e421b32e505","size":238,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6","vout":0}],"vout":[{"address":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","asset":"0x7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}]}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","size":781,"version":0,"nextblockhash":"0x13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22","previousblockhash":"0x93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef","merkleroot":"0xb8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d","time":1589300496,"index":202,"consensus_data":{"primary":0,"nonce":"0000000000000457"},"nextconsensus":"AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL","confirmations":6,"script":{"invocation":"0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996","verification":"130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"},"tx":[{"txid":"0x96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581","size":254,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","sys_fee":"0","net_fee":"0","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370","vout":0}],"vout":[{"address":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}]}]}}`,
 			result: func(c *Client) interface{} {
-				hash, err := util.Uint256DecodeStringLE("75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45")
+				hash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
 				}
-				nextBlockHash, err := util.Uint256DecodeStringLE("ec27fed4ff8ad6a87bdd29aecee43e9ecb4e336321dac875d0b14d2aab1c5798")
+				nextBlockHash, err := util.Uint256DecodeStringLE("13283c93aec07dc90be3ddd65e2de15e9212f1b3205303f688d6df85129f6b22")
 				if err != nil {
 					panic(err)
 				}
-				prevBlockHash, err := util.Uint256DecodeStringLE("6432511ffdb7da7766fac3591efba688793b5368789bdb374de26eaa136bf039")
+				prevBlockHash, err := util.Uint256DecodeStringLE("93b540424c1173e487a47582a652686b2885f959ffd895b30e184842403990ef")
 				if err != nil {
 					panic(err)
 				}
-				merkleRoot, err := util.Uint256DecodeStringLE("cd9211a3b642d13d1309817b8a575e4ce00e53947912b34aa0ff61f024faf405")
+				merkleRoot, err := util.Uint256DecodeStringLE("b8e923148dede20901d6fb225579f6d430cc58f24461d1b0f860ee32abbfcc8d")
 				if err != nil {
 					panic(err)
 				}
-				invScript, err := hex.DecodeString("0c404617b6788538326383015c44ffddd4a05a4e200b65a26fc84234ae8b1e28ef27b7f139dc498c58071193d530ba83081701290eba8f7108397499f5556c16e3780c402131f2bdcc494c73a379e86c46f9e9fe9899a05b23928926b1eaaf816928e160fe971b82263aa1e7efa5f7e46bf99de735fc4fc5aeb81edfdc6a9b2e9fcfa1000c408cbae1582bb9d82de9ff030b8c729737f2157844c0ca29edcdbfed1dd5e2473e0061f0dc29412477417e2c1f7c55443f11b9bd6e0d0856d1ec00240be1b9b9a70c4034d1055531cf0522ac7e5dcd817cf3cd86997ae38da806dc789b1f16eb0005f00b9bc29f7372bb43a8fed040c6763b162c8a0d8e2d0b2d7476e22e0b2b776010")
+				invScript, err := hex.DecodeString("0c403620ef8f02d7884c553fb6c54d2fe717cfddd9450886c5fc88a669a29a82fa1a7c715076996567a5a56747f20f10d7e4db071d73b306ccbf17f9a916fcfa1d020c4099e27d87bbb3fb4ce1c77dca85cf3eac46c9c3de87d8022ef7ad2b0a2bb980339293849cf85e5a0a5615ea7bc5bb0a7f28e31f278dc19d628f64c49b888df4c60c40616eefc9286843c2f3f2cf1815988356e409b3f10ffaf60b3468dc0a92dd929cbc8d5da74052c303e7474412f6beaddd551e9056c4e7a5fccdc06107e48f3fe10c40fd2d25d4156e969345c0522669b509e5ced70e4265066eadaf85eea3919d5ded525f8f52d6f0dfa0186c964dd0302fca5bc2dc0540b4ed21085be478c3123996")
 				if err != nil {
 					panic(err)
 				}
-				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b683073b3bb")
+				verifScript, err := hex.DecodeString("130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb")
 				if err != nil {
 					panic(err)
 				}
-				sender, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
-				txInvScript, err := hex.DecodeString("0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff")
+				txInvScript, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
 				if err != nil {
 					panic(err)
 				}
-				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4")
+				txVerifScript, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
 				if err != nil {
 					panic(err)
 				}
-				vin, err := util.Uint256DecodeStringLE("1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6")
+				vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
 				if err != nil {
 					panic(err)
 				}
-				outAddress, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
@@ -364,14 +358,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				_ = tx.Hash()
 				return &result.Block{
 					Hash:              hash,
-					Size:              765,
+					Size:              781,
 					Version:           0,
 					NextBlockHash:     &nextBlockHash,
 					PreviousBlockHash: prevBlockHash,
 					MerkleRoot:        merkleRoot,
-					Time:              1588259741,
+					Time:              1589300496,
 					Index:             202,
-					NextConsensus:     "Ad1wDxzcRiRSryvJobNV211Tv7UUiziPXy",
+					NextConsensus:     "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
 					Confirmations:     6,
 					ConsensusData: result.ConsensusData{
 						PrimaryIndex: 0,
@@ -381,13 +375,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						InvocationScript:   invScript,
 						VerificationScript: verifScript,
 					},
-					Tx: []result.Tx{{
-						Transaction: tx,
-						Fees: result.Fees{
-							SysFee: 0,
-							NetFee: 0,
-						},
-					}},
+					Tx: []*transaction.Transaction{tx},
 				}
 			},
 		},
@@ -701,19 +689,19 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (i interface{}, err error) {
-				hash, err := util.Uint256DecodeStringLE("05e5321b424e9ea4c5cdd7e28462612727e34aeac639c87e57c4e9d1f7755911")
+				hash, err := util.Uint256DecodeStringLE("8185b0db7ed77190b93ac8bd44896822cd8f3cfcf702b3f50131e0efd200ef96")
 				if err != nil {
 					panic(err)
 				}
 				return c.GetRawTransaction(hash)
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"80000300000075a94799633ed955dd85a8af314a5b435ab51903b0040000000001f6c31d4dd9edf7aea24168885ae82dc574d25e35a9b9b3063f3ea44226a3081f000001dcb7e70846bb5a6828205b81b579562f0e2c15f7b3badd68d485b035882fc17d00184a27db86230075a94799633ed955dd85a8af314a5b435ab5190301420c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"800003000000316e851039019d39dfc2c37d6c3fee19fd58098700000000000000000000000000000000b004000000000170f3b507ea9eae15ebb7f10195c1239bbaa12ca996ff070e4a8501131045e033000001787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a00184a27db862300316e851039019d39dfc2c37d6c3fee19fd58098701420c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}`,
 			result:         func(c *Client) interface{} { return &transaction.Transaction{} },
 			check: func(t *testing.T, c *Client, result interface{}) {
 				res, ok := result.(*transaction.Transaction)
 				require.True(t, ok)
 				assert.Equal(t, uint8(0), res.Version)
-				assert.Equal(t, "05e5321b424e9ea4c5cdd7e28462612727e34aeac639c87e57c4e9d1f7755911", res.Hash().StringBE())
+				assert.Equal(t, "8185b0db7ed77190b93ac8bd44896822cd8f3cfcf702b3f50131e0efd200ef96", res.Hash().StringBE())
 				assert.Equal(t, transaction.ContractType, res.Type)
 				assert.Equal(t, false, res.Trimmed)
 			},
@@ -721,35 +709,35 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "verbose_positive",
 			invoke: func(c *Client) (interface{}, error) {
-				hash, err := util.Uint256DecodeStringLE("05e5321b424e9ea4c5cdd7e28462612727e34aeac639c87e57c4e9d1f7755911")
+				hash, err := util.Uint256DecodeStringLE("8185b0db7ed77190b93ac8bd44896822cd8f3cfcf702b3f50131e0efd200ef96")
 				if err != nil {
 					panic(err)
 				}
 				return c.GetRawTransactionVerbose(hash)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sys_fee":"0","net_fee":"0","blockhash":"0x75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45","confirmations":8,"blocktime":1588259741,"txid":"0x115975f7d1e9c4577ec839c6ea4ae32727616284e2d7cdc5a49e4e421b32e505","size":238,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6","vout":0}],"vout":[{"address":"ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR","asset":"0x7dc12f8835b085d468ddbab3f7152c0e2f5679b5815b2028685abb4608e7b7dc","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4"}]}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"blockhash":"0xcbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86","confirmations":8,"blocktime":1589300496,"txid":"0x96ef00d2efe03101f5b302f7fc3c8fcd22688944bdc83ab99071d77edbb08581","size":254,"type":"ContractTransaction","version":0,"nonce":3,"sender":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","sys_fee":"0","net_fee":"0","valid_until_block":1200,"attributes":[],"cosigners":[],"vin":[{"txid":"0x33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370","vout":0}],"vout":[{"address":"ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG","asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","n":0,"value":"99999000"}],"scripts":[{"invocation":"0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb","verification":"0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"}]}}`,
 			result: func(c *Client) interface{} {
-				blockHash, err := util.Uint256DecodeStringLE("75ab743487ce969792a4cb3c235d9ea5ff97af42b2646183c981437a077fbc45")
+				blockHash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
 				}
-				sender, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				sender, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
-				invocation, err := hex.DecodeString("0c40bfce1ead7d53339440bb29745eed4ad9840875de4f970950065291e7a14cbd249bfbf777d9a997c5e00bbc08e8ce9fdd2cd13c45c3585b4939599ff84c6149ff")
+				invocation, err := hex.DecodeString("0c402caebbee911a1f159aa05ab40093d086090a817e837f3f87e8b3e47f6b083649137770f6dda0349ddd611bc47402aca457a89b3b7b0076307ab6a47fd57048eb")
 				if err != nil {
 					panic(err)
 				}
-				verification, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b680a906ad4")
+				verification, err := hex.DecodeString("0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4")
 				if err != nil {
 					panic(err)
 				}
-				vin, err := util.Uint256DecodeStringLE("1f08a32642a43e3f06b3b9a9355ed274c52de85a886841a2aef7edd94d1dc3f6")
+				vin, err := util.Uint256DecodeStringLE("33e045101301854a0e07ff96a92ca1ba9b23c19501f1b7eb15ae9eea07b5f370")
 				if err != nil {
 					panic(err)
 				}
-				outAddress, err := address.StringToUint160("ASW1VhcukJRrukCXRipY4BE9d9zy4mAYsR")
+				outAddress, err := address.StringToUint160("ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG")
 				if err != nil {
 					panic(err)
 				}
@@ -784,11 +772,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return &result.TransactionOutputRaw{
 					Transaction: tx,
 					TransactionMetadata: result.TransactionMetadata{
-						SysFee:        0,
-						NetFee:        0,
 						Blockhash:     blockHash,
 						Confirmations: 8,
-						Timestamp:     uint64(1588259741),
+						Timestamp:     uint64(1589300496),
 					},
 				}
 			},

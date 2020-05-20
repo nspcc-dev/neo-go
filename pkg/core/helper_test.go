@@ -167,10 +167,23 @@ func TestCreateBasicChain(t *testing.T) {
 	bc := newTestChain(t)
 	defer bc.Close()
 
-	// Move almost all NEO to one simple account.
-	txMoveNeo := transaction.NewContractTX()
+	gasHash := bc.contracts.GAS.Hash
+	t.Logf("native GAS hash: %v", gasHash)
+
+	priv0 := testchain.PrivateKeyByID(0)
+	priv0ScriptHash := priv0.GetScriptHash()
+
+	// Move almost all NEO and some nep5 GAS to one simple account.
+	txMoveNeo := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, 1000000000)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
 	txMoveNeo.Nonce = getNextNonce()
+	txMoveNeo.Sender = neoOwner
+	txMoveNeo.Cosigners = []transaction.Cosigner{{
+		Account:          neoOwner,
+		Scopes:           transaction.CalledByEntry,
+		AllowedContracts: nil,
+		AllowedGroups:    nil,
+	}}
 
 	// use output of issue tx from genesis block as an input
 	genesisBlock, err := bc.GetBlock(bc.GetHeaderHash(0))
@@ -181,15 +194,10 @@ func TestCreateBasicChain(t *testing.T) {
 		PrevHash:  h,
 		PrevIndex: 0,
 	})
-
-	txMoveNeo.Sender = neoOwner
-
-	priv0 := testchain.PrivateKeyByID(0)
-	priv0ScriptHash := priv0.GetScriptHash()
 	txMoveNeo.AddOutput(&transaction.Output{
 		AssetID:    GoverningTokenID(),
 		Amount:     neoAmount,
-		ScriptHash: priv0.GetScriptHash(),
+		ScriptHash: priv0ScriptHash,
 		Position:   0,
 	})
 	txMoveNeo.AddOutput(&transaction.Output{
@@ -198,7 +206,6 @@ func TestCreateBasicChain(t *testing.T) {
 		ScriptHash: neoOwner,
 		Position:   1,
 	})
-	txMoveNeo.Data = new(transaction.ContractTX)
 	require.NoError(t, signTx(bc, txMoveNeo))
 	b := bc.newBlock(txMoveNeo)
 	require.NoError(t, bc.AddBlock(b))
@@ -233,6 +240,7 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	txNeoRound.Data = new(transaction.ContractTX)
+	require.NoError(t, addNetworkFee(bc, txNeoRound, acc0))
 	require.NoError(t, acc0.SignTx(txNeoRound))
 	b = bc.newBlock(txNeoRound)
 	require.NoError(t, bc.AddBlock(b))
@@ -257,6 +265,7 @@ func TestCreateBasicChain(t *testing.T) {
 		ScriptHash: priv0.GetScriptHash(),
 		Position:   0,
 	})
+	require.NoError(t, addNetworkFee(bc, txClaim, acc0))
 	require.NoError(t, acc0.SignTx(txClaim))
 	b = bc.newBlock(txClaim)
 	require.NoError(t, bc.AddBlock(b))
@@ -300,6 +309,7 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	gasOwned -= invFee
+	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
 	require.NoError(t, acc0.SignTx(txDeploy))
 	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
@@ -313,6 +323,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Sender = priv0ScriptHash
+	require.NoError(t, addNetworkFee(bc, txInv, acc0))
 	require.NoError(t, acc0.SignTx(txInv))
 	b = bc.newBlock(txInv)
 	require.NoError(t, bc.AddBlock(b))
@@ -339,6 +350,7 @@ func TestCreateBasicChain(t *testing.T) {
 		ScriptHash: priv0.GetScriptHash(),
 	})
 
+	require.NoError(t, addNetworkFee(bc, txNeo0to1, acc0))
 	require.NoError(t, acc0.SignTx(txNeo0to1))
 	b = bc.newBlock(txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
@@ -350,24 +362,45 @@ func TestCreateBasicChain(t *testing.T) {
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Sender = priv0ScriptHash
+	require.NoError(t, addNetworkFee(bc, initTx, acc0))
 	require.NoError(t, acc0.SignTx(initTx))
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Sender = priv0ScriptHash
+	transferTx.Cosigners = []transaction.Cosigner{
+		{
+			Account:          priv0ScriptHash,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
+	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
 	require.NoError(t, acc0.SignTx(transferTx))
 
 	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
+	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringBE())
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
 	transferTx.Sender = priv0ScriptHash
+	transferTx.Cosigners = []transaction.Cosigner{
+		{
+			Account:          priv0ScriptHash,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		},
+	}
+	require.NoError(t, addNetworkFee(bc, transferTx, acc0))
 	require.NoError(t, acc0.SignTx(transferTx))
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
+	t.Logf("sendRublesTx: %v", transferTx.Hash().StringBE())
 
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
@@ -407,6 +440,7 @@ func TestCreateBasicChain(t *testing.T) {
 		Position:   0,
 	})
 	txNeoRound.Data = new(transaction.ContractTX)
+	require.NoError(t, addNetworkFee(bc, txNeoRound, acc0))
 	require.NoError(t, acc0.SignTx(txNeoRound))
 	bw := io.NewBufBinWriter()
 	txNeoRound.EncodeBinary(bw.BinWriter)
@@ -439,11 +473,33 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 		return errors.Wrap(err, "fail to sign tx")
 	}
 	for _, tx := range txs {
+		size := io.GetVarSize(tx)
+		netFee, sizeDelta := CalculateNetworkFee(rawScript)
+		tx.NetworkFee = tx.NetworkFee.Add(netFee)
+		size += sizeDelta
+		tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(bc.FeePerByte())))
 		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{{
 			InvocationScript:   testchain.Sign(data),
 			VerificationScript: rawScript,
 		}}
 	}
+	return nil
+}
+
+func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.Account) error {
+	size := io.GetVarSize(tx)
+	netFee, sizeDelta := CalculateNetworkFee(sender.Contract.Script)
+	tx.NetworkFee += netFee
+	size += sizeDelta
+	for _, cosigner := range tx.Cosigners {
+		contract := bc.GetContractState(cosigner.Account)
+		if contract != nil {
+			netFee, sizeDelta = CalculateNetworkFee(contract.Script)
+			tx.NetworkFee += netFee
+			size += sizeDelta
+		}
+	}
+	tx.NetworkFee += util.Fixed8(int64(size) * int64(bc.FeePerByte()))
 	return nil
 }

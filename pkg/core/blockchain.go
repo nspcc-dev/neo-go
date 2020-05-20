@@ -466,7 +466,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
 	fee := bc.getSystemFeeAmount(block.PrevHash)
 	for _, tx := range block.Transactions {
-		fee += uint32(bc.SystemFee(tx).IntegralValue())
+		fee += uint32(tx.SystemFee.IntegralValue())
 	}
 	if err := cache.StoreAsBlock(block, fee); err != nil {
 		return err
@@ -651,16 +651,26 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						continue
 					}
 					op, ok := arr[0].Value().([]byte)
-					if !ok || string(op) != "transfer" {
+					if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
 						continue
 					}
-					from, ok := arr[1].Value().([]byte)
-					if !ok {
-						continue
+					var from []byte
+					fromValue := arr[1].Value()
+					// we don't have `from` set when we are minting tokens
+					if fromValue != nil {
+						from, ok = fromValue.([]byte)
+						if !ok {
+							continue
+						}
 					}
-					to, ok := arr[2].Value().([]byte)
-					if !ok {
-						continue
+					var to []byte
+					toValue := arr[2].Value()
+					// we don't have `to` set when we are burning tokens
+					if toValue != nil {
+						to, ok = toValue.([]byte)
+						if !ok {
+							continue
+						}
 					}
 					amount, ok := arr[3].Value().(*big.Int)
 					if !ok {
@@ -713,7 +723,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	updateBlockHeightMetric(block.Index)
-	bc.memPool.RemoveStale(bc.isTxStillRelevant)
+	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
 	return nil
 }
 
@@ -805,6 +815,11 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 		return nil
 	}
 	return bs
+}
+
+// GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
+func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
+	return util.Fixed8FromInt64(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
 }
 
 // LastBatch returns last persisted storage batch.
@@ -1107,48 +1122,10 @@ func (bc *Blockchain) references(ins []transaction.Input) ([]transaction.InOut, 
 	return references, nil
 }
 
-// FeePerByte returns network fee divided by the size of the transaction.
-func (bc *Blockchain) FeePerByte(t *transaction.Transaction) util.Fixed8 {
-	return bc.NetworkFee(t).Div(int64(io.GetVarSize(t)))
-}
-
-// NetworkFee returns network fee.
-func (bc *Blockchain) NetworkFee(t *transaction.Transaction) util.Fixed8 {
-	// https://github.com/neo-project/neo/blob/master-2.x/neo/Network/P2P/Payloads/ClaimTransaction.cs#L16
-	if t.Type == transaction.ClaimType {
-		return 0
-	}
-
-	inputAmount := util.Fixed8FromInt64(0)
-	refs, err := bc.References(t)
-	if err != nil {
-		return inputAmount
-	}
-	for i := range refs {
-		if refs[i].Out.AssetID == UtilityTokenID() {
-			inputAmount = inputAmount.Add(refs[i].Out.Amount)
-		}
-	}
-
-	outputAmount := util.Fixed8FromInt64(0)
-	for _, txOutput := range t.Outputs {
-		if txOutput.AssetID == UtilityTokenID() {
-			outputAmount = outputAmount.Add(txOutput.Amount)
-		}
-	}
-
-	return inputAmount.Sub(outputAmount).Sub(bc.SystemFee(t))
-}
-
-// SystemFee returns system fee.
-func (bc *Blockchain) SystemFee(t *transaction.Transaction) util.Fixed8 {
-	if t.Type == transaction.InvocationType {
-		inv := t.Data.(*transaction.InvocationTX)
-		if inv.Version >= 1 {
-			return inv.Gas
-		}
-	}
-	return bc.GetConfig().SystemFee.TryGetValue(t.Type)
+// FeePerByte returns transaction network fee per byte.
+// TODO: should be implemented as part of PolicyContract
+func (bc *Blockchain) FeePerByte() util.Fixed8 {
+	return util.Fixed8(1000)
 }
 
 // IsLowPriority checks given fee for being less than configured
@@ -1199,14 +1176,25 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
-	if io.GetVarSize(t) > transaction.MaxTransactionSize {
+	balance := bc.GetUtilityTokenBalance(t.Sender)
+	need := t.SystemFee.Add(t.NetworkFee)
+	if balance.LessThan(need) {
+		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
+	}
+	size := io.GetVarSize(t)
+	if size > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
+	}
+	needNetworkFee := util.Fixed8(int64(size) * int64(bc.FeePerByte()))
+	netFee := t.NetworkFee.Sub(needNetworkFee)
+	if netFee < 0 {
+		return errors.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
 	}
 	if transaction.HaveDuplicateInputs(t.Inputs) {
 		return errors.New("invalid transaction's inputs")
 	}
 	if block == nil {
-		if ok := bc.memPool.Verify(t); !ok {
+		if ok := bc.memPool.Verify(t, bc); !ok {
 			return errors.New("invalid transaction due to conflicts with the memory pool")
 		}
 	}
@@ -1382,9 +1370,8 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		txSize := io.GetVarSize(t)
 		maxFree := bc.config.MaxFreeTransactionSize
 		if maxFree != 0 && txSize > maxFree {
-			netFee := bc.NetworkFee(t)
-			if bc.IsLowPriority(netFee) ||
-				netFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+			if bc.IsLowPriority(t.NetworkFee) ||
+				t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
 				return ErrPolicy
 			}
 		}
@@ -1441,7 +1428,7 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
 		return errors.New("tx destroys non-utility token")
 	}
-	sysfee := bc.SystemFee(t)
+	sysfee := t.SystemFee
 	if sysfee.GreaterThan(util.Fixed8(0)) {
 		if len(resultsDestroy) == 0 {
 			return fmt.Errorf("system requires to pay %s fee, but tx pays nothing", sysfee.String())
@@ -1709,6 +1696,16 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	interopCtx.Container = currHeader
 	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true)
+}
+
+// GoverningTokenHash returns the governing token (NEO) native contract hash.
+func (bc *Blockchain) GoverningTokenHash() util.Uint160 {
+	return bc.contracts.NEO.Hash
+}
+
+// UtilityTokenHash returns the utility token (GAS) native contract hash.
+func (bc *Blockchain) UtilityTokenHash() util.Uint160 {
+	return bc.contracts.GAS.Hash
 }
 
 func hashAndIndexToBytes(h util.Uint256, index uint32) []byte {

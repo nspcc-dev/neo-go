@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -147,6 +148,17 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		return errors.New("negative amount")
 	}
 
+	ok, err := runtime.CheckHashedWitness(ic, nep5ScriptHash{
+		callingScriptHash: c.Hash,
+		entryScriptHash:   c.Hash,
+		currentScriptHash: c.Hash,
+	}, from)
+	if err != nil {
+		return err
+	} else if !ok {
+		return errors.New("invalid signature")
+	}
+
 	keyFrom := makeAccountKey(from)
 	siFrom := ic.DAO.GetStorageItem(c.Hash, keyFrom)
 	if siFrom == nil {
@@ -205,9 +217,7 @@ func (c *nep5TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.
 }
 
 func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount *big.Int) {
-	if sign := amount.Sign(); sign == -1 {
-		panic("negative amount")
-	} else if sign == 0 {
+	if amount.Sign() == 0 {
 		return
 	}
 
@@ -269,4 +279,27 @@ func toUint160(s vm.StackItem) util.Uint160 {
 		panic(err)
 	}
 	return u
+}
+
+// scriptHash is an auxiliary structure which implements ScriptHashGetter
+// interface over NEP5 native contract and is used for runtime.CheckHashedWitness
+type nep5ScriptHash struct {
+	callingScriptHash util.Uint160
+	entryScriptHash   util.Uint160
+	currentScriptHash util.Uint160
+}
+
+// GetCallingScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetCallingScriptHash() util.Uint160 {
+	return s.callingScriptHash
+}
+
+// GetEntryScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetEntryScriptHash() util.Uint160 {
+	return s.entryScriptHash
+}
+
+// GetCurrentScriptHash implements ScriptHashGetter interface
+func (s nep5ScriptHash) GetCurrentScriptHash() util.Uint160 {
+	return s.currentScriptHash
 }

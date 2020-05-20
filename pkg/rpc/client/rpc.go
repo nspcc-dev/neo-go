@@ -511,6 +511,8 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var err error
 
 	tx := transaction.NewInvocationTX(script, sysfee)
+	tx.SystemFee = sysfee
+
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	if err != nil {
 		return txHash, errors.Wrap(err, "failed to add validUntilBlock to transaction")
@@ -529,6 +531,11 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
 			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
 		}
+	}
+
+	err = c.AddNetworkFee(tx, acc)
+	if err != nil {
+		return txHash, errors.Wrapf(err, "failed to add network fee")
 	}
 
 	if err = acc.SignTx(tx); err != nil {
@@ -587,4 +594,34 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 		}
 	}
 	return blockCount + validatorsCount, nil
+}
+
+// AddNetworkFee adds network fee for each witness script to transaction.
+func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account) error {
+	size := io.GetVarSize(tx)
+	if acc.Contract != nil {
+		netFee, sizeDelta := core.CalculateNetworkFee(acc.Contract.Script)
+		tx.NetworkFee += netFee
+		size += sizeDelta
+	}
+	for _, cosigner := range tx.Cosigners {
+		contract, err := c.GetContractState(cosigner.Account)
+		if err != nil {
+			return err
+		}
+		if contract == nil {
+			continue
+		}
+		netFee, sizeDelta := core.CalculateNetworkFee(contract.Script)
+		tx.NetworkFee += netFee
+		size += sizeDelta
+	}
+	tx.NetworkFee += util.Fixed8(int64(size) * int64(c.GetFeePerByte()))
+	return nil
+}
+
+// GetFeePerByte returns transaction network fee per byte
+func (c *Client) GetFeePerByte() util.Fixed8 {
+	// TODO: make it a part of policy contract
+	return util.Fixed8(1000)
 }

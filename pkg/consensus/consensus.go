@@ -500,9 +500,7 @@ func newBlockFromContext(ctx *dbft.Context) block.Block {
 		Nonce:        ctx.Nonce,
 	}
 
-	if len(ctx.TransactionHashes) != 0 {
-		mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
-		block.Block.MerkleRoot = mt.Root().Hash
-	}
+	mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
+	block.Block.MerkleRoot = mt.Root().Hash
 	return block
 }

@@ -25,7 +25,7 @@ func TestNewService(t *testing.T) {
 	tx := transaction.NewContractTX()
 	tx.ValidUntilBlock = 1
 	addSender(t, tx)
-	signTx(t, tx)
+	signTx(t, srv.Chain.FeePerByte(), tx)
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
@@ -45,7 +45,7 @@ func TestService_GetVerified(t *testing.T) {
 		txs = append(txs, tx)
 	}
 	addSender(t, txs...)
-	signTx(t, txs...)
+	signTx(t, srv.Chain.FeePerByte(), txs...)
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
@@ -124,7 +124,7 @@ func TestService_getTx(t *testing.T) {
 		tx.Nonce = 1234
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
-		signTx(t, tx)
+		signTx(t, srv.Chain.FeePerByte(), tx)
 		h := tx.Hash()
 
 		require.Equal(t, nil, srv.getTx(h))
@@ -229,10 +229,7 @@ func newTestChain(t *testing.T) *core.Blockchain {
 
 type feer struct{}
 
-func (fs *feer) NetworkFee(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
-func (fs *feer) IsLowPriority(util.Fixed8) bool                  { return false }
-func (fs *feer) FeePerByte(*transaction.Transaction) util.Fixed8 { return util.Fixed8(0) }
-func (fs *feer) SystemFee(*transaction.Transaction) util.Fixed8  { return util.Fixed8(0) }
+func (fs *feer) IsLowPriority(util.Fixed8) bool { return false }
 
 var neoOwner = testchain.MultisigScriptHash()
 
@@ -242,7 +239,7 @@ func addSender(t *testing.T, txs ...*transaction.Transaction) {
 	}
 }
 
-func signTx(t *testing.T, txs ...*transaction.Transaction) {
+func signTx(t *testing.T, feePerByte util.Fixed8, txs ...*transaction.Transaction) {
 	validators := make([]*keys.PublicKey, 4)
 	privNetKeys := make([]*keys.PrivateKey, 4)
 	for i := 0; i < 4; i++ {
@@ -253,6 +250,11 @@ func signTx(t *testing.T, txs ...*transaction.Transaction) {
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(3, validators)
 	require.NoError(t, err)
 	for _, tx := range txs {
+		size := io.GetVarSize(tx)
+		netFee, sizeDelta := core.CalculateNetworkFee(rawScript)
+		tx.NetworkFee = tx.NetworkFee.Add(netFee)
+		size += sizeDelta
+		tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(feePerByte)))
 		data := tx.GetSignedPart()
 
 		buf := io.NewBufBinWriter()

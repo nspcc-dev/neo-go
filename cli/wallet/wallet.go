@@ -277,6 +277,10 @@ func claimGas(ctx *cli.Context) error {
 		ScriptHash: scriptHash,
 	})
 
+	err = c.AddNetworkFee(tx, acc)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	_ = acc.SignTx(tx)
 	if err := c.SendRawTransaction(tx); err != nil {
 		return cli.NewExitError(err, 1)
@@ -537,6 +541,11 @@ func transferAsset(ctx *cli.Context) error {
 		ScriptHash: toAddr,
 		Position:   1,
 	})
+
+	err = c.AddNetworkFee(tx, acc)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	if outFile := ctx.String("out"); outFile != "" {
 		priv := acc.PrivateKey()

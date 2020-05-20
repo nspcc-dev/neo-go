@@ -19,8 +19,6 @@ type TransactionOutputRaw struct {
 
 // TransactionMetadata is an auxilliary struct for proper TransactionOutputRaw marshaling.
 type TransactionMetadata struct {
-	SysFee        util.Fixed8  `json:"sys_fee"`
-	NetFee        util.Fixed8  `json:"net_fee"`
 	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
 	Confirmations int          `json:"confirmations,omitempty"`
 	Timestamp     uint64       `json:"blocktime,omitempty"`
@@ -37,8 +35,6 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 	return TransactionOutputRaw{
 		Transaction: tx,
 		TransactionMetadata: TransactionMetadata{
-			SysFee:        chain.SystemFee(tx),
-			NetFee:        chain.NetworkFee(tx),
 			Blockhash:     header.Hash(),
 			Confirmations: confirmations,
 			Timestamp:     header.Timestamp,
@@ -49,8 +45,6 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 // MarshalJSON implements json.Marshaler interface.
 func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 	output, err := json.Marshal(TransactionMetadata{
-		SysFee:        t.SysFee,
-		NetFee:        t.NetFee,
 		Blockhash:     t.Blockhash,
 		Confirmations: t.Confirmations,
 		Timestamp:     t.Timestamp,
@@ -82,8 +76,6 @@ func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.SysFee = output.SysFee
-	t.NetFee = output.NetFee
 	t.Blockhash = output.Blockhash
 	t.Confirmations = output.Confirmations
 	t.Timestamp = output.Timestamp
