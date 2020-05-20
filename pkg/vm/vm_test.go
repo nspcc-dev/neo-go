@@ -372,7 +372,7 @@ func appendBigStruct(size uint16) []opcode.Opcode {
 	return append(prog,
 		opcode.INITSSLOT, 1,
 		opcode.PUSHINT16, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
-		opcode.PACK, opcode.NEWSTRUCT,
+		opcode.PACK, opcode.CONVERT, opcode.Opcode(StructT),
 		opcode.STSFLD0, opcode.LDSFLD0,
 		opcode.DUP,
 		opcode.PUSH0, opcode.NEWARRAY,
@@ -401,20 +401,19 @@ func TestStackLimit(t *testing.T) {
 		{opcode.NEWARRAY, 3}, // array + 2 items
 		{opcode.STSFLD0, 3},
 		{opcode.LDSFLD0, 4},
-		{opcode.NEWSTRUCT, 6}, // all items are copied
-		{opcode.NEWMAP, 7},
-		{opcode.DUP, 8},
-		{opcode.PUSH2, 9},
-		{opcode.LDSFLD0, 10},
-		{opcode.SETITEM, 8}, // -3 items and 1 new element in map
-		{opcode.DUP, 9},
-		{opcode.PUSH2, 10},
-		{opcode.LDSFLD0, 11},
-		{opcode.SETITEM, 8}, // -3 items and no new elements in map
-		{opcode.DUP, 9},
-		{opcode.PUSH2, 10},
-		{opcode.REMOVE, 7}, // as we have right after NEWMAP
-		{opcode.DROP, 6},   // DROP map with no elements
+		{opcode.NEWMAP, 5},
+		{opcode.DUP, 6},
+		{opcode.PUSH2, 7},
+		{opcode.LDSFLD0, 8},
+		{opcode.SETITEM, 6}, // -3 items and 1 new element in map
+		{opcode.DUP, 7},
+		{opcode.PUSH2, 8},
+		{opcode.LDSFLD0, 9},
+		{opcode.SETITEM, 6}, // -3 items and no new elements in map
+		{opcode.DUP, 7},
+		{opcode.PUSH2, 8},
+		{opcode.REMOVE, 5}, // as we have right after NEWMAP
+		{opcode.DROP, 4},   // DROP map with no elements
 	}
 
 	prog := make([]opcode.Opcode, len(expected)+2)
@@ -1189,10 +1188,6 @@ func TestNEWARRAYArray(t *testing.T) {
 	t.Run("ByteArray", getTestFuncForVM(prog, NewArrayItem([]StackItem{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
 	t.Run("Integer", getTestFuncForVM(prog, []StackItem{NullItem{}}, 1))
-
-	arr := []StackItem{makeStackItem(42)}
-	t.Run("Array", getTestFuncForVM(prog, arr, arr))
-	t.Run("Struct", getTestFuncForVM(prog, arr, NewStructItem(arr)))
 }
 
 func testNEWARRAYIssue437(t *testing.T, i1 opcode.Opcode, t2 StackItemType, appended bool) {
@@ -1244,10 +1239,6 @@ func TestNEWSTRUCT(t *testing.T) {
 	t.Run("ByteArray", getTestFuncForVM(prog, NewStructItem([]StackItem{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
 	t.Run("Integer", getTestFuncForVM(prog, NewStructItem([]StackItem{NullItem{}}), 1))
-
-	arr := []StackItem{makeStackItem(42)}
-	t.Run("Array", getTestFuncForVM(prog, NewStructItem(arr), NewArrayItem(arr)))
-	t.Run("Struct", getTestFuncForVM(prog, NewStructItem(arr), NewStructItem(arr)))
 }
 
 func TestAPPEND(t *testing.T) {

@@ -981,46 +981,28 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
-		switch t := item.value.(type) {
-		case *StructItem:
-			arr := make([]StackItem, len(t.value))
-			copy(arr, t.value)
-			v.estack.PushVal(&ArrayItem{arr})
-		case *ArrayItem:
-			v.estack.PushVal(t)
-		default:
-			n := item.BigInt().Int64()
-			if n > MaxArraySize {
-				panic("too long array")
-			}
-			typ := AnyT
-			if op == opcode.NEWARRAYT {
-				typ = StackItemType(parameter[0])
-			}
-			items := makeArrayOfType(int(n), typ)
-			v.estack.PushVal(&ArrayItem{items})
+		n := item.BigInt().Int64()
+		if n > MaxArraySize {
+			panic("too long array")
 		}
+		typ := AnyT
+		if op == opcode.NEWARRAYT {
+			typ = StackItemType(parameter[0])
+		}
+		items := makeArrayOfType(int(n), typ)
+		v.estack.PushVal(&ArrayItem{items})
 
 	case opcode.NEWSTRUCT0:
 		v.estack.PushVal(&StructItem{[]StackItem{}})
 
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
-		switch t := item.value.(type) {
-		case *ArrayItem:
-			arr := make([]StackItem, len(t.value))
-			copy(arr, t.value)
-			v.estack.PushVal(&StructItem{arr})
-		case *StructItem:
-			v.estack.PushVal(t)
-		default:
-			n := item.BigInt().Int64()
-			if n > MaxArraySize {
-				panic("too long struct")
-			}
-			items := makeArrayOfType(int(n), AnyT)
-			v.estack.PushVal(&StructItem{items})
+		n := item.BigInt().Int64()
+		if n > MaxArraySize {
+			panic("too long struct")
 		}
+		items := makeArrayOfType(int(n), AnyT)
+		v.estack.PushVal(&StructItem{items})
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
