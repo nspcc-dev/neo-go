@@ -250,16 +250,7 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 	case typeString:
 		panic("not implemented")
 	case typeMap:
-		items := v.Value.(map[string]vmUTStackItem)
-		result := NewMapItem()
-		for k, v := range items {
-			item := jsonStringToInteger(k)
-			if item == nil {
-				panic(fmt.Sprintf("can't unmarshal StackItem %s", k))
-			}
-			result.Add(item, v.toStackItem())
-		}
-		return result
+		return v.Value.(*MapItem)
 	case typeInterop:
 		panic("not implemented")
 	case typeByteString:
@@ -426,11 +417,37 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 	case typeInterop, typeNull:
 		v.Value = nil
 	case typeMap:
-		var m map[string]vmUTStackItem
-		if err := json.Unmarshal(si.Value, &m); err != nil {
-			return err
+		// we want to have the same order as in test file, so a custom decoder is used
+		d := json.NewDecoder(bytes.NewReader(si.Value))
+		if tok, err := d.Token(); err != nil || tok != json.Delim('{') {
+			return fmt.Errorf("invalid map start")
 		}
-		v.Value = m
+
+		result := NewMapItem()
+		for {
+			tok, err := d.Token()
+			if err != nil {
+				return err
+			} else if tok == json.Delim('}') {
+				break
+			}
+			key, ok := tok.(string)
+			if !ok {
+				return fmt.Errorf("string expected in map key")
+			}
+
+			var it vmUTStackItem
+			if err := d.Decode(&it); err != nil {
+				return fmt.Errorf("can't decode map value: %v", err)
+			}
+
+			item := jsonStringToInteger(key)
+			if item == nil {
+				return fmt.Errorf("can't unmarshal StackItem %s", key)
+			}
+			result.Add(item, it.toStackItem())
+		}
+		v.Value = result
 	case typeString:
 		panic("not implemented")
 	default:
