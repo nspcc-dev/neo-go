@@ -112,7 +112,7 @@ func TestUT(t *testing.T) {
 func getTestingInterop(id uint32) *InteropFuncPrice {
 	if id == binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}) {
 		return &InteropFuncPrice{InteropFunc(func(v *VM) error {
-			v.estack.Push(&Element{value: (*InteropItem)(nil)})
+			v.estack.PushVal(&InteropItem{new(int)})
 			return nil
 		}), 0}
 	}
