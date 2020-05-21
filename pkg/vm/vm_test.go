@@ -1814,7 +1814,7 @@ func TestLEFT(t *testing.T) {
 	t.Run("NoString", getTestFuncForVM(prog, nil, 2))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
 	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("ab")), "abcdef", 2))
-	t.Run("GoodBigLen", getTestFuncForVM(prog, NewBufferItem([]byte("abcdef")), "abcdef", 8))
+	t.Run("BadBigLen", getTestFuncForVM(prog, nil, "abcdef", 8))
 }
 
 func TestRIGHT(t *testing.T) {

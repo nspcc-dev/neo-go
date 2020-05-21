@@ -694,7 +694,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		s := v.estack.Pop().Bytes()
 		if t := len(s); l > t {
-			l = t
+			panic("size is too big")
 		}
 		v.estack.PushVal(NewBufferItem(s[:l]))
 
