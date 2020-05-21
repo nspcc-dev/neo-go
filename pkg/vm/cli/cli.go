@@ -321,7 +321,13 @@ func runVMWithHandling(c *ishell.Context, v *vm.VM) {
 		c.Err(err)
 		return
 	}
+	checkAndPrintVMState(c, v)
+}
 
+// checkAndPrintVMState checks VM state and outputs it to the user if it's
+// failed, halted or at breakpoint. No message is printed if VM is running
+// normally.
+func checkAndPrintVMState(c *ishell.Context, v *vm.VM) {
 	var message string
 	switch {
 	case v.HasFailed():
@@ -364,8 +370,17 @@ func handleStep(c *ishell.Context) {
 			return
 		}
 	}
-	v.AddBreakPointRel(n)
-	runVMWithHandling(c, v)
+	for i := 0; i < n; i++ {
+		err := v.Step()
+		if err != nil {
+			c.Err(err)
+			return
+		}
+		checkAndPrintVMState(c, v)
+	}
+	ctx := v.Context()
+	i, op := ctx.CurrInstr()
+	c.Printf("at %d (%s)\n", i, op.String())
 	changePrompt(c, v)
 }
 
