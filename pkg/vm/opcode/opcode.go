@@ -46,25 +46,25 @@ const (
 	// Flow control
 	NOP       Opcode = 0x21
 	JMP       Opcode = 0x22
-	JMPL      Opcode = 0x23
+	JMPL      Opcode = 0x23 // JMP_L
 	JMPIF     Opcode = 0x24
-	JMPIFL    Opcode = 0x25
+	JMPIFL    Opcode = 0x25 // JMPIF_L
 	JMPIFNOT  Opcode = 0x26
-	JMPIFNOTL Opcode = 0x27
+	JMPIFNOTL Opcode = 0x27 // JMPIFNOT_L
 	JMPEQ     Opcode = 0x28
-	JMPEQL    Opcode = 0x29
+	JMPEQL    Opcode = 0x29 // JMPEQ_L
 	JMPNE     Opcode = 0x2A
-	JMPNEL    Opcode = 0x2B
+	JMPNEL    Opcode = 0x2B // JMPNE_L
 	JMPGT     Opcode = 0x2C
-	JMPGTL    Opcode = 0x2D
+	JMPGTL    Opcode = 0x2D // JMPGT_L
 	JMPGE     Opcode = 0x2E
-	JMPGEL    Opcode = 0x2F
+	JMPGEL    Opcode = 0x2F // JMPGE_L
 	JMPLT     Opcode = 0x30
-	JMPLTL    Opcode = 0x31
+	JMPLTL    Opcode = 0x31 // JMPLT_L
 	JMPLE     Opcode = 0x32
-	JMPLEL    Opcode = 0x33
+	JMPLEL    Opcode = 0x33 // JMPLE_L
 	CALL      Opcode = 0x34
-	CALLL     Opcode = 0x35
+	CALLL     Opcode = 0x35 // CALL_L
 	CALLA     Opcode = 0x36
 
 	// Exceptions
@@ -193,7 +193,7 @@ const (
 	UNPACK       Opcode = 0xC1
 	NEWARRAY0    Opcode = 0xC2
 	NEWARRAY     Opcode = 0xC3
-	NEWARRAYT    Opcode = 0xC4
+	NEWARRAYT    Opcode = 0xC4 // NEWARRAY_T
 	NEWSTRUCT0   Opcode = 0xC5
 	NEWSTRUCT    Opcode = 0xC6
 	NEWMAP       Opcode = 0xC8
