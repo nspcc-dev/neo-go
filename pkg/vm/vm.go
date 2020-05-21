@@ -1123,8 +1123,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			arr[index] = item
 			v.refs.Add(arr[index])
 		case *MapItem:
-			if t.Has(key.value) {
-				v.refs.Remove(item)
+			if i := t.Index(key.value); i >= 0 {
+				v.refs.Remove(t.value[i].Value)
 			} else if len(t.value) >= MaxArraySize {
 				panic("too big map")
 			}

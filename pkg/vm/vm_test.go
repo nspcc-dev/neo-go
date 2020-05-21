@@ -1354,6 +1354,26 @@ func TestSETITEMBigMapBad(t *testing.T) {
 	runWithArgs(t, prog, nil, m, MaxArraySize, 0)
 }
 
+// This test checks is SETITEM properly updates reference counter.
+// 1. Create 2 arrays of size MaxArraySize - 3. (MaxStackSize = 2 * MaxArraySize)
+// 2. SETITEM each of them to a map.
+// 3. Replace each of them with a scalar value.
+func TestSETITEMMapStackLimit(t *testing.T) {
+	size := MaxArraySize - 3
+	m := NewMapItem()
+	m.Add(NewBigIntegerItem(big.NewInt(1)), NewArrayItem(makeArrayOfType(size, BooleanT)))
+	m.Add(NewBigIntegerItem(big.NewInt(2)), NewArrayItem(makeArrayOfType(size, BooleanT)))
+
+	prog := makeProgram(
+		opcode.DUP, opcode.PUSH1, opcode.PUSH1, opcode.SETITEM,
+		opcode.DUP, opcode.PUSH2, opcode.PUSH2, opcode.SETITEM,
+		opcode.DUP, opcode.PUSH3, opcode.PUSH3, opcode.SETITEM,
+		opcode.DUP, opcode.PUSH4, opcode.PUSH4, opcode.SETITEM)
+	v := load(prog)
+	v.estack.PushVal(m)
+	runVM(t, v)
+}
+
 func TestSETITEMBigMapGood(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM)
 	vm := load(prog)
