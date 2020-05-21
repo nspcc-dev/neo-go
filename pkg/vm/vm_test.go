@@ -2455,7 +2455,9 @@ func makeProgram(opcodes ...opcode.Opcode) []byte {
 
 func load(prog []byte) *VM {
 	vm := New()
-	vm.LoadScript(prog)
+	if len(prog) != 0 {
+		vm.LoadScript(prog)
+	}
 	return vm
 }
 
