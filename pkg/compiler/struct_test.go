@@ -338,6 +338,62 @@ var structTestCases = []testCase{
 		}`,
 		big.NewInt(2),
 	},
+	{
+		"nested selectors (simple read)",
+		`package foo
+		type S1 struct { x, y S2 }
+		type S2 struct { a, b int }
+		func Main() int {
+			var s1 S1
+			var s2 S2
+			s2.a = 3
+			s1.y = s2
+			return s1.y.a
+		}`,
+		big.NewInt(3),
+	},
+	{
+		"nested selectors (simple write)",
+		`package foo
+		type S1 struct { x S2 }
+		type S2 struct { a int }
+		func Main() int {
+			s1 := S1{
+				x: S2 {
+					a: 3,
+				},
+			}
+			s1.x.a = 11
+			return s1.x.a
+		}`,
+		big.NewInt(11),
+	},
+	{
+		"complex struct default value",
+		`package foo
+		type S1 struct { x S2 }
+		type S2 struct { y S3 }
+		type S3 struct { a int }
+		func Main() int {
+			var s1 S1
+			s1.x.y.a = 11
+			return s1.x.y.a
+		}`,
+		big.NewInt(11),
+	},
+	{
+		"nested selectors (complex write)",
+		`package foo
+		type S1 struct { x S2 }
+		type S2 struct { y, z S3 }
+		type S3 struct { a int }
+		func Main() int {
+			var s1 S1
+			s1.x.y.a, s1.x.z.a = 11, 31
+			return s1.x.y.a + s1.x.z.a
+		}`,
+		big.NewInt(42),
+	},
 }
 
 func TestStructs(t *testing.T) {

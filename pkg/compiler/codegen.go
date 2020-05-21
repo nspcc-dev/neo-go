@@ -239,8 +239,15 @@ func (c *codegen) emitDefault(t types.Type) {
 			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
 		}
 	case *types.Struct:
-		emit.Int(c.prog.BinWriter, int64(t.NumFields()))
+		num := t.NumFields()
+		emit.Int(c.prog.BinWriter, int64(num))
 		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+		for i := 0; i < num; i++ {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Int(c.prog.BinWriter, int64(i))
+			c.emitDefault(t.Field(i).Type())
+			emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+		}
 	default:
 		emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 	}
@@ -407,20 +414,17 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitStoreVar(t.Name)
 
 			case *ast.SelectorExpr:
-				switch expr := t.X.(type) {
-				case *ast.Ident:
-					if !isAssignOp {
-						ast.Walk(c, n.Rhs[i])
-					}
-					if strct, ok := c.typeOf(expr).Underlying().(*types.Struct); ok {
-						c.emitLoadVar(expr.Name)              // load the struct
-						i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
-						c.emitStoreStructField(i)             // store the field
-					}
-				default:
+				if !isAssignOp {
+					ast.Walk(c, n.Rhs[i])
+				}
+				strct, ok := c.typeOf(t.X).Underlying().(*types.Struct)
+				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
 				}
+				ast.Walk(c, t.X)                      // load the struct
+				i := indexOfStruct(strct, t.Sel.Name) // get the index of the field
+				c.emitStoreStructField(i)             // store the field
 
 			// Assignments to index expressions.
 			// slice[0] = 10
@@ -428,8 +432,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				if !isAssignOp {
 					ast.Walk(c, n.Rhs[i])
 				}
-				name := t.X.(*ast.Ident).Name
-				c.emitLoadVar(name)
+				ast.Walk(c, t.X)
 				ast.Walk(c, t.Index)
 				emit.Opcode(c.prog.BinWriter, opcode.ROT)
 				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
@@ -753,17 +756,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
-		switch t := n.X.(type) {
-		case *ast.Ident:
-			if strct, ok := c.typeOf(t).Underlying().(*types.Struct); ok {
-				c.emitLoadVar(t.Name) // load the struct
-				i := indexOfStruct(strct, n.Sel.Name)
-				c.emitLoadField(i) // load the field
-			}
-		default:
-			c.prog.Err = fmt.Errorf("nested selectors not supported yet")
+		strct, ok := c.typeOf(n.X).Underlying().(*types.Struct)
+		if !ok {
+			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
 		}
+		ast.Walk(c, n.X) // load the struct
+		i := indexOfStruct(strct, n.Sel.Name)
+		c.emitLoadField(i) // load the field
 		return nil
 
 	case *ast.UnaryExpr:
@@ -1217,15 +1217,9 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 			continue
 		}
 
-		typeAndVal, err := typeAndValueForField(sField)
-		if err != nil {
-			c.prog.Err = err
-			return
-		}
-
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitLoadConst(typeAndVal)
+		c.emitDefault(sField.Type())
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }
