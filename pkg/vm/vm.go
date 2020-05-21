@@ -338,7 +338,7 @@ func (v *VM) Run() error {
 		// check for breakpoint before executing the next instruction
 		ctx := v.Context()
 		if ctx != nil && ctx.atBreakPoint() {
-			v.state |= breakState
+			v.state = breakState
 		}
 		switch {
 		case v.state.HasFlag(faultState):
@@ -376,7 +376,7 @@ func (v *VM) StepInto() error {
 	ctx := v.Context()
 
 	if ctx == nil {
-		v.state |= haltState
+		v.state = haltState
 	}
 
 	if v.HasStopped() {
