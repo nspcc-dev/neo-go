@@ -96,7 +96,7 @@ func (e *Element) TryBool() (bool, error) {
 		return t.value.Int64() != 0, nil
 	case *BoolItem:
 		return t.value, nil
-	case *ArrayItem, *StructItem:
+	case *ArrayItem, *StructItem, *MapItem:
 		return true, nil
 	case *ByteArrayItem:
 		for _, b := range t.value {
