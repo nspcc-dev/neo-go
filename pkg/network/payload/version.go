@@ -3,6 +3,7 @@ package payload
 import (
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -21,6 +22,8 @@ const (
 
 // Version payload.
 type Version struct {
+	// NetMode of the node
+	Magic config.NetMode
 	// currently the version of the protocol is 0
 	Version uint32
 	// currently 1
@@ -40,8 +43,9 @@ type Version struct {
 }
 
 // NewVersion returns a pointer to a Version payload.
-func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
+func NewVersion(magic config.NetMode, id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	return &Version{
+		Magic:       magic,
 		Version:     0,
 		Services:    nodePeerService,
 		Timestamp:   uint32(time.Now().UTC().Unix()),
@@ -55,6 +59,7 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 
 // DecodeBinary implements Serializable interface.
 func (p *Version) DecodeBinary(br *io.BinReader) {
+	p.Magic = config.NetMode(br.ReadU32LE())
 	p.Version = br.ReadU32LE()
 	p.Services = br.ReadU64LE()
 	p.Timestamp = br.ReadU32LE()
@@ -67,6 +72,7 @@ func (p *Version) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements Serializable interface.
 func (p *Version) EncodeBinary(br *io.BinWriter) {
+	br.WriteU32LE(uint32(p.Magic))
 	br.WriteU32LE(p.Version)
 	br.WriteU64LE(p.Services)
 	br.WriteU32LE(p.Timestamp)

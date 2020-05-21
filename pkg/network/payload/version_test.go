@@ -3,18 +3,20 @@ package payload
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
+	var magic config.NetMode = 56753
 	var port uint16 = 3000
 	var id uint32 = 13337
 	useragent := "/NEO:0.0.1/"
 	var height uint32 = 100500
 	var relay = true
 
-	version := NewVersion(id, port, useragent, height, relay)
+	version := NewVersion(magic, id, port, useragent, height, relay)
 	versionDecoded := &Version{}
 	testserdes.EncodeDecodeBinary(t, version, versionDecoded)
 

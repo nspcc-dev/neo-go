@@ -45,7 +45,7 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		assert.Equal(t, CMDVerack, msg.Command)
 	}
-	version := payload.NewVersion(1337, 3000, "/NEO-GO/", 0, true)
+	version := payload.NewVersion(0, 1337, 3000, "/NEO-GO/", 0, true)
 
 	require.NoError(t, s.handleVersionCmd(p, version))
 }
@@ -59,6 +59,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 		p2 = newLocalPeer(t, s)
 	)
 	s.id = 1
+	s.Net = 56753
 	finished := make(chan struct{})
 	go func() {
 		s.run()
@@ -76,13 +77,20 @@ func TestServerNotSendsVerack(t *testing.T) {
 	s.register <- p
 
 	// identical id's
-	version := payload.NewVersion(1, 3000, "/NEO-GO/", 0, true)
+	version := payload.NewVersion(56753, 1, 3000, "/NEO-GO/", 0, true)
 	err := s.handleVersionCmd(p, version)
 	assert.NotNil(t, err)
 	assert.Equal(t, errIdenticalID, err)
 
-	// Different IDs, make handshake pass.
+	// Different IDs, but also different magics
 	version.Nonce = 2
+	version.Magic = 56752
+	err = s.handleVersionCmd(p, version)
+	assert.NotNil(t, err)
+	assert.Equal(t, errInvalidNetwork, err)
+
+	// Different IDs and same network, make handshake pass.
+	version.Magic = 56753
 	require.NoError(t, s.handleVersionCmd(p, version))
 	require.NoError(t, p.HandleVersionAck())
 	require.Equal(t, true, p.Handshaked())
