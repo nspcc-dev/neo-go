@@ -1029,12 +1029,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			v.estack.Push(&Element{value: t.value[index].Value.Dup()})
 		default:
-			arr := obj.Bytes()
-			if index < 0 || index >= len(arr) {
-				panic("PICKITEM: invalid index")
-			}
-			item := arr[index]
-			v.estack.PushVal(int(item))
+			panic("PICKITEM: unknown type")
 		}
 
 	case opcode.SETITEM:

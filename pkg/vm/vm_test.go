@@ -1367,9 +1367,7 @@ func TestPICKITEMByteArray(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal([]byte{1, 2})
 	vm.estack.PushVal(1)
-	runVM(t, vm)
-	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+	checkVMFailed(t, vm)
 }
 
 func TestPICKITEMDupArray(t *testing.T) {
