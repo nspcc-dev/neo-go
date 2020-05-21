@@ -35,7 +35,7 @@ type DAO interface {
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
-	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
+	GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
@@ -435,9 +435,15 @@ func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error 
 	return dao.Store.Delete(makeStorageItemKey(scripthash, key))
 }
 
+// StorageItemWithKey is a Key-Value pair together with possible const modifier.
+type StorageItemWithKey struct {
+	state.StorageItem
+	Key []byte
+}
+
 // GetStorageItems returns all storage items for a given scripthash.
-func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
-	var siMap = make(map[string]*state.StorageItem)
+func (dao *Simple) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
+	var res []StorageItemWithKey
 	var err error
 
 	saveToMap := func(k, v []byte) {
@@ -445,21 +451,22 @@ func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.Storage
 			return
 		}
 		r := io.NewBinReaderFromBuf(v)
-		si := &state.StorageItem{}
-		si.DecodeBinary(r)
+		var s StorageItemWithKey
+		s.StorageItem.DecodeBinary(r)
 		if r.Err != nil {
 			err = r.Err
 			return
 		}
 
 		// Cut prefix and hash.
-		siMap[string(k[21:])] = si
+		s.Key = k[21:]
+		res = append(res, s)
 	}
 	dao.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
 	if err != nil {
 		return nil, err
 	}
-	return siMap, nil
+	return res, nil
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
