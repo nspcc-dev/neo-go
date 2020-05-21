@@ -88,6 +88,16 @@ var commands = []*ishell.Cmd{
 		Func: handleLoadGo,
 	},
 	{
+		Name: "push",
+		Help: "Push given item to the estack",
+		LongHelp: `Usage: push <parameter>
+<parameter> is mandatory, example:
+> push methodstring
+
+See run command help for parameter syntax.`,
+		Func: handlePush,
+	},
+	{
 		Name: "run",
 		Help: "Execute the current loaded script",
 		LongHelp: `Usage: run [<operation> [<parameter>...]]
@@ -270,6 +280,20 @@ func handleLoadGo(c *ishell.Context) {
 	changePrompt(c, v)
 }
 
+func handlePush(c *ishell.Context) {
+	v := getVMFromContext(c)
+	if len(c.Args) == 0 {
+		c.Err(errors.New("missing parameter"))
+		return
+	}
+	param, err := parseArg(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	v.Estack().PushVal(param)
+}
+
 func handleRun(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) != 0 {
@@ -408,43 +432,53 @@ func isMethodArg(s string) bool {
 func parseArgs(args []string) ([]vm.StackItem, error) {
 	items := make([]vm.StackItem, len(args))
 	for i, arg := range args {
-		var typ, value string
-		typeAndVal := strings.Split(arg, ":")
-		if len(typeAndVal) < 2 {
-			if typeAndVal[0] == boolFalse || typeAndVal[0] == boolTrue {
-				typ = boolType
-			} else if _, err := strconv.Atoi(typeAndVal[0]); err == nil {
-				typ = intType
-			} else {
-				typ = stringType
-			}
-			value = typeAndVal[0]
-		} else {
-			typ = typeAndVal[0]
-			value = typeAndVal[1]
+		item, err := parseArg(arg)
+		if err != nil {
+			return nil, err
 		}
+		items[i] = item
+	}
+	return items, nil
+}
 
-		switch typ {
-		case boolType:
-			if value == boolFalse {
-				items[i] = vm.NewBoolItem(false)
-			} else if value == boolTrue {
-				items[i] = vm.NewBoolItem(true)
-			} else {
-				return nil, errors.New("failed to parse bool parameter")
-			}
-		case intType:
-			val, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			items[i] = vm.NewBigIntegerItem(val)
-		case stringType:
-			items[i] = vm.NewByteArrayItem([]byte(value))
+func parseArg(arg string) (vm.StackItem, error) {
+	var typ, value string
+	var item vm.StackItem
+
+	typeAndVal := strings.Split(arg, ":")
+	if len(typeAndVal) < 2 {
+		if typeAndVal[0] == boolFalse || typeAndVal[0] == boolTrue {
+			typ = boolType
+		} else if _, err := strconv.Atoi(typeAndVal[0]); err == nil {
+			typ = intType
+		} else {
+			typ = stringType
 		}
+		value = typeAndVal[0]
+	} else {
+		typ = typeAndVal[0]
+		value = typeAndVal[1]
 	}
 
-	return items, nil
+	switch typ {
+	case boolType:
+		if value == boolFalse {
+			item = vm.NewBoolItem(false)
+		} else if value == boolTrue {
+			item = vm.NewBoolItem(true)
+		} else {
+			return nil, errors.New("failed to parse bool parameter")
+		}
+	case intType:
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		item = vm.NewBigIntegerItem(val)
+	case stringType:
+		item = vm.NewByteArrayItem([]byte(value))
+	}
+	return item, nil
 }
 
 func printLogo(c *ishell.Shell) {
