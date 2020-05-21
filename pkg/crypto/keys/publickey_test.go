@@ -91,6 +91,12 @@ func TestDecodeBytes(t *testing.T) {
 	require.Equal(t, pubKey, decodedPubKey)
 }
 
+func TestDecodeBytesBadInfinity(t *testing.T) {
+	decodedPubKey := &PublicKey{}
+	err := decodedPubKey.DecodeBytes([]byte{0, 0, 0})
+	require.Error(t, err)
+}
+
 func TestSort(t *testing.T) {
 	pubs1 := make(PublicKeys, 10)
 	for i := range pubs1 {

@@ -158,6 +158,12 @@ func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
 
 // DecodeBytes decodes a PublicKey from the given slice of bytes.
 func (p *PublicKey) DecodeBytes(data []byte) error {
+	l := len(data)
+	if !((l == 1 && data[0] == 0) ||
+		(l == 33 && (data[0] == 0x02 || data[0] == 0x03)) ||
+		(l == 65 && data[0] == 0x04)) {
+		return errors.New("invalid key size/prefix")
+	}
 	b := io.NewBinReaderFromBuf(data)
 	p.DecodeBinary(b)
 	return b.Err
@@ -288,7 +294,7 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 		return errors.New("wrong format")
 	}
 
-	bytes := make([]byte, l-2)
+	bytes := make([]byte, hex.DecodedLen(l-2))
 	_, err := hex.Decode(bytes, data[1:l-1])
 	if err != nil {
 		return err

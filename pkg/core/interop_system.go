@@ -322,6 +322,10 @@ func (ic *interopContext) runtimeCheckWitness(v *vm.VM) error {
 	hashOrKey := v.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
+		// We only accept compressed keys here as per C# implementation.
+		if len(hashOrKey) != 33 {
+			return errors.New("bad parameter length")
+		}
 		key := &keys.PublicKey{}
 		err = key.DecodeBytes(hashOrKey)
 		if err != nil {
