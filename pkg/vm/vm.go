@@ -1038,6 +1038,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		validateMapKey(key)
 
 		obj := v.estack.Pop()
+		val := cloneIfStruct(item)
 
 		switch t := obj.value.(type) {
 		// Struct and Array items have their underlying value as []StackItem.
@@ -1048,7 +1049,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				panic("SETITEM: invalid index")
 			}
 			v.estack.updateSizeRemove(arr[index])
-			arr[index] = item
+			arr[index] = val
 			v.estack.updateSizeAdd(arr[index])
 		case *MapItem:
 			if i := t.Index(key.value); i >= 0 {
@@ -1056,8 +1057,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			} else if len(t.value) >= MaxArraySize {
 				panic("too big map")
 			}
-			t.Add(key.value, item)
-			v.estack.updateSizeAdd(item)
+			t.Add(key.value, val)
+			v.estack.updateSizeAdd(val)
 
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
