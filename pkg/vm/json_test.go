@@ -133,7 +133,6 @@ func testFile(t *testing.T, filename string) {
 
 	ut := new(vmUT)
 	require.NoErrorf(t, json.Unmarshal(data, ut), "file: %s", filename)
-	return
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
 		isRot := strings.HasSuffix(filename, "ROT.json")
