@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -15,9 +14,6 @@ import (
 
 // Message is the complete message send between nodes.
 type Message struct {
-	// NetMode of the node that sends this message.
-	Magic config.NetMode
-
 	// Command is byte command code.
 	Command CommandType
 
@@ -67,7 +63,7 @@ const (
 )
 
 // NewMessage returns a new message with the given payload.
-func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Message {
+func NewMessage(cmd CommandType, p payload.Payload) *Message {
 	var (
 		size uint32
 	)
@@ -83,7 +79,6 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 	}
 
 	return &Message{
-		Magic:   magic,
 		Command: cmd,
 		Length:  size,
 		Payload: p,
@@ -92,7 +87,6 @@ func NewMessage(magic config.NetMode, cmd CommandType, p payload.Payload) *Messa
 
 // Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
-	m.Magic = config.NetMode(br.ReadU32LE())
 	m.Command = CommandType(br.ReadB())
 	m.Length = br.ReadU32LE()
 	if br.Err != nil {
@@ -150,7 +144,6 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
-	br.WriteU32LE(uint32(m.Magic))
 	br.WriteB(byte(m.Command))
 	br.WriteU32LE(m.Length)
 	if m.Payload != nil {
