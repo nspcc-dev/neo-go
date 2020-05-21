@@ -39,8 +39,8 @@ type (
 	vmUTExecutionContextState struct {
 		Instruction        string          `json:"nextInstruction"`
 		InstructionPointer int             `json:"instructionPointer"`
-		AStack             []vmUTStackItem `json:"altStack"`
 		EStack             []vmUTStackItem `json:"evaluationStack"`
+		StaticFields       []vmUTStackItem `json:"staticFields"`
 	}
 
 	vmUTExecutionEngineState struct {
@@ -166,7 +166,7 @@ func testFile(t *testing.T, filename string) {
 								require.Equal(t, op, opcode.Opcode(ctx.prog[ctx.nextip]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
-							compareStacks(t, s.AStack, vm.astack)
+							compareSlots(t, s.StaticFields, vm.static)
 						}
 					}
 
@@ -207,20 +207,32 @@ func compareItems(t *testing.T, a, b StackItem) {
 }
 
 func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
+	compareItemArrays(t, expected, actual.Len(), func(i int) StackItem { return actual.Peek(i).Item() })
+}
+
+func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
+	if actual == nil && len(expected) == 0 {
+		return
+	}
+	require.NotNil(t, actual)
+	compareItemArrays(t, expected, actual.Size(), actual.Get)
+}
+
+func compareItemArrays(t *testing.T, expected []vmUTStackItem, n int, getItem func(i int) StackItem) {
 	if expected == nil {
 		return
 	}
 
-	require.Equal(t, len(expected), actual.Len())
+	require.Equal(t, len(expected), n)
 	for i, item := range expected {
-		e := actual.Peek(i)
-		require.NotNil(t, e)
+		it := getItem(i)
+		require.NotNil(t, it)
 
 		if item.Type == typeInterop {
-			require.IsType(t, (*InteropItem)(nil), e.value)
+			require.IsType(t, (*InteropItem)(nil), it)
 			continue
 		}
-		compareItems(t, item.toStackItem(), e.value)
+		compareItems(t, item.toStackItem(), it)
 	}
 }
 
