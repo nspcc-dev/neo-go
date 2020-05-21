@@ -1051,8 +1051,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			arr[index] = item
 			v.estack.updateSizeAdd(arr[index])
 		case *MapItem:
-			if t.Has(key.value) {
-				v.estack.updateSizeRemove(item)
+			if i := t.Index(key.value); i >= 0 {
+				v.estack.updateSizeRemove(t.value[i].Value)
 			} else if len(t.value) >= MaxArraySize {
 				panic("too big map")
 			}
