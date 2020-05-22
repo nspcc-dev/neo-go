@@ -53,6 +53,12 @@ func GetReferences(t Transaction) []interface{} {
 	return []interface{}{}
 }
 
+// GetUnspentCoins returns a slice of not yet spent ouputs of a given transaction.
+// This function uses `Neo.Transaction.GetUnspentCoint` syscall.
+func GetUnspentCoins(t Transaction) []output.Output {
+	return []output.Output{}
+}
+
 // GetInputs returns a slice of inputs of a given Transaction. Refer to input
 // package on how to use them. This function uses `Neo.Transaction.GetInputs`
 // syscall.
