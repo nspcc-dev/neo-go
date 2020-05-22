@@ -535,21 +535,18 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 
 // handleGetBlocksCmd processes the getblocks request.
 func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
-	if len(gb.HashStart) < 1 {
-		return errInvalidHashStart
+	count := gb.Count
+	if gb.Count < 0 || gb.Count > payload.MaxHashesCount {
+		count = payload.MaxHashesCount
 	}
-	startHash := gb.HashStart[0]
-	if startHash.Equals(gb.HashStop) {
-		return nil
-	}
-	start, err := s.chain.GetHeader(startHash)
+	start, err := s.chain.GetHeader(gb.HashStart)
 	if err != nil {
 		return err
 	}
 	blockHashes := make([]util.Uint256, 0)
-	for i := start.Index + 1; i < start.Index+1+payload.MaxHashesCount; i++ {
+	for i := start.Index + 1; i < start.Index+uint32(count); i++ {
 		hash := s.chain.GetHeaderHash(int(i))
-		if hash.Equals(util.Uint256{}) || hash.Equals(gb.HashStop) {
+		if hash.Equals(util.Uint256{}) {
 			break
 		}
 		blockHashes = append(blockHashes, hash)
@@ -565,19 +562,19 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 
 // handleGetHeadersCmd processes the getheaders request.
 func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
-	if len(gh.HashStart) < 1 {
-		return errInvalidHashStart
+	count := gh.Count
+	if gh.Count < 0 || gh.Count > payload.MaxHashesCount {
+		count = payload.MaxHashesCount
 	}
-	startHash := gh.HashStart[0]
-	start, err := s.chain.GetHeader(startHash)
+	start, err := s.chain.GetHeader(gh.HashStart)
 	if err != nil {
 		return err
 	}
 	resp := payload.Headers{}
 	resp.Hdrs = make([]*block.Header, 0, payload.MaxHeadersAllowed)
-	for i := start.Index + 1; i < start.Index+1+payload.MaxHeadersAllowed; i++ {
+	for i := start.Index + 1; i < start.Index+uint32(count); i++ {
 		hash := s.chain.GetHeaderHash(int(i))
-		if hash.Equals(util.Uint256{}) || hash.Equals(gh.HashStop) {
+		if hash.Equals(util.Uint256{}) {
 			break
 		}
 		header, err := s.chain.GetHeader(hash)
@@ -637,10 +634,9 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 }
 
 // requestHeaders sends a getheaders message to the peer.
-// The peer will respond with headers op to a count of 2000.
+// The peer will respond with headers op to a count of 500.
 func (s *Server) requestHeaders(p Peer) error {
-	start := []util.Uint256{s.chain.CurrentHeaderHash()}
-	payload := payload.NewGetBlocks(start, util.Uint256{})
+	payload := payload.NewGetBlocks(s.chain.CurrentHeaderHash(), -1)
 	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, payload))
 }
 
