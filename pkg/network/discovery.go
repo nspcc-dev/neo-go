@@ -3,6 +3,8 @@ package network
 import (
 	"sync"
 	"time"
+
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
 
 const (
@@ -18,12 +20,18 @@ type Discoverer interface {
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
-	RegisterGoodAddr(string)
+	RegisterGoodAddr(string, capability.Capabilities)
 	RegisterConnectedAddr(string)
 	UnregisterConnectedAddr(string)
 	UnconnectedPeers() []string
 	BadPeers() []string
-	GoodPeers() []string
+	GoodPeers() []AddressWithCapabilities
+}
+
+// AddressWithCapabilities represents node address with its capabilities
+type AddressWithCapabilities struct {
+	Address      string
+	Capabilities capability.Capabilities
 }
 
 // DefaultDiscovery default implementation of the Discoverer interface.
@@ -34,7 +42,7 @@ type DefaultDiscovery struct {
 	dialTimeout      time.Duration
 	badAddrs         map[string]bool
 	connectedAddrs   map[string]bool
-	goodAddrs        map[string]bool
+	goodAddrs        map[string]capability.Capabilities
 	unconnectedAddrs map[string]int
 	isDead           bool
 	requestCh        chan int
@@ -48,7 +56,7 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 		dialTimeout:      dt,
 		badAddrs:         make(map[string]bool),
 		connectedAddrs:   make(map[string]bool),
-		goodAddrs:        make(map[string]bool),
+		goodAddrs:        make(map[string]capability.Capabilities),
 		unconnectedAddrs: make(map[string]int),
 		requestCh:        make(chan int),
 		pool:             make(chan string, maxPoolSize),
@@ -135,11 +143,14 @@ func (d *DefaultDiscovery) BadPeers() []string {
 
 // GoodPeers returns all addresses of known good peers (that at least once
 // succeeded handshaking with us).
-func (d *DefaultDiscovery) GoodPeers() []string {
+func (d *DefaultDiscovery) GoodPeers() []AddressWithCapabilities {
 	d.lock.RLock()
-	addrs := make([]string, 0, len(d.goodAddrs))
-	for addr := range d.goodAddrs {
-		addrs = append(addrs, addr)
+	addrs := make([]AddressWithCapabilities, 0, len(d.goodAddrs))
+	for addr, cap := range d.goodAddrs {
+		addrs = append(addrs, AddressWithCapabilities{
+			Address:      addr,
+			Capabilities: cap,
+		})
 	}
 	d.lock.RUnlock()
 	return addrs
@@ -147,9 +158,9 @@ func (d *DefaultDiscovery) GoodPeers() []string {
 
 // RegisterGoodAddr registers good known connected address that passed
 // handshake successfully.
-func (d *DefaultDiscovery) RegisterGoodAddr(s string) {
+func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities) {
 	d.lock.Lock()
-	d.goodAddrs[s] = true
+	d.goodAddrs[s] = c
 	d.lock.Unlock()
 }
 

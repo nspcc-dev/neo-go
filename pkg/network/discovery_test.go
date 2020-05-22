@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,9 +80,24 @@ func TestDefaultDiscoverer(t *testing.T) {
 
 	// Registered good addresses should end up in appropriate set.
 	for _, addr := range set1 {
-		d.RegisterGoodAddr(addr)
+		d.RegisterGoodAddr(addr, capability.Capabilities{
+			{
+				Type: capability.FullNode,
+				Data: &capability.Node{StartHeight: 123},
+			},
+		})
 	}
-	gAddrs := d.GoodPeers()
+	gAddrWithCap := d.GoodPeers()
+	gAddrs := make([]string, len(gAddrWithCap))
+	for i, addr := range gAddrWithCap {
+		require.Equal(t, capability.Capabilities{
+			{
+				Type: capability.FullNode,
+				Data: &capability.Node{StartHeight: 123},
+			},
+		}, addr.Capabilities)
+		gAddrs[i] = addr.Address
+	}
 	sort.Strings(gAddrs)
 	assert.Equal(t, 0, d.PoolCount())
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))

@@ -234,7 +234,7 @@ func (p *TCPPeer) StartProtocol() {
 		zap.Uint32("startHeight", p.lastBlockIndex),
 		zap.Uint32("id", p.Version().Nonce))
 
-	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String())
+	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String(), p.version.Capabilities)
 	if p.server.chain.HeaderHeight() < p.LastBlockIndex() {
 		err = p.server.requestHeaders(p)
 		if err != nil {

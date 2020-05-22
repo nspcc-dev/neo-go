@@ -642,7 +642,10 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 // handleAddrCmd will process received addresses.
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	for _, a := range addrs.Addrs {
-		s.discovery.BackFill(a.IPPortString())
+		addr, err := a.GetTCPAddress()
+		if err != nil {
+			s.discovery.BackFill(addr)
+		}
 	}
 	return nil
 }
@@ -657,8 +660,8 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	ts := time.Now()
 	for i, addr := range addrs {
 		// we know it's a good address, so it can't fail
-		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
-		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
+		netaddr, _ := net.ResolveTCPAddr("tcp", addr.Address)
+		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts, addr.Capabilities)
 	}
 	return p.EnqueueP2PMessage(NewMessage(CMDAddr, alist))
 }

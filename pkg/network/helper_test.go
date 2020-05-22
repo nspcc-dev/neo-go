@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -151,17 +152,17 @@ func (chain testChain) VerifyTx(*transaction.Transaction, *block.Block) error {
 
 type testDiscovery struct{}
 
-func (d testDiscovery) BackFill(addrs ...string)       {}
-func (d testDiscovery) Close()                         {}
-func (d testDiscovery) PoolCount() int                 { return 0 }
-func (d testDiscovery) RegisterBadAddr(string)         {}
-func (d testDiscovery) RegisterGoodAddr(string)        {}
-func (d testDiscovery) RegisterConnectedAddr(string)   {}
-func (d testDiscovery) UnregisterConnectedAddr(string) {}
-func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
-func (d testDiscovery) RequestRemote(n int)            {}
-func (d testDiscovery) BadPeers() []string             { return []string{} }
-func (d testDiscovery) GoodPeers() []string            { return []string{} }
+func (d testDiscovery) BackFill(addrs ...string)                         {}
+func (d testDiscovery) Close()                                           {}
+func (d testDiscovery) PoolCount() int                                   { return 0 }
+func (d testDiscovery) RegisterBadAddr(string)                           {}
+func (d testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
+func (d testDiscovery) RegisterConnectedAddr(string)                     {}
+func (d testDiscovery) UnregisterConnectedAddr(string)                   {}
+func (d testDiscovery) UnconnectedPeers() []string                       { return []string{} }
+func (d testDiscovery) RequestRemote(n int)                              {}
+func (d testDiscovery) BadPeers() []string                               { return []string{} }
+func (d testDiscovery) GoodPeers() []AddressWithCapabilities             { return []AddressWithCapabilities{} }
 
 var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
