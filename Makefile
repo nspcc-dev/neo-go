@@ -1,31 +1,69 @@
 BRANCH = "master"
-BUILD_TIME = "$(shell date -u +\"%Y-%m-%dT%H:%M:%SZ\")"
-VERSION = $(shell cat ./VERSION)
 REPONAME = "neo-go"
 NETMODE ?= "privnet"
+BINARY = "./bin/neo-go"
+DESTDIR = ""
+SYSCONFIGDIR = "/etc"
+BINDIR = "/usr/bin"
+SYSTEMDUNIT_DIR = "/lib/systemd/system"
+UNITWORKDIR = "/var/lib/neo-go"
 
-build:
-	@echo "=> Building darwin binary"
-	@go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+DC_FILE=.docker/docker-compose.yml
 
-build-image:
-	docker build -t cityofzion/neo-go --build-arg VERSION=${VERSION} .
+REPO ?= "$(shell go list -m)"
+VERSION ?= "$(shell git describe --tags 2>/dev/null | sed 's/^v//')"
+BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)'"
 
-build-linux:
-	@echo "=> Building linux binary"
-	@GOOS=linux go build -i -ldflags "-X github.com/CityOfZion/neo-go/config.Version=${VERSION}-dev -X github.com/CityOfZion/neo-go/config.BuildTime=${BUILD_TIME}" -o ./bin/neo-go ./cli/main.go
+IMAGE_REPO=nspccdev/neo-go
+
+# All of the targets are phony here because we don't really use make dependency
+# tracking for files
+.PHONY: build deps image check-version clean-cluster push-tag push-to-registry \
+	run run-cluster test vet lint fmt cover
+
+build: deps
+	@echo "=> Building binary"
+	@set -x \
+		&& export GOGC=off \
+		&& export CGO_ENABLED=0 \
+		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
+
+neo-go.service: neo-go.service.template
+	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@
+
+install: build neo-go.service
+	@echo "=> Installing systemd service"
+	@mkdir -p $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& mkdir -p $(SYSTEMDUNIT_DIR) \
+		&& cp ./neo-go.service $(SYSTEMDUNIT_DIR) \
+		&& cp ./config/protocol.mainnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& cp ./config/protocol.privnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& cp ./config/protocol.testnet.yml $(DESTDIR)$(SYSCONFIGDIR)/neo-go \
+		&& install -m 0755 -t $(BINDIR) $(BINARY) \
+
+postinst: install
+	@echo "=> Preparing directories and configs"
+	@id neo-go || useradd -s /usr/sbin/nologin -d $(UNITWORKDIR) neo-go \
+		&& mkdir -p $(UNITWORKDIR) \
+		&& chown -R neo-go:neo-go $(UNITWORKDIR) $(BINDIR)/neo-go \
+		&& systemctl enable neo-go.service
+
+image: deps
+	@echo "=> Building image"
+	@docker build -t $(IMAGE_REPO):latest --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+	@docker build -t $(IMAGE_REPO):$(VERSION) --build-arg REPO=$(REPO) --build-arg VERSION=$(VERSION) .
+
+image-push:
+	@echo "=> Publish image"
+	@docker push $(IMAGE_REPO):latest
+	@docker push $(IMAGE_REPO):$(VERSION)
 
 check-version:
 	git fetch && (! git rev-list ${VERSION})
 
-clean-cluster:
-	@echo "=> Removing all containers and chain storage"
-	@rm -rf chains/privnet-docker-one chains/privnet-docker-two chains/privnet-docker-three chains/privnet-docker-four
-	@docker-compose stop
-	@docker-compose rm -f
-
 deps:
-	@dep ensure
+	@go mod tidy -v
+	@go mod vendor
 
 push-tag:
 	git checkout ${BRANCH}
@@ -40,18 +78,54 @@ push-to-registry:
 	@docker push CityOfZion/${REPONAME}
 
 run: build
-	./bin/neo-go node -config-path ./config -${NETMODE}
-
-run-cluster: build-linux
-	@echo "=> Starting docker-compose cluster"
-	@echo "=> Building container image"
-	@docker-compose build
-	@docker-compose up -d
-	@echo "=> Tailing logs, exiting this prompt will not stop the cluster"
-	@docker-compose logs -f
+	${BINARY} node -config-path ./config -${NETMODE}
 
 test:
 	@go test ./... -cover
 
 vet:
 	@go vet ./...
+
+lint:
+	@go list ./... | xargs -L1 golint -set_exit_status
+
+fmt:
+	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")
+
+cover:
+	@go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic -coverpkg=./pkg/...,./cli/...
+	@go tool cover -html=coverage.txt -o coverage.html
+
+# --- Environment ---
+env_vendor:
+	@echo "=> Update vendor"
+	@go mod tidy
+	@go mod download
+	@go mod vendor
+
+env_image: env_vendor
+	@echo "=> Building env image"
+	@docker build \
+		-t env_neo_go_image \
+		--build-arg REPO=$(REPO) \
+		--build-arg VERSION=$(VERSION) .
+
+env_up:
+	@echo "=> Bootup environment"
+	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
+
+env_single:
+	@echo "=> Bootup environment"
+	@docker-compose -f $(DC_FILE) up -d node_single
+
+env_down:
+	@echo "=> Stop environment"
+	@docker-compose -f $(DC_FILE) down
+
+env_restart:
+	@echo "=> Stop and start environment"
+	@docker-compose -f $(DC_FILE) restart
+
+env_clean: env_down
+	@echo "=> Cleanup environment"
+	@docker volume rm docker_volume_chain

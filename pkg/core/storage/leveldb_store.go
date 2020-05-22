@@ -6,22 +6,30 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-// LevelDBStore is the official storage implementation for storing and retreiving
+// LevelDBOptions configuration for LevelDB.
+type LevelDBOptions struct {
+	DataDirectoryPath string `yaml:"DataDirectoryPath"`
+}
+
+// LevelDBStore is the official storage implementation for storing and retrieving
 // blockchain data.
 type LevelDBStore struct {
 	db   *leveldb.DB
 	path string
 }
 
-// NewLevelDBStore return a new LevelDBStore object that will
+// NewLevelDBStore returns a new LevelDBStore object that will
 // initialize the database found at the given path.
-func NewLevelDBStore(path string, opts *opt.Options) (*LevelDBStore, error) {
-	db, err := leveldb.OpenFile(path, opts)
+func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
+	var opts *opt.Options // should be exposed via LevelDBOptions if anything needed
+
+	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	return &LevelDBStore{
-		path: path,
+		path: cfg.DataDirectoryPath,
 		db:   db,
 	}, nil
 }
@@ -33,7 +41,16 @@ func (s *LevelDBStore) Put(key, value []byte) error {
 
 // Get implements the Store interface.
 func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
-	return s.db.Get(key, nil)
+	value, err := s.db.Get(key, nil)
+	if err == leveldb.ErrNotFound {
+		err = ErrKeyNotFound
+	}
+	return value, err
+}
+
+// Delete implements the Store interface.
+func (s *LevelDBStore) Delete(key []byte) error {
+	return s.db.Delete(key, nil)
 }
 
 // PutBatch implements the Store interface.
@@ -55,4 +72,9 @@ func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 // compatible Batch.
 func (s *LevelDBStore) Batch() Batch {
 	return new(leveldb.Batch)
+}
+
+// Close implements the Store interface.
+func (s *LevelDBStore) Close() error {
+	return s.db.Close()
 }

@@ -1,41 +1,38 @@
 package smartcontract
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
-	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateMultiSigRedeemScript(t *testing.T) {
-	val1, _ := crypto.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
-	val2, _ := crypto.NewPublicKeyFromString("02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093")
-	val3, _ := crypto.NewPublicKeyFromString("03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a")
+	val1, _ := keys.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+	val2, _ := keys.NewPublicKeyFromString("02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093")
+	val3, _ := keys.NewPublicKeyFromString("03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a")
 
-	validators := []*crypto.PublicKey{val1, val2, val3}
+	validators := []*keys.PublicKey{val1, val2, val3}
 
 	out, err := CreateMultiSigRedeemScript(3, validators)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	buf := bytes.NewBuffer(out)
-	b, _ := buf.ReadByte()
-	assert.Equal(t, vm.Opush3, vm.Opcode(b))
+	br := io.NewBinReaderFromBuf(out)
+	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 
 	for i := 0; i < len(validators); i++ {
-		b, err := util.ReadVarBytes(buf)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, validators[i].Bytes(), b)
+		assert.EqualValues(t, opcode.PUSHDATA1, br.ReadB())
+		bb := br.ReadVarBytes()
+		require.NoError(t, br.Err)
+		assert.Equal(t, validators[i].Bytes(), bb)
 	}
 
-	b, _ = buf.ReadByte()
-	assert.Equal(t, vm.Opush3, vm.Opcode(b))
-	b, _ = buf.ReadByte()
-	assert.Equal(t, vm.Ocheckmultisig, vm.Opcode(b))
+	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, opcode.PUSHNULL, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, opcode.SYSCALL, opcode.Opcode(br.ReadB()))
+	assert.Equal(t, emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig")), br.ReadU32LE())
 }

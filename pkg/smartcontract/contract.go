@@ -1,17 +1,18 @@
 package smartcontract
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 
-	"github.com/CityOfZion/neo-go/pkg/crypto"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// CreateMultiSigRedeemScript will create a script runnable by the VM.
-func CreateMultiSigRedeemScript(m int, publicKeys crypto.PublicKeys) ([]byte, error) {
-	if m <= 1 {
+// CreateMultiSigRedeemScript creates a script runnable by the VM.
+func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
+	if m < 1 {
 		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)
 	}
 	if m > len(publicKeys) {
@@ -21,22 +22,15 @@ func CreateMultiSigRedeemScript(m int, publicKeys crypto.PublicKeys) ([]byte, er
 		return nil, fmt.Errorf("public key count %d exceeds maximum of length 1024", len(publicKeys))
 	}
 
-	buf := new(bytes.Buffer)
-	if err := vm.EmitInt(buf, int64(m)); err != nil {
-		return nil, err
-	}
+	buf := io.NewBufBinWriter()
+	emit.Int(buf.BinWriter, int64(m))
 	sort.Sort(publicKeys)
 	for _, pubKey := range publicKeys {
-		if err := vm.EmitBytes(buf, pubKey.Bytes()); err != nil {
-			return nil, err
-		}
+		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}
-	if err := vm.EmitInt(buf, int64(len(publicKeys))); err != nil {
-		return nil, err
-	}
-	if err := vm.EmitOpcode(buf, vm.Ocheckmultisig); err != nil {
-		return nil, err
-	}
+	emit.Int(buf.BinWriter, int64(len(publicKeys)))
+	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
+	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaCheckMultiSig")
 
 	return buf.Bytes(), nil
 }

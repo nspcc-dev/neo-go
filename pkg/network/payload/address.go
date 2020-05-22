@@ -1,55 +1,55 @@
 package payload
 
 import (
-	"encoding/binary"
-	"io"
+	"net"
+	"strconv"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
 // AddressAndTime payload.
 type AddressAndTime struct {
 	Timestamp uint32
 	Services  uint64
-	Endpoint  util.Endpoint
+	IP        [16]byte
+	Port      uint16
 }
 
 // NewAddressAndTime creates a new AddressAndTime object.
-func NewAddressAndTime(e util.Endpoint, t time.Time) *AddressAndTime {
-	return &AddressAndTime{
+func NewAddressAndTime(e *net.TCPAddr, t time.Time) *AddressAndTime {
+	aat := AddressAndTime{
 		Timestamp: uint32(t.UTC().Unix()),
 		Services:  1,
-		Endpoint:  e,
+		Port:      uint16(e.Port),
 	}
+	copy(aat.IP[:], e.IP)
+	return &aat
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *AddressAndTime) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.BigEndian, &p.Endpoint.IP); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.BigEndian, &p.Endpoint.Port)
+// DecodeBinary implements Serializable interface.
+func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
+	p.Timestamp = br.ReadU32LE()
+	p.Services = br.ReadU64LE()
+	br.ReadBytes(p.IP[:])
+	p.Port = br.ReadU16BE()
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *AddressAndTime) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, p.Endpoint.IP); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.BigEndian, p.Endpoint.Port)
+// EncodeBinary implements Serializable interface.
+func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteU32LE(p.Timestamp)
+	bw.WriteU64LE(p.Services)
+	bw.WriteBytes(p.IP[:])
+	bw.WriteU16BE(p.Port)
+}
+
+// IPPortString makes a string from IP and port specified.
+func (p *AddressAndTime) IPPortString() string {
+	var netip = make(net.IP, 16)
+
+	copy(netip, p.IP[:])
+	port := strconv.Itoa(int(p.Port))
+	return netip.String() + ":" + port
 }
 
 // AddressList is a list with AddrAndTime.
@@ -57,29 +57,20 @@ type AddressList struct {
 	Addrs []*AddressAndTime
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *AddressList) DecodeBinary(r io.Reader) error {
-	listLen := util.ReadVarUint(r)
-
-	p.Addrs = make([]*AddressAndTime, listLen)
-	for i := 0; i < int(listLen); i++ {
-		p.Addrs[i] = &AddressAndTime{}
-		if err := p.Addrs[i].DecodeBinary(r); err != nil {
-			return err
-		}
+// NewAddressList creates a list for n AddressAndTime elements.
+func NewAddressList(n int) *AddressList {
+	alist := AddressList{
+		Addrs: make([]*AddressAndTime, n),
 	}
-	return nil
+	return &alist
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *AddressList) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(p.Addrs))); err != nil {
-		return err
-	}
-	for _, addr := range p.Addrs {
-		if err := addr.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-	return nil
+// DecodeBinary implements Serializable interface.
+func (p *AddressList) DecodeBinary(br *io.BinReader) {
+	br.ReadArray(&p.Addrs)
+}
+
+// EncodeBinary implements Serializable interface.
+func (p *AddressList) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteArray(p.Addrs)
 }

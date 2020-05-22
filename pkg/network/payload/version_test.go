@@ -1,29 +1,29 @@
 package payload
 
 import (
-	"bytes"
-	"reflect"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
-	version := NewVersion(13337, 3000, "/NEO:0.0.1/", 0, true)
+	var magic config.NetMode = 56753
+	var port uint16 = 3000
+	var id uint32 = 13337
+	useragent := "/NEO:0.0.1/"
+	var height uint32 = 100500
+	var relay = true
 
-	buf := new(bytes.Buffer)
-	if err := version.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
+	version := NewVersion(magic, id, port, useragent, height, relay)
 	versionDecoded := &Version{}
-	if err := versionDecoded.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	testserdes.EncodeDecodeBinary(t, version, versionDecoded)
 
-	if !reflect.DeepEqual(version, versionDecoded) {
-		t.Fatalf("expected both version payload to be equal: %+v and %+v", version, versionDecoded)
-	}
-
-	if version.Size() != uint32(minVersionSize+len(version.UserAgent)) {
-		t.Fatalf("Expected version size of %d", minVersionSize+len(version.UserAgent))
-	}
+	assert.Equal(t, versionDecoded.Nonce, id)
+	assert.Equal(t, versionDecoded.Port, port)
+	assert.Equal(t, versionDecoded.UserAgent, []byte(useragent))
+	assert.Equal(t, versionDecoded.StartHeight, height)
+	assert.Equal(t, versionDecoded.Relay, relay)
+	assert.Equal(t, version, versionDecoded)
 }

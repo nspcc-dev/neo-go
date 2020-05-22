@@ -3,24 +3,24 @@ package main
 import (
 	"os"
 
-	"github.com/CityOfZion/neo-go/cli/server"
-	"github.com/CityOfZion/neo-go/cli/smartcontract"
-	"github.com/CityOfZion/neo-go/cli/vm"
-	"github.com/CityOfZion/neo-go/cli/wallet"
+	"github.com/nspcc-dev/neo-go/cli/server"
+	"github.com/nspcc-dev/neo-go/cli/smartcontract"
+	"github.com/nspcc-dev/neo-go/cli/vm"
+	"github.com/nspcc-dev/neo-go/cli/wallet"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/urfave/cli"
 )
 
 func main() {
 	ctl := cli.NewApp()
 	ctl.Name = "neo-go"
+	ctl.Version = config.Version
 	ctl.Usage = "Official Go client for Neo"
 
-	ctl.Commands = []cli.Command{
-		server.NewCommand(),
-		smartcontract.NewCommand(),
-		wallet.NewCommand(),
-		vm.NewCommand(),
-	}
+	ctl.Commands = append(ctl.Commands, server.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, smartcontract.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, wallet.NewCommands()...)
+	ctl.Commands = append(ctl.Commands, vm.NewCommands()...)
 
 	if err := ctl.Run(os.Args); err != nil {
 		panic(err)

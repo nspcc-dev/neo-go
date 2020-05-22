@@ -13,6 +13,7 @@
 # Added by CoZ developers
 vendor/
 bin/
+!examples/**/vendor
 
 # text editors
 # vscode
@@ -23,12 +24,20 @@ bin/
 !.vscode/extensions.json
 # goland
 .idea/*
-
-# anthdm todolists
-/pkg/vm/compiler/todo.md
+# emacs
+*~
+TAGS
 
 # leveldb 
 chains/
 chain/
 blockchain/
 blockchains/
+
+# patch
+*.orig
+*.rej
+
+# Coverage
+coverage.txt
+coverage.html

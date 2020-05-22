@@ -2,36 +2,141 @@ package vm
 
 import (
 	"encoding/binary"
+	"errors"
+	"math/big"
+
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// Context represent the current execution context of the VM.
+// Context represents the current execution context of the VM.
 type Context struct {
 	// Instruction pointer.
 	ip int
 
+	// The next instruction pointer.
+	nextip int
+
 	// The raw program script.
 	prog []byte
 
-	// Breakpoints
+	// Breakpoints.
 	breakPoints []int
+
+	// Return value count, -1 is unspecified.
+	rvcount int
+
+	// Evaluation stack pointer.
+	estack *Stack
+
+	// Alt stack pointer.
+	astack *Stack
+
+	local     *Slot
+	arguments *Slot
+
+	// Script hash of the prog.
+	scriptHash util.Uint160
+
+	// Whether it's allowed to make dynamic calls from this context.
+	hasDynamicInvoke bool
 }
 
-// NewContext return a new Context object.
+var errNoInstParam = errors.New("failed to read instruction parameter")
+
+// NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
 	return &Context{
-		ip:          -1,
 		prog:        b,
 		breakPoints: []int{},
+		rvcount:     -1,
 	}
 }
 
-// Next return the next instruction to execute.
-func (c *Context) Next() Opcode {
-	c.ip++
+// NextIP returns next instruction pointer.
+func (c *Context) NextIP() int {
+	return c.nextip
+}
+
+// Next returns the next instruction to execute with its parameter if any. After
+// its invocation the instruction pointer points to the instruction being
+// returned.
+func (c *Context) Next() (opcode.Opcode, []byte, error) {
+	var err error
+
+	c.ip = c.nextip
 	if c.ip >= len(c.prog) {
-		return Oret
+		return opcode.RET, nil, nil
 	}
-	return Opcode(c.prog[c.ip])
+
+	var instrbyte = c.prog[c.ip]
+	instr := opcode.Opcode(instrbyte)
+	c.nextip++
+
+	var numtoread int
+	switch instr {
+	case opcode.OLDPUSH1:
+		// OLDPUSH1 is used during transition to NEO3 in verification scripts.
+		// FIXME remove #927
+		if len(c.prog) == 1 {
+			return opcode.PUSH1, nil, nil
+		}
+	case opcode.PUSHDATA1:
+		if c.nextip >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			numtoread = int(c.prog[c.nextip])
+			c.nextip++
+		}
+	case opcode.PUSHDATA2:
+		if c.nextip+1 >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			numtoread = int(binary.LittleEndian.Uint16(c.prog[c.nextip : c.nextip+2]))
+			c.nextip += 2
+		}
+	case opcode.PUSHDATA4:
+		if c.nextip+3 >= len(c.prog) {
+			err = errNoInstParam
+		} else {
+			var n = binary.LittleEndian.Uint32(c.prog[c.nextip : c.nextip+4])
+			if n > MaxItemSize {
+				return instr, nil, errors.New("parameter is too big")
+			}
+			numtoread = int(n)
+			c.nextip += 4
+		}
+	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
+		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
+		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT,
+		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
+		numtoread = 1
+	case opcode.INITSLOT:
+		numtoread = 2
+	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
+		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
+		opcode.CALLL, opcode.SYSCALL, opcode.PUSHA:
+		numtoread = 4
+	default:
+		if instr <= opcode.PUSHINT256 {
+			numtoread = 1 << instr
+		} else {
+			// No parameters, can just return.
+			return instr, nil, nil
+		}
+	}
+	if c.nextip+numtoread-1 >= len(c.prog) {
+		err = errNoInstParam
+	}
+	if err != nil {
+		return instr, nil, err
+	}
+	parameter := make([]byte, numtoread)
+	copy(parameter, c.prog[c.nextip:c.nextip+numtoread])
+	c.nextip += numtoread
+	return instr, parameter, nil
 }
 
 // IP returns the absolute instruction without taking 0 into account.
@@ -47,20 +152,15 @@ func (c *Context) LenInstr() int {
 }
 
 // CurrInstr returns the current instruction and opcode.
-func (c *Context) CurrInstr() (int, Opcode) {
-	if c.ip < 0 {
-		return c.ip, Opcode(0x00)
-	}
-	return c.ip, Opcode(c.prog[c.ip])
+func (c *Context) CurrInstr() (int, opcode.Opcode) {
+	return c.ip, opcode.Opcode(c.prog[c.ip])
 }
 
 // Copy returns an new exact copy of c.
 func (c *Context) Copy() *Context {
-	return &Context{
-		ip:          c.ip,
-		prog:        c.prog,
-		breakPoints: c.breakPoints,
-	}
+	ctx := new(Context)
+	*ctx = *c
+	return ctx
 }
 
 // Program returns the loaded program.
@@ -68,9 +168,56 @@ func (c *Context) Program() []byte {
 	return c.prog
 }
 
+// ScriptHash returns a hash of the script in the current context.
+func (c *Context) ScriptHash() util.Uint160 {
+	if c.scriptHash.Equals(util.Uint160{}) {
+		c.scriptHash = hash.Hash160(c.prog)
+	}
+	return c.scriptHash
+}
+
 // Value implements StackItem interface.
 func (c *Context) Value() interface{} {
 	return c
+}
+
+// Dup implements StackItem interface.
+func (c *Context) Dup() StackItem {
+	return c
+}
+
+// Bool implements StackItem interface.
+func (c *Context) Bool() bool { panic("can't convert Context to Bool") }
+
+// TryBytes implements StackItem interface.
+func (c *Context) TryBytes() ([]byte, error) {
+	return nil, errors.New("can't convert Context to ByteArray")
+}
+
+// TryInteger implements StackItem interface.
+func (c *Context) TryInteger() (*big.Int, error) {
+	return nil, errors.New("can't convert Context to Integer")
+}
+
+// Type implements StackItem interface.
+func (c *Context) Type() StackItemType { panic("Context cannot appear on evaluation stack") }
+
+// Convert implements StackItem interface.
+func (c *Context) Convert(_ StackItemType) (StackItem, error) {
+	panic("Context cannot be converted to anything")
+}
+
+// Equals implements StackItem interface.
+func (c *Context) Equals(s StackItem) bool {
+	return c == s
+}
+
+// ToContractParameter implements StackItem interface.
+func (c *Context) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
+	return smartcontract.Parameter{
+		Type:  smartcontract.StringType,
+		Value: c.String(),
+	}
 }
 
 func (c *Context) atBreakPoint() bool {
@@ -86,43 +233,22 @@ func (c *Context) String() string {
 	return "execution context"
 }
 
-func (c *Context) readUint32() uint32 {
-	start, end := c.IP(), c.IP()+4
-	if end > len(c.prog) {
-		return 0
+// getContextScriptHash returns script hash of the invocation stack element
+// number n.
+func (v *VM) getContextScriptHash(n int) util.Uint160 {
+	element := v.Istack().Peek(n)
+	if element == nil {
+		return util.Uint160{}
 	}
-	val := binary.LittleEndian.Uint32(c.prog[start:end])
-	c.ip += 4
-	return val
+	ctxIface := element.Value()
+	ctx := ctxIface.(*Context)
+	return ctx.ScriptHash()
 }
 
-func (c *Context) readUint16() uint16 {
-	start, end := c.IP(), c.IP()+2
-	if end > len(c.prog) {
-		return 0
-	}
-	val := binary.LittleEndian.Uint16(c.prog[start:end])
-	c.ip += 2
-	return val
-}
-
-func (c *Context) readByte() byte {
-	return c.readBytes(1)[0]
-}
-
-func (c *Context) readBytes(n int) []byte {
-	start, end := c.IP(), c.IP()+n
-	if end > len(c.prog) {
-		return nil
-	}
-
-	out := make([]byte, n)
-	copy(out, c.prog[start:end])
-	c.ip += n
-	return out
-}
-
-func (c *Context) readVarBytes() []byte {
-	n := c.readByte()
-	return c.readBytes(int(n))
+// PushContextScriptHash pushes to evaluation stack the script hash of the
+// invocation stack element number n.
+func (v *VM) PushContextScriptHash(n int) error {
+	h := v.getContextScriptHash(n)
+	v.Estack().PushVal(h.BytesBE())
+	return nil
 }

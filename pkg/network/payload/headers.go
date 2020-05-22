@@ -1,43 +1,49 @@
 package payload
 
 import (
-	"io"
-
-	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/pkg/errors"
 )
 
-// Headers payload
+// Headers payload.
 type Headers struct {
-	Hdrs []*core.Header
+	Hdrs []*block.Header
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Headers) DecodeBinary(r io.Reader) error {
-	lenHeaders := util.ReadVarUint(r)
+// Users can at most request 2k header.
+const (
+	MaxHeadersAllowed = 2000
+)
 
-	p.Hdrs = make([]*core.Header, lenHeaders)
+// ErrTooManyHeaders is an error returned when too many headers were received.
+var ErrTooManyHeaders = errors.Errorf("too many headers were received (max: %d)", MaxHeadersAllowed)
+
+// DecodeBinary implements Serializable interface.
+func (p *Headers) DecodeBinary(br *io.BinReader) {
+	lenHeaders := br.ReadVarUint()
+
+	var limitExceeded bool
+
+	// C# node does it silently
+	if limitExceeded = lenHeaders > MaxHeadersAllowed; limitExceeded {
+		lenHeaders = MaxHeadersAllowed
+	}
+
+	p.Hdrs = make([]*block.Header, lenHeaders)
 
 	for i := 0; i < int(lenHeaders); i++ {
-		header := &core.Header{}
-		if err := header.DecodeBinary(r); err != nil {
-			return err
-		}
+		header := &block.Header{}
+		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}
 
-	return nil
+	if br.Err == nil && limitExceeded {
+		br.Err = ErrTooManyHeaders
+	}
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Headers) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(p.Hdrs))); err != nil {
-		return err
-	}
-	for _, header := range p.Hdrs {
-		if err := header.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-	return nil
+// EncodeBinary implements Serializable interface.
+func (p *Headers) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteArray(p.Hdrs)
 }

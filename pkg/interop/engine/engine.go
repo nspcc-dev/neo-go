@@ -1,0 +1,34 @@
+package engine
+
+import "github.com/nspcc-dev/neo-go/pkg/interop/transaction"
+
+// Package engine provides function signatures that can be used inside
+// smart contracts that are written in the neo-go framework.
+
+// GetScriptContainer returns the transaction that is in the execution context.
+func GetScriptContainer() transaction.Transaction {
+	return transaction.Transaction{}
+}
+
+// GetExecutingScriptHash returns the script hash of the contract that is
+// currently being executed.
+func GetExecutingScriptHash() []byte {
+	return nil
+}
+
+// GetCallingScriptHash returns the script hash of the contract that started
+// the execution of the current script.
+func GetCallingScriptHash() []byte {
+	return nil
+}
+
+// GetEntryScriptHash returns the script hash of the contract that started the
+// execution from the start.
+func GetEntryScriptHash() []byte {
+	return nil
+}
+
+// AppCall executes script with specified hash using provided arguments.
+func AppCall(scriptHash []byte, args ...interface{}) interface{} {
+	return nil
+}

@@ -1,6 +1,9 @@
 ProtocolConfiguration:
   Magic: 1953787457
   AddressVersion: 23
+  SecondsPerBlock: 15
+  LowPriorityThreshold: 0.000
+  MemPoolSize: 50000
   StandbyValidators:
   - 0327da12b5c40200e9f65569476bbff2218da4f32548ff43b6387ec1416a231ee8
   - 026ce35b29147ad09e4afe4ec4a7319095f08198fa8babbe3c56e970b143528d22
@@ -10,22 +13,66 @@ ProtocolConfiguration:
   - 02d02b1873a0863cd042cc717da31cea0d7cf9db32b74d4c72c01b0011503e2e22
   - 034ff5ceeac41acf22cd5ed2da17a6df4dd8358fcb2bfb1a43208ad0feaab2746b
   SeedList:
-  - 18.218.97.227:20333
-  - 18.219.30.120:20333
-  - 18.219.13.91:20333
-  - 13.59.116.121:20333
-  - 18.218.255.178:20333
+  - seed1.ngd.network:20333
+  - seed2.ngd.network:20333
+  - seed3.ngd.network:20333
+  - seed4.ngd.network:20333
+  - seed5.ngd.network:20333
+  - seed6.ngd.network:20333
+  - seed7.ngd.network:20333
+  - seed8.ngd.network:20333
+  - seed9.ngd.network:20333
+  - seed10.ngd.network:20333
   SystemFee:
-    EnrollmentTransaction: 10
     IssueTransaction: 5
-    PublishTransaction: 5
     RegisterTransaction: 100
+  VerifyBlocks: true
+  VerifyTransactions: false
+  FreeGasLimit: 10.0
+  MaxTransactionsPerBlock: 500
+  MaxFreeTransactionsPerBlock: 20
+  MaxFreeTransactionSize: 1024
+  FeePerExtraByte: 0.00001
 
 ApplicationConfiguration:
-  DataDirectoryPath: "./chains/testnet"
-  RPCPort: 20332
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+      DataDirectoryPath: "./chains/testnet"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/testnet.bolt"
+  #    BadgerDBOptions:
+  #      BadgerDir: "./chains/testnet.badger"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: 127.0.0.1
   NodePort: 20333
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
-  MaxPeers: 50
+  PingInterval: 30
+  PingTimeout: 90
+  MaxPeers: 100
+  AttemptConnPeers: 20
+  MinPeers: 5
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 20332
+    TLSConfig:
+      Enabled: false
+      Port: 20331
+      CertFile: serv.crt
+      KeyFile: serv.key
+  Prometheus:
+    Enabled: true
+    Port: 2112
+  Pprof:
+    Enabled: false
+    Port: 2113

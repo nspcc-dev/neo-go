@@ -1,25 +1,45 @@
 package util
 
 import (
-	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestArrayReverse(t *testing.T) {
-	arr := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
-	have := ArrayReverse(arr)
-	want := []byte{0x05, 0x04, 0x03, 0x02, 0x01}
-	if bytes.Compare(have, want) != 0 {
-		t.Fatalf("expected %v got %v", want, have)
-	}
+var testCases = []struct {
+	arr []byte
+	rev []byte
+}{
+	{
+		arr: []byte{},
+		rev: []byte{},
+	},
+	{
+		arr: []byte{0x01},
+		rev: []byte{0x01},
+	},
+	{
+		arr: []byte{0x01, 0x02, 0x03, 0x04},
+		rev: []byte{0x04, 0x03, 0x02, 0x01},
+	},
+	{
+		arr: []byte{0x01, 0x02, 0x03, 0x04, 0x05},
+		rev: []byte{0x05, 0x04, 0x03, 0x02, 0x01},
+	},
 }
 
-// This tests a bug that occured with arrays of size 1
-func TestArrayReverseLen2(t *testing.T) {
-	arr := []byte{0x01}
-	have := ArrayReverse(arr)
-	want := []byte{0x01}
-	if bytes.Compare(have, want) != 0 {
-		t.Fatalf("expected %v got %v", want, have)
+func TestArrayReverse(t *testing.T) {
+	for _, tc := range testCases {
+		arg := make([]byte, len(tc.arr))
+		copy(arg, tc.arr)
+
+		have := ArrayReverse(arg)
+		require.Equal(t, tc.rev, have)
+
+		// test that argument was copied
+		for i := range have {
+			have[i] = ^have[i]
+		}
+		require.Equal(t, tc.arr, arg)
 	}
 }

@@ -1,14 +1,12 @@
 package payload
 
 import (
-	"encoding/binary"
-	"io"
-
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // The node can broadcast the object information it owns by this message.
-// The message can be sent automatically or can be used to answer getbloks messages.
+// The message can be sent automatically or can be used to answer getblock messages.
 
 // InventoryType is the type of an object in the Inventory message.
 type InventoryType uint8
@@ -17,9 +15,9 @@ type InventoryType uint8
 func (i InventoryType) String() string {
 	switch i {
 	case 0x01:
-		return "block"
-	case 0x02:
 		return "TX"
+	case 0x02:
+		return "block"
 	case 0xe0:
 		return "consensus"
 	default:
@@ -39,7 +37,7 @@ const (
 	ConsensusType InventoryType = 0xe0 // 224
 )
 
-// Inventory payload
+// Inventory payload.
 type Inventory struct {
 	// Type if the object hash.
 	Type InventoryType
@@ -56,38 +54,14 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Inventory) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Type); err != nil {
-		return err
-	}
-
-	listLen := util.ReadVarUint(r)
-	p.Hashes = make([]util.Uint256, listLen)
-	for i := 0; i < int(listLen); i++ {
-		if err := binary.Read(r, binary.LittleEndian, &p.Hashes[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+// DecodeBinary implements Serializable interface.
+func (p *Inventory) DecodeBinary(br *io.BinReader) {
+	p.Type = InventoryType(br.ReadB())
+	br.ReadArray(&p.Hashes)
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Inventory) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Type); err != nil {
-		return err
-	}
-
-	listLen := len(p.Hashes)
-	if err := util.WriteVarUint(w, uint64(listLen)); err != nil {
-		return err
-	}
-	for i := 0; i < len(p.Hashes); i++ {
-		if err := binary.Write(w, binary.LittleEndian, p.Hashes[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+// EncodeBinary implements Serializable interface.
+func (p *Inventory) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteB(byte(p.Type))
+	bw.WriteArray(p.Hashes)
 }

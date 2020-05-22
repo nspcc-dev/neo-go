@@ -1,26 +1,62 @@
 ProtocolConfiguration:
   Magic: 56753
   AddressVersion: 23
+  SecondsPerBlock: 15
+  LowPriorityThreshold: 0.000
+  MemPoolSize: 50000
   StandbyValidators:
-  - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
-  - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
-  - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
-  - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
+    - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
+    - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
+    - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
+    - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   SeedList:
-  - node_one:20334
-  - node_two:20335
-  - node_three:20336
+    - 172.200.0.1:20333
+    - 172.200.0.2:20334
+    - 172.200.0.3:20335
+    - 172.200.0.4:20336
   SystemFee:
-    EnrollmentTransaction: 1000
     IssueTransaction: 500
-    PublishTransaction: 500
     RegisterTransaction: 10000
+  VerifyBlocks: true
+  VerifyTransactions: true
 
 ApplicationConfiguration:
-  DataDirectoryPath: "/chains/privnet"
-  RPCPort: 20336
-  NodePort: 20337
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','redis','boltdb', 'badgerdb'.
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+      DataDirectoryPath: "/chains/four"
+  #    RedisDBOptions:
+  #      Addr: "localhost:6379"
+  #      Password: ""
+  #      DB: 0
+  #    BoltDBOptions:
+  #      FilePath: "./chains/privnet.bolt"
+  #    BadgerDBOptions:
+  #      BadgerDir: "./chains/four.badger"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: 127.0.0.1
+  NodePort: 20336
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2
-  MaxPeers: 50
+  PingInterval: 30
+  PingTimeout: 90
+  MaxPeers: 10
+  AttemptConnPeers: 5
+  MinPeers: 3
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    Port: 30336
+  Prometheus:
+    Enabled: true
+    Port: 20004
+  Pprof:
+    Enabled: false
+    Port: 20014
+  UnlockWallet:
+    Path: "/wallet4.json"
+    Password: "four"

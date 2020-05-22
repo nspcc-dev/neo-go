@@ -1,9 +1,11 @@
 package vm
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPushElement(t *testing.T) {
@@ -18,6 +20,20 @@ func TestPushElement(t *testing.T) {
 	for i := 0; i < len(elems); i++ {
 		assert.Equal(t, elems[len(elems)-1-i], s.Peek(i))
 	}
+}
+
+func TestStack_PushVal(t *testing.T) {
+	type (
+		i32      int32
+		testByte uint8
+	)
+
+	s := NewStack("test")
+	require.NotPanics(t, func() { s.PushVal(i32(123)) })
+	require.NotPanics(t, func() { s.PushVal(testByte(42)) })
+	require.Equal(t, 2, s.Len())
+	require.Equal(t, big.NewInt(42), s.Pop().Value())
+	require.Equal(t, big.NewInt(123), s.Pop().Value())
 }
 
 func TestPopElement(t *testing.T) {
@@ -154,19 +170,46 @@ func TestIterAfterRemove(t *testing.T) {
 
 func TestIteration(t *testing.T) {
 	var (
+		n     = 10
 		s     = NewStack("test")
-		elems = makeElements(10)
+		elems = makeElements(n)
 	)
 	for _, elem := range elems {
 		s.Push(elem)
 	}
 	assert.Equal(t, len(elems), s.Len())
 
-	i := 0
+	iteratedElems := make([]*Element, 0)
+
 	s.Iter(func(elem *Element) {
-		i++
+		iteratedElems = append(iteratedElems, elem)
 	})
-	assert.Equal(t, len(elems), i)
+	// Top to bottom order of iteration.
+	poppedElems := make([]*Element, 0)
+	for elem := s.Pop(); elem != nil; elem = s.Pop() {
+		poppedElems = append(poppedElems, elem)
+	}
+	assert.Equal(t, poppedElems, iteratedElems)
+}
+
+func TestBackIteration(t *testing.T) {
+	var (
+		n     = 10
+		s     = NewStack("test")
+		elems = makeElements(n)
+	)
+	for _, elem := range elems {
+		s.Push(elem)
+	}
+	assert.Equal(t, len(elems), s.Len())
+
+	iteratedElems := make([]*Element, 0)
+
+	s.IterBack(func(elem *Element) {
+		iteratedElems = append(iteratedElems, elem)
+	})
+	// Bottom to the top order of iteration.
+	assert.Equal(t, elems, iteratedElems)
 }
 
 func TestPushVal(t *testing.T) {
@@ -199,22 +242,114 @@ func TestSwapElemValues(t *testing.T) {
 	s.PushVal(2)
 	s.PushVal(4)
 
-	a := s.Peek(0)
-	b := s.Peek(1)
-
-	// [ 4 ] -> a
-	// [ 2 ] -> b
-
-	aval := a.value
-	bval := b.value
-	a.value = bval
-	b.value = aval
-
-	// [ 2 ] -> a
-	// [ 4 ] -> b
-
+	assert.NoError(t, s.Swap(0, 1))
 	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
 	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Swap(1, 3))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.Error(t, s.Swap(-1, 0))
+	assert.Error(t, s.Swap(0, -3))
+	assert.Error(t, s.Swap(0, 4))
+	assert.Error(t, s.Swap(5, 0))
+
+	assert.NoError(t, s.Swap(1, 1))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+}
+
+func TestRoll(t *testing.T) {
+	s := NewStack("test")
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(2))
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.NoError(t, s.Roll(3))
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+
+	s.PushVal(1)
+	s.PushVal(2)
+	s.PushVal(3)
+	s.PushVal(4)
+
+	assert.Error(t, s.Roll(-1))
+	assert.Error(t, s.Roll(4))
+
+	assert.NoError(t, s.Roll(0))
+	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+}
+
+func TestPopSigElements(t *testing.T) {
+	s := NewStack("test")
+
+	_, err := s.PopSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal([]StackItem{})
+	_, err = s.PopSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal([]StackItem{NewBoolItem(false)})
+	_, err = s.PopSigElements()
+	assert.NotNil(t, err)
+
+	b1 := []byte("smth")
+	b2 := []byte("strange")
+	s.PushVal([]StackItem{NewByteArrayItem(b1), NewByteArrayItem(b2)})
+	z, err := s.PopSigElements()
+	assert.Nil(t, err)
+	assert.Equal(t, z, [][]byte{b1, b2})
+
+	s.PushVal(2)
+	_, err = s.PopSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal(b1)
+	s.PushVal(2)
+	_, err = s.PopSigElements()
+	assert.NotNil(t, err)
+
+	s.PushVal(b2)
+	s.PushVal(b1)
+	s.PushVal(2)
+	z, err = s.PopSigElements()
+	assert.Nil(t, err)
+	assert.Equal(t, z, [][]byte{b1, b2})
 }
 
 func makeElements(n int) []*Element {

@@ -1,15 +1,29 @@
 package payload
 
 import (
-	"encoding/binary"
-	"io"
 	"time"
+
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
+// Size of the payload not counting UserAgent encoding (which is at least 1 byte
+// for zero-length string).
 const minVersionSize = 27
+
+// List of Services offered by the node.
+const (
+	nodePeerService uint64 = 1
+	// BloomFilerService uint64 = 2 // Not implemented
+	// PrunedNode        uint64 = 3 // Not implemented
+	// LightNode         uint64 = 4 // Not implemented
+
+)
 
 // Version payload.
 type Version struct {
+	// NetMode of the node
+	Magic config.NetMode
 	// currently the version of the protocol is 0
 	Version uint32
 	// currently 1
@@ -29,10 +43,11 @@ type Version struct {
 }
 
 // NewVersion returns a pointer to a Version payload.
-func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
+func NewVersion(magic config.NetMode, id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	return &Version{
+		Magic:       magic,
 		Version:     0,
-		Services:    1,
+		Services:    nodePeerService,
 		Timestamp:   uint32(time.Now().UTC().Unix()),
 		Port:        p,
 		Nonce:       id,
@@ -42,68 +57,29 @@ func NewVersion(id uint32, p uint16, ua string, h uint32, r bool) *Version {
 	}
 }
 
-// DecodeBinary implements the Payload interface.
-func (p *Version) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &p.Version); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Services); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Port); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.Nonce); err != nil {
-		return err
-	}
-
-	var lenUA uint8
-	if err := binary.Read(r, binary.LittleEndian, &lenUA); err != nil {
-		return err
-	}
-	p.UserAgent = make([]byte, lenUA)
-	if err := binary.Read(r, binary.LittleEndian, &p.UserAgent); err != nil {
-		return err
-	}
-	if err := binary.Read(r, binary.LittleEndian, &p.StartHeight); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &p.Relay)
+// DecodeBinary implements Serializable interface.
+func (p *Version) DecodeBinary(br *io.BinReader) {
+	p.Magic = config.NetMode(br.ReadU32LE())
+	p.Version = br.ReadU32LE()
+	p.Services = br.ReadU64LE()
+	p.Timestamp = br.ReadU32LE()
+	p.Port = br.ReadU16LE()
+	p.Nonce = br.ReadU32LE()
+	p.UserAgent = br.ReadVarBytes()
+	p.StartHeight = br.ReadU32LE()
+	p.Relay = br.ReadBool()
 }
 
-// EncodeBinary implements the Payload interface.
-func (p *Version) EncodeBinary(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, p.Version); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Services); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Timestamp); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Port); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.Nonce); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, uint8(len(p.UserAgent))); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.UserAgent); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.StartHeight); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, p.Relay)
-}
+// EncodeBinary implements Serializable interface.
+func (p *Version) EncodeBinary(br *io.BinWriter) {
+	br.WriteU32LE(uint32(p.Magic))
+	br.WriteU32LE(p.Version)
+	br.WriteU64LE(p.Services)
+	br.WriteU32LE(p.Timestamp)
+	br.WriteU16LE(p.Port)
+	br.WriteU32LE(p.Nonce)
 
-// Size implements the payloader interface.
-func (p *Version) Size() uint32 {
-	return uint32(minVersionSize + len(p.UserAgent))
+	br.WriteVarBytes(p.UserAgent)
+	br.WriteU32LE(p.StartHeight)
+	br.WriteBool(p.Relay)
 }

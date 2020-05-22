@@ -1,200 +1,405 @@
 package cli
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
-	"github.com/CityOfZion/neo-go/pkg/vm"
-	"github.com/CityOfZion/neo-go/pkg/vm/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"gopkg.in/abiosoft/ishell.v2"
 )
 
-// command describes a VM command.
-type command struct {
-	// number of minimun arguments the command needs.
-	args int
-	// description of the command.
-	usage string
-	// whether the VM needs to be "ready" to execute this command.
-	ready bool
-}
+const (
+	vmKey      = "vm"
+	boolType   = "bool"
+	boolFalse  = "false"
+	boolTrue   = "true"
+	intType    = "int"
+	stringType = "string"
+)
 
-var commands = map[string]command{
-	"help":    {0, "show available commands", false},
-	"exit":    {0, "exit the VM prompt", false},
-	"ip":      {0, "show the current instruction", true},
-	"break":   {1, "place a breakpoint (> break 1)", true},
-	"estack":  {0, "show evaluation stack details", false},
-	"astack":  {0, "show alt stack details", false},
-	"istack":  {0, "show invocation stack details", false},
-	"loadavm": {1, "load an avm script into the VM (> load /path/to/script.avm)", false},
-	"loadhex": {1, "load a hex string into the VM (> loadhex 006166 )", false},
-	"loadgo":  {1, "compile and load a .go file into the VM (> load /path/to/file.go)", false},
-	"run":     {0, "execute the current loaded script", true},
-	"cont":    {0, "continue execution of the current loaded script", true},
-	"step":    {0, "step (n) instruction in the program (> step 10)", true},
-	"ops":     {0, "show the opcodes of the current loaded program", true},
+var commands = []*ishell.Cmd{
+	{
+		Name:     "exit",
+		Help:     "Exit the VM prompt",
+		LongHelp: "Exit the VM prompt",
+		Func:     handleExit,
+	},
+	{
+		Name:     "ip",
+		Help:     "Show current instruction",
+		LongHelp: "Show current instruction",
+		Func:     handleIP,
+	},
+	{
+		Name: "break",
+		Help: "Place a breakpoint",
+		LongHelp: `Usage: break <ip>
+<ip> is mandatory parameter, example:
+> break 12`,
+		Func: handleBreak,
+	},
+	{
+		Name:     "estack",
+		Help:     "Show evaluation stack contents",
+		LongHelp: "Show evaluation stack contents",
+		Func:     handleXStack,
+	},
+	{
+		Name:     "astack",
+		Help:     "Show alt stack contents",
+		LongHelp: "Show alt stack contents",
+		Func:     handleXStack,
+	},
+	{
+		Name:     "istack",
+		Help:     "Show invocation stack contents",
+		LongHelp: "Show invocation stack contents",
+		Func:     handleXStack,
+	},
+	{
+		Name: "loadavm",
+		Help: "Load an avm script into the VM",
+		LongHelp: `Usage: loadavm <file>
+<file> is mandatory parameter, example:
+> load /path/to/script.avm`,
+		Func: handleLoadAVM,
+	},
+	{
+		Name: "loadhex",
+		Help: "Load a hex-encoded script string into the VM",
+		LongHelp: `Usage: loadhex <string>
+<string> is mandatory parameter, example:
+> load 006166`,
+		Func: handleLoadHex,
+	},
+	{
+		Name: "loadgo",
+		Help: "Compile and load a Go file into the VM",
+		LongHelp: `Usage: loadhex <file>
+<file> is mandatory parameter, example:
+> load /path/to/file.go`,
+		Func: handleLoadGo,
+	},
+	{
+		Name: "run",
+		Help: "Execute the current loaded script",
+		LongHelp: `Usage: run [<operation> [<parameter>...]]
+
+<operation> is an operation name, passed as a first parameter to Main() (and it
+        can't be 'help' at the moment)
+<parameter> is a parameter (can be repeated multiple times) that can be specified
+        as <type>:<value>, where type can be:
+            '` + boolType + `': supports '` + boolFalse + `' and '` + boolTrue + `' values
+            '` + intType + `': supports integers as values
+            '` + stringType + `': supports strings as values (that are pushed as a byte array
+                      values to the stack)
+       or can be just <value>, for which the type will be detected automatically
+       following these rules: '` + boolTrue + `' and '` + boolFalse + `' are treated as respective
+       boolean values, everything that can be converted to integer is treated as
+       integer and everything else is treated like a string.
+
+Passing parameters without operation is not supported. Parameters are packed
+into array before they're passed to the script, so effectively 'run' only
+supports contracts with signatures like this:
+   func Main(operation string, args []interface{}) interface{}
+
+Example:
+> run put ` + stringType + `:"Something to put"`,
+		Func: handleRun,
+	},
+	{
+		Name:     "cont",
+		Help:     "Continue execution of the current loaded script",
+		LongHelp: "Continue execution of the current loaded script",
+		Func:     handleCont,
+	},
+	{
+		Name: "step",
+		Help: "Step (n) instruction in the program",
+		LongHelp: `Usage: step [<n>]
+<n> is optional parameter to specify number of instructions to run, example:
+> step 10`,
+		Func: handleStep,
+	},
+	{
+		Name: "stepinto",
+		Help: "Stepinto instruction to take in the debugger",
+		LongHelp: `Usage: stepInto
+example:
+> stepinto`,
+		Func: handleStepInto,
+	},
+	{
+		Name: "stepout",
+		Help: "Stepout instruction to take in the debugger",
+		LongHelp: `Usage: stepOut
+example:
+> stepout`,
+		Func: handleStepOut,
+	},
+	{
+		Name: "stepover",
+		Help: "Stepover instruction to take in the debugger",
+		LongHelp: `Usage: stepOver
+example:
+> stepover`,
+		Func: handleStepOver,
+	},
+	{
+		Name:     "ops",
+		Help:     "Dump opcodes of the current loaded program",
+		LongHelp: "Dump opcodes of the current loaded program",
+		Func:     handleOps,
+	},
 }
 
 // VMCLI object for interacting with the VM.
 type VMCLI struct {
-	vm *vm.VM
+	vm    *vm.VM
+	shell *ishell.Shell
 }
 
 // New returns a new VMCLI object.
 func New() *VMCLI {
-	return &VMCLI{
-		vm: vm.New(0),
+	vmcli := VMCLI{
+		vm:    vm.New(),
+		shell: ishell.New(),
 	}
+	vmcli.shell.Set(vmKey, vmcli.vm)
+	for _, c := range commands {
+		vmcli.shell.AddCmd(c)
+	}
+	changePrompt(vmcli.shell, vmcli.vm)
+	return &vmcli
 }
 
-func (c *VMCLI) handleCommand(cmd string, args ...string) {
-	com, ok := commands[cmd]
-	if !ok {
-		fmt.Printf("unknown command (%s)\n", cmd)
+func getVMFromContext(c *ishell.Context) *vm.VM {
+	return c.Get(vmKey).(*vm.VM)
+}
+
+func checkVMIsReady(c *ishell.Context) bool {
+	v := getVMFromContext(c)
+	if v == nil || !v.Ready() {
+		c.Err(errors.New("VM is not ready: no program loaded"))
+		return false
+	}
+	return true
+}
+
+func handleExit(c *ishell.Context) {
+	c.Println("Bye!")
+	os.Exit(0)
+}
+
+func handleIP(c *ishell.Context) {
+	if !checkVMIsReady(c) {
 		return
 	}
-	if (len(args) < com.args || len(args) > com.args) && cmd != "run" {
-		fmt.Printf("command (%s) takes at least %d arguments\n", cmd, com.args)
+	v := getVMFromContext(c)
+	ip, opcode := v.Context().CurrInstr()
+	c.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+}
+
+func handleBreak(c *ishell.Context) {
+	if !checkVMIsReady(c) {
 		return
 	}
-	if com.ready && !c.vm.Ready() {
-		fmt.Println("VM is not ready: no program loaded")
+	v := getVMFromContext(c)
+	if len(c.Args) != 1 {
+		c.Err(errors.New("missing parameter <ip>"))
+	}
+	n, err := strconv.Atoi(c.Args[0])
+	if err != nil {
+		c.Err(fmt.Errorf("argument conversion error: %s", err))
 		return
 	}
 
-	switch cmd {
-	case "help":
-		printHelp()
+	v.AddBreakPoint(n)
+	c.Printf("breakpoint added at instruction %d\n", n)
+}
 
-	case "exit":
-		fmt.Println("Bye!")
-		os.Exit(0)
+func handleXStack(c *ishell.Context) {
+	v := getVMFromContext(c)
+	c.Println(v.Stack(c.Cmd.Name))
+}
 
-	case "ip":
-		ip, opcode := c.vm.Context().CurrInstr()
-		fmt.Printf("instruction pointer at %d (%s)\n", ip, opcode)
+func handleLoadAVM(c *ishell.Context) {
+	v := getVMFromContext(c)
+	if err := v.LoadFile(c.Args[0]); err != nil {
+		c.Err(err)
+	} else {
+		c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	}
+	changePrompt(c, v)
+}
 
-	case "break":
-		n, err := strconv.Atoi(args[0])
-		if err != nil {
-			fmt.Printf("argument conversion error: %s\n", err)
-			return
-		}
+func handleLoadHex(c *ishell.Context) {
+	v := getVMFromContext(c)
+	b, err := hex.DecodeString(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	v.Load(b)
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c, v)
+}
 
-		c.vm.AddBreakPoint(n)
-		fmt.Printf("breakpoint added at instruction %d\n", n)
+func handleLoadGo(c *ishell.Context) {
+	v := getVMFromContext(c)
+	fb, err := ioutil.ReadFile(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	b, err := compiler.Compile(bytes.NewReader(fb))
+	if err != nil {
+		c.Err(err)
+		return
+	}
 
-	case "estack", "istack", "astack":
-		fmt.Println(c.vm.Stack(cmd))
+	v.Load(b)
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c, v)
+}
 
-	case "loadavm":
-		if err := c.vm.LoadFile(args[0]); err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
-		}
-
-	case "loadhex":
-		b, err := hex.DecodeString(args[0])
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		c.vm.Load(b)
-		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
-
-	case "loadgo":
-		fb, err := ioutil.ReadFile(args[0])
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		b, err := compiler.Compile(bytes.NewReader(fb), &compiler.Options{})
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		c.vm.Load(b)
-		fmt.Printf("READY: loaded %d instructions\n", c.vm.Context().LenInstr())
-
-	case "run":
+func handleRun(c *ishell.Context) {
+	v := getVMFromContext(c)
+	if len(c.Args) != 0 {
 		var (
 			method []byte
 			params []vm.StackItem
 			err    error
-			start  int
 		)
-
-		if len(args) == 0 {
-			c.vm.Run()
-		} else {
-			if isMethodArg(args[0]) {
-				method = []byte(args[0])
-				start = 1
-			}
-			params, err = parseArgs(args[start:])
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+		method = []byte(c.Args[0])
+		params, err = parseArgs(c.Args[1:])
+		if err != nil {
+			c.Err(err)
+			return
 		}
-		c.vm.LoadArgs(method, params)
-		c.vm.Run()
+		v.LoadArgs(method, params)
+	}
+	runVMWithHandling(c, v)
+	changePrompt(c, v)
+}
 
-	case "cont":
-		c.vm.Run()
+// runVMWithHandling runs VM with handling errors and additional state messages.
+func runVMWithHandling(c *ishell.Context, v *vm.VM) {
+	err := v.Run()
+	if err != nil {
+		c.Err(err)
+		return
+	}
 
-	case "step":
-		var (
-			n   = 1
-			err error
-		)
-		if len(args) > 0 {
-			n, err = strconv.Atoi(args[0])
-			if err != nil {
-				fmt.Printf("argument conversion error: %s\n", err)
-				return
-			}
+	var message string
+	switch {
+	case v.HasFailed():
+		message = "FAILED"
+	case v.HasHalted():
+		message = v.Stack("estack")
+	case v.AtBreakpoint():
+		ctx := v.Context()
+		i, op := ctx.CurrInstr()
+		message = fmt.Sprintf("at breakpoint %d (%s)\n", i, op.String())
+	}
+	if message != "" {
+		c.Printf(message)
+	}
+}
+
+func handleCont(c *ishell.Context) {
+	if !checkVMIsReady(c) {
+		return
+	}
+	v := getVMFromContext(c)
+	runVMWithHandling(c, v)
+	changePrompt(c, v)
+}
+
+func handleStep(c *ishell.Context) {
+	var (
+		n   = 1
+		err error
+	)
+
+	if !checkVMIsReady(c) {
+		return
+	}
+	v := getVMFromContext(c)
+	if len(c.Args) > 0 {
+		n, err = strconv.Atoi(c.Args[0])
+		if err != nil {
+			c.Err(fmt.Errorf("argument conversion error: %s", err))
+			return
 		}
-		c.vm.AddBreakPointRel(n)
-		c.vm.Run()
+	}
+	v.AddBreakPointRel(n)
+	runVMWithHandling(c, v)
+	changePrompt(c, v)
+}
 
-	case "ops":
-		c.vm.PrintOps()
+func handleStepInto(c *ishell.Context) {
+	handleStepType(c, "into")
+}
+
+func handleStepOut(c *ishell.Context) {
+	handleStepType(c, "out")
+}
+
+func handleStepOver(c *ishell.Context) {
+	handleStepType(c, "over")
+}
+
+func handleStepType(c *ishell.Context, stepType string) {
+	if !checkVMIsReady(c) {
+		return
+	}
+	v := getVMFromContext(c)
+	var err error
+	switch stepType {
+	case "into":
+		err = v.StepInto()
+	case "out":
+		err = v.StepOut()
+	case "over":
+		err = v.StepOver()
+	}
+	if err != nil {
+		c.Err(err)
+	}
+	handleIP(c)
+	changePrompt(c, v)
+}
+
+func handleOps(c *ishell.Context) {
+	if !checkVMIsReady(c) {
+		return
+	}
+	v := getVMFromContext(c)
+	v.PrintOps()
+}
+
+func changePrompt(c ishell.Actions, v *vm.VM) {
+	if v.Ready() && v.Context().IP()-1 >= 0 {
+		c.SetPrompt(fmt.Sprintf("NEO-GO-VM %d > ", v.Context().IP()-1))
+	} else {
+		c.SetPrompt("NEO-GO-VM > ")
 	}
 }
 
 // Run waits for user input from Stdin and executes the passed command.
 func (c *VMCLI) Run() error {
-	printLogo()
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		if c.vm.Ready() && c.vm.Context().IP()-1 >= 0 {
-			fmt.Printf("NEO-GO-VM %d > ", c.vm.Context().IP()-1)
-		} else {
-			fmt.Print("NEO-GO-VM > ")
-		}
-		input, _ := reader.ReadString('\n')
-		input = strings.Trim(input, "\n")
-		if len(input) != 0 {
-			parts := strings.Split(input, " ")
-			cmd := parts[0]
-			var args []string
-			if len(parts) > 1 {
-				args = parts[1:]
-			}
-			c.handleCommand(cmd, args...)
-		}
-	}
+	printLogo(c.shell)
+	c.shell.Run()
+	return nil
 }
 
 func isMethodArg(s string) bool {
@@ -204,22 +409,38 @@ func isMethodArg(s string) bool {
 func parseArgs(args []string) ([]vm.StackItem, error) {
 	items := make([]vm.StackItem, len(args))
 	for i, arg := range args {
+		var typ, value string
 		typeAndVal := strings.Split(arg, ":")
 		if len(typeAndVal) < 2 {
-			return nil, errors.New("arguments need to be specified as <typ:val>")
+			if typeAndVal[0] == boolFalse || typeAndVal[0] == boolTrue {
+				typ = boolType
+			} else if _, err := strconv.Atoi(typeAndVal[0]); err == nil {
+				typ = intType
+			} else {
+				typ = stringType
+			}
+			value = typeAndVal[0]
+		} else {
+			typ = typeAndVal[0]
+			value = typeAndVal[1]
 		}
 
-		typ := typeAndVal[0]
-		value := typeAndVal[1]
-
 		switch typ {
-		case "int":
-			val, err := strconv.Atoi(value)
+		case boolType:
+			if value == boolFalse {
+				items[i] = vm.NewBoolItem(false)
+			} else if value == boolTrue {
+				items[i] = vm.NewBoolItem(true)
+			} else {
+				return nil, errors.New("failed to parse bool parameter")
+			}
+		case intType:
+			val, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			items[i] = vm.NewBigIntegerItem(val)
-		case "string":
+			items[i] = vm.NewBigIntegerItem(big.NewInt(val))
+		case stringType:
 			items[i] = vm.NewByteArrayItem([]byte(value))
 		}
 	}
@@ -227,26 +448,7 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 	return items, nil
 }
 
-func printHelp() {
-	names := make([]string, len(commands))
-	i := 0
-	for name, _ := range commands {
-		names[i] = name
-		i++
-	}
-	sort.Strings(names)
-
-	fmt.Println()
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(w, "COMMAND\tUSAGE")
-	for _, name := range names {
-		fmt.Fprintf(w, "%s\t%s\n", name, commands[name].usage)
-	}
-	w.Flush()
-	fmt.Println()
-}
-
-func printLogo() {
+func printLogo(c *ishell.Shell) {
 	logo := `
     _   ____________        __________      _    ____  ___
    / | / / ____/ __ \      / ____/ __ \    | |  / /  |/  /
@@ -254,7 +456,7 @@ func printLogo() {
  / /|  / /___/ /_/ /_____/ /_/ / /_/ /_____/ |/ / /  / /  
 /_/ |_/_____/\____/      \____/\____/      |___/_/  /_/   
 `
-	fmt.Print(logo)
-	fmt.Println()
-	fmt.Println()
+	c.Print(logo)
+	c.Println()
+	c.Println()
 }

@@ -1,47 +1,83 @@
 package transaction
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
-	"io"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
-	log "github.com/sirupsen/logrus"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+)
+
+const (
+	// MaxTransactionSize is the upper limit size in bytes that a transaction can reach. It is
+	// set to be 102400.
+	MaxTransactionSize = 102400
+	// MaxValidUntilBlockIncrement is the upper increment size of blockhain height in blocs after
+	// exceeding that a transaction should fail validation. It is set to be 2102400.
+	MaxValidUntilBlockIncrement = 2102400
+	// MaxCosigners is maximum number of cosigners that can be contained within a transaction.
+	// It is set to be 16.
+	MaxCosigners = 16
 )
 
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
 	// The type of the transaction.
-	Type TXType `json:"type"`
+	Type TXType
 
 	// The trading version which is currently 0.
-	Version uint8 `json:"version"`
+	Version uint8
+
+	// Random number to avoid hash collision.
+	Nonce uint32
+
+	// Address signed the transaction.
+	Sender util.Uint160
+
+	// Fee to be burned.
+	SystemFee util.Fixed8
+
+	// Fee to be distributed to consensus nodes.
+	NetworkFee util.Fixed8
+
+	// Maximum blockchain height exceeding which
+	// transaction should fail verification.
+	ValidUntilBlock uint32
 
 	// Data specific to the type of the transaction.
 	// This is always a pointer to a <Type>Transaction.
-	Data TXer `json:"-"`
+	Data TXer
 
 	// Transaction attributes.
-	Attributes []*Attribute `json:"attributes"`
+	Attributes []Attribute
+
+	// Transaction cosigners (not include Sender).
+	Cosigners []Cosigner
 
 	// The inputs of the transaction.
-	Inputs []*Input `json:"vin"`
+	Inputs []Input
 
 	// The outputs of the transaction.
-	Outputs []*Output `json:"vout"`
+	Outputs []Output
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
-	Scripts []*Witness `json:"scripts"`
+	Scripts []Witness
 
-	// hash of the transaction
+	// Hash of the transaction (double SHA256).
 	hash util.Uint256
+
+	// Hash of the transaction used to verify it (single SHA256).
+	verificationHash util.Uint256
 
 	// Trimmed indicates this is a transaction from trimmed
 	// data.
-	Trimmed bool `json:"-"`
+	Trimmed bool
 }
 
 // NewTrimmedTX returns a trimmed transaction with only its hash
@@ -53,200 +89,332 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 	}
 }
 
-// Hash return the hash of the transaction.
+// Hash returns the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
 	if t.hash.Equals(util.Uint256{}) {
-		t.createHash()
+		if t.createHash() != nil {
+			panic("failed to compute hash!")
+		}
 	}
 	return t.hash
 }
 
+// VerificationHash returns the hash of the transaction used to verify it.
+func (t *Transaction) VerificationHash() util.Uint256 {
+	if t.verificationHash.Equals(util.Uint256{}) {
+		if t.createHash() != nil {
+			panic("failed to compute hash!")
+		}
+	}
+	return t.verificationHash
+}
+
 // AddOutput adds the given output to the transaction outputs.
 func (t *Transaction) AddOutput(out *Output) {
-	t.Outputs = append(t.Outputs, out)
+	t.Outputs = append(t.Outputs, *out)
 }
 
 // AddInput adds the given input to the transaction inputs.
 func (t *Transaction) AddInput(in *Input) {
-	t.Inputs = append(t.Inputs, in)
+	t.Inputs = append(t.Inputs, *in)
 }
 
-// DecodeBinary implements the payload interface.
-func (t *Transaction) DecodeBinary(r io.Reader) error {
-	if err := binary.Read(r, binary.LittleEndian, &t.Type); err != nil {
-		return err
+// DecodeBinary implements Serializable interface.
+func (t *Transaction) DecodeBinary(br *io.BinReader) {
+	t.Type = TXType(br.ReadB())
+	t.Version = uint8(br.ReadB())
+	t.Nonce = br.ReadU32LE()
+	t.Sender.DecodeBinary(br)
+	t.SystemFee.DecodeBinary(br)
+	if t.SystemFee < 0 {
+		br.Err = errors.New("negative system fee")
+		return
 	}
-	if err := binary.Read(r, binary.LittleEndian, &t.Version); err != nil {
-		return err
+	t.NetworkFee.DecodeBinary(br)
+	if t.NetworkFee < 0 {
+		br.Err = errors.New("negative network fee")
+		return
 	}
-	if err := t.decodeData(r); err != nil {
-		return err
+	if t.NetworkFee+t.SystemFee < t.SystemFee {
+		br.Err = errors.New("too big fees: int 64 overflow")
+		return
 	}
+	t.ValidUntilBlock = br.ReadU32LE()
+	t.decodeData(br)
 
-	lenAttrs := util.ReadVarUint(r)
-	t.Attributes = make([]*Attribute, lenAttrs)
-	for i := 0; i < int(lenAttrs); i++ {
-		t.Attributes[i] = &Attribute{}
-		if err := t.Attributes[i].DecodeBinary(r); err != nil {
-			// @TODO: remove this when TX attribute decode bug is solved.
-			log.Warnf("failed to decode TX %s", t.hash)
-			return err
+	br.ReadArray(&t.Attributes)
+
+	br.ReadArray(&t.Cosigners, MaxCosigners)
+	for i := 0; i < len(t.Cosigners); i++ {
+		for j := i + 1; j < len(t.Cosigners); j++ {
+			if t.Cosigners[i].Account.Equals(t.Cosigners[j].Account) {
+				br.Err = errors.New("transaction cosigners should be unique")
+				return
+			}
 		}
 	}
 
-	lenInputs := util.ReadVarUint(r)
-	t.Inputs = make([]*Input, lenInputs)
-	for i := 0; i < int(lenInputs); i++ {
-		t.Inputs[i] = &Input{}
-		if err := t.Inputs[i].DecodeBinary(r); err != nil {
-			return err
+	br.ReadArray(&t.Inputs)
+	br.ReadArray(&t.Outputs)
+	for i := range t.Outputs {
+		if t.Outputs[i].Amount.LessThan(0) {
+			br.Err = errors.New("negative output")
+			return
 		}
 	}
-
-	lenOutputs := util.ReadVarUint(r)
-	t.Outputs = make([]*Output, lenOutputs)
-	for i := 0; i < int(lenOutputs); i++ {
-		t.Outputs[i] = &Output{}
-		if err := t.Outputs[i].DecodeBinary(r); err != nil {
-			return err
-		}
-	}
-
-	lenScripts := util.ReadVarUint(r)
-	t.Scripts = make([]*Witness, lenScripts)
-	for i := 0; i < int(lenScripts); i++ {
-		t.Scripts[i] = &Witness{}
-		if err := t.Scripts[i].DecodeBinary(r); err != nil {
-			return err
-		}
-	}
+	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
-	return t.createHash()
+	if br.Err == nil {
+		br.Err = t.createHash()
+	}
 }
 
-func (t *Transaction) decodeData(r io.Reader) error {
+func (t *Transaction) decodeData(r *io.BinReader) {
 	switch t.Type {
 	case InvocationType:
-		t.Data = &InvocationTX{}
-		return t.Data.(*InvocationTX).DecodeBinary(r)
-	case MinerType:
-		t.Data = &MinerTX{}
-		return t.Data.(*MinerTX).DecodeBinary(r)
+		t.Data = &InvocationTX{Version: t.Version}
+		t.Data.(*InvocationTX).DecodeBinary(r)
 	case ClaimType:
 		t.Data = &ClaimTX{}
-		return t.Data.(*ClaimTX).DecodeBinary(r)
+		t.Data.(*ClaimTX).DecodeBinary(r)
 	case ContractType:
 		t.Data = &ContractTX{}
-		return t.Data.(*ContractTX).DecodeBinary(r)
+		t.Data.(*ContractTX).DecodeBinary(r)
 	case RegisterType:
 		t.Data = &RegisterTX{}
-		return t.Data.(*RegisterTX).DecodeBinary(r)
+		t.Data.(*RegisterTX).DecodeBinary(r)
 	case IssueType:
 		t.Data = &IssueTX{}
-		return t.Data.(*IssueTX).DecodeBinary(r)
-	case EnrollmentType:
-		t.Data = &EnrollmentTX{}
-		return t.Data.(*EnrollmentTX).DecodeBinary(r)
-	case PublishType:
-		t.Data = &PublishTX{}
-		return t.Data.(*PublishTX).DecodeBinary(r)
-	case StateType:
-		t.Data = &StateTX{}
-		return t.Data.(*StateTX).DecodeBinary(r)
+		t.Data.(*IssueTX).DecodeBinary(r)
 	default:
-		log.Warnf("invalid TX type %s", t.Type)
+		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
-	return nil
 }
 
-// EncodeBinary implements the payload interface.
-func (t *Transaction) EncodeBinary(w io.Writer) error {
-	if err := t.encodeHashableFields(w); err != nil {
-		return err
-	}
-	if err := util.WriteVarUint(w, uint64(len(t.Scripts))); err != nil {
-		return err
-	}
-	for _, s := range t.Scripts {
-		if err := s.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-	return nil
+// EncodeBinary implements Serializable interface.
+func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
+	t.encodeHashableFields(bw)
+	bw.WriteArray(t.Scripts)
 }
 
-// encodeHashableFields will only encode the fields that are not used for
+// encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
-func (t *Transaction) encodeHashableFields(w io.Writer) error {
-	if err := binary.Write(w, binary.LittleEndian, t.Type); err != nil {
-		return err
+func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
+	noData := t.Type == ContractType
+	if t.Data == nil && !noData {
+		bw.Err = errors.New("transaction has no data")
+		return
 	}
-	if err := binary.Write(w, binary.LittleEndian, t.Version); err != nil {
-		return err
-	}
+	bw.WriteB(byte(t.Type))
+	bw.WriteB(byte(t.Version))
+	bw.WriteU32LE(t.Nonce)
+	t.Sender.EncodeBinary(bw)
+	t.SystemFee.EncodeBinary(bw)
+	t.NetworkFee.EncodeBinary(bw)
+	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.
-	if t.Data != nil {
-		if err := t.Data.EncodeBinary(w); err != nil {
-			return err
-		}
+	if !noData {
+		t.Data.EncodeBinary(bw)
 	}
 
 	// Attributes
-	lenAttrs := uint64(len(t.Attributes))
-	if err := util.WriteVarUint(w, lenAttrs); err != nil {
-		return err
-	}
-	for _, attr := range t.Attributes {
-		if err := attr.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
+	bw.WriteArray(t.Attributes)
+
+	// Cosigners
+	bw.WriteArray(t.Cosigners)
 
 	// Inputs
-	if err := util.WriteVarUint(w, uint64(len(t.Inputs))); err != nil {
-		return err
-	}
-	for _, in := range t.Inputs {
-		if err := in.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
+	bw.WriteArray(t.Inputs)
 
 	// Outputs
-	if err := util.WriteVarUint(w, uint64(len(t.Outputs))); err != nil {
-		return err
-	}
-	for _, out := range t.Outputs {
-		if err := out.EncodeBinary(w); err != nil {
-			return err
-		}
-	}
-	return nil
+	bw.WriteArray(t.Outputs)
 }
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
-	buf := new(bytes.Buffer)
-	if err := t.encodeHashableFields(buf); err != nil {
-		return err
+	buf := io.NewBufBinWriter()
+	t.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
 	}
 
-	var hash util.Uint256
-	hash = sha256.Sum256(buf.Bytes())
-	hash = sha256.Sum256(hash.Bytes())
-	t.hash = hash
+	b := buf.Bytes()
+	t.verificationHash = hash.Sha256(b)
+	t.hash = hash.Sha256(t.verificationHash.BytesBE())
 
 	return nil
 }
 
-// GroupTXInputsByPrevHash groups all TX inputs by their previous hash.
-func (t *Transaction) GroupInputsByPrevHash() map[util.Uint256][]*Input {
-	m := make(map[util.Uint256][]*Input)
-	for _, in := range t.Inputs {
-		m[in.PrevHash] = append(m[in.PrevHash], in)
+// GroupOutputByAssetID groups all TX outputs by their assetID.
+func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
+	m := make(map[util.Uint256][]*Output)
+	for i := range t.Outputs {
+		hash := t.Outputs[i].AssetID
+		m[hash] = append(m[hash], &t.Outputs[i])
 	}
 	return m
+}
+
+// GetSignedPart returns a part of the transaction which must be signed.
+func (t *Transaction) GetSignedPart() []byte {
+	buf := io.NewBufBinWriter()
+	t.encodeHashableFields(buf.BinWriter)
+	if buf.Err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// Bytes converts the transaction to []byte
+func (t *Transaction) Bytes() []byte {
+	buf := io.NewBufBinWriter()
+	t.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// NewTransactionFromBytes decodes byte array into *Transaction
+func NewTransactionFromBytes(b []byte) (*Transaction, error) {
+	tx := &Transaction{}
+	r := io.NewBinReaderFromBuf(b)
+	tx.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return tx, nil
+}
+
+// FeePerByte returns NetworkFee of the transaction divided by
+// its size
+func (t *Transaction) FeePerByte() util.Fixed8 {
+	return util.Fixed8(int64(t.NetworkFee) / int64(io.GetVarSize(t)))
+}
+
+// transactionJSON is a wrapper for Transaction and
+// used for correct marhalling of transaction.Data
+type transactionJSON struct {
+	TxID            util.Uint256 `json:"txid"`
+	Size            int          `json:"size"`
+	Type            TXType       `json:"type"`
+	Version         uint8        `json:"version"`
+	Nonce           uint32       `json:"nonce"`
+	Sender          string       `json:"sender"`
+	SystemFee       util.Fixed8  `json:"sys_fee"`
+	NetworkFee      util.Fixed8  `json:"net_fee"`
+	ValidUntilBlock uint32       `json:"valid_until_block"`
+	Attributes      []Attribute  `json:"attributes"`
+	Cosigners       []Cosigner   `json:"cosigners"`
+	Inputs          []Input      `json:"vin"`
+	Outputs         []Output     `json:"vout"`
+	Scripts         []Witness    `json:"scripts"`
+
+	Claims []Input          `json:"claims,omitempty"`
+	Script string           `json:"script,omitempty"`
+	Gas    util.Fixed8      `json:"gas,omitempty"`
+	Asset  *registeredAsset `json:"asset,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (t *Transaction) MarshalJSON() ([]byte, error) {
+	tx := transactionJSON{
+		TxID:            t.Hash(),
+		Size:            io.GetVarSize(t),
+		Type:            t.Type,
+		Version:         t.Version,
+		Nonce:           t.Nonce,
+		Sender:          address.Uint160ToString(t.Sender),
+		ValidUntilBlock: t.ValidUntilBlock,
+		Attributes:      t.Attributes,
+		Cosigners:       t.Cosigners,
+		Inputs:          t.Inputs,
+		Outputs:         t.Outputs,
+		Scripts:         t.Scripts,
+		SystemFee:       t.SystemFee,
+		NetworkFee:      t.NetworkFee,
+	}
+	switch t.Type {
+	case ClaimType:
+		tx.Claims = t.Data.(*ClaimTX).Claims
+	case InvocationType:
+		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
+		tx.Gas = t.Data.(*InvocationTX).Gas
+	case RegisterType:
+		transaction := *t.Data.(*RegisterTX)
+		tx.Asset = &registeredAsset{
+			AssetType: transaction.AssetType,
+			Name:      json.RawMessage(transaction.Name),
+			Amount:    transaction.Amount,
+			Precision: transaction.Precision,
+			Owner:     transaction.Owner,
+			Admin:     address.Uint160ToString(transaction.Admin),
+		}
+	}
+	return json.Marshal(tx)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (t *Transaction) UnmarshalJSON(data []byte) error {
+	tx := new(transactionJSON)
+	if err := json.Unmarshal(data, tx); err != nil {
+		return err
+	}
+	t.Type = tx.Type
+	t.Version = tx.Version
+	t.Nonce = tx.Nonce
+	t.ValidUntilBlock = tx.ValidUntilBlock
+	t.Attributes = tx.Attributes
+	t.Cosigners = tx.Cosigners
+	t.Inputs = tx.Inputs
+	t.Outputs = tx.Outputs
+	t.Scripts = tx.Scripts
+	t.SystemFee = tx.SystemFee
+	t.NetworkFee = tx.NetworkFee
+	sender, err := address.StringToUint160(tx.Sender)
+	if err != nil {
+		return errors.New("cannot unmarshal tx: bad sender")
+	}
+	t.Sender = sender
+	switch tx.Type {
+	case ClaimType:
+		t.Data = &ClaimTX{
+			Claims: tx.Claims,
+		}
+	case InvocationType:
+		bytes, err := hex.DecodeString(tx.Script)
+		if err != nil {
+			return err
+		}
+		t.Data = &InvocationTX{
+			Script:  bytes,
+			Gas:     tx.Gas,
+			Version: tx.Version,
+		}
+	case RegisterType:
+		admin, err := address.StringToUint160(tx.Asset.Admin)
+		if err != nil {
+			return err
+		}
+		t.Data = &RegisterTX{
+			AssetType: tx.Asset.AssetType,
+			Name:      string(tx.Asset.Name),
+			Amount:    tx.Asset.Amount,
+			Precision: tx.Asset.Precision,
+			Owner:     tx.Asset.Owner,
+			Admin:     admin,
+		}
+	case ContractType:
+		t.Data = &ContractTX{}
+	case IssueType:
+		t.Data = &IssueTX{}
+	}
+	if t.Hash() != tx.TxID {
+		return errors.New("txid doesn't match transaction hash")
+	}
+
+	return nil
 }

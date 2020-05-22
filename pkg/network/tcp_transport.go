@@ -5,20 +5,24 @@ import (
 	"regexp"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // TCPTransport allows network communication over TCP.
 type TCPTransport struct {
+	log      *zap.Logger
 	server   *Server
 	listener net.Listener
 	bindAddr string
 }
 
-// NewTCPTransport return a new TCPTransport that will listen for
+var reClosedNetwork = regexp.MustCompile(".* use of closed network connection")
+
+// NewTCPTransport returns a new TCPTransport that will listen for
 // new incoming peer connections.
-func NewTCPTransport(s *Server, bindAddr string) *TCPTransport {
+func NewTCPTransport(s *Server, bindAddr string, log *zap.Logger) *TCPTransport {
 	return &TCPTransport{
+		log:      log,
 		server:   s,
 		bindAddr: bindAddr,
 	}
@@ -30,7 +34,8 @@ func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	go t.handleConn(conn)
+	p := NewTCPPeer(conn, t.server)
+	go p.handleConn()
 	return nil
 }
 
@@ -38,7 +43,7 @@ func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
 func (t *TCPTransport) Accept() {
 	l, err := net.Listen("tcp", t.bindAddr)
 	if err != nil {
-		log.Fatalf("TCP listen error %s", err)
+		t.log.Panic("TCP listen error", zap.Error(err))
 		return
 	}
 
@@ -47,24 +52,20 @@ func (t *TCPTransport) Accept() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Warnf("TCP accept error: %s", err)
+			t.log.Warn("TCP accept error", zap.Error(err))
 			if t.isCloseError(err) {
 				break
 			}
 			continue
 		}
-		go t.handleConn(conn)
+		p := NewTCPPeer(conn, t.server)
+		go p.handleConn()
 	}
 }
 
 func (t *TCPTransport) isCloseError(err error) bool {
-	regex, err := regexp.Compile(".* use of closed network connection")
-	if err != nil {
-		return false
-	}
-
 	if opErr, ok := err.(*net.OpError); ok {
-		if regex.Match([]byte(opErr.Error())) {
+		if reClosedNetwork.Match([]byte(opErr.Error())) {
 			return true
 		}
 	}
@@ -72,32 +73,11 @@ func (t *TCPTransport) isCloseError(err error) bool {
 	return false
 }
 
-func (t *TCPTransport) handleConn(conn net.Conn) {
-	var (
-		p   = NewTCPPeer(conn)
-		err error
-	)
-
-	defer func() {
-		p.Disconnect(err)
-	}()
-
-	t.server.register <- p
-
-	for {
-		msg := &Message{}
-		if err = msg.Decode(p.conn); err != nil {
-			return
-		}
-		if err = t.server.handleMessage(p, msg); err != nil {
-			return
-		}
-	}
-}
-
 // Close implements the Transporter interface.
 func (t *TCPTransport) Close() {
-	t.listener.Close()
+	if t.listener != nil {
+		t.listener.Close()
+	}
 }
 
 // Proto implements the Transporter interface.

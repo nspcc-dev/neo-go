@@ -2,8 +2,13 @@ package wallet
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 const (
@@ -11,26 +16,32 @@ const (
 	walletVersion = "1.0"
 )
 
-// Wallet respresents a NEO (NEP-2, NEP-6) compliant wallet.
+// Wallet represents a NEO (NEP-2, NEP-6) compliant wallet.
 type Wallet struct {
 	// Version of the wallet, used for later upgrades.
 	Version string `json:"version"`
 
-	// A list of accounts which decribes the details of each account
+	// A list of accounts which describes the details of each account
 	// in the wallet.
 	Accounts []*Account `json:"accounts"`
 
-	Scrypt scryptParams `json:"scrypt"`
+	Scrypt keys.ScryptParams `json:"scrypt"`
 
-	// Extra metadata can be used for storing abritrary data.
+	// Extra metadata can be used for storing arbitrary data.
 	// This field can be empty.
-	Extra interface{} `json:"extra"`
+	Extra Extra `json:"extra"`
 
 	// Path where the wallet file is located..
 	path string
 
 	// ReadWriter for reading and writing wallet data.
 	rw io.ReadWriter
+}
+
+// Extra stores imported token contracts.
+type Extra struct {
+	// Tokens is a list of imported token contracts.
+	Tokens []*Token
 }
 
 // NewWallet creates a new NEO wallet at the given location.
@@ -66,13 +77,13 @@ func newWallet(rw io.ReadWriter) *Wallet {
 	return &Wallet{
 		Version:  walletVersion,
 		Accounts: []*Account{},
-		Scrypt:   newScryptParams(),
+		Scrypt:   keys.NEP2ScryptParams(),
 		rw:       rw,
 		path:     path,
 	}
 }
 
-// CreatAccount generates a new account for the end user and ecrypts
+// CreateAccount generates a new account for the end user and encrypts
 // the private key with the given passphrase.
 func (w *Wallet) CreateAccount(name, passphrase string) error {
 	acc, err := NewAccount()
@@ -92,6 +103,36 @@ func (w *Wallet) AddAccount(acc *Account) {
 	w.Accounts = append(w.Accounts, acc)
 }
 
+// RemoveAccount removes an Account with the specified addr
+// from the wallet.
+func (w *Wallet) RemoveAccount(addr string) error {
+	for i, acc := range w.Accounts {
+		if acc.Address == addr {
+			copy(w.Accounts[i:], w.Accounts[i+1:])
+			w.Accounts = w.Accounts[:len(w.Accounts)-1]
+			return nil
+		}
+	}
+	return errors.New("account wasn't found")
+}
+
+// AddToken adds new token to a wallet.
+func (w *Wallet) AddToken(tok *Token) {
+	w.Extra.Tokens = append(w.Extra.Tokens, tok)
+}
+
+// RemoveToken removes token with the specified hash from the wallet.
+func (w *Wallet) RemoveToken(h util.Uint160) error {
+	for i, tok := range w.Extra.Tokens {
+		if tok.Hash.Equals(h) {
+			copy(w.Extra.Tokens[i:], w.Extra.Tokens[i+1:])
+			w.Extra.Tokens = w.Extra.Tokens[:len(w.Extra.Tokens)-1]
+			return nil
+		}
+	}
+	return errors.New("token wasn't found")
+}
+
 // Path returns the location of the wallet on the filesystem.
 func (w *Wallet) Path() string {
 	return w.path
@@ -101,7 +142,29 @@ func (w *Wallet) Path() string {
 // that is responsible for saving the data. This can
 // be a buffer, file, etc..
 func (w *Wallet) Save() error {
+	if err := w.rewind(); err != nil {
+		return err
+	}
 	return json.NewEncoder(w.rw).Encode(w)
+}
+
+// savePretty saves wallet in a beautiful JSON.
+func (w *Wallet) savePretty() error {
+	if err := w.rewind(); err != nil {
+		return err
+	}
+	enc := json.NewEncoder(w.rw)
+	enc.SetIndent("", "  ")
+	return enc.Encode(w)
+}
+
+func (w *Wallet) rewind() error {
+	if s, ok := w.rw.(io.Seeker); ok {
+		if _, err := s.Seek(0, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // JSON outputs a pretty JSON representation of the wallet.
@@ -114,4 +177,36 @@ func (w *Wallet) Close() {
 	if rc, ok := w.rw.(io.ReadCloser); ok {
 		rc.Close()
 	}
+}
+
+// GetAccount returns account corresponding to the provided scripthash.
+func (w *Wallet) GetAccount(h util.Uint160) *Account {
+	for _, acc := range w.Accounts {
+		if c := acc.Contract; c != nil && h.Equals(c.ScriptHash()) {
+			return acc
+		}
+	}
+
+	return nil
+}
+
+// GetChangeAddress returns the default address to send transaction's change to.
+func (w *Wallet) GetChangeAddress() util.Uint160 {
+	var res util.Uint160
+	var acc *Account
+
+	for i := range w.Accounts {
+		if acc == nil || w.Accounts[i].Default {
+			if w.Accounts[i].Contract != nil && vm.IsSignatureContract(w.Accounts[i].Contract.Script) {
+				acc = w.Accounts[i]
+				if w.Accounts[i].Default {
+					break
+				}
+			}
+		}
+	}
+	if acc != nil {
+		res = acc.Contract.ScriptHash()
+	}
+	return res
 }

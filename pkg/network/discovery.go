@@ -1,35 +1,43 @@
 package network
 
 import (
+	"sync"
 	"time"
 )
 
 const (
 	maxPoolSize = 200
+	connRetries = 3
 )
 
 // Discoverer is an interface that is responsible for maintaining
-// a healty connection pool.
+// a healthy connection pool.
 type Discoverer interface {
 	BackFill(...string)
+	Close()
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
+	RegisterGoodAddr(string)
+	RegisterConnectedAddr(string)
+	UnregisterConnectedAddr(string)
 	UnconnectedPeers() []string
 	BadPeers() []string
+	GoodPeers() []string
 }
 
 // DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
 	transport        Transporter
+	lock             sync.RWMutex
+	closeMtx         sync.RWMutex
 	dialTimeout      time.Duration
-	addrs            map[string]bool
 	badAddrs         map[string]bool
-	unconnectedAddrs map[string]bool
+	connectedAddrs   map[string]bool
+	goodAddrs        map[string]bool
+	unconnectedAddrs map[string]int
+	isDead           bool
 	requestCh        chan int
-	connectedCh      chan string
-	backFill         chan string
-	badAddrCh        chan string
 	pool             chan string
 }
 
@@ -38,13 +46,11 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 	d := &DefaultDiscovery{
 		transport:        ts,
 		dialTimeout:      dt,
-		addrs:            make(map[string]bool),
 		badAddrs:         make(map[string]bool),
-		unconnectedAddrs: make(map[string]bool),
+		connectedAddrs:   make(map[string]bool),
+		goodAddrs:        make(map[string]bool),
+		unconnectedAddrs: make(map[string]int),
 		requestCh:        make(chan int),
-		connectedCh:      make(chan string),
-		backFill:         make(chan string),
-		badAddrCh:        make(chan string),
 		pool:             make(chan string, maxPoolSize),
 	}
 	go d.run()
@@ -54,12 +60,16 @@ func NewDefaultDiscovery(dt time.Duration, ts Transporter) *DefaultDiscovery {
 // BackFill implements the Discoverer interface and will backfill the
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
-	if len(d.pool) == maxPoolSize {
-		return
-	}
+	d.lock.Lock()
 	for _, addr := range addrs {
-		d.backFill <- addr
+		if d.badAddrs[addr] || d.connectedAddrs[addr] ||
+			d.unconnectedAddrs[addr] > 0 {
+			continue
+		}
+		d.unconnectedAddrs[addr] = connRetries
+		d.pushToPoolOrDrop(addr)
 	}
+	d.lock.Unlock()
 }
 
 // PoolCount returns the number of available node addresses.
@@ -67,86 +77,144 @@ func (d *DefaultDiscovery) PoolCount() int {
 	return len(d.pool)
 }
 
-// RequestRemote will try to establish a connection with n nodes.
+// pushToPoolOrDrop tries to push address given into the pool, but if the pool
+// is already full, it just drops it
+func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
+	select {
+	case d.pool <- addr:
+		updatePoolCountMetric(d.PoolCount())
+		// ok, queued
+	default:
+		// whatever
+	}
+}
+
+// RequestRemote tries to establish a connection with n nodes.
 func (d *DefaultDiscovery) RequestRemote(n int) {
-	d.requestCh <- n
+	d.closeMtx.RLock()
+	if !d.isDead {
+		d.requestCh <- n
+	}
+	d.closeMtx.RUnlock()
 }
 
 // RegisterBadAddr registers the given address as a bad address.
 func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
-	d.badAddrCh <- addr
-	d.RequestRemote(1)
+	d.lock.Lock()
+	d.unconnectedAddrs[addr]--
+	if d.unconnectedAddrs[addr] > 0 {
+		d.pushToPoolOrDrop(addr)
+	} else {
+		d.badAddrs[addr] = true
+		delete(d.unconnectedAddrs, addr)
+	}
+	d.lock.Unlock()
 }
 
 // UnconnectedPeers returns all addresses of unconnected addrs.
 func (d *DefaultDiscovery) UnconnectedPeers() []string {
-	var addrs []string
+	d.lock.RLock()
+	addrs := make([]string, 0, len(d.unconnectedAddrs))
 	for addr := range d.unconnectedAddrs {
 		addrs = append(addrs, addr)
 	}
+	d.lock.RUnlock()
 	return addrs
 }
 
 // BadPeers returns all addresses of bad addrs.
 func (d *DefaultDiscovery) BadPeers() []string {
-	var addrs []string
+	d.lock.RLock()
+	addrs := make([]string, 0, len(d.badAddrs))
 	for addr := range d.badAddrs {
 		addrs = append(addrs, addr)
 	}
+	d.lock.RUnlock()
 	return addrs
 }
 
-func (d *DefaultDiscovery) work(addrCh chan string) {
-	for {
-		addr := <-addrCh
-		if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
-			d.badAddrCh <- addr
-		} else {
-			d.connectedCh <- addr
-		}
+// GoodPeers returns all addresses of known good peers (that at least once
+// succeeded handshaking with us).
+func (d *DefaultDiscovery) GoodPeers() []string {
+	d.lock.RLock()
+	addrs := make([]string, 0, len(d.goodAddrs))
+	for addr := range d.goodAddrs {
+		addrs = append(addrs, addr)
+	}
+	d.lock.RUnlock()
+	return addrs
+}
+
+// RegisterGoodAddr registers good known connected address that passed
+// handshake successfully.
+func (d *DefaultDiscovery) RegisterGoodAddr(s string) {
+	d.lock.Lock()
+	d.goodAddrs[s] = true
+	d.lock.Unlock()
+}
+
+// UnregisterConnectedAddr tells discoverer that this address is no longer
+// connected, but it still is considered as good one.
+func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
+	d.lock.Lock()
+	delete(d.connectedAddrs, s)
+	d.lock.Unlock()
+}
+
+// RegisterConnectedAddr tells discoverer that given address is now connected.
+func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
+	d.lock.Lock()
+	delete(d.unconnectedAddrs, addr)
+	d.connectedAddrs[addr] = true
+	d.lock.Unlock()
+}
+
+func (d *DefaultDiscovery) tryAddress(addr string) {
+	if err := d.transport.Dial(addr, d.dialTimeout); err != nil {
+		d.RegisterBadAddr(addr)
+		d.RequestRemote(1)
+	} else {
+		d.RegisterConnectedAddr(addr)
 	}
 }
 
-func (d *DefaultDiscovery) next() string {
-	return <-d.pool
+// Close stops discoverer pool processing making discoverer almost useless.
+func (d *DefaultDiscovery) Close() {
+	d.closeMtx.Lock()
+	d.isDead = true
+	d.closeMtx.Unlock()
+	select {
+	case <-d.requestCh: // Drain the channel if there is anything there.
+	default:
+	}
+	close(d.requestCh)
 }
 
+// run is a goroutine that makes DefaultDiscovery process its queue to connect
+// to other nodes.
 func (d *DefaultDiscovery) run() {
-	var (
-		maxWorkers = 5
-		workCh     = make(chan string)
-	)
-
-	for i := 0; i < maxWorkers; i++ {
-		go d.work(workCh)
-	}
+	var requested, r int
+	var ok bool
 
 	for {
-		select {
-		case addr := <-d.backFill:
-			if _, ok := d.badAddrs[addr]; ok {
-				break
-			}
-			if _, ok := d.addrs[addr]; !ok {
-				d.addrs[addr] = true
-				d.unconnectedAddrs[addr] = true
-				d.pool <- addr
-			}
-		case n := <-d.requestCh:
-			go func() {
-				for i := 0; i < n; i++ {
-					workCh <- d.next()
+		for requested, ok = <-d.requestCh; ok && requested > 0; requested-- {
+			select {
+			case r, ok = <-d.requestCh:
+				if requested <= r {
+					requested = r + 1
 				}
-			}()
-		case addr := <-d.badAddrCh:
-			d.badAddrs[addr] = true
-			delete(d.unconnectedAddrs, addr)
-			go func() {
-				workCh <- d.next()
-			}()
-
-		case addr := <-d.connectedCh:
-			delete(d.unconnectedAddrs, addr)
+			case addr := <-d.pool:
+				d.lock.RLock()
+				addrIsConnected := d.connectedAddrs[addr]
+				d.lock.RUnlock()
+				updatePoolCountMetric(d.PoolCount())
+				if !addrIsConnected {
+					go d.tryAddress(addr)
+				}
+			}
+		}
+		if !ok {
+			return
 		}
 	}
 }

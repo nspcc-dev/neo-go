@@ -4,74 +4,93 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUint256UnmarshalJSON(t *testing.T) {
 	str := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
-	expected, err := Uint256DecodeString(str)
-	if err != nil {
-		t.Fatal(err)
-	}
+	expected, err := Uint256DecodeStringLE(str)
+	require.NoError(t, err)
 
-	// UnmarshalJSON should decode hex-strings
+	// UnmarshalJSON decodes hex-strings
 	var u1, u2 Uint256
 
-	if err = u1.UnmarshalJSON([]byte(`"` + str + `"`)); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, u1.UnmarshalJSON([]byte(`"`+str+`"`)))
 	assert.True(t, expected.Equals(u1))
 
-	s, err := expected.MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
+	testserdes.MarshalUnmarshalJSON(t, &expected, &u2)
 
-	// UnmarshalJSON should decode hex-strings prefixed by 0x
-	if err = u2.UnmarshalJSON(s); err != nil {
-		t.Fatal(err)
-	}
-	assert.True(t, expected.Equals(u1))
+	// UnmarshalJSON does not accepts numbers
+	assert.Error(t, u2.UnmarshalJSON([]byte("123")))
 }
 
 func TestUint256DecodeString(t *testing.T) {
 	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
-	val, err := Uint256DecodeString(hexStr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, hexStr, val.String())
+	val, err := Uint256DecodeStringLE(hexStr)
+	require.NoError(t, err)
+	assert.Equal(t, hexStr, val.StringLE())
+
+	valBE, err := Uint256DecodeStringBE(hexStr)
+	require.NoError(t, err)
+	assert.Equal(t, val, valBE.Reverse())
+
+	bs, err := hex.DecodeString(hexStr)
+	require.NoError(t, err)
+
+	val1, err := Uint256DecodeBytesBE(bs)
+	assert.NoError(t, err)
+	assert.Equal(t, hexStr, val1.String())
+	assert.Equal(t, val, val1.Reverse())
+
+	_, err = Uint256DecodeStringLE(hexStr[1:])
+	assert.Error(t, err)
+
+	_, err = Uint256DecodeStringBE(hexStr[1:])
+	assert.Error(t, err)
+
+	hexStr = "zzz7308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	_, err = Uint256DecodeStringLE(hexStr)
+	assert.Error(t, err)
+
+	_, err = Uint256DecodeStringBE(hexStr)
+	assert.Error(t, err)
 }
 
 func TestUint256DecodeBytes(t *testing.T) {
 	hexStr := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
 	b, err := hex.DecodeString(hexStr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	val, err := Uint256DecodeBytes(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, hexStr, val.String())
+	require.NoError(t, err)
+
+	val, err := Uint256DecodeBytesLE(b)
+	require.NoError(t, err)
+	assert.Equal(t, hexStr, val.StringLE())
+
+	_, err = Uint256DecodeBytesBE(b[1:])
+	assert.Error(t, err)
 }
 
 func TestUInt256Equals(t *testing.T) {
 	a := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
 	b := "e287c5b29a1b66092be6803c59c765308ac20287e1b4977fd399da5fc8f66ab5"
 
-	ua, err := Uint256DecodeString(a)
-	if err != nil {
-		t.Fatal(err)
+	ua, err := Uint256DecodeStringLE(a)
+	require.NoError(t, err)
+
+	ub, err := Uint256DecodeStringLE(b)
+	require.NoError(t, err)
+	assert.False(t, ua.Equals(ub), "%s and %s cannot be equal", ua, ub)
+	assert.True(t, ua.Equals(ua), "%s and %s must be equal", ua, ua)
+	assert.Zero(t, ua.CompareTo(ua), "%s and %s must be equal", ua, ua)
+}
+
+func TestUint256_Serializable(t *testing.T) {
+	a := Uint256{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
-	ub, err := Uint256DecodeString(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ua.Equals(ub) {
-		t.Fatalf("%s and %s cannot be equal", ua, ub)
-	}
-	if !ua.Equals(ua) {
-		t.Fatalf("%s and %s must be equal", ua, ua)
-	}
+
+	var b Uint256
+	testserdes.EncodeDecodeBinary(t, &a, &b)
 }

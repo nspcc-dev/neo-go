@@ -1,47 +1,46 @@
 <p align="center">
-<img
-    src="http://res.cloudinary.com/vidsy/image/upload/v1503160820/CoZ_Icon_DARKBLUE_200x178px_oq0gxm.png"
-    width="125px"
-  >
+<img src="./.github/neo_color_dark_gopher.png" width="300px" alt="logo">
 </p>
-
-<h1 align="center">neo-go</h1>
-
 <p align="center">
   <b>Go</b> Node and SDK for the <a href="https://neo.org">NEO</a> blockchain.
 </p>
 
-<p align="center">
-  <a href="https://github.com/CityOfZion/neo-go/releases">
-    <img src="https://img.shields.io/github/tag/CityOfZion/neo-go.svg?style=flat">
-  </a>
-  <a href="https://circleci.com/gh/CityOfZion/neo-go/tree/master">
-    <img src="https://circleci.com/gh/CityOfZion/neo-go/tree/master.svg?style=shield">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/CityOfZion/neo-go">
-    <img src="https://goreportcard.com/badge/github.com/CityOfZion/neo-go">
-  </a>
-</p>
+<hr />
+
+[![codecov](https://codecov.io/gh/nspcc-dev/neo-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-go)
+[![CircleCI](https://circleci.com/gh/nspcc-dev/neo-go/tree/master.svg?style=svg)](https://circleci.com/gh/nspcc-dev/neo-go/tree/master)
+[![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neo-go)](https://goreportcard.com/report/github.com/nspcc-dev/neo-go)
+[![GoDoc](https://godoc.org/github.com/nspcc-dev/neo-go?status.svg)](https://godoc.org/github.com/nspcc-dev/neo-go)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nspcc-dev/neo-go?sort=semver)
+![License](https://img.shields.io/github/license/nspcc-dev/neo-go.svg?style=popout)
 
 # Overview
 
-This project aims to be a full port of the original C# [NEO project](https://github.com/neo-project).
+This project aims to be a full port of the original C# [Neo project](https://github.com/neo-project).
 A complete toolkit for the NEO blockchain, including:
 
-- consensus node
-- [RPC node & client](https://github.com/CityOfZion/neo-go/tree/master/pkg/rpc/README.md)
-- RPC client
-- CLI tool
-- Smart contract compiler
-- NEO virtual machine
+- [Consensus node](docs/consensus.md)
+- [RPC node & client](docs/rpc.md)
+- [CLI tool](docs/cli.md)
+- [Smart contract compiler](docs/compiler.md)
+- [NEO virtual machine](docs/vm.md)
+
+This branch (**master**) is under active development now (read: won't work
+out of the box) and aims to be compatible with Neo 3. For the current stable
+version compatible with Neo 2 please refer to the [**master-2.x**
+branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
+before 0.80.0 (**0.7X.Y** track). Releases starting from 0.90.0 will contain
+Neo 3 code.
 
 # Getting started
 
 ## Installation
 
+Go: 1.12+
+
 Install dependencies.
 
-`neo-go` uses [dep](https://github.com/golang/dep) as its dependency manager. After installing `deps` you can run:
+`neo-go` uses [GoModules](https://github.com/golang/go/wiki/Modules) as dependency manager:
 
 ```
 make deps
@@ -79,7 +78,7 @@ make run
 To run the binary directly:
 
 ```
-./bin/neo-go node -seed 127.0.0.1:20333,127.0.0.1:20334
+./bin/neo-go node
 ```
 
 By default the node will run on the `private network`, to change his:
@@ -93,56 +92,33 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-If you want in-depth customization for your node, there are `yaml` config files for each `network` available in the `config` directory. Those files are automaticly loaded, corresponding the provided `netmode` flag.
+#Developer notes
+Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
+[Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
 
-```yaml
-ProtocolConfiguration:
-  Magic: 56753
-  AddressVersion: 23
-  StandbyValidators:
-  - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
-  - 02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e
-  - 03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699
-  - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
-  SeedList:
-  - 127.0.0.1:20333
-  - 127.0.0.1:20334
-  - 127.0.0.1:20335
-  - 127.0.0.1:20336
-  SystemFee:
-    EnrollmentTransaction: 1000
-    IssueTransaction: 500
-    PublishTransaction: 500
-    RegisterTransaction: 10000
-
-ApplicationConfiguration:
-  DataDirectoryPath: "./chains/privnet"
-  RPCPort: 20332
-  NodePort: 20333
-  Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  MaxPeers: 50
+How to configure Prometheus or Pprof:
+In `config/protocol.*.yml` there is 
 ```
-
-## Writing smart contracts in Go
-Golang's development is been moved to a separate repository which you can find here [neo-storm](https://github.com/CityOfZion/neo-storm) 
+  Prometheus:
+    Enabled: true
+    Port: 2112
+```
+where you can switch on/off and define port. Prometheus is enabled and Pprof is disabled by default.
 
 # Contributing
 
 Feel free to contribute to this project after reading the
-[contributing guidelines](https://github.com/CityOfZion/neo-go/blob/master/CONTRIBUTING.md).
+[contributing guidelines](CONTRIBUTING.md).
 
 Before starting to work on a certain topic, create an new issue first,
-describing the feauture/topic you are going to implement.
+describing the feature/topic you are going to implement.
 
 # Contact
 
-- [@anthdm](https://github.com/anthdm) on Github
-- [@anthdm](https://twitter.com/anthdm) on Twitter
-- Reach out to me on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
-- Send me an email anthony@cityofzion.io
+- [@roman-khimov](https://github.com/roman-khimov) on GitHub
+- [@fyrchik](https://github.com/fyrchik) on Github
+- Reach out to us on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
 
-- Open-source [MIT](https://github.com/CityOfZion/neo-go/blob/master/LICENCE.md)
+- Open-source [MIT](LICENSE.md)

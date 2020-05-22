@@ -1,10 +1,13 @@
 package payload
 
 import (
-	"encoding/binary"
-	"io"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+)
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+// Maximum inventory hashes number is limited to 500.
+const (
+	MaxHashesCount = 500
 )
 
 // GetBlocks contains fields and methods to be shared with the
@@ -15,7 +18,7 @@ type GetBlocks struct {
 	HashStop util.Uint256
 }
 
-// NewGetBlocks return a pointer to a GetBlocks object.
+// NewGetBlocks returns a pointer to a GetBlocks object.
 func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
 	return &GetBlocks{
 		HashStart: start,
@@ -23,27 +26,14 @@ func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
 	}
 }
 
-// DecodeBinary implements the payload interface.
-func (p *GetBlocks) DecodeBinary(r io.Reader) error {
-	lenStart := util.ReadVarUint(r)
-	p.HashStart = make([]util.Uint256, lenStart)
-
-	if err := binary.Read(r, binary.LittleEndian, &p.HashStart); err != nil {
-		return err
-	}
-	return binary.Read(r, binary.LittleEndian, &p.HashStop)
+// DecodeBinary implements Serializable interface.
+func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
+	br.ReadArray(&p.HashStart)
+	br.ReadBytes(p.HashStop[:])
 }
 
-// EncodeBinary implements the payload interface.
-func (p *GetBlocks) EncodeBinary(w io.Writer) error {
-	if err := util.WriteVarUint(w, uint64(len(p.HashStart))); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, p.HashStart); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.LittleEndian, p.HashStop)
+// EncodeBinary implements Serializable interface.
+func (p *GetBlocks) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteArray(p.HashStart)
+	bw.WriteBytes(p.HashStop[:])
 }
-
-// Size implements the payload interface.
-func (p *GetBlocks) Size() uint32 { return 0 }

@@ -1,51 +1,38 @@
 package payload
 
 import (
-	"bytes"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeAddress(t *testing.T) {
 	var (
-		e    = util.NewEndpoint("127.0.0.1:2000")
-		addr = NewAddressAndTime(e, time.Now())
-		buf  = new(bytes.Buffer)
+		e, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:2000")
+		ts   = time.Now()
+		addr = NewAddressAndTime(e, ts)
 	)
 
-	if err := addr.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(t, ts.UTC().Unix(), int64(addr.Timestamp))
+	aatip := make(net.IP, 16)
+	copy(aatip, addr.IP[:])
+	assert.Equal(t, e.IP, aatip)
+	assert.Equal(t, e.Port, int(addr.Port))
 
-	addrDecode := &AddressAndTime{}
-	if err := addrDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, addr, addrDecode)
+	testserdes.EncodeDecodeBinary(t, addr, new(AddressAndTime))
 }
 
 func TestEncodeDecodeAddressList(t *testing.T) {
 	var lenList uint8 = 4
-	addrList := &AddressList{make([]*AddressAndTime, lenList)}
+	addrList := NewAddressList(int(lenList))
 	for i := 0; i < int(lenList); i++ {
-		e := util.NewEndpoint(fmt.Sprintf("127.0.0.1:200%d", i))
+		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:200%d", i))
 		addrList.Addrs[i] = NewAddressAndTime(e, time.Now())
 	}
 
-	buf := new(bytes.Buffer)
-	if err := addrList.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	addrListDecode := &AddressList{}
-	if err := addrListDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, addrList, addrListDecode)
+	testserdes.EncodeDecodeBinary(t, addrList, new(AddressList))
 }

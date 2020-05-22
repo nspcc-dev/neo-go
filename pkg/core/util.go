@@ -1,21 +1,38 @@
 package core
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
-	"github.com/CityOfZion/neo-go/config"
-	"github.com/CityOfZion/neo-go/pkg/core/storage"
-	"github.com/CityOfZion/neo-go/pkg/core/transaction"
-	"github.com/CityOfZion/neo-go/pkg/crypto"
-	"github.com/CityOfZion/neo-go/pkg/smartcontract"
-	"github.com/CityOfZion/neo-go/pkg/util"
-	"github.com/CityOfZion/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// Creates a genesis block based on the given configuration.
-func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
+var (
+	// governingTokenTX represents transaction that is used to create
+	// governing (NEO) token. It's a part of the genesis block.
+	governingTokenTX transaction.Transaction
+
+	// utilityTokenTX represents transaction that is used to create
+	// utility (GAS) token. It's a part of the genesis block. It's mostly
+	// useful for its hash that represents GAS asset ID.
+	utilityTokenTX transaction.Transaction
+
+	// ecdsaVerifyInteropPrice returns the price of Neo.Crypto.ECDsaVerify
+	// syscall to calculate NetworkFee for transaction
+	ecdsaVerifyInteropPrice = util.Fixed8(100000)
+)
+
+// createGenesisBlock creates a genesis block based on the given configuration.
+func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
 	validators, err := getValidators(cfg)
 	if err != nil {
 		return nil, err
@@ -26,21 +43,18 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 		return nil, err
 	}
 
-	base := BlockBase{
+	base := block.Base{
 		Version:       0,
 		PrevHash:      util.Uint256{},
-		Timestamp:     uint32(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
+		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()),
 		Index:         0,
-		ConsensusData: 2083236893,
 		NextConsensus: nextConsensus,
-		Script: &transaction.Witness{
+		Script: transaction.Witness{
 			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(vm.Opusht)},
+			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
 		},
 	}
 
-	governingTX := governingTokenTX()
-	utilityTX := utilityTokenTX()
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(
 		len(cfg.StandbyValidators)/2+1,
 		validators,
@@ -48,103 +62,106 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	scriptOut, err := util.Uint160FromScript(rawScript)
-	if err != nil {
-		return nil, err
-	}
+	scriptOut := hash.Hash160(rawScript)
 
-	block := &Block{
-		BlockBase: base,
-		Transactions: []*transaction.Transaction{
-			{
-				Type: transaction.MinerType,
-				Data: &transaction.MinerTX{
-					Nonce: 2083236893,
-				},
-				Attributes: []*transaction.Attribute{},
-				Inputs:     []*transaction.Input{},
-				Outputs:    []*transaction.Output{},
-				Scripts:    []*transaction.Witness{},
-			},
-			governingTX,
-			utilityTX,
-			{
-				Type:   transaction.IssueType,
-				Data:   &transaction.IssueTX{}, // no fields.
-				Inputs: []*transaction.Input{},
-				Outputs: []*transaction.Output{
-					{
-						AssetID:    governingTX.Hash(),
-						Amount:     governingTX.Data.(*transaction.RegisterTX).Amount,
-						ScriptHash: scriptOut,
-					},
-				},
-				Scripts: []*transaction.Witness{
-					{
-						InvocationScript:   []byte{},
-						VerificationScript: []byte{byte(vm.Opusht)},
-					},
-				},
-			},
+	issueTx := transaction.NewIssueTX()
+	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
+	issueTx.Nonce = 0
+	issueTx.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
+	issueTx.Outputs = []transaction.Output{
+		{
+			AssetID:    governingTokenTX.Hash(),
+			Amount:     governingTokenTX.Data.(*transaction.RegisterTX).Amount,
+			ScriptHash: scriptOut,
+		},
+	}
+	issueTx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
 		},
 	}
 
-	if err = block.rebuildMerkleRoot(); err != nil {
+	b := &block.Block{
+		Base: base,
+		Transactions: []*transaction.Transaction{
+			&governingTokenTX,
+			&utilityTokenTX,
+			issueTx,
+			deployNativeContracts(),
+		},
+		ConsensusData: block.ConsensusData{
+			PrimaryIndex: 0,
+			Nonce:        2083236893,
+		},
+	}
+
+	if err = b.RebuildMerkleRoot(); err != nil {
 		return nil, err
 	}
 
-	return block, nil
+	return b, nil
 }
 
-func governingTokenTX() *transaction.Transaction {
-	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opusht)})
-	registerTX := &transaction.RegisterTX{
-		AssetType: transaction.GoverningToken,
-		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
-		Amount:    util.NewFixed8(100000000),
-		Precision: 0,
-		Owner:     &crypto.PublicKey{},
-		Admin:     admin,
+func deployNativeContracts() *transaction.Transaction {
+	buf := io.NewBufBinWriter()
+	emit.Syscall(buf.BinWriter, "Neo.Native.Deploy")
+	script := buf.Bytes()
+	tx := transaction.NewInvocationTX(script, 0)
+	tx.Nonce = 0
+	tx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	tx.Scripts = []transaction.Witness{
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: []byte{byte(opcode.PUSH1)},
+		},
 	}
-
-	tx := &transaction.Transaction{
-		Type:       transaction.RegisterType,
-		Data:       registerTX,
-		Attributes: []*transaction.Attribute{},
-		Inputs:     []*transaction.Input{},
-		Outputs:    []*transaction.Output{},
-		Scripts:    []*transaction.Witness{},
-	}
-
 	return tx
 }
 
-func utilityTokenTX() *transaction.Transaction {
-	admin, _ := util.Uint160FromScript([]byte{byte(vm.Opushf)})
+func init() {
+	admin := hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 	registerTX := &transaction.RegisterTX{
+		AssetType: transaction.GoverningToken,
+		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
+		Amount:    util.Fixed8FromInt64(100000000),
+		Precision: 0,
+		Admin:     admin,
+	}
+
+	governingTokenTX = *transaction.NewRegisterTX(registerTX)
+	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
+	governingTokenTX.Nonce = 0
+	governingTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
+
+	admin = hash.Hash160([]byte{0x00})
+	registerTX = &transaction.RegisterTX{
 		AssetType: transaction.UtilityToken,
 		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
 		Amount:    calculateUtilityAmount(),
 		Precision: 8,
-		Owner:     &crypto.PublicKey{},
 		Admin:     admin,
 	}
-	tx := &transaction.Transaction{
-		Type:       transaction.RegisterType,
-		Data:       registerTX,
-		Attributes: []*transaction.Attribute{},
-		Inputs:     []*transaction.Input{},
-		Outputs:    []*transaction.Output{},
-		Scripts:    []*transaction.Witness{},
-	}
-
-	return tx
+	utilityTokenTX = *transaction.NewRegisterTX(registerTX)
+	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
+	utilityTokenTX.Nonce = 0
+	utilityTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
 }
 
-func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error) {
-	validators := make([]*crypto.PublicKey, len(cfg.StandbyValidators))
+// GoverningTokenID returns the governing token (NEO) hash.
+func GoverningTokenID() util.Uint256 {
+	return governingTokenTX.Hash()
+}
+
+// UtilityTokenID returns the utility token (GAS) hash.
+func UtilityTokenID() util.Uint256 {
+	return utilityTokenTX.Hash()
+}
+
+func getValidators(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
+	validators := make([]*keys.PublicKey, len(cfg.StandbyValidators))
 	for i, pubKeyStr := range cfg.StandbyValidators {
-		pubKey, err := crypto.NewPublicKeyFromString(pubKeyStr)
+		pubKey, err := keys.NewPublicKeyFromString(pubKeyStr)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +170,7 @@ func getValidators(cfg config.ProtocolConfiguration) ([]*crypto.PublicKey, error
 	return validators, nil
 }
 
-func getNextConsensusAddress(validators []*crypto.PublicKey) (val util.Uint160, err error) {
+func getNextConsensusAddress(validators []*keys.PublicKey) (val util.Uint160, err error) {
 	vlen := len(validators)
 	raw, err := smartcontract.CreateMultiSigRedeemScript(
 		vlen-(vlen-1)/3,
@@ -162,7 +179,7 @@ func getNextConsensusAddress(validators []*crypto.PublicKey) (val util.Uint160, 
 	if err != nil {
 		return val, err
 	}
-	return util.Uint160FromScript(raw)
+	return hash.Hash160(raw), nil
 }
 
 func calculateUtilityAmount() util.Fixed8 {
@@ -170,58 +187,42 @@ func calculateUtilityAmount() util.Fixed8 {
 	for i := 0; i < len(genAmount); i++ {
 		sum += genAmount[i]
 	}
-	return util.NewFixed8(sum * decrementInterval)
+	return util.Fixed8FromInt64(int64(sum * decrementInterval))
 }
 
 // headerSliceReverse reverses the given slice of *Header.
-func headerSliceReverse(dest []*Header) {
+func headerSliceReverse(dest []*block.Header) {
 	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
 		dest[i], dest[j] = dest[j], dest[i]
 	}
 }
 
-// storeAsCurrentBlock stores the given block witch prefix
-// SYSCurrentBlock.
-func storeAsCurrentBlock(batch storage.Batch, block *Block) {
-	buf := new(bytes.Buffer)
-	buf.Write(block.Hash().BytesReverse())
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, block.Index)
-	buf.Write(b)
-	batch.Put(storage.SYSCurrentBlock.Bytes(), buf.Bytes())
-}
-
-// storeAsBlock stores the given block as DataBlock.
-func storeAsBlock(batch storage.Batch, block *Block, sysFee uint32) error {
+// CalculateNetworkFee returns network fee for transaction
+func CalculateNetworkFee(script []byte) (util.Fixed8, int) {
 	var (
-		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesReverse())
-		buf = new(bytes.Buffer)
+		netFee util.Fixed8
+		size   int
 	)
-
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, sysFee)
-
-	b, err := block.Trim()
-	if err != nil {
-		return err
+	if vm.IsSignatureContract(script) {
+		size += 67 + io.GetVarSize(script)
+		netFee = netFee.Add(opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL).Add(ecdsaVerifyInteropPrice))
+	} else if n, pubs, ok := vm.ParseMultiSigContract(script); ok {
+		m := len(pubs)
+		sizeInv := 66 * m
+		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
+		netFee = netFee.Add(calculateMultisigFee(m)).Add(calculateMultisigFee(n))
+		netFee = netFee.Add(opcodePrice(opcode.PUSHNULL)).Add(util.Fixed8(int64(ecdsaVerifyInteropPrice) * int64(n)))
+	} else {
+		// We can support more contract types in the future.
 	}
-	buf.Write(b)
-	batch.Put(key, buf.Bytes())
-	return nil
+	return netFee, size
 }
 
-// storeAsTransaction stores the given TX as DataTransaction.
-func storeAsTransaction(batch storage.Batch, tx *transaction.Transaction, index uint32) error {
-	key := storage.AppendPrefix(storage.DataTransaction, tx.Hash().BytesReverse())
-	buf := new(bytes.Buffer)
-	if err := tx.EncodeBinary(buf); err != nil {
-		return err
-	}
-
-	dest := make([]byte, buf.Len()+4)
-	binary.LittleEndian.PutUint32(dest[:4], index)
-	copy(dest[4:], buf.Bytes())
-	batch.Put(key, dest)
-
-	return nil
+func calculateMultisigFee(n int) util.Fixed8 {
+	result := util.Fixed8(int64(opcodePrice(opcode.PUSHDATA1)) * int64(n))
+	bw := io.NewBufBinWriter()
+	emit.Int(bw.BinWriter, int64(n))
+	// it's a hack because prices of small PUSH* opcodes are equal
+	result = result.Add(opcodePrice(opcode.Opcode(bw.Bytes()[0])))
+	return result
 }

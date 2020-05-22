@@ -1,39 +1,35 @@
 package payload
 
 import (
-	"encoding/binary"
-	"io"
-
-	"github.com/CityOfZion/neo-go/pkg/core"
-	"github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+// MerkleBlock represents a merkle block packet payload.
 type MerkleBlock struct {
-	*core.BlockBase
+	*block.Base
 	TxCount int
 	Hashes  []util.Uint256
 	Flags   []byte
 }
 
-func (m *MerkleBlock) DecodeBinary(r io.Reader) error {
-	m.BlockBase = &core.BlockBase{}
-	if err := m.BlockBase.DecodeBinary(r); err != nil {
-		return err
-	}
+// DecodeBinary implements Serializable interface.
+func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
+	m.Base = &block.Base{}
+	m.Base.DecodeBinary(br)
 
-	m.TxCount = int(util.ReadVarUint(r))
-	n := util.ReadVarUint(r)
-	m.Hashes = make([]util.Uint256, n)
-	for i := 0; i < len(m.Hashes); i++ {
-		if err := binary.Read(r, binary.LittleEndian, &m.Hashes[i]); err != nil {
-			return err
-		}
-	}
-	var err error
-	m.Flags, err = util.ReadVarBytes(r)
-	return err
+	m.TxCount = int(br.ReadVarUint())
+	br.ReadArray(&m.Hashes)
+	m.Flags = br.ReadVarBytes()
 }
 
-func (m *MerkleBlock) EncodeBinary(w io.Writer) error {
-	return nil
+// EncodeBinary implements Serializable interface.
+func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
+	m.Base = &block.Base{}
+	m.Base.EncodeBinary(bw)
+
+	bw.WriteVarUint(uint64(m.TxCount))
+	bw.WriteArray(m.Hashes)
+	bw.WriteVarBytes(m.Flags)
 }

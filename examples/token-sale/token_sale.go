@@ -1,9 +1,9 @@
 package tokensale
 
 import (
-	"github.com/CityOfZion/neo-go/pkg/vm/api/runtime"
-	"github.com/CityOfZion/neo-go/pkg/vm/api/storage"
-	"github.com/CityOfZion/neo-go/pkg/vm/api/util"
+	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 const (
@@ -17,7 +17,7 @@ var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg")
 type TokenConfig struct {
 	// Name of the token.
 	Name string
-	// 3 letter abreviation of the token.
+	// 3 letter abbreviation of the token.
 	Symbol string
 	// How decimals this token will have.
 	Decimals int

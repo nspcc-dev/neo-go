@@ -1,32 +1,29 @@
 package payload
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"reflect"
 	"testing"
 
-	. "github.com/CityOfZion/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	. "github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInventoryEncodeDecode(t *testing.T) {
 	hashes := []Uint256{
-		sha256.Sum256([]byte("a")),
-		sha256.Sum256([]byte("b")),
+		hash.Sha256([]byte("a")),
+		hash.Sha256([]byte("b")),
 	}
 	inv := NewInventory(BlockType, hashes)
 
-	buf := new(bytes.Buffer)
-	if err := inv.EncodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+	testserdes.EncodeDecodeBinary(t, inv, new(Inventory))
+}
 
-	invDecode := &Inventory{}
-	if err := invDecode.DecodeBinary(buf); err != nil {
-		t.Fatal(err)
-	}
+func TestEmptyInv(t *testing.T) {
+	msgInv := NewInventory(TXType, []Uint256{})
 
-	if !reflect.DeepEqual(inv, invDecode) {
-		t.Fatalf("expected both inventories to be equal %v and %v", inv, invDecode)
-	}
+	data, err := testserdes.EncodeBinary(msgInv)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{byte(TXType), 0}, data)
+	assert.Equal(t, 0, len(msgInv.Hashes))
 }
