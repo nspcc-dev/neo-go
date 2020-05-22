@@ -225,7 +225,9 @@ func (i *StructItem) Convert(typ StackItemType) (StackItem, error) {
 	case StructT:
 		return i, nil
 	case ArrayT:
-		return NewArrayItem(i.value), nil
+		arr := make([]StackItem, len(i.value))
+		copy(arr, i.value)
+		return NewArrayItem(arr), nil
 	case BooleanT:
 		return NewBoolItem(i.Bool()), nil
 	default:
@@ -641,7 +643,9 @@ func (i *ArrayItem) Convert(typ StackItemType) (StackItem, error) {
 	case ArrayT:
 		return i, nil
 	case StructT:
-		return NewStructItem(i.value), nil
+		arr := make([]StackItem, len(i.value))
+		copy(arr, i.value)
+		return NewStructItem(arr), nil
 	case BooleanT:
 		return NewBoolItem(i.Bool()), nil
 	default:

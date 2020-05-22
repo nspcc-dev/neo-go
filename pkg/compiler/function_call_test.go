@@ -39,7 +39,7 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 	// disable stack checks because it is hard right now
 	// to distinguish between simple function call traversal
 	// and the same traversal inside an assignment.
-	evalWithoutStackChecks(t, src, []byte{})
+	evalWithoutStackChecks(t, src, big.NewInt(0))
 }
 
 func TestMultipleFunctionCalls(t *testing.T) {

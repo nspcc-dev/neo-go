@@ -276,7 +276,7 @@ func TestIfUnaryInvert(t *testing.T) {
 			return 0
 		}
 	`
-	eval(t, src, []byte{})
+	eval(t, src, big.NewInt(0))
 }
 
 func TestAppendByte(t *testing.T) {

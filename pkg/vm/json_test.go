@@ -11,6 +11,8 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,12 +39,12 @@ type (
 	vmUTExecutionContextState struct {
 		Instruction        string          `json:"nextInstruction"`
 		InstructionPointer int             `json:"instructionPointer"`
-		AStack             []vmUTStackItem `json:"altStack"`
 		EStack             []vmUTStackItem `json:"evaluationStack"`
+		StaticFields       []vmUTStackItem `json:"staticFields"`
 	}
 
 	vmUTExecutionEngineState struct {
-		State           vmUTState                   `json:"state"`
+		State           State                       `json:"state"`
 		ResultStack     []vmUTStackItem             `json:"resultStack"`
 		InvocationStack []vmUTExecutionContextState `json:"invocationStack"`
 	}
@@ -59,8 +61,6 @@ type (
 		Result  vmUTExecutionEngineState `json:"result"`
 	}
 
-	vmUTState State
-
 	vmUTStackItemType string
 )
 
@@ -73,25 +73,27 @@ type stackItemAUX struct {
 }
 
 const (
-	vmExecute  vmUTActionType = "Execute"
-	vmStepInto vmUTActionType = "StepInto"
-	vmStepOut  vmUTActionType = "StepOut"
-	vmStepOver vmUTActionType = "StepOver"
+	vmExecute  vmUTActionType = "execute"
+	vmStepInto vmUTActionType = "stepinto"
+	vmStepOut  vmUTActionType = "stepout"
+	vmStepOver vmUTActionType = "stepover"
 
-	typeArray     vmUTStackItemType = "Array"
-	typeBoolean   vmUTStackItemType = "Boolean"
-	typeByteArray vmUTStackItemType = "ByteArray"
-	typeInteger   vmUTStackItemType = "Integer"
-	typeInterop   vmUTStackItemType = "Interop"
-	typeMap       vmUTStackItemType = "Map"
-	typeString    vmUTStackItemType = "String"
-	typeStruct    vmUTStackItemType = "Struct"
+	typeArray      vmUTStackItemType = "array"
+	typeBoolean    vmUTStackItemType = "boolean"
+	typeBuffer     vmUTStackItemType = "buffer"
+	typeByteString vmUTStackItemType = "bytestring"
+	typeInteger    vmUTStackItemType = "integer"
+	typeInterop    vmUTStackItemType = "interop"
+	typeMap        vmUTStackItemType = "map"
+	typeNull       vmUTStackItemType = "null"
+	typePointer    vmUTStackItemType = "pointer"
+	typeString     vmUTStackItemType = "string"
+	typeStruct     vmUTStackItemType = "struct"
 
 	testsDir = "testdata/neo-vm/tests/neo-vm.Tests/Tests/"
 )
 
 func TestUT(t *testing.T) {
-	t.Skip()
 	testsRan := false
 	err := filepath.Walk(testsDir, func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(path, ".json") {
@@ -110,7 +112,7 @@ func TestUT(t *testing.T) {
 func getTestingInterop(id uint32) *InteropFuncPrice {
 	if id == binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}) {
 		return &InteropFuncPrice{InteropFunc(func(v *VM) error {
-			v.estack.Push(&Element{value: (*InteropItem)(nil)})
+			v.estack.PushVal(&InteropItem{new(int)})
 			return nil
 		}), 0}
 	}
@@ -121,12 +123,24 @@ func testFile(t *testing.T, filename string) {
 	data, err := ioutil.ReadFile(filename)
 	require.NoError(t, err)
 
+	// get rid of possible BOM
+	if len(data) > 2 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+		data = data[3:]
+	}
+	if strings.HasSuffix(filename, "MEMCPY.json") {
+		return // FIXME not a valid JSON https://github.com/neo-project/neo-vm/issues/322
+	}
+
 	ut := new(vmUT)
-	require.NoError(t, json.Unmarshal(data, ut))
+	require.NoErrorf(t, json.Unmarshal(data, ut), "file: %s", filename)
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
+		isRot := strings.HasSuffix(filename, "ROT.json")
 		for i := range ut.Tests {
 			test := ut.Tests[i]
+			if isRot && test.Name == "Without push" {
+				return // FIXME #927 single ROT is interpreted as PUSH1
+			}
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)
@@ -136,8 +150,8 @@ func testFile(t *testing.T, filename string) {
 				for i := range test.Steps {
 					execStep(t, vm, test.Steps[i])
 					result := test.Steps[i].Result
-					require.Equal(t, State(result.State), vm.state)
-					if result.State == vmUTState(faultState) { // do not compare stacks on fault
+					require.Equal(t, result.State, vm.state)
+					if result.State == faultState { // do not compare stacks on fault
 						continue
 					}
 
@@ -146,10 +160,12 @@ func testFile(t *testing.T, filename string) {
 							ctx := vm.istack.Peek(i).Value().(*Context)
 							if ctx.nextip < len(ctx.prog) {
 								require.Equal(t, s.InstructionPointer, ctx.nextip)
-								require.Equal(t, s.Instruction, opcode.Opcode(ctx.prog[ctx.nextip]).String())
+								op, err := opcode.FromString(s.Instruction)
+								require.NoError(t, err)
+								require.Equal(t, op, opcode.Opcode(ctx.prog[ctx.nextip]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
-							compareStacks(t, s.AStack, vm.astack)
+							compareSlots(t, s.StaticFields, vm.static)
 						}
 					}
 
@@ -180,31 +196,47 @@ func compareItems(t *testing.T, a, b StackItem) {
 		default:
 			require.Fail(t, "wrong type")
 		}
+	case *PointerItem:
+		p, ok := b.(*PointerItem)
+		require.True(t, ok)
+		require.Equal(t, si.pos, p.pos) // there no script in test files
 	default:
 		require.Equal(t, a, b)
 	}
 }
 
 func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
+	compareItemArrays(t, expected, actual.Len(), func(i int) StackItem { return actual.Peek(i).Item() })
+}
+
+func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
+	if actual == nil && len(expected) == 0 {
+		return
+	}
+	require.NotNil(t, actual)
+	compareItemArrays(t, expected, actual.Size(), actual.Get)
+}
+
+func compareItemArrays(t *testing.T, expected []vmUTStackItem, n int, getItem func(i int) StackItem) {
 	if expected == nil {
 		return
 	}
 
-	require.Equal(t, len(expected), actual.Len())
+	require.Equal(t, len(expected), n)
 	for i, item := range expected {
-		e := actual.Peek(i)
-		require.NotNil(t, e)
+		it := getItem(i)
+		require.NotNil(t, it)
 
 		if item.Type == typeInterop {
-			require.IsType(t, (*InteropItem)(nil), e.value)
+			require.IsType(t, (*InteropItem)(nil), it)
 			continue
 		}
-		compareItems(t, item.toStackItem(), e.value)
+		compareItems(t, item.toStackItem(), it)
 	}
 }
 
 func (v *vmUTStackItem) toStackItem() StackItem {
-	switch v.Type {
+	switch v.Type.toLower() {
 	case typeArray:
 		items := v.Value.([]vmUTStackItem)
 		result := make([]StackItem, len(items))
@@ -217,20 +249,19 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 	case typeString:
 		panic("not implemented")
 	case typeMap:
-		items := v.Value.(map[string]vmUTStackItem)
-		result := NewMapItem()
-		for k, v := range items {
-			var item vmUTStackItem
-			_ = json.Unmarshal([]byte(`"`+k+`"`), &item)
-			result.Add(item.toStackItem(), v.toStackItem())
-		}
-		return result
+		return v.Value.(*MapItem)
 	case typeInterop:
 		panic("not implemented")
-	case typeByteArray:
+	case typeByteString:
 		return &ByteArrayItem{
 			v.Value.([]byte),
 		}
+	case typeBuffer:
+		return &BufferItem{v.Value.([]byte)}
+	case typePointer:
+		return NewPointerItem(v.Value.(int), nil)
+	case typeNull:
+		return NullItem{}
 	case typeBoolean:
 		return &BoolItem{
 			v.Value.(bool),
@@ -249,14 +280,14 @@ func (v *vmUTStackItem) toStackItem() StackItem {
 			value: result,
 		}
 	default:
-		panic("invalid type")
+		panic(fmt.Sprintf("invalid type: %s", v.Type))
 	}
 }
 
 func execStep(t *testing.T, v *VM, step vmUTStep) {
 	for i, a := range step.Actions {
 		var err error
-		switch a {
+		switch a.toLower() {
 		case vmExecute:
 			err = v.Run()
 		case vmStepInto:
@@ -276,28 +307,63 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 	}
 }
 
-func (v *vmUTState) UnmarshalJSON(data []byte) error {
-	switch s := string(data); s {
-	case `"Break"`:
-		*v = vmUTState(breakState)
-	case `"Fault"`:
-		*v = vmUTState(faultState)
-	case `"Halt"`:
-		*v = vmUTState(haltState)
-	default:
-		panic(fmt.Sprintf("invalid state: %s", s))
+func jsonStringToInteger(s string) StackItem {
+	b, err := decodeHex(s)
+	if err == nil {
+		return NewBigIntegerItem(new(big.Int).SetBytes(b))
 	}
 	return nil
 }
 
+func (v vmUTStackItemType) toLower() vmUTStackItemType {
+	return vmUTStackItemType(strings.ToLower(string(v)))
+}
+
 func (v *vmUTScript) UnmarshalJSON(data []byte) error {
-	b, err := decodeBytes(data)
-	if err != nil {
+	var ops []string
+	if err := json.Unmarshal(data, &ops); err != nil {
 		return err
 	}
 
-	*v = vmUTScript(b)
+	var script []byte
+	for i := range ops {
+		if b, ok := decodeSingle(ops[i]); ok {
+			script = append(script, b...)
+		} else {
+			const regex = `(?P<hex>(?:0x)?[0-9a-zA-Z]+)\*(?P<num>[0-9]+)`
+			re := regexp.MustCompile(regex)
+			ss := re.FindStringSubmatch(ops[i])
+			if len(ss) != 3 {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			b, ok := decodeSingle(ss[1])
+			if !ok {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			num, err := strconv.Atoi(ss[2])
+			if err != nil {
+				return fmt.Errorf("invalid script part: %s", ops[i])
+			}
+			for i := 0; i < num; i++ {
+				script = append(script, b...)
+			}
+		}
+	}
+
+	*v = script
 	return nil
+}
+
+func decodeSingle(s string) ([]byte, bool) {
+	if op, err := opcode.FromString(s); err == nil {
+		return []byte{byte(op)}, true
+	}
+	b, err := decodeHex(s)
+	return b, err == nil
+}
+
+func (v vmUTActionType) toLower() vmUTActionType {
+	return vmUTActionType(strings.ToLower(string(v)))
 }
 
 func (v *vmUTActionType) UnmarshalJSON(data []byte) error {
@@ -312,14 +378,14 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 
 	v.Type = si.Type
 
-	switch si.Type {
+	switch typ := si.Type.toLower(); typ {
 	case typeArray, typeStruct:
 		var a []vmUTStackItem
 		if err := json.Unmarshal(si.Value, &a); err != nil {
 			return err
 		}
 		v.Value = a
-	case typeInteger:
+	case typeInteger, typePointer:
 		num := new(big.Int)
 		var a int64
 		var s string
@@ -330,27 +396,57 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 		} else {
 			panic(fmt.Sprintf("invalid integer: %v", si.Value))
 		}
-		v.Value = num
+		if typ == typePointer {
+			v.Value = int(num.Int64())
+		} else {
+			v.Value = num
+		}
 	case typeBoolean:
 		var b bool
 		if err := json.Unmarshal(si.Value, &b); err != nil {
 			return err
 		}
 		v.Value = b
-	case typeByteArray:
+	case typeByteString, typeBuffer:
 		b, err := decodeBytes(si.Value)
 		if err != nil {
 			return err
 		}
 		v.Value = b
-	case typeInterop:
+	case typeInterop, typeNull:
 		v.Value = nil
 	case typeMap:
-		var m map[string]vmUTStackItem
-		if err := json.Unmarshal(si.Value, &m); err != nil {
-			return err
+		// we want to have the same order as in test file, so a custom decoder is used
+		d := json.NewDecoder(bytes.NewReader(si.Value))
+		if tok, err := d.Token(); err != nil || tok != json.Delim('{') {
+			return fmt.Errorf("invalid map start")
 		}
-		v.Value = m
+
+		result := NewMapItem()
+		for {
+			tok, err := d.Token()
+			if err != nil {
+				return err
+			} else if tok == json.Delim('}') {
+				break
+			}
+			key, ok := tok.(string)
+			if !ok {
+				return fmt.Errorf("string expected in map key")
+			}
+
+			var it vmUTStackItem
+			if err := d.Decode(&it); err != nil {
+				return fmt.Errorf("can't decode map value: %v", err)
+			}
+
+			item := jsonStringToInteger(key)
+			if item == nil {
+				return fmt.Errorf("can't unmarshal StackItem %s", key)
+			}
+			result.Add(item, it.toStackItem())
+		}
+		v.Value = result
 	case typeString:
 		panic("not implemented")
 	default:
@@ -366,12 +462,18 @@ func decodeBytes(data []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	hdata := data[3 : len(data)-1]
-	if b, err := hex.DecodeString(string(hdata)); err == nil {
+	data = data[1 : len(data)-1] // strip quotes
+	if b, err := decodeHex(string(data)); err == nil {
 		return b, nil
 	}
 
-	data = data[1 : len(data)-1]
 	r := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(data))
 	return ioutil.ReadAll(r)
+}
+
+func decodeHex(s string) ([]byte, error) {
+	if strings.HasPrefix(s, "0x") {
+		s = s[2:]
+	}
+	return hex.DecodeString(s)
 }
