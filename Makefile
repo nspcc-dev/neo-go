@@ -61,6 +61,9 @@ image-push:
 check-version:
 	git fetch && (! git rev-list ${VERSION})
 
+version:
+	@echo ${VERSION}
+
 deps:
 	@go mod tidy -v
 	@go mod vendor
