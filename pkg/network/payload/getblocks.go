@@ -1,6 +1,8 @@
 package payload
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -13,27 +15,30 @@ const (
 // GetBlocks contains fields and methods to be shared with the
 type GetBlocks struct {
 	// hash of latest block that node requests
-	HashStart []util.Uint256
-	// hash of last block that node requests
-	HashStop util.Uint256
+	HashStart util.Uint256
+	Count     int16
 }
 
 // NewGetBlocks returns a pointer to a GetBlocks object.
-func NewGetBlocks(start []util.Uint256, stop util.Uint256) *GetBlocks {
+func NewGetBlocks(start util.Uint256, count int16) *GetBlocks {
 	return &GetBlocks{
 		HashStart: start,
-		HashStop:  stop,
+		Count:     count,
 	}
 }
 
 // DecodeBinary implements Serializable interface.
 func (p *GetBlocks) DecodeBinary(br *io.BinReader) {
-	br.ReadArray(&p.HashStart)
-	br.ReadBytes(p.HashStop[:])
+	p.HashStart.DecodeBinary(br)
+	p.Count = int16(br.ReadU16LE())
+	if p.Count < -1 || p.Count == 0 {
+		br.Err = errors.New("invalid count")
+	}
+
 }
 
 // EncodeBinary implements Serializable interface.
 func (p *GetBlocks) EncodeBinary(bw *io.BinWriter) {
-	bw.WriteArray(p.HashStart)
-	bw.WriteBytes(p.HashStop[:])
+	p.HashStart.EncodeBinary(bw)
+	bw.WriteU16LE(uint16(p.Count))
 }

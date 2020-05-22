@@ -5,31 +5,24 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetBlockEncodeDecode(t *testing.T) {
-	start := []util.Uint256{
-		hash.Sha256([]byte("a")),
-		hash.Sha256([]byte("b")),
-		hash.Sha256([]byte("c")),
-		hash.Sha256([]byte("d")),
-	}
+	start := hash.Sha256([]byte("a"))
 
-	p := NewGetBlocks(start, util.Uint256{})
+	p := NewGetBlocks(start, 124)
 	testserdes.EncodeDecodeBinary(t, p, new(GetBlocks))
-}
 
-func TestGetBlockEncodeDecodeWithHashStop(t *testing.T) {
-	var (
-		start = []util.Uint256{
-			hash.Sha256([]byte("a")),
-			hash.Sha256([]byte("b")),
-			hash.Sha256([]byte("c")),
-			hash.Sha256([]byte("d")),
-		}
-		stop = hash.Sha256([]byte("e"))
-	)
-	p := NewGetBlocks(start, stop)
-	testserdes.EncodeDecodeBinary(t, p, new(GetBlocks))
+	// invalid count
+	p = NewGetBlocks(start, -2)
+	data, err := testserdes.EncodeBinary(p)
+	require.NoError(t, err)
+	require.Error(t, testserdes.DecodeBinary(data, new(GetBlocks)))
+
+	// invalid count
+	p = NewGetBlocks(start, 0)
+	data, err = testserdes.EncodeBinary(p)
+	require.NoError(t, err)
+	require.Error(t, testserdes.DecodeBinary(data, new(GetBlocks)))
 }
