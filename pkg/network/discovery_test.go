@@ -29,6 +29,9 @@ func (ft *fakeTransp) Accept() {
 func (ft *fakeTransp) Proto() string {
 	return ""
 }
+func (ft *fakeTransp) Address() string {
+	return ""
+}
 func (ft *fakeTransp) Close() {
 }
 func TestDefaultDiscoverer(t *testing.T) {

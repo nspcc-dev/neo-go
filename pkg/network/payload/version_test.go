@@ -5,25 +5,44 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
 	var magic config.NetMode = 56753
-	var port uint16 = 3000
+	var tcpPort uint16 = 3000
+	var wsPort uint16 = 3001
 	var id uint32 = 13337
 	useragent := "/NEO:0.0.1/"
 	var height uint32 = 100500
-	var relay = true
+	var capabilities = []capability.Capability{
+		{
+			Type: capability.TCPServer,
+			Data: &capability.Server{
+				Port: tcpPort,
+			},
+		},
+		{
+			Type: capability.WSServer,
+			Data: &capability.Server{
+				Port: wsPort,
+			},
+		},
+		{
+			Type: capability.FullNode,
+			Data: &capability.Node{
+				StartHeight: height,
+			},
+		},
+	}
 
-	version := NewVersion(magic, id, port, useragent, height, relay)
+	version := NewVersion(magic, id, useragent, capabilities)
 	versionDecoded := &Version{}
 	testserdes.EncodeDecodeBinary(t, version, versionDecoded)
 
 	assert.Equal(t, versionDecoded.Nonce, id)
-	assert.Equal(t, versionDecoded.Port, port)
+	assert.ElementsMatch(t, capabilities, versionDecoded.Capabilities)
 	assert.Equal(t, versionDecoded.UserAgent, []byte(useragent))
-	assert.Equal(t, versionDecoded.StartHeight, height)
-	assert.Equal(t, versionDecoded.Relay, relay)
 	assert.Equal(t, version, versionDecoded)
 }

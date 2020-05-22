@@ -2,8 +2,11 @@ package network
 
 import (
 	"net"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,22 +14,33 @@ import (
 
 func TestSendVersion(t *testing.T) {
 	var (
-		s = newTestServer(t)
+		s = newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
 		p = newLocalPeer(t, s)
 	)
-	s.Port = 3000
-	s.UserAgent = "/test/"
-
+	// we need to set listener at least to handle dynamic port correctly
+	go s.transport.Accept()
+	require.Eventually(t, func() bool { return s.transport.Address() != "" }, time.Second, 10*time.Millisecond)
 	p.messageHandler = func(t *testing.T, msg *Message) {
+		// listener is already set, so Address() gives us proper address with port
+		_, p, err := net.SplitHostPort(s.transport.Address())
+		assert.NoError(t, err)
+		port, err := strconv.ParseUint(p, 10, 16)
+		assert.NoError(t, err)
 		assert.Equal(t, CMDVersion, msg.Command)
 		assert.IsType(t, msg.Payload, &payload.Version{})
 		version := msg.Payload.(*payload.Version)
 		assert.NotZero(t, version.Nonce)
-		assert.Equal(t, uint16(3000), version.Port)
-		assert.Equal(t, uint64(1), version.Services)
+		assert.Equal(t, 1, len(version.Capabilities))
+		assert.ElementsMatch(t, []capability.Capability{
+			{
+				Type: capability.TCPServer,
+				Data: &capability.Server{
+					Port: uint16(port),
+				},
+			},
+		}, version.Capabilities)
 		assert.Equal(t, uint32(0), version.Version)
 		assert.Equal(t, []byte("/test/"), version.UserAgent)
-		assert.Equal(t, uint32(0), version.StartHeight)
 	}
 
 	require.NoError(t, p.SendVersion())
@@ -35,7 +49,7 @@ func TestSendVersion(t *testing.T) {
 // Server should reply with a verack after receiving a valid version.
 func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	var (
-		s = newTestServer(t)
+		s = newTestServer(t, ServerConfig{})
 		p = newLocalPeer(t, s)
 	)
 	na, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:3000")
@@ -45,7 +59,21 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		assert.Equal(t, CMDVerack, msg.Command)
 	}
-	version := payload.NewVersion(0, 1337, 3000, "/NEO-GO/", 0, true)
+	capabilities := []capability.Capability{
+		{
+			Type: capability.FullNode,
+			Data: &capability.Node{
+				StartHeight: 0,
+			},
+		},
+		{
+			Type: capability.TCPServer,
+			Data: &capability.Server{
+				Port: 3000,
+			},
+		},
+	}
+	version := payload.NewVersion(0, 1337, "/NEO-GO/", capabilities)
 
 	require.NoError(t, s.handleVersionCmd(p, version))
 }
@@ -54,12 +82,11 @@ func TestVerackAfterHandleVersionCmd(t *testing.T) {
 // invalid version and disconnects the peer.
 func TestServerNotSendsVerack(t *testing.T) {
 	var (
-		s  = newTestServer(t)
+		s  = newTestServer(t, ServerConfig{Net: 56753})
 		p  = newLocalPeer(t, s)
 		p2 = newLocalPeer(t, s)
 	)
 	s.id = 1
-	s.Net = 56753
 	finished := make(chan struct{})
 	go func() {
 		s.run()
@@ -76,8 +103,22 @@ func TestServerNotSendsVerack(t *testing.T) {
 	p2.netaddr = *na
 	s.register <- p
 
+	capabilities := []capability.Capability{
+		{
+			Type: capability.FullNode,
+			Data: &capability.Node{
+				StartHeight: 0,
+			},
+		},
+		{
+			Type: capability.TCPServer,
+			Data: &capability.Server{
+				Port: 3000,
+			},
+		},
+	}
 	// identical id's
-	version := payload.NewVersion(56753, 1, 3000, "/NEO-GO/", 0, true)
+	version := payload.NewVersion(56753, 1, "/NEO-GO/", capabilities)
 	err := s.handleVersionCmd(p, version)
 	assert.NotNil(t, err)
 	assert.Equal(t, errIdenticalID, err)
@@ -104,7 +145,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 
 func TestRequestHeaders(t *testing.T) {
 	var (
-		s = newTestServer(t)
+		s = newTestServer(t, ServerConfig{})
 		p = newLocalPeer(t, s)
 	)
 	p.messageHandler = func(t *testing.T, msg *Message) {

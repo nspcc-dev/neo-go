@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"go.uber.org/zap"
 )
@@ -45,9 +46,10 @@ type TCPPeer struct {
 	// Index of the last block.
 	lastBlockIndex uint32
 
-	lock      sync.RWMutex
-	finale    sync.Once
-	handShake handShakeStage
+	lock       sync.RWMutex
+	finale     sync.Once
+	handShake  handShakeStage
+	isFullNode bool
 
 	done     chan struct{}
 	sendQ    chan []byte
@@ -229,7 +231,7 @@ func (p *TCPPeer) StartProtocol() {
 	p.server.log.Info("started protocol",
 		zap.Stringer("addr", p.RemoteAddr()),
 		zap.ByteString("userAgent", p.Version().UserAgent),
-		zap.Uint32("startHeight", p.Version().StartHeight),
+		zap.Uint32("startHeight", p.lastBlockIndex),
 		zap.Uint32("id", p.Version().Nonce))
 
 	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String())
@@ -267,18 +269,33 @@ func (p *TCPPeer) StartProtocol() {
 func (p *TCPPeer) Handshaked() bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
+	return p.handshaked()
+}
+
+// handshaked is internal unlocked version of Handshaked().
+func (p *TCPPeer) handshaked() bool {
 	return p.handShake == (verAckReceived | verAckSent | versionReceived | versionSent)
+}
+
+// IsFullNode returns whether the node has full capability or TCP/WS only.
+func (p *TCPPeer) IsFullNode() bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.handshaked() && p.isFullNode
 }
 
 // SendVersion checks for the handshake state and sends a message to the peer.
 func (p *TCPPeer) SendVersion() error {
-	msg := p.server.getVersionMsg()
+	msg, err := p.server.getVersionMsg()
+	if err != nil {
+		return err
+	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.handShake&versionSent != 0 {
 		return errors.New("invalid handshake: already sent Version")
 	}
-	err := p.writeMsg(msg)
+	err = p.writeMsg(msg)
 	if err == nil {
 		p.handShake |= versionSent
 	}
@@ -293,7 +310,14 @@ func (p *TCPPeer) HandleVersion(version *payload.Version) error {
 		return errors.New("invalid handshake: already received Version")
 	}
 	p.version = version
-	p.lastBlockIndex = version.StartHeight
+	for _, cap := range version.Capabilities {
+		if cap.Type == capability.FullNode {
+			p.isFullNode = true
+			p.lastBlockIndex = cap.Data.(*capability.Node).StartHeight
+			break
+		}
+	}
+
 	p.handShake |= versionReceived
 	return nil
 }
@@ -352,7 +376,16 @@ func (p *TCPPeer) PeerAddr() net.Addr {
 	if err != nil {
 		return p.RemoteAddr()
 	}
-	addrString := net.JoinHostPort(host, strconv.Itoa(int(p.version.Port)))
+	var port uint16
+	for _, cap := range p.version.Capabilities {
+		if cap.Type == capability.TCPServer {
+			port = cap.Data.(*capability.Server).Port
+		}
+	}
+	if port == 0 {
+		return p.RemoteAddr()
+	}
+	addrString := net.JoinHostPort(host, strconv.Itoa(int(port)))
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addrString)
 	if err != nil {
 		return p.RemoteAddr()
