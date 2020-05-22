@@ -9,6 +9,7 @@ import (
 const (
 	DataBlock        KeyPrefix = 0x01
 	DataTransaction  KeyPrefix = 0x02
+	DataMPT          KeyPrefix = 0x03
 	STAccount        KeyPrefix = 0x40
 	STNotification   KeyPrefix = 0x4d
 	STContract       KeyPrefix = 0x50
