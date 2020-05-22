@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -177,10 +178,20 @@ func (ic *interopContext) txGetUnspentCoins(v *vm.VM) error {
 		return errors.New("value is not a transaction")
 	}
 	ucs, err := ic.dao.GetUnspentCoinState(tx.Hash())
-	if err != nil {
+	if err == storage.ErrKeyNotFound {
+		v.Estack().PushVal([]vm.StackItem{})
+		return nil
+	} else if err != nil {
 		return errors.New("no unspent coin state found")
 	}
-	v.Estack().PushVal(vm.NewInteropItem(ucs))
+
+	items := make([]vm.StackItem, 0, len(ucs.States))
+	for i := range items {
+		if ucs.States[i].State&state.CoinSpent == 0 {
+			items = append(items, vm.NewInteropItem(&ucs.States[i].Output))
+		}
+	}
+	v.Estack().PushVal(items)
 	return nil
 }
 
