@@ -42,3 +42,37 @@ func DecodeBinary(data []byte, a io.Serializable) error {
 	a.DecodeBinary(r)
 	return r.Err
 }
+
+type encodable interface {
+	Encode(*io.BinWriter) error
+	Decode(*io.BinReader) error
+}
+
+// EncodeDecode checks if expected stays the same after
+// serializing/deserializing via encodable methods.
+func EncodeDecode(t *testing.T, expected, actual encodable) {
+	data, err := Encode(expected)
+	require.NoError(t, err)
+	require.NoError(t, Decode(data, actual))
+	require.Equal(t, expected, actual)
+}
+
+// Encode serializes a to a byte slice.
+func Encode(a encodable) ([]byte, error) {
+	w := io.NewBufBinWriter()
+	err := a.Encode(w.BinWriter)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}
+
+// Decode deserializes a from a byte slice.
+func Decode(data []byte, a encodable) error {
+	r := io.NewBinReaderFromBuf(data)
+	err := a.Decode(r)
+	if r.Err != nil {
+		return r.Err
+	}
+	return err
+}
