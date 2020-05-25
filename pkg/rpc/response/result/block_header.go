@@ -13,17 +13,17 @@ type (
 	// Header wrapper used for the representation of
 	// block header on the RPC Server.
 	Header struct {
-		Hash          util.Uint256        `json:"hash"`
-		Size          int                 `json:"size"`
-		Version       uint32              `json:"version"`
-		PrevBlockHash util.Uint256        `json:"previousblockhash"`
-		MerkleRoot    util.Uint256        `json:"merkleroot"`
-		Timestamp     uint64              `json:"time"`
-		Index         uint32              `json:"index"`
-		NextConsensus string              `json:"nextconsensus"`
-		Script        transaction.Witness `json:"script"`
-		Confirmations uint32              `json:"confirmations"`
-		NextBlockHash *util.Uint256       `json:"nextblockhash,omitempty"`
+		Hash          util.Uint256          `json:"hash"`
+		Size          int                   `json:"size"`
+		Version       uint32                `json:"version"`
+		PrevBlockHash util.Uint256          `json:"previousblockhash"`
+		MerkleRoot    util.Uint256          `json:"merkleroot"`
+		Timestamp     uint64                `json:"time"`
+		Index         uint32                `json:"index"`
+		NextConsensus string                `json:"nextconsensus"`
+		Witnesses     []transaction.Witness `json:"witnesses"`
+		Confirmations uint32                `json:"confirmations"`
+		NextBlockHash *util.Uint256         `json:"nextblockhash,omitempty"`
 	}
 )
 
@@ -38,7 +38,7 @@ func NewHeader(h *block.Header, chain blockchainer.Blockchainer) Header {
 		Timestamp:     h.Timestamp,
 		Index:         h.Index,
 		NextConsensus: address.Uint160ToString(h.NextConsensus),
-		Script:        h.Script,
+		Witnesses:     []transaction.Witness{h.Script},
 		Confirmations: chain.BlockHeight() - h.Index + 1,
 	}
 

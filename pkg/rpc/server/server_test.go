@@ -1041,7 +1041,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				Timestamp:     hdr.Timestamp,
 				Index:         hdr.Index,
 				NextConsensus: address.Uint160ToString(hdr.NextConsensus),
-				Script:        hdr.Script,
+				Witnesses:     []transaction.Witness{hdr.Script},
 				Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
 				NextBlockHash: &nextHash,
 			}
