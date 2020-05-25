@@ -186,7 +186,7 @@ func (ic *interopContext) txGetUnspentCoins(v *vm.VM) error {
 	}
 
 	items := make([]vm.StackItem, 0, len(ucs.States))
-	for i := range items {
+	for i := range ucs.States {
 		if ucs.States[i].State&state.CoinSpent == 0 {
 			items = append(items, vm.NewInteropItem(&ucs.States[i].Output))
 		}
