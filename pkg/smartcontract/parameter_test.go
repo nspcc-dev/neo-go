@@ -122,15 +122,18 @@ var marshalJSONTestCases = []struct {
 		},
 		result: `{"type":"Hash256","value":"0xf037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"}`,
 	},
+	{
+		input: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+		result: `{"type":"InteropInterface","value":null}`,
+	},
 }
 
 var marshalJSONErrorCases = []Parameter{
 	{
 		Type:  UnknownType,
-		Value: nil,
-	},
-	{
-		Type:  InteropInterfaceType,
 		Value: nil,
 	},
 	{
@@ -252,6 +255,27 @@ var unmarshalJSONTestCases = []struct {
 		},
 		input: `{"type":"PublicKey","value":"03b3bf1502fbdc05449b506aaf04579724024b06542e49262bfaa3f70e200040a9"}`,
 	},
+	{
+		input: `{"type":"InteropInterface","value":null}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
+	{
+		input: `{"type":"InteropInterface","value":""}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
+	{
+		input: `{"type":"InteropInterface","value":"Hundertwasser"}`,
+		result: Parameter{
+			Type:  InteropInterfaceType,
+			Value: nil,
+		},
+	},
 }
 
 var unmarshalJSONErrorCases = []string{
@@ -272,8 +296,6 @@ var unmarshalJSONErrorCases = []string{
 	`{"type": "Map","value": ["key": {}]}`, // incorrect Map value
 	`{"type": "Map","value": ["key": {"type":"String", "value":"qwer"}, "value": {"type":"Boolean"}]}`, // incorrect Map Value value
 	`{"type": "Map","value": ["key": {"type":"String"}, "value": {"type":"Boolean", "value":true}]}`,   // incorrect Map Key value
-
-	`{"type": "InteropInterface","value": ""}`, // ununmarshable type
 }
 
 func TestParam_UnmarshalJSON(t *testing.T) {

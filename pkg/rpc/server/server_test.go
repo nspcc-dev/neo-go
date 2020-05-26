@@ -384,9 +384,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				block, err := e.chain.GetBlock(e.chain.GetHeaderHash(3))
 				require.NoErrorf(t, err, "could not get block")
 
-				assert.Equal(t, block.Hash(), res.Hash)
-				for i := range res.Tx {
-					tx := res.Tx[i]
+				assert.Equal(t, block.Hash(), res.Hash())
+				for i, tx := range res.Transactions {
 					require.Equal(t, transaction.ContractType, tx.Type)
 
 					actualTx := block.Transactions[i]
@@ -875,9 +874,10 @@ func TestRPC(t *testing.T) {
 // calls. Some tests change the chain state, thus we reinitialize the chain from
 // scratch here.
 func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []byte) {
-	chain, httpSrv := initServerWithInMemoryChain(t)
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
+	defer rpcSrv.Shutdown()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	for method, cases := range rpcTestCases {
@@ -909,7 +909,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("submit", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
 		t.Run("invalid signature", func(t *testing.T) {
-			s := newBlock(t, chain, 1)
+			s := newBlock(t, chain, 1, 0)
 			s.Script.VerificationScript[8] ^= 0xff
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
@@ -939,13 +939,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		}
 
 		t.Run("invalid height", func(t *testing.T) {
-			b := newBlock(t, chain, 2, newTx())
+			b := newBlock(t, chain, 2, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			checkErrGetResult(t, body, true)
 		})
 
 		t.Run("positive", func(t *testing.T) {
-			b := newBlock(t, chain, 1, newTx())
+			b := newBlock(t, chain, 1, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
 			var res bool
@@ -1041,7 +1041,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				Timestamp:     hdr.Timestamp,
 				Index:         hdr.Index,
 				NextConsensus: address.Uint160ToString(hdr.NextConsensus),
-				Script:        hdr.Script,
+				Witnesses:     []transaction.Witness{hdr.Script},
 				Confirmations: e.chain.BlockHeight() - hdr.Index + 1,
 				NextBlockHash: &nextHash,
 			}
@@ -1113,7 +1113,7 @@ func encodeBlock(t *testing.T, b *block.Block) string {
 	return hex.EncodeToString(w.Bytes())
 }
 
-func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*transaction.Transaction) *block.Block {
+func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
 	witness := transaction.Witness{VerificationScript: testchain.MultisigVerificationScript()}
 	height := bc.BlockHeight()
 	h := bc.GetHeaderHash(int(height))
@@ -1128,7 +1128,7 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, txs ...*
 			Script:        witness,
 		},
 		ConsensusData: block.ConsensusData{
-			PrimaryIndex: 0,
+			PrimaryIndex: primary,
 			Nonce:        1111,
 		},
 		Transactions: txs,

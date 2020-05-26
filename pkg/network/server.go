@@ -103,21 +103,17 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		transactions:     make(chan *transaction.Transaction, 64),
 	}
 	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
-		if s.consensusStarted.Load() {
-			s.consensus.OnNewBlock()
-		} else {
+		if !s.consensusStarted.Load() {
 			s.tryStartConsensus()
 		}
-		s.relayBlock(b)
 	})
 
 	srv, err := consensus.NewService(consensus.Config{
-		Logger:     log,
-		Broadcast:  s.handleNewPayload,
-		RelayBlock: s.relayBlock,
-		Chain:      chain,
-		RequestTx:  s.requestTx,
-		Wallet:     config.Wallet,
+		Logger:    log,
+		Broadcast: s.handleNewPayload,
+		Chain:     chain,
+		RequestTx: s.requestTx,
+		Wallet:    config.Wallet,
 
 		TimePerBlock: config.TimePerBlock,
 	})
@@ -173,6 +169,7 @@ func (s *Server) Start(errChan chan error) {
 	s.discovery.BackFill(s.Seeds...)
 
 	go s.broadcastTxLoop()
+	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.transport.Accept()
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
@@ -797,14 +794,25 @@ func (s *Server) broadcastHPMessage(msg *Message) {
 	s.iteratePeersWithSendMsg(msg, Peer.EnqueueHPPacket, nil)
 }
 
-// relayBlock tells all the other connected nodes about the given block.
-func (s *Server) relayBlock(b *block.Block) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
-	// Filter out nodes that are more current (avoid spamming the network
-	// during initial sync).
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
-		return p.Handshaked() && p.LastBlockIndex() < b.Index
-	})
+// relayBlocksLoop subscribes to new blocks in the ledger and broadcasts them
+// to the network. Intended to be run as a separate goroutine.
+func (s *Server) relayBlocksLoop() {
+	ch := make(chan *block.Block, 2) // Some buffering to smooth out possible egressing delays.
+	s.chain.SubscribeForBlocks(ch)
+	for {
+		select {
+		case <-s.quit:
+			s.chain.UnsubscribeFromBlocks(ch)
+			return
+		case b := <-ch:
+			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
+			// Filter out nodes that are more current (avoid spamming the network
+			// during initial sync).
+			s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
+				return p.Handshaked() && p.LastBlockIndex() < b.Index
+			})
+		}
+	}
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.

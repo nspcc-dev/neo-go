@@ -42,9 +42,6 @@ type Service interface {
 	OnTransaction(tx *transaction.Transaction)
 	// GetPayload returns Payload with specified hash if it is present in the local cache.
 	GetPayload(h util.Uint256) *Payload
-	// OnNewBlock notifies consensus service that there is a new block in
-	// the chain (without explicitly passing it to the service).
-	OnNewBlock()
 }
 
 type service struct {
@@ -62,7 +59,7 @@ type service struct {
 	transactions chan *transaction.Transaction
 	// blockEvents is used to pass a new block event to the consensus
 	// process.
-	blockEvents  chan struct{}
+	blockEvents  chan *coreb.Block
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 }
@@ -74,9 +71,6 @@ type Config struct {
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
 	Broadcast func(p *Payload)
-	// RelayBlock is a callback that is called to notify server
-	// about the new block that needs to be broadcasted.
-	RelayBlock func(b *coreb.Block)
 	// Chain is a core.Blockchainer instance.
 	Chain blockchainer.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -107,7 +101,7 @@ func NewService(cfg Config) (Service, error) {
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
-		blockEvents:  make(chan struct{}, 1),
+		blockEvents:  make(chan *coreb.Block, 1),
 	}
 
 	if cfg.Wallet == nil {
@@ -164,7 +158,7 @@ var (
 
 func (s *service) Start() {
 	s.dbft.Start()
-
+	s.Chain.SubscribeForBlocks(s.blockEvents)
 	go s.eventLoop()
 }
 
@@ -204,11 +198,14 @@ func (s *service) eventLoop() {
 			s.dbft.OnReceive(&msg)
 		case tx := <-s.transactions:
 			s.dbft.OnTransaction(tx)
-		case <-s.blockEvents:
-			s.log.Debug("new block in the chain",
-				zap.Uint32("dbft index", s.dbft.BlockIndex),
-				zap.Uint32("chain index", s.Chain.BlockHeight()))
-			s.dbft.InitializeConsensus(0)
+		case b := <-s.blockEvents:
+			// We also receive our own blocks here, so check for index.
+			if b.Index >= s.dbft.BlockIndex {
+				s.log.Debug("new block in the chain",
+					zap.Uint32("dbft index", s.dbft.BlockIndex),
+					zap.Uint32("chain index", s.Chain.BlockHeight()))
+				s.dbft.InitializeConsensus(0)
+			}
 		}
 	}
 }
@@ -287,20 +284,6 @@ func (s *service) OnTransaction(tx *transaction.Transaction) {
 	}
 }
 
-// OnNewBlock notifies consensus process that there is a new block in the chain
-// and dbft should probably be reinitialized.
-func (s *service) OnNewBlock() {
-	if s.dbft != nil {
-		// If there is something in the queue already, the second
-		// consecutive event doesn't make much sense (reinitializing
-		// dbft twice doesn't improve it in any way).
-		select {
-		case s.blockEvents <- struct{}{}:
-		default:
-		}
-	}
-}
-
 // GetPayload returns payload stored in cache.
 func (s *service) GetPayload(h util.Uint256) *Payload {
 	p := s.cache.Get(h)
@@ -362,8 +345,6 @@ func (s *service) processBlock(b block.Block) {
 		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
-	} else {
-		s.Config.RelayBlock(bb)
 	}
 }
 

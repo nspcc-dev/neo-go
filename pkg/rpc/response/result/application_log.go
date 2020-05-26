@@ -30,16 +30,22 @@ type NotificationEvent struct {
 	Item     smartcontract.Parameter `json:"state"`
 }
 
+// StateEventToResultNotification converts state.NotificationEvent to
+// result.NotificationEvent.
+func StateEventToResultNotification(event state.NotificationEvent) NotificationEvent {
+	seen := make(map[vm.StackItem]bool)
+	item := event.Item.ToContractParameter(seen)
+	return NotificationEvent{
+		Contract: event.ScriptHash,
+		Item:     item,
+	}
+}
+
 // NewApplicationLog creates a new ApplicationLog wrapper.
 func NewApplicationLog(appExecRes *state.AppExecResult, scriptHash util.Uint160) ApplicationLog {
 	events := make([]NotificationEvent, 0, len(appExecRes.Events))
 	for _, e := range appExecRes.Events {
-		seen := make(map[vm.StackItem]bool)
-		item := e.Item.ToContractParameter(seen)
-		events = append(events, NotificationEvent{
-			Contract: e.ScriptHash,
-			Item:     item,
-		})
+		events = append(events, StateEventToResultNotification(e))
 	}
 
 	triggerString := appExecRes.Trigger.String()

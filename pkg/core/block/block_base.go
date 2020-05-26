@@ -1,10 +1,13 @@
 package block
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -12,37 +15,51 @@ import (
 // Base holds the base info of a block
 type Base struct {
 	// Version of the block.
-	Version uint32 `json:"version"`
+	Version uint32
 
 	// hash of the previous block.
-	PrevHash util.Uint256 `json:"previousblockhash"`
+	PrevHash util.Uint256
 
 	// Root hash of a transaction list.
-	MerkleRoot util.Uint256 `json:"merkleroot"`
+	MerkleRoot util.Uint256
 
 	// Timestamp is a millisecond-precision timestamp.
 	// The time stamp of each block must be later than previous block's time stamp.
 	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
-	Timestamp uint64 `json:"time"`
+	Timestamp uint64
 
 	// index/height of the block
-	Index uint32 `json:"height"`
+	Index uint32
 
 	// Contract address of the next miner
-	NextConsensus util.Uint160 `json:"next_consensus"`
+	NextConsensus util.Uint160
 
 	// Padding that is fixed to 1
 	_ uint8
 
 	// Script used to validate the block
-	Script transaction.Witness `json:"script"`
+	Script transaction.Witness
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
 
 	// Hash of the block used to verify it (single SHA256).
 	verificationHash util.Uint256
+}
+
+// baseAux is used to marshal/unmarshal to/from JSON, it's almost the same
+// as original Base, but with Nonce and NextConsensus fields differing and
+// Hash added.
+type baseAux struct {
+	Hash          util.Uint256          `json:"hash"`
+	Version       uint32                `json:"version"`
+	PrevHash      util.Uint256          `json:"previousblockhash"`
+	MerkleRoot    util.Uint256          `json:"merkleroot"`
+	Timestamp     uint64                `json:"time"`
+	Index         uint32                `json:"index"`
+	NextConsensus string                `json:"nextconsensus"`
+	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
 // Verify verifies the integrity of the Base.
@@ -135,4 +152,49 @@ func (b *Base) decodeHashableFields(br *io.BinReader) {
 	if br.Err == nil {
 		b.createHash()
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (b Base) MarshalJSON() ([]byte, error) {
+	aux := baseAux{
+		Hash:          b.Hash(),
+		Version:       b.Version,
+		PrevHash:      b.PrevHash,
+		MerkleRoot:    b.MerkleRoot,
+		Timestamp:     b.Timestamp,
+		Index:         b.Index,
+		NextConsensus: address.Uint160ToString(b.NextConsensus),
+		Witnesses:     []transaction.Witness{b.Script},
+	}
+	return json.Marshal(aux)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (b *Base) UnmarshalJSON(data []byte) error {
+	var aux = new(baseAux)
+	var nextC util.Uint160
+
+	err := json.Unmarshal(data, aux)
+	if err != nil {
+		return err
+	}
+
+	nextC, err = address.StringToUint160(aux.NextConsensus)
+	if err != nil {
+		return err
+	}
+	if len(aux.Witnesses) != 1 {
+		return errors.New("wrong number of witnesses")
+	}
+	b.Version = aux.Version
+	b.PrevHash = aux.PrevHash
+	b.MerkleRoot = aux.MerkleRoot
+	b.Timestamp = aux.Timestamp
+	b.Index = aux.Index
+	b.NextConsensus = nextC
+	b.Script = aux.Witnesses[0]
+	if !aux.Hash.Equals(b.Hash()) {
+		return errors.New("json 'hash' doesn't match block hash")
+	}
+	return nil
 }

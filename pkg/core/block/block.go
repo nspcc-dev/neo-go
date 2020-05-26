@@ -1,6 +1,7 @@
 package block
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/Workiva/go-datastructures/queue"
@@ -19,10 +20,16 @@ type Block struct {
 	ConsensusData ConsensusData `json:"consensus_data"`
 
 	// Transaction list.
-	Transactions []*transaction.Transaction `json:"tx"`
+	Transactions []*transaction.Transaction
 
 	// True if this block is created from trimmed data.
-	Trimmed bool `json:"-"`
+	Trimmed bool
+}
+
+// auxBlock is used for JSON i/o.
+type auxBlock struct {
+	ConsensusData ConsensusData              `json:"consensus_data"`
+	Transactions  []*transaction.Transaction `json:"tx"`
 }
 
 // Header returns the Header of the Block.
@@ -178,4 +185,47 @@ func (b *Block) Compare(item queue.Item) int {
 	default:
 		return -1
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (b Block) MarshalJSON() ([]byte, error) {
+	auxb, err := json.Marshal(auxBlock{
+		ConsensusData: b.ConsensusData,
+		Transactions:  b.Transactions,
+	})
+	if err != nil {
+		return nil, err
+	}
+	baseBytes, err := json.Marshal(b.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	// Stitch them together.
+	if baseBytes[len(baseBytes)-1] != '}' || auxb[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	baseBytes[len(baseBytes)-1] = ','
+	baseBytes = append(baseBytes, auxb[1:]...)
+	return baseBytes, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (b *Block) UnmarshalJSON(data []byte) error {
+	// As Base and auxb are at the same level in json,
+	// do unmarshalling separately for both structs.
+	auxb := new(auxBlock)
+	err := json.Unmarshal(data, auxb)
+	if err != nil {
+		return err
+	}
+	base := new(Base)
+	err = json.Unmarshal(data, base)
+	if err != nil {
+		return err
+	}
+	b.Base = *base
+	b.Transactions = auxb.Transactions
+	b.ConsensusData = auxb.ConsensusData
+	return nil
 }
