@@ -149,7 +149,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port), s.log)
+	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
