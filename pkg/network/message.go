@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
@@ -12,17 +13,36 @@ import (
 
 //go:generate stringer -type=CommandType
 
+const (
+	// PayloadMaxSize is maximum payload size in decompressed form.
+	PayloadMaxSize = 0x02000000
+	// CompressionMinSize is the lower bound to apply compression.
+	CompressionMinSize = 1024
+)
+
 // Message is the complete message send between nodes.
 type Message struct {
+	// Flags that represents whether a message is compressed.
+	// 0 for None, 1 for Compressed.
+	Flags MessageFlag
 	// Command is byte command code.
 	Command CommandType
 
-	// Length of the payload.
-	Length uint32
-
 	// Payload send with the message.
 	Payload payload.Payload
+
+	// Compressed message payload.
+	compressedPayload []byte
 }
+
+// MessageFlag represents compression level of message payload
+type MessageFlag byte
+
+// Possible message flags
+const (
+	None       MessageFlag = 0
+	Compressed MessageFlag = 1 << iota
+)
 
 // CommandType represents the type of a message command.
 type CommandType byte
@@ -65,46 +85,44 @@ const (
 
 // NewMessage returns a new message with the given payload.
 func NewMessage(cmd CommandType, p payload.Payload) *Message {
-	var (
-		size uint32
-	)
-
-	if p != nil {
-		buf := io.NewBufBinWriter()
-		p.EncodeBinary(buf.BinWriter)
-		if buf.Err != nil {
-			panic(buf.Err)
-		}
-		b := buf.Bytes()
-		size = uint32(len(b))
-	}
-
 	return &Message{
 		Command: cmd,
-		Length:  size,
 		Payload: p,
+		Flags:   None,
 	}
 }
 
 // Decode decodes a Message from the given reader.
 func (m *Message) Decode(br *io.BinReader) error {
+	m.Flags = MessageFlag(br.ReadB())
 	m.Command = CommandType(br.ReadB())
-	m.Length = br.ReadU32LE()
-	if br.Err != nil {
-		return br.Err
-	}
-	// return if their is no payload.
-	if m.Length == 0 {
+	l := br.ReadVarUint()
+	// check the length first in order not to allocate memory
+	// for an empty compressed payload
+	if l == 0 {
+		m.Payload = payload.NewNullPayload()
 		return nil
 	}
-	return m.decodePayload(br)
-}
-
-func (m *Message) decodePayload(br *io.BinReader) error {
-	buf := make([]byte, m.Length)
-	br.ReadBytes(buf)
+	m.compressedPayload = make([]byte, l)
+	br.ReadBytes(m.compressedPayload)
 	if br.Err != nil {
 		return br.Err
+	}
+	if len(m.compressedPayload) > PayloadMaxSize {
+		return errors.New("invalid payload size")
+	}
+	return m.decodePayload()
+}
+
+func (m *Message) decodePayload() error {
+	buf := m.compressedPayload
+	// try decompression
+	if m.Flags&Compressed != 0 {
+		d, err := decompress(m.compressedPayload)
+		if err != nil {
+			return err
+		}
+		buf = d
 	}
 
 	r := io.NewBinReaderFromBuf(buf)
@@ -147,16 +165,17 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
+	if err := m.tryCompressPayload(); err != nil {
+		return err
+	}
+	br.WriteB(byte(m.Flags))
 	br.WriteB(byte(m.Command))
-	br.WriteU32LE(m.Length)
-	if m.Payload != nil {
-		m.Payload.EncodeBinary(br)
-
+	if m.compressedPayload != nil {
+		br.WriteVarBytes(m.compressedPayload)
+	} else {
+		br.WriteB(0)
 	}
-	if br.Err != nil {
-		return br.Err
-	}
-	return nil
+	return br.Err
 }
 
 // Bytes serializes a Message into the new allocated buffer and returns it.
@@ -169,4 +188,38 @@ func (m *Message) Bytes() ([]byte, error) {
 		return nil, w.Err
 	}
 	return w.Bytes(), nil
+}
+
+// tryCompressPayload sets message's compressed payload to serialized
+// payload and compresses it in case if its size exceeds CompressionMinSize
+func (m *Message) tryCompressPayload() error {
+	if m.Payload == nil {
+		return nil
+	}
+	buf := io.NewBufBinWriter()
+	m.Payload.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	compressedPayload := buf.Bytes()
+	if m.Flags&Compressed == 0 {
+		switch m.Payload.(type) {
+		case *payload.Headers, *payload.MerkleBlock, *payload.NullPayload:
+			break
+		default:
+			size := len(compressedPayload)
+			// try compression
+			if size > CompressionMinSize {
+				c, err := compress(compressedPayload)
+				if err == nil {
+					compressedPayload = c
+					m.Flags |= Compressed
+				} else {
+					return err
+				}
+			}
+		}
+	}
+	m.compressedPayload = compressedPayload
+	return nil
 }
