@@ -11,6 +11,8 @@ type storageWrapper struct {
 	finished   bool
 }
 
+var _ vm.Iterator = (*storageWrapper)(nil)
+
 // newStorageIterator returns new storage iterator from the `next()` callback.
 func newStorageIterator(next dao.StorageIteratorFunc) *storageWrapper {
 	return &storageWrapper{
@@ -18,7 +20,7 @@ func newStorageIterator(next dao.StorageIteratorFunc) *storageWrapper {
 	}
 }
 
-// Next implements iterator interface.
+// Next implements vm.Iterator interface.
 func (s *storageWrapper) Next() bool {
 	if s.finished {
 		return false
@@ -33,12 +35,12 @@ func (s *storageWrapper) Next() bool {
 	return true
 }
 
-// Value implements iterator interface.
+// Value implements vm.Iterator interface.
 func (s *storageWrapper) Value() vm.StackItem {
 	return s.value
 }
 
-// Key implements iterator interface.
+// Key implements vm.Iterator interface.
 func (s *storageWrapper) Key() vm.StackItem {
 	return s.key
 }

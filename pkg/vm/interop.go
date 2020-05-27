@@ -205,9 +205,9 @@ func NewMapIterator(m *MapItem) *InteropItem {
 // IteratorConcat handles syscall Neo.Iterator.Concat.
 func IteratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
-	iter1 := iop1.value.(iterator)
+	iter1 := iop1.value.(Iterator)
 	iop2 := v.Estack().Pop().Interop()
-	iter2 := iop2.value.(iterator)
+	iter2 := iop2.value.(Iterator)
 
 	v.Estack().Push(&Element{value: NewInteropItem(
 		&concatIter{
@@ -222,7 +222,7 @@ func IteratorConcat(v *VM) error {
 // IteratorKey handles syscall Neo.Iterator.Key.
 func IteratorKey(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
+	iter := iop.value.(Iterator)
 	v.Estack().Push(&Element{value: iter.Key()})
 
 	return nil
@@ -231,7 +231,7 @@ func IteratorKey(v *VM) error {
 // IteratorKeys handles syscall Neo.Iterator.Keys.
 func IteratorKeys(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
+	iter := iop.value.(Iterator)
 	v.Estack().Push(&Element{value: NewInteropItem(
 		&keysWrapper{iter},
 	)})
@@ -242,7 +242,7 @@ func IteratorKeys(v *VM) error {
 // IteratorValues handles syscall Neo.Iterator.Values.
 func IteratorValues(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
+	iter := iop.value.(Iterator)
 	v.Estack().Push(&Element{value: NewInteropItem(
 		&valuesWrapper{iter},
 	)})
