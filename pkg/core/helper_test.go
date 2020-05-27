@@ -384,7 +384,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	b = bc.newBlock(initTx, transferTx)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringBE())
+	t.Logf("recieveRublesTx: %v", transferTx.Hash().StringLE())
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
@@ -403,7 +403,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	b = bc.newBlock(transferTx)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("sendRublesTx: %v", transferTx.Hash().StringBE())
+	t.Logf("sendRublesTx: %v", transferTx.Hash().StringLE())
 
 	if saveChain {
 		outStream, err := os.Create(prefix + "testblocks.acc")
