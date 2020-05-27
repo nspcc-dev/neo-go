@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -15,15 +16,19 @@ import (
 func TestEncodeDecodeVersion(t *testing.T) {
 	// message with tiny payload, shouldn't be compressed
 	expected := NewMessage(CMDVersion, &payload.Version{
-		Magic:       1,
-		Version:     2,
-		Services:    1,
-		Timestamp:   uint32(time.Now().UnixNano()),
-		Port:        1234,
-		Nonce:       987,
-		UserAgent:   []byte{1, 2, 3},
-		StartHeight: 123,
-		Relay:       true,
+		Magic:     1,
+		Version:   2,
+		Timestamp: uint32(time.Now().UnixNano()),
+		Nonce:     987,
+		UserAgent: []byte{1, 2, 3},
+		Capabilities: capability.Capabilities{
+			{
+				Type: capability.FullNode,
+				Data: &capability.Node{
+					StartHeight: 123,
+				},
+			},
+		},
 	})
 	testserdes.EncodeDecode(t, expected, &Message{})
 	uncompressed, err := testserdes.EncodeBinary(expected.Payload)
