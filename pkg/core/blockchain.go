@@ -927,7 +927,7 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
-	return util.Fixed8FromInt64(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
+	return util.Fixed8(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
 }
 
 // LastBatch returns last persisted storage batch.
