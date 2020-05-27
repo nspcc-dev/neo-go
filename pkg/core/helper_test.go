@@ -176,6 +176,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
+	require.Equal(t, util.Fixed8FromInt64(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
 	// Move almost all NEO and some nep5 GAS to one simple account.
 	txMoveNeo := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, 1000000000)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
@@ -214,6 +215,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 
+	require.Equal(t, util.Fixed8FromInt64(10), bc.GetUtilityTokenBalance(priv0ScriptHash))
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
