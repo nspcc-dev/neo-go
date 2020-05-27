@@ -13,10 +13,6 @@ import (
 type InvocationTX struct {
 	// Script output of the smart contract.
 	Script []byte
-
-	// Gas cost of the smart contract.
-	Gas     util.Fixed8
-	Version uint8
 }
 
 // NewInvocationTX returns a new invocation transaction.
@@ -26,10 +22,9 @@ func NewInvocationTX(script []byte, gas util.Fixed8) *Transaction {
 		Version: 1,
 		Nonce:   rand.Uint32(),
 		Data: &InvocationTX{
-			Script:  script,
-			Gas:     gas,
-			Version: 1,
+			Script: script,
 		},
+		SystemFee:  gas,
 		Attributes: []Attribute{},
 		Cosigners:  []Cosigner{},
 		Inputs:     []Input{},
@@ -45,21 +40,9 @@ func (tx *InvocationTX) DecodeBinary(br *io.BinReader) {
 		br.Err = errors.New("no script")
 		return
 	}
-	if tx.Version >= 1 {
-		tx.Gas.DecodeBinary(br)
-		if br.Err == nil && tx.Gas.LessThan(0) {
-			br.Err = errors.New("negative gas")
-			return
-		}
-	} else {
-		tx.Gas = util.Fixed8FromInt64(0)
-	}
 }
 
 // EncodeBinary implements Serializable interface.
 func (tx *InvocationTX) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(tx.Script)
-	if tx.Version >= 1 {
-		tx.Gas.EncodeBinary(bw)
-	}
 }

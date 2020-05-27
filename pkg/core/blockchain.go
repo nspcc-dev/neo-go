@@ -735,7 +735,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			v.LoadScript(t.Script)
 			v.SetPriceGetter(getPrice)
 			if bc.config.FreeGasLimit > 0 {
-				v.SetGasLimit(bc.config.FreeGasLimit + t.Gas)
+				v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
 			}
 
 			err := v.Run()
@@ -1400,11 +1400,6 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 		if err := bc.verifyClaims(t, results); err != nil {
 			return err
-		}
-	case transaction.InvocationType:
-		inv := t.Data.(*transaction.InvocationTX)
-		if inv.Gas.FractionalValue() != 0 {
-			return errors.New("invocation gas can only be integer")
 		}
 	}
 

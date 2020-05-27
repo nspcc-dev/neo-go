@@ -54,12 +54,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["0a0abf0188053113d0014e0cb9801d090a5d3e7640d76427fa1a3676e7cdf82e"]`,
+			params: `["1e71f60519a68c73cc1ca5382bab12160c4967c86e28e8238b78ea54dcbdc716"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("0a0abf0188053113d0014e0cb9801d090a5d3e7640d76427fa1a3676e7cdf82e")
+				expectedTxHash, err := util.Uint256DecodeStringLE("1e71f60519a68c73cc1ca5382bab12160c4967c86e28e8238b78ea54dcbdc716")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -180,7 +180,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					},
 						{
 							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "10",
+							Amount:      "1000",
 							LastUpdated: 1,
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -247,7 +247,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Timestamp:   blockRecieveGAS.Timestamp,
 							Asset:       e.chain.UtilityTokenHash(),
 							Address:     testchain.MultisigAddress(),
-							Amount:      "10",
+							Amount:      "1000",
 							Index:       1,
 							NotifyIndex: 0,
 							TxHash:      txRecieveGASHash,
@@ -579,7 +579,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["0e873d5d565a03c6cd39efa3b446e1901b4636c448a22bc7e8c259c5a28a2eda"]`,
+			params: `["be463055a8447567434037aad40ad58764cb7eef4aee64308f74ce6df5a98a8a"]`,
 			result: func(e *executor) interface{} {
 				h := 1
 				return &h
@@ -791,7 +791,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["80000b000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000a267050000000000b00400000000017a03a89832a347c4fb53af1f526d0d930b14ab6eb01629ce20ffbaeaeef58af3010001787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a0030d3dec3862300316e851039019d39dfc2c37d6c3fee19fd58098701420c40b6aeec1d2699194b842f399448b395d98bbb287dc89ea9e5ce3bb99a1c8c9bf933f55b69db6709b44e6a5c8b28b97018466479e5d500e414a0874c37abab262d290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
+			params: `["80000b000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000a267050000000000b0040000000001e2b5b6f72dc08d3b0e498c6466928031333f0b242cf158a547b8c4a1681f8f2d010001787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a0030d3dec3862300316e851039019d39dfc2c37d6c3fee19fd58098701420c406a41c10280ff445c36fb16fe94fa197c9ab9678d099c7c1af5d4b9269ac19bbba09e20f02f53582bc340b4ea77539c28bb2cc03902e77d5d37febabe902aac98290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v

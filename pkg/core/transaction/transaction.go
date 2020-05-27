@@ -174,7 +174,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 func (t *Transaction) decodeData(r *io.BinReader) {
 	switch t.Type {
 	case InvocationType:
-		t.Data = &InvocationTX{Version: t.Version}
+		t.Data = &InvocationTX{}
 		t.Data.(*InvocationTX).DecodeBinary(r)
 	case ClaimType:
 		t.Data = &ClaimTX{}
@@ -315,7 +315,6 @@ type transactionJSON struct {
 
 	Claims []Input          `json:"claims,omitempty"`
 	Script string           `json:"script,omitempty"`
-	Gas    util.Fixed8      `json:"gas,omitempty"`
 	Asset  *registeredAsset `json:"asset,omitempty"`
 }
 
@@ -342,7 +341,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		tx.Claims = t.Data.(*ClaimTX).Claims
 	case InvocationType:
 		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
-		tx.Gas = t.Data.(*InvocationTX).Gas
 	case RegisterType:
 		transaction := *t.Data.(*RegisterTX)
 		tx.Asset = &registeredAsset{
@@ -390,9 +388,7 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		t.Data = &InvocationTX{
-			Script:  bytes,
-			Gas:     tx.Gas,
-			Version: tx.Version,
+			Script: bytes,
 		}
 	case RegisterType:
 		admin, err := address.StringToUint160(tx.Asset.Admin)

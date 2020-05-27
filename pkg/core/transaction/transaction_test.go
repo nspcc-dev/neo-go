@@ -92,7 +92,7 @@ func TestNewInvocationTX(t *testing.T) {
 	tx := NewInvocationTX(script, 1)
 	txData := tx.Data.(*InvocationTX)
 	assert.Equal(t, InvocationType, tx.Type)
-	assert.Equal(t, tx.Version, txData.Version)
+	assert.Equal(t, util.Fixed8(1), tx.SystemFee)
 	assert.Equal(t, script, txData.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
@@ -153,9 +153,7 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Type:    InvocationType,
 		Version: 3,
 		Data: &InvocationTX{
-			Script:  []byte{1, 2, 3, 4},
-			Gas:     util.Fixed8FromFloat(100),
-			Version: 3,
+			Script: []byte{1, 2, 3, 4},
 		},
 		Attributes: []Attribute{},
 		Inputs: []Input{{
