@@ -37,14 +37,14 @@ func NewCommands() []cli.Command {
 			Name:  "count, c",
 			Usage: "number of blocks to be processed (default or 0: all chain)",
 		},
-	)
-	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
-	copy(cfgCountOutFlags, cfgWithCountFlags)
-	cfgCountOutFlags = append(cfgCountOutFlags,
 		cli.UintFlag{
 			Name:  "start, s",
 			Usage: "block number to start from (default: 0)",
 		},
+	)
+	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
+	copy(cfgCountOutFlags, cfgWithCountFlags)
+	cfgCountOutFlags = append(cfgCountOutFlags,
 		cli.StringFlag{
 			Name:  "out, o",
 			Usage: "Output file (stdout if not given)",
@@ -53,10 +53,6 @@ func NewCommands() []cli.Command {
 	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountInFlags, cfgWithCountFlags)
 	cfgCountInFlags = append(cfgCountInFlags,
-		cli.UintFlag{
-			Name:  "skip, s",
-			Usage: "number of blocks to skip (default: 0)",
-		},
 		cli.StringFlag{
 			Name:  "in, i",
 			Usage: "Input file (stdin if not given)",
@@ -64,6 +60,10 @@ func NewCommands() []cli.Command {
 		cli.StringFlag{
 			Name:  "dump",
 			Usage: "directory for storing JSON dumps",
+		},
+		cli.BoolFlag{
+			Name:  "diff, k",
+			Usage: "Use if DB is restore from diff and not full dump",
 		},
 	)
 	return []cli.Command{
@@ -78,8 +78,10 @@ func NewCommands() []cli.Command {
 			Usage: "database manipulations",
 			Subcommands: []cli.Command{
 				{
-					Name:   "dump",
-					Usage:  "dump blocks (starting with block #1) to the file",
+					Name:  "dump",
+					Usage: "dump blocks (starting with block #1) to the file",
+					UsageText: "When --start option is provided format is different because " +
+						"index of the first block is written first.",
 					Action: dumpDB,
 					Flags:  cfgCountOutFlags,
 				},
@@ -202,6 +204,9 @@ func dumpDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = chainCount - start
 	}
+	if start != 0 {
+		writer.WriteU32LE(start)
+	}
 	writer.WriteU32LE(count)
 	for i := start; i < start+count; i++ {
 		bh := chain.GetHeaderHash(int(i))
@@ -234,7 +239,7 @@ func restoreDB(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	count := uint32(ctx.Uint("count"))
-	skip := uint32(ctx.Uint("skip"))
+	start := uint32(ctx.Uint("start"))
 
 	var inStream = os.Stdin
 	if in := ctx.String("in"); in != "" {
@@ -259,18 +264,29 @@ func restoreDB(ctx *cli.Context) error {
 	defer prometheus.ShutDown()
 	defer pprof.ShutDown()
 
-	var allBlocks = reader.ReadU32LE()
+	dumpStart := uint32(0)
+	dumpSize := reader.ReadU32LE()
+	if ctx.Bool("diff") {
+		// in diff first uint32 is the index of the first block
+		dumpStart = dumpSize
+		dumpSize = reader.ReadU32LE()
+	}
 	if reader.Err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if skip+count > allBlocks {
-		return cli.NewExitError(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
+	if start < dumpStart {
+		return cli.NewExitError(fmt.Errorf("input file start from %d block, can't import %d", dumpStart, start), 1)
+	}
+
+	lastBlock := dumpStart + dumpSize
+	if start+count > lastBlock {
+		return cli.NewExitError(fmt.Errorf("input file has blocks up until %d, can't read %d starting from %d", lastBlock, count, start), 1)
 	}
 	if count == 0 {
-		count = allBlocks - skip
+		count = lastBlock - start
 	}
-	i := uint32(0)
-	for ; i < skip; i++ {
+	i := dumpStart
+	for ; i < start; i++ {
 		_, err := readBlock(reader)
 		if err != nil {
 			return cli.NewExitError(err, 1)
@@ -284,20 +300,23 @@ func restoreDB(ctx *cli.Context) error {
 		_ = dump.tryPersist(dumpDir, lastIndex)
 	}()
 
-	for ; i < skip+count; i++ {
+	for ; i < start+count; i++ {
 		select {
 		case <-gctx.Done():
 			return cli.NewExitError("cancelled", 1)
 		default:
 		}
 		bytes, err := readBlock(reader)
-		block := &block.Block{}
-		newReader := io.NewBinReaderFromBuf(bytes)
-		block.DecodeBinary(newReader)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		if block.Index == 0 && i == 0 && skip == 0 {
+		block := &block.Block{}
+		newReader := io.NewBinReaderFromBuf(bytes)
+		block.DecodeBinary(newReader)
+		if newReader.Err != nil {
+			return cli.NewExitError(newReader.Err, 1)
+		}
+		if block.Index == 0 && i == 0 && start == 0 {
 			genesis, err := chain.GetBlock(block.Hash())
 			if err == nil && genesis.Index == 0 {
 				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
