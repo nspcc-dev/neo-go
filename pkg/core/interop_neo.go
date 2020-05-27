@@ -582,7 +582,7 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 		}
 		if contract.HasStorage() {
 			hash := getContextScriptHash(v, 0)
-			siMap, err := ic.dao.GetStorageItems(hash)
+			siMap, err := ic.dao.GetStorageItems(hash, nil)
 			if err != nil {
 				return err
 			}

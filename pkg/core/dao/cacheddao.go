@@ -321,7 +321,7 @@ type StorageIteratorFunc func() ([]byte, []byte, error)
 // GetStorageItemsIterator returns iterator over all storage items.
 // Function returned can be called until first error.
 func (cd *Cached) GetStorageItemsIterator(hash util.Uint160, prefix []byte) (StorageIteratorFunc, error) {
-	items, err := cd.DAO.GetStorageItems(hash)
+	items, err := cd.DAO.GetStorageItems(hash, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +352,7 @@ func (cd *Cached) GetStorageItemsIterator(hash util.Uint160, prefix []byte) (Sto
 		index++
 		for ; index < len(items); index++ {
 			_, ok := cache[string(items[index].Key)]
-			if !ok && bytes.HasPrefix(items[index].Key, prefix) {
+			if !ok {
 				return items[index].Key, items[index].Value, nil
 			}
 		}
@@ -362,8 +362,8 @@ func (cd *Cached) GetStorageItemsIterator(hash util.Uint160, prefix []byte) (Sto
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
-func (cd *Cached) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
-	items, err := cd.DAO.GetStorageItems(hash)
+func (cd *Cached) GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error) {
+	items, err := cd.DAO.GetStorageItems(hash, prefix)
 	if err != nil {
 		return nil, err
 	}
