@@ -8,5 +8,6 @@ type Transporter interface {
 	Dial(addr string, timeout time.Duration) error
 	Accept()
 	Proto() string
+	Address() string
 	Close()
 }

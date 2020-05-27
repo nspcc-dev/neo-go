@@ -51,6 +51,7 @@ type Peer interface {
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
+	IsFullNode() bool
 
 	// SendPing enqueues a ping message to be sent to the peer and does
 	// appropriate protocol handling like timeouts and outstanding pings

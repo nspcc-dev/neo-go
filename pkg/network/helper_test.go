@@ -3,9 +3,9 @@ package network
 import (
 	"math/rand"
 	"net"
+	"strconv"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -177,26 +178,17 @@ func (chain testChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transa
 
 type testDiscovery struct{}
 
-func (d testDiscovery) BackFill(addrs ...string)       {}
-func (d testDiscovery) Close()                         {}
-func (d testDiscovery) PoolCount() int                 { return 0 }
-func (d testDiscovery) RegisterBadAddr(string)         {}
-func (d testDiscovery) RegisterGoodAddr(string)        {}
-func (d testDiscovery) RegisterConnectedAddr(string)   {}
-func (d testDiscovery) UnregisterConnectedAddr(string) {}
-func (d testDiscovery) UnconnectedPeers() []string     { return []string{} }
-func (d testDiscovery) RequestRemote(n int)            {}
-func (d testDiscovery) BadPeers() []string             { return []string{} }
-func (d testDiscovery) GoodPeers() []string            { return []string{} }
-
-type localTransport struct{}
-
-func (t localTransport) Dial(addr string, timeout time.Duration) error {
-	return nil
-}
-func (t localTransport) Accept()       {}
-func (t localTransport) Proto() string { return "local" }
-func (t localTransport) Close()        {}
+func (d testDiscovery) BackFill(addrs ...string)                         {}
+func (d testDiscovery) Close()                                           {}
+func (d testDiscovery) PoolCount() int                                   { return 0 }
+func (d testDiscovery) RegisterBadAddr(string)                           {}
+func (d testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
+func (d testDiscovery) RegisterConnectedAddr(string)                     {}
+func (d testDiscovery) UnregisterConnectedAddr(string)                   {}
+func (d testDiscovery) UnconnectedPeers() []string                       { return []string{} }
+func (d testDiscovery) RequestRemote(n int)                              {}
+func (d testDiscovery) BadPeers() []string                               { return []string{} }
+func (d testDiscovery) GoodPeers() []AddressWithCapabilities             { return []AddressWithCapabilities{} }
 
 var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
@@ -206,6 +198,7 @@ type localPeer struct {
 	version        *payload.Version
 	lastBlockIndex uint32
 	handshaked     bool
+	isFullNode     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
 	pingSent       int
@@ -266,7 +259,10 @@ func (p *localPeer) HandleVersion(v *payload.Version) error {
 	return nil
 }
 func (p *localPeer) SendVersion() error {
-	m := p.server.getVersionMsg()
+	m, err := p.server.getVersionMsg()
+	if err != nil {
+		return err
+	}
 	_ = p.EnqueueMessage(m)
 	return nil
 }
@@ -293,11 +289,14 @@ func (p *localPeer) Handshaked() bool {
 	return p.handshaked
 }
 
-func newTestServer(t *testing.T) *Server {
-	return &Server{
-		ServerConfig: ServerConfig{},
+func (p *localPeer) IsFullNode() bool {
+	return p.isFullNode
+}
+
+func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
+	s := &Server{
+		ServerConfig: serverConfig,
 		chain:        &testChain{},
-		transport:    localTransport{},
 		discovery:    testDiscovery{},
 		id:           rand.Uint32(),
 		quit:         make(chan struct{}),
@@ -306,5 +305,6 @@ func newTestServer(t *testing.T) *Server {
 		peers:        make(map[Peer]bool),
 		log:          zaptest.NewLogger(t),
 	}
-
+	s.transport = NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
+	return s
 }

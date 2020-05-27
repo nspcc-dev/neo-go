@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
@@ -144,7 +145,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
-	s.transport = NewTCPTransport(s, fmt.Sprintf("%s:%d", config.Address, config.Port), s.log)
+	s.transport = NewTCPTransport(s, net.JoinHostPort(config.Address, strconv.Itoa(int(config.Port))), s.log)
 	s.discovery = NewDefaultDiscovery(
 		s.DialTimeout,
 		s.transport,
@@ -343,16 +344,42 @@ func (s *Server) HandshakedPeersCount() int {
 }
 
 // getVersionMsg returns current version message.
-func (s *Server) getVersionMsg() *Message {
+func (s *Server) getVersionMsg() (*Message, error) {
+	var port uint16
+	_, portStr, err := net.SplitHostPort(s.transport.Address())
+	if err != nil {
+		port = s.Port
+	} else {
+		p, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return nil, err
+		}
+		port = uint16(p)
+	}
+
+	capabilities := []capability.Capability{
+		{
+			Type: capability.TCPServer,
+			Data: &capability.Server{
+				Port: port,
+			},
+		},
+	}
+	if s.Relay {
+		capabilities = append(capabilities, capability.Capability{
+			Type: capability.FullNode,
+			Data: &capability.Node{
+				StartHeight: s.chain.BlockHeight(),
+			},
+		})
+	}
 	payload := payload.NewVersion(
 		s.Net,
 		s.id,
-		s.Port,
 		s.UserAgent,
-		s.chain.BlockHeight(),
-		s.Relay,
+		capabilities,
 	)
-	return NewMessage(CMDVersion, payload)
+	return NewMessage(CMDVersion, payload), nil
 }
 
 // IsInSync answers the question of whether the server is in sync with the
@@ -622,7 +649,10 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 // handleAddrCmd will process received addresses.
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	for _, a := range addrs.Addrs {
-		s.discovery.BackFill(a.IPPortString())
+		addr, err := a.GetTCPAddress()
+		if err != nil {
+			s.discovery.BackFill(addr)
+		}
 	}
 	return nil
 }
@@ -637,8 +667,8 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	ts := time.Now()
 	for i, addr := range addrs {
 		// we know it's a good address, so it can't fail
-		netaddr, _ := net.ResolveTCPAddr("tcp", addr)
-		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts)
+		netaddr, _ := net.ResolveTCPAddr("tcp", addr.Address)
+		alist.Addrs[i] = payload.NewAddressAndTime(netaddr, ts, addr.Capabilities)
 	}
 	return p.EnqueueP2PMessage(NewMessage(CMDAddr, alist))
 }
@@ -855,9 +885,7 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
-		return p.Handshaked() && p.Version().Relay
-	})
+	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, Peer.IsFullNode)
 }
 
 // broadcastTxLoop is a loop for batching and sending
