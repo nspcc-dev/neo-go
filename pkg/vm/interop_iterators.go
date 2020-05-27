@@ -18,7 +18,8 @@ type (
 )
 
 type (
-	iterator interface {
+	// Iterator defined public interface for VM's iterator type.
+	Iterator interface {
 		enumerator
 		Key() StackItem
 	}
@@ -29,16 +30,16 @@ type (
 	}
 
 	concatIter struct {
-		current iterator
-		second  iterator
+		current Iterator
+		second  Iterator
 	}
 
 	keysWrapper struct {
-		iter iterator
+		iter Iterator
 	}
 
 	valuesWrapper struct {
-		iter iterator
+		iter Iterator
 	}
 )
 

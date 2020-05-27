@@ -561,7 +561,7 @@ func (ic *interopContext) contractDestroy(v *vm.VM) error {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.dao.GetStorageItems(hash)
+		siMap, err := ic.dao.GetStorageItems(hash, nil)
 		if err != nil {
 			return err
 		}

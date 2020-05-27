@@ -35,7 +35,7 @@ type DAO interface {
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
-	GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error)
+	GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
@@ -442,7 +442,7 @@ type StorageItemWithKey struct {
 }
 
 // GetStorageItems returns all storage items for a given scripthash.
-func (dao *Simple) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
+func (dao *Simple) GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error) {
 	var res []StorageItemWithKey
 	var err error
 
@@ -462,7 +462,7 @@ func (dao *Simple) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, err
 		s.Key = k[21:]
 		res = append(res, s)
 	}
-	dao.Store.Seek(storage.AppendPrefix(storage.STStorage, hash.BytesLE()), saveToMap)
+	dao.Store.Seek(makeStorageItemKey(hash, prefix), saveToMap)
 	if err != nil {
 		return nil, err
 	}
