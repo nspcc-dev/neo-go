@@ -315,6 +315,52 @@ func (cd *Cached) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
 	return nil
 }
 
+// StorageIteratorFunc is a function returning key-value pair or error.
+type StorageIteratorFunc func() ([]byte, []byte, error)
+
+// GetStorageItemsIterator returns iterator over all storage items.
+// Function returned can be called until first error.
+func (cd *Cached) GetStorageItemsIterator(hash util.Uint160, prefix []byte) (StorageIteratorFunc, error) {
+	items, err := cd.DAO.GetStorageItems(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(items, func(i, j int) bool { return bytes.Compare(items[i].Key, items[j].Key) == -1 })
+
+	cache := cd.storage.getItems(hash)
+
+	var getItemFromCache StorageIteratorFunc
+	keyIndex := -1
+	getItemFromCache = func() ([]byte, []byte, error) {
+		keyIndex++
+		for ; keyIndex < len(cd.storage.keys[hash]); keyIndex++ {
+			k := cd.storage.keys[hash][keyIndex]
+			v := cache[k]
+			if v.State != delOp && bytes.HasPrefix([]byte(k), prefix) {
+				val := make([]byte, len(v.StorageItem.Value))
+				copy(val, v.StorageItem.Value)
+				return []byte(k), val, nil
+			}
+		}
+		return nil, nil, errors.New("no more items")
+	}
+
+	var f func() ([]byte, []byte, error)
+	index := -1
+	f = func() ([]byte, []byte, error) {
+		index++
+		for ; index < len(items); index++ {
+			_, ok := cache[string(items[index].Key)]
+			if !ok && bytes.HasPrefix(items[index].Key, prefix) {
+				return items[index].Key, items[index].Value, nil
+			}
+		}
+		return getItemFromCache()
+	}
+	return f, nil
+}
+
 // GetStorageItems returns all storage items for a given scripthash.
 func (cd *Cached) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
 	items, err := cd.DAO.GetStorageItems(hash)

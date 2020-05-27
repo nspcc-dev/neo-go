@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -463,22 +462,12 @@ func (ic *interopContext) storageFind(v *vm.VM) error {
 		return err
 	}
 	pref := v.Estack().Pop().Bytes()
-	siMap, err := ic.dao.GetStorageItems(stc.ScriptHash)
+	next, err := ic.dao.GetStorageItemsIterator(stc.ScriptHash, pref)
 	if err != nil {
 		return err
 	}
-
-	filteredMap := vm.NewMapItem()
-	for i := range siMap {
-		k := siMap[i].Key
-		if bytes.HasPrefix(k, pref) {
-			filteredMap.Add(vm.NewByteArrayItem(siMap[i].Key),
-				vm.NewByteArrayItem(siMap[i].Value))
-		}
-	}
-
-	item := vm.NewMapIterator(filteredMap)
-	v.Estack().PushVal(item)
+	item := newStorageIterator(next)
+	v.Estack().PushVal(vm.NewInteropItem(item))
 
 	return nil
 }
