@@ -169,6 +169,8 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	inc := amount
 	if isEmpty {
 		inc = big.NewInt(0)
+	} else {
+		inc = new(big.Int).Neg(inc)
 	}
 	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
 		return err
