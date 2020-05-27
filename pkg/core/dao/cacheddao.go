@@ -261,6 +261,18 @@ func copyItem(si *state.StorageItem) *state.StorageItem {
 
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (cd *Cached) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
+	return cd.getStorageItemInt(scripthash, key, true)
+}
+
+// getStorageItemNoCache is non-caching GetStorageItem version.
+func (cd *Cached) getStorageItemNoCache(scripthash util.Uint160, key []byte) *state.StorageItem {
+	return cd.getStorageItemInt(scripthash, key, false)
+}
+
+// getStorageItemInt is an internal GetStorageItem that can either cache read
+// (for upper Cached) or not do so (for lower Cached that should only be updated
+// on persist).
+func (cd *Cached) getStorageItemInt(scripthash util.Uint160, key []byte, putToCache bool) *state.StorageItem {
 	ti := cd.storage.getItem(scripthash, key)
 	if ti != nil {
 		if ti.State == delOp {
@@ -269,9 +281,17 @@ func (cd *Cached) GetStorageItem(scripthash util.Uint160, key []byte) *state.Sto
 		return copyItem(&ti.StorageItem)
 	}
 
-	si := cd.DAO.GetStorageItem(scripthash, key)
+	// Gets shouldn't affect lower Cached.storage until Persist.
+	var si *state.StorageItem
+	if lowerCached, ok := cd.DAO.(*Cached); ok {
+		si = lowerCached.getStorageItemNoCache(scripthash, key)
+	} else {
+		si = cd.DAO.GetStorageItem(scripthash, key)
+	}
 	if si != nil {
-		cd.storage.put(scripthash, key, getOp, si)
+		if putToCache {
+			cd.storage.put(scripthash, key, getOp, si)
+		}
 		return copyItem(si)
 	}
 	return nil
