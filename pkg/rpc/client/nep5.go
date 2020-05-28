@@ -97,7 +97,7 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // TransferNEP5 creates an invocation transaction that invokes 'transfer' method
 // on a given token to move specified amount of NEP5 assets (in FixedN format
 // using contract's number of decimals) to given account.
-func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *wallet.Token, amount int64, gas util.Fixed8) (util.Uint256, error) {
+func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas util.Fixed8) (util.Uint256, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("bad account address: %v", err)
@@ -105,7 +105,7 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 	// Note: we don't use invoke function here because it requires
 	// 2 round trips instead of one.
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, token.Hash, "transfer", from, to, amount)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, token, "transfer", from, to, amount)
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()

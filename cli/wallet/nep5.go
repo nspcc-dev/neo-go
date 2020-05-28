@@ -341,7 +341,7 @@ func transferNEP5(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	hash, err := c.TransferNEP5(acc, to, token, amount, gas)
+	hash, err := c.TransferNEP5(acc, to, token.Hash, amount, gas)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
