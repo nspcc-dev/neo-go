@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -135,10 +133,6 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.U
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("can't calculate validUntilBlock: %v", err)
-	}
-
-	if err := request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't add GAS to transaction: %v", err)
 	}
 
 	err = c.AddNetworkFee(tx, acc)

@@ -515,14 +515,6 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	}
 	tx.Sender = addr
 
-	gas := sysfee + netfee
-
-	if gas > 0 {
-		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
-			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
-		}
-	}
-
 	err = c.AddNetworkFee(tx, acc)
 	if err != nil {
 		return txHash, errors.Wrapf(err, "failed to add network fee")
