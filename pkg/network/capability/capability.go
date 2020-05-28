@@ -65,6 +65,7 @@ func (c *Capability) DecodeBinary(br *io.BinReader) {
 		c.Data = &Server{}
 	default:
 		br.Err = errors.New("unknown node capability type")
+		return
 	}
 	c.Data.DecodeBinary(br)
 }
