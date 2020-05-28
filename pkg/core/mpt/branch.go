@@ -1,6 +1,9 @@
 package mpt
 
 import (
+	"encoding/json"
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -67,6 +70,23 @@ func (b *BranchNode) DecodeBinary(r *io.BinReader) {
 		b.Children[i] = new(HashNode)
 		b.Children[i].DecodeBinary(r)
 	}
+}
+
+// MarshalJSON implements json.Marshaler.
+func (b *BranchNode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.Children)
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (b *BranchNode) UnmarshalJSON(data []byte) error {
+	var obj NodeObject
+	if err := obj.UnmarshalJSON(data); err != nil {
+		return err
+	} else if u, ok := obj.Node.(*BranchNode); ok {
+		*b = *u
+		return nil
+	}
+	return errors.New("expected branch node")
 }
 
 // splitPath splits path for a branch node.

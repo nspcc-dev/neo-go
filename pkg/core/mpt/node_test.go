@@ -1,26 +1,42 @@
 package mpt
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func getTestFuncEncode(ok bool, expected, actual Node) func(t *testing.T) {
 	return func(t *testing.T) {
-		bs, err := testserdes.EncodeBinary(expected)
-		require.NoError(t, err)
-		err = testserdes.DecodeBinary(bs, actual)
-		if !ok {
-			require.Error(t, err)
-			return
-		}
-		require.NoError(t, err)
-		require.Equal(t, expected.Type(), actual.Type())
-		require.Equal(t, expected.Hash(), actual.Hash())
+		t.Run("IO", func(t *testing.T) {
+			bs, err := testserdes.EncodeBinary(expected)
+			require.NoError(t, err)
+			err = testserdes.DecodeBinary(bs, actual)
+			if !ok {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, expected.Type(), actual.Type())
+			require.Equal(t, expected.Hash(), actual.Hash())
+		})
+		t.Run("JSON", func(t *testing.T) {
+			bs, err := json.Marshal(expected)
+			require.NoError(t, err)
+			err = json.Unmarshal(bs, actual)
+			if !ok {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, expected.Type(), actual.Type())
+			require.Equal(t, expected.Hash(), actual.Hash())
+		})
 	}
 }
 
@@ -72,6 +88,52 @@ func TestNode_Serializable(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		require.Error(t, testserdes.DecodeBinary([]byte{0xFF}, new(NodeObject)))
 	})
+}
+
+// https://github.com/neo-project/neo/blob/neox-2.x/neo.UnitTests/UT_MPTTrie.cs#L198
+func TestJSONSharp(t *testing.T) {
+	tr := NewTrie(nil, newTestStore())
+	require.NoError(t, tr.Put([]byte{0xac, 0x11}, []byte{0xac, 0x11}))
+	require.NoError(t, tr.Put([]byte{0xac, 0x22}, []byte{0xac, 0x22}))
+	require.NoError(t, tr.Put([]byte{0xac}, []byte{0xac}))
+	require.NoError(t, tr.Delete([]byte{0xac, 0x11}))
+	require.NoError(t, tr.Delete([]byte{0xac, 0x22}))
+
+	js, err := tr.root.MarshalJSON()
+	require.NoError(t, err)
+	require.JSONEq(t, `{"key":"0a0c", "next":{"value":"ac"}}`, string(js))
+}
+
+func TestInvalidJSON(t *testing.T) {
+	t.Run("InvalidChildrenCount", func(t *testing.T) {
+		var cs [childrenCount + 1]Node
+		for i := range cs {
+			cs[i] = new(HashNode)
+		}
+		data, err := json.Marshal(cs)
+		require.NoError(t, err)
+
+		var n NodeObject
+		require.Error(t, json.Unmarshal(data, &n))
+	})
+
+	testCases := []struct {
+		name string
+		data []byte
+	}{
+		{"WrongFieldCount", []byte(`{"key":"0102", "next": {}, "field": {}}`)},
+		{"InvalidField1", []byte(`{"next":{}}`)},
+		{"InvalidField2", []byte(`{"key":"0102", "hash":{}}`)},
+		{"InvalidKey", []byte(`{"key":"xy", "next":{}}`)},
+		{"InvalidNext", []byte(`{"key":"01", "next":[]}`)},
+		{"InvalidHash", []byte(`{"hash":"01"}`)},
+		{"InvalidValue", []byte(`{"value":1}`)},
+		{"InvalidBranch", []byte(`[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]`)},
+	}
+	for _, tc := range testCases {
+		var n NodeObject
+		assert.Errorf(t, json.Unmarshal(tc.data, &n), "no error in "+tc.name)
+	}
 }
 
 // C# interoperability test
