@@ -371,3 +371,76 @@ func TestTrie_PanicInvalidRoot(t *testing.T) {
 	require.Panics(t, func() { _, _ = tr.Get([]byte{1}) })
 	require.Panics(t, func() { _ = tr.Delete([]byte{1}) })
 }
+
+func TestTrie_Collapse(t *testing.T) {
+	t.Run("PanicNegative", func(t *testing.T) {
+		tr := newTestTrie(t)
+		require.Panics(t, func() { tr.Collapse(-1) })
+	})
+	t.Run("Depth=0", func(t *testing.T) {
+		tr := newTestTrie(t)
+		h := tr.root.Hash()
+
+		_, ok := tr.root.(*HashNode)
+		require.False(t, ok)
+
+		tr.Collapse(0)
+		_, ok = tr.root.(*HashNode)
+		require.True(t, ok)
+		require.Equal(t, h, tr.root.Hash())
+	})
+	t.Run("Branch,Depth=1", func(t *testing.T) {
+		b := NewBranchNode()
+		e := NewExtensionNode([]byte{0x01}, NewLeafNode([]byte("value1")))
+		he := e.Hash()
+		b.Children[0] = e
+		hb := b.Hash()
+
+		tr := NewTrie(b, newTestStore())
+		tr.Collapse(1)
+
+		newb, ok := tr.root.(*BranchNode)
+		require.True(t, ok)
+		require.Equal(t, hb, newb.Hash())
+		require.IsType(t, (*HashNode)(nil), b.Children[0])
+		require.Equal(t, he, b.Children[0].Hash())
+	})
+	t.Run("Extension,Depth=1", func(t *testing.T) {
+		l := NewLeafNode([]byte("value"))
+		hl := l.Hash()
+		e := NewExtensionNode([]byte{0x01}, l)
+		h := e.Hash()
+		tr := NewTrie(e, newTestStore())
+		tr.Collapse(1)
+
+		newe, ok := tr.root.(*ExtensionNode)
+		require.True(t, ok)
+		require.Equal(t, h, newe.Hash())
+		require.IsType(t, (*HashNode)(nil), newe.next)
+		require.Equal(t, hl, newe.next.Hash())
+	})
+	t.Run("Leaf", func(t *testing.T) {
+		l := NewLeafNode([]byte("value"))
+		tr := NewTrie(l, newTestStore())
+		tr.Collapse(10)
+		require.Equal(t, NewLeafNode([]byte("value")), tr.root)
+	})
+	t.Run("Hash", func(t *testing.T) {
+		t.Run("Empty", func(t *testing.T) {
+			tr := NewTrie(new(HashNode), newTestStore())
+			require.NotPanics(t, func() { tr.Collapse(1) })
+			hn, ok := tr.root.(*HashNode)
+			require.True(t, ok)
+			require.True(t, hn.IsEmpty())
+		})
+
+		h := random.Uint256()
+		hn := NewHashNode(h)
+		tr := NewTrie(hn, newTestStore())
+		tr.Collapse(10)
+
+		newRoot, ok := tr.root.(*HashNode)
+		require.True(t, ok)
+		require.Equal(t, NewHashNode(h), newRoot)
+	})
+}

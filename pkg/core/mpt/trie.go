@@ -355,3 +355,35 @@ func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
 	}
 	return n.Node, nil
 }
+
+// Collapse compresses all nodes at depth n to the hash nodes.
+// Note: this function does not perform any kind of storage flushing so
+// `Flush()` should be called explicitly before invoking function.
+func (t *Trie) Collapse(depth int) {
+	if depth < 0 {
+		panic("negative depth")
+	}
+	t.root = collapse(depth, t.root)
+}
+
+func collapse(depth int, node Node) Node {
+	if _, ok := node.(*HashNode); ok {
+		return node
+	} else if depth == 0 {
+		return NewHashNode(node.Hash())
+	}
+
+	switch n := node.(type) {
+	case *BranchNode:
+		for i := range n.Children {
+			n.Children[i] = collapse(depth-1, n.Children[i])
+		}
+	case *ExtensionNode:
+		n.next = collapse(depth-1, n.next)
+	case *LeafNode:
+	case *HashNode:
+	default:
+		panic("invalid MPT node type")
+	}
+	return node
+}
