@@ -247,46 +247,18 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	info, err := c.GetClaimable(addrFlag.String())
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if info.Unclaimed == 0 || len(info.Spents) == 0 {
-		fmt.Println("Nothing to claim")
-		return nil
-	}
-
-	var claim transaction.ClaimTX
-	for i := range info.Spents {
-		claim.Claims = append(claim.Claims, transaction.Input{
-			PrevHash:  info.Spents[i].Tx,
-			PrevIndex: uint16(info.Spents[i].N),
-		})
-	}
-
-	tx := transaction.NewClaimTX(&claim)
-	validUntilBlock, err := c.CalculateValidUntilBlock()
+	// Temporary.
+	neoHash, err := util.Uint160DecodeStringLE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	tx.ValidUntilBlock = validUntilBlock
-	tx.Sender = scriptHash
 
-	tx.AddOutput(&transaction.Output{
-		AssetID:    core.UtilityTokenID(),
-		Amount:     info.Unclaimed,
-		ScriptHash: scriptHash,
-	})
-
-	err = c.AddNetworkFee(tx, acc)
+	hash, err := c.TransferNEP5(acc, scriptHash, neoHash, 0, 0)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_ = acc.SignTx(tx)
-	if err := c.SendRawTransaction(tx); err != nil {
-		return cli.NewExitError(err, 1)
-	}
 
-	fmt.Println(tx.Hash().StringLE())
+	fmt.Println(hash.StringLE())
 	return nil
 }
 
