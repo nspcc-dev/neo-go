@@ -1593,15 +1593,6 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
 		return errors.New("tx destroys non-utility token")
 	}
-	sysfee := t.SystemFee
-	if sysfee.GreaterThan(util.Fixed8(0)) {
-		if len(resultsDestroy) == 0 {
-			return fmt.Errorf("system requires to pay %s fee, but tx pays nothing", sysfee.String())
-		}
-		if resultsDestroy[0].Amount.LessThan(sysfee) {
-			return fmt.Errorf("system requires to pay %s fee, but tx pays %s only", sysfee.String(), resultsDestroy[0].Amount.String())
-		}
-	}
 
 	switch t.Type {
 	case transaction.ClaimType:
