@@ -88,7 +88,6 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getblockhash":         (*Server).getBlockHash,
 	"getblockheader":       (*Server).getBlockHeader,
 	"getblocksysfee":       (*Server).getBlockSysFee,
-	"getclaimable":         (*Server).getClaimable,
 	"getconnectioncount":   (*Server).getConnectionCount,
 	"getcontractstate":     (*Server).getContractState,
 	"getnep5balances":      (*Server).getNEP5Balances,
@@ -520,58 +519,6 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 	}
 
 	return result.NewApplicationLog(appExecResult, scriptHash), nil
-}
-
-func (s *Server) getClaimable(ps request.Params) (interface{}, *response.Error) {
-	p, ok := ps.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	u, err := p.GetUint160FromAddress()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	var unclaimed []state.UnclaimedBalance
-	if acc := s.chain.GetAccountState(u); acc != nil {
-		err := acc.Unclaimed.ForEach(func(b *state.UnclaimedBalance) error {
-			unclaimed = append(unclaimed, *b)
-			return nil
-		})
-		if err != nil {
-			return nil, response.NewInternalServerError("Unclaimed processing failure", err)
-		}
-	}
-
-	var sum util.Fixed8
-	claimable := make([]result.Claimable, 0, len(unclaimed))
-	for _, ub := range unclaimed {
-		gen, sys, err := s.chain.CalculateClaimable(ub.Value, ub.Start, ub.End)
-		if err != nil {
-			s.log.Info("error while calculating claim bonus", zap.Error(err))
-			continue
-		}
-
-		uc := gen.Add(sys)
-		sum += uc
-
-		claimable = append(claimable, result.Claimable{
-			Tx:          ub.Tx,
-			N:           int(ub.Index),
-			Value:       ub.Value,
-			StartHeight: ub.Start,
-			EndHeight:   ub.End,
-			Generated:   gen,
-			SysFee:      sys,
-			Unclaimed:   uc,
-		})
-	}
-
-	return result.ClaimableInfo{
-		Spents:    claimable,
-		Address:   p.String(),
-		Unclaimed: sum,
-	}, nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {

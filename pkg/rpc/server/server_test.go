@@ -504,40 +504,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-	"getclaimable": {
-		{
-			name:   "no params",
-			params: "[]",
-			fail:   true,
-		},
-		{
-			name:   "invalid address",
-			params: `["invalid"]`,
-			fail:   true,
-		},
-		{
-			name:   "normal address",
-			params: `["` + testchain.MultisigAddress() + `"]`,
-			result: func(*executor) interface{} {
-				// hash of the issueTx
-				h, _ := util.Uint256DecodeStringBE("d3a4f2249fe33b18bde73901c1ecc66200485f1c1dcd941b406a630b479090ae")
-				amount := util.Fixed8FromInt64(1 * 8) // (endHeight - startHeight) * genAmount[0]
-				return &result.ClaimableInfo{
-					Spents: []result.Claimable{
-						{
-							Tx:        h,
-							Value:     util.Fixed8FromInt64(100000000),
-							EndHeight: 1,
-							Generated: amount,
-							Unclaimed: amount,
-						},
-					},
-					Address:   testchain.MultisigAddress(),
-					Unclaimed: amount,
-				}
-			},
-		},
-	},
 	"getconnectioncount": {
 		{
 			params: "[]",

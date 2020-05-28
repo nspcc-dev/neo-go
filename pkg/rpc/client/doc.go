@@ -27,7 +27,6 @@ Supported methods
 	getblockhash
 	getblockheader
 	getblocksysfee
-	getclaimable
 	getconnectioncount
 	getcontractstate
 	getnep5balances

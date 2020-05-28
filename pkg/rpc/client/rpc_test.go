@@ -399,36 +399,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getclaimable": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetClaimable("AGofsxAUDwt52KjaB664GYsqVAkULYvKNt")
-			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"claimable":[{"txid":"52ba70ef18e879785572c917795cd81422c3820b8cf44c24846a30ee7376fd77","n":1,"value":800000,"start_height":476496,"end_height":488154,"generated":746.112,"sys_fee": 3.92,"unclaimed":750.032}],"address":"AGofsxAUDwt52KjaB664GYsqVAkULYvKNt","unclaimed": 750.032}}`,
-			result: func(c *Client) interface{} {
-				txID, err := util.Uint256DecodeStringLE("52ba70ef18e879785572c917795cd81422c3820b8cf44c24846a30ee7376fd77")
-				if err != nil {
-					panic(err)
-				}
-				return &result.ClaimableInfo{
-					Spents: []result.Claimable{
-						{
-							Tx:          txID,
-							N:           1,
-							Value:       util.Fixed8FromInt64(800000),
-							StartHeight: 476496,
-							EndHeight:   488154,
-							Generated:   util.Fixed8FromFloat(746.112),
-							SysFee:      util.Fixed8FromFloat(3.92),
-							Unclaimed:   util.Fixed8FromFloat(750.032),
-						}},
-					Address:   "AGofsxAUDwt52KjaB664GYsqVAkULYvKNt",
-					Unclaimed: util.Fixed8FromFloat(750.032),
-				}
-			},
-		},
-	},
 	"getconnectioncount": {
 		{
 			name: "positive",
@@ -1088,12 +1058,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getclaimable_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetClaimable("")
-			},
-		},
-		{
 			name: "getconnectioncount_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetConnectionCount()
@@ -1267,12 +1231,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getblocksysfee_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBlockSysFee(1)
-			},
-		},
-		{
-			name: "getclaimable_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetClaimable("")
 			},
 		},
 		{

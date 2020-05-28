@@ -187,16 +187,6 @@ func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
 	return resp, nil
 }
 
-// GetClaimable returns tx outputs which can be claimed.
-func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
-	params := request.NewRawParams(address)
-	resp := new(result.ClaimableInfo)
-	if err := c.performRequest("getclaimable", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetConnectionCount returns the current number of connections for the node.
 func (c *Client) GetConnectionCount() (int, error) {
 	var (

@@ -43,7 +43,6 @@ which would yield the response:
 | `getblockhash` |
 | `getblockheader` |
 | `getblocksysfee` |
-| `getclaimable` |
 | `getconnectioncount` |
 | `getcontractstate` |
 | `getnep5balances` |
