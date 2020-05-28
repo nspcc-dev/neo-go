@@ -14,11 +14,11 @@ type InventoryType uint8
 // String implements the Stringer interface.
 func (i InventoryType) String() string {
 	switch i {
-	case 0x01:
+	case TXType:
 		return "TX"
-	case 0x02:
+	case BlockType:
 		return "block"
-	case 0xe0:
+	case ConsensusType:
 		return "consensus"
 	default:
 		return "unknown inventory type"
@@ -32,9 +32,9 @@ func (i InventoryType) Valid() bool {
 
 // List of valid InventoryTypes.
 const (
-	TXType        InventoryType = 0x01 // 1
-	BlockType     InventoryType = 0x02 // 2
-	ConsensusType InventoryType = 0xe0 // 224
+	TXType        InventoryType = 0x2b
+	BlockType     InventoryType = 0x2c
+	ConsensusType InventoryType = 0x2d
 )
 
 // Inventory payload.
