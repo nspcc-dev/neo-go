@@ -1,6 +1,8 @@
 package mpt
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -53,4 +55,21 @@ func (n *LeafNode) DecodeBinary(r *io.BinReader) {
 // EncodeBinary implements io.Serializable.
 func (n LeafNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(n.value)
+}
+
+// MarshalJSON implements json.Marshaler.
+func (n *LeafNode) MarshalJSON() ([]byte, error) {
+	return []byte(`{"value":"` + hex.EncodeToString(n.value) + `"}`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (n *LeafNode) UnmarshalJSON(data []byte) error {
+	var obj NodeObject
+	if err := obj.UnmarshalJSON(data); err != nil {
+		return err
+	} else if u, ok := obj.Node.(*LeafNode); ok {
+		*n = *u
+		return nil
+	}
+	return errors.New("expected leaf node")
 }

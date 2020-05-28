@@ -1,6 +1,7 @@
 package mpt
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -58,4 +59,24 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 		return
 	}
 	w.WriteVarBytes(h.hash[:])
+}
+
+// MarshalJSON implements json.Marshaler.
+func (h *HashNode) MarshalJSON() ([]byte, error) {
+	if !h.valid {
+		return []byte(`{}`), nil
+	}
+	return []byte(`{"hash":"` + h.hash.StringLE() + `"}`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (h *HashNode) UnmarshalJSON(data []byte) error {
+	var obj NodeObject
+	if err := obj.UnmarshalJSON(data); err != nil {
+		return err
+	} else if u, ok := obj.Node.(*HashNode); ok {
+		*h = *u
+		return nil
+	}
+	return errors.New("expected hash node")
 }

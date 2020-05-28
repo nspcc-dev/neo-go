@@ -1,6 +1,9 @@
 package mpt
 
 import (
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -67,4 +70,25 @@ func (e ExtensionNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(e.key)
 	n := NewHashNode(e.next.Hash())
 	n.EncodeBinary(w)
+}
+
+// MarshalJSON implements json.Marshaler.
+func (e *ExtensionNode) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{
+		"key":  hex.EncodeToString(e.key),
+		"next": e.next,
+	}
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (e *ExtensionNode) UnmarshalJSON(data []byte) error {
+	var obj NodeObject
+	if err := obj.UnmarshalJSON(data); err != nil {
+		return err
+	} else if u, ok := obj.Node.(*ExtensionNode); ok {
+		*e = *u
+		return nil
+	}
+	return errors.New("expected extension node")
 }
