@@ -2,6 +2,150 @@
 
 This document outlines major changes between releases.
 
+## 0.75.0 "Caramelization" (28 May 2020)
+
+A long-awaited Neo 2.0 update for neo-go that fixes a lot of subtle little
+differences in VM and syscalls behavior compared to C# node that resulted in
+storage state mismatches between two nodes. This release makes neo-go fully
+compatible with public testnet and mainnet chains, for every transaction in
+every block you get the same result.
+
+But it's not just about bugs, as it's been quite a long development cycle,
+we've also included some interesting new features like notification subsystem,
+neo-debugger compatibility and BadgerDB support. Smart contract compiler and
+interop packages were also updated making neo-go even better for developing
+real-world complex smart contracts.
+
+New features:
+ * support for `for` loops with no condition was added to the compiler (#799)
+ * compiler can now emit debug information compatible with neo-debugger (#804,
+   #829)
+ * experimental BadgerDB support was added (#839)
+ * support for abi.json files generation was added for contract deployment
+   with NEO-Express (#916)
+ * RPC over websocket connections is now supported both by the server (with
+   ws://$SERVER:$PORT/ws URL) and client (WSClient structure, #921)
+ * notification subsystem was added for RPC server and client (using websocket
+   connections, #895)
+ * interop package now has a complete set of syscalls available (#795, #956)
+ * push command was added to VM CLI (#967)
+ * diff dumps are now supported in `db restore` CLI command (#991)
+
+Behavior changes:
+ * due to DB format changes you'll need to resynchronize your node from
+   scratch (and it'll also update its state to a more proper one)
+ * runtime.Notify interop now accepts varargs (#825)
+ * compiler's `--debug` parameter is now used for debug information generation,
+   use `--verbose` to get more internal compiler's messages (#829)
+ * compiler now outputs hex-encoded contract's bytecode only with `--verbose`
+   option (#829, previously it was always printed)
+ * RPC client's representation of GetBlock results changed significantly (#951)
+ * some interop functions changed their in/out types to a more proper ones
+   (#956, though previous ones didn't really work, so no current code should
+   notice that)
+ * `skip` parameter to `db restore` CLI command was replaced by `start`
+   (#991), when using full (non-diff) NGD dumps with short (`-s`) form they're
+   compatible, but `start` (as a block index) makes more sense for diff dumps
+
+Improvements:
+ * (*Stack).PushVal in vm now supports all types of integers (#776)
+ * state.AppExecResult now stores stack in binary representation (#782)
+ * vm.NewBigIntegerItem now accepts int64 parameter (#788)
+ * RPC client tests were added (#716)
+ * buffer reuse added for persisting temporary changes which improved block
+   handling speed (#772)
+ * significant RPC server package refactoring was done (#753)
+ * BoltDB was updated to v1.3.4 (#793)
+ * Go 1.14 is now supported (#775)
+ * serialization/deserialization tests were unified (#802)
+ * emit package now has Array and AppCallWithOperationAndArgs methods for
+   easier script creation (#803)
+ * persisting from MemCachedStore to MemCachedStore was optimized which
+   allowed to gain 10% improvement in block import time for 1.5M mainnet
+   blocks (#807)
+ * storage.Find usage example was added (#795)
+ * VM stack item tests were improved (#812)
+ * `config` directory now only contains configuration files, no Go code (#423,
+   #816)
+ * local variables are counted more accurately now in the compiler leading to
+   less waste in script runtime (#815)
+ * NEP5 example was extended with minting function making it a bit more usable
+   (#823)
+ * DAO was refactored away into its own package from core (#832)
+ * additional tests were added for bitwise and numeric VM operations (#833)
+ * tests for VM CALL* instructions were added (#833)
+ * consensus message parsing was split into two parts so that ordinary nodes
+   won't touch CN's data (#862)
+ * contract's metadata was moved into smartcontract package from rpc (#916)
+ * interop packages documentation was extended (#956)
+ * Docker build was fixed to use Makefile (#981)
+
+Bugs fixed:
+ * integer stack values were not following C# node format when being converted
+   to JSON (#770)
+ * vm now uses truncated division to match C# node behavior for negative
+   integers (#773)
+ * getapplicationlog and other RPC calls now convert Uint160 to JSON the same
+   way C# node does (#769)
+ * asset state JSON representation now follows the same format as C# node uses
+   (with proper field names for 'id' and 'type' and without 'fee' add
+   'address' fields, #785, #819)
+ * `nextconsensus` field in `getblockheader` RPC call answer was using hex
+   representation instead of address (#763)
+ * `getcontractstate` RPC call implementation was using wrong format for
+   `script` field in answer (#763)
+ * `getnep5balances` RPC call implementation was using wrong name for
+   `balance` field in answer (#763)
+ * `getvalidators` RPC call was using non-compliant validators keys format in
+   its answer (#763)
+ * potential problems with GAS parameter handling in CLI (#790)
+ * `contract init` CLI command was not working correctly (#792)
+ * RPC calls now accept integer parameters in JSON strings which fix some
+   incompatibilities (#794)
+ * CALLI VM instruction was using wrong offset (#791, #798)
+ * vm Map stack item for using different serialization format from C# node
+   (#806, #808)
+ * invoke* RPC calls were returning stack in `Stack` element rather than more
+   compliant `stack` (#805)
+ * slices of compound types were treated wrong by the compiler (#800)
+ * wrong code was generated for struct variables declarations by the compiler
+   (#800)
+ * RPC client was incorrectly processing GetRawTransactionVerbose,
+   GetBlockVerbose, GetBlockHeader, GetTxOut and ValidateAddress call results
+   (#789)
+ * type-specific transaction data was completely missing in getrawtransaction
+   RPC call verbose output (#585)
+ * documentation for wallet CLI commands was fixed to follow renames made by
+   previous version (#814)
+ * panic in map-containing notifications processing (#809)
+ * VM Map implementation now has deterministic iteration order (#818)
+ * MOD instruction behavior was fixed to follow neo-vm (#826)
+ * negative arguments are now accepted for SHL/SHR VM instructions (#827)
+ * improper in-block cache propagation leading to storage state differences
+   with C# node (#821, #817)
+ * CLI didn't check for mandatory `method` parameter presence for
+   invokefunction command (#828)
+ * wrong code generated by the compiler for return statements with no
+   parameters (#929)
+ * wrong code generated by the compiler for multiple function arguments with
+   one type specification (#935)
+ * NEP5 example contained wrong address check (#945)
+ * improper code generated by the compiler for `op=` assignments to struct
+   fields and slice elements (#954)
+ * Storage.Find elements order was adjusted to match C# node implementation
+   and eliminate state differences resulting from that (#822, #977, #988,
+   #994)
+ * step command wasn't really working in VM CLI (#967)
+ * PICKITEM instruction implementation was fixed to reject improper input
+   argument types (#965, #967)
+ * Runtime.CheckWitness was fixed to only accept compressed keys (#968, #971)
+ * input data length check was added to (*PublicKey).DecodeBytes (#971)
+ * VM reference counting for SETITEM instruction was fixed (#973)
+ * Map VM stack item can now be converted to Boolean (#974)
+ * Structs were not cloned by SETITEM instruction implementation (#972, #975)
+ * GetUnspentCoins syscall implementation was fixed to return array (#978,
+   #979, #984)
+
 ## 0.74.0 "Comprehension" (17 Mar 2020)
 
 Functionally complete NEO 2.0 node implementation, this release can be used as
