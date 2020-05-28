@@ -1,10 +1,10 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -422,17 +422,18 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	prefix := string(v.Estack().Pop().Bytes())
-	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash)
+	prefix := v.Estack().Pop().Bytes()
+	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash, true)
 	if err != nil {
 		return err
 	}
 
 	filteredMap := vm.NewMapItem()
-	for k, v := range siMap {
-		if strings.HasPrefix(k, prefix) {
-			filteredMap.Add(vm.NewByteArrayItem([]byte(k)),
-				vm.NewByteArrayItem(v.Value))
+	for i := range siMap {
+		k := siMap[i].Key
+		if bytes.HasPrefix(k, prefix) {
+			filteredMap.Add(vm.NewByteArrayItem(siMap[i].Key),
+				vm.NewByteArrayItem(siMap[i].Value))
 		}
 	}
 
@@ -552,13 +553,14 @@ func contractMigrate(ic *interop.Context, v *vm.VM) error {
 		}
 		if contract.HasStorage() {
 			hash := v.GetCurrentScriptHash()
-			siMap, err := ic.DAO.GetStorageItems(hash)
+			siMap, err := ic.DAO.GetStorageItems(hash, false)
 			if err != nil {
 				return err
 			}
-			for k, v := range siMap {
-				v.IsConst = false
-				err = ic.DAO.PutStorageItem(contract.ScriptHash(), []byte(k), v)
+			for i := range siMap {
+				v := siMap[i].StorageItem
+				siMap[i].IsConst = false
+				err = ic.DAO.PutStorageItem(contract.ScriptHash(), siMap[i].Key, &v)
 				if err != nil {
 					return err
 				}

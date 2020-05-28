@@ -1021,7 +1021,16 @@ func (bc *Blockchain) GetStorageItem(scripthash util.Uint160, key []byte) *state
 
 // GetStorageItems returns all storage items for a given scripthash.
 func (bc *Blockchain) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
-	return bc.dao.GetStorageItems(hash)
+	siArr, err := bc.dao.GetStorageItems(hash, false)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]*state.StorageItem)
+	for i := range siArr {
+		val := siArr[i].StorageItem
+		m[string(siArr[i].Key)] = &val
+	}
+	return m, nil
 }
 
 // GetBlock returns a Block by the given hash.

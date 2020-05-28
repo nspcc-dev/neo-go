@@ -139,6 +139,60 @@ func TestPutGetStorageItem(t *testing.T) {
 	require.Equal(t, storageItem, gotStorageItem)
 }
 
+func TestPutGetStorageItems(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore())
+	hash := random.Uint160()
+	for i := 3; i > 0; i-- {
+		key := []byte{1, byte(i)}
+		storageItem := &state.StorageItem{Value: []uint8{}}
+		err := dao.PutStorageItem(hash, key, storageItem)
+		require.NoError(t, err)
+	}
+	err := dao.PutStorageItem(random.Uint160(), []byte{1}, &state.StorageItem{Value: []uint8{}})
+	require.NoError(t, err)
+	foundItems, err := dao.GetStorageItems(hash, false)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(foundItems))
+	foundItems, err = dao.GetStorageItems(hash, true)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(foundItems))
+	// items should be sorted by key
+	for i, item := range foundItems {
+		require.Equal(t, []byte{1, byte(i + 1)}, item.Key)
+	}
+}
+
+func TestPutGetStorageItemsWithPrefix(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore())
+	hash := random.Uint160()
+	for i := 3; i > 0; i-- {
+		key := []byte{1, byte(i)}
+		storageItem := &state.StorageItem{Value: []uint8{}}
+		err := dao.PutStorageItem(hash, key, storageItem)
+		require.NoError(t, err)
+	}
+	err := dao.PutStorageItem(hash, []byte{2}, &state.StorageItem{Value: []uint8{}})
+	require.NoError(t, err)
+	foundItems, err := dao.GetStorageItemsWithPrefix(hash, []byte{1}, true)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(foundItems))
+	for i, item := range foundItems {
+		require.Equal(t, []byte{byte(i + 1)}, item.Key)
+	}
+	// getting item shouldn't change the result order
+	item := dao.GetStorageItem(hash, []byte{1, 2})
+	require.Equal(t, &state.StorageItem{
+		Value:   []uint8{},
+		IsConst: false,
+	}, item)
+	foundItems, err = dao.GetStorageItemsWithPrefix(hash, []byte{1}, true)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(foundItems))
+	for i, item := range foundItems {
+		require.Equal(t, []byte{byte(i + 1)}, item.Key)
+	}
+}
+
 func TestDeleteStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint160()

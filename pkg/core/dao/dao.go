@@ -33,8 +33,8 @@ type DAO interface {
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
-	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
-	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
+	GetStorageItems(hash util.Uint160, needSort bool) ([]StorageItemWithKey, error)
+	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte, needSort bool) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetVersion() (string, error)
@@ -355,15 +355,22 @@ func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error 
 	return dao.Store.Delete(makeStorageItemKey(scripthash, key))
 }
 
-// GetStorageItems returns all storage items for a given scripthash.
-func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
-	return dao.GetStorageItemsWithPrefix(hash, nil)
+// StorageItemWithKey is a Key-Value pair together with possible const modifier.
+type StorageItemWithKey struct {
+	state.StorageItem
+	Key []byte
+}
+
+// GetStorageItems returns all storage items for a given scripthash. `needSort` flag
+// specifies whither result items are sorted by keys.
+func (dao *Simple) GetStorageItems(hash util.Uint160, needSort bool) ([]StorageItemWithKey, error) {
+	return dao.GetStorageItemsWithPrefix(hash, nil, needSort)
 }
 
 // GetStorageItemsWithPrefix returns all storage items with given prefix for a
-// given scripthash.
-func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error) {
-	var siMap = make(map[string]*state.StorageItem)
+// given scripthash. `needSort` flag specifies whither result items are sorted by keys.
+func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte, needSort bool) ([]StorageItemWithKey, error) {
+	var res []StorageItemWithKey
 	var err error
 
 	lookupKey := storage.AppendPrefix(storage.STStorage, hash.BytesLE())
@@ -375,21 +382,25 @@ func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (
 			return
 		}
 		r := io.NewBinReaderFromBuf(v)
-		si := &state.StorageItem{}
-		si.DecodeBinary(r)
+		var s StorageItemWithKey
+		s.StorageItem.DecodeBinary(r)
 		if r.Err != nil {
 			err = r.Err
 			return
 		}
 
 		// Cut prefix and hash.
-		siMap[string(k[len(lookupKey):])] = si
+		s.Key = k[len(lookupKey):]
+		res = append(res, s)
 	}
 	dao.Store.Seek(lookupKey, saveToMap)
 	if err != nil {
 		return nil, err
 	}
-	return siMap, nil
+	if needSort {
+		sort.Slice(res, func(i, j int) bool { return bytes.Compare(res[i].Key, res[j].Key) == -1 })
+	}
+	return res, nil
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.

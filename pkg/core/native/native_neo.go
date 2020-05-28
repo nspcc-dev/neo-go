@@ -332,17 +332,17 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 }
 
 func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.Hash, []byte{prefixValidator})
+	siMap, err := d.GetStorageItemsWithPrefix(n.Hash, []byte{prefixValidator}, false)
 	if err != nil {
 		return nil, err
 	}
 	arr := make([]keyWithVotes, 0, len(siMap))
-	for key, si := range siMap {
-		votes, err := state.NEP5BalanceStateFromBytes(si.Value)
+	for i := range siMap {
+		votes, err := state.NEP5BalanceStateFromBytes(siMap[i].Value)
 		if err != nil {
 			return nil, err
 		}
-		arr = append(arr, keyWithVotes{key, &votes.Balance})
+		arr = append(arr, keyWithVotes{string(siMap[i].Key), &votes.Balance})
 	}
 	return arr, nil
 }

@@ -519,12 +519,12 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.DAO.GetStorageItems(hash)
+		siMap, err := ic.DAO.GetStorageItems(hash, false)
 		if err != nil {
 			return err
 		}
-		for k := range siMap {
-			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
+		for i := range siMap {
+			_ = ic.DAO.DeleteStorageItem(hash, siMap[i].Key)
 		}
 	}
 	return nil
