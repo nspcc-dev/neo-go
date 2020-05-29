@@ -1,10 +1,11 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
-	"strings"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -422,19 +423,20 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	prefix := string(v.Estack().Pop().Bytes())
-	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash)
+	prefix := v.Estack().Pop().Bytes()
+	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ScriptHash, prefix)
 	if err != nil {
 		return err
 	}
 
 	filteredMap := vm.NewMapItem()
 	for k, v := range siMap {
-		if strings.HasPrefix(k, prefix) {
-			filteredMap.Add(vm.NewByteArrayItem([]byte(k)),
-				vm.NewByteArrayItem(v.Value))
-		}
+		filteredMap.Add(vm.NewByteArrayItem(append(prefix, []byte(k)...)), vm.NewByteArrayItem(v.Value))
 	}
+	sort.Slice(filteredMap.Value().([]vm.MapElement), func(i, j int) bool {
+		return bytes.Compare(filteredMap.Value().([]vm.MapElement)[i].Key.Value().([]byte),
+			filteredMap.Value().([]vm.MapElement)[j].Key.Value().([]byte)) == -1
+	})
 
 	item := vm.NewMapIterator(filteredMap)
 	v.Estack().PushVal(item)

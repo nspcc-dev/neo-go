@@ -3,6 +3,7 @@ package native
 import (
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -344,6 +345,7 @@ func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
 		}
 		arr = append(arr, keyWithVotes{key, &votes.Balance})
 	}
+	sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
 	return arr, nil
 }
 
