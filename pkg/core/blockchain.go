@@ -221,6 +221,9 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
+	if err = bc.dao.InitMPT(bHeight); err != nil {
+		return errors.Wrapf(err, "can't init MPT at height %d", bHeight)
+	}
 
 	hashes, err := bc.dao.GetHeaderHashes()
 	if err != nil {
@@ -550,6 +553,11 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
+// GetStateRoot returns state root for a given height.
+func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	return bc.dao.GetStateRoot(height)
+}
+
 // storeBlock performs chain update using the block given, it executes all
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
@@ -633,17 +641,38 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 	}
 
+	root := bc.dao.MPT.StateRoot()
+	var prevHash util.Uint256
+	if block.Index > 0 {
+		prev, err := bc.dao.GetStateRoot(block.Index - 1)
+		if err != nil {
+			return errors.WithMessagef(err, "can't get previous state root")
+		}
+		prevHash = prev.Root
+	}
+	err := bc.AddStateRoot(&state.MPTRoot{
+		MPTRootBase: state.MPTRootBase{
+			Index:    block.Index,
+			PrevHash: prevHash,
+			Root:     root,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
 	if bc.config.SaveStorageBatch {
 		bc.lastBatch = cache.DAO.GetBatch()
 	}
 
 	bc.lock.Lock()
-	_, err := cache.Persist()
+	_, err = cache.Persist()
 	if err != nil {
 		bc.lock.Unlock()
 		return err
 	}
 	bc.contracts.Policy.OnPersistEnd(bc.dao)
+	bc.dao.MPT.Flush()
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
@@ -1192,6 +1221,67 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 	}
 	return true
 
+}
+
+// AddStateRoot add new (possibly unverified) state root to the blockchain.
+func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
+	our, err := bc.GetStateRoot(r.Index)
+	if err == nil {
+		if our.Flag == state.Verified {
+			return nil
+		} else if r.Witness == nil && our.Witness != nil {
+			r.Witness = our.Witness
+		}
+	}
+	if err := bc.verifyStateRoot(r); err != nil {
+		return errors.WithMessage(err, "invalid state root")
+	}
+	if r.Index > bc.BlockHeight() { // just put it into the store for future checks
+		return bc.dao.PutStateRoot(&state.MPTRootState{
+			MPTRoot: *r,
+			Flag:    state.Unverified,
+		})
+	}
+
+	flag := state.Unverified
+	if r.Witness != nil {
+		if err := bc.verifyStateRootWitness(r); err != nil {
+			return errors.WithMessage(err, "can't verify signature")
+		}
+		flag = state.Verified
+	}
+	return bc.dao.PutStateRoot(&state.MPTRootState{
+		MPTRoot: *r,
+		Flag:    flag,
+	})
+}
+
+// verifyStateRoot checks if state root is valid.
+func (bc *Blockchain) verifyStateRoot(r *state.MPTRoot) error {
+	if r.Index == 0 {
+		return nil
+	}
+	prev, err := bc.GetStateRoot(r.Index - 1)
+	if err != nil {
+		return errors.New("can't get previous state root")
+	} else if !prev.Root.Equals(r.PrevHash) {
+		return errors.New("previous hash mismatch")
+	} else if prev.Version != r.Version {
+		return errors.New("version mismatch")
+	}
+	return nil
+}
+
+// verifyStateRootWitness verifies that state root signature is correct.
+func (bc *Blockchain) verifyStateRootWitness(r *state.MPTRoot) error {
+	b, err := bc.GetBlock(bc.GetHeaderHash(int(r.Index)))
+	if err != nil {
+		return err
+	}
+	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
+	interopCtx.Container = r
+	return bc.verifyHashAgainstScript(b.NextConsensus, r.Witness, interopCtx, true,
+		bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO))
 }
 
 // VerifyTx verifies whether a transaction is bonafide or not. Block parameter
