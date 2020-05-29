@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -34,6 +35,8 @@ type DAO interface {
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
+	GetStateRoot(height uint32) (*state.MPTRootState, error)
+	PutStateRoot(root *state.MPTRootState) error
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
@@ -70,12 +73,14 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
+	MPT   *mpt.Trie
 	Store *storage.MemCachedStore
 }
 
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store) *Simple {
-	return &Simple{Store: storage.NewMemCachedStore(backend)}
+	st := storage.NewMemCachedStore(backend)
+	return &Simple{Store: st, MPT: mpt.NewTrie(nil, st)}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -86,7 +91,9 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	return NewSimple(dao.Store)
+	d := NewSimple(dao.Store)
+	d.MPT = dao.MPT
+	return d
 }
 
 // GetAndDecode performs get operation and decoding with serializable structures.
@@ -406,6 +413,42 @@ func (dao *Simple) PutAppExecResult(aer *state.AppExecResult) error {
 
 // -- start storage item.
 
+func makeStateRootKey(height uint32) []byte {
+	key := make([]byte, 5)
+	key[0] = byte(storage.DataMPT)
+	binary.LittleEndian.PutUint32(key[1:], height)
+	return key
+}
+
+// InitMPT initializes MPT at the given height.
+func (dao *Simple) InitMPT(height uint32) error {
+	if height == 0 {
+		dao.MPT = mpt.NewTrie(nil, dao.Store)
+		return nil
+	}
+	r, err := dao.GetStateRoot(height)
+	if err != nil {
+		return err
+	}
+	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), dao.Store)
+	return nil
+}
+
+// GetStateRoot returns state root of a given height.
+func (dao *Simple) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	r := new(state.MPTRootState)
+	err := dao.GetAndDecode(r, makeStateRootKey(height))
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// PutStateRoot puts state root of a given height into the store.
+func (dao *Simple) PutStateRoot(r *state.MPTRootState) error {
+	return dao.Put(r, makeStateRootKey(r.Index))
+}
+
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	b, err := dao.Store.Get(makeStorageItemKey(scripthash, key))
@@ -426,13 +469,24 @@ func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.St
 // PutStorageItem puts given StorageItem for given script with given
 // key into the given store.
 func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
-	return dao.Put(si, makeStorageItemKey(scripthash, key))
+	stKey := makeStorageItemKey(scripthash, key)
+	k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
+	v := mpt.ToNeoStorageValue(si)
+	if err := dao.MPT.Put(k, v); err != nil && err != mpt.ErrNotFound {
+		return err
+	}
+	return dao.Put(si, stKey)
 }
 
 // DeleteStorageItem drops storage item for the given script with the
 // given key from the store.
 func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
-	return dao.Store.Delete(makeStorageItemKey(scripthash, key))
+	stKey := makeStorageItemKey(scripthash, key)
+	k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
+	if err := dao.MPT.Delete(k); err != nil && err != mpt.ErrNotFound {
+		return err
+	}
+	return dao.Store.Delete(stKey)
 }
 
 // StorageItemWithKey is a Key-Value pair together with possible const modifier.

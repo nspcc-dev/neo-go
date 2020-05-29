@@ -18,6 +18,7 @@ type Blockchainer interface {
 	GetConfig() config.ProtocolConfiguration
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
+	AddStateRoot(r *state.MPTRoot) error
 	BlockHeight() uint32
 	CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error)
 	Close()
@@ -38,6 +39,7 @@ type Blockchainer interface {
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
 	GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error)
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
+	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetTestVM() *vm.VM
