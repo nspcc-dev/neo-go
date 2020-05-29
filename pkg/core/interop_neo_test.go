@@ -1,14 +1,17 @@
 package core
 
 import (
+	"bytes"
 	"math/big"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -457,7 +460,80 @@ func TestAssetGetPrecision(t *testing.T) {
 	require.Equal(t, big.NewInt(int64(assetState.Precision)), precision)
 }
 
+func TestSecp256k1Recover(t *testing.T) {
+	v, context, chain := createVM(t)
+	defer chain.Close()
+
+	privateKey, err := btcec.NewPrivateKey(btcec.S256())
+	require.NoError(t, err)
+	message := []byte("The quick brown fox jumps over the lazy dog")
+	signature, err := privateKey.Sign(message)
+	require.NoError(t, err)
+	require.True(t, signature.Verify(message, privateKey.PubKey()))
+	pubKey := keys.PublicKey{
+		X: privateKey.PubKey().X,
+		Y: privateKey.PubKey().Y,
+	}
+	expected := pubKey.Bytes()[1:]
+
+	// We don't know which of two recovered keys suites, so let's try both.
+	putOnStackGetResult := func(isEven bool) []byte {
+		v.Estack().PushVal(message)
+		v.Estack().PushVal(isEven)
+		v.Estack().PushVal(signature.S.Bytes())
+		v.Estack().PushVal(signature.R.Bytes())
+		err = context.secp256k1Recover(v)
+		require.NoError(t, err)
+		return v.Estack().Pop().Value().([]byte)
+	}
+
+	// First one:
+	actualFalse := putOnStackGetResult(false)
+	// Second one:
+	actualTrue := putOnStackGetResult(true)
+
+	require.True(t, bytes.Compare(expected, actualFalse) != bytes.Compare(expected, actualTrue))
+}
+
+func TestSecp256r1Recover(t *testing.T) {
+	v, context, chain := createVM(t)
+	defer chain.Close()
+
+	privateKey, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	message := []byte("The quick brown fox jumps over the lazy dog")
+	messageHash := hash.Sha256(message).BytesBE()
+	signature := privateKey.Sign(message)
+	require.True(t, privateKey.PublicKey().Verify(signature, messageHash))
+	expected := privateKey.PublicKey().Bytes()[1:]
+
+	// We don't know which of two recovered keys suites, so let's try both.
+	putOnStackGetResult := func(isEven bool) []byte {
+		v.Estack().PushVal(messageHash)
+		v.Estack().PushVal(isEven)
+		v.Estack().PushVal(signature[32:64])
+		v.Estack().PushVal(signature[0:32])
+		err = context.secp256r1Recover(v)
+		require.NoError(t, err)
+		return v.Estack().Pop().Value().([]byte)
+	}
+
+	// First one:
+	actualFalse := putOnStackGetResult(false)
+	// Second one:
+	actualTrue := putOnStackGetResult(true)
+
+	require.True(t, bytes.Compare(expected, actualFalse) != bytes.Compare(expected, actualTrue))
+}
+
 // Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
+
+func createVM(t *testing.T) (*vm.VM, *interopContext, *Blockchain) {
+	v := vm.New()
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	return v, context, chain
+}
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interopContext, *Blockchain) {
 	v := vm.New()
