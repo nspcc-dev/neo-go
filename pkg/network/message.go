@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -59,12 +60,15 @@ const (
 	CMDGetBlocks   CommandType = "getblocks"
 	CMDGetData     CommandType = "getdata"
 	CMDGetHeaders  CommandType = "getheaders"
+	CMDGetRoots    CommandType = "getroots"
 	CMDHeaders     CommandType = "headers"
 	CMDInv         CommandType = "inv"
 	CMDMempool     CommandType = "mempool"
 	CMDMerkleBlock CommandType = "merkleblock"
 	CMDPing        CommandType = "ping"
 	CMDPong        CommandType = "pong"
+	CMDRoots       CommandType = "roots"
+	CMDStateRoot   CommandType = "stateroot"
 	CMDTX          CommandType = "tx"
 	CMDUnknown     CommandType = "unknown"
 	CMDVerack      CommandType = "verack"
@@ -124,6 +128,8 @@ func (m *Message) CommandType() CommandType {
 		return CMDGetData
 	case "getheaders":
 		return CMDGetHeaders
+	case "getroots":
+		return CMDGetRoots
 	case "headers":
 		return CMDHeaders
 	case "inv":
@@ -136,6 +142,10 @@ func (m *Message) CommandType() CommandType {
 		return CMDPing
 	case "pong":
 		return CMDPong
+	case "roots":
+		return CMDRoots
+	case "stateroot":
+		return CMDStateRoot
 	case "tx":
 		return CMDTX
 	case "verack":
@@ -191,6 +201,8 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		fallthrough
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
+	case CMDGetRoots:
+		p = &payload.GetStateRoots{}
 	case CMDHeaders:
 		p = &payload.Headers{}
 	case CMDTX:
@@ -199,6 +211,10 @@ func (m *Message) decodePayload(br *io.BinReader) error {
 		p = &payload.MerkleBlock{}
 	case CMDPing, CMDPong:
 		p = &payload.Ping{}
+	case CMDRoots:
+		p = &payload.StateRoots{}
+	case CMDStateRoot:
+		p = &state.MPTRoot{}
 	default:
 		return fmt.Errorf("can't decode command %s", cmdByteArrayToString(m.Command))
 	}
