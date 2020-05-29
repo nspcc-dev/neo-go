@@ -3,6 +3,7 @@ package consensus
 import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -12,6 +13,7 @@ type prepareRequest struct {
 	timestamp         uint64
 	nonce             uint64
 	transactionHashes []util.Uint256
+	proposalStateRoot state.MPTRootBase
 }
 
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
@@ -21,6 +23,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
 	w.WriteArray(p.transactionHashes)
+	p.proposalStateRoot.EncodeBinary(w)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -28,6 +31,7 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.timestamp = r.ReadU64LE()
 	p.nonce = r.ReadU64LE()
 	r.ReadArray(&p.transactionHashes, block.MaxTransactionsPerBlock)
+	p.proposalStateRoot.DecodeBinary(r)
 }
 
 // Timestamp implements payload.PrepareRequest interface.
