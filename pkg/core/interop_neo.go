@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -423,7 +424,7 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	prefix := v.Estack().Pop().Bytes()
-	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash, true)
+	siMap, err := ic.DAO.GetStorageItems(stc.ScriptHash)
 	if err != nil {
 		return err
 	}
@@ -436,6 +437,10 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 				vm.NewByteArrayItem(siMap[i].Value))
 		}
 	}
+	sort.Slice(filteredMap.Value().([]vm.MapElement), func(i, j int) bool {
+		return bytes.Compare(filteredMap.Value().([]vm.MapElement)[i].Key.Value().([]byte),
+			filteredMap.Value().([]vm.MapElement)[j].Key.Value().([]byte)) == -1
+	})
 
 	item := vm.NewMapIterator(filteredMap)
 	v.Estack().PushVal(item)
@@ -553,7 +558,7 @@ func contractMigrate(ic *interop.Context, v *vm.VM) error {
 		}
 		if contract.HasStorage() {
 			hash := v.GetCurrentScriptHash()
-			siMap, err := ic.DAO.GetStorageItems(hash, false)
+			siMap, err := ic.DAO.GetStorageItems(hash)
 			if err != nil {
 				return err
 			}

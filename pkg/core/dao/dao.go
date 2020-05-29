@@ -33,8 +33,8 @@ type DAO interface {
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
-	GetStorageItems(hash util.Uint160, needSort bool) ([]StorageItemWithKey, error)
-	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte, needSort bool) ([]StorageItemWithKey, error)
+	GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error)
+	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetVersion() (string, error)
@@ -361,15 +361,14 @@ type StorageItemWithKey struct {
 	Key []byte
 }
 
-// GetStorageItems returns all storage items for a given scripthash. `needSort` flag
-// specifies whither result items are sorted by keys.
-func (dao *Simple) GetStorageItems(hash util.Uint160, needSort bool) ([]StorageItemWithKey, error) {
-	return dao.GetStorageItemsWithPrefix(hash, nil, needSort)
+// GetStorageItems returns all storage items for a given scripthash.
+func (dao *Simple) GetStorageItems(hash util.Uint160) ([]StorageItemWithKey, error) {
+	return dao.GetStorageItemsWithPrefix(hash, nil)
 }
 
 // GetStorageItemsWithPrefix returns all storage items with given prefix for a
-// given scripthash. `needSort` flag specifies whither result items are sorted by keys.
-func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte, needSort bool) ([]StorageItemWithKey, error) {
+// given scripthash.
+func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error) {
 	var res []StorageItemWithKey
 	var err error
 
@@ -396,9 +395,6 @@ func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte, n
 	dao.Store.Seek(lookupKey, saveToMap)
 	if err != nil {
 		return nil, err
-	}
-	if needSort {
-		sort.Slice(res, func(i, j int) bool { return bytes.Compare(res[i].Key, res[j].Key) == -1 })
 	}
 	return res, nil
 }

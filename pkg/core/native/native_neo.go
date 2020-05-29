@@ -332,7 +332,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 }
 
 func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.Hash, []byte{prefixValidator}, false)
+	siMap, err := d.GetStorageItemsWithPrefix(n.Hash, []byte{prefixValidator})
 	if err != nil {
 		return nil, err
 	}
