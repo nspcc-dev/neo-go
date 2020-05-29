@@ -20,6 +20,8 @@ func (i InventoryType) String() string {
 		return "block"
 	case ConsensusType:
 		return "consensus"
+	case StateRootType:
+		return "stateroot"
 	default:
 		return "unknown inventory type"
 	}
@@ -27,7 +29,7 @@ func (i InventoryType) String() string {
 
 // Valid returns true if the inventory (type) is known.
 func (i InventoryType) Valid() bool {
-	return i == BlockType || i == TXType || i == ConsensusType
+	return i == BlockType || i == TXType || i == ConsensusType || i == StateRootType
 }
 
 // List of valid InventoryTypes.
@@ -35,6 +37,7 @@ const (
 	TXType        InventoryType = 0x2b
 	BlockType     InventoryType = 0x2c
 	ConsensusType InventoryType = 0x2d
+	StateRootType InventoryType = 0x2e
 )
 
 // Inventory payload.

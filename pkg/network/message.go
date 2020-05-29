@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -72,6 +73,8 @@ const (
 	CMDTX                          = CommandType(payload.TXType)
 	CMDBlock                       = CommandType(payload.BlockType)
 	CMDConsensus                   = CommandType(payload.ConsensusType)
+	CMDStateRoot                   = CommandType(payload.StateRootType)
+	CMDGetStateRoot    CommandType = 0x2f
 	CMDReject          CommandType = 0x2f
 
 	// SPV protocol
@@ -145,12 +148,16 @@ func (m *Message) decodePayload() error {
 		p = block.New(m.Network)
 	case CMDConsensus:
 		p = consensus.NewPayload(m.Network)
+	case CMDStateRoot:
+		p = &state.MPTRoot{}
 	case CMDGetBlocks:
 		p = &payload.GetBlocks{}
 	case CMDGetHeaders:
 		fallthrough
 	case CMDGetBlockByIndex:
 		p = &payload.GetBlockByIndex{}
+	case CMDGetStateRoot:
+		p = &payload.GetStateRoot{}
 	case CMDHeaders:
 		p = &payload.Headers{Network: m.Network}
 	case CMDTX:
