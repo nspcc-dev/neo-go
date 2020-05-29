@@ -68,9 +68,9 @@ const (
 	CMDGetData      CommandType = 0x28
 	CMDGetBlockData CommandType = 0x29
 	CMDUnknown      CommandType = 0x2a
-	CMDTX           CommandType = 0x2b
-	CMDBlock        CommandType = 0x2c
-	CMDConsensus    CommandType = 0x2d
+	CMDTX                       = CommandType(payload.TXType)
+	CMDBlock                    = CommandType(payload.BlockType)
+	CMDConsensus                = CommandType(payload.ConsensusType)
 	CMDReject       CommandType = 0x2f
 
 	// SPV protocol
