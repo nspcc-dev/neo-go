@@ -51,13 +51,16 @@ func TestStorageFind(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
 
-	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}}
+	skeys := [][]byte{{0x01, 0x02}, {0x02, 0x01}, {0x01, 0x01}}
 	items := []*state.StorageItem{
 		{
 			Value: []byte{0x01, 0x02, 0x03, 0x04},
 		},
 		{
 			Value: []byte{0x04, 0x03, 0x02, 0x01},
+		},
+		{
+			Value: []byte{0x03, 0x04, 0x05, 0x06},
 		},
 	}
 
@@ -85,6 +88,18 @@ func TestStorageFind(t *testing.T) {
 
 		v.Estack().PushVal(iter)
 		require.NoError(t, iterator.Key(context, v))
+		require.Equal(t, []byte{0x01, 0x01}, v.Estack().Pop().Bytes())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, enumerator.Value(context, v))
+		require.Equal(t, []byte{0x03, 0x04, 0x05, 0x06}, v.Estack().Pop().Bytes())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, enumerator.Next(context, v))
+		require.True(t, v.Estack().Pop().Bool())
+
+		v.Estack().PushVal(iter)
+		require.NoError(t, iterator.Key(context, v))
 		require.Equal(t, []byte{0x01, 0x02}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
@@ -92,6 +107,17 @@ func TestStorageFind(t *testing.T) {
 		require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
+		require.NoError(t, enumerator.Next(context, v))
+		require.False(t, v.Estack().Pop().Bool())
+	})
+
+	t.Run("normal invocation, empty result", func(t *testing.T) {
+		v.Estack().PushVal([]byte{0x03})
+		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: scriptHash}))
+
+		err := storageFind(context, v)
+		require.NoError(t, err)
+
 		require.NoError(t, enumerator.Next(context, v))
 		require.False(t, v.Estack().Pop().Bool())
 	})
