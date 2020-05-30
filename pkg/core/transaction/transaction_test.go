@@ -337,7 +337,7 @@ func TestMarshalUnmarshalJSONStateTX(t *testing.T) {
 		Type:    StateType,
 		Version: 5,
 		Data: &StateTX{
-			Descriptors: []*StateDescriptor{&StateDescriptor{
+			Descriptors: []*StateDescriptor{{
 				Type:  Validator,
 				Key:   []byte{1, 2, 3},
 				Value: []byte{4, 5, 6},
