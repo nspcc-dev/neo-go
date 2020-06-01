@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -33,35 +34,7 @@ func toNeoStorageKey(key []byte) []byte {
 	if len(key) < util.Uint160Size {
 		panic("invalid key in storage")
 	}
-
-	var nkey []byte
-	for i := util.Uint160Size - 1; i >= 0; i-- {
-		nkey = append(nkey, key[i])
-	}
-
-	key = key[util.Uint160Size:]
-
-	index := 0
-	remain := len(key)
-	for remain >= 16 {
-		nkey = append(nkey, key[index:index+16]...)
-		nkey = append(nkey, 0)
-		index += 16
-		remain -= 16
-	}
-
-	if remain > 0 {
-		nkey = append(nkey, key[index:]...)
-	}
-
-	padding := 16 - remain
-	for i := 0; i < padding; i++ {
-		nkey = append(nkey, 0)
-	}
-
-	nkey = append(nkey, byte(padding))
-
-	return nkey
+	return mpt.ToNeoStorageKey(key)
 }
 
 // batchToMap converts batch to a map so that JSON is compatible
