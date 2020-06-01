@@ -18,7 +18,6 @@ TODO:
 
 Supported methods
 
-	getaccountstate
 	getapplicationlog
 	getbestblockhash
 	getblock

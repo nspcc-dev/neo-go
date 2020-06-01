@@ -17,18 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetAccountState returns detailed information about a NEO account.
-func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.AccountState{}
-	)
-	if err := c.performRequest("getaccountstate", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
 	var (

@@ -146,32 +146,6 @@ func getResultBlock202() *result.Block {
 // published in official C# JSON-RPC API v2.10.3 reference
 // (see https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)
 var rpcClientTestCases = map[string][]rpcClientTestCase{
-	"getaccountstate": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetAccountState("")
-			},
-			serverResponse: `{"jsonrpc":"2.0","id": 1,"result":{"version":0,"script_hash":"0x1179716da2e9523d153a35fb3ad10c561b1e5b1a","frozen":false,"votes":[],"balances":[{"asset":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","value":"94"}]}}`,
-			result: func(c *Client) interface{} {
-				scriptHash, err := util.Uint160DecodeStringLE("1179716da2e9523d153a35fb3ad10c561b1e5b1a")
-				if err != nil {
-					panic(err)
-				}
-				return &result.AccountState{
-					Version:    0,
-					ScriptHash: scriptHash,
-					IsFrozen:   false,
-					Balances: result.Balances{
-						result.Balance{
-							Asset: core.GoverningTokenID(),
-							Value: util.Fixed8FromInt64(94),
-						},
-					},
-				}
-			},
-		},
-	},
 	"getapplicationlog": {
 		{
 			name: "positive",
@@ -921,12 +895,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	},
 	`{"id":1,"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"}}`: {
 		{
-			name: "getaccountstate_invalid_params_error",
-			invoke: func(c *Client) (i interface{}, err error) {
-				return c.GetAccountState("")
-			},
-		},
-		{
 			name: "getapplicationlog_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetApplicationLog(util.Uint256{})
@@ -1072,12 +1040,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 	},
 	`{}`: {
-		{
-			name: "getaccountstate_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetAccountState("")
-			},
-		},
 		{
 			name: "getapplicationlog_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {

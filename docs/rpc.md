@@ -34,7 +34,6 @@ which would yield the response:
 
 | Method  |
 | ------- |
-| `getaccountstate` |
 | `getapplicationlog` |
 | `getbestblockhash` |
 | `getblock` |
@@ -87,7 +86,7 @@ and we're not accepting issues related to them.
 | ------- | ------------|
 | `claimgas` | Doesn't fit neo-go wallet model, use CLI to do that |
 | `dumpprivkey` | Shouldn't exist for security reasons, see `claimgas` comment also |
-| `getbalance` | Use `getaccountstate` instead, see `claimgas` comment also |
+| `getbalance` | To be implemented |
 | `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
 | `getnewaddress` | See `claimgas` comment |
 | `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |

@@ -88,40 +88,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-	"getaccountstate": {
-		{
-			name:   "positive",
-			params: `["` + testchain.MultisigAddress() + `"]`,
-			result: func(e *executor) interface{} { return &result.AccountState{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.AccountState)
-				require.True(t, ok)
-				assert.Equal(t, 1, len(res.Balances))
-				assert.Equal(t, false, res.IsFrozen)
-			},
-		},
-		{
-			name:   "positive null",
-			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return &result.AccountState{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.AccountState)
-				require.True(t, ok)
-				assert.Equal(t, 0, len(res.Balances))
-				assert.Equal(t, false, res.IsFrozen)
-			},
-		},
-		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid address",
-			params: `["notabase58"]`,
-			fail:   true,
-		},
-	},
 	"getcontractstate": {
 		{
 			name:   "positive",

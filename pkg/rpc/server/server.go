@@ -79,7 +79,6 @@ const (
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
-	"getaccountstate":      (*Server).getAccountState,
 	"getapplicationlog":    (*Server).getApplicationLog,
 	"getbestblockhash":     (*Server).getBestBlockHash,
 	"getblock":             (*Server).getBlock,
@@ -740,26 +739,6 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 		}
 	}
 	return results, nil
-}
-
-// getAccountState returns account state.
-func (s *Server) getAccountState(ps request.Params) (interface{}, *response.Error) {
-	var resultsErr *response.Error
-	var results interface{}
-
-	param, ok := ps.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
-		return nil, response.ErrInvalidParams
-	} else {
-		as := s.chain.GetAccountState(scriptHash)
-		if as == nil {
-			as = state.NewAccount(scriptHash)
-		}
-		results = result.NewAccountState(as)
-	}
-	return results, resultsErr
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
