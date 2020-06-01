@@ -460,39 +460,6 @@ func (c *Client) SubmitBlock(b block.Block) error {
 	return nil
 }
 
-// TransferAsset sends an amount of specific asset to a given address.
-// This call requires open wallet. (`wif` key in client struct.)
-// If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
-	var (
-		err      error
-		rawTx    *transaction.Transaction
-		txParams = request.ContractTxParams{
-			AssetID:  asset,
-			Address:  address,
-			Value:    amount,
-			WIF:      c.WIF(),
-			Balancer: c.opts.Balancer,
-		}
-		resp util.Uint256
-	)
-
-	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
-		return resp, errors.Wrap(err, "failed to create raw transaction")
-	}
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return resp, errors.Wrap(err, "failed to add validUntilBlock to raw transaction")
-	}
-	rawTx.ValidUntilBlock = validUntilBlock
-
-	if err = c.SendRawTransaction(rawTx); err != nil {
-		return resp, errors.Wrap(err, "failed to send raw transaction")
-	}
-	return rawTx.Hash(), nil
-}
-
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.

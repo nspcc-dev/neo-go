@@ -5,76 +5,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	errs "github.com/pkg/errors"
 )
-
-// CreateRawContractTransaction returns contract-type Transaction built from specified parameters.
-func CreateRawContractTransaction(params ContractTxParams) (*transaction.Transaction, error) {
-	var (
-		err                            error
-		tx                             = transaction.NewContractTX()
-		toAddressHash, fromAddressHash util.Uint160
-		fromAddress                    string
-		receiverOutput                 *transaction.Output
-
-		wif, assetID, toAddress, amount, balancer = params.WIF, params.AssetID, params.Address, params.Value, params.Balancer
-	)
-
-	fromAddress = wif.PrivateKey.Address()
-
-	if fromAddressHash, err = address.StringToUint160(fromAddress); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", fromAddress)
-	}
-
-	if toAddressHash, err = address.StringToUint160(toAddress); err != nil {
-		return nil, errs.Wrapf(err, "Failed to take script hash from address: %v", toAddress)
-	}
-	tx.Sender = fromAddressHash
-
-	if err = AddInputsAndUnspentsToTx(tx, fromAddress, assetID, amount, balancer); err != nil {
-		return nil, errs.Wrap(err, "failed to add inputs and unspents to transaction")
-	}
-	receiverOutput = transaction.NewOutput(assetID, amount, toAddressHash)
-	tx.AddOutput(receiverOutput)
-	if acc, err := wallet.NewAccountFromWIF(wif.S); err != nil {
-		return nil, err
-	} else if err = acc.SignTx(tx); err != nil {
-		return nil, errs.Wrap(err, "failed to sign tx")
-	}
-
-	return tx, nil
-}
-
-// AddInputsAndUnspentsToTx adds inputs needed to transaction and one output
-// with change.
-func AddInputsAndUnspentsToTx(tx *transaction.Transaction, addr string, assetID util.Uint256, amount util.Fixed8, balancer BalanceGetter) error {
-	scriptHash, err := address.StringToUint160(addr)
-	if err != nil {
-		return errs.Wrapf(err, "failed to take script hash from address: %v", addr)
-	}
-	inputs, spent, err := balancer.CalculateInputs(addr, assetID, amount)
-	if err != nil {
-		return errs.Wrap(err, "failed to get inputs")
-	}
-	for _, input := range inputs {
-		tx.AddInput(&input)
-	}
-
-	if senderUnspent := spent - amount; senderUnspent > 0 {
-		senderOutput := transaction.NewOutput(assetID, senderUnspent, scriptHash)
-		tx.AddOutput(senderOutput)
-	}
-	return nil
-}
 
 // DetailsToSCProperties extract the fields needed from ContractDetails
 // and converts them to smartcontract.PropertyState.
