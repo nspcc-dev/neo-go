@@ -731,22 +731,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getunspents": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnspents("AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y")
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"balance":[{"unspent":[{"txid":"0x83df8bd085fcb60b2789f7d0a9f876e5f3908567f7877fcba835e899b9dea0b5","n":0,"value":"100000000"}],"asset_hash":"0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","asset":"NEO","asset_symbol":"NEO","amount":"100000000"},{"unspent":[{"txid":"0x2ab085fa700dd0df4b73a94dc17a092ac3a85cbd965575ea1585d1668553b2f9","n":0,"value":"19351.99993"}],"asset_hash":"0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7","asset":"GAS","asset_symbol":"GAS","amount":"19351.99993"}],"address":"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"}}`,
-			result:         func(c *Client) interface{} { return &result.Unspents{} },
-			check: func(t *testing.T, c *Client, uns interface{}) {
-				res, ok := uns.(*result.Unspents)
-				require.True(t, ok)
-				assert.Equal(t, "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y", res.Address)
-				assert.Equal(t, 2, len(res.Balance))
-			},
-		},
-	},
 	"getvalidators": {
 		{
 			name: "positive",
@@ -1118,12 +1102,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getunspents_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnspents("")
-			},
-		},
-		{
 			name: "invokefunction_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.InvokeFunction("", "", []smartcontract.Parameter{})
@@ -1303,12 +1281,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getunclaimed_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetUnclaimed("")
-			},
-		},
-		{
-			name: "getunspents_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnspents("")
 			},
 		},
 		{

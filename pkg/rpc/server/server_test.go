@@ -593,29 +593,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
-	"getunspents": {
-		{
-			name:   "positive",
-			params: `["` + testchain.MultisigAddress() + `"]`,
-			result: func(e *executor) interface{} { return &result.Unspents{} },
-			check: func(t *testing.T, e *executor, unsp interface{}) {
-				res, ok := unsp.(*result.Unspents)
-				require.True(t, ok)
-				require.Equal(t, 1, len(res.Balance))
-				assert.Equal(t, 1, len(res.Balance[0].Unspents))
-			},
-		},
-		{
-			name:   "positive null",
-			params: `["AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"]`,
-			result: func(e *executor) interface{} { return &result.Unspents{} },
-			check: func(t *testing.T, e *executor, unsp interface{}) {
-				res, ok := unsp.(*result.Unspents)
-				require.True(t, ok)
-				require.Equal(t, 0, len(res.Balance))
-			},
-		},
-	},
 	"getvalidators": {
 		{
 			params: "[]",

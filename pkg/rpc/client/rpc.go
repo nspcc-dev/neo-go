@@ -344,18 +344,6 @@ func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
 	return resp, nil
 }
 
-// GetUnspents returns UTXOs for the given NEO account.
-func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.Unspents{}
-	)
-	if err := c.performRequest("getunspents", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetValidators returns the current NEO consensus nodes information and voting status.
 func (c *Client) GetValidators() ([]result.Validator, error) {
 	var (

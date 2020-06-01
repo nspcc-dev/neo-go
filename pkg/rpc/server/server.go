@@ -99,7 +99,6 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"gettransactionheight": (*Server).getTransactionHeight,
 	"gettxout":             (*Server).getTxOut,
 	"getunclaimed":         (*Server).getUnclaimed,
-	"getunspents":          (*Server).getUnspents,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
 	"invoke":               (*Server).invoke,
@@ -797,20 +796,12 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 	return results, nil
 }
 
+// getAccountState returns account state.
 func (s *Server) getAccountState(ps request.Params) (interface{}, *response.Error) {
-	return s.getAccountStateAux(ps, false)
-}
-
-func (s *Server) getUnspents(ps request.Params) (interface{}, *response.Error) {
-	return s.getAccountStateAux(ps, true)
-}
-
-// getAccountState returns account state either in short or full (unspents included) form.
-func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (interface{}, *response.Error) {
 	var resultsErr *response.Error
 	var results interface{}
 
-	param, ok := reqParams.ValueWithType(0, request.StringT)
+	param, ok := ps.ValueWithType(0, request.StringT)
 	if !ok {
 		return nil, response.ErrInvalidParams
 	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
@@ -820,15 +811,7 @@ func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (in
 		if as == nil {
 			as = state.NewAccount(scriptHash)
 		}
-		if unspents {
-			str, err := param.GetString()
-			if err != nil {
-				return nil, response.ErrInvalidParams
-			}
-			results = result.NewUnspents(as, s.chain, str)
-		} else {
-			results = result.NewAccountState(as)
-		}
+		results = result.NewAccountState(as)
 	}
 	return results, resultsErr
 }

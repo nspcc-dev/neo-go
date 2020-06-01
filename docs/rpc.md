@@ -54,7 +54,6 @@ which would yield the response:
 | `gettransactionheight` |
 | `gettxout` |
 | `getunclaimed` |
-| `getunspents` |
 | `getvalidators` |
 | `getversion` |
 | `invoke` |

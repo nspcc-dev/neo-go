@@ -38,7 +38,6 @@ Supported methods
 	gettransactionheight
 	gettxout
 	getunclaimed
-	getunspents
 	getvalidators
 	getversion
 	invoke
