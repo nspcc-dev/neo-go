@@ -96,7 +96,6 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getrawtransaction":    (*Server).getrawtransaction,
 	"getstorage":           (*Server).getStorage,
 	"gettransactionheight": (*Server).getTransactionHeight,
-	"gettxout":             (*Server).getTxOut,
 	"getunclaimed":         (*Server).getUnclaimed,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
@@ -721,40 +720,6 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 	}
 
 	return height, nil
-}
-
-func (s *Server) getTxOut(ps request.Params) (interface{}, *response.Error) {
-	p, ok := ps.Value(0)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	h, err := p.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	p, ok = ps.ValueWithType(1, request.NumberT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	num, err := p.GetInt()
-	if err != nil || num < 0 {
-		return nil, response.ErrInvalidParams
-	}
-
-	tx, _, err := s.chain.GetTransaction(h)
-	if err != nil {
-		return nil, response.NewInvalidParamsError(err.Error(), err)
-	}
-
-	if num >= len(tx.Outputs) {
-		return nil, response.NewInvalidParamsError("invalid index", errors.New("too big index"))
-	}
-
-	out := tx.Outputs[num]
-	return result.NewTxOutput(&out), nil
 }
 
 // getContractState returns contract state (contract information, according to the contract script hash).

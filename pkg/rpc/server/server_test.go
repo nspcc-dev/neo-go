@@ -312,38 +312,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-	"gettxout": {
-		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
-		},
-		{
-			name:   "missing hash",
-			params: `["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid index",
-			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", "string"]`,
-			fail:   true,
-		},
-		{
-			name:   "negative index",
-			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", -1]`,
-			fail:   true,
-		},
-		{
-			name:   "too big index",
-			params: `["7aadf91ca8ac1e2c323c025a7e492bee2dd90c783b86ebfc3b18db66b530a76d", 100]`,
-			fail:   true,
-		},
-	},
 	"getblock": {
 		{
 			name:   "positive",
@@ -964,24 +932,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			rpc := fmt.Sprintf(rpc, `["`+testHeaderHash+`", 2]`)
 			runCase(t, rpc, expected, new(result.Header))
 		})
-	})
-
-	t.Run("gettxout", func(t *testing.T) {
-		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		require.Equal(t, 4, len(block.Transactions))
-		tx := block.Transactions[2]
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "gettxout", "params": [%s, %d]}"`,
-			`"`+tx.Hash().StringLE()+`"`, 0)
-		body := doRPCCall(rpc, httpSrv.URL, t)
-		res := checkErrGetResult(t, body, false)
-
-		var txOut result.TransactionOutput
-		err := json.Unmarshal(res, &txOut)
-		require.NoErrorf(t, err, "could not parse response: %s", res)
-		assert.Equal(t, 0, txOut.N)
-		assert.Equal(t, "0x787cc0a786adfe829bc2dffc5637e6855c0a82e02deee97dedbc2aac3e0e5e1a", txOut.Asset)
-		assert.Equal(t, util.Fixed8FromInt64(100000000), txOut.Value)
-		assert.Equal(t, testchain.MultisigAddress(), txOut.Address)
 	})
 
 	t.Run("getrawmempool", func(t *testing.T) {

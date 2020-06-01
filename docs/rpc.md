@@ -51,7 +51,6 @@ which would yield the response:
 | `getrawtransaction` |
 | `getstorage` |
 | `gettransactionheight` |
-| `gettxout` |
 | `getunclaimed` |
 | `getvalidators` |
 | `getversion` |

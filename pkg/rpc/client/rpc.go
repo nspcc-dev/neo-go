@@ -307,19 +307,6 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	return resp, nil
 }
 
-// GetTxOut returns the corresponding unspent transaction output information (returned change),
-// based on the specified hash and index.
-func (c *Client) GetTxOut(hash util.Uint256, num int) (*result.TransactionOutput, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE(), num)
-		resp   = &result.TransactionOutput{}
-	)
-	if err := c.performRequest("gettxout", params, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
 // GetUnclaimed returns unclaimed GAS amount of the specified address.
 func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
 	var (

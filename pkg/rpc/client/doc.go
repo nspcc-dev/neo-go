@@ -35,7 +35,6 @@ Supported methods
 	getrawtransaction
 	getstorage
 	gettransactionheight
-	gettxout
 	getunclaimed
 	getvalidators
 	getversion

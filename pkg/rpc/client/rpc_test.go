@@ -670,27 +670,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"gettxout": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				hash, err := util.Uint256DecodeStringLE("f4250dab094c38d8265acc15c366dc508d2e14bf5699e12d9df26577ed74d657")
-				if err != nil {
-					panic(err)
-				}
-				return c.GetTxOut(hash, 0)
-			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"N":0,"Asset":"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b","Value":"2950","Address":"AHCNSDkh2Xs66SzmyKGdoDKY752uyeXDrt"}}`,
-			result: func(c *Client) interface{} {
-				return &result.TransactionOutput{
-					N:       0,
-					Asset:   "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-					Value:   util.Fixed8FromInt64(2950),
-					Address: "AHCNSDkh2Xs66SzmyKGdoDKY752uyeXDrt",
-				}
-			},
-		},
-	},
 	"getunclaimed": {
 		{
 			name: "positive",
@@ -1060,12 +1039,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "gettxoutput_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetTxOut(util.Uint256{}, 0)
-			},
-		},
-		{
 			name: "getunclaimed_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetUnclaimed("")
@@ -1233,12 +1206,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "gettransactionheight_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetTransactionHeight(util.Uint256{})
-			},
-		},
-		{
-			name: "getxoutput_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetTxOut(util.Uint256{}, 0)
 			},
 		},
 		{
