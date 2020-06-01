@@ -4,22 +4,17 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
-	context2 "github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -177,29 +172,6 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					forceFlag,
-				},
-			},
-			{
-				Name:  "transfer",
-				Usage: "transfer NEO/GAS",
-				UsageText: "transfer --path <path> --from <addr> --to <addr>" +
-					" --amount <amount> --asset [NEO|GAS|<hex-id>] [--out <path>]",
-				Action: transferAsset,
-				Flags: []cli.Flag{
-					walletPathFlag,
-					rpcFlag,
-					timeoutFlag,
-					outFlag,
-					fromAddrFlag,
-					toAddrFlag,
-					cli.StringFlag{
-						Name:  "amount",
-						Usage: "Amount of asset to send",
-					},
-					cli.StringFlag{
-						Name:  "asset",
-						Usage: "Asset ID",
-					},
 				},
 			},
 			{
@@ -447,99 +419,6 @@ func askForConsent() bool {
 	}
 	fmt.Println("Cancelled.")
 	return false
-}
-
-func transferAsset(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer wall.Close()
-
-	fromFlag := ctx.Generic("from").(*flags.Address)
-	if !fromFlag.IsSet {
-		return cli.NewExitError("'from' address was not provided", 1)
-	}
-	from := fromFlag.Uint160()
-	acc := wall.GetAccount(from)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", from), 1)
-	}
-
-	asset, err := getAssetID(ctx.String("asset"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid asset id: %v", err), 1)
-	}
-
-	amount, err := util.Fixed8FromString(ctx.String("amount"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
-	}
-
-	pass, err := readPassword("Enter wallet password > ")
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	gctx, cancel := getGoContext(ctx)
-	defer cancel()
-
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	tx := transaction.NewContractTX()
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	tx.ValidUntilBlock = validUntilBlock
-	if err := request.AddInputsAndUnspentsToTx(tx, fromFlag.String(), asset, amount, c); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	tx.Sender = from
-
-	toFlag := ctx.Generic("to").(*flags.Address)
-	if !toFlag.IsSet {
-		return cli.NewExitError("'to' address was not provided", 1)
-	}
-	toAddr := toFlag.Uint160()
-	tx.AddOutput(&transaction.Output{
-		AssetID:    asset,
-		Amount:     amount,
-		ScriptHash: toAddr,
-		Position:   1,
-	})
-
-	err = c.AddNetworkFee(tx, acc)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if outFile := ctx.String("out"); outFile != "" {
-		priv := acc.PrivateKey()
-		pub := priv.PublicKey()
-		sign := priv.Sign(tx.GetSignedPart())
-		c := context2.NewParameterContext("Neo.Core.ContractTransaction", tx)
-		if err := c.AddSignature(acc.Contract, pub, sign); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
-		} else if data, err := json.Marshal(c); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %v", err), 1)
-		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't write tx to file: %v", err), 1)
-		}
-	} else {
-		_ = acc.SignTx(tx)
-		if err := c.SendRawTransaction(tx); err != nil {
-			return cli.NewExitError(err, 1)
-		}
-	}
-
-	fmt.Println(tx.Hash().StringLE())
-	return nil
 }
 
 func getGoContext(ctx *cli.Context) (context.Context, func()) {
