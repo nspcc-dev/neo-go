@@ -670,19 +670,15 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getunclaimed": {
+	"getunclaimedgas": {
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnclaimed("AGofsxAUDwt52KjaB664GYsqVAkULYvKNt")
+				return c.GetUnclaimedGas("AGofsxAUDwt52KjaB664GYsqVAkULYvKNt")
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"available":750.032,"unavailable":2815.408,"unclaimed":3565.44}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"897299680935"}`,
 			result: func(c *Client) interface{} {
-				return &result.Unclaimed{
-					Available:   util.Fixed8FromFloat(750.032),
-					Unavailable: util.Fixed8FromFloat(2815.408),
-					Unclaimed:   util.Fixed8FromFloat(3565.44),
-				}
+				return util.Fixed8(897299680935)
 			},
 		},
 	},
@@ -1039,9 +1035,9 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getunclaimed_invalid_params_error",
+			name: "getunclaimedgas_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnclaimed("")
+				return c.GetUnclaimedGas("")
 			},
 		},
 		{
@@ -1209,9 +1205,9 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getunclaimed_unmarshalling_error",
+			name: "getunclaimedgas_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnclaimed("")
+				return c.GetUnclaimedGas("")
 			},
 		},
 		{

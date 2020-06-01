@@ -51,7 +51,7 @@ which would yield the response:
 | `getrawtransaction` |
 | `getstorage` |
 | `gettransactionheight` |
-| `getunclaimed` |
+| `getunclaimedgas` |
 | `getvalidators` |
 | `getversion` |
 | `invoke` |
@@ -73,6 +73,11 @@ in returning it.
 
 Both methods also don't currently support arrays in function parameters.
 
+##### `getunclaimedgas`
+
+It's possible to call this method for any address with neo-go, unlike with C#
+node where it only works for addresses from opened wallet.
+
 ### Unsupported methods
 
 Methods listed down below are not going to be supported for various reasons
@@ -85,7 +90,6 @@ and we're not accepting issues related to them.
 | `getbalance` | Use `getaccountstate` instead, see `claimgas` comment also |
 | `getmetricblocktimestamp` | Not really useful, use other means for node monitoring |
 | `getnewaddress` | See `claimgas` comment |
-| `getunclaimedgas` | Use `getunclaimed` instead, see `claimgas` comment also |
 | `getwalletheight` | Not applicable to neo-go, see `claimgas` comment |
 | `importprivkey` | Not applicable to neo-go, see `claimgas` comment |
 | `listaddress` | Not applicable to neo-go, see `claimgas` comment |

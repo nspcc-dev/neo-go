@@ -96,7 +96,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getrawtransaction":    (*Server).getrawtransaction,
 	"getstorage":           (*Server).getStorage,
 	"gettransactionheight": (*Server).getTransactionHeight,
-	"getunclaimed":         (*Server).getUnclaimed,
+	"getunclaimedgas":      (*Server).getUnclaimedGas,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
 	"invoke":               (*Server).invoke,
@@ -827,8 +827,8 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	return hex.EncodeToString(buf.Bytes()), nil
 }
 
-// getUnclaimed returns unclaimed GAS amount of the specified address.
-func (s *Server) getUnclaimed(ps request.Params) (interface{}, *response.Error) {
+// getUnclaimedGas returns unclaimed GAS amount of the specified address.
+func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Error) {
 	p, ok := ps.ValueWithType(0, request.StringT)
 	if !ok {
 		return nil, response.ErrInvalidParams
@@ -838,15 +838,15 @@ func (s *Server) getUnclaimed(ps request.Params) (interface{}, *response.Error) 
 		return nil, response.ErrInvalidParams
 	}
 
-	acc := s.chain.GetAccountState(u)
-	if acc == nil {
-		return nil, response.NewInternalServerError("unknown account", nil)
+	neo, neoHeight := s.chain.GetGoverningTokenBalance(u)
+	if neo == 0 {
+		return "0", nil
 	}
-	res, errRes := result.NewUnclaimed(acc, s.chain)
-	if errRes != nil {
-		return nil, response.NewInternalServerError("can't create unclaimed response", errRes)
+	gasG, gasF, err := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	if err != nil {
+		return nil, response.NewInternalServerError("calculation error", err)
 	}
-	return res, nil
+	return strconv.FormatInt(int64(gasG+gasF), 10), nil // It's not represented as Fixed8 in C#.
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.

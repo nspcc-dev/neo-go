@@ -930,6 +930,17 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
 	return util.Fixed8(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
 }
 
+// GetGoverningTokenBalance returns governing token (NEO) balance and the height
+// of the last balance change for the account.
+func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return 0, 0
+	}
+	neo := bs.Trackers[bc.contracts.NEO.Hash]
+	return util.Fixed8(neo.Balance), neo.LastUpdatedBlock
+}
+
 // LastBatch returns last persisted storage batch.
 func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch

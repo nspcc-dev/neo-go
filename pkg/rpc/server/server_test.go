@@ -507,7 +507,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-	"getunclaimed": {
+	"getunclaimedgas": {
 		{
 			name:   "no params",
 			params: "[]",
@@ -522,14 +522,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
-				return &result.Unclaimed{}
+				var s string
+				return &s
 			},
-			check: func(t *testing.T, e *executor, uncl interface{}) {
-				res, ok := uncl.(*result.Unclaimed)
+			check: func(t *testing.T, e *executor, resp interface{}) {
+				s, ok := resp.(*string)
 				require.True(t, ok)
-				assert.Equal(t, res.Available, util.Fixed8FromInt64(8))
-				assert.True(t, res.Unavailable > 0)
-				assert.Equal(t, res.Available+res.Unavailable, res.Unclaimed)
+				assert.Equal(t, "1772", *s)
 			},
 		},
 	},

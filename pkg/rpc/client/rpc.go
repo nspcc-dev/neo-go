@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/hex"
+	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -307,16 +308,20 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	return resp, nil
 }
 
-// GetUnclaimed returns unclaimed GAS amount of the specified address.
-func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
+// GetUnclaimedGas returns unclaimed GAS amount for the specified address.
+func (c *Client) GetUnclaimedGas(address string) (util.Fixed8, error) {
 	var (
 		params = request.NewRawParams(address)
-		resp   = &result.Unclaimed{}
+		resp   string
 	)
-	if err := c.performRequest("getunclaimed", params, resp); err != nil {
-		return nil, err
+	if err := c.performRequest("getunclaimedgas", params, &resp); err != nil {
+		return 0, err
 	}
-	return resp, nil
+	i, err := strconv.ParseInt(resp, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return util.Fixed8(i), nil
 }
 
 // GetValidators returns the current NEO consensus nodes information and voting status.

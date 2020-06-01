@@ -35,7 +35,7 @@ Supported methods
 	getrawtransaction
 	getstorage
 	gettransactionheight
-	getunclaimed
+	getunclaimedgas
 	getvalidators
 	getversion
 	invoke
@@ -52,7 +52,6 @@ Unsupported methods
 	getbalance
 	getmetricblocktimestamp
 	getnewaddress
-	getunclaimedgas
 	getwalletheight
 	importprivkey
 	listaddress
