@@ -11,8 +11,8 @@ import (
 func TestPrepareRequest_Setters(t *testing.T) {
 	var p prepareRequest
 
-	p.SetTimestamp(123)
-	require.EqualValues(t, 123, p.Timestamp())
+	p.SetTimestamp(123 * 1000000000) // Nanoseconds.
+	require.EqualValues(t, 123*1000000000, p.Timestamp())
 
 	p.SetNextConsensus(util.Uint160{5, 6, 7})
 	require.Equal(t, util.Uint160{5, 6, 7}, p.NextConsensus())

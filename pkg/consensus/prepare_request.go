@@ -37,10 +37,10 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 }
 
 // Timestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) Timestamp() uint32 { return p.timestamp }
+func (p *prepareRequest) Timestamp() uint64 { return uint64(p.timestamp) * 1000000000 }
 
 // SetTimestamp implements payload.PrepareRequest interface.
-func (p *prepareRequest) SetTimestamp(ts uint32) { p.timestamp = ts }
+func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = uint32(ts / 1000000000) }
 
 // Nonce implements payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }

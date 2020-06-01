@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -21,28 +22,29 @@ func TestNeoBlock_Sign(t *testing.T) {
 func TestNeoBlock_Setters(t *testing.T) {
 	b := new(neoBlock)
 
-	b.SetVersion(1)
+	b.Block.Version = 1
 	require.EqualValues(t, 1, b.Version())
 
-	b.SetIndex(12)
+	b.Block.Index = 12
 	require.EqualValues(t, 12, b.Index())
 
-	b.SetTimestamp(777)
-	require.EqualValues(t, 777, b.Timestamp())
+	b.Block.Timestamp = 777
+	require.EqualValues(t, 777*1000000000, b.Timestamp()) // Nanoseconds.
 
-	b.SetConsensusData(456)
+	b.Block.ConsensusData = 456
 	require.EqualValues(t, 456, b.ConsensusData())
 
-	b.SetMerkleRoot(util.Uint256{1, 2, 3, 4})
+	b.Block.MerkleRoot = util.Uint256{1, 2, 3, 4}
 	require.Equal(t, util.Uint256{1, 2, 3, 4}, b.MerkleRoot())
 
-	b.SetNextConsensus(util.Uint160{9, 2})
+	b.Block.NextConsensus = util.Uint160{9, 2}
 	require.Equal(t, util.Uint160{9, 2}, b.NextConsensus())
 
-	b.SetPrevHash(util.Uint256{9, 8, 7})
+	b.Block.PrevHash = util.Uint256{9, 8, 7}
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())
 
-	txx := []block.Transaction{newMinerTx(123)}
-	b.SetTransactions(txx)
+	tx := newMinerTx(123)
+	txx := []block.Transaction{tx}
+	b.Block.Transactions = []*transaction.Transaction{tx}
 	require.Equal(t, txx, b.Transactions())
 }
