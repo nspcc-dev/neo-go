@@ -204,30 +204,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
-	"getassetstate": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetAssetState(util.Uint256{})
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":"0x1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78","type":0,"name":"NEO","amount":"100000000","available":"100000000","precision":0,"owner":"00","admin":"Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt","issuer":"AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM","expiration":4000000,"is_frozen":false}}`,
-			result: func(c *Client) interface{} {
-				return &result.AssetState{
-					ID:         core.GoverningTokenID(),
-					AssetType:  0,
-					Name:       "NEO",
-					Amount:     util.Fixed8FromInt64(100000000),
-					Available:  util.Fixed8FromInt64(100000000),
-					Precision:  0,
-					Owner:      "00",
-					Admin:      "Abf2qMs1pzQb8kYk9RuxtUb9jtRKJVuBJt",
-					Issuer:     "AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM",
-					Expiration: 4000000,
-					IsFrozen:   false,
-				}
-			},
-		},
-	},
 	"getbestblockhash": {
 		{
 			name: "positive",
@@ -982,12 +958,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getassetstate_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetAssetState(core.GoverningTokenID())
-			},
-		},
-		{
 			name: "getbestblockhash_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBestBlockHash()
@@ -1143,12 +1113,6 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getapplicationlog_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetApplicationLog(util.Uint256{})
-			},
-		},
-		{
-			name: "getassetstate_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
-				return c.GetAssetState(core.GoverningTokenID())
 			},
 		},
 		{

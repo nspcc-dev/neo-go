@@ -299,34 +299,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
-	"getassetstate": {
-		{
-			name:   "positive",
-			params: `["f882fb865bab84b99623f21eedd902286af7da8d8a4609d7acefce04c851dc1c"]`,
-			result: func(e *executor) interface{} { return &result.AssetState{} },
-			check: func(t *testing.T, e *executor, as interface{}) {
-				res, ok := as.(*result.AssetState)
-				require.True(t, ok)
-				assert.Equal(t, "00", res.Owner)
-				assert.Equal(t, "AWKECj9RD8rS8RPcpCgYVjk1DeYyHwxZm3", res.Admin)
-			},
-		},
-		{
-			name:   "negative",
-			params: `["602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de2"]`,
-			fail:   true,
-		},
-		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
-		},
-	},
 	"getbestblockhash": {
 		{
 			params: "[]",

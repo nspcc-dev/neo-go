@@ -20,7 +20,6 @@ Supported methods
 
 	getaccountstate
 	getapplicationlog
-	getassetstate
 	getbestblockhash
 	getblock
 	getblockcount

@@ -36,7 +36,6 @@ which would yield the response:
 | ------- |
 | `getaccountstate` |
 | `getapplicationlog` |
-| `getassetstate` |
 | `getbestblockhash` |
 | `getblock` |
 | `getblockcount` |

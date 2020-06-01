@@ -81,7 +81,6 @@ const (
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
 	"getaccountstate":      (*Server).getAccountState,
 	"getapplicationlog":    (*Server).getApplicationLog,
-	"getassetstate":        (*Server).getAssetState,
 	"getbestblockhash":     (*Server).getBestBlockHash,
 	"getblock":             (*Server).getBlock,
 	"getblockcount":        (*Server).getBlockCount,
@@ -467,24 +466,6 @@ func (s *Server) validateAddress(reqParams request.Params) (interface{}, *respon
 		return nil, response.ErrInvalidParams
 	}
 	return validateAddress(param.Value), nil
-}
-
-func (s *Server) getAssetState(reqParams request.Params) (interface{}, *response.Error) {
-	param, ok := reqParams.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	paramAssetID, err := param.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	as := s.chain.GetAssetState(paramAssetID)
-	if as != nil {
-		return result.NewAssetState(as), nil
-	}
-	return nil, response.NewRPCError("Unknown asset", "", nil)
 }
 
 // getApplicationLog returns the contract log based on the specified txid.

@@ -40,18 +40,6 @@ func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, e
 	return resp, nil
 }
 
-// GetAssetState queries the asset information, based on the specified asset number.
-func (c *Client) GetAssetState(hash util.Uint256) (*result.AssetState, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.AssetState{}
-	)
-	if err := c.performRequest("getassetstate", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetBestBlockHash returns the hash of the tallest block in the main chain.
 func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 	var resp = util.Uint256{}
