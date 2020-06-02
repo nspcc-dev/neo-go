@@ -25,11 +25,11 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 	switch n := curr.(type) {
 	case *LeafNode:
 		if len(path) == 0 {
-			*proofs = append(*proofs, toBytes(n))
+			*proofs = append(*proofs, copySlice(n.Bytes()))
 			return n, nil
 		}
 	case *BranchNode:
-		*proofs = append(*proofs, toBytes(n))
+		*proofs = append(*proofs, copySlice(n.Bytes()))
 		i, path := splitPath(path)
 		r, err := t.getProof(n.Children[i], path, proofs)
 		if err != nil {
@@ -39,7 +39,7 @@ func (t *Trie) getProof(curr Node, path []byte, proofs *[][]byte) (Node, error) 
 		return n, nil
 	case *ExtensionNode:
 		if bytes.HasPrefix(path, n.key) {
-			*proofs = append(*proofs, toBytes(n))
+			*proofs = append(*proofs, copySlice(n.Bytes()))
 			r, err := t.getProof(n.next, path[len(n.key):], proofs)
 			if err != nil {
 				return nil, err

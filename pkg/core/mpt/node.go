@@ -33,8 +33,7 @@ type Node interface {
 	io.Serializable
 	json.Marshaler
 	json.Unmarshaler
-	Hash() util.Uint256
-	Type() NodeType
+	BaseNodeIface
 }
 
 // EncodeBinary implements io.Serializable.
@@ -59,19 +58,6 @@ func (n *NodeObject) DecodeBinary(r *io.BinReader) {
 		return
 	}
 	n.Node.DecodeBinary(r)
-}
-
-// encodeNodeWithType encodes node together with it's type.
-func encodeNodeWithType(n Node, w *io.BinWriter) {
-	w.WriteB(byte(n.Type()))
-	n.EncodeBinary(w)
-}
-
-// toBytes is a helper for serializing node.
-func toBytes(n Node) []byte {
-	buf := io.NewBufBinWriter()
-	encodeNodeWithType(n, buf.BinWriter)
-	return buf.Bytes()
 }
 
 // UnmarshalJSON implements json.Unmarshaler.

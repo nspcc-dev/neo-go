@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -18,9 +17,7 @@ const (
 
 // BranchNode represents MPT's branch node.
 type BranchNode struct {
-	hash  util.Uint256
-	valid bool
-
+	BaseNode
 	Children [childrenCount]Node
 }
 
@@ -38,18 +35,14 @@ func NewBranchNode() *BranchNode {
 // Type implements Node interface.
 func (b *BranchNode) Type() NodeType { return BranchT }
 
-// Hash implements Node interface.
+// Hash implements BaseNode interface.
 func (b *BranchNode) Hash() util.Uint256 {
-	if !b.valid {
-		b.hash = hash.DoubleSha256(toBytes(b))
-		b.valid = true
-	}
-	return b.hash
+	return b.getHash(b)
 }
 
-// invalidateHash invalidates node hash.
-func (b *BranchNode) invalidateHash() {
-	b.valid = false
+// Bytes implements BaseNode interface.
+func (b *BranchNode) Bytes() []byte {
+	return b.getBytes(b)
 }
 
 // EncodeBinary implements io.Serializable.

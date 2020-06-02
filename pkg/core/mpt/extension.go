@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -16,9 +15,7 @@ const MaxKeyLength = 1125
 
 // ExtensionNode represents MPT's extension node.
 type ExtensionNode struct {
-	hash  util.Uint256
-	valid bool
-
+	BaseNode
 	key  []byte
 	next Node
 }
@@ -37,18 +34,14 @@ func NewExtensionNode(key []byte, next Node) *ExtensionNode {
 // Type implements Node interface.
 func (e ExtensionNode) Type() NodeType { return ExtensionT }
 
-// Hash implements Node interface.
+// Hash implements BaseNode interface.
 func (e *ExtensionNode) Hash() util.Uint256 {
-	if !e.valid {
-		e.hash = hash.DoubleSha256(toBytes(e))
-		e.valid = true
-	}
-	return e.hash
+	return e.getHash(e)
 }
 
-// invalidateHash invalidates node hash.
-func (e *ExtensionNode) invalidateHash() {
-	e.valid = false
+// Bytes implements BaseNode interface.
+func (e *ExtensionNode) Bytes() []byte {
+	return e.getBytes(e)
 }
 
 // DecodeBinary implements io.Serializable.
@@ -58,11 +51,11 @@ func (e *ExtensionNode) DecodeBinary(r *io.BinReader) {
 		r.Err = fmt.Errorf("extension node key is too big: %d", sz)
 		return
 	}
-	e.valid = false
 	e.key = make([]byte, sz)
 	r.ReadBytes(e.key)
 	e.next = new(HashNode)
 	e.next.DecodeBinary(r)
+	e.invalidateCache()
 }
 
 // EncodeBinary implements io.Serializable.
