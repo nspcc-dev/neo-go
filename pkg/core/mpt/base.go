@@ -14,6 +14,8 @@ type BaseNode struct {
 	bytes      []byte
 	hashValid  bool
 	bytesValid bool
+
+	isFlushed bool
 }
 
 // BaseNodeIface abstracts away basic Node functions.
@@ -21,6 +23,8 @@ type BaseNodeIface interface {
 	Hash() util.Uint256
 	Type() NodeType
 	Bytes() []byte
+	IsFlushed() bool
+	SetFlushed()
 }
 
 // getHash returns a hash of this BaseNode.
@@ -60,6 +64,17 @@ func (b *BaseNode) updateBytes(n Node) {
 func (b *BaseNode) invalidateCache() {
 	b.bytesValid = false
 	b.hashValid = false
+	b.isFlushed = false
+}
+
+// IsFlushed checks for node flush status.
+func (b *BaseNode) IsFlushed() bool {
+	return b.isFlushed
+}
+
+// SetFlushed sets 'flushed' flag to true for this node.
+func (b *BaseNode) SetFlushed() {
+	b.isFlushed = true
 }
 
 // encodeNodeWithType encodes node together with it's type.
