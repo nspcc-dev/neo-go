@@ -318,6 +318,9 @@ func (t *Trie) Flush() {
 }
 
 func (t *Trie) flush(node Node) {
+	if node.IsFlushed() {
+		return
+	}
 	switch n := node.(type) {
 	case *BranchNode:
 		for i := range n.Children {
@@ -336,6 +339,7 @@ func (t *Trie) putToStore(n Node) {
 		panic("can't put hash node in trie")
 	}
 	_ = t.Store.Put(makeStorageKey(n.Hash().BytesBE()), n.Bytes()) // put in MemCached returns no errors
+	n.SetFlushed()
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
