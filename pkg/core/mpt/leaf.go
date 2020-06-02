@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -15,9 +14,7 @@ const MaxValueLength = 1024 * 1024
 
 // LeafNode represents MPT's leaf node.
 type LeafNode struct {
-	hash  util.Uint256
-	valid bool
-
+	BaseNode
 	value []byte
 }
 
@@ -31,13 +28,14 @@ func NewLeafNode(value []byte) *LeafNode {
 // Type implements Node interface.
 func (n LeafNode) Type() NodeType { return LeafT }
 
-// Hash implements Node interface.
+// Hash implements BaseNode interface.
 func (n *LeafNode) Hash() util.Uint256 {
-	if !n.valid {
-		n.hash = hash.DoubleSha256(toBytes(n))
-		n.valid = true
-	}
-	return n.hash
+	return n.getHash(n)
+}
+
+// Bytes implements BaseNode interface.
+func (n *LeafNode) Bytes() []byte {
+	return n.getBytes(n)
 }
 
 // DecodeBinary implements io.Serializable.
@@ -47,9 +45,9 @@ func (n *LeafNode) DecodeBinary(r *io.BinReader) {
 		r.Err = fmt.Errorf("leaf node value is too big: %d", sz)
 		return
 	}
-	n.valid = false
 	n.value = make([]byte, sz)
 	r.ReadBytes(n.value)
+	n.invalidateCache()
 }
 
 // EncodeBinary implements io.Serializable.

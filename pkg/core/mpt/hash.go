@@ -10,8 +10,7 @@ import (
 
 // HashNode represents MPT's hash node.
 type HashNode struct {
-	hash  util.Uint256
-	valid bool
+	BaseNode
 }
 
 var _ Node = (*HashNode)(nil)
@@ -19,8 +18,10 @@ var _ Node = (*HashNode)(nil)
 // NewHashNode returns hash node with the specified hash.
 func NewHashNode(h util.Uint256) *HashNode {
 	return &HashNode{
-		hash:  h,
-		valid: true,
+		BaseNode: BaseNode{
+			hash:      h,
+			hashValid: true,
+		},
 	}
 }
 
@@ -29,23 +30,28 @@ func (h *HashNode) Type() NodeType { return HashT }
 
 // Hash implements Node interface.
 func (h *HashNode) Hash() util.Uint256 {
-	if !h.valid {
+	if !h.hashValid {
 		panic("can't get hash of an empty HashNode")
 	}
 	return h.hash
 }
 
 // IsEmpty returns true iff h is an empty node i.e. contains no hash.
-func (h *HashNode) IsEmpty() bool { return !h.valid }
+func (h *HashNode) IsEmpty() bool { return !h.hashValid }
+
+// Bytes returns serialized HashNode.
+func (h *HashNode) Bytes() []byte {
+	return h.getBytes(h)
+}
 
 // DecodeBinary implements io.Serializable.
 func (h *HashNode) DecodeBinary(r *io.BinReader) {
 	sz := r.ReadVarUint()
 	switch sz {
 	case 0:
-		h.valid = false
+		h.hashValid = false
 	case util.Uint256Size:
-		h.valid = true
+		h.hashValid = true
 		r.ReadBytes(h.hash[:])
 	default:
 		r.Err = fmt.Errorf("invalid hash node size: %d", sz)
@@ -54,7 +60,7 @@ func (h *HashNode) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable.
 func (h HashNode) EncodeBinary(w *io.BinWriter) {
-	if !h.valid {
+	if !h.hashValid {
 		w.WriteVarUint(0)
 		return
 	}
@@ -63,7 +69,7 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 
 // MarshalJSON implements json.Marshaler.
 func (h *HashNode) MarshalJSON() ([]byte, error) {
-	if !h.valid {
+	if !h.hashValid {
 		return []byte(`{}`), nil
 	}
 	return []byte(`{"hash":"` + h.hash.StringLE() + `"}`), nil
