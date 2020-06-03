@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -507,6 +508,8 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			if err == nil {
 				msg = s.MkMsg(CMDBlock, b)
 			}
+		case payload.StateRootType:
+			return nil // do nothing
 		case payload.ConsensusType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
 				msg = s.MkMsg(CMDConsensus, cp)
@@ -587,6 +590,35 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 	}
 	msg := s.MkMsg(CMDHeaders, &resp)
 	return p.EnqueueP2PMessage(msg)
+}
+
+// handleGetRootsCmd processees `getroots` request.
+func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
+	count := gr.Count
+	if count > payload.MaxStateRootsAllowed {
+		count = payload.MaxStateRootsAllowed
+	}
+	var rs payload.StateRoots
+	for height := gr.Start; height < gr.Start+gr.Count; height++ {
+		r, err := s.chain.GetStateRoot(height)
+		if err != nil {
+			return err
+		} else if r.Flag == state.Verified {
+			rs.Roots = append(rs.Roots, r.MPTRoot)
+		}
+	}
+	msg := s.MkMsg(CMDRoots, &rs)
+	return p.EnqueueP2PMessage(msg)
+}
+
+// handleStateRootsCmd processees `roots` request.
+func (s *Server) handleRootsCmd(rs *payload.StateRoots) error {
+	return nil // TODO
+}
+
+// handleStateRootCmd processees `stateroot` request.
+func (s *Server) handleStateRootCmd(r *state.MPTRoot) error {
+	return nil // TODO
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -697,6 +729,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetHeaders:
 			gh := msg.Payload.(*payload.GetBlocks)
 			return s.handleGetHeadersCmd(peer, gh)
+		case CMDGetRoots:
+			gr := msg.Payload.(*payload.GetStateRoots)
+			return s.handleGetRootsCmd(peer, gr)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
@@ -718,6 +753,12 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDPong:
 			pong := msg.Payload.(*payload.Ping)
 			return s.handlePong(peer, pong)
+		case CMDRoots:
+			rs := msg.Payload.(*payload.StateRoots)
+			return s.handleRootsCmd(rs)
+		case CMDStateRoot:
+			r := msg.Payload.(*state.MPTRoot)
+			return s.handleStateRootCmd(r)
 		case CMDVersion, CMDVerack:
 			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
 		}

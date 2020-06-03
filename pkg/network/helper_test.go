@@ -59,6 +59,9 @@ func (chain *testChain) AddBlock(block *block.Block) error {
 	}
 	return nil
 }
+func (chain *testChain) AddStateRoot(r *state.MPTRoot) error {
+	panic("TODO")
+}
 func (chain *testChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.blockheight)
 }
@@ -103,6 +106,9 @@ func (chain testChain) GetEnrollments() ([]*state.Validator, error) {
 	panic("TODO")
 }
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
+	panic("TODO")
+}
+func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 	panic("TODO")
 }
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {

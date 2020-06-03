@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -136,10 +137,10 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
 		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
-		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
+		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
-		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
+		dbft.WithNewCommit(srv.newCommit),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
 	)
@@ -208,6 +209,33 @@ func (s *service) eventLoop() {
 			}
 		}
 	}
+}
+
+func (s *service) newPrepareRequest() payload.PrepareRequest {
+	sr, err := s.Chain.GetStateRoot(s.Chain.BlockHeight())
+	if err != nil {
+		return new(prepareRequest)
+	}
+	return &prepareRequest{
+		proposalStateRoot: sr.MPTRootBase,
+	}
+}
+
+func (s *service) newCommit() payload.Commit {
+	for _, p := range s.dbft.Context.PreparationPayloads {
+		if p != nil && p.ViewNumber() == s.dbft.ViewNumber && p.Type() == payload.PrepareRequestType {
+			pr := p.GetPrepareRequest().(*prepareRequest)
+			data := pr.proposalStateRoot.GetSignedPart()
+			sign, err := s.dbft.Priv.Sign(data)
+			if err == nil {
+				var c commit
+				copy(c.stateSig[:], sign)
+				return &c
+			}
+			break
+		}
+	}
+	return new(commit)
 }
 
 func (s *service) validatePayload(p *Payload) bool {
@@ -351,16 +379,35 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
+
+	var rb *state.MPTRootBase
+	for _, p := range s.dbft.PreparationPayloads {
+		if p != nil && p.Type() == payload.PrepareRequestType {
+			rb = &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
+		}
+	}
+	w := s.getWitness(func(p payload.Commit) []byte { return p.(*commit).stateSig[:] })
+	r := &state.MPTRoot{
+		MPTRootBase: *rb,
+		Witness:     w,
+	}
+	if err := s.Chain.AddStateRoot(r); err != nil {
+		s.log.Warn("errors while adding state root", zap.Error(err))
+	}
 }
 
-func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
+func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {
+	return s.getWitness(func(p payload.Commit) []byte { return p.Signature() })
+}
+
+func (s *service) getWitness(f func(p payload.Commit) []byte) *transaction.Witness {
 	dctx := s.dbft.Context
 	pubs := convertKeys(dctx.Validators)
 	sigs := make(map[*keys.PublicKey][]byte)
 
 	for i := range pubs {
 		if p := dctx.CommitPayloads[i]; p != nil && p.ViewNumber() == dctx.ViewNumber {
-			sigs[pubs[i]] = p.GetCommit().Signature()
+			sigs[pubs[i]] = f(p.GetCommit())
 		}
 	}
 

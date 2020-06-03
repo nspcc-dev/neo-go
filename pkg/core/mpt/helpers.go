@@ -1,6 +1,10 @@
 package mpt
 
-import "github.com/nspcc-dev/neo-go/pkg/util"
+import (
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+)
 
 // lcp returns longest common prefix of a and b.
 // Note: it does no allocations.
@@ -68,4 +72,15 @@ func ToNeoStorageKey(key []byte) []byte {
 		nkey = append(nkey, 0)
 	}
 	return append(nkey, byte(padding))
+}
+
+// ToNeoStorageValue serializes si to a C# neo node's format.
+// It has additional version (0x00) byte at the beginning.
+func ToNeoStorageValue(si *state.StorageItem) []byte {
+	const version = 0
+
+	buf := io.NewBufBinWriter()
+	buf.BinWriter.WriteB(version)
+	si.EncodeBinary(buf.BinWriter)
+	return buf.Bytes()
 }
