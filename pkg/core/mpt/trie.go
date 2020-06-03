@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -126,7 +125,7 @@ func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, err
 		return nil, err
 	}
 	curr.Children[i] = r
-	curr.invalidateHash()
+	curr.invalidateCache()
 	return curr, nil
 }
 
@@ -139,7 +138,7 @@ func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Nod
 			return nil, err
 		}
 		curr.next = r
-		curr.invalidateHash()
+		curr.invalidateCache()
 		return curr, nil
 	}
 
@@ -218,7 +217,7 @@ func (t *Trie) deleteFromBranch(b *BranchNode, path []byte) (Node, error) {
 		return nil, err
 	}
 	b.Children[i] = r
-	b.invalidateHash()
+	b.invalidateCache()
 	var count, index int
 	for i := range b.Children {
 		h, ok := b.Children[i].(*HashNode)
@@ -243,7 +242,7 @@ func (t *Trie) deleteFromBranch(b *BranchNode, path []byte) (Node, error) {
 	}
 	if e, ok := c.(*ExtensionNode); ok {
 		e.key = append([]byte{byte(index)}, e.key...)
-		e.invalidateHash()
+		e.invalidateCache()
 		return e, nil
 	}
 
@@ -262,7 +261,7 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 	case *ExtensionNode:
 		n.key = append(n.key, nxt.key...)
 		n.next = nxt.next
-		n.invalidateHash()
+		n.invalidateCache()
 	case *HashNode:
 		if nxt.IsEmpty() {
 			return nxt, nil
@@ -319,6 +318,9 @@ func (t *Trie) Flush() {
 }
 
 func (t *Trie) flush(node Node) {
+	if node.IsFlushed() {
+		return
+	}
 	switch n := node.(type) {
 	case *BranchNode:
 		for i := range n.Children {
@@ -336,9 +338,8 @@ func (t *Trie) putToStore(n Node) {
 	if n.Type() == HashT {
 		panic("can't put hash node in trie")
 	}
-	bs := toBytes(n)
-	h := hash.DoubleSha256(bs)
-	_ = t.Store.Put(makeStorageKey(h.BytesBE()), bs) // put in MemCached returns no errors
+	_ = t.Store.Put(makeStorageKey(n.Hash().BytesBE()), n.Bytes()) // put in MemCached returns no errors
+	n.SetFlushed()
 }
 
 func (t *Trie) getFromStore(h util.Uint256) (Node, error) {
