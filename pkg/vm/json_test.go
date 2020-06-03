@@ -18,6 +18,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -112,7 +113,7 @@ func TestUT(t *testing.T) {
 func getTestingInterop(id uint32) *InteropFuncPrice {
 	if id == binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}) {
 		return &InteropFuncPrice{InteropFunc(func(v *VM) error {
-			v.estack.PushVal(&InteropItem{new(int)})
+			v.estack.PushVal(stackitem.NewInterop(new(int)))
 			return nil
 		}), 0}
 	}
@@ -174,17 +175,17 @@ func testFile(t *testing.T, filename string) {
 	})
 }
 
-func compareItems(t *testing.T, a, b StackItem) {
+func compareItems(t *testing.T, a, b stackitem.Item) {
 	switch si := a.(type) {
-	case *BigIntegerItem:
-		val := si.value.Int64()
+	case *stackitem.BigInteger:
+		val := si.Value().(*big.Int).Int64()
 		switch ac := b.(type) {
-		case *BigIntegerItem:
-			require.Equal(t, val, ac.value.Int64())
-		case *ByteArrayItem:
-			require.Equal(t, val, emit.BytesToInt(ac.value).Int64())
-		case *BoolItem:
-			if ac.value {
+		case *stackitem.BigInteger:
+			require.Equal(t, val, ac.Value().(*big.Int).Int64())
+		case *stackitem.ByteArray:
+			require.Equal(t, val, emit.BytesToInt(ac.Value().([]byte)).Int64())
+		case *stackitem.Bool:
+			if ac.Value().(bool) {
 				require.Equal(t, val, int64(1))
 			} else {
 				require.Equal(t, val, int64(0))
@@ -192,17 +193,17 @@ func compareItems(t *testing.T, a, b StackItem) {
 		default:
 			require.Fail(t, "wrong type")
 		}
-	case *PointerItem:
-		p, ok := b.(*PointerItem)
+	case *stackitem.Pointer:
+		p, ok := b.(*stackitem.Pointer)
 		require.True(t, ok)
-		require.Equal(t, si.pos, p.pos) // there no script in test files
+		require.Equal(t, si.Position(), p.Position()) // there no script in test files
 	default:
 		require.Equal(t, a, b)
 	}
 }
 
 func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
-	compareItemArrays(t, expected, actual.Len(), func(i int) StackItem { return actual.Peek(i).Item() })
+	compareItemArrays(t, expected, actual.Len(), func(i int) stackitem.Item { return actual.Peek(i).Item() })
 }
 
 func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
@@ -213,7 +214,7 @@ func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
 	compareItemArrays(t, expected, actual.Size(), actual.Get)
 }
 
-func compareItemArrays(t *testing.T, expected []vmUTStackItem, n int, getItem func(i int) StackItem) {
+func compareItemArrays(t *testing.T, expected []vmUTStackItem, n int, getItem func(i int) stackitem.Item) {
 	if expected == nil {
 		return
 	}
@@ -224,57 +225,47 @@ func compareItemArrays(t *testing.T, expected []vmUTStackItem, n int, getItem fu
 		require.NotNil(t, it)
 
 		if item.Type == typeInterop {
-			require.IsType(t, (*InteropItem)(nil), it)
+			require.IsType(t, (*stackitem.Interop)(nil), it)
 			continue
 		}
 		compareItems(t, item.toStackItem(), it)
 	}
 }
 
-func (v *vmUTStackItem) toStackItem() StackItem {
+func (v *vmUTStackItem) toStackItem() stackitem.Item {
 	switch v.Type.toLower() {
 	case typeArray:
 		items := v.Value.([]vmUTStackItem)
-		result := make([]StackItem, len(items))
+		result := make([]stackitem.Item, len(items))
 		for i := range items {
 			result[i] = items[i].toStackItem()
 		}
-		return &ArrayItem{
-			value: result,
-		}
+		return stackitem.NewArray(result)
 	case typeString:
 		panic("not implemented")
 	case typeMap:
-		return v.Value.(*MapItem)
+		return v.Value.(*stackitem.Map)
 	case typeInterop:
 		panic("not implemented")
 	case typeByteString:
-		return &ByteArrayItem{
-			v.Value.([]byte),
-		}
+		return stackitem.NewByteArray(v.Value.([]byte))
 	case typeBuffer:
-		return &BufferItem{v.Value.([]byte)}
+		return stackitem.NewBuffer(v.Value.([]byte))
 	case typePointer:
-		return NewPointerItem(v.Value.(int), nil)
+		return stackitem.NewPointer(v.Value.(int), nil)
 	case typeNull:
-		return NullItem{}
+		return stackitem.Null{}
 	case typeBoolean:
-		return &BoolItem{
-			v.Value.(bool),
-		}
+		return stackitem.NewBool(v.Value.(bool))
 	case typeInteger:
-		return &BigIntegerItem{
-			value: v.Value.(*big.Int),
-		}
+		return stackitem.NewBigInteger(v.Value.(*big.Int))
 	case typeStruct:
 		items := v.Value.([]vmUTStackItem)
-		result := make([]StackItem, len(items))
+		result := make([]stackitem.Item, len(items))
 		for i := range items {
 			result[i] = items[i].toStackItem()
 		}
-		return &StructItem{
-			value: result,
-		}
+		return stackitem.NewStruct(result)
 	default:
 		panic(fmt.Sprintf("invalid type: %s", v.Type))
 	}
@@ -303,10 +294,10 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 	}
 }
 
-func jsonStringToInteger(s string) StackItem {
+func jsonStringToInteger(s string) stackitem.Item {
 	b, err := decodeHex(s)
 	if err == nil {
-		return NewBigIntegerItem(new(big.Int).SetBytes(b))
+		return stackitem.NewBigInteger(new(big.Int).SetBytes(b))
 	}
 	return nil
 }
@@ -418,7 +409,7 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("invalid map start")
 		}
 
-		result := NewMapItem()
+		result := stackitem.NewMap()
 		for {
 			tok, err := d.Token()
 			if err != nil {
@@ -438,7 +429,7 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 
 			item := jsonStringToInteger(key)
 			if item == nil {
-				return fmt.Errorf("can't unmarshal StackItem %s", key)
+				return fmt.Errorf("can't unmarshal Item %s", key)
 			}
 			result.Add(item, it.toStackItem())
 		}

@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // ApplicationLog wrapper used for the representation of the
@@ -33,8 +33,8 @@ type NotificationEvent struct {
 // StateEventToResultNotification converts state.NotificationEvent to
 // result.NotificationEvent.
 func StateEventToResultNotification(event state.NotificationEvent) NotificationEvent {
-	seen := make(map[vm.StackItem]bool)
-	item := event.Item.ToContractParameter(seen)
+	seen := make(map[stackitem.Item]bool)
+	item := smartcontract.ParameterFromStackItem(event.Item, seen)
 	return NotificationEvent{
 		Contract: event.ScriptHash,
 		Item:     item,

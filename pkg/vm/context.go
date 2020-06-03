@@ -6,9 +6,9 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Context represents the current execution context of the VM.
@@ -170,48 +170,40 @@ func (c *Context) ScriptHash() util.Uint160 {
 	return c.scriptHash
 }
 
-// Value implements StackItem interface.
+// Value implements stackitem.Item interface.
 func (c *Context) Value() interface{} {
 	return c
 }
 
-// Dup implements StackItem interface.
-func (c *Context) Dup() StackItem {
+// Dup implements stackitem.Item interface.
+func (c *Context) Dup() stackitem.Item {
 	return c
 }
 
-// Bool implements StackItem interface.
+// Bool implements stackitem.Item interface.
 func (c *Context) Bool() bool { panic("can't convert Context to Bool") }
 
-// TryBytes implements StackItem interface.
+// TryBytes implements stackitem.Item interface.
 func (c *Context) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Context to ByteArray")
 }
 
-// TryInteger implements StackItem interface.
+// TryInteger implements stackitem.Item interface.
 func (c *Context) TryInteger() (*big.Int, error) {
 	return nil, errors.New("can't convert Context to Integer")
 }
 
-// Type implements StackItem interface.
-func (c *Context) Type() StackItemType { panic("Context cannot appear on evaluation stack") }
+// Type implements stackitem.Item interface.
+func (c *Context) Type() stackitem.Type { panic("Context cannot appear on evaluation stack") }
 
-// Convert implements StackItem interface.
-func (c *Context) Convert(_ StackItemType) (StackItem, error) {
+// Convert implements stackitem.Item interface.
+func (c *Context) Convert(_ stackitem.Type) (stackitem.Item, error) {
 	panic("Context cannot be converted to anything")
 }
 
-// Equals implements StackItem interface.
-func (c *Context) Equals(s StackItem) bool {
+// Equals implements stackitem.Item interface.
+func (c *Context) Equals(s stackitem.Item) bool {
 	return c == s
-}
-
-// ToContractParameter implements StackItem interface.
-func (c *Context) ToContractParameter(map[StackItem]bool) smartcontract.Parameter {
-	return smartcontract.Parameter{
-		Type:  smartcontract.StringType,
-		Value: c.String(),
-	}
 }
 
 func (c *Context) atBreakPoint() bool {

@@ -5,14 +5,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NotificationEvent is a tuple of scripthash that emitted the StackItem as a
+// NotificationEvent is a tuple of scripthash that emitted the Item as a
 // notification and that item itself.
 type NotificationEvent struct {
 	ScriptHash util.Uint160
-	Item       vm.StackItem
+	Item       stackitem.Item
 }
 
 // AppExecResult represent the result of the script execution, gathering together
@@ -29,13 +29,13 @@ type AppExecResult struct {
 // EncodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
 	ne.ScriptHash.EncodeBinary(w)
-	vm.EncodeBinaryStackItem(ne.Item, w)
+	stackitem.EncodeBinaryStackItem(ne.Item, w)
 }
 
 // DecodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 	ne.ScriptHash.DecodeBinary(r)
-	ne.Item = vm.DecodeBinaryStackItem(r)
+	ne.Item = stackitem.DecodeBinaryStackItem(r)
 }
 
 // EncodeBinary implements the Serializable interface.

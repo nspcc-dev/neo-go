@@ -14,7 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/pkg/errors"
 )
 
@@ -194,7 +194,7 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	return nil
 }
 
-func (n *NEO) unclaimedGas(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	u := toUint160(args[0])
 	end := uint32(toBigInt(args[1]).Int64())
 	bs, err := ic.DAO.GetNEP5Balances(u)
@@ -204,12 +204,12 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []vm.StackItem) vm.StackIte
 	tr := bs.Trackers[n.Hash]
 
 	gen := ic.Chain.CalculateClaimable(tr.Balance, tr.LastUpdatedBlock, end)
-	return vm.NewBigIntegerItem(big.NewInt(int64(gen)))
+	return stackitem.NewBigInteger(big.NewInt(int64(gen)))
 }
 
-func (n *NEO) registerValidator(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (n *NEO) registerValidator(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	err := n.registerValidatorInternal(ic, toPublicKey(args[0]))
-	return vm.NewBoolItem(err == nil)
+	return stackitem.NewBool(err == nil)
 }
 
 func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey) error {
@@ -226,9 +226,9 @@ func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey
 	return ic.DAO.PutStorageItem(n.Hash, key, si)
 }
 
-func (n *NEO) vote(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	acc := toUint160(args[0])
-	arr := args[1].Value().([]vm.StackItem)
+	arr := args[1].Value().([]stackitem.Item)
 	var pubs keys.PublicKeys
 	for i := range arr {
 		pub := new(keys.PublicKey)
@@ -241,7 +241,7 @@ func (n *NEO) vote(ic *interop.Context, args []vm.StackItem) vm.StackItem {
 		pubs = append(pubs, pub)
 	}
 	err := n.VoteInternal(ic, acc, pubs)
-	return vm.NewBoolItem(err == nil)
+	return stackitem.NewBool(err == nil)
 }
 
 // VoteInternal votes from account h for validarors specified in pubs.
@@ -361,19 +361,19 @@ func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
 	return arr, nil
 }
 
-func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
+func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	validators, err := n.getRegisteredValidators(ic.DAO)
 	if err != nil {
 		panic(err)
 	}
-	arr := make([]vm.StackItem, len(validators))
+	arr := make([]stackitem.Item, len(validators))
 	for i := range validators {
-		arr[i] = vm.NewStructItem([]vm.StackItem{
-			vm.NewByteArrayItem([]byte(validators[i].Key)),
-			vm.NewBigIntegerItem(validators[i].Votes),
+		arr[i] = stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte(validators[i].Key)),
+			stackitem.NewBigInteger(validators[i].Votes),
 		})
 	}
-	return vm.NewArrayItem(arr)
+	return stackitem.NewArray(arr)
 }
 
 // GetValidatorsInternal returns a list of current validators.
@@ -430,7 +430,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	return result, nil
 }
 
-func (n *NEO) getValidators(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
+func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	result, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		panic(err)
@@ -438,7 +438,7 @@ func (n *NEO) getValidators(ic *interop.Context, _ []vm.StackItem) vm.StackItem 
 	return pubsToArray(result)
 }
 
-func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
+func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	result, err := n.GetNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		panic(err)
@@ -460,15 +460,15 @@ func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao
 	return pubs, nil
 }
 
-func pubsToArray(pubs keys.PublicKeys) vm.StackItem {
-	arr := make([]vm.StackItem, len(pubs))
+func pubsToArray(pubs keys.PublicKeys) stackitem.Item {
+	arr := make([]stackitem.Item, len(pubs))
 	for i := range pubs {
-		arr[i] = vm.NewByteArrayItem(pubs[i].Bytes())
+		arr[i] = stackitem.NewByteArray(pubs[i].Bytes())
 	}
-	return vm.NewArrayItem(arr)
+	return stackitem.NewArray(arr)
 }
 
-func toPublicKey(s vm.StackItem) *keys.PublicKey {
+func toPublicKey(s stackitem.Item) *keys.PublicKey {
 	buf, err := s.TryBytes()
 	if err != nil {
 		panic(err)

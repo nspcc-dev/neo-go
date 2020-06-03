@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var sliceTestCases = []testCase{
@@ -160,9 +160,9 @@ var sliceTestCases = []testCase{
 			a = append(a, "b")
 			return a
 		}`,
-		[]vm.StackItem{
-			vm.NewByteArrayItem([]byte("a")),
-			vm.NewByteArrayItem([]byte("b")),
+		[]stackitem.Item{
+			stackitem.NewByteArray([]byte("a")),
+			stackitem.NewByteArray([]byte("b")),
 		},
 	},
 	{
@@ -175,9 +175,9 @@ var sliceTestCases = []testCase{
 			a = append(a, "b")
 			return a
 		}`,
-		[]vm.StackItem{
-			vm.NewByteArrayItem([]byte("a")),
-			vm.NewByteArrayItem([]byte("b")),
+		[]stackitem.Item{
+			stackitem.NewByteArray([]byte("a")),
+			stackitem.NewByteArray([]byte("b")),
 		},
 	},
 	{

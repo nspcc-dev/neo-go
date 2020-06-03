@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
 
@@ -58,7 +59,7 @@ func bcGetBlock(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
-		v.Estack().PushVal(vm.NewInteropItem(block))
+		v.Estack().PushVal(stackitem.NewInterop(block))
 	}
 	return nil
 }
@@ -74,7 +75,7 @@ func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
-		v.Estack().PushVal(vm.NewInteropItem(cs))
+		v.Estack().PushVal(stackitem.NewInterop(cs))
 	}
 	return nil
 }
@@ -89,7 +90,7 @@ func bcGetHeader(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		v.Estack().PushVal([]byte{})
 	} else {
-		v.Estack().PushVal(vm.NewInteropItem(header))
+		v.Estack().PushVal(stackitem.NewInterop(header))
 	}
 	return nil
 }
@@ -117,7 +118,7 @@ func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(vm.NewInteropItem(tx))
+	v.Estack().PushVal(stackitem.NewInterop(tx))
 	return nil
 }
 
@@ -208,9 +209,9 @@ func blockGetTransactions(ic *interop.Context, v *vm.VM) error {
 	if len(block.Transactions) > vm.MaxArraySize {
 		return errors.New("too many transactions")
 	}
-	txes := make([]vm.StackItem, 0, len(block.Transactions))
+	txes := make([]stackitem.Item, 0, len(block.Transactions))
 	for _, tx := range block.Transactions {
-		txes = append(txes, vm.NewInteropItem(tx))
+		txes = append(txes, stackitem.NewInterop(tx))
 	}
 	v.Estack().PushVal(txes)
 	return nil
@@ -229,7 +230,7 @@ func blockGetTransaction(ic *interop.Context, v *vm.VM) error {
 		return errors.New("wrong transaction index")
 	}
 	tx := block.Transactions[index]
-	v.Estack().PushVal(vm.NewInteropItem(tx))
+	v.Estack().PushVal(stackitem.NewInterop(tx))
 	return nil
 }
 
@@ -247,7 +248,7 @@ func txGetHash(ic *interop.Context, v *vm.VM) error {
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(vm.NewInteropItem(ic.Container))
+	v.Estack().PushVal(stackitem.NewInterop(ic.Container))
 	return nil
 }
 
@@ -289,9 +290,9 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	// outside of the interop subsystem anyway. I'd probably fail transactions
 	// that emit such broken notifications, but that might break compatibility
 	// with testnet/mainnet, so we're replacing these with error messages.
-	_, err := vm.SerializeItem(item)
+	_, err := stackitem.SerializeItem(item)
 	if err != nil {
-		item = vm.NewByteArrayItem([]byte(fmt.Sprintf("bad notification: %v", err)))
+		item = stackitem.NewByteArray([]byte(fmt.Sprintf("bad notification: %v", err)))
 	}
 	ne := state.NotificationEvent{ScriptHash: v.GetCurrentScriptHash(), Item: item}
 	ic.Notifications = append(ic.Notifications, ne)
@@ -387,7 +388,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 		ScriptHash: v.GetCurrentScriptHash(),
 		ReadOnly:   false,
 	}
-	v.Estack().PushVal(vm.NewInteropItem(sc))
+	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
 }
 
@@ -397,7 +398,7 @@ func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 		ScriptHash: v.GetCurrentScriptHash(),
 		ReadOnly:   true,
 	}
-	v.Estack().PushVal(vm.NewInteropItem(sc))
+	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
 }
 
@@ -467,7 +468,7 @@ func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
 		}
 		stc = stx
 	}
-	v.Estack().PushVal(vm.NewInteropItem(stc))
+	v.Estack().PushVal(stackitem.NewInterop(stc))
 	return nil
 }
 
@@ -488,7 +489,7 @@ func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	return contractCallExInternal(ic, v, h, method, args, flags)
 }
 
-func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method vm.StackItem, args vm.StackItem, _ smartcontract.CallFlag) error {
+func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stackitem.Item, args stackitem.Item, _ smartcontract.CallFlag) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
@@ -548,6 +549,6 @@ func contractGetStorageContext(ic *interop.Context, v *vm.VM) error {
 	stc := &StorageContext{
 		ScriptHash: cs.ScriptHash(),
 	}
-	v.Estack().PushVal(vm.NewInteropItem(stc))
+	v.Estack().PushVal(stackitem.NewInterop(stc))
 	return nil
 }

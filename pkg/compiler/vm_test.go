@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,7 @@ func eval(t *testing.T, src string, result interface{}) {
 	assertResult(t, vm, result)
 }
 
-func evalWithArgs(t *testing.T, src string, op []byte, args []vm.StackItem, result interface{}) {
+func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
 	vm := vmAndCompile(t, src)
 	vm.LoadArgs(op, args)
 	err := vm.Run()
@@ -73,7 +74,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 type storagePlugin struct {
 	mem      map[string][]byte
 	interops map[uint32]vm.InteropFunc
-	events   []vm.StackItem
+	events   []stackitem.Item
 }
 
 func newStoragePlugin() *storagePlugin {

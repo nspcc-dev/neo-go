@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/pkg/errors"
 )
 
@@ -52,14 +53,11 @@ const (
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
-	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
-	MaxBigIntegerSizeBits = 32 * 8
-
 	// MaxStackSize is the maximum number of items allowed to be
 	// on all stacks at once.
 	MaxStackSize = 2 * 1024
 
-	maxSHLArg = MaxBigIntegerSizeBits
+	maxSHLArg = stackitem.MaxBigIntegerSizeBits
 )
 
 // VM represents the virtual machine.
@@ -165,7 +163,7 @@ func (v *VM) GetPublicKeys() map[string]*keys.PublicKey {
 }
 
 // LoadArgs loads in the arguments used in the Mian entry point.
-func (v *VM) LoadArgs(method []byte, args []StackItem) {
+func (v *VM) LoadArgs(method []byte, args []stackitem.Item) {
 	if len(args) > 0 {
 		v.estack.PushVal(args)
 	}
@@ -534,22 +532,22 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 || int(n) > len(ctx.prog) {
 			panic(fmt.Sprintf("invalid pointer offset (%d)", n))
 		}
-		ptr := NewPointerItem(int(n), ctx.prog)
+		ptr := stackitem.NewPointer(int(n), ctx.prog)
 		v.estack.PushVal(ptr)
 
 	case opcode.PUSHNULL:
-		v.estack.PushVal(NullItem{})
+		v.estack.PushVal(stackitem.Null{})
 
 	case opcode.ISNULL:
-		res := v.estack.Pop().value.Equals(NullItem{})
+		res := v.estack.Pop().value.Equals(stackitem.Null{})
 		v.estack.PushVal(res)
 
 	case opcode.ISTYPE:
 		res := v.estack.Pop().Item()
-		v.estack.PushVal(res.Type() == StackItemType(parameter[0]))
+		v.estack.PushVal(res.Type() == stackitem.Type(parameter[0]))
 
 	case opcode.CONVERT:
-		typ := StackItemType(parameter[0])
+		typ := stackitem.Type(parameter[0])
 		item := v.estack.Pop().Item()
 		result, err := item.Convert(typ)
 		if err != nil {
@@ -637,7 +635,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n < 0 || n > MaxItemSize {
 			panic("invalid size")
 		}
-		v.estack.PushVal(NewBufferItem(make([]byte, n)))
+		v.estack.PushVal(stackitem.NewBuffer(make([]byte, n)))
 
 	case opcode.MEMCPY:
 		n := toInt(v.estack.Pop().BigInt())
@@ -656,7 +654,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if di < 0 {
 			panic("invalid destination index")
 		}
-		dst := v.estack.Pop().value.(*BufferItem).value
+		dst := v.estack.Pop().value.(*stackitem.Buffer).Value().([]byte)
 		if sum := si + n; sum < 0 || sum > len(dst) {
 			panic("size is too big")
 		}
@@ -669,7 +667,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic(fmt.Sprintf("too big item: %d", l))
 		}
 		ab := append(a, b...)
-		v.estack.PushVal(NewBufferItem(ab))
+		v.estack.PushVal(stackitem.NewBuffer(ab))
 
 	case opcode.SUBSTR:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -685,7 +683,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if last > len(s) {
 			panic("invalid offset")
 		}
-		v.estack.PushVal(NewBufferItem(s[o:last]))
+		v.estack.PushVal(stackitem.NewBuffer(s[o:last]))
 
 	case opcode.LEFT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -696,7 +694,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if t := len(s); l > t {
 			panic("size is too big")
 		}
-		v.estack.PushVal(NewBufferItem(s[:l]))
+		v.estack.PushVal(stackitem.NewBuffer(s[:l]))
 
 	case opcode.RIGHT:
 		l := int(v.estack.Pop().BigInt().Int64())
@@ -704,7 +702,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative length")
 		}
 		s := v.estack.Pop().Bytes()
-		v.estack.PushVal(NewBufferItem(s[len(s)-l:]))
+		v.estack.PushVal(stackitem.NewBuffer(s[len(s)-l:]))
 
 	case opcode.DEPTH:
 		v.estack.PushVal(v.estack.Len())
@@ -801,7 +799,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// inplace
 		e := v.estack.Peek(0)
 		i := e.BigInt()
-		e.value = makeStackItem(i.Not(i))
+		e.value = stackitem.Make(i.Not(i))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
@@ -977,7 +975,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	// Object operations
 	case opcode.NEWARRAY0:
-		v.estack.PushVal(&ArrayItem{[]StackItem{}})
+		v.estack.PushVal(stackitem.NewArray([]stackitem.Item{}))
 
 	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
@@ -985,15 +983,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n > MaxArraySize {
 			panic("too long array")
 		}
-		typ := AnyT
+		typ := stackitem.AnyT
 		if op == opcode.NEWARRAYT {
-			typ = StackItemType(parameter[0])
+			typ = stackitem.Type(parameter[0])
 		}
 		items := makeArrayOfType(int(n), typ)
-		v.estack.PushVal(&ArrayItem{items})
+		v.estack.PushVal(stackitem.NewArray(items))
 
 	case opcode.NEWSTRUCT0:
-		v.estack.PushVal(&StructItem{[]StackItem{}})
+		v.estack.PushVal(stackitem.NewStruct([]stackitem.Item{}))
 
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
@@ -1001,8 +999,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if n > MaxArraySize {
 			panic("too long struct")
 		}
-		items := makeArrayOfType(int(n), AnyT)
-		v.estack.PushVal(&StructItem{items})
+		items := makeArrayOfType(int(n), stackitem.AnyT)
+		v.estack.PushVal(stackitem.NewStruct(items))
 
 	case opcode.APPEND:
 		itemElem := v.estack.Pop()
@@ -1011,20 +1009,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		val := cloneIfStruct(itemElem.value)
 
 		switch t := arrElem.value.(type) {
-		case *ArrayItem:
-			arr := t.Value().([]StackItem)
-			if len(arr) >= MaxArraySize {
+		case *stackitem.Array:
+			if t.Len() >= MaxArraySize {
 				panic("too long array")
 			}
-			arr = append(arr, val)
-			t.value = arr
-		case *StructItem:
-			arr := t.Value().([]StackItem)
-			if len(arr) >= MaxArraySize {
+			t.Append(val)
+		case *stackitem.Struct:
+			if t.Len() >= MaxArraySize {
 				panic("too long struct")
 			}
-			arr = append(arr, val)
-			t.value = arr
+			t.Append(val)
 		default:
 			panic("APPEND: not of underlying type Array")
 		}
@@ -1037,7 +1031,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("OPACK: invalid length")
 		}
 
-		items := make([]StackItem, n)
+		items := make([]stackitem.Item, n)
 		for i := 0; i < n; i++ {
 			items[i] = v.estack.Pop().value
 		}
@@ -1060,20 +1054,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		index := int(key.BigInt().Int64())
 
 		switch t := obj.value.(type) {
-		// Struct and Array items have their underlying value as []StackItem.
-		case *ArrayItem, *StructItem:
-			arr := t.Value().([]StackItem)
+		// Struct and Array items have their underlying value as []Item.
+		case *stackitem.Array, *stackitem.Struct:
+			arr := t.Value().([]stackitem.Item)
 			if index < 0 || index >= len(arr) {
 				panic("PICKITEM: invalid index")
 			}
 			item := arr[index].Dup()
 			v.estack.PushVal(item)
-		case *MapItem:
+		case *stackitem.Map:
 			index := t.Index(key.Item())
 			if index < 0 {
 				panic("invalid key")
 			}
-			v.estack.Push(&Element{value: t.value[index].Value.Dup()})
+			v.estack.Push(&Element{value: t.Value().([]stackitem.MapElement)[index].Value.Dup()})
 		default:
 			arr := obj.Bytes()
 			if index < 0 || index >= len(arr) {
@@ -1091,9 +1085,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		obj := v.estack.Pop()
 
 		switch t := obj.value.(type) {
-		// Struct and Array items have their underlying value as []StackItem.
-		case *ArrayItem, *StructItem:
-			arr := t.Value().([]StackItem)
+		// Struct and Array items have their underlying value as []Item.
+		case *stackitem.Array, *stackitem.Struct:
+			arr := t.Value().([]stackitem.Item)
 			index := int(key.BigInt().Int64())
 			if index < 0 || index >= len(arr) {
 				panic("SETITEM: invalid index")
@@ -1101,18 +1095,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.refs.Remove(arr[index])
 			arr[index] = item
 			v.refs.Add(arr[index])
-		case *MapItem:
+		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
-				v.refs.Remove(t.value[i].Value)
-			} else if len(t.value) >= MaxArraySize {
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			} else if t.Len() >= MaxArraySize {
 				panic("too big map")
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)
 
-		case *BufferItem:
+		case *stackitem.Buffer:
 			index := toInt(key.BigInt())
-			if index < 0 || index >= len(t.value) {
+			if index < 0 || index >= t.Len() {
 				panic("invalid index")
 			}
 			bi, err := item.TryInteger()
@@ -1120,7 +1114,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if err != nil || b < math.MinInt8 || b > math.MaxUint8 {
 				panic("invalid value")
 			}
-			t.value[index] = byte(b)
+			t.Value().([]byte)[index] = byte(b)
 
 		default:
 			panic(fmt.Sprintf("SETITEM: invalid item type %s", t))
@@ -1129,14 +1123,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.REVERSEITEMS:
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
-		case *ArrayItem, *StructItem:
-			a := t.Value().([]StackItem)
+		case *stackitem.Array, *stackitem.Struct:
+			a := t.Value().([]stackitem.Item)
 			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
 			}
-		case *BufferItem:
-			for i, j := 0, len(t.value)-1; i < j; i, j = i+1, j-1 {
-				t.value[i], t.value[j] = t.value[j], t.value[i]
+		case *stackitem.Buffer:
+			for i, j := 0, t.Len()-1; i < j; i, j = i+1, j-1 {
+				t.Value().([]byte)[i], t.Value().([]byte)[j] = t.Value().([]byte)[j], t.Value().([]byte)[i]
 			}
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
@@ -1147,29 +1141,27 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
-		case *ArrayItem:
-			a := t.value
+		case *stackitem.Array:
+			a := t.Value().([]stackitem.Item)
 			k := int(key.BigInt().Int64())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
 			v.refs.Remove(a[k])
-			a = append(a[:k], a[k+1:]...)
-			t.value = a
-		case *StructItem:
-			a := t.value
+			t.Remove(k)
+		case *stackitem.Struct:
+			a := t.Value().([]stackitem.Item)
 			k := int(key.BigInt().Int64())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
 			v.refs.Remove(a[k])
-			a = append(a[:k], a[k+1:]...)
-			t.value = a
-		case *MapItem:
+			t.Remove(k)
+		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
-				v.refs.Remove(t.value[index].Value)
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[index].Value)
 				t.Drop(index)
 			}
 		default:
@@ -1179,21 +1171,21 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CLEARITEMS:
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
-		case *ArrayItem:
-			for _, item := range t.value {
+		case *stackitem.Array:
+			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
-			t.value = t.value[:0]
-		case *StructItem:
-			for _, item := range t.value {
+			t.Clear()
+		case *stackitem.Struct:
+			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
-			t.value = t.value[:0]
-		case *MapItem:
-			for i := range t.value {
-				v.refs.Remove(t.value[i].Value)
+			t.Clear()
+		case *stackitem.Map:
+			for i := range t.Value().([]stackitem.MapElement) {
+				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
 			}
-			t.value = t.value[:0]
+			t.Clear()
 		default:
 			panic("CLEARITEMS: invalid type")
 		}
@@ -1203,9 +1195,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// Cause there is no native (byte) item type here, hence we need to check
 		// the type of the item for array size operations.
 		switch t := elem.Value().(type) {
-		case []StackItem:
+		case []stackitem.Item:
 			v.estack.PushVal(len(t))
-		case []MapElement:
+		case []stackitem.MapElement:
 			v.estack.PushVal(len(t))
 		default:
 			v.estack.PushVal(len(elem.Bytes()))
@@ -1241,8 +1233,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.jumpIf(newCtx, offset, true)
 
 	case opcode.CALLA:
-		ptr := v.estack.Pop().Item().(*PointerItem)
-		if ptr.hash != ctx.ScriptHash() {
+		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
+		if ptr.ScriptHash() != ctx.ScriptHash() {
 			panic("invalid script in pointer")
 		}
 
@@ -1251,7 +1243,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.arguments = nil
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
-		v.jumpIf(newCtx, ptr.pos, true)
+		v.jumpIf(newCtx, ptr.Position(), true)
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1291,7 +1283,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.NEWMAP:
-		v.estack.Push(&Element{value: NewMapItem()})
+		v.estack.Push(&Element{value: stackitem.NewMap()})
 
 	case opcode.KEYS:
 		item := v.estack.Pop()
@@ -1299,14 +1291,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no argument")
 		}
 
-		m, ok := item.value.(*MapItem)
+		m, ok := item.value.(*stackitem.Map)
 		if !ok {
 			panic("not a Map")
 		}
 
-		arr := make([]StackItem, 0, len(m.value))
-		for k := range m.value {
-			arr = append(arr, m.value[k].Key.Dup())
+		arr := make([]stackitem.Item, 0, m.Len())
+		for k := range m.Value().([]stackitem.MapElement) {
+			arr = append(arr, m.Value().([]stackitem.MapElement)[k].Key.Dup())
 		}
 		v.estack.PushVal(arr)
 
@@ -1316,18 +1308,18 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no argument")
 		}
 
-		var arr []StackItem
+		var arr []stackitem.Item
 		switch t := item.value.(type) {
-		case *ArrayItem, *StructItem:
-			src := t.Value().([]StackItem)
-			arr = make([]StackItem, len(src))
+		case *stackitem.Array, *stackitem.Struct:
+			src := t.Value().([]stackitem.Item)
+			arr = make([]stackitem.Item, len(src))
 			for i := range src {
 				arr[i] = cloneIfStruct(src[i])
 			}
-		case *MapItem:
-			arr = make([]StackItem, 0, len(t.value))
-			for k := range t.value {
-				arr = append(arr, cloneIfStruct(t.value[k].Value))
+		case *stackitem.Map:
+			arr = make([]stackitem.Item, 0, t.Len())
+			for k := range t.Value().([]stackitem.MapElement) {
+				arr = append(arr, cloneIfStruct(t.Value().([]stackitem.MapElement)[k].Value))
 			}
 		default:
 			panic("not a Map, Array or Struct")
@@ -1344,20 +1336,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("no value found")
 		}
 		switch t := c.value.(type) {
-		case *ArrayItem, *StructItem:
+		case *stackitem.Array, *stackitem.Struct:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
 			v.estack.PushVal(index < int64(len(c.Array())))
-		case *MapItem:
+		case *stackitem.Map:
 			v.estack.PushVal(t.Has(key.Item()))
-		case *BufferItem:
+		case *stackitem.Buffer:
 			index := key.BigInt().Int64()
 			if index < 0 {
 				panic("negative index")
 			}
-			v.estack.PushVal(index < int64(len(t.value)))
+			v.estack.PushVal(index < int64(t.Len()))
 		default:
 			panic("wrong collection type")
 		}
@@ -1536,30 +1528,30 @@ func checkMultisig1(v *VM, h []byte, pkeys [][]byte, sig []byte) bool {
 	return false
 }
 
-func cloneIfStruct(item StackItem) StackItem {
+func cloneIfStruct(item stackitem.Item) stackitem.Item {
 	switch it := item.(type) {
-	case *StructItem:
+	case *stackitem.Struct:
 		return it.Clone()
 	default:
 		return it
 	}
 }
 
-func makeArrayOfType(n int, typ StackItemType) []StackItem {
+func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 	if !typ.IsValid() {
 		panic(fmt.Sprintf("invalid stack item type: %d", typ))
 	}
-	items := make([]StackItem, n)
+	items := make([]stackitem.Item, n)
 	for i := range items {
 		switch typ {
-		case BooleanT:
-			items[i] = NewBoolItem(false)
-		case IntegerT:
-			items[i] = NewBigIntegerItem(big.NewInt(0))
-		case ByteArrayT:
-			items[i] = NewByteArrayItem([]byte{})
+		case stackitem.BooleanT:
+			items[i] = stackitem.NewBool(false)
+		case stackitem.IntegerT:
+			items[i] = stackitem.NewBigInteger(big.NewInt(0))
+		case stackitem.ByteArrayT:
+			items[i] = stackitem.NewByteArray([]byte{})
 		default:
-			items[i] = NullItem{}
+			items[i] = stackitem.Null{}
 		}
 	}
 	return items
@@ -1569,7 +1561,7 @@ func validateMapKey(key *Element) {
 	if key == nil {
 		panic("no key found")
 	}
-	if !isValidMapKey(key.Item()) {
+	if !stackitem.IsValidMapKey(key.Item()) {
 		panic("key can't be a collection")
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,12 +71,12 @@ func TestStorageFind(t *testing.T) {
 
 	t.Run("normal invocation", func(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: scriptHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: scriptHash}))
 
 		err := storageFind(context, v)
 		require.NoError(t, err)
 
-		var iter *vm.InteropItem
+		var iter *stackitem.Interop
 		require.NotPanics(t, func() { iter = v.Estack().Top().Interop() })
 
 		require.NoError(t, enumerator.Next(context, v))
@@ -108,7 +109,7 @@ func TestStorageFind(t *testing.T) {
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
 		v.Estack().PushVal([]byte{0x03})
-		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: scriptHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: scriptHash}))
 
 		err := storageFind(context, v)
 		require.NoError(t, err)
@@ -119,7 +120,7 @@ func TestStorageFind(t *testing.T) {
 
 	t.Run("invalid type for StorageContext", func(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(vm.NewInteropItem(nil))
+		v.Estack().PushVal(stackitem.NewInterop(nil))
 
 		require.Error(t, storageFind(context, v))
 	})
@@ -129,7 +130,7 @@ func TestStorageFind(t *testing.T) {
 		invalidHash[0] = ^invalidHash[0]
 
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(vm.NewInteropItem(&StorageContext{ScriptHash: invalidHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: invalidHash}))
 
 		require.Error(t, storageFind(context, v))
 	})
@@ -151,7 +152,7 @@ func TestHeaderGetVersion_Negative(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
-	v.Estack().PushVal(vm.NewBoolItem(false))
+	v.Estack().PushVal(stackitem.NewBool(false))
 
 	err := headerGetVersion(context, v)
 	require.Errorf(t, err, "value is not a header or block")
@@ -183,7 +184,7 @@ func TestTxGetAttributes(t *testing.T) {
 
 	err := txGetAttributes(context, v)
 	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]vm.StackItem)
+	value := v.Estack().Pop().Value().([]stackitem.Item)
 	require.Equal(t, tx.Attributes[0].Usage, value[0].Value().(*transaction.Attribute).Usage)
 }
 
@@ -196,7 +197,7 @@ func TestWitnessGetVerificationScript(t *testing.T) {
 	defer chain.Close()
 
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
-	v.Estack().PushVal(vm.NewInteropItem(&witness))
+	v.Estack().PushVal(stackitem.NewInterop(&witness))
 	err := witnessGetVerificationScript(context, v)
 	require.NoError(t, err)
 	value := v.Estack().Pop().Value().([]byte)
@@ -247,7 +248,7 @@ func TestECDSAVerify(t *testing.T) {
 		tx := transaction.New([]byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
-		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NewInteropItem(tx))
+		runCase(t, false, true, sign, priv.PublicKey().Bytes(), stackitem.NewInterop(tx))
 	})
 
 	t.Run("signed script container", func(t *testing.T) {
@@ -255,7 +256,7 @@ func TestECDSAVerify(t *testing.T) {
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		ic.Container = tx
-		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NullItem{})
+		runCase(t, false, true, sign, priv.PublicKey().Bytes(), stackitem.Null{})
 	})
 
 	t.Run("missing arguments", func(t *testing.T) {
@@ -282,7 +283,7 @@ func TestECDSAVerify(t *testing.T) {
 func TestAttrGetData(t *testing.T) {
 	v, tx, context, chain := createVMAndTX(t)
 	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
+	v.Estack().PushVal(stackitem.NewInterop(&tx.Attributes[0]))
 
 	err := attrGetData(context, v)
 	require.NoError(t, err)
@@ -293,7 +294,7 @@ func TestAttrGetData(t *testing.T) {
 func TestAttrGetUsage(t *testing.T) {
 	v, tx, context, chain := createVMAndTX(t)
 	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Attributes[0]))
+	v.Estack().PushVal(stackitem.NewInterop(&tx.Attributes[0]))
 
 	err := attrGetUsage(context, v)
 	require.NoError(t, err)
@@ -304,7 +305,7 @@ func TestAttrGetUsage(t *testing.T) {
 func TestAccountGetScriptHash(t *testing.T) {
 	v, accState, context, chain := createVMAndAccState(t)
 	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(accState))
+	v.Estack().PushVal(stackitem.NewInterop(accState))
 
 	err := accountGetScriptHash(context, v)
 	require.NoError(t, err)
@@ -315,7 +316,7 @@ func TestAccountGetScriptHash(t *testing.T) {
 func TestContractGetScript(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(contractState))
+	v.Estack().PushVal(stackitem.NewInterop(contractState))
 
 	err := contractGetScript(context, v)
 	require.NoError(t, err)
@@ -326,7 +327,7 @@ func TestContractGetScript(t *testing.T) {
 func TestContractIsPayable(t *testing.T) {
 	v, contractState, context, chain := createVMAndContractState(t)
 	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(contractState))
+	v.Estack().PushVal(stackitem.NewInterop(contractState))
 
 	err := contractIsPayable(context, v)
 	require.NoError(t, err)
@@ -341,13 +342,13 @@ func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context,
 	block := newDumbBlock()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
-	v.Estack().PushVal(vm.NewInteropItem(block))
+	v.Estack().PushVal(stackitem.NewInterop(block))
 	return v, block, context, chain
 }
 
 func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v, tx, context, chain := createVMAndTX(t)
-	v.Estack().PushVal(vm.NewInteropItem(tx))
+	v.Estack().PushVal(stackitem.NewInterop(tx))
 	return v, tx, context, chain
 }
 

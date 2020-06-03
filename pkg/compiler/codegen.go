@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -720,7 +721,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
 			ast.Walk(c, n.Args[0])
-			c.emitConvert(vm.BufferT)
+			c.emitConvert(stackitem.BufferT)
 			return nil
 		}
 
@@ -1091,12 +1092,12 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
 	case "ToInteger", "ToByteArray", "ToBool":
-		typ := vm.IntegerT
+		typ := stackitem.IntegerT
 		switch name {
 		case "ToByteArray":
-			typ = vm.ByteArrayT
+			typ = stackitem.ByteArrayT
 		case "ToBool":
-			typ = vm.BooleanT
+			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
 	case "SHA256":
@@ -1123,7 +1124,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		}
 		bytes := uint160.BytesBE()
 		emit.Bytes(c.prog.BinWriter, bytes)
-		c.emitConvert(vm.BufferT)
+		c.emitConvert(stackitem.BufferT)
 	}
 }
 
@@ -1150,7 +1151,7 @@ func transformArgs(fun ast.Expr, args []ast.Expr) []ast.Expr {
 }
 
 // emitConvert converts top stack item to the specified type.
-func (c *codegen) emitConvert(typ vm.StackItemType) {
+func (c *codegen) emitConvert(typ stackitem.Type) {
 	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 }
 
@@ -1162,7 +1163,7 @@ func (c *codegen) convertByteArray(lit *ast.CompositeLit) {
 		buf[i] = byte(val)
 	}
 	emit.Bytes(c.prog.BinWriter, buf)
-	c.emitConvert(vm.BufferT)
+	c.emitConvert(stackitem.BufferT)
 }
 
 func (c *codegen) convertMap(lit *ast.CompositeLit) {

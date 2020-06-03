@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -231,9 +232,9 @@ func TestPushVal(t *testing.T) {
 	assert.Equal(t, true, elem.Bool())
 
 	// array
-	s.PushVal([]StackItem{&BoolItem{true}, &BoolItem{false}, &BoolItem{true}})
+	s.PushVal([]stackitem.Item{stackitem.NewBool(true), stackitem.NewBool(false), stackitem.NewBool(true)})
 	elem = s.Pop()
-	assert.IsType(t, elem.value, &ArrayItem{})
+	assert.IsType(t, elem.value, &stackitem.Array{})
 }
 
 func TestSwapElemValues(t *testing.T) {
@@ -320,17 +321,17 @@ func TestPopSigElements(t *testing.T) {
 	_, err := s.PopSigElements()
 	assert.NotNil(t, err)
 
-	s.PushVal([]StackItem{})
+	s.PushVal([]stackitem.Item{})
 	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
-	s.PushVal([]StackItem{NewBoolItem(false)})
+	s.PushVal([]stackitem.Item{stackitem.NewBool(false)})
 	_, err = s.PopSigElements()
 	assert.NotNil(t, err)
 
 	b1 := []byte("smth")
 	b2 := []byte("strange")
-	s.PushVal([]StackItem{NewByteArrayItem(b1), NewByteArrayItem(b2)})
+	s.PushVal([]stackitem.Item{stackitem.NewByteArray(b1), stackitem.NewByteArray(b2)})
 	z, err := s.PopSigElements()
 	assert.Nil(t, err)
 	assert.Equal(t, z, [][]byte{b1, b2})

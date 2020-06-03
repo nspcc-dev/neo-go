@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 const (
@@ -66,9 +67,9 @@ func txGetAttributes(ic *interop.Context, v *vm.VM) error {
 	if len(tx.Attributes) > vm.MaxArraySize {
 		return errors.New("too many attributes")
 	}
-	attrs := make([]vm.StackItem, 0, len(tx.Attributes))
+	attrs := make([]stackitem.Item, 0, len(tx.Attributes))
 	for i := range tx.Attributes {
-		attrs = append(attrs, vm.NewInteropItem(&tx.Attributes[i]))
+		attrs = append(attrs, stackitem.NewInterop(&tx.Attributes[i]))
 	}
 	v.Estack().PushVal(attrs)
 	return nil
@@ -84,9 +85,9 @@ func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 	if len(tx.Scripts) > vm.MaxArraySize {
 		return errors.New("too many outputs")
 	}
-	scripts := make([]vm.StackItem, 0, len(tx.Scripts))
+	scripts := make([]stackitem.Item, 0, len(tx.Scripts))
 	for i := range tx.Scripts {
-		scripts = append(scripts, vm.NewInteropItem(&tx.Scripts[i]))
+		scripts = append(scripts, stackitem.NewInterop(&tx.Scripts[i]))
 	}
 	v.Estack().PushVal(scripts)
 	return nil
@@ -139,7 +140,7 @@ func bcGetAccount(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(vm.NewInteropItem(acc))
+	v.Estack().PushVal(stackitem.NewInterop(acc))
 	return nil
 }
 
@@ -204,13 +205,13 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 
-	filteredMap := vm.NewMapItem()
+	filteredMap := stackitem.NewMap()
 	for k, v := range siMap {
-		filteredMap.Add(vm.NewByteArrayItem(append(prefix, []byte(k)...)), vm.NewByteArrayItem(v.Value))
+		filteredMap.Add(stackitem.NewByteArray(append(prefix, []byte(k)...)), stackitem.NewByteArray(v.Value))
 	}
-	sort.Slice(filteredMap.Value().([]vm.MapElement), func(i, j int) bool {
-		return bytes.Compare(filteredMap.Value().([]vm.MapElement)[i].Key.Value().([]byte),
-			filteredMap.Value().([]vm.MapElement)[j].Key.Value().([]byte)) == -1
+	sort.Slice(filteredMap.Value().([]stackitem.MapElement), func(i, j int) bool {
+		return bytes.Compare(filteredMap.Value().([]stackitem.MapElement)[i].Key.Value().([]byte),
+			filteredMap.Value().([]stackitem.MapElement)[j].Key.Value().([]byte)) == -1
 	})
 
 	item := vm.NewMapIterator(filteredMap)
@@ -288,7 +289,7 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 			return err
 		}
 	}
-	v.Estack().PushVal(vm.NewInteropItem(contract))
+	v.Estack().PushVal(stackitem.NewInterop(contract))
 	return nil
 }
 
@@ -342,7 +343,7 @@ func contractMigrate(ic *interop.Context, v *vm.VM) error {
 			}
 		}
 	}
-	v.Estack().PushVal(vm.NewInteropItem(contract))
+	v.Estack().PushVal(stackitem.NewInterop(contract))
 	return contractDestroy(ic, v)
 }
 

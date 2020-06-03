@@ -10,8 +10,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // prefixAccount is the standard prefix used to store account data.
@@ -86,20 +86,20 @@ func (c *nep5TokenNative) Initialize(_ *interop.Context) error {
 	return nil
 }
 
-func (c *nep5TokenNative) Name(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewByteArrayItem([]byte(c.name))
+func (c *nep5TokenNative) Name(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewByteArray([]byte(c.name))
 }
 
-func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewByteArrayItem([]byte(c.symbol))
+func (c *nep5TokenNative) Symbol(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewByteArray([]byte(c.symbol))
 }
 
-func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewBigIntegerItem(big.NewInt(c.decimals))
+func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(c.decimals))
 }
 
-func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []vm.StackItem) vm.StackItem {
-	return vm.NewBigIntegerItem(c.getTotalSupply(ic))
+func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(c.getTotalSupply(ic))
 }
 
 func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
@@ -115,29 +115,29 @@ func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) 
 	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
 }
 
-func (c *nep5TokenNative) Transfer(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (c *nep5TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	from := toUint160(args[0])
 	to := toUint160(args[1])
 	amount := toBigInt(args[2])
 	err := c.transfer(ic, from, to, amount)
-	return vm.NewBoolItem(err == nil)
+	return stackitem.NewBool(err == nil)
 }
 
-func addrToStackItem(u *util.Uint160) vm.StackItem {
+func addrToStackItem(u *util.Uint160) stackitem.Item {
 	if u == nil {
-		return vm.NullItem{}
+		return stackitem.Null{}
 	}
-	return vm.NewByteArrayItem(u.BytesBE())
+	return stackitem.NewByteArray(u.BytesBE())
 }
 
 func (c *nep5TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
 	ne := state.NotificationEvent{
 		ScriptHash: c.Hash,
-		Item: vm.NewArrayItem([]vm.StackItem{
-			vm.NewByteArrayItem([]byte("Transfer")),
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray([]byte("Transfer")),
 			addrToStackItem(from),
 			addrToStackItem(to),
-			vm.NewBigIntegerItem(amount),
+			stackitem.NewBigInteger(amount),
 		}),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
@@ -197,14 +197,14 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	return nil
 }
 
-func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []vm.StackItem) vm.StackItem {
+func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
 	bs, err := ic.DAO.GetNEP5Balances(h)
 	if err != nil {
 		panic(err)
 	}
 	balance := bs.Trackers[c.Hash].Balance
-	return vm.NewBigIntegerItem(big.NewInt(balance))
+	return stackitem.NewBigInteger(big.NewInt(balance))
 }
 
 func (c *nep5TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int) {
@@ -269,7 +269,7 @@ func newMethodAndPrice(f interop.Method, price int64, flags smartcontract.CallFl
 	}
 }
 
-func toBigInt(s vm.StackItem) *big.Int {
+func toBigInt(s stackitem.Item) *big.Int {
 	bi, err := s.TryInteger()
 	if err != nil {
 		panic(err)
@@ -277,7 +277,7 @@ func toBigInt(s vm.StackItem) *big.Int {
 	return bi
 }
 
-func toUint160(s vm.StackItem) util.Uint160 {
+func toUint160(s stackitem.Item) util.Uint160 {
 	buf, err := s.TryBytes()
 	if err != nil {
 		panic(err)

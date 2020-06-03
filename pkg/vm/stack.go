@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Stack implementation for the neo-go virtual machine. The stack implements
@@ -29,9 +30,9 @@ import (
 // [ 0 ]
 
 // Element represents an element in the double linked list (the stack),
-// which will hold the underlying StackItem.
+// which will hold the underlying stackitem.Item.
 type Element struct {
-	value      StackItem
+	value      stackitem.Item
 	next, prev *Element
 	stack      *Stack
 }
@@ -40,7 +41,7 @@ type Element struct {
 // to the corresponding type.
 func NewElement(v interface{}) *Element {
 	return &Element{
-		value: makeStackItem(v),
+		value: stackitem.Make(v),
 	}
 }
 
@@ -60,12 +61,12 @@ func (e *Element) Prev() *Element {
 	return nil
 }
 
-// Item returns StackItem contained in the element.
-func (e *Element) Item() StackItem {
+// Item returns Item contained in the element.
+func (e *Element) Item() stackitem.Item {
 	return e.value
 }
 
-// Value returns value of the StackItem contained in the element.
+// Value returns value of the Item contained in the element.
 func (e *Element) Value() interface{} {
 	return e.value.Value()
 }
@@ -98,12 +99,12 @@ func (e *Element) Bytes() []byte {
 // Array attempts to get the underlying value of the element as an array of
 // other items. Will panic if the item type is different which will be caught
 // by the VM.
-func (e *Element) Array() []StackItem {
+func (e *Element) Array() []stackitem.Item {
 	switch t := e.value.(type) {
-	case *ArrayItem:
-		return t.value
-	case *StructItem:
-		return t.value
+	case *stackitem.Array:
+		return t.Value().([]stackitem.Item)
+	case *stackitem.Struct:
+		return t.Value().([]stackitem.Item)
 	default:
 		panic("element is not an array")
 	}
@@ -111,9 +112,9 @@ func (e *Element) Array() []StackItem {
 
 // Interop attempts to get the underlying value of the element
 // as an interop item.
-func (e *Element) Interop() *InteropItem {
+func (e *Element) Interop() *stackitem.Interop {
 	switch t := e.value.(type) {
-	case *InteropItem:
+	case *stackitem.Interop:
 		return t
 	default:
 		panic("element is not an interop")
@@ -190,7 +191,7 @@ func (s *Stack) Push(e *Element) {
 }
 
 // PushVal pushes the given value on the stack. It will infer the
-// underlying StackItem to its corresponding type.
+// underlying Item to its corresponding type.
 func (s *Stack) PushVal(v interface{}) {
 	s.Push(NewElement(v))
 }
@@ -369,7 +370,7 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 		return nil, fmt.Errorf("nothing on the stack")
 	}
 	switch item.value.(type) {
-	case *ArrayItem:
+	case *stackitem.Array:
 		num = len(item.Array())
 		if num < 1 {
 			return nil, fmt.Errorf("less than one element in the array")
@@ -400,8 +401,8 @@ func (s *Stack) ToContractParameters() []smartcontract.Parameter {
 	items := make([]smartcontract.Parameter, 0, s.Len())
 	s.IterBack(func(e *Element) {
 		// Each item is independent.
-		seen := make(map[StackItem]bool)
-		items = append(items, e.value.ToContractParameter(seen))
+		seen := make(map[stackitem.Item]bool)
+		items = append(items, smartcontract.ParameterFromStackItem(e.value, seen))
 	})
 	return items
 }
