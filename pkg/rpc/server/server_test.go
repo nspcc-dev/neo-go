@@ -204,6 +204,18 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check:  checkNep5Transfers,
 		},
 	},
+	"getstateroot": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["0x1234567890"]`,
+			fail:   true,
+		},
+	},
 	"getstorage": {
 		{
 			name:   "positive",
@@ -819,6 +831,23 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(data, res))
 			require.Equal(t, b.Hash(), res.Hash)
 		})
+	})
+	t.Run("getstateroot", func(t *testing.T) {
+		testRoot := func(t *testing.T, p string) {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false)
+
+			res := new(state.MPTRootState)
+			require.NoError(t, json.Unmarshal(rawRes, res))
+			require.NotEqual(t, util.Uint256{}, res.Root) // be sure this test uses valid height
+
+			expected, err := e.chain.GetStateRoot(5)
+			require.NoError(t, err)
+			require.Equal(t, expected, res)
+		}
+		t.Run("ByHeight", func(t *testing.T) { testRoot(t, strconv.FormatInt(5, 10)) })
+		t.Run("ByHash", func(t *testing.T) { testRoot(t, `"`+chain.GetHeaderHash(5).StringLE()+`"`) })
 	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
