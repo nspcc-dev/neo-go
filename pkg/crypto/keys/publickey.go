@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -134,15 +135,25 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 }
 
 // decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
-func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
-	c := elliptic.P256()
-	cp := c.Params()
-	three := big.NewInt(3)
-	/* y**2 = x**3 + a*x + b  % p */
-	xCubed := new(big.Int).Exp(x, three, cp.P)
-	threeX := new(big.Int).Mul(x, three)
-	threeX.Mod(threeX, cp.P)
-	ySquared := new(big.Int).Sub(xCubed, threeX)
+// We use here a short-form Weierstrass curve (https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html)
+// y² = x³ + ax + b. Two types of elliptic curves are supported:
+// 1. Secp256k1 (Koblitz curve): y² = x³ + b,
+// 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
+// To decode compressed curve point we perform the following operation: y = sqrt(x³ + ax + b mod p)
+// where `p` denotes the order of the underlying curve field
+func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
+	var a *big.Int
+	switch curve.(type) {
+	case *btcec.KoblitzCurve:
+		a = big.NewInt(0)
+	default:
+		a = big.NewInt(3)
+	}
+	cp := curve.Params()
+	xCubed := new(big.Int).Exp(x, big.NewInt(3), cp.P)
+	aX := new(big.Int).Mul(x, a)
+	aX.Mod(aX, cp.P)
+	ySquared := new(big.Int).Sub(xCubed, aX)
 	ySquared.Add(ySquared, cp.B)
 	ySquared.Mod(ySquared, cp.P)
 	y := new(big.Int).ModSqrt(ySquared, cp.P)
@@ -196,7 +207,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		ylsb := uint(prefix & 0x1)
-		y, err = decodeCompressedY(x, ylsb)
+		y, err = decodeCompressedY(x, ylsb, p256)
 		if err != nil {
 			r.Err = err
 			return
@@ -305,4 +316,85 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// KeyRecover recovers public key from the given signature (r, s) on the given message hash using given elliptic curve.
+// Algorithm source: SEC 1 Ver 2.0, section 4.1.6, pages 47-48 (https://www.secg.org/sec1-v2.pdf).
+// Flag isEven denotes Y's least significant bit in decompression algorithm.
+func KeyRecover(curve elliptic.Curve, r, s *big.Int, messageHash []byte, isEven bool) (PublicKey, error) {
+	var (
+		res PublicKey
+		err error
+	)
+	if r.Cmp(big.NewInt(1)) == -1 || s.Cmp(big.NewInt(1)) == -1 {
+		return res, errors.New("invalid signature")
+	}
+	params := curve.Params()
+	// Calculate h = (Q + 1 + 2 * Sqrt(Q)) / N
+	// num := new(big.Int).Add(new(big.Int).Add(params.P, big.NewInt(1)), new(big.Int).Mul(big.NewInt(2), new(big.Int).Sqrt(params.P)))
+	// h := new(big.Int).Div(num, params.N)
+	// We are skipping this step for secp256k1 and secp256r1 because we know cofactor of these curves (h=1)
+	// (see section 2.4 of http://www.secg.org/sec2-v2.pdf)
+	h := 1
+	for i := 0; i <= h; i++ {
+		// Step 1.1: x = (n * i) + r
+		Rx := new(big.Int).Mul(params.N, big.NewInt(int64(i)))
+		Rx.Add(Rx, r)
+		if Rx.Cmp(params.P) == 1 {
+			break
+		}
+
+		// Steps 1.2 and 1.3: get point R (Ry)
+		var R *big.Int
+		if isEven {
+			R, err = decodeCompressedY(Rx, 0, curve)
+		} else {
+			R, err = decodeCompressedY(Rx, 1, curve)
+		}
+		if err != nil {
+			return res, err
+		}
+
+		// Step 1.4: check n*R is point at infinity
+		nRx, nR := curve.ScalarMult(Rx, R, params.N.Bytes())
+		if nRx.Sign() != 0 || nR.Sign() != 0 {
+			continue
+		}
+
+		// Step 1.5: compute e
+		e := hashToInt(messageHash, curve)
+
+		// Step 1.6: Q = r^-1 (sR-eG)
+		invr := new(big.Int).ModInverse(r, params.N)
+		// First term.
+		invrS := new(big.Int).Mul(invr, s)
+		invrS.Mod(invrS, params.N)
+		sRx, sR := curve.ScalarMult(Rx, R, invrS.Bytes())
+		// Second term.
+		e.Neg(e)
+		e.Mod(e, params.N)
+		e.Mul(e, invr)
+		e.Mod(e, params.N)
+		minuseGx, minuseGy := curve.ScalarBaseMult(e.Bytes())
+		Qx, Qy := curve.Add(sRx, sR, minuseGx, minuseGy)
+		res.X = Qx
+		res.Y = Qy
+	}
+	return res, nil
+}
+
+// copied from crypto/ecdsa
+func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
+	orderBits := c.Params().N.BitLen()
+	orderBytes := (orderBits + 7) / 8
+	if len(hash) > orderBytes {
+		hash = hash[:orderBytes]
+	}
+
+	ret := new(big.Int).SetBytes(hash)
+	excess := len(hash)*8 - orderBits
+	if excess > 0 {
+		ret.Rsh(ret, uint(excess))
+	}
+	return ret
 }
