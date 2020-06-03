@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/dbft/merkle"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -128,7 +129,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlock(func() block.Block { return new(neoBlock) }),
+		dbft.WithNewBlockFromContext(newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
@@ -509,4 +510,22 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	}
 
 	return
+}
+
+func newBlockFromContext(ctx *dbft.Context) block.Block {
+	block := new(neoBlock)
+	if len(ctx.TransactionHashes) == 0 {
+		return nil
+	}
+
+	block.Block.Timestamp = uint32(ctx.Timestamp / 1000000000)
+	block.Block.Index = ctx.BlockIndex
+	block.Block.NextConsensus = ctx.NextConsensus
+	block.Block.PrevHash = ctx.PrevHash
+	block.Block.Version = ctx.Version
+	block.Block.ConsensusData = ctx.Nonce
+
+	mt := merkle.NewMerkleTree(ctx.TransactionHashes...)
+	block.Block.MerkleRoot = mt.Root().Hash
+	return block
 }

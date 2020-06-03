@@ -58,44 +58,23 @@ func (n *neoBlock) SetTransactions(txes []block.Transaction) {
 // Version implements block.Block interface.
 func (n *neoBlock) Version() uint32 { return n.Block.Version }
 
-// SetVersion implements block.Block interface.
-func (n *neoBlock) SetVersion(v uint32) { n.Block.Version = v }
-
 // PrevHash implements block.Block interface.
 func (n *neoBlock) PrevHash() util.Uint256 { return n.Block.PrevHash }
-
-// SetPrevHash implements block.Block interface.
-func (n *neoBlock) SetPrevHash(h util.Uint256) { n.Block.PrevHash = h }
 
 // MerkleRoot implements block.Block interface.
 func (n *neoBlock) MerkleRoot() util.Uint256 { return n.Block.MerkleRoot }
 
-// SetMerkleRoot implements block.Block interface.
-func (n *neoBlock) SetMerkleRoot(r util.Uint256) { n.Block.MerkleRoot = r }
-
 // Timestamp implements block.Block interface.
-func (n *neoBlock) Timestamp() uint32 { return n.Block.Timestamp }
-
-// SetTimestamp implements block.Block interface.
-func (n *neoBlock) SetTimestamp(ts uint32) { n.Block.Timestamp = ts }
+func (n *neoBlock) Timestamp() uint64 { return uint64(n.Block.Timestamp) * 1000000000 }
 
 // Index implements block.Block interface.
 func (n *neoBlock) Index() uint32 { return n.Block.Index }
 
-// SetIndex implements block.Block interface.
-func (n *neoBlock) SetIndex(i uint32) { n.Block.Index = i }
-
 // ConsensusData implements block.Block interface.
 func (n *neoBlock) ConsensusData() uint64 { return n.Block.ConsensusData }
 
-// SetConsensusData implements block.Block interface.
-func (n *neoBlock) SetConsensusData(nonce uint64) { n.Block.ConsensusData = nonce }
-
 // NextConsensus implements block.Block interface.
 func (n *neoBlock) NextConsensus() util.Uint160 { return n.Block.NextConsensus }
-
-// SetNextConsensus implements block.Block interface.
-func (n *neoBlock) SetNextConsensus(h util.Uint160) { n.Block.NextConsensus = h }
 
 // Signature implements block.Block interface.
 func (n *neoBlock) Signature() []byte { return n.signature }
