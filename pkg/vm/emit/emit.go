@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Instruction emits a VM Instruction with data to the given buffer.
@@ -32,7 +33,7 @@ func Bool(w *io.BinWriter, ok bool) {
 		return
 	}
 	Opcode(w, opcode.PUSHF)
-	Instruction(w, opcode.CONVERT, []byte{0x20}) // 0x20 for Boolean type
+	Instruction(w, opcode.CONVERT, []byte{byte(stackitem.BooleanT)})
 }
 
 func padRight(s int, buf []byte) []byte {
