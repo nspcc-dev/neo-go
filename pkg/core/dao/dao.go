@@ -475,7 +475,7 @@ func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state
 	if err := dao.MPT.Put(k, v); err != nil && err != mpt.ErrNotFound {
 		return err
 	}
-	return dao.Put(si, stKey)
+	return dao.Store.Put(stKey, v[1:])
 }
 
 // DeleteStorageItem drops storage item for the given script with the

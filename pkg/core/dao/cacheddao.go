@@ -245,6 +245,7 @@ func (cd *Cached) FlushStorage() error {
 					return err
 				}
 			}
+			ti.State |= flushedState
 		}
 	}
 	return nil
@@ -275,7 +276,7 @@ func (cd *Cached) getStorageItemNoCache(scripthash util.Uint160, key []byte) *st
 func (cd *Cached) getStorageItemInt(scripthash util.Uint160, key []byte, putToCache bool) *state.StorageItem {
 	ti := cd.storage.getItem(scripthash, key)
 	if ti != nil {
-		if ti.State == delOp {
+		if ti.State&delOp != 0 {
 			return nil
 		}
 		return copyItem(&ti.StorageItem)
@@ -303,8 +304,10 @@ func (cd *Cached) PutStorageItem(scripthash util.Uint160, key []byte, si *state.
 	item := copyItem(si)
 	ti := cd.storage.getItem(scripthash, key)
 	if ti != nil {
-		if ti.State == delOp || ti.State == getOp {
+		if ti.State&(delOp|getOp) != 0 {
 			ti.State = putOp
+		} else {
+			ti.State = addOp
 		}
 		ti.StorageItem = *item
 		return nil
@@ -357,7 +360,7 @@ func (cd *Cached) GetStorageItemsIterator(hash util.Uint160, prefix []byte) (Sto
 		for ; keyIndex < len(cd.storage.keys[hash]); keyIndex++ {
 			k := cd.storage.keys[hash][keyIndex]
 			v := cache[k]
-			if v.State != delOp && bytes.HasPrefix([]byte(k), prefix) {
+			if v.State&delOp == 0 && bytes.HasPrefix([]byte(k), prefix) {
 				val := make([]byte, len(v.StorageItem.Value))
 				copy(val, v.StorageItem.Value)
 				return []byte(k), val, nil
@@ -404,7 +407,7 @@ func (cd *Cached) GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageIt
 
 	for _, k := range cd.storage.keys[hash] {
 		v := cache[k]
-		if v.State != delOp {
+		if v.State&delOp == 0 {
 			val := make([]byte, len(v.StorageItem.Value))
 			copy(val, v.StorageItem.Value)
 			result = append(result, StorageItemWithKey{

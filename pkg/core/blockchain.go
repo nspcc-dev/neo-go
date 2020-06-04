@@ -835,7 +835,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		if err != nil {
 			return errors.WithMessagef(err, "can't get previous state root")
 		}
-		prevHash = prev.Root
+		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
 	err := bc.AddStateRoot(&state.MPTRoot{
 		MPTRootBase: state.MPTRootBase{
@@ -859,6 +859,12 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		return err
 	}
 	bc.dao.MPT.Flush()
+	// Every persist cycle we also compact our in-memory MPT.
+	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
+	if persistedHeight == block.Index-1 {
+		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
+		bc.dao.MPT.Collapse(10)
+	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant)
@@ -1803,7 +1809,7 @@ func (bc *Blockchain) verifyStateRoot(r *state.MPTRoot) error {
 	prev, err := bc.GetStateRoot(r.Index - 1)
 	if err != nil {
 		return errors.New("can't get previous state root")
-	} else if !prev.Root.Equals(r.PrevHash) {
+	} else if !r.PrevHash.Equals(hash.DoubleSha256(prev.GetSignedPart())) {
 		return errors.New("previous hash mismatch")
 	} else if prev.Version != r.Version {
 		return errors.New("version mismatch")
