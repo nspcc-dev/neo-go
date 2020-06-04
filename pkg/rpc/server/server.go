@@ -95,6 +95,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getpeers":             (*Server).getPeers,
 	"getrawmempool":        (*Server).getRawMempool,
 	"getrawtransaction":    (*Server).getrawtransaction,
+	"getstateheight":       (*Server).getStateHeight,
 	"getstateroot":         (*Server).getStateRoot,
 	"getstorage":           (*Server).getStorage,
 	"gettransactionheight": (*Server).getTransactionHeight,
@@ -686,6 +687,14 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	}
 	cache[h] = d
 	return d, nil
+}
+
+func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
+	height := s.chain.BlockHeight()
+	return &result.StateHeight{
+		BlockHeight: height,
+		StateHeight: height,
+	}, nil
 }
 
 func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) {

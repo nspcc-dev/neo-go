@@ -214,6 +214,21 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"getstateheight": {
+		{
+			name:   "positive",
+			params: `[]`,
+			result: func(_ *executor) interface{} { return new(result.StateHeight) },
+			check: func(t *testing.T, e *executor, res interface{}) {
+				sh, ok := res.(*result.StateHeight)
+				require.True(t, ok)
+
+				h := e.chain.BlockHeight()
+				require.Equal(t, h, sh.BlockHeight)
+				require.Equal(t, h, sh.StateHeight)
+			},
+		},
+	},
 	"getstateroot": {
 		{
 			name:   "no params",
