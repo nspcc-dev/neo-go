@@ -98,6 +98,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getpeers":               (*Server).getPeers,
 	"getrawmempool":          (*Server).getRawMempool,
 	"getrawtransaction":      (*Server).getrawtransaction,
+	"getstateheight":         (*Server).getStateHeight,
 	"getstateroot":           (*Server).getStateRoot,
 	"getstorage":             (*Server).getStorage,
 	"gettransactionheight":   (*Server).getTransactionHeight,
@@ -763,6 +764,14 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 		return 0, response.ErrInvalidParams
 	}
 	return result, nil
+}
+
+func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
+	height := s.chain.BlockHeight()
+	return &result.StateHeight{
+		BlockHeight: height,
+		StateHeight: height,
+	}, nil
 }
 
 func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) {
