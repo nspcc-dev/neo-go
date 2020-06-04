@@ -835,7 +835,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		if err != nil {
 			return errors.WithMessagef(err, "can't get previous state root")
 		}
-		prevHash = prev.Root
+		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
 	err := bc.AddStateRoot(&state.MPTRoot{
 		MPTRootBase: state.MPTRootBase{
@@ -1803,7 +1803,7 @@ func (bc *Blockchain) verifyStateRoot(r *state.MPTRoot) error {
 	prev, err := bc.GetStateRoot(r.Index - 1)
 	if err != nil {
 		return errors.New("can't get previous state root")
-	} else if !prev.Root.Equals(r.PrevHash) {
+	} else if !r.PrevHash.Equals(hash.DoubleSha256(prev.GetSignedPart())) {
 		return errors.New("previous hash mismatch")
 	} else if prev.Version != r.Version {
 		return errors.New("version mismatch")
