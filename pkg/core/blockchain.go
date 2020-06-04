@@ -927,7 +927,11 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
-	return util.Fixed8(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return 0
+	}
+	return util.Fixed8(bs.Trackers[bc.contracts.GAS.Hash].Balance)
 }
 
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
