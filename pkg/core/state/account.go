@@ -13,16 +13,6 @@ type UnspentBalance struct {
 	Value util.Fixed8  `json:"value"`
 }
 
-// UnclaimedBalance represents transaction output which was spent and
-// can be claimed.
-type UnclaimedBalance struct {
-	Tx    util.Uint256
-	Index uint16
-	Start uint32
-	End   uint32
-	Value util.Fixed8
-}
-
 // UnspentBalances is a slice of UnspentBalance (mostly needed to sort them).
 type UnspentBalances []UnspentBalance
 
@@ -32,7 +22,6 @@ type Account struct {
 	ScriptHash util.Uint160
 	IsFrozen   bool
 	Balances   map[util.Uint256][]UnspentBalance
-	Unclaimed  UnclaimedBalances
 }
 
 // NewAccount returns a new Account object.
@@ -42,7 +31,6 @@ func NewAccount(scriptHash util.Uint160) *Account {
 		ScriptHash: scriptHash,
 		IsFrozen:   false,
 		Balances:   make(map[util.Uint256][]UnspentBalance),
-		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}
 }
 
@@ -64,10 +52,6 @@ func (s *Account) DecodeBinary(br *io.BinReader) {
 		}
 		s.Balances[key] = ubs
 	}
-
-	lenBalances = br.ReadVarUint()
-	s.Unclaimed.Raw = make([]byte, lenBalances*UnclaimedBalanceSize)
-	br.ReadBytes(s.Unclaimed.Raw)
 }
 
 // EncodeBinary encodes Account to the given BinWriter.
@@ -84,9 +68,6 @@ func (s *Account) EncodeBinary(bw *io.BinWriter) {
 			v[i].EncodeBinary(bw)
 		}
 	}
-
-	bw.WriteVarUint(uint64(s.Unclaimed.Size()))
-	bw.WriteBytes(s.Unclaimed.Raw)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -100,24 +81,6 @@ func (u *UnspentBalance) DecodeBinary(r *io.BinReader) {
 func (u *UnspentBalance) EncodeBinary(w *io.BinWriter) {
 	u.Tx.EncodeBinary(w)
 	w.WriteU16LE(u.Index)
-	u.Value.EncodeBinary(w)
-}
-
-// DecodeBinary implements io.Serializable interface.
-func (u *UnclaimedBalance) DecodeBinary(r *io.BinReader) {
-	u.Tx.DecodeBinary(r)
-	u.Index = r.ReadU16LE()
-	u.Start = r.ReadU32LE()
-	u.End = r.ReadU32LE()
-	u.Value.DecodeBinary(r)
-}
-
-// EncodeBinary implements io.Serializable interface.
-func (u *UnclaimedBalance) EncodeBinary(w *io.BinWriter) {
-	u.Tx.EncodeBinary(w)
-	w.WriteU16LE(u.Index)
-	w.WriteU32LE(u.Start)
-	w.WriteU32LE(u.End)
 	u.Value.EncodeBinary(w)
 }
 

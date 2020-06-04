@@ -12,7 +12,6 @@ type TXType uint8
 // Constants for all valid transaction types.
 const (
 	IssueType      TXType = 0x01
-	ClaimType      TXType = 0x02
 	RegisterType   TXType = 0x40
 	ContractType   TXType = 0x80
 	InvocationType TXType = 0xd1
@@ -23,8 +22,6 @@ func (t TXType) String() string {
 	switch t {
 	case IssueType:
 		return "IssueTransaction"
-	case ClaimType:
-		return "ClaimTransaction"
 	case RegisterType:
 		return "RegisterTransaction"
 	case ContractType:
@@ -57,8 +54,6 @@ func TXTypeFromString(jsonString string) (TXType, error) {
 	switch jsonString = strings.TrimSpace(jsonString); jsonString {
 	case "IssueTransaction":
 		return IssueType, nil
-	case "ClaimTransaction":
-		return ClaimType, nil
 	case "RegisterTransaction":
 		return RegisterType, nil
 	case "ContractTransaction":

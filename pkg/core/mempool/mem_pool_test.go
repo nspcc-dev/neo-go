@@ -55,7 +55,7 @@ func TestMemPoolAddRemove(t *testing.T) {
 	t.Run("high priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
 }
 
-func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
+func TestMemPoolAddRemoveWithInputs(t *testing.T) {
 	mp := NewMemPool(50)
 	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
 	require.NoError(t, err)
@@ -64,62 +64,41 @@ func TestMemPoolAddRemoveWithInputsAndClaims(t *testing.T) {
 	mpLessInputs := func(i, j int) bool {
 		return mp.inputs[i].Cmp(mp.inputs[j]) < 0
 	}
-	mpLessClaims := func(i, j int) bool {
-		return mp.claims[i].Cmp(mp.claims[j]) < 0
-	}
 	txm1 := transaction.NewContractTX()
 	txm1.Nonce = 1
-	txc1, claim1 := newClaimTX()
 	for i := 0; i < 5; i++ {
 		txm1.Inputs = append(txm1.Inputs, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
-		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
 	}
 	require.NoError(t, mp.Add(txm1, &FeerStub{}))
-	require.NoError(t, mp.Add(txc1, &FeerStub{}))
 	// Look inside.
 	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-	assert.Equal(t, len(claim1.Claims), len(mp.claims))
-	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 
 	txm2 := transaction.NewContractTX()
 	txm2.Nonce = 1
-	txc2, claim2 := newClaimTX()
 	for i := 0; i < 10; i++ {
 		txm2.Inputs = append(txm2.Inputs, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
-		claim2.Claims = append(claim2.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
 	}
 	require.NoError(t, mp.Add(txm2, &FeerStub{}))
-	require.NoError(t, mp.Add(txc2, &FeerStub{}))
 	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-	assert.Equal(t, len(claim1.Claims)+len(claim2.Claims), len(mp.claims))
-	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 
 	mp.Remove(txm1.Hash())
-	mp.Remove(txc2.Hash())
 	assert.Equal(t, len(txm2.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-	assert.Equal(t, len(claim1.Claims), len(mp.claims))
-	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 
 	require.NoError(t, mp.Add(txm1, &FeerStub{}))
-	require.NoError(t, mp.Add(txc2, &FeerStub{}))
 	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-	assert.Equal(t, len(claim1.Claims)+len(claim2.Claims), len(mp.claims))
-	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 
 	mp.RemoveStale(func(t *transaction.Transaction) bool {
-		if t.Hash() == txc1.Hash() || t.Hash() == txm2.Hash() {
+		if t.Hash() == txm2.Hash() {
 			return false
 		}
 		return true
 	}, &FeerStub{})
 	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
 	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-	assert.Equal(t, len(claim2.Claims), len(mp.claims))
-	assert.True(t, sort.SliceIsSorted(mp.claims, mpLessClaims))
 }
 
 func TestMemPoolVerifyInputs(t *testing.T) {
@@ -149,33 +128,6 @@ func TestMemPoolVerifyInputs(t *testing.T) {
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
-func TestMemPoolVerifyClaims(t *testing.T) {
-	mp := NewMemPool(50)
-	tx1, claim1 := newClaimTX()
-	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
-	require.NoError(t, err)
-	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
-	require.NoError(t, err)
-	for i := 0; i < 10; i++ {
-		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash1, PrevIndex: uint16(i)})
-		claim1.Claims = append(claim1.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
-	}
-	require.Equal(t, true, mp.Verify(tx1, &FeerStub{}))
-	require.NoError(t, mp.Add(tx1, &FeerStub{}))
-
-	tx2, claim2 := newClaimTX()
-	for i := 0; i < 10; i++ {
-		claim2.Claims = append(claim2.Claims, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i + 10)})
-	}
-	require.Equal(t, true, mp.Verify(tx2, &FeerStub{}))
-	require.NoError(t, mp.Add(tx2, &FeerStub{}))
-
-	tx3, claim3 := newClaimTX()
-	claim3.Claims = append(claim3.Claims, transaction.Input{PrevHash: hash1, PrevIndex: 0})
-	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
-	require.Error(t, mp.Add(tx3, &FeerStub{}))
-}
-
 func TestMemPoolVerifyIssue(t *testing.T) {
 	mp := NewMemPool(50)
 	tx1 := newIssueTX()
@@ -199,11 +151,6 @@ func newIssueTX() *transaction.Transaction {
 	return tx
 }
 
-func newClaimTX() (*transaction.Transaction, *transaction.ClaimTX) {
-	cl := &transaction.ClaimTX{}
-	return transaction.NewClaimTX(cl), cl
-}
-
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{lowPriority: true}
 	const mempoolSize = 10
@@ -218,18 +165,8 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
-	// Claim TX has more priority than ordinary lowprio, so it should easily
-	// fit into the pool.
-	claim := &transaction.Transaction{
-		Type: transaction.ClaimType,
-		Data: &transaction.ClaimTX{},
-	}
-	require.NoError(t, mp.Add(claim, fs))
-	require.Equal(t, mempoolSize, mp.Count())
-	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
-
 	// Fees are also prioritized.
-	for i := 0; i < mempoolSize-1; i++ {
+	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.NewContractTX()
 		tx.Attributes = append(tx.Attributes, transaction.Attribute{
 			Usage: transaction.Hash1,
@@ -249,15 +186,12 @@ func TestOverCapacity(t *testing.T) {
 		Usage: transaction.Hash1,
 		Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
 	})
-	tx.NetworkFee = util.Fixed8FromFloat(0.00001)
+	tx.NetworkFee = util.Fixed8FromFloat(0.000001)
 	tx.Nonce = txcnt
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
-
-	// But claim tx should still be there.
-	require.True(t, mp.ContainsKey(claim.Hash()))
 
 	// Low net fee, but higher per-byte fee is still a better combination.
 	tx = transaction.NewContractTX()

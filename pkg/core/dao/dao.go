@@ -40,7 +40,6 @@ type DAO interface {
 	GetVersion() (string, error)
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
-	IsDoubleClaim(claim *transaction.ClaimTX) bool
 	IsDoubleSpend(tx *transaction.Transaction) bool
 	Persist() (int, error)
 	PutAccountState(as *state.Account) error
@@ -571,11 +570,6 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32)
 // IsDoubleSpend verifies that the input transactions are not double spent.
 func (dao *Simple) IsDoubleSpend(tx *transaction.Transaction) bool {
 	return dao.checkUsedInputs(tx.Inputs, state.CoinSpent)
-}
-
-// IsDoubleClaim verifies that given claim inputs are not already claimed by another tx.
-func (dao *Simple) IsDoubleClaim(claim *transaction.ClaimTX) bool {
-	return dao.checkUsedInputs(claim.Claims, state.CoinClaimed)
 }
 
 func (dao *Simple) checkUsedInputs(inputs []transaction.Input, coin state.Coin) bool {

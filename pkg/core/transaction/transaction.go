@@ -176,9 +176,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case InvocationType:
 		t.Data = &InvocationTX{}
 		t.Data.(*InvocationTX).DecodeBinary(r)
-	case ClaimType:
-		t.Data = &ClaimTX{}
-		t.Data.(*ClaimTX).DecodeBinary(r)
 	case ContractType:
 		t.Data = &ContractTX{}
 		t.Data.(*ContractTX).DecodeBinary(r)
@@ -313,7 +310,6 @@ type transactionJSON struct {
 	Outputs         []Output     `json:"vout"`
 	Scripts         []Witness    `json:"scripts"`
 
-	Claims []Input          `json:"claims,omitempty"`
 	Script string           `json:"script,omitempty"`
 	Asset  *registeredAsset `json:"asset,omitempty"`
 }
@@ -337,8 +333,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		NetworkFee:      t.NetworkFee,
 	}
 	switch t.Type {
-	case ClaimType:
-		tx.Claims = t.Data.(*ClaimTX).Claims
 	case InvocationType:
 		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
 	case RegisterType:
@@ -378,10 +372,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	}
 	t.Sender = sender
 	switch tx.Type {
-	case ClaimType:
-		t.Data = &ClaimTX{
-			Claims: tx.Claims,
-		}
 	case InvocationType:
 		bytes, err := hex.DecodeString(tx.Script)
 		if err != nil {

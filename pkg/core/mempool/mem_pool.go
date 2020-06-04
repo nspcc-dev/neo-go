@@ -52,7 +52,6 @@ type Pool struct {
 	verifiedMap  map[util.Uint256]*item
 	verifiedTxes items
 	inputs       []*transaction.Input
-	claims       []*transaction.Input
 	fees         map[util.Uint160]utilityBalanceAndFees
 
 	capacity int
@@ -77,20 +76,6 @@ func (p *item) CompareTo(otherP *item) int {
 
 	if p.isLowPrio && !otherP.isLowPrio {
 		return -1
-	}
-
-	if p.isLowPrio && otherP.isLowPrio {
-		thisIsClaimTx := p.txn.Type == transaction.ClaimType
-		otherIsClaimTx := otherP.txn.Type == transaction.ClaimType
-
-		if thisIsClaimTx != otherIsClaimTx {
-			// This is a claim Tx and other isn't.
-			if thisIsClaimTx {
-				return 1
-			}
-			// The other is claim Tx and this isn't.
-			return -1
-		}
 	}
 
 	// Fees sorted ascending.
@@ -249,12 +234,6 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 	for i := range t.Inputs {
 		pushInputToSortedSlice(&mp.inputs, &t.Inputs[i])
 	}
-	if t.Type == transaction.ClaimType {
-		claim := t.Data.(*transaction.ClaimTX)
-		for i := range claim.Claims {
-			pushInputToSortedSlice(&mp.claims, &claim.Claims[i])
-		}
-	}
 
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -284,12 +263,6 @@ func (mp *Pool) Remove(hash util.Uint256) {
 		for i := range it.txn.Inputs {
 			dropInputFromSortedSlice(&mp.inputs, &it.txn.Inputs[i])
 		}
-		if it.txn.Type == transaction.ClaimType {
-			claim := it.txn.Data.(*transaction.ClaimTX)
-			for i := range claim.Claims {
-				dropInputFromSortedSlice(&mp.claims, &claim.Claims[i])
-			}
-		}
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -304,19 +277,12 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	newInputs := mp.inputs[:0]
-	newClaims := mp.claims[:0]
 	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
 	for _, itm := range mp.verifiedTxes {
 		if isOK(itm.txn) && mp.tryAddSendersFee(itm.txn, feer) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
 			for i := range itm.txn.Inputs {
 				newInputs = append(newInputs, &itm.txn.Inputs[i])
-			}
-			if itm.txn.Type == transaction.ClaimType {
-				claim := itm.txn.Data.(*transaction.ClaimTX)
-				for i := range claim.Claims {
-					newClaims = append(newClaims, &claim.Claims[i])
-				}
 			}
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
@@ -325,12 +291,8 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	sort.Slice(newInputs, func(i, j int) bool {
 		return newInputs[i].Cmp(newInputs[j]) < 0
 	})
-	sort.Slice(newClaims, func(i, j int) bool {
-		return newClaims[i].Cmp(newClaims[j]) < 0
-	})
 	mp.verifiedTxes = newVerifiedTxes
 	mp.inputs = newInputs
-	mp.claims = newClaims
 	mp.lock.Unlock()
 }
 
@@ -392,11 +354,6 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
 		return false
 	}
 	switch tx.Type {
-	case transaction.ClaimType:
-		claim := tx.Data.(*transaction.ClaimTX)
-		if areInputsInPool(claim.Claims, mp.claims) {
-			return false
-		}
 	case transaction.IssueType:
 		// It's a hack, because technically we could check for
 		// available asset amount, but these transactions are so rare

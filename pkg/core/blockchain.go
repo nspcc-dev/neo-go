@@ -599,19 +599,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					return err
 				}
 
-				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
-					err = account.Unclaimed.Put(&state.UnclaimedBalance{
-						Tx:    input.PrevHash,
-						Index: input.PrevIndex,
-						Start: unspent.Height,
-						End:   block.Index,
-						Value: prevTXOutput.Amount,
-					})
-					if err != nil {
-						return err
-					}
-				}
-
 				balancesLen := len(account.Balances[prevTXOutput.AssetID])
 				if balancesLen <= 1 {
 					delete(account.Balances, prevTXOutput.AssetID)
@@ -667,54 +654,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if err := cache.PutAssetState(asset); err != nil {
 						return err
 					}
-				}
-			}
-		case *transaction.ClaimTX:
-			// Remove claimed NEO from spent coins making it unavalaible for
-			// additional claims.
-			for _, input := range t.Claims {
-				scs, err := cache.GetUnspentCoinState(input.PrevHash)
-				if err == nil {
-					if len(scs.States) <= int(input.PrevIndex) {
-						err = errors.New("invalid claim index")
-					} else if scs.States[input.PrevIndex].State&state.CoinClaimed != 0 {
-						err = errors.New("double claim")
-					}
-				}
-				if err != nil {
-					// We can't really do anything about it
-					// as it's a transaction in a signed block.
-					bc.log.Warn("FALSE OR DOUBLE CLAIM",
-						zap.String("PrevHash", input.PrevHash.StringLE()),
-						zap.Uint16("PrevIndex", input.PrevIndex),
-						zap.String("tx", tx.Hash().StringLE()),
-						zap.Uint32("block", block.Index),
-					)
-					// "Strict" mode.
-					if bc.config.VerifyTransactions {
-						return err
-					}
-					break
-				}
-
-				acc, err := cache.GetAccountState(scs.States[input.PrevIndex].ScriptHash)
-				if err != nil {
-					return err
-				}
-
-				scs.States[input.PrevIndex].State |= state.CoinClaimed
-				if err = cache.PutUnspentCoinState(input.PrevHash, scs); err != nil {
-					return err
-				}
-
-				changed := acc.Unclaimed.Remove(input.PrevHash, input.PrevIndex)
-				if !changed {
-					bc.log.Warn("no spent coin in the account",
-						zap.String("tx", tx.Hash().StringLE()),
-						zap.String("input", input.PrevHash.StringLE()),
-						zap.String("account", acc.ScriptHash.String()))
-				} else if err := cache.PutAccountState(acc); err != nil {
-					return err
 				}
 			}
 		case *transaction.InvocationTX:
@@ -1383,85 +1322,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
-	switch t.Type {
-	case transaction.ClaimType:
-		claim := t.Data.(*transaction.ClaimTX)
-		if transaction.HaveDuplicateInputs(claim.Claims) {
-			return errors.New("duplicate claims")
-		}
-		if bc.dao.IsDoubleClaim(claim) {
-			return errors.New("double claim")
-		}
-		if err := bc.verifyClaims(t, results); err != nil {
-			return err
-		}
-	}
-
 	return bc.verifyTxWitnesses(t, block)
-}
-
-func (bc *Blockchain) verifyClaims(tx *transaction.Transaction, results []*transaction.Result) (err error) {
-	t := tx.Data.(*transaction.ClaimTX)
-	var result *transaction.Result
-	for i := range results {
-		if results[i].AssetID == UtilityTokenID() {
-			result = results[i]
-			break
-		}
-	}
-
-	if result == nil || result.Amount.GreaterThan(0) {
-		return errors.New("invalid output in claim tx")
-	}
-
-	bonus, err := bc.calculateBonus(t.Claims)
-	if err == nil && bonus != -result.Amount {
-		return fmt.Errorf("wrong bonus calculated in claim tx: %s != %s",
-			bonus.String(), (-result.Amount).String())
-	}
-
-	return err
-}
-
-func (bc *Blockchain) calculateBonus(claims []transaction.Input) (util.Fixed8, error) {
-	unclaimed := []*spentCoin{}
-	inputs := transaction.GroupInputsByPrevHash(claims)
-
-	for _, group := range inputs {
-		h := group[0].PrevHash
-		unspent, err := bc.dao.GetUnspentCoinState(h)
-		if err != nil {
-			return 0, err
-		}
-
-		for _, c := range group {
-			if len(unspent.States) <= int(c.PrevIndex) {
-				return 0, fmt.Errorf("can't find spent coins for %s (%d)", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			if unspent.States[c.PrevIndex].State&state.CoinSpent == 0 {
-				return 0, fmt.Errorf("not spent yet: %s/%d", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			if unspent.States[c.PrevIndex].State&state.CoinClaimed != 0 {
-				return 0, fmt.Errorf("already claimed: %s/%d", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			unclaimed = append(unclaimed, &spentCoin{
-				Output:      &unspent.States[c.PrevIndex].Output,
-				StartHeight: unspent.Height,
-				EndHeight:   unspent.States[c.PrevIndex].SpendHeight,
-			})
-		}
-	}
-
-	return bc.calculateBonusInternal(unclaimed)
-}
-
-func (bc *Blockchain) calculateBonusInternal(scs []*spentCoin) (util.Fixed8, error) {
-	var claimed util.Fixed8
-	for _, sc := range scs {
-		claimed += bc.CalculateClaimable(sc.Output.Amount.IntegralValue(), sc.StartHeight, sc.EndHeight)
-	}
-
-	return claimed, nil
 }
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
@@ -1479,12 +1340,6 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 	}
 	if bc.dao.IsDoubleSpend(t) {
 		return false
-	}
-	if t.Type == transaction.ClaimType {
-		claim := t.Data.(*transaction.ClaimTX)
-		if bc.dao.IsDoubleClaim(claim) {
-			return false
-		}
 	}
 	for i := range t.Scripts {
 		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {
@@ -1521,14 +1376,12 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
-	if t.Type != transaction.ClaimType {
-		txSize := io.GetVarSize(t)
-		maxFree := bc.config.MaxFreeTransactionSize
-		if maxFree != 0 && txSize > maxFree {
-			if bc.IsLowPriority(t.NetworkFee) ||
-				t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
-				return ErrPolicy
-			}
+	txSize := io.GetVarSize(t)
+	maxFree := bc.config.MaxFreeTransactionSize
+	if maxFree != 0 && txSize > maxFree {
+		if bc.IsLowPriority(t.NetworkFee) ||
+			t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+			return ErrPolicy
 		}
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
@@ -1585,13 +1438,6 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 	}
 
 	switch t.Type {
-	case transaction.ClaimType:
-		for _, r := range resultsIssue {
-			if r.AssetID != UtilityTokenID() {
-				return errors.New("miner or claim tx issues non-utility tokens")
-			}
-		}
-		break
 	case transaction.IssueType:
 		for _, r := range resultsIssue {
 			if r.AssetID == UtilityTokenID() {
@@ -1701,15 +1547,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		hashes[c.Account] = true
 	}
 	switch t.Type {
-	case transaction.ClaimType:
-		claim := t.Data.(*transaction.ClaimTX)
-		refs, err := bc.references(claim.Claims)
-		if err != nil {
-			return nil, err
-		}
-		for i := range refs {
-			hashes[refs[i].Out.ScriptHash] = true
-		}
 	case transaction.IssueType:
 		for _, res := range refsAndOutsToResults(references, t.Outputs) {
 			if res.Amount < 0 {
