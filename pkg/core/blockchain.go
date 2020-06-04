@@ -859,6 +859,12 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		return err
 	}
 	bc.dao.MPT.Flush()
+	// Every persist cycle we also compact our in-memory MPT.
+	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
+	if persistedHeight == block.Index-1 {
+		// 10 is good and roughly estimated to fit remaining trie into 1M of memory.
+		bc.dao.MPT.Collapse(10)
+	}
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant)
