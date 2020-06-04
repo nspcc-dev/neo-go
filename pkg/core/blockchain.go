@@ -1238,7 +1238,7 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 // CalculateClaimable calculates the amount of GAS which can be claimed for a transaction with value.
 // First return value is GAS generated between startHeight and endHeight.
 // Second return value is GAS returned from accumulated SystemFees between startHeight and endHeight.
-func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error) {
+func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8) {
 	var amount util.Fixed8
 	di := uint32(bc.decrementInterval)
 
@@ -1274,7 +1274,7 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 
 	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
 	ratio := value / 100000000
-	return amount * ratio, sysFeeTotal * ratio, nil
+	return amount * ratio, sysFeeTotal * ratio
 }
 
 // References maps transaction's inputs into a slice of InOuts, effectively
@@ -1479,10 +1479,7 @@ func (bc *Blockchain) calculateBonus(claims []transaction.Input) (util.Fixed8, e
 func (bc *Blockchain) calculateBonusInternal(scs []*spentCoin) (util.Fixed8, error) {
 	var claimed util.Fixed8
 	for _, sc := range scs {
-		gen, sys, err := bc.CalculateClaimable(sc.Output.Amount, sc.StartHeight, sc.EndHeight)
-		if err != nil {
-			return 0, err
-		}
+		gen, sys := bc.CalculateClaimable(sc.Output.Amount, sc.StartHeight, sc.EndHeight)
 		claimed += gen + sys
 	}
 

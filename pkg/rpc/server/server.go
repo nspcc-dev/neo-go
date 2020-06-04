@@ -821,11 +821,8 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	if neo == 0 {
 		return "0", nil
 	}
-	gasG, gasF, err := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
-	if err != nil {
-		return nil, response.NewInternalServerError("calculation error", err)
-	}
-	return strconv.FormatInt(int64(gasG+gasF), 10), nil // It's not represented as Fixed8 in C#.
+	gasG, gasF := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	return strconv.FormatInt(int64(gasG+gasF), 10), nil                               // It's not represented as Fixed8 in C#.
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.

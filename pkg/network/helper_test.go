@@ -31,7 +31,7 @@ func (chain testChain) ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithF
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
-func (chain testChain) CalculateClaimable(util.Fixed8, uint32, uint32) (util.Fixed8, util.Fixed8, error) {
+func (chain testChain) CalculateClaimable(util.Fixed8, uint32, uint32) (util.Fixed8, util.Fixed8) {
 	panic("TODO")
 }
 
