@@ -416,7 +416,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
 	}
 
-	if len(reqParams) == 2 && reqParams[1].Value == 1 {
+	if reqParams.Value(1).GetBoolean() {
 		return result.NewBlock(block, s.chain), nil
 	}
 	writer := io.NewBufBinWriter()
@@ -717,26 +717,12 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
 		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
-	} else if len(reqParams) >= 2 {
+	} else if reqParams.Value(1).GetBoolean() {
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
 			resultsErr = response.NewInvalidParamsError(err.Error(), err)
-		}
-
-		param1 := reqParams.Value(1)
-		if param1 == nil {
-			param1 = &request.Param{}
-		}
-		switch v := param1.Value.(type) {
-
-		case int, float64, bool, string:
-			if v == 0 || v == "0" || v == 0.0 || v == false || v == "false" {
-				results = hex.EncodeToString(tx.Bytes())
-			} else {
-				results = result.NewTransactionOutputRaw(tx, header, s.chain)
-			}
-		default:
+		} else {
 			results = result.NewTransactionOutputRaw(tx, header, s.chain)
 		}
 	} else {
@@ -863,18 +849,12 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 
 // getBlockHeader returns the corresponding block header information according to the specified script hash.
 func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *response.Error) {
-	var verbose bool
-
 	hash, err := reqParams.ValueWithType(0, request.StringT).GetUint256()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
 
-	v, err := reqParams.ValueWithType(1, request.NumberT).GetInt()
-	if err == nil {
-		verbose = v != 0
-	}
-
+	verbose := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
 		return nil, response.NewRPCError("unknown block", "", nil)

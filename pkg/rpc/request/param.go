@@ -79,6 +79,21 @@ func (p *Param) GetString() (string, error) {
 	return str, nil
 }
 
+// GetBoolean returns boolean value of the parameter.
+func (p *Param) GetBoolean() bool {
+	if p == nil {
+		return false
+	}
+	switch p.Type {
+	case NumberT:
+		return p.Value != 0
+	case StringT:
+		return p.Value != ""
+	default:
+		return true
+	}
+}
+
 // GetInt returns int value of te parameter.
 func (p *Param) GetInt() (int, error) {
 	if p == nil {
