@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -98,6 +99,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getnep5balances":        (*Server).getNEP5Balances,
 	"getnep5transfers":       (*Server).getNEP5Transfers,
 	"getpeers":               (*Server).getPeers,
+	"getproof":               (*Server).getProof,
 	"getrawmempool":          (*Server).getRawMempool,
 	"getrawtransaction":      (*Server).getrawtransaction,
 	"getstateheight":         (*Server).getStateHeight,
@@ -773,6 +775,46 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 		return result, response.ErrInvalidParams
 	}
 	return result, nil
+}
+
+func makeStorageKey(id int32, key []byte) []byte {
+	skey := make([]byte, 4+len(key))
+	binary.LittleEndian.PutUint32(skey, uint32(id))
+	copy(skey[4:], key)
+	return skey
+}
+
+var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enabled")
+
+func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		return nil, response.NewInvalidRequestError("'getproof' is not supported", errKeepOnlyLatestState)
+	}
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	sc, err := ps.Value(1).GetUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	key, err := ps.Value(2).GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	cs := s.chain.GetContractState(sc)
+	if cs == nil {
+		return nil, response.ErrInvalidParams
+	}
+	skey := makeStorageKey(cs.ID, key)
+	proof, err := s.chain.GetStateProof(root, skey)
+	return &result.GetProof{
+		Result: result.ProofWithKey{
+			Key:   skey,
+			Proof: proof,
+		},
+		Success: err == nil,
+	}, nil
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
