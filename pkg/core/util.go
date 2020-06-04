@@ -55,39 +55,9 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		},
 	}
 
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(
-		len(cfg.StandbyValidators)/2+1,
-		validators,
-	)
-	if err != nil {
-		return nil, err
-	}
-	scriptOut := hash.Hash160(rawScript)
-
-	issueTx := transaction.NewIssueTX()
-	// TODO NEO3.0: nonce should be constant to avoid variability of genesis block
-	issueTx.Nonce = 0
-	issueTx.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
-	issueTx.Outputs = []transaction.Output{
-		{
-			AssetID:    governingTokenTX.Hash(),
-			Amount:     governingTokenTX.Data.(*transaction.RegisterTX).Amount,
-			ScriptHash: scriptOut,
-		},
-	}
-	issueTx.Scripts = []transaction.Witness{
-		{
-			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
-		},
-	}
-
 	b := &block.Block{
 		Base: base,
 		Transactions: []*transaction.Transaction{
-			&governingTokenTX,
-			&utilityTokenTX,
-			issueTx,
 			deployNativeContracts(),
 		},
 		ConsensusData: block.ConsensusData{
