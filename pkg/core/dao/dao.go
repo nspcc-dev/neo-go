@@ -25,7 +25,7 @@ type DAO interface {
 	GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error)
 	GetAssetState(assetID util.Uint256) (*state.Asset, error)
 	GetBatch() *storage.MemBatch
-	GetBlock(hash util.Uint256) (*block.Block, uint32, error)
+	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) (*state.Contract, error)
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
@@ -53,7 +53,7 @@ type DAO interface {
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
 	PutVersion(v string) error
-	StoreAsBlock(block *block.Block, sysFee uint32) error
+	StoreAsBlock(block *block.Block) error
 	StoreAsCurrentBlock(block *block.Block) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32) error
 	putAccountState(as *state.Account, buf *io.BufBinWriter) error
@@ -402,18 +402,18 @@ func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
 // -- other.
 
 // GetBlock returns Block by the given hash if it exists in the store.
-func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, uint32, error) {
+func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 	key := storage.AppendPrefix(storage.DataBlock, hash.BytesLE())
 	b, err := dao.Store.Get(key)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(b[4:])
+	block, err := block.NewBlockFromTrimmedBytes(b)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return block, binary.LittleEndian.Uint32(b[:4]), nil
+	return block, nil
 }
 
 // GetVersion attempts to get the current version stored in the
@@ -531,12 +531,11 @@ func (dao *Simple) HasTransaction(hash util.Uint256) bool {
 }
 
 // StoreAsBlock stores the given block as DataBlock.
-func (dao *Simple) StoreAsBlock(block *block.Block, sysFee uint32) error {
+func (dao *Simple) StoreAsBlock(block *block.Block) error {
 	var (
 		key = storage.AppendPrefix(storage.DataBlock, block.Hash().BytesLE())
 		buf = io.NewBufBinWriter()
 	)
-	buf.WriteU32LE(sysFee)
 	b, err := block.Trim()
 	if err != nil {
 		return err

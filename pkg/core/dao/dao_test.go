@@ -155,7 +155,7 @@ func TestDeleteStorageItem(t *testing.T) {
 func TestGetBlock_NotExists(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
-	block, _, err := dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
 	require.Nil(t, block)
 }
@@ -171,12 +171,11 @@ func TestPutGetBlock(t *testing.T) {
 		},
 	}
 	hash := b.Hash()
-	err := dao.StoreAsBlock(b, 42)
+	err := dao.StoreAsBlock(b)
 	require.NoError(t, err)
-	gotBlock, sysfee, err := dao.GetBlock(hash)
+	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
 	require.NotNil(t, gotBlock)
-	require.EqualValues(t, 42, sysfee)
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
