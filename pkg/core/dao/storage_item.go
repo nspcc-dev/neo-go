@@ -24,6 +24,7 @@ const (
 	delOp
 	addOp
 	putOp
+	flushedState
 )
 
 func newItemCache() *itemCache {
