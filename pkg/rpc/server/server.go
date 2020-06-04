@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -95,6 +96,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getpeers":             (*Server).getPeers,
 	"getrawmempool":        (*Server).getRawMempool,
 	"getrawtransaction":    (*Server).getrawtransaction,
+	"getproof":             (*Server).getProof,
 	"getstateheight":       (*Server).getStateHeight,
 	"getstateroot":         (*Server).getStateRoot,
 	"getstorage":           (*Server).getStorage,
@@ -687,6 +689,31 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	}
 	cache[h] = d
 	return d, nil
+}
+
+func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	sc, err := ps.Value(1).GetUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	sc = sc.Reverse()
+	key, err := ps.Value(2).GetBytesHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	skey := mpt.ToNeoStorageKey(append(sc.BytesBE(), key...))
+	proof, err := s.chain.GetStateProof(root, skey)
+	return &result.GetProof{
+		Result: result.ProofWithKey{
+			Key:   skey,
+			Proof: proof,
+		},
+		Success: err == nil,
+	}, nil
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {

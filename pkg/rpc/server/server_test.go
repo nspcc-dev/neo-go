@@ -214,6 +214,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"getproof": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid root",
+			params: `["0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid contract",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid key",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notahex"]`,
+			fail:   true,
+		},
+	},
 	"getstateheight": {
 		{
 			name:   "positive",
