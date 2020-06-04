@@ -285,6 +285,20 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check:  checkNep5Transfers,
 		},
 	},
+	"getstateheight": {
+		{
+			name:   "positive",
+			params: `[]`,
+			result: func(_ *executor) interface{} { return new(result.StateHeight) },
+			check: func(t *testing.T, e *executor, res interface{}) {
+				sh, ok := res.(*result.StateHeight)
+				require.True(t, ok)
+
+				require.Equal(t, e.chain.BlockHeight(), sh.BlockHeight)
+				require.Equal(t, uint32(0), sh.StateHeight)
+			},
+		},
+	},
 	"getstateroot": {
 		{
 			name:   "no params",
