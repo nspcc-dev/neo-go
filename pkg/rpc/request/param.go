@@ -61,12 +61,17 @@ const (
 	ExecutionFilterT
 )
 
+var errMissingParameter = errors.New("parameter is missing")
+
 func (p Param) String() string {
 	return fmt.Sprintf("%v", p.Value)
 }
 
 // GetString returns string value of the parameter.
-func (p Param) GetString() (string, error) {
+func (p *Param) GetString() (string, error) {
+	if p == nil {
+		return "", errMissingParameter
+	}
 	str, ok := p.Value.(string)
 	if !ok {
 		return "", errors.New("not a string")
@@ -75,7 +80,10 @@ func (p Param) GetString() (string, error) {
 }
 
 // GetInt returns int value of te parameter.
-func (p Param) GetInt() (int, error) {
+func (p *Param) GetInt() (int, error) {
+	if p == nil {
+		return 0, errMissingParameter
+	}
 	i, ok := p.Value.(int)
 	if ok {
 		return i, nil
@@ -86,7 +94,10 @@ func (p Param) GetInt() (int, error) {
 }
 
 // GetArray returns a slice of Params stored in the parameter.
-func (p Param) GetArray() ([]Param, error) {
+func (p *Param) GetArray() ([]Param, error) {
+	if p == nil {
+		return nil, errMissingParameter
+	}
 	a, ok := p.Value.([]Param)
 	if !ok {
 		return nil, errors.New("not an array")
@@ -95,7 +106,7 @@ func (p Param) GetArray() ([]Param, error) {
 }
 
 // GetUint256 returns Uint256 value of the parameter.
-func (p Param) GetUint256() (util.Uint256, error) {
+func (p *Param) GetUint256() (util.Uint256, error) {
 	s, err := p.GetString()
 	if err != nil {
 		return util.Uint256{}, err
@@ -105,7 +116,7 @@ func (p Param) GetUint256() (util.Uint256, error) {
 }
 
 // GetUint160FromHex returns Uint160 value of the parameter encoded in hex.
-func (p Param) GetUint160FromHex() (util.Uint160, error) {
+func (p *Param) GetUint160FromHex() (util.Uint160, error) {
 	s, err := p.GetString()
 	if err != nil {
 		return util.Uint160{}, err
@@ -119,7 +130,7 @@ func (p Param) GetUint160FromHex() (util.Uint160, error) {
 
 // GetUint160FromAddress returns Uint160 value of the parameter that was
 // supplied as an address.
-func (p Param) GetUint160FromAddress() (util.Uint160, error) {
+func (p *Param) GetUint160FromAddress() (util.Uint160, error) {
 	s, err := p.GetString()
 	if err != nil {
 		return util.Uint160{}, err
@@ -129,7 +140,10 @@ func (p Param) GetUint160FromAddress() (util.Uint160, error) {
 }
 
 // GetFuncParam returns current parameter as a function call parameter.
-func (p Param) GetFuncParam() (FuncParam, error) {
+func (p *Param) GetFuncParam() (FuncParam, error) {
+	if p == nil {
+		return FuncParam{}, errMissingParameter
+	}
 	fp, ok := p.Value.(FuncParam)
 	if !ok {
 		return FuncParam{}, errors.New("not a function parameter")
@@ -139,7 +153,7 @@ func (p Param) GetFuncParam() (FuncParam, error) {
 
 // GetBytesHex returns []byte value of the parameter if
 // it is a hex-encoded string.
-func (p Param) GetBytesHex() ([]byte, error) {
+func (p *Param) GetBytesHex() ([]byte, error) {
 	s, err := p.GetString()
 	if err != nil {
 		return nil, err
