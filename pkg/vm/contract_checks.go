@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/binary"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
@@ -19,7 +20,7 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 	case opcode.PUSH1 <= instr && instr <= opcode.PUSH16:
 		nthings = int(instr-opcode.PUSH1) + 1
 	case instr <= opcode.PUSHINT256:
-		n := emit.BytesToInt(param)
+		n := bigint.FromBytes(param)
 		if !n.IsInt64() || n.Int64() > MaxArraySize {
 			return 0, false
 		}

@@ -3,8 +3,8 @@ package native
 import (
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // MaxValidatorsVoted limits the number of validators that one can vote for.
@@ -42,7 +42,7 @@ func (vc *ValidatorsCount) Bytes() []byte {
 // EncodeBinary implements io.Serializable interface.
 func (vc *ValidatorsCount) EncodeBinary(w *io.BinWriter) {
 	for i := range vc {
-		w.WriteVarBytes(emit.IntToBytes(&vc[i]))
+		w.WriteVarBytes(bigint.ToBytes(&vc[i]))
 	}
 }
 
@@ -53,7 +53,7 @@ func (vc *ValidatorsCount) DecodeBinary(r *io.BinReader) {
 		if r.Err != nil {
 			return
 		}
-		vc[i] = *emit.BytesToInt(buf)
+		vc[i] = *bigint.FromBytes(buf)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -180,7 +181,7 @@ func topIntFromStack(st []smartcontract.Parameter) (int64, error) {
 		if !ok {
 			return 0, errors.New("invalid ByteArray item")
 		}
-		decimals = emit.BytesToInt(data).Int64()
+		decimals = bigint.FromBytes(data).Int64()
 	default:
 		return 0, fmt.Errorf("invalid stack item type: %s", typ)
 	}

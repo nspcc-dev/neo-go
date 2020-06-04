@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -181,7 +182,7 @@ func TestPUSHINT(t *testing.T) {
 		t.Run(op.String(), func(t *testing.T) {
 			buf := random.Bytes((8 << i) / 8)
 			prog := append([]byte{byte(op)}, buf...)
-			runWithArgs(t, prog, emit.BytesToInt(buf))
+			runWithArgs(t, prog, bigint.FromBytes(buf))
 		})
 	}
 }
@@ -295,7 +296,7 @@ func TestCONVERT(t *testing.T) {
 
 	t.Run("primitive -> Integer/ByteArray", func(t *testing.T) {
 		n := big.NewInt(42)
-		b := emit.IntToBytes(n)
+		b := bigint.ToBytes(n)
 
 		itemInt := stackitem.NewBigInteger(n)
 		itemBytes := stackitem.NewByteArray(b)

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -183,7 +183,7 @@ func compareItems(t *testing.T, a, b stackitem.Item) {
 		case *stackitem.BigInteger:
 			require.Equal(t, val, ac.Value().(*big.Int).Int64())
 		case *stackitem.ByteArray:
-			require.Equal(t, val, emit.BytesToInt(ac.Value().([]byte)).Int64())
+			require.Equal(t, val, bigint.FromBytes(ac.Value().([]byte)).Int64())
 		case *stackitem.Bool:
 			if ac.Value().(bool) {
 				require.Equal(t, val, int64(1))

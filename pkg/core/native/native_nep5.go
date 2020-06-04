@@ -7,10 +7,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -107,11 +107,11 @@ func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
 	if si == nil {
 		return big.NewInt(0)
 	}
-	return emit.BytesToInt(si.Value)
+	return bigint.FromBytes(si.Value)
 }
 
 func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
-	si := &state.StorageItem{Value: emit.IntToBytes(supply)}
+	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
 	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
 }
 

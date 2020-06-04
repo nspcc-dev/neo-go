@@ -11,8 +11,8 @@ import (
 	"reflect"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
@@ -324,7 +324,7 @@ func NewBigInteger(value *big.Int) *BigInteger {
 
 // Bytes converts i to a slice of bytes.
 func (i *BigInteger) Bytes() []byte {
-	return emit.IntToBytes(i.value)
+	return bigint.ToBytes(i.value)
 }
 
 // Bool implements Item interface.
@@ -514,7 +514,7 @@ func (i *ByteArray) TryInteger() (*big.Int, error) {
 	if len(i.value) > MaxBigIntegerSizeBits/8 {
 		return nil, errors.New("integer is too big")
 	}
-	return emit.BytesToInt(i.value), nil
+	return bigint.FromBytes(i.value), nil
 }
 
 // Equals implements Item interface.
@@ -998,7 +998,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 		if len(i.value) > MaxBigIntegerSizeBits/8 {
 			return nil, errInvalidConversion
 		}
-		return NewBigInteger(emit.BytesToInt(i.value)), nil
+		return NewBigInteger(bigint.FromBytes(i.value)), nil
 	default:
 		return nil, errInvalidConversion
 	}

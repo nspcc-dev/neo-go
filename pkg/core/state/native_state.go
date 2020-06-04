@@ -4,8 +4,8 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // NEP5BalanceState represents balance state of a NEP5-token.
@@ -46,7 +46,7 @@ func (s *NEP5BalanceState) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable interface.
 func (s *NEP5BalanceState) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes(emit.IntToBytes(&s.Balance))
+	w.WriteVarBytes(bigint.ToBytes(&s.Balance))
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -55,7 +55,7 @@ func (s *NEP5BalanceState) DecodeBinary(r *io.BinReader) {
 	if r.Err != nil {
 		return
 	}
-	s.Balance = *emit.BytesToInt(buf)
+	s.Balance = *bigint.FromBytes(buf)
 }
 
 // NEOBalanceStateFromBytes converts serialized NEOBalanceState to structure.

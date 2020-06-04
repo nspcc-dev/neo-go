@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -606,7 +607,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if !ok {
 						continue
 					}
-					amount = emit.BytesToInt(bs)
+					amount = bigint.FromBytes(bs)
 				}
 				bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 			}

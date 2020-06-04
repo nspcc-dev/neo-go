@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
@@ -29,7 +30,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -625,7 +625,7 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	case smartcontract.IntegerType:
 		d = item.Value.(int64)
 	case smartcontract.ByteArrayType:
-		d = emit.BytesToInt(item.Value.([]byte)).Int64()
+		d = bigint.FromBytes(item.Value.([]byte)).Int64()
 	default:
 		return 0, response.NewInternalServerError("invalid result", errors.New("not an integer"))
 	}

@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -54,7 +55,7 @@ func Int(w *io.BinWriter, i int64) {
 		val := opcode.Opcode(int(opcode.PUSH1) - 1 + int(i))
 		Opcode(w, val)
 	default:
-		buf := intToBytes(big.NewInt(i), make([]byte, 0, 32))
+		buf := bigint.ToPreallocatedBytes(big.NewInt(i), make([]byte, 0, 32))
 		// l != 0 becase of switch
 		padSize := byte(8 - bits.LeadingZeros8(byte(len(buf)-1)))
 		Opcode(w, opcode.PUSHINT8+opcode.Opcode(padSize))

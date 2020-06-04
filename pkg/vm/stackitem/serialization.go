@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
 // SerializeItem encodes given Item into the byte slice.
@@ -43,7 +43,7 @@ func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
 		w.WriteBool(t.Value().(bool))
 	case *BigInteger:
 		w.WriteBytes([]byte{byte(IntegerT)})
-		w.WriteVarBytes(emit.IntToBytes(t.Value().(*big.Int)))
+		w.WriteVarBytes(bigint.ToBytes(t.Value().(*big.Int)))
 	case *Interop:
 		w.Err = errors.New("interop item can't be serialized")
 	case *Array, *Struct:
@@ -102,7 +102,7 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 		return NewBool(b)
 	case IntegerT:
 		data := r.ReadVarBytes()
-		num := emit.BytesToInt(data)
+		num := bigint.FromBytes(data)
 		return NewBigInteger(num)
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
