@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -536,6 +537,12 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			zap.Duration("took", time.Since(start)))
 	}
 	return nil
+}
+
+// GetStateProof returns proof of having key in the MPT with the specified root.
+func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), storage.NewMemCachedStore(bc.dao.Store))
+	return tr.GetProof(key)
 }
 
 // GetStateRoot returns state root for a given height.

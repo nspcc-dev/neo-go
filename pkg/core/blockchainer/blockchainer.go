@@ -44,6 +44,7 @@ type Blockchainer interface {
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
+	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	GetStorageItem(id int32, key []byte) *state.StorageItem
 	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
