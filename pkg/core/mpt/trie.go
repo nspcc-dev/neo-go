@@ -261,7 +261,6 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 	case *ExtensionNode:
 		n.key = append(n.key, nxt.key...)
 		n.next = nxt.next
-		n.invalidateCache()
 	case *HashNode:
 		if nxt.IsEmpty() {
 			return nxt, nil
@@ -269,6 +268,7 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 	default:
 		n.next = r
 	}
+	n.invalidateCache()
 	return n, nil
 }
 
