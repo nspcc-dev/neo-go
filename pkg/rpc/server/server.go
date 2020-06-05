@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -112,6 +113,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"sendrawtransaction":     (*Server).sendrawtransaction,
 	"submitblock":            (*Server).submitBlock,
 	"validateaddress":        (*Server).validateAddress,
+	"verifyproof":            (*Server).verifyProof,
 }
 
 var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
@@ -801,6 +803,33 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 		},
 		Success: err == nil,
 	}, nil
+}
+
+func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
+	root, err := ps.Value(0).GetUint256()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	proofStr, err := ps.Value(1).GetString()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	var p result.ProofWithKey
+	if err := p.FromString(proofStr); err != nil {
+		return nil, response.ErrInvalidParams
+	}
+	vp := new(result.VerifyProof)
+	val, ok := mpt.VerifyProof(root, p.Key, p.Proof)
+	if ok {
+		var si state.StorageItem
+		r := io.NewBinReaderFromBuf(val)
+		si.DecodeBinary(r)
+		if r.Err != nil {
+			return nil, response.NewInternalServerError("invalid item in trie", r.Err)
+		}
+		vp.Value = si.Value
+	}
+	return vp, nil
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {

@@ -869,6 +869,30 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.Equal(t, b.Hash(), res.Hash)
 		})
 	})
+	t.Run("getproof", func(t *testing.T) {
+		r, err := chain.GetStateRoot(3)
+		require.NoError(t, err)
+
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%x"]}`,
+			r.Root.StringLE(), testContractHash, []byte("testkey"))
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		rawRes := checkErrGetResult(t, body, false)
+		res := new(result.GetProof)
+		require.NoError(t, json.Unmarshal(rawRes, res))
+		require.True(t, res.Success)
+		h, _ := util.Uint160DecodeStringLE(testContractHash)
+		skey := makeStorageKey(chain.GetContractState(h).ID, []byte("testkey"))
+		require.Equal(t, skey, res.Result.Key)
+		require.True(t, len(res.Result.Proof) > 0)
+
+		rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
+			r.Root.StringLE(), res.Result.String())
+		body = doRPCCall(rpc, httpSrv.URL, t)
+		rawRes = checkErrGetResult(t, body, false)
+		vp := new(result.VerifyProof)
+		require.NoError(t, json.Unmarshal(rawRes, vp))
+		require.Equal(t, []byte("testvalue"), vp.Value)
+	})
 	t.Run("getstateroot", func(t *testing.T) {
 		testRoot := func(t *testing.T, p string) {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
