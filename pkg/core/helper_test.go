@@ -60,7 +60,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 		Base: block.Base{
 			Version:       0,
 			PrevHash:      prev,
-			Timestamp:     uint64(time.Now().UTC().Unix()) + uint64(index),
+			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(index),
 			Index:         index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
