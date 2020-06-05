@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
@@ -508,18 +507,6 @@ func openWallet(path string) (*wallet.Wallet, error) {
 		return nil, errNoPath
 	}
 	return wallet.NewWalletFromFile(path)
-}
-
-func getAssetID(s string) (util.Uint256, error) {
-	s = strings.ToLower(s)
-	switch {
-	case s == "neo":
-		return core.GoverningTokenID(), nil
-	case s == "gas":
-		return core.UtilityTokenID(), nil
-	default:
-		return util.Uint256DecodeStringLE(s)
-	}
 }
 
 func newAccountFromWIF(wif string) (*wallet.Account, error) {

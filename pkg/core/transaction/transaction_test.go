@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -85,36 +84,6 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version: 3,
 		Data: &InvocationTX{
 			Script: []byte{1, 2, 3, 4},
-		},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
-func TestMarshalUnmarshalJSONRegisterTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    RegisterType,
-		Version: 5,
-		Data: &RegisterTX{
-			AssetType: 0,
-			Name:      `[{"lang":"zh-CN","name":"小蚁股"},{"lang":"en","name":"AntShare"}]`,
-			Amount:    1000000,
-			Precision: 0,
-			Owner:     keys.PublicKey{},
-			Admin:     util.Uint160{},
 		},
 		Attributes: []Attribute{},
 		Inputs: []Input{{

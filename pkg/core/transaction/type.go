@@ -11,15 +11,12 @@ type TXType uint8
 
 // Constants for all valid transaction types.
 const (
-	RegisterType   TXType = 0x40
 	InvocationType TXType = 0xd1
 )
 
 // String implements the stringer interface.
 func (t TXType) String() string {
 	switch t {
-	case RegisterType:
-		return "RegisterTransaction"
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
@@ -46,8 +43,6 @@ func (t *TXType) UnmarshalJSON(data []byte) error {
 // TXTypeFromString searches for TXType by string name.
 func TXTypeFromString(jsonString string) (TXType, error) {
 	switch jsonString = strings.TrimSpace(jsonString); jsonString {
-	case "RegisterTransaction":
-		return RegisterType, nil
 	case "InvocationTransaction":
 		return InvocationType, nil
 	default:

@@ -24,7 +24,6 @@ func GetHash(t Transaction) []byte {
 // GetType returns the type of the given transaction. Possible values:
 //     MinerTransaction      = 0x00
 //     EnrollmentTransaction = 0x20
-//     RegisterTransaction   = 0x40
 //     StateType             = 0x90
 //     AgencyTransaction     = 0xb0
 //     PublishTransaction    = 0xd0

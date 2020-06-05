@@ -59,8 +59,6 @@ ProtocolConfiguration:
   - 127.0.0.1:20334
   - 127.0.0.1:20335
   - 127.0.0.1:20336
-  SystemFee:
-    RegisterTransaction: 10000
 
 ApplicationConfiguration:
   DataDirectoryPath: "./chains/privnet"

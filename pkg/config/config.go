@@ -40,9 +40,6 @@ func Load(path string, netMode NetMode) (Config, error) {
 	}
 
 	config := Config{
-		ProtocolConfiguration: ProtocolConfiguration{
-			SystemFee: SystemFee{},
-		},
 		ApplicationConfiguration: ApplicationConfiguration{
 			PingInterval: 30,
 			PingTimeout:  90,

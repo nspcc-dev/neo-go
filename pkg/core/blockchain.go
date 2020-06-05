@@ -33,13 +33,6 @@ const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
 
-	// This one comes from C# code and it's different from the constant used
-	// when creating an asset with Neo.Asset.Create interop call. It looks
-	// like 2000000 is coming from the decrementInterval, but C# code doesn't
-	// contain any relationship between the two, so we should follow this
-	// behavior.
-	registeredAssetLifetime = 2 * 2000000
-
 	defaultMemPoolSize = 50000
 )
 
@@ -629,20 +622,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 		// Process the underlying type of the TX.
 		switch t := tx.Data.(type) {
-		case *transaction.RegisterTX:
-			err := cache.PutAssetState(&state.Asset{
-				ID:         tx.Hash(),
-				AssetType:  t.AssetType,
-				Name:       t.Name,
-				Amount:     t.Amount,
-				Precision:  t.Precision,
-				Owner:      t.Owner,
-				Admin:      t.Admin,
-				Expiration: bc.BlockHeight() + registeredAssetLifetime,
-			})
-			if err != nil {
-				return err
-			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 			v := SpawnVM(systemInterop)
@@ -1420,9 +1399,6 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 	if len(resultsDestroy) > 1 {
 		return errors.New("tx has more than 1 destroy output")
 	}
-	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
-		return errors.New("tx destroys non-utility token")
-	}
 
 	if len(resultsIssue) > 0 {
 		return errors.New("non issue/miner/claim tx issues tokens")
@@ -1514,11 +1490,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 	hashes[t.Sender] = true
 	for _, c := range t.Cosigners {
 		hashes[c.Account] = true
-	}
-	switch t.Type {
-	case transaction.RegisterType:
-		reg := t.Data.(*transaction.RegisterTX)
-		hashes[reg.Owner.GetScriptHash()] = true
 	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))

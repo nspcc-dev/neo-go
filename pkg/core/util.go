@@ -89,45 +89,6 @@ func deployNativeContracts() *transaction.Transaction {
 	return tx
 }
 
-func init() {
-	admin := hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
-	registerTX := &transaction.RegisterTX{
-		AssetType: transaction.GoverningToken,
-		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁股\"},{\"lang\":\"en\",\"name\":\"AntShare\"}]",
-		Amount:    util.Fixed8FromInt64(100000000),
-		Precision: 0,
-		Admin:     admin,
-	}
-
-	governingTokenTX = *transaction.NewRegisterTX(registerTX)
-	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
-	governingTokenTX.Nonce = 0
-	governingTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
-
-	admin = hash.Hash160([]byte{0x00})
-	registerTX = &transaction.RegisterTX{
-		AssetType: transaction.UtilityToken,
-		Name:      "[{\"lang\":\"zh-CN\",\"name\":\"小蚁币\"},{\"lang\":\"en\",\"name\":\"AntCoin\"}]",
-		Amount:    calculateUtilityAmount(),
-		Precision: 8,
-		Admin:     admin,
-	}
-	utilityTokenTX = *transaction.NewRegisterTX(registerTX)
-	// TODO NEO3.0: nonce should be constant to avoid variability of token hash
-	utilityTokenTX.Nonce = 0
-	utilityTokenTX.Sender = hash.Hash160([]byte{byte(opcode.OLDPUSH1)})
-}
-
-// GoverningTokenID returns the governing token (NEO) hash.
-func GoverningTokenID() util.Uint256 {
-	return governingTokenTX.Hash()
-}
-
-// UtilityTokenID returns the utility token (GAS) hash.
-func UtilityTokenID() util.Uint256 {
-	return utilityTokenTX.Hash()
-}
-
 func getValidators(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
 	validators := make([]*keys.PublicKey, len(cfg.StandbyValidators))
 	for i, pubKeyStr := range cfg.StandbyValidators {

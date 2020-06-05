@@ -8,8 +8,6 @@ ProtocolConfiguration:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
   SeedList:
     - 172.200.0.1:20333
-  SystemFee:
-    RegisterTransaction: 10000
   VerifyBlocks: true
   VerifyTransactions: true
 

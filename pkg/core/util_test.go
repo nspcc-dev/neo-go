@@ -42,19 +42,3 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 	assert.Equal(t, consensusScript, script.String())
 	assert.Equal(t, consensusAddr, address.Uint160ToString(script))
 }
-
-func TestUtilityTokenTX(t *testing.T) {
-	//TODO: After we added Nonce field to transaction.Transaction, UtilityTockenTx hash
-	// has been changed. Update it for better times.
-	// Old hash is "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-	expect := "f882fb865bab84b99623f21eedd902286af7da8d8a4609d7acefce04c851dc1c"
-	assert.Equal(t, expect, UtilityTokenID().StringLE())
-}
-
-func TestGoverningTokenTX(t *testing.T) {
-	//TODO: After we added Nonce field to transaction.Transaction, GoveringTockenTx hash
-	// has been changed. Update it for better times.
-	// Old hash is "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b"
-	expect := "1a5e0e3eac2abced7de9ee2de0820a5c85e63756fcdfc29b82fead86a7c07c78"
-	assert.Equal(t, expect, GoverningTokenID().StringLE())
-}

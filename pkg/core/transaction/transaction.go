@@ -176,9 +176,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case InvocationType:
 		t.Data = &InvocationTX{}
 		t.Data.(*InvocationTX).DecodeBinary(r)
-	case RegisterType:
-		t.Data = &RegisterTX{}
-		t.Data.(*RegisterTX).DecodeBinary(r)
 	default:
 		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
@@ -301,8 +298,7 @@ type transactionJSON struct {
 	Outputs         []Output     `json:"vout"`
 	Scripts         []Witness    `json:"scripts"`
 
-	Script string           `json:"script,omitempty"`
-	Asset  *registeredAsset `json:"asset,omitempty"`
+	Script string `json:"script,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -326,16 +322,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	switch t.Type {
 	case InvocationType:
 		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
-	case RegisterType:
-		transaction := *t.Data.(*RegisterTX)
-		tx.Asset = &registeredAsset{
-			AssetType: transaction.AssetType,
-			Name:      json.RawMessage(transaction.Name),
-			Amount:    transaction.Amount,
-			Precision: transaction.Precision,
-			Owner:     transaction.Owner,
-			Admin:     address.Uint160ToString(transaction.Admin),
-		}
 	}
 	return json.Marshal(tx)
 }
@@ -370,19 +356,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 		}
 		t.Data = &InvocationTX{
 			Script: bytes,
-		}
-	case RegisterType:
-		admin, err := address.StringToUint160(tx.Asset.Admin)
-		if err != nil {
-			return err
-		}
-		t.Data = &RegisterTX{
-			AssetType: tx.Asset.AssetType,
-			Name:      string(tx.Asset.Name),
-			Amount:    tx.Asset.Amount,
-			Precision: tx.Asset.Precision,
-			Owner:     tx.Asset.Owner,
-			Admin:     admin,
 		}
 	}
 	if t.Hash() != tx.TxID {
