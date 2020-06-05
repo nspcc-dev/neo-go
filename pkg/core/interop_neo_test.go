@@ -27,14 +27,11 @@ import (
 /*  Missing tests:
  *  TestTxGetWitnesses
  *  TestBcGetAccount
- *  TestBcGetAsset
  *  TestAccountGetBalance
  *  TestAccountIsStandard
  *  TestCreateContractStateFromVM
  *  TestContractCreate
  *  TestContractMigrate
- *  TestAssetCreate
- *  TestAssetRenew
  *  TestRuntimeSerialize
  *  TestRuntimeDeserialize
  */
@@ -337,95 +334,7 @@ func TestContractIsPayable(t *testing.T) {
 	require.Equal(t, contractState.IsPayable(), isPayable)
 }
 
-func TestAssetGetAdmin(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAdmin(context, v)
-	require.NoError(t, err)
-	admin := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Admin.BytesBE(), admin)
-}
-
-func TestAssetGetAmount(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAmount(context, v)
-	require.NoError(t, err)
-	amount := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Amount)), amount)
-}
-
-func TestAssetGetAssetID(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAssetID(context, v)
-	require.NoError(t, err)
-	assetID := v.Estack().Pop().Value()
-	require.Equal(t, assetState.ID.BytesBE(), assetID)
-}
-
-func TestAssetGetAssetType(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAssetType(context, v)
-	require.NoError(t, err)
-	assetType := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.AssetType)), assetType)
-}
-
-func TestAssetGetAvailable(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAvailable(context, v)
-	require.NoError(t, err)
-	available := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Available)), available)
-}
-
-func TestAssetGetIssuer(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetIssuer(context, v)
-	require.NoError(t, err)
-	issuer := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Issuer.BytesBE(), issuer)
-}
-
-func TestAssetGetOwner(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetOwner(context, v)
-	require.NoError(t, err)
-	owner := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Owner.Bytes(), owner)
-}
-
-func TestAssetGetPrecision(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetPrecision(context, v)
-	require.NoError(t, err)
-	precision := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Precision)), precision)
-}
-
-// Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
+// Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	v := vm.New()
@@ -440,29 +349,6 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 	v, tx, context, chain := createVMAndTX(t)
 	v.Estack().PushVal(vm.NewInteropItem(tx))
 	return v, tx, context, chain
-}
-
-func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interop.Context, *Blockchain) {
-	v := vm.New()
-	assetState := &state.Asset{
-		ID:         util.Uint256{},
-		AssetType:  transaction.GoverningToken,
-		Name:       "TestAsset",
-		Amount:     1,
-		Available:  2,
-		Precision:  1,
-		FeeMode:    1,
-		FeeAddress: random.Uint160(),
-		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
-		Admin:      random.Uint160(),
-		Issuer:     random.Uint160(),
-		Expiration: 10,
-		IsFrozen:   false,
-	}
-
-	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
-	return v, assetState, context, chain
 }
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {

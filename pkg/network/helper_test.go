@@ -73,9 +73,6 @@ func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	panic("TODO")
 }
 
-func (chain testChain) GetAssetState(util.Uint256) *state.Asset {
-	panic("TODO")
-}
 func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 	panic("TODO")
 }

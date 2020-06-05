@@ -23,7 +23,6 @@ type DAO interface {
 	GetAccountStateOrNew(hash util.Uint160) (*state.Account, error)
 	GetAndDecode(entity io.Serializable, key []byte) error
 	GetAppExecResult(hash util.Uint256) (*state.AppExecResult, error)
-	GetAssetState(assetID util.Uint256) (*state.Asset, error)
 	GetBatch() *storage.MemBatch
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) (*state.Contract, error)
@@ -42,7 +41,6 @@ type DAO interface {
 	Persist() (int, error)
 	PutAccountState(as *state.Account) error
 	PutAppExecResult(aer *state.AppExecResult) error
-	PutAssetState(as *state.Asset) error
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
@@ -140,30 +138,6 @@ func (dao *Simple) putAccountState(as *state.Account, buf *io.BufBinWriter) erro
 }
 
 // -- end accounts.
-
-// -- start assets.
-
-// GetAssetState returns given asset state as recorded in the given store.
-func (dao *Simple) GetAssetState(assetID util.Uint256) (*state.Asset, error) {
-	asset := &state.Asset{}
-	key := storage.AppendPrefix(storage.STAsset, assetID.BytesBE())
-	err := dao.GetAndDecode(asset, key)
-	if err != nil {
-		return nil, err
-	}
-	if asset.ID != assetID {
-		return nil, fmt.Errorf("found asset id is not equal to expected")
-	}
-	return asset, nil
-}
-
-// PutAssetState puts given asset state into the given store.
-func (dao *Simple) PutAssetState(as *state.Asset) error {
-	key := storage.AppendPrefix(storage.STAsset, as.ID.BytesBE())
-	return dao.Put(as, key)
-}
-
-// -- end assets.
 
 // -- start contracts.
 

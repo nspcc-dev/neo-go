@@ -32,7 +32,6 @@ type Blockchainer interface {
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
-	GetAssetState(util.Uint256) *state.Asset
 	GetAccountState(util.Uint160) *state.Account
 	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
 	GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog

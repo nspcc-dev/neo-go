@@ -938,17 +938,6 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
-// GetAssetState returns asset state from its assetID.
-func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
-	asset, err := bc.dao.GetAssetState(assetID)
-	if asset == nil && err != storage.ErrKeyNotFound {
-		bc.log.Warn("failed to get asset state",
-			zap.Stringer("asset", assetID),
-			zap.Error(err))
-	}
-	return asset
-}
-
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err := bc.dao.GetContractState(hash)

@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -57,17 +56,6 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 	gotAccount, err := dao.GetAccountStateOrNew(hash)
 	require.NoError(t, err)
 	require.Equal(t, accountState.ScriptHash, gotAccount.ScriptHash)
-}
-
-func TestPutAndGetAssetState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	id := random.Uint256()
-	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
-	err := dao.PutAssetState(assetState)
-	require.NoError(t, err)
-	gotAssetState, err := dao.GetAssetState(id)
-	require.NoError(t, err)
-	require.Equal(t, assetState, gotAssetState)
 }
 
 func TestPutAndGetContractState(t *testing.T) {
