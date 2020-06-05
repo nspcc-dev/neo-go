@@ -1,17 +1,19 @@
-package consensus
+package cache
 
 import (
+	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRelayCache_Add(t *testing.T) {
 	const capacity = 3
-	payloads := getDifferentPayloads(t, capacity+1)
-	c := newFIFOCache(capacity)
+	payloads := getDifferentItems(t, capacity+1)
+	c := NewFIFOCache(capacity)
 	require.Equal(t, 0, c.queue.Len())
 	require.Equal(t, 0, len(c.elems))
 
@@ -46,19 +48,15 @@ func TestRelayCache_Add(t *testing.T) {
 	require.Equal(t, nil, c.Get(payloads[1].Hash()))
 }
 
-func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
-	payloads = make([]Payload, n)
-	for i := range payloads {
-		var sign [signatureSize]byte
-		random.Fill(sign[:])
+type testHashable []byte
 
-		payloads[i].message = &message{}
-		payloads[i].SetValidatorIndex(uint16(i))
-		payloads[i].SetType(payload.MessageType(commitType))
-		payloads[i].payload = &commit{
-			signature: sign,
-		}
+// Hash implements Hashable.
+func (h testHashable) Hash() util.Uint256 { return hash.Sha256(h) }
+
+func getDifferentItems(t *testing.T, n int) []testHashable {
+	items := make([]testHashable, n)
+	for i := range items {
+		items[i] = random.Bytes(rand.Int() % 10)
 	}
-
-	return
+	return items
 }
