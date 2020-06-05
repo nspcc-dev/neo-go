@@ -21,18 +21,6 @@ func GetHash(t Transaction) []byte {
 	return nil
 }
 
-// GetType returns the type of the given transaction. Possible values:
-//     MinerTransaction      = 0x00
-//     EnrollmentTransaction = 0x20
-//     StateType             = 0x90
-//     AgencyTransaction     = 0xb0
-//     PublishTransaction    = 0xd0
-//     InvocationTransaction = 0xd1
-// It uses `Neo.Transaction.GetType` syscall.
-func GetType(t Transaction) byte {
-	return 0x00
-}
-
 // GetAttributes returns a slice of attributes for agiven transaction. Refer to
 // attribute package on how to use them. This function uses
 // `Neo.Transaction.GetAttributes` syscall.
@@ -67,13 +55,6 @@ func GetInputs(t Transaction) []input.Input {
 // syscall.
 func GetOutputs(t Transaction) []output.Output {
 	return []output.Output{}
-}
-
-// GetScript returns the script stored in a given Invocation transaction.
-// Calling it for any other Transaction type would lead to failure. It uses
-// `Neo.InvocationTransaction.GetScript` syscall.
-func GetScript(t Transaction) []byte {
-	return nil
 }
 
 // GetWitnesses returns a slice of witnesses of a given Transaction. Refer to

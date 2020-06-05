@@ -45,7 +45,7 @@ func TestNeoBlock_Setters(t *testing.T) {
 	b.Block.PrevHash = util.Uint256{9, 8, 7}
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())
 
-	txx := []block.Transaction{transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 1)}
+	txx := []block.Transaction{transaction.New([]byte{byte(opcode.PUSH1)}, 1)}
 	b.SetTransactions(txx)
 	require.Equal(t, txx, b.Transactions())
 }

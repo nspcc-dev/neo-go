@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
@@ -98,17 +97,12 @@ func TestSubscriptions(t *testing.T) {
 
 	for _, b := range getTestBlocks(t) {
 		require.NoError(t, chain.AddBlock(b))
-		for _, tx := range b.Transactions {
-			var mayNotify bool
-
-			if tx.Type == transaction.InvocationType {
-				resp := getNotification(t, respMsgs)
-				require.Equal(t, response.ExecutionEventID, resp.Event)
-				mayNotify = true
-			}
+		for range b.Transactions {
+			resp := getNotification(t, respMsgs)
+			require.Equal(t, response.ExecutionEventID, resp.Event)
 			for {
 				resp := getNotification(t, respMsgs)
-				if mayNotify && resp.Event == response.NotificationEventID {
+				if resp.Event == response.NotificationEventID {
 					continue
 				}
 				require.Equal(t, response.TransactionEventID, resp.Event)

@@ -152,17 +152,6 @@ func txGetReferences(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// txGetType returns current transaction type.
-func txGetType(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	v.Estack().PushVal(int(tx.Type))
-	return nil
-}
-
 // txGetUnspentCoins returns current transaction unspent coins.
 func txGetUnspentCoins(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
@@ -203,24 +192,6 @@ func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 		scripts = append(scripts, vm.NewInteropItem(&tx.Scripts[i]))
 	}
 	v.Estack().PushVal(scripts)
-	return nil
-}
-
-// invocationTx_GetScript returns invocation script from the current transaction.
-func invocationTxGetScript(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	inv, ok := tx.Data.(*transaction.InvocationTX)
-	if tx.Type != transaction.InvocationType || !ok {
-		return errors.New("value is not an invocation transaction")
-	}
-	// It's important not to share inv.Script slice with the code running in VM.
-	script := make([]byte, len(inv.Script))
-	copy(script, inv.Script)
-	v.Estack().PushVal(script)
 	return nil
 }
 

@@ -212,27 +212,6 @@ func TestTxGetOutputs(t *testing.T) {
 	require.Equal(t, tx.Outputs[0], *value[0].Value().(*transaction.Output))
 }
 
-func TestTxGetType(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := txGetType(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().(*big.Int)
-	require.Equal(t, big.NewInt(int64(tx.Type)), value)
-}
-
-func TestInvocationTxGetScript(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := invocationTxGetScript(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]byte)
-	inv := tx.Data.(*transaction.InvocationTX)
-	require.Equal(t, inv.Script, value)
-}
-
 func TestWitnessGetVerificationScript(t *testing.T) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
@@ -290,14 +269,14 @@ func TestECDSAVerify(t *testing.T) {
 	})
 
 	t.Run("signed interop item", func(t *testing.T) {
-		tx := transaction.NewInvocationTX([]byte{0, 1, 2}, 1)
+		tx := transaction.New([]byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NewInteropItem(tx))
 	})
 
 	t.Run("signed script container", func(t *testing.T) {
-		tx := transaction.NewInvocationTX([]byte{0, 1, 2}, 1)
+		tx := transaction.New([]byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		ic.Container = tx
@@ -617,7 +596,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
-	tx := transaction.NewInvocationTX(script, 0)
+	tx := transaction.New(script, 0)
 
 	bytes := make([]byte, 1)
 	attributes := append(tx.Attributes, transaction.Attribute{

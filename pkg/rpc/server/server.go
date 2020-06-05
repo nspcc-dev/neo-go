@@ -496,13 +496,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.NewRPCError("Error while getting transaction", "", nil)
 	}
 
-	var scriptHash util.Uint160
-	switch t := tx.Data.(type) {
-	case *transaction.InvocationTX:
-		scriptHash = hash.Hash160(t.Script)
-	default:
-		return nil, response.NewRPCError("Invalid transaction type", "", nil)
-	}
+	scriptHash := hash.Hash160(tx.Script)
 
 	return result.NewApplicationLog(appExecResult, scriptHash), nil
 }

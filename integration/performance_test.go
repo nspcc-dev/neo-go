@@ -77,7 +77,7 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 	fromAddressHash, err := address.StringToUint160(fromAddress)
 	require.NoError(t, err)
 
-	tx := transaction.NewInvocationTX([]byte{0x51}, 1)
+	tx := transaction.New([]byte{0x51}, 1)
 	tx.Version = 0
 	tx.Sender = fromAddressHash
 	tx.Attributes = append(tx.Attributes,

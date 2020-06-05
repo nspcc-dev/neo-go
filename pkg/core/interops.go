@@ -150,7 +150,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Header.GetVersion", Func: headerGetVersion, Price: 1},
 	{Name: "Neo.Input.GetHash", Func: inputGetHash, Price: 1},
 	{Name: "Neo.Input.GetIndex", Func: inputGetIndex, Price: 1},
-	{Name: "Neo.InvocationTransaction.GetScript", Func: invocationTxGetScript, Price: 1},
 	{Name: "Neo.Iterator.Concat", Func: iterator.Concat, Price: 1},
 	{Name: "Neo.Iterator.Create", Func: iterator.Create, Price: 1},
 	{Name: "Neo.Iterator.Key", Func: iterator.Key, Price: 1},
@@ -179,7 +178,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Transaction.GetInputs", Func: txGetInputs, Price: 1},
 	{Name: "Neo.Transaction.GetOutputs", Func: txGetOutputs, Price: 1},
 	{Name: "Neo.Transaction.GetReferences", Func: txGetReferences, Price: 200},
-	{Name: "Neo.Transaction.GetType", Func: txGetType, Price: 1},
 	{Name: "Neo.Transaction.GetUnspentCoins", Func: txGetUnspentCoins, Price: 200},
 	{Name: "Neo.Transaction.GetWitnesses", Func: txGetWitnesses, Price: 200},
 	{Name: "Neo.Witness.GetVerificationScript", Func: witnessGetVerificationScript, Price: 100},
@@ -241,7 +239,6 @@ var neoInterops = []interop.Function{
 	{Name: "AntShares.Transaction.GetInputs", Func: txGetInputs, Price: 1},
 	{Name: "AntShares.Transaction.GetOutputs", Func: txGetOutputs, Price: 1},
 	{Name: "AntShares.Transaction.GetReferences", Func: txGetReferences, Price: 200},
-	{Name: "AntShares.Transaction.GetType", Func: txGetType, Price: 1},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

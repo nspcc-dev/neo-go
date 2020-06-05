@@ -423,7 +423,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.NewInvocationTX(script, sysfee)
+	tx := transaction.New(script, sysfee)
 	tx.SystemFee = sysfee
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()

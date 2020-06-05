@@ -77,7 +77,7 @@ func deployNativeContracts() *transaction.Transaction {
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "Neo.Native.Deploy")
 	script := buf.Bytes()
-	tx := transaction.NewInvocationTX(script, 0)
+	tx := transaction.New(script, 0)
 	tx.Nonce = 0
 	tx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 	tx.Scripts = []transaction.Witness{

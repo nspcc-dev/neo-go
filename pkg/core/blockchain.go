@@ -363,20 +363,18 @@ func (bc *Blockchain) notificationDispatcher() {
 			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
 				var aerIdx int
 				for _, tx := range event.block.Transactions {
-					if tx.Type == transaction.InvocationType {
-						aer := event.appExecResults[aerIdx]
-						if !aer.TxHash.Equals(tx.Hash()) {
-							panic("inconsistent application execution results")
-						}
-						aerIdx++
-						for ch := range executionFeed {
-							ch <- aer
-						}
-						if aer.VMState == "HALT" {
-							for i := range aer.Events {
-								for ch := range notificationFeed {
-									ch <- &aer.Events[i]
-								}
+					aer := event.appExecResults[aerIdx]
+					if !aer.TxHash.Equals(tx.Hash()) {
+						panic("inconsistent application execution results")
+					}
+					aerIdx++
+					for ch := range executionFeed {
+						ch <- aer
+					}
+					if aer.VMState == "HALT" {
+						for i := range aer.Events {
+							for ch := range notificationFeed {
+								ch <- &aer.Events[i]
 							}
 						}
 					}
@@ -620,79 +618,75 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			}
 		}
 
-		// Process the underlying type of the TX.
-		switch t := tx.Data.(type) {
-		case *transaction.InvocationTX:
-			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-			v := SpawnVM(systemInterop)
-			v.LoadScript(t.Script)
-			v.SetPriceGetter(getPrice)
-			if bc.config.FreeGasLimit > 0 {
-				v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
-			}
+		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
+		v := SpawnVM(systemInterop)
+		v.LoadScript(tx.Script)
+		v.SetPriceGetter(getPrice)
+		if bc.config.FreeGasLimit > 0 {
+			v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
+		}
 
-			err := v.Run()
-			if !v.HasFailed() {
-				_, err := systemInterop.DAO.Persist()
-				if err != nil {
-					return errors.Wrap(err, "failed to persist invocation results")
-				}
-				for _, note := range systemInterop.Notifications {
-					arr, ok := note.Item.Value().([]vm.StackItem)
-					if !ok || len(arr) != 4 {
-						continue
-					}
-					op, ok := arr[0].Value().([]byte)
-					if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
-						continue
-					}
-					var from []byte
-					fromValue := arr[1].Value()
-					// we don't have `from` set when we are minting tokens
-					if fromValue != nil {
-						from, ok = fromValue.([]byte)
-						if !ok {
-							continue
-						}
-					}
-					var to []byte
-					toValue := arr[2].Value()
-					// we don't have `to` set when we are burning tokens
-					if toValue != nil {
-						to, ok = toValue.([]byte)
-						if !ok {
-							continue
-						}
-					}
-					amount, ok := arr[3].Value().(*big.Int)
-					if !ok {
-						bs, ok := arr[3].Value().([]byte)
-						if !ok {
-							continue
-						}
-						amount = emit.BytesToInt(bs)
-					}
-					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
-				}
-			} else {
-				bc.log.Warn("contract invocation failed",
-					zap.String("tx", tx.Hash().StringLE()),
-					zap.Uint32("block", block.Index),
-					zap.Error(err))
-			}
-			aer := &state.AppExecResult{
-				TxHash:      tx.Hash(),
-				Trigger:     trigger.Application,
-				VMState:     v.State(),
-				GasConsumed: v.GasConsumed(),
-				Stack:       v.Estack().ToContractParameters(),
-				Events:      systemInterop.Notifications,
-			}
-			appExecResults = append(appExecResults, aer)
-			err = cache.PutAppExecResult(aer)
+		err := v.Run()
+		if !v.HasFailed() {
+			_, err := systemInterop.DAO.Persist()
 			if err != nil {
-				return errors.Wrap(err, "failed to Store notifications")
+				return errors.Wrap(err, "failed to persist invocation results")
 			}
+			for _, note := range systemInterop.Notifications {
+				arr, ok := note.Item.Value().([]vm.StackItem)
+				if !ok || len(arr) != 4 {
+					continue
+				}
+				op, ok := arr[0].Value().([]byte)
+				if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
+					continue
+				}
+				var from []byte
+				fromValue := arr[1].Value()
+				// we don't have `from` set when we are minting tokens
+				if fromValue != nil {
+					from, ok = fromValue.([]byte)
+					if !ok {
+						continue
+					}
+				}
+				var to []byte
+				toValue := arr[2].Value()
+				// we don't have `to` set when we are burning tokens
+				if toValue != nil {
+					to, ok = toValue.([]byte)
+					if !ok {
+						continue
+					}
+				}
+				amount, ok := arr[3].Value().(*big.Int)
+				if !ok {
+					bs, ok := arr[3].Value().([]byte)
+					if !ok {
+						continue
+					}
+					amount = emit.BytesToInt(bs)
+				}
+				bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
+			}
+		} else {
+			bc.log.Warn("contract invocation failed",
+				zap.String("tx", tx.Hash().StringLE()),
+				zap.Uint32("block", block.Index),
+				zap.Error(err))
+		}
+		aer := &state.AppExecResult{
+			TxHash:      tx.Hash(),
+			Trigger:     trigger.Application,
+			VMState:     v.State(),
+			GasConsumed: v.GasConsumed(),
+			Stack:       v.Estack().ToContractParameters(),
+			Events:      systemInterop.Notifications,
+		}
+		appExecResults = append(appExecResults, aer)
+		err = cache.PutAppExecResult(aer)
+		if err != nil {
+			return errors.Wrap(err, "failed to Store notifications")
 		}
 	}
 

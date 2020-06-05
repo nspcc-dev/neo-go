@@ -138,7 +138,7 @@ func newDumbBlock() *block.Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0),
+			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
@@ -240,7 +240,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txScript := script.Bytes()
 
 	invFee := util.Fixed8FromFloat(100)
-	txDeploy := transaction.NewInvocationTX(txScript, invFee)
+	txDeploy := transaction.New(txScript, invFee)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	txDeploy.Sender = priv0ScriptHash
@@ -254,7 +254,7 @@ func TestCreateBasicChain(t *testing.T) {
 	script = io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
 
-	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
+	txInv := transaction.New(script.Bytes(), 0)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Sender = priv0ScriptHash
@@ -285,7 +285,7 @@ func TestCreateBasicChain(t *testing.T) {
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
-	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
+	initTx := transaction.New(w.Bytes(), 0)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Sender = priv0ScriptHash
@@ -375,7 +375,7 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	return transaction.NewInvocationTX(script, 0)
+	return transaction.New(script, 0)
 }
 
 func addSender(txs ...*transaction.Transaction) error {

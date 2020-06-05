@@ -85,7 +85,7 @@ func newDumbBlock() *Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0),
+			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }

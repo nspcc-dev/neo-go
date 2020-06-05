@@ -108,7 +108,7 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	tx := transaction.NewInvocationTX(script, gas)
+	tx := transaction.New(script, gas)
 	tx.Sender = from
 	tx.Cosigners = []transaction.Cosigner{
 		{

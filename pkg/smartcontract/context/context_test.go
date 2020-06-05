@@ -165,7 +165,7 @@ func newParam(typ smartcontract.ParamType, name string) wallet.ContractParam {
 }
 
 func getContractTx() *transaction.Transaction {
-	tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.AddInput(&transaction.Input{
 		PrevHash:  util.Uint256{1, 2, 3, 4},
 		PrevIndex: 5,

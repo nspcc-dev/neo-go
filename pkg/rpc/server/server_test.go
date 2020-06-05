@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -54,12 +55,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["70c9d7804dd19bb8d60740824d45055d117a4c51559de1b51aed0a6a127b353c"]`,
+			params: `["2a6bf372fb96d05735eeb685805396818ac3f21e748528f4d6ebdecfd07ddce4"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("70c9d7804dd19bb8d60740824d45055d117a4c51559de1b51aed0a6a127b353c")
+				expectedTxHash, err := util.Uint256DecodeStringLE("2a6bf372fb96d05735eeb685805396818ac3f21e748528f4d6ebdecfd07ddce4")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -80,11 +81,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "invalid tx hash",
 			params: `["d24cc1d52b5c0216cbf3835bb5bac8ccf32639fa1ab6627ec4e2b9f33f7ec02f"]`,
-			fail:   true,
-		},
-		{
-			name:   "invalid tx type",
-			params: `["f9adfde059810f37b3d0686d67f6b29034e0c669537df7e59b40c14a0508b9ed"]`,
 			fail:   true,
 		},
 	},
@@ -333,7 +329,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 				for i, tx := range res.Transactions {
 					actualTx := block.Transactions[i]
 					require.True(t, ok)
-					require.Equal(t, actualTx.Type, tx.Type)
 					require.Equal(t, actualTx.Nonce, tx.Nonce)
 					require.Equal(t, block.Transactions[i].Hash(), tx.Hash())
 				}
@@ -489,7 +484,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["70c9d7804dd19bb8d60740824d45055d117a4c51559de1b51aed0a6a127b353c"]`,
+			params: `["2a6bf372fb96d05735eeb685805396818ac3f21e748528f4d6ebdecfd07ddce4"]`,
 			result: func(e *executor) interface{} {
 				h := 0
 				return &h
@@ -683,7 +678,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["d1010a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000aab9050000000000b00400005d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b52380001316e851039019d39dfc2c37d6c3fee19fd58098701000001420c40fadd2f9ddbe9484ef3577f131b0dec21b46a0d1c2fedd498ec258e378683d35d7159fd21120d832c1bff891c36bd765b50546ac762db4f4735f2df23ba2ec84a290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
+			params: `["000a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000c2b5050000000000b00400000001316e851039019d39dfc2c37d6c3fee19fd580987015d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b5238000001420c4070b2b74b193b574fede47432a9bfa192726603a7f1ef6f6589f192943eb5978f47d25a7834ae7f42a0ebf4e013d1d1c2d1bb61417890335e9804ef26a94d2c00290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -691,7 +686,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "negative",
-			params: `["d1010a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000aab9050000000000b00400005d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b52380001316e851039019d39dfc2c37d6c3fee19fd58098701000001420c40fadd2f9ddbe9484ef3577f131b0dec21b46a0d1c2fedd498ec258e378683d35d7159fd21120d832c1bff891c36bd765b50546ac762db4f4735f2df23ba2ec84a290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad5"]`,
+			params: `["000a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000c2b5050000000000b00400000001316e851039019d39dfc2c37d6c3fee19fd580987015d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b5238000001420c4070b2b74b193b574fede47432a9bfa192726603a7f1ef6f6589f192943eb5978f47d25a7834ae7f42a0ebf4e013d1d1c2d1bb61417890335e9804ef26a94d2c00290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906aff"]`,
 			fail:   true,
 		},
 		{
@@ -821,7 +816,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		newTx := func() *transaction.Transaction {
 			height := chain.BlockHeight()
-			tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			tx.Nonce = height + 1
 			tx.ValidUntilBlock = height + 10
 			tx.Sender = acc0.PrivateKey().GetScriptHash()
@@ -848,26 +843,32 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		TXHash := block.Transactions[0].Hash()
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, TXHash.StringLE())
+		tx := block.Transactions[0]
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		result := checkErrGetResult(t, body, false)
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "d10100000000ca61e52e881d41374e640f819cd118cc153b21a700000000000000000000000000000000000000000541123e7fe80000000001000111", res)
+		txBin, err := testserdes.EncodeBinary(tx)
+		require.NoError(t, err)
+		expected := hex.EncodeToString(txBin)
+		assert.Equal(t, expected, res)
 	})
 
 	t.Run("getrawtransaction 2 arguments", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
-		TXHash := block.Transactions[0].Hash()
-		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, TXHash.StringLE())
+		tx := block.Transactions[0]
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		result := checkErrGetResult(t, body, false)
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
-		assert.Equal(t, "d10100000000ca61e52e881d41374e640f819cd118cc153b21a700000000000000000000000000000000000000000541123e7fe80000000001000111", res)
+		txBin, err := testserdes.EncodeBinary(tx)
+		require.NoError(t, err)
+		expected := hex.EncodeToString(txBin)
+		assert.Equal(t, expected, res)
 	})
 
 	t.Run("getrawtransaction 2 arguments, verbose", func(t *testing.T) {
@@ -945,7 +946,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			expected = append(expected, tx.Tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
 		}

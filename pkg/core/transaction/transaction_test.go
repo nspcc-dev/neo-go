@@ -61,30 +61,32 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 }
 */
 
-func TestNewInvocationTX(t *testing.T) {
+func TestNew(t *testing.T) {
 	script := []byte{0x51}
-	tx := NewInvocationTX(script, 1)
-	txData := tx.Data.(*InvocationTX)
-	assert.Equal(t, InvocationType, tx.Type)
+	tx := New(script, 1)
 	assert.Equal(t, util.Fixed8(1), tx.SystemFee)
-	assert.Equal(t, script, txData.Script)
+	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
 	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }
 
-func TestEncodingTXWithNoData(t *testing.T) {
+func TestEncodingTXWithNoScript(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
+	require.Error(t, err)
+}
+
+func TestDecodingTXWithNoScript(t *testing.T) {
+	txBin, err := hex.DecodeString("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+	err = testserdes.DecodeBinary(txBin, new(Transaction))
 	require.Error(t, err)
 }
 
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 	tx := &Transaction{
-		Type:    InvocationType,
-		Version: 3,
-		Data: &InvocationTX{
-			Script: []byte{1, 2, 3, 4},
-		},
+		Version:    0,
+		Script:     []byte{1, 2, 3, 4},
 		Attributes: []Attribute{},
 		Inputs: []Input{{
 			PrevHash:  util.Uint256{5, 6, 7, 8},
