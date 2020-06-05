@@ -1,6 +1,7 @@
 package native
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -41,6 +42,7 @@ func (vc *ValidatorsCount) Bytes() []byte {
 
 // EncodeBinary implements io.Serializable interface.
 func (vc *ValidatorsCount) EncodeBinary(w *io.BinWriter) {
+	w.WriteVarUint(uint64(MaxValidatorsVoted))
 	for i := range vc {
 		w.WriteVarBytes(bigint.ToBytes(&vc[i]))
 	}
@@ -48,7 +50,12 @@ func (vc *ValidatorsCount) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (vc *ValidatorsCount) DecodeBinary(r *io.BinReader) {
-	for i := range vc {
+	count := r.ReadVarUint()
+	if count < 0 || count > MaxValidatorsVoted {
+		r.Err = errors.New("invalid validators count")
+		return
+	}
+	for i := 0; i < int(count); i++ {
 		buf := r.ReadVarBytes()
 		if r.Err != nil {
 			return
