@@ -160,6 +160,9 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		txes[i] = tx
 	}
 	b.Transactions = txes
+	if br.Err != nil {
+		return
+	}
 	br.Err = b.Verify()
 }
 
