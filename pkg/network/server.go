@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -32,6 +33,7 @@ const (
 	defaultMaxPeers         = 100
 	maxBlockBatch           = 200
 	minPoolCount            = 30
+	stateRootCacheSize      = 100
 )
 
 var (
@@ -73,6 +75,7 @@ type (
 
 		transactions chan *transaction.Transaction
 
+		stateCache       cache.HashCache
 		consensusStarted *atomic.Bool
 
 		log *zap.Logger
@@ -106,6 +109,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		unregister:       make(chan peerDrop),
 		peers:            make(map[Peer]bool),
 		consensusStarted: atomic.NewBool(false),
+		stateCache:       *cache.NewFIFOCache(stateRootCacheSize),
 		log:              log,
 		transactions:     make(chan *transaction.Transaction, 64),
 	}
@@ -491,6 +495,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			cp := s.consensus.GetPayload(h)
 			return cp != nil
 		},
+		payload.StateRootType: s.stateCache.Has,
 	}
 	if exists := typExists[inv.Type]; exists != nil {
 		for _, hash := range inv.Hashes {
@@ -554,7 +559,10 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				notFound = append(notFound, hash)
 			}
 		case payload.StateRootType:
-			return nil // do nothing
+			r := s.stateCache.Get(hash)
+			if r != nil {
+				msg = NewMessage(CMDStateRoot, r.(*state.MPTRoot))
+			}
 		case payload.ConsensusType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
 				msg = NewMessage(CMDConsensus, cp)
@@ -674,7 +682,13 @@ func (s *Server) handleGetStateRootCmd(p Peer, gr *payload.GetStateRoot) error {
 
 // handleStateRootCmd processees `stateroot` request.
 func (s *Server) handleStateRootCmd(r *state.MPTRoot) error {
-	return nil // TODO
+	// we ignore error, because there is nothing wrong if we already have this state root
+	err := s.chain.AddStateRoot(r)
+	if err == nil && !s.stateCache.Has(r.Hash()) {
+		s.stateCache.Add(r)
+		s.broadcastMessage(NewMessage(CMDStateRoot, r))
+	}
+	return nil
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -812,11 +826,20 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	return nil
 }
 
-func (s *Server) handleNewPayload(p *consensus.Payload) {
-	msg := NewMessage(CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{p.Hash()}))
-	// It's high priority because it directly affects consensus process,
-	// even though it's just an inv.
-	s.broadcastHPMessage(msg)
+func (s *Server) handleNewPayload(item cache.Hashable) {
+	switch p := item.(type) {
+	case *consensus.Payload:
+		msg := NewMessage(CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{p.Hash()}))
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
+		s.broadcastHPMessage(msg)
+	case *state.MPTRoot:
+		s.stateCache.Add(p)
+		msg := NewMessage(CMDStateRoot, p)
+		s.broadcastMessage(msg)
+	default:
+		s.log.Warn("unknown item type", zap.String("type", fmt.Sprintf("%T", p)))
+	}
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {

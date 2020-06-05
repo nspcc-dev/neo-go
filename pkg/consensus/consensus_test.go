@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -291,7 +292,7 @@ func shouldNotReceive(t *testing.T, ch chan Payload) {
 func newTestService(t *testing.T) *service {
 	srv, err := NewService(Config{
 		Logger:    zaptest.NewLogger(t),
-		Broadcast: func(*Payload) {},
+		Broadcast: func(cache.Hashable) {},
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
 		Wallet: &config.Wallet{
