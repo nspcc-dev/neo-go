@@ -33,7 +33,7 @@ func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 		Block: b,
 		BlockMetadata: BlockMetadata{
 			Size:          io.GetVarSize(b),
-			Confirmations: chain.BlockHeight() - b.Index - 1,
+			Confirmations: chain.BlockHeight() - b.Index + 1,
 		},
 	}
 
