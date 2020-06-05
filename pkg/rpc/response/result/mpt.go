@@ -1,8 +1,10 @@
 package result
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -23,6 +25,12 @@ type ProofWithKey struct {
 type GetProof struct {
 	Result  ProofWithKey `json:"proof"`
 	Success bool         `json:"success"`
+}
+
+// VerifyProof is a result of verifyproof RPC.
+// nil Value is considered invalid.
+type VerifyProof struct {
+	Value []byte
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -78,4 +86,37 @@ func (p *ProofWithKey) FromString(s string) error {
 	r := io.NewBinReaderFromBuf(rawProof)
 	p.DecodeBinary(r)
 	return r.Err
+}
+
+// MarshalJSON implements json.Marshaler.
+func (p *VerifyProof) MarshalJSON() ([]byte, error) {
+	if p.Value == nil {
+		return []byte(`"invalid"`), nil
+	}
+	return []byte(`{"value":"` + hex.EncodeToString(p.Value) + `"}`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (p *VerifyProof) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`"invalid"`)) {
+		p.Value = nil
+		return nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	if len(m) != 1 {
+		return errors.New("must have single key")
+	}
+	v, ok := m["value"]
+	if !ok {
+		return errors.New("invalid json")
+	}
+	b, err := hex.DecodeString(v)
+	if err != nil {
+		return err
+	}
+	p.Value = b
+	return nil
 }
