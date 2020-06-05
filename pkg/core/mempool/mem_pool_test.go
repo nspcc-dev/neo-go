@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -54,79 +53,6 @@ func TestMemPoolAddRemove(t *testing.T) {
 	t.Run("low priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
 	fs.lowPriority = true
 	t.Run("high priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
-}
-
-func TestMemPoolAddRemoveWithInputs(t *testing.T) {
-	mp := NewMemPool(50)
-	hash1, err := util.Uint256DecodeStringBE("a83ba6ede918a501558d3170a124324aedc89909e64c4ff2c6f863094f980b25")
-	require.NoError(t, err)
-	hash2, err := util.Uint256DecodeStringBE("629397158f852e838077bb2715b13a2e29b0a51c2157e5466321b70ed7904ce9")
-	require.NoError(t, err)
-	mpLessInputs := func(i, j int) bool {
-		return mp.inputs[i].Cmp(mp.inputs[j]) < 0
-	}
-	txm1 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	txm1.Nonce = 1
-	for i := 0; i < 5; i++ {
-		txm1.Inputs = append(txm1.Inputs, transaction.Input{PrevHash: hash1, PrevIndex: uint16(100 - i)})
-	}
-	require.NoError(t, mp.Add(txm1, &FeerStub{}))
-	// Look inside.
-	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
-	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-
-	txm2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	txm2.Nonce = 1
-	for i := 0; i < 10; i++ {
-		txm2.Inputs = append(txm2.Inputs, transaction.Input{PrevHash: hash2, PrevIndex: uint16(i)})
-	}
-	require.NoError(t, mp.Add(txm2, &FeerStub{}))
-	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
-	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-
-	mp.Remove(txm1.Hash())
-	assert.Equal(t, len(txm2.Inputs), len(mp.inputs))
-	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-
-	require.NoError(t, mp.Add(txm1, &FeerStub{}))
-	assert.Equal(t, len(txm1.Inputs)+len(txm2.Inputs), len(mp.inputs))
-	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-
-	mp.RemoveStale(func(t *transaction.Transaction) bool {
-		if t.Hash() == txm2.Hash() {
-			return false
-		}
-		return true
-	}, &FeerStub{})
-	assert.Equal(t, len(txm1.Inputs), len(mp.inputs))
-	assert.True(t, sort.SliceIsSorted(mp.inputs, mpLessInputs))
-}
-
-func TestMemPoolVerifyInputs(t *testing.T) {
-	mp := NewMemPool(10)
-	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	tx.Nonce = 1
-	inhash1 := random.Uint256()
-	tx.Inputs = append(tx.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 0})
-	require.Equal(t, true, mp.Verify(tx, &FeerStub{}))
-	require.NoError(t, mp.Add(tx, &FeerStub{}))
-
-	tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	tx2.Nonce = 2
-	inhash2 := random.Uint256()
-	tx2.Inputs = append(tx2.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
-	require.Equal(t, true, mp.Verify(tx2, &FeerStub{}))
-	require.NoError(t, mp.Add(tx2, &FeerStub{}))
-
-	tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	tx3.Nonce = 3
-	// Different index number, but the same PrevHash as in tx1.
-	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash1, PrevIndex: 1})
-	require.Equal(t, true, mp.Verify(tx3, &FeerStub{}))
-	// The same input as in tx2.
-	tx3.Inputs = append(tx3.Inputs, transaction.Input{PrevHash: inhash2, PrevIndex: 0})
-	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
-	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
 func TestOverCapacity(t *testing.T) {

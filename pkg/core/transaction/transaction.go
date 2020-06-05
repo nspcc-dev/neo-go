@@ -54,12 +54,6 @@ type Transaction struct {
 	// Transaction cosigners (not include Sender).
 	Cosigners []Cosigner
 
-	// The inputs of the transaction.
-	Inputs []Input
-
-	// The outputs of the transaction.
-	Outputs []Output
-
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
 	// and invocation script.
@@ -95,8 +89,6 @@ func New(script []byte, gas util.Fixed8) *Transaction {
 		SystemFee:  gas,
 		Attributes: []Attribute{},
 		Cosigners:  []Cosigner{},
-		Inputs:     []Input{},
-		Outputs:    []Output{},
 		Scripts:    []Witness{},
 	}
 }
@@ -119,16 +111,6 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 		}
 	}
 	return t.verificationHash
-}
-
-// AddOutput adds the given output to the transaction outputs.
-func (t *Transaction) AddOutput(out *Output) {
-	t.Outputs = append(t.Outputs, *out)
-}
-
-// AddInput adds the given input to the transaction inputs.
-func (t *Transaction) AddInput(in *Input) {
-	t.Inputs = append(t.Inputs, *in)
 }
 
 // DecodeBinary implements Serializable interface.
@@ -174,14 +156,6 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 		return
 	}
 
-	br.ReadArray(&t.Inputs)
-	br.ReadArray(&t.Outputs)
-	for i := range t.Outputs {
-		if t.Outputs[i].Amount.LessThan(0) {
-			br.Err = errors.New("negative output")
-			return
-		}
-	}
 	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
@@ -218,11 +192,6 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteArray(t.Cosigners)
 
 	bw.WriteVarBytes(t.Script)
-	// Inputs
-	bw.WriteArray(t.Inputs)
-
-	// Outputs
-	bw.WriteArray(t.Outputs)
 }
 
 // createHash creates the hash of the transaction.
@@ -238,16 +207,6 @@ func (t *Transaction) createHash() error {
 	t.hash = hash.Sha256(t.verificationHash.BytesBE())
 
 	return nil
-}
-
-// GroupOutputByAssetID groups all TX outputs by their assetID.
-func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
-	m := make(map[util.Uint256][]*Output)
-	for i := range t.Outputs {
-		hash := t.Outputs[i].AssetID
-		m[hash] = append(m[hash], &t.Outputs[i])
-	}
-	return m
 }
 
 // GetSignedPart returns a part of the transaction which must be signed.
@@ -301,8 +260,6 @@ type transactionJSON struct {
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`
 	Script          string       `json:"script"`
-	Inputs          []Input      `json:"vin"`
-	Outputs         []Output     `json:"vout"`
 	Scripts         []Witness    `json:"scripts"`
 }
 
@@ -318,8 +275,6 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Attributes:      t.Attributes,
 		Cosigners:       t.Cosigners,
 		Script:          hex.EncodeToString(t.Script),
-		Inputs:          t.Inputs,
-		Outputs:         t.Outputs,
 		Scripts:         t.Scripts,
 		SystemFee:       t.SystemFee,
 		NetworkFee:      t.NetworkFee,
@@ -338,8 +293,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.ValidUntilBlock = tx.ValidUntilBlock
 	t.Attributes = tx.Attributes
 	t.Cosigners = tx.Cosigners
-	t.Inputs = tx.Inputs
-	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts
 	t.SystemFee = tx.SystemFee
 	t.NetworkFee = tx.NetworkFee

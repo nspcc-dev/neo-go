@@ -36,11 +36,9 @@ type DAO interface {
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
-	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
 	HasTransaction(hash util.Uint256) bool
-	IsDoubleSpend(tx *transaction.Transaction) bool
 	Persist() (int, error)
 	PutAccountState(as *state.Account) error
 	PutAppExecResult(aer *state.AppExecResult) error
@@ -50,14 +48,12 @@ type DAO interface {
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
-	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block) error
 	StoreAsCurrentBlock(block *block.Block) error
 	StoreAsTransaction(tx *transaction.Transaction, index uint32) error
 	putAccountState(as *state.Account, buf *io.BufBinWriter) error
 	putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf *io.BufBinWriter) error
-	putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error
 }
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
@@ -274,31 +270,6 @@ func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.
 }
 
 // -- end transfer log.
-
-// -- start unspent coins.
-
-// GetUnspentCoinState retrieves UnspentCoinState from the given store.
-func (dao *Simple) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
-	unspent := &state.UnspentCoin{}
-	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
-	err := dao.GetAndDecode(unspent, key)
-	if err != nil {
-		return nil, err
-	}
-	return unspent, nil
-}
-
-// PutUnspentCoinState puts given UnspentCoinState into the given store.
-func (dao *Simple) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
-	return dao.putUnspentCoinState(hash, ucs, io.NewBufBinWriter())
-}
-
-func (dao *Simple) putUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin, buf *io.BufBinWriter) error {
-	key := storage.AppendPrefix(storage.STCoin, hash.BytesLE())
-	return dao.putWithBuffer(ucs, key, buf)
-}
-
-// -- end unspent coins.
 
 // -- start notification event.
 
@@ -565,30 +536,6 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32)
 		return buf.Err
 	}
 	return dao.Store.Put(key, buf.Bytes())
-}
-
-// IsDoubleSpend verifies that the input transactions are not double spent.
-func (dao *Simple) IsDoubleSpend(tx *transaction.Transaction) bool {
-	return dao.checkUsedInputs(tx.Inputs, state.CoinSpent)
-}
-
-func (dao *Simple) checkUsedInputs(inputs []transaction.Input, coin state.Coin) bool {
-	if len(inputs) == 0 {
-		return false
-	}
-	for _, inputs := range transaction.GroupInputsByPrevHash(inputs) {
-		prevHash := inputs[0].PrevHash
-		unspent, err := dao.GetUnspentCoinState(prevHash)
-		if err != nil {
-			return true
-		}
-		for _, input := range inputs {
-			if int(input.PrevIndex) >= len(unspent.States) || (unspent.States[input.PrevIndex].State&coin) != 0 {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent

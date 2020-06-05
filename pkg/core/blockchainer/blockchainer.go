@@ -44,8 +44,6 @@ type Blockchainer interface {
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetTestVM() *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	GetUnspentCoinState(util.Uint256) *state.UnspentCoin
-	References(t *transaction.Transaction) ([]transaction.InOut, error)
 	mempool.Feer // fee interface
 	PoolTx(*transaction.Transaction) error
 	SubscribeForBlocks(ch chan<- *block.Block)

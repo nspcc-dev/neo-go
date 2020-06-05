@@ -35,10 +35,6 @@ func (chain testChain) CalculateClaimable(int64, uint32, uint32) util.Fixed8 {
 	panic("TODO")
 }
 
-func (chain testChain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
-	panic("TODO")
-}
-
 func (chain testChain) FeePerByte() util.Fixed8 {
 	panic("TODO")
 }
@@ -123,10 +119,6 @@ func (chain testChain) HasTransaction(util.Uint256) bool {
 	return false
 }
 func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error) {
-	panic("TODO")
-}
-
-func (chain testChain) GetUnspentCoinState(util.Uint256) *state.UnspentCoin {
 	panic("TODO")
 }
 

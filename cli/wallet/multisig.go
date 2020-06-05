@@ -121,15 +121,4 @@ func writeParameterContext(c *context.ParameterContext, filename string) error {
 
 func printTxInfo(t *transaction.Transaction) {
 	fmt.Printf("Hash: %s\n", t.Hash().StringLE())
-	for i := range t.Inputs {
-		fmt.Printf("Input%02d: [%2d] %s\n", i, t.Inputs[i].PrevIndex, t.Inputs[i].PrevHash.StringLE())
-	}
-	for i := range t.Outputs {
-		fmt.Printf("Output%02d:\n", i)
-		fmt.Printf("\tAssetID   : %s\n", t.Outputs[i].AssetID.StringLE())
-		fmt.Printf("\tAmount    : %s\n", t.Outputs[i].Amount.String())
-		h := t.Outputs[i].ScriptHash
-		fmt.Printf("\tScriptHash: %s\n", t.Outputs[i].ScriptHash.StringLE())
-		fmt.Printf("\tToAddr    : %s\n", address.Uint160ToString(h))
-	}
 }

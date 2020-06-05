@@ -8,16 +8,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"sort"
 	"sync"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -196,35 +192,4 @@ func (c *Client) Ping() error {
 	}
 	_ = conn.Close()
 	return nil
-}
-
-// unspentsToInputs uses UnspentBalances to create a slice of inputs for a new
-// transcation containing the required amount of asset.
-func unspentsToInputs(utxos state.UnspentBalances, required util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
-	var (
-		num, i   uint16
-		selected = util.Fixed8(0)
-	)
-	sort.Sort(utxos)
-
-	for _, us := range utxos {
-		if selected >= required {
-			break
-		}
-		selected += us.Value
-		num++
-	}
-	if selected < required {
-		return nil, util.Fixed8(0), errors.New("cannot compose inputs for transaction; check sender balance")
-	}
-
-	inputs := make([]transaction.Input, 0, num)
-	for i = 0; i < num; i++ {
-		inputs = append(inputs, transaction.Input{
-			PrevHash:  utxos[i].Tx,
-			PrevIndex: utxos[i].Index,
-		})
-	}
-
-	return inputs, selected, nil
 }

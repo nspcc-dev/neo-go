@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -559,65 +558,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return err
 		}
 
-		if err := cache.PutUnspentCoinState(tx.Hash(), state.NewUnspentCoin(block.Index, tx)); err != nil {
-			return err
-		}
-
-		// Process TX outputs.
-		if err := processOutputs(tx, cache); err != nil {
-			return err
-		}
-
-		// Process TX inputs that are grouped by previous hash.
-		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
-			prevHash := inputs[0].PrevHash
-			unspent, err := cache.GetUnspentCoinState(prevHash)
-			if err != nil {
-				return err
-			}
-			for _, input := range inputs {
-				if len(unspent.States) <= int(input.PrevIndex) {
-					return fmt.Errorf("bad input: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
-				}
-				if unspent.States[input.PrevIndex].State&state.CoinSpent != 0 {
-					return fmt.Errorf("double spend: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
-				}
-				unspent.States[input.PrevIndex].State |= state.CoinSpent
-				unspent.States[input.PrevIndex].SpendHeight = block.Index
-				prevTXOutput := &unspent.States[input.PrevIndex].Output
-				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
-				if err != nil {
-					return err
-				}
-
-				balancesLen := len(account.Balances[prevTXOutput.AssetID])
-				if balancesLen <= 1 {
-					delete(account.Balances, prevTXOutput.AssetID)
-				} else {
-					var index = -1
-					for i, balance := range account.Balances[prevTXOutput.AssetID] {
-						if balance.Tx.Equals(input.PrevHash) && balance.Index == input.PrevIndex {
-							index = i
-							break
-						}
-					}
-					if index >= 0 {
-						last := balancesLen - 1
-						if last > index {
-							account.Balances[prevTXOutput.AssetID][index] = account.Balances[prevTXOutput.AssetID][last]
-						}
-						account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:last]
-					}
-				}
-				if err = cache.PutAccountState(account); err != nil {
-					return err
-				}
-			}
-			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
-				return err
-			}
-		}
-
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := SpawnVM(systemInterop)
 		v.LoadScript(tx.Script)
@@ -837,25 +777,6 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch
 }
 
-// processOutputs processes transaction outputs.
-func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
-	for index, output := range tx.Outputs {
-		account, err := dao.GetAccountStateOrNew(output.ScriptHash)
-		if err != nil {
-			return err
-		}
-		account.Balances[output.AssetID] = append(account.Balances[output.AssetID], state.UnspentBalance{
-			Tx:    tx.Hash(),
-			Index: uint16(index),
-			Value: output.Amount,
-		})
-		if err = dao.PutAccountState(account); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // persist flushes current in-memory Store contents to the persistent storage.
 func (bc *Blockchain) persist() error {
 	var (
@@ -1046,15 +967,6 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 	return as
 }
 
-// GetUnspentCoinState returns unspent coin state for given tx hash.
-func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *state.UnspentCoin {
-	ucs, err := bc.dao.GetUnspentCoinState(hash)
-	if ucs == nil && err != storage.ErrKeyNotFound {
-		bc.log.Warn("failed to get unspent coin state", zap.Error(err))
-	}
-	return ucs
-}
-
 // GetConfig returns the config stored in the blockchain.
 func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
 	return bc.config
@@ -1155,36 +1067,6 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 	return amount * util.Fixed8(value)
 }
 
-// References maps transaction's inputs into a slice of InOuts, effectively
-// joining each Input with the corresponding Output.
-// @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
-// transaction package because of a import cycle problem. Perhaps we should think to re-design
-// the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
-	return bc.references(t.Inputs)
-}
-
-// references is an internal implementation of References that operates directly
-// on a slice of Input.
-func (bc *Blockchain) references(ins []transaction.Input) ([]transaction.InOut, error) {
-	references := make([]transaction.InOut, 0, len(ins))
-
-	for _, inputs := range transaction.GroupInputsByPrevHash(ins) {
-		prevHash := inputs[0].PrevHash
-		unspent, err := bc.dao.GetUnspentCoinState(prevHash)
-		if err != nil {
-			return nil, errors.New("bad input reference")
-		}
-		for _, in := range inputs {
-			if int(in.PrevIndex) > len(unspent.States)-1 {
-				return nil, errors.New("bad input reference")
-			}
-			references = append(references, transaction.InOut{In: *in, Out: unspent.States[in.PrevIndex].Output})
-		}
-	}
-	return references, nil
-}
-
 // FeePerByte returns transaction network fee per byte.
 // TODO: should be implemented as part of PolicyContract
 func (bc *Blockchain) FeePerByte() util.Fixed8 {
@@ -1253,27 +1135,10 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if netFee < 0 {
 		return errors.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
 	}
-	if transaction.HaveDuplicateInputs(t.Inputs) {
-		return errors.New("invalid transaction's inputs")
-	}
 	if block == nil {
 		if ok := bc.memPool.Verify(t, bc); !ok {
 			return errors.New("invalid transaction due to conflicts with the memory pool")
 		}
-	}
-	if bc.dao.IsDoubleSpend(t) {
-		return errors.New("invalid transaction caused by double spending")
-	}
-	if err := bc.verifyOutputs(t); err != nil {
-		return errors.Wrap(err, "wrong outputs")
-	}
-	refs, err := bc.References(t)
-	if err != nil {
-		return err
-	}
-	results := refsAndOutsToResults(refs, t.Outputs)
-	if err := bc.verifyResults(t, results); err != nil {
-		return err
 	}
 
 	for _, a := range t.Attributes {
@@ -1296,9 +1161,6 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 	var recheckWitness bool
 
 	if bc.dao.HasTransaction(t.Hash()) {
-		return false
-	}
-	if bc.dao.IsDoubleSpend(t) {
 		return false
 	}
 	for i := range t.Scripts {
@@ -1357,88 +1219,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	return nil
 }
 
-func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
-	for assetID, outputs := range t.GroupOutputByAssetID() {
-		assetState := bc.GetAssetState(assetID)
-		if assetState == nil {
-			return fmt.Errorf("no asset state for %s", assetID.StringLE())
-		}
-
-		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
-			return fmt.Errorf("asset %s expired", assetID.StringLE())
-		}
-
-		for _, out := range outputs {
-			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
-				return fmt.Errorf("output is not compliant with %s asset precision", assetID.StringLE())
-			}
-		}
-	}
-
-	return nil
-}
-
-func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*transaction.Result) error {
-	var resultsDestroy []*transaction.Result
-	var resultsIssue []*transaction.Result
-	for _, re := range results {
-		if re.Amount.GreaterThan(util.Fixed8(0)) {
-			resultsDestroy = append(resultsDestroy, re)
-		}
-
-		if re.Amount.LessThan(util.Fixed8(0)) {
-			resultsIssue = append(resultsIssue, re)
-		}
-	}
-	if len(resultsDestroy) > 1 {
-		return errors.New("tx has more than 1 destroy output")
-	}
-
-	if len(resultsIssue) > 0 {
-		return errors.New("non issue/miner/claim tx issues tokens")
-	}
-
-	return nil
-}
-
-// GetTransactionResults returns the transaction results aggregate by assetID.
-// Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
-func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
-	references, err := bc.References(t)
-	if err != nil {
-		return nil
-	}
-	return refsAndOutsToResults(references, t.Outputs)
-}
-
-// mapReferencesToResults returns cumulative results of transaction based in its
-// references and outputs.
-func refsAndOutsToResults(references []transaction.InOut, outputs []transaction.Output) []*transaction.Result {
-	var results []*transaction.Result
-	tempResult := make(map[util.Uint256]util.Fixed8)
-
-	for _, inout := range references {
-		c := tempResult[inout.Out.AssetID]
-		tempResult[inout.Out.AssetID] = c.Add(inout.Out.Amount)
-	}
-	for _, output := range outputs {
-		c := tempResult[output.AssetID]
-		tempResult[output.AssetID] = c.Sub(output.Amount)
-	}
-
-	results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
-	for assetID, amount := range tempResult {
-		if amount != util.Fixed8(0) {
-			results = append(results, &transaction.Result{
-				AssetID: assetID,
-				Amount:  amount,
-			})
-		}
-	}
-
-	return results
-}
-
 //GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
 	return getValidators(bc.config)
@@ -1458,29 +1238,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	references, err := bc.References(t)
-	if err != nil {
-		return nil, err
-	}
 	hashes := make(map[util.Uint160]bool)
-	for i := range references {
-		hashes[references[i].Out.ScriptHash] = true
-	}
-
-	for a, outputs := range t.GroupOutputByAssetID() {
-		as := bc.GetAssetState(a)
-		if as == nil {
-			return nil, errors.New("Invalid operation")
-		}
-		if as.AssetType&transaction.DutyFlag != 0 {
-			for _, o := range outputs {
-				h := o.ScriptHash
-				if _, ok := hashes[h]; !ok {
-					hashes[h] = true
-				}
-			}
-		}
-	}
 	hashes[t.Sender] = true
 	for _, c := range t.Cosigners {
 		hashes[c.Account] = true
@@ -1567,7 +1325,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
-// Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file.
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {

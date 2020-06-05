@@ -94,25 +94,6 @@ func TestDeleteContractState(t *testing.T) {
 	require.Nil(t, gotContractState)
 }
 
-func TestGetUnspentCoinState_Err(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	hash := random.Uint256()
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.Error(t, err)
-	require.Nil(t, gotUnspentCoinState)
-}
-
-func TestPutGetUnspentCoinState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	hash := random.Uint256()
-	unspentCoinState := &state.UnspentCoin{Height: 42, States: []state.OutputState{}}
-	err := dao.PutUnspentCoinState(hash, unspentCoinState)
-	require.NoError(t, err)
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, unspentCoinState, gotUnspentCoinState)
-}
-
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()

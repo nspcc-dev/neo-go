@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -88,95 +87,6 @@ func txGetAttributes(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// txGetInputs returns current transaction inputs.
-func txGetInputs(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Inputs) > vm.MaxArraySize {
-		return errors.New("too many inputs")
-	}
-	inputs := make([]vm.StackItem, 0, len(tx.Inputs))
-	for i := range tx.Inputs {
-		inputs = append(inputs, vm.NewInteropItem(&tx.Inputs[i]))
-	}
-	v.Estack().PushVal(inputs)
-	return nil
-}
-
-// txGetOutputs returns current transaction outputs.
-func txGetOutputs(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Outputs) > vm.MaxArraySize {
-		return errors.New("too many outputs")
-	}
-	outputs := make([]vm.StackItem, 0, len(tx.Outputs))
-	for i := range tx.Outputs {
-		outputs = append(outputs, vm.NewInteropItem(&tx.Outputs[i]))
-	}
-	v.Estack().PushVal(outputs)
-	return nil
-}
-
-// txGetReferences returns current transaction references.
-func txGetReferences(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return fmt.Errorf("type mismatch: %T is not a Transaction", txInterface)
-	}
-	refs, err := ic.Chain.References(tx)
-	if err != nil {
-		return err
-	}
-	if len(refs) > vm.MaxArraySize {
-		return errors.New("too many references")
-	}
-
-	stackrefs := make([]vm.StackItem, 0, len(refs))
-	for i := range tx.Inputs {
-		for j := range refs {
-			if refs[j].In == tx.Inputs[i] {
-				stackrefs = append(stackrefs, vm.NewInteropItem(refs[j]))
-				break
-			}
-		}
-	}
-	v.Estack().PushVal(stackrefs)
-	return nil
-}
-
-// txGetUnspentCoins returns current transaction unspent coins.
-func txGetUnspentCoins(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	ucs, err := ic.DAO.GetUnspentCoinState(tx.Hash())
-	if err == storage.ErrKeyNotFound {
-		v.Estack().PushVal([]vm.StackItem{})
-		return nil
-	} else if err != nil {
-		return errors.New("no unspent coin state found")
-	}
-
-	items := make([]vm.StackItem, 0, len(ucs.States))
-	for i := range items {
-		if ucs.States[i].State&state.CoinSpent == 0 {
-			items = append(items, vm.NewInteropItem(&ucs.States[i].Output))
-		}
-	}
-	v.Estack().PushVal(items)
-	return nil
-}
-
 // txGetWitnesses returns current transaction witnesses.
 func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
@@ -206,84 +116,6 @@ func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	script := make([]byte, len(wit.VerificationScript))
 	copy(script, wit.VerificationScript)
 	v.Estack().PushVal(script)
-	return nil
-}
-
-// popInputFromVM returns transaction.Input from the first estack element.
-func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
-	inInterface := v.Estack().Pop().Value()
-	input, ok := inInterface.(*transaction.Input)
-	if !ok {
-		txio, ok := inInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Input or InOut", inInterface)
-		}
-		input = &txio.In
-	}
-	return input, nil
-}
-
-// inputGetHash returns hash from the given input.
-func inputGetHash(ic *interop.Context, v *vm.VM) error {
-	input, err := popInputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(input.PrevHash.BytesBE())
-	return nil
-}
-
-// inputGetIndex returns index from the given input.
-func inputGetIndex(ic *interop.Context, v *vm.VM) error {
-	input, err := popInputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(input.PrevIndex)
-	return nil
-}
-
-// popOutputFromVM returns transaction.Input from the first estack element.
-func popOutputFromVM(v *vm.VM) (*transaction.Output, error) {
-	outInterface := v.Estack().Pop().Value()
-	output, ok := outInterface.(*transaction.Output)
-	if !ok {
-		txio, ok := outInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Output or InOut", outInterface)
-		}
-		output = &txio.Out
-	}
-	return output, nil
-}
-
-// outputGetAssetId returns asset ID from the given output.
-func outputGetAssetID(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(output.AssetID.BytesBE())
-	return nil
-}
-
-// outputGetScriptHash returns scripthash from the given output.
-func outputGetScriptHash(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(output.ScriptHash.BytesBE())
-	return nil
-}
-
-// outputGetValue returns value (amount) from the given output.
-func outputGetValue(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(int64(output.Amount))
 	return nil
 }
 

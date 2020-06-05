@@ -65,13 +65,9 @@ var syscalls = map[string]map[string]string{
 		"GetTransaction":      "Neo.Block.GetTransaction",
 	},
 	"transaction": {
-		"GetAttributes":   "Neo.Transaction.GetAttributes",
-		"GetHash":         "Neo.Transaction.GetHash",
-		"GetInputs":       "Neo.Transaction.GetInputs",
-		"GetOutputs":      "Neo.Transaction.GetOutputs",
-		"GetReferences":   "Neo.Transaction.GetReferences",
-		"GetUnspentCoins": "Neo.Transaction.GetUnspentCoins",
-		"GetWitnesses":    "Neo.Transaction.GetWitnesses",
+		"GetAttributes": "Neo.Transaction.GetAttributes",
+		"GetHash":       "Neo.Transaction.GetHash",
+		"GetWitnesses":  "Neo.Transaction.GetWitnesses",
 	},
 	"asset": {
 		"Create":       "Neo.Asset.Create",
@@ -92,15 +88,6 @@ var syscalls = map[string]map[string]string{
 		"Destroy":           "Neo.Contract.Destroy",
 		"Migrate":           "Neo.Contract.Migrate",
 		"GetStorageContext": "Neo.Contract.GetStorageContext",
-	},
-	"input": {
-		"GetHash":  "Neo.Input.GetHash",
-		"GetIndex": "Neo.Input.GetIndex",
-	},
-	"output": {
-		"GetAssetID":    "Neo.Output.GetAssetID",
-		"GetValue":      "Neo.Output.GetValue",
-		"GetScriptHash": "Neo.Output.GetScriptHash",
 	},
 	"engine": {
 		"GetScriptContainer":     "System.ExecutionEngine.GetScriptContainer",

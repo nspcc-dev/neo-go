@@ -88,18 +88,8 @@ func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 		Version:    0,
 		Script:     []byte{1, 2, 3, 4},
 		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
+		Scripts:    []Witness{},
+		Trimmed:    false,
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
