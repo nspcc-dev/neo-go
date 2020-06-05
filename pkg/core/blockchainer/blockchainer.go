@@ -14,7 +14,7 @@ import (
 // Blockchainer is an interface that abstract the implementation
 // of the blockchain.
 type Blockchainer interface {
-	ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithFee
+	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	GetConfig() config.ProtocolConfiguration
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error

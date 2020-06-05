@@ -33,12 +33,6 @@ type item struct {
 // items is a slice of item.
 type items []*item
 
-// TxWithFee combines transaction and its precalculated network fee.
-type TxWithFee struct {
-	Tx  *transaction.Transaction
-	Fee util.Fixed8
-}
-
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
@@ -260,26 +254,25 @@ func NewMemPool(capacity int) Pool {
 }
 
 // TryGetValue returns a transaction and its fee if it exists in the memory pool.
-func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, util.Fixed8, bool) {
+func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if pItem, ok := mp.verifiedMap[hash]; ok {
-		return pItem.txn, pItem.txn.NetworkFee, ok
+		return pItem.txn, ok
 	}
 
-	return nil, 0, false
+	return nil, false
 }
 
 // GetVerifiedTransactions returns a slice of transactions with their fees.
-func (mp *Pool) GetVerifiedTransactions() []TxWithFee {
+func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	var t = make([]TxWithFee, len(mp.verifiedTxes))
+	var t = make([]*transaction.Transaction, len(mp.verifiedTxes))
 
 	for i := range mp.verifiedTxes {
-		t[i].Tx = mp.verifiedTxes[i].txn
-		t[i].Fee = mp.verifiedTxes[i].txn.NetworkFee
+		t[i] = mp.verifiedTxes[i].txn
 	}
 
 	return t

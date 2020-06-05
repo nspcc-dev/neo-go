@@ -25,7 +25,7 @@ type testChain struct {
 	blockheight uint32
 }
 
-func (chain testChain) ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithFee {
+func (chain testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
 	panic("TODO")
 }
 func (chain testChain) GetConfig() config.ProtocolConfiguration {

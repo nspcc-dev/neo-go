@@ -32,16 +32,16 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := NewMemPool(10)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
-	_, _, ok := mp.TryGetValue(tx.Hash())
+	_, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	require.NoError(t, mp.Add(tx, fs))
 	// Re-adding should fail.
 	require.Error(t, mp.Add(tx, fs))
-	tx2, _, ok := mp.TryGetValue(tx.Hash())
+	tx2, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, true, ok)
 	require.Equal(t, tx, tx2)
 	mp.Remove(tx.Hash())
-	_, _, ok = mp.TryGetValue(tx.Hash())
+	_, ok = mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
 	assert.Equal(t, 0, len(mp.verifiedMap))
@@ -142,9 +142,7 @@ func TestGetVerified(t *testing.T) {
 	require.Equal(t, mempoolSize, mp.Count())
 	verTxes := mp.GetVerifiedTransactions()
 	require.Equal(t, mempoolSize, len(verTxes))
-	for _, txf := range verTxes {
-		require.Contains(t, txes, txf.Tx)
-	}
+	require.ElementsMatch(t, txes, verTxes)
 	for _, tx := range txes {
 		mp.Remove(tx.Hash())
 	}
@@ -181,8 +179,8 @@ func TestRemoveStale(t *testing.T) {
 	require.Equal(t, mempoolSize/2, mp.Count())
 	verTxes := mp.GetVerifiedTransactions()
 	for _, txf := range verTxes {
-		require.NotContains(t, txes1, txf.Tx)
-		require.Contains(t, txes2, txf.Tx)
+		require.NotContains(t, txes1, txf)
+		require.Contains(t, txes2, txf)
 	}
 }
 

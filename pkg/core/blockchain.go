@@ -825,7 +825,7 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	if tx, _, ok := bc.memPool.TryGetValue(hash); ok {
+	if tx, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
 	return bc.dao.GetTransaction(hash)
@@ -1075,14 +1075,14 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
-func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxWithFee {
+func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
 	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
 		txes = txes[:bc.config.MaxTransactionsPerBlock]
 	}
 	maxFree := bc.config.MaxFreeTransactionsPerBlock
 	if maxFree != 0 {
 		lowStart := sort.Search(len(txes), func(i int) bool {
-			return bc.IsLowPriority(txes[i].Fee)
+			return bc.IsLowPriority(txes[i].NetworkFee)
 		})
 		if lowStart+maxFree < len(txes) {
 			txes = txes[:lowStart+maxFree]

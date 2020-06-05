@@ -943,7 +943,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		// `expected` stores hashes of previously added txs
 		expected := make([]util.Uint256, 0)
 		for _, tx := range mp.GetVerifiedTransactions() {
-			expected = append(expected, tx.Tx.Hash())
+			expected = append(expected, tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)

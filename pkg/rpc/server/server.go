@@ -461,7 +461,7 @@ func (s *Server) getRawMempool(_ request.Params) (interface{}, *response.Error) 
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
-		hashList = append(hashList, item.Tx.Hash())
+		hashList = append(hashList, item.Hash())
 	}
 	return hashList, nil
 }
