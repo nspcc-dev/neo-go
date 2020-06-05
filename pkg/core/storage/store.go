@@ -10,7 +10,6 @@ const (
 	DataBlock        KeyPrefix = 0x01
 	DataTransaction  KeyPrefix = 0x02
 	STAccount        KeyPrefix = 0x40
-	STValidator      KeyPrefix = 0x48
 	STAsset          KeyPrefix = 0x4c
 	STNotification   KeyPrefix = 0x4d
 	STContract       KeyPrefix = 0x50
