@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"math/rand"
@@ -259,7 +258,7 @@ type transactionJSON struct {
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`
-	Script          string       `json:"script"`
+	Script          []byte       `json:"script"`
 	Scripts         []Witness    `json:"scripts"`
 }
 
@@ -274,7 +273,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		ValidUntilBlock: t.ValidUntilBlock,
 		Attributes:      t.Attributes,
 		Cosigners:       t.Cosigners,
-		Script:          hex.EncodeToString(t.Script),
+		Script:          t.Script,
 		Scripts:         t.Scripts,
 		SystemFee:       t.SystemFee,
 		NetworkFee:      t.NetworkFee,
@@ -301,10 +300,7 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 		return errors.New("cannot unmarshal tx: bad sender")
 	}
 	t.Sender = sender
-	t.Script, err = hex.DecodeString(tx.Script)
-	if err != nil {
-		return err
-	}
+	t.Script = tx.Script
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")
 	}
