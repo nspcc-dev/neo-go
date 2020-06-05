@@ -19,7 +19,6 @@ ProtocolConfiguration:
   - seed4t.neo.org:20333
   - seed5t.neo.org:20333
   SystemFee:
-    IssueTransaction: 5
     RegisterTransaction: 100
   VerifyBlocks: true
   VerifyTransactions: false

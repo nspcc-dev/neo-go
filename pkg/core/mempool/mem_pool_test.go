@@ -129,29 +129,6 @@ func TestMemPoolVerifyInputs(t *testing.T) {
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 }
 
-func TestMemPoolVerifyIssue(t *testing.T) {
-	mp := NewMemPool(50)
-	tx1 := newIssueTX()
-	require.Equal(t, true, mp.Verify(tx1, &FeerStub{}))
-	require.NoError(t, mp.Add(tx1, &FeerStub{}))
-
-	tx2 := newIssueTX()
-	require.Equal(t, false, mp.Verify(tx2, &FeerStub{}))
-	require.Error(t, mp.Add(tx2, &FeerStub{}))
-}
-
-func newIssueTX() *transaction.Transaction {
-	tx := transaction.NewIssueTX()
-	tx.Outputs = []transaction.Output{
-		{
-			AssetID:    random.Uint256(),
-			Amount:     util.Fixed8FromInt64(42),
-			ScriptHash: random.Uint160(),
-		},
-	}
-	return tx
-}
-
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{lowPriority: true}
 	const mempoolSize = 10

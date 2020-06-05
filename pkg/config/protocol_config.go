@@ -47,7 +47,6 @@ type (
 
 	// SystemFee fees related to system.
 	SystemFee struct {
-		IssueTransaction    int64 `yaml:"IssueTransaction"`
 		RegisterTransaction int64 `yaml:"RegisterTransaction"`
 	}
 
@@ -74,8 +73,6 @@ func (n NetMode) String() string {
 // TryGetValue returns the system fee base on transaction type.
 func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
 	switch txType {
-	case transaction.IssueType:
-		return util.Fixed8FromInt64(s.IssueTransaction)
 	case transaction.RegisterType:
 		return util.Fixed8FromInt64(s.RegisterTransaction)
 	default:

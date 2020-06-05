@@ -643,19 +643,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return err
 			}
-		case *transaction.IssueTX:
-			for _, res := range bc.GetTransactionResults(tx) {
-				if res.Amount < 0 {
-					asset, err := cache.GetAssetState(res.AssetID)
-					if asset == nil || err != nil {
-						return fmt.Errorf("issue failed: no asset %s or error %s", res.AssetID, err)
-					}
-					asset.Available -= res.Amount
-					if err := cache.PutAssetState(asset); err != nil {
-						return err
-					}
-				}
-			}
 		case *transaction.InvocationTX:
 			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 			v := SpawnVM(systemInterop)
@@ -1437,26 +1424,8 @@ func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*trans
 		return errors.New("tx destroys non-utility token")
 	}
 
-	switch t.Type {
-	case transaction.IssueType:
-		for _, r := range resultsIssue {
-			if r.AssetID == UtilityTokenID() {
-				return errors.New("issue tx issues utility tokens")
-			}
-			asset, err := bc.dao.GetAssetState(r.AssetID)
-			if asset == nil || err != nil {
-				return errors.New("invalid asset in issue tx")
-			}
-			if asset.Available < r.Amount {
-				return errors.New("trying to issue more than available")
-			}
-		}
-		break
-	default:
-		if len(resultsIssue) > 0 {
-			return errors.New("non issue/miner/claim tx issues tokens")
-		}
-		break
+	if len(resultsIssue) > 0 {
+		return errors.New("non issue/miner/claim tx issues tokens")
 	}
 
 	return nil
@@ -1547,16 +1516,6 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 		hashes[c.Account] = true
 	}
 	switch t.Type {
-	case transaction.IssueType:
-		for _, res := range refsAndOutsToResults(references, t.Outputs) {
-			if res.Amount < 0 {
-				asset, err := bc.dao.GetAssetState(res.AssetID)
-				if asset == nil || err != nil {
-					return nil, errors.New("invalid asset in issue tx")
-				}
-				hashes[asset.Issuer] = true
-			}
-		}
 	case transaction.RegisterType:
 		reg := t.Data.(*transaction.RegisterTX)
 		hashes[reg.Owner.GetScriptHash()] = true

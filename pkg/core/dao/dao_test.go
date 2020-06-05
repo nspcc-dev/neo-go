@@ -220,7 +220,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 
 func TestStoreAsTransaction(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
-	tx := transaction.NewIssueTX()
+	tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 1)
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0)
 	require.NoError(t, err)

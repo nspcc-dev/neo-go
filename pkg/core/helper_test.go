@@ -138,7 +138,7 @@ func newDumbBlock() *block.Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			{Type: transaction.IssueType},
+			transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }

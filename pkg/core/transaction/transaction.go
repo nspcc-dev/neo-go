@@ -179,9 +179,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case RegisterType:
 		t.Data = &RegisterTX{}
 		t.Data.(*RegisterTX).DecodeBinary(r)
-	case IssueType:
-		t.Data = &IssueTX{}
-		t.Data.(*IssueTX).DecodeBinary(r)
 	default:
 		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
@@ -387,8 +384,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 			Owner:     tx.Asset.Owner,
 			Admin:     admin,
 		}
-	case IssueType:
-		t.Data = &IssueTX{}
 	}
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")

@@ -353,17 +353,6 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
 	if !mp.checkBalanceAndUpdate(tx, fee) {
 		return false
 	}
-	switch tx.Type {
-	case transaction.IssueType:
-		// It's a hack, because technically we could check for
-		// available asset amount, but these transactions are so rare
-		// that no one really cares about this restriction.
-		for i := range mp.verifiedTxes {
-			if mp.verifiedTxes[i].txn.Type == transaction.IssueType {
-				return false
-			}
-		}
-	}
 	return true
 }
 

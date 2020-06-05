@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +85,7 @@ func newDumbBlock() *Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.NewIssueTX(),
+			transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
