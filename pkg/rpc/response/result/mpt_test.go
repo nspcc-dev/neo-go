@@ -55,3 +55,14 @@ func TestProofWithKey_EncodeString(t *testing.T) {
 	require.NoError(t, actual.FromString(expected.String()))
 	require.Equal(t, expected, &actual)
 }
+
+func TestVerifyProof_MarshalJSON(t *testing.T) {
+	t.Run("Good", func(t *testing.T) {
+		vp := &VerifyProof{random.Bytes(100)}
+		testserdes.MarshalUnmarshalJSON(t, vp, new(VerifyProof))
+	})
+	t.Run("NoValue", func(t *testing.T) {
+		vp := new(VerifyProof)
+		testserdes.MarshalUnmarshalJSON(t, vp, &VerifyProof{[]byte{1, 2, 3}})
+	})
+}
