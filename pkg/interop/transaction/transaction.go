@@ -26,7 +26,6 @@ func GetHash(t Transaction) []byte {
 //     IssueTransaction      = 0x01
 //     EnrollmentTransaction = 0x20
 //     RegisterTransaction   = 0x40
-//     ContractTransaction   = 0x80
 //     StateType             = 0x90
 //     AgencyTransaction     = 0xb0
 //     PublishTransaction    = 0xd0

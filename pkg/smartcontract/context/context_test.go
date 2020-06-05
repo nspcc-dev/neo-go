@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -164,7 +165,7 @@ func newParam(typ smartcontract.ParamType, name string) wallet.ContractParam {
 }
 
 func getContractTx() *transaction.Transaction {
-	tx := transaction.NewContractTX()
+	tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
 	tx.AddInput(&transaction.Input{
 		PrevHash:  util.Uint256{1, 2, 3, 4},
 		PrevIndex: 5,
@@ -174,7 +175,6 @@ func getContractTx() *transaction.Transaction {
 		Amount:     10,
 		ScriptHash: util.Uint160{11, 12},
 	})
-	tx.Data = new(transaction.ContractTX)
 	tx.Attributes = make([]transaction.Attribute, 0)
 	tx.Scripts = make([]transaction.Witness, 0)
 	tx.Hash()

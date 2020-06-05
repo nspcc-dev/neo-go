@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -820,7 +821,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		newTx := func() *transaction.Transaction {
 			height := chain.BlockHeight()
-			tx := transaction.NewContractTX()
+			tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
 			tx.Nonce = height + 1
 			tx.ValidUntilBlock = height + 10
 			tx.Sender = acc0.PrivateKey().GetScriptHash()
@@ -940,7 +941,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			expected = append(expected, tx.Tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := transaction.NewContractTX()
+			tx := transaction.NewInvocationTX([]byte{byte(opcode.PUSH1)}, 0)
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
 		}

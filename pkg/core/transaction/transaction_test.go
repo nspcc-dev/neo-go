@@ -79,22 +79,6 @@ func TestEncodingTXWithNoData(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
-	tx := NewContractTX()
-	tx.Outputs = []Output{{
-		AssetID:    util.Uint256{1, 2, 3, 4},
-		Amount:     567,
-		ScriptHash: util.Uint160{7, 8, 9, 10},
-		Position:   13,
-	}}
-	tx.Scripts = []Witness{{
-		InvocationScript:   []byte{5, 3, 1},
-		VerificationScript: []byte{2, 4, 6},
-	}}
-	tx.Data = &ContractTX{}
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 	tx := &Transaction{
 		Type:    InvocationType,

@@ -176,9 +176,6 @@ func (t *Transaction) decodeData(r *io.BinReader) {
 	case InvocationType:
 		t.Data = &InvocationTX{}
 		t.Data.(*InvocationTX).DecodeBinary(r)
-	case ContractType:
-		t.Data = &ContractTX{}
-		t.Data.(*ContractTX).DecodeBinary(r)
 	case RegisterType:
 		t.Data = &RegisterTX{}
 		t.Data.(*RegisterTX).DecodeBinary(r)
@@ -199,8 +196,7 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
-	noData := t.Type == ContractType
-	if t.Data == nil && !noData {
+	if t.Data == nil {
 		bw.Err = errors.New("transaction has no data")
 		return
 	}
@@ -213,9 +209,7 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Underlying TXer.
-	if !noData {
-		t.Data.EncodeBinary(bw)
-	}
+	t.Data.EncodeBinary(bw)
 
 	// Attributes
 	bw.WriteArray(t.Attributes)
@@ -393,8 +387,6 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 			Owner:     tx.Asset.Owner,
 			Admin:     admin,
 		}
-	case ContractType:
-		t.Data = &ContractTX{}
 	case IssueType:
 		t.Data = &IssueTX{}
 	}

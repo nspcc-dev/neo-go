@@ -13,7 +13,6 @@ type TXType uint8
 const (
 	IssueType      TXType = 0x01
 	RegisterType   TXType = 0x40
-	ContractType   TXType = 0x80
 	InvocationType TXType = 0xd1
 )
 
@@ -24,8 +23,6 @@ func (t TXType) String() string {
 		return "IssueTransaction"
 	case RegisterType:
 		return "RegisterTransaction"
-	case ContractType:
-		return "ContractTransaction"
 	case InvocationType:
 		return "InvocationTransaction"
 	default:
@@ -56,8 +53,6 @@ func TXTypeFromString(jsonString string) (TXType, error) {
 		return IssueType, nil
 	case "RegisterTransaction":
 		return RegisterType, nil
-	case "ContractTransaction":
-		return ContractType, nil
 	case "InvocationTransaction":
 		return InvocationType, nil
 	default:
