@@ -382,29 +382,37 @@ func (s *Server) getConnectionCount(_ request.Params) (interface{}, *response.Er
 	return s.coreServer.PeerCount(), nil
 }
 
-func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+func (s *Server) blockHashFromParam(param *request.Param) (util.Uint256, *response.Error) {
 	var hash util.Uint256
-
-	param, ok := reqParams.Value(0)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
 
 	switch param.Type {
 	case request.StringT:
 		var err error
 		hash, err = param.GetUint256()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 	case request.NumberT:
 		num, err := s.blockHeightFromParam(param)
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 		hash = s.chain.GetHeaderHash(num)
 	default:
+		return hash, response.ErrInvalidParams
+	}
+	return hash, nil
+}
+
+func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+	param, ok := reqParams.Value(0)
+	if !ok {
 		return nil, response.ErrInvalidParams
+	}
+
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	block, err := s.chain.GetBlock(hash)
@@ -771,13 +779,14 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *response.Error) {
 	var verbose bool
 
-	param, ok := reqParams.ValueWithType(0, request.StringT)
+	param, ok := reqParams.Value(0)
 	if !ok {
 		return nil, response.ErrInvalidParams
 	}
-	hash, err := param.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	param, ok = reqParams.ValueWithType(1, request.NumberT)

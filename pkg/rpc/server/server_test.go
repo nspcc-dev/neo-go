@@ -910,6 +910,10 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			t.Run("verbose=0", func(t *testing.T) {
 				runCase(t, fmt.Sprintf(rpc, `["`+testHeaderHash+`", 0]`), &encoded, new(string))
 			})
+
+			t.Run("by number", func(t *testing.T) {
+				runCase(t, fmt.Sprintf(rpc, `[1]`), &encoded, new(string))
+			})
 		})
 
 		t.Run("verbose != 0", func(t *testing.T) {
