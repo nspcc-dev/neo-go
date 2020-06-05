@@ -77,12 +77,6 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 
 	var numtoread int
 	switch instr {
-	case opcode.OLDPUSH1:
-		// OLDPUSH1 is used during transition to NEO3 in verification scripts.
-		// FIXME remove #927
-		if len(c.prog) == 1 {
-			return opcode.PUSH1, nil, nil
-		}
 	case opcode.PUSHDATA1:
 		if c.nextip >= len(c.prog) {
 			err = errNoInstParam

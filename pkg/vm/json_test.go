@@ -135,12 +135,8 @@ func testFile(t *testing.T, filename string) {
 	require.NoErrorf(t, json.Unmarshal(data, ut), "file: %s", filename)
 
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
-		isRot := strings.HasSuffix(filename, "ROT.json")
 		for i := range ut.Tests {
 			test := ut.Tests[i]
-			if isRot && test.Name == "Without push" {
-				return // FIXME #927 single ROT is interpreted as PUSH1
-			}
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)

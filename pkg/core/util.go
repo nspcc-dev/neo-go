@@ -51,7 +51,7 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		NextConsensus: nextConsensus,
 		Script: transaction.Witness{
 			InvocationScript:   []byte{},
-			VerificationScript: []byte{byte(opcode.OLDPUSH1)},
+			VerificationScript: []byte{byte(opcode.PUSH1)},
 		},
 	}
 
