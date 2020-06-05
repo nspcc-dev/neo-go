@@ -11,6 +11,10 @@ var syscalls = map[string]map[string]string{
 		"GetUsage": "Neo.Attribute.GetUsage",
 		"GetData":  "Neo.Attribute.GetData",
 	},
+	"crypto": {
+		"Secp256k1Recover": "Neo.Cryptography.Secp256k1Recover",
+		"Secp256r1Recover": "Neo.Cryptography.Secp256r1Recover",
+	},
 	"enumerator": {
 		"Concat": "Neo.Enumerator.Concat",
 		"Create": "Neo.Enumerator.Create",
