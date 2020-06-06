@@ -160,6 +160,9 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		txes[i] = tx
 	}
 	b.Transactions = txes
+	if br.Err != nil {
+		return
+	}
 	br.Err = b.Verify()
 }
 
@@ -227,5 +230,8 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	b.Base = *base
 	b.Transactions = auxb.Transactions
 	b.ConsensusData = auxb.ConsensusData
+	// Some tests rely on hash presence and we're usually precomputing
+	// other hashes upon deserialization.
+	_ = b.ConsensusData.Hash()
 	return nil
 }

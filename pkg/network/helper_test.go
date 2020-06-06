@@ -25,17 +25,13 @@ type testChain struct {
 	blockheight uint32
 }
 
-func (chain testChain) ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithFee {
+func (chain testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
 	panic("TODO")
 }
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
-func (chain testChain) CalculateClaimable(util.Fixed8, uint32, uint32) (util.Fixed8, util.Fixed8, error) {
-	panic("TODO")
-}
-
-func (chain testChain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
+func (chain testChain) CalculateClaimable(int64, uint32, uint32) util.Fixed8 {
 	panic("TODO")
 }
 
@@ -77,9 +73,6 @@ func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	panic("TODO")
 }
 
-func (chain testChain) GetAssetState(util.Uint256) *state.Asset {
-	panic("TODO")
-}
 func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 	panic("TODO")
 }
@@ -126,15 +119,15 @@ func (chain testChain) GetTransaction(util.Uint256) (*transaction.Transaction, u
 	panic("TODO")
 }
 
-func (chain testChain) GetUnspentCoinState(util.Uint256) *state.UnspentCoin {
-	panic("TODO")
-}
-
 func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
 func (chain testChain) IsLowPriority(util.Fixed8) bool {
+	panic("TODO")
+}
+
+func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
 	panic("TODO")
 }
 

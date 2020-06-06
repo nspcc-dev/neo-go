@@ -26,12 +26,6 @@ type Raw struct {
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
-// GetTxOut represents result of `gettxout` RPC call.
-type GetTxOut struct {
-	HeaderAndError
-	Result *result.TransactionOutput
-}
-
 // GetRawTx represents verbose output of `getrawtransaction` RPC call.
 type GetRawTx struct {
 	HeaderAndError

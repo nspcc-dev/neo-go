@@ -10,9 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // GAS represents GAS native contract.
@@ -39,11 +37,6 @@ func NewGAS() *GAS {
 	nep5.incBalance = g.increaseBalance
 
 	g.nep5TokenNative = *nep5
-
-	desc := newDescriptor("getSysFeeAmount", smartcontract.IntegerType,
-		manifest.NewParameter("index", smartcontract.IntegerType))
-	md := newMethodAndPrice(g.getSysFeeAmount, 1, smartcontract.NoneFlag)
-	g.AddMethod(md, desc, true)
 
 	return g
 }
@@ -96,16 +89,6 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	}
 	g.mint(ic, primary, big.NewInt(int64(netFee)))
 	return nil
-}
-
-func (g *GAS) getSysFeeAmount(ic *interop.Context, args []vm.StackItem) vm.StackItem {
-	index := toBigInt(args[0])
-	h := ic.Chain.GetHeaderHash(int(index.Int64()))
-	_, sf, err := ic.DAO.GetBlock(h)
-	if err != nil {
-		panic(err)
-	}
-	return vm.NewBigIntegerItem(big.NewInt(int64(sf)))
 }
 
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, []*keys.PublicKey, error) {

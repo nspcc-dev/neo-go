@@ -14,24 +14,24 @@ import (
 // Blockchainer is an interface that abstract the implementation
 // of the blockchain.
 type Blockchainer interface {
-	ApplyPolicyToTxSet([]mempool.TxWithFee) []mempool.TxWithFee
+	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	GetConfig() config.ProtocolConfiguration
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
 	BlockHeight() uint32
-	CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error)
+	CalculateClaimable(value int64, startHeight, endHeight uint32) util.Fixed8
 	Close()
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetEnrollments() ([]state.Validator, error)
+	GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32)
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256
 	CurrentBlockHash() util.Uint256
 	HasBlock(util.Uint256) bool
 	HasTransaction(util.Uint256) bool
-	GetAssetState(util.Uint256) *state.Asset
 	GetAccountState(util.Uint160) *state.Account
 	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
 	GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog
@@ -43,8 +43,6 @@ type Blockchainer interface {
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetTestVM() *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	GetUnspentCoinState(util.Uint256) *state.UnspentCoin
-	References(t *transaction.Transaction) ([]transaction.InOut, error)
 	mempool.Feer // fee interface
 	PoolTx(*transaction.Transaction) error
 	SubscribeForBlocks(ch chan<- *block.Block)

@@ -85,7 +85,7 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 	case MapType:
 		ppair := p.Value.([]ParameterPair)
 		resultRawValue, resultErr = json.Marshal(ppair)
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 		resultRawValue = []byte("null")
 	default:
 		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
@@ -168,7 +168,7 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 			return
 		}
 		p.Value = h
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 		// stub, ignore value, it can only be null
 		p.Value = nil
 	default:

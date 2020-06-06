@@ -102,7 +102,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	tx := transaction.NewContractTX()
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	assert.Nil(t, addSender(tx))
 	assert.Nil(t, signTx(bc, tx))
@@ -194,31 +194,23 @@ func TestGetClaimable(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("first generation period", func(t *testing.T) {
-		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 2)
-		require.NoError(t, err)
+		amount := bc.CalculateClaimable(1, 0, 2)
 		require.EqualValues(t, 8, amount)
-		require.EqualValues(t, 0, sysfee)
 	})
 
 	t.Run("a number of full periods", func(t *testing.T) {
-		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 0, 6)
-		require.NoError(t, err)
+		amount := bc.CalculateClaimable(1, 0, 6)
 		require.EqualValues(t, 4+4+3+3+2+2, amount)
-		require.EqualValues(t, 0, sysfee)
 	})
 
 	t.Run("start from the 2-nd block", func(t *testing.T) {
-		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 7)
-		require.NoError(t, err)
+		amount := bc.CalculateClaimable(1, 1, 7)
 		require.EqualValues(t, 4+3+3+2+2+1, amount)
-		require.EqualValues(t, 0, sysfee)
 	})
 
 	t.Run("end height after generation has ended", func(t *testing.T) {
-		amount, sysfee, err := bc.CalculateClaimable(util.Fixed8FromInt64(1), 1, 10)
-		require.NoError(t, err)
+		amount := bc.CalculateClaimable(1, 1, 10)
 		require.EqualValues(t, 4+3+3+2+2+1+1, amount)
-		require.EqualValues(t, 0, sysfee)
 	})
 }
 
@@ -275,7 +267,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Bytes(script.BinWriter, []byte("yay!"))
 	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
 	require.NoError(t, script.Err)
-	txGood1 := transaction.NewInvocationTX(script.Bytes(), 0)
+	txGood1 := transaction.New(script.Bytes(), 0)
 	txGood1.Sender = neoOwner
 	txGood1.Nonce = 1
 	txGood1.ValidUntilBlock = 100500
@@ -287,7 +279,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
 	emit.Opcode(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
-	txBad := transaction.NewInvocationTX(script.Bytes(), 0)
+	txBad := transaction.New(script.Bytes(), 0)
 	txBad.Sender = neoOwner
 	txBad.Nonce = 2
 	txBad.ValidUntilBlock = 100500
@@ -297,7 +289,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
 	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
 	require.NoError(t, script.Err)
-	txGood2 := transaction.NewInvocationTX(script.Bytes(), 0)
+	txGood2 := transaction.New(script.Bytes(), 0)
 	txGood2.Sender = neoOwner
 	txGood2.Nonce = 3
 	txGood2.ValidUntilBlock = 100500
@@ -319,14 +311,11 @@ func TestSubscriptions(t *testing.T) {
 	for _, txExpected := range invBlock.Transactions {
 		tx := <-txCh
 		require.Equal(t, txExpected, tx)
-		if txExpected.Type == transaction.InvocationType {
-			exec := <-executionCh
-			require.Equal(t, tx.Hash(), exec.TxHash)
-			if exec.VMState == "HALT" {
-				notif := <-notificationCh
-				inv := tx.Data.(*transaction.InvocationTX)
-				require.Equal(t, hash.Hash160(inv.Script), notif.ScriptHash)
-			}
+		exec := <-executionCh
+		require.Equal(t, tx.Hash(), exec.TxHash)
+		if exec.VMState == "HALT" {
+			notif := <-notificationCh
+			require.Equal(t, hash.Hash160(tx.Script), notif.ScriptHash)
 		}
 	}
 	assert.Empty(t, txCh)

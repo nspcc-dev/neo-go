@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -36,31 +35,6 @@ func TestWitnessEncodeDecode(t *testing.T) {
 
 // TODO NEO3.0: update binary
 /*
-func TestDecodeEncodeClaimTX(t *testing.T) {
-	tx := decodeTransaction(rawClaimTX, t)
-	assert.Equal(t, tx.Type, ClaimType)
-	assert.IsType(t, tx.Data, &ClaimTX{})
-	claimTX := tx.Data.(*ClaimTX)
-	assert.Equal(t, 4, len(claimTX.Claims))
-	assert.Equal(t, 0, len(tx.Attributes))
-	assert.Equal(t, 0, len(tx.Inputs))
-	assert.Equal(t, 1, len(tx.Outputs))
-	assert.Equal(t, "AQJseD8iBmCD4sgfHRhMahmoi9zvopG6yz", address.Uint160ToString(tx.Outputs[0].ScriptHash))
-	assert.Equal(t, "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7", tx.Outputs[0].AssetID.StringLE())
-	assert.Equal(t, tx.Outputs[0].Amount.String(), "0.06247739")
-	invoc := "40456349cec43053009accdb7781b0799c6b591c812768804ab0a0b56b5eae7a97694227fcd33e70899c075848b2cee8fae733faac6865b484d3f7df8949e2aadb"
-	verif := "2103945fae1ed3c31d778f149192b76734fcc951b400ba3598faa81ff92ebe477eacac"
-	assert.Equal(t, 1, len(tx.Scripts))
-	assert.Equal(t, invoc, hex.EncodeToString(tx.Scripts[0].InvocationScript))
-	assert.Equal(t, verif, hex.EncodeToString(tx.Scripts[0].VerificationScript))
-
-	data, err := testserdes.EncodeBinary(tx)
-	assert.NoError(t, err)
-	assert.Equal(t, rawClaimTX, hex.EncodeToString(data))
-
-	hash := "2c6a45547b3898318e400e541628990a07acb00f3b9a15a8e966ae49525304da"
-	assert.Equal(t, hash, tx.hash.StringLE())
-}
 
 func TestDecodeEncodeInvocationTX(t *testing.T) {
 	tx := decodeTransaction(rawInvocationTX, t)
@@ -87,119 +61,35 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 }
 */
 
-func TestNewInvocationTX(t *testing.T) {
+func TestNew(t *testing.T) {
 	script := []byte{0x51}
-	tx := NewInvocationTX(script, 1)
-	txData := tx.Data.(*InvocationTX)
-	assert.Equal(t, InvocationType, tx.Type)
-	assert.Equal(t, tx.Version, txData.Version)
-	assert.Equal(t, script, txData.Script)
+	tx := New(script, 1)
+	assert.Equal(t, util.Fixed8(1), tx.SystemFee)
+	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
 	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
 }
 
-func TestEncodingTXWithNoData(t *testing.T) {
+func TestEncodingTXWithNoScript(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
 	require.Error(t, err)
 }
 
-func TestMarshalUnmarshalJSONContractTX(t *testing.T) {
-	tx := NewContractTX()
-	tx.Outputs = []Output{{
-		AssetID:    util.Uint256{1, 2, 3, 4},
-		Amount:     567,
-		ScriptHash: util.Uint160{7, 8, 9, 10},
-		Position:   13,
-	}}
-	tx.Scripts = []Witness{{
-		InvocationScript:   []byte{5, 3, 1},
-		VerificationScript: []byte{2, 4, 6},
-	}}
-	tx.Data = &ContractTX{}
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
-func TestMarshalUnmarshalJSONClaimTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    ClaimType,
-		Version: 0,
-		Data: &ClaimTX{Claims: []Input{
-			{
-				PrevHash:  util.Uint256{1, 2, 3, 4},
-				PrevIndex: uint16(56),
-			},
-		}},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
+func TestDecodingTXWithNoScript(t *testing.T) {
+	txBin, err := hex.DecodeString("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+	err = testserdes.DecodeBinary(txBin, new(Transaction))
+	require.Error(t, err)
 }
 
 func TestMarshalUnmarshalJSONInvocationTX(t *testing.T) {
 	tx := &Transaction{
-		Type:    InvocationType,
-		Version: 3,
-		Data: &InvocationTX{
-			Script:  []byte{1, 2, 3, 4},
-			Gas:     util.Fixed8FromFloat(100),
-			Version: 3,
-		},
+		Version:    0,
+		Script:     []byte{1, 2, 3, 4},
 		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
-	}
-
-	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))
-}
-
-func TestMarshalUnmarshalJSONRegisterTX(t *testing.T) {
-	tx := &Transaction{
-		Type:    RegisterType,
-		Version: 5,
-		Data: &RegisterTX{
-			AssetType: 0,
-			Name:      `[{"lang":"zh-CN","name":"小蚁股"},{"lang":"en","name":"AntShare"}]`,
-			Amount:    1000000,
-			Precision: 0,
-			Owner:     keys.PublicKey{},
-			Admin:     util.Uint160{},
-		},
-		Attributes: []Attribute{},
-		Inputs: []Input{{
-			PrevHash:  util.Uint256{5, 6, 7, 8},
-			PrevIndex: uint16(12),
-		}},
-		Outputs: []Output{{
-			AssetID:    util.Uint256{1, 2, 3},
-			Amount:     util.Fixed8FromInt64(1),
-			ScriptHash: util.Uint160{1, 2, 3},
-			Position:   0,
-		}},
-		Scripts: []Witness{},
-		Trimmed: false,
+		Scripts:    []Witness{},
+		Trimmed:    false,
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, tx, new(Transaction))

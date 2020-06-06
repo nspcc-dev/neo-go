@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -59,17 +58,6 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 	require.Equal(t, accountState.ScriptHash, gotAccount.ScriptHash)
 }
 
-func TestPutAndGetAssetState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	id := random.Uint256()
-	assetState := &state.Asset{ID: id, Owner: keys.PublicKey{}}
-	err := dao.PutAssetState(assetState)
-	require.NoError(t, err)
-	gotAssetState, err := dao.GetAssetState(id)
-	require.NoError(t, err)
-	require.Equal(t, assetState, gotAssetState)
-}
-
 func TestPutAndGetContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
@@ -92,25 +80,6 @@ func TestDeleteContractState(t *testing.T) {
 	gotContractState, err := dao.GetContractState(hash)
 	require.Error(t, err)
 	require.Nil(t, gotContractState)
-}
-
-func TestGetUnspentCoinState_Err(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	hash := random.Uint256()
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.Error(t, err)
-	require.Nil(t, gotUnspentCoinState)
-}
-
-func TestPutGetUnspentCoinState(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore())
-	hash := random.Uint256()
-	unspentCoinState := &state.UnspentCoin{Height: 42, States: []state.OutputState{}}
-	err := dao.PutUnspentCoinState(hash, unspentCoinState)
-	require.NoError(t, err)
-	gotUnspentCoinState, err := dao.GetUnspentCoinState(hash)
-	require.NoError(t, err)
-	require.Equal(t, unspentCoinState, gotUnspentCoinState)
 }
 
 func TestPutGetAppExecResult(t *testing.T) {
@@ -155,7 +124,7 @@ func TestDeleteStorageItem(t *testing.T) {
 func TestGetBlock_NotExists(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
-	block, _, err := dao.GetBlock(hash)
+	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
 	require.Nil(t, block)
 }
@@ -171,12 +140,11 @@ func TestPutGetBlock(t *testing.T) {
 		},
 	}
 	hash := b.Hash()
-	err := dao.StoreAsBlock(b, 42)
+	err := dao.StoreAsBlock(b)
 	require.NoError(t, err)
-	gotBlock, sysfee, err := dao.GetBlock(hash)
+	gotBlock, err := dao.GetBlock(hash)
 	require.NoError(t, err)
 	require.NotNil(t, gotBlock)
-	require.EqualValues(t, 42, sysfee)
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
@@ -221,7 +189,7 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 
 func TestStoreAsTransaction(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
-	tx := transaction.NewIssueTX()
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
 	hash := tx.Hash()
 	err := dao.StoreAsTransaction(tx, 0)
 	require.NoError(t, err)

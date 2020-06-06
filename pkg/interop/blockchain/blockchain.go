@@ -5,7 +5,6 @@ package blockchain
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/account"
-	"github.com/nspcc-dev/neo-go/pkg/interop/asset"
 	"github.com/nspcc-dev/neo-go/pkg/interop/block"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/header"
@@ -72,12 +71,4 @@ func GetAccount(scriptHash []byte) account.Account {
 // `Neo.Blockchain.GetValidators` syscall.
 func GetValidators() [][]byte {
 	return nil
-}
-
-// GetAsset returns asset found by the given asset ID (256 bit in BE format
-// represented as a slice of 32 bytes). Refer to the `asset` package for
-// possible uses of returned structure. This function uses
-// `Neo.Blockchain.GetAsset` syscall.
-func GetAsset(assetID []byte) asset.Asset {
-	return asset.Asset{}
 }

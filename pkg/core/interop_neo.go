@@ -4,20 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	gherr "github.com/pkg/errors"
 )
 
 const (
@@ -29,15 +24,6 @@ const (
 	MaxContractParametersNum = 252
 	// MaxContractStringLen is the maximum length for contract metadata strings.
 	MaxContractStringLen = 252
-	// MaxAssetNameLen is the maximum length of asset name.
-	MaxAssetNameLen = 1024
-	// MaxAssetPrecision is the maximum precision of asset.
-	MaxAssetPrecision = 8
-	// BlocksPerYear is a multiplier for asset renewal.
-	BlocksPerYear = 2000000
-	// DefaultAssetLifetime is the default lifetime of an asset (which differs
-	// from assets created by register tx).
-	DefaultAssetLifetime = 1 + BlocksPerYear
 )
 
 // headerGetVersion returns version from the header.
@@ -88,106 +74,6 @@ func txGetAttributes(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// txGetInputs returns current transaction inputs.
-func txGetInputs(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Inputs) > vm.MaxArraySize {
-		return errors.New("too many inputs")
-	}
-	inputs := make([]vm.StackItem, 0, len(tx.Inputs))
-	for i := range tx.Inputs {
-		inputs = append(inputs, vm.NewInteropItem(&tx.Inputs[i]))
-	}
-	v.Estack().PushVal(inputs)
-	return nil
-}
-
-// txGetOutputs returns current transaction outputs.
-func txGetOutputs(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Outputs) > vm.MaxArraySize {
-		return errors.New("too many outputs")
-	}
-	outputs := make([]vm.StackItem, 0, len(tx.Outputs))
-	for i := range tx.Outputs {
-		outputs = append(outputs, vm.NewInteropItem(&tx.Outputs[i]))
-	}
-	v.Estack().PushVal(outputs)
-	return nil
-}
-
-// txGetReferences returns current transaction references.
-func txGetReferences(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return fmt.Errorf("type mismatch: %T is not a Transaction", txInterface)
-	}
-	refs, err := ic.Chain.References(tx)
-	if err != nil {
-		return err
-	}
-	if len(refs) > vm.MaxArraySize {
-		return errors.New("too many references")
-	}
-
-	stackrefs := make([]vm.StackItem, 0, len(refs))
-	for i := range tx.Inputs {
-		for j := range refs {
-			if refs[j].In == tx.Inputs[i] {
-				stackrefs = append(stackrefs, vm.NewInteropItem(refs[j]))
-				break
-			}
-		}
-	}
-	v.Estack().PushVal(stackrefs)
-	return nil
-}
-
-// txGetType returns current transaction type.
-func txGetType(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	v.Estack().PushVal(int(tx.Type))
-	return nil
-}
-
-// txGetUnspentCoins returns current transaction unspent coins.
-func txGetUnspentCoins(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	ucs, err := ic.DAO.GetUnspentCoinState(tx.Hash())
-	if err == storage.ErrKeyNotFound {
-		v.Estack().PushVal([]vm.StackItem{})
-		return nil
-	} else if err != nil {
-		return errors.New("no unspent coin state found")
-	}
-
-	items := make([]vm.StackItem, 0, len(ucs.States))
-	for i := range items {
-		if ucs.States[i].State&state.CoinSpent == 0 {
-			items = append(items, vm.NewInteropItem(&ucs.States[i].Output))
-		}
-	}
-	v.Estack().PushVal(items)
-	return nil
-}
-
 // txGetWitnesses returns current transaction witnesses.
 func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 	txInterface := v.Estack().Pop().Value()
@@ -206,24 +92,6 @@ func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// invocationTx_GetScript returns invocation script from the current transaction.
-func invocationTxGetScript(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	inv, ok := tx.Data.(*transaction.InvocationTX)
-	if tx.Type != transaction.InvocationType || !ok {
-		return errors.New("value is not an invocation transaction")
-	}
-	// It's important not to share inv.Script slice with the code running in VM.
-	script := make([]byte, len(inv.Script))
-	copy(script, inv.Script)
-	v.Estack().PushVal(script)
-	return nil
-}
-
 // witnessGetVerificationScript returns current witness' script.
 func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	witInterface := v.Estack().Pop().Value()
@@ -235,84 +103,6 @@ func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	script := make([]byte, len(wit.VerificationScript))
 	copy(script, wit.VerificationScript)
 	v.Estack().PushVal(script)
-	return nil
-}
-
-// popInputFromVM returns transaction.Input from the first estack element.
-func popInputFromVM(v *vm.VM) (*transaction.Input, error) {
-	inInterface := v.Estack().Pop().Value()
-	input, ok := inInterface.(*transaction.Input)
-	if !ok {
-		txio, ok := inInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Input or InOut", inInterface)
-		}
-		input = &txio.In
-	}
-	return input, nil
-}
-
-// inputGetHash returns hash from the given input.
-func inputGetHash(ic *interop.Context, v *vm.VM) error {
-	input, err := popInputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(input.PrevHash.BytesBE())
-	return nil
-}
-
-// inputGetIndex returns index from the given input.
-func inputGetIndex(ic *interop.Context, v *vm.VM) error {
-	input, err := popInputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(input.PrevIndex)
-	return nil
-}
-
-// popOutputFromVM returns transaction.Input from the first estack element.
-func popOutputFromVM(v *vm.VM) (*transaction.Output, error) {
-	outInterface := v.Estack().Pop().Value()
-	output, ok := outInterface.(*transaction.Output)
-	if !ok {
-		txio, ok := outInterface.(transaction.InOut)
-		if !ok {
-			return nil, fmt.Errorf("type mismatch: %T is not an Output or InOut", outInterface)
-		}
-		output = &txio.Out
-	}
-	return output, nil
-}
-
-// outputGetAssetId returns asset ID from the given output.
-func outputGetAssetID(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(output.AssetID.BytesBE())
-	return nil
-}
-
-// outputGetScriptHash returns scripthash from the given output.
-func outputGetScriptHash(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(output.ScriptHash.BytesBE())
-	return nil
-}
-
-// outputGetValue returns value (amount) from the given output.
-func outputGetValue(ic *interop.Context, v *vm.VM) error {
-	output, err := popOutputFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(int64(output.Amount))
 	return nil
 }
 
@@ -350,21 +140,6 @@ func bcGetAccount(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	v.Estack().PushVal(vm.NewInteropItem(acc))
-	return nil
-}
-
-// bcGetAsset returns an asset.
-func bcGetAsset(ic *interop.Context, v *vm.VM) error {
-	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytesBE(asbytes)
-	if err != nil {
-		return err
-	}
-	as, err := ic.DAO.GetAssetState(ashash)
-	if err != nil {
-		return errors.New("asset not found")
-	}
-	v.Estack().PushVal(vm.NewInteropItem(as))
 	return nil
 }
 
@@ -569,203 +344,6 @@ func contractMigrate(ic *interop.Context, v *vm.VM) error {
 	}
 	v.Estack().PushVal(vm.NewInteropItem(contract))
 	return contractDestroy(ic, v)
-}
-
-// assetCreate creates an asset.
-func assetCreate(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't create asset when not triggered by an application")
-	}
-	atype := transaction.AssetType(v.Estack().Pop().BigInt().Int64())
-	switch atype {
-	case transaction.Currency, transaction.Share, transaction.Invoice, transaction.Token:
-		// ok
-	default:
-		return fmt.Errorf("wrong asset type: %x", atype)
-	}
-	name := string(v.Estack().Pop().Bytes())
-	if len(name) > MaxAssetNameLen {
-		return errors.New("too big name")
-	}
-	amount := util.Fixed8(v.Estack().Pop().BigInt().Int64())
-	if amount == util.Fixed8(0) {
-		return errors.New("asset amount can't be zero")
-	}
-	if amount < -util.Satoshi() {
-		return errors.New("asset amount can't be negative (except special -Satoshi value")
-	}
-	if atype == transaction.Invoice && amount != -util.Satoshi() {
-		return errors.New("invoice assets can only have -Satoshi amount")
-	}
-	precision := byte(v.Estack().Pop().BigInt().Int64())
-	if precision > MaxAssetPrecision {
-		return fmt.Errorf("can't have asset precision of more than %d", MaxAssetPrecision)
-	}
-	if atype == transaction.Share && precision != 0 {
-		return errors.New("share assets can only have zero precision")
-	}
-	if amount != -util.Satoshi() && (int64(amount)%int64(math.Pow10(int(MaxAssetPrecision-precision))) != 0) {
-		return errors.New("given asset amount has fractional component")
-	}
-	owner, err := keys.NewPublicKeyFromBytes(v.Estack().Pop().Bytes())
-	if err != nil {
-		return gherr.Wrap(err, "failed to get owner key")
-	}
-	if owner.IsInfinity() {
-		return errors.New("can't have infinity as an owner key")
-	}
-	witnessOk, err := runtime.CheckKeyedWitness(ic, v, owner)
-	if err != nil {
-		return err
-	}
-	if !witnessOk {
-		return errors.New("witness check didn't succeed")
-	}
-	admin, err := util.Uint160DecodeBytesBE(v.Estack().Pop().Bytes())
-	if err != nil {
-		return gherr.Wrap(err, "failed to get admin")
-	}
-	issuer, err := util.Uint160DecodeBytesBE(v.Estack().Pop().Bytes())
-	if err != nil {
-		return gherr.Wrap(err, "failed to get issuer")
-	}
-	asset := &state.Asset{
-		ID:         ic.Tx.Hash(),
-		AssetType:  atype,
-		Name:       name,
-		Amount:     amount,
-		Precision:  precision,
-		Owner:      *owner,
-		Admin:      admin,
-		Issuer:     issuer,
-		Expiration: ic.Chain.BlockHeight() + DefaultAssetLifetime,
-	}
-	err = ic.DAO.PutAssetState(asset)
-	if err != nil {
-		return gherr.Wrap(err, "failed to Store asset")
-	}
-	v.Estack().PushVal(vm.NewInteropItem(asset))
-	return nil
-}
-
-// assetGetAdmin returns asset admin.
-func assetGetAdmin(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(as.Admin.BytesBE())
-	return nil
-}
-
-// assetGetAmount returns the overall amount of asset available.
-func assetGetAmount(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(int64(as.Amount))
-	return nil
-}
-
-// assetGetAssetId returns the id of an asset.
-func assetGetAssetID(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(as.ID.BytesBE())
-	return nil
-}
-
-// assetGetAssetType returns type of an asset.
-func assetGetAssetType(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(int(as.AssetType))
-	return nil
-}
-
-// assetGetAvailable returns available (not yet issued) amount of asset.
-func assetGetAvailable(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(int(as.Available))
-	return nil
-}
-
-// assetGetIssuer returns issuer of an asset.
-func assetGetIssuer(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(as.Issuer.BytesBE())
-	return nil
-}
-
-// assetGetOwner returns owner of an asset.
-func assetGetOwner(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(as.Owner.Bytes())
-	return nil
-}
-
-// assetGetPrecision returns precision used to measure this asset.
-func assetGetPrecision(ic *interop.Context, v *vm.VM) error {
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	v.Estack().PushVal(int(as.Precision))
-	return nil
-}
-
-// assetRenew updates asset expiration date.
-func assetRenew(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't create asset when not triggered by an application")
-	}
-	asInterface := v.Estack().Pop().Value()
-	as, ok := asInterface.(*state.Asset)
-	if !ok {
-		return fmt.Errorf("%T is not an asset state", as)
-	}
-	years := byte(v.Estack().Pop().BigInt().Int64())
-	// Not sure why C# code regets an asset from the Store, but we also do it.
-	asset, err := ic.DAO.GetAssetState(as.ID)
-	if err != nil {
-		return errors.New("can't renew non-existent asset")
-	}
-	if asset.Expiration < ic.Chain.BlockHeight()+1 {
-		asset.Expiration = ic.Chain.BlockHeight() + 1
-	}
-	expiration := uint64(asset.Expiration) + uint64(years)*BlocksPerYear
-	if expiration > math.MaxUint32 {
-		expiration = math.MaxUint32
-	}
-	asset.Expiration = uint32(expiration)
-	err = ic.DAO.PutAssetState(asset)
-	if err != nil {
-		return gherr.Wrap(err, "failed to Store asset")
-	}
-	v.Estack().PushVal(expiration)
-	return nil
 }
 
 // runtimeSerialize serializes top stack item into a ByteArray.

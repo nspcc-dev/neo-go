@@ -14,9 +14,6 @@ ProtocolConfiguration:
     - 172.200.0.2:20334
     - 172.200.0.3:20335
     - 172.200.0.4:20336
-  SystemFee:
-    IssueTransaction: 500
-    RegisterTransaction: 10000
   VerifyBlocks: true
   VerifyTransactions: true
 

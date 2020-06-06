@@ -169,6 +169,8 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	inc := amount
 	if isEmpty {
 		inc = big.NewInt(0)
+	} else {
+		inc = new(big.Int).Neg(inc)
 	}
 	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
 		return err
@@ -206,11 +208,17 @@ func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []vm.StackItem) vm
 }
 
 func (c *nep5TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
 	c.addTokens(ic, h, amount)
 	c.emitTransfer(ic, nil, &h, amount)
 }
 
 func (c *nep5TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
 	amount = new(big.Int).Neg(amount)
 	c.addTokens(ic, h, amount)
 	c.emitTransfer(ic, &h, nil, amount)

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -34,21 +33,14 @@ type (
 		MaxFreeTransactionsPerBlock int `yaml:"MaxFreeTransactionsPerBlock"`
 		MemPoolSize                 int `yaml:"MemPoolSize"`
 		// SaveStorageBatch enables storage batch saving before every persist.
-		SaveStorageBatch  bool      `yaml:"SaveStorageBatch"`
-		SecondsPerBlock   int       `yaml:"SecondsPerBlock"`
-		SeedList          []string  `yaml:"SeedList"`
-		StandbyValidators []string  `yaml:"StandbyValidators"`
-		SystemFee         SystemFee `yaml:"SystemFee"`
+		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
+		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`
+		SeedList          []string `yaml:"SeedList"`
+		StandbyValidators []string `yaml:"StandbyValidators"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
-	}
-
-	// SystemFee fees related to system.
-	SystemFee struct {
-		IssueTransaction    int64 `yaml:"IssueTransaction"`
-		RegisterTransaction int64 `yaml:"RegisterTransaction"`
 	}
 
 	// NetMode describes the mode the blockchain will operate on.
@@ -68,17 +60,5 @@ func (n NetMode) String() string {
 		return "unit_testnet"
 	default:
 		return "net unknown"
-	}
-}
-
-// TryGetValue returns the system fee base on transaction type.
-func (s SystemFee) TryGetValue(txType transaction.TXType) util.Fixed8 {
-	switch txType {
-	case transaction.IssueType:
-		return util.Fixed8FromInt64(s.IssueTransaction)
-	case transaction.RegisterType:
-		return util.Fixed8FromInt64(s.RegisterTransaction)
-	default:
-		return util.Fixed8FromInt64(0)
 	}
 }

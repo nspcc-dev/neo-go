@@ -30,7 +30,6 @@ func TestDecodeEncodeAccountState(t *testing.T) {
 		ScriptHash: random.Uint160(),
 		IsFrozen:   true,
 		Balances:   balances,
-		Unclaimed:  UnclaimedBalances{Raw: []byte{}},
 	}
 
 	testserdes.EncodeDecodeBinary(t, a, new(Account))

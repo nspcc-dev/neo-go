@@ -79,16 +79,13 @@ const (
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
-	"getaccountstate":      (*Server).getAccountState,
 	"getapplicationlog":    (*Server).getApplicationLog,
-	"getassetstate":        (*Server).getAssetState,
 	"getbestblockhash":     (*Server).getBestBlockHash,
 	"getblock":             (*Server).getBlock,
 	"getblockcount":        (*Server).getBlockCount,
 	"getblockhash":         (*Server).getBlockHash,
 	"getblockheader":       (*Server).getBlockHeader,
 	"getblocksysfee":       (*Server).getBlockSysFee,
-	"getclaimable":         (*Server).getClaimable,
 	"getconnectioncount":   (*Server).getConnectionCount,
 	"getcontractstate":     (*Server).getContractState,
 	"getnep5balances":      (*Server).getNEP5Balances,
@@ -98,9 +95,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getrawtransaction":    (*Server).getrawtransaction,
 	"getstorage":           (*Server).getStorage,
 	"gettransactionheight": (*Server).getTransactionHeight,
-	"gettxout":             (*Server).getTxOut,
-	"getunclaimed":         (*Server).getUnclaimed,
-	"getunspents":          (*Server).getUnspents,
+	"getunclaimedgas":      (*Server).getUnclaimedGas,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
 	"invoke":               (*Server).invoke,
@@ -387,29 +382,37 @@ func (s *Server) getConnectionCount(_ request.Params) (interface{}, *response.Er
 	return s.coreServer.PeerCount(), nil
 }
 
-func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+func (s *Server) blockHashFromParam(param *request.Param) (util.Uint256, *response.Error) {
 	var hash util.Uint256
-
-	param, ok := reqParams.Value(0)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
 
 	switch param.Type {
 	case request.StringT:
 		var err error
 		hash, err = param.GetUint256()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 	case request.NumberT:
 		num, err := s.blockHeightFromParam(param)
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return hash, response.ErrInvalidParams
 		}
 		hash = s.chain.GetHeaderHash(num)
 	default:
+		return hash, response.ErrInvalidParams
+	}
+	return hash, nil
+}
+
+func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Error) {
+	param, ok := reqParams.Value(0)
+	if !ok {
 		return nil, response.ErrInvalidParams
+	}
+
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	block, err := s.chain.GetBlock(hash)
@@ -458,7 +461,7 @@ func (s *Server) getRawMempool(_ request.Params) (interface{}, *response.Error) 
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
-		hashList = append(hashList, item.Tx.Hash())
+		hashList = append(hashList, item.Hash())
 	}
 	return hashList, nil
 }
@@ -469,24 +472,6 @@ func (s *Server) validateAddress(reqParams request.Params) (interface{}, *respon
 		return nil, response.ErrInvalidParams
 	}
 	return validateAddress(param.Value), nil
-}
-
-func (s *Server) getAssetState(reqParams request.Params) (interface{}, *response.Error) {
-	param, ok := reqParams.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	paramAssetID, err := param.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	as := s.chain.GetAssetState(paramAssetID)
-	if as != nil {
-		return result.NewAssetState(as), nil
-	}
-	return nil, response.NewRPCError("Unknown asset", "", nil)
 }
 
 // getApplicationLog returns the contract log based on the specified txid.
@@ -511,67 +496,9 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.NewRPCError("Error while getting transaction", "", nil)
 	}
 
-	var scriptHash util.Uint160
-	switch t := tx.Data.(type) {
-	case *transaction.InvocationTX:
-		scriptHash = hash.Hash160(t.Script)
-	default:
-		return nil, response.NewRPCError("Invalid transaction type", "", nil)
-	}
+	scriptHash := hash.Hash160(tx.Script)
 
 	return result.NewApplicationLog(appExecResult, scriptHash), nil
-}
-
-func (s *Server) getClaimable(ps request.Params) (interface{}, *response.Error) {
-	p, ok := ps.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	u, err := p.GetUint160FromAddress()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	var unclaimed []state.UnclaimedBalance
-	if acc := s.chain.GetAccountState(u); acc != nil {
-		err := acc.Unclaimed.ForEach(func(b *state.UnclaimedBalance) error {
-			unclaimed = append(unclaimed, *b)
-			return nil
-		})
-		if err != nil {
-			return nil, response.NewInternalServerError("Unclaimed processing failure", err)
-		}
-	}
-
-	var sum util.Fixed8
-	claimable := make([]result.Claimable, 0, len(unclaimed))
-	for _, ub := range unclaimed {
-		gen, sys, err := s.chain.CalculateClaimable(ub.Value, ub.Start, ub.End)
-		if err != nil {
-			s.log.Info("error while calculating claim bonus", zap.Error(err))
-			continue
-		}
-
-		uc := gen.Add(sys)
-		sum += uc
-
-		claimable = append(claimable, result.Claimable{
-			Tx:          ub.Tx,
-			N:           int(ub.Index),
-			Value:       ub.Value,
-			StartHeight: ub.Start,
-			EndHeight:   ub.End,
-			Generated:   gen,
-			SysFee:      sys,
-			Unclaimed:   uc,
-		})
-	}
-
-	return result.ClaimableInfo{
-		Spents:    claimable,
-		Address:   p.String(),
-		Unclaimed: sum,
-	}, nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
@@ -796,40 +723,6 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 	return height, nil
 }
 
-func (s *Server) getTxOut(ps request.Params) (interface{}, *response.Error) {
-	p, ok := ps.Value(0)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	h, err := p.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-
-	p, ok = ps.ValueWithType(1, request.NumberT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-
-	num, err := p.GetInt()
-	if err != nil || num < 0 {
-		return nil, response.ErrInvalidParams
-	}
-
-	tx, _, err := s.chain.GetTransaction(h)
-	if err != nil {
-		return nil, response.NewInvalidParamsError(err.Error(), err)
-	}
-
-	if num >= len(tx.Outputs) {
-		return nil, response.NewInvalidParamsError("invalid index", errors.New("too big index"))
-	}
-
-	out := tx.Outputs[num]
-	return result.NewTxOutput(&out), nil
-}
-
 // getContractState returns contract state (contract information, according to the contract script hash).
 func (s *Server) getContractState(reqParams request.Params) (interface{}, *response.Error) {
 	var results interface{}
@@ -848,42 +741,6 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 		}
 	}
 	return results, nil
-}
-
-func (s *Server) getAccountState(ps request.Params) (interface{}, *response.Error) {
-	return s.getAccountStateAux(ps, false)
-}
-
-func (s *Server) getUnspents(ps request.Params) (interface{}, *response.Error) {
-	return s.getAccountStateAux(ps, true)
-}
-
-// getAccountState returns account state either in short or full (unspents included) form.
-func (s *Server) getAccountStateAux(reqParams request.Params, unspents bool) (interface{}, *response.Error) {
-	var resultsErr *response.Error
-	var results interface{}
-
-	param, ok := reqParams.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	} else if scriptHash, err := param.GetUint160FromAddress(); err != nil {
-		return nil, response.ErrInvalidParams
-	} else {
-		as := s.chain.GetAccountState(scriptHash)
-		if as == nil {
-			as = state.NewAccount(scriptHash)
-		}
-		if unspents {
-			str, err := param.GetString()
-			if err != nil {
-				return nil, response.ErrInvalidParams
-			}
-			results = result.NewUnspents(as, s.chain, str)
-		} else {
-			results = result.NewAccountState(as)
-		}
-	}
-	return results, resultsErr
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
@@ -916,13 +773,14 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *response.Error) {
 	var verbose bool
 
-	param, ok := reqParams.ValueWithType(0, request.StringT)
+	param, ok := reqParams.Value(0)
 	if !ok {
 		return nil, response.ErrInvalidParams
 	}
-	hash, err := param.GetUint256()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
 	}
 
 	param, ok = reqParams.ValueWithType(1, request.NumberT)
@@ -951,8 +809,8 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	return hex.EncodeToString(buf.Bytes()), nil
 }
 
-// getUnclaimed returns unclaimed GAS amount of the specified address.
-func (s *Server) getUnclaimed(ps request.Params) (interface{}, *response.Error) {
+// getUnclaimedGas returns unclaimed GAS amount of the specified address.
+func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Error) {
 	p, ok := ps.ValueWithType(0, request.StringT)
 	if !ok {
 		return nil, response.ErrInvalidParams
@@ -962,15 +820,12 @@ func (s *Server) getUnclaimed(ps request.Params) (interface{}, *response.Error) 
 		return nil, response.ErrInvalidParams
 	}
 
-	acc := s.chain.GetAccountState(u)
-	if acc == nil {
-		return nil, response.NewInternalServerError("unknown account", nil)
+	neo, neoHeight := s.chain.GetGoverningTokenBalance(u)
+	if neo == 0 {
+		return "0", nil
 	}
-	res, errRes := result.NewUnclaimed(acc, s.chain)
-	if errRes != nil {
-		return nil, response.NewInternalServerError("can't create unclaimed response", errRes)
-	}
-	return res, nil
+	gas := s.chain.CalculateClaimable(int64(neo), neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	return strconv.FormatInt(int64(gas), 10), nil                                     // It's not represented as Fixed8 in C#.
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.

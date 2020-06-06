@@ -23,21 +23,6 @@ func TestGetPrice(t *testing.T) {
 	v := SpawnVM(systemInterop)
 	v.SetPriceGetter(getPrice)
 
-	t.Run("Neo.Asset.Create", func(t *testing.T) {
-		// Neo.Asset.Create: 83c5c61f
-		v.Load([]byte{byte(opcode.SYSCALL), 0x83, 0xc5, 0xc6, 0x1f})
-		checkGas(t, util.Fixed8FromInt64(5000), v)
-	})
-
-	t.Run("Neo.Asset.Renew", func(t *testing.T) {
-		// Neo.Asset.Renew: 78849071 (requires push 09 push 09 before)
-		v.Load([]byte{byte(opcode.PUSH9), byte(opcode.PUSH9), byte(opcode.SYSCALL), 0x78, 0x84, 0x90, 0x71})
-		require.NoError(t, v.StepInto()) // push 9
-		require.NoError(t, v.StepInto()) // push 9
-
-		checkGas(t, util.Fixed8FromInt64(9*5000), v)
-	})
-
 	t.Run("Neo.Contract.Create (no props)", func(t *testing.T) {
 		// Neo.Contract.Create: f66ca56e (requires push properties on fourth position)
 		v.Load([]byte{byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),

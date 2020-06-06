@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -32,13 +31,6 @@ import (
 const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
-
-	// This one comes from C# code and it's different from the constant used
-	// when creating an asset with Neo.Asset.Create interop call. It looks
-	// like 2000000 is coming from the decrementInterval, but C# code doesn't
-	// contain any relationship between the two, so we should follow this
-	// behavior.
-	registeredAssetLifetime = 2 * 2000000
 
 	defaultMemPoolSize = 50000
 )
@@ -370,20 +362,18 @@ func (bc *Blockchain) notificationDispatcher() {
 			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
 				var aerIdx int
 				for _, tx := range event.block.Transactions {
-					if tx.Type == transaction.InvocationType {
-						aer := event.appExecResults[aerIdx]
-						if !aer.TxHash.Equals(tx.Hash()) {
-							panic("inconsistent application execution results")
-						}
-						aerIdx++
-						for ch := range executionFeed {
-							ch <- aer
-						}
-						if aer.VMState == "HALT" {
-							for i := range aer.Events {
-								for ch := range notificationFeed {
-									ch <- &aer.Events[i]
-								}
+					aer := event.appExecResults[aerIdx]
+					if !aer.TxHash.Equals(tx.Hash()) {
+						panic("inconsistent application execution results")
+					}
+					aerIdx++
+					for ch := range executionFeed {
+						ch <- aer
+					}
+					if aer.VMState == "HALT" {
+						for i := range aer.Events {
+							for ch := range notificationFeed {
+								ch <- &aer.Events[i]
 							}
 						}
 					}
@@ -536,7 +526,6 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	}
 
 	buf.Reset()
-	buf.BinWriter.WriteU32LE(0) // sys fee is yet to be calculated
 	h.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return buf.Err
@@ -549,13 +538,6 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// getSystemFeeAmount returns sum of all system fees for blocks up to h.
-// and 0 if no such block exists.
-func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
-	_, sf, _ := bc.dao.GetBlock(h)
-	return sf
-}
-
 // TODO: storeBlock needs some more love, its implemented as in the original
 // project. This for the sake of development speed and understanding of what
 // is happening here, quite allot as you can see :). If things are wired together
@@ -563,11 +545,7 @@ func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
 	appExecResults := make([]*state.AppExecResult, 0, len(block.Transactions))
-	fee := bc.getSystemFeeAmount(block.PrevHash)
-	for _, tx := range block.Transactions {
-		fee += uint32(tx.SystemFee.IntegralValue())
-	}
-	if err := cache.StoreAsBlock(block, fee); err != nil {
+	if err := cache.StoreAsBlock(block); err != nil {
 		return err
 	}
 
@@ -580,226 +558,75 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return err
 		}
 
-		if err := cache.PutUnspentCoinState(tx.Hash(), state.NewUnspentCoin(block.Index, tx)); err != nil {
-			return err
+		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
+		v := SpawnVM(systemInterop)
+		v.LoadScript(tx.Script)
+		v.SetPriceGetter(getPrice)
+		if bc.config.FreeGasLimit > 0 {
+			v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
 		}
 
-		// Process TX outputs.
-		if err := processOutputs(tx, cache); err != nil {
-			return err
-		}
-
-		// Process TX inputs that are grouped by previous hash.
-		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
-			prevHash := inputs[0].PrevHash
-			unspent, err := cache.GetUnspentCoinState(prevHash)
+		err := v.Run()
+		if !v.HasFailed() {
+			_, err := systemInterop.DAO.Persist()
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to persist invocation results")
 			}
-			for _, input := range inputs {
-				if len(unspent.States) <= int(input.PrevIndex) {
-					return fmt.Errorf("bad input: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
+			for _, note := range systemInterop.Notifications {
+				arr, ok := note.Item.Value().([]vm.StackItem)
+				if !ok || len(arr) != 4 {
+					continue
 				}
-				if unspent.States[input.PrevIndex].State&state.CoinSpent != 0 {
-					return fmt.Errorf("double spend: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
+				op, ok := arr[0].Value().([]byte)
+				if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
+					continue
 				}
-				unspent.States[input.PrevIndex].State |= state.CoinSpent
-				unspent.States[input.PrevIndex].SpendHeight = block.Index
-				prevTXOutput := &unspent.States[input.PrevIndex].Output
-				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
-				if err != nil {
-					return err
-				}
-
-				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
-					err = account.Unclaimed.Put(&state.UnclaimedBalance{
-						Tx:    input.PrevHash,
-						Index: input.PrevIndex,
-						Start: unspent.Height,
-						End:   block.Index,
-						Value: prevTXOutput.Amount,
-					})
-					if err != nil {
-						return err
-					}
-				}
-
-				balancesLen := len(account.Balances[prevTXOutput.AssetID])
-				if balancesLen <= 1 {
-					delete(account.Balances, prevTXOutput.AssetID)
-				} else {
-					var index = -1
-					for i, balance := range account.Balances[prevTXOutput.AssetID] {
-						if balance.Tx.Equals(input.PrevHash) && balance.Index == input.PrevIndex {
-							index = i
-							break
-						}
-					}
-					if index >= 0 {
-						last := balancesLen - 1
-						if last > index {
-							account.Balances[prevTXOutput.AssetID][index] = account.Balances[prevTXOutput.AssetID][last]
-						}
-						account.Balances[prevTXOutput.AssetID] = account.Balances[prevTXOutput.AssetID][:last]
-					}
-				}
-				if err = cache.PutAccountState(account); err != nil {
-					return err
-				}
-			}
-			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
-				return err
-			}
-		}
-
-		// Process the underlying type of the TX.
-		switch t := tx.Data.(type) {
-		case *transaction.RegisterTX:
-			err := cache.PutAssetState(&state.Asset{
-				ID:         tx.Hash(),
-				AssetType:  t.AssetType,
-				Name:       t.Name,
-				Amount:     t.Amount,
-				Precision:  t.Precision,
-				Owner:      t.Owner,
-				Admin:      t.Admin,
-				Expiration: bc.BlockHeight() + registeredAssetLifetime,
-			})
-			if err != nil {
-				return err
-			}
-		case *transaction.IssueTX:
-			for _, res := range bc.GetTransactionResults(tx) {
-				if res.Amount < 0 {
-					asset, err := cache.GetAssetState(res.AssetID)
-					if asset == nil || err != nil {
-						return fmt.Errorf("issue failed: no asset %s or error %s", res.AssetID, err)
-					}
-					asset.Available -= res.Amount
-					if err := cache.PutAssetState(asset); err != nil {
-						return err
-					}
-				}
-			}
-		case *transaction.ClaimTX:
-			// Remove claimed NEO from spent coins making it unavalaible for
-			// additional claims.
-			for _, input := range t.Claims {
-				scs, err := cache.GetUnspentCoinState(input.PrevHash)
-				if err == nil {
-					if len(scs.States) <= int(input.PrevIndex) {
-						err = errors.New("invalid claim index")
-					} else if scs.States[input.PrevIndex].State&state.CoinClaimed != 0 {
-						err = errors.New("double claim")
-					}
-				}
-				if err != nil {
-					// We can't really do anything about it
-					// as it's a transaction in a signed block.
-					bc.log.Warn("FALSE OR DOUBLE CLAIM",
-						zap.String("PrevHash", input.PrevHash.StringLE()),
-						zap.Uint16("PrevIndex", input.PrevIndex),
-						zap.String("tx", tx.Hash().StringLE()),
-						zap.Uint32("block", block.Index),
-					)
-					// "Strict" mode.
-					if bc.config.VerifyTransactions {
-						return err
-					}
-					break
-				}
-
-				acc, err := cache.GetAccountState(scs.States[input.PrevIndex].ScriptHash)
-				if err != nil {
-					return err
-				}
-
-				scs.States[input.PrevIndex].State |= state.CoinClaimed
-				if err = cache.PutUnspentCoinState(input.PrevHash, scs); err != nil {
-					return err
-				}
-
-				changed := acc.Unclaimed.Remove(input.PrevHash, input.PrevIndex)
-				if !changed {
-					bc.log.Warn("no spent coin in the account",
-						zap.String("tx", tx.Hash().StringLE()),
-						zap.String("input", input.PrevHash.StringLE()),
-						zap.String("account", acc.ScriptHash.String()))
-				} else if err := cache.PutAccountState(acc); err != nil {
-					return err
-				}
-			}
-		case *transaction.InvocationTX:
-			systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-			v := SpawnVM(systemInterop)
-			v.LoadScript(t.Script)
-			v.SetPriceGetter(getPrice)
-			if bc.config.FreeGasLimit > 0 {
-				v.SetGasLimit(bc.config.FreeGasLimit + t.Gas)
-			}
-
-			err := v.Run()
-			if !v.HasFailed() {
-				_, err := systemInterop.DAO.Persist()
-				if err != nil {
-					return errors.Wrap(err, "failed to persist invocation results")
-				}
-				for _, note := range systemInterop.Notifications {
-					arr, ok := note.Item.Value().([]vm.StackItem)
-					if !ok || len(arr) != 4 {
-						continue
-					}
-					op, ok := arr[0].Value().([]byte)
-					if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
-						continue
-					}
-					var from []byte
-					fromValue := arr[1].Value()
-					// we don't have `from` set when we are minting tokens
-					if fromValue != nil {
-						from, ok = fromValue.([]byte)
-						if !ok {
-							continue
-						}
-					}
-					var to []byte
-					toValue := arr[2].Value()
-					// we don't have `to` set when we are burning tokens
-					if toValue != nil {
-						to, ok = toValue.([]byte)
-						if !ok {
-							continue
-						}
-					}
-					amount, ok := arr[3].Value().(*big.Int)
+				var from []byte
+				fromValue := arr[1].Value()
+				// we don't have `from` set when we are minting tokens
+				if fromValue != nil {
+					from, ok = fromValue.([]byte)
 					if !ok {
-						bs, ok := arr[3].Value().([]byte)
-						if !ok {
-							continue
-						}
-						amount = emit.BytesToInt(bs)
+						continue
 					}
-					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 				}
-			} else {
-				bc.log.Warn("contract invocation failed",
-					zap.String("tx", tx.Hash().StringLE()),
-					zap.Uint32("block", block.Index),
-					zap.Error(err))
+				var to []byte
+				toValue := arr[2].Value()
+				// we don't have `to` set when we are burning tokens
+				if toValue != nil {
+					to, ok = toValue.([]byte)
+					if !ok {
+						continue
+					}
+				}
+				amount, ok := arr[3].Value().(*big.Int)
+				if !ok {
+					bs, ok := arr[3].Value().([]byte)
+					if !ok {
+						continue
+					}
+					amount = emit.BytesToInt(bs)
+				}
+				bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 			}
-			aer := &state.AppExecResult{
-				TxHash:      tx.Hash(),
-				Trigger:     trigger.Application,
-				VMState:     v.State(),
-				GasConsumed: v.GasConsumed(),
-				Stack:       v.Estack().ToContractParameters(),
-				Events:      systemInterop.Notifications,
-			}
-			appExecResults = append(appExecResults, aer)
-			err = cache.PutAppExecResult(aer)
-			if err != nil {
-				return errors.Wrap(err, "failed to Store notifications")
-			}
+		} else {
+			bc.log.Warn("contract invocation failed",
+				zap.String("tx", tx.Hash().StringLE()),
+				zap.Uint32("block", block.Index),
+				zap.Error(err))
+		}
+		aer := &state.AppExecResult{
+			TxHash:      tx.Hash(),
+			Trigger:     trigger.Application,
+			VMState:     v.State(),
+			GasConsumed: v.GasConsumed(),
+			Stack:       v.Estack().ToContractParameters(),
+			Events:      systemInterop.Notifications,
+		}
+		appExecResults = append(appExecResults, aer)
+		err = cache.PutAppExecResult(aer)
+		if err != nil {
+			return errors.Wrap(err, "failed to Store notifications")
 		}
 	}
 
@@ -927,31 +754,27 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
 func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
-	return util.Fixed8FromInt64(bc.GetNEP5Balances(acc).Trackers[bc.contracts.GAS.Hash].Balance)
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return 0
+	}
+	return util.Fixed8(bs.Trackers[bc.contracts.GAS.Hash].Balance)
+}
+
+// GetGoverningTokenBalance returns governing token (NEO) balance and the height
+// of the last balance change for the account.
+func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
+	bs, err := bc.dao.GetNEP5Balances(acc)
+	if err != nil {
+		return 0, 0
+	}
+	neo := bs.Trackers[bc.contracts.NEO.Hash]
+	return util.Fixed8(neo.Balance), neo.LastUpdatedBlock
 }
 
 // LastBatch returns last persisted storage batch.
 func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch
-}
-
-// processOutputs processes transaction outputs.
-func processOutputs(tx *transaction.Transaction, dao *dao.Cached) error {
-	for index, output := range tx.Outputs {
-		account, err := dao.GetAccountStateOrNew(output.ScriptHash)
-		if err != nil {
-			return err
-		}
-		account.Balances[output.AssetID] = append(account.Balances[output.AssetID], state.UnspentBalance{
-			Tx:    tx.Hash(),
-			Index: uint16(index),
-			Value: output.Amount,
-		})
-		if err = dao.PutAccountState(account); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // persist flushes current in-memory Store contents to the persistent storage.
@@ -1002,7 +825,7 @@ func (bc *Blockchain) headerListLen() (n int) {
 
 // GetTransaction returns a TX and its height by the given hash.
 func (bc *Blockchain) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
-	if tx, _, ok := bc.memPool.TryGetValue(hash); ok {
+	if tx, ok := bc.memPool.TryGetValue(hash); ok {
 		return tx, 0, nil // the height is not actually defined for memPool transaction. Not sure if zero is a good number in this case.
 	}
 	return bc.dao.GetTransaction(hash)
@@ -1033,7 +856,7 @@ func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 		}
 	}
 
-	block, _, err := bc.dao.GetBlock(hash)
+	block, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1055,7 +878,7 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 			return tb.Header(), nil
 		}
 	}
-	block, _, err := bc.dao.GetBlock(hash)
+	block, err := bc.dao.GetBlock(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1115,17 +938,6 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 	return uint32(bc.headerListLen() - 1)
 }
 
-// GetAssetState returns asset state from its assetID.
-func (bc *Blockchain) GetAssetState(assetID util.Uint256) *state.Asset {
-	asset, err := bc.dao.GetAssetState(assetID)
-	if asset == nil && err != storage.ErrKeyNotFound {
-		bc.log.Warn("failed to get asset state",
-			zap.Stringer("asset", assetID),
-			zap.Error(err))
-	}
-	return asset
-}
-
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err := bc.dao.GetContractState(hash)
@@ -1142,15 +954,6 @@ func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 		bc.log.Warn("failed to get account state", zap.Error(err))
 	}
 	return as
-}
-
-// GetUnspentCoinState returns unspent coin state for given tx hash.
-func (bc *Blockchain) GetUnspentCoinState(hash util.Uint256) *state.UnspentCoin {
-	ucs, err := bc.dao.GetUnspentCoinState(hash)
-	if ucs == nil && err != storage.ErrKeyNotFound {
-		bc.log.Warn("failed to get unspent coin state", zap.Error(err))
-	}
-	return ucs
 }
 
 // GetConfig returns the config stored in the blockchain.
@@ -1220,10 +1023,11 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 	bc.unsubCh <- ch
 }
 
-// CalculateClaimable calculates the amount of GAS which can be claimed for a transaction with value.
-// First return value is GAS generated between startHeight and endHeight.
-// Second return value is GAS returned from accumulated SystemFees between startHeight and endHeight.
-func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeight uint32) (util.Fixed8, util.Fixed8, error) {
+// CalculateClaimable calculates the amount of GAS generated by owning specified
+// amount of NEO between specified blocks. The amount of NEO being passed is in
+// its natural non-divisible form (1 NEO as 1, 2 NEO as 2, no multiplication by
+// 10⁸ is neeeded as for Fixed8).
+func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uint32) util.Fixed8 {
 	var amount util.Fixed8
 	di := uint32(bc.decrementInterval)
 
@@ -1249,47 +1053,7 @@ func (bc *Blockchain) CalculateClaimable(value util.Fixed8, startHeight, endHeig
 		amount += util.Fixed8(iend-istart) * util.Fixed8(bc.generationAmount[ustart])
 	}
 
-	if startHeight == 0 {
-		startHeight++
-	}
-	h := bc.GetHeaderHash(int(startHeight - 1))
-	feeStart := bc.getSystemFeeAmount(h)
-	h = bc.GetHeaderHash(int(endHeight - 1))
-	feeEnd := bc.getSystemFeeAmount(h)
-
-	sysFeeTotal := util.Fixed8(feeEnd - feeStart)
-	ratio := value / 100000000
-	return amount * ratio, sysFeeTotal * ratio, nil
-}
-
-// References maps transaction's inputs into a slice of InOuts, effectively
-// joining each Input with the corresponding Output.
-// @TODO: unfortunately we couldn't attach this method to the Transaction struct in the
-// transaction package because of a import cycle problem. Perhaps we should think to re-design
-// the code base to avoid this situation.
-func (bc *Blockchain) References(t *transaction.Transaction) ([]transaction.InOut, error) {
-	return bc.references(t.Inputs)
-}
-
-// references is an internal implementation of References that operates directly
-// on a slice of Input.
-func (bc *Blockchain) references(ins []transaction.Input) ([]transaction.InOut, error) {
-	references := make([]transaction.InOut, 0, len(ins))
-
-	for _, inputs := range transaction.GroupInputsByPrevHash(ins) {
-		prevHash := inputs[0].PrevHash
-		unspent, err := bc.dao.GetUnspentCoinState(prevHash)
-		if err != nil {
-			return nil, errors.New("bad input reference")
-		}
-		for _, in := range inputs {
-			if int(in.PrevIndex) > len(unspent.States)-1 {
-				return nil, errors.New("bad input reference")
-			}
-			references = append(references, transaction.InOut{In: *in, Out: unspent.States[in.PrevIndex].Output})
-		}
-	}
-	return references, nil
+	return amount * util.Fixed8(value)
 }
 
 // FeePerByte returns transaction network fee per byte.
@@ -1311,14 +1075,14 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
-func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxWithFee {
+func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
 	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
 		txes = txes[:bc.config.MaxTransactionsPerBlock]
 	}
 	maxFree := bc.config.MaxFreeTransactionsPerBlock
 	if maxFree != 0 {
 		lowStart := sort.Search(len(txes), func(i int) bool {
-			return bc.IsLowPriority(txes[i].Fee)
+			return bc.IsLowPriority(txes[i].NetworkFee)
 		})
 		if lowStart+maxFree < len(txes) {
 			txes = txes[:lowStart+maxFree]
@@ -1360,27 +1124,10 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if netFee < 0 {
 		return errors.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
 	}
-	if transaction.HaveDuplicateInputs(t.Inputs) {
-		return errors.New("invalid transaction's inputs")
-	}
 	if block == nil {
 		if ok := bc.memPool.Verify(t, bc); !ok {
 			return errors.New("invalid transaction due to conflicts with the memory pool")
 		}
-	}
-	if bc.dao.IsDoubleSpend(t) {
-		return errors.New("invalid transaction caused by double spending")
-	}
-	if err := bc.verifyOutputs(t); err != nil {
-		return errors.Wrap(err, "wrong outputs")
-	}
-	refs, err := bc.References(t)
-	if err != nil {
-		return err
-	}
-	results := refsAndOutsToResults(refs, t.Outputs)
-	if err := bc.verifyResults(t, results); err != nil {
-		return err
 	}
 
 	for _, a := range t.Attributes {
@@ -1389,94 +1136,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
-	switch t.Type {
-	case transaction.ClaimType:
-		claim := t.Data.(*transaction.ClaimTX)
-		if transaction.HaveDuplicateInputs(claim.Claims) {
-			return errors.New("duplicate claims")
-		}
-		if bc.dao.IsDoubleClaim(claim) {
-			return errors.New("double claim")
-		}
-		if err := bc.verifyClaims(t, results); err != nil {
-			return err
-		}
-	case transaction.InvocationType:
-		inv := t.Data.(*transaction.InvocationTX)
-		if inv.Gas.FractionalValue() != 0 {
-			return errors.New("invocation gas can only be integer")
-		}
-	}
-
 	return bc.verifyTxWitnesses(t, block)
-}
-
-func (bc *Blockchain) verifyClaims(tx *transaction.Transaction, results []*transaction.Result) (err error) {
-	t := tx.Data.(*transaction.ClaimTX)
-	var result *transaction.Result
-	for i := range results {
-		if results[i].AssetID == UtilityTokenID() {
-			result = results[i]
-			break
-		}
-	}
-
-	if result == nil || result.Amount.GreaterThan(0) {
-		return errors.New("invalid output in claim tx")
-	}
-
-	bonus, err := bc.calculateBonus(t.Claims)
-	if err == nil && bonus != -result.Amount {
-		return fmt.Errorf("wrong bonus calculated in claim tx: %s != %s",
-			bonus.String(), (-result.Amount).String())
-	}
-
-	return err
-}
-
-func (bc *Blockchain) calculateBonus(claims []transaction.Input) (util.Fixed8, error) {
-	unclaimed := []*spentCoin{}
-	inputs := transaction.GroupInputsByPrevHash(claims)
-
-	for _, group := range inputs {
-		h := group[0].PrevHash
-		unspent, err := bc.dao.GetUnspentCoinState(h)
-		if err != nil {
-			return 0, err
-		}
-
-		for _, c := range group {
-			if len(unspent.States) <= int(c.PrevIndex) {
-				return 0, fmt.Errorf("can't find spent coins for %s (%d)", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			if unspent.States[c.PrevIndex].State&state.CoinSpent == 0 {
-				return 0, fmt.Errorf("not spent yet: %s/%d", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			if unspent.States[c.PrevIndex].State&state.CoinClaimed != 0 {
-				return 0, fmt.Errorf("already claimed: %s/%d", c.PrevHash.StringLE(), c.PrevIndex)
-			}
-			unclaimed = append(unclaimed, &spentCoin{
-				Output:      &unspent.States[c.PrevIndex].Output,
-				StartHeight: unspent.Height,
-				EndHeight:   unspent.States[c.PrevIndex].SpendHeight,
-			})
-		}
-	}
-
-	return bc.calculateBonusInternal(unclaimed)
-}
-
-func (bc *Blockchain) calculateBonusInternal(scs []*spentCoin) (util.Fixed8, error) {
-	var claimed util.Fixed8
-	for _, sc := range scs {
-		gen, sys, err := bc.CalculateClaimable(sc.Output.Amount, sc.StartHeight, sc.EndHeight)
-		if err != nil {
-			return 0, err
-		}
-		claimed += gen + sys
-	}
-
-	return claimed, nil
 }
 
 // isTxStillRelevant is a callback for mempool transaction filtering after the
@@ -1491,15 +1151,6 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction) bool {
 
 	if bc.dao.HasTransaction(t.Hash()) {
 		return false
-	}
-	if bc.dao.IsDoubleSpend(t) {
-		return false
-	}
-	if t.Type == transaction.ClaimType {
-		claim := t.Data.(*transaction.ClaimTX)
-		if bc.dao.IsDoubleClaim(claim) {
-			return false
-		}
 	}
 	for i := range t.Scripts {
 		if !vm.IsStandardContract(t.Scripts[i].VerificationScript) {
@@ -1536,14 +1187,12 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
-	if t.Type != transaction.ClaimType {
-		txSize := io.GetVarSize(t)
-		maxFree := bc.config.MaxFreeTransactionSize
-		if maxFree != 0 && txSize > maxFree {
-			if bc.IsLowPriority(t.NetworkFee) ||
-				t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
-				return ErrPolicy
-			}
+	txSize := io.GetVarSize(t)
+	maxFree := bc.config.MaxFreeTransactionSize
+	if maxFree != 0 && txSize > maxFree {
+		if bc.IsLowPriority(t.NetworkFee) ||
+			t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
+			return ErrPolicy
 		}
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
@@ -1557,125 +1206,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		}
 	}
 	return nil
-}
-
-func (bc *Blockchain) verifyOutputs(t *transaction.Transaction) error {
-	for assetID, outputs := range t.GroupOutputByAssetID() {
-		assetState := bc.GetAssetState(assetID)
-		if assetState == nil {
-			return fmt.Errorf("no asset state for %s", assetID.StringLE())
-		}
-
-		if assetState.Expiration < bc.blockHeight+1 && assetState.AssetType != transaction.GoverningToken && assetState.AssetType != transaction.UtilityToken {
-			return fmt.Errorf("asset %s expired", assetID.StringLE())
-		}
-
-		for _, out := range outputs {
-			if int64(out.Amount)%int64(math.Pow10(8-int(assetState.Precision))) != 0 {
-				return fmt.Errorf("output is not compliant with %s asset precision", assetID.StringLE())
-			}
-		}
-	}
-
-	return nil
-}
-
-func (bc *Blockchain) verifyResults(t *transaction.Transaction, results []*transaction.Result) error {
-	var resultsDestroy []*transaction.Result
-	var resultsIssue []*transaction.Result
-	for _, re := range results {
-		if re.Amount.GreaterThan(util.Fixed8(0)) {
-			resultsDestroy = append(resultsDestroy, re)
-		}
-
-		if re.Amount.LessThan(util.Fixed8(0)) {
-			resultsIssue = append(resultsIssue, re)
-		}
-	}
-	if len(resultsDestroy) > 1 {
-		return errors.New("tx has more than 1 destroy output")
-	}
-	if len(resultsDestroy) == 1 && resultsDestroy[0].AssetID != UtilityTokenID() {
-		return errors.New("tx destroys non-utility token")
-	}
-	sysfee := t.SystemFee
-	if sysfee.GreaterThan(util.Fixed8(0)) {
-		if len(resultsDestroy) == 0 {
-			return fmt.Errorf("system requires to pay %s fee, but tx pays nothing", sysfee.String())
-		}
-		if resultsDestroy[0].Amount.LessThan(sysfee) {
-			return fmt.Errorf("system requires to pay %s fee, but tx pays %s only", sysfee.String(), resultsDestroy[0].Amount.String())
-		}
-	}
-
-	switch t.Type {
-	case transaction.ClaimType:
-		for _, r := range resultsIssue {
-			if r.AssetID != UtilityTokenID() {
-				return errors.New("miner or claim tx issues non-utility tokens")
-			}
-		}
-		break
-	case transaction.IssueType:
-		for _, r := range resultsIssue {
-			if r.AssetID == UtilityTokenID() {
-				return errors.New("issue tx issues utility tokens")
-			}
-			asset, err := bc.dao.GetAssetState(r.AssetID)
-			if asset == nil || err != nil {
-				return errors.New("invalid asset in issue tx")
-			}
-			if asset.Available < r.Amount {
-				return errors.New("trying to issue more than available")
-			}
-		}
-		break
-	default:
-		if len(resultsIssue) > 0 {
-			return errors.New("non issue/miner/claim tx issues tokens")
-		}
-		break
-	}
-
-	return nil
-}
-
-// GetTransactionResults returns the transaction results aggregate by assetID.
-// Golang of GetTransationResults method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L207)
-func (bc *Blockchain) GetTransactionResults(t *transaction.Transaction) []*transaction.Result {
-	references, err := bc.References(t)
-	if err != nil {
-		return nil
-	}
-	return refsAndOutsToResults(references, t.Outputs)
-}
-
-// mapReferencesToResults returns cumulative results of transaction based in its
-// references and outputs.
-func refsAndOutsToResults(references []transaction.InOut, outputs []transaction.Output) []*transaction.Result {
-	var results []*transaction.Result
-	tempResult := make(map[util.Uint256]util.Fixed8)
-
-	for _, inout := range references {
-		c := tempResult[inout.Out.AssetID]
-		tempResult[inout.Out.AssetID] = c.Add(inout.Out.Amount)
-	}
-	for _, output := range outputs {
-		c := tempResult[output.AssetID]
-		tempResult[output.AssetID] = c.Sub(output.Amount)
-	}
-
-	results = []*transaction.Result{} // this assignment is necessary. (Most of the time amount == 0 and results is the empty slice.)
-	for assetID, amount := range tempResult {
-		if amount != util.Fixed8(0) {
-			results = append(results, &transaction.Result{
-				AssetID: assetID,
-				Amount:  amount,
-			})
-		}
-	}
-
-	return results
 }
 
 //GetStandByValidators returns validators from the configuration.
@@ -1697,56 +1227,10 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	references, err := bc.References(t)
-	if err != nil {
-		return nil, err
-	}
 	hashes := make(map[util.Uint160]bool)
-	for i := range references {
-		hashes[references[i].Out.ScriptHash] = true
-	}
-
-	for a, outputs := range t.GroupOutputByAssetID() {
-		as := bc.GetAssetState(a)
-		if as == nil {
-			return nil, errors.New("Invalid operation")
-		}
-		if as.AssetType&transaction.DutyFlag != 0 {
-			for _, o := range outputs {
-				h := o.ScriptHash
-				if _, ok := hashes[h]; !ok {
-					hashes[h] = true
-				}
-			}
-		}
-	}
 	hashes[t.Sender] = true
 	for _, c := range t.Cosigners {
 		hashes[c.Account] = true
-	}
-	switch t.Type {
-	case transaction.ClaimType:
-		claim := t.Data.(*transaction.ClaimTX)
-		refs, err := bc.references(claim.Claims)
-		if err != nil {
-			return nil, err
-		}
-		for i := range refs {
-			hashes[refs[i].Out.ScriptHash] = true
-		}
-	case transaction.IssueType:
-		for _, res := range refsAndOutsToResults(references, t.Outputs) {
-			if res.Amount < 0 {
-				asset, err := bc.dao.GetAssetState(res.AssetID)
-				if asset == nil || err != nil {
-					return nil, errors.New("invalid asset in issue tx")
-				}
-				hashes[asset.Issuer] = true
-			}
-		}
-	case transaction.RegisterType:
-		reg := t.Data.(*transaction.RegisterTX)
-		hashes[reg.Owner.GetScriptHash()] = true
 	}
 	// convert hashes to []util.Uint160
 	hashesResult := make([]util.Uint160, 0, len(hashes))
@@ -1830,7 +1314,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // is used for easy interop access and can be omitted for transactions that are
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
-// Unfortunately the IVerifiable interface could not be implemented because we can't move the References method in blockchain.go to the transaction.go file.
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
 	hashes, err := bc.GetScriptHashesForVerifying(t)
 	if err != nil {

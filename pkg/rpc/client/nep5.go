@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -94,22 +92,23 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 	return wallet.NewToken(tokenHash, name, symbol, decimals), nil
 }
 
-// TransferNEP5 creates an invocation transaction that invokes 'transfer' method
-// on a given token to move specified amount of NEP5 assets (in FixedN format
-// using contract's number of decimals) to given account.
-func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *wallet.Token, amount int64, gas util.Fixed8) (util.Uint256, error) {
+// CreateNEP5TransferTx creates an invocation transaction for the 'transfer'
+// method of a given contract (token) to move specified amount of NEP5 assets
+// (in FixedN format using contract's number of decimals) to given account and
+// returns it. The returned transaction is not signed.
+func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas util.Fixed8) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
-		return util.Uint256{}, fmt.Errorf("bad account address: %v", err)
+		return nil, fmt.Errorf("bad account address: %v", err)
 	}
 	// Note: we don't use invoke function here because it requires
 	// 2 round trips instead of one.
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, token.Hash, "transfer", from, to, amount)
+	emit.AppCallWithOperationAndArgs(w.BinWriter, token, "transfer", from, to, amount)
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	tx := transaction.NewInvocationTX(script, gas)
+	tx := transaction.New(script, gas)
 	tx.Sender = from
 	tx.Cosigners = []transaction.Cosigner{
 		{
@@ -122,11 +121,11 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 
 	result, err := c.InvokeScript(hex.EncodeToString(script))
 	if err != nil {
-		return util.Uint256{}, fmt.Errorf("can't add system fee to transaction: %v", err)
+		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
 	}
 	gasConsumed, err := util.Fixed8FromString(result.GasConsumed)
 	if err != nil {
-		return util.Uint256{}, fmt.Errorf("can't add system fee to transaction: %v", err)
+		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
 	}
 	if gasConsumed > 0 {
 		tx.SystemFee = gasConsumed
@@ -134,16 +133,25 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token *walle
 
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
-		return util.Uint256{}, fmt.Errorf("can't calculate validUntilBlock: %v", err)
-	}
-
-	if err := request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't add GAS to transaction: %v", err)
+		return nil, fmt.Errorf("can't calculate validUntilBlock: %v", err)
 	}
 
 	err = c.AddNetworkFee(tx, acc)
 	if err != nil {
-		return util.Uint256{}, fmt.Errorf("can't add network fee to transaction: %v", err)
+		return nil, fmt.Errorf("can't add network fee to transaction: %v", err)
+	}
+
+	return tx, nil
+}
+
+// TransferNEP5 creates an invocation transaction that invokes 'transfer' method
+// on a given token to move specified amount of NEP5 assets (in FixedN format
+// using contract's number of decimals) to given account and sends it to the
+// network returning just a hash of it.
+func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas util.Fixed8) (util.Uint256, error) {
+	tx, err := c.CreateNEP5TransferTx(acc, to, token, amount, gas)
+	if err != nil {
+		return util.Uint256{}, err
 	}
 
 	if err := acc.SignTx(tx); err != nil {

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -26,9 +26,6 @@ const (
 
 // Transaction is a process recorded in the NEO blockchain.
 type Transaction struct {
-	// The type of the transaction.
-	Type TXType
-
 	// The trading version which is currently 0.
 	Version uint8
 
@@ -48,21 +45,14 @@ type Transaction struct {
 	// transaction should fail verification.
 	ValidUntilBlock uint32
 
-	// Data specific to the type of the transaction.
-	// This is always a pointer to a <Type>Transaction.
-	Data TXer
+	// Code to run in NeoVM for this transaction.
+	Script []byte
 
 	// Transaction attributes.
 	Attributes []Attribute
 
 	// Transaction cosigners (not include Sender).
 	Cosigners []Cosigner
-
-	// The inputs of the transaction.
-	Inputs []Input
-
-	// The outputs of the transaction.
-	Outputs []Output
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
@@ -89,6 +79,20 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 	}
 }
 
+// New returns a new transaction to execute given script and pay given system
+// fee.
+func New(script []byte, gas util.Fixed8) *Transaction {
+	return &Transaction{
+		Version:    0,
+		Nonce:      rand.Uint32(),
+		Script:     script,
+		SystemFee:  gas,
+		Attributes: []Attribute{},
+		Cosigners:  []Cosigner{},
+		Scripts:    []Witness{},
+	}
+}
+
 // Hash returns the hash of the transaction.
 func (t *Transaction) Hash() util.Uint256 {
 	if t.hash.Equals(util.Uint256{}) {
@@ -109,20 +113,13 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 	return t.verificationHash
 }
 
-// AddOutput adds the given output to the transaction outputs.
-func (t *Transaction) AddOutput(out *Output) {
-	t.Outputs = append(t.Outputs, *out)
-}
-
-// AddInput adds the given input to the transaction inputs.
-func (t *Transaction) AddInput(in *Input) {
-	t.Inputs = append(t.Inputs, *in)
-}
-
 // DecodeBinary implements Serializable interface.
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
-	t.Type = TXType(br.ReadB())
 	t.Version = uint8(br.ReadB())
+	if t.Version > 0 {
+		br.Err = errors.New("only version 0 is supported")
+		return
+	}
 	t.Nonce = br.ReadU32LE()
 	t.Sender.DecodeBinary(br)
 	t.SystemFee.DecodeBinary(br)
@@ -140,7 +137,6 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 		return
 	}
 	t.ValidUntilBlock = br.ReadU32LE()
-	t.decodeData(br)
 
 	br.ReadArray(&t.Attributes)
 
@@ -154,42 +150,18 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 		}
 	}
 
-	br.ReadArray(&t.Inputs)
-	br.ReadArray(&t.Outputs)
-	for i := range t.Outputs {
-		if t.Outputs[i].Amount.LessThan(0) {
-			br.Err = errors.New("negative output")
-			return
-		}
+	t.Script = br.ReadVarBytes()
+	if br.Err == nil && len(t.Script) == 0 {
+		br.Err = errors.New("no script")
+		return
 	}
+
 	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
 	// to do it anymore.
 	if br.Err == nil {
 		br.Err = t.createHash()
-	}
-}
-
-func (t *Transaction) decodeData(r *io.BinReader) {
-	switch t.Type {
-	case InvocationType:
-		t.Data = &InvocationTX{Version: t.Version}
-		t.Data.(*InvocationTX).DecodeBinary(r)
-	case ClaimType:
-		t.Data = &ClaimTX{}
-		t.Data.(*ClaimTX).DecodeBinary(r)
-	case ContractType:
-		t.Data = &ContractTX{}
-		t.Data.(*ContractTX).DecodeBinary(r)
-	case RegisterType:
-		t.Data = &RegisterTX{}
-		t.Data.(*RegisterTX).DecodeBinary(r)
-	case IssueType:
-		t.Data = &IssueTX{}
-		t.Data.(*IssueTX).DecodeBinary(r)
-	default:
-		r.Err = fmt.Errorf("invalid TX type %x", t.Type)
 	}
 }
 
@@ -202,12 +174,10 @@ func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 // encodeHashableFields encodes the fields that are not used for
 // signing the transaction, which are all fields except the scripts.
 func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
-	noData := t.Type == ContractType
-	if t.Data == nil && !noData {
-		bw.Err = errors.New("transaction has no data")
+	if len(t.Script) == 0 {
+		bw.Err = errors.New("transaction has no script")
 		return
 	}
-	bw.WriteB(byte(t.Type))
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
 	t.Sender.EncodeBinary(bw)
@@ -215,22 +185,13 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	t.NetworkFee.EncodeBinary(bw)
 	bw.WriteU32LE(t.ValidUntilBlock)
 
-	// Underlying TXer.
-	if !noData {
-		t.Data.EncodeBinary(bw)
-	}
-
 	// Attributes
 	bw.WriteArray(t.Attributes)
 
 	// Cosigners
 	bw.WriteArray(t.Cosigners)
 
-	// Inputs
-	bw.WriteArray(t.Inputs)
-
-	// Outputs
-	bw.WriteArray(t.Outputs)
+	bw.WriteVarBytes(t.Script)
 }
 
 // createHash creates the hash of the transaction.
@@ -246,16 +207,6 @@ func (t *Transaction) createHash() error {
 	t.hash = hash.Sha256(t.verificationHash.BytesBE())
 
 	return nil
-}
-
-// GroupOutputByAssetID groups all TX outputs by their assetID.
-func (t Transaction) GroupOutputByAssetID() map[util.Uint256][]*Output {
-	m := make(map[util.Uint256][]*Output)
-	for i := range t.Outputs {
-		hash := t.Outputs[i].AssetID
-		m[hash] = append(m[hash], &t.Outputs[i])
-	}
-	return m
 }
 
 // GetSignedPart returns a part of the transaction which must be signed.
@@ -300,7 +251,6 @@ func (t *Transaction) FeePerByte() util.Fixed8 {
 type transactionJSON struct {
 	TxID            util.Uint256 `json:"txid"`
 	Size            int          `json:"size"`
-	Type            TXType       `json:"type"`
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`
 	Sender          string       `json:"sender"`
@@ -309,14 +259,8 @@ type transactionJSON struct {
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`
-	Inputs          []Input      `json:"vin"`
-	Outputs         []Output     `json:"vout"`
+	Script          string       `json:"script"`
 	Scripts         []Witness    `json:"scripts"`
-
-	Claims []Input          `json:"claims,omitempty"`
-	Script string           `json:"script,omitempty"`
-	Gas    util.Fixed8      `json:"gas,omitempty"`
-	Asset  *registeredAsset `json:"asset,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
@@ -324,35 +268,16 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	tx := transactionJSON{
 		TxID:            t.Hash(),
 		Size:            io.GetVarSize(t),
-		Type:            t.Type,
 		Version:         t.Version,
 		Nonce:           t.Nonce,
 		Sender:          address.Uint160ToString(t.Sender),
 		ValidUntilBlock: t.ValidUntilBlock,
 		Attributes:      t.Attributes,
 		Cosigners:       t.Cosigners,
-		Inputs:          t.Inputs,
-		Outputs:         t.Outputs,
+		Script:          hex.EncodeToString(t.Script),
 		Scripts:         t.Scripts,
 		SystemFee:       t.SystemFee,
 		NetworkFee:      t.NetworkFee,
-	}
-	switch t.Type {
-	case ClaimType:
-		tx.Claims = t.Data.(*ClaimTX).Claims
-	case InvocationType:
-		tx.Script = hex.EncodeToString(t.Data.(*InvocationTX).Script)
-		tx.Gas = t.Data.(*InvocationTX).Gas
-	case RegisterType:
-		transaction := *t.Data.(*RegisterTX)
-		tx.Asset = &registeredAsset{
-			AssetType: transaction.AssetType,
-			Name:      json.RawMessage(transaction.Name),
-			Amount:    transaction.Amount,
-			Precision: transaction.Precision,
-			Owner:     transaction.Owner,
-			Admin:     address.Uint160ToString(transaction.Admin),
-		}
 	}
 	return json.Marshal(tx)
 }
@@ -363,14 +288,11 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, tx); err != nil {
 		return err
 	}
-	t.Type = tx.Type
 	t.Version = tx.Version
 	t.Nonce = tx.Nonce
 	t.ValidUntilBlock = tx.ValidUntilBlock
 	t.Attributes = tx.Attributes
 	t.Cosigners = tx.Cosigners
-	t.Inputs = tx.Inputs
-	t.Outputs = tx.Outputs
 	t.Scripts = tx.Scripts
 	t.SystemFee = tx.SystemFee
 	t.NetworkFee = tx.NetworkFee
@@ -379,38 +301,9 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 		return errors.New("cannot unmarshal tx: bad sender")
 	}
 	t.Sender = sender
-	switch tx.Type {
-	case ClaimType:
-		t.Data = &ClaimTX{
-			Claims: tx.Claims,
-		}
-	case InvocationType:
-		bytes, err := hex.DecodeString(tx.Script)
-		if err != nil {
-			return err
-		}
-		t.Data = &InvocationTX{
-			Script:  bytes,
-			Gas:     tx.Gas,
-			Version: tx.Version,
-		}
-	case RegisterType:
-		admin, err := address.StringToUint160(tx.Asset.Admin)
-		if err != nil {
-			return err
-		}
-		t.Data = &RegisterTX{
-			AssetType: tx.Asset.AssetType,
-			Name:      string(tx.Asset.Name),
-			Amount:    tx.Asset.Amount,
-			Precision: tx.Asset.Precision,
-			Owner:     tx.Asset.Owner,
-			Admin:     admin,
-		}
-	case ContractType:
-		t.Data = &ContractTX{}
-	case IssueType:
-		t.Data = &IssueTX{}
+	t.Script, err = hex.DecodeString(tx.Script)
+	if err != nil {
+		return err
 	}
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")

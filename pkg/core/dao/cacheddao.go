@@ -15,7 +15,6 @@ type Cached struct {
 	DAO
 	accounts  map[util.Uint160]*state.Account
 	contracts map[util.Uint160]*state.Contract
-	unspents  map[util.Uint256]*state.UnspentCoin
 	balances  map[util.Uint160]*state.NEP5Balances
 	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
 }
@@ -24,10 +23,9 @@ type Cached struct {
 func NewCached(d DAO) *Cached {
 	accs := make(map[util.Uint160]*state.Account)
 	ctrs := make(map[util.Uint160]*state.Contract)
-	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
 	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
-	return &Cached{d.GetWrapped(), accs, ctrs, unspents, balances, transfers}
+	return &Cached{d.GetWrapped(), accs, ctrs, balances, transfers}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying store
@@ -75,20 +73,6 @@ func (cd *Cached) PutContractState(cs *state.Contract) error {
 func (cd *Cached) DeleteContractState(hash util.Uint160) error {
 	cd.contracts[hash] = nil
 	return cd.DAO.DeleteContractState(hash)
-}
-
-// GetUnspentCoinState retrieves UnspentCoin from cache or underlying store.
-func (cd *Cached) GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error) {
-	if cd.unspents[hash] != nil {
-		return cd.unspents[hash], nil
-	}
-	return cd.DAO.GetUnspentCoinState(hash)
-}
-
-// PutUnspentCoinState saves given UnspentCoin in the cache.
-func (cd *Cached) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error {
-	cd.unspents[hash] = ucs
-	return nil
 }
 
 // GetNEP5Balances retrieves NEP5Balances for the acc.
@@ -167,13 +151,6 @@ func (cd *Cached) Persist() (int, error) {
 		}
 		buf.Reset()
 	}
-	for hash := range cd.unspents {
-		err := cd.DAO.putUnspentCoinState(hash, cd.unspents[hash], buf)
-		if err != nil {
-			return 0, err
-		}
-		buf.Reset()
-	}
 	for acc, bs := range cd.balances {
 		err := cd.DAO.putNEP5Balances(acc, bs, buf)
 		if err != nil {
@@ -197,7 +174,6 @@ func (cd *Cached) GetWrapped() DAO {
 	return &Cached{cd.DAO.GetWrapped(),
 		cd.accounts,
 		cd.contracts,
-		cd.unspents,
 		cd.balances,
 		cd.transfers,
 	}

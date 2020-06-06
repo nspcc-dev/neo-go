@@ -25,18 +25,13 @@ import (
 )
 
 /*  Missing tests:
- *  TestTxGetReferences
- *  TestTxGetUnspentCoins
  *  TestTxGetWitnesses
  *  TestBcGetAccount
- *  TestBcGetAsset
  *  TestAccountGetBalance
  *  TestAccountIsStandard
  *  TestCreateContractStateFromVM
  *  TestContractCreate
  *  TestContractMigrate
- *  TestAssetCreate
- *  TestAssetRenew
  *  TestRuntimeSerialize
  *  TestRuntimeDeserialize
  */
@@ -192,47 +187,6 @@ func TestTxGetAttributes(t *testing.T) {
 	require.Equal(t, tx.Attributes[0].Usage, value[0].Value().(*transaction.Attribute).Usage)
 }
 
-func TestTxGetInputs(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := txGetInputs(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]vm.StackItem)
-	require.Equal(t, tx.Inputs[0], *value[0].Value().(*transaction.Input))
-}
-
-func TestTxGetOutputs(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := txGetOutputs(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]vm.StackItem)
-	require.Equal(t, tx.Outputs[0], *value[0].Value().(*transaction.Output))
-}
-
-func TestTxGetType(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := txGetType(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().(*big.Int)
-	require.Equal(t, big.NewInt(int64(tx.Type)), value)
-}
-
-func TestInvocationTxGetScript(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := invocationTxGetScript(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]byte)
-	inv := tx.Data.(*transaction.InvocationTX)
-	require.Equal(t, inv.Script, value)
-}
-
 func TestWitnessGetVerificationScript(t *testing.T) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
@@ -290,14 +244,14 @@ func TestECDSAVerify(t *testing.T) {
 	})
 
 	t.Run("signed interop item", func(t *testing.T) {
-		tx := transaction.NewInvocationTX([]byte{0, 1, 2}, 1)
+		tx := transaction.New([]byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		runCase(t, false, true, sign, priv.PublicKey().Bytes(), vm.NewInteropItem(tx))
 	})
 
 	t.Run("signed script container", func(t *testing.T) {
-		tx := transaction.NewInvocationTX([]byte{0, 1, 2}, 1)
+		tx := transaction.New([]byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		ic.Container = tx
@@ -323,81 +277,6 @@ func TestECDSAVerify(t *testing.T) {
 		pub = pub[10:]
 		runCase(t, true, false, sign, pub, msg)
 	})
-}
-
-func TestPopInputFromVM(t *testing.T) {
-	v, tx, _, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
-
-	input, err := popInputFromVM(v)
-	require.NoError(t, err)
-	require.Equal(t, tx.Inputs[0], *input)
-}
-
-func TestInputGetHash(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
-
-	err := inputGetHash(context, v)
-	require.NoError(t, err)
-	hash := v.Estack().Pop().Value()
-	require.Equal(t, tx.Inputs[0].PrevHash.BytesBE(), hash)
-}
-
-func TestInputGetIndex(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Inputs[0]))
-
-	err := inputGetIndex(context, v)
-	require.NoError(t, err)
-	index := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(tx.Inputs[0].PrevIndex)), index)
-}
-
-func TestPopOutputFromVM(t *testing.T) {
-	v, tx, _, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
-
-	output, err := popOutputFromVM(v)
-	require.NoError(t, err)
-	require.Equal(t, tx.Outputs[0], *output)
-}
-
-func TestOutputGetAssetID(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
-
-	err := outputGetAssetID(context, v)
-	require.NoError(t, err)
-	assetID := v.Estack().Pop().Value()
-	require.Equal(t, tx.Outputs[0].AssetID.BytesBE(), assetID)
-}
-
-func TestOutputGetScriptHash(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
-
-	err := outputGetScriptHash(context, v)
-	require.NoError(t, err)
-	scriptHash := v.Estack().Pop().Value()
-	require.Equal(t, tx.Outputs[0].ScriptHash.BytesBE(), scriptHash)
-}
-
-func TestOutputGetValue(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(&tx.Outputs[0]))
-
-	err := outputGetValue(context, v)
-	require.NoError(t, err)
-	amount := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(tx.Outputs[0].Amount)), amount)
 }
 
 func TestAttrGetData(t *testing.T) {
@@ -455,95 +334,7 @@ func TestContractIsPayable(t *testing.T) {
 	require.Equal(t, contractState.IsPayable(), isPayable)
 }
 
-func TestAssetGetAdmin(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAdmin(context, v)
-	require.NoError(t, err)
-	admin := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Admin.BytesBE(), admin)
-}
-
-func TestAssetGetAmount(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAmount(context, v)
-	require.NoError(t, err)
-	amount := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Amount)), amount)
-}
-
-func TestAssetGetAssetID(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAssetID(context, v)
-	require.NoError(t, err)
-	assetID := v.Estack().Pop().Value()
-	require.Equal(t, assetState.ID.BytesBE(), assetID)
-}
-
-func TestAssetGetAssetType(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAssetType(context, v)
-	require.NoError(t, err)
-	assetType := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.AssetType)), assetType)
-}
-
-func TestAssetGetAvailable(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetAvailable(context, v)
-	require.NoError(t, err)
-	available := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Available)), available)
-}
-
-func TestAssetGetIssuer(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetIssuer(context, v)
-	require.NoError(t, err)
-	issuer := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Issuer.BytesBE(), issuer)
-}
-
-func TestAssetGetOwner(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetOwner(context, v)
-	require.NoError(t, err)
-	owner := v.Estack().Pop().Value()
-	require.Equal(t, assetState.Owner.Bytes(), owner)
-}
-
-func TestAssetGetPrecision(t *testing.T) {
-	v, assetState, context, chain := createVMAndAssetState(t)
-	defer chain.Close()
-	v.Estack().PushVal(vm.NewInteropItem(assetState))
-
-	err := assetGetPrecision(context, v)
-	require.NoError(t, err)
-	precision := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(assetState.Precision)), precision)
-}
-
-// Helper functions to create VM, InteropContext, TX, Account, Contract, Asset.
+// Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	v := vm.New()
@@ -558,29 +349,6 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 	v, tx, context, chain := createVMAndTX(t)
 	v.Estack().PushVal(vm.NewInteropItem(tx))
 	return v, tx, context, chain
-}
-
-func createVMAndAssetState(t *testing.T) (*vm.VM, *state.Asset, *interop.Context, *Blockchain) {
-	v := vm.New()
-	assetState := &state.Asset{
-		ID:         util.Uint256{},
-		AssetType:  transaction.GoverningToken,
-		Name:       "TestAsset",
-		Amount:     1,
-		Available:  2,
-		Precision:  1,
-		FeeMode:    1,
-		FeeAddress: random.Uint160(),
-		Owner:      keys.PublicKey{X: big.NewInt(1), Y: big.NewInt(1)},
-		Admin:      random.Uint160(),
-		Issuer:     random.Uint160(),
-		Expiration: 10,
-		IsFrozen:   false,
-	}
-
-	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
-	return v, assetState, context, chain
 }
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
@@ -617,7 +385,7 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
-	tx := transaction.NewInvocationTX(script, 0)
+	tx := transaction.New(script, 0)
 
 	bytes := make([]byte, 1)
 	attributes := append(tx.Attributes, transaction.Attribute{
@@ -625,21 +393,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 		Data:  bytes,
 	})
 
-	inputs := append(tx.Inputs, transaction.Input{
-		PrevHash:  random.Uint256(),
-		PrevIndex: 1,
-	})
-
-	outputs := append(tx.Outputs, transaction.Output{
-		AssetID:    random.Uint256(),
-		Amount:     10,
-		ScriptHash: random.Uint160(),
-		Position:   1,
-	})
-
 	tx.Attributes = attributes
-	tx.Inputs = inputs
-	tx.Outputs = outputs
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, tx)
 	return v, tx, context, chain

@@ -11,12 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -45,13 +42,6 @@ type Client struct {
 // All values are optional. If any duration is not specified
 // a default of 4 seconds will be used.
 type Options struct {
-	// Balancer is an implementation of request.BalanceGetter interface,
-	// if not set then the default Client's implementation will be used, but
-	// it relies on server support for `getunspents` RPC call which is
-	// standard for neo-go, but only implemented as a plugin for C# node. So
-	// you can override it here to use NeoScanServer for example.
-	Balancer request.BalanceGetter
-
 	// Cert is a client-side certificate, it doesn't work at the moment along
 	// with the other two options below.
 	Cert           string
@@ -107,9 +97,6 @@ func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 		wifMu:    new(sync.Mutex),
 		endpoint: url,
 	}
-	if opts.Balancer == nil {
-		opts.Balancer = cl
-	}
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
 	return cl, nil
@@ -138,27 +125,6 @@ func (c *Client) SetWIF(wif string) error {
 	}
 	c.wif = decodedWif
 	return nil
-}
-
-// CalculateInputs implements request.BalanceGetter interface and returns inputs
-// array for the specified amount of given asset belonging to specified address.
-// This implementation uses GetUnspents JSON-RPC call internally, so make sure
-// your RPC server supports that.
-func (c *Client) CalculateInputs(address string, asset util.Uint256, cost util.Fixed8) ([]transaction.Input, util.Fixed8, error) {
-	var utxos state.UnspentBalances
-
-	resp, err := c.GetUnspents(address)
-	if err != nil {
-		return nil, util.Fixed8(0), errors.Wrapf(err, "cannot get balance for address %v", address)
-	}
-	for _, ubi := range resp.Balance {
-		if asset.Equals(ubi.AssetHash) {
-			utxos = ubi.Unspents
-			break
-		}
-	}
-	return unspentsToInputs(utxos, cost)
-
 }
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {

@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +45,7 @@ func TestNeoBlock_Setters(t *testing.T) {
 	b.Block.PrevHash = util.Uint256{9, 8, 7}
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())
 
-	txx := []block.Transaction{transaction.NewIssueTX()}
+	txx := []block.Transaction{transaction.New([]byte{byte(opcode.PUSH1)}, 1)}
 	b.SetTransactions(txx)
 	require.Equal(t, txx, b.Transactions())
 }

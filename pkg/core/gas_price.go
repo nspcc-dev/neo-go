@@ -41,10 +41,6 @@ func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 	}
 
 	const (
-		neoAssetCreate           = 0x1fc6c583 // Neo.Asset.Create
-		antSharesAssetCreate     = 0x99025068 // AntShares.Asset.Create
-		neoAssetRenew            = 0x71908478 // Neo.Asset.Renew
-		antSharesAssetRenew      = 0xaf22447b // AntShares.Asset.Renew
 		neoContractCreate        = 0x6ea56cf6 // Neo.Contract.Create
 		neoContractMigrate       = 0x90621b47 // Neo.Contract.Migrate
 		antSharesContractCreate  = 0x2a28d29b // AntShares.Contract.Create
@@ -58,11 +54,6 @@ func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 	estack := v.Estack()
 
 	switch id {
-	case neoAssetCreate, antSharesAssetCreate:
-		return util.Fixed8FromInt64(5000)
-	case neoAssetRenew, antSharesAssetRenew:
-		arg := estack.Peek(1).BigInt().Int64()
-		return util.Fixed8FromInt64(arg * 5000)
 	case neoContractCreate, neoContractMigrate, antSharesContractCreate, antSharesContractMigrate:
 		return smartcontract.GetDeploymentPrice(smartcontract.PropertyState(estack.Peek(3).BigInt().Int64()))
 	case systemStoragePut, systemStoragePutEx, neoStoragePut, antSharesStoragePut:

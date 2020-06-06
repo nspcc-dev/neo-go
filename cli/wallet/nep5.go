@@ -1,12 +1,15 @@
 package wallet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -82,6 +85,7 @@ func newNEP5Commands() []cli.Command {
 			Flags: []cli.Flag{
 				walletPathFlag,
 				rpcFlag,
+				outFlag,
 				timeoutFlag,
 				fromAddrFlag,
 				toAddrFlag,
@@ -341,11 +345,30 @@ func transferNEP5(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	hash, err := c.TransferNEP5(acc, to, token, amount, gas)
+	tx, err := c.CreateNEP5TransferTx(acc, to, token.Hash, amount, gas)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Println(hash.StringLE())
+	if outFile := ctx.String("out"); outFile != "" {
+		priv := acc.PrivateKey()
+		pub := priv.PublicKey()
+		sign := priv.Sign(tx.GetSignedPart())
+		scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx)
+		if err := scCtx.AddSignature(acc.Contract, pub, sign); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
+		} else if data, err := json.Marshal(scCtx); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %v", err), 1)
+		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't write tx to file: %v", err), 1)
+		}
+	} else {
+		_ = acc.SignTx(tx)
+		if err := c.SendRawTransaction(tx); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	fmt.Println(tx.Hash().StringLE())
 	return nil
 }

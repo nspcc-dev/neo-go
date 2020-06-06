@@ -1,6 +1,6 @@
 package opcode
 
-//go:generate stringer -type=Opcode
+//go:generate stringer -type=Opcode -linecomment
 
 // Opcode represents a single operation code for the NEO virtual machine.
 type Opcode byte
@@ -87,7 +87,6 @@ const (
 	TUCK     Opcode = 0x4E
 	SWAP     Opcode = 0x50
 	ROT      Opcode = 0x51
-	OLDPUSH1 Opcode = 0x51 // FIXME remove #927
 	ROLL     Opcode = 0x52
 	REVERSE3 Opcode = 0x53
 	REVERSE4 Opcode = 0x54

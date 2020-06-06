@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 )
 
@@ -23,11 +24,16 @@ func Example() {
 		os.Exit(1)
 	}
 
-	resp, err := c.GetAccountState("ATySFJAbLW7QHsZGHScLhxq6EyNBxx3eFP")
+	addr, err := address.StringToUint160("ATySFJAbLW7QHsZGHScLhxq6EyNBxx3eFP")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Println(resp.ScriptHash)
+	resp, err := c.GetNEP5Balances(addr)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println(resp.Address)
 	fmt.Println(resp.Balances)
 }

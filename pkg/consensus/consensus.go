@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
-	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -394,13 +393,13 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 func (s *service) getVerifiedTx(count int) []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
-	var txx []mempool.TxWithFee
+	var txx []*transaction.Transaction
 
 	if s.dbft.ViewNumber > 0 {
-		txx = make([]mempool.TxWithFee, 0, len(s.lastProposal))
+		txx = make([]*transaction.Transaction, 0, len(s.lastProposal))
 		for i := range s.lastProposal {
-			if tx, fee, ok := pool.TryGetValue(s.lastProposal[i]); ok {
-				txx = append(txx, mempool.TxWithFee{Tx: tx, Fee: fee})
+			if tx, ok := pool.TryGetValue(s.lastProposal[i]); ok {
+				txx = append(txx, tx)
 			}
 		}
 
@@ -417,7 +416,7 @@ func (s *service) getVerifiedTx(count int) []block.Transaction {
 
 	res := make([]block.Transaction, len(txx))
 	for i := range txx {
-		res[i] = txx[i].Tx
+		res[i] = txx[i]
 	}
 
 	return res

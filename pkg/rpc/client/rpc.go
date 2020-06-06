@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/hex"
+	"strconv"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -16,18 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetAccountState returns detailed information about a NEO account.
-func (c *Client) GetAccountState(address string) (*result.AccountState, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.AccountState{}
-	)
-	if err := c.performRequest("getaccountstate", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetApplicationLog returns the contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, error) {
 	var (
@@ -35,18 +24,6 @@ func (c *Client) GetApplicationLog(hash util.Uint256) (*result.ApplicationLog, e
 		resp   = &result.ApplicationLog{}
 	)
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
-// GetAssetState queries the asset information, based on the specified asset number.
-func (c *Client) GetAssetState(hash util.Uint256) (*result.AssetState, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.AssetState{}
-	)
-	if err := c.performRequest("getassetstate", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -187,16 +164,6 @@ func (c *Client) GetBlockSysFee(index uint32) (util.Fixed8, error) {
 	return resp, nil
 }
 
-// GetClaimable returns tx outputs which can be claimed.
-func (c *Client) GetClaimable(address string) (*result.ClaimableInfo, error) {
-	params := request.NewRawParams(address)
-	resp := new(result.ClaimableInfo)
-	if err := c.performRequest("getclaimable", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // GetConnectionCount returns the current number of connections for the node.
 func (c *Client) GetConnectionCount() (int, error) {
 	var (
@@ -329,41 +296,20 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	return resp, nil
 }
 
-// GetTxOut returns the corresponding unspent transaction output information (returned change),
-// based on the specified hash and index.
-func (c *Client) GetTxOut(hash util.Uint256, num int) (*result.TransactionOutput, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE(), num)
-		resp   = &result.TransactionOutput{}
-	)
-	if err := c.performRequest("gettxout", params, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetUnclaimed returns unclaimed GAS amount of the specified address.
-func (c *Client) GetUnclaimed(address string) (*result.Unclaimed, error) {
+// GetUnclaimedGas returns unclaimed GAS amount for the specified address.
+func (c *Client) GetUnclaimedGas(address string) (util.Fixed8, error) {
 	var (
 		params = request.NewRawParams(address)
-		resp   = &result.Unclaimed{}
+		resp   string
 	)
-	if err := c.performRequest("getunclaimed", params, resp); err != nil {
-		return nil, err
+	if err := c.performRequest("getunclaimedgas", params, &resp); err != nil {
+		return 0, err
 	}
-	return resp, nil
-}
-
-// GetUnspents returns UTXOs for the given NEO account.
-func (c *Client) GetUnspents(address string) (*result.Unspents, error) {
-	var (
-		params = request.NewRawParams(address)
-		resp   = &result.Unspents{}
-	)
-	if err := c.performRequest("getunspents", params, resp); err != nil {
-		return nil, err
+	i, err := strconv.ParseInt(resp, 10, 64)
+	if err != nil {
+		return 0, err
 	}
-	return resp, nil
+	return util.Fixed8(i), nil
 }
 
 // GetValidators returns the current NEO consensus nodes information and voting status.
@@ -470,39 +416,6 @@ func (c *Client) SubmitBlock(b block.Block) error {
 	return nil
 }
 
-// TransferAsset sends an amount of specific asset to a given address.
-// This call requires open wallet. (`wif` key in client struct.)
-// If response.Result is `true` then transaction was formed correctly and was written in blockchain.
-func (c *Client) TransferAsset(asset util.Uint256, address string, amount util.Fixed8) (util.Uint256, error) {
-	var (
-		err      error
-		rawTx    *transaction.Transaction
-		txParams = request.ContractTxParams{
-			AssetID:  asset,
-			Address:  address,
-			Value:    amount,
-			WIF:      c.WIF(),
-			Balancer: c.opts.Balancer,
-		}
-		resp util.Uint256
-	)
-
-	if rawTx, err = request.CreateRawContractTransaction(txParams); err != nil {
-		return resp, errors.Wrap(err, "failed to create raw transaction")
-	}
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	if err != nil {
-		return resp, errors.Wrap(err, "failed to add validUntilBlock to raw transaction")
-	}
-	rawTx.ValidUntilBlock = validUntilBlock
-
-	if err = c.SendRawTransaction(rawTx); err != nil {
-		return resp, errors.Wrap(err, "failed to send raw transaction")
-	}
-	return rawTx.Hash(), nil
-}
-
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
@@ -510,7 +423,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.NewInvocationTX(script, sysfee)
+	tx := transaction.New(script, sysfee)
 	tx.SystemFee = sysfee
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
@@ -524,14 +437,6 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 		return txHash, errors.Wrap(err, "failed to get address")
 	}
 	tx.Sender = addr
-
-	gas := sysfee + netfee
-
-	if gas > 0 {
-		if err = request.AddInputsAndUnspentsToTx(tx, acc.Address, core.UtilityTokenID(), gas, c); err != nil {
-			return txHash, errors.Wrap(err, "failed to add inputs and unspents to transaction")
-		}
-	}
 
 	err = c.AddNetworkFee(tx, acc)
 	if err != nil {
