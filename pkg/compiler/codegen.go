@@ -1053,6 +1053,10 @@ func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 		emit.Opcode(c.prog.BinWriter, opcode.PACK)
 	}
 	emit.Syscall(c.prog.BinWriter, api)
+	switch name {
+	case "GetTransaction":
+		c.emitConvert(stackitem.StructT)
+	}
 
 	// This NOP instruction is basically not needed, but if we do, we have a
 	// one to one matching avm file with neo-python which is very nice for debugging.

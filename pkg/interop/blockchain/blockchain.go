@@ -8,8 +8,31 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/block"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/header"
-	"github.com/nspcc-dev/neo-go/pkg/interop/transaction"
 )
+
+// Transaction represents a NEO transaction. It's similar to Transaction class
+// in Neo .net framework.
+type Transaction struct {
+	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// given transaction (which also is its ID).
+	Hash []byte
+	// Version represents the transaction version.
+	Version int
+	// Nonce is a random number to avoid hash collision.
+	Nonce int
+	// Sender represents the sender (160 bit BE value in a 20 byte slice) of the
+	// given Transaction.
+	Sender []byte
+	// SysFee represents fee to be burned.
+	SysFee int
+	// NetFee represents fee to be distributed to consensus nodes.
+	NetFee int
+	// ValidUntilBlock is the maximum blockchain height exceeding which
+	// transaction should fail verification.
+	ValidUntilBlock int
+	// Script represents code to run in NeoVM for this transaction.
+	Script []byte
+}
 
 // GetHeight returns current block height (index of the last accepted block).
 // Note that when transaction is being run as a part of new block this block is
@@ -35,12 +58,11 @@ func GetBlock(heightOrHash interface{}) block.Block {
 	return block.Block{}
 }
 
-// GetTransaction returns transaction found by the given (256 bit in BE format
-// represented as a slice of 32 bytes). Refer to the `transaction` package for
-// possible uses of returned structure. This function uses
-// `Neo.Blockchain.GetTransaction` syscall.
-func GetTransaction(hash []byte) transaction.Transaction {
-	return transaction.Transaction{}
+// GetTransaction returns transaction found by the given hash (256 bit in BE
+// format represented as a slice of 32 bytes). This function uses
+// `System.Blockchain.GetTransaction` syscall.
+func GetTransaction(hash []byte) Transaction {
+	return Transaction{}
 }
 
 // GetTransactionHeight returns transaction's height (index of the block that

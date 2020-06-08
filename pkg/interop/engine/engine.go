@@ -5,15 +5,14 @@ framework.
 */
 package engine
 
-import "github.com/nspcc-dev/neo-go/pkg/interop/transaction"
+import "github.com/nspcc-dev/neo-go/pkg/interop/blockchain"
 
 // GetScriptContainer returns the transaction that initially triggered current
 // execution context. It never changes in a single execution, no matter how deep
-// this execution goes. See `transaction` package for details on how to use the
-// returned value. This function uses `System.ExecutionEngine.GetScriptContainer`
-// syscall.
-func GetScriptContainer() transaction.Transaction {
-	return transaction.Transaction{}
+// this execution goes. This function uses
+// `System.ExecutionEngine.GetScriptContainer` syscall.
+func GetScriptContainer() blockchain.Transaction {
+	return blockchain.Transaction{}
 }
 
 // GetExecutingScriptHash returns script hash (160 bit in BE form represented

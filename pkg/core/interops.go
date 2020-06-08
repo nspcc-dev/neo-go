@@ -69,7 +69,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "System.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
-	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 200},
+	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
 	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
 	{Name: "System.Contract.Call", Func: contractCall, Price: 1},
 	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1},
@@ -98,15 +98,12 @@ var systemInterops = []interop.Function{
 	{Name: "System.Storage.Put", Func: storagePut, Price: 0}, // These don't have static price in C# code.
 	{Name: "System.Storage.PutEx", Func: storagePutEx, Price: 0},
 	{Name: "System.StorageContext.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
-	{Name: "System.Transaction.GetHash", Func: txGetHash, Price: 1},
 }
 
 var neoInterops = []interop.Function{
 	{Name: "Neo.Account.GetBalance", Func: accountGetBalance, Price: 1},
 	{Name: "Neo.Account.GetScriptHash", Func: accountGetScriptHash, Price: 1},
 	{Name: "Neo.Account.IsStandard", Func: accountIsStandard, Price: 100},
-	{Name: "Neo.Attribute.GetData", Func: attrGetData, Price: 1},
-	{Name: "Neo.Attribute.GetUsage", Func: attrGetUsage, Price: 1},
 	{Name: "Neo.Block.GetTransaction", Func: blockGetTransaction, Price: 1},
 	{Name: "Neo.Block.GetTransactionCount", Func: blockGetTransactionCount, Price: 1},
 	{Name: "Neo.Block.GetTransactions", Func: blockGetTransactions, Price: 1},
@@ -115,7 +112,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "Neo.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "Neo.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
-	{Name: "Neo.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
 	{Name: "Neo.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
 	{Name: "Neo.Contract.Create", Func: contractCreate, Price: 0},
 	{Name: "Neo.Contract.Destroy", Func: contractDestroy, Price: 1},
@@ -157,9 +153,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Storage.GetReadOnlyContext", Func: storageGetReadOnlyContext, Price: 1},
 	{Name: "Neo.Storage.Put", Func: storagePut, Price: 0},
 	{Name: "Neo.StorageContext.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
-	{Name: "Neo.Transaction.GetAttributes", Func: txGetAttributes, Price: 1},
-	{Name: "Neo.Transaction.GetHash", Func: txGetHash, Price: 1},
-	{Name: "Neo.Transaction.GetWitnesses", Func: txGetWitnesses, Price: 200},
 	{Name: "Neo.Witness.GetVerificationScript", Func: witnessGetVerificationScript, Price: 100},
 
 	// Aliases.

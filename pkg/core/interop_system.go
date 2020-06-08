@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -22,6 +23,9 @@ import (
 const (
 	// MaxStorageKeyLen is the maximum length of a key for storage items.
 	MaxStorageKeyLen = 1024
+	// MaxTraceableBlocks is the maximum number of blocks before current chain
+	// height we're able to give information about.
+	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
 )
 
 // StorageContext contains storing script hash and read/write flag, it's used as
@@ -112,13 +116,35 @@ func getTransactionAndHeight(cd *dao.Cached, v *vm.VM) (*transaction.Transaction
 	return cd.GetTransaction(hash)
 }
 
+// isTraceableBlock defines whether we're able to give information about
+// the block with index specified.
+func isTraceableBlock(ic *interop.Context, index uint32) bool {
+	height := ic.Chain.BlockHeight()
+	return index <= height && index+MaxTraceableBlocks > height
+}
+
+// transactionToStackItem converts transaction.Transaction to stackitem.Item
+func transactionToStackItem(t *transaction.Transaction) stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(t.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
+		stackitem.NewByteArray(t.Sender.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
+		stackitem.NewByteArray(t.Script),
+	})
+}
+
 // bcGetTransaction returns transaction.
 func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
-	tx, _, err := getTransactionAndHeight(ic.DAO, v)
-	if err != nil {
-		return err
+	tx, h, err := getTransactionAndHeight(ic.DAO, v)
+	if err != nil || !isTraceableBlock(ic, h) {
+		v.Estack().PushVal(stackitem.Null{})
+		return nil
 	}
-	v.Estack().PushVal(stackitem.NewInterop(tx))
+	v.Estack().PushVal(transactionToStackItem(tx))
 	return nil
 }
 
@@ -231,17 +257,6 @@ func blockGetTransaction(ic *interop.Context, v *vm.VM) error {
 	}
 	tx := block.Transactions[index]
 	v.Estack().PushVal(stackitem.NewInterop(tx))
-	return nil
-}
-
-// txGetHash returns transaction's hash.
-func txGetHash(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	v.Estack().PushVal(tx.Hash().BytesBE())
 	return nil
 }
 

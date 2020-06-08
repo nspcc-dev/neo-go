@@ -7,10 +7,6 @@ var syscalls = map[string]map[string]string{
 		"GetVotes":      "Neo.Account.GetVotes",
 		"IsStandard":    "Neo.Account.IsStandard",
 	},
-	"attribute": {
-		"GetUsage": "Neo.Attribute.GetUsage",
-		"GetData":  "Neo.Attribute.GetData",
-	},
 	"crypto": {
 		"ECDsaVerify": "Neo.Crypto.ECDsaVerify",
 	},
@@ -44,7 +40,7 @@ var syscalls = map[string]map[string]string{
 		"GetContract":          "Neo.Blockchain.GetContract",
 		"GetHeader":            "Neo.Blockchain.GetHeader",
 		"GetHeight":            "Neo.Blockchain.GetHeight",
-		"GetTransaction":       "Neo.Blockchain.GetTransaction",
+		"GetTransaction":       "System.Blockchain.GetTransaction",
 		"GetTransactionHeight": "Neo.Blockchain.GetTransactionHeight",
 		"GetValidators":        "Neo.Blockchain.GetValidators",
 	},
@@ -62,11 +58,6 @@ var syscalls = map[string]map[string]string{
 		"GetTransactionCount": "Neo.Block.GetTransactionCount",
 		"GetTransactions":     "Neo.Block.GetTransactions",
 		"GetTransaction":      "Neo.Block.GetTransaction",
-	},
-	"transaction": {
-		"GetAttributes": "Neo.Transaction.GetAttributes",
-		"GetHash":       "Neo.Transaction.GetHash",
-		"GetWitnesses":  "Neo.Transaction.GetWitnesses",
 	},
 	"contract": {
 		"GetScript":         "Neo.Contract.GetScript",
