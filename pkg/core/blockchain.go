@@ -1528,12 +1528,13 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []mempool.TxWithFee) []mempool.TxW
 		txes = txes[:bc.config.MaxTransactionsPerBlock]
 	}
 	maxFree := bc.config.MaxFreeTransactionsPerBlock
-	if maxFree != 0 {
-		lowStart := sort.Search(len(txes), func(i int) bool {
-			return bc.IsLowPriority(txes[i].Fee)
+	if maxFree != 0 && len(txes) > maxFree {
+		// Transactions are sorted by fee, so we just find the first free one.
+		freeStart := sort.Search(len(txes), func(i int) bool {
+			return txes[i].Fee == 0
 		})
-		if lowStart+maxFree < len(txes) {
-			txes = txes[:lowStart+maxFree]
+		if freeStart+maxFree < len(txes) {
+			txes = txes[:freeStart+maxFree]
 		}
 	}
 	return txes
