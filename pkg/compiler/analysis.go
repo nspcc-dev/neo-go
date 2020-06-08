@@ -4,6 +4,7 @@ import (
 	"errors"
 	"go/ast"
 	"go/types"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -11,12 +12,12 @@ import (
 )
 
 var (
-	// Go language builtin functions and custom builtin utility functions.
-	builtinFuncs = []string{
-		"len", "append", "SHA256",
-		"AppCall",
+	// Go language builtin functions.
+	goBuiltins = []string{"len", "append", "panic"}
+	// Custom builtin utility functions.
+	customBuiltins = []string{
+		"SHA256", "AppCall",
 		"FromAddress", "Equals",
-		"panic",
 		"ToBool", "ToByteArray", "ToInteger",
 	}
 )
@@ -134,20 +135,21 @@ func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 	return usage
 }
 
-func isBuiltin(expr ast.Expr) bool {
-	var name string
+func isGoBuiltin(name string) bool {
+	for i := range goBuiltins {
+		if name == goBuiltins[i] {
+			return true
+		}
+	}
+	return false
+}
 
-	switch t := expr.(type) {
-	case *ast.Ident:
-		name = t.Name
-	case *ast.SelectorExpr:
-		name = t.Sel.Name
-	default:
+func isCustomBuiltin(f *funcScope) bool {
+	if !isInteropPath(f.pkg.Path()) {
 		return false
 	}
-
-	for _, n := range builtinFuncs {
-		if name == n {
+	for _, n := range customBuiltins {
+		if f.name == n {
 			return true
 		}
 	}
@@ -155,9 +157,13 @@ func isBuiltin(expr ast.Expr) bool {
 }
 
 func isSyscall(fun *funcScope) bool {
-	if fun.selector == nil {
+	if fun.selector == nil || fun.pkg == nil || !isInteropPath(fun.pkg.Path()) {
 		return false
 	}
 	_, ok := syscalls[fun.selector.Name][fun.name]
 	return ok
+}
+
+func isInteropPath(s string) bool {
+	return strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/interop")
 }
