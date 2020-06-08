@@ -617,25 +617,31 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.X)
 			ast.Walk(c, n.Y)
 
-			switch {
-			case n.Op == token.ADD:
+			switch n.Op {
+			case token.ADD:
 				// VM has separate opcodes for number and string concatenation
 				if isStringType(tinfo.Type) {
 					emit.Opcode(c.prog.BinWriter, opcode.CAT)
 				} else {
 					emit.Opcode(c.prog.BinWriter, opcode.ADD)
 				}
-			case n.Op == token.EQL:
-				// VM has separate opcodes for number and string equality
-				op := c.getEqualityOpcode(n.X)
-				emit.Opcode(c.prog.BinWriter, op)
-			case n.Op == token.NEQ:
-				// VM has separate opcodes for number and string equality
-				if isStringType(c.typeInfo.Types[n.X].Type) {
-					emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
-					emit.Opcode(c.prog.BinWriter, opcode.NOT)
+			case token.EQL, token.NEQ:
+				if isExprNil(n.X) || isExprNil(n.Y) {
+					c.prog.Err = errors.New("comparison with `nil` is not supported, use `len(..) == 0` instead")
+					return nil
+				}
+				if n.Op == token.EQL {
+					// VM has separate opcodes for number and string equality
+					op := c.getEqualityOpcode(n.X)
+					emit.Opcode(c.prog.BinWriter, op)
 				} else {
-					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+					// VM has separate opcodes for number and string equality
+					if isStringType(c.typeInfo.Types[n.X].Type) {
+						emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
+						emit.Opcode(c.prog.BinWriter, opcode.NOT)
+					} else {
+						emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+					}
 				}
 			default:
 				c.convertToken(n.Op)
