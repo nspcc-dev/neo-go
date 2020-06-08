@@ -1075,6 +1075,19 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")
 		}
+	case "delete", "Remove":
+		arg := expr.Args[0]
+		errNotSupported := errors.New("only maps and slices are supported in `Remove`")
+		switch typ := c.typeInfo.Types[arg].Type.Underlying().(type) {
+		case *types.Map:
+		case *types.Slice:
+			if isByte(typ.Elem()) {
+				c.prog.Err = errNotSupported
+			}
+		default:
+			c.prog.Err = errNotSupported
+		}
+		emit.Opcode(c.prog.BinWriter, opcode.REMOVE)
 	case "SHA256":
 		emit.Opcode(c.prog.BinWriter, opcode.SHA256)
 	case "SHA1":

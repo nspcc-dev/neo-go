@@ -2,6 +2,7 @@ package compiler_test
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -12,6 +13,56 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRemove(t *testing.T) {
+	srcTmpl := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main() int {
+		a := %s
+		util.Remove(a, %d)
+		return len(a) * a[%d]
+	}`
+	testRemove := func(item string, key, index, result int64) func(t *testing.T) {
+		return func(t *testing.T) {
+			src := fmt.Sprintf(srcTmpl, item, key, index)
+			if result > 0 {
+				eval(t, src, big.NewInt(result))
+				return
+			}
+			v := vmAndCompile(t, src)
+			require.Error(t, v.Run())
+		}
+	}
+	t.Run("Map", func(t *testing.T) {
+		item := "map[int]int{1: 2, 5: 7, 11: 13}"
+		t.Run("RemovedKey", testRemove(item, 5, 5, -1))
+		t.Run("AnotherKey", testRemove(item, 5, 11, 26))
+	})
+	t.Run("Slice", func(t *testing.T) {
+		item := "[]int{5, 7, 11, 13}"
+		t.Run("RemovedKey", testRemove(item, 2, 2, 39))
+		t.Run("AnotherKey", testRemove(item, 2, 1, 21))
+		t.Run("LastKey", testRemove(item, 2, 3, -1))
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		srcTmpl := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		func Main() int {
+			util.Remove(%s, 2)
+			return 1
+		}`
+		t.Run("BasicType", func(t *testing.T) {
+			src := fmt.Sprintf(srcTmpl, "1")
+			_, err := compiler.Compile(strings.NewReader(src))
+			require.Error(t, err)
+		})
+		t.Run("ByteSlice", func(t *testing.T) {
+			src := fmt.Sprintf(srcTmpl, "[]byte{1, 2}")
+			_, err := compiler.Compile(strings.NewReader(src))
+			require.Error(t, err)
+		})
+	})
+}
 
 func TestFromAddress(t *testing.T) {
 	as1 := "Aej1fe4mUgou48Zzup5j8sPrE3973cJ5oz"
