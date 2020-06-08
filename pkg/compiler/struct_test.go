@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -365,4 +366,26 @@ var structTestCases = []testCase{
 
 func TestStructs(t *testing.T) {
 	runTestCases(t, structTestCases)
+}
+
+func TestStructCompare(t *testing.T) {
+	srcTmpl := `package testcase
+	type T struct { f int }
+	func Main() int {
+		a := T{f: %d}
+		b := T{f: %d}
+		if a != b {
+			return 2
+		}
+		return 1
+	}`
+	t.Run("Equal", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 4, 4)
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("NotEqual", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 4, 5)
+		eval(t, src, big.NewInt(2))
+	})
+
 }
