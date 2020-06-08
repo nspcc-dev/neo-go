@@ -112,7 +112,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "Neo.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "Neo.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
-	{Name: "Neo.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
 	{Name: "Neo.Contract.Create", Func: contractCreate, Price: 0},
 	{Name: "Neo.Contract.Destroy", Func: contractDestroy, Price: 1},
 	{Name: "Neo.Contract.GetScript", Func: contractGetScript, Price: 1},

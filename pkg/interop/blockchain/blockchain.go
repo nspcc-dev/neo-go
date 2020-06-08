@@ -67,7 +67,7 @@ func GetTransaction(hash []byte) Transaction {
 
 // GetTransactionHeight returns transaction's height (index of the block that
 // includes it) by the given ID (256 bit in BE format represented as a slice of
-// 32 bytes). This function uses `Neo.Blockchain.GetTransactionHeight` syscall.
+// 32 bytes). This function uses `System.Blockchain.GetTransactionHeight` syscall.
 func GetTransactionHeight(hash []byte) int {
 	return 0
 }

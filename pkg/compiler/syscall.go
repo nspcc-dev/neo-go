@@ -41,7 +41,7 @@ var syscalls = map[string]map[string]string{
 		"GetHeader":            "Neo.Blockchain.GetHeader",
 		"GetHeight":            "Neo.Blockchain.GetHeight",
 		"GetTransaction":       "System.Blockchain.GetTransaction",
-		"GetTransactionHeight": "Neo.Blockchain.GetTransactionHeight",
+		"GetTransactionHeight": "System.Blockchain.GetTransactionHeight",
 		"GetValidators":        "Neo.Blockchain.GetValidators",
 	},
 	"header": {

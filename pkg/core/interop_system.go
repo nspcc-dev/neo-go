@@ -151,8 +151,9 @@ func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
 // bcGetTransactionHeight returns transaction height.
 func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
 	_, h, err := getTransactionAndHeight(ic.DAO, v)
-	if err != nil {
-		return err
+	if err != nil || !isTraceableBlock(ic, h) {
+		v.Estack().PushVal(-1)
+		return nil
 	}
 	v.Estack().PushVal(h)
 	return nil
