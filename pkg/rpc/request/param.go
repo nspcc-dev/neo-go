@@ -243,6 +243,11 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 		{ArrayT, &[]Param{}},
 	}
 
+	if bytes.Equal(data, []byte("null")) {
+		p.Type = defaultT
+		return nil
+	}
+
 	for _, cur := range attempts {
 		r := bytes.NewReader(data)
 		jd := json.NewDecoder(r)
