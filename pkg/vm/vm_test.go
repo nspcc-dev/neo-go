@@ -9,11 +9,13 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,7 +129,7 @@ func TestPushBytes1to75(t *testing.T) {
 		assert.Equal(t, 1, vm.estack.Len())
 
 		elem := vm.estack.Pop()
-		assert.IsType(t, &ByteArrayItem{}, elem.value)
+		assert.IsType(t, &stackitem.ByteArray{}, elem.value)
 		assert.IsType(t, elem.Bytes(), b)
 		assert.Equal(t, 0, vm.estack.Len())
 
@@ -180,7 +182,7 @@ func TestPUSHINT(t *testing.T) {
 		t.Run(op.String(), func(t *testing.T) {
 			buf := random.Bytes((8 << i) / 8)
 			prog := append([]byte{byte(op)}, buf...)
-			runWithArgs(t, prog, emit.BytesToInt(buf))
+			runWithArgs(t, prog, bigint.FromBytes(buf))
 		})
 	}
 }
@@ -197,46 +199,46 @@ func TestPUSHNULL(t *testing.T) {
 func TestISNULL(t *testing.T) {
 	prog := makeProgram(opcode.ISNULL)
 	t.Run("Integer", getTestFuncForVM(prog, false, 1))
-	t.Run("Null", getTestFuncForVM(prog, true, NullItem{}))
+	t.Run("Null", getTestFuncForVM(prog, true, stackitem.Null{}))
 }
 
-func testISTYPE(t *testing.T, result bool, typ StackItemType, item StackItem) {
+func testISTYPE(t *testing.T, result bool, typ stackitem.Type, item stackitem.Item) {
 	prog := []byte{byte(opcode.ISTYPE), byte(typ)}
 	runWithArgs(t, prog, result, item)
 }
 
 func TestISTYPE(t *testing.T) {
 	t.Run("Integer", func(t *testing.T) {
-		testISTYPE(t, true, IntegerT, NewBigIntegerItem(big.NewInt(42)))
-		testISTYPE(t, false, IntegerT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.IntegerT, stackitem.NewBigInteger(big.NewInt(42)))
+		testISTYPE(t, false, stackitem.IntegerT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("Boolean", func(t *testing.T) {
-		testISTYPE(t, true, BooleanT, NewBoolItem(true))
-		testISTYPE(t, false, BooleanT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.BooleanT, stackitem.NewBool(true))
+		testISTYPE(t, false, stackitem.BooleanT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("ByteArray", func(t *testing.T) {
-		testISTYPE(t, true, ByteArrayT, NewByteArrayItem([]byte{}))
-		testISTYPE(t, false, ByteArrayT, NewBigIntegerItem(big.NewInt(42)))
+		testISTYPE(t, true, stackitem.ByteArrayT, stackitem.NewByteArray([]byte{}))
+		testISTYPE(t, false, stackitem.ByteArrayT, stackitem.NewBigInteger(big.NewInt(42)))
 	})
 	t.Run("Array", func(t *testing.T) {
-		testISTYPE(t, true, ArrayT, NewArrayItem([]StackItem{}))
-		testISTYPE(t, false, ArrayT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.ArrayT, stackitem.NewArray([]stackitem.Item{}))
+		testISTYPE(t, false, stackitem.ArrayT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("Struct", func(t *testing.T) {
-		testISTYPE(t, true, StructT, NewStructItem([]StackItem{}))
-		testISTYPE(t, false, StructT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.StructT, stackitem.NewStruct([]stackitem.Item{}))
+		testISTYPE(t, false, stackitem.StructT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("Map", func(t *testing.T) {
-		testISTYPE(t, true, MapT, NewMapItem())
-		testISTYPE(t, false, MapT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.MapT, stackitem.NewMap())
+		testISTYPE(t, false, stackitem.MapT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("Interop", func(t *testing.T) {
-		testISTYPE(t, true, InteropT, NewInteropItem(42))
-		testISTYPE(t, false, InteropT, NewByteArrayItem([]byte{}))
+		testISTYPE(t, true, stackitem.InteropT, stackitem.NewInterop(42))
+		testISTYPE(t, false, stackitem.InteropT, stackitem.NewByteArray([]byte{}))
 	})
 }
 
-func testCONVERT(to StackItemType, item, res StackItem) func(t *testing.T) {
+func testCONVERT(to stackitem.Type, item, res stackitem.Item) func(t *testing.T) {
 	return func(t *testing.T) {
 		prog := []byte{byte(opcode.CONVERT), byte(to)}
 		runWithArgs(t, prog, res, item)
@@ -245,44 +247,46 @@ func testCONVERT(to StackItemType, item, res StackItem) func(t *testing.T) {
 
 func TestCONVERT(t *testing.T) {
 	type convertTC struct {
-		item, res StackItem
+		item, res stackitem.Item
 	}
-	arr := []StackItem{
-		NewBigIntegerItem(big.NewInt(7)),
-		NewByteArrayItem([]byte{4, 8, 15}),
+	arr := []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(7)),
+		stackitem.NewByteArray([]byte{4, 8, 15}),
 	}
-	m := NewMapItem()
-	m.Add(NewByteArrayItem([]byte{1}), NewByteArrayItem([]byte{2}))
+	m := stackitem.NewMap()
+	m.Add(stackitem.NewByteArray([]byte{1}), stackitem.NewByteArray([]byte{2}))
 
-	getName := func(item StackItem, typ StackItemType) string { return fmt.Sprintf("%s->%s", item, typ) }
+	getName := func(item stackitem.Item, typ stackitem.Type) string {
+		return fmt.Sprintf("%s->%s", item, typ)
+	}
 
 	t.Run("->Bool", func(t *testing.T) {
-		testBool := func(a, b StackItem) func(t *testing.T) {
-			return testCONVERT(BooleanT, a, b)
+		testBool := func(a, b stackitem.Item) func(t *testing.T) {
+			return testCONVERT(stackitem.BooleanT, a, b)
 		}
 
-		trueCases := []StackItem{
-			NewBoolItem(true), NewBigIntegerItem(big.NewInt(11)), NewByteArrayItem([]byte{1, 2, 3}),
-			NewArrayItem(arr), NewArrayItem(nil),
-			NewStructItem(arr), NewStructItem(nil),
-			NewMapItem(), m, NewInteropItem(struct{}{}),
-			NewPointerItem(0, []byte{}),
+		trueCases := []stackitem.Item{
+			stackitem.NewBool(true), stackitem.NewBigInteger(big.NewInt(11)), stackitem.NewByteArray([]byte{1, 2, 3}),
+			stackitem.NewArray(arr), stackitem.NewArray(nil),
+			stackitem.NewStruct(arr), stackitem.NewStruct(nil),
+			stackitem.NewMap(), m, stackitem.NewInterop(struct{}{}),
+			stackitem.NewPointer(0, []byte{}),
 		}
 		for i := range trueCases {
-			t.Run(getName(trueCases[i], BooleanT), testBool(trueCases[i], NewBoolItem(true)))
+			t.Run(getName(trueCases[i], stackitem.BooleanT), testBool(trueCases[i], stackitem.NewBool(true)))
 		}
 
-		falseCases := []StackItem{
-			NewBigIntegerItem(big.NewInt(0)), NewByteArrayItem([]byte{0, 0}), NewBoolItem(false),
+		falseCases := []stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewByteArray([]byte{0, 0}), stackitem.NewBool(false),
 		}
 		for i := range falseCases {
-			testBool(falseCases[i], NewBoolItem(false))
+			testBool(falseCases[i], stackitem.NewBool(false))
 		}
 	})
 
 	t.Run("compound/interop -> basic", func(t *testing.T) {
-		types := []StackItemType{IntegerT, ByteArrayT}
-		items := []StackItem{NewArrayItem(nil), NewStructItem(nil), NewMapItem(), NewInteropItem(struct{}{})}
+		types := []stackitem.Type{stackitem.IntegerT, stackitem.ByteArrayT}
+		items := []stackitem.Item{stackitem.NewArray(nil), stackitem.NewStruct(nil), stackitem.NewMap(), stackitem.NewInterop(struct{}{})}
 		for _, typ := range types {
 			for j := range items {
 				t.Run(getName(items[j], typ), testCONVERT(typ, items[j], nil))
@@ -292,23 +296,23 @@ func TestCONVERT(t *testing.T) {
 
 	t.Run("primitive -> Integer/ByteArray", func(t *testing.T) {
 		n := big.NewInt(42)
-		b := emit.IntToBytes(n)
+		b := bigint.ToBytes(n)
 
-		itemInt := NewBigIntegerItem(n)
-		itemBytes := NewByteArrayItem(b)
+		itemInt := stackitem.NewBigInteger(n)
+		itemBytes := stackitem.NewByteArray(b)
 
-		trueCases := map[StackItemType][]convertTC{
-			IntegerT: {
+		trueCases := map[stackitem.Type][]convertTC{
+			stackitem.IntegerT: {
 				{itemInt, itemInt},
 				{itemBytes, itemInt},
-				{NewBoolItem(true), NewBigIntegerItem(big.NewInt(1))},
-				{NewBoolItem(false), NewBigIntegerItem(big.NewInt(0))},
+				{stackitem.NewBool(true), stackitem.NewBigInteger(big.NewInt(1))},
+				{stackitem.NewBool(false), stackitem.NewBigInteger(big.NewInt(0))},
 			},
-			ByteArrayT: {
+			stackitem.ByteArrayT: {
 				{itemInt, itemBytes},
 				{itemBytes, itemBytes},
-				{NewBoolItem(true), NewByteArrayItem([]byte{1})},
-				{NewBoolItem(false), NewByteArrayItem([]byte{0})},
+				{stackitem.NewBool(true), stackitem.NewByteArray([]byte{1})},
+				{stackitem.NewBool(false), stackitem.NewByteArray([]byte{0})},
 			},
 		}
 
@@ -320,36 +324,36 @@ func TestCONVERT(t *testing.T) {
 	})
 
 	t.Run("Struct<->Array", func(t *testing.T) {
-		arrayItem := NewArrayItem(arr)
-		structItem := NewStructItem(arr)
-		t.Run("Array->Array", testCONVERT(ArrayT, arrayItem, arrayItem))
-		t.Run("Array->Struct", testCONVERT(StructT, arrayItem, structItem))
-		t.Run("Struct->Array", testCONVERT(ArrayT, structItem, arrayItem))
-		t.Run("Struct->Struct", testCONVERT(StructT, structItem, structItem))
+		arrayItem := stackitem.NewArray(arr)
+		structItem := stackitem.NewStruct(arr)
+		t.Run("Array->Array", testCONVERT(stackitem.ArrayT, arrayItem, arrayItem))
+		t.Run("Array->Struct", testCONVERT(stackitem.StructT, arrayItem, structItem))
+		t.Run("Struct->Array", testCONVERT(stackitem.ArrayT, structItem, arrayItem))
+		t.Run("Struct->Struct", testCONVERT(stackitem.StructT, structItem, structItem))
 	})
 
-	t.Run("Map->Map", testCONVERT(MapT, m, m))
+	t.Run("Map->Map", testCONVERT(stackitem.MapT, m, m))
 
-	ptr := NewPointerItem(1, []byte{1})
-	t.Run("Pointer->Pointer", testCONVERT(PointerT, ptr, ptr))
+	ptr := stackitem.NewPointer(1, []byte{1})
+	t.Run("Pointer->Pointer", testCONVERT(stackitem.PointerT, ptr, ptr))
 
 	t.Run("Null->", func(t *testing.T) {
-		types := []StackItemType{
-			BooleanT, ByteArrayT, IntegerT, ArrayT, StructT, MapT, InteropT, PointerT,
+		types := []stackitem.Type{
+			stackitem.BooleanT, stackitem.ByteArrayT, stackitem.IntegerT, stackitem.ArrayT, stackitem.StructT, stackitem.MapT, stackitem.InteropT, stackitem.PointerT,
 		}
 		for i := range types {
-			t.Run(types[i].String(), testCONVERT(types[i], NullItem{}, NullItem{}))
+			t.Run(types[i].String(), testCONVERT(types[i], stackitem.Null{}, stackitem.Null{}))
 		}
 	})
 
 	t.Run("->Any", func(t *testing.T) {
-		items := []StackItem{
-			NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{1}), NewBoolItem(true),
-			NewArrayItem(arr), NewStructItem(arr), m, NewInteropItem(struct{}{}),
+		items := []stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1}), stackitem.NewBool(true),
+			stackitem.NewArray(arr), stackitem.NewStruct(arr), m, stackitem.NewInterop(struct{}{}),
 		}
 
 		for i := range items {
-			t.Run(items[i].String(), testCONVERT(AnyT, items[i], nil))
+			t.Run(items[i].String(), testCONVERT(stackitem.AnyT, items[i], nil))
 		}
 	})
 }
@@ -372,7 +376,7 @@ func appendBigStruct(size uint16) []opcode.Opcode {
 	return append(prog,
 		opcode.INITSSLOT, 1,
 		opcode.PUSHINT16, opcode.Opcode(size), opcode.Opcode(size>>8), // LE
-		opcode.PACK, opcode.CONVERT, opcode.Opcode(StructT),
+		opcode.PACK, opcode.CONVERT, opcode.Opcode(stackitem.StructT),
 		opcode.STSFLD0, opcode.LDSFLD0,
 		opcode.DUP,
 		opcode.PUSH0, opcode.NEWARRAY,
@@ -498,9 +502,9 @@ func getEnumeratorProg(n int, isIter bool) (prog []byte) {
 	return
 }
 
-func checkEnumeratorStack(t *testing.T, vm *VM, arr []StackItem) {
+func checkEnumeratorStack(t *testing.T, vm *VM, arr []stackitem.Item) {
 	require.Equal(t, len(arr)+1, vm.estack.Len())
-	require.Equal(t, NewBoolItem(false), vm.estack.Peek(0).value)
+	require.Equal(t, stackitem.NewBool(false), vm.estack.Peek(0).value)
 	for i := 0; i < len(arr); i++ {
 		require.Equal(t, arr[i], vm.estack.Peek(i+1).value, "pos: %d", i+1)
 	}
@@ -512,22 +516,22 @@ func testIterableCreate(t *testing.T, typ string) {
 	prog = append(prog, getEnumeratorProg(2, isIter)...)
 
 	vm := load(prog)
-	arr := []StackItem{
-		NewBigIntegerItem(big.NewInt(42)),
-		NewByteArrayItem([]byte{3, 2, 1}),
+	arr := []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(42)),
+		stackitem.NewByteArray([]byte{3, 2, 1}),
 	}
-	vm.estack.Push(&Element{value: NewArrayItem(arr)})
+	vm.estack.Push(&Element{value: stackitem.NewArray(arr)})
 
 	runVM(t, vm)
 	if isIter {
-		checkEnumeratorStack(t, vm, []StackItem{
-			makeStackItem(1), arr[1], NewBoolItem(true),
-			makeStackItem(0), arr[0], NewBoolItem(true),
+		checkEnumeratorStack(t, vm, []stackitem.Item{
+			stackitem.Make(1), arr[1], stackitem.NewBool(true),
+			stackitem.Make(0), arr[0], stackitem.NewBool(true),
 		})
 	} else {
-		checkEnumeratorStack(t, vm, []StackItem{
-			arr[1], NewBoolItem(true),
-			arr[0], NewBoolItem(true),
+		checkEnumeratorStack(t, vm, []stackitem.Item{
+			arr[1], stackitem.NewBool(true),
+			arr[0], stackitem.NewBool(true),
 		})
 	}
 }
@@ -549,29 +553,29 @@ func testIterableConcat(t *testing.T, typ string) {
 	prog = append(prog, getEnumeratorProg(3, isIter)...)
 	vm := load(prog)
 
-	arr := []StackItem{
-		NewBoolItem(false),
-		NewBigIntegerItem(big.NewInt(123)),
-		NewMapItem(),
+	arr := []stackitem.Item{
+		stackitem.NewBool(false),
+		stackitem.NewBigInteger(big.NewInt(123)),
+		stackitem.NewMap(),
 	}
-	vm.estack.Push(&Element{value: NewArrayItem(arr[:1])})
-	vm.estack.Push(&Element{value: NewArrayItem(arr[1:])})
+	vm.estack.Push(&Element{value: stackitem.NewArray(arr[:1])})
+	vm.estack.Push(&Element{value: stackitem.NewArray(arr[1:])})
 
 	runVM(t, vm)
 
 	if isIter {
 		// Yes, this is how iterators are concatenated in reference VM
 		// https://github.com/neo-project/neo/blob/master-2.x/neo.UnitTests/UT_ConcatenatedIterator.cs#L54
-		checkEnumeratorStack(t, vm, []StackItem{
-			makeStackItem(1), arr[2], NewBoolItem(true),
-			makeStackItem(0), arr[1], NewBoolItem(true),
-			makeStackItem(0), arr[0], NewBoolItem(true),
+		checkEnumeratorStack(t, vm, []stackitem.Item{
+			stackitem.Make(1), arr[2], stackitem.NewBool(true),
+			stackitem.Make(0), arr[1], stackitem.NewBool(true),
+			stackitem.Make(0), arr[0], stackitem.NewBool(true),
 		})
 	} else {
-		checkEnumeratorStack(t, vm, []StackItem{
-			arr[2], NewBoolItem(true),
-			arr[1], NewBoolItem(true),
-			arr[0], NewBoolItem(true),
+		checkEnumeratorStack(t, vm, []stackitem.Item{
+			arr[2], stackitem.NewBool(true),
+			arr[1], stackitem.NewBool(true),
+			arr[0], stackitem.NewBool(true),
 		})
 	}
 }
@@ -590,17 +594,17 @@ func TestIteratorKeys(t *testing.T) {
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
-	arr := NewArrayItem([]StackItem{
-		NewBoolItem(false),
-		NewBigIntegerItem(big.NewInt(42)),
+	arr := stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBool(false),
+		stackitem.NewBigInteger(big.NewInt(42)),
 	})
 	v.estack.PushVal(arr)
 
 	runVM(t, v)
 
-	checkEnumeratorStack(t, v, []StackItem{
-		NewBigIntegerItem(big.NewInt(1)), NewBoolItem(true),
-		NewBigIntegerItem(big.NewInt(0)), NewBoolItem(true),
+	checkEnumeratorStack(t, v, []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBool(true),
+		stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBool(true),
 	})
 }
 
@@ -610,26 +614,26 @@ func TestIteratorValues(t *testing.T) {
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
-	m := NewMapItem()
-	m.Add(NewBigIntegerItem(big.NewInt(1)), NewBoolItem(false))
-	m.Add(NewByteArrayItem([]byte{32}), NewByteArrayItem([]byte{7}))
+	m := stackitem.NewMap()
+	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBool(false))
+	m.Add(stackitem.NewByteArray([]byte{32}), stackitem.NewByteArray([]byte{7}))
 	v.estack.PushVal(m)
 
 	runVM(t, v)
 	require.Equal(t, 5, v.estack.Len())
-	require.Equal(t, NewBoolItem(false), v.estack.Peek(0).value)
+	require.Equal(t, stackitem.NewBool(false), v.estack.Peek(0).value)
 
 	// Map values can be enumerated in any order.
 	i1, i2 := 1, 3
-	if _, ok := v.estack.Peek(i1).value.(*BoolItem); !ok {
+	if _, ok := v.estack.Peek(i1).value.(*stackitem.Bool); !ok {
 		i1, i2 = i2, i1
 	}
 
-	require.Equal(t, NewBoolItem(false), v.estack.Peek(i1).value)
-	require.Equal(t, NewByteArrayItem([]byte{7}), v.estack.Peek(i2).value)
+	require.Equal(t, stackitem.NewBool(false), v.estack.Peek(i1).value)
+	require.Equal(t, stackitem.NewByteArray([]byte{7}), v.estack.Peek(i2).value)
 
-	require.Equal(t, NewBoolItem(true), v.estack.Peek(2).value)
-	require.Equal(t, NewBoolItem(true), v.estack.Peek(4).value)
+	require.Equal(t, stackitem.NewBool(true), v.estack.Peek(2).value)
+	require.Equal(t, stackitem.NewBool(true), v.estack.Peek(4).value)
 }
 
 func getSyscallProg(name string) (prog []byte) {
@@ -650,7 +654,7 @@ func testSerialize(t *testing.T, vm *VM) {
 	err := vm.Step()
 	require.NoError(t, err)
 	require.Equal(t, 1, vm.estack.Len())
-	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+	require.IsType(t, (*stackitem.ByteArray)(nil), vm.estack.Top().value)
 
 	err = vm.Step()
 	require.NoError(t, err)
@@ -663,7 +667,7 @@ func TestSerializeBool(t *testing.T) {
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*BoolItem)(nil), vm.estack.Top().value)
+	require.IsType(t, (*stackitem.Bool)(nil), vm.estack.Top().value)
 	require.Equal(t, true, vm.estack.Top().Bool())
 }
 
@@ -674,7 +678,7 @@ func TestSerializeByteArray(t *testing.T) {
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*ByteArrayItem)(nil), vm.estack.Top().value)
+	require.IsType(t, (*stackitem.ByteArray)(nil), vm.estack.Top().value)
 	require.Equal(t, value, vm.estack.Top().Bytes())
 }
 
@@ -685,30 +689,30 @@ func TestSerializeInteger(t *testing.T) {
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*BigIntegerItem)(nil), vm.estack.Top().value)
+	require.IsType(t, (*stackitem.BigInteger)(nil), vm.estack.Top().value)
 	require.Equal(t, value, vm.estack.Top().BigInt().Int64())
 }
 
 func TestSerializeArray(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewArrayItem([]StackItem{
-		makeStackItem(true),
-		makeStackItem(123),
-		NewMapItem(),
+	item := stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(true),
+		stackitem.Make(123),
+		stackitem.NewMap(),
 	})
 
 	vm.estack.Push(&Element{value: item})
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*ArrayItem)(nil), vm.estack.Top().value)
-	require.Equal(t, item.value, vm.estack.Top().Array())
+	require.IsType(t, (*stackitem.Array)(nil), vm.estack.Top().value)
+	require.Equal(t, item.Value().([]stackitem.Item), vm.estack.Top().Array())
 }
 
 func TestSerializeArrayBad(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewArrayItem(makeArrayOfType(2, BooleanT))
-	item.value[1] = item
+	item := stackitem.NewArray(makeArrayOfType(2, stackitem.BooleanT))
+	item.Value().([]stackitem.Item)[1] = item
 
 	vm.estack.Push(&Element{value: item})
 
@@ -730,24 +734,24 @@ func TestSerializeDupInteger(t *testing.T) {
 
 func TestSerializeStruct(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewStructItem([]StackItem{
-		makeStackItem(true),
-		makeStackItem(123),
-		NewMapItem(),
+	item := stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(true),
+		stackitem.Make(123),
+		stackitem.NewMap(),
 	})
 
 	vm.estack.Push(&Element{value: item})
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*StructItem)(nil), vm.estack.Top().value)
-	require.Equal(t, item.value, vm.estack.Top().Array())
+	require.IsType(t, (*stackitem.Struct)(nil), vm.estack.Top().value)
+	require.Equal(t, item.Value().([]stackitem.Item), vm.estack.Top().Array())
 }
 
 func TestDeserializeUnknown(t *testing.T) {
 	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(opcode.RET))
 
-	data, err := SerializeItem(NewBigIntegerItem(big.NewInt(123)))
+	data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
 	require.NoError(t, err)
 
 	data[0] = 0xFF
@@ -757,16 +761,16 @@ func TestDeserializeUnknown(t *testing.T) {
 
 func TestSerializeMap(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewMapItem()
-	item.Add(makeStackItem(true), makeStackItem([]byte{1, 2, 3}))
-	item.Add(makeStackItem([]byte{0}), makeStackItem(false))
+	item := stackitem.NewMap()
+	item.Add(stackitem.Make(true), stackitem.Make([]byte{1, 2, 3}))
+	item.Add(stackitem.Make([]byte{0}), stackitem.Make(false))
 
 	vm.estack.Push(&Element{value: item})
 
 	testSerialize(t, vm)
 
-	require.IsType(t, (*MapItem)(nil), vm.estack.Top().value)
-	require.Equal(t, item.value, vm.estack.Top().value.(*MapItem).value)
+	require.IsType(t, (*stackitem.Map)(nil), vm.estack.Top().value)
+	require.Equal(t, item.Value(), vm.estack.Top().value.(*stackitem.Map).Value())
 }
 
 func TestSerializeMapCompat(t *testing.T) {
@@ -791,7 +795,7 @@ func TestSerializeMapCompat(t *testing.T) {
 
 func TestSerializeInterop(t *testing.T) {
 	vm := load(getSerializeProg())
-	item := NewInteropItem("kek")
+	item := stackitem.NewInterop("kek")
 
 	vm.estack.Push(&Element{value: item})
 
@@ -917,27 +921,27 @@ func TestPUSHA(t *testing.T) {
 	t.Run("TooBig", getTestFuncForVM(makeProgram(opcode.PUSHA, 10, 0, 0, 0), nil))
 	t.Run("Good", func(t *testing.T) {
 		prog := makeProgram(opcode.PUSHA, 2, 0, 0, 0)
-		runWithArgs(t, prog, NewPointerItem(2, prog))
+		runWithArgs(t, prog, stackitem.NewPointer(2, prog))
 	})
 }
 
 func TestCALLA(t *testing.T) {
 	prog := makeProgram(opcode.CALLA, opcode.PUSH2, opcode.ADD, opcode.RET, opcode.PUSH3, opcode.RET)
-	t.Run("InvalidScript", getTestFuncForVM(prog, nil, NewPointerItem(4, []byte{1})))
-	t.Run("Good", getTestFuncForVM(prog, 5, NewPointerItem(4, prog)))
+	t.Run("InvalidScript", getTestFuncForVM(prog, nil, stackitem.NewPointer(4, []byte{1})))
+	t.Run("Good", getTestFuncForVM(prog, 5, stackitem.NewPointer(4, prog)))
 }
 
 func TestNOT(t *testing.T) {
 	prog := makeProgram(opcode.NOT)
 	t.Run("Bool", getTestFuncForVM(prog, true, false))
 	t.Run("NonZeroInt", getTestFuncForVM(prog, false, 3))
-	t.Run("Array", getTestFuncForVM(prog, false, []StackItem{}))
-	t.Run("Struct", getTestFuncForVM(prog, false, NewStructItem([]StackItem{})))
+	t.Run("Array", getTestFuncForVM(prog, false, []stackitem.Item{}))
+	t.Run("Struct", getTestFuncForVM(prog, false, stackitem.NewStruct([]stackitem.Item{})))
 	t.Run("ByteArray0", getTestFuncForVM(prog, true, []byte{0, 0}))
 	t.Run("ByteArray1", getTestFuncForVM(prog, false, []byte{0, 1}))
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
-	t.Run("Buffer0", getTestFuncForVM(prog, false, NewBufferItem([]byte{})))
-	t.Run("Buffer1", getTestFuncForVM(prog, false, NewBufferItem([]byte{1})))
+	t.Run("Buffer0", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{})))
+	t.Run("Buffer1", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{1})))
 }
 
 // getBigInt returns 2^a+b
@@ -964,12 +968,12 @@ func TestArith(t *testing.T) {
 
 func TestADDBigResult(t *testing.T) {
 	prog := makeProgram(opcode.ADD)
-	runWithArgs(t, prog, nil, getBigInt(MaxBigIntegerSizeBits, -1), 1)
+	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), 1)
 }
 
 func TestMULBigResult(t *testing.T) {
 	prog := makeProgram(opcode.MUL)
-	bi := getBigInt(MaxBigIntegerSizeBits/2+1, 0)
+	bi := getBigInt(stackitem.MaxBigIntegerSizeBits/2+1, 0)
 	runWithArgs(t, prog, nil, bi, bi)
 }
 
@@ -1005,7 +1009,7 @@ func TestArithNegativeArguments(t *testing.T) {
 
 func TestSUBBigResult(t *testing.T) {
 	prog := makeProgram(opcode.SUB)
-	runWithArgs(t, prog, nil, getBigInt(MaxBigIntegerSizeBits, -1), -1)
+	runWithArgs(t, prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits, -1), -1)
 }
 
 func TestSHR(t *testing.T) {
@@ -1020,7 +1024,7 @@ func TestSHL(t *testing.T) {
 	t.Run("Good", getTestFuncForVM(prog, 16, 4, 2))
 	t.Run("Zero", getTestFuncForVM(prog, []byte{0, 1}, []byte{0, 1}, 0))
 	t.Run("BigShift", getTestFuncForVM(prog, nil, 5, maxSHLArg+1))
-	t.Run("BigResult", getTestFuncForVM(prog, nil, getBigInt(MaxBigIntegerSizeBits/2, 0), MaxBigIntegerSizeBits/2))
+	t.Run("BigResult", getTestFuncForVM(prog, nil, getBigInt(stackitem.MaxBigIntegerSizeBits/2, 0), stackitem.MaxBigIntegerSizeBits/2))
 }
 
 func TestLT(t *testing.T) {
@@ -1055,9 +1059,9 @@ func TestDepth(t *testing.T) {
 
 func TestEQUALTrue(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.EQUAL)
-	t.Run("Array", getTestFuncForVM(prog, true, []StackItem{}))
-	t.Run("Map", getTestFuncForVM(prog, true, NewMapItem()))
-	t.Run("Buffer", getTestFuncForVM(prog, true, NewBufferItem([]byte{1, 2})))
+	t.Run("Array", getTestFuncForVM(prog, true, []stackitem.Item{}))
+	t.Run("Map", getTestFuncForVM(prog, true, stackitem.NewMap()))
+	t.Run("Buffer", getTestFuncForVM(prog, true, stackitem.NewBuffer([]byte{1, 2})))
 }
 
 func TestEQUAL(t *testing.T) {
@@ -1066,9 +1070,9 @@ func TestEQUAL(t *testing.T) {
 	t.Run("OneArgument", getTestFuncForVM(prog, nil, 1))
 	t.Run("Integer", getTestFuncForVM(prog, true, 5, 5))
 	t.Run("IntegerByteArray", getTestFuncForVM(prog, true, []byte{16}, 16))
-	t.Run("Map", getTestFuncForVM(prog, false, NewMapItem(), NewMapItem()))
-	t.Run("Array", getTestFuncForVM(prog, false, []StackItem{}, []StackItem{}))
-	t.Run("Buffer", getTestFuncForVM(prog, false, NewBufferItem([]byte{42}), NewBufferItem([]byte{42})))
+	t.Run("Map", getTestFuncForVM(prog, false, stackitem.NewMap(), stackitem.NewMap()))
+	t.Run("Array", getTestFuncForVM(prog, false, []stackitem.Item{}, []stackitem.Item{}))
+	t.Run("Buffer", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{42}), stackitem.NewBuffer([]byte{42})))
 }
 
 func runWithArgs(t *testing.T, prog []byte, result interface{}, args ...interface{}) {
@@ -1095,7 +1099,7 @@ func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func
 	if result != nil {
 		f = func(t *testing.T, v *VM) {
 			require.Equal(t, 1, v.estack.Len())
-			require.Equal(t, makeStackItem(result), v.estack.Pop().value)
+			require.Equal(t, stackitem.Make(result), v.estack.Pop().value)
 		}
 	}
 	return getCustomTestFuncForVM(prog, f, args...)
@@ -1127,7 +1131,7 @@ func TestINC(t *testing.T) {
 func TestINCBigResult(t *testing.T) {
 	prog := makeProgram(opcode.INC, opcode.INC)
 	vm := load(prog)
-	x := getBigInt(MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
 	vm.estack.PushVal(x)
 
 	require.NoError(t, vm.Step())
@@ -1141,7 +1145,7 @@ func TestINCBigResult(t *testing.T) {
 func TestDECBigResult(t *testing.T) {
 	prog := makeProgram(opcode.DEC, opcode.DEC)
 	vm := load(prog)
-	x := getBigInt(MaxBigIntegerSizeBits, -2)
+	x := getBigInt(stackitem.MaxBigIntegerSizeBits, -2)
 	x.Neg(x)
 	vm.estack.PushVal(x)
 
@@ -1155,7 +1159,7 @@ func TestDECBigResult(t *testing.T) {
 
 func TestNEWBUFFER(t *testing.T) {
 	prog := makeProgram(opcode.NEWBUFFER)
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte{0, 0, 0}), 3))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{0, 0, 0}), 3))
 	t.Run("Negative", getTestFuncForVM(prog, nil, -1))
 	t.Run("TooBig", getTestFuncForVM(prog, nil, MaxItemSize+1))
 }
@@ -1163,34 +1167,34 @@ func TestNEWBUFFER(t *testing.T) {
 func TestMEMCPY(t *testing.T) {
 	prog := makeProgram(opcode.MEMCPY)
 	t.Run("Good", func(t *testing.T) {
-		buf := NewBufferItem([]byte{0, 1, 2, 3})
-		runWithArgs(t, prog, NewBufferItem([]byte{0, 6, 7, 3}), buf, buf, 1, []byte{4, 5, 6, 7}, 2, 2)
+		buf := stackitem.NewBuffer([]byte{0, 1, 2, 3})
+		runWithArgs(t, prog, stackitem.NewBuffer([]byte{0, 6, 7, 3}), buf, buf, 1, []byte{4, 5, 6, 7}, 2, 2)
 	})
-	t.Run("NegativeSize", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, 0, -1))
-	t.Run("NegativeSrcIndex", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, -1, 1))
-	t.Run("NegativeDstIndex", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), -1, []byte{2}, 0, 1))
-	t.Run("BigSizeSrc", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2}, 0, 2))
-	t.Run("BigSizeDst", getTestFuncForVM(prog, nil, NewBufferItem([]byte{0, 1}), 0, []byte{2, 3, 4}, 0, 3))
+	t.Run("NegativeSize", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2}, 0, -1))
+	t.Run("NegativeSrcIndex", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2}, -1, 1))
+	t.Run("NegativeDstIndex", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), -1, []byte{2}, 0, 1))
+	t.Run("BigSizeSrc", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2}, 0, 2))
+	t.Run("BigSizeDst", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{0, 1}), 0, []byte{2, 3, 4}, 0, 3))
 }
 
 func TestNEWARRAY0(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY0)
-	runWithArgs(t, prog, []StackItem{})
+	runWithArgs(t, prog, []stackitem.Item{})
 }
 
 func TestNEWSTRUCT0(t *testing.T) {
 	prog := makeProgram(opcode.NEWSTRUCT0)
-	runWithArgs(t, prog, NewStructItem([]StackItem{}))
+	runWithArgs(t, prog, stackitem.NewStruct([]stackitem.Item{}))
 }
 
 func TestNEWARRAYArray(t *testing.T) {
 	prog := makeProgram(opcode.NEWARRAY)
-	t.Run("ByteArray", getTestFuncForVM(prog, NewArrayItem([]StackItem{}), []byte{}))
+	t.Run("ByteArray", getTestFuncForVM(prog, stackitem.NewArray([]stackitem.Item{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
-	t.Run("Integer", getTestFuncForVM(prog, []StackItem{NullItem{}}, 1))
+	t.Run("Integer", getTestFuncForVM(prog, []stackitem.Item{stackitem.Null{}}, 1))
 }
 
-func testNEWARRAYIssue437(t *testing.T, i1 opcode.Opcode, t2 StackItemType, appended bool) {
+func testNEWARRAYIssue437(t *testing.T, i1 opcode.Opcode, t2 stackitem.Type, appended bool) {
 	prog := makeProgram(
 		opcode.PUSH2, i1,
 		opcode.DUP, opcode.PUSH3, opcode.APPEND,
@@ -1199,34 +1203,34 @@ func testNEWARRAYIssue437(t *testing.T, i1 opcode.Opcode, t2 StackItemType, appe
 		opcode.DUP, opcode.PUSH4, opcode.APPEND,
 		opcode.LDSFLD0, opcode.PUSH5, opcode.APPEND)
 
-	arr := makeArrayOfType(4, AnyT)
-	arr[2] = makeStackItem(3)
-	arr[3] = makeStackItem(4)
+	arr := makeArrayOfType(4, stackitem.AnyT)
+	arr[2] = stackitem.Make(3)
+	arr[3] = stackitem.Make(4)
 	if appended {
-		arr = append(arr, makeStackItem(5))
+		arr = append(arr, stackitem.Make(5))
 	}
 
-	if t2 == ArrayT {
-		runWithArgs(t, prog, &ArrayItem{arr})
+	if t2 == stackitem.ArrayT {
+		runWithArgs(t, prog, stackitem.NewArray(arr))
 	} else {
-		runWithArgs(t, prog, &StructItem{arr})
+		runWithArgs(t, prog, stackitem.NewStruct(arr))
 	}
 }
 
 func TestNEWARRAYIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, ArrayT, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, StructT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, StructT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, ArrayT, false) })
+	t.Run("Array+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, stackitem.ArrayT, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, stackitem.StructT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWARRAY, stackitem.StructT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testNEWARRAYIssue437(t, opcode.NEWSTRUCT, stackitem.ArrayT, false) })
 }
 
 func TestNEWARRAYT(t *testing.T) {
-	testCases := map[StackItemType]StackItem{
-		BooleanT:   NewBoolItem(false),
-		IntegerT:   NewBigIntegerItem(big.NewInt(0)),
-		ByteArrayT: NewByteArrayItem([]byte{}),
-		ArrayT:     NullItem{},
-		0xFF:       nil,
+	testCases := map[stackitem.Type]stackitem.Item{
+		stackitem.BooleanT:   stackitem.NewBool(false),
+		stackitem.IntegerT:   stackitem.NewBigInteger(big.NewInt(0)),
+		stackitem.ByteArrayT: stackitem.NewByteArray([]byte{}),
+		stackitem.ArrayT:     stackitem.Null{},
+		0xFF:                 nil,
 	}
 	for typ, item := range testCases {
 		prog := makeProgram(opcode.NEWARRAYT, opcode.Opcode(typ), opcode.PUSH0, opcode.PICKITEM)
@@ -1236,23 +1240,23 @@ func TestNEWARRAYT(t *testing.T) {
 
 func TestNEWSTRUCT(t *testing.T) {
 	prog := makeProgram(opcode.NEWSTRUCT)
-	t.Run("ByteArray", getTestFuncForVM(prog, NewStructItem([]StackItem{}), []byte{}))
+	t.Run("ByteArray", getTestFuncForVM(prog, stackitem.NewStruct([]stackitem.Item{}), []byte{}))
 	t.Run("BadSize", getTestFuncForVM(prog, nil, MaxArraySize+1))
-	t.Run("Integer", getTestFuncForVM(prog, NewStructItem([]StackItem{NullItem{}}), 1))
+	t.Run("Integer", getTestFuncForVM(prog, stackitem.NewStruct([]stackitem.Item{stackitem.Null{}}), 1))
 }
 
 func TestAPPEND(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.PUSH5, opcode.APPEND)
-	arr := []StackItem{makeStackItem(5)}
-	t.Run("Array", getTestFuncForVM(prog, NewArrayItem(arr), NewArrayItem(nil)))
-	t.Run("Struct", getTestFuncForVM(prog, NewStructItem(arr), NewStructItem(nil)))
+	arr := []stackitem.Item{stackitem.Make(5)}
+	t.Run("Array", getTestFuncForVM(prog, stackitem.NewArray(arr), stackitem.NewArray(nil)))
+	t.Run("Struct", getTestFuncForVM(prog, stackitem.NewStruct(arr), stackitem.NewStruct(nil)))
 }
 
 func TestAPPENDCloneStruct(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.NEWSTRUCT, opcode.INITSSLOT, 1, opcode.STSFLD0,
 		opcode.LDSFLD0, opcode.APPEND, opcode.LDSFLD0, opcode.PUSH1, opcode.APPEND)
-	arr := []StackItem{&StructItem{[]StackItem{}}}
-	runWithArgs(t, prog, NewArrayItem(arr), NewArrayItem(nil))
+	arr := []stackitem.Item{stackitem.NewStruct([]stackitem.Item{})}
+	runWithArgs(t, prog, stackitem.NewArray(arr), stackitem.NewArray(nil))
 }
 
 func TestAPPENDBad(t *testing.T) {
@@ -1278,33 +1282,33 @@ func TestAPPENDBadSizeLimit(t *testing.T) {
 
 func TestPICKITEM(t *testing.T) {
 	prog := makeProgram(opcode.PICKITEM)
-	t.Run("bad index", getTestFuncForVM(prog, nil, []StackItem{}, 0))
-	t.Run("Array", getTestFuncForVM(prog, 2, []StackItem{makeStackItem(1), makeStackItem(2)}, 1))
+	t.Run("bad index", getTestFuncForVM(prog, nil, []stackitem.Item{}, 0))
+	t.Run("Array", getTestFuncForVM(prog, 2, []stackitem.Item{stackitem.Make(1), stackitem.Make(2)}, 1))
 	t.Run("ByteArray", getTestFuncForVM(prog, 2, []byte{1, 2}, 1))
-	t.Run("Buffer", getTestFuncForVM(prog, 2, NewBufferItem([]byte{1, 2}), 1))
+	t.Run("Buffer", getTestFuncForVM(prog, 2, stackitem.NewBuffer([]byte{1, 2}), 1))
 }
 
 func TestPICKITEMDupArray(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.PUSH0, opcode.PICKITEM, opcode.ABS)
 	vm := load(prog)
-	vm.estack.PushVal([]StackItem{makeStackItem(-1)})
+	vm.estack.PushVal([]stackitem.Item{stackitem.Make(-1)})
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	items := vm.estack.Pop().Value().([]StackItem)
+	items := vm.estack.Pop().Value().([]stackitem.Item)
 	assert.Equal(t, big.NewInt(-1), items[0].Value())
 }
 
 func TestPICKITEMDupMap(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.PUSHINT8, 42, opcode.PICKITEM, opcode.ABS)
 	vm := load(prog)
-	m := NewMapItem()
-	m.Add(makeStackItem([]byte{42}), makeStackItem(-1))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make([]byte{42}), stackitem.Make(-1))
 	vm.estack.Push(&Element{value: m})
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
 	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	items := vm.estack.Pop().Value().([]MapElement)
+	items := vm.estack.Pop().Value().([]stackitem.MapElement)
 	assert.Equal(t, 1, len(items))
 	assert.Equal(t, []byte{42}, items[0].Key.Value())
 	assert.Equal(t, big.NewInt(-1), items[0].Value.Value())
@@ -1312,30 +1316,30 @@ func TestPICKITEMDupMap(t *testing.T) {
 
 func TestPICKITEMMap(t *testing.T) {
 	prog := makeProgram(opcode.PICKITEM)
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem(3))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make(3))
 	runWithArgs(t, prog, 3, m, 5)
 }
 
 func TestSETITEMBuffer(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.REVERSE4, opcode.SETITEM)
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte{0, 42, 2}), 42, 1, NewBufferItem([]byte{0, 1, 2})))
-	t.Run("BadIndex", getTestFuncForVM(prog, nil, 42, -1, NewBufferItem([]byte{0, 1, 2})))
-	t.Run("BadValue", getTestFuncForVM(prog, nil, 256, 1, NewBufferItem([]byte{0, 1, 2})))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{0, 42, 2}), 42, 1, stackitem.NewBuffer([]byte{0, 1, 2})))
+	t.Run("BadIndex", getTestFuncForVM(prog, nil, 42, -1, stackitem.NewBuffer([]byte{0, 1, 2})))
+	t.Run("BadValue", getTestFuncForVM(prog, nil, 256, 1, stackitem.NewBuffer([]byte{0, 1, 2})))
 }
 
 func TestSETITEMMap(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM, opcode.PICKITEM)
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem(3))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make(3))
 	runWithArgs(t, prog, []byte{0, 1}, m, 5, m, 5, []byte{0, 1})
 }
 
 func TestSETITEMBigMapBad(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM)
-	m := NewMapItem()
+	m := stackitem.NewMap()
 	for i := 0; i < MaxArraySize; i++ {
-		m.Add(makeStackItem(i), makeStackItem(i))
+		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 
 	runWithArgs(t, prog, nil, m, MaxArraySize, 0)
@@ -1347,9 +1351,9 @@ func TestSETITEMBigMapBad(t *testing.T) {
 // 3. Replace each of them with a scalar value.
 func TestSETITEMMapStackLimit(t *testing.T) {
 	size := MaxArraySize - 3
-	m := NewMapItem()
-	m.Add(NewBigIntegerItem(big.NewInt(1)), NewArrayItem(makeArrayOfType(size, BooleanT)))
-	m.Add(NewBigIntegerItem(big.NewInt(2)), NewArrayItem(makeArrayOfType(size, BooleanT)))
+	m := stackitem.NewMap()
+	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
+	m.Add(stackitem.NewBigInteger(big.NewInt(2)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
 
 	prog := makeProgram(
 		opcode.DUP, opcode.PUSH1, opcode.PUSH1, opcode.SETITEM,
@@ -1365,9 +1369,9 @@ func TestSETITEMBigMapGood(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM)
 	vm := load(prog)
 
-	m := NewMapItem()
+	m := stackitem.NewMap()
 	for i := 0; i < MaxArraySize; i++ {
-		m.Add(makeStackItem(i), makeStackItem(i))
+		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 	vm.estack.Push(&Element{value: m})
 	vm.estack.PushVal(0)
@@ -1380,13 +1384,13 @@ func TestSIZE(t *testing.T) {
 	prog := makeProgram(opcode.SIZE)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("ByteArray", getTestFuncForVM(prog, 2, []byte{0, 1}))
-	t.Run("Buffer", getTestFuncForVM(prog, 2, NewBufferItem([]byte{0, 1})))
+	t.Run("Buffer", getTestFuncForVM(prog, 2, stackitem.NewBuffer([]byte{0, 1})))
 	t.Run("Bool", getTestFuncForVM(prog, 1, false))
-	t.Run("Array", getTestFuncForVM(prog, 2, []StackItem{makeStackItem(1), makeStackItem([]byte{})}))
+	t.Run("Array", getTestFuncForVM(prog, 2, []stackitem.Item{stackitem.Make(1), stackitem.Make([]byte{})}))
 	t.Run("Map", func(t *testing.T) {
-		m := NewMapItem()
-		m.Add(makeStackItem(5), makeStackItem(6))
-		m.Add(makeStackItem([]byte{0, 1}), makeStackItem(6))
+		m := stackitem.NewMap()
+		m.Add(stackitem.Make(5), stackitem.Make(6))
+		m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make(6))
 		runWithArgs(t, prog, 2, m)
 	})
 }
@@ -1395,42 +1399,42 @@ func TestKEYSMap(t *testing.T) {
 	prog := makeProgram(opcode.KEYS)
 	vm := load(prog)
 
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem(6))
-	m.Add(makeStackItem([]byte{0, 1}), makeStackItem(6))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make(6))
+	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make(6))
 	vm.estack.Push(&Element{value: m})
 
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 
-	top := vm.estack.Pop().value.(*ArrayItem)
-	assert.Equal(t, 2, len(top.value))
-	assert.Contains(t, top.value, makeStackItem(5))
-	assert.Contains(t, top.value, makeStackItem([]byte{0, 1}))
+	top := vm.estack.Pop().value.(*stackitem.Array)
+	assert.Equal(t, 2, len(top.Value().([]stackitem.Item)))
+	assert.Contains(t, top.Value().([]stackitem.Item), stackitem.Make(5))
+	assert.Contains(t, top.Value().([]stackitem.Item), stackitem.Make([]byte{0, 1}))
 }
 
 func TestKEYS(t *testing.T) {
 	prog := makeProgram(opcode.KEYS)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
-	t.Run("WrongType", getTestFuncForVM(prog, nil, []StackItem{}))
+	t.Run("WrongType", getTestFuncForVM(prog, nil, []stackitem.Item{}))
 }
 
 func TestVALUESMap(t *testing.T) {
 	prog := makeProgram(opcode.VALUES)
 	vm := load(prog)
 
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem([]byte{2, 3}))
-	m.Add(makeStackItem([]byte{0, 1}), makeStackItem([]StackItem{}))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make([]byte{2, 3}))
+	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make([]stackitem.Item{}))
 	vm.estack.Push(&Element{value: m})
 
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
 
-	top := vm.estack.Pop().value.(*ArrayItem)
-	assert.Equal(t, 2, len(top.value))
-	assert.Contains(t, top.value, makeStackItem([]byte{2, 3}))
-	assert.Contains(t, top.value, makeStackItem([]StackItem{}))
+	top := vm.estack.Pop().value.(*stackitem.Array)
+	assert.Equal(t, 2, len(top.Value().([]stackitem.Item)))
+	assert.Contains(t, top.Value().([]stackitem.Item), stackitem.Make([]byte{2, 3}))
+	assert.Contains(t, top.Value().([]stackitem.Item), stackitem.Make([]stackitem.Item{}))
 }
 
 func TestVALUES(t *testing.T) {
@@ -1444,30 +1448,30 @@ func TestHASKEY(t *testing.T) {
 	prog := makeProgram(opcode.HASKEY)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("OneArgument", getTestFuncForVM(prog, nil, 1))
-	t.Run("WrongKeyType", getTestFuncForVM(prog, nil, []StackItem{}, []StackItem{}))
+	t.Run("WrongKeyType", getTestFuncForVM(prog, nil, []stackitem.Item{}, []stackitem.Item{}))
 	t.Run("WrongCollectionType", getTestFuncForVM(prog, nil, 1, 2))
 
-	arr := makeArrayOfType(5, BooleanT)
+	arr := makeArrayOfType(5, stackitem.BooleanT)
 	t.Run("Array", func(t *testing.T) {
-		t.Run("True", getTestFuncForVM(prog, true, NewArrayItem(arr), 4))
-		t.Run("False", getTestFuncForVM(prog, false, NewArrayItem(arr), 5))
+		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewArray(arr), 4))
+		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewArray(arr), 5))
 	})
 	t.Run("Struct", func(t *testing.T) {
-		t.Run("True", getTestFuncForVM(prog, true, NewStructItem(arr), 4))
-		t.Run("False", getTestFuncForVM(prog, false, NewStructItem(arr), 5))
+		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewStruct(arr), 4))
+		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewStruct(arr), 5))
 	})
 
 	t.Run("Buffer", func(t *testing.T) {
-		t.Run("True", getTestFuncForVM(prog, true, NewBufferItem([]byte{5, 5, 5}), 2))
-		t.Run("False", getTestFuncForVM(prog, false, NewBufferItem([]byte{5, 5, 5}), 3))
-		t.Run("Negative", getTestFuncForVM(prog, nil, NewBufferItem([]byte{5, 5, 5}), -1))
+		t.Run("True", getTestFuncForVM(prog, true, stackitem.NewBuffer([]byte{5, 5, 5}), 2))
+		t.Run("False", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{5, 5, 5}), 3))
+		t.Run("Negative", getTestFuncForVM(prog, nil, stackitem.NewBuffer([]byte{5, 5, 5}), -1))
 	})
 }
 
 func TestHASKEYMap(t *testing.T) {
 	prog := makeProgram(opcode.HASKEY)
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem(6))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make(6))
 	t.Run("True", getTestFuncForVM(prog, true, m, 5))
 	t.Run("False", getTestFuncForVM(prog, false, m, 6))
 }
@@ -1475,7 +1479,7 @@ func TestHASKEYMap(t *testing.T) {
 func TestSIGN(t *testing.T) {
 	prog := makeProgram(opcode.SIGN)
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
-	t.Run("WrongType", getTestFuncForVM(prog, nil, []StackItem{}))
+	t.Run("WrongType", getTestFuncForVM(prog, nil, []stackitem.Item{}))
 	t.Run("Bool", getTestFuncForVM(prog, 0, false))
 	t.Run("PositiveInt", getTestFuncForVM(prog, 1, 2))
 	t.Run("NegativeInt", getTestFuncForVM(prog, -1, -1))
@@ -1554,9 +1558,9 @@ func TestROTGood(t *testing.T) {
 	vm.estack.PushVal(3)
 	runVM(t, vm)
 	assert.Equal(t, 3, vm.estack.Len())
-	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(1), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(3), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(2), vm.estack.Pop().value)
 }
 
 func TestROLLBad1(t *testing.T) {
@@ -1579,17 +1583,17 @@ func TestROLLGood(t *testing.T) {
 	vm.estack.PushVal(1)
 	runVM(t, vm)
 	assert.Equal(t, 4, vm.estack.Len())
-	assert.Equal(t, makeStackItem(3), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(4), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(2), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(3), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(4), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(2), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(1), vm.estack.Pop().value)
 }
 
 func getCheckEStackFunc(items ...interface{}) func(t *testing.T, v *VM) {
 	return func(t *testing.T, v *VM) {
 		require.Equal(t, len(items), v.estack.Len())
 		for i := 0; i < len(items); i++ {
-			assert.Equal(t, makeStackItem(items[i]), v.estack.Peek(i).Item())
+			assert.Equal(t, stackitem.Make(items[i]), v.estack.Peek(i).Item())
 		}
 	}
 }
@@ -1780,9 +1784,9 @@ func TestCAT(t *testing.T) {
 		arg := make([]byte, MaxItemSize/2+1)
 		runWithArgs(t, prog, nil, arg, arg)
 	})
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("abcdef")), []byte("abc"), []byte("def")))
-	t.Run("Int0ByteArray", getTestFuncForVM(prog, NewBufferItem([]byte{}), 0, []byte{}))
-	t.Run("ByteArrayInt1", getTestFuncForVM(prog, NewBufferItem([]byte{1}), []byte{}, 1))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("abcdef")), []byte("abc"), []byte("def")))
+	t.Run("Int0ByteArray", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{}), 0, []byte{}))
+	t.Run("ByteArrayInt1", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{1}), []byte{}, 1))
 }
 
 func TestSUBSTR(t *testing.T) {
@@ -1790,7 +1794,7 @@ func TestSUBSTR(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("OneArgument", getTestFuncForVM(prog, nil, 1))
 	t.Run("TwoArguments", getTestFuncForVM(prog, nil, 0, 2))
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("bc")), []byte("abcdef"), 1, 2))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("bc")), []byte("abcdef"), 1, 2))
 	t.Run("BadOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), 7, 1))
 	t.Run("BigLen", getTestFuncForVM(prog, nil, []byte("abcdef"), 1, 6))
 	t.Run("NegativeOffset", getTestFuncForVM(prog, nil, []byte("abcdef"), -1, 3))
@@ -1813,7 +1817,7 @@ func TestLEFT(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("NoString", getTestFuncForVM(prog, nil, 2))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("ab")), "abcdef", 2))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("ab")), "abcdef", 2))
 	t.Run("BadBigLen", getTestFuncForVM(prog, nil, "abcdef", 8))
 }
 
@@ -1822,14 +1826,14 @@ func TestRIGHT(t *testing.T) {
 	t.Run("NoArgument", getTestFuncForVM(prog, nil))
 	t.Run("NoString", getTestFuncForVM(prog, nil, 2))
 	t.Run("NegativeLen", getTestFuncForVM(prog, nil, "abcdef", -1))
-	t.Run("Good", getTestFuncForVM(prog, NewBufferItem([]byte("ef")), "abcdef", 2))
+	t.Run("Good", getTestFuncForVM(prog, stackitem.NewBuffer([]byte("ef")), "abcdef", 2))
 	t.Run("BadLen", getTestFuncForVM(prog, nil, "abcdef", 8))
 }
 
 func TestPACK(t *testing.T) {
 	prog := makeProgram(opcode.PACK)
 	t.Run("BadLen", getTestFuncForVM(prog, nil, 1))
-	t.Run("Good0Len", getTestFuncForVM(prog, []StackItem{}, 0))
+	t.Run("Good0Len", getTestFuncForVM(prog, []stackitem.Item{}, 0))
 }
 
 func TestPACKBigLen(t *testing.T) {
@@ -1887,37 +1891,37 @@ func TestUNPACKGood(t *testing.T) {
 func TestREVERSEITEMS(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.REVERSEITEMS)
 	t.Run("InvalidItem", getTestFuncForVM(prog, nil, 1))
-	t.Run("Buffer", getTestFuncForVM(prog, NewBufferItem([]byte{3, 2, 1}), NewBufferItem([]byte{1, 2, 3})))
+	t.Run("Buffer", getTestFuncForVM(prog, stackitem.NewBuffer([]byte{3, 2, 1}), stackitem.NewBuffer([]byte{1, 2, 3})))
 }
 
-func testREVERSEITEMSIssue437(t *testing.T, i1 opcode.Opcode, t2 StackItemType, reversed bool) {
+func testREVERSEITEMSIssue437(t *testing.T, i1 opcode.Opcode, t2 stackitem.Type, reversed bool) {
 	prog := makeProgram(
 		opcode.PUSH0, i1,
 		opcode.DUP, opcode.PUSH1, opcode.APPEND,
 		opcode.DUP, opcode.PUSH2, opcode.APPEND,
 		opcode.DUP, opcode.CONVERT, opcode.Opcode(t2), opcode.REVERSEITEMS)
 
-	arr := make([]StackItem, 2)
+	arr := make([]stackitem.Item, 2)
 	if reversed {
-		arr[0] = makeStackItem(2)
-		arr[1] = makeStackItem(1)
+		arr[0] = stackitem.Make(2)
+		arr[1] = stackitem.Make(1)
 	} else {
-		arr[0] = makeStackItem(1)
-		arr[1] = makeStackItem(2)
+		arr[0] = stackitem.Make(1)
+		arr[1] = stackitem.Make(2)
 	}
 
 	if i1 == opcode.NEWARRAY {
-		runWithArgs(t, prog, &ArrayItem{arr})
+		runWithArgs(t, prog, stackitem.NewArray(arr))
 	} else {
-		runWithArgs(t, prog, &StructItem{arr})
+		runWithArgs(t, prog, stackitem.NewStruct(arr))
 	}
 }
 
 func TestREVERSEITEMSIssue437(t *testing.T) {
-	t.Run("Array+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, ArrayT, true) })
-	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, StructT, true) })
-	t.Run("Array+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, StructT, false) })
-	t.Run("Struct+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, ArrayT, false) })
+	t.Run("Array+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, stackitem.ArrayT, true) })
+	t.Run("Struct+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, stackitem.StructT, true) })
+	t.Run("Array+Struct", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWARRAY, stackitem.StructT, false) })
+	t.Run("Struct+Array", func(t *testing.T) { testREVERSEITEMSIssue437(t, opcode.NEWSTRUCT, stackitem.ArrayT, false) })
 }
 
 func TestREVERSEITEMSGoodOneElem(t *testing.T) {
@@ -1944,11 +1948,11 @@ func TestREVERSEITEMSGoodStruct(t *testing.T) {
 		vm := load(prog)
 		vm.estack.PushVal(1)
 
-		arr := make([]StackItem, len(elements))
+		arr := make([]stackitem.Item, len(elements))
 		for i := range elements {
-			arr[i] = makeStackItem(elements[i])
+			arr[i] = stackitem.Make(elements[i])
 		}
-		vm.estack.Push(&Element{value: &StructItem{arr}})
+		vm.estack.Push(&Element{value: stackitem.NewStruct(arr)})
 
 		runVM(t, vm)
 		assert.Equal(t, 2, vm.estack.Len())
@@ -2001,27 +2005,27 @@ func TestREMOVEGood(t *testing.T) {
 	vm.estack.PushVal(elements)
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, makeStackItem(reselements), vm.estack.Pop().value)
-	assert.Equal(t, makeStackItem(1), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(reselements), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(1), vm.estack.Pop().value)
 }
 
 func TestREMOVEMap(t *testing.T) {
 	prog := makeProgram(opcode.REMOVE, opcode.PUSH5, opcode.HASKEY)
 	vm := load(prog)
 
-	m := NewMapItem()
-	m.Add(makeStackItem(5), makeStackItem(3))
-	m.Add(makeStackItem([]byte{0, 1}), makeStackItem([]byte{2, 3}))
+	m := stackitem.NewMap()
+	m.Add(stackitem.Make(5), stackitem.Make(3))
+	m.Add(stackitem.Make([]byte{0, 1}), stackitem.Make([]byte{2, 3}))
 	vm.estack.Push(&Element{value: m})
 	vm.estack.Push(&Element{value: m})
-	vm.estack.PushVal(makeStackItem(5))
+	vm.estack.PushVal(stackitem.Make(5))
 
 	runVM(t, vm)
 	assert.Equal(t, 1, vm.estack.Len())
-	assert.Equal(t, makeStackItem(false), vm.estack.Pop().value)
+	assert.Equal(t, stackitem.Make(false), vm.estack.Pop().value)
 }
 
-func testCLEARITEMS(t *testing.T, item StackItem) {
+func testCLEARITEMS(t *testing.T, item stackitem.Item) {
 	prog := makeProgram(opcode.DUP, opcode.DUP, opcode.CLEARITEMS, opcode.SIZE)
 	v := load(prog)
 	v.estack.PushVal(item)
@@ -2032,17 +2036,17 @@ func testCLEARITEMS(t *testing.T, item StackItem) {
 }
 
 func TestCLEARITEMS(t *testing.T) {
-	arr := []StackItem{NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{1})}
-	m := NewMapItem()
-	m.Add(NewBigIntegerItem(big.NewInt(1)), NewByteArrayItem([]byte{}))
-	m.Add(NewByteArrayItem([]byte{42}), NewBigIntegerItem(big.NewInt(2)))
+	arr := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1})}
+	m := stackitem.NewMap()
+	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{}))
+	m.Add(stackitem.NewByteArray([]byte{42}), stackitem.NewBigInteger(big.NewInt(2)))
 
-	testCases := map[string]StackItem{
-		"empty Array":   NewArrayItem([]StackItem{}),
-		"filled Array":  NewArrayItem(arr),
-		"empty Struct":  NewStructItem([]StackItem{}),
-		"filled Struct": NewStructItem(arr),
-		"empty Map":     NewMapItem(),
+	testCases := map[string]stackitem.Item{
+		"empty Array":   stackitem.NewArray([]stackitem.Item{}),
+		"filled Array":  stackitem.NewArray(arr),
+		"empty Struct":  stackitem.NewStruct([]stackitem.Item{}),
+		"filled Struct": stackitem.NewStruct(arr),
+		"empty Map":     stackitem.NewMap(),
 		"filled Map":    m,
 	}
 
@@ -2425,8 +2429,8 @@ func TestSLOTOpcodes(t *testing.T) {
 	})
 
 	t.Run("Default", func(t *testing.T) {
-		t.Run("DefaultStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDSFLD1), NullItem{}))
-		t.Run("DefaultLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 0, opcode.LDLOC1), NullItem{}))
+		t.Run("DefaultStatic", getTestFuncForVM(makeProgram(opcode.INITSSLOT, 2, opcode.LDSFLD1), stackitem.Null{}))
+		t.Run("DefaultLocal", getTestFuncForVM(makeProgram(opcode.INITSLOT, 2, 0, opcode.LDLOC1), stackitem.Null{}))
 		t.Run("DefaultArgument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 2, opcode.LDARG1), 2, 2, 1))
 	})
 

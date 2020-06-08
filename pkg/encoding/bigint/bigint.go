@@ -1,4 +1,4 @@
-package emit
+package bigint
 
 import (
 	"encoding/binary"
@@ -9,9 +9,9 @@ import (
 // wordSizeBytes is a size of a big.Word (uint) in bytes.`
 const wordSizeBytes = bits.UintSize / 8
 
-// BytesToInt converts data in little-endian format to
+// FromBytes converts data in little-endian format to
 // an integer.
-func BytesToInt(data []byte) *big.Int {
+func FromBytes(data []byte) *big.Int {
 	n := new(big.Int)
 	size := len(data)
 	if size == 0 {
@@ -79,15 +79,17 @@ func getEffectiveSize(buf []byte, isNeg bool) int {
 	return size
 }
 
-// IntToBytes converts integer to a slice in little-endian format.
+// ToBytes converts integer to a slice in little-endian format.
 // Note: NEO3 serialization differs from default C# BigInteger.ToByteArray()
 //   when n == 0. For zero is equal to empty slice in NEO3.
 // https://github.com/neo-project/neo-vm/blob/master/src/neo-vm/Types/Integer.cs#L16
-func IntToBytes(n *big.Int) []byte {
-	return intToBytes(n, []byte{})
+func ToBytes(n *big.Int) []byte {
+	return ToPreallocatedBytes(n, []byte{})
 }
 
-func intToBytes(n *big.Int, data []byte) []byte {
+// ToPreallocatedBytes converts integer to a slice in little-endian format using given
+// byte array for conversion result.
+func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	sign := n.Sign()
 	if sign == 0 {
 		return data

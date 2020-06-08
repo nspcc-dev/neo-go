@@ -9,16 +9,17 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func initCHECKMULTISIG(msg []byte, n int) ([]vm.StackItem, []vm.StackItem, map[string]*keys.PublicKey, error) {
+func initCHECKMULTISIG(msg []byte, n int) ([]stackitem.Item, []stackitem.Item, map[string]*keys.PublicKey, error) {
 	var err error
 
 	keyMap := make(map[string]*keys.PublicKey)
 	pkeys := make([]*keys.PrivateKey, n)
-	pubs := make([]vm.StackItem, n)
+	pubs := make([]stackitem.Item, n)
 	for i := range pubs {
 		pkeys[i], err = keys.NewPrivateKey()
 		if err != nil {
@@ -27,25 +28,25 @@ func initCHECKMULTISIG(msg []byte, n int) ([]vm.StackItem, []vm.StackItem, map[s
 
 		pk := pkeys[i].PublicKey()
 		data := pk.Bytes()
-		pubs[i] = vm.NewByteArrayItem(data)
+		pubs[i] = stackitem.NewByteArray(data)
 		keyMap[string(data)] = pk
 	}
 
-	sigs := make([]vm.StackItem, n)
+	sigs := make([]stackitem.Item, n)
 	for i := range sigs {
 		sig := pkeys[i].Sign(msg)
-		sigs[i] = vm.NewByteArrayItem(sig)
+		sigs[i] = stackitem.NewByteArray(sig)
 	}
 
 	return pubs, sigs, keyMap, nil
 }
 
-func subSlice(arr []vm.StackItem, indices []int) []vm.StackItem {
+func subSlice(arr []stackitem.Item, indices []int) []stackitem.Item {
 	if indices == nil {
 		return arr
 	}
 
-	result := make([]vm.StackItem, len(indices))
+	result := make([]stackitem.Item, len(indices))
 	for i, j := range indices {
 		result[i] = arr[j]
 	}

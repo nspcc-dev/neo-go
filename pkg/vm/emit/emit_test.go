@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 3, len(result))
 		assert.EqualValues(t, opcode.PUSHINT16, result[0])
-		assert.EqualValues(t, 300, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 300, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("3-byte int", func(t *testing.T) {
@@ -58,7 +59,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, 1<<20, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 1<<20, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("4-byte int", func(t *testing.T) {
@@ -67,7 +68,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, 1<<28, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, 1<<28, bigint.FromBytes(result[1:]).Int64())
 	})
 
 	t.Run("negative 3-byte int with padding", func(t *testing.T) {
@@ -77,7 +78,7 @@ func TestEmitInt(t *testing.T) {
 		result := buf.Bytes()
 		assert.Equal(t, 5, len(result))
 		assert.EqualValues(t, opcode.PUSHINT32, result[0])
-		assert.EqualValues(t, num, BytesToInt(result[1:]).Int64())
+		assert.EqualValues(t, num, bigint.FromBytes(result[1:]).Int64())
 	})
 }
 

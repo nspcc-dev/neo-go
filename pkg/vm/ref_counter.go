@@ -1,46 +1,50 @@
 package vm
 
+import (
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
 // refCounter represents reference counter for the VM.
 type refCounter struct {
-	items map[StackItem]int
+	items map[stackitem.Item]int
 	size  int
 }
 
 func newRefCounter() *refCounter {
 	return &refCounter{
-		items: make(map[StackItem]int),
+		items: make(map[stackitem.Item]int),
 	}
 }
 
 // Add adds an item to the reference counter.
-func (r *refCounter) Add(item StackItem) {
+func (r *refCounter) Add(item stackitem.Item) {
 	r.size++
 
 	switch item.(type) {
-	case *ArrayItem, *StructItem, *MapItem:
+	case *stackitem.Array, *stackitem.Struct, *stackitem.Map:
 		if r.items[item]++; r.items[item] > 1 {
 			return
 		}
 
 		switch t := item.(type) {
-		case *ArrayItem, *StructItem:
-			for _, it := range item.Value().([]StackItem) {
+		case *stackitem.Array, *stackitem.Struct:
+			for _, it := range item.Value().([]stackitem.Item) {
 				r.Add(it)
 			}
-		case *MapItem:
-			for i := range t.value {
-				r.Add(t.value[i].Value)
+		case *stackitem.Map:
+			for i := range t.Value().([]stackitem.MapElement) {
+				r.Add(t.Value().([]stackitem.MapElement)[i].Value)
 			}
 		}
 	}
 }
 
 // Remove removes item from the reference counter.
-func (r *refCounter) Remove(item StackItem) {
+func (r *refCounter) Remove(item stackitem.Item) {
 	r.size--
 
 	switch item.(type) {
-	case *ArrayItem, *StructItem, *MapItem:
+	case *stackitem.Array, *stackitem.Struct, *stackitem.Map:
 		if r.items[item] > 1 {
 			r.items[item]--
 			return
@@ -49,13 +53,13 @@ func (r *refCounter) Remove(item StackItem) {
 		delete(r.items, item)
 
 		switch t := item.(type) {
-		case *ArrayItem, *StructItem:
-			for _, it := range item.Value().([]StackItem) {
+		case *stackitem.Array, *stackitem.Struct:
+			for _, it := range item.Value().([]stackitem.Item) {
 				r.Remove(it)
 			}
-		case *MapItem:
-			for i := range t.value {
-				r.Remove(t.value[i].Value)
+		case *stackitem.Map:
+			for i := range t.Value().([]stackitem.MapElement) {
+				r.Remove(t.Value().([]stackitem.MapElement)[i].Value)
 			}
 		}
 	}

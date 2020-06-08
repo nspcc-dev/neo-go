@@ -13,6 +13,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"gopkg.in/abiosoft/ishell.v2"
 )
 
@@ -276,7 +277,7 @@ func handleRun(c *ishell.Context) {
 	if len(c.Args) != 0 {
 		var (
 			method []byte
-			params []vm.StackItem
+			params []stackitem.Item
 			err    error
 		)
 		method = []byte(c.Args[0])
@@ -406,8 +407,8 @@ func isMethodArg(s string) bool {
 	return len(strings.Split(s, ":")) == 1
 }
 
-func parseArgs(args []string) ([]vm.StackItem, error) {
-	items := make([]vm.StackItem, len(args))
+func parseArgs(args []string) ([]stackitem.Item, error) {
+	items := make([]stackitem.Item, len(args))
 	for i, arg := range args {
 		var typ, value string
 		typeAndVal := strings.Split(arg, ":")
@@ -428,9 +429,9 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 		switch typ {
 		case boolType:
 			if value == boolFalse {
-				items[i] = vm.NewBoolItem(false)
+				items[i] = stackitem.NewBool(false)
 			} else if value == boolTrue {
-				items[i] = vm.NewBoolItem(true)
+				items[i] = stackitem.NewBool(true)
 			} else {
 				return nil, errors.New("failed to parse bool parameter")
 			}
@@ -439,9 +440,9 @@ func parseArgs(args []string) ([]vm.StackItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			items[i] = vm.NewBigIntegerItem(big.NewInt(val))
+			items[i] = stackitem.NewBigInteger(big.NewInt(val))
 		case stringType:
-			items[i] = vm.NewByteArrayItem([]byte(value))
+			items[i] = stackitem.NewByteArray([]byte(value))
 		}
 	}
 

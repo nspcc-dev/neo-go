@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // ECDSAVerify checks ECDSA signature.
@@ -48,12 +49,12 @@ func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-func getMessage(ic *interop.Context, item vm.StackItem) []byte {
+func getMessage(ic *interop.Context, item stackitem.Item) []byte {
 	var msg []byte
 	switch val := item.(type) {
-	case *vm.InteropItem:
+	case *stackitem.Interop:
 		msg = val.Value().(crypto.Verifiable).GetSignedPart()
-	case vm.NullItem:
+	case stackitem.Null:
 		msg = ic.Container.GetSignedPart()
 	default:
 		var err error

@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var structTestCases = []testCase{
@@ -281,11 +281,11 @@ var structTestCases = []testCase{
 			return newToken()
 		}
 		`,
-		[]vm.StackItem{
-			vm.NewBigIntegerItem(big.NewInt(1)),
-			vm.NewBigIntegerItem(big.NewInt(2)),
-			vm.NewByteArrayItem([]byte("hello")),
-			vm.NewBoolItem(false),
+		[]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(big.NewInt(2)),
+			stackitem.NewByteArray([]byte("hello")),
+			stackitem.NewBool(false),
 		},
 	},
 	{

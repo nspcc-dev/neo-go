@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +61,7 @@ type Function struct {
 }
 
 // Method is a signature for a native method.
-type Method = func(ic *Context, args []vm.StackItem) vm.StackItem
+type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
 
 // MethodAndPrice is a native-contract method descriptor.
 type MethodAndPrice struct {

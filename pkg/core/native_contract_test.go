@@ -10,8 +10,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func newTestNative() *testNative {
 	return tn
 }
 
-func (tn *testNative) sum(_ *interop.Context, args []vm.StackItem) vm.StackItem {
+func (tn *testNative) sum(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	s1, err := args[0].TryInteger()
 	if err != nil {
 		panic(err)
@@ -76,7 +76,7 @@ func (tn *testNative) sum(_ *interop.Context, args []vm.StackItem) vm.StackItem 
 	if err != nil {
 		panic(err)
 	}
-	return vm.NewBigIntegerItem(s1.Add(s1, s2))
+	return stackitem.NewBigInteger(s1.Add(s1, s2))
 }
 
 func TestNativeContract_Invoke(t *testing.T) {

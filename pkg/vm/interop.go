@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // InteropFunc allows to hook into the VM.
@@ -87,7 +88,7 @@ func runtimeNotify(vm *VM) error {
 // RuntimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
 func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
-	data, err := SerializeItem(item.value)
+	data, err := stackitem.SerializeItem(item.value)
 	if err != nil {
 		return err
 	} else if len(data) > MaxItemSize {
@@ -103,7 +104,7 @@ func RuntimeSerialize(vm *VM) error {
 func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 
-	item, err := DeserializeItem(data)
+	item, err := stackitem.DeserializeItem(data)
 	if err != nil {
 		return err
 	}
@@ -124,7 +125,7 @@ func init() {
 func EnumeratorCreate(v *VM) error {
 	data := v.Estack().Pop().Array()
 	v.Estack().Push(&Element{
-		value: NewInteropItem(&arrayWrapper{
+		value: stackitem.NewInterop(&arrayWrapper{
 			index: -1,
 			value: data,
 		}),
@@ -136,7 +137,7 @@ func EnumeratorCreate(v *VM) error {
 // EnumeratorNext handles syscall Neo.Enumerator.Next.
 func EnumeratorNext(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.value.(enumerator)
+	arr := iop.Value().(enumerator)
 	v.Estack().PushVal(arr.Next())
 
 	return nil
@@ -145,7 +146,7 @@ func EnumeratorNext(v *VM) error {
 // EnumeratorValue handles syscall Neo.Enumerator.Value.
 func EnumeratorValue(v *VM) error {
 	iop := v.Estack().Pop().Interop()
-	arr := iop.value.(enumerator)
+	arr := iop.Value().(enumerator)
 	v.Estack().Push(&Element{value: arr.Value()})
 
 	return nil
@@ -154,12 +155,12 @@ func EnumeratorValue(v *VM) error {
 // EnumeratorConcat handles syscall Neo.Enumerator.Concat.
 func EnumeratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
-	arr1 := iop1.value.(enumerator)
+	arr1 := iop1.Value().(enumerator)
 	iop2 := v.Estack().Pop().Interop()
-	arr2 := iop2.value.(enumerator)
+	arr2 := iop2.Value().(enumerator)
 
 	v.Estack().Push(&Element{
-		value: NewInteropItem(&concatEnum{
+		value: stackitem.NewInterop(&concatEnum{
 			current: arr1,
 			second:  arr2,
 		}),
@@ -171,14 +172,14 @@ func EnumeratorConcat(v *VM) error {
 // IteratorCreate handles syscall Neo.Iterator.Create.
 func IteratorCreate(v *VM) error {
 	data := v.Estack().Pop()
-	var item StackItem
+	var item stackitem.Item
 	switch t := data.value.(type) {
-	case *ArrayItem, *StructItem:
-		item = NewInteropItem(&arrayWrapper{
+	case *stackitem.Array, *stackitem.Struct:
+		item = stackitem.NewInterop(&arrayWrapper{
 			index: -1,
-			value: t.Value().([]StackItem),
+			value: t.Value().([]stackitem.Item),
 		})
-	case *MapItem:
+	case *stackitem.Map:
 		item = NewMapIterator(t)
 	default:
 		return errors.New("non-iterable type")
@@ -189,21 +190,21 @@ func IteratorCreate(v *VM) error {
 }
 
 // NewMapIterator returns new interop item containing iterator over m.
-func NewMapIterator(m *MapItem) *InteropItem {
-	return NewInteropItem(&mapWrapper{
+func NewMapIterator(m *stackitem.Map) *stackitem.Interop {
+	return stackitem.NewInterop(&mapWrapper{
 		index: -1,
-		m:     m.value,
+		m:     m.Value().([]stackitem.MapElement),
 	})
 }
 
 // IteratorConcat handles syscall Neo.Iterator.Concat.
 func IteratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
-	iter1 := iop1.value.(iterator)
+	iter1 := iop1.Value().(iterator)
 	iop2 := v.Estack().Pop().Interop()
-	iter2 := iop2.value.(iterator)
+	iter2 := iop2.Value().(iterator)
 
-	v.Estack().Push(&Element{value: NewInteropItem(
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&concatIter{
 			current: iter1,
 			second:  iter2,
@@ -216,7 +217,7 @@ func IteratorConcat(v *VM) error {
 // IteratorKey handles syscall Neo.Iterator.Key.
 func IteratorKey(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
+	iter := iop.Value().(iterator)
 	v.Estack().Push(&Element{value: iter.Key()})
 
 	return nil
@@ -225,8 +226,8 @@ func IteratorKey(v *VM) error {
 // IteratorKeys handles syscall Neo.Iterator.Keys.
 func IteratorKeys(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
-	v.Estack().Push(&Element{value: NewInteropItem(
+	iter := iop.Value().(iterator)
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&keysWrapper{iter},
 	)})
 
@@ -236,8 +237,8 @@ func IteratorKeys(v *VM) error {
 // IteratorValues handles syscall Neo.Iterator.Values.
 func IteratorValues(v *VM) error {
 	iop := v.estack.Pop().Interop()
-	iter := iop.value.(iterator)
-	v.Estack().Push(&Element{value: NewInteropItem(
+	iter := iop.Value().(iterator)
+	v.Estack().Push(&Element{value: stackitem.NewInterop(
 		&valuesWrapper{iter},
 	)})
 

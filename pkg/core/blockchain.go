@@ -18,11 +18,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -573,7 +575,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				return errors.Wrap(err, "failed to persist invocation results")
 			}
 			for _, note := range systemInterop.Notifications {
-				arr, ok := note.Item.Value().([]vm.StackItem)
+				arr, ok := note.Item.Value().([]stackitem.Item)
 				if !ok || len(arr) != 4 {
 					continue
 				}
@@ -605,7 +607,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 					if !ok {
 						continue
 					}
-					amount = emit.BytesToInt(bs)
+					amount = bigint.FromBytes(bs)
 				}
 				bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
 			}

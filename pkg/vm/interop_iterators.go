@@ -1,14 +1,18 @@
 package vm
 
+import (
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+)
+
 type (
 	enumerator interface {
 		Next() bool
-		Value() StackItem
+		Value() stackitem.Item
 	}
 
 	arrayWrapper struct {
 		index int
-		value []StackItem
+		value []stackitem.Item
 	}
 
 	concatEnum struct {
@@ -20,12 +24,12 @@ type (
 type (
 	iterator interface {
 		enumerator
-		Key() StackItem
+		Key() stackitem.Item
 	}
 
 	mapWrapper struct {
 		index int
-		m     []MapElement
+		m     []stackitem.MapElement
 	}
 
 	concatIter struct {
@@ -51,12 +55,12 @@ func (a *arrayWrapper) Next() bool {
 	return false
 }
 
-func (a *arrayWrapper) Value() StackItem {
+func (a *arrayWrapper) Value() stackitem.Item {
 	return a.value[a.index]
 }
 
-func (a *arrayWrapper) Key() StackItem {
-	return makeStackItem(a.index)
+func (a *arrayWrapper) Key() stackitem.Item {
+	return stackitem.Make(a.index)
 }
 
 func (c *concatEnum) Next() bool {
@@ -68,7 +72,7 @@ func (c *concatEnum) Next() bool {
 	return c.current.Next()
 }
 
-func (c *concatEnum) Value() StackItem {
+func (c *concatEnum) Value() stackitem.Item {
 	return c.current.Value()
 }
 
@@ -81,11 +85,11 @@ func (i *concatIter) Next() bool {
 	return i.second.Next()
 }
 
-func (i *concatIter) Value() StackItem {
+func (i *concatIter) Value() stackitem.Item {
 	return i.current.Value()
 }
 
-func (i *concatIter) Key() StackItem {
+func (i *concatIter) Key() stackitem.Item {
 	return i.current.Key()
 }
 
@@ -98,11 +102,11 @@ func (m *mapWrapper) Next() bool {
 	return false
 }
 
-func (m *mapWrapper) Value() StackItem {
+func (m *mapWrapper) Value() stackitem.Item {
 	return m.m[m.index].Value
 }
 
-func (m *mapWrapper) Key() StackItem {
+func (m *mapWrapper) Key() stackitem.Item {
 	return m.m[m.index].Key
 }
 
@@ -110,7 +114,7 @@ func (e *keysWrapper) Next() bool {
 	return e.iter.Next()
 }
 
-func (e *keysWrapper) Value() StackItem {
+func (e *keysWrapper) Value() stackitem.Item {
 	return e.iter.Key()
 }
 
@@ -118,6 +122,6 @@ func (e *valuesWrapper) Next() bool {
 	return e.iter.Next()
 }
 
-func (e *valuesWrapper) Value() StackItem {
+func (e *valuesWrapper) Value() stackitem.Item {
 	return e.iter.Value()
 }
