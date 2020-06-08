@@ -1,6 +1,8 @@
 package smartcontract
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"reflect"
@@ -30,7 +32,7 @@ var marshalJSONTestCases = []struct {
 	},
 	{
 		input:  Parameter{Type: ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
-		result: `{"type":"ByteArray","value":"010203"}`,
+		result: `{"type":"ByteArray","value":"` + hexToBase64("010203") + `"}`,
 	},
 	{
 		input:  Parameter{Type: ByteArrayType},
@@ -66,8 +68,8 @@ var marshalJSONTestCases = []struct {
 					}},
 			},
 		},
-		result: `{"type":"Array","value":[{"type":"ByteArray","value":"0102"},{"type":"Array","value":[` +
-			`{"type":"ByteArray","value":"030201"},{"type":"ByteArray","value":"070809"}]}]}`,
+		result: `{"type":"Array","value":[{"type":"ByteArray","value":"` + hexToBase64("0102") + `"},{"type":"Array","value":[` +
+			`{"type":"ByteArray","value":"` + hexToBase64("030201") + `"},{"type":"ByteArray","value":"` + hexToBase64("070809") + `"}]}]}`,
 	},
 	{
 		input: Parameter{
@@ -176,7 +178,7 @@ var unmarshalJSONTestCases = []struct {
 		result: Parameter{Type: IntegerType, Value: int64(12345)},
 	},
 	{
-		input:  `{"type":"ByteArray","value":"010203"}`,
+		input:  `{"type":"ByteArray","value":"` + hexToBase64("010203") + `"}`,
 		result: Parameter{Type: ByteArrayType, Value: []byte{0x01, 0x02, 0x03}},
 	},
 	{
@@ -281,7 +283,7 @@ var unmarshalJSONTestCases = []struct {
 var unmarshalJSONErrorCases = []string{
 	`{"type": "ByteArray","value":`,        // incorrect JSON
 	`{"type": "ByteArray","value":1}`,      // incorrect Value
-	`{"type": "ByteArray","value":"12zz"}`, // incorrect ByteArray value
+	`{"type": "ByteArray","value":"12^"}`,  // incorrect ByteArray value
 	`{"type": "String","value":`,           // incorrect JSON
 	`{"type": "String","value":1}`,         // incorrect Value
 	`{"type": "Integer","value": "nn"}`,    // incorrect Integer value
@@ -496,4 +498,9 @@ func TestEncodeDecodeBinary(t *testing.T) {
 
 		require.Error(t, testserdes.DecodeBinary([]byte{0xAA}, &p))
 	})
+}
+
+func hexToBase64(s string) string {
+	b, _ := hex.DecodeString(s)
+	return base64.StdEncoding.EncodeToString(b)
 }

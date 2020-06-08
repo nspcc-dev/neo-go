@@ -1,6 +1,7 @@
 package smartcontract
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -76,8 +77,10 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 	case PublicKeyType, ByteArrayType, SignatureType:
 		if p.Value == nil {
 			resultRawValue = []byte("null")
-		} else {
+		} else if p.Type == PublicKeyType {
 			resultRawValue, resultErr = json.Marshal(hex.EncodeToString(p.Value.([]byte)))
+		} else {
+			resultRawValue, resultErr = json.Marshal(base64.StdEncoding.EncodeToString(p.Value.([]byte)))
 		}
 	case ArrayType:
 		var value = p.Value.([]Parameter)
@@ -121,7 +124,12 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		if err = json.Unmarshal(r.Value, &s); err != nil {
 			return
 		}
-		if b, err = hex.DecodeString(s); err != nil {
+		if r.Type == PublicKeyType {
+			b, err = hex.DecodeString(s)
+		} else {
+			b, err = base64.StdEncoding.DecodeString(s)
+		}
+		if err != nil {
 			return
 		}
 		p.Value = b
