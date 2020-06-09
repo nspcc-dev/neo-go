@@ -41,22 +41,19 @@ func getSyscallPrice(v *vm.VM, id uint32) util.Fixed8 {
 	}
 
 	const (
-		neoContractCreate        = 0x6ea56cf6 // Neo.Contract.Create
-		neoContractMigrate       = 0x90621b47 // Neo.Contract.Migrate
-		antSharesContractCreate  = 0x2a28d29b // AntShares.Contract.Create
-		antSharesContractMigrate = 0xa934c8bb // AntShares.Contract.Migrate
-		systemStoragePut         = 0x84183fe6 // System.Storage.Put
-		systemStoragePutEx       = 0x3a9be173 // System.Storage.PutEx
-		neoStoragePut            = 0xf541a152 // Neo.Storage.Put
-		antSharesStoragePut      = 0x5f300a9e // AntShares.Storage.Put
+		neoContractCreate  = 0x6ea56cf6 // Neo.Contract.Create
+		neoContractMigrate = 0x90621b47 // Neo.Contract.Migrate
+		systemStoragePut   = 0x84183fe6 // System.Storage.Put
+		systemStoragePutEx = 0x3a9be173 // System.Storage.PutEx
+		neoStoragePut      = 0xf541a152 // Neo.Storage.Put
 	)
 
 	estack := v.Estack()
 
 	switch id {
-	case neoContractCreate, neoContractMigrate, antSharesContractCreate, antSharesContractMigrate:
+	case neoContractCreate, neoContractMigrate:
 		return smartcontract.GetDeploymentPrice(smartcontract.PropertyState(estack.Peek(3).BigInt().Int64()))
-	case systemStoragePut, systemStoragePutEx, neoStoragePut, antSharesStoragePut:
+	case systemStoragePut, systemStoragePutEx, neoStoragePut:
 		// price for storage PUT is 1 GAS per 1 KiB
 		keySize := len(estack.Peek(1).Bytes())
 		valSize := len(estack.Peek(2).Bytes())
