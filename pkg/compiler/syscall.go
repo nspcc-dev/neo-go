@@ -55,10 +55,6 @@ var syscalls = map[string]map[string]string{
 		"GetConsensusData": "Neo.Header.GetConsensusData",
 		"GetNextConsensus": "Neo.Header.GetNextConsensus",
 	},
-	"block": {
-		"GetTransactionCount": "Neo.Block.GetTransactionCount",
-		"GetTransactions":     "Neo.Block.GetTransactions",
-	},
 	"contract": {
 		"GetScript":         "Neo.Contract.GetScript",
 		"IsPayable":         "Neo.Contract.IsPayable",

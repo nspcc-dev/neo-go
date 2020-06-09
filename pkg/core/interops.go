@@ -62,8 +62,6 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: "System.Block.GetTransactionCount", Func: blockGetTransactionCount, Price: 1},
-	{Name: "System.Block.GetTransactions", Func: blockGetTransactions, Price: 1},
 	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 250},
 	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "System.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
@@ -104,8 +102,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Account.GetBalance", Func: accountGetBalance, Price: 1},
 	{Name: "Neo.Account.GetScriptHash", Func: accountGetScriptHash, Price: 1},
 	{Name: "Neo.Account.IsStandard", Func: accountIsStandard, Price: 100},
-	{Name: "Neo.Block.GetTransactionCount", Func: blockGetTransactionCount, Price: 1},
-	{Name: "Neo.Block.GetTransactions", Func: blockGetTransactions, Price: 1},
 	{Name: "Neo.Blockchain.GetAccount", Func: bcGetAccount, Price: 100},
 	{Name: "Neo.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "Neo.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},

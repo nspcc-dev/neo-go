@@ -34,8 +34,6 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	funcs := []func(*interop.Context, *vm.VM) error{
 		accountGetBalance,
 		accountGetScriptHash,
-		blockGetTransactionCount,
-		blockGetTransactions,
 		contractGetScript,
 		contractGetStorageContext,
 		contractIsPayable,

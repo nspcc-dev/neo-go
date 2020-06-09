@@ -250,35 +250,6 @@ func headerGetTimestamp(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// blockGetTransactionCount returns transactions count in the given block.
-func blockGetTransactionCount(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	v.Estack().PushVal(len(block.Transactions))
-	return nil
-}
-
-// blockGetTransactions returns transactions from the given block.
-func blockGetTransactions(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	if len(block.Transactions) > vm.MaxArraySize {
-		return errors.New("too many transactions")
-	}
-	txes := make([]stackitem.Item, 0, len(block.Transactions))
-	for _, tx := range block.Transactions {
-		txes = append(txes, stackitem.NewInterop(tx))
-	}
-	v.Estack().PushVal(txes)
-	return nil
-}
-
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
