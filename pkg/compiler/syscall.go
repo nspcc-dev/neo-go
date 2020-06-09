@@ -36,7 +36,7 @@ var syscalls = map[string]map[string]string{
 	},
 	"blockchain": {
 		"GetAccount":              "Neo.Blockchain.GetAccount",
-		"GetBlock":                "Neo.Blockchain.GetBlock",
+		"GetBlock":                "System.Blockchain.GetBlock",
 		"GetContract":             "Neo.Blockchain.GetContract",
 		"GetHeader":               "Neo.Blockchain.GetHeader",
 		"GetHeight":               "Neo.Blockchain.GetHeight",

@@ -110,3 +110,38 @@ func TestBCGetTransactionFromBlock(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestBCGetBlock(t *testing.T) {
+	v, context, chain := createVM(t)
+	defer chain.Close()
+	block := chain.newBlock()
+	require.NoError(t, chain.AddBlock(block))
+
+	t.Run("success", func(t *testing.T) {
+		v.Estack().PushVal(block.Hash().BytesBE())
+		err := bcGetBlock(context, v)
+		require.NoError(t, err)
+
+		value := v.Estack().Pop().Value()
+		actual, ok := value.([]stackitem.Item)
+		require.True(t, ok)
+		require.Equal(t, 8, len(actual))
+		require.Equal(t, block.Hash().BytesBE(), actual[0].Value().([]byte))
+		require.Equal(t, int64(block.Version), actual[1].Value().(*big.Int).Int64())
+		require.Equal(t, block.PrevHash.BytesBE(), actual[2].Value().([]byte))
+		require.Equal(t, block.MerkleRoot.BytesBE(), actual[3].Value().([]byte))
+		require.Equal(t, int64(block.Timestamp), actual[4].Value().(*big.Int).Int64())
+		require.Equal(t, int64(block.Index), actual[5].Value().(*big.Int).Int64())
+		require.Equal(t, block.NextConsensus.BytesBE(), actual[6].Value().([]byte))
+		require.Equal(t, int64(len(block.Transactions)), actual[7].Value().(*big.Int).Int64())
+	})
+
+	t.Run("bad hash", func(t *testing.T) {
+		v.Estack().PushVal(block.Hash().BytesLE())
+		err := bcGetTransaction(context, v)
+		require.NoError(t, err)
+
+		_, ok := v.Estack().Pop().Item().(stackitem.Null)
+		require.True(t, ok)
+	})
+}

@@ -1054,7 +1054,7 @@ func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 	}
 	emit.Syscall(c.prog.BinWriter, api)
 	switch name {
-	case "GetTransaction":
+	case "GetTransaction", "GetBlock":
 		c.emitConvert(stackitem.StructT)
 	}
 

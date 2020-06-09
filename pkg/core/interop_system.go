@@ -53,6 +53,20 @@ func getBlockHashFromElement(bc blockchainer.Blockchainer, element *vm.Element) 
 	return hash, nil
 }
 
+// blockToStackItem converts block.Block to stackitem.Item
+func blockToStackItem(b *block.Block) stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(b.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewByteArray(b.PrevHash.BytesBE()),
+		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+	})
+}
+
 // bcGetBlock returns current block.
 func bcGetBlock(ic *interop.Context, v *vm.VM) error {
 	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
@@ -60,10 +74,10 @@ func bcGetBlock(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	block, err := ic.Chain.GetBlock(hash)
-	if err != nil {
-		v.Estack().PushVal([]byte{})
+	if err != nil || !isTraceableBlock(ic, block.Index) {
+		v.Estack().PushVal(stackitem.Null{})
 	} else {
-		v.Estack().PushVal(stackitem.NewInterop(block))
+		v.Estack().PushVal(blockToStackItem(block))
 	}
 	return nil
 }

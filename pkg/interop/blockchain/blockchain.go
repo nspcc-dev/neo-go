@@ -5,7 +5,6 @@ package blockchain
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/account"
-	"github.com/nspcc-dev/neo-go/pkg/interop/block"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/header"
 )
@@ -34,6 +33,32 @@ type Transaction struct {
 	Script []byte
 }
 
+// Block represents a NEO block, it's a data structure that you can get
+// block-related data from. It's similar to the Block class in the Neo .net
+// framework. To use it you need to get it via GetBlock function call.
+type Block struct {
+	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// given block.
+	Hash []byte
+	// Version of the block.
+	Version int
+	// PrevHash represents the hash (256 bit BE value in a 32 byte slice) of the
+	// previous block.
+	PrevHash []byte
+	// MerkleRoot represents the root hash (256 bit BE value in a 32 byte slice)
+	// of a transaction list.
+	MerkleRoot []byte
+	// Timestamp represents millisecond-precision block timestamp.
+	Timestamp int
+	// Index represents the height of the block.
+	Index int
+	// NextConsensus representes contract address of the next miner (160 bit BE
+	// value in a 20 byte slice).
+	NextConsensus []byte
+	// TransactionsLength represents the length of block's transactions array.
+	TransactionsLength int
+}
+
 // GetHeight returns current block height (index of the last accepted block).
 // Note that when transaction is being run as a part of new block this block is
 // considered as not yet accepted (persisted) and thus you'll get an index of
@@ -52,10 +77,10 @@ func GetHeader(heightOrHash interface{}) header.Header {
 }
 
 // GetBlock returns block found by the given hash or index (with the same
-// encoding as for GetHeader). Refer to the `block` package for possible uses
-// of returned structure. This function uses `Neo.Blockchain.GetBlock` syscall.
-func GetBlock(heightOrHash interface{}) block.Block {
-	return block.Block{}
+// encoding as for GetHeader). This function uses `System.Blockchain.GetBlock`
+// syscall.
+func GetBlock(heightOrHash interface{}) Block {
+	return Block{}
 }
 
 // GetTransaction returns transaction found by the given hash (256 bit in BE

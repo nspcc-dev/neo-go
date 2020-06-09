@@ -64,7 +64,7 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 var systemInterops = []interop.Function{
 	{Name: "System.Block.GetTransactionCount", Func: blockGetTransactionCount, Price: 1},
 	{Name: "System.Block.GetTransactions", Func: blockGetTransactions, Price: 1},
-	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 200},
+	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 250},
 	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "System.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
@@ -107,7 +107,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Block.GetTransactionCount", Func: blockGetTransactionCount, Price: 1},
 	{Name: "Neo.Block.GetTransactions", Func: blockGetTransactions, Price: 1},
 	{Name: "Neo.Blockchain.GetAccount", Func: bcGetAccount, Price: 100},
-	{Name: "Neo.Blockchain.GetBlock", Func: bcGetBlock, Price: 200},
 	{Name: "Neo.Blockchain.GetContract", Func: bcGetContract, Price: 100},
 	{Name: "Neo.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "Neo.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
