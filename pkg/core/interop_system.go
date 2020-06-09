@@ -484,7 +484,7 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	if err != nil {
 		return errors.New("invalid contract hash")
 	}
-	script, _ := ic.GetContract(u)
+	script := ic.GetContract(u)
 	if script == nil {
 		return errors.New("contract not found")
 	}

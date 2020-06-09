@@ -53,11 +53,6 @@ func (cs *Contract) HasStorage() bool {
 	return (cs.Manifest.Features & smartcontract.HasStorage) != 0
 }
 
-// HasDynamicInvoke checks whether the contract has dynamic invoke property set.
-func (cs *Contract) HasDynamicInvoke() bool {
-	return (cs.Manifest.Features & smartcontract.HasDynamicInvoke) != 0
-}
-
 // IsPayable checks whether the contract has payable property set.
 func (cs *Contract) IsPayable() bool {
 	return (cs.Manifest.Features & smartcontract.IsPayable) != 0

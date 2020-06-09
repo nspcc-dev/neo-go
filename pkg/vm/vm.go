@@ -268,16 +268,6 @@ func (v *VM) LoadScript(b []byte) {
 	v.istack.PushVal(ctx)
 }
 
-// loadScriptWithHash if similar to the LoadScript method, but it also loads
-// given script hash directly into the Context to avoid its recalculations. It's
-// up to user of this function to make sure the script and hash match each other.
-func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160, hasDynamicInvoke bool) {
-	v.LoadScript(b)
-	ctx := v.Context()
-	ctx.scriptHash = hash
-	ctx.hasDynamicInvoke = hasDynamicInvoke
-}
-
 // Context returns the current executed context. Nil if there is no context,
 // which implies no program is loaded.
 func (v *VM) Context() *Context {

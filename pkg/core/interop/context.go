@@ -89,12 +89,12 @@ type ContractMD struct {
 }
 
 // GetContract returns script of the contract with the specified hash.
-func (ic *Context) GetContract(h util.Uint160) ([]byte, bool) {
+func (ic *Context) GetContract(h util.Uint160) []byte {
 	cs, err := ic.DAO.GetContractState(h)
 	if err != nil {
-		return nil, false
+		return nil
 	}
-	return cs.Script, cs.HasDynamicInvoke()
+	return cs.Script
 }
 
 // NewContractMD returns Contract with the specified list of methods.
