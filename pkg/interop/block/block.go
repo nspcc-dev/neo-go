@@ -22,9 +22,3 @@ func GetTransactionCount(b Block) int {
 func GetTransactions(b Block) []blockchain.Transaction {
 	return []blockchain.Transaction{}
 }
-
-// GetTransaction returns transaction from the given block by its index. It
-// uses `Neo.Block.GetTransaction` syscall internally.
-func GetTransaction(b Block, index int) blockchain.Transaction {
-	return blockchain.Transaction{}
-}

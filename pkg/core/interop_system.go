@@ -265,23 +265,6 @@ func blockGetTransactions(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// blockGetTransaction returns transaction with the given number from the given
-// block.
-func blockGetTransaction(ic *interop.Context, v *vm.VM) error {
-	blockInterface := v.Estack().Pop().Value()
-	block, ok := blockInterface.(*block.Block)
-	if !ok {
-		return errors.New("value is not a block")
-	}
-	index := v.Estack().Pop().BigInt().Int64()
-	if index < 0 || index >= int64(len(block.Transactions)) {
-		return errors.New("wrong transaction index")
-	}
-	tx := block.Transactions[index]
-	v.Estack().PushVal(stackitem.NewInterop(tx))
-	return nil
-}
-
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
