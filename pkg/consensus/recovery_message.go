@@ -234,6 +234,7 @@ func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload, validators 
 			newViewNumber: cv.OriginalViewNumber + 1,
 			timestamp:     cv.Timestamp,
 		})
+		c.message.ViewNumber = cv.OriginalViewNumber
 		c.SetValidatorIndex(cv.ValidatorIndex)
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
