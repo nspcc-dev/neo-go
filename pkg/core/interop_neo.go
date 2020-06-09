@@ -8,7 +8,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -68,48 +69,20 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 	if len(script) > MaxContractScriptSize {
 		return nil, errors.New("the script is too big")
 	}
-	paramBytes := v.Estack().Pop().Bytes()
-	if len(paramBytes) > MaxContractParametersNum {
-		return nil, errors.New("too many parameters for a script")
+	manifestBytes := v.Estack().Pop().Bytes()
+	if len(manifestBytes) > manifest.MaxManifestSize {
+		return nil, errors.New("manifest is too big")
 	}
-	paramList := make([]smartcontract.ParamType, len(paramBytes))
-	for k, v := range paramBytes {
-		paramList[k] = smartcontract.ParamType(v)
+	var m manifest.Manifest
+	r := io.NewBinReaderFromBuf(manifestBytes)
+	m.DecodeBinary(r)
+	if r.Err != nil {
+		return nil, r.Err
 	}
-	retType := smartcontract.ParamType(v.Estack().Pop().BigInt().Int64())
-	properties := smartcontract.PropertyState(v.Estack().Pop().BigInt().Int64())
-	name := v.Estack().Pop().Bytes()
-	if len(name) > MaxContractStringLen {
-		return nil, errors.New("too big name")
-	}
-	version := v.Estack().Pop().Bytes()
-	if len(version) > MaxContractStringLen {
-		return nil, errors.New("too big version")
-	}
-	author := v.Estack().Pop().Bytes()
-	if len(author) > MaxContractStringLen {
-		return nil, errors.New("too big author")
-	}
-	email := v.Estack().Pop().Bytes()
-	if len(email) > MaxContractStringLen {
-		return nil, errors.New("too big email")
-	}
-	desc := v.Estack().Pop().Bytes()
-	if len(desc) > MaxContractDescriptionLen {
-		return nil, errors.New("too big description")
-	}
-	contract := &state.Contract{
-		Script:      script,
-		ParamList:   paramList,
-		ReturnType:  retType,
-		Properties:  properties,
-		Name:        string(name),
-		CodeVersion: string(version),
-		Author:      string(author),
-		Email:       string(email),
-		Description: string(desc),
-	}
-	return contract, nil
+	return &state.Contract{
+		Script:   script,
+		Manifest: m,
+	}, nil
 }
 
 // contractCreate creates a contract.
@@ -119,14 +92,12 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
-	if err != nil {
-		contract = newcontract
-		err := ic.DAO.PutContractState(contract)
-		if err != nil {
-			return err
-		}
+	if contract != nil {
+		return errors.New("contract already exists")
+	} else if err := ic.DAO.PutContractState(newcontract); err != nil {
+		return err
 	}
-	v.Estack().PushVal(stackitem.NewInterop(contract))
+	v.Estack().PushVal(stackitem.NewInterop(newcontract))
 	return nil
 }
 
@@ -154,29 +125,44 @@ func contractIsPayable(ic *interop.Context, v *vm.VM) error {
 
 // contractMigrate migrates a contract.
 func contractMigrate(ic *interop.Context, v *vm.VM) error {
+	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	if contract == nil {
+		return errors.New("contract doesn't exist")
+	}
 	newcontract, err := createContractStateFromVM(ic, v)
 	if err != nil {
 		return err
 	}
-	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
-	if err != nil {
-		contract = newcontract
-		err := ic.DAO.PutContractState(contract)
+	if newcontract.Script != nil {
+		if l := len(newcontract.Script); l == 0 || l > MaxContractScriptSize {
+			return errors.New("invalid script len")
+		}
+		h := newcontract.ScriptHash()
+		if h.Equals(contract.ScriptHash()) {
+			return errors.New("the script is the same")
+		} else if _, err := ic.DAO.GetContractState(h); err == nil {
+			return errors.New("contract already exists")
+		}
+		newcontract.ID = contract.ID
+		if err := ic.DAO.PutContractState(newcontract); err != nil {
+			return err
+		}
+		if err := ic.DAO.DeleteContractState(contract.ScriptHash()); err != nil {
+			return err
+		}
+	}
+	if contract.HasStorage() {
+		// TODO store items by ID #1037
+		hash := v.GetCurrentScriptHash()
+		siMap, err := ic.DAO.GetStorageItems(hash)
 		if err != nil {
 			return err
 		}
-		if contract.HasStorage() {
-			hash := v.GetCurrentScriptHash()
-			siMap, err := ic.DAO.GetStorageItems(hash)
+		for k, v := range siMap {
+			v.IsConst = false
+			err = ic.DAO.PutStorageItem(contract.ScriptHash(), []byte(k), v)
 			if err != nil {
 				return err
-			}
-			for k, v := range siMap {
-				v.IsConst = false
-				err = ic.DAO.PutStorageItem(contract.ScriptHash(), []byte(k), v)
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}

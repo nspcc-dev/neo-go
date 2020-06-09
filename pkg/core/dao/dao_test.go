@@ -60,7 +60,7 @@ func TestPutAndGetAccountStateOrNew(t *testing.T) {
 
 func TestPutAndGetContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
-	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestPutAndGetContractState(t *testing.T) {
 
 func TestDeleteContractState(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
-	contractState := &state.Contract{Script: []byte{}, ParamList: []smartcontract.ParamType{}}
+	contractState := &state.Contract{Script: []byte{}}
 	hash := contractState.ScriptHash()
 	err := dao.PutContractState(contractState)
 	require.NoError(t, err)

@@ -94,8 +94,7 @@ func (ic *Context) GetContract(h util.Uint160) ([]byte, bool) {
 	if err != nil {
 		return nil, false
 	}
-	hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
-	return cs.Script, hasDynamicInvoke
+	return cs.Script, cs.HasDynamicInvoke()
 }
 
 // NewContractMD returns Contract with the specified list of methods.

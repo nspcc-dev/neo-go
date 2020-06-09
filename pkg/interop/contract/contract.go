@@ -33,30 +33,10 @@ func GetStorageContext(c Contract) storage.Context {
 
 // Create creates a new contract using a set of input parameters:
 //     script      contract's bytecode (limited in length by 1M)
-//     params      contract's input parameter types, one byte per parameter, see
-//                 ParamType in the `smartcontract` package for value
-//                 definitions. Maximum number of parameters: 252.
-//     returnType  return value type, also a ParamType constant
-//     properties  bit field with contract's permissions (storage, dynamic
-//                 invoke, payable), see PropertyState in the `smartcontract`
-//                 package
-//     name        human-readable contract name (no longer than 252 bytes)
-//     version     human-readable contract version (no longer than 252 bytes)
-//     author      contract's author (no longer than 252 bytes)
-//     email       contract's author/support e-mail (no longer than 252 bytes)
-//     description human-readable contract description (no longer than 64K bytes)
+//     manifest    contract's manifest (limited in length by 2 KiB)
 // It returns this new created Contract when successful (and fails transaction
 // if not). It uses `Neo.Contract.Create` syscall.
-func Create(
-	script []byte,
-	params []byte,
-	returnType byte,
-	properties byte,
-	name,
-	version,
-	author,
-	email,
-	description string) Contract {
+func Create(script []byte, manifest []byte) Contract {
 	return Contract{}
 }
 
@@ -65,16 +45,7 @@ func Create(
 // Create. The old contract will be deleted by this call, if it has any storage
 // associated it will be migrated to the new contract. New contract is returned.
 // This function uses `Neo.Contract.Migrate` syscall.
-func Migrate(
-	script []byte,
-	params []byte,
-	returnType byte,
-	properties byte,
-	name,
-	version,
-	author,
-	email,
-	description string) Contract {
+func Migrate(script []byte, manifest []byte) Contract {
 	return Contract{}
 }
 

@@ -6,42 +6,46 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeContractState(t *testing.T) {
 	script := []byte("testscript")
 
-	contract := &Contract{
-		Script:      script,
-		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
-		ReturnType:  smartcontract.BoolType,
-		Properties:  smartcontract.HasStorage,
-		Name:        "Contrato",
-		CodeVersion: "1.0.0",
-		Author:      "Joe Random",
-		Email:       "joe@example.com",
-		Description: "Test contract",
-	}
-
-	assert.Equal(t, hash.Hash160(script), contract.ScriptHash())
-
-	contractDecoded := &Contract{}
-	testserdes.EncodeDecodeBinary(t, contract, contractDecoded)
-	assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
-}
-
-func TestContractStateProperties(t *testing.T) {
-	flaggedContract := Contract{
-		Properties: smartcontract.HasStorage | smartcontract.HasDynamicInvoke | smartcontract.IsPayable,
-	}
-	nonFlaggedContract := Contract{
+	h := hash.Hash160(script)
+	m := manifest.NewManifest(h)
+	m.ABI.Methods = []manifest.Method{{
+		Name: "main",
+		Parameters: []manifest.Parameter{
+			{
+				Name: "amount",
+				Type: smartcontract.IntegerType,
+			},
+			{
+				Name: "hash",
+				Type: smartcontract.Hash160Type,
+			},
+		},
 		ReturnType: smartcontract.BoolType,
+	}}
+	m.Features = smartcontract.HasStorage
+	contract := &Contract{
+		ID:       123,
+		Script:   script,
+		Manifest: *m,
 	}
-	assert.Equal(t, true, flaggedContract.HasStorage())
-	assert.Equal(t, true, flaggedContract.HasDynamicInvoke())
-	assert.Equal(t, true, flaggedContract.IsPayable())
-	assert.Equal(t, false, nonFlaggedContract.HasStorage())
-	assert.Equal(t, false, nonFlaggedContract.HasDynamicInvoke())
-	assert.Equal(t, false, nonFlaggedContract.IsPayable())
+
+	assert.Equal(t, h, contract.ScriptHash())
+
+	t.Run("Serializable", func(t *testing.T) {
+		contractDecoded := new(Contract)
+		testserdes.EncodeDecodeBinary(t, contract, contractDecoded)
+		assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
+	})
+	t.Run("JSON", func(t *testing.T) {
+		contractDecoded := new(Contract)
+		testserdes.MarshalUnmarshalJSON(t, contract, contractDecoded)
+		assert.Equal(t, contract.ScriptHash(), contractDecoded.ScriptHash())
+	})
 }

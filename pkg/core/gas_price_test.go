@@ -23,66 +23,6 @@ func TestGetPrice(t *testing.T) {
 	v := SpawnVM(systemInterop)
 	v.SetPriceGetter(getPrice)
 
-	t.Run("Neo.Contract.Create (no props)", func(t *testing.T) {
-		// Neo.Contract.Create: f66ca56e (requires push properties on fourth position)
-		v.Load([]byte{byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),
-			byte(opcode.SYSCALL), 0xf6, 0x6c, 0xa5, 0x6e})
-		require.NoError(t, v.StepInto()) // push 0 - ContractPropertyState.NoProperty
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-
-		checkGas(t, util.Fixed8FromInt64(100), v)
-	})
-
-	t.Run("Neo.Contract.Create (has storage)", func(t *testing.T) {
-		// Neo.Contract.Create: f66ca56e (requires push properties on fourth position)
-		v.Load([]byte{byte(opcode.PUSH1), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),
-			byte(opcode.SYSCALL), 0xf6, 0x6c, 0xa5, 0x6e})
-		require.NoError(t, v.StepInto()) // push 01 - ContractPropertyState.HasStorage
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-
-		checkGas(t, util.Fixed8FromInt64(500), v)
-	})
-
-	t.Run("Neo.Contract.Create (has dynamic invoke)", func(t *testing.T) {
-		// Neo.Contract.Create: f66ca56e (requires push properties on fourth position)
-		v.Load([]byte{byte(opcode.PUSH2), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),
-			byte(opcode.SYSCALL), 0xf6, 0x6c, 0xa5, 0x6e})
-		require.NoError(t, v.StepInto()) // push 02 - ContractPropertyState.HasDynamicInvoke
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-
-		checkGas(t, util.Fixed8FromInt64(600), v)
-	})
-
-	t.Run("Neo.Contract.Create (has both storage and dynamic invoke)", func(t *testing.T) {
-		// Neo.Contract.Create: f66ca56e (requires push properties on fourth position)
-		v.Load([]byte{byte(opcode.PUSH3), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),
-			byte(opcode.SYSCALL), 0xf6, 0x6c, 0xa5, 0x6e})
-		require.NoError(t, v.StepInto()) // push 03 - HasStorage and HasDynamicInvoke
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-
-		checkGas(t, util.Fixed8FromInt64(1000), v)
-	})
-
-	t.Run("Neo.Contract.Migrate", func(t *testing.T) {
-		// Neo.Contract.Migrate: 471b6290 (requires push properties on fourth position)
-		v.Load([]byte{byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0), byte(opcode.PUSH0),
-			byte(opcode.SYSCALL), 0x47, 0x1b, 0x62, 0x90})
-		require.NoError(t, v.StepInto()) // push 0 - ContractPropertyState.NoProperty
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-		require.NoError(t, v.StepInto()) // push 0
-
-		checkGas(t, util.Fixed8FromInt64(100), v)
-	})
-
 	t.Run("System.Storage.Put", func(t *testing.T) {
 		// System.Storage.Put: e63f1884 (requires push key and value)
 		v.Load([]byte{byte(opcode.PUSH3), byte(opcode.PUSH3), byte(opcode.PUSH0),

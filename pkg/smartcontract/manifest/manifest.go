@@ -3,6 +3,7 @@ package manifest
 import (
 	"encoding/json"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -125,4 +126,24 @@ func (m *Manifest) UnmarshalJSON(data []byte) error {
 	m.Extra = aux.Extra
 
 	return nil
+}
+
+// EncodeBinary implements io.Serializable.
+func (m *Manifest) EncodeBinary(w *io.BinWriter) {
+	data, err := json.Marshal(m)
+	if err != nil {
+		w.Err = err
+		return
+	}
+	w.WriteVarBytes(data)
+}
+
+// DecodeBinary implements io.Serializable.
+func (m *Manifest) DecodeBinary(r *io.BinReader) {
+	data := r.ReadVarBytes()
+	if r.Err != nil {
+		return
+	} else if err := json.Unmarshal(data, m); err != nil {
+		r.Err = err
+	}
 }

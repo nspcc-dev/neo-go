@@ -13,9 +13,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -265,16 +266,18 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
 	v := vm.New()
+	script := []byte("testscript")
+	m := manifest.NewManifest(hash.Hash160(script))
+	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
+		manifest.NewParameter("Name", smartcontract.StringType),
+		manifest.NewParameter("Amount", smartcontract.IntegerType),
+		manifest.NewParameter("Hash", smartcontract.Hash160Type),
+	}
+	m.ABI.EntryPoint.ReturnType = smartcontract.ArrayType
+	m.Features = smartcontract.HasStorage
 	contractState := &state.Contract{
-		Script:      []byte("testscript"),
-		ParamList:   []smartcontract.ParamType{smartcontract.StringType, smartcontract.IntegerType, smartcontract.Hash160Type},
-		ReturnType:  smartcontract.ArrayType,
-		Properties:  smartcontract.HasStorage,
-		Name:        random.String(10),
-		CodeVersion: random.String(10),
-		Author:      random.String(10),
-		Email:       random.String(10),
-		Description: random.String(10),
+		Script:   script,
+		Manifest: *m,
 	}
 
 	chain := newTestChain(t)

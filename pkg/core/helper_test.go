@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -222,19 +223,18 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
 
-	var props smartcontract.PropertyState
 	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("Da contract dat hallos u"))
-	emit.Bytes(script.BinWriter, []byte("joe@example.com"))
-	emit.Bytes(script.BinWriter, []byte("Random Guy"))
-	emit.Bytes(script.BinWriter, []byte("0.99"))
-	emit.Bytes(script.BinWriter, []byte("Helloer"))
-	props |= smartcontract.HasStorage
-	emit.Int(script.BinWriter, int64(props))
-	emit.Int(script.BinWriter, int64(5))
-	params := make([]byte, 1)
-	params[0] = byte(7)
-	emit.Bytes(script.BinWriter, params)
+	m := manifest.NewManifest(hash.Hash160(avm))
+	m.ABI.EntryPoint.Name = "Main"
+	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
+		manifest.NewParameter("method", smartcontract.StringType),
+		manifest.NewParameter("params", smartcontract.ArrayType),
+	}
+	m.ABI.EntryPoint.ReturnType = smartcontract.BoolType
+	m.Features = smartcontract.HasStorage
+	bs, err := testserdes.EncodeBinary(m)
+	require.NoError(t, err)
+	emit.Bytes(script.BinWriter, bs)
 	emit.Bytes(script.BinWriter, avm)
 	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
 	txScript := script.Bytes()
