@@ -148,6 +148,27 @@ func bcGetTransaction(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
+// bcGetTransactionFromBlock returns transaction with the given index from the
+// block with height or hash specified.
+func bcGetTransactionFromBlock(ic *interop.Context, v *vm.VM) error {
+	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
+	if err != nil {
+		return err
+	}
+	block, err := ic.DAO.GetBlock(hash)
+	if err != nil || !isTraceableBlock(ic, block.Index) {
+		v.Estack().PushVal(stackitem.Null{})
+		return nil
+	}
+	index := v.Estack().Pop().BigInt().Int64()
+	if index < 0 || index >= int64(len(block.Transactions)) {
+		return errors.New("wrong transaction index")
+	}
+	tx := block.Transactions[index]
+	v.Estack().PushVal(tx.Hash().BytesBE())
+	return nil
+}
+
 // bcGetTransactionHeight returns transaction height.
 func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
 	_, h, err := getTransactionAndHeight(ic.DAO, v)

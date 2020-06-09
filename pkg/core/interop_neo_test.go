@@ -306,11 +306,16 @@ func TestContractIsPayable(t *testing.T) {
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
+	v, block, context, chain := createVMAndBlock(t)
+	v.Estack().PushVal(stackitem.NewInterop(block))
+	return v, block, context, chain
+}
+
+func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
-	v.Estack().PushVal(stackitem.NewInterop(block))
 	return v, block, context, chain
 }
 

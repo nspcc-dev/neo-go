@@ -70,6 +70,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Blockchain.GetHeader", Func: bcGetHeader, Price: 100},
 	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
 	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
+	{Name: "System.Blockchain.GetTransactionFromBlock", Func: bcGetTransactionFromBlock, Price: 100},
 	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
 	{Name: "System.Contract.Call", Func: contractCall, Price: 1},
 	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1},

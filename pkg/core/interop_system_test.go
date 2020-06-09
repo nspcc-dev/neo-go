@@ -52,3 +52,61 @@ func TestBCGetTransaction(t *testing.T) {
 		require.True(t, ok)
 	})
 }
+
+func TestBCGetTransactionFromBlock(t *testing.T) {
+	v, block, context, chain := createVMAndBlock(t)
+	defer chain.Close()
+	require.NoError(t, chain.AddBlock(chain.newBlock()))
+	require.NoError(t, context.DAO.StoreAsBlock(block))
+
+	t.Run("success", func(t *testing.T) {
+		v.Estack().PushVal(0)
+		v.Estack().PushVal(block.Hash().BytesBE())
+		err := bcGetTransactionFromBlock(context, v)
+		require.NoError(t, err)
+
+		value := v.Estack().Pop().Value()
+		actual, ok := value.([]byte)
+		require.True(t, ok)
+		require.Equal(t, block.Transactions[0].Hash().BytesBE(), actual)
+	})
+
+	t.Run("invalid block hash", func(t *testing.T) {
+		v.Estack().PushVal(0)
+		v.Estack().PushVal(block.Hash().BytesBE()[:10])
+		err := bcGetTransactionFromBlock(context, v)
+		require.Error(t, err)
+	})
+
+	t.Run("isn't traceable", func(t *testing.T) {
+		block.Index = 2
+		require.NoError(t, context.DAO.StoreAsBlock(block))
+		v.Estack().PushVal(0)
+		v.Estack().PushVal(block.Hash().BytesBE())
+		err := bcGetTransactionFromBlock(context, v)
+		require.NoError(t, err)
+
+		_, ok := v.Estack().Pop().Item().(stackitem.Null)
+		require.True(t, ok)
+	})
+
+	t.Run("bad block hash", func(t *testing.T) {
+		block.Index = 1
+		require.NoError(t, context.DAO.StoreAsBlock(block))
+		v.Estack().PushVal(0)
+		v.Estack().PushVal(block.Hash().BytesLE())
+		err := bcGetTransactionFromBlock(context, v)
+		require.NoError(t, err)
+
+		_, ok := v.Estack().Pop().Item().(stackitem.Null)
+		require.True(t, ok)
+	})
+
+	t.Run("bad transaction index", func(t *testing.T) {
+		require.NoError(t, context.DAO.StoreAsBlock(block))
+		v.Estack().PushVal(1)
+		v.Estack().PushVal(block.Hash().BytesBE())
+		err := bcGetTransactionFromBlock(context, v)
+		require.Error(t, err)
+	})
+}

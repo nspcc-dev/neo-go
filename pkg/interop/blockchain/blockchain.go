@@ -65,6 +65,14 @@ func GetTransaction(hash []byte) Transaction {
 	return Transaction{}
 }
 
+// GetTransactionFromBlock returns transaction hash (256 bit in BE format
+// represented as a slice of 32 bytes) from the block found by the given hash or
+// index (with the same encoding as for GetHeader) by its index. This
+// function uses `System.Blockchain.GetTransactionFromBlock` syscall.
+func GetTransactionFromBlock(heightOrHash interface{}, index int) []byte {
+	return nil
+}
+
 // GetTransactionHeight returns transaction's height (index of the block that
 // includes it) by the given ID (256 bit in BE format represented as a slice of
 // 32 bytes). This function uses `System.Blockchain.GetTransactionHeight` syscall.
