@@ -1,7 +1,6 @@
 package smartcontract
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/hex"
@@ -22,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -323,23 +323,22 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	// Ask contract information and write a neo-go.yml file unless the -skip-details flag is set.
-	// TODO: Fix the missing neo-go.yml file with the `init` command when the package manager is in place.
-	if !ctx.Bool("skip-details") {
-		details := parseContractDetails()
-		details.ReturnType = smartcontract.ByteArrayType
-		details.Parameters = make([]smartcontract.ParamType, 2)
-		details.Parameters[0] = smartcontract.StringType
-		details.Parameters[1] = smartcontract.ArrayType
-
-		project := &ProjectConfig{Contract: details}
-		b, err := yaml.Marshal(project)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
-			return cli.NewExitError(err, 1)
-		}
+	m := ProjectConfig{
+		EntryPoint: manifest.Method{
+			Name: "Main",
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("Method", smartcontract.StringType),
+				manifest.NewParameter("Arguments", smartcontract.ArrayType),
+			},
+			ReturnType: smartcontract.ByteArrayType,
+		},
+	}
+	b, err := yaml.Marshal(m)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if err := ioutil.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
@@ -375,7 +374,7 @@ func contractCompile(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		o.ContractDetails = &conf.Contract
+		o.ContractFeatures = conf.GetFeatures()
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -526,30 +525,35 @@ func testInvokeScript(ctx *cli.Context) error {
 
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
-	Version  uint
-	Contract smartcontract.ContractDetails `yaml:"project"`
+	HasStorage bool
+	IsPayable  bool
+	EntryPoint manifest.Method
+	Methods    []manifest.Method
+	Events     []manifest.Event
 }
 
-func parseContractDetails() smartcontract.ContractDetails {
-	details := smartcontract.ContractDetails{}
-	reader := bufio.NewReader(os.Stdin)
+// GetFeatures returns smartcontract features from the config.
+func (p *ProjectConfig) GetFeatures() smartcontract.PropertyState {
+	var fs smartcontract.PropertyState
+	if p.IsPayable {
+		fs |= smartcontract.IsPayable
+	}
+	if p.HasStorage {
+		fs |= smartcontract.HasStorage
+	}
+	return fs
+}
 
-	fmt.Print("Author: ")
-	details.Author, _ = reader.ReadString('\n')
-
-	fmt.Print("Email: ")
-	details.Email, _ = reader.ReadString('\n')
-
-	fmt.Print("Version: ")
-	details.Version, _ = reader.ReadString('\n')
-
-	fmt.Print("Project name: ")
-	details.ProjectName, _ = reader.ReadString('\n')
-
-	fmt.Print("Description: ")
-	details.Description, _ = reader.ReadString('\n')
-
-	return details
+// ToManifest converts project config to the manifest.
+func (p *ProjectConfig) ToManifest(script []byte) *manifest.Manifest {
+	h := hash.Hash160(script)
+	m := manifest.NewManifest(h)
+	m.Features = p.GetFeatures()
+	m.ABI.Hash = h
+	m.ABI.EntryPoint = p.EntryPoint
+	m.ABI.Methods = p.Methods
+	m.ABI.Events = p.Events
+	return m
 }
 
 func inspect(ctx *cli.Context) error {
@@ -646,12 +650,11 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	txScript, err := request.CreateDeploymentScript(avm, &conf.Contract)
+	m := conf.ToManifest(avm)
+	txScript, sysfee, err := request.CreateDeploymentScript(avm, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
-
-	sysfee := smartcontract.GetDeploymentPrice(request.DetailsToSCProperties(&conf.Contract))
 
 	txHash, err := c.SignAndPushInvocationTx(txScript, acc, sysfee, gas)
 	if err != nil {

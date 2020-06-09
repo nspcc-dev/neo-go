@@ -5,49 +5,28 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// DetailsToSCProperties extract the fields needed from ContractDetails
-// and converts them to smartcontract.PropertyState.
-func DetailsToSCProperties(contract *smartcontract.ContractDetails) smartcontract.PropertyState {
-	var props smartcontract.PropertyState
-	if contract.HasStorage {
-		props |= smartcontract.HasStorage
-	}
-	if contract.HasDynamicInvocation {
-		props |= smartcontract.HasDynamicInvoke
-	}
-	if contract.IsPayable {
-		props |= smartcontract.IsPayable
-	}
-	return props
-}
-
 // CreateDeploymentScript returns a script that deploys given smart contract
-// with its metadata.
-func CreateDeploymentScript(avm []byte, contract *smartcontract.ContractDetails) ([]byte, error) {
+// with its metadata and system fee require for this.
+func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, util.Fixed8, error) {
 	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte(contract.Description))
-	emit.Bytes(script.BinWriter, []byte(contract.Email))
-	emit.Bytes(script.BinWriter, []byte(contract.Author))
-	emit.Bytes(script.BinWriter, []byte(contract.Version))
-	emit.Bytes(script.BinWriter, []byte(contract.ProjectName))
-	emit.Int(script.BinWriter, int64(DetailsToSCProperties(contract)))
-	emit.Int(script.BinWriter, int64(contract.ReturnType))
-	params := make([]byte, len(contract.Parameters))
-	for k := range contract.Parameters {
-		params[k] = byte(contract.Parameters[k])
-	}
-	emit.Bytes(script.BinWriter, params)
+	w := io.NewBufBinWriter()
+	manif.EncodeBinary(w.BinWriter)
+	rawManifest := w.Bytes()
+	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
 	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
-	return script.Bytes(), nil
+	sysfee := util.Fixed8(core.StoragePrice * (len(avm) + len(rawManifest)))
+	return script.Bytes(), sysfee, nil
 }
 
 // expandArrayIntoScript pushes all FuncParam parameters from the given array
