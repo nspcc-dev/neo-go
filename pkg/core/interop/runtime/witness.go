@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -13,7 +14,7 @@ import (
 // for verifying in the interop context.
 func CheckHashedWitness(ic *interop.Context, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(tx, v, hash)
+		return checkScope(ic.DAO, tx, v, hash)
 	}
 
 	// only for non-Transaction types (Block, etc.)
@@ -29,7 +30,7 @@ func CheckHashedWitness(ic *interop.Context, v vm.ScriptHashGetter, hash util.Ui
 	return false, nil
 }
 
-func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
+func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
 	for _, c := range tx.Cosigners {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
@@ -51,13 +52,11 @@ func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Ui
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
-				return true, nil
-				// TODO: we don't currently have Manifest field in ContractState
-				/*callingScriptHash := v.GetCallingScriptHash()
-				if callingScriptHash.Equals(util.Uint160{}){
+				callingScriptHash := v.GetCallingScriptHash()
+				if callingScriptHash.Equals(util.Uint160{}) {
 					return false, nil
 				}
-				cs, err := ic.DAO.GetContractState(callingScriptHash)
+				cs, err := d.GetContractState(callingScriptHash)
 				if err != nil {
 					return false, err
 				}
@@ -68,7 +67,7 @@ func checkScope(tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Ui
 							return true, nil
 						}
 					}
-				}*/
+				}
 			}
 			return false, nil
 		}
