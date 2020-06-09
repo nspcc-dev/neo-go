@@ -484,12 +484,21 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	if err != nil {
 		return errors.New("invalid contract hash")
 	}
-	script := ic.GetContract(u)
-	if script == nil {
+	cs, err := ic.DAO.GetContractState(u)
+	if err != nil {
 		return errors.New("contract not found")
 	}
-	// TODO perform flags checking after #923
-	v.LoadScript(script)
+	bs, err := method.TryBytes()
+	if err != nil {
+		return err
+	}
+	curr, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	if err == nil {
+		if !curr.Manifest.CanCall(&cs.Manifest, string(bs)) {
+			return errors.New("disallowed method call")
+		}
+	}
+	v.LoadScript(cs.Script)
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(method)
 	return nil
