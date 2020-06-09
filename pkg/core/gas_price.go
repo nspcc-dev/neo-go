@@ -11,6 +11,9 @@ import (
 // of 0.001 GAS = Fixed8(10^5).
 const interopGasRatio = 100000
 
+// StoragePrice is a price for storing 1 byte of storage.
+const StoragePrice = 100000
+
 // getPrice returns a price for executing op with the provided parameter.
 // Some SYSCALLs have variable price depending on their arguments.
 func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {

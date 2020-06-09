@@ -136,6 +136,12 @@ func (v *VM) SetGasLimit(max util.Fixed8) {
 	v.gasLimit = max
 }
 
+// AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
+func (v *VM) AddGas(gas util.Fixed8) bool {
+	v.gasConsumed += gas
+	return v.gasLimit == 0 || v.gasConsumed <= v.gasLimit
+}
+
 // Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack

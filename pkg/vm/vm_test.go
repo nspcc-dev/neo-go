@@ -98,6 +98,14 @@ func TestVM_SetPriceGetter(t *testing.T) {
 	})
 }
 
+func TestAddGas(t *testing.T) {
+	v := New()
+	v.SetGasLimit(10)
+	require.True(t, v.AddGas(5))
+	require.True(t, v.AddGas(5))
+	require.False(t, v.AddGas(5))
+}
+
 func TestBytesToPublicKey(t *testing.T) {
 	v := New()
 	cache := v.GetPublicKeys()

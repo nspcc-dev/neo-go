@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -72,6 +73,9 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 	manifestBytes := v.Estack().Pop().Bytes()
 	if len(manifestBytes) > manifest.MaxManifestSize {
 		return nil, errors.New("manifest is too big")
+	}
+	if !v.AddGas(util.Fixed8(StoragePrice * (len(script) + len(manifestBytes)))) {
+		return nil, errors.New("gas limit exceeded")
 	}
 	var m manifest.Manifest
 	r := io.NewBinReaderFromBuf(manifestBytes)
