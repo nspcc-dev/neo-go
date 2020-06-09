@@ -98,7 +98,16 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	contract, err := ic.DAO.GetContractState(newcontract.ScriptHash())
 	if contract != nil {
 		return errors.New("contract already exists")
-	} else if err := ic.DAO.PutContractState(newcontract); err != nil {
+	}
+	id, err := ic.DAO.GetNextContractID()
+	if err != nil {
+		return err
+	}
+	newcontract.ID = id
+	if err := ic.DAO.PutNextContractID(id); err != nil {
+		return err
+	}
+	if err := ic.DAO.PutContractState(newcontract); err != nil {
 		return err
 	}
 	v.Estack().PushVal(stackitem.NewInterop(newcontract))

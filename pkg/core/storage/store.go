@@ -18,6 +18,7 @@ const (
 	IXHeaderHashList KeyPrefix = 0x80
 	SYSCurrentBlock  KeyPrefix = 0xc0
 	SYSCurrentHeader KeyPrefix = 0xc1
+	SYSContractID    KeyPrefix = 0xc2
 	SYSVersion       KeyPrefix = 0xf0
 )
 

@@ -82,6 +82,17 @@ func TestDeleteContractState(t *testing.T) {
 	require.Nil(t, gotContractState)
 }
 
+func TestSimple_GetNextContractID(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore())
+	id, err := dao.GetNextContractID()
+	require.NoError(t, err)
+	require.EqualValues(t, 0, id)
+	require.NoError(t, dao.PutNextContractID(10))
+	id, err = dao.GetNextContractID()
+	require.NoError(t, err)
+	require.EqualValues(t, 10, id)
+}
+
 func TestPutGetAppExecResult(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore())
 	hash := random.Uint256()
