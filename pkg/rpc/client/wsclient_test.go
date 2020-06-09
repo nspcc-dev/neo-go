@@ -181,8 +181,8 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *request.Params) {
-				param, ok := p.Value(1)
-				require.Equal(t, true, ok)
+				param := p.Value(1)
+				require.NotNil(t, param)
 				require.Equal(t, request.TxFilterT, param.Type)
 				filt, ok := param.Value.(request.TxFilter)
 				require.Equal(t, true, ok)
@@ -196,8 +196,8 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *request.Params) {
-				param, ok := p.Value(1)
-				require.Equal(t, true, ok)
+				param := p.Value(1)
+				require.NotNil(t, param)
 				require.Equal(t, request.NotificationFilterT, param.Type)
 				filt, ok := param.Value.(request.NotificationFilter)
 				require.Equal(t, true, ok)
@@ -211,8 +211,8 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *request.Params) {
-				param, ok := p.Value(1)
-				require.Equal(t, true, ok)
+				param := p.Value(1)
+				require.NotNil(t, param)
 				require.Equal(t, request.ExecutionFilterT, param.Type)
 				filt, ok := param.Value.(request.ExecutionFilter)
 				require.Equal(t, true, ok)

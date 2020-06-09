@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -50,9 +51,9 @@ type service struct {
 
 	log *zap.Logger
 	// cache is a fifo cache which stores recent payloads.
-	cache *relayCache
+	cache *cache.HashCache
 	// txx is a fifo cache which stores miner transactions.
-	txx  *relayCache
+	txx  *cache.HashCache
 	dbft *dbft.DBFT
 	// messages and transactions are channels needed to process
 	// everything in single thread.
@@ -71,7 +72,7 @@ type Config struct {
 	Logger *zap.Logger
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
-	Broadcast func(p *Payload)
+	Broadcast func(cache.Hashable)
 	// Chain is a core.Blockchainer instance.
 	Chain core.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -97,8 +98,8 @@ func NewService(cfg Config) (Service, error) {
 		Config: cfg,
 
 		log:      cfg.Logger,
-		cache:    newFIFOCache(cacheMaxCapacity),
-		txx:      newFIFOCache(cacheMaxCapacity),
+		cache:    cache.NewFIFOCache(cacheMaxCapacity),
+		txx:      cache.NewFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
@@ -394,6 +395,7 @@ func (s *service) processBlock(b block.Block) {
 	if err := s.Chain.AddStateRoot(r); err != nil {
 		s.log.Warn("errors while adding state root", zap.Error(err))
 	}
+	s.Broadcast(r)
 }
 
 func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {

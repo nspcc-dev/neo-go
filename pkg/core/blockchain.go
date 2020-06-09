@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -553,6 +554,12 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 	_, sf, _ := bc.dao.GetBlock(h)
 	return sf
+}
+
+// GetStateProof returns proof of having key in the MPT with the specified root.
+func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	tr := mpt.NewTrie(mpt.NewHashNode(root), storage.NewMemCachedStore(bc.dao.Store))
+	return tr.GetProof(key)
 }
 
 // GetStateRoot returns state root for a given height.

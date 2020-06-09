@@ -39,6 +39,7 @@ type Blockchainer interface {
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
 	GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error)
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
+	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
