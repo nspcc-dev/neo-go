@@ -3,6 +3,7 @@ package compiler
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 )
 
 // A funcScope represents the scope within the function context.
@@ -17,6 +18,9 @@ type funcScope struct {
 
 	// The declaration of the function in the AST. Nil if this scope is not a function.
 	decl *ast.FuncDecl
+
+	// Package where the function is defined.
+	pkg *types.Package
 
 	// Program label of the scope
 	label uint16

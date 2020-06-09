@@ -281,8 +281,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	f, ok = c.funcs[decl.Name.Name]
 	if ok {
-		// If this function is a syscall we will not convert it to bytecode.
-		if isSyscall(f) {
+		// If this function is a syscall or builtin we will not convert it to bytecode.
+		if isSyscall(f) || isCustomBuiltin(f) {
 			return
 		}
 		c.setLabel(f.label)
@@ -691,12 +691,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ok        bool
 			name      string
 			numArgs   = len(n.Args)
-			isBuiltin = isBuiltin(n.Fun)
+			isBuiltin bool
 		)
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
 			f, ok = c.funcs[fun.Name]
+			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
 			}
@@ -717,6 +718,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.prog.Err = fmt.Errorf("could not resolve function %s", fun.Sel.Name)
 				return nil
 			}
+			isBuiltin = isCustomBuiltin(f)
 		case *ast.ArrayType:
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
@@ -1309,7 +1311,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Bring all imported functions into scope.
 	for _, pkg := range info.program.AllPackages {
 		for _, f := range pkg.Files {
-			c.resolveFuncDecls(f)
+			c.resolveFuncDecls(f, pkg.Pkg)
 		}
 	}
 
@@ -1378,12 +1380,13 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	return buf, c.emitDebugInfo(), nil
 }
 
-func (c *codegen) resolveFuncDecls(f *ast.File) {
+func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
 			if n.Name.Name != mainIdent {
 				c.newFunc(n)
+				c.funcs[n.Name.Name].pkg = pkg
 			}
 		}
 	}

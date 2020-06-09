@@ -2,6 +2,7 @@ package compiler_test
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -136,4 +138,50 @@ func getAppCallScript(h string) string {
 		return result.([]byte)
 	}
 	`
+}
+
+func TestBuiltinDoesNotCompile(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main() bool {
+		a := 1
+		b := 2
+		return util.Equals(a, b)
+	}`
+
+	v := vmAndCompile(t, src)
+	ctx := v.Context()
+	retCount := 0
+	for op, _, err := ctx.Next(); err == nil; op, _, err = ctx.Next() {
+		if ctx.IP() > len(ctx.Program()) {
+			break
+		}
+		if op == opcode.RET {
+			retCount++
+		}
+	}
+	require.Equal(t, 1, retCount)
+}
+
+func TestInteropPackage(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/block"
+	func Main() int {
+		b := block.Block{}
+		a := block.GetTransactionCount(b)
+		return a
+	}`
+	eval(t, src, big.NewInt(42))
+}
+
+func TestBuiltinPackage(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/util"
+	func Main() int {
+		if util.Equals(1, 2) { // always returns true
+			return 1
+		}
+		return 2
+	}`
+	eval(t, src, big.NewInt(1))
 }
