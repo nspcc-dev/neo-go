@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -65,6 +66,7 @@ const (
 	TxFilterT
 	NotificationFilterT
 	ExecutionFilterT
+	Cosigner
 )
 
 func (p Param) String() string {
@@ -154,6 +156,47 @@ func (p Param) GetBytesHex() ([]byte, error) {
 	return hex.DecodeString(s)
 }
 
+// GetCosigner returns transaction.Cosigner value of the parameter.
+func (p Param) GetCosigner() (transaction.Cosigner, error) {
+	c, ok := p.Value.(transaction.Cosigner)
+	if !ok {
+		return transaction.Cosigner{}, errors.New("not a cosigner")
+	}
+	return c, nil
+}
+
+// GetCosigners returns a slice of transaction.Cosigner with global scope from
+// array of Uint160 or array of serialized transaction.Cosigner stored in the
+// parameter.
+func (p Param) GetCosigners() ([]transaction.Cosigner, error) {
+	hashes, err := p.GetArray()
+	if err != nil {
+		return nil, err
+	}
+	cosigners := make([]transaction.Cosigner, len(hashes))
+	// try to extract hashes first
+	for i, h := range hashes {
+		var u util.Uint160
+		u, err = h.GetUint160FromHex()
+		if err != nil {
+			break
+		}
+		cosigners[i] = transaction.Cosigner{
+			Account: u,
+			Scopes:  transaction.Global,
+		}
+	}
+	if err != nil {
+		for i, h := range hashes {
+			cosigners[i], err = h.GetCosigner()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return cosigners, nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler interface.
 func (p *Param) UnmarshalJSON(data []byte) error {
 	var s string
@@ -167,6 +210,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 		{TxFilterT, &TxFilter{}},
 		{NotificationFilterT, &NotificationFilter{}},
 		{ExecutionFilterT, &ExecutionFilter{}},
+		{Cosigner, &transaction.Cosigner{}},
 		{ArrayT, &[]Param{}},
 	}
 
@@ -196,6 +240,8 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 				} else {
 					continue
 				}
+			case *transaction.Cosigner:
+				p.Value = *val
 			case *[]Param:
 				p.Value = *val
 			}

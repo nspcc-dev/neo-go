@@ -41,7 +41,7 @@ type Blockchainer interface {
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
-	GetTestVM() *vm.VM
+	GetTestVM(tx *transaction.Transaction) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
 	PoolTx(*transaction.Transaction) error

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -19,8 +20,12 @@ func TestParam_UnmarshalJSON(t *testing.T) {
                  {"cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"state": "HALT"}]`
+                 {"state": "HALT"},
+                 {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0},
+                 [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}]]`
 	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
+	require.NoError(t, err)
+	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
 	require.NoError(t, err)
 	expected := Params{
 		{
@@ -82,6 +87,25 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		{
 			Type:  ExecutionFilterT,
 			Value: ExecutionFilter{State: "HALT"},
+		},
+		{
+			Type: Cosigner,
+			Value: transaction.Cosigner{
+				Account: accountHash,
+				Scopes:  transaction.Global,
+			},
+		},
+		{
+			Type: ArrayT,
+			Value: []Param{
+				{
+					Type: Cosigner,
+					Value: transaction.Cosigner{
+						Account: accountHash,
+						Scopes:  transaction.Global,
+					},
+				},
+			},
 		},
 	}
 
@@ -213,4 +237,68 @@ func TestParamGetBytesHex(t *testing.T) {
 	p = Param{StringT, "qq2c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"}
 	_, err = p.GetBytesHex()
 	require.NotNil(t, err)
+}
+
+func TestParamGetCosigner(t *testing.T) {
+	c := transaction.Cosigner{
+		Account: util.Uint160{1, 2, 3, 4},
+		Scopes:  transaction.Global,
+	}
+	p := Param{Type: Cosigner, Value: c}
+	actual, err := p.GetCosigner()
+	require.NoError(t, err)
+	require.Equal(t, c, actual)
+
+	p = Param{Type: Cosigner, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
+	_, err = p.GetCosigner()
+	require.Error(t, err)
+}
+
+func TestParamGetCosigners(t *testing.T) {
+	u1 := util.Uint160{1, 2, 3, 4}
+	u2 := util.Uint160{5, 6, 7, 8}
+	t.Run("from hashes", func(t *testing.T) {
+		p := Param{ArrayT, []Param{
+			{Type: StringT, Value: u1.StringLE()},
+			{Type: StringT, Value: u2.StringLE()},
+		}}
+		actual, err := p.GetCosigners()
+		require.NoError(t, err)
+		require.Equal(t, 2, len(actual))
+		require.True(t, u1.Equals(actual[0].Account))
+		require.True(t, u2.Equals(actual[1].Account))
+	})
+
+	t.Run("from cosigners", func(t *testing.T) {
+		c1 := transaction.Cosigner{
+			Account: u1,
+			Scopes:  transaction.Global,
+		}
+		c2 := transaction.Cosigner{
+			Account: u2,
+			Scopes:  transaction.CustomContracts,
+			AllowedContracts: []util.Uint160{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+		}
+		p := Param{ArrayT, []Param{
+			{Type: Cosigner, Value: c1},
+			{Type: Cosigner, Value: c2},
+		}}
+		actual, err := p.GetCosigners()
+		require.NoError(t, err)
+		require.Equal(t, 2, len(actual))
+		require.Equal(t, c1, actual[0])
+		require.Equal(t, c2, actual[1])
+	})
+
+	t.Run("bad format", func(t *testing.T) {
+		p := Param{ArrayT, []Param{
+			{Type: StringT, Value: u1.StringLE()},
+			{Type: StringT, Value: "bla"},
+		}}
+		_, err := p.GetCosigners()
+		require.Error(t, err)
+	})
 }
