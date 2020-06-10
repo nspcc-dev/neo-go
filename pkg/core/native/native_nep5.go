@@ -61,12 +61,12 @@ func newNEP5Native(name string) *nep5TokenNative {
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.balanceOf, 1, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("transfer", smartcontract.BoolType,
@@ -74,7 +74,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	md = newMethodAndPrice(n.Transfer, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Transfer, 1, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	n.AddEvent("Transfer", desc.Parameters...)
