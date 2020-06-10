@@ -114,30 +114,8 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// contractGetScript returns a script associated with a contract.
-func contractGetScript(ic *interop.Context, v *vm.VM) error {
-	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*state.Contract)
-	if !ok {
-		return fmt.Errorf("%T is not a contract state", cs)
-	}
-	v.Estack().PushVal(cs.Script)
-	return nil
-}
-
-// contractIsPayable returns whether contract is payable.
-func contractIsPayable(ic *interop.Context, v *vm.VM) error {
-	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*state.Contract)
-	if !ok {
-		return fmt.Errorf("%T is not a contract state", cs)
-	}
-	v.Estack().PushVal(cs.IsPayable())
-	return nil
-}
-
-// contractMigrate migrates a contract.
-func contractMigrate(ic *interop.Context, v *vm.VM) error {
+// contractUpdate migrates a contract.
+func contractUpdate(ic *interop.Context, v *vm.VM) error {
 	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if contract == nil {
 		return errors.New("contract doesn't exist")

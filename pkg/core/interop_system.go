@@ -529,25 +529,3 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 	}
 	return nil
 }
-
-// contractGetStorageContext retrieves StorageContext of a contract.
-func contractGetStorageContext(ic *interop.Context, v *vm.VM) error {
-	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*state.Contract)
-	if !ok {
-		return fmt.Errorf("%T is not a contract state", cs)
-	}
-	_, err := ic.DAO.GetContractState(cs.ScriptHash())
-	if err != nil {
-		return fmt.Errorf("non-existent contract")
-	}
-	_, err = ic.LowerDAO.GetContractState(cs.ScriptHash())
-	if err == nil {
-		return fmt.Errorf("contract was not created in this transaction")
-	}
-	stc := &StorageContext{
-		ScriptHash: cs.ScriptHash(),
-	}
-	v.Estack().PushVal(stackitem.NewInterop(stc))
-	return nil
-}

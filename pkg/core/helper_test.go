@@ -236,7 +236,7 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 	emit.Bytes(script.BinWriter, bs)
 	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
+	emit.Syscall(script.BinWriter, "System.Contract.Create")
 	txScript := script.Bytes()
 
 	invFee := util.Fixed8FromFloat(100)

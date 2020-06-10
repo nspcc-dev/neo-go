@@ -24,7 +24,7 @@ func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, util.
 	rawManifest := w.Bytes()
 	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
-	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
+	emit.Syscall(script.BinWriter, "System.Contract.Create")
 	sysfee := util.Fixed8(core.StoragePrice * (len(avm) + len(rawManifest)))
 	return script.Bytes(), sysfee, nil
 }

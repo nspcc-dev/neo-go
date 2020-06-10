@@ -212,28 +212,6 @@ func TestECDSAVerify(t *testing.T) {
 	})
 }
 
-func TestContractGetScript(t *testing.T) {
-	v, contractState, context, chain := createVMAndContractState(t)
-	defer chain.Close()
-	v.Estack().PushVal(stackitem.NewInterop(contractState))
-
-	err := contractGetScript(context, v)
-	require.NoError(t, err)
-	script := v.Estack().Pop().Value()
-	require.Equal(t, contractState.Script, script)
-}
-
-func TestContractIsPayable(t *testing.T) {
-	v, contractState, context, chain := createVMAndContractState(t)
-	defer chain.Close()
-	v.Estack().PushVal(stackitem.NewInterop(contractState))
-
-	err := contractIsPayable(context, v)
-	require.NoError(t, err)
-	isPayable := v.Estack().Pop().Value()
-	require.Equal(t, contractState.IsPayable(), isPayable)
-}
-
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {

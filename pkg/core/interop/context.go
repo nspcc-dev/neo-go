@@ -28,7 +28,6 @@ type Context struct {
 	Block         *block.Block
 	Tx            *transaction.Transaction
 	DAO           *dao.Cached
-	LowerDAO      dao.DAO
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 }
@@ -44,7 +43,6 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		Block:         block,
 		Tx:            tx,
 		DAO:           dao,
-		LowerDAO:      d,
 		Notifications: nes,
 		Log:           log,
 	}

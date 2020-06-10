@@ -70,8 +70,9 @@ var systemInterops = []interop.Function{
 	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
 	{Name: "System.Contract.Call", Func: contractCall, Price: 1},
 	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1},
+	{Name: "System.Contract.Create", Func: contractCreate, Price: 0},
 	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1},
-	{Name: "System.Contract.GetStorageContext", Func: contractGetStorageContext, Price: 1},
+	{Name: "System.Contract.Update", Func: contractUpdate, Price: 0},
 	{Name: "System.Enumerator.Concat", Func: enumerator.Concat, Price: 1},
 	{Name: "System.Enumerator.Create", Func: enumerator.Create, Price: 1},
 	{Name: "System.Enumerator.Next", Func: enumerator.Next, Price: 1},
@@ -104,12 +105,6 @@ var systemInterops = []interop.Function{
 }
 
 var neoInterops = []interop.Function{
-	{Name: "Neo.Contract.Create", Func: contractCreate, Price: 0},
-	{Name: "Neo.Contract.Destroy", Func: contractDestroy, Price: 1},
-	{Name: "Neo.Contract.GetScript", Func: contractGetScript, Price: 1},
-	{Name: "Neo.Contract.GetStorageContext", Func: contractGetStorageContext, Price: 1},
-	{Name: "Neo.Contract.IsPayable", Func: contractIsPayable, Price: 1},
-	{Name: "Neo.Contract.Migrate", Func: contractMigrate, Price: 0},
 	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: 1},
 	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 1},
 	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1},
