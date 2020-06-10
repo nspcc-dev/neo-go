@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -477,6 +478,14 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	// Save lastProposal for getVerified().
 	s.lastProposal = req.transactionHashes
 
+	r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+	if err != nil {
+		return fmt.Errorf("can't get local state root: %v", err)
+	}
+	rb := &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
+	if !r.Equals(rb) {
+		return errors.New("state root mismatch")
+	}
 	return nil
 }
 
