@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sort"
 	"time"
@@ -144,6 +145,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewCommit(srv.newCommit),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 	)
 
 	if srv.dbft == nil {
@@ -367,6 +369,18 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	return true
+}
+
+func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+	if err != nil {
+		return fmt.Errorf("can't get local state root: %v", err)
+	}
+	rb := &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
+	if !r.Equals(rb) {
+		return errors.New("state root mismatch")
+	}
+	return nil
 }
 
 func (s *service) processBlock(b block.Block) {
