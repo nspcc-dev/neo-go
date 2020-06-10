@@ -89,10 +89,14 @@ func TestPubkeyToAddress(t *testing.T) {
 
 func TestDecodeBytes(t *testing.T) {
 	pubKey := getPubKey(t)
-	decodedPubKey := &PublicKey{}
-	err := decodedPubKey.DecodeBytes(pubKey.Bytes())
-	require.NoError(t, err)
-	require.Equal(t, pubKey, decodedPubKey)
+	var testBytesFunction = func(t *testing.T, bytesFunction func() []byte) {
+		decodedPubKey := &PublicKey{}
+		err := decodedPubKey.DecodeBytes(bytesFunction())
+		require.NoError(t, err)
+		require.Equal(t, pubKey, decodedPubKey)
+	}
+	t.Run("compressed", func(t *testing.T) { testBytesFunction(t, pubKey.Bytes) })
+	t.Run("uncompressed", func(t *testing.T) { testBytesFunction(t, pubKey.UncompressedBytes) })
 }
 
 func TestDecodeBytesBadInfinity(t *testing.T) {

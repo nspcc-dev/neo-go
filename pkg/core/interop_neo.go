@@ -626,7 +626,7 @@ func (ic *interopContext) eccRecover(curve elliptic.Curve, v *vm.VM) error {
 		v.Estack().PushVal([]byte{})
 		return nil
 	}
-	v.Estack().PushVal(pKey.Bytes()[1:])
+	v.Estack().PushVal(pKey.UncompressedBytes()[1:])
 	return nil
 }
 
