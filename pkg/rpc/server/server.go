@@ -98,7 +98,6 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getunclaimedgas":      (*Server).getUnclaimedGas,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
-	"invoke":               (*Server).invoke,
 	"invokefunction":       (*Server).invokeFunction,
 	"invokescript":         (*Server).invokescript,
 	"sendrawtransaction":   (*Server).sendrawtransaction,
@@ -853,31 +852,6 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 		})
 	}
 	return res, nil
-}
-
-// invoke implements the `invoke` RPC call.
-func (s *Server) invoke(reqParams request.Params) (interface{}, *response.Error) {
-	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	scriptHash, err := scriptHashHex.GetUint160FromHex()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-	sliceP, ok := reqParams.ValueWithType(1, request.ArrayT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	slice, err := sliceP.GetArray()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-	script, err := request.CreateInvocationScript(scriptHash, slice)
-	if err != nil {
-		return nil, response.NewInternalServerError("can't create invocation script", err)
-	}
-	return s.runScriptInVM(script), nil
 }
 
 // invokescript implements the `invokescript` RPC call.

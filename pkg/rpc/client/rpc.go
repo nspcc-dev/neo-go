@@ -363,19 +363,6 @@ func (c *Client) InvokeFunction(script, operation string, params []smartcontract
 	return resp, nil
 }
 
-// Invoke returns the results after calling the smart contract scripthash
-// with the given parameters.
-func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*result.Invoke, error) {
-	var (
-		p    = request.NewRawParams(script, params)
-		resp = &result.Invoke{}
-	)
-	if err := c.performRequest("invoke", p, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 // SendRawTransaction broadcasts a transaction over the NEO network.
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully

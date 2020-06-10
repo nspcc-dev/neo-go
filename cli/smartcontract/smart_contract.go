@@ -133,23 +133,6 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:      "invoke",
-				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invoke -e endpoint -w wallet [-a address] [-g gas] scripthash [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given arguments.
-   See testinvoke documentation for the details about parameters. It differs
-   from testinvoke in that this command sends an invocation transaction to
-   the network.
-`,
-				Action: invoke,
-				Flags: []cli.Flag{
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
-			},
-			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
 				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...]",
@@ -164,26 +147,6 @@ func NewCommands() []cli.Command {
 					walletFlag,
 					addressFlag,
 					gasFlag,
-				},
-			},
-			{
-				Name:      "testinvoke",
-				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvoke -e endpoint scripthash [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given arguments.
-   It's very similar to the tesinvokefunction command, but differs in the way
-   arguments are being passed. This invoker does not accept method parameter
-   and it passes all given parameters as plain values to the contract, not
-   wrapping them them into array like testinvokefunction does. For arguments
-   syntax please refer to the testinvokefunction command help.
-
-   Most of the time (if your contract follows the standard convention of
-   method with array of values parameters) you want to use testinvokefunction
-   command instead of testinvoke.
-`,
-				Action: testInvoke,
-				Flags: []cli.Flag{
-					endpointFlag,
 				},
 			},
 			{
@@ -389,23 +352,15 @@ func contractCompile(ctx *cli.Context) error {
 	return nil
 }
 
-func testInvoke(ctx *cli.Context) error {
-	return invokeInternal(ctx, false, false)
-}
-
 func testInvokeFunction(ctx *cli.Context) error {
-	return invokeInternal(ctx, true, false)
-}
-
-func invoke(ctx *cli.Context) error {
-	return invokeInternal(ctx, false, true)
+	return invokeInternal(ctx, false)
 }
 
 func invokeFunction(ctx *cli.Context) error {
-	return invokeInternal(ctx, true, true)
+	return invokeInternal(ctx, true)
 }
 
-func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
+func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
 		err         error
 		gas         util.Fixed8
@@ -426,13 +381,13 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
 	script := args[0]
-	if withMethod {
-		if len(args) <= 1 {
-			return cli.NewExitError(errNoMethod, 1)
-		}
-		operation = args[1]
-		paramsStart++
+
+	if len(args) <= 1 {
+		return cli.NewExitError(errNoMethod, 1)
 	}
+	operation = args[1]
+	paramsStart++
+
 	if len(args) > paramsStart {
 		for k, s := range args[paramsStart:] {
 			param, err := smartcontract.NewParameterFromString(s)
@@ -455,11 +410,7 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	if withMethod {
-		resp, err = c.InvokeFunction(script, operation, params)
-	} else {
-		resp, err = c.Invoke(script, params)
-	}
+	resp, err = c.InvokeFunction(script, operation, params)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

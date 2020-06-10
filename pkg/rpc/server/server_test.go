@@ -573,45 +573,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
-	"invoke": {
-		{
-			name:   "positive",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "String", "value": "qwerty"}]]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
-				res, ok := inv.(*result.Invoke)
-				require.True(t, ok)
-				assert.Equal(t, "0c067177657274790c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52", res.Script)
-				assert.NotEqual(t, "", res.State)
-				assert.NotEqual(t, 0, res.GasConsumed)
-			},
-		},
-		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
-		},
-		{
-			name:   "not a string",
-			params: `[42, []]`,
-			fail:   true,
-		},
-		{
-			name:   "not a scripthash",
-			params: `["qwerty", []]`,
-			fail:   true,
-		},
-		{
-			name:   "not an array",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", 42]`,
-			fail:   true,
-		},
-		{
-			name:   "bad params",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "Integer", "value": "qwerty"}]]`,
-			fail:   true,
-		},
-	},
 	"invokefunction": {
 		{
 			name:   "positive",
