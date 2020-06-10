@@ -30,8 +30,8 @@ var syscalls = map[string]map[string]string{
 	},
 	"blockchain": {
 		"GetBlock":                "System.Blockchain.GetBlock",
-		"GetContract":             "Neo.Blockchain.GetContract",
-		"GetHeight":               "Neo.Blockchain.GetHeight",
+		"GetContract":             "System.Blockchain.GetContract",
+		"GetHeight":               "System.Blockchain.GetHeight",
 		"GetTransaction":          "System.Blockchain.GetTransaction",
 		"GetTransactionFromBlock": "System.Blockchain.GetTransactionFromBlock",
 		"GetTransactionHeight":    "System.Blockchain.GetTransactionHeight",
