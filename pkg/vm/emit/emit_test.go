@@ -189,9 +189,9 @@ func TestEmitString(t *testing.T) {
 
 func TestEmitSyscall(t *testing.T) {
 	syscalls := []string{
-		"Neo.Runtime.Log",
-		"Neo.Runtime.Notify",
-		"Neo.Runtime.Whatever",
+		"System.Runtime.Log",
+		"System.Runtime.Notify",
+		"System.Runtime.Whatever",
 	}
 
 	buf := io.NewBufBinWriter()

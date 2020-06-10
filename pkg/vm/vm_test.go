@@ -488,16 +488,16 @@ func getEnumeratorProg(n int, isIter bool) (prog []byte) {
 	prog = []byte{byte(opcode.INITSSLOT), 1, byte(opcode.STSFLD0)}
 	for i := 0; i < n; i++ {
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
+		prog = append(prog, getSyscallProg("System.Enumerator.Next")...)
 		prog = append(prog, byte(opcode.LDSFLD0))
-		prog = append(prog, getSyscallProg("Neo.Enumerator.Value")...)
+		prog = append(prog, getSyscallProg("System.Enumerator.Value")...)
 		if isIter {
 			prog = append(prog, byte(opcode.LDSFLD0))
-			prog = append(prog, getSyscallProg("Neo.Iterator.Key")...)
+			prog = append(prog, getSyscallProg("System.Iterator.Key")...)
 		}
 	}
 	prog = append(prog, byte(opcode.LDSFLD0))
-	prog = append(prog, getSyscallProg("Neo.Enumerator.Next")...)
+	prog = append(prog, getSyscallProg("System.Enumerator.Next")...)
 
 	return
 }
@@ -512,7 +512,7 @@ func checkEnumeratorStack(t *testing.T, vm *VM, arr []stackitem.Item) {
 
 func testIterableCreate(t *testing.T, typ string) {
 	isIter := typ == "Iterator"
-	prog := getSyscallProg("Neo." + typ + ".Create")
+	prog := getSyscallProg("System." + typ + ".Create")
 	prog = append(prog, getEnumeratorProg(2, isIter)...)
 
 	vm := load(prog)
@@ -546,10 +546,10 @@ func TestIteratorCreate(t *testing.T) {
 
 func testIterableConcat(t *testing.T, typ string) {
 	isIter := typ == "Iterator"
-	prog := getSyscallProg("Neo." + typ + ".Create")
+	prog := getSyscallProg("System." + typ + ".Create")
 	prog = append(prog, byte(opcode.SWAP))
-	prog = append(prog, getSyscallProg("Neo."+typ+".Create")...)
-	prog = append(prog, getSyscallProg("Neo."+typ+".Concat")...)
+	prog = append(prog, getSyscallProg("System."+typ+".Create")...)
+	prog = append(prog, getSyscallProg("System."+typ+".Concat")...)
 	prog = append(prog, getEnumeratorProg(3, isIter)...)
 	vm := load(prog)
 
@@ -589,8 +589,8 @@ func TestIteratorConcat(t *testing.T) {
 }
 
 func TestIteratorKeys(t *testing.T) {
-	prog := getSyscallProg("Neo.Iterator.Create")
-	prog = append(prog, getSyscallProg("Neo.Iterator.Keys")...)
+	prog := getSyscallProg("System.Iterator.Create")
+	prog = append(prog, getSyscallProg("System.Iterator.Keys")...)
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -609,8 +609,8 @@ func TestIteratorKeys(t *testing.T) {
 }
 
 func TestIteratorValues(t *testing.T) {
-	prog := getSyscallProg("Neo.Iterator.Create")
-	prog = append(prog, getSyscallProg("Neo.Iterator.Values")...)
+	prog := getSyscallProg("System.Iterator.Create")
+	prog = append(prog, getSyscallProg("System.Iterator.Values")...)
 	prog = append(prog, getEnumeratorProg(2, false)...)
 
 	v := load(prog)
@@ -643,8 +643,8 @@ func getSyscallProg(name string) (prog []byte) {
 }
 
 func getSerializeProg() (prog []byte) {
-	prog = append(prog, getSyscallProg("Neo.Runtime.Serialize")...)
-	prog = append(prog, getSyscallProg("Neo.Runtime.Deserialize")...)
+	prog = append(prog, getSyscallProg("System.Runtime.Serialize")...)
+	prog = append(prog, getSyscallProg("System.Runtime.Deserialize")...)
 	prog = append(prog, byte(opcode.RET))
 
 	return
@@ -749,7 +749,7 @@ func TestSerializeStruct(t *testing.T) {
 }
 
 func TestDeserializeUnknown(t *testing.T) {
-	prog := append(getSyscallProg("Neo.Runtime.Deserialize"), byte(opcode.RET))
+	prog := append(getSyscallProg("System.Runtime.Deserialize"), byte(opcode.RET))
 
 	data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
 	require.NoError(t, err)
@@ -785,7 +785,7 @@ func TestSerializeMapCompat(t *testing.T) {
 	emit.Bytes(buf.BinWriter, []byte("key"))
 	emit.Bytes(buf.BinWriter, []byte("value"))
 	emit.Opcode(buf.BinWriter, opcode.SETITEM)
-	emit.Syscall(buf.BinWriter, "Neo.Runtime.Serialize")
+	emit.Syscall(buf.BinWriter, "System.Runtime.Serialize")
 	require.NoError(t, buf.Err)
 
 	vm := load(buf.Bytes())
