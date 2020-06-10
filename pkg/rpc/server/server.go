@@ -854,7 +854,7 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 	return res, nil
 }
 
-// invokescript implements the `invokescript` RPC call.
+// invokeFunction implements the `invokeFunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
 	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
