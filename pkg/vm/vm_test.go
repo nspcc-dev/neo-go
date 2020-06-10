@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -839,6 +840,29 @@ func TestCallFlags(t *testing.T) {
 	t.Run("NoFlagsSomeRequired", getTestCallFlagsFunc(readOnly, smartcontract.NoneFlag, nil))
 	t.Run("OnlyOneProvided", getTestCallFlagsFunc(readOnly, smartcontract.AllowCall, nil))
 	t.Run("AllFlagsProvided", getTestCallFlagsFunc(readOnly, smartcontract.ReadOnly, new(int)))
+}
+
+func getTestTriggerFunc(syscall []byte, tr trigger.Type, result interface{}) func(t *testing.T) {
+	return func(t *testing.T) {
+		script := append([]byte{byte(opcode.SYSCALL)}, syscall...)
+		v := NewWithTrigger(tr)
+		v.RegisterInteropGetter(getTestingInterop)
+		v.LoadScript(script)
+		if result == nil {
+			checkVMFailed(t, v)
+			return
+		}
+		runVM(t, v)
+		require.Equal(t, result, v.PopResult())
+	}
+}
+
+func TestAllowedTriggers(t *testing.T) {
+	noFlags := []byte{0x77, 0x77, 0x77, 0x77}
+	appOnly := []byte{0x55, 0x55, 0x55, 0x55}
+	t.Run("Application/NeedNothing", getTestTriggerFunc(noFlags, trigger.Application, new(int)))
+	t.Run("Application/NeedApplication", getTestTriggerFunc(appOnly, trigger.Application, new(int)))
+	t.Run("System/NeedApplication", getTestTriggerFunc(appOnly, trigger.System, nil))
 }
 
 func callNTimes(n uint16) []byte {

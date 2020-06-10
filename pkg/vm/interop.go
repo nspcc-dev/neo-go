@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -15,9 +16,12 @@ type InteropFunc func(vm *VM) error
 
 // InteropFuncPrice represents an interop function with a price.
 type InteropFuncPrice struct {
-	Func          InteropFunc
-	Price         int
-	RequiredFlags smartcontract.CallFlag
+	Func  InteropFunc
+	Price int
+	// AllowedTriggers is a mask representing triggers which should be allowed by an interop.
+	// 0 is interpreted as All.
+	AllowedTriggers trigger.Type
+	RequiredFlags   smartcontract.CallFlag
 }
 
 // interopIDFuncPrice adds an ID to the InteropFuncPrice.
