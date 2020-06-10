@@ -94,12 +94,13 @@ var systemInterops = []interop.Function{
 	{Name: "System.Runtime.Platform", Func: runtimePlatform, Price: 1},
 	{Name: "System.Runtime.Serialize", Func: runtimeSerialize, Price: 1},
 	{Name: "System.Storage.Delete", Func: storageDelete, Price: 100},
+	{Name: "System.Storage.Find", Func: storageFind, Price: 1},
 	{Name: "System.Storage.Get", Func: storageGet, Price: 100},
 	{Name: "System.Storage.GetContext", Func: storageGetContext, Price: 1},
 	{Name: "System.Storage.GetReadOnlyContext", Func: storageGetReadOnlyContext, Price: 1},
 	{Name: "System.Storage.Put", Func: storagePut, Price: 0}, // These don't have static price in C# code.
 	{Name: "System.Storage.PutEx", Func: storagePutEx, Price: 0},
-	{Name: "System.StorageContext.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
+	{Name: "System.Storage.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
 }
 
 var neoInterops = []interop.Function{
@@ -113,13 +114,6 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 1},
 	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1},
 	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 1},
-	{Name: "Neo.Storage.Delete", Func: storageDelete, Price: 100},
-	{Name: "Neo.Storage.Find", Func: storageFind, Price: 1},
-	{Name: "Neo.Storage.Get", Func: storageGet, Price: 100},
-	{Name: "Neo.Storage.GetContext", Func: storageGetContext, Price: 1},
-	{Name: "Neo.Storage.GetReadOnlyContext", Func: storageGetReadOnlyContext, Price: 1},
-	{Name: "Neo.Storage.Put", Func: storagePut, Price: 0},
-	{Name: "Neo.StorageContext.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given
