@@ -5,10 +5,11 @@ type CallFlag byte
 
 // Default flags.
 const (
-	NoneFlag          CallFlag = 0
-	AllowModifyStates CallFlag = 1 << iota
+	NoneFlag    CallFlag = 0
+	AllowStates CallFlag = 1 << iota
+	AllowModifyStates
 	AllowCall
 	AllowNotify
-	ReadOnly = AllowCall | AllowNotify
-	All      = AllowModifyStates | AllowCall | AllowNotify
+	ReadOnly = AllowStates | AllowCall | AllowNotify
+	All      = ReadOnly | AllowModifyStates
 )
