@@ -1,12 +1,6 @@
 package compiler
 
 var syscalls = map[string]map[string]string{
-	"account": {
-		"GetBalance":    "Neo.Account.GetBalance",
-		"GetScriptHash": "Neo.Account.GetScriptHash",
-		"GetVotes":      "Neo.Account.GetVotes",
-		"IsStandard":    "Neo.Account.IsStandard",
-	},
 	"crypto": {
 		"ECDsaVerify": "Neo.Crypto.ECDsaVerify",
 	},
@@ -35,25 +29,12 @@ var syscalls = map[string]map[string]string{
 		"Deserialize":  "Neo.Runtime.Deserialize",
 	},
 	"blockchain": {
-		"GetAccount":              "Neo.Blockchain.GetAccount",
 		"GetBlock":                "System.Blockchain.GetBlock",
 		"GetContract":             "Neo.Blockchain.GetContract",
-		"GetHeader":               "Neo.Blockchain.GetHeader",
 		"GetHeight":               "Neo.Blockchain.GetHeight",
 		"GetTransaction":          "System.Blockchain.GetTransaction",
 		"GetTransactionFromBlock": "System.Blockchain.GetTransactionFromBlock",
 		"GetTransactionHeight":    "System.Blockchain.GetTransactionHeight",
-		"GetValidators":           "Neo.Blockchain.GetValidators",
-	},
-	"header": {
-		"GetIndex":         "Neo.Header.GetIndex",
-		"GetHash":          "Neo.Header.GetHash",
-		"GetPrevHash":      "Neo.Header.GetPrevHash",
-		"GetTimestamp":     "Neo.Header.GetTimestamp",
-		"GetVersion":       "Neo.Header.GetVersion",
-		"GetMerkleRoot":    "Neo.Header.GetMerkleRoot",
-		"GetConsensusData": "Neo.Header.GetConsensusData",
-		"GetNextConsensus": "Neo.Header.GetNextConsensus",
 	},
 	"contract": {
 		"GetScript":         "Neo.Contract.GetScript",
@@ -77,8 +58,5 @@ var syscalls = map[string]map[string]string{
 		"Next":   "Neo.Iterator.Next",
 		"Value":  "Neo.Iterator.Value",
 		"Values": "Neo.Iterator.Values",
-	},
-	"witness": {
-		"GetVerificationScript": "Neo.Witness.GetVerificationScript",
 	},
 }

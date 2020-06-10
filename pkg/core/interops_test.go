@@ -32,25 +32,15 @@ func TestUnexpectedNonInterops(t *testing.T) {
 
 	// All of these functions expect an interop item on the stack.
 	funcs := []func(*interop.Context, *vm.VM) error{
-		accountGetBalance,
-		accountGetScriptHash,
 		contractGetScript,
 		contractGetStorageContext,
 		contractIsPayable,
-		headerGetHash,
-		headerGetIndex,
-		headerGetMerkleRoot,
-		headerGetNextConsensus,
-		headerGetPrevHash,
-		headerGetTimestamp,
-		headerGetVersion,
 		storageContextAsReadOnly,
 		storageDelete,
 		storageFind,
 		storageGet,
 		storagePut,
 		storagePutEx,
-		witnessGetVerificationScript,
 	}
 	for _, f := range funcs {
 		for k, v := range vals {
