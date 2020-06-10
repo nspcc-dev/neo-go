@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -272,9 +271,6 @@ func checkStorageContext(ic *interop.Context, stc *StorageContext) error {
 
 // storageDelete deletes stored key-value pair.
 func storageDelete(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't delete when the trigger is not application")
-	}
 	stcInterface := v.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
@@ -337,9 +333,6 @@ func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 }
 
 func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't delete when the trigger is not application")
-	}
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
 	}
@@ -450,9 +443,6 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 
 // contractDestroy destroys a contract.
 func contractDestroy(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application {
-		return errors.New("can't destroy contract when not triggered by application")
-	}
 	hash := v.GetCurrentScriptHash()
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
