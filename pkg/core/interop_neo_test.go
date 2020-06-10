@@ -474,7 +474,7 @@ func TestSecp256k1Recover(t *testing.T) {
 		X: privateKey.PubKey().X,
 		Y: privateKey.PubKey().Y,
 	}
-	expected := pubKey.Bytes()[1:]
+	expected := pubKey.UncompressedBytes()[1:]
 
 	// We don't know which of two recovered keys suites, so let's try both.
 	putOnStackGetResult := func(isEven bool) []byte {
@@ -505,7 +505,7 @@ func TestSecp256r1Recover(t *testing.T) {
 	messageHash := hash.Sha256(message).BytesBE()
 	signature := privateKey.Sign(message)
 	require.True(t, privateKey.PublicKey().Verify(signature, messageHash))
-	expected := privateKey.PublicKey().Bytes()[1:]
+	expected := privateKey.PublicKey().UncompressedBytes()[1:]
 
 	// We don't know which of two recovered keys suites, so let's try both.
 	putOnStackGetResult := func(isEven bool) []byte {
