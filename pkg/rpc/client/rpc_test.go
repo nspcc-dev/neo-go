@@ -541,10 +541,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetVersion()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"tcp_port":20332,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"tcp_port":20332,"ws_port":20342,"nonce":2153672787,"user_agent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`,
 			result: func(c *Client) interface{} {
 				return &result.Version{
-					Port:      uint16(20332),
+					TCPPort:   uint16(20332),
+					WSPort:    uint16(20342),
 					Nonce:     2153672787,
 					UserAgent: "/NEO-GO:0.73.1-pre-273-ge381358/",
 				}

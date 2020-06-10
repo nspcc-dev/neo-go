@@ -4,8 +4,9 @@ type (
 	// Version model used for reporting server version
 	// info.
 	Version struct {
-		Port      uint16 `json:"tcp_port"`
+		TCPPort   uint16 `json:"tcp_port"`
+		WSPort    uint16 `json:"ws_port,omitempty"`
 		Nonce     uint32 `json:"nonce"`
-		UserAgent string `json:"useragent"`
+		UserAgent string `json:"user_agent"`
 	}
 )

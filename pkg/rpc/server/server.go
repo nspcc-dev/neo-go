@@ -442,8 +442,12 @@ func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.
 }
 
 func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
+	port, err := s.coreServer.Port()
+	if err != nil {
+		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
+	}
 	return result.Version{
-		Port:      s.coreServer.Port,
+		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
 	}, nil
