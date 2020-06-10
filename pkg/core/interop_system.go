@@ -98,21 +98,6 @@ func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// bcGetHeader returns block header.
-func bcGetHeader(ic *interop.Context, v *vm.VM) error {
-	hash, err := getBlockHashFromElement(ic.Chain, v.Estack().Pop())
-	if err != nil {
-		return err
-	}
-	header, err := ic.Chain.GetHeader(hash)
-	if err != nil {
-		v.Estack().PushVal([]byte{})
-	} else {
-		v.Estack().PushVal(stackitem.NewInterop(header))
-	}
-	return nil
-}
-
 // bcGetHeight returns blockchain height.
 func bcGetHeight(ic *interop.Context, v *vm.VM) error {
 	v.Estack().PushVal(ic.Chain.BlockHeight())

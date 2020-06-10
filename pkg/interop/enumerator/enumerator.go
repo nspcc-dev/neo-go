@@ -11,7 +11,7 @@ type Enumerator struct{}
 
 // Create creates a new enumerator from the given items (slice or structure).
 // New enumerator points at index -1 of its items, so the user of it has to
-// advance it first with Next. This function uses `Neo.Enumerator.Create`
+// advance it first with Next. This function uses `System.Enumerator.Create`
 // syscall.
 func Create(items []interface{}) Enumerator {
 	return Enumerator{}
@@ -20,13 +20,13 @@ func Create(items []interface{}) Enumerator {
 // Next moves position of the given enumerator by one and returns a bool that
 // tells whether there is a new value present in this new position. If it is,
 // you can use Value to get it, if not then there are no more values in this
-// enumerator. This function uses `Neo.Enumerator.Next` syscall.
+// enumerator. This function uses `System.Enumerator.Next` syscall.
 func Next(e Enumerator) bool {
 	return true
 }
 
 // Value returns current enumerator's item value, it's only valid to call it
-// after Next returning true. This function uses `Neo.Enumerator.Value` syscall.
+// after Next returning true. This function uses `System.Enumerator.Value` syscall.
 func Value(e Enumerator) interface{} {
 	return nil
 }
@@ -35,7 +35,7 @@ func Value(e Enumerator) interface{} {
 // a first and then continue with b. Enumerator positions are not reset for a
 // and b, so if any of them was already advanced by Next the resulting
 // Enumerator will point at this new position and never go back to previous
-// values. This function uses `Neo.Enumerator.Concat` syscall.
+// values. This function uses `System.Enumerator.Concat` syscall.
 func Concat(a, b Enumerator) Enumerator {
 	return Enumerator{}
 }

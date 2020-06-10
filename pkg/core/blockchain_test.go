@@ -265,7 +265,7 @@ func TestSubscriptions(t *testing.T) {
 
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay!"))
-	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
 	txGood1 := transaction.New(script.Bytes(), 0)
 	txGood1.Sender = neoOwner
@@ -276,7 +276,7 @@ func TestSubscriptions(t *testing.T) {
 	// Reset() reuses the script buffer and we need to keep scripts.
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("nay!"))
-	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	emit.Opcode(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
 	txBad := transaction.New(script.Bytes(), 0)
@@ -287,7 +287,7 @@ func TestSubscriptions(t *testing.T) {
 
 	script = io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
-	emit.Syscall(script.BinWriter, "Neo.Runtime.Notify")
+	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
 	txGood2 := transaction.New(script.Bytes(), 0)
 	txGood2.Sender = neoOwner

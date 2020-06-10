@@ -8,10 +8,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -26,109 +24,6 @@ const (
 	// MaxContractStringLen is the maximum length for contract metadata strings.
 	MaxContractStringLen = 252
 )
-
-// headerGetVersion returns version from the header.
-func headerGetVersion(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Version)
-	return nil
-}
-
-// headerGetMerkleRoot returns version from the header.
-func headerGetMerkleRoot(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.MerkleRoot.BytesBE())
-	return nil
-}
-
-// headerGetNextConsensus returns version from the header.
-func headerGetNextConsensus(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.NextConsensus.BytesBE())
-	return nil
-}
-
-// witnessGetVerificationScript returns current witness' script.
-func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
-	witInterface := v.Estack().Pop().Value()
-	wit, ok := witInterface.(*transaction.Witness)
-	if !ok {
-		return errors.New("value is not a witness")
-	}
-	// It's important not to share wit.VerificationScript slice with the code running in VM.
-	script := make([]byte, len(wit.VerificationScript))
-	copy(script, wit.VerificationScript)
-	v.Estack().PushVal(script)
-	return nil
-}
-
-// bcGetAccount returns or creates an account.
-func bcGetAccount(ic *interop.Context, v *vm.VM) error {
-	accbytes := v.Estack().Pop().Bytes()
-	acchash, err := util.Uint160DecodeBytesBE(accbytes)
-	if err != nil {
-		return err
-	}
-	acc, err := ic.DAO.GetAccountStateOrNew(acchash)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(stackitem.NewInterop(acc))
-	return nil
-}
-
-// accountGetBalance returns balance for a given account.
-func accountGetBalance(ic *interop.Context, v *vm.VM) error {
-	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*state.Account)
-	if !ok {
-		return fmt.Errorf("%T is not an account state", acc)
-	}
-	asbytes := v.Estack().Pop().Bytes()
-	ashash, err := util.Uint256DecodeBytesBE(asbytes)
-	if err != nil {
-		return err
-	}
-	balance, ok := acc.GetBalanceValues()[ashash]
-	if !ok {
-		balance = util.Fixed8(0)
-	}
-	v.Estack().PushVal(int64(balance))
-	return nil
-}
-
-// accountGetScriptHash returns script hash of a given account.
-func accountGetScriptHash(ic *interop.Context, v *vm.VM) error {
-	accInterface := v.Estack().Pop().Value()
-	acc, ok := accInterface.(*state.Account)
-	if !ok {
-		return fmt.Errorf("%T is not an account state", acc)
-	}
-	v.Estack().PushVal(acc.ScriptHash.BytesBE())
-	return nil
-}
-
-// accountIsStandard checks whether given account is standard.
-func accountIsStandard(ic *interop.Context, v *vm.VM) error {
-	accbytes := v.Estack().Pop().Bytes()
-	acchash, err := util.Uint160DecodeBytesBE(accbytes)
-	if err != nil {
-		return err
-	}
-	contract, err := ic.DAO.GetContractState(acchash)
-	res := err != nil || vm.IsStandardContract(contract.Script)
-	v.Estack().PushVal(res)
-	return nil
-}
 
 // storageFind finds stored key-value pair.
 func storageFind(ic *interop.Context, v *vm.VM) error {

@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -136,64 +135,6 @@ func TestStorageFind(t *testing.T) {
 	})
 }
 
-func TestHeaderGetVersion(t *testing.T) {
-	v, block, context, chain := createVMAndPushBlock(t)
-	defer chain.Close()
-
-	err := headerGetVersion(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().(*big.Int)
-	require.Equal(t, uint64(block.Version), value.Uint64())
-}
-
-func TestHeaderGetVersion_Negative(t *testing.T) {
-	v := vm.New()
-	block := newDumbBlock()
-	chain := newTestChain(t)
-	defer chain.Close()
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
-	v.Estack().PushVal(stackitem.NewBool(false))
-
-	err := headerGetVersion(context, v)
-	require.Errorf(t, err, "value is not a header or block")
-}
-
-func TestHeaderGetMerkleRoot(t *testing.T) {
-	v, block, context, chain := createVMAndPushBlock(t)
-	defer chain.Close()
-
-	err := headerGetMerkleRoot(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value()
-	require.Equal(t, block.MerkleRoot.BytesBE(), value)
-}
-
-func TestHeaderGetNextConsensus(t *testing.T) {
-	v, block, context, chain := createVMAndPushBlock(t)
-	defer chain.Close()
-
-	err := headerGetNextConsensus(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value()
-	require.Equal(t, block.NextConsensus.BytesBE(), value)
-}
-
-func TestWitnessGetVerificationScript(t *testing.T) {
-	v := vm.New()
-	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
-	witness := transaction.Witness{InvocationScript: nil, VerificationScript: script}
-
-	chain := newTestChain(t)
-	defer chain.Close()
-
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
-	v.Estack().PushVal(stackitem.NewInterop(&witness))
-	err := witnessGetVerificationScript(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]byte)
-	require.Equal(t, witness.VerificationScript, value)
-}
-
 func TestECDSAVerify(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -268,17 +209,6 @@ func TestECDSAVerify(t *testing.T) {
 		pub = pub[10:]
 		runCase(t, true, false, sign, pub, msg)
 	})
-}
-
-func TestAccountGetScriptHash(t *testing.T) {
-	v, accState, context, chain := createVMAndAccState(t)
-	defer chain.Close()
-	v.Estack().PushVal(stackitem.NewInterop(accState))
-
-	err := accountGetScriptHash(context, v)
-	require.NoError(t, err)
-	hash := v.Estack().Pop().Value()
-	require.Equal(t, accState.ScriptHash.BytesBE(), hash)
 }
 
 func TestContractGetScript(t *testing.T) {

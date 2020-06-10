@@ -898,23 +898,23 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
-		emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Create")
+		emit.Syscall(c.prog.BinWriter, "System.Iterator.Create")
 
 		c.pushStackLabel(label, 1)
 		c.setLabel(start)
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
-		emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Next")
+		emit.Syscall(c.prog.BinWriter, "System.Enumerator.Next")
 		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
 
 		if n.Key != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "Neo.Iterator.Key")
+			emit.Syscall(c.prog.BinWriter, "System.Iterator.Key")
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
 		if n.Value != nil {
 			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "Neo.Enumerator.Value")
+			emit.Syscall(c.prog.BinWriter, "System.Enumerator.Value")
 			c.emitStoreVar(n.Value.(*ast.Ident).Name)
 		}
 
@@ -1092,7 +1092,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else if isString(c.typeInfo.Types[arg].Type) {
 			ast.Walk(c, arg)
-			emit.Syscall(c.prog.BinWriter, "Neo.Runtime.Log")
+			emit.Syscall(c.prog.BinWriter, "System.Runtime.Log")
 			emit.Opcode(c.prog.BinWriter, opcode.THROW)
 		} else {
 			c.prog.Err = errors.New("panic should have string or nil argument")

@@ -6,14 +6,14 @@ package runtime
 
 // CheckWitness verifies if the given script hash (160-bit BE value in a 20 byte
 // slice) or key (compressed serialized 33-byte form) is one of the signers of
-// this invocation. It uses `Neo.Runtime.CheckWitness` syscall.
+// this invocation. It uses `System.Runtime.CheckWitness` syscall.
 func CheckWitness(hashOrKey []byte) bool {
 	return true
 }
 
 // Log instructs VM to log the given message. It's mostly used for debugging
 // purposes as these messages are not saved anywhere normally and usually are
-// only visible in the VM logs. This function uses `Neo.Runtime.Log` syscall.
+// only visible in the VM logs. This function uses `System.Runtime.Log` syscall.
 func Log(message string) {}
 
 // Notify sends a notification (collecting all arguments in an array) to the
@@ -21,14 +21,14 @@ func Log(message string) {}
 // notification is saved in application log. It's intended to be used as a
 // part of contract's API to external systems, these events can be monitored
 // from outside and act upon accordingly. This function uses
-// `Neo.Runtime.Notify` syscall.
+// `System.Runtime.Notify` syscall.
 func Notify(arg ...interface{}) {}
 
 // GetTime returns the timestamp of the most recent block. Note that when running
 // script in test mode this would be the last accepted (persisted) block in the
 // chain, but when running as a part of the new block the time returned is the
 // time of this (currently being processed) block. This function uses
-// `Neo.Runtime.GetTime` syscall.
+// `System.Runtime.GetTime` syscall.
 func GetTime() int {
 	return 0
 }
@@ -38,7 +38,7 @@ func GetTime() int {
 // as a part of verification process from running it as a regular application.
 // Some interop functions (especially ones that change the state in any way) are
 // not available when running with verification trigger. This function uses
-// `Neo.Runtime.GetTrigger` syscall.
+// `System.Runtime.GetTrigger` syscall.
 func GetTrigger() byte {
 	return 0x00
 }
@@ -58,13 +58,13 @@ func Verification() byte {
 // Serialize serializes any given item into a byte slice. It works for all
 // regular VM types (not ones from interop package) and allows to save them in
 // storage or pass into Notify and then Deserialize them on the next run or in
-// the external event receiver. It uses `Neo.Runtime.Serialize` syscall.
+// the external event receiver. It uses `System.Runtime.Serialize` syscall.
 func Serialize(item interface{}) []byte {
 	return nil
 }
 
 // Deserialize unpacks previously serialized value from a byte slice, it's the
-// opposite of Serialize. It uses `Neo.Runtime.Deserialize` syscall.
+// opposite of Serialize. It uses `System.Runtime.Deserialize` syscall.
 func Deserialize(b []byte) interface{} {
 	return nil
 }

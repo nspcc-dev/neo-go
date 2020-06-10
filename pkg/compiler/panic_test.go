@@ -55,7 +55,7 @@ func getPanicSource(need bool, message string) string {
 }
 
 func logGetter(logs *[]string) vm.InteropGetterFunc {
-	logID := emit.InteropNameToID([]byte("Neo.Runtime.Log"))
+	logID := emit.InteropNameToID([]byte("System.Runtime.Log"))
 	return func(id uint32) *vm.InteropFuncPrice {
 		if id != logID {
 			return nil

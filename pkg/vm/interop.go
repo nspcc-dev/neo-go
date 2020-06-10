@@ -29,35 +29,31 @@ type interopIDFuncPrice struct {
 type InteropGetterFunc func(uint32) *InteropFuncPrice
 
 var defaultVMInterops = []interopIDFuncPrice{
-	{emit.InteropNameToID([]byte("Neo.Runtime.Log")),
+	{emit.InteropNameToID([]byte("System.Runtime.Log")),
 		InteropFuncPrice{runtimeLog, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Notify")),
+	{emit.InteropNameToID([]byte("System.Runtime.Notify")),
 		InteropFuncPrice{runtimeNotify, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Serialize")),
-		InteropFuncPrice{RuntimeSerialize, 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Serialize")),
 		InteropFuncPrice{RuntimeSerialize, 1}},
-	{emit.InteropNameToID([]byte("Neo.Runtime.Deserialize")),
-		InteropFuncPrice{RuntimeDeserialize, 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Deserialize")),
 		InteropFuncPrice{RuntimeDeserialize, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Create")),
+	{emit.InteropNameToID([]byte("System.Enumerator.Create")),
 		InteropFuncPrice{EnumeratorCreate, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Next")),
+	{emit.InteropNameToID([]byte("System.Enumerator.Next")),
 		InteropFuncPrice{EnumeratorNext, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Concat")),
+	{emit.InteropNameToID([]byte("System.Enumerator.Concat")),
 		InteropFuncPrice{EnumeratorConcat, 1}},
-	{emit.InteropNameToID([]byte("Neo.Enumerator.Value")),
+	{emit.InteropNameToID([]byte("System.Enumerator.Value")),
 		InteropFuncPrice{EnumeratorValue, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Create")),
+	{emit.InteropNameToID([]byte("System.Iterator.Create")),
 		InteropFuncPrice{IteratorCreate, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Concat")),
+	{emit.InteropNameToID([]byte("System.Iterator.Concat")),
 		InteropFuncPrice{IteratorConcat, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Key")),
+	{emit.InteropNameToID([]byte("System.Iterator.Key")),
 		InteropFuncPrice{IteratorKey, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Keys")),
+	{emit.InteropNameToID([]byte("System.Iterator.Keys")),
 		InteropFuncPrice{IteratorKeys, 1}},
-	{emit.InteropNameToID([]byte("Neo.Iterator.Values")),
+	{emit.InteropNameToID([]byte("System.Iterator.Values")),
 		InteropFuncPrice{IteratorValues, 1}},
 }
 
@@ -71,21 +67,21 @@ func getDefaultVMInterop(id uint32) *InteropFuncPrice {
 	return nil
 }
 
-// runtimeLog handles the syscall "Neo.Runtime.Log" for printing and logging stuff.
+// runtimeLog handles the syscall "System.Runtime.Log" for printing and logging stuff.
 func runtimeLog(vm *VM) error {
 	item := vm.Estack().Pop()
 	fmt.Printf("NEO-GO-VM (log) > %s\n", item.Value())
 	return nil
 }
 
-// runtimeNotify handles the syscall "Neo.Runtime.Notify" for printing and logging stuff.
+// runtimeNotify handles the syscall "System.Runtime.Notify" for printing and logging stuff.
 func runtimeNotify(vm *VM) error {
 	item := vm.Estack().Pop()
 	fmt.Printf("NEO-GO-VM (notify) > %s\n", item.Value())
 	return nil
 }
 
-// RuntimeSerialize handles syscalls System.Runtime.Serialize and Neo.Runtime.Serialize.
+// RuntimeSerialize handles syscalls System.Runtime.Serialize and System.Runtime.Serialize.
 func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
 	data, err := stackitem.SerializeItem(item.value)
@@ -100,7 +96,7 @@ func RuntimeSerialize(vm *VM) error {
 	return nil
 }
 
-// RuntimeDeserialize handles syscalls System.Runtime.Deserialize and Neo.Runtime.Deserialize.
+// RuntimeDeserialize handles syscalls System.Runtime.Deserialize and System.Runtime.Deserialize.
 func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 
@@ -121,7 +117,7 @@ func init() {
 	})
 }
 
-// EnumeratorCreate handles syscall Neo.Enumerator.Create.
+// EnumeratorCreate handles syscall System.Enumerator.Create.
 func EnumeratorCreate(v *VM) error {
 	data := v.Estack().Pop().Array()
 	v.Estack().Push(&Element{
@@ -134,7 +130,7 @@ func EnumeratorCreate(v *VM) error {
 	return nil
 }
 
-// EnumeratorNext handles syscall Neo.Enumerator.Next.
+// EnumeratorNext handles syscall System.Enumerator.Next.
 func EnumeratorNext(v *VM) error {
 	iop := v.Estack().Pop().Interop()
 	arr := iop.Value().(enumerator)
@@ -143,7 +139,7 @@ func EnumeratorNext(v *VM) error {
 	return nil
 }
 
-// EnumeratorValue handles syscall Neo.Enumerator.Value.
+// EnumeratorValue handles syscall System.Enumerator.Value.
 func EnumeratorValue(v *VM) error {
 	iop := v.Estack().Pop().Interop()
 	arr := iop.Value().(enumerator)
@@ -152,7 +148,7 @@ func EnumeratorValue(v *VM) error {
 	return nil
 }
 
-// EnumeratorConcat handles syscall Neo.Enumerator.Concat.
+// EnumeratorConcat handles syscall System.Enumerator.Concat.
 func EnumeratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
 	arr1 := iop1.Value().(enumerator)
@@ -169,7 +165,7 @@ func EnumeratorConcat(v *VM) error {
 	return nil
 }
 
-// IteratorCreate handles syscall Neo.Iterator.Create.
+// IteratorCreate handles syscall System.Iterator.Create.
 func IteratorCreate(v *VM) error {
 	data := v.Estack().Pop()
 	var item stackitem.Item
@@ -197,7 +193,7 @@ func NewMapIterator(m *stackitem.Map) *stackitem.Interop {
 	})
 }
 
-// IteratorConcat handles syscall Neo.Iterator.Concat.
+// IteratorConcat handles syscall System.Iterator.Concat.
 func IteratorConcat(v *VM) error {
 	iop1 := v.Estack().Pop().Interop()
 	iter1 := iop1.Value().(iterator)
@@ -214,7 +210,7 @@ func IteratorConcat(v *VM) error {
 	return nil
 }
 
-// IteratorKey handles syscall Neo.Iterator.Key.
+// IteratorKey handles syscall System.Iterator.Key.
 func IteratorKey(v *VM) error {
 	iop := v.estack.Pop().Interop()
 	iter := iop.Value().(iterator)
@@ -223,7 +219,7 @@ func IteratorKey(v *VM) error {
 	return nil
 }
 
-// IteratorKeys handles syscall Neo.Iterator.Keys.
+// IteratorKeys handles syscall System.Iterator.Keys.
 func IteratorKeys(v *VM) error {
 	iop := v.estack.Pop().Interop()
 	iter := iop.Value().(iterator)
@@ -234,7 +230,7 @@ func IteratorKeys(v *VM) error {
 	return nil
 }
 
-// IteratorValues handles syscall Neo.Iterator.Values.
+// IteratorValues handles syscall System.Iterator.Values.
 func IteratorValues(v *VM) error {
 	iop := v.estack.Pop().Interop()
 	iter := iop.Value().(iterator)
