@@ -13,3 +13,8 @@ const (
 	ReadOnly = AllowStates | AllowCall | AllowNotify
 	All      = ReadOnly | AllowModifyStates
 )
+
+// Has returns true iff all bits set in cf are also set in f.
+func (f CallFlag) Has(cf CallFlag) bool {
+	return f&cf == cf
+}
