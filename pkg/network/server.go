@@ -345,16 +345,9 @@ func (s *Server) HandshakedPeersCount() int {
 
 // getVersionMsg returns current version message.
 func (s *Server) getVersionMsg() (*Message, error) {
-	var port uint16
-	_, portStr, err := net.SplitHostPort(s.transport.Address())
+	port, err := s.Port()
 	if err != nil {
-		port = s.Port
-	} else {
-		p, err := strconv.ParseUint(portStr, 10, 16)
-		if err != nil {
-			return nil, err
-		}
-		port = uint16(p)
+		return nil, err
 	}
 
 	capabilities := []capability.Capability{
@@ -941,4 +934,20 @@ func (s *Server) broadcastTxLoop() {
 			}
 		}
 	}
+}
+
+// Port returns actual server port. It may differs from that of server.Config.
+func (s *Server) Port() (uint16, error) {
+	var port uint16
+	_, portStr, err := net.SplitHostPort(s.transport.Address())
+	if err != nil {
+		port = s.ServerConfig.Port
+	} else {
+		p, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return 0, err
+		}
+		port = uint16(p)
+	}
+	return port, nil
 }
