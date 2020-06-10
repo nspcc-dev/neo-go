@@ -79,6 +79,9 @@ func getNativeInterop(ic *interop.Context, c interop.Contract) func(v *vm.VM) er
 		if !ok {
 			return fmt.Errorf("method %s not found", name)
 		}
+		if !v.Context().GetCallFlags().Has(m.RequiredFlags) {
+			return errors.New("missing call flags")
+		}
 		result := m.Func(ic, args)
 		v.Estack().PushVal(result)
 		return nil

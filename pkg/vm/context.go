@@ -158,6 +158,11 @@ func (c *Context) Copy() *Context {
 	return ctx
 }
 
+// GetCallFlags returns calling flags context was created with.
+func (c *Context) GetCallFlags() smartcontract.CallFlag {
+	return c.callFlag
+}
+
 // Program returns the loaded program.
 func (c *Context) Program() []byte {
 	return c.prog

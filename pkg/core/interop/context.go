@@ -56,6 +56,9 @@ type Function struct {
 	Name  string
 	Func  func(*Context, *vm.VM) error
 	Price int
+	// RequiredFlags is a set of flags which must be set during script invocations.
+	// Default value is NoneFlag i.e. no flags are required.
+	RequiredFlags smartcontract.CallFlag
 }
 
 // Method is a signature for a native method.
