@@ -272,7 +272,7 @@ func checkStorageContext(ic *interop.Context, stc *StorageContext) error {
 
 // storageDelete deletes stored key-value pair.
 func storageDelete(ic *interop.Context, v *vm.VM) error {
-	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
+	if ic.Trigger != trigger.Application {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	stcInterface := v.Estack().Pop().Value()
@@ -337,7 +337,7 @@ func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 }
 
 func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
-	if ic.Trigger != trigger.Application && ic.Trigger != trigger.ApplicationR {
+	if ic.Trigger != trigger.Application {
 		return errors.New("can't delete when the trigger is not application")
 	}
 	if len(key) > MaxStorageKeyLen {
