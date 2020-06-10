@@ -179,62 +179,6 @@ func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// popHeaderFromVM returns pointer to Header or error. It's main feature is
-// proper treatment of Block structure, because C# code implicitly assumes
-// that header APIs can also operate on blocks.
-func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
-	iface := v.Estack().Pop().Value()
-	header, ok := iface.(*block.Header)
-	if !ok {
-		block, ok := iface.(*block.Block)
-		if !ok {
-			return nil, errors.New("value is not a header or block")
-		}
-		return block.Header(), nil
-	}
-	return header, nil
-}
-
-// headerGetIndex returns block index from the header.
-func headerGetIndex(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Index)
-	return nil
-}
-
-// headerGetHash returns header hash of the passed header.
-func headerGetHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Hash().BytesBE())
-	return nil
-}
-
-// headerGetPrevHash returns previous header hash of the passed header.
-func headerGetPrevHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.PrevHash.BytesBE())
-	return nil
-}
-
-// headerGetTimestamp returns timestamp of the passed header.
-func headerGetTimestamp(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Timestamp)
-	return nil
-}
-
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
