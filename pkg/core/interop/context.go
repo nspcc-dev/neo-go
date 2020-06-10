@@ -82,6 +82,7 @@ type ContractMD struct {
 	Manifest    manifest.Manifest
 	ServiceName string
 	ServiceID   uint32
+	ContractID  int32
 	Script      []byte
 	Hash        util.Uint160
 	Methods     map[string]MethodAndPrice
