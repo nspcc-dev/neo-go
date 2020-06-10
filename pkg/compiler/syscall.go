@@ -7,10 +7,6 @@ var syscalls = map[string]map[string]string{
 		"GetVotes":      "Neo.Account.GetVotes",
 		"IsStandard":    "Neo.Account.IsStandard",
 	},
-	"attribute": {
-		"GetUsage": "Neo.Attribute.GetUsage",
-		"GetData":  "Neo.Attribute.GetData",
-	},
 	"crypto": {
 		"ECDsaVerify": "Neo.Crypto.ECDsaVerify",
 	},
@@ -39,14 +35,15 @@ var syscalls = map[string]map[string]string{
 		"Deserialize":  "Neo.Runtime.Deserialize",
 	},
 	"blockchain": {
-		"GetAccount":           "Neo.Blockchain.GetAccount",
-		"GetBlock":             "Neo.Blockchain.GetBlock",
-		"GetContract":          "Neo.Blockchain.GetContract",
-		"GetHeader":            "Neo.Blockchain.GetHeader",
-		"GetHeight":            "Neo.Blockchain.GetHeight",
-		"GetTransaction":       "Neo.Blockchain.GetTransaction",
-		"GetTransactionHeight": "Neo.Blockchain.GetTransactionHeight",
-		"GetValidators":        "Neo.Blockchain.GetValidators",
+		"GetAccount":              "Neo.Blockchain.GetAccount",
+		"GetBlock":                "System.Blockchain.GetBlock",
+		"GetContract":             "Neo.Blockchain.GetContract",
+		"GetHeader":               "Neo.Blockchain.GetHeader",
+		"GetHeight":               "Neo.Blockchain.GetHeight",
+		"GetTransaction":          "System.Blockchain.GetTransaction",
+		"GetTransactionFromBlock": "System.Blockchain.GetTransactionFromBlock",
+		"GetTransactionHeight":    "System.Blockchain.GetTransactionHeight",
+		"GetValidators":           "Neo.Blockchain.GetValidators",
 	},
 	"header": {
 		"GetIndex":         "Neo.Header.GetIndex",
@@ -57,16 +54,6 @@ var syscalls = map[string]map[string]string{
 		"GetMerkleRoot":    "Neo.Header.GetMerkleRoot",
 		"GetConsensusData": "Neo.Header.GetConsensusData",
 		"GetNextConsensus": "Neo.Header.GetNextConsensus",
-	},
-	"block": {
-		"GetTransactionCount": "Neo.Block.GetTransactionCount",
-		"GetTransactions":     "Neo.Block.GetTransactions",
-		"GetTransaction":      "Neo.Block.GetTransaction",
-	},
-	"transaction": {
-		"GetAttributes": "Neo.Transaction.GetAttributes",
-		"GetHash":       "Neo.Transaction.GetHash",
-		"GetWitnesses":  "Neo.Transaction.GetWitnesses",
 	},
 	"contract": {
 		"GetScript":         "Neo.Contract.GetScript",

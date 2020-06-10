@@ -57,42 +57,6 @@ func headerGetNextConsensus(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// txGetAttributes returns current transaction attributes.
-func txGetAttributes(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Attributes) > vm.MaxArraySize {
-		return errors.New("too many attributes")
-	}
-	attrs := make([]stackitem.Item, 0, len(tx.Attributes))
-	for i := range tx.Attributes {
-		attrs = append(attrs, stackitem.NewInterop(&tx.Attributes[i]))
-	}
-	v.Estack().PushVal(attrs)
-	return nil
-}
-
-// txGetWitnesses returns current transaction witnesses.
-func txGetWitnesses(ic *interop.Context, v *vm.VM) error {
-	txInterface := v.Estack().Pop().Value()
-	tx, ok := txInterface.(*transaction.Transaction)
-	if !ok {
-		return errors.New("value is not a transaction")
-	}
-	if len(tx.Scripts) > vm.MaxArraySize {
-		return errors.New("too many outputs")
-	}
-	scripts := make([]stackitem.Item, 0, len(tx.Scripts))
-	for i := range tx.Scripts {
-		scripts = append(scripts, stackitem.NewInterop(&tx.Scripts[i]))
-	}
-	v.Estack().PushVal(scripts)
-	return nil
-}
-
 // witnessGetVerificationScript returns current witness' script.
 func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	witInterface := v.Estack().Pop().Value()
@@ -104,28 +68,6 @@ func witnessGetVerificationScript(ic *interop.Context, v *vm.VM) error {
 	script := make([]byte, len(wit.VerificationScript))
 	copy(script, wit.VerificationScript)
 	v.Estack().PushVal(script)
-	return nil
-}
-
-// attrGetData returns tx attribute data.
-func attrGetData(ic *interop.Context, v *vm.VM) error {
-	attrInterface := v.Estack().Pop().Value()
-	attr, ok := attrInterface.(*transaction.Attribute)
-	if !ok {
-		return fmt.Errorf("%T is not an attribute", attr)
-	}
-	v.Estack().PushVal(attr.Data)
-	return nil
-}
-
-// attrGetData returns tx attribute usage field.
-func attrGetUsage(ic *interop.Context, v *vm.VM) error {
-	attrInterface := v.Estack().Pop().Value()
-	attr, ok := attrInterface.(*transaction.Attribute)
-	if !ok {
-		return fmt.Errorf("%T is not an attribute", attr)
-	}
-	v.Estack().PushVal(int(attr.Usage))
 	return nil
 }
 

@@ -178,16 +178,6 @@ func TestHeaderGetNextConsensus(t *testing.T) {
 	require.Equal(t, block.NextConsensus.BytesBE(), value)
 }
 
-func TestTxGetAttributes(t *testing.T) {
-	v, tx, context, chain := createVMAndPushTX(t)
-	defer chain.Close()
-
-	err := txGetAttributes(context, v)
-	require.NoError(t, err)
-	value := v.Estack().Pop().Value().([]stackitem.Item)
-	require.Equal(t, tx.Attributes[0].Usage, value[0].Value().(*transaction.Attribute).Usage)
-}
-
 func TestWitnessGetVerificationScript(t *testing.T) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSHM1), byte(opcode.RET)}
@@ -280,28 +270,6 @@ func TestECDSAVerify(t *testing.T) {
 	})
 }
 
-func TestAttrGetData(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(stackitem.NewInterop(&tx.Attributes[0]))
-
-	err := attrGetData(context, v)
-	require.NoError(t, err)
-	data := v.Estack().Pop().Value()
-	require.Equal(t, tx.Attributes[0].Data, data)
-}
-
-func TestAttrGetUsage(t *testing.T) {
-	v, tx, context, chain := createVMAndTX(t)
-	defer chain.Close()
-	v.Estack().PushVal(stackitem.NewInterop(&tx.Attributes[0]))
-
-	err := attrGetUsage(context, v)
-	require.NoError(t, err)
-	usage := v.Estack().Pop().Value()
-	require.Equal(t, big.NewInt(int64(tx.Attributes[0].Usage)), usage)
-}
-
 func TestAccountGetScriptHash(t *testing.T) {
 	v, accState, context, chain := createVMAndAccState(t)
 	defer chain.Close()
@@ -337,12 +305,25 @@ func TestContractIsPayable(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
+func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
+	v := vm.New()
+	chain := newTestChain(t)
+	context := chain.newInteropContext(trigger.Application,
+		dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	return v, context, chain
+}
+
 func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
+	v, block, context, chain := createVMAndBlock(t)
+	v.Estack().PushVal(stackitem.NewInterop(block))
+	return v, block, context, chain
+}
+
+func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
-	v.Estack().PushVal(stackitem.NewInterop(block))
 	return v, block, context, chain
 }
 
