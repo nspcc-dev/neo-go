@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -14,8 +15,9 @@ type InteropFunc func(vm *VM) error
 
 // InteropFuncPrice represents an interop function with a price.
 type InteropFuncPrice struct {
-	Func  InteropFunc
-	Price int
+	Func          InteropFunc
+	Price         int
+	RequiredFlags smartcontract.CallFlag
 }
 
 // interopIDFuncPrice adds an ID to the InteropFuncPrice.
@@ -30,31 +32,31 @@ type InteropGetterFunc func(uint32) *InteropFuncPrice
 
 var defaultVMInterops = []interopIDFuncPrice{
 	{emit.InteropNameToID([]byte("System.Runtime.Log")),
-		InteropFuncPrice{runtimeLog, 1}},
+		InteropFuncPrice{Func: runtimeLog, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Notify")),
-		InteropFuncPrice{runtimeNotify, 1}},
+		InteropFuncPrice{Func: runtimeNotify, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Serialize")),
-		InteropFuncPrice{RuntimeSerialize, 1}},
+		InteropFuncPrice{Func: RuntimeSerialize, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Deserialize")),
-		InteropFuncPrice{RuntimeDeserialize, 1}},
+		InteropFuncPrice{Func: RuntimeDeserialize, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Create")),
-		InteropFuncPrice{EnumeratorCreate, 1}},
+		InteropFuncPrice{Func: EnumeratorCreate, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Next")),
-		InteropFuncPrice{EnumeratorNext, 1}},
+		InteropFuncPrice{Func: EnumeratorNext, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Concat")),
-		InteropFuncPrice{EnumeratorConcat, 1}},
+		InteropFuncPrice{Func: EnumeratorConcat, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Value")),
-		InteropFuncPrice{EnumeratorValue, 1}},
+		InteropFuncPrice{Func: EnumeratorValue, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Iterator.Create")),
-		InteropFuncPrice{IteratorCreate, 1}},
+		InteropFuncPrice{Func: IteratorCreate, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Iterator.Concat")),
-		InteropFuncPrice{IteratorConcat, 1}},
+		InteropFuncPrice{Func: IteratorConcat, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Iterator.Key")),
-		InteropFuncPrice{IteratorKey, 1}},
+		InteropFuncPrice{Func: IteratorKey, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Iterator.Keys")),
-		InteropFuncPrice{IteratorKeys, 1}},
+		InteropFuncPrice{Func: IteratorKeys, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Iterator.Values")),
-		InteropFuncPrice{IteratorValues, 1}},
+		InteropFuncPrice{Func: IteratorValues, Price: 1}},
 }
 
 func getDefaultVMInterop(id uint32) *InteropFuncPrice {

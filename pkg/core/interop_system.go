@@ -423,7 +423,7 @@ func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	return contractCallExInternal(ic, v, h, method, args, flags)
 }
 
-func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stackitem.Item, args stackitem.Item, _ smartcontract.CallFlag) error {
+func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stackitem.Item, args stackitem.Item, f smartcontract.CallFlag) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
@@ -442,7 +442,7 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 			return errors.New("disallowed method call")
 		}
 	}
-	v.LoadScriptWithHash(cs.Script, u)
+	v.LoadScriptWithHash(cs.Script, u, f)
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(method)
 	return nil

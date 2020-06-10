@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -111,11 +112,18 @@ func TestUT(t *testing.T) {
 }
 
 func getTestingInterop(id uint32) *InteropFuncPrice {
-	if id == binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}) {
-		return &InteropFuncPrice{InteropFunc(func(v *VM) error {
-			v.estack.PushVal(stackitem.NewInterop(new(int)))
-			return nil
-		}), 0}
+	f := func(v *VM) error {
+		v.estack.PushVal(stackitem.NewInterop(new(int)))
+		return nil
+	}
+	switch id {
+	case binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}):
+		return &InteropFuncPrice{Func: f}
+	case binary.LittleEndian.Uint32([]byte{0x66, 0x66, 0x66, 0x66}):
+		return &InteropFuncPrice{
+			Func:          f,
+			RequiredFlags: smartcontract.ReadOnly,
+		}
 	}
 	return nil
 }
