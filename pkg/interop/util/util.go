@@ -17,3 +17,8 @@ func FromAddress(address string) []byte {
 func Equals(a, b interface{}) bool {
 	return false
 }
+
+// Remove removes item with the specified key from slice or map.
+// For maps it is similar to `delete`.
+// For slices it performs mutable update as if slice was provided by pointer.
+func Remove(sliceOrMap, key interface{}) {}

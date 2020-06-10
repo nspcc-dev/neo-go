@@ -17,6 +17,7 @@ var (
 		"VerifySignature", "AppCall",
 		"FromAddress", "Equals",
 		"panic", "DynAppCall",
+		"delete", "Remove",
 	}
 )
 
