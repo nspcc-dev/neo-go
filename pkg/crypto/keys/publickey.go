@@ -1,7 +1,6 @@
 package keys
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
@@ -18,6 +17,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
+
+// coordLen is the number of bytes in serialized X or Y coordinate.
+const coordLen = 32
 
 // PublicKeys is a list of public keys.
 type PublicKeys []*PublicKey
@@ -95,23 +97,49 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	return pubKey, nil
 }
 
-// Bytes returns the byte array representation of the public key.
-func (p *PublicKey) Bytes() []byte {
+// getBytes serializes X and Y using compressed or uncompressed format.
+func (p *PublicKey) getBytes(compressed bool) []byte {
 	if p.IsInfinity() {
 		return []byte{0x00}
 	}
 
-	var (
-		x       = p.X.Bytes()
-		paddedX = append(bytes.Repeat([]byte{0x00}, 32-len(x)), x...)
-		prefix  = byte(0x03)
-	)
-
-	if p.Y.Bit(0) == 0 {
-		prefix = byte(0x02)
+	var resLen = 1 + coordLen
+	if !compressed {
+		resLen += coordLen
 	}
+	var res = make([]byte, resLen)
+	var prefix byte
 
-	return append([]byte{prefix}, paddedX...)
+	xBytes := p.X.Bytes()
+	copy(res[1+coordLen-len(xBytes):], xBytes)
+	if compressed {
+		if p.Y.Bit(0) == 0 {
+			prefix = 0x02
+		} else {
+			prefix = 0x03
+		}
+	} else {
+		prefix = 0x04
+		yBytes := p.Y.Bytes()
+		copy(res[1+coordLen+coordLen-len(yBytes):], yBytes)
+
+	}
+	res[0] = prefix
+
+	return res
+}
+
+// Bytes returns byte array representation of the public key in compressed
+// form (33 bytes with 0x02 or 0x03 prefix, except infinity which is always 0).
+func (p *PublicKey) Bytes() []byte {
+	return p.getBytes(true)
+}
+
+// UncompressedBytes returns byte array representation of the public key in
+// uncompressed form (65 bytes with 0x04 prefix, except infinity which is
+// always 0).
+func (p *PublicKey) UncompressedBytes() []byte {
+	return p.getBytes(false)
 }
 
 // NewPublicKeyFromASN1 returns a NEO PublicKey from the ASN.1 serialized key.
