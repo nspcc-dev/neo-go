@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/enumerator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/json"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -105,6 +106,8 @@ var systemInterops = []interop.Function{
 	{Name: "System.Iterator.Key", Func: iterator.Key, Price: 400},
 	{Name: "System.Iterator.Keys", Func: iterator.Keys, Price: 400},
 	{Name: "System.Iterator.Values", Func: iterator.Values, Price: 400},
+	{Name: "System.Json.Deserialize", Func: json.Deserialize, Price: 500000},
+	{Name: "System.Json.Serialize", Func: json.Serialize, Price: 100000},
 	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 1,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
