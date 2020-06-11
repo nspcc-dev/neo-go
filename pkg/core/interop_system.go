@@ -442,7 +442,7 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 			return errors.New("disallowed method call")
 		}
 	}
-	v.LoadScript(cs.Script)
+	v.LoadScriptWithHash(cs.Script, u)
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(method)
 	return nil
