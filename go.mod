@@ -9,7 +9,7 @@ require (
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/gorilla/websocket v1.4.2
 	github.com/mr-tron/base58 v1.1.2
-	github.com/nspcc-dev/dbft v0.0.0-20200610070614-c07d9a2b753d
+	github.com/nspcc-dev/dbft v0.0.0-20200610194044-e2dbc098ab46
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
