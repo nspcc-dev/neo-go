@@ -183,7 +183,11 @@ func (c *codegen) scReturnTypeFromScope(scope *funcScope) string {
 }
 
 func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
-	switch t := c.typeInfo.Types[typ].Type.(type) {
+	return c.scTypeFromGo(c.typeInfo.Types[typ].Type)
+}
+
+func (c *codegen) scTypeFromGo(typ types.Type) string {
+	switch t := typ.(type) {
 	case *types.Basic:
 		info := t.Info()
 		switch {

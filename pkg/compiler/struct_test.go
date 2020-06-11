@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -338,8 +339,53 @@ var structTestCases = []testCase{
 		}`,
 		big.NewInt(2),
 	},
+	{
+		"uninitialized struct fields",
+		`package foo
+		type Foo struct {
+			i int
+			m map[string]int
+			b []byte
+			a []int
+			s struct { ii int }
+		}
+		func NewFoo() Foo { return Foo{} }
+		func Main() int {
+			foo := NewFoo()
+			if foo.i != 0 { return 1 }
+			if len(foo.m) != 0 { return 1 }
+			if len(foo.b) != 0 { return 1 }
+			if len(foo.a) != 0 { return 1 }
+			s := foo.s
+			if s.ii != 0 { return 1 }
+			return 2
+		}`,
+		big.NewInt(2),
+	},
 }
 
 func TestStructs(t *testing.T) {
 	runTestCases(t, structTestCases)
+}
+
+func TestStructCompare(t *testing.T) {
+	srcTmpl := `package testcase
+	type T struct { f int }
+	func Main() int {
+		a := T{f: %d}
+		b := T{f: %d}
+		if a != b {
+			return 2
+		}
+		return 1
+	}`
+	t.Run("Equal", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 4, 4)
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("NotEqual", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 4, 5)
+		eval(t, src, big.NewInt(2))
+	})
+
 }

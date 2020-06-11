@@ -470,7 +470,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.SwitchStmt:
 		ast.Walk(c, n.Tag)
 
-		eqOpcode := c.getEqualityOpcode(n.Tag)
 		switchEnd, label := c.generateLabel(labelEnd)
 
 		lastSwitch := c.currentSwitch
@@ -490,7 +489,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for j := range cc.List {
 					emit.Opcode(c.prog.BinWriter, opcode.DUP)
 					ast.Walk(c, cc.List[j])
-					emit.Opcode(c.prog.BinWriter, eqOpcode)
+					c.emitEquality(n.Tag, token.EQL)
 					if j == l-1 {
 						emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOT, lEnd)
 					} else {
@@ -533,6 +532,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.emitLoadConst(value)
 		} else if tv := c.typeInfo.Types[n]; tv.Value != nil {
 			c.emitLoadConst(tv)
+		} else if n.Name == "nil" {
+			c.emitDefault(new(types.Slice))
 		} else {
 			c.emitLoadLocal(n.Name)
 		}
@@ -615,26 +616,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.X)
 			ast.Walk(c, n.Y)
 
-			switch {
-			case n.Op == token.ADD:
+			switch n.Op {
+			case token.ADD:
 				// VM has separate opcodes for number and string concatenation
 				if isStringType(tinfo.Type) {
 					emit.Opcode(c.prog.BinWriter, opcode.CAT)
 				} else {
 					emit.Opcode(c.prog.BinWriter, opcode.ADD)
 				}
-			case n.Op == token.EQL:
-				// VM has separate opcodes for number and string equality
-				op := c.getEqualityOpcode(n.X)
-				emit.Opcode(c.prog.BinWriter, op)
-			case n.Op == token.NEQ:
-				// VM has separate opcodes for number and string equality
-				if isStringType(c.typeInfo.Types[n.X].Type) {
-					emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
-					emit.Opcode(c.prog.BinWriter, opcode.NOT)
-				} else {
-					emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+			case token.EQL, token.NEQ:
+				if isExprNil(n.X) || isExprNil(n.Y) {
+					c.prog.Err = errors.New("comparison with `nil` is not supported, use `len(..) == 0` instead")
+					return nil
 				}
+				c.emitEquality(n.X, n.Op)
 			default:
 				c.convertToken(n.Op)
 			}
@@ -980,13 +975,26 @@ func (c *codegen) getLabelOffset(typ labelOffsetType, name string) uint16 {
 	return c.labels[labelWithType{name: name, typ: typ}]
 }
 
-func (c *codegen) getEqualityOpcode(expr ast.Expr) opcode.Opcode {
+func (c *codegen) emitEquality(expr ast.Expr, op token.Token) {
 	t, ok := c.typeInfo.Types[expr].Type.Underlying().(*types.Basic)
-	if ok && t.Info()&types.IsNumeric != 0 {
-		return opcode.NUMEQUAL
+	isNum := ok && t.Info()&types.IsNumeric != 0
+	switch op {
+	case token.EQL:
+		if isNum {
+			emit.Opcode(c.prog.BinWriter, opcode.NUMEQUAL)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
+		}
+	case token.NEQ:
+		if isNum {
+			emit.Opcode(c.prog.BinWriter, opcode.NUMNOTEQUAL)
+		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
+			emit.Opcode(c.prog.BinWriter, opcode.NOT)
+		}
+	default:
+		panic("invalid token in emitEqual()")
 	}
-
-	return opcode.EQUAL
 }
 
 // getByteArray returns byte array value from constant expr.
@@ -1230,8 +1238,29 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitLoadConst(typeAndVal)
+		c.emitDefault(typeAndVal.Type)
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+	}
+}
+
+func (c *codegen) emitDefault(typ types.Type) {
+	switch t := c.scTypeFromGo(typ); t {
+	case "Integer":
+		emit.Int(c.prog.BinWriter, 0)
+	case "Boolean":
+		emit.Bool(c.prog.BinWriter, false)
+	case "String":
+		emit.String(c.prog.BinWriter, "")
+	case "Map":
+		emit.Opcode(c.prog.BinWriter, opcode.NEWMAP)
+	case "Struct":
+		emit.Int(c.prog.BinWriter, int64(typ.(*types.Struct).NumFields()))
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	case "Array":
+		emit.Int(c.prog.BinWriter, 0)
+		emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+	case "ByteArray":
+		emit.Bytes(c.prog.BinWriter, []byte{})
 	}
 }
 

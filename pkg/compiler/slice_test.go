@@ -1,10 +1,14 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 var sliceTestCases = []testCase{
@@ -173,6 +177,31 @@ var sliceTestCases = []testCase{
 
 func TestSliceOperations(t *testing.T) {
 	runTestCases(t, sliceTestCases)
+}
+
+func TestSliceEmpty(t *testing.T) {
+	srcTmpl := `package foo
+	func Main() int {
+		var a []int
+		%s
+		if %s {
+			return 1
+		}
+		return 2
+	}`
+	t.Run("WithNil", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "a == nil")
+		_, err := compiler.Compile(strings.NewReader(src))
+		require.Error(t, err)
+	})
+	t.Run("WithLen", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "len(a) == 0")
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("NonEmpty", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "a = []int{1}", "len(a) == 0")
+		eval(t, src, big.NewInt(2))
+	})
 }
 
 func TestJumps(t *testing.T) {
