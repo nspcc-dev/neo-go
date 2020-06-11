@@ -16,6 +16,7 @@ import (
 	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
@@ -68,6 +69,9 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 func Main(op string, args []interface{}) {
     runtime.Notify("Hello world!")
 }`
+	// cosignersSeparator is a special value which is used to distinguish
+	// parameters and cosigners for invoke* commands
+	cosignersSeparator = "--"
 )
 
 // NewCommands returns 'contract' command.
@@ -135,11 +139,11 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given method and
-   and arguments. See testinvokefunction documentation for the details about
-   parameters. It differs from testinvokefunction in that this command sends an
-   invocation transaction to the network.
+				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [cosigners...]",
+				Description: `Executes given (as a script hash) deployed script with the given method,
+   arguments and cosigners. See testinvokefunction documentation for the details
+   about parameters. It differs from testinvokefunction in that this command
+   sends an invocation transaction to the network.
 `,
 				Action: invokeFunction,
 				Flags: []cli.Flag{
@@ -152,13 +156,14 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given method and
-   arguments. If no method is given "" is passed to the script, if no arguments
-   are given, an empty array is passed. All of the given arguments are
-   encapsulated into array before invoking the script. The script thus should
-   follow the regular convention of smart contract arguments (method string and
-   an array of other arguments).
+				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...] [--] [cosigners...]",
+				Description: `Executes given (as a script hash) deployed script with the given method,
+   arguments and cosigners. If no method is given "" is passed to the script, if
+   no arguments are given, an empty array is passed, if no cosigners are given,
+   no array will be passed. All of the given arguments are encapsulated into 
+   array before invoking the script. The script thus should follow the regular
+   convention of smart contract arguments (method string and an array of other 
+   arguments).
 
    Arguments always do have regular Neo smart contract parameter types, either
    specified explicitly or being inferred from the value. To specify the type
@@ -214,6 +219,32 @@ func NewCommands() []cli.Command {
     * 'string\:string' is a string with a value of 'string:string'
     * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
       key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+
+   Cosigners represent a set of Uint160 hashes with witness scopes and are used
+   to verify hashes in System.Runtime.CheckWitness syscall. To specify cosigners
+   use cosigner[:scope] syntax where
+    * 'cosigner' is hex-encoded 160 bit (20 byte) LE value of cosigner's address,
+                 which could have '0x' prefix.
+    * 'scope' is a comma-separated set of cosigner's scopes, which could be:
+        - 'Global' - allows this witness in all contexts. This cannot be combined
+                     with other flags.
+        - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 
+                            == CallingScriptHash. The witness/permission/signature
+                            given on first invocation will automatically expire if
+                            entering deeper internal invokes. This can be default
+                            safe choice for native NEO/GAS.
+        - 'CustomContracts' - define valid custom contract hashes for witness check.
+        - 'CustomGroups' - define custom pubkey for group members.
+
+   If no scopes were specified, 'Global' used as default. If no cosigners were
+   specified, no array will be passed. Note that scopes are properly handled by 
+   neo-go RPC server only. C# implementation does not support scopes capability.
+
+   Examples:
+    * '0000000009070e030d0f0e020d0c06050e030c02'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02:Global'
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,CustomGroups'   
 `,
 				Action: testInvokeFunction,
 				Flags: []cli.Flag{
@@ -221,8 +252,12 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "testinvokescript",
-				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				Name:      "testinvokescript",
+				Usage:     "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				UsageText: "neo-go contract testinvokescript -e endpoint -i input.avm [cosigners...]",
+				Description: `Executes given compiled AVM instructions with the given set of
+   cosigners. See testinvokefunction documentation for the details about parameters.
+`,
 				Action: testInvokeScript,
 				Flags: []cli.Flag{
 					endpointFlag,
@@ -362,13 +397,15 @@ func invokeFunction(ctx *cli.Context) error {
 
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
-		err         error
-		gas         util.Fixed8
-		operation   string
-		params      = make([]smartcontract.Parameter, 0)
-		paramsStart = 1
-		resp        *result.Invoke
-		acc         *wallet.Account
+		err            error
+		gas            util.Fixed8
+		operation      string
+		params         = make([]smartcontract.Parameter, 0)
+		paramsStart    = 1
+		cosigners      []transaction.Cosigner
+		cosignersStart = 0
+		resp           *result.Invoke
+		acc            *wallet.Account
 	)
 
 	endpoint := ctx.String("endpoint")
@@ -390,11 +427,25 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 
 	if len(args) > paramsStart {
 		for k, s := range args[paramsStart:] {
+			if s == cosignersSeparator {
+				cosignersStart = paramsStart + k + 1
+				break
+			}
 			param, err := smartcontract.NewParameterFromString(s)
 			if err != nil {
 				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+paramsStart+1, err), 1)
 			}
 			params = append(params, *param)
+		}
+	}
+
+	if len(args) >= cosignersStart && cosignersStart > 0 {
+		for i, c := range args[cosignersStart:] {
+			cosigner, err := parseCosigner(c)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+cosignersStart+1, err), 1)
+			}
+			cosigners = append(cosigners, cosigner)
 		}
 	}
 
@@ -410,7 +461,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	resp, err = c.InvokeFunction(script, operation, params)
+	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -454,13 +505,25 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	args := ctx.Args()
+	var cosigners []transaction.Cosigner
+	if args.Present() {
+		for i, c := range args[:] {
+			cosigner, err := parseCosigner(c)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+1, err), 1)
+			}
+			cosigners = append(cosigners, cosigner)
+		}
+	}
+
 	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	scriptHex := hex.EncodeToString(b)
-	resp, err := c.InvokeScript(scriptHex)
+	resp, err := c.InvokeScript(scriptHex, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -624,4 +687,27 @@ func parseContractConfig(confFile string) (ProjectConfig, error) {
 		return conf, cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
 	}
 	return conf, nil
+}
+
+func parseCosigner(c string) (transaction.Cosigner, error) {
+	var (
+		err error
+		res = transaction.Cosigner{}
+	)
+	data := strings.SplitN(strings.ToLower(c), ":", 2)
+	s := data[0]
+	if len(s) == 2*util.Uint160Size+2 && s[0:2] == "0x" {
+		s = s[2:]
+	}
+	res.Account, err = util.Uint160DecodeStringLE(s)
+	if err != nil {
+		return res, err
+	}
+	if len(data) > 1 {
+		res.Scopes, err = transaction.ScopesFromString(data[1])
+		if err != nil {
+			return transaction.Cosigner{}, err
+		}
+	}
+	return res, nil
 }

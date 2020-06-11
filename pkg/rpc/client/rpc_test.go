@@ -565,7 +565,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 						Type:  smartcontract.Hash160Type,
 						Value: hash,
 					},
-				})
+				}, []transaction.Cosigner{{
+					Account: util.Uint160{1, 2, 3},
+				}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"HALT","gas_consumed":"0.311","stack":[{"type":"ByteArray","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
@@ -591,7 +593,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("00046e616d656724058e5e1b6008847cd662728549088a9ee82191")
+				return c.InvokeScript("00046e616d656724058e5e1b6008847cd662728549088a9ee82191", []transaction.Cosigner{{
+					Account: util.Uint160{1, 2, 3},
+				}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"00046e616d656724058e5e1b6008847cd662728549088a9ee82191","state":"HALT","gas_consumed":"0.161","stack":[{"type":"ByteArray","value":"TkVQNSBHQVM="}],"tx":"d1011b00046e616d656724058e5e1b6008847cd662728549088a9ee82191000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
@@ -876,13 +880,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "invokefunction_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeFunction("", "", []smartcontract.Parameter{})
+				return c.InvokeFunction("", "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("")
+				return c.InvokeScript("", nil)
 			},
 		},
 		{
@@ -1052,13 +1056,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "invokefunction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeFunction("", "", []smartcontract.Parameter{})
+				return c.InvokeFunction("", "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("")
+				return c.InvokeScript("", nil)
 			},
 		},
 		{
