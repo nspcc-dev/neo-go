@@ -16,6 +16,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
@@ -23,7 +25,7 @@ import (
 // SpawnVM returns a VM with script getter and interop functions set
 // up for current blockchain.
 func SpawnVM(ic *interop.Context) *vm.VM {
-	vm := vm.New()
+	vm := vm.NewWithTrigger(ic.Trigger)
 	vm.RegisterInteropGetter(getSystemInterop(ic))
 	vm.RegisterInteropGetter(getNeoInterop(ic))
 	if ic.Chain != nil {
@@ -52,9 +54,13 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 			return slice[i].ID >= id
 		})
 		if n < len(slice) && slice[n].ID == id {
-			return &vm.InteropFuncPrice{Func: func(v *vm.VM) error {
-				return slice[n].Func(ic, v)
-			}, Price: slice[n].Price}
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return slice[n].Func(ic, v)
+				},
+				Price:         slice[n].Price,
+				RequiredFlags: slice[n].RequiredFlags,
+			}
 		}
 		return nil
 	}
@@ -62,17 +68,28 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
-	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 250},
-	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100},
-	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1},
-	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100},
-	{Name: "System.Blockchain.GetTransactionFromBlock", Func: bcGetTransactionFromBlock, Price: 100},
-	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100},
-	{Name: "System.Contract.Call", Func: contractCall, Price: 1},
-	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1},
-	{Name: "System.Contract.Create", Func: contractCreate, Price: 0},
-	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1},
-	{Name: "System.Contract.Update", Func: contractUpdate, Price: 0},
+	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 250,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Blockchain.GetHeight", Func: bcGetHeight, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Blockchain.GetTransaction", Func: bcGetTransaction, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Blockchain.GetTransactionFromBlock", Func: bcGetTransactionFromBlock, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Contract.Call", Func: contractCall, Price: 1,
+		AllowedTriggers: trigger.System | trigger.Application, RequiredFlags: smartcontract.AllowCall},
+	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1,
+		AllowedTriggers: trigger.System | trigger.Application, RequiredFlags: smartcontract.AllowCall},
+	{Name: "System.Contract.Create", Func: contractCreate, Price: 0,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
+	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
+	{Name: "System.Contract.Update", Func: contractUpdate, Price: 0,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Enumerator.Concat", Func: enumerator.Concat, Price: 1},
 	{Name: "System.Enumerator.Create", Func: enumerator.Create, Price: 1},
 	{Name: "System.Enumerator.Next", Func: enumerator.Next, Price: 1},
@@ -86,29 +103,39 @@ var systemInterops = []interop.Function{
 	{Name: "System.Iterator.Key", Func: iterator.Key, Price: 1},
 	{Name: "System.Iterator.Keys", Func: iterator.Keys, Price: 1},
 	{Name: "System.Iterator.Values", Func: iterator.Values, Price: 1},
-	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200},
+	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Runtime.Deserialize", Func: runtimeDeserialize, Price: 1},
-	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 1},
+	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Runtime.GetTrigger", Func: runtimeGetTrigger, Price: 1},
-	{Name: "System.Runtime.Log", Func: runtimeLog, Price: 1},
-	{Name: "System.Runtime.Notify", Func: runtimeNotify, Price: 1},
+	{Name: "System.Runtime.Log", Func: runtimeLog, Price: 1, RequiredFlags: smartcontract.AllowNotify},
+	{Name: "System.Runtime.Notify", Func: runtimeNotify, Price: 1, RequiredFlags: smartcontract.AllowNotify},
 	{Name: "System.Runtime.Platform", Func: runtimePlatform, Price: 1},
 	{Name: "System.Runtime.Serialize", Func: runtimeSerialize, Price: 1},
-	{Name: "System.Storage.Delete", Func: storageDelete, Price: 100},
-	{Name: "System.Storage.Find", Func: storageFind, Price: 1},
-	{Name: "System.Storage.Get", Func: storageGet, Price: 100},
-	{Name: "System.Storage.GetContext", Func: storageGetContext, Price: 1},
-	{Name: "System.Storage.GetReadOnlyContext", Func: storageGetReadOnlyContext, Price: 1},
-	{Name: "System.Storage.Put", Func: storagePut, Price: 0}, // These don't have static price in C# code.
-	{Name: "System.Storage.PutEx", Func: storagePutEx, Price: 0},
-	{Name: "System.Storage.AsReadOnly", Func: storageContextAsReadOnly, Price: 1},
+	{Name: "System.Storage.Delete", Func: storageDelete, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
+	{Name: "System.Storage.Find", Func: storageFind, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Storage.Get", Func: storageGet, Price: 100,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Storage.GetContext", Func: storageGetContext, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Storage.GetReadOnlyContext", Func: storageGetReadOnlyContext, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
+	{Name: "System.Storage.Put", Func: storagePut, Price: 0,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates}, // These don't have static price in C# code.
+	{Name: "System.Storage.PutEx", Func: storagePutEx, Price: 0,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
+	{Name: "System.Storage.AsReadOnly", Func: storageContextAsReadOnly, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
 }
 
 var neoInterops = []interop.Function{
 	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: 1},
 	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 1},
 	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1},
-	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 1},
+	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 1,
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 }
 
 // initIDinInteropsSlice initializes IDs from names in one given

@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -39,6 +40,9 @@ type Context struct {
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
+
+	// Call flags this context was created with.
+	callFlag smartcontract.CallFlag
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
@@ -152,6 +156,11 @@ func (c *Context) Copy() *Context {
 	ctx := new(Context)
 	*ctx = *c
 	return ctx
+}
+
+// GetCallFlags returns calling flags context was created with.
+func (c *Context) GetCallFlags() smartcontract.CallFlag {
+	return c.callFlag
 }
 
 // Program returns the loaded program.

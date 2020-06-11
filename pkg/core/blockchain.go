@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -562,7 +563,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := SpawnVM(systemInterop)
-		v.LoadScript(tx.Script)
+		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 		v.SetPriceGetter(getPrice)
 		if bc.config.FreeGasLimit > 0 {
 			v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
@@ -1276,7 +1277,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := SpawnVM(interopCtx)
-	vm.LoadScript(verification)
+	vm.LoadScriptWithFlags(verification, smartcontract.ReadOnly)
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
 		bc.keyCacheLock.RLock()

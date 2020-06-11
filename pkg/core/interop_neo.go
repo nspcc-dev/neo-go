@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -63,9 +62,6 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 // evaluation stack, does a lot of checks and returns Contract if it
 // succeeds.
 func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, error) {
-	if ic.Trigger != trigger.Application {
-		return nil, errors.New("can't create contract when not triggered by an application")
-	}
 	script := v.Estack().Pop().Bytes()
 	if len(script) > MaxContractScriptSize {
 		return nil, errors.New("the script is too big")

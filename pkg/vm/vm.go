@@ -13,6 +13,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -84,18 +86,26 @@ type VM struct {
 	gasConsumed util.Fixed8
 	gasLimit    util.Fixed8
 
+	trigger trigger.Type
+
 	// Public keys cache.
 	keys map[string]*keys.PublicKey
 }
 
 // New returns a new VM object ready to load .avm bytecode scripts.
 func New() *VM {
+	return NewWithTrigger(trigger.System)
+}
+
+// NewWithTrigger returns a new VM for executions triggered by t.
+func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
 		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
 		state:      haltState,
 		istack:     NewStack("invocation"),
 		refs:       newRefCounter(),
 		keys:       make(map[string]*keys.PublicKey),
+		trigger:    t,
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
@@ -262,10 +272,25 @@ func (v *VM) Load(prog []byte) {
 // will immediately push a new context created from this script to
 // the invocation stack and starts executing it.
 func (v *VM) LoadScript(b []byte) {
+	v.LoadScriptWithFlags(b, smartcontract.NoneFlag)
+}
+
+// LoadScriptWithFlags loads script and sets call flag to f.
+func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
 	ctx.estack = v.estack
 	ctx.astack = v.astack
+	ctx.callFlag = f
 	v.istack.PushVal(ctx)
+}
+
+// LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
+// given script hash directly into the Context to avoid its recalculations. It's
+// up to user of this function to make sure the script and hash match each other.
+func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
+	v.LoadScriptWithFlags(b, f)
+	ctx := v.Context()
+	ctx.scriptHash = hash
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -1244,6 +1269,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
 		ifunc := v.GetInteropByID(interopID)
+		if ifunc.AllowedTriggers != 0 && ifunc.AllowedTriggers&v.trigger == 0 {
+			panic(fmt.Sprintf("trigger not allowed: %s", v.trigger))
+		}
+		if !v.Context().callFlag.Has(ifunc.RequiredFlags) {
+			panic(fmt.Sprintf("missing call flags: %05b vs %05b", v.Context().callFlag, ifunc.RequiredFlags))
+		}
 
 		if ifunc == nil {
 			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
