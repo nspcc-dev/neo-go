@@ -46,12 +46,6 @@ type ScriptHashGetter interface {
 }
 
 const (
-	// MaxArraySize is the maximum array size allowed in the VM.
-	MaxArraySize = 1024
-
-	// MaxItemSize is the maximum item size allowed in the VM.
-	MaxItemSize = 1024 * 1024
-
 	// MaxInvocationStackSize is the maximum size of an invocation stack.
 	MaxInvocationStackSize = 1024
 
@@ -653,7 +647,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.NEWBUFFER:
 		n := toInt(v.estack.Pop().BigInt())
-		if n < 0 || n > MaxItemSize {
+		if n < 0 || n > stackitem.MaxSize {
 			panic("invalid size")
 		}
 		v.estack.PushVal(stackitem.NewBuffer(make([]byte, n)))
@@ -684,7 +678,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.CAT:
 		b := v.estack.Pop().Bytes()
 		a := v.estack.Pop().Bytes()
-		if l := len(a) + len(b); l > MaxItemSize {
+		if l := len(a) + len(b); l > stackitem.MaxSize {
 			panic(fmt.Sprintf("too big item: %d", l))
 		}
 		ab := append(a, b...)
@@ -1001,7 +995,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NEWARRAY, opcode.NEWARRAYT:
 		item := v.estack.Pop()
 		n := item.BigInt().Int64()
-		if n > MaxArraySize {
+		if n > stackitem.MaxArraySize {
 			panic("too long array")
 		}
 		typ := stackitem.AnyT
@@ -1017,7 +1011,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.NEWSTRUCT:
 		item := v.estack.Pop()
 		n := item.BigInt().Int64()
-		if n > MaxArraySize {
+		if n > stackitem.MaxArraySize {
 			panic("too long struct")
 		}
 		items := makeArrayOfType(int(n), stackitem.AnyT)
@@ -1031,12 +1025,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		switch t := arrElem.value.(type) {
 		case *stackitem.Array:
-			if t.Len() >= MaxArraySize {
+			if t.Len() >= stackitem.MaxArraySize {
 				panic("too long array")
 			}
 			t.Append(val)
 		case *stackitem.Struct:
-			if t.Len() >= MaxArraySize {
+			if t.Len() >= stackitem.MaxArraySize {
 				panic("too long struct")
 			}
 			t.Append(val)
@@ -1048,7 +1042,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.PACK:
 		n := int(v.estack.Pop().BigInt().Int64())
-		if n < 0 || n > v.estack.Len() || n > MaxArraySize {
+		if n < 0 || n > v.estack.Len() || n > stackitem.MaxArraySize {
 			panic("OPACK: invalid length")
 		}
 
@@ -1119,7 +1113,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
-			} else if t.Len() >= MaxArraySize {
+			} else if t.Len() >= stackitem.MaxArraySize {
 				panic("too big map")
 			}
 			t.Add(key.value, item)

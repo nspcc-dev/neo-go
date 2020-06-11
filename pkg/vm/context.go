@@ -97,7 +97,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			err = errNoInstParam
 		} else {
 			var n = binary.LittleEndian.Uint32(c.prog[c.nextip : c.nextip+4])
-			if n > MaxItemSize {
+			if n > stackitem.MaxSize {
 				return instr, nil, errors.New("parameter is too big")
 			}
 			numtoread = int(n)

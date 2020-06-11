@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 var (
@@ -21,14 +22,14 @@ func getNumOfThingsFromInstr(instr opcode.Opcode, param []byte) (int, bool) {
 		nthings = int(instr-opcode.PUSH1) + 1
 	case instr <= opcode.PUSHINT256:
 		n := bigint.FromBytes(param)
-		if !n.IsInt64() || n.Int64() > MaxArraySize {
+		if !n.IsInt64() || n.Int64() > stackitem.MaxArraySize {
 			return 0, false
 		}
 		nthings = int(n.Int64())
 	default:
 		return 0, false
 	}
-	if nthings < 1 || nthings > MaxArraySize {
+	if nthings < 1 || nthings > stackitem.MaxArraySize {
 		return 0, false
 	}
 	return nthings, true
@@ -69,7 +70,7 @@ func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 		}
 		pubs = append(pubs, param)
 		nkeys++
-		if nkeys > MaxArraySize {
+		if nkeys > stackitem.MaxArraySize {
 			return nsigs, nil, false
 		}
 	}
