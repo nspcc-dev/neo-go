@@ -22,10 +22,9 @@ type PropertyState byte
 
 // List of supported properties.
 const (
-	HasStorage PropertyState = 1 << iota
-	HasDynamicInvoke
-	IsPayable
-	NoProperties = 0
+	HasStorage   PropertyState = 1 << iota
+	IsPayable    PropertyState = 1 << 2
+	NoProperties               = 0
 )
 
 // Parameter represents a smart contract parameter.

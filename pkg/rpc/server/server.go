@@ -738,11 +738,10 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 		return nil, response.ErrInvalidParams
 	} else {
 		cs := s.chain.GetContractState(scriptHash)
-		if cs != nil {
-			results = result.NewContractState(cs)
-		} else {
+		if cs == nil {
 			return nil, response.NewRPCError("Unknown contract", "", nil)
 		}
+		results = cs
 	}
 	return results, nil
 }

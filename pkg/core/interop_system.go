@@ -179,62 +179,6 @@ func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// popHeaderFromVM returns pointer to Header or error. It's main feature is
-// proper treatment of Block structure, because C# code implicitly assumes
-// that header APIs can also operate on blocks.
-func popHeaderFromVM(v *vm.VM) (*block.Header, error) {
-	iface := v.Estack().Pop().Value()
-	header, ok := iface.(*block.Header)
-	if !ok {
-		block, ok := iface.(*block.Block)
-		if !ok {
-			return nil, errors.New("value is not a header or block")
-		}
-		return block.Header(), nil
-	}
-	return header, nil
-}
-
-// headerGetIndex returns block index from the header.
-func headerGetIndex(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Index)
-	return nil
-}
-
-// headerGetHash returns header hash of the passed header.
-func headerGetHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Hash().BytesBE())
-	return nil
-}
-
-// headerGetPrevHash returns previous header hash of the passed header.
-func headerGetPrevHash(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.PrevHash.BytesBE())
-	return nil
-}
-
-// headerGetTimestamp returns timestamp of the passed header.
-func headerGetTimestamp(ic *interop.Context, v *vm.VM) error {
-	header, err := popHeaderFromVM(v)
-	if err != nil {
-		return err
-	}
-	v.Estack().PushVal(header.Timestamp)
-	return nil
-}
-
 // engineGetScriptContainer returns transaction that contains the script being
 // run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
@@ -484,12 +428,21 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	if err != nil {
 		return errors.New("invalid contract hash")
 	}
-	script, _ := ic.GetContract(u)
-	if script == nil {
+	cs, err := ic.DAO.GetContractState(u)
+	if err != nil {
 		return errors.New("contract not found")
 	}
-	// TODO perform flags checking after #923
-	v.LoadScript(script)
+	bs, err := method.TryBytes()
+	if err != nil {
+		return err
+	}
+	curr, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	if err == nil {
+		if !curr.Manifest.CanCall(&cs.Manifest, string(bs)) {
+			return errors.New("disallowed method call")
+		}
+	}
+	v.LoadScript(cs.Script)
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(method)
 	return nil
@@ -518,27 +471,5 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
 		}
 	}
-	return nil
-}
-
-// contractGetStorageContext retrieves StorageContext of a contract.
-func contractGetStorageContext(ic *interop.Context, v *vm.VM) error {
-	csInterface := v.Estack().Pop().Value()
-	cs, ok := csInterface.(*state.Contract)
-	if !ok {
-		return fmt.Errorf("%T is not a contract state", cs)
-	}
-	_, err := ic.DAO.GetContractState(cs.ScriptHash())
-	if err != nil {
-		return fmt.Errorf("non-existent contract")
-	}
-	_, err = ic.LowerDAO.GetContractState(cs.ScriptHash())
-	if err == nil {
-		return fmt.Errorf("contract was not created in this transaction")
-	}
-	stc := &StorageContext{
-		ScriptHash: cs.ScriptHash(),
-	}
-	v.Estack().PushVal(stackitem.NewInterop(stc))
 	return nil
 }

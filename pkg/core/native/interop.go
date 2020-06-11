@@ -26,9 +26,9 @@ func Deploy(ic *interop.Context, _ *vm.VM) error {
 		}
 
 		cs := &state.Contract{
-			Script:     md.Script,
-			ParamList:  params,
-			ReturnType: md.Manifest.ABI.EntryPoint.ReturnType,
+			ID:       md.ContractID,
+			Script:   md.Script,
+			Manifest: md.Manifest,
 		}
 		if err := ic.DAO.PutContractState(cs); err != nil {
 			return err

@@ -37,12 +37,9 @@ var syscalls = map[string]map[string]string{
 		"GetTransactionHeight":    "System.Blockchain.GetTransactionHeight",
 	},
 	"contract": {
-		"GetScript":         "Neo.Contract.GetScript",
-		"IsPayable":         "Neo.Contract.IsPayable",
-		"Create":            "Neo.Contract.Create",
-		"Destroy":           "Neo.Contract.Destroy",
-		"Migrate":           "Neo.Contract.Migrate",
-		"GetStorageContext": "Neo.Contract.GetStorageContext",
+		"Create":  "System.Contract.Create",
+		"Destroy": "System.Contract.Destroy",
+		"Update":  "System.Contract.Update",
 	},
 	"engine": {
 		"GetScriptContainer":     "System.ExecutionEngine.GetScriptContainer",

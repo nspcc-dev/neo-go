@@ -28,7 +28,6 @@ type Context struct {
 	Block         *block.Block
 	Tx            *transaction.Transaction
 	DAO           *dao.Cached
-	LowerDAO      dao.DAO
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 }
@@ -44,7 +43,6 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		Block:         block,
 		Tx:            tx,
 		DAO:           dao,
-		LowerDAO:      d,
 		Notifications: nes,
 		Log:           log,
 	}
@@ -82,19 +80,10 @@ type ContractMD struct {
 	Manifest    manifest.Manifest
 	ServiceName string
 	ServiceID   uint32
+	ContractID  int32
 	Script      []byte
 	Hash        util.Uint160
 	Methods     map[string]MethodAndPrice
-}
-
-// GetContract returns script of the contract with the specified hash.
-func (ic *Context) GetContract(h util.Uint160) ([]byte, bool) {
-	cs, err := ic.DAO.GetContractState(h)
-	if err != nil {
-		return nil, false
-	}
-	hasDynamicInvoke := (cs.Properties & smartcontract.HasDynamicInvoke) != 0
-	return cs.Script, hasDynamicInvoke
 }
 
 // NewContractMD returns Contract with the specified list of methods.

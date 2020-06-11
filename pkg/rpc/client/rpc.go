@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -177,10 +178,10 @@ func (c *Client) GetConnectionCount() (int, error) {
 }
 
 // GetContractState queries contract information, according to the contract script hash.
-func (c *Client) GetContractState(hash util.Uint160) (*result.ContractState, error) {
+func (c *Client) GetContractState(hash util.Uint160) (*state.Contract, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
-		resp   = &result.ContractState{}
+		resp   = &state.Contract{}
 	)
 	if err := c.performRequest("getcontractstate", params, resp); err != nil {
 		return resp, err

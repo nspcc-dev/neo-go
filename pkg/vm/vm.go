@@ -136,6 +136,12 @@ func (v *VM) SetGasLimit(max util.Fixed8) {
 	v.gasLimit = max
 }
 
+// AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
+func (v *VM) AddGas(gas util.Fixed8) bool {
+	v.gasConsumed += gas
+	return v.gasLimit == 0 || v.gasConsumed <= v.gasLimit
+}
+
 // Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
@@ -260,16 +266,6 @@ func (v *VM) LoadScript(b []byte) {
 	ctx.estack = v.estack
 	ctx.astack = v.astack
 	v.istack.PushVal(ctx)
-}
-
-// loadScriptWithHash if similar to the LoadScript method, but it also loads
-// given script hash directly into the Context to avoid its recalculations. It's
-// up to user of this function to make sure the script and hash match each other.
-func (v *VM) loadScriptWithHash(b []byte, hash util.Uint160, hasDynamicInvoke bool) {
-	v.LoadScript(b)
-	ctx := v.Context()
-	ctx.scriptHash = hash
-	ctx.hasDynamicInvoke = hasDynamicInvoke
 }
 
 // Context returns the current executed context. Nil if there is no context,

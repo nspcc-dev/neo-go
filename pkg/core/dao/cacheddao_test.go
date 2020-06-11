@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,10 +60,19 @@ func TestCachedDaoContracts(t *testing.T) {
 	_, err := dao.GetContractState(sh)
 	require.NotNil(t, err)
 
-	cs := &state.Contract{}
-	cs.Name = "test"
-	cs.Script = script
-	cs.ParamList = []smartcontract.ParamType{1, 2}
+	m := manifest.NewManifest(hash.Hash160(script))
+	m.ABI.EntryPoint.Name = "somename"
+	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
+		manifest.NewParameter("first", smartcontract.IntegerType),
+		manifest.NewParameter("second", smartcontract.StringType),
+	}
+	m.ABI.EntryPoint.ReturnType = smartcontract.BoolType
+
+	cs := &state.Contract{
+		ID:       123,
+		Script:   script,
+		Manifest: *m,
+	}
 
 	require.NoError(t, dao.PutContractState(cs))
 	cs2, err := dao.GetContractState(sh)

@@ -117,33 +117,10 @@ func methodStruct() struct{} { return struct{}{} }
 	}
 
 	t.Run("convert to ABI", func(t *testing.T) {
-		author := "Joe"
-		email := "Joe@ex.com"
-		version := "1.0"
-		title := "MyProj"
-		description := "Description"
-		actual := d.convertToABI(buf, &smartcontract.ContractDetails{
-			Author:               author,
-			Email:                email,
-			Version:              version,
-			ProjectName:          title,
-			Description:          description,
-			HasStorage:           true,
-			HasDynamicInvocation: false,
-			IsPayable:            false,
-			ReturnType:           smartcontract.BoolType,
-			Parameters: []smartcontract.ParamType{
-				smartcontract.StringType,
-			},
-		})
+		actual := d.convertToABI(buf, smartcontract.HasStorage)
 		expected := ABI{
 			Hash: hash.Hash160(buf),
 			Metadata: Metadata{
-				Author:               author,
-				Email:                email,
-				Version:              version,
-				Title:                title,
-				Description:          description,
 				HasStorage:           true,
 				HasDynamicInvocation: false,
 				IsPayable:            false,

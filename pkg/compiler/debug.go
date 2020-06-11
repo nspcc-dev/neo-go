@@ -311,14 +311,16 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-func (di *DebugInfo) convertToABI(contract []byte, cd *smartcontract.ContractDetails) ABI {
+// convertToABI converts contract to the ABI struct for debugger.
+// Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
+func (di *DebugInfo) convertToABI(contract []byte, fs smartcontract.PropertyState) ABI {
 	methods := make([]Method, 0)
 	for _, method := range di.Methods {
 		if method.Name.Name == di.EntryPoint {
 			methods = append(methods, Method{
 				Name:       method.Name.Name,
 				Parameters: method.Parameters,
-				ReturnType: cd.ReturnType.String(),
+				ReturnType: method.ReturnType,
 			})
 			break
 		}
@@ -333,14 +335,8 @@ func (di *DebugInfo) convertToABI(contract []byte, cd *smartcontract.ContractDet
 	return ABI{
 		Hash: hash.Hash160(contract),
 		Metadata: Metadata{
-			Author:               cd.Author,
-			Email:                cd.Email,
-			Version:              cd.Version,
-			Title:                cd.ProjectName,
-			Description:          cd.Description,
-			HasStorage:           cd.HasStorage,
-			HasDynamicInvocation: cd.HasDynamicInvocation,
-			IsPayable:            cd.IsPayable,
+			HasStorage: fs&smartcontract.HasStorage != 0,
+			IsPayable:  fs&smartcontract.IsPayable != 0,
 		},
 		EntryPoint: di.EntryPoint,
 		Functions:  methods,

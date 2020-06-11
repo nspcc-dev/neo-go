@@ -31,6 +31,7 @@ type DAO interface {
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
+	GetNextContractID() (int32, error)
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
 	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
@@ -45,6 +46,7 @@ type DAO interface {
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
+	PutNextContractID(id int32) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block) error
@@ -167,6 +169,27 @@ func (dao *Simple) PutContractState(cs *state.Contract) error {
 func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	return dao.Store.Delete(key)
+}
+
+// GetNextContractID returns id for the next contract and increases stored id.
+func (dao *Simple) GetNextContractID() (int32, error) {
+	key := storage.SYSContractID.Bytes()
+	data, err := dao.Store.Get(key)
+	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			err = nil
+		}
+		return 0, err
+	}
+	return int32(binary.LittleEndian.Uint32(data)), nil
+}
+
+// PutNextContractID sets next contract id to id.
+func (dao *Simple) PutNextContractID(id int32) error {
+	key := storage.SYSContractID.Bytes()
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, uint32(id))
+	return dao.Store.Put(key, data)
 }
 
 // -- end contracts.

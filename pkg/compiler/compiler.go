@@ -32,7 +32,7 @@ type Options struct {
 	ABIInfo string
 
 	// Contract metadata.
-	ContractDetails *smartcontract.ContractDetails
+	ContractFeatures smartcontract.PropertyState
 }
 
 type buildInfo struct {
@@ -118,7 +118,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if o.ABIInfo == "" {
 		return b, err
 	}
-	abi := di.convertToABI(b, o.ContractDetails)
+	abi := di.convertToABI(b, o.ContractFeatures)
 	abiData, err := json.Marshal(abi)
 	if err != nil {
 		return b, err
