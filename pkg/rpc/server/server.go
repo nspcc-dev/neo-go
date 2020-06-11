@@ -98,7 +98,6 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getunclaimedgas":      (*Server).getUnclaimedGas,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
-	"invoke":               (*Server).invoke,
 	"invokefunction":       (*Server).invokeFunction,
 	"invokescript":         (*Server).invokescript,
 	"sendrawtransaction":   (*Server).sendrawtransaction,
@@ -619,7 +618,7 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	if err != nil {
 		return 0, response.NewInternalServerError("Can't create script", err)
 	}
-	res := s.runScriptInVM(script)
+	res := s.runScriptInVM(script, nil)
 	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
 		return 0, response.NewInternalServerError("execution error", errors.New("no result"))
 	}
@@ -854,32 +853,7 @@ func (s *Server) getValidators(_ request.Params) (interface{}, *response.Error) 
 	return res, nil
 }
 
-// invoke implements the `invoke` RPC call.
-func (s *Server) invoke(reqParams request.Params) (interface{}, *response.Error) {
-	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	scriptHash, err := scriptHashHex.GetUint160FromHex()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-	sliceP, ok := reqParams.ValueWithType(1, request.ArrayT)
-	if !ok {
-		return nil, response.ErrInvalidParams
-	}
-	slice, err := sliceP.GetArray()
-	if err != nil {
-		return nil, response.ErrInvalidParams
-	}
-	script, err := request.CreateInvocationScript(scriptHash, slice)
-	if err != nil {
-		return nil, response.NewInternalServerError("can't create invocation script", err)
-	}
-	return s.runScriptInVM(script), nil
-}
-
-// invokescript implements the `invokescript` RPC call.
+// invokeFunction implements the `invokeFunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
 	scriptHashHex, ok := reqParams.ValueWithType(0, request.StringT)
 	if !ok {
@@ -889,11 +863,21 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:])
+	tx := &transaction.Transaction{}
+	checkWitnessHashesIndex := len(reqParams)
+	if checkWitnessHashesIndex > 3 {
+		cosigners, err := reqParams[3].GetCosigners()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		tx.Cosigners = cosigners
+		checkWitnessHashesIndex--
+	}
+	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:checkWitnessHashesIndex])
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
-	return s.runScriptInVM(script), nil
+	return s.runScriptInVM(script, tx), nil
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -907,13 +891,21 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		return nil, response.ErrInvalidParams
 	}
 
-	return s.runScriptInVM(script), nil
+	tx := &transaction.Transaction{}
+	if len(reqParams) > 1 {
+		cosigners, err := reqParams[1].GetCosigners()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		tx.Cosigners = cosigners
+	}
+	return s.runScriptInVM(script, tx), nil
 }
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
-func (s *Server) runScriptInVM(script []byte) *result.Invoke {
-	vm := s.chain.GetTestVM()
+func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *result.Invoke {
+	vm := s.chain.GetTestVM(tx)
 	vm.SetGasLimit(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	_ = vm.Run()

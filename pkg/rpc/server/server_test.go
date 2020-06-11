@@ -572,45 +572,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
-	"invoke": {
-		{
-			name:   "positive",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "String", "value": "qwerty"}]]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
-				res, ok := inv.(*result.Invoke)
-				require.True(t, ok)
-				assert.Equal(t, "0c067177657274790c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52", res.Script)
-				assert.NotEqual(t, "", res.State)
-				assert.NotEqual(t, 0, res.GasConsumed)
-			},
-		},
-		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
-		},
-		{
-			name:   "not a string",
-			params: `[42, []]`,
-			fail:   true,
-		},
-		{
-			name:   "not a scripthash",
-			params: `["qwerty", []]`,
-			fail:   true,
-		},
-		{
-			name:   "not an array",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", 42]`,
-			fail:   true,
-		},
-		{
-			name:   "bad params",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", [{"type": "Integer", "value": "qwerty"}]]`,
-			fail:   true,
-		},
-	},
 	"invokefunction": {
 		{
 			name:   "positive",
@@ -656,6 +617,55 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.NotEqual(t, "", res.Script)
 				assert.NotEqual(t, "", res.State)
 				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name: "positive, good witness",
+			// script is hex-encoded `test_verify.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
+			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, int64(3), res.Stack[0].Value)
+			},
+		},
+		{
+			name:   "positive, bad witness of second hash",
+			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, int64(2), res.Stack[0].Value)
+			},
+		},
+		{
+			name:   "positive, no good hashes",
+			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340"]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, int64(1), res.Stack[0].Value)
+			},
+		},
+		{
+			name:   "positive, bad hashes witness",
+			params: `["5707000c14010c030e05060c0d020e0f0d030e070900000000db307068115541f827ec8c21aa270700000011400c140d0f03020900020103070304050201000e060c09db307169115541f827ec8c21aa270700000012401340",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				assert.Equal(t, 1, len(res.Stack))
+				assert.Equal(t, int64(1), res.Stack[0].Value)
 			},
 		},
 		{
