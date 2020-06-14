@@ -1,5 +1,5 @@
 ProtocolConfiguration:
-  Magic: 0
+  Magic: 42
   SecondsPerBlock: 15
   LowPriorityThreshold: 0.000
   MemPoolSize: 50000

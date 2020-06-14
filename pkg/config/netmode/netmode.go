@@ -10,7 +10,7 @@ const (
 	// PrivNet contains magic code usually used for NEO private networks.
 	PrivNet Magic = 56753 // docker privnet
 	// UnitTestNet is a stub magic code used for testing purposes.
-	UnitTestNet Magic = 0
+	UnitTestNet Magic = 42
 )
 
 // Magic describes the network the blockchain will operate on.
