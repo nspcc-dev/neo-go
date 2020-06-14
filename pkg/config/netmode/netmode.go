@@ -1,5 +1,7 @@
 package netmode
 
+import "strconv"
+
 const (
 	// MainNet contains magic code used in the NEO main official network.
 	MainNet Magic = 0x004f454e // 5195086
@@ -26,6 +28,6 @@ func (n Magic) String() string {
 	case UnitTestNet:
 		return "unit_testnet"
 	default:
-		return "net unknown"
+		return "net 0x" + strconv.FormatUint(uint64(n), 16)
 	}
 }
