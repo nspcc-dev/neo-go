@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -34,7 +35,7 @@ var neoOwner = testchain.MultisigScriptHash()
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
-	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
+	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -217,7 +218,7 @@ func getTestValidator(i int) (*privateKey, *publicKey) {
 }
 
 func newTestChain(t *testing.T) *core.Blockchain {
-	unitTestNetCfg, err := config.Load("../../config", config.ModeUnitTestNet)
+	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
 	require.NoError(t, err)
 
 	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))

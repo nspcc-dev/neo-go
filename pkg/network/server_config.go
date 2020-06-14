@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap/zapcore"
 )
@@ -38,7 +39,7 @@ type (
 		// ModePrivNet docker private network.
 		// ModeTestNet NEO test network.
 		// ModeMainNet NEO main network.
-		Net config.NetMode
+		Net netmode.Magic
 
 		// Relay determines whether the server is forwarding its inventory.
 		Relay bool

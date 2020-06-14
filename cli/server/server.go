@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -107,12 +108,12 @@ func newGraceContext() context.Context {
 // getConfigFromContext looks at path and mode flags in the given config and
 // returns appropriate config.
 func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	var net = config.ModePrivNet
+	var net = netmode.PrivNet
 	if ctx.Bool("testnet") {
-		net = config.ModeTestNet
+		net = netmode.TestNet
 	}
 	if ctx.Bool("mainnet") {
-		net = config.ModeMainNet
+		net = netmode.MainNet
 	}
 	configPath := "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {

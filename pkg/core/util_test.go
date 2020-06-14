@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenesisBlockMainNet(t *testing.T) {
-	cfg, err := config.Load("../../config", config.ModeMainNet)
+	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
 	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
@@ -30,7 +31,7 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 		consensusScript = "72c3d9b3bbf776698694cd2c73fa597a10c31294"
 	)
 
-	cfg, err := config.Load("../../config", config.ModeMainNet)
+	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
 	validators, err := getValidators(cfg.ProtocolConfiguration)
