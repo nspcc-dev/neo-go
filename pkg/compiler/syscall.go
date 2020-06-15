@@ -10,6 +10,10 @@ var syscalls = map[string]map[string]string{
 		"Next":   "System.Enumerator.Next",
 		"Value":  "System.Enumerator.Value",
 	},
+	"json": {
+		"Serialize":   "System.Json.Serialize",
+		"Deserialize": "System.Json.Deserialize",
+	},
 	"storage": {
 		"ConvertContextToReadOnly": "System.Storage.AsReadOnly",
 		"Delete":                   "System.Storage.Delete",
