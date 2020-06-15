@@ -1,6 +1,7 @@
 package network
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/pierrec/lz4"
 )
 
@@ -17,8 +18,8 @@ func compress(source []byte) ([]byte, error) {
 // decompress decompresses bytes using lz4.
 func decompress(source []byte) ([]byte, error) {
 	maxSize := len(source) * 255
-	if maxSize > PayloadMaxSize {
-		maxSize = PayloadMaxSize
+	if maxSize > payload.MaxSize {
+		maxSize = payload.MaxSize
 	}
 	dest := make([]byte, maxSize)
 	size, err := lz4.UncompressBlock(source, dest)

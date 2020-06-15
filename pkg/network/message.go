@@ -14,12 +14,8 @@ import (
 
 //go:generate stringer -type=CommandType
 
-const (
-	// PayloadMaxSize is maximum payload size in decompressed form.
-	PayloadMaxSize = 0x02000000
-	// CompressionMinSize is the lower bound to apply compression.
-	CompressionMinSize = 1024
-)
+// CompressionMinSize is the lower bound to apply compression.
+const CompressionMinSize = 1024
 
 // Message is the complete message send between nodes.
 type Message struct {
@@ -114,7 +110,7 @@ func (m *Message) Decode(br *io.BinReader) error {
 		}
 		return nil
 	}
-	if l > PayloadMaxSize {
+	if l > payload.MaxSize {
 		return errors.New("invalid payload size")
 	}
 	m.compressedPayload = make([]byte, l)

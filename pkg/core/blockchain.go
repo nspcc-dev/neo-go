@@ -1088,9 +1088,8 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 }
 
 // FeePerByte returns transaction network fee per byte.
-// TODO: should be implemented as part of PolicyContract
 func (bc *Blockchain) FeePerByte() util.Fixed8 {
-	return util.Fixed8(1000)
+	return util.Fixed8(bc.contracts.Policy.GetFeePerByteInternal(bc.dao))
 }
 
 // GetMemPool returns the memory pool of the blockchain.
@@ -1101,8 +1100,9 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
-	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
-		txes = txes[:bc.config.MaxTransactionsPerBlock]
+	maxTx := bc.contracts.Policy.GetMaxTransactionsPerBlockInternal(bc.dao)
+	if maxTx != 0 && len(txes) > int(maxTx) {
+		txes = txes[:maxTx]
 	}
 	return txes
 }
@@ -1203,6 +1203,11 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
+	if ok, err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
+		return err
+	} else if !ok {
+		return ErrPolicy
+	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:
