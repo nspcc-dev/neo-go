@@ -29,17 +29,25 @@ func TestScopesFromString(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, CustomGroups, s)
 
-	s, err = ScopesFromString("Calledbyentry,customgroups")
+	s, err = ScopesFromString("CalledByEntry,CustomGroups")
 	require.NoError(t, err)
 	require.Equal(t, CalledByEntry|CustomGroups, s)
 
-	_, err = ScopesFromString("global,customgroups")
+	_, err = ScopesFromString("Global,CustomGroups")
 	require.Error(t, err)
 
-	_, err = ScopesFromString("calledbyentry,global,customgroups")
+	_, err = ScopesFromString("CalledByEntry,Global,CustomGroups")
 	require.Error(t, err)
 
-	s, err = ScopesFromString("Calledbyentry,customgroups,Customgroups")
+	s, err = ScopesFromString("CalledByEntry,CustomGroups,CustomGroups")
 	require.NoError(t, err)
 	require.Equal(t, CalledByEntry|CustomGroups, s)
+
+	s, err = ScopesFromString("CalledByEntry, CustomGroups")
+	require.NoError(t, err)
+	require.Equal(t, CalledByEntry|CustomGroups, s)
+
+	s, err = ScopesFromString("CalledByEntry, CustomGroups, CustomContracts")
+	require.NoError(t, err)
+	require.Equal(t, CalledByEntry|CustomGroups|CustomContracts, s)
 }

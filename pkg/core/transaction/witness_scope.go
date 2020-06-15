@@ -1,6 +1,8 @@
 package transaction
 
+//go:generate stringer -type=WitnessScope -output=witness_scope_string.go
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -24,18 +26,20 @@ const (
 )
 
 // ScopesFromString converts string of comma-separated scopes to a set of scopes
-// (case doesn't matter). String can combine several scopes, e.g. be any of:
-// 'Global', 'CalledByEntry,CustomGroups' etc. In case of an empty string an
-// error will be returned.
+// (case-sensitive). String can combine several scopes, e.g. be any of: 'Global',
+// 'CalledByEntry,CustomGroups' etc. In case of an empty string an error will be
+// returned.
 func ScopesFromString(s string) (WitnessScope, error) {
 	var result WitnessScope
-	s = strings.ToLower(s)
 	scopes := strings.Split(s, ",")
+	for i, scope := range scopes {
+		scopes[i] = strings.TrimSpace(scope)
+	}
 	dict := map[string]WitnessScope{
-		"global":          Global,
-		"calledbyentry":   CalledByEntry,
-		"customcontracts": CustomContracts,
-		"customgroups":    CustomGroups,
+		Global.String():          Global,
+		CalledByEntry.String():   CalledByEntry,
+		CustomContracts.String(): CustomContracts,
+		CustomGroups.String():    CustomGroups,
 	}
 	var isGlobal bool
 	for _, scopeStr := range scopes {
@@ -52,4 +56,48 @@ func ScopesFromString(s string) (WitnessScope, error) {
 		}
 	}
 	return result, nil
+}
+
+// scopesToString converts witness scope to it's string representation. It uses
+// `, ` to separate scope names.
+func scopesToString(scopes WitnessScope) string {
+	if scopes == Global {
+		return "Global"
+	}
+	var res string
+	if scopes&CalledByEntry != 0 {
+		res = CalledByEntry.String()
+	}
+	if scopes&CustomContracts != 0 {
+		if len(res) != 0 {
+			res += ", "
+		}
+		res += CustomContracts.String()
+	}
+	if scopes&CustomGroups != 0 {
+		if len(res) != 0 {
+			res += ", "
+		}
+		res += CustomGroups.String()
+	}
+	return res
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (s WitnessScope) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + scopesToString(s) + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (s *WitnessScope) UnmarshalJSON(data []byte) error {
+	var js string
+	if err := json.Unmarshal(data, &js); err != nil {
+		return err
+	}
+	scopes, err := ScopesFromString(js)
+	if err != nil {
+		return err
+	}
+	*s = scopes
+	return nil
 }
