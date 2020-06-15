@@ -17,21 +17,14 @@ const StoragePrice = 100000
 // getPrice returns a price for executing op with the provided parameter.
 // Some SYSCALLs have variable price depending on their arguments.
 func getPrice(v *vm.VM, op opcode.Opcode, parameter []byte) util.Fixed8 {
-	if op <= opcode.NOP {
-		return 0
-	}
-
-	switch op {
-	case opcode.SYSCALL:
+	if op == opcode.SYSCALL {
 		interopID := vm.GetInteropID(parameter)
 		ifunc := v.GetInteropByID(interopID)
 		if ifunc != nil && ifunc.Price > 0 {
 			return toFixed8(int64(ifunc.Price))
 		}
-		return toFixed8(1)
-	default:
-		return toFixed8(1)
 	}
+	return opcodePrice(op)
 }
 
 func toFixed8(n int64) util.Fixed8 {
