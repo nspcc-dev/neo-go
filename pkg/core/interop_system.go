@@ -332,7 +332,7 @@ func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte, value []byte, isConst bool) error {
+func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, key []byte, value []byte, isConst bool) error {
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
 	}
@@ -349,6 +349,13 @@ func putWithContextAndFlags(ic *interop.Context, stc *StorageContext, key []byte
 	}
 	if si.IsConst {
 		return errors.New("storage item exists and is read-only")
+	}
+	sizeInc := 1
+	if len(value) > len(si.Value) {
+		sizeInc = len(value) - len(si.Value)
+	}
+	if !v.AddGas(util.Fixed8(sizeInc) * StoragePrice) {
+		return errGasLimitExceeded
 	}
 	si.Value = value
 	si.IsConst = isConst
@@ -368,7 +375,7 @@ func storagePutInternal(ic *interop.Context, v *vm.VM, getFlag bool) error {
 	if getFlag {
 		flag = int(v.Estack().Pop().BigInt().Int64())
 	}
-	return putWithContextAndFlags(ic, stc, key, value, flag == 1)
+	return putWithContextAndFlags(ic, v, stc, key, value, flag == 1)
 }
 
 // storagePut puts key-value pair into the storage.

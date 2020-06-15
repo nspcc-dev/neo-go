@@ -26,6 +26,8 @@ const (
 	MaxContractStringLen = 252
 )
 
+var errGasLimitExceeded = errors.New("gas limit exceeded")
+
 // storageFind finds stored key-value pair.
 func storageFind(ic *interop.Context, v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
@@ -71,7 +73,7 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 		return nil, errors.New("manifest is too big")
 	}
 	if !v.AddGas(util.Fixed8(StoragePrice * (len(script) + len(manifestBytes)))) {
-		return nil, errors.New("gas limit exceeded")
+		return nil, errGasLimitExceeded
 	}
 	var m manifest.Manifest
 	r := io.NewBinReaderFromBuf(manifestBytes)
