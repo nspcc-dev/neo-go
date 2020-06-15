@@ -21,8 +21,8 @@ func TestParam_UnmarshalJSON(t *testing.T) {
                  {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"state": "HALT"},
-                 {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0},
-                 [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}]]`
+                 {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
+                 [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}]]`
 	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
 	require.NoError(t, err)
 	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
