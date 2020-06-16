@@ -35,32 +35,32 @@ type interopIDFuncPrice struct {
 type InteropGetterFunc func(uint32) *InteropFuncPrice
 
 var defaultVMInterops = []interopIDFuncPrice{
+	{emit.InteropNameToID([]byte("System.Binary.Deserialize")),
+		InteropFuncPrice{Func: RuntimeDeserialize, Price: 500000}},
+	{emit.InteropNameToID([]byte("System.Binary.Serialize")),
+		InteropFuncPrice{Func: RuntimeSerialize, Price: 100000}},
 	{emit.InteropNameToID([]byte("System.Runtime.Log")),
 		InteropFuncPrice{Func: runtimeLog, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Runtime.Notify")),
 		InteropFuncPrice{Func: runtimeNotify, Price: 1}},
-	{emit.InteropNameToID([]byte("System.Runtime.Serialize")),
-		InteropFuncPrice{Func: RuntimeSerialize, Price: 1}},
-	{emit.InteropNameToID([]byte("System.Runtime.Deserialize")),
-		InteropFuncPrice{Func: RuntimeDeserialize, Price: 1}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Create")),
-		InteropFuncPrice{Func: EnumeratorCreate, Price: 1}},
+		InteropFuncPrice{Func: EnumeratorCreate, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Next")),
-		InteropFuncPrice{Func: EnumeratorNext, Price: 1}},
+		InteropFuncPrice{Func: EnumeratorNext, Price: 1000000}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Concat")),
-		InteropFuncPrice{Func: EnumeratorConcat, Price: 1}},
+		InteropFuncPrice{Func: EnumeratorConcat, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Enumerator.Value")),
-		InteropFuncPrice{Func: EnumeratorValue, Price: 1}},
+		InteropFuncPrice{Func: EnumeratorValue, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Iterator.Create")),
-		InteropFuncPrice{Func: IteratorCreate, Price: 1}},
+		InteropFuncPrice{Func: IteratorCreate, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Iterator.Concat")),
-		InteropFuncPrice{Func: IteratorConcat, Price: 1}},
+		InteropFuncPrice{Func: IteratorConcat, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Iterator.Key")),
-		InteropFuncPrice{Func: IteratorKey, Price: 1}},
+		InteropFuncPrice{Func: IteratorKey, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Iterator.Keys")),
-		InteropFuncPrice{Func: IteratorKeys, Price: 1}},
+		InteropFuncPrice{Func: IteratorKeys, Price: 400}},
 	{emit.InteropNameToID([]byte("System.Iterator.Values")),
-		InteropFuncPrice{Func: IteratorValues, Price: 1}},
+		InteropFuncPrice{Func: IteratorValues, Price: 400}},
 }
 
 func getDefaultVMInterop(id uint32) *InteropFuncPrice {
@@ -87,7 +87,7 @@ func runtimeNotify(vm *VM) error {
 	return nil
 }
 
-// RuntimeSerialize handles syscalls System.Runtime.Serialize and System.Runtime.Serialize.
+// RuntimeSerialize handles System.Binary.Serialize syscall.
 func RuntimeSerialize(vm *VM) error {
 	item := vm.Estack().Pop()
 	data, err := stackitem.SerializeItem(item.value)
@@ -102,7 +102,7 @@ func RuntimeSerialize(vm *VM) error {
 	return nil
 }
 
-// RuntimeDeserialize handles syscalls System.Runtime.Deserialize and System.Runtime.Deserialize.
+// RuntimeDeserialize handles System.Binary.Deserialize syscall.
 func RuntimeDeserialize(vm *VM) error {
 	data := vm.Estack().Pop().Bytes()
 

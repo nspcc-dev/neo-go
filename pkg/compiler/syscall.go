@@ -25,8 +25,8 @@ var syscalls = map[string]map[string]string{
 		"Notify":       "System.Runtime.Notify",
 		"Log":          "System.Runtime.Log",
 		"GetTime":      "System.Runtime.GetTime",
-		"Serialize":    "System.Runtime.Serialize",
-		"Deserialize":  "System.Runtime.Deserialize",
+		"Serialize":    "System.Binary.Serialize",
+		"Deserialize":  "System.Binary.Deserialize",
 	},
 	"blockchain": {
 		"GetBlock":                "System.Blockchain.GetBlock",
