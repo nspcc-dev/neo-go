@@ -68,6 +68,8 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
+	{Name: "System.Binary.Deserialize", Func: runtimeDeserialize, Price: 500000},
+	{Name: "System.Binary.Serialize", Func: runtimeSerialize, Price: 100000},
 	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 250,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Blockchain.GetContract", Func: bcGetContract, Price: 100,
@@ -104,14 +106,12 @@ var systemInterops = []interop.Function{
 	{Name: "System.Iterator.Keys", Func: iterator.Keys, Price: 1},
 	{Name: "System.Iterator.Values", Func: iterator.Values, Price: 1},
 	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 200, RequiredFlags: smartcontract.AllowStates},
-	{Name: "System.Runtime.Deserialize", Func: runtimeDeserialize, Price: 1},
 	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 1,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Runtime.GetTrigger", Func: runtimeGetTrigger, Price: 1},
 	{Name: "System.Runtime.Log", Func: runtimeLog, Price: 1, RequiredFlags: smartcontract.AllowNotify},
 	{Name: "System.Runtime.Notify", Func: runtimeNotify, Price: 1, RequiredFlags: smartcontract.AllowNotify},
 	{Name: "System.Runtime.Platform", Func: runtimePlatform, Price: 1},
-	{Name: "System.Runtime.Serialize", Func: runtimeSerialize, Price: 1},
 	{Name: "System.Storage.Delete", Func: storageDelete, Price: StoragePrice,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Storage.Find", Func: storageFind, Price: 1000000,

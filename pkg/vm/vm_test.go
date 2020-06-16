@@ -656,8 +656,8 @@ func getSyscallProg(name string) (prog []byte) {
 }
 
 func getSerializeProg() (prog []byte) {
-	prog = append(prog, getSyscallProg("System.Runtime.Serialize")...)
-	prog = append(prog, getSyscallProg("System.Runtime.Deserialize")...)
+	prog = append(prog, getSyscallProg("System.Binary.Serialize")...)
+	prog = append(prog, getSyscallProg("System.Binary.Deserialize")...)
 	prog = append(prog, byte(opcode.RET))
 
 	return
@@ -762,7 +762,7 @@ func TestSerializeStruct(t *testing.T) {
 }
 
 func TestDeserializeUnknown(t *testing.T) {
-	prog := append(getSyscallProg("System.Runtime.Deserialize"), byte(opcode.RET))
+	prog := append(getSyscallProg("System.Binary.Deserialize"), byte(opcode.RET))
 
 	data, err := stackitem.SerializeItem(stackitem.NewBigInteger(big.NewInt(123)))
 	require.NoError(t, err)
@@ -798,7 +798,7 @@ func TestSerializeMapCompat(t *testing.T) {
 	emit.Bytes(buf.BinWriter, []byte("key"))
 	emit.Bytes(buf.BinWriter, []byte("value"))
 	emit.Opcode(buf.BinWriter, opcode.SETITEM)
-	emit.Syscall(buf.BinWriter, "System.Runtime.Serialize")
+	emit.Syscall(buf.BinWriter, "System.Binary.Serialize")
 	require.NoError(t, buf.Err)
 
 	vm := load(buf.Bytes())
