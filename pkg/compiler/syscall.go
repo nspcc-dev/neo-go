@@ -28,6 +28,7 @@ var syscalls = map[string]map[string]string{
 		"GetCallingScriptHash":   "System.Runtime.GetCallingScriptHash",
 		"GetEntryScriptHash":     "System.Runtime.GetEntryScriptHash",
 		"GetExecutingScriptHash": "System.Runtime.GetExecutingScriptHash",
+		"GetNotifications":       "System.Runtime.GetNotifications",
 
 		"GasLeft":      "System.Runtime.GasLeft",
 		"GetTrigger":   "System.Runtime.GetTrigger",

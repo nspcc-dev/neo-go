@@ -60,3 +60,11 @@ func Verification() byte {
 func GasLeft() int64 {
 	return 0
 }
+
+// GetNotifications returns notifications emitted by contract h.
+// 'nil' literal means no filtering. It returns slice consisting of following elements:
+// [  scripthash of notification's contract  ,  emitted item  ].
+// This function uses `System.Runtime.GetNotifications` syscall.
+func GetNotifications(h []byte) [][]interface{} {
+	return nil
+}

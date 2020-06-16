@@ -208,3 +208,39 @@ func TestRuntimeGasLeft(t *testing.T) {
 	require.NoError(t, runtime.GasLeft(ic, v))
 	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 }
+
+func TestRuntimeGetNotifications(t *testing.T) {
+	v, ic, chain := createVM(t)
+	defer chain.Close()
+
+	ic.Notifications = []state.NotificationEvent{
+		{ScriptHash: util.Uint160{1}, Item: stackitem.NewByteArray([]byte{11})},
+		{ScriptHash: util.Uint160{2}, Item: stackitem.NewByteArray([]byte{22})},
+		{ScriptHash: util.Uint160{1}, Item: stackitem.NewByteArray([]byte{33})},
+	}
+
+	t.Run("NoFilter", func(t *testing.T) {
+		v.Estack().PushVal(stackitem.Null{})
+		require.NoError(t, runtime.GetNotifications(ic, v))
+
+		arr := v.Estack().Pop().Array()
+		require.Equal(t, len(ic.Notifications), len(arr))
+		for i := range arr {
+			elem := arr[i].Value().([]stackitem.Item)
+			require.Equal(t, ic.Notifications[i].ScriptHash.BytesBE(), elem[0].Value())
+			require.Equal(t, ic.Notifications[i].Item, elem[1])
+		}
+	})
+
+	t.Run("WithFilter", func(t *testing.T) {
+		h := util.Uint160{2}.BytesBE()
+		v.Estack().PushVal(h)
+		require.NoError(t, runtime.GetNotifications(ic, v))
+
+		arr := v.Estack().Pop().Array()
+		require.Equal(t, 1, len(arr))
+		elem := arr[0].Value().([]stackitem.Item)
+		require.Equal(t, h, elem[0].Value())
+		require.Equal(t, ic.Notifications[1].Item, elem[1])
+	})
+}
