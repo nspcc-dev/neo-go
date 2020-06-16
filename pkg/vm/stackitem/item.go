@@ -18,6 +18,12 @@ import (
 // MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
 const MaxBigIntegerSizeBits = 32 * 8
 
+// MaxArraySize is the maximum array size allowed in the VM.
+const MaxArraySize = 1024
+
+// MaxSize is the maximum item size allowed in the VM.
+const MaxSize = 1024 * 1024
+
 // Item represents the "real" value that is pushed on the stack.
 type Item interface {
 	fmt.Stringer

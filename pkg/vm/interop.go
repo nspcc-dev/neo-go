@@ -93,7 +93,7 @@ func RuntimeSerialize(vm *VM) error {
 	data, err := stackitem.SerializeItem(item.value)
 	if err != nil {
 		return err
-	} else if len(data) > MaxItemSize {
+	} else if len(data) > stackitem.MaxSize {
 		return errors.New("too big item")
 	}
 
