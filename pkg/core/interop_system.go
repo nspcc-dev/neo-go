@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -468,5 +469,32 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
 		}
 	}
+	return nil
+}
+
+// contractIsStandard checks if contract is standard (sig or multisig) contract.
+func contractIsStandard(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	u, err := util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return err
+	}
+	var result bool
+	cs, _ := ic.DAO.GetContractState(u)
+	if cs == nil || vm.IsStandardContract(cs.Script) {
+		result = true
+	}
+	v.Estack().PushVal(result)
+	return nil
+}
+
+// contractCreateStandardAccount calculates contract scripthash for a given public key.
+func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	p, err := keys.NewPublicKeyFromBytes(h)
+	if err != nil {
+		return err
+	}
+	v.Estack().PushVal(p.GetScriptHash().BytesBE())
 	return nil
 }
