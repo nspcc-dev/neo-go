@@ -89,6 +89,7 @@ var systemInterops = []interop.Function{
 		AllowedTriggers: trigger.System | trigger.Application, RequiredFlags: smartcontract.AllowCall},
 	{Name: "System.Contract.Create", Func: contractCreate, Price: 0,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
+	{Name: "System.Contract.CreateStandardAccount", Func: contractCreateStandardAccount, Price: 10000},
 	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1000000,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Contract.IsStandard", Func: contractIsStandard, Price: 30000},

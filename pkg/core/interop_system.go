@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -484,5 +485,16 @@ func contractIsStandard(ic *interop.Context, v *vm.VM) error {
 		result = true
 	}
 	v.Estack().PushVal(result)
+	return nil
+}
+
+// contractCreateStandardAccount calculates contract scripthash for a given public key.
+func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	p, err := keys.NewPublicKeyFromBytes(h)
+	if err != nil {
+		return err
+	}
+	v.Estack().PushVal(p.GetScriptHash().BytesBE())
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -173,5 +174,26 @@ func TestContractIsStandard(t *testing.T) {
 		v.Estack().PushVal(crypto.Hash160(script).BytesBE())
 		require.NoError(t, contractIsStandard(ic, v))
 		require.False(t, v.Estack().Pop().Bool())
+	})
+}
+
+func TestContractCreateAccount(t *testing.T) {
+	v, ic, chain := createVM(t)
+	defer chain.Close()
+	t.Run("Good", func(t *testing.T) {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+		pub := priv.PublicKey()
+		v.Estack().PushVal(pub.Bytes())
+		require.NoError(t, contractCreateStandardAccount(ic, v))
+
+		value := v.Estack().Pop().Bytes()
+		u, err := util.Uint160DecodeBytesBE(value)
+		require.NoError(t, err)
+		require.Equal(t, pub.GetScriptHash(), u)
+	})
+	t.Run("InvalidKey", func(t *testing.T) {
+		v.Estack().PushVal([]byte{1, 2, 3})
+		require.Error(t, contractCreateStandardAccount(ic, v))
 	})
 }
