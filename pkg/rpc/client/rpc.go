@@ -522,12 +522,10 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
-	tx.NetworkFee += util.Fixed8(int64(size) * int64(c.GetFeePerByte()))
+	fee, err := c.GetFeePerByte()
+	if err != nil {
+		return err
+	}
+	tx.NetworkFee += util.Fixed8(int64(size) * fee)
 	return nil
-}
-
-// GetFeePerByte returns transaction network fee per byte
-func (c *Client) GetFeePerByte() util.Fixed8 {
-	// TODO: make it a part of policy contract
-	return util.Fixed8(1000)
 }
