@@ -78,7 +78,7 @@ type VM struct {
 	refs *refCounter
 
 	gasConsumed util.Fixed8
-	gasLimit    util.Fixed8
+	GasLimit    util.Fixed8
 
 	trigger trigger.Type
 
@@ -134,16 +134,10 @@ func (v *VM) GasConsumed() util.Fixed8 {
 	return v.gasConsumed
 }
 
-// SetGasLimit sets maximum amount of gas which v can spent.
-// If max <= 0, no limit is imposed.
-func (v *VM) SetGasLimit(max util.Fixed8) {
-	v.gasLimit = max
-}
-
 // AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
 func (v *VM) AddGas(gas util.Fixed8) bool {
 	v.gasConsumed += gas
-	return v.gasLimit == 0 || v.gasConsumed <= v.gasLimit
+	return v.GasLimit == 0 || v.gasConsumed <= v.GasLimit
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -520,7 +514,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
 		v.gasConsumed += v.getPrice(v, op, parameter)
-		if v.gasLimit > 0 && v.gasConsumed > v.gasLimit {
+		if v.GasLimit > 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")
 		}
 	}

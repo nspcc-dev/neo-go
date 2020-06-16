@@ -90,7 +90,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 	t.Run("with sufficient gas limit", func(t *testing.T) {
 		v.Load(prog)
-		v.SetGasLimit(9)
+		v.GasLimit = 9
 		runVM(t, v)
 
 		require.EqualValues(t, 9, v.GasConsumed())
@@ -98,14 +98,14 @@ func TestVM_SetPriceGetter(t *testing.T) {
 
 	t.Run("with small gas limit", func(t *testing.T) {
 		v.Load(prog)
-		v.SetGasLimit(8)
+		v.GasLimit = 8
 		checkVMFailed(t, v)
 	})
 }
 
 func TestAddGas(t *testing.T) {
 	v := New()
-	v.SetGasLimit(10)
+	v.GasLimit = 10
 	require.True(t, v.AddGas(5))
 	require.True(t, v.AddGas(5))
 	require.False(t, v.AddGas(5))

@@ -906,7 +906,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 // result.
 func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *result.Invoke {
 	vm := s.chain.GetTestVM(tx)
-	vm.SetGasLimit(s.config.MaxGasInvoke)
+	vm.GasLimit = s.config.MaxGasInvoke
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	_ = vm.Run()
 	result := &result.Invoke{
