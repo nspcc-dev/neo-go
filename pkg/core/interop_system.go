@@ -470,3 +470,19 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 	}
 	return nil
 }
+
+// contractIsStandard checks if contract is standard (sig or multisig) contract.
+func contractIsStandard(ic *interop.Context, v *vm.VM) error {
+	h := v.Estack().Pop().Bytes()
+	u, err := util.Uint160DecodeBytesBE(h)
+	if err != nil {
+		return err
+	}
+	var result bool
+	cs, _ := ic.DAO.GetContractState(u)
+	if cs == nil || vm.IsStandardContract(cs.Script) {
+		result = true
+	}
+	v.Estack().PushVal(result)
+	return nil
+}
