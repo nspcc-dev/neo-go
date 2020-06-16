@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -242,5 +243,22 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		elem := arr[0].Value().([]stackitem.Item)
 		require.Equal(t, h, elem[0].Value())
 		require.Equal(t, ic.Notifications[1].Item, elem[1])
+	})
+}
+
+func TestRuntimeGetInvocationCounter(t *testing.T) {
+	v, ic, chain := createVM(t)
+	defer chain.Close()
+
+	ic.Invocations[hash.Hash160([]byte{2})] = 42
+
+	t.Run("Zero", func(t *testing.T) {
+		v.LoadScript([]byte{1})
+		require.Error(t, runtime.GetInvocationCounter(ic, v))
+	})
+	t.Run("NonZero", func(t *testing.T) {
+		v.LoadScript([]byte{2})
+		require.NoError(t, runtime.GetInvocationCounter(ic, v))
+		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
 }

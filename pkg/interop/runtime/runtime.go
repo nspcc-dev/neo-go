@@ -68,3 +68,9 @@ func GasLeft() int64 {
 func GetNotifications(h []byte) [][]interface{} {
 	return nil
 }
+
+// GetInvocationCounter returns how many times current contract was invoked during current tx execution.
+// This function uses `System.Runtime.GetInvocationCounter` syscall.
+func GetInvocationCounter() int {
+	return 0
+}
