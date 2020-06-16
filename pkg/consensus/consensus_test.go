@@ -31,7 +31,7 @@ func TestNewService(t *testing.T) {
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
-	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
+	require.NotPanics(t, func() { txx = srv.getVerifiedTx() })
 	require.Len(t, txx, 1)
 	require.Equal(t, tx, txx[0])
 	srv.Chain.Close()
@@ -69,7 +69,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv.dbft.ViewNumber = 1
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
-		txx := srv.getVerifiedTx(10)
+		txx := srv.getVerifiedTx()
 		require.Equal(t, 1, len(txx), "there is only 1 tx in mempool")
 		require.Equal(t, txs[3], txx[0])
 	})
@@ -79,7 +79,7 @@ func TestService_GetVerified(t *testing.T) {
 			require.NoError(t, srv.Chain.PoolTx(tx))
 		}
 
-		txx := srv.getVerifiedTx(10)
+		txx := srv.getVerifiedTx()
 		require.Contains(t, txx, txs[0])
 		require.Contains(t, txx, txs[1])
 		require.NotContains(t, txx, txs[2])

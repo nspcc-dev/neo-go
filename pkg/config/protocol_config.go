@@ -7,9 +7,8 @@ import (
 // ProtocolConfiguration represents the protocol config.
 type (
 	ProtocolConfiguration struct {
-		Magic                   netmode.Magic `yaml:"Magic"`
-		MaxTransactionsPerBlock int           `yaml:"MaxTransactionsPerBlock"`
-		MemPoolSize             int           `yaml:"MemPoolSize"`
+		Magic       netmode.Magic `yaml:"Magic"`
+		MemPoolSize int           `yaml:"MemPoolSize"`
 		// SaveStorageBatch enables storage batch saving before every persist.
 		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
 		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`

@@ -18,7 +18,6 @@ ProtocolConfiguration:
   - seed5t.neo.org:20333
   VerifyBlocks: true
   VerifyTransactions: false
-  MaxTransactionsPerBlock: 500
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

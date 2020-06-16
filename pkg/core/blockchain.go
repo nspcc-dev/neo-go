@@ -152,10 +152,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
-	if cfg.MaxTransactionsPerBlock <= 0 {
-		cfg.MaxTransactionsPerBlock = 0
-		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
-	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s, cfg.Magic),
