@@ -101,6 +101,18 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
+				Name:   "convert",
+				Usage:  "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
+				Action: convertWallet,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					cli.StringFlag{
+						Name:  "out, o",
+						Usage: "where to write converted wallet",
+					},
+				},
+			},
+			{
 				Name:   "create",
 				Usage:  "add an account to the existing wallet",
 				Action: addAccount,
@@ -230,6 +242,50 @@ func claimGas(ctx *cli.Context) error {
 	}
 
 	fmt.Println(hash.StringLE())
+	return nil
+}
+
+func convertWallet(ctx *cli.Context) error {
+	wall, err := openWallet(ctx.String("path"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer wall.Close()
+
+	newWallet, err := wallet.NewWallet(ctx.String("out"))
+	if err != nil {
+		return cli.NewExitError(err, -1)
+	}
+	defer newWallet.Close()
+
+	for _, acc := range wall.Accounts {
+		address.Prefix = address.NEO2Prefix
+
+		pass, err := readPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		if err != nil {
+			return cli.NewExitError(err, -1)
+		} else if err := acc.Decrypt(pass); err != nil {
+			return cli.NewExitError("invalid passphrase", -1)
+		}
+
+		address.Prefix = address.NEO3Prefix
+		newAcc, err := wallet.NewAccountFromWIF(acc.PrivateKey().WIF())
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("can't convert account: %v", err), -1)
+		}
+		newAcc.Address = address.Uint160ToString(acc.Contract.ScriptHash())
+		newAcc.Contract = acc.Contract
+		newAcc.Default = acc.Default
+		newAcc.Label = acc.Label
+		newAcc.Locked = acc.Locked
+		if err := newAcc.Encrypt(pass); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't encrypt converted account: %v", err), -1)
+		}
+		newWallet.AddAccount(newAcc)
+	}
+	if err := newWallet.Save(); err != nil {
+		return cli.NewExitError(err, -1)
+	}
 	return nil
 }
 
