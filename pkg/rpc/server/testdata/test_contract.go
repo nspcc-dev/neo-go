@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
@@ -71,7 +70,7 @@ func Main(operation string, args []interface{}) interface{} {
 		return true
 	case "init":
 		ctx := storage.GetContext()
-		h := engine.GetExecutingScriptHash()
+		h := runtime.GetExecutingScriptHash()
 		amount := totalSupply
 		storage.Put(ctx, h, amount)
 		runtime.Notify("transfer", []byte{}, h, amount)

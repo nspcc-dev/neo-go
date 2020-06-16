@@ -24,6 +24,11 @@ var syscalls = map[string]map[string]string{
 		"Put":                      "System.Storage.Put",
 	},
 	"runtime": {
+		"GetScriptContainer":     "System.Runtime.GetScriptContainer",
+		"GetCallingScriptHash":   "System.Runtime.GetCallingScriptHash",
+		"GetEntryScriptHash":     "System.Runtime.GetEntryScriptHash",
+		"GetExecutingScriptHash": "System.Runtime.GetExecutingScriptHash",
+
 		"GetTrigger":   "System.Runtime.GetTrigger",
 		"CheckWitness": "System.Runtime.CheckWitness",
 		"Notify":       "System.Runtime.Notify",
@@ -44,12 +49,6 @@ var syscalls = map[string]map[string]string{
 		"Create":  "System.Contract.Create",
 		"Destroy": "System.Contract.Destroy",
 		"Update":  "System.Contract.Update",
-	},
-	"engine": {
-		"GetScriptContainer":     "System.ExecutionEngine.GetScriptContainer",
-		"GetCallingScriptHash":   "System.ExecutionEngine.GetCallingScriptHash",
-		"GetEntryScriptHash":     "System.ExecutionEngine.GetEntryScriptHash",
-		"GetExecutingScriptHash": "System.ExecutionEngine.GetExecutingScriptHash",
 	},
 	"iterator": {
 		"Concat": "System.Iterator.Concat",
