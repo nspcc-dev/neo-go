@@ -26,7 +26,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 
 func TestGetConsensusAddressMainNet(t *testing.T) {
 	var (
-		consensusAddr   = "ASEhJHr51ZMQUqmUbPC5uiuJwwvedwC48F"
+		consensusAddr   = "NWNnqYniJyFh1qx5KyBeTV4uq5ewvNrAuD"
 		consensusScript = "72c3d9b3bbf776698694cd2c73fa597a10c31294"
 	)
 

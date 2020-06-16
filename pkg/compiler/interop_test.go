@@ -23,11 +23,11 @@ import (
 )
 
 func TestFromAddress(t *testing.T) {
-	as1 := "Aej1fe4mUgou48Zzup5j8sPrE3973cJ5oz"
+	as1 := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
 	addr1, err := address.StringToUint160(as1)
 	require.NoError(t, err)
 
-	as2 := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
+	as2 := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
 	addr2, err := address.StringToUint160(as2)
 	require.NoError(t, err)
 

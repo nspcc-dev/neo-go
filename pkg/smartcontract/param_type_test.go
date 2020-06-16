@@ -96,7 +96,7 @@ func TestInferParamType(t *testing.T) {
 		in:  "truee",
 		out: StringType,
 	}, {
-		in:  "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
+		in:  "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8",
 		out: Hash160Type,
 	}, {
 		in:  "ZK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
@@ -200,7 +200,7 @@ func TestAdjustValToType(t *testing.T) {
 		err: true,
 	}, {
 		typ: Hash160Type,
-		val: "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
+		val: "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8",
 		out: util.Uint160{
 			0x23, 0xba, 0x27, 0x3, 0xc5, 0x32, 0x63, 0xe8, 0xd6, 0xe5,
 			0x22, 0xdc, 0x32, 0x20, 0x33, 0x39, 0xdc, 0xd8, 0xee, 0xe9,

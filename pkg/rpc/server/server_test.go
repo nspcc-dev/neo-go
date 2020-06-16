@@ -734,12 +734,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"validateaddress": {
 		{
 			name:   "positive",
-			params: `["AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i"]`,
+			params: `["Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2"]`,
 			result: func(*executor) interface{} { return &result.ValidateAddress{} },
 			check: func(t *testing.T, e *executor, va interface{}) {
 				res, ok := va.(*result.ValidateAddress)
 				require.True(t, ok)
-				assert.Equal(t, "AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i", res.Address)
+				assert.Equal(t, "Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2", res.Address)
 				assert.True(t, res.IsValid)
 			},
 		},
