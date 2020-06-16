@@ -54,3 +54,9 @@ func Application() byte {
 func Verification() byte {
 	return 0x00
 }
+
+// GasLeft returns the amount of gas available for the current execution.
+// This function uses `System.Runtime.GasLeft` syscall.
+func GasLeft() int64 {
+	return 0
+}

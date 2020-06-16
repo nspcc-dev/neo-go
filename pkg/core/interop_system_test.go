@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -196,4 +197,14 @@ func TestContractCreateAccount(t *testing.T) {
 		v.Estack().PushVal([]byte{1, 2, 3})
 		require.Error(t, contractCreateStandardAccount(ic, v))
 	})
+}
+
+func TestRuntimeGasLeft(t *testing.T) {
+	v, ic, chain := createVM(t)
+	defer chain.Close()
+
+	v.GasLimit = 100
+	v.AddGas(58)
+	require.NoError(t, runtime.GasLeft(ic, v))
+	require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 }

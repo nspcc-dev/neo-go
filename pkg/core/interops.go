@@ -107,6 +107,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Json.Deserialize", Func: json.Deserialize, Price: 500000},
 	{Name: "System.Json.Serialize", Func: json.Serialize, Price: 100000},
 	{Name: "System.Runtime.CheckWitness", Func: runtime.CheckWitness, Price: 30000},
+	{Name: "System.Runtime.GasLeft", Func: runtime.GasLeft, Price: 400},
 	{Name: "System.Runtime.GetCallingScriptHash", Func: engineGetCallingScriptHash, Price: 400},
 	{Name: "System.Runtime.GetEntryScriptHash", Func: engineGetEntryScriptHash, Price: 400},
 	{Name: "System.Runtime.GetExecutingScriptHash", Func: engineGetExecutingScriptHash, Price: 400},
