@@ -30,6 +30,7 @@ type Context struct {
 	DAO           *dao.Cached
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
+	Invocations   map[util.Uint160]int
 }
 
 // NewContext returns new interop context.
@@ -45,6 +46,7 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		DAO:           dao,
 		Notifications: nes,
 		Log:           log,
+		Invocations:   make(map[util.Uint160]int),
 	}
 }
 

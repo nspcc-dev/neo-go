@@ -50,18 +50,18 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "279c86355b30d452386c1717e2ffa01c9dac31f3"
+const testContractHash = "e65ff7b3a02d207b584a5c27057d4e9862ef01da"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["136ef2ba8259d121a173da2588ae0fbb735f0f740820fded9cd8da8fee109b20"]`,
+			params: `["9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("136ef2ba8259d121a173da2588ae0fbb735f0f740820fded9cd8da8fee109b20")
+				expectedTxHash, err := util.Uint256DecodeStringLE("9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d")
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -483,7 +483,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["136ef2ba8259d121a173da2588ae0fbb735f0f740820fded9cd8da8fee109b20"]`,
+			params: `["9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d"]`,
 			result: func(e *executor) interface{} {
 				h := 0
 				return &h

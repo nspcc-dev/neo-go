@@ -566,7 +566,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 		v.SetPriceGetter(getPrice)
 		if bc.config.FreeGasLimit > 0 {
-			v.SetGasLimit(bc.config.FreeGasLimit + tx.SystemFee)
+			v.GasLimit = bc.config.FreeGasLimit + tx.SystemFee
 		}
 
 		err := v.Run()

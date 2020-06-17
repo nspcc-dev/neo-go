@@ -1,22 +1,21 @@
 package enginecontract
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 )
 
 // Main is that famous Main() function, you know.
 func Main() bool {
-	tx := engine.GetScriptContainer()
+	tx := runtime.GetScriptContainer()
 	runtime.Notify(tx)
 
-	callingScriptHash := engine.GetCallingScriptHash()
+	callingScriptHash := runtime.GetCallingScriptHash()
 	runtime.Notify(callingScriptHash)
 
-	execScriptHash := engine.GetExecutingScriptHash()
+	execScriptHash := runtime.GetExecutingScriptHash()
 	runtime.Notify(execScriptHash)
 
-	entryScriptHash := engine.GetEntryScriptHash()
+	entryScriptHash := runtime.GetEntryScriptHash()
 	runtime.Notify(entryScriptHash)
 
 	return true

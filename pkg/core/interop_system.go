@@ -443,6 +443,7 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 			return errors.New("disallowed method call")
 		}
 	}
+	ic.Invocations[u]++
 	v.LoadScriptWithHash(cs.Script, u, v.Context().GetCallFlags()&f)
 	v.Estack().PushVal(args)
 	v.Estack().PushVal(method)

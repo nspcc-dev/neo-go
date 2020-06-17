@@ -1,7 +1,6 @@
 package nep5
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
@@ -85,7 +84,7 @@ func IsUsableAddress(addr []byte) bool {
 		}
 
 		// Check if a smart contract is calling scripthash
-		callingScriptHash := engine.GetCallingScriptHash()
+		callingScriptHash := runtime.GetCallingScriptHash()
 		if util.Equals(callingScriptHash, addr) {
 			return true
 		}
