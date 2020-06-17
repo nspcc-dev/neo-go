@@ -18,7 +18,6 @@ const (
 // ProtocolConfiguration represents the protocol config.
 type (
 	ProtocolConfiguration struct {
-		AddressVersion byte `yaml:"AddressVersion"`
 		// FeePerExtraByte sets the expected per-byte fee for
 		// transactions exceeding the MaxFreeTransactionSize.
 		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`

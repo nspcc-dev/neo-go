@@ -11,7 +11,7 @@ const (
 	multiplier = decimals * 10
 )
 
-var owner = util.FromAddress("AJX1jGfj3qPBbpAKjY527nPbnrnvSx9nCg")
+var owner = util.FromAddress("NNf7GXcNMFHU8pLvU84afYZCfzXDopy71M")
 
 // TokenConfig holds information about the token we want to use for the sale.
 type TokenConfig struct {

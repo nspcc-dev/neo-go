@@ -185,7 +185,7 @@ func TestParamGetUint160FromHex(t *testing.T) {
 }
 
 func TestParamGetUint160FromAddress(t *testing.T) {
-	in := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
+	in := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
 	u160, _ := address.StringToUint160(in)
 	p := Param{StringT, in}
 	u, err := p.GetUint160FromAddress()

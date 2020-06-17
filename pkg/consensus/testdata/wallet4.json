@@ -1,9 +1,9 @@
 {
-  "version": "1.0",
+  "version": "3.0",
   "accounts": [
     {
-      "address": "APw5jfiLG2VpvTzMhCKvfmWdGfWfTmNC7x",
-      "key": "6PYVsJVu8LVaAUHi5hEpWVpWpdy9bWRk1x3RSp7ijCVkCoqyk9NjZT9NhM",
+      "address": "NU5BGveyZSQ7TUAxRnKVDXgE9oExpzV5vY",
+      "key": "6PYW1FxFURLUrFCzLRwoChXHGn77Fy8qDB5j1sUjpbi6mk4J1KgTR8vvAk",
       "label": "",
       "contract": {
         "script": "0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620b410a906ad4",
@@ -19,8 +19,8 @@
       "isDefault": false
     },
     {
-      "address": "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
-      "key": "6PYVsJVu8LVaAUHi5hEpWVpWpdy9bWRk1x3RSp7ijCVkCoqyk9NjZT9NhM",
+      "address": "Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2",
+      "key": "6PYW1FxFURLUrFCzLRwoChXHGn77Fy8qDB5j1sUjpbi6mk4J1KgTR8vvAk",
       "label": "",
       "contract": {
         "script": "130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb",

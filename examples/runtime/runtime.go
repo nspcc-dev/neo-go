@@ -6,7 +6,7 @@ import (
 )
 
 // Check if the invoker of the contract is the specified owner
-var owner = util.FromAddress("Aej1fe4mUgou48Zzup5j8sPrE3973cJ5oz")
+var owner = util.FromAddress("Nis7Cu1Qn6iBb8kbeQ5HgdZT7AsQPqywTC")
 
 // Main is something to be ran from outside.
 func Main(operation string, args []interface{}) bool {

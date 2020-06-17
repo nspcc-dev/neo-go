@@ -3,15 +3,16 @@ package address
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUint160DecodeEncodeAddress(t *testing.T) {
 	addrs := []string{
-		"AMLr1CpPQtbEdiJdriX1HpRNMZUwbU2Huj",
-		"AKtwd3DRXj3nL5kHMUoNsdnsCEVjnuuTFF",
-		"AMxkaxFVG8Q1BhnB4fjTA5ZmUTEnnTMJMa",
+		"NRHkiY2hLy5ypD32CKZtL6pNwhbFMqDEhR",
+		"NPCD6gAxNuuJqssZY1eCJabuaz4BjBUHab",
+		"NUJUhgvvQyp6AmDBg3QRQ1cmRkMRhaXqZP",
 	}
 	for _, addr := range addrs {
 		val, err := StringToUint160(addr)
@@ -21,7 +22,7 @@ func TestUint160DecodeEncodeAddress(t *testing.T) {
 }
 
 func TestUint160DecodeKnownAddress(t *testing.T) {
-	address := "AJeAEsmeD6t279Dx4n2HWdUvUmmXQ4iJvP"
+	address := "NNnFn8iHWWnJe9QYoN1r4PeXMuVpfLVRS7"
 
 	val, err := StringToUint160(address)
 	require.NoError(t, err)
@@ -43,4 +44,14 @@ func TestUint160DecodeBadPrefix(t *testing.T) {
 
 	_, err := StringToUint160(address)
 	require.Error(t, err)
+}
+
+func TestPrefixFirstLetter(t *testing.T) {
+	u := util.Uint160{}
+	require.EqualValues(t, 'N', Uint160ToString(u)[0])
+
+	for i := range u {
+		u[i] = 0xFF
+	}
+	require.EqualValues(t, 'N', Uint160ToString(u)[0])
 }
