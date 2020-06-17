@@ -1123,6 +1123,22 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
+	hashes, err := bc.GetScriptHashesForVerifying(t)
+	if err != nil {
+		return err
+	}
+	blockedAccounts, err := bc.contracts.Policy.GetBlockedAccountsInternal(bc.dao)
+	if err != nil {
+		return err
+	}
+	for _, h := range hashes {
+		i := sort.Search(len(blockedAccounts), func(i int) bool {
+			return !blockedAccounts[i].Less(h)
+		})
+		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
+			return errors.Errorf("policy check failed")
+		}
+	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee.Add(t.NetworkFee)
 	if balance.LessThan(need) {
