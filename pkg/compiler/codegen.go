@@ -586,6 +586,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.Ident:
 		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
+		} else if n.Name == "nil" {
+			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		} else {
 			c.emitLoadVar(n.Name)
 		}
