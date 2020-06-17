@@ -47,6 +47,8 @@ func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
 }
 
+const testSumPrice = 1000000
+
 func newTestNative() *testNative {
 	tn := &testNative{
 		meta:   *interop.NewContractMD("Test.Native.Sum"),
@@ -62,7 +64,7 @@ func newTestNative() *testNative {
 	}
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
-		Price:         1,
+		Price:         testSumPrice,
 		RequiredFlags: smartcontract.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc, true)
@@ -99,7 +101,8 @@ func TestNativeContract_Invoke(t *testing.T) {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	script := w.Bytes()
-	tx := transaction.New(chain.GetConfig().Magic, script, 0)
+	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 7000)
+	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+10000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	require.NoError(t, addSender(tx))

@@ -76,8 +76,7 @@ func (cs *Contracts) GetNativeInterop(ic *interop.Context) func(uint32) *vm.Inte
 	return func(id uint32) *vm.InteropFuncPrice {
 		if c := cs.ByID(id); c != nil {
 			return &vm.InteropFuncPrice{
-				Func:  getNativeInterop(ic, c),
-				Price: 0, // TODO price func
+				Func: getNativeInterop(ic, c),
 			}
 		}
 		return nil
@@ -99,6 +98,9 @@ func getNativeInterop(ic *interop.Context, c interop.Contract) func(v *vm.VM) er
 		}
 		if !v.Context().GetCallFlags().Has(m.RequiredFlags) {
 			return errors.New("missing call flags")
+		}
+		if !v.AddGas(util.Fixed8(m.Price)) {
+			return errors.New("gas limit exceeded")
 		}
 		result := m.Func(ic, args)
 		v.Estack().PushVal(result)
