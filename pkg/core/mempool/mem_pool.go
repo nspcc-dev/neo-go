@@ -46,7 +46,8 @@ type Pool struct {
 	verifiedTxes items
 	fees         map[util.Uint160]utilityBalanceAndFees
 
-	capacity int
+	capacity   int
+	feePerByte util.Fixed8
 }
 
 func (p items) Len() int           { return len(p) }
@@ -218,12 +219,13 @@ func (mp *Pool) Remove(hash util.Uint256) {
 // drop part of the mempool that is now invalid after the block acceptance.
 func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer) {
 	mp.lock.Lock()
+	policyChanged := mp.loadPolicy(feer)
 	// We can reuse already allocated slice
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
 	for _, itm := range mp.verifiedTxes {
-		if isOK(itm.txn) && mp.tryAddSendersFee(itm.txn, feer) {
+		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
@@ -231,6 +233,25 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	}
 	mp.verifiedTxes = newVerifiedTxes
 	mp.lock.Unlock()
+}
+
+// loadPolicy updates feePerByte field and returns whether policy has been
+// changed.
+func (mp *Pool) loadPolicy(feer Feer) bool {
+	newFeePerByte := feer.FeePerByte()
+	if newFeePerByte.GreaterThan(mp.feePerByte) {
+		mp.feePerByte = newFeePerByte
+		return true
+	}
+	return false
+}
+
+// checkPolicy checks whether transaction fits policy.
+func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) bool {
+	if !policyChanged || tx.FeePerByte() >= mp.feePerByte {
+		return true
+	}
+	return false
 }
 
 // NewMemPool returns a new Pool struct.
