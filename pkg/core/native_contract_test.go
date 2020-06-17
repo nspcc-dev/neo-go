@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -10,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -28,12 +28,15 @@ func (tn *testNative) Metadata() *interop.ContractMD {
 	return &tn.meta
 }
 
-func (tn *testNative) OnPersist(ic *interop.Context) error {
+func (tn *testNative) OnPersist(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	if ic.Trigger != trigger.System {
+		panic("invalid trigger")
+	}
 	select {
 	case tn.blocks <- ic.Block.Index:
-		return nil
+		return stackitem.NewBool(true)
 	default:
-		return errors.New("error on persist")
+		return stackitem.NewBool(false)
 	}
 }
 
@@ -63,6 +66,10 @@ func newTestNative() *testNative {
 		RequiredFlags: smartcontract.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc, true)
+
+	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
+	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
+	tn.meta.AddMethod(md, desc, false)
 
 	return tn
 }

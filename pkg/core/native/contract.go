@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 )
 
@@ -14,6 +16,8 @@ type Contracts struct {
 	NEO       *NEO
 	GAS       *GAS
 	Contracts []interop.Contract
+	// persistScript is vm script which executes "onPersist" method of every native contract.
+	persistScript []byte
 }
 
 // ByHash returns native contract with the specified hash.
@@ -51,6 +55,20 @@ func NewContracts() *Contracts {
 	cs.NEO = neo
 	cs.Contracts = append(cs.Contracts, neo)
 	return cs
+}
+
+// GetPersistScript returns VM script calling "onPersist" method of every native contract.
+func (cs *Contracts) GetPersistScript() []byte {
+	if cs.persistScript != nil {
+		return cs.persistScript
+	}
+	w := io.NewBufBinWriter()
+	for i := range cs.Contracts {
+		md := cs.Contracts[i].Metadata()
+		emit.AppCallWithOperationAndArgs(w.BinWriter, md.Hash, "onPersist")
+	}
+	cs.persistScript = w.Bytes()
+	return cs.persistScript
 }
 
 // GetNativeInterop returns an interop getter for a given set of contracts.

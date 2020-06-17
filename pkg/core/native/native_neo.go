@@ -68,11 +68,15 @@ func NewNEO() *NEO {
 	nep5.symbol = "neo"
 	nep5.decimals = 0
 	nep5.factor = 1
-	nep5.onPersist = chainOnPersist(n.onPersist, n.OnPersist)
+	nep5.onPersist = chainOnPersist(nep5.OnPersist, n.OnPersist)
 	nep5.incBalance = n.increaseBalance
 	nep5.ContractID = neoContractID
 
 	n.nep5TokenNative = *nep5
+
+	onp := n.Methods["onPersist"]
+	onp.Func = getOnPersistWrapper(n.onPersist)
+	n.Methods["onPersist"] = onp
 
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),

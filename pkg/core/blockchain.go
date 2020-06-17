@@ -556,6 +556,17 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		return err
 	}
 
+	if block.Index > 0 {
+		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
+		v := SpawnVM(systemInterop)
+		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
+		if err := v.Run(); err != nil {
+			return errors.Wrap(err, "can't persist native contracts")
+		} else if _, err := systemInterop.DAO.Persist(); err != nil {
+			return errors.Wrap(err, "can't persist `onPersist` changes")
+		}
+	}
+
 	for _, tx := range block.Transactions {
 		if err := cache.StoreAsTransaction(tx, block.Index); err != nil {
 			return err
@@ -630,13 +641,6 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		err = cache.PutAppExecResult(aer)
 		if err != nil {
 			return errors.Wrap(err, "failed to Store notifications")
-		}
-	}
-
-	for i := range bc.contracts.Contracts {
-		systemInterop := bc.newInteropContext(trigger.Application, cache, block, nil)
-		if err := bc.contracts.Contracts[i].OnPersist(systemInterop); err != nil {
-			return err
 		}
 	}
 

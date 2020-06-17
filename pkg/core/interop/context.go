@@ -79,7 +79,6 @@ type MethodAndPrice struct {
 type Contract interface {
 	Initialize(*Context) error
 	Metadata() *ContractMD
-	OnPersist(*Context) error
 }
 
 // ContractMD represents native contract instance.

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -75,6 +76,10 @@ func newNEP5Native(name string) *nep5TokenNative {
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
 	md = newMethodAndPrice(n.Transfer, 1, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
+	desc = newDescriptor("onPersist", smartcontract.BoolType)
+	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	n.AddEvent("Transfer", desc.Parameters...)
@@ -250,7 +255,10 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 }
 
 func (c *nep5TokenNative) OnPersist(ic *interop.Context) error {
-	return c.onPersist(ic)
+	if ic.Trigger != trigger.System {
+		return errors.New("onPersist should be triggerred by system")
+	}
+	return nil
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {
@@ -310,4 +318,10 @@ func (s nep5ScriptHash) GetEntryScriptHash() util.Uint160 {
 // GetCurrentScriptHash implements ScriptHashGetter interface
 func (s nep5ScriptHash) GetCurrentScriptHash() util.Uint160 {
 	return s.currentScriptHash
+}
+
+func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {
+	return func(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+		return stackitem.NewBool(f(ic) == nil)
+	}
 }
