@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,9 +10,9 @@ import (
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -37,14 +36,6 @@ var (
 	decryptFlag = cli.BoolFlag{
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
-	}
-	rpcFlag = cli.StringFlag{
-		Name:  "rpc, r",
-		Usage: "RPC node address",
-	}
-	timeoutFlag = cli.DurationFlag{
-		Name:  "timeout, t",
-		Usage: "Timeout for the operation",
 	}
 	outFlag = cli.StringFlag{
 		Name:  "out",
@@ -70,6 +61,14 @@ var (
 
 // NewCommands returns 'wallet' command.
 func NewCommands() []cli.Command {
+	claimFlags := []cli.Flag{
+		walletPathFlag,
+		flags.AddressFlag{
+			Name:  "address, a",
+			Usage: "Address to claim GAS for",
+		},
+	}
+	claimFlags = append(claimFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "wallet",
 		Usage: "create, open and manage a NEO wallet",
@@ -78,15 +77,7 @@ func NewCommands() []cli.Command {
 				Name:   "claim",
 				Usage:  "claim GAS",
 				Action: claimGas,
-				Flags: []cli.Flag{
-					walletPathFlag,
-					rpcFlag,
-					timeoutFlag,
-					flags.AddressFlag{
-						Name:  "address, a",
-						Usage: "Address to claim GAS for",
-					},
-				},
+				Flags:  claimFlags,
 			},
 			{
 				Name:   "init",
@@ -223,12 +214,12 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	gctx, cancel := getGoContext(ctx)
+	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 	// Temporary.
 	neoHash, err := util.Uint160DecodeStringLE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
@@ -474,13 +465,6 @@ func askForConsent() bool {
 	}
 	fmt.Println("Cancelled.")
 	return false
-}
-
-func getGoContext(ctx *cli.Context) (context.Context, func()) {
-	if dur := ctx.Duration("timeout"); dur != 0 {
-		return context.WithTimeout(context.Background(), dur)
-	}
-	return context.Background(), func() {}
 }
 
 func dumpWallet(ctx *cli.Context) error {

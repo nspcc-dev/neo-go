@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
@@ -16,39 +17,59 @@ import (
 )
 
 func newNEP5Commands() []cli.Command {
+	balanceFlags := []cli.Flag{
+		walletPathFlag,
+		cli.StringFlag{
+			Name:  "addr",
+			Usage: "Address to use",
+		},
+		cli.StringFlag{
+			Name:  "token",
+			Usage: "Token to use",
+		},
+	}
+	balanceFlags = append(balanceFlags, options.RPC...)
+	importFlags := []cli.Flag{
+		walletPathFlag,
+		cli.StringFlag{
+			Name:  "token",
+			Usage: "Token contract hash in LE",
+		},
+	}
+	importFlags = append(importFlags, options.RPC...)
+	transferFlags := []cli.Flag{
+		walletPathFlag,
+		outFlag,
+		fromAddrFlag,
+		toAddrFlag,
+		cli.StringFlag{
+			Name:  "token",
+			Usage: "Token to use",
+		},
+		cli.StringFlag{
+			Name:  "amount",
+			Usage: "Amount of asset to send",
+		},
+		flags.Fixed8Flag{
+			Name:  "gas",
+			Usage: "Amount of GAS to attach to a tx",
+		},
+	}
+	transferFlags = append(transferFlags, options.RPC...)
 	return []cli.Command{
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --path <path> --rpc <node> --addr <addr> [--token <hash-or-name>]",
+			UsageText: "balance --path <path> --rpc-endpoint <node> --timeout <time> --addr <addr> [--token <hash-or-name>]",
 			Action:    getNEP5Balance,
-			Flags: []cli.Flag{
-				walletPathFlag,
-				rpcFlag,
-				timeoutFlag,
-				cli.StringFlag{
-					Name:  "addr",
-					Usage: "Address to use",
-				},
-				cli.StringFlag{
-					Name:  "token",
-					Usage: "Token to use",
-				},
-			},
+			Flags:     balanceFlags,
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP5 token to a wallet",
-			UsageText: "import --path <path> --rpc <node> --token <hash>",
+			UsageText: "import --path <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP5Token,
-			Flags: []cli.Flag{
-				walletPathFlag,
-				rpcFlag,
-				cli.StringFlag{
-					Name:  "token",
-					Usage: "Token contract hash in LE",
-				},
-			},
+			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
@@ -80,28 +101,9 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP5 tokens",
-			UsageText: "transfer --path <path> --rpc <node> --from <addr> --to <addr> --token <hash> --amount string",
+			UsageText: "transfer --path <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string",
 			Action:    transferNEP5,
-			Flags: []cli.Flag{
-				walletPathFlag,
-				rpcFlag,
-				outFlag,
-				timeoutFlag,
-				fromAddrFlag,
-				toAddrFlag,
-				cli.StringFlag{
-					Name:  "token",
-					Usage: "Token to use",
-				},
-				cli.StringFlag{
-					Name:  "amount",
-					Usage: "Amount of asset to send",
-				},
-				flags.Fixed8Flag{
-					Name:  "gas",
-					Usage: "Amount of GAS to attach to a tx",
-				},
-			},
+			Flags:     transferFlags,
 		},
 	}
 }
@@ -123,12 +125,12 @@ func getNEP5Balance(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
 	}
 
-	gctx, cancel := getGoContext(ctx)
+	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	var token *wallet.Token
@@ -218,12 +220,12 @@ func importNEP5Token(ctx *cli.Context) error {
 		}
 	}
 
-	gctx, cancel := getGoContext(ctx)
+	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	tok, err := c.NEP5TokenInfo(tokenHash)
@@ -314,11 +316,12 @@ func transferNEP5(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", fromFlag), 1)
 	}
 
-	gctx, cancel := getGoContext(ctx)
+	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
-	c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)
