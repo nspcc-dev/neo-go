@@ -32,3 +32,15 @@ func Update(script []byte, manifest []byte) Contract {
 // not by any outside code. When contract is deleted all associated storage
 // items are deleted too. This function uses `System.Contract.Destroy` syscall.
 func Destroy() {}
+
+// IsStandard checks if contract with provided hash is a standard signature/multisig contract.
+// This function uses `System.Contract.IsStandard` syscall.
+func IsStandard(h []byte) bool {
+	return false
+}
+
+// CreateStandardAccount calculates script hash of a given public key.
+// This function uses `System.Contract.CreateStandardAccount` syscall.
+func CreateStandardAccount(pub []byte) []byte {
+	return nil
+}

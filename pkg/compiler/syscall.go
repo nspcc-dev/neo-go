@@ -52,6 +52,9 @@ var syscalls = map[string]map[string]string{
 		"Create":  "System.Contract.Create",
 		"Destroy": "System.Contract.Destroy",
 		"Update":  "System.Contract.Update",
+
+		"IsStandard":            "System.Contract.IsStandard",
+		"CreateStandardAccount": "System.Contract.CreateStandardAccount",
 	},
 	"iterator": {
 		"Concat": "System.Iterator.Concat",
