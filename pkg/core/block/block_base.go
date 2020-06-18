@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -36,6 +37,11 @@ type Base struct {
 
 	// Script used to validate the block
 	Script transaction.Witness
+
+	// Network magic number this block belongs to. This one actually is not
+	// a part of the wire-representation of Block, but it's absolutely
+	// necessary for correct signing/verification.
+	Network netmode.Magic
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
@@ -102,6 +108,7 @@ func (b *Base) EncodeBinary(bw *io.BinWriter) {
 // GetSignedPart returns serialized hashable data of the block.
 func (b *Base) GetSignedPart() []byte {
 	buf := io.NewBufBinWriter()
+	buf.WriteU32LE(uint32(b.Network))
 	// No error can occure while encoding hashable fields.
 	b.encodeHashableFields(buf.BinWriter)
 

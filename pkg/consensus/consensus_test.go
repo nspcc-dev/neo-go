@@ -24,7 +24,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
-	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = 1
 	addSender(t, tx)
 	signTx(t, srv.Chain.FeePerByte(), tx)
@@ -41,7 +41,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = 123 + uint32(i)
 		tx.ValidUntilBlock = 1
 		txs = append(txs, tx)
@@ -55,7 +55,7 @@ func TestService_GetVerified(t *testing.T) {
 	p := new(Payload)
 	p.message = &message{}
 	p.SetType(payload.PrepareRequestType)
-	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 999
 	p.SetPayload(&prepareRequest{transactionHashes: hashes})
 	p.SetValidatorIndex(1)
@@ -122,7 +122,7 @@ func TestService_getTx(t *testing.T) {
 	srv := newTestService(t)
 
 	t.Run("transaction in mempool", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = 1234
 		tx.ValidUntilBlock = 1
 		addSender(t, tx)
@@ -139,7 +139,7 @@ func TestService_getTx(t *testing.T) {
 	})
 
 	t.Run("transaction in local cache", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = 4321
 		tx.ValidUntilBlock = 1
 		h := tx.Hash()

@@ -1,6 +1,7 @@
 package payload
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/pkg/errors"
@@ -8,7 +9,8 @@ import (
 
 // Headers payload.
 type Headers struct {
-	Hdrs []*block.Header
+	Hdrs    []*block.Header
+	Network netmode.Magic
 }
 
 // Users can at most request 2k header.
@@ -34,6 +36,7 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &block.Header{}
+		header.Network = p.Network
 		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -58,12 +59,13 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
-	Store *storage.MemCachedStore
+	Store   *storage.MemCachedStore
+	network netmode.Magic
 }
 
 // NewSimple creates new simple dao using provided backend store.
-func NewSimple(backend storage.Store) *Simple {
-	return &Simple{Store: storage.NewMemCachedStore(backend)}
+func NewSimple(backend storage.Store, network netmode.Magic) *Simple {
+	return &Simple{Store: storage.NewMemCachedStore(backend), network: network}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -74,7 +76,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	return NewSimple(dao.Store)
+	return NewSimple(dao.Store, dao.network)
 }
 
 // GetAndDecode performs get operation and decoding with serializable structures.
@@ -376,7 +378,7 @@ func (dao *Simple) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, err
 	}
 
-	block, err := block.NewBlockFromTrimmedBytes(b)
+	block, err := block.NewBlockFromTrimmedBytes(dao.network, b)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +457,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 
 	var height = r.ReadU32LE()
 
-	tx := &transaction.Transaction{}
+	tx := &transaction.Transaction{Network: dao.network}
 	tx.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, 0, r.Err

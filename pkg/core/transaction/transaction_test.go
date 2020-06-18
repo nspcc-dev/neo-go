@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -63,12 +64,12 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	script := []byte{0x51}
-	tx := New(script, 1)
+	tx := New(netmode.UnitTestNet, script, 1)
 	assert.Equal(t, util.Fixed8(1), tx.SystemFee)
 	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()
-	testserdes.EncodeDecodeBinary(t, tx, new(Transaction))
+	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
 }
 
 func TestEncodingTXWithNoScript(t *testing.T) {

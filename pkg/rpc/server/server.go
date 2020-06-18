@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -40,6 +41,7 @@ type (
 		*http.Server
 		chain      blockchainer.Blockchainer
 		config     rpc.Config
+		network    netmode.Magic
 		coreServer *network.Server
 		log        *zap.Logger
 		https      *http.Server
@@ -135,6 +137,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		Server:     httpServer,
 		chain:      chain,
 		config:     conf,
+		network:    chain.GetConfig().Magic,
 		coreServer: coreServer,
 		log:        log,
 		https:      tlsServer,
@@ -928,13 +931,13 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	b := block.Block{}
+	b := block.New(s.network)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	err = s.chain.AddBlock(&b)
+	err = s.chain.AddBlock(b)
 	if err != nil {
 		switch err {
 		case core.ErrInvalidBlockIndex, core.ErrAlreadyExists:
@@ -955,7 +958,7 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *res
 	} else if byteTx, err := reqParams[0].GetBytesHex(); err != nil {
 		return nil, response.ErrInvalidParams
 	} else {
-		tx, err := transaction.NewTransactionFromBytes(byteTx)
+		tx, err := transaction.NewTransactionFromBytes(s.network, byteTx)
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}

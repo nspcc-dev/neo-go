@@ -3,6 +3,7 @@ package dao
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -16,7 +17,7 @@ import (
 func TestCachedDaoAccounts(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store)
+	pdao := NewSimple(store, netmode.UnitTestNet)
 	// Cached DAO.
 	cdao := NewCached(pdao)
 
@@ -52,7 +53,7 @@ func TestCachedDaoAccounts(t *testing.T) {
 
 func TestCachedDaoContracts(t *testing.T) {
 	store := storage.NewMemoryStore()
-	pdao := NewSimple(store)
+	pdao := NewSimple(store, netmode.UnitTestNet)
 	dao := NewCached(pdao)
 
 	script := []byte{0xde, 0xad, 0xbe, 0xef}
@@ -97,7 +98,7 @@ func TestCachedDaoContracts(t *testing.T) {
 func TestCachedCachedDao(t *testing.T) {
 	store := storage.NewMemoryStore()
 	// Persistent DAO to check for backing storage.
-	pdao := NewSimple(store)
+	pdao := NewSimple(store, netmode.UnitTestNet)
 	assert.NotEqual(t, store, pdao.Store)
 	// Cached DAO.
 	cdao := NewCached(pdao)

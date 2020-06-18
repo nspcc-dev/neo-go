@@ -282,7 +282,7 @@ func restoreDB(ctx *cli.Context) error {
 		default:
 		}
 		bytes, err := readBlock(reader)
-		block := &block.Block{}
+		block := block.New(cfg.ProtocolConfiguration.Magic)
 		newReader := io.NewBinReaderFromBuf(bytes)
 		block.DecodeBinary(newReader)
 		if err != nil {

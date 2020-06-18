@@ -137,9 +137,9 @@ readloop:
 			var val interface{}
 			switch event {
 			case response.BlockEventID:
-				val = new(block.Block)
+				val = block.New(c.opts.Network)
 			case response.TransactionEventID:
-				val = new(transaction.Transaction)
+				val = &transaction.Transaction{Network: c.opts.Network}
 			case response.NotificationEventID:
 				val = new(result.NotificationEvent)
 			case response.ExecutionEventID:

@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -60,6 +61,7 @@ type service struct {
 	blockEvents  chan *coreb.Block
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
+	network      netmode.Magic
 }
 
 // Config is a configuration for consensus services.
@@ -100,6 +102,7 @@ func NewService(cfg Config) (Service, error) {
 
 		transactions: make(chan *transaction.Transaction, 100),
 		blockEvents:  make(chan *coreb.Block, 1),
+		network:      cfg.Chain.GetConfig().Magic,
 	}
 
 	if cfg.Wallet == nil {
@@ -127,7 +130,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyBlock(srv.verifyBlock),
 		dbft.WithGetBlock(srv.getBlock),
 		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlockFromContext(newBlockFromContext),
+		dbft.WithNewBlockFromContext(srv.newBlockFromContext),
 		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators(srv.getValidators),
@@ -459,12 +462,13 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	return
 }
 
-func newBlockFromContext(ctx *dbft.Context) block.Block {
+func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block := new(neoBlock)
 	if ctx.TransactionHashes == nil {
 		return nil
 	}
 
+	block.Block.Network = s.network
 	block.Block.Timestamp = ctx.Timestamp / 1000000
 	block.Block.Index = ctx.BlockIndex
 	block.Block.NextConsensus = ctx.NextConsensus

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -80,7 +81,7 @@ func TestAppCall(t *testing.T) {
 	inner, err := compiler.Compile(strings.NewReader(srcInner))
 	require.NoError(t, err)
 
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore()), nil, nil, nil, zaptest.NewLogger(t))
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil, nil, zaptest.NewLogger(t))
 	require.NoError(t, ic.DAO.PutContractState(&state.Contract{Script: inner}))
 
 	ih := hash.Hash160(inner)

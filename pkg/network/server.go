@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -53,6 +54,9 @@ type (
 		// id also known as the nonce of the server.
 		id uint32
 
+		// Network's magic number for correct message decoding.
+		network netmode.Magic
+
 		transport Transporter
 		discovery Discoverer
 		chain     blockchainer.Blockchainer
@@ -95,6 +99,7 @@ func NewServer(config ServerConfig, chain blockchainer.Blockchainer, log *zap.Lo
 		ServerConfig:     config,
 		chain:            chain,
 		id:               randomID(),
+		network:          chain.GetConfig().Magic,
 		quit:             make(chan struct{}),
 		register:         make(chan Peer),
 		unregister:       make(chan peerDrop),

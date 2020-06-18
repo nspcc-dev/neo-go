@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -143,7 +144,7 @@ func TestECDSAVerify(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
 
-	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		v := vm.New()
 		for i := range args {
@@ -177,14 +178,14 @@ func TestECDSAVerify(t *testing.T) {
 	})
 
 	t.Run("signed interop item", func(t *testing.T) {
-		tx := transaction.New([]byte{0, 1, 2}, 1)
+		tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		runCase(t, false, true, sign, priv.PublicKey().Bytes(), stackitem.NewInterop(tx))
 	})
 
 	t.Run("signed script container", func(t *testing.T) {
-		tx := transaction.New([]byte{0, 1, 2}, 1)
+		tx := transaction.New(netmode.UnitTestNet, []byte{0, 1, 2}, 1)
 		msg := tx.GetSignedPart()
 		sign := priv.Sign(msg)
 		ic.Container = tx
@@ -218,7 +219,7 @@ func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
 	v := vm.New()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
-		dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	return v, context, chain
 }
 
@@ -232,7 +233,7 @@ func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Bl
 	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), block, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), block, nil)
 	return v, block, context, chain
 }
 
@@ -259,7 +260,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	}
 
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	return v, contractState, context, chain
 }
 
@@ -271,14 +272,14 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context
 
 	require.NoError(t, err)
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, nil)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	return v, accountState, context, chain
 }
 
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
 	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
-	tx := transaction.New(script, 0)
+	tx := transaction.New(netmode.UnitTestNet, script, 0)
 
 	bytes := make([]byte, 1)
 	attributes := append(tx.Attributes, transaction.Attribute{
@@ -288,6 +289,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 
 	tx.Attributes = attributes
 	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore()), nil, tx)
+	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, tx)
 	return v, tx, context, chain
 }

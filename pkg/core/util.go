@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -53,12 +54,13 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			InvocationScript:   []byte{},
 			VerificationScript: []byte{byte(opcode.PUSH1)},
 		},
+		Network: cfg.Magic,
 	}
 
 	b := &block.Block{
 		Base: base,
 		Transactions: []*transaction.Transaction{
-			deployNativeContracts(),
+			deployNativeContracts(cfg.Magic),
 		},
 		ConsensusData: block.ConsensusData{
 			PrimaryIndex: 0,
@@ -73,11 +75,11 @@ func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 	return b, nil
 }
 
-func deployNativeContracts() *transaction.Transaction {
+func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "Neo.Native.Deploy")
 	script := buf.Bytes()
-	tx := transaction.New(script, 0)
+	tx := transaction.New(magic, script, 0)
 	tx.Nonce = 0
 	tx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
 	tx.Scripts = []transaction.Witness{

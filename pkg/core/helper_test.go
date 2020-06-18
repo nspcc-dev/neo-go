@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -35,7 +34,7 @@ var neoOwner = testchain.MultisigScriptHash()
 // newTestChain should be called before newBlock invocation to properly setup
 // global state.
 func newTestChain(t *testing.T) *Blockchain {
-	unitTestNetCfg, err := config.Load("../../config", netmode.UnitTestNet)
+	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
 	require.NoError(t, err)
 	chain, err := NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
 	require.NoError(t, err)
@@ -60,6 +59,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 	}
 	b := &block.Block{
 		Base: block.Base{
+			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      prev,
 			Timestamp:     uint64(time.Now().UTC().Unix())*1000 + uint64(index),
@@ -103,7 +103,7 @@ func getDecodedBlock(t *testing.T, i int) *block.Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := &block.Block{}
+	block := block.New(testchain.Network())
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block
@@ -124,6 +124,7 @@ func getBlockData(i int) (map[string]interface{}, error) {
 func newDumbBlock() *block.Block {
 	return &block.Block{
 		Base: block.Base{
+			Network:       testchain.Network(),
 			Version:       0,
 			PrevHash:      hash.Sha256([]byte("a")),
 			MerkleRoot:    hash.Sha256([]byte("b")),
@@ -140,7 +141,7 @@ func newDumbBlock() *block.Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
+			transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }
@@ -241,7 +242,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txScript := script.Bytes()
 
 	invFee := util.Fixed8FromFloat(100)
-	txDeploy := transaction.New(txScript, invFee)
+	txDeploy := transaction.New(testchain.Network(), txScript, invFee)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	txDeploy.Sender = priv0ScriptHash
@@ -255,7 +256,7 @@ func TestCreateBasicChain(t *testing.T) {
 	script = io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
 
-	txInv := transaction.New(script.Bytes(), 0)
+	txInv := transaction.New(testchain.Network(), script.Bytes(), 0)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Sender = priv0ScriptHash
@@ -286,7 +287,7 @@ func TestCreateBasicChain(t *testing.T) {
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
-	initTx := transaction.New(w.Bytes(), 0)
+	initTx := transaction.New(testchain.Network(), w.Bytes(), 0)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Sender = priv0ScriptHash
@@ -376,7 +377,7 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	return transaction.New(script, 0)
+	return transaction.New(testchain.Network(), script, 0)
 }
 
 func addSender(txs ...*transaction.Transaction) error {

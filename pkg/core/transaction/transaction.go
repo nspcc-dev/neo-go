@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/rand"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -58,6 +59,11 @@ type Transaction struct {
 	// and invocation script.
 	Scripts []Witness
 
+	// Network magic number. This one actually is not a part of the
+	// wire-representation of Transaction, but it's absolutely necessary
+	// for correct signing/verification.
+	Network netmode.Magic
+
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
 
@@ -80,7 +86,7 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 
 // New returns a new transaction to execute given script and pay given system
 // fee.
-func New(script []byte, gas util.Fixed8) *Transaction {
+func New(network netmode.Magic, script []byte, gas util.Fixed8) *Transaction {
 	return &Transaction{
 		Version:    0,
 		Nonce:      rand.Uint32(),
@@ -89,6 +95,7 @@ func New(script []byte, gas util.Fixed8) *Transaction {
 		Attributes: []Attribute{},
 		Cosigners:  []Cosigner{},
 		Scripts:    []Witness{},
+		Network:    network,
 	}
 }
 
@@ -203,22 +210,25 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 
 // createHash creates the hash of the transaction.
 func (t *Transaction) createHash() error {
-	buf := io.NewBufBinWriter()
-	t.encodeHashableFields(buf.BinWriter)
-	if buf.Err != nil {
-		return buf.Err
+	b := t.GetSignedPart()
+	if b == nil {
+		return errors.New("failed to serialize hashable data")
 	}
+	t.updateHashes(b)
+	return nil
+}
 
-	b := buf.Bytes()
+// updateHashes updates Transaction's hashes based on the given buffer which should
+// be a signable data slice.
+func (t *Transaction) updateHashes(b []byte) {
 	t.verificationHash = hash.Sha256(b)
 	t.hash = hash.Sha256(t.verificationHash.BytesBE())
-
-	return nil
 }
 
 // GetSignedPart returns a part of the transaction which must be signed.
 func (t *Transaction) GetSignedPart() []byte {
 	buf := io.NewBufBinWriter()
+	buf.WriteU32LE(uint32(t.Network))
 	t.encodeHashableFields(buf.BinWriter)
 	if buf.Err != nil {
 		return nil
@@ -229,6 +239,7 @@ func (t *Transaction) GetSignedPart() []byte {
 // DecodeSignedPart decodes a part of transaction from GetSignedPart data.
 func (t *Transaction) DecodeSignedPart(buf []byte) error {
 	r := io.NewBinReaderFromBuf(buf)
+	t.Network = netmode.Magic(r.ReadU32LE())
 	t.decodeHashableFields(r)
 	if r.Err != nil {
 		return r.Err
@@ -239,7 +250,7 @@ func (t *Transaction) DecodeSignedPart(buf []byte) error {
 		return errors.New("additional data after the signed part")
 	}
 	t.Scripts = make([]Witness, 0)
-	_ = t.createHash()
+	t.updateHashes(buf)
 	return nil
 }
 
@@ -254,8 +265,8 @@ func (t *Transaction) Bytes() []byte {
 }
 
 // NewTransactionFromBytes decodes byte array into *Transaction
-func NewTransactionFromBytes(b []byte) (*Transaction, error) {
-	tx := &Transaction{}
+func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, error) {
+	tx := &Transaction{Network: network}
 	r := io.NewBinReaderFromBuf(b)
 	tx.DecodeBinary(r)
 	if r.Err != nil {

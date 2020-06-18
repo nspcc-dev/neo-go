@@ -72,7 +72,7 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(blockBytes)
-	b = new(block.Block)
+	b = block.New(c.opts.Network)
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -98,6 +98,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 		resp = &result.Block{}
 		err  error
 	)
+	resp.Network = c.opts.Network
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -133,6 +134,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	}
 	r := io.NewBinReaderFromBuf(headerBytes)
 	h = new(block.Header)
+	h.Network = c.opts.Network
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -247,7 +249,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 	if err != nil {
 		return nil, err
 	}
-	tx, err := transaction.NewTransactionFromBytes(txBytes)
+	tx, err := transaction.NewTransactionFromBytes(c.opts.Network, txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -263,6 +265,7 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
+	resp.Network = c.opts.Network
 	if err = c.performRequest("getrawtransaction", params, resp); err != nil {
 		return nil, err
 	}
@@ -421,7 +424,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	var txHash util.Uint256
 	var err error
 
-	tx := transaction.New(script, sysfee)
+	tx := transaction.New(c.opts.Network, script, sysfee)
 	tx.SystemFee = sysfee
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
