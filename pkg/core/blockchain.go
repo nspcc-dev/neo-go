@@ -363,7 +363,20 @@ func (bc *Blockchain) notificationDispatcher() {
 			// We don't want to waste time looping through transactions when there are no
 			// subscribers.
 			if len(txFeed) != 0 || len(notificationFeed) != 0 || len(executionFeed) != 0 {
-				var aerIdx int
+				aer := event.appExecResults[0]
+				if !aer.TxHash.Equals(event.block.Hash()) {
+					panic("inconsistent application execution results")
+				}
+				for ch := range executionFeed {
+					ch <- aer
+				}
+				for i := range aer.Events {
+					for ch := range notificationFeed {
+						ch <- &aer.Events[i]
+					}
+				}
+
+				aerIdx := 1
 				for _, tx := range event.block.Transactions {
 					aer := event.appExecResults[aerIdx]
 					if !aer.TxHash.Equals(tx.Hash()) {
@@ -547,7 +560,7 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 // and all tests are in place, we can make a more optimized and cleaner implementation.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
-	appExecResults := make([]*state.AppExecResult, 0, len(block.Transactions))
+	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
 	if err := cache.StoreAsBlock(block); err != nil {
 		return err
 	}
@@ -564,6 +577,19 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return errors.Wrap(err, "can't persist native contracts")
 		} else if _, err := systemInterop.DAO.Persist(); err != nil {
 			return errors.Wrap(err, "can't persist `onPersist` changes")
+		}
+		aer := &state.AppExecResult{
+			TxHash:      block.Hash(), // application logs can be retrieved by block hash
+			Trigger:     trigger.System,
+			VMState:     v.State(),
+			GasConsumed: v.GasConsumed(),
+			Stack:       v.Estack().ToContractParameters(),
+			Events:      systemInterop.Notifications,
+		}
+		appExecResults = append(appExecResults, aer)
+		err := cache.PutAppExecResult(aer)
+		if err != nil {
+			return errors.Wrap(err, "failed to Store notifications")
 		}
 	}
 

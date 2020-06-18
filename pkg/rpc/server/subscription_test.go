@@ -97,8 +97,18 @@ func TestSubscriptions(t *testing.T) {
 
 	for _, b := range getTestBlocks(t) {
 		require.NoError(t, chain.AddBlock(b))
-		for range b.Transactions {
+		resp := getNotification(t, respMsgs)
+		require.Equal(t, response.ExecutionEventID, resp.Event)
+		for {
 			resp := getNotification(t, respMsgs)
+			if resp.Event != response.NotificationEventID {
+				break
+			}
+		}
+		for i := 0; i < len(b.Transactions); i++ {
+			if i > 0 {
+				resp = getNotification(t, respMsgs)
+			}
 			require.Equal(t, response.ExecutionEventID, resp.Event)
 			for {
 				resp := getNotification(t, respMsgs)
@@ -109,7 +119,7 @@ func TestSubscriptions(t *testing.T) {
 				break
 			}
 		}
-		resp := getNotification(t, respMsgs)
+		resp = getNotification(t, respMsgs)
 		require.Equal(t, response.BlockEventID, resp.Event)
 	}
 
