@@ -108,7 +108,7 @@ func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) s
 }
 
 func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
-	si := ic.DAO.GetStorageItem(c.Hash, totalSupplyKey)
+	si := ic.DAO.GetStorageItem(c.ContractID, totalSupplyKey)
 	if si == nil {
 		return big.NewInt(0)
 	}
@@ -117,7 +117,7 @@ func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
 
 func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
 	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
-	return ic.DAO.PutStorageItem(c.Hash, totalSupplyKey, si)
+	return ic.DAO.PutStorageItem(c.ContractID, totalSupplyKey, si)
 }
 
 func (c *nep5TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -165,7 +165,7 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	}
 
 	keyFrom := makeAccountKey(from)
-	siFrom := ic.DAO.GetStorageItem(c.Hash, keyFrom)
+	siFrom := ic.DAO.GetStorageItem(c.ContractID, keyFrom)
 	if siFrom == nil {
 		return errors.New("insufficient funds")
 	}
@@ -180,20 +180,20 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
 		return err
 	}
-	if err := ic.DAO.PutStorageItem(c.Hash, keyFrom, siFrom); err != nil {
+	if err := ic.DAO.PutStorageItem(c.ContractID, keyFrom, siFrom); err != nil {
 		return err
 	}
 
 	if !isEmpty {
 		keyTo := makeAccountKey(to)
-		siTo := ic.DAO.GetStorageItem(c.Hash, keyTo)
+		siTo := ic.DAO.GetStorageItem(c.ContractID, keyTo)
 		if siTo == nil {
 			siTo = new(state.StorageItem)
 		}
 		if err := c.incBalance(ic, to, siTo, amount); err != nil {
 			return err
 		}
-		if err := ic.DAO.PutStorageItem(c.Hash, keyTo, siTo); err != nil {
+		if err := ic.DAO.PutStorageItem(c.ContractID, keyTo, siTo); err != nil {
 			return err
 		}
 	}
@@ -234,14 +234,14 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 	}
 
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(c.Hash, key)
+	si := ic.DAO.GetStorageItem(c.ContractID, key)
 	if si == nil {
 		si = new(state.StorageItem)
 	}
 	if err := c.incBalance(ic, h, si, amount); err != nil {
 		panic(err)
 	}
-	if err := ic.DAO.PutStorageItem(c.Hash, key, si); err != nil {
+	if err := ic.DAO.PutStorageItem(c.ContractID, key, si); err != nil {
 		panic(err)
 	}
 

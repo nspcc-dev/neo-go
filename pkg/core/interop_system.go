@@ -28,11 +28,11 @@ const (
 	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
 )
 
-// StorageContext contains storing script hash and read/write flag, it's used as
+// StorageContext contains storing id and read/write flag, it's used as
 // a context for storage manipulation functions.
 type StorageContext struct {
-	ScriptHash util.Uint160
-	ReadOnly   bool
+	ID       int32
+	ReadOnly bool
 }
 
 // getBlockHashFromElement converts given vm.Element to block hash using given
@@ -259,17 +259,6 @@ func runtimeGetTime(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-func checkStorageContext(ic *interop.Context, stc *StorageContext) error {
-	contract, err := ic.DAO.GetContractState(stc.ScriptHash)
-	if err != nil {
-		return errors.New("no contract found")
-	}
-	if !contract.HasStorage() {
-		return fmt.Errorf("contract %s can't use storage", stc.ScriptHash)
-	}
-	return nil
-}
-
 // storageDelete deletes stored key-value pair.
 func storageDelete(ic *interop.Context, v *vm.VM) error {
 	stcInterface := v.Estack().Pop().Value()
@@ -280,16 +269,12 @@ func storageDelete(ic *interop.Context, v *vm.VM) error {
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
 	key := v.Estack().Pop().Bytes()
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.IsConst {
 		return errors.New("storage item is constant")
 	}
-	return ic.DAO.DeleteStorageItem(stc.ScriptHash, key)
+	return ic.DAO.DeleteStorageItem(stc.ID, key)
 }
 
 // storageGet returns stored key-value pair.
@@ -299,12 +284,8 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
 	key := v.Estack().Pop().Bytes()
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si != nil && si.Value != nil {
 		v.Estack().PushVal(si.Value)
 	} else {
@@ -315,9 +296,16 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 
 // storageGetContext returns storage context (scripthash).
 func storageGetContext(ic *interop.Context, v *vm.VM) error {
+	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	if err != nil {
+		return err
+	}
+	if !contract.HasStorage() {
+		return err
+	}
 	sc := &StorageContext{
-		ScriptHash: v.GetCurrentScriptHash(),
-		ReadOnly:   false,
+		ID:       contract.ID,
+		ReadOnly: false,
 	}
 	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
@@ -325,9 +313,16 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 
 // storageGetReadOnlyContext returns read-only context (scripthash).
 func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
+	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	if err != nil {
+		return err
+	}
+	if !contract.HasStorage() {
+		return err
+	}
 	sc := &StorageContext{
-		ScriptHash: v.GetCurrentScriptHash(),
-		ReadOnly:   true,
+		ID:       contract.ID,
+		ReadOnly: true,
 	}
 	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
@@ -340,11 +335,7 @@ func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, 
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
-	si := ic.DAO.GetStorageItem(stc.ScriptHash, key)
+	si := ic.DAO.GetStorageItem(stc.ID, key)
 	if si == nil {
 		si = &state.StorageItem{}
 	}
@@ -360,7 +351,7 @@ func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, 
 	}
 	si.Value = value
 	si.IsConst = isConst
-	return ic.DAO.PutStorageItem(stc.ScriptHash, key, si)
+	return ic.DAO.PutStorageItem(stc.ID, key, si)
 }
 
 // storagePutInternal is a unified implementation of storagePut and storagePutEx.
@@ -398,8 +389,8 @@ func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
 	}
 	if !stc.ReadOnly {
 		stx := &StorageContext{
-			ScriptHash: stc.ScriptHash,
-			ReadOnly:   true,
+			ID:       stc.ID,
+			ReadOnly: true,
 		}
 		stc = stx
 	}
@@ -462,12 +453,12 @@ func contractDestroy(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	if cs.HasStorage() {
-		siMap, err := ic.DAO.GetStorageItems(hash)
+		siMap, err := ic.DAO.GetStorageItems(cs.ID)
 		if err != nil {
 			return err
 		}
 		for k := range siMap {
-			_ = ic.DAO.DeleteStorageItem(hash, []byte(k))
+			_ = ic.DAO.DeleteStorageItem(cs.ID, []byte(k))
 		}
 	}
 	return nil

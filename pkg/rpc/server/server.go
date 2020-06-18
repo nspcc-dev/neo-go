@@ -634,18 +634,44 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	return d, nil
 }
 
+func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Error) {
+	var result int32
+	switch param.Type {
+	case request.StringT:
+		var err error
+		scriptHash, err := param.GetUint160FromHex()
+		if err != nil {
+			return 0, response.ErrInvalidParams
+		}
+		cs := s.chain.GetContractState(scriptHash)
+		if cs == nil {
+			return 0, response.ErrUnknown
+		}
+		result = cs.ID
+	case request.NumberT:
+		id, err := param.GetInt()
+		if err != nil {
+			return 0, response.ErrInvalidParams
+		}
+		result = int32(id)
+	default:
+		return 0, response.ErrInvalidParams
+	}
+	return result, nil
+}
+
 func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 	param, ok := ps.Value(0)
 	if !ok {
 		return nil, response.ErrInvalidParams
 	}
-
-	scriptHash, err := param.GetUint160FromHex()
-	if err != nil {
-		return nil, response.ErrInvalidParams
+	id, rErr := s.contractIDFromParam(param)
+	if rErr == response.ErrUnknown {
+		return nil, nil
 	}
-
-	scriptHash = scriptHash.Reverse()
+	if rErr != nil {
+		return nil, rErr
+	}
 
 	param, ok = ps.Value(1)
 	if !ok {
@@ -657,7 +683,7 @@ func (s *Server) getStorage(ps request.Params) (interface{}, *response.Error) {
 		return nil, response.ErrInvalidParams
 	}
 
-	item := s.chain.GetStorageItem(scriptHash.Reverse(), key)
+	item := s.chain.GetStorageItem(id, key)
 	if item == nil {
 		return nil, nil
 	}

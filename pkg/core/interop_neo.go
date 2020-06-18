@@ -34,12 +34,8 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	err := checkStorageContext(ic, stc)
-	if err != nil {
-		return err
-	}
 	prefix := v.Estack().Pop().Bytes()
-	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ScriptHash, prefix)
+	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
 	if err != nil {
 		return err
 	}
@@ -138,19 +134,13 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 			return err
 		}
 	}
-	if contract.HasStorage() {
-		// TODO store items by ID #1037
-		hash := v.GetCurrentScriptHash()
-		siMap, err := ic.DAO.GetStorageItems(hash)
+	if !newcontract.HasStorage() {
+		siMap, err := ic.DAO.GetStorageItems(contract.ID)
 		if err != nil {
 			return err
 		}
-		for k, v := range siMap {
-			v.IsConst = false
-			err = ic.DAO.PutStorageItem(contract.ScriptHash(), []byte(k), v)
-			if err != nil {
-				return err
-			}
+		if len(siMap) != 0 {
+			return errors.New("old contract shouldn't have storage")
 		}
 	}
 	v.Estack().PushVal(stackitem.NewInterop(contract))

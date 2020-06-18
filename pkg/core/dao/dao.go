@@ -19,7 +19,7 @@ import (
 type DAO interface {
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
-	DeleteStorageItem(scripthash util.Uint160, key []byte) error
+	DeleteStorageItem(id int32, key []byte) error
 	GetAccountState(hash util.Uint160) (*state.Account, error)
 	GetAccountStateOrNew(hash util.Uint160) (*state.Account, error)
 	GetAndDecode(entity io.Serializable, key []byte) error
@@ -33,9 +33,9 @@ type DAO interface {
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetNextContractID() (int32, error)
-	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
-	GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error)
-	GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error)
+	GetStorageItem(id int32, key []byte) *state.StorageItem
+	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
+	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
 	GetVersion() (string, error)
 	GetWrapped() DAO
@@ -48,7 +48,7 @@ type DAO interface {
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutNextContractID(id int32) error
-	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
+	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block) error
 	StoreAsCurrentBlock(block *block.Block) error
@@ -296,8 +296,8 @@ func (dao *Simple) PutAppExecResult(aer *state.AppExecResult) error {
 // -- start storage item.
 
 // GetStorageItem returns StorageItem if it exists in the given store.
-func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
-	b, err := dao.Store.Get(makeStorageItemKey(scripthash, key))
+func (dao *Simple) GetStorageItem(id int32, key []byte) *state.StorageItem {
+	b, err := dao.Store.Get(makeStorageItemKey(id, key))
 	if err != nil {
 		return nil
 	}
@@ -312,30 +312,30 @@ func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.St
 	return si
 }
 
-// PutStorageItem puts given StorageItem for given script with given
+// PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
-func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
-	return dao.Put(si, makeStorageItemKey(scripthash, key))
+func (dao *Simple) PutStorageItem(id int32, key []byte, si *state.StorageItem) error {
+	return dao.Put(si, makeStorageItemKey(id, key))
 }
 
-// DeleteStorageItem drops storage item for the given script with the
+// DeleteStorageItem drops storage item for the given id with the
 // given key from the store.
-func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
-	return dao.Store.Delete(makeStorageItemKey(scripthash, key))
+func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
+	return dao.Store.Delete(makeStorageItemKey(id, key))
 }
 
-// GetStorageItems returns all storage items for a given scripthash.
-func (dao *Simple) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
-	return dao.GetStorageItemsWithPrefix(hash, nil)
+// GetStorageItems returns all storage items for a given id.
+func (dao *Simple) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
+	return dao.GetStorageItemsWithPrefix(id, nil)
 }
 
-// GetStorageItemsWithPrefix returns all storage items with given prefix for a
+// GetStorageItemsWithPrefix returns all storage items with given id for a
 // given scripthash.
-func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (map[string]*state.StorageItem, error) {
+func (dao *Simple) GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error) {
 	var siMap = make(map[string]*state.StorageItem)
 	var err error
 
-	lookupKey := storage.AppendPrefix(storage.STStorage, hash.BytesLE())
+	lookupKey := makeStorageItemKey(id, nil)
 	if prefix != nil {
 		lookupKey = append(lookupKey, prefix...)
 	}
@@ -362,8 +362,13 @@ func (dao *Simple) GetStorageItemsWithPrefix(hash util.Uint160, prefix []byte) (
 }
 
 // makeStorageItemKey returns a key used to store StorageItem in the DB.
-func makeStorageItemKey(scripthash util.Uint160, key []byte) []byte {
-	return storage.AppendPrefix(storage.STStorage, append(scripthash.BytesLE(), key...))
+func makeStorageItemKey(id int32, key []byte) []byte {
+	// 1 for prefix + 4 for Uint32 + len(key) for key
+	buf := make([]byte, 5+len(key))
+	buf[0] = byte(storage.STStorage)
+	binary.LittleEndian.PutUint32(buf[1:], uint32(id))
+	copy(buf[5:], key)
+	return buf
 }
 
 // -- end storage item.

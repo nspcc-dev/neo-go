@@ -124,7 +124,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	vc := new(ValidatorsCount)
 	si.Value = vc.Bytes()
-	if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, &si); err != nil {
+	if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, &si); err != nil {
 		return err
 	}
 	h, vs, err := getStandbyValidatorsHash(ic)
@@ -150,7 +150,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	}
 	si := new(state.StorageItem)
 	si.Value = pubs.Bytes()
-	return ic.DAO.PutStorageItem(n.Hash, nextValidatorsKey, si)
+	return ic.DAO.PutStorageItem(n.ContractID, nextValidatorsKey, si)
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int) error {
@@ -171,7 +171,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
 			return err
 		}
-		siVC := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
+		siVC := ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
 		if siVC == nil {
 			return errors.New("validators count uninitialized")
 		}
@@ -181,7 +181,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		}
 		vc[len(acc.Votes)-1].Add(&vc[len(acc.Votes)-1], amount)
 		siVC.Value = vc.Bytes()
-		if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, siVC); err != nil {
+		if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, siVC); err != nil {
 			return err
 		}
 	}
@@ -220,7 +220,7 @@ func (n *NEO) registerValidator(ic *interop.Context, args []stackitem.Item) stac
 
 func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
-	si := ic.DAO.GetStorageItem(n.Hash, key)
+	si := ic.DAO.GetStorageItem(n.ContractID, key)
 	if si != nil {
 		return errors.New("already registered")
 	}
@@ -229,7 +229,7 @@ func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey
 	// doesn't help a lot.
 	votes := state.NEP5BalanceState{}
 	si.Value = votes.Bytes()
-	return ic.DAO.PutStorageItem(n.Hash, key, si)
+	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -263,7 +263,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		return errors.New("invalid signature")
 	}
 	key := makeAccountKey(h)
-	si := ic.DAO.GetStorageItem(n.Hash, key)
+	si := ic.DAO.GetStorageItem(n.ContractID, key)
 	if si == nil {
 		return errors.New("invalid account")
 	}
@@ -278,13 +278,13 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 	// Check validators registration.
 	var newPubs keys.PublicKeys
 	for _, pub := range pubs {
-		if ic.DAO.GetStorageItem(n.Hash, makeValidatorKey(pub)) == nil {
+		if ic.DAO.GetStorageItem(n.ContractID, makeValidatorKey(pub)) == nil {
 			continue
 		}
 		newPubs = append(newPubs, pub)
 	}
 	if lp, lv := len(newPubs), len(acc.Votes); lp != lv {
-		si := ic.DAO.GetStorageItem(n.Hash, validatorsCountKey)
+		si := ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
 		if si == nil {
 			return errors.New("validators count uninitialized")
 		}
@@ -299,7 +299,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 			vc[lp-1].Add(&vc[lp-1], &acc.Balance)
 		}
 		si.Value = vc.Bytes()
-		if err := ic.DAO.PutStorageItem(n.Hash, validatorsCountKey, si); err != nil {
+		if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, si); err != nil {
 			return err
 		}
 	}
@@ -308,14 +308,14 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		return err
 	}
 	si.Value = acc.Bytes()
-	return ic.DAO.PutStorageItem(n.Hash, key, si)
+	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
 func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int) error {
 	for _, vote := range acc.Votes {
 		key := makeValidatorKey(vote)
-		si := d.GetStorageItem(n.Hash, key)
+		si := d.GetStorageItem(n.ContractID, key)
 		if si == nil {
 			return errors.New("invalid validator")
 		}
@@ -325,7 +325,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 		}
 		votes.Balance.Add(&votes.Balance, value)
 		si.Value = votes.Bytes()
-		if err := d.PutStorageItem(n.Hash, key, si); err != nil {
+		if err := d.PutStorageItem(n.ContractID, key, si); err != nil {
 			return err
 		}
 	}
@@ -333,7 +333,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 }
 
 func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.Hash, []byte{prefixValidator})
+	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixValidator})
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +384,7 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	si := d.GetStorageItem(n.Hash, validatorsCountKey)
+	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
 	if si == nil {
 		return nil, errors.New("validators count uninitialized")
 	}
@@ -454,7 +454,7 @@ func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) st
 
 // GetNextBlockValidatorsInternal returns next block validators.
 func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	si := d.GetStorageItem(n.Hash, nextValidatorsKey)
+	si := d.GetStorageItem(n.ContractID, nextValidatorsKey)
 	if si == nil {
 		return n.GetValidatorsInternal(bc, d)
 	}

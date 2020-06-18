@@ -114,29 +114,29 @@ func TestCachedCachedDao(t *testing.T) {
 	assert.NotEqual(t, pdao.Store, intDao.Store)
 	assert.NotEqual(t, cdaoDao.Store, intDao.Store)
 
-	hash := random.Uint160()
+	id := int32(random.Int(0, 1024))
 	key := []byte("qwerty")
 	si := &state.StorageItem{Value: []byte("poiuyt")}
-	require.NoError(t, ccdao.PutStorageItem(hash, key, si))
-	resi := ccdao.GetStorageItem(hash, key)
+	require.NoError(t, ccdao.PutStorageItem(id, key, si))
+	resi := ccdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
 
-	resi = cdao.GetStorageItem(hash, key)
+	resi = cdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
 
 	cnt, err := ccdao.Persist()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, cnt)
-	resi = cdao.GetStorageItem(hash, key)
+	resi = cdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, (*state.StorageItem)(nil), resi)
 
 	cnt, err = cdao.Persist()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, cnt)
-	resi = pdao.GetStorageItem(hash, key)
+	resi = pdao.GetStorageItem(id, key)
 	assert.Equal(t, si, resi)
 }

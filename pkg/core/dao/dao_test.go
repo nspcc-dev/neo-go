@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -111,25 +112,25 @@ func TestPutGetAppExecResult(t *testing.T) {
 
 func TestPutGetStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
-	hash := random.Uint160()
+	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
-	err := dao.PutStorageItem(hash, key, storageItem)
+	err := dao.PutStorageItem(id, key, storageItem)
 	require.NoError(t, err)
-	gotStorageItem := dao.GetStorageItem(hash, key)
+	gotStorageItem := dao.GetStorageItem(id, key)
 	require.Equal(t, storageItem, gotStorageItem)
 }
 
 func TestDeleteStorageItem(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
-	hash := random.Uint160()
+	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := &state.StorageItem{Value: []uint8{}}
-	err := dao.PutStorageItem(hash, key, storageItem)
+	err := dao.PutStorageItem(id, key, storageItem)
 	require.NoError(t, err)
-	err = dao.DeleteStorageItem(hash, key)
+	err = dao.DeleteStorageItem(id, key)
 	require.NoError(t, err)
-	gotStorageItem := dao.GetStorageItem(hash, key)
+	gotStorageItem := dao.GetStorageItem(id, key)
 	require.Nil(t, gotStorageItem)
 }
 
@@ -207,4 +208,17 @@ func TestStoreAsTransaction(t *testing.T) {
 	require.NoError(t, err)
 	hasTransaction := dao.HasTransaction(hash)
 	require.True(t, hasTransaction)
+}
+
+func TestMakeStorageItemKey(t *testing.T) {
+	var id int32 = 5
+
+	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
+	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
+	actual := makeStorageItemKey(id, []byte{1, 2, 3})
+	require.Equal(t, expected, actual)
+
+	expected = expected[0:5]
+	actual = makeStorageItemKey(id, nil)
+	require.Equal(t, expected, actual)
 }

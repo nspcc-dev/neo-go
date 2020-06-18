@@ -94,13 +94,13 @@ func (chain testChain) GetEnrollments() ([]state.Validator, error) {
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
+func (chain testChain) GetStorageItem(id int32, key []byte) *state.StorageItem {
 	panic("TODO")
 }
 func (chain testChain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 	panic("TODO")
 }
-func (chain testChain) GetStorageItems(hash util.Uint160) (map[string]*state.StorageItem, error) {
+func (chain testChain) GetStorageItems(id int32) (map[string]*state.StorageItem, error) {
 	panic("TODO")
 }
 func (chain testChain) CurrentHeaderHash() util.Uint256 {
