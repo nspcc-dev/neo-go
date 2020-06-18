@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"sort"
+	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -42,6 +43,14 @@ var (
 // Policy represents Policy native contract.
 type Policy struct {
 	interop.ContractMD
+	lock sync.RWMutex
+	// isValid defies whether cached values were changed during the current
+	// consensus iteration. If false, these values will be updated after
+	// blockchain DAO persisting. If true, we can safely use cached values.
+	isValid                 bool
+	maxTransactionsPerBlock uint32
+	maxBlockSize            uint32
+	feePerByte              int64
 }
 
 var _ interop.Contract = (*Policy)(nil)
@@ -135,12 +144,38 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	if err != nil {
 		return err
 	}
+
+	p.isValid = true
+	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
+	p.maxBlockSize = defaultMaxBlockSize
+	p.feePerByte = defaultFeePerByte
+
 	return nil
 }
 
 // OnPersist implements Contract interface.
 func (p *Policy) OnPersist(ic *interop.Context) error {
 	return nil
+}
+
+// OnPersistEnd updates cached Policy values if they've been changed
+func (p *Policy) OnPersistEnd(dao dao.DAO) {
+	if p.isValid {
+		return
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	maxTxPerBlock := p.getUint32WithKey(dao, maxTransactionsPerBlockKey)
+	p.maxTransactionsPerBlock = maxTxPerBlock
+
+	maxBlockSize := p.getUint32WithKey(dao, maxBlockSizeKey)
+	p.maxBlockSize = maxBlockSize
+
+	feePerByte := p.getInt64WithKey(dao, feePerByteKey)
+	p.feePerByte = feePerByte
+
+	p.isValid = true
 }
 
 // getMaxTransactionsPerBlock is Policy contract method and returns the upper
@@ -152,11 +187,21 @@ func (p *Policy) getMaxTransactionsPerBlock(ic *interop.Context, _ []stackitem.I
 // GetMaxTransactionsPerBlockInternal returns the upper limit of transactions per
 // block.
 func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return p.maxTransactionsPerBlock
+	}
 	return p.getUint32WithKey(dao, maxTransactionsPerBlockKey)
 }
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
 func (p *Policy) getMaxBlockSize(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return stackitem.NewBigInteger(big.NewInt(int64(p.maxBlockSize)))
+	}
 	return stackitem.NewBigInteger(big.NewInt(int64(p.getUint32WithKey(ic.DAO, maxBlockSizeKey))))
 }
 
@@ -168,6 +213,11 @@ func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackite
 
 // GetFeePerByteInternal returns required transaction's fee per byte.
 func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return p.feePerByte
+	}
 	return p.getInt64WithKey(dao, feePerByteKey)
 }
 
@@ -205,10 +255,13 @@ func (p *Policy) setMaxTransactionsPerBlock(ic *interop.Context, args []stackite
 		return stackitem.NewBool(false)
 	}
 	value := uint32(toBigInt(args[0]).Int64())
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	err = p.setUint32WithKey(ic.DAO, maxTransactionsPerBlockKey, value)
 	if err != nil {
 		panic(err)
 	}
+	p.isValid = false
 	return stackitem.NewBool(true)
 }
 
@@ -225,10 +278,13 @@ func (p *Policy) setMaxBlockSize(ic *interop.Context, args []stackitem.Item) sta
 	if payload.MaxSize <= value {
 		return stackitem.NewBool(false)
 	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	err = p.setUint32WithKey(ic.DAO, maxBlockSizeKey, value)
 	if err != nil {
 		panic(err)
 	}
+	p.isValid = false
 	return stackitem.NewBool(true)
 }
 
@@ -242,10 +298,13 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 		return stackitem.NewBool(false)
 	}
 	value := toBigInt(args[0]).Int64()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	err = p.setInt64WithKey(ic.DAO, feePerByteKey, value)
 	if err != nil {
 		panic(err)
 	}
+	p.isValid = false
 	return stackitem.NewBool(true)
 }
 

@@ -640,6 +640,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.lock.Unlock()
 		return err
 	}
+	bc.contracts.Policy.OnPersistEnd(bc.dao)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
