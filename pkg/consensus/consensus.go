@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/crypto"
-	"github.com/nspcc-dev/dbft/merkle"
 	"github.com/nspcc-dev/dbft/payload"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -475,12 +474,7 @@ func newBlockFromContext(ctx *dbft.Context) block.Block {
 
 	primaryIndex := uint32(ctx.PrimaryIndex)
 	block.Block.ConsensusData.PrimaryIndex = primaryIndex
-	consensusData := coreb.ConsensusData{
-		PrimaryIndex: primaryIndex,
-		Nonce:        ctx.Nonce,
-	}
 
-	mt := merkle.NewMerkleTree(append([]util.Uint256{consensusData.Hash()}, ctx.TransactionHashes...)...)
-	block.Block.MerkleRoot = mt.Root().Hash
+	block.Block.RebuildMerkleRoot()
 	return block
 }
