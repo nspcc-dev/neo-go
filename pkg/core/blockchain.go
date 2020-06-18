@@ -156,18 +156,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxTransactionsPerBlock = 0
 		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
-	if cfg.MaxFreeTransactionsPerBlock <= 0 {
-		cfg.MaxFreeTransactionsPerBlock = 0
-		log.Info("MaxFreeTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionsPerBlock", cfg.MaxFreeTransactionsPerBlock))
-	}
-	if cfg.MaxFreeTransactionSize <= 0 {
-		cfg.MaxFreeTransactionSize = 0
-		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
-	}
-	if cfg.FeePerExtraByte <= 0 {
-		cfg.FeePerExtraByte = 0
-		log.Info("FeePerExtraByte is not set or wrong, setting default value", zap.Float64("FeePerExtraByte", cfg.FeePerExtraByte))
-	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s, cfg.Magic),
@@ -1117,15 +1105,6 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
 		txes = txes[:bc.config.MaxTransactionsPerBlock]
 	}
-	maxFree := bc.config.MaxFreeTransactionsPerBlock
-	if maxFree != 0 {
-		lowStart := sort.Search(len(txes), func(i int) bool {
-			return bc.IsLowPriority(txes[i].NetworkFee)
-		})
-		if lowStart+maxFree < len(txes) {
-			txes = txes[:lowStart+maxFree]
-		}
-	}
 	return txes
 }
 
@@ -1225,14 +1204,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
-	txSize := io.GetVarSize(t)
-	maxFree := bc.config.MaxFreeTransactionSize
-	if maxFree != 0 && txSize > maxFree {
-		if bc.IsLowPriority(t.NetworkFee) ||
-			t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
-			return ErrPolicy
-		}
-	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:
