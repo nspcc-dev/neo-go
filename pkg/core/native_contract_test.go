@@ -107,7 +107,14 @@ func TestNativeContract_Invoke(t *testing.T) {
 	tx.ValidUntilBlock = validUntil
 	require.NoError(t, addSender(tx))
 	require.NoError(t, signTx(chain, tx))
-	b := chain.newBlock(tx)
+
+	// Enough for Call and other opcodes, but not enough for "sum" call.
+	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2)
+	tx2.ValidUntilBlock = chain.blockHeight + 1
+	require.NoError(t, addSender(tx2))
+	require.NoError(t, signTx(chain, tx2))
+
+	b := chain.newBlock(tx, tx2)
 	require.NoError(t, chain.AddBlock(b))
 
 	res, err := chain.GetAppExecResult(tx.Hash())
@@ -116,6 +123,10 @@ func TestNativeContract_Invoke(t *testing.T) {
 	require.Equal(t, 1, len(res.Stack))
 	require.Equal(t, smartcontract.IntegerType, res.Stack[0].Type)
 	require.EqualValues(t, 42, res.Stack[0].Value)
+
+	res, err = chain.GetAppExecResult(tx2.Hash())
+	require.NoError(t, err)
+	require.Equal(t, "FAULT", res.VMState)
 
 	require.NoError(t, chain.persist())
 	select {

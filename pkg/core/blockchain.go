@@ -156,18 +156,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxTransactionsPerBlock = 0
 		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
-	if cfg.MaxFreeTransactionsPerBlock <= 0 {
-		cfg.MaxFreeTransactionsPerBlock = 0
-		log.Info("MaxFreeTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionsPerBlock", cfg.MaxFreeTransactionsPerBlock))
-	}
-	if cfg.MaxFreeTransactionSize <= 0 {
-		cfg.MaxFreeTransactionSize = 0
-		log.Info("MaxFreeTransactionSize is not set or wrong, setting default value (unlimited)", zap.Int("MaxFreeTransactionSize", cfg.MaxFreeTransactionSize))
-	}
-	if cfg.FeePerExtraByte <= 0 {
-		cfg.FeePerExtraByte = 0
-		log.Info("FeePerExtraByte is not set or wrong, setting default value", zap.Float64("FeePerExtraByte", cfg.FeePerExtraByte))
-	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s, cfg.Magic),
@@ -605,9 +593,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		v := SpawnVM(systemInterop)
 		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 		v.SetPriceGetter(getPrice)
-		if bc.config.FreeGasLimit > 0 {
-			v.GasLimit = bc.config.FreeGasLimit + tx.SystemFee
-		}
+		v.GasLimit = tx.SystemFee
 
 		err := v.Run()
 		if !v.HasFailed() {
@@ -1102,12 +1088,6 @@ func (bc *Blockchain) FeePerByte() util.Fixed8 {
 	return util.Fixed8(1000)
 }
 
-// IsLowPriority checks given fee for being less than configured
-// LowPriorityThreshold.
-func (bc *Blockchain) IsLowPriority(fee util.Fixed8) bool {
-	return fee < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
-}
-
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool
@@ -1118,15 +1098,6 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
 	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
 		txes = txes[:bc.config.MaxTransactionsPerBlock]
-	}
-	maxFree := bc.config.MaxFreeTransactionsPerBlock
-	if maxFree != 0 {
-		lowStart := sort.Search(len(txes), func(i int) bool {
-			return bc.IsLowPriority(txes[i].NetworkFee)
-		})
-		if lowStart+maxFree < len(txes) {
-			txes = txes[:lowStart+maxFree]
-		}
 	}
 	return txes
 }
@@ -1227,14 +1198,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
-	txSize := io.GetVarSize(t)
-	maxFree := bc.config.MaxFreeTransactionSize
-	if maxFree != 0 && txSize > maxFree {
-		if bc.IsLowPriority(t.NetworkFee) ||
-			t.NetworkFee < util.Fixed8FromFloat(bc.config.FeePerExtraByte)*util.Fixed8(txSize-maxFree) {
-			return ErrPolicy
-		}
-	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:

@@ -27,7 +27,6 @@ var (
 type item struct {
 	txn       *transaction.Transaction
 	timeStamp time.Time
-	isLowPrio bool
 }
 
 // items is a slice of item.
@@ -61,14 +60,6 @@ func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
 func (p *item) CompareTo(otherP *item) int {
 	if otherP == nil {
 		return 1
-	}
-
-	if !p.isLowPrio && otherP.isLowPrio {
-		return 1
-	}
-
-	if p.isLowPrio && !otherP.isLowPrio {
-		return -1
 	}
 
 	// Fees sorted ascending.
@@ -151,7 +142,6 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		txn:       t,
 		timeStamp: time.Now().UTC(),
 	}
-	pItem.isLowPrio = fee.IsLowPriority(pItem.txn.NetworkFee)
 	mp.lock.Lock()
 	if !mp.checkTxConflicts(t, fee) {
 		mp.lock.Unlock()

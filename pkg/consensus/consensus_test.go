@@ -229,10 +229,6 @@ func newTestChain(t *testing.T) *core.Blockchain {
 	return chain
 }
 
-type feer struct{}
-
-func (fs *feer) IsLowPriority(util.Fixed8) bool { return false }
-
 var neoOwner = testchain.MultisigScriptHash()
 
 func addSender(t *testing.T, txs ...*transaction.Transaction) {

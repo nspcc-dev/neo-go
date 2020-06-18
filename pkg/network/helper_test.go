@@ -123,10 +123,6 @@ func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
-func (chain testChain) IsLowPriority(util.Fixed8) bool {
-	panic("TODO")
-}
-
 func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
 	panic("TODO")
 }

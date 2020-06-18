@@ -1,7 +1,6 @@
 ProtocolConfiguration:
   Magic: 5195086
   SecondsPerBlock: 15
-  LowPriorityThreshold: 0.001
   MemPoolSize: 50000
   StandbyValidators:
   - 03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c
@@ -19,11 +18,7 @@ ProtocolConfiguration:
   - seed5.neo.org:10333
   VerifyBlocks: true
   VerifyTransactions: false
-  FreeGasLimit: 10.0
   MaxTransactionsPerBlock: 500
-  MaxFreeTransactionsPerBlock: 20
-  MaxFreeTransactionSize: 1024
-  FeePerExtraByte: 0.00001
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

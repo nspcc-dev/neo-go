@@ -1,7 +1,6 @@
 ProtocolConfiguration:
   Magic: 42
   SecondsPerBlock: 15
-  LowPriorityThreshold: 0.000
   MemPoolSize: 50000
   StandbyValidators:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
