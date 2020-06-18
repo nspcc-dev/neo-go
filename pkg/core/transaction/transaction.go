@@ -112,8 +112,9 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 	return t.verificationHash
 }
 
-// DecodeBinary implements Serializable interface.
-func (t *Transaction) DecodeBinary(br *io.BinReader) {
+// decodeHashableFields decodes the fields that are used for signing the
+// transaction, which are all fields except the scripts.
+func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.Version = uint8(br.ReadB())
 	if t.Version > 0 {
 		br.Err = errors.New("only version 0 is supported")
@@ -154,7 +155,14 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 		br.Err = errors.New("no script")
 		return
 	}
+}
 
+// DecodeBinary implements Serializable interface.
+func (t *Transaction) DecodeBinary(br *io.BinReader) {
+	t.decodeHashableFields(br)
+	if br.Err != nil {
+		return
+	}
 	br.ReadArray(&t.Scripts)
 
 	// Create the hash of the transaction at decode, so we dont need
@@ -216,6 +224,23 @@ func (t *Transaction) GetSignedPart() []byte {
 		return nil
 	}
 	return buf.Bytes()
+}
+
+// DecodeSignedPart decodes a part of transaction from GetSignedPart data.
+func (t *Transaction) DecodeSignedPart(buf []byte) error {
+	r := io.NewBinReaderFromBuf(buf)
+	t.decodeHashableFields(r)
+	if r.Err != nil {
+		return r.Err
+	}
+	// Ensure all the data was read.
+	_ = r.ReadB()
+	if r.Err == nil {
+		return errors.New("additional data after the signed part")
+	}
+	t.Scripts = make([]Witness, 0)
+	_ = t.createHash()
+	return nil
 }
 
 // Bytes converts the transaction to []byte

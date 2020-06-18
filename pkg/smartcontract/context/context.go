@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -24,7 +25,7 @@ type ParameterContext struct {
 	// Type is a type of a verifiable item.
 	Type string
 	// Verifiable is an object which can be (de-)serialized.
-	Verifiable io.Serializable
+	Verifiable crypto.VerifiableDecodable
 	// Items is a map from script hashes to context items.
 	Items map[util.Uint160]*Item
 }
@@ -41,7 +42,7 @@ type sigWithIndex struct {
 }
 
 // NewParameterContext returns ParameterContext with the specified type and item to sign.
-func NewParameterContext(typ string, verif io.Serializable) *ParameterContext {
+func NewParameterContext(typ string, verif crypto.VerifiableDecodable) *ParameterContext {
 	return &ParameterContext{
 		Type:       typ,
 		Verifiable: verif,
@@ -144,11 +145,7 @@ func (c *ParameterContext) getItemForContract(ctr *wallet.Contract) *Item {
 
 // MarshalJSON implements json.Marshaler interface.
 func (c ParameterContext) MarshalJSON() ([]byte, error) {
-	bw := io.NewBufBinWriter()
-	c.Verifiable.EncodeBinary(bw.BinWriter)
-	if bw.Err != nil {
-		return nil, bw.Err
-	}
+	verif := c.Verifiable.GetSignedPart()
 	items := make(map[string]json.RawMessage, len(c.Items))
 	for u := range c.Items {
 		data, err := json.Marshal(c.Items[u])
@@ -159,7 +156,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	}
 	pc := &paramContext{
 		Type:  c.Type,
-		Hex:   hex.EncodeToString(bw.Bytes()),
+		Hex:   hex.EncodeToString(verif),
 		Items: items,
 	}
 	return json.Marshal(pc)
@@ -176,17 +173,16 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	var verif io.Serializable
+	var verif crypto.VerifiableDecodable
 	switch pc.Type {
 	case "Neo.Core.ContractTransaction":
 		verif = new(transaction.Transaction)
 	default:
 		return fmt.Errorf("unsupported type: %s", c.Type)
 	}
-	br := io.NewBinReaderFromBuf(data)
-	verif.DecodeBinary(br)
-	if br.Err != nil {
-		return br.Err
+	err = verif.DecodeSignedPart(data)
+	if err != nil {
+		return err
 	}
 	items := make(map[util.Uint160]*Item, len(pc.Items))
 	for h := range pc.Items {
