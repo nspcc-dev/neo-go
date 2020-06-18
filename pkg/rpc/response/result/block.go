@@ -14,7 +14,7 @@ type (
 	// Block wrapper used for the representation of
 	// block.Block / block.Base on the RPC Server.
 	Block struct {
-		*block.Block
+		block.Block
 		BlockMetadata
 	}
 
@@ -30,7 +30,7 @@ type (
 // NewBlock creates a new Block wrapper.
 func NewBlock(b *block.Block, chain blockchainer.Blockchainer) Block {
 	res := Block{
-		Block: b,
+		Block: *b,
 		BlockMetadata: BlockMetadata{
 			Size:          io.GetVarSize(b),
 			Confirmations: chain.BlockHeight() - b.Index + 1,
@@ -72,16 +72,14 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	// As block.Block and BlockMetadata are at the same level in json,
 	// do unmarshalling separately for both structs.
 	meta := new(BlockMetadata)
-	base := new(block.Block)
 	err := json.Unmarshal(data, meta)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, base)
+	err = json.Unmarshal(data, &b.Block)
 	if err != nil {
 		return err
 	}
-	b.Block = base
 	b.BlockMetadata = *meta
 	return nil
 }

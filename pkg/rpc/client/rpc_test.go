@@ -64,7 +64,7 @@ func getResultBlock1() *result.Block {
 		panic(err)
 	}
 	return &result.Block{
-		Block: b,
+		Block: *b,
 		BlockMetadata: result.BlockMetadata{
 			Size:          1681,
 			NextBlockHash: &b2Hash,
@@ -85,7 +85,7 @@ func getTxMoveNeo() *result.TransactionOutputRaw {
 		panic(err)
 	}
 	return &result.TransactionOutputRaw{
-		Transaction: tx,
+		Transaction: *tx,
 		TransactionMetadata: result.TransactionMetadata{
 			Timestamp:     b1.Timestamp,
 			Blockhash:     b1.Block.Hash(),
@@ -155,7 +155,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexB1 + `"}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
-				return b.Block
+				return &b.Block
 			},
 		},
 		{
@@ -180,7 +180,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexB1 + `"}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
-				return b.Block
+				return &b.Block
 			},
 		},
 		{
@@ -449,7 +449,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexTxMoveNeo + `"}`,
 			result: func(c *Client) interface{} {
 				tx := getTxMoveNeo()
-				return tx.Transaction
+				return &tx.Transaction
 			},
 		},
 		{

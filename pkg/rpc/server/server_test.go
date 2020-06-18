@@ -890,7 +890,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		err := json.Unmarshal(txOut, &actual)
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
-		assert.Equal(t, block.Transactions[0], actual.Transaction)
+		assert.Equal(t, *block.Transactions[0], actual.Transaction)
 		assert.Equal(t, 8, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
