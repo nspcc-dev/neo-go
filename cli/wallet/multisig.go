@@ -5,31 +5,31 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/urfave/cli"
 )
 
 func newMultisigCommands() []cli.Command {
+	signFlags := []cli.Flag{
+		walletPathFlag,
+		outFlag,
+		inFlag,
+		cli.StringFlag{
+			Name:  "addr",
+			Usage: "Address to use",
+		},
+	}
+	signFlags = append(signFlags, options.RPC...)
 	return []cli.Command{
 		{
 			Name:      "sign",
 			Usage:     "sign a transaction",
 			UsageText: "multisig sign --path <path> --addr <addr> --in <file.in> --out <file.out>",
 			Action:    signMultisig,
-			Flags: []cli.Flag{
-				walletPathFlag,
-				rpcFlag,
-				timeoutFlag,
-				outFlag,
-				inFlag,
-				cli.StringFlag{
-					Name:  "addr",
-					Usage: "Address to use",
-				},
-			},
+			Flags:     signFlags,
 		},
 	}
 }
@@ -75,20 +75,21 @@ func signMultisig(ctx *cli.Context) error {
 	} else if err := writeParameterContext(c, ctx.String("out")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if endpoint := ctx.String("rpc"); endpoint != "" {
+	if len(ctx.String(options.RPCEndpointFlag)) != 0 {
 		w, err := c.GetWitness(acc.Contract)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
 		tx.Scripts = append(tx.Scripts, *w)
 
-		gctx, cancel := getGoContext(ctx)
+		gctx, cancel := options.GetTimeoutContext(ctx)
 		defer cancel()
 
-		c, err := client.New(gctx, ctx.String("rpc"), client.Options{})
+		c, err := options.GetRPCClient(gctx, ctx)
 		if err != nil {
-			return cli.NewExitError(err, 1)
-		} else if err := c.SendRawTransaction(tx); err != nil {
+			return err
+		}
+		if err := c.SendRawTransaction(tx); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}

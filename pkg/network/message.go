@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -33,6 +34,10 @@ type Message struct {
 
 	// Compressed message payload.
 	compressedPayload []byte
+
+	// Network this message comes from, it has to be set upon Message
+	// creation for correct decoding.
+	Network netmode.Magic
 }
 
 // MessageFlag represents compression level of message payload
@@ -40,8 +45,8 @@ type MessageFlag byte
 
 // Possible message flags
 const (
-	None       MessageFlag = 0
 	Compressed MessageFlag = 1 << iota
+	None       MessageFlag = 0
 )
 
 // CommandType represents the type of a message command.
@@ -83,7 +88,8 @@ const (
 	CMDAlert CommandType = 0x40
 )
 
-// NewMessage returns a new message with the given payload.
+// NewMessage returns a new message with the given payload. It's intended to be
+// used for messages to be sent, thus it doesn't care much about the Network.
 func NewMessage(cmd CommandType, p payload.Payload) *Message {
 	return &Message{
 		Command: cmd,
@@ -103,13 +109,13 @@ func (m *Message) Decode(br *io.BinReader) error {
 		m.Payload = payload.NewNullPayload()
 		return nil
 	}
+	if l > PayloadMaxSize {
+		return errors.New("invalid payload size")
+	}
 	m.compressedPayload = make([]byte, l)
 	br.ReadBytes(m.compressedPayload)
 	if br.Err != nil {
 		return br.Err
-	}
-	if len(m.compressedPayload) > PayloadMaxSize {
-		return errors.New("invalid payload size")
 	}
 	return m.decodePayload()
 }
@@ -135,7 +141,7 @@ func (m *Message) decodePayload() error {
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
-		p = &block.Block{}
+		p = block.New(m.Network)
 	case CMDConsensus:
 		p = &consensus.Payload{}
 	case CMDGetBlocks:
@@ -145,9 +151,9 @@ func (m *Message) decodePayload() error {
 	case CMDGetBlockData:
 		p = &payload.GetBlockData{}
 	case CMDHeaders:
-		p = &payload.Headers{}
+		p = &payload.Headers{Network: m.Network}
 	case CMDTX:
-		p = &transaction.Transaction{}
+		p = &transaction.Transaction{Network: m.Network}
 	case CMDMerkleBlock:
 		p = &payload.MerkleBlock{}
 	case CMDPing, CMDPong:

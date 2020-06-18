@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -102,7 +103,7 @@ func TestScriptFromWitness(t *testing.T) {
 
 func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
-	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	assert.Nil(t, addSender(tx))
 	assert.Nil(t, signTx(bc, tx))
@@ -267,7 +268,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Bytes(script.BinWriter, []byte("yay!"))
 	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
-	txGood1 := transaction.New(script.Bytes(), 0)
+	txGood1 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood1.Sender = neoOwner
 	txGood1.Nonce = 1
 	txGood1.ValidUntilBlock = 100500
@@ -279,7 +280,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	emit.Opcode(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
-	txBad := transaction.New(script.Bytes(), 0)
+	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txBad.Sender = neoOwner
 	txBad.Nonce = 2
 	txBad.ValidUntilBlock = 100500
@@ -289,7 +290,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Bytes(script.BinWriter, []byte("yay! yay! yay!"))
 	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
-	txGood2 := transaction.New(script.Bytes(), 0)
+	txGood2 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
 	txGood2.Sender = neoOwner
 	txGood2.Nonce = 3
 	txGood2.ValidUntilBlock = 100500

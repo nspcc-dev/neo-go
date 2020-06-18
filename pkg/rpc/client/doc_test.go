@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 )
 
 func Example() {
 	endpoint := "http://seed5.bridgeprotocol.io:10332"
-	opts := client.Options{}
+	opts := client.Options{Network: netmode.MainNet}
 
 	c, err := client.New(context.TODO(), endpoint, opts)
 	if err != nil {

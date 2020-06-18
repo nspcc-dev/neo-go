@@ -10,8 +10,6 @@ import (
 type Header struct {
 	// Base of the block.
 	Base
-	// Padding that is fixed to 0.
-	_ uint8
 }
 
 // DecodeBinary implements Serializable interface.

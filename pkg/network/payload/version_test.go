@@ -3,14 +3,14 @@ package payload
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestVersionEncodeDecode(t *testing.T) {
-	var magic config.NetMode = 56753
+	var magic netmode.Magic = 56753
 	var tcpPort uint16 = 3000
 	var wsPort uint16 = 3001
 	var id uint32 = 13337

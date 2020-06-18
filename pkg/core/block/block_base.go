@@ -3,8 +3,8 @@ package block
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -35,11 +35,13 @@ type Base struct {
 	// Contract address of the next miner
 	NextConsensus util.Uint160
 
-	// Padding that is fixed to 1
-	_ uint8
-
 	// Script used to validate the block
 	Script transaction.Witness
+
+	// Network magic number this block belongs to. This one actually is not
+	// a part of the wire-representation of Block, but it's absolutely
+	// necessary for correct signing/verification.
+	Network netmode.Magic
 
 	// Hash of this block, created when binary encoded (double SHA256).
 	hash util.Uint256
@@ -87,11 +89,9 @@ func (b *Base) VerificationHash() util.Uint256 {
 // DecodeBinary implements Serializable interface.
 func (b *Base) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
-
-	padding := []byte{0}
-	br.ReadBytes(padding)
-	if padding[0] != 1 {
-		br.Err = fmt.Errorf("format error: padding must equal 1 got %d", padding)
+	witnessCount := br.ReadVarUint()
+	if br.Err == nil && witnessCount != 1 {
+		br.Err = errors.New("wrong witness count")
 		return
 	}
 
@@ -101,13 +101,14 @@ func (b *Base) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface
 func (b *Base) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
-	bw.WriteBytes([]byte{1})
+	bw.WriteVarUint(1)
 	b.Script.EncodeBinary(bw)
 }
 
 // GetSignedPart returns serialized hashable data of the block.
 func (b *Base) GetSignedPart() []byte {
 	buf := io.NewBufBinWriter()
+	buf.WriteU32LE(uint32(b.Network))
 	// No error can occure while encoding hashable fields.
 	b.encodeHashableFields(buf.BinWriter)
 

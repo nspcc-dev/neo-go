@@ -144,10 +144,10 @@ project:
 It's passed to the `deploy` command via `-c` option:
 
 ```
-$ ./bin/neo-go contract deploy -i contract.avm -c contract.yml -e http://localhost:20331 -w wallet.json -g 0.001
+$ ./bin/neo-go contract deploy -i contract.avm -c contract.yml -r http://localhost:20331 -w wallet.json -g 0.001
 ```
 
-Deployment works via an RPC server, an address of which is passed via `-e`
+Deployment works via an RPC server, an address of which is passed via `-r`
 option and should be signed using a wallet from `-w` option. More details can
 be found in `deploy` command help.
 
@@ -184,7 +184,7 @@ Example call (contract `f84d6a337fbc3d3a201d41da99e86b479e7a2554` with method
 given RPC server and wallet and paying 0.00001 GAS for this transaction):
 
 ```
-$ ./bin/neo-go contract invokefunction -e http://localhost:20331 -w my_wallet.json -g 0.00001 f84d6a337fbc3d3a201d41da99e86b479e7a2554 balanceOf AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
+$ ./bin/neo-go contract invokefunction -r http://localhost:20331 -w my_wallet.json -g 0.00001 f84d6a337fbc3d3a201d41da99e86b479e7a2554 balanceOf AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
 ```
 
 ## Smart contract examples

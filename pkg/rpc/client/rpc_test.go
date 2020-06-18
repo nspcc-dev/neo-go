@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -35,17 +36,17 @@ type rpcClientTestCase struct {
 	check          func(t *testing.T, c *Client, result interface{})
 }
 
-const hexB1 = "00000000e862e7907fc987cd58ddb3abb754aeb8812c9377c45e737a036fe88a622c3b8f301f2e84a86b207270830e7929530ccb841a3df7379fe6f0ac8865b33316839501cdd0847201000001000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c40ab634ce91590e77b246cee8b204e8a270268ee1ef32434cece73f425a7dbc90f1bed1dbe914edcaa2653167ad170ae10e16a9b2c6b7e0af1f711fb848fbb1b7f0c40232de6ad07ee3846bafa96302d37602349501a556df575e7df0743e45b076d6a0c6c6dd4cad3898f9e8848dd054abd303b229fd12984042f241f0e668f39a0fb0c408b4af43057df189a9d471010b5150bab442040403147c5e502bda38cde3ff8bce803f01245e07e2bfb95d57349c55dcc27e3710b82f2735d0f40eb4342908e330c40cda66f743d4ed8d856f5376953f9169581c668a9370245aef16202ebef9bb3f7f81234be62ec287d701ad7d8bf5042648019af9fe5baa0a8e05d279bfdb1d4c994130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb030057040000000000000002000000abec5362f11e75b6e02e407bb98d63675d14384100000000000000003e5f0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d14384101590218ddf5050c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801fd08010c402d96d8fde4ba266f89bc71ef117361967e0d11ed84cd60942a27bc99994dc58adf36a0e74ce976aac657a87a3c19c38e8ca450c67420046b81d98c60fd8feb040c40b3c15d5d23e0403a36cf559caee2979ca6ef00fe255df0e5c3daac4da051016b41eba42668934cd3308359451bafdd5419d059179fd40859684a3b91388bf9d80c407ac048cf8540b091955a374a0f36dae560c92c0134886507a589edf58b9dfbb4e3dbd5450be34e269d2e5454eb14eb7d6280d6101b4529410f829d37634849be0c403bba4113a687ff8507c1753f8519557531cf9df51ecc20deeb2c2b003ec5a1f7588cdd50b99e40b4f8039bb56c5df7ec9e7d6ea4b02fe23792510da21c7557f394130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb0003000000abec5362f11e75b6e02e407bb98d63675d1438410000000000000000de6e0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d143841015d0300e87648170000000c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c143b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c41627d5b523801fd08010c4063fb12aa9f3fb83f6324ea9c7ec11fa9e995b51140f480409d68cf4d625e598b0632d6610602984bfa2f5e5ea9bcc62a0e6d818dd271b38530c0d1b8a71b4e0c0c4013e091eac6f304668d647c5c032fd1020597ea5204545e21c38655a6343d58492118f1231ede91af848af7e1d987d1a8816966f5fc1a7821c6c6f62734267bde0c40daadd04a7a4141d96c58de2d373e672ca071e2b82138ef52df016ac522710385db2ac73743d2fe73061fa5d6cb0ff73a7ec7f0667e4c8bff6aa0d5783128d36e0c40dab85cd87d3f92be9532292bdc6f420b0ecbf2f877c70c6a9921ee0fc900dfc53998cf020a51fa9af3d0608f6a2b9048cea3c0b586485802bbd278b261eee8a494130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
+const hexB1 = "000000008aaab19c43c4ca2870c3e616b123f1b689866f44b138ae4d6a5352e54442fd56401107247de4e35599d1feffaf6e763972f738d2858b0a22ad06523867e4dcf921f7c1c67201000001000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c400f01eb6371a135527ddb205a0dae1f69d2d324837cce128bead9033091883f9ce21e6d759a40f690746592b021d397f088e3b7b417fcef73cd1bfdc2800769520c4084f7ae5d9f58a09aa56eeb2f282744a59a82d17e3be0eb1c7f54e6e8df79620e2608191bac57280a836db2ec2a776d07e43f16bc76c47d348b0fcd09d56c7c320c402b95b4e39ec35162a640795ff223e92dec95390a072eb457f6a4323052f80731517e0df029e4a457204f777f5261c6a4a88d46d4c3abdec635a6eed580d6c77f0c40b9735745b1dd795a258c31d8e6fa87d5cfc2e9b3a4890d610d33bcf833b64c58b0c5cea17f3a7128f1065ed193e636971590f193f28bdd1eeebbbc1fe6e7cee594130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb030057040000000000000002000000abec5362f11e75b6e02e407bb98d63675d14384100000000000000003e5f0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d14384101590218ddf5050c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801fd08010c40ae6fc04fe4b6c22218ca9617c98d607d9ec9b1faf8cfdc3391bec485ae76b11adc6cc6abeb31a50b536ea8073e674d62a5566fce5e0a0ceb0718cb971c1ae3d00c40603071b725a58d052cad7afd88e99b27baab931afd5bb50d16e224335aab450170aabe251d3c0c6ad3f31dd7e9b89b209baabe5a1e2fa588bd8118f9e2a6960f0c40d72afcf39e663dba2d70fb8c36a09d1a6a6ad0d2fd38c857a8e7dc71e2b98711324e0d2ec641fe6896ba63ba80d3ea341c1aad11e082fb188ee07e215b4031b10c409afb2808b60286a56343b7ffcef28bb2ab0c595603e7323b5e5b0b9c1c10edfa5c40754d921865cb6fd71668a206b37a1eb10c0029a9fcd3a856aed07742cd3f94130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb0003000000abec5362f11e75b6e02e407bb98d63675d1438410000000000000000de6e0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d143841015d0300e87648170000000c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c143b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c41627d5b523801fd08010c408710e7b5d8ac6cd8d09d6fb35bf2dcce5f5fb38595ddb6d04a570bc925bc2c55a73cdf5f3cb5a1feb0acc4f26c8bbca6c43df3b4a98b8c3c2c809c2f096eb25a0c40c186c102cbf72313fd94df5077fc5bbefcd32227ed2159a47a46594877fa39f330d8223b45aa24aff005bebb5b2427a50c8c4de8618e7d7b00d73d836c44942e0c40a243b5b565bd4bc2f0bb112f7624f6b3514c12413c5a95230819face3f760f03fcb96b188f98038a3f251686b53a88d69744f4e4a985e6297003a80cdb169e800c404a951e61ac99d5ee31831d111754adb711b4a9060a9524fe383a90771843cdb096382674027a87f2a15a83bd77deb2b2ab1fe8b3de6e546293ef3df9b1129e2894130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
 
-const hexTxMoveNeo = "0002000000abec5362f11e75b6e02e407bb98d63675d14384100000000000000003e5f0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d14384101590218ddf5050c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801fd08010c402d96d8fde4ba266f89bc71ef117361967e0d11ed84cd60942a27bc99994dc58adf36a0e74ce976aac657a87a3c19c38e8ca450c67420046b81d98c60fd8feb040c40b3c15d5d23e0403a36cf559caee2979ca6ef00fe255df0e5c3daac4da051016b41eba42668934cd3308359451bafdd5419d059179fd40859684a3b91388bf9d80c407ac048cf8540b091955a374a0f36dae560c92c0134886507a589edf58b9dfbb4e3dbd5450be34e269d2e5454eb14eb7d6280d6101b4529410f829d37634849be0c403bba4113a687ff8507c1753f8519557531cf9df51ecc20deeb2c2b003ec5a1f7588cdd50b99e40b4f8039bb56c5df7ec9e7d6ea4b02fe23792510da21c7557f394130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
+const hexTxMoveNeo = "0002000000abec5362f11e75b6e02e407bb98d63675d14384100000000000000003e5f0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d14384101590218ddf5050c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801fd08010c40ae6fc04fe4b6c22218ca9617c98d607d9ec9b1faf8cfdc3391bec485ae76b11adc6cc6abeb31a50b536ea8073e674d62a5566fce5e0a0ceb0718cb971c1ae3d00c40603071b725a58d052cad7afd88e99b27baab931afd5bb50d16e224335aab450170aabe251d3c0c6ad3f31dd7e9b89b209baabe5a1e2fa588bd8118f9e2a6960f0c40d72afcf39e663dba2d70fb8c36a09d1a6a6ad0d2fd38c857a8e7dc71e2b98711324e0d2ec641fe6896ba63ba80d3ea341c1aad11e082fb188ee07e215b4031b10c409afb2808b60286a56343b7ffcef28bb2ab0c595603e7323b5e5b0b9c1c10edfa5c40754d921865cb6fd71668a206b37a1eb10c0029a9fcd3a856aed07742cd3f94130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
 
-const b1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"size":1681,"nextblockhash":"0xf2afe371a27c9dbac4f4a8ad8eba750898b7c04aa298e64fe9e488e947976045","confirmations":6,"hash":"0xbd178d8d4a28ec082c034f817ce2423221281a31e7e00014dbf732c4053033d2","version":0,"previousblockhash":"0x8f3b2c628ae86f037a735ec477932c81b8ae54b7abb3dd58cd87c97f90e762e8","merkleroot":"0x95831633b36588acf0e69f37f73d1a84cb0c5329790e837072206ba8842e1f30","time":1591366176001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DECrY0zpFZDneyRs7osgToonAmjuHvMkNM7Oc/Qlp9vJDxvtHb6RTtyqJlMWetFwrhDhapssa34K8fcR+4SPuxt/DEAjLeatB+44Rrr6ljAtN2AjSVAaVW31deffB0PkWwdtagxsbdTK04mPnohI3QVKvTA7Ip/RKYQELyQfDmaPOaD7DECLSvQwV98Ymp1HEBC1FQurRCBAQDFHxeUCvaOM3j/4vOgD8BJF4H4r+5XVc0nFXcwn43ELgvJzXQ9A60NCkI4zDEDNpm90PU7Y2Fb1N2lT+RaVgcZoqTcCRa7xYgLr75uz9/gSNL5i7Ch9cBrX2L9QQmSAGa+f5bqgqOBdJ5v9sdTJ","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"consensus_data":{"primary":0,"nonce":"0000000000000457"},"tx":[{"txid":"0x8af9ccb8e7e0f0a73e77b78dc52750e77c50f78b09ecc2f0669c0b459cc7dd89","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DEAtltj95Lomb4m8ce8Rc2GWfg0R7YTNYJQqJ7yZmU3Fit82oOdM6XaqxleoejwZw46MpFDGdCAEa4HZjGD9j+sEDECzwV1dI+BAOjbPVZyu4pecpu8A/iVd8OXD2qxNoFEBa0HrpCZok0zTMINZRRuv3VQZ0FkXn9QIWWhKO5E4i/nYDEB6wEjPhUCwkZVaN0oPNtrlYMksATSIZQelie31i537tOPb1UUL404mnS5UVOsU631igNYQG0UpQQ+CnTdjSEm+DEA7ukETpof/hQfBdT+FGVV1Mc+d9R7MIN7rLCsAPsWh91iM3VC5nkC0+AObtWxd9+yefW6ksC/iN5JRDaIcdVfz","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]},{"txid":"0xe7cff9e4820e53232dae619a3e6f57a9430dc240b5ed7b5c0ea2cfee3e90c985","size":579,"version":0,"nonce":3,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0088035","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"AwDodkgXAAAADBQxboUQOQGdOd/Cw31sP+4Z/VgJhwwUq+xTYvEedbbgLkB7uY1jZ10UOEETwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4","scripts":[{"invocation":"DEBj+xKqnz+4P2Mk6px+wR+p6ZW1EUD0gECdaM9NYl5ZiwYy1mEGAphL+i9eXqm8xioObYGN0nGzhTDA0binG04MDEAT4JHqxvMEZo1kfFwDL9ECBZfqUgRUXiHDhlWmND1YSSEY8SMe3pGvhIr34dmH0aiBaWb1/Bp4IcbG9ic0JnveDEDardBKekFB2WxY3i03PmcsoHHiuCE471LfAWrFInEDhdsqxzdD0v5zBh+l1ssP9zp+x/BmfkyL/2qg1XgxKNNuDEDauFzYfT+SvpUyKSvcb0ILDsvy+HfHDGqZIe4PyQDfxTmYzwIKUfqa89Bgj2orkEjOo8C1hkhYArvSeLJh7uik","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}]}}`
+const b1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"size":1681,"nextblockhash":"0x45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d","confirmations":6,"hash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","version":0,"previousblockhash":"0x56fd4244e552536a4dae38b1446f8689b6f123b116e6c37028cac4439cb1aa8a","merkleroot":"0xf9dce467385206ad220a8b85d238f77239766eaffffed19955e3e47d24071140","time":1592472500001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DEAPAetjcaE1Un3bIFoNrh9p0tMkg3zOEovq2QMwkYg/nOIebXWaQPaQdGWSsCHTl/CI47e0F/zvc80b/cKAB2lSDECE965dn1igmqVu6y8oJ0SlmoLRfjvg6xx/VObo33liDiYIGRusVygKg22y7Cp3bQfkPxa8dsR9NIsPzQnVbHwyDEArlbTjnsNRYqZAeV/yI+kt7JU5CgcutFf2pDIwUvgHMVF+DfAp5KRXIE93f1JhxqSojUbUw6vexjWm7tWA1sd/DEC5c1dFsd15WiWMMdjm+ofVz8Lps6SJDWENM7z4M7ZMWLDFzqF/OnEo8QZe0ZPmNpcVkPGT8ovdHu67vB/m587l","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"consensus_data":{"primary":0,"nonce":"0000000000000457"},"tx":[{"txid":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]},{"txid":"0xb661d5e4d9e41c3059b068f8abb6f1566a47ec800879e34c0ebd2799781a2760","size":579,"version":0,"nonce":3,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0088035","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"AwDodkgXAAAADBQxboUQOQGdOd/Cw31sP+4Z/VgJhwwUq+xTYvEedbbgLkB7uY1jZ10UOEETwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4","scripts":[{"invocation":"DECHEOe12Kxs2NCdb7Nb8tzOX1+zhZXdttBKVwvJJbwsVac83188taH+sKzE8myLvKbEPfO0qYuMPCyAnC8JbrJaDEDBhsECy/cjE/2U31B3/Fu+/NMiJ+0hWaR6RllId/o58zDYIjtFqiSv8AW+u1skJ6UMjE3oYY59ewDXPYNsRJQuDECiQ7W1Zb1LwvC7ES92JPazUUwSQTxalSMIGfrOP3YPA/y5axiPmAOKPyUWhrU6iNaXRPTkqYXmKXADqAzbFp6ADEBKlR5hrJnV7jGDHREXVK23EbSpBgqVJP44OpB3GEPNsJY4JnQCeofyoVqDvXfesrKrH+iz3m5UYpPvPfmxEp4o","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}]}}`
 
-const hexHeader1 = "00000000e862e7907fc987cd58ddb3abb754aeb8812c9377c45e737a036fe88a622c3b8f301f2e84a86b207270830e7929530ccb841a3df7379fe6f0ac8865b33316839501cdd0847201000001000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c40ab634ce91590e77b246cee8b204e8a270268ee1ef32434cece73f425a7dbc90f1bed1dbe914edcaa2653167ad170ae10e16a9b2c6b7e0af1f711fb848fbb1b7f0c40232de6ad07ee3846bafa96302d37602349501a556df575e7df0743e45b076d6a0c6c6dd4cad3898f9e8848dd054abd303b229fd12984042f241f0e668f39a0fb0c408b4af43057df189a9d471010b5150bab442040403147c5e502bda38cde3ff8bce803f01245e07e2bfb95d57349c55dcc27e3710b82f2735d0f40eb4342908e330c40cda66f743d4ed8d856f5376953f9169581c668a9370245aef16202ebef9bb3f7f81234be62ec287d701ad7d8bf5042648019af9fe5baa0a8e05d279bfdb1d4c994130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb00"
+const hexHeader1 = "000000008aaab19c43c4ca2870c3e616b123f1b689866f44b138ae4d6a5352e54442fd56401107247de4e35599d1feffaf6e763972f738d2858b0a22ad06523867e4dcf921f7c1c67201000001000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c400f01eb6371a135527ddb205a0dae1f69d2d324837cce128bead9033091883f9ce21e6d759a40f690746592b021d397f088e3b7b417fcef73cd1bfdc2800769520c4084f7ae5d9f58a09aa56eeb2f282744a59a82d17e3be0eb1c7f54e6e8df79620e2608191bac57280a836db2ec2a776d07e43f16bc76c47d348b0fcd09d56c7c320c402b95b4e39ec35162a640795ff223e92dec95390a072eb457f6a4323052f80731517e0df029e4a457204f777f5261c6a4a88d46d4c3abdec635a6eed580d6c77f0c40b9735745b1dd795a258c31d8e6fa87d5cfc2e9b3a4890d610d33bcf833b64c58b0c5cea17f3a7128f1065ed193e636971590f193f28bdd1eeebbbc1fe6e7cee594130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb00"
 
-const header1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"hash":"0xbd178d8d4a28ec082c034f817ce2423221281a31e7e00014dbf732c4053033d2","size":518,"version":0,"previousblockhash":"0x8f3b2c628ae86f037a735ec477932c81b8ae54b7abb3dd58cd87c97f90e762e8","merkleroot":"0x95831633b36588acf0e69f37f73d1a84cb0c5329790e837072206ba8842e1f30","time":1591366176001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DECrY0zpFZDneyRs7osgToonAmjuHvMkNM7Oc/Qlp9vJDxvtHb6RTtyqJlMWetFwrhDhapssa34K8fcR+4SPuxt/DEAjLeatB+44Rrr6ljAtN2AjSVAaVW31deffB0PkWwdtagxsbdTK04mPnohI3QVKvTA7Ip/RKYQELyQfDmaPOaD7DECLSvQwV98Ymp1HEBC1FQurRCBAQDFHxeUCvaOM3j/4vOgD8BJF4H4r+5XVc0nFXcwn43ELgvJzXQ9A60NCkI4zDEDNpm90PU7Y2Fb1N2lT+RaVgcZoqTcCRa7xYgLr75uz9/gSNL5i7Ch9cBrX2L9QQmSAGa+f5bqgqOBdJ5v9sdTJ","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"confirmations":6,"nextblockhash":"0xf2afe371a27c9dbac4f4a8ad8eba750898b7c04aa298e64fe9e488e947976045"}}`
+const header1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"hash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","size":518,"version":0,"previousblockhash":"0x56fd4244e552536a4dae38b1446f8689b6f123b116e6c37028cac4439cb1aa8a","merkleroot":"0xf9dce467385206ad220a8b85d238f77239766eaffffed19955e3e47d24071140","time":1592472500001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DEAPAetjcaE1Un3bIFoNrh9p0tMkg3zOEovq2QMwkYg/nOIebXWaQPaQdGWSsCHTl/CI47e0F/zvc80b/cKAB2lSDECE965dn1igmqVu6y8oJ0SlmoLRfjvg6xx/VObo33liDiYIGRusVygKg22y7Cp3bQfkPxa8dsR9NIsPzQnVbHwyDEArlbTjnsNRYqZAeV/yI+kt7JU5CgcutFf2pDIwUvgHMVF+DfAp5KRXIE93f1JhxqSojUbUw6vexjWm7tWA1sd/DEC5c1dFsd15WiWMMdjm+ofVz8Lps6SJDWENM7z4M7ZMWLDFzqF/OnEo8QZe0ZPmNpcVkPGT8ovdHu67vB/m587l","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"confirmations":6,"nextblockhash":"0x45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d"}}`
 
-const txMoveNeoVerbose = `{"id":5,"jsonrpc":"2.0","result":{"blockhash":"0xbd178d8d4a28ec082c034f817ce2423221281a31e7e00014dbf732c4053033d2","confirmations":6,"blocktime":1591366176001,"txid":"0x8af9ccb8e7e0f0a73e77b78dc52750e77c50f78b09ecc2f0669c0b459cc7dd89","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DEAtltj95Lomb4m8ce8Rc2GWfg0R7YTNYJQqJ7yZmU3Fit82oOdM6XaqxleoejwZw46MpFDGdCAEa4HZjGD9j+sEDECzwV1dI+BAOjbPVZyu4pecpu8A/iVd8OXD2qxNoFEBa0HrpCZok0zTMINZRRuv3VQZ0FkXn9QIWWhKO5E4i/nYDEB6wEjPhUCwkZVaN0oPNtrlYMksATSIZQelie31i537tOPb1UUL404mnS5UVOsU631igNYQG0UpQQ+CnTdjSEm+DEA7ukETpof/hQfBdT+FGVV1Mc+d9R7MIN7rLCsAPsWh91iM3VC5nkC0+AObtWxd9+yefW6ksC/iN5JRDaIcdVfz","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}}`
+const txMoveNeoVerbose = `{"id":5,"jsonrpc":"2.0","result":{"blockhash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","confirmations":6,"blocktime":1592472500001,"txid":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}}`
 
 // getResultBlock1 returns data for block number 1 which is used by several tests.
 func getResultBlock1() *result.Block {
@@ -53,17 +54,17 @@ func getResultBlock1() *result.Block {
 	if err != nil {
 		panic(err)
 	}
-	b := new(block.Block)
+	b := block.New(netmode.UnitTestNet)
 	err = testserdes.DecodeBinary(binB, b)
 	if err != nil {
 		panic(err)
 	}
-	b2Hash, err := util.Uint256DecodeStringLE("f2afe371a27c9dbac4f4a8ad8eba750898b7c04aa298e64fe9e488e947976045")
+	b2Hash, err := util.Uint256DecodeStringLE("45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d")
 	if err != nil {
 		panic(err)
 	}
 	return &result.Block{
-		Block: b,
+		Block: *b,
 		BlockMetadata: result.BlockMetadata{
 			Size:          1681,
 			NextBlockHash: &b2Hash,
@@ -78,13 +79,12 @@ func getTxMoveNeo() *result.TransactionOutputRaw {
 	if err != nil {
 		panic(err)
 	}
-	tx := new(transaction.Transaction)
-	err = testserdes.DecodeBinary(txBin, tx)
+	tx, err := transaction.NewTransactionFromBytes(netmode.UnitTestNet, txBin)
 	if err != nil {
 		panic(err)
 	}
 	return &result.TransactionOutputRaw{
-		Transaction: tx,
+		Transaction: *tx,
 		TransactionMetadata: result.TransactionMetadata{
 			Timestamp:     b1.Timestamp,
 			Blockhash:     b1.Block.Hash(),
@@ -154,7 +154,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexB1 + `"}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
-				return b.Block
+				return &b.Block
 			},
 		},
 		{
@@ -179,7 +179,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexB1 + `"}`,
 			result: func(c *Client) interface{} {
 				b := getResultBlock1()
-				return b.Block
+				return &b.Block
 			},
 		},
 		{
@@ -448,7 +448,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + hexTxMoveNeo + `"}`,
 			result: func(c *Client) interface{} {
 				tx := getTxMoveNeo()
-				return tx.Transaction
+				return &tx.Transaction
 			},
 		},
 		{
@@ -619,7 +619,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
+				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":true}`,
 			result: func(c *Client) interface{} {
@@ -740,7 +740,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
+				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
@@ -1066,7 +1066,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
+				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
@@ -1112,7 +1112,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 					defer srv.Close()
 
 					endpoint := srv.URL
-					opts := Options{}
+					opts := Options{Network: netmode.UnitTestNet}
 					c, err := newClient(context.TODO(), endpoint, opts)
 					if err != nil {
 						t.Fatal(err)
@@ -1136,7 +1136,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 		defer srv.Close()
 
 		endpoint := srv.URL
-		opts := Options{}
+		opts := Options{Network: netmode.UnitTestNet}
 		c, err := newClient(context.TODO(), endpoint, opts)
 		if err != nil {
 			t.Fatal(err)

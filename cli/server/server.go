@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -24,11 +25,9 @@ import (
 func NewCommands() []cli.Command {
 	var cfgFlags = []cli.Flag{
 		cli.StringFlag{Name: "config-path"},
-		cli.BoolFlag{Name: "privnet, p"},
-		cli.BoolFlag{Name: "mainnet, m"},
-		cli.BoolFlag{Name: "testnet, t"},
 		cli.BoolFlag{Name: "debug, d"},
 	}
+	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
 	cfgWithCountFlags = append(cfgWithCountFlags,
@@ -107,18 +106,11 @@ func newGraceContext() context.Context {
 // getConfigFromContext looks at path and mode flags in the given config and
 // returns appropriate config.
 func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	var net = config.ModePrivNet
-	if ctx.Bool("testnet") {
-		net = config.ModeTestNet
-	}
-	if ctx.Bool("mainnet") {
-		net = config.ModeMainNet
-	}
 	configPath := "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
-	return config.Load(configPath, net)
+	return config.Load(configPath, options.GetNetwork(ctx))
 }
 
 // handleLoggingParams reads logging parameters.
@@ -290,7 +282,7 @@ func restoreDB(ctx *cli.Context) error {
 		default:
 		}
 		bytes, err := readBlock(reader)
-		block := &block.Block{}
+		block := block.New(cfg.ProtocolConfiguration.Magic)
 		newReader := io.NewBinReaderFromBuf(bytes)
 		block.DecodeBinary(newReader)
 		if err != nil {

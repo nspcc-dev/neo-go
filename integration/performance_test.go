@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -20,7 +21,7 @@ import (
 // Benchmark test to measure number of processed TX.
 // Same benchmark made on reference C# node https://github.com/neo-project/neo/issues/1321.
 func BenchmarkTXPerformanceTest(t *testing.B) {
-	net := config.ModeUnitTestNet
+	net := netmode.UnitTestNet
 	configPath := "../config"
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
@@ -77,7 +78,7 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 	fromAddressHash, err := address.StringToUint160(fromAddress)
 	require.NoError(t, err)
 
-	tx := transaction.New([]byte{0x51}, 1)
+	tx := transaction.New(netmode.UnitTestNet, []byte{0x51}, 1)
 	tx.Version = 0
 	tx.Sender = fromAddressHash
 	tx.Attributes = append(tx.Attributes,

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -19,7 +20,7 @@ import (
 )
 
 func getUnitTestChain(t *testing.T) (*core.Blockchain, config.Config, *zap.Logger) {
-	net := config.ModeUnitTestNet
+	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
@@ -49,7 +50,7 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	blocks := make([]*block.Block, 0, int(nBlocks))
 	for i := 0; i < int(nBlocks); i++ {
 		_ = br.ReadU32LE()
-		b := &block.Block{}
+		b := block.New(netmode.UnitTestNet)
 		b.DecodeBinary(br)
 		require.Nil(t, br.Err)
 		blocks = append(blocks, b)

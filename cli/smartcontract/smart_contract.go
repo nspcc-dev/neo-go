@@ -2,7 +2,6 @@ package smartcontract
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,11 +13,11 @@ import (
 
 	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -32,7 +31,6 @@ import (
 )
 
 var (
-	errNoEndpoint          = errors.New("no RPC endpoint specified, use option '--endpoint' or '-e'")
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
 	errNoMethod            = errors.New("no method specified for function invocation command")
@@ -41,10 +39,6 @@ var (
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 
-	endpointFlag = cli.StringFlag{
-		Name:  "endpoint, e",
-		Usage: "trusted RPC endpoint address (like 'http://localhost:20331')",
-	}
 	walletFlag = cli.StringFlag{
 		Name:  "wallet, w",
 		Usage: "wallet to use to get the key for transaction signing",
@@ -76,6 +70,33 @@ func Main(op string, args []interface{}) {
 
 // NewCommands returns 'contract' command.
 func NewCommands() []cli.Command {
+	testInvokeScriptFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input location of the avm file that needs to be invoked",
+		},
+	}
+	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
+	deployFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "in, i",
+			Usage: "Input file for the smart contract (*.avm)",
+		},
+		cli.StringFlag{
+			Name:  "config, c",
+			Usage: "configuration input file (*.yml)",
+		},
+		walletFlag,
+		addressFlag,
+		gasFlag,
+	}
+	deployFlags = append(deployFlags, options.RPC...)
+	invokeFunctionFlags := []cli.Flag{
+		walletFlag,
+		addressFlag,
+		gasFlag,
+	}
+	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
@@ -121,42 +142,24 @@ func NewCommands() []cli.Command {
    to it).
 `,
 				Action: contractDeploy,
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file for the smart contract (*.avm)",
-					},
-					cli.StringFlag{
-						Name:  "config, c",
-						Usage: "configuration input file (*.yml)",
-					},
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
+				Flags:  deployFlags,
 			},
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -e endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [cosigners...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [cosigners...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and cosigners. See testinvokefunction documentation for the details
    about parameters. It differs from testinvokefunction in that this command
    sends an invocation transaction to the network.
 `,
 				Action: invokeFunction,
-				Flags: []cli.Flag{
-					endpointFlag,
-					walletFlag,
-					addressFlag,
-					gasFlag,
-				},
+				Flags:  invokeFunctionFlags,
 			},
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...] [--] [cosigners...]",
+				UsageText: "neo-go contract testinvokefunction -r endpoint scripthash [method] [arguments...] [--] [cosigners...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and cosigners. If no method is given "" is passed to the script, if
    no arguments are given, an empty array is passed, if no cosigners are given,
@@ -247,25 +250,17 @@ func NewCommands() []cli.Command {
     * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,CustomGroups'   
 `,
 				Action: testInvokeFunction,
-				Flags: []cli.Flag{
-					endpointFlag,
-				},
+				Flags:  options.RPC,
 			},
 			{
 				Name:      "testinvokescript",
 				Usage:     "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
-				UsageText: "neo-go contract testinvokescript -e endpoint -i input.avm [cosigners...]",
+				UsageText: "neo-go contract testinvokescript -r endpoint -i input.avm [cosigners...]",
 				Description: `Executes given compiled AVM instructions with the given set of
    cosigners. See testinvokefunction documentation for the details about parameters.
 `,
 				Action: testInvokeScript,
-				Flags: []cli.Flag{
-					endpointFlag,
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input location of the avm file that needs to be invoked",
-					},
-				},
+				Flags:  testInvokeScriptFlags,
 			},
 			{
 				Name:   "init",
@@ -407,11 +402,6 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		acc            *wallet.Account
 	)
 
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
-	}
-
 	args := ctx.Args()
 	if !args.Present() {
 		return cli.NewExitError(errNoScriptHash, 1)
@@ -455,9 +445,12 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 			return err
 		}
 	}
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
@@ -494,10 +487,6 @@ func testInvokeScript(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
-	}
 
 	b, err := ioutil.ReadFile(src)
 	if err != nil {
@@ -516,9 +505,12 @@ func testInvokeScript(ctx *cli.Context) error {
 		}
 	}
 
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	scriptHex := hex.EncodeToString(b)
@@ -640,10 +632,6 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(confFile) == 0 {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
-	endpoint := ctx.String("endpoint")
-	if len(endpoint) == 0 {
-		return cli.NewExitError(errNoEndpoint, 1)
-	}
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
 	acc, err := getAccFromContext(ctx)
@@ -659,9 +647,12 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	c, err := client.New(context.TODO(), endpoint, client.Options{})
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	m := conf.ToManifest(avm)

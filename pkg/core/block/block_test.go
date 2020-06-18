@@ -3,6 +3,7 @@ package block
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -85,7 +86,7 @@ func newDumbBlock() *Block {
 			Nonce:        1111,
 		},
 		Transactions: []*transaction.Transaction{
-			transaction.New([]byte{byte(opcode.PUSH1)}, 0),
+			transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0),
 		},
 	}
 }

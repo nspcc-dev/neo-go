@@ -92,7 +92,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	script := w.Bytes()
-	tx := transaction.New(script, 0)
+	tx := transaction.New(chain.GetConfig().Magic, script, 0)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	require.NoError(t, addSender(tx))

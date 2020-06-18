@@ -13,7 +13,7 @@ import (
 // TransactionOutputRaw is used as a wrapper to represents
 // a Transaction.
 type TransactionOutputRaw struct {
-	*transaction.Transaction
+	transaction.Transaction
 	TransactionMetadata
 }
 
@@ -29,7 +29,7 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
 	return TransactionOutputRaw{
-		Transaction: tx,
+		Transaction: *tx,
 		TransactionMetadata: TransactionMetadata{
 			Blockhash:     header.Hash(),
 			Confirmations: confirmations,
@@ -48,7 +48,7 @@ func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	txBytes, err := json.Marshal(t.Transaction)
+	txBytes, err := json.Marshal(&t.Transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +76,5 @@ func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	t.Confirmations = output.Confirmations
 	t.Timestamp = output.Timestamp
 
-	transaction := new(transaction.Transaction)
-	err = json.Unmarshal(data, transaction)
-	if err != nil {
-		return err
-	}
-	t.Transaction = transaction
-	return nil
+	return json.Unmarshal(data, &t.Transaction)
 }

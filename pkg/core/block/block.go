@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Workiva/go-datastructures/queue"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -26,10 +27,16 @@ type Block struct {
 	Trimmed bool
 }
 
-// auxBlock is used for JSON i/o.
-type auxBlock struct {
+// auxBlockOut is used for JSON i/o.
+type auxBlockOut struct {
 	ConsensusData ConsensusData              `json:"consensus_data"`
 	Transactions  []*transaction.Transaction `json:"tx"`
+}
+
+// auxBlockIn is used for JSON i/o.
+type auxBlockIn struct {
+	ConsensusData ConsensusData     `json:"consensus_data"`
+	Transactions  []json.RawMessage `json:"tx"`
 }
 
 // Header returns the Header of the Block.
@@ -88,8 +95,11 @@ func (b *Block) Verify() error {
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
+func NewBlockFromTrimmedBytes(network netmode.Magic, b []byte) (*Block, error) {
 	block := &Block{
+		Base: Base{
+			Network: network,
+		},
 		Trimmed: true,
 	}
 
@@ -115,6 +125,15 @@ func NewBlockFromTrimmedBytes(b []byte) (*Block, error) {
 	}
 
 	return block, br.Err
+}
+
+// New creates a new blank block tied to the specific network.
+func New(network netmode.Magic) *Block {
+	return &Block{
+		Base: Base{
+			Network: network,
+		},
+	}
 }
 
 // Trim returns a subset of the block data to save up space
@@ -155,7 +174,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 	b.ConsensusData.DecodeBinary(br)
 	txes := make([]*transaction.Transaction, contentsCount-1)
 	for i := 0; i < int(contentsCount)-1; i++ {
-		tx := new(transaction.Transaction)
+		tx := &transaction.Transaction{Network: b.Network}
 		tx.DecodeBinary(br)
 		txes[i] = tx
 	}
@@ -192,7 +211,7 @@ func (b *Block) Compare(item queue.Item) int {
 
 // MarshalJSON implements json.Marshaler interface.
 func (b Block) MarshalJSON() ([]byte, error) {
-	auxb, err := json.Marshal(auxBlock{
+	auxb, err := json.Marshal(auxBlockOut{
 		ConsensusData: b.ConsensusData,
 		Transactions:  b.Transactions,
 	})
@@ -217,18 +236,26 @@ func (b Block) MarshalJSON() ([]byte, error) {
 func (b *Block) UnmarshalJSON(data []byte) error {
 	// As Base and auxb are at the same level in json,
 	// do unmarshalling separately for both structs.
-	auxb := new(auxBlock)
+	auxb := new(auxBlockIn)
 	err := json.Unmarshal(data, auxb)
 	if err != nil {
 		return err
 	}
-	base := new(Base)
-	err = json.Unmarshal(data, base)
+	err = json.Unmarshal(data, &b.Base)
 	if err != nil {
 		return err
 	}
-	b.Base = *base
-	b.Transactions = auxb.Transactions
+	if len(auxb.Transactions) != 0 {
+		b.Transactions = make([]*transaction.Transaction, 0, len(auxb.Transactions))
+		for _, txBytes := range auxb.Transactions {
+			tx := &transaction.Transaction{Network: b.Network}
+			err = tx.UnmarshalJSON(txBytes)
+			if err != nil {
+				return err
+			}
+			b.Transactions = append(b.Transactions, tx)
+		}
+	}
 	b.ConsensusData = auxb.ConsensusData
 	// Some tests rely on hash presence and we're usually precomputing
 	// other hashes upon deserialization.

@@ -51,17 +51,18 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "e65ff7b3a02d207b584a5c27057d4e9862ef01da"
+const deploymentTxHash = "5ce44eae362d3f81d440cb73cf4e4af71e69851bcd683b076aa08b7346d4e69b"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
 		{
 			name:   "positive",
-			params: `["9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d"]`,
+			params: `["` + deploymentTxHash + `"]`,
 			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
-				expectedTxHash, err := util.Uint256DecodeStringLE("9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d")
+				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
 				assert.Equal(t, 1, len(res.Executions))
@@ -316,7 +317,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: "[3, 1]",
-			result: func(e *executor) interface{} { return &result.Block{} },
+			result: func(_ *executor) interface{} { return &result.Block{} },
 			check: func(t *testing.T, e *executor, blockRes interface{}) {
 				res, ok := blockRes.(*result.Block)
 				require.True(t, ok)
@@ -483,7 +484,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"gettransactionheight": {
 		{
 			name:   "positive",
-			params: `["9352fa8d351635bb151e7e5a3a923bfe4d8fb90f05b605ec00af95c2410b594d"]`,
+			params: `["` + deploymentTxHash + `"]`,
 			result: func(e *executor) interface{} {
 				h := 0
 				return &h
@@ -687,7 +688,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["000a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000f2ad050000000000b00400000001316e851039019d39dfc2c37d6c3fee19fd580987015d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801420c40df953141271169421cebab5d27a0163e294d7c7f2d0525b4498745344814fd3d6c5c591c9b1723d05d42856f409adb084cf67acc921cfafc629133a5eb5e7a7e290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
+			params: `["000a000000316e851039019d39dfc2c37d6c3fee19fd5809870000000000000000f2ad050000000000b00400000001316e851039019d39dfc2c37d6c3fee19fd580987015d0300e87648170000000c1420728274afafc36f43a071d328cfa3e629d9cbb00c14316e851039019d39dfc2c37d6c3fee19fd58098713c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801420c409803db41e66a94e0bd6fdd3d7a7b1e106c1e2281c9782a231f32df036bb80c7f19155cdb9a52a45cf8d93ec9c1e8df69d6ee35625f352d1710c7cc6eee26003c290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"]`,
 			result: func(e *executor) interface{} {
 				v := true
 				return &v
@@ -825,7 +826,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		newTx := func() *transaction.Transaction {
 			height := chain.BlockHeight()
-			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
 			tx.Nonce = height + 1
 			tx.ValidUntilBlock = height + 10
 			tx.Sender = acc0.PrivateKey().GetScriptHash()
@@ -886,11 +887,11 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		txOut := checkErrGetResult(t, body, false)
-		actual := result.TransactionOutputRaw{}
+		actual := result.TransactionOutputRaw{Transaction: transaction.Transaction{Network: testchain.Network()}}
 		err := json.Unmarshal(txOut, &actual)
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
-		assert.Equal(t, block.Transactions[0], actual.Transaction)
+		assert.Equal(t, *block.Transactions[0], actual.Transaction)
 		assert.Equal(t, 8, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
@@ -955,7 +956,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			expected = append(expected, tx.Hash())
 		}
 		for i := 0; i < 5; i++ {
-			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+			tx := transaction.New(testchain.Network(), []byte{byte(opcode.PUSH1)}, 0)
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
 			expected = append(expected, tx.Hash())
 		}
@@ -1004,6 +1005,7 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, primary 
 			Index:         hdr.Index + index,
 			NextConsensus: witness.ScriptHash(),
 			Script:        witness,
+			Network:       bc.GetConfig().Magic,
 		},
 		ConsensusData: block.ConsensusData{
 			PrimaryIndex: primary,
@@ -1020,7 +1022,12 @@ func newBlock(t *testing.T, bc blockchainer.Blockchainer, index uint32, primary 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
 	expected = tc.result(e)
 	resVal := reflect.New(reflect.TypeOf(expected).Elem())
-	return expected, resVal.Interface()
+	res = resVal.Interface()
+	switch r := res.(type) {
+	case *result.Block:
+		r.Network = testchain.Network()
+	}
+	return expected, res
 }
 
 func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {

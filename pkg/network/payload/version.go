@@ -3,7 +3,7 @@ package payload
 import (
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
@@ -11,7 +11,7 @@ import (
 // Version payload.
 type Version struct {
 	// NetMode of the node
-	Magic config.NetMode
+	Magic netmode.Magic
 	// currently the version of the protocol is 0
 	Version uint32
 	// timestamp
@@ -25,7 +25,7 @@ type Version struct {
 }
 
 // NewVersion returns a pointer to a Version payload.
-func NewVersion(magic config.NetMode, id uint32, ua string, c []capability.Capability) *Version {
+func NewVersion(magic netmode.Magic, id uint32, ua string, c []capability.Capability) *Version {
 	return &Version{
 		Magic:        magic,
 		Version:      0,
@@ -38,7 +38,7 @@ func NewVersion(magic config.NetMode, id uint32, ua string, c []capability.Capab
 
 // DecodeBinary implements Serializable interface.
 func (p *Version) DecodeBinary(br *io.BinReader) {
-	p.Magic = config.NetMode(br.ReadU32LE())
+	p.Magic = netmode.Magic(br.ReadU32LE())
 	p.Version = br.ReadU32LE()
 	p.Timestamp = br.ReadU32LE()
 	p.Nonce = br.ReadU32LE()

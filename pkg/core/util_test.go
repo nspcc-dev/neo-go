@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenesisBlockMainNet(t *testing.T) {
-	cfg, err := config.Load("../../config", config.ModeMainNet)
+	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
 	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
@@ -20,7 +21,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	// have been changed. Consequently, hash of the genesis block has been changed.
 	// Update expected genesis block hash for better times.
 	// Old hash is "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"
-	expect := "e4cfc549c87d4ab7b570c368d05853ffb70eb9ef0f7d9c7a2e6e9e5d713ebbf4"
+	expect := "dba446947a90b2862ef050703b44828ad8b02d11978f8ef59bd3e1c97aabf6e5"
 	assert.Equal(t, expect, block.Hash().StringLE())
 }
 
@@ -30,7 +31,7 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 		consensusScript = "72c3d9b3bbf776698694cd2c73fa597a10c31294"
 	)
 
-	cfg, err := config.Load("../../config", config.ModeMainNet)
+	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
 	validators, err := getValidators(cfg.ProtocolConfiguration)
