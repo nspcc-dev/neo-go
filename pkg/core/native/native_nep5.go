@@ -224,8 +224,7 @@ func (c *nep5TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.
 	if amount.Sign() == 0 {
 		return
 	}
-	amount = new(big.Int).Neg(amount)
-	c.addTokens(ic, h, amount)
+	c.addTokens(ic, h, new(big.Int).Neg(amount))
 	c.emitTransfer(ic, &h, nil, amount)
 }
 
