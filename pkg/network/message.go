@@ -40,8 +40,8 @@ type MessageFlag byte
 
 // Possible message flags
 const (
-	None       MessageFlag = 0
 	Compressed MessageFlag = 1 << iota
+	None       MessageFlag = 0
 )
 
 // CommandType represents the type of a message command.
