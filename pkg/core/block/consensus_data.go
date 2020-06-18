@@ -56,7 +56,7 @@ func (c *ConsensusData) createHash() error {
 	}
 
 	b := buf.Bytes()
-	c.hash = hash.Sha256(b)
+	c.hash = hash.DoubleSha256(b)
 	return nil
 }
 
