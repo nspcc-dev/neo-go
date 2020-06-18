@@ -103,13 +103,13 @@ func (m *Message) Decode(br *io.BinReader) error {
 		m.Payload = payload.NewNullPayload()
 		return nil
 	}
+	if l > PayloadMaxSize {
+		return errors.New("invalid payload size")
+	}
 	m.compressedPayload = make([]byte, l)
 	br.ReadBytes(m.compressedPayload)
 	if br.Err != nil {
 		return br.Err
-	}
-	if len(m.compressedPayload) > PayloadMaxSize {
-		return errors.New("invalid payload size")
 	}
 	return m.decodePayload()
 }
