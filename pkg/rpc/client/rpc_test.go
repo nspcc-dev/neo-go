@@ -103,28 +103,19 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetApplicationLog(util.Uint256{})
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","executions":[{"trigger":"Application","contract":"0xb9fa3b421eb749d5dd585fe1c1133b311a14bcb1","vmstate":"HALT","gas_consumed":"1","stack":[{"type":"Integer","value":1}],"notifications":[]}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","trigger":"Application","vmstate":"HALT","gas_consumed":"1","stack":[{"type":"Integer","value":1}],"notifications":[]}}`,
 			result: func(c *Client) interface{} {
 				txHash, err := util.Uint256DecodeStringLE("17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521")
 				if err != nil {
 					panic(err)
 				}
-				scriptHash, err := util.Uint160DecodeStringLE("b9fa3b421eb749d5dd585fe1c1133b311a14bcb1")
-				if err != nil {
-					panic(err)
-				}
 				return &result.ApplicationLog{
-					TxHash: txHash,
-					Executions: []result.Execution{
-						{
-							Trigger:     "Application",
-							ScriptHash:  scriptHash,
-							VMState:     "HALT",
-							GasConsumed: util.Fixed8FromInt64(1),
-							Stack:       []smartcontract.Parameter{{Type: smartcontract.IntegerType, Value: int64(1)}},
-							Events:      []result.NotificationEvent{},
-						},
-					},
+					TxHash:      txHash,
+					Trigger:     "Application",
+					VMState:     "HALT",
+					GasConsumed: util.Fixed8FromInt64(1),
+					Stack:       []smartcontract.Parameter{{Type: smartcontract.IntegerType, Value: int64(1)}},
+					Events:      []result.NotificationEvent{},
 				}
 			},
 		},

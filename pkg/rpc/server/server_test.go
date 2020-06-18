@@ -65,9 +65,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
-				assert.Equal(t, 1, len(res.Executions))
-				assert.Equal(t, "Application", res.Executions[0].Trigger)
-				assert.Equal(t, "HALT", res.Executions[0].VMState)
+				assert.Equal(t, "Application", res.Trigger)
+				assert.Equal(t, "HALT", res.VMState)
 			},
 		},
 		{

@@ -10,14 +10,8 @@ import (
 // ApplicationLog wrapper used for the representation of the
 // state.AppExecResult based on the specific tx on the RPC Server.
 type ApplicationLog struct {
-	TxHash     util.Uint256 `json:"txid"`
-	Executions []Execution  `json:"executions"`
-}
-
-// Execution response wrapper
-type Execution struct {
+	TxHash      util.Uint256              `json:"txid"`
 	Trigger     string                    `json:"trigger"`
-	ScriptHash  util.Uint160              `json:"contract"`
 	VMState     string                    `json:"vmstate"`
 	GasConsumed util.Fixed8               `json:"gas_consumed"`
 	Stack       []smartcontract.Parameter `json:"stack"`
@@ -42,25 +36,18 @@ func StateEventToResultNotification(event state.NotificationEvent) NotificationE
 }
 
 // NewApplicationLog creates a new ApplicationLog wrapper.
-func NewApplicationLog(appExecRes *state.AppExecResult, scriptHash util.Uint160) ApplicationLog {
+func NewApplicationLog(appExecRes *state.AppExecResult) ApplicationLog {
 	events := make([]NotificationEvent, 0, len(appExecRes.Events))
 	for _, e := range appExecRes.Events {
 		events = append(events, StateEventToResultNotification(e))
 	}
 
-	triggerString := appExecRes.Trigger.String()
-
-	executions := []Execution{{
-		Trigger:     triggerString,
-		ScriptHash:  scriptHash,
+	return ApplicationLog{
+		TxHash:      appExecRes.TxHash,
+		Trigger:     appExecRes.Trigger.String(),
 		VMState:     appExecRes.VMState,
 		GasConsumed: appExecRes.GasConsumed,
 		Stack:       appExecRes.Stack,
 		Events:      events,
-	}}
-
-	return ApplicationLog{
-		TxHash:     appExecRes.TxHash,
-		Executions: executions,
 	}
 }
