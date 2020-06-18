@@ -7,7 +7,6 @@ import (
 // ProtocolConfiguration represents the protocol config.
 type (
 	ProtocolConfiguration struct {
-		LowPriorityThreshold    float64       `yaml:"LowPriorityThreshold"`
 		Magic                   netmode.Magic `yaml:"Magic"`
 		MaxTransactionsPerBlock int           `yaml:"MaxTransactionsPerBlock"`
 		MemPoolSize             int           `yaml:"MemPoolSize"`

@@ -85,10 +85,6 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *http
 
 type FeerStub struct{}
 
-func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
-	return false
-}
-
 func (fs *FeerStub) FeePerByte() util.Fixed8 {
 	return 0
 }

@@ -13,12 +13,7 @@ import (
 )
 
 type FeerStub struct {
-	lowPriority bool
-	feePerByte  util.Fixed8
-}
-
-func (fs *FeerStub) IsLowPriority(util.Fixed8) bool {
-	return fs.lowPriority
+	feePerByte util.Fixed8
 }
 
 func (fs *FeerStub) FeePerByte() util.Fixed8 {
@@ -50,14 +45,12 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 }
 
 func TestMemPoolAddRemove(t *testing.T) {
-	var fs = &FeerStub{lowPriority: false}
-	t.Run("low priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
-	fs.lowPriority = true
-	t.Run("high priority", func(t *testing.T) { testMemPoolAddRemoveWithFeer(t, fs) })
+	var fs = &FeerStub{}
+	testMemPoolAddRemoveWithFeer(t, fs)
 }
 
 func TestOverCapacity(t *testing.T) {
-	var fs = &FeerStub{lowPriority: true}
+	var fs = &FeerStub{}
 	const mempoolSize = 10
 	mp := NewMemPool(mempoolSize)
 
@@ -110,9 +103,9 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 
 	// High priority always wins over low priority.
-	fs.lowPriority = false
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx.NetworkFee = util.Fixed8FromFloat(0.00008)
 		tx.Nonce = txcnt
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
@@ -120,16 +113,16 @@ func TestOverCapacity(t *testing.T) {
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
 	// Good luck with low priority now.
-	fs.lowPriority = true
 	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
+	tx.NetworkFee = util.Fixed8FromFloat(0.00007)
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 }
 
 func TestGetVerified(t *testing.T) {
-	var fs = &FeerStub{lowPriority: true}
+	var fs = &FeerStub{}
 	const mempoolSize = 10
 	mp := NewMemPool(mempoolSize)
 
@@ -152,7 +145,7 @@ func TestGetVerified(t *testing.T) {
 }
 
 func TestRemoveStale(t *testing.T) {
-	var fs = &FeerStub{lowPriority: true}
+	var fs = &FeerStub{}
 	const mempoolSize = 10
 	mp := NewMemPool(mempoolSize)
 

@@ -1088,12 +1088,6 @@ func (bc *Blockchain) FeePerByte() util.Fixed8 {
 	return util.Fixed8(1000)
 }
 
-// IsLowPriority checks given fee for being less than configured
-// LowPriorityThreshold.
-func (bc *Blockchain) IsLowPriority(fee util.Fixed8) bool {
-	return fee < util.Fixed8FromFloat(bc.GetConfig().LowPriorityThreshold)
-}
-
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool
