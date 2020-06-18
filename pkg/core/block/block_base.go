@@ -3,7 +3,6 @@ package block
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -84,11 +83,9 @@ func (b *Base) VerificationHash() util.Uint256 {
 // DecodeBinary implements Serializable interface.
 func (b *Base) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
-
-	padding := []byte{0}
-	br.ReadBytes(padding)
-	if padding[0] != 1 {
-		br.Err = fmt.Errorf("format error: padding must equal 1 got %d", padding)
+	witnessCount := br.ReadVarUint()
+	if br.Err == nil && witnessCount != 1 {
+		br.Err = errors.New("wrong witness count")
 		return
 	}
 
@@ -98,7 +95,7 @@ func (b *Base) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements Serializable interface
 func (b *Base) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
-	bw.WriteBytes([]byte{1})
+	bw.WriteVarUint(1)
 	b.Script.EncodeBinary(bw)
 }
 
