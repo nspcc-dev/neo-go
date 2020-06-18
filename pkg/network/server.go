@@ -648,7 +648,7 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	for _, a := range addrs.Addrs {
 		addr, err := a.GetTCPAddress()
-		if err != nil {
+		if err == nil {
 			s.discovery.BackFill(addr)
 		}
 	}

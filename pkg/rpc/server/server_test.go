@@ -51,7 +51,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "e65ff7b3a02d207b584a5c27057d4e9862ef01da"
-const deploymentTxHash = "5ce44eae362d3f81d440cb73cf4e4af71e69851bcd683b076aa08b7346d4e69b"
+const deploymentTxHash = "b0428600383ec7f7b06734978a24dbe81edc87b781f58c0614f122c735d8cf6a"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -148,7 +148,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						},
 						{
 							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "923.96934740",
+							Amount:      "923.96937740",
 							LastUpdated: 6,
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

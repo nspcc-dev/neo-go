@@ -125,6 +125,7 @@ func (s *NEOBalanceState) fromStackItem(item stackitem.Item) {
 	votes := structItem[2].Value().([]stackitem.Item)
 	s.Votes = make([]*keys.PublicKey, len(votes))
 	for i, v := range votes {
+		s.Votes[i] = new(keys.PublicKey)
 		s.Votes[i].DecodeBytes(v.Value().([]byte))
 	}
 }

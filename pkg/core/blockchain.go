@@ -396,8 +396,12 @@ func (bc *Blockchain) notificationDispatcher() {
 // Close stops Blockchain's internal loop, syncs changes to persistent storage
 // and closes it. The Blockchain is no longer functional after the call to Close.
 func (bc *Blockchain) Close() {
+	// If there is a block addition in progress, wait for it to finish and
+	// don't allow new ones.
+	bc.addLock.Lock()
 	close(bc.stopCh)
 	<-bc.runToExitCh
+	bc.addLock.Unlock()
 }
 
 // AddBlock accepts successive block for the Blockchain, verifies it and

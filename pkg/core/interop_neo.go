@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -76,10 +75,9 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 		return nil, errGasLimitExceeded
 	}
 	var m manifest.Manifest
-	r := io.NewBinReaderFromBuf(manifestBytes)
-	m.DecodeBinary(r)
-	if r.Err != nil {
-		return nil, r.Err
+	err := m.UnmarshalJSON(manifestBytes)
+	if err != nil {
+		return nil, err
 	}
 	return &state.Contract{
 		Script:   script,
