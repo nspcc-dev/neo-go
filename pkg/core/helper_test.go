@@ -234,7 +234,7 @@ func TestCreateBasicChain(t *testing.T) {
 	}
 	m.ABI.EntryPoint.ReturnType = smartcontract.BoolType
 	m.Features = smartcontract.HasStorage
-	bs, err := testserdes.EncodeBinary(m)
+	bs, err := m.MarshalJSON()
 	require.NoError(t, err)
 	emit.Bytes(script.BinWriter, bs)
 	emit.Bytes(script.BinWriter, avm)

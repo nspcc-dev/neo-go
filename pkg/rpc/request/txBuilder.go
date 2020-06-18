@@ -19,9 +19,10 @@ import (
 // with its metadata and system fee require for this.
 func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, util.Fixed8, error) {
 	script := io.NewBufBinWriter()
-	w := io.NewBufBinWriter()
-	manif.EncodeBinary(w.BinWriter)
-	rawManifest := w.Bytes()
+	rawManifest, err := manif.MarshalJSON()
+	if err != nil {
+		return nil, 0, err
+	}
 	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
 	emit.Syscall(script.BinWriter, "System.Contract.Create")
