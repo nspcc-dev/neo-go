@@ -578,6 +578,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		} else if _, err := systemInterop.DAO.Persist(); err != nil {
 			return errors.Wrap(err, "can't persist `onPersist` changes")
 		}
+		for i := range systemInterop.Notifications {
+			bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
+		}
 		aer := &state.AppExecResult{
 			TxHash:      block.Hash(), // application logs can be retrieved by block hash
 			Trigger:     trigger.System,
@@ -612,42 +615,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to persist invocation results")
 			}
-			for _, note := range systemInterop.Notifications {
-				arr, ok := note.Item.Value().([]stackitem.Item)
-				if !ok || len(arr) != 4 {
-					continue
-				}
-				op, ok := arr[0].Value().([]byte)
-				if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
-					continue
-				}
-				var from []byte
-				fromValue := arr[1].Value()
-				// we don't have `from` set when we are minting tokens
-				if fromValue != nil {
-					from, ok = fromValue.([]byte)
-					if !ok {
-						continue
-					}
-				}
-				var to []byte
-				toValue := arr[2].Value()
-				// we don't have `to` set when we are burning tokens
-				if toValue != nil {
-					to, ok = toValue.([]byte)
-					if !ok {
-						continue
-					}
-				}
-				amount, ok := arr[3].Value().(*big.Int)
-				if !ok {
-					bs, ok := arr[3].Value().([]byte)
-					if !ok {
-						continue
-					}
-					amount = bigint.FromBytes(bs)
-				}
-				bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
+			for i := range systemInterop.Notifications {
+				bc.handleNotification(&systemInterop.Notifications[i], cache, block, tx.Hash())
 			}
 		} else {
 			bc.log.Warn("contract invocation failed",
@@ -695,6 +664,44 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	return nil
 }
 
+func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
+	arr, ok := note.Item.Value().([]stackitem.Item)
+	if !ok || len(arr) != 4 {
+		return
+	}
+	op, ok := arr[0].Value().([]byte)
+	if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
+		return
+	}
+	var from []byte
+	fromValue := arr[1].Value()
+	// we don't have `from` set when we are minting tokens
+	if fromValue != nil {
+		from, ok = fromValue.([]byte)
+		if !ok {
+			return
+		}
+	}
+	var to []byte
+	toValue := arr[2].Value()
+	// we don't have `to` set when we are burning tokens
+	if toValue != nil {
+		to, ok = toValue.([]byte)
+		if !ok {
+			return
+		}
+	}
+	amount, ok := arr[3].Value().(*big.Int)
+	if !ok {
+		bs, ok := arr[3].Value().([]byte)
+		if !ok {
+			return
+		}
+		amount = bigint.FromBytes(bs)
+	}
+	bc.processNEP5Transfer(d, h, b, note.ScriptHash, from, to, amount.Int64())
+}
+
 func parseUint160(addr []byte) util.Uint160 {
 	if u, err := util.Uint160DecodeBytesBE(addr); err == nil {
 		return u
@@ -702,7 +709,7 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	transfer := &state.NEP5Transfer{
@@ -711,7 +718,7 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Tra
 		To:        toAddr,
 		Block:     b.Index,
 		Timestamp: b.Timestamp,
-		Tx:        tx.Hash(),
+		Tx:        h,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
 		balances, err := cache.GetNEP5Balances(fromAddr)

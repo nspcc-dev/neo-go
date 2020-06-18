@@ -148,8 +148,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 						},
 						{
 							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "1023.99976000",
-							LastUpdated: 4,
+							Amount:      "923.96934740",
+							LastUpdated: 6,
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 				}
@@ -255,6 +255,27 @@ var rpcTestCases = map[string][]rpcTestCase{
 						},
 					},
 					Address: testchain.PrivateKeyByID(0).Address(),
+				}
+
+				// take burned gas into account
+				u := testchain.PrivateKeyByID(0).GetScriptHash()
+				for i := 0; i <= int(e.chain.BlockHeight()); i++ {
+					h := e.chain.GetHeaderHash(i)
+					b, err := e.chain.GetBlock(h)
+					require.NoError(t, err)
+					for j := range b.Transactions {
+						if u.Equals(b.Transactions[j].Sender) {
+							amount := b.Transactions[j].SystemFee + b.Transactions[j].NetworkFee
+							expected.Sent = append(expected.Sent, result.NEP5Transfer{
+								Timestamp: b.Timestamp,
+								Asset:     e.chain.UtilityTokenHash(),
+								Address:   "", // burn has empty receiver
+								Amount:    amountToString(int64(amount), 8),
+								Index:     b.Index,
+								TxHash:    b.Hash(),
+							})
+						}
+					}
 				}
 				require.Equal(t, expected.Address, res.Address)
 				require.ElementsMatch(t, expected.Sent, res.Sent)
