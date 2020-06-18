@@ -19,7 +19,6 @@ ProtocolConfiguration:
   - seed5.neo.org:10333
   VerifyBlocks: true
   VerifyTransactions: false
-  FreeGasLimit: 10.0
   MaxTransactionsPerBlock: 500
   MaxFreeTransactionsPerBlock: 20
   MaxFreeTransactionSize: 1024

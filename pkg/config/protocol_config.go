@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // ProtocolConfiguration represents the protocol config.
@@ -10,9 +9,7 @@ type (
 	ProtocolConfiguration struct {
 		// FeePerExtraByte sets the expected per-byte fee for
 		// transactions exceeding the MaxFreeTransactionSize.
-		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`
-		// FreeGasLimit is an amount of GAS which can be spent for free.
-		FreeGasLimit            util.Fixed8   `yaml:"FreeGasLimit"`
+		FeePerExtraByte         float64       `yaml:"FeePerExtraByte"`
 		LowPriorityThreshold    float64       `yaml:"LowPriorityThreshold"`
 		Magic                   netmode.Magic `yaml:"Magic"`
 		MaxTransactionsPerBlock int           `yaml:"MaxTransactionsPerBlock"`
