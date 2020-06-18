@@ -80,6 +80,9 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (g *GAS) OnPersist(ic *interop.Context) error {
+	if len(ic.Block.Transactions) == 0 {
+		return nil
+	}
 	for _, tx := range ic.Block.Transactions {
 		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
 		g.burn(ic, tx.Sender, absAmount)
