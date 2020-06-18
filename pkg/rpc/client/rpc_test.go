@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -1112,7 +1113,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 					defer srv.Close()
 
 					endpoint := srv.URL
-					opts := Options{}
+					opts := Options{Network: netmode.UnitTestNet}
 					c, err := newClient(context.TODO(), endpoint, opts)
 					if err != nil {
 						t.Fatal(err)
@@ -1136,7 +1137,7 @@ func testRPCClient(t *testing.T, newClient func(context.Context, string, Options
 		defer srv.Close()
 
 		endpoint := srv.URL
-		opts := Options{}
+		opts := Options{Network: netmode.UnitTestNet}
 		c, err := newClient(context.TODO(), endpoint, opts)
 		if err != nil {
 			t.Fatal(err)

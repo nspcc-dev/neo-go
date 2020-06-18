@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ import (
 func TestWSClientClose(t *testing.T) {
 	srv := initTestServer(t, "")
 	defer srv.Close()
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 	require.NoError(t, err)
 	wsc.Close()
 }
@@ -42,7 +43,7 @@ func TestWSClientSubscription(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
 				defer srv.Close()
-				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 				require.NoError(t, err)
 				id, err := f(wsc)
 				require.NoError(t, err)
@@ -55,7 +56,7 @@ func TestWSClientSubscription(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`)
 				defer srv.Close()
-				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 				require.NoError(t, err)
 				_, err = f(wsc)
 				require.Error(t, err)
@@ -104,7 +105,7 @@ func TestWSClientUnsubscription(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			srv := initTestServer(t, rc.response)
 			defer srv.Close()
-			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 			require.NoError(t, err)
 			rc.code(t, wsc)
 		})
@@ -138,7 +139,7 @@ func TestWSClientEvents(t *testing.T) {
 		}
 	}))
 
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 	require.NoError(t, err)
 	for range events {
 		select {
@@ -161,7 +162,7 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	// Will answer successfully if request slips through.
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
 	defer srv.Close()
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 	require.NoError(t, err)
 	filter := "NONE"
 	_, err = wsc.SubscribeForTransactionExecutions(&filter)
@@ -291,7 +292,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				}
 			}))
 			defer srv.Close()
-			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 			require.NoError(t, err)
 			c.clientCode(t, wsc)
 			wsc.Close()
@@ -304,11 +305,11 @@ func TestNewWS(t *testing.T) {
 	defer srv.Close()
 
 	t.Run("good", func(t *testing.T) {
-		_, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		_, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{Network: netmode.UnitTestNet})
 		require.NoError(t, err)
 	})
 	t.Run("bad URL", func(t *testing.T) {
-		_, err := NewWS(context.TODO(), strings.Trim(srv.URL, "http://"), Options{})
+		_, err := NewWS(context.TODO(), strings.Trim(srv.URL, "http://"), Options{Network: netmode.UnitTestNet})
 		require.Error(t, err)
 	})
 }

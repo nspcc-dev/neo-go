@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
@@ -49,6 +50,7 @@ type Options struct {
 	CACert         string
 	DialTimeout    time.Duration
 	RequestTimeout time.Duration
+	Network        netmode.Magic
 }
 
 // cache stores cache values for the RPC client methods

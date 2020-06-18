@@ -22,11 +22,7 @@ const RPCEndpointFlag = "rpc-endpoint"
 
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
-var Network = []cli.Flag{
-	cli.BoolFlag{Name: "privnet, p"},
-	cli.BoolFlag{Name: "mainnet, m"},
-	cli.BoolFlag{Name: "testnet, t"},
-}
+var Network = RPC[2:]
 
 // RPC is a set of flags used for RPC connections (endpoint and timeout).
 var RPC = []cli.Flag{
@@ -35,9 +31,12 @@ var RPC = []cli.Flag{
 		Usage: "RPC node address",
 	},
 	cli.DurationFlag{
-		Name:  "timeout, t",
+		Name:  "timeout, s",
 		Usage: "Timeout for the operation (10 seconds by default)",
 	},
+	cli.BoolFlag{Name: "privnet, p"},
+	cli.BoolFlag{Name: "mainnet, m"},
+	cli.BoolFlag{Name: "testnet, t"},
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -70,7 +69,7 @@ func GetRPCClient(gctx context.Context, ctx *cli.Context) (*client.Client, cli.E
 	if len(endpoint) == 0 {
 		return nil, cli.NewExitError(errNoEndpoint, 1)
 	}
-	c, err := client.New(gctx, endpoint, client.Options{})
+	c, err := client.New(gctx, endpoint, client.Options{Network: GetNetwork(ctx)})
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}
