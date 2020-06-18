@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -10,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -28,12 +28,15 @@ func (tn *testNative) Metadata() *interop.ContractMD {
 	return &tn.meta
 }
 
-func (tn *testNative) OnPersist(ic *interop.Context) error {
+func (tn *testNative) OnPersist(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	if ic.Trigger != trigger.System {
+		panic("invalid trigger")
+	}
 	select {
 	case tn.blocks <- ic.Block.Index:
-		return nil
+		return stackitem.NewBool(true)
 	default:
-		return errors.New("error on persist")
+		return stackitem.NewBool(false)
 	}
 }
 
@@ -43,6 +46,8 @@ var _ interop.Contract = (*testNative)(nil)
 func (bc *Blockchain) registerNative(c interop.Contract) {
 	bc.contracts.Contracts = append(bc.contracts.Contracts, c)
 }
+
+const testSumPrice = 1000000
 
 func newTestNative() *testNative {
 	tn := &testNative{
@@ -59,10 +64,14 @@ func newTestNative() *testNative {
 	}
 	md := &interop.MethodAndPrice{
 		Func:          tn.sum,
-		Price:         1,
+		Price:         testSumPrice,
 		RequiredFlags: smartcontract.NoneFlag,
 	}
 	tn.meta.AddMethod(md, desc, true)
+
+	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
+	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
+	tn.meta.AddMethod(md, desc, false)
 
 	return tn
 }
@@ -92,7 +101,8 @@ func TestNativeContract_Invoke(t *testing.T) {
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "sum", int64(14), int64(28))
 	script := w.Bytes()
-	tx := transaction.New(chain.GetConfig().Magic, script, 0)
+	// System.Contract.Call + "sum" itself + opcodes for pushing arguments (PACK is 7000)
+	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+10000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	require.NoError(t, addSender(tx))

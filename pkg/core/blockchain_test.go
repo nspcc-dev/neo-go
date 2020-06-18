@@ -257,12 +257,15 @@ func TestSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(blockCh) != 0 }, time.Second, 10*time.Millisecond)
 	assert.Empty(t, notificationCh)
-	assert.Empty(t, executionCh)
+	assert.Len(t, executionCh, 1)
 	assert.Empty(t, txCh)
 
 	b := <-blockCh
 	assert.Equal(t, blocks[0], b)
 	assert.Empty(t, blockCh)
+
+	aer := <-executionCh
+	assert.Equal(t, b.Hash(), aer.TxHash)
 
 	script := io.NewBufBinWriter()
 	emit.Bytes(script.BinWriter, []byte("yay!"))
@@ -307,6 +310,17 @@ func TestSubscriptions(t *testing.T) {
 	b = <-blockCh
 	require.Equal(t, invBlock, b)
 	assert.Empty(t, blockCh)
+
+	exec := <-executionCh
+	require.Equal(t, b.Hash(), exec.TxHash)
+	require.Equal(t, exec.VMState, "HALT")
+
+	// 3 burn events for every tx and 1 mint for primary node
+	require.True(t, len(notificationCh) >= 4)
+	for i := 0; i < 4; i++ {
+		notif := <-notificationCh
+		require.Equal(t, bc.contracts.GAS.Hash, notif.ScriptHash)
+	}
 
 	// Follow in-block transaction order.
 	for _, txExpected := range invBlock.Transactions {

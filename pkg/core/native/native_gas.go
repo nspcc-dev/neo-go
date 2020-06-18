@@ -34,11 +34,15 @@ func NewGAS() *GAS {
 	nep5.symbol = "gas"
 	nep5.decimals = 8
 	nep5.factor = GASFactor
-	nep5.onPersist = chainOnPersist(g.onPersist, g.OnPersist)
+	nep5.onPersist = chainOnPersist(nep5.OnPersist, g.OnPersist)
 	nep5.incBalance = g.increaseBalance
 	nep5.ContractID = gasContractID
 
 	g.nep5TokenNative = *nep5
+
+	onp := g.Methods["onPersist"]
+	onp.Func = getOnPersistWrapper(g.onPersist)
+	g.Methods["onPersist"] = onp
 
 	return g
 }

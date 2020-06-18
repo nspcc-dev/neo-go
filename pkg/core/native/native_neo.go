@@ -68,39 +68,43 @@ func NewNEO() *NEO {
 	nep5.symbol = "neo"
 	nep5.decimals = 0
 	nep5.factor = 1
-	nep5.onPersist = chainOnPersist(n.onPersist, n.OnPersist)
+	nep5.onPersist = chainOnPersist(nep5.OnPersist, n.OnPersist)
 	nep5.incBalance = n.increaseBalance
 	nep5.ContractID = neoContractID
 
 	n.nep5TokenNative = *nep5
 
+	onp := n.Methods["onPersist"]
+	onp.Func = getOnPersistWrapper(n.onPersist)
+	n.Methods["onPersist"] = onp
+
 	desc := newDescriptor("unclaimedGas", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("end", smartcontract.IntegerType))
-	md := newMethodAndPrice(n.unclaimedGas, 1, smartcontract.AllowStates)
+	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("registerValidator", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerValidator, 1, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(n.registerValidator, 5000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("pubkeys", smartcontract.ArrayType))
-	md = newMethodAndPrice(n.vote, 1, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(n.vote, 500000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("getRegisteredValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getRegisteredValidatorsCall, 1, smartcontract.AllowStates)
+	md = newMethodAndPrice(n.getRegisteredValidatorsCall, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getValidators, 1, smartcontract.AllowStates)
+	md = newMethodAndPrice(n.getValidators, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getNextBlockValidators, 1, smartcontract.AllowStates)
+	md = newMethodAndPrice(n.getNextBlockValidators, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	return n
