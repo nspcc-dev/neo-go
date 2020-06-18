@@ -35,9 +35,6 @@ type Base struct {
 	// Contract address of the next miner
 	NextConsensus util.Uint160
 
-	// Padding that is fixed to 1
-	_ uint8
-
 	// Script used to validate the block
 	Script transaction.Witness
 
