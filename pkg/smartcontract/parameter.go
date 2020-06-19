@@ -53,7 +53,7 @@ func NewParameter(t ParamType) Parameter {
 
 type rawParameter struct {
 	Type  ParamType       `json:"type"`
-	Value json.RawMessage `json:"value"`
+	Value json.RawMessage `json:"value,omitempty"`
 }
 
 // MarshalJSON implements Marshaler interface.
@@ -88,7 +88,7 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 		ppair := p.Value.([]ParameterPair)
 		resultRawValue, resultErr = json.Marshal(ppair)
 	case InteropInterfaceType, AnyType:
-		resultRawValue = []byte("null")
+		resultRawValue = nil
 	default:
 		resultErr = errors.Errorf("Marshaller for type %s not implemented", p.Type)
 	}
