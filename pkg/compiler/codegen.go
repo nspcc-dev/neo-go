@@ -1011,6 +1011,7 @@ func (c *codegen) dropItems(n int) {
 // emitReverse reverses top num items of the stack.
 func (c *codegen) emitReverse(num int) {
 	switch num {
+	case 0, 1:
 	case 2:
 		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 	case 3:
