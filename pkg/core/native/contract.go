@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
 
@@ -65,7 +66,10 @@ func (cs *Contracts) GetPersistScript() []byte {
 	w := io.NewBufBinWriter()
 	for i := range cs.Contracts {
 		md := cs.Contracts[i].Metadata()
-		emit.AppCallWithOperationAndArgs(w.BinWriter, md.Hash, "onPersist")
+		emit.Int(w.BinWriter, 0)
+		emit.Opcode(w.BinWriter, opcode.NEWARRAY)
+		emit.String(w.BinWriter, "onPersist")
+		emit.AppCall(w.BinWriter, md.Hash)
 	}
 	cs.persistScript = w.Bytes()
 	return cs.persistScript
