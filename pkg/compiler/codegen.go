@@ -924,16 +924,24 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
 
+		var keyLoaded bool
+		needValue := n.Value != nil && n.Value.(*ast.Ident).Name != "_"
 		if n.Key != nil && n.Key.(*ast.Ident).Name != "_" {
 			if isMap {
 				c.rangeLoadKey()
+				if needValue {
+					emit.Opcode(c.prog.BinWriter, opcode.DUP)
+					keyLoaded = true
+				}
 			} else {
 				emit.Opcode(c.prog.BinWriter, opcode.DUP)
 			}
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
-		if n.Value != nil && n.Value.(*ast.Ident).Name != "_" {
-			c.rangeLoadKey()
+		if needValue {
+			if !isMap || !keyLoaded {
+				c.rangeLoadKey()
+			}
 			if isMap {
 				// we have loaded only key from key array, now load value
 				emit.Int(c.prog.BinWriter, 4)
