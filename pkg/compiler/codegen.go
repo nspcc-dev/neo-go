@@ -924,7 +924,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcode(c.prog.BinWriter, opcode.OVER)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
 
-		if n.Key != nil {
+		if n.Key != nil && n.Key.(*ast.Ident).Name != "_" {
 			if isMap {
 				c.rangeLoadKey()
 			} else {
@@ -932,7 +932,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
-		if n.Value != nil {
+		if n.Value != nil && n.Value.(*ast.Ident).Name != "_" {
 			c.rangeLoadKey()
 			if isMap {
 				// we have loaded only key from key array, now load value
