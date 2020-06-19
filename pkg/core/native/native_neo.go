@@ -34,7 +34,7 @@ type keyWithVotes struct {
 
 const (
 	neoSyscallName = "Neo.Native.Tokens.NEO"
-	neoContractID  = -2
+	neoContractID  = -1
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
 	// prefixValidator is a prefix used to store validator's data.
