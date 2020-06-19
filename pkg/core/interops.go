@@ -138,10 +138,10 @@ var systemInterops = []interop.Function{
 }
 
 var neoInterops = []interop.Function{
-	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: 1},
-	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 1},
-	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1},
-	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 1,
+	{Name: "Neo.Crypto.ECDsaVerify", Func: crypto.ECDSAVerify, Price: crypto.ECDSAVerifyPrice},
+	{Name: "Neo.Crypto.ECDsaCheckMultiSig", Func: crypto.ECDSACheckMultisig, Price: 0},
+	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1000000},
+	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 0,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 }
 
