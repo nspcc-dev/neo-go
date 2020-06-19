@@ -565,6 +565,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
 		v := SpawnVM(systemInterop)
 		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
+		v.SetPriceGetter(getPrice)
 		if err := v.Run(); err != nil {
 			return errors.Wrap(err, "can't persist native contracts")
 		} else if _, err := systemInterop.DAO.Persist(); err != nil {
