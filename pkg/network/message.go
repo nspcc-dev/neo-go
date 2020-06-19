@@ -106,7 +106,12 @@ func (m *Message) Decode(br *io.BinReader) error {
 	// check the length first in order not to allocate memory
 	// for an empty compressed payload
 	if l == 0 {
-		m.Payload = payload.NewNullPayload()
+		switch m.Command {
+		case CMDFilterClear, CMDGetAddr, CMDMempool:
+			m.Payload = payload.NewNullPayload()
+		default:
+			return errors.New("unexpected empty payload")
+		}
 		return nil
 	}
 	if l > PayloadMaxSize {
