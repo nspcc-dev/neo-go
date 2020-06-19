@@ -113,7 +113,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					TxHash:      txHash,
 					Trigger:     "Application",
 					VMState:     "HALT",
-					GasConsumed: util.Fixed8FromInt64(1),
+					GasConsumed: "1",
 					Stack:       []smartcontract.Parameter{{Type: smartcontract.IntegerType, Value: int64(1)}},
 					Events:      []result.NotificationEvent{},
 				}

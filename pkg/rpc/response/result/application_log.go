@@ -1,6 +1,8 @@
 package result
 
 import (
+	"strconv"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -13,7 +15,7 @@ type ApplicationLog struct {
 	TxHash      util.Uint256              `json:"txid"`
 	Trigger     string                    `json:"trigger"`
 	VMState     string                    `json:"vmstate"`
-	GasConsumed util.Fixed8               `json:"gas_consumed"`
+	GasConsumed string                    `json:"gas_consumed"`
 	Stack       []smartcontract.Parameter `json:"stack"`
 	Events      []NotificationEvent       `json:"notifications"`
 }
@@ -46,7 +48,7 @@ func NewApplicationLog(appExecRes *state.AppExecResult) ApplicationLog {
 		TxHash:      appExecRes.TxHash,
 		Trigger:     appExecRes.Trigger.String(),
 		VMState:     appExecRes.VMState,
-		GasConsumed: appExecRes.GasConsumed,
+		GasConsumed: strconv.FormatInt(int64(appExecRes.GasConsumed), 10),
 		Stack:       appExecRes.Stack,
 		Events:      events,
 	}
