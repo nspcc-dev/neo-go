@@ -8,9 +8,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+// ECDSAVerifyPrice is a gas price of a single verification.
+const ECDSAVerifyPrice = 1000000
 
 // ECDSAVerify checks ECDSA signature.
 func ECDSAVerify(ic *interop.Context, v *vm.VM) error {
@@ -34,6 +38,9 @@ func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
 	pkeys, err := v.Estack().PopSigElements()
 	if err != nil {
 		return fmt.Errorf("wrong parameters: %s", err.Error())
+	}
+	if !v.AddGas(util.Fixed8(ECDSAVerifyPrice * len(pkeys))) {
+		return errors.New("gas limit exceeded")
 	}
 	sigs, err := v.Estack().PopSigElements()
 	if err != nil {
