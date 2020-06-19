@@ -517,6 +517,25 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	return nil
 }
 
+// handleMempoolCmd handles getmempool command.
+func (s *Server) handleMempoolCmd(p Peer) error {
+	txs := s.chain.GetMemPool().GetVerifiedTransactions()
+	hs := make([]util.Uint256, 0, payload.MaxHashesCount)
+	for i := range txs {
+		hs = append(hs, txs[i].Hash())
+		if len(hs) < payload.MaxHashesCount && i != len(txs)-1 {
+			continue
+		}
+		msg := NewMessage(CMDInv, payload.NewInventory(payload.TXType, hs))
+		err := p.EnqueueP2PMessage(msg)
+		if err != nil {
+			return err
+		}
+		hs = hs[:0]
+	}
+	return nil
+}
+
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	for _, hash := range inv.Hashes {
@@ -738,6 +757,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDInv:
 			inventory := msg.Payload.(*payload.Inventory)
 			return s.handleInvCmd(peer, inventory)
+		case CMDMempool:
+			// no payload
+			return s.handleMempoolCmd(peer)
 		case CMDBlock:
 			block := msg.Payload.(*block.Block)
 			return s.handleBlockCmd(peer, block)
