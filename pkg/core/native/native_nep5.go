@@ -50,24 +50,24 @@ func newNEP5Native(name string) *nep5TokenNative {
 	n := &nep5TokenNative{ContractMD: *interop.NewContractMD(name)}
 
 	desc := newDescriptor("name", smartcontract.StringType)
-	md := newMethodAndPrice(n.Name, 1, smartcontract.NoneFlag)
+	md := newMethodAndPrice(n.Name, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("symbol", smartcontract.StringType)
-	md = newMethodAndPrice(n.Symbol, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Symbol, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("decimals", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.Decimals, 1, smartcontract.NoneFlag)
+	md = newMethodAndPrice(n.Decimals, 0, smartcontract.NoneFlag)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("totalSupply", smartcontract.IntegerType)
-	md = newMethodAndPrice(n.TotalSupply, 1, smartcontract.AllowStates)
+	md = newMethodAndPrice(n.TotalSupply, 1000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(n.balanceOf, 1, smartcontract.AllowStates)
+	md = newMethodAndPrice(n.balanceOf, 1000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("transfer", smartcontract.BoolType,
@@ -75,7 +75,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 		manifest.NewParameter("to", smartcontract.Hash160Type),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	md = newMethodAndPrice(n.Transfer, 1, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("onPersist", smartcontract.BoolType)
