@@ -70,6 +70,8 @@ func serializeItemTo(item Item, w *io.BinWriter, seen map[Item]bool) {
 			serializeItemTo(t.Value().([]MapElement)[i].Key, w, seen)
 			serializeItemTo(t.Value().([]MapElement)[i].Value, w, seen)
 		}
+	case Null:
+		w.WriteB(byte(AnyT))
 	}
 }
 
@@ -127,6 +129,8 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 			m.Add(key, value)
 		}
 		return m
+	case AnyT:
+		return Null{}
 	default:
 		r.Err = errors.New("unknown type")
 		return nil

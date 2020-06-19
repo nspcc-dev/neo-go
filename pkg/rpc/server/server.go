@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -497,14 +496,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 		return nil, response.NewRPCError("Unknown transaction", "", nil)
 	}
 
-	tx, _, err := s.chain.GetTransaction(txHash)
-	if err != nil {
-		return nil, response.NewRPCError("Error while getting transaction", "", nil)
-	}
-
-	scriptHash := hash.Hash160(tx.Script)
-
-	return result.NewApplicationLog(appExecResult, scriptHash), nil
+	return result.NewApplicationLog(appExecResult), nil
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
@@ -1153,7 +1145,7 @@ chloop:
 			resp.Payload[0] = b
 		case execution := <-s.executionCh:
 			resp.Event = response.ExecutionEventID
-			resp.Payload[0] = result.NewApplicationLog(execution, util.Uint160{})
+			resp.Payload[0] = result.NewApplicationLog(execution)
 		case notification := <-s.notificationCh:
 			resp.Event = response.NotificationEventID
 			resp.Payload[0] = result.StateEventToResultNotification(*notification)

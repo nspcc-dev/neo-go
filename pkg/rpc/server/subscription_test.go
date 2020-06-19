@@ -185,9 +185,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 			check: func(t *testing.T, resp *response.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
 				require.Equal(t, response.ExecutionEventID, resp.Event)
-				execs := rmap["executions"].([]interface{})
-				exec0 := execs[0].(map[string]interface{})
-				st := exec0["vmstate"].(string)
+				st := rmap["vmstate"].(string)
 				require.Equal(t, "HALT", st)
 			},
 		},

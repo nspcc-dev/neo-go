@@ -65,9 +65,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
 				require.NoError(t, err)
 				assert.Equal(t, expectedTxHash, res.TxHash)
-				assert.Equal(t, 1, len(res.Executions))
-				assert.Equal(t, "Application", res.Executions[0].Trigger)
-				assert.Equal(t, "HALT", res.Executions[0].VMState)
+				assert.Equal(t, "Application", res.Trigger)
+				assert.Equal(t, "HALT", res.VMState)
 			},
 		},
 		{
@@ -823,6 +822,16 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			}
 		})
 	}
+
+	t.Run("getapplicationlog for block", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getapplicationlog", "params": ["%s"]}`
+		body := doRPCCall(fmt.Sprintf(rpc, e.chain.GetHeaderHash(1).StringLE()), httpSrv.URL, t)
+		data := checkErrGetResult(t, body, false)
+		var res result.ApplicationLog
+		require.NoError(t, json.Unmarshal(data, &res))
+		require.Equal(t, "System", res.Trigger)
+		require.Equal(t, "HALT", res.VMState)
+	})
 
 	t.Run("submit", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`

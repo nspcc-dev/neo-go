@@ -77,7 +77,7 @@ func (f *feed) Matches(r *response.Notification) bool {
 	case response.ExecutionEventID:
 		filt := f.filter.(request.ExecutionFilter)
 		applog := r.Payload[0].(result.ApplicationLog)
-		return len(applog.Executions) != 0 && applog.Executions[0].VMState == filt.State
+		return applog.VMState == filt.State
 	}
 	return false
 }
