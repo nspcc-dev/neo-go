@@ -48,7 +48,7 @@ func (pt ParamType) String() string {
 	case Hash256Type:
 		return "Hash256"
 	case ByteArrayType:
-		return "ByteArray"
+		return "ByteString"
 	case PublicKeyType:
 		return "PublicKey"
 	case StringType:
@@ -143,7 +143,7 @@ func ParseParamType(typ string) (ParamType, error) {
 		return Hash160Type, nil
 	case "hash256":
 		return Hash256Type, nil
-	case "bytes", "bytearray":
+	case "bytes", "bytearray", "bytestring":
 		return ByteArrayType, nil
 	case "key", "publickey":
 		return PublicKeyType, nil
