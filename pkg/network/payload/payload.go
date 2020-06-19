@@ -12,12 +12,12 @@ type NullPayload struct {
 }
 
 // NewNullPayload returns zero-sized stub payload.
-func NewNullPayload() *NullPayload {
-	return &NullPayload{}
+func NewNullPayload() NullPayload {
+	return NullPayload{}
 }
 
 // DecodeBinary implements Serializable interface.
-func (p *NullPayload) DecodeBinary(r *io.BinReader) {}
+func (p NullPayload) DecodeBinary(r *io.BinReader) {}
 
 // EncodeBinary implements Serializable interface.
-func (p *NullPayload) EncodeBinary(w *io.BinWriter) {}
+func (p NullPayload) EncodeBinary(w *io.BinWriter) {}
