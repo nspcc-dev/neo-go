@@ -301,7 +301,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	if !contract.HasStorage() {
-		return err
+		return errors.New("contract is not allowed to use storage")
 	}
 	sc := &StorageContext{
 		ID:       contract.ID,
