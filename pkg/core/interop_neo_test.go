@@ -63,16 +63,16 @@ func TestStorageFind(t *testing.T) {
 
 	require.NoError(t, context.DAO.PutContractState(contractState))
 
-	scriptHash := contractState.ScriptHash()
+	id := contractState.ID
 
 	for i := range skeys {
-		err := context.DAO.PutStorageItem(scriptHash, skeys[i], items[i])
+		err := context.DAO.PutStorageItem(id, skeys[i], items[i])
 		require.NoError(t, err)
 	}
 
 	t.Run("normal invocation", func(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: scriptHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
 		err := storageFind(context, v)
 		require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestStorageFind(t *testing.T) {
 
 	t.Run("normal invocation, empty result", func(t *testing.T) {
 		v.Estack().PushVal([]byte{0x03})
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: scriptHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
 		err := storageFind(context, v)
 		require.NoError(t, err)
@@ -126,14 +126,15 @@ func TestStorageFind(t *testing.T) {
 		require.Error(t, storageFind(context, v))
 	})
 
-	t.Run("invalid script hash", func(t *testing.T) {
-		invalidHash := scriptHash
-		invalidHash[0] = ^invalidHash[0]
+	t.Run("invalid id", func(t *testing.T) {
+		invalidID := id + 1
 
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ScriptHash: invalidHash}))
+		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: invalidID}))
 
-		require.Error(t, storageFind(context, v))
+		require.NoError(t, storageFind(context, v))
+		require.NoError(t, enumerator.Next(context, v))
+		require.False(t, v.Estack().Pop().Bool())
 	})
 }
 
@@ -257,6 +258,7 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	contractState := &state.Contract{
 		Script:   script,
 		Manifest: *m,
+		ID:       123,
 	}
 
 	chain := newTestChain(t)
