@@ -107,7 +107,7 @@ func (m *Message) Decode(br *io.BinReader) error {
 	// for an empty compressed payload
 	if l == 0 {
 		switch m.Command {
-		case CMDFilterClear, CMDGetAddr, CMDMempool:
+		case CMDFilterClear, CMDGetAddr, CMDMempool, CMDVerack:
 			m.Payload = payload.NewNullPayload()
 		default:
 			return errors.New("unexpected empty payload")
