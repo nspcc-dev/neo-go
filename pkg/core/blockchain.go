@@ -1235,7 +1235,7 @@ func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 	our, err := bc.GetStateRoot(r.Index)
 	if err == nil {
 		if our.Flag == state.Verified {
-			return nil
+			return bc.updateStateHeight(r.Index)
 		} else if r.Witness == nil && our.Witness != nil {
 			r.Witness = our.Witness
 		}
@@ -1257,10 +1257,24 @@ func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 		}
 		flag = state.Verified
 	}
-	return bc.dao.PutStateRoot(&state.MPTRootState{
+	err = bc.dao.PutStateRoot(&state.MPTRootState{
 		MPTRoot: *r,
 		Flag:    flag,
 	})
+	if err != nil {
+		return err
+	}
+	return bc.updateStateHeight(r.Index)
+}
+
+func (bc *Blockchain) updateStateHeight(newHeight uint32) error {
+	h, err := bc.dao.GetCurrentStateRootHeight()
+	if err != nil {
+		return errors.WithMessage(err, "can't get current state root height")
+	} else if newHeight == h+1 {
+		return bc.dao.PutCurrentStateRootHeight(h + 1)
+	}
+	return nil
 }
 
 // verifyStateRoot checks if state root is valid.
