@@ -49,6 +49,7 @@ type Blockchainer interface {
 	References(t *transaction.Transaction) ([]transaction.InOut, error)
 	mempool.Feer // fee interface
 	PoolTx(*transaction.Transaction) error
+	StateHeight() uint32
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.NotificationEvent)
