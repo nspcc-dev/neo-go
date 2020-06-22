@@ -683,6 +683,9 @@ func (s *Server) handleGetStateRootCmd(p Peer, gr *payload.GetStateRoot) error {
 // handleStateRootCmd processees `stateroot` request.
 func (s *Server) handleStateRootCmd(r *state.MPTRoot) error {
 	// we ignore error, because there is nothing wrong if we already have this state root
+	if r.Index <= s.chain.StateHeight() {
+		return nil
+	}
 	err := s.chain.AddStateRoot(r)
 	if err == nil && !s.stateCache.Has(r.Hash()) {
 		s.stateCache.Add(r)
