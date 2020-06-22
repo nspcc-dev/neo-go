@@ -621,7 +621,11 @@ func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
 
 // handleStateRootsCmd processees `roots` request.
 func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
+	h := s.chain.StateHeight()
 	for i := range rs.Roots {
+		if rs.Roots[i].Index <= h {
+			continue
+		}
 		_ = s.chain.AddStateRoot(&rs.Roots[i])
 	}
 	// request more state roots from peer if needed
