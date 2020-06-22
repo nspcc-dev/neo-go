@@ -228,6 +228,7 @@ func randomMessage(t *testing.T, mt messageType) io.Serializable {
 	case commitType:
 		var c commit
 		random.Fill(c.signature[:])
+		random.Fill(c.stateSig[:])
 		return &c
 	case recoveryRequestType:
 		return &recoveryRequest{timestamp: rand.Uint32()}
@@ -275,12 +276,14 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				ViewNumber:       0,
 				ValidatorIndex:   1,
 				Signature:        [64]byte{1, 2, 3},
+				StateSignature:   [64]byte{4, 5, 6},
 				InvocationScript: random.Bytes(20),
 			},
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   2,
 				Signature:        [64]byte{11, 3, 4, 98},
+				StateSignature:   [64]byte{4, 8, 15, 16, 23, 42},
 				InvocationScript: random.Bytes(10),
 			},
 		},
