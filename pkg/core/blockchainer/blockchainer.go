@@ -54,6 +54,7 @@ type Blockchainer interface {
 	GetMaxBlockSize() uint32
 	GetMaxBlockSystemFee() int64
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
+	StateHeight() uint32
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.NotificationEvent)

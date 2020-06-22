@@ -833,10 +833,9 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 }
 
 func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error) {
-	height := s.chain.BlockHeight()
 	return &result.StateHeight{
-		BlockHeight: height,
-		StateHeight: height,
+		BlockHeight: s.chain.BlockHeight(),
+		StateHeight: s.chain.StateHeight(),
 	}, nil
 }
 

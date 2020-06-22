@@ -159,7 +159,9 @@ func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 func (chain testChain) PoolTx(*transaction.Transaction, ...*mempool.Pool) error {
 	panic("TODO")
 }
-
+func (chain testChain) StateHeight() uint32 {
+	panic("TODO")
+}
 func (chain testChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	panic("TODO")
 }

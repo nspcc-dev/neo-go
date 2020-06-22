@@ -1342,6 +1342,12 @@ func (bc *Blockchain) isTxStillRelevant(t *transaction.Transaction, txpool *memp
 
 }
 
+// StateHeight returns height of the verified state root.
+func (bc *Blockchain) StateHeight() uint32 {
+	h, _ := bc.dao.GetCurrentStateRootHeight()
+	return h
+}
+
 // AddStateRoot add new (possibly unverified) state root to the blockchain.
 func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 	our, err := bc.GetStateRoot(r.Index)
