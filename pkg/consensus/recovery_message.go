@@ -29,6 +29,7 @@ type (
 		ViewNumber       byte
 		ValidatorIndex   uint16
 		Signature        [signatureSize]byte
+		StateSignature   [signatureSize]byte
 		InvocationScript []byte
 	}
 
@@ -112,6 +113,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadU16LE()
 	r.ReadBytes(p.Signature[:])
+	r.ReadBytes(p.StateSignature[:])
 	p.InvocationScript = r.ReadVarBytes()
 }
 
@@ -120,6 +122,7 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(p.ViewNumber)
 	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
+	w.WriteBytes(p.StateSignature[:])
 	w.WriteVarBytes(p.InvocationScript)
 }
 
@@ -172,6 +175,7 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 			ValidatorIndex:   p.ValidatorIndex(),
 			ViewNumber:       p.ViewNumber(),
 			Signature:        p.GetCommit().(*commit).signature,
+			StateSignature:   p.GetCommit().(*commit).stateSig,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
 	}
@@ -250,7 +254,7 @@ func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []cr
 	ps := make([]payload.ConsensusPayload, len(m.commitPayloads))
 
 	for i, c := range m.commitPayloads {
-		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
+		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature, stateSig: c.StateSignature})
 		cc.SetValidatorIndex(c.ValidatorIndex)
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
