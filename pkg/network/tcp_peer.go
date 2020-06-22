@@ -252,6 +252,9 @@ func (p *TCPPeer) StartProtocol() {
 				err = p.server.requestBlocks(p)
 			}
 			if err == nil {
+				err = p.server.requestStateRoot(p)
+			}
+			if err == nil {
 				timer.Reset(p.server.ProtoTickInterval)
 			}
 		}
