@@ -32,6 +32,7 @@ type DAO interface {
 	GetContractState(hash util.Uint160) (*state.Contract, error)
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
+	GetCurrentStateRootHeight() (uint32, error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
@@ -432,6 +433,27 @@ func (dao *Simple) InitMPT(height uint32) error {
 	}
 	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), dao.Store)
 	return nil
+}
+
+// GetCurrentStateRootHeight returns current state root height.
+func (dao *Simple) GetCurrentStateRootHeight() (uint32, error) {
+	key := []byte{byte(storage.DataMPT)}
+	val, err := dao.Store.Get(key)
+	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			err = nil
+		}
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(val), nil
+}
+
+// PutCurrentStateRootHeight updates current state root height.
+func (dao *Simple) PutCurrentStateRootHeight(height uint32) error {
+	key := []byte{byte(storage.DataMPT)}
+	val := make([]byte, 4)
+	binary.LittleEndian.PutUint32(val, height)
+	return dao.Store.Put(key, val)
 }
 
 // GetStateRoot returns state root of a given height.
