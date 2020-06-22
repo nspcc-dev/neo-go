@@ -246,9 +246,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 				sh, ok := res.(*result.StateHeight)
 				require.True(t, ok)
 
-				h := e.chain.BlockHeight()
-				require.Equal(t, h, sh.BlockHeight)
-				require.Equal(t, h, sh.StateHeight)
+				require.Equal(t, e.chain.BlockHeight(), sh.BlockHeight)
+				require.Equal(t, e.chain.StateHeight(), sh.StateHeight)
 			},
 		},
 	},

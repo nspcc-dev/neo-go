@@ -620,11 +620,34 @@ func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
 }
 
 // handleStateRootsCmd processees `roots` request.
-func (s *Server) handleRootsCmd(rs *payload.StateRoots) error {
+func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
+	h := s.chain.StateHeight()
 	for i := range rs.Roots {
+		if rs.Roots[i].Index <= h {
+			continue
+		}
 		_ = s.chain.AddStateRoot(&rs.Roots[i])
 	}
-	return nil
+	// request more state roots from peer if needed
+	return s.requestStateRoot(p)
+}
+
+// requestStateRoot sends `getroots` message to get verified state roots.
+func (s *Server) requestStateRoot(p Peer) error {
+	stateHeight := s.chain.StateHeight()
+	hdrHeight := s.chain.BlockHeight()
+	count := uint32(payload.MaxStateRootsAllowed)
+	if diff := hdrHeight - stateHeight; diff < count {
+		count = diff
+	}
+	if count == 0 {
+		return nil
+	}
+	gr := &payload.GetStateRoots{
+		Start: stateHeight + 1,
+		Count: count,
+	}
+	return p.EnqueueP2PMessage(s.MkMsg(CMDGetRoots, gr))
 }
 
 // handleStateRootCmd processees `stateroot` request.
@@ -772,7 +795,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			return s.handlePong(peer, pong)
 		case CMDRoots:
 			rs := msg.Payload.(*payload.StateRoots)
-			return s.handleRootsCmd(rs)
+			return s.handleRootsCmd(peer, rs)
 		case CMDStateRoot:
 			r := msg.Payload.(*state.MPTRoot)
 			return s.handleStateRootCmd(r)

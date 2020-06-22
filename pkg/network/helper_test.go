@@ -154,7 +154,9 @@ func (chain testChain) IsLowPriority(util.Fixed8) bool {
 func (chain testChain) PoolTx(*transaction.Transaction) error {
 	panic("TODO")
 }
-
+func (chain testChain) StateHeight() uint32 {
+	panic("TODO")
+}
 func (chain testChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	panic("TODO")
 }
