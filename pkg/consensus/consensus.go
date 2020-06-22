@@ -138,7 +138,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetValidators(srv.getValidators),
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
-		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
+		dbft.WithNewConsensusPayload(srv.newPayload),
 		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
@@ -211,6 +211,12 @@ func (s *service) eventLoop() {
 				s.dbft.InitializeConsensus(0)
 			}
 		}
+	}
+}
+
+func (s *service) newPayload() payload.ConsensusPayload {
+	return &Payload{
+		message: new(message),
 	}
 }
 
