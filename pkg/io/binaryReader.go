@@ -168,8 +168,16 @@ func (r *BinReader) ReadVarUint() uint64 {
 
 // ReadVarBytes reads the next set of bytes from the underlying reader.
 // ReadVarUInt() is used to determine how large that slice is
-func (r *BinReader) ReadVarBytes() []byte {
+func (r *BinReader) ReadVarBytes(maxSize ...int) []byte {
 	n := r.ReadVarUint()
+	ms := maxArraySize
+	if len(maxSize) != 0 {
+		ms = maxSize[0]
+	}
+	if n > uint64(ms) {
+		r.Err = fmt.Errorf("byte-slice is too big (%d)", n)
+		return nil
+	}
 	b := make([]byte, n)
 	r.ReadBytes(b)
 	return b
