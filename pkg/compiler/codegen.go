@@ -900,23 +900,55 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.currentSwitch = label
 
 		ast.Walk(c, n.X)
-		emit.Syscall(c.prog.BinWriter, "System.Iterator.Create")
 
-		c.pushStackLabel(label, 1)
+		// Implementation is a bit different for slices and maps:
+		// For slices we iterate index from 0 to len-1, storing array, len and index on stack.
+		// For maps we iterate index from 0 to len-1, storing map, keyarray, size and index on stack.
+		_, isMap := c.typeOf(n.X).Underlying().(*types.Map)
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		if isMap {
+			emit.Opcode(c.prog.BinWriter, opcode.KEYS)
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		}
+		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+
+		stackSize := 3 // slice, len(slice), index
+		if isMap {
+			stackSize++ // map, keys, len(keys), index in keys
+		}
+		c.pushStackLabel(label, stackSize)
 		c.setLabel(start)
 
-		emit.Opcode(c.prog.BinWriter, opcode.DUP)
-		emit.Syscall(c.prog.BinWriter, "System.Enumerator.Next")
-		emit.Jmp(c.prog.BinWriter, opcode.JMPIFNOTL, end)
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
 
-		if n.Key != nil {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "System.Iterator.Key")
+		var keyLoaded bool
+		needValue := n.Value != nil && n.Value.(*ast.Ident).Name != "_"
+		if n.Key != nil && n.Key.(*ast.Ident).Name != "_" {
+			if isMap {
+				c.rangeLoadKey()
+				if needValue {
+					emit.Opcode(c.prog.BinWriter, opcode.DUP)
+					keyLoaded = true
+				}
+			} else {
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			}
 			c.emitStoreVar(n.Key.(*ast.Ident).Name)
 		}
-		if n.Value != nil {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Syscall(c.prog.BinWriter, "System.Enumerator.Value")
+		if needValue {
+			if !isMap || !keyLoaded {
+				c.rangeLoadKey()
+			}
+			if isMap {
+				// we have loaded only key from key array, now load value
+				emit.Int(c.prog.BinWriter, 4)
+				emit.Opcode(c.prog.BinWriter, opcode.PICK) // load map itself (+1 because key was pushed)
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP) // key should be on top
+				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+			}
 			c.emitStoreVar(n.Value.(*ast.Ident).Name)
 		}
 
@@ -924,6 +956,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.setLabel(post)
 
+		emit.Opcode(c.prog.BinWriter, opcode.INC)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 
 		c.setLabel(end)
@@ -943,6 +976,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+func (c *codegen) rangeLoadKey() {
+	emit.Int(c.prog.BinWriter, 2)
+	emit.Opcode(c.prog.BinWriter, opcode.PICK) // load keys
+	emit.Opcode(c.prog.BinWriter, opcode.OVER) // load index in key array
+	emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
 }
 
 func isFallthroughStmt(c ast.Node) bool {
@@ -979,6 +1019,7 @@ func (c *codegen) dropItems(n int) {
 // emitReverse reverses top num items of the stack.
 func (c *codegen) emitReverse(num int) {
 	switch num {
+	case 0, 1:
 	case 2:
 		emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 	case 3:
