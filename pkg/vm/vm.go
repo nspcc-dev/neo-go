@@ -276,9 +276,11 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 // given script hash directly into the Context to avoid its recalculations. It's
 // up to user of this function to make sure the script and hash match each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f smartcontract.CallFlag) {
+	shash := v.GetCurrentScriptHash()
 	v.LoadScriptWithFlags(b, f)
 	ctx := v.Context()
 	ctx.scriptHash = hash
+	ctx.callingScriptHash = shash
 }
 
 // Context returns the current executed context. Nil if there is no context,
@@ -1607,7 +1609,7 @@ func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
 
 // GetCallingScriptHash implements ScriptHashGetter interface
 func (v *VM) GetCallingScriptHash() util.Uint160 {
-	return v.getContextScriptHash(1)
+	return v.Context().callingScriptHash
 }
 
 // GetEntryScriptHash implements ScriptHashGetter interface

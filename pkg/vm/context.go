@@ -41,6 +41,9 @@ type Context struct {
 	// Script hash of the prog.
 	scriptHash util.Uint160
 
+	// Caller's contract script hash.
+	callingScriptHash util.Uint160
+
 	// Call flags this context was created with.
 	callFlag smartcontract.CallFlag
 }
