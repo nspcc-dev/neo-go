@@ -2,7 +2,7 @@
 
 BIN=/usr/bin/neo-go
 
-if [ -z "$ACC"]; then
+if [ -z "$ACC" ]; then
   ACC=/6000-privnet-blocks.acc.gz
 fi
 
