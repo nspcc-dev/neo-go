@@ -212,7 +212,7 @@ func (p *Parameter) EncodeBinary(w *io.BinWriter) {
 		w.WriteBytes(p.Value.(util.Uint160).BytesBE())
 	case Hash256Type:
 		w.WriteBytes(p.Value.(util.Uint256).BytesBE())
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 	default:
 		w.Err = fmt.Errorf("unknown type: %x", p.Type)
 	}
@@ -251,7 +251,7 @@ func (p *Parameter) DecodeBinary(r *io.BinReader) {
 		var u util.Uint256
 		r.ReadBytes(u[:])
 		p.Value = u
-	case InteropInterfaceType:
+	case InteropInterfaceType, AnyType:
 	default:
 		r.Err = fmt.Errorf("unknown type: %x", p.Type)
 	}
