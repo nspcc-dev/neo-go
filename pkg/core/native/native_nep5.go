@@ -180,7 +180,12 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
 		return err
 	}
-	if err := ic.DAO.PutStorageItem(c.ContractID, keyFrom, siFrom); err != nil {
+	if siFrom.Value == nil {
+		err = ic.DAO.DeleteStorageItem(c.ContractID, keyFrom)
+	} else {
+		err = ic.DAO.PutStorageItem(c.ContractID, keyFrom, siFrom)
+	}
+	if err != nil {
 		return err
 	}
 
@@ -193,7 +198,12 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		if err := c.incBalance(ic, to, siTo, amount); err != nil {
 			return err
 		}
-		if err := ic.DAO.PutStorageItem(c.ContractID, keyTo, siTo); err != nil {
+		if siTo.Value == nil {
+			err = ic.DAO.DeleteStorageItem(c.ContractID, keyTo)
+		} else {
+			err = ic.DAO.PutStorageItem(c.ContractID, keyTo, siTo)
+		}
+		if err != nil {
 			return err
 		}
 	}

@@ -58,7 +58,11 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 		return errors.New("insufficient funds")
 	}
 	acc.Balance.Add(&acc.Balance, amount)
-	si.Value = acc.Bytes()
+	if acc.Balance.Sign() != 0 {
+		si.Value = acc.Bytes()
+	} else {
+		si.Value = nil
+	}
 	return nil
 }
 

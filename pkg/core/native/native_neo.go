@@ -180,7 +180,11 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		}
 	}
 	acc.Balance.Add(&acc.Balance, amount)
-	si.Value = acc.Bytes()
+	if acc.Balance.Sign() != 0 {
+		si.Value = acc.Bytes()
+	} else {
+		si.Value = nil
+	}
 	return nil
 }
 
