@@ -210,7 +210,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveGas: %s", txMoveGas.Hash().StringLE())
 
-	require.Equal(t, util.Fixed8FromInt64(1000), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.True(t, util.Fixed8FromInt64(1000).CompareTo(bc.GetUtilityTokenBalance(priv0ScriptHash)) <= 0)
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()

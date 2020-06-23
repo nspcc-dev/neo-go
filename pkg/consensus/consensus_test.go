@@ -213,7 +213,7 @@ func newTestService(t *testing.T) *service {
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {
-	key := testchain.PrivateKey(i)
+	key := testchain.PrivateKeyByID(i)
 	return &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
 }
 
@@ -241,9 +241,8 @@ func signTx(t *testing.T, feePerByte util.Fixed8, txs ...*transaction.Transactio
 	validators := make([]*keys.PublicKey, 4)
 	privNetKeys := make([]*keys.PrivateKey, 4)
 	for i := 0; i < 4; i++ {
-		privateKey, publicKey := getTestValidator(i)
-		validators[i] = publicKey.PublicKey
-		privNetKeys[i] = privateKey.PrivateKey
+		privNetKeys[i] = testchain.PrivateKey(i)
+		validators[i] = privNetKeys[i].PublicKey()
 	}
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(3, validators)
 	require.NoError(t, err)

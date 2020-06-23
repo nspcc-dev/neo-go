@@ -112,8 +112,6 @@ func NewNEO() *NEO {
 
 // Initialize initializes NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
-	var si state.StorageItem
-
 	if err := n.nep5TokenNative.Initialize(ic); err != nil {
 		return err
 	}
@@ -122,11 +120,6 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return errors.New("already initialized")
 	}
 
-	vc := new(ValidatorsCount)
-	si.Value = vc.Bytes()
-	if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, &si); err != nil {
-		return err
-	}
 	h, vs, err := getStandbyValidatorsHash(ic)
 	if err != nil {
 		return err
@@ -284,13 +277,20 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 		newPubs = append(newPubs, pub)
 	}
 	if lp, lv := len(newPubs), len(acc.Votes); lp != lv {
-		si := ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
+		var si *state.StorageItem
+		var vc *ValidatorsCount
+		var err error
+
+		si = ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
 		if si == nil {
-			return errors.New("validators count uninitialized")
-		}
-		vc, err := ValidatorsCountFromBytes(si.Value)
-		if err != nil {
-			return err
+			// The first voter.
+			si = new(state.StorageItem)
+			vc = new(ValidatorsCount)
+		} else {
+			vc, err = ValidatorsCountFromBytes(si.Value)
+			if err != nil {
+				return err
+			}
 		}
 		if lv > 0 {
 			vc[lv-1].Sub(&vc[lv-1], &acc.Balance)
@@ -384,9 +384,13 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+	standByValidators, err := bc.GetStandByValidators()
+	if err != nil {
+		return nil, err
+	}
 	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
 	if si == nil {
-		return nil, errors.New("validators count uninitialized")
+		return standByValidators, nil
 	}
 	validatorsCount, err := ValidatorsCountFromBytes(si.Value)
 	if err != nil {
@@ -407,10 +411,6 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	})
 
 	count := validatorsCount.GetWeightedAverage()
-	standByValidators, err := bc.GetStandByValidators()
-	if err != nil {
-		return nil, err
-	}
 	if count < len(standByValidators) {
 		count = len(standByValidators)
 	}
