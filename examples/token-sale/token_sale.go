@@ -71,15 +71,25 @@ func NewTokenConfig() TokenConfig {
 	}
 }
 
+// getIntFromDB is a helper that checks for nil result of storage.Get and returns
+// zero as the default value.
+func getIntFromDB(ctx storage.Context, key []byte) int {
+	var res int
+	val := storage.Get(ctx, key)
+	if val != nil {
+		res = val.(int)
+	}
+	return res
+}
+
 // InCirculation return the amount of total tokens that are in circulation.
 func (t TokenConfig) InCirculation(ctx storage.Context) int {
-	amount := storage.Get(ctx, t.CirculationKey)
-	return amount.(int)
+	return getIntFromDB(ctx, t.CirculationKey)
 }
 
 // AddToCirculation sets the given amount as "in circulation" in the storage.
 func (t TokenConfig) AddToCirculation(ctx storage.Context, amount int) bool {
-	supply := storage.Get(ctx, t.CirculationKey).(int)
+	supply := getIntFromDB(ctx, t.CirculationKey)
 	supply += amount
 	storage.Put(ctx, t.CirculationKey, supply)
 	return true
@@ -88,8 +98,8 @@ func (t TokenConfig) AddToCirculation(ctx storage.Context, amount int) bool {
 // TokenSaleAvailableAmount returns the total amount of available tokens left
 // to be distributed.
 func (t TokenConfig) TokenSaleAvailableAmount(ctx storage.Context) int {
-	inCirc := storage.Get(ctx, t.CirculationKey)
-	return t.TotalSupply - inCirc.(int)
+	inCirc := getIntFromDB(ctx, t.CirculationKey)
+	return t.TotalSupply - inCirc
 }
 
 // Main smart contract entry point.
@@ -128,11 +138,11 @@ func handleOperation(op string, args []interface{}, ctx storage.Context, cfg Tok
 		return cfg.Symbol
 	}
 	if op == "totalSupply" {
-		return storage.Get(ctx, cfg.CirculationKey)
+		return getIntFromDB(ctx, cfg.CirculationKey)
 	}
 	if op == "balanceOf" {
 		if len(args) == 1 {
-			return storage.Get(ctx, args[0].([]byte))
+			return getIntFromDB(ctx, args[0].([]byte))
 		}
 	}
 	if op == "transfer" {
@@ -177,7 +187,7 @@ func transfer(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int)
 	if amount <= 0 || len(to) != 20 || !runtime.CheckWitness(from) {
 		return false
 	}
-	amountFrom := storage.Get(ctx, from).(int)
+	amountFrom := getIntFromDB(ctx, from)
 	if amountFrom < amount {
 		return false
 	}
@@ -187,7 +197,7 @@ func transfer(cfg TokenConfig, ctx storage.Context, from, to []byte, amount int)
 		diff := amountFrom - amount
 		storage.Put(ctx, from, diff)
 	}
-	amountTo := storage.Get(ctx, to).(int)
+	amountTo := getIntFromDB(ctx, to)
 	totalAmountTo := amountTo + amount
 	storage.Put(ctx, to, totalAmountTo)
 	return true
@@ -201,15 +211,15 @@ func transferFrom(cfg TokenConfig, ctx storage.Context, from, to []byte, amount 
 	if len(availableKey) != 40 {
 		return false
 	}
-	availableTo := storage.Get(ctx, availableKey).(int)
+	availableTo := getIntFromDB(ctx, availableKey)
 	if availableTo < amount {
 		return false
 	}
-	fromBalance := storage.Get(ctx, from).(int)
+	fromBalance := getIntFromDB(ctx, from)
 	if fromBalance < amount {
 		return false
 	}
-	toBalance := storage.Get(ctx, to).(int)
+	toBalance := getIntFromDB(ctx, to)
 	newFromBalance := fromBalance - amount
 	newToBalance := toBalance + amount
 	storage.Put(ctx, to, newToBalance)
@@ -231,7 +241,7 @@ func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
 	if len(spender) != 20 {
 		return false
 	}
-	toSpend := storage.Get(ctx, owner).(int)
+	toSpend := getIntFromDB(ctx, owner)
 	if toSpend < amount {
 		return false
 	}
@@ -246,5 +256,5 @@ func approve(ctx storage.Context, owner, spender []byte, amount int) bool {
 
 func allowance(ctx storage.Context, from, to []byte) int {
 	key := append(from, to...)
-	return storage.Get(ctx, key).(int)
+	return getIntFromDB(ctx, key)
 }

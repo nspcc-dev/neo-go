@@ -32,7 +32,11 @@ func Main(operation string, args []interface{}) interface{} {
 			runtime.Log("invalid address")
 			return false
 		}
-		amount := storage.Get(ctx, addr).(int)
+		var amount int
+		val := storage.Get(ctx, addr)
+		if val != nil {
+			amount = val.(int)
+		}
 		runtime.Notify("balanceOf", addr, amount)
 		return amount
 	case "transfer":
@@ -53,7 +57,11 @@ func Main(operation string, args []interface{}) interface{} {
 			return false
 		}
 
-		fromBalance := storage.Get(ctx, from).(int)
+		var fromBalance int
+		val := storage.Get(ctx, from)
+		if val != nil {
+			fromBalance = val.(int)
+		}
 		if fromBalance < amount {
 			runtime.Log("insufficient funds")
 			return false
@@ -61,7 +69,11 @@ func Main(operation string, args []interface{}) interface{} {
 		fromBalance -= amount
 		storage.Put(ctx, from, fromBalance)
 
-		toBalance := storage.Get(ctx, to).(int)
+		var toBalance int
+		val = storage.Get(ctx, to)
+		if val != nil {
+			toBalance = val.(int)
+		}
 		toBalance += amount
 		storage.Put(ctx, to, toBalance)
 

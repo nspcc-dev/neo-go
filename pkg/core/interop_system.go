@@ -289,7 +289,7 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 	if si != nil && si.Value != nil {
 		v.Estack().PushVal(si.Value)
 	} else {
-		v.Estack().PushVal([]byte{})
+		v.Estack().PushVal(stackitem.Null{})
 	}
 	return nil
 }
