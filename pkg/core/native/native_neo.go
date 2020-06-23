@@ -162,7 +162,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return nil
 	}
 	if len(acc.Votes) > 0 {
-		if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
+		if err := n.ModifyAccountVotes(acc, ic.DAO, amount); err != nil {
 			return err
 		}
 		siVC := ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
