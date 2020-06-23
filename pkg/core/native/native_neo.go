@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -218,10 +219,8 @@ func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey
 		return errors.New("already registered")
 	}
 	si = new(state.StorageItem)
-	// It's the same simple counter, calling it `Votes` instead of `Balance`
-	// doesn't help a lot.
-	votes := state.NEP5BalanceState{}
-	si.Value = votes.Bytes()
+	// Zero value.
+	si.Value = []byte{}
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
@@ -319,12 +318,9 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 		if si == nil {
 			return errors.New("invalid validator")
 		}
-		votes, err := state.NEP5BalanceStateFromBytes(si.Value)
-		if err != nil {
-			return err
-		}
-		votes.Balance.Add(&votes.Balance, value)
-		si.Value = votes.Bytes()
+		votes := bigint.FromBytes(si.Value)
+		votes.Add(votes, value)
+		si.Value = bigint.ToPreallocatedBytes(votes, si.Value[:0])
 		if err := d.PutStorageItem(n.ContractID, key, si); err != nil {
 			return err
 		}
@@ -339,11 +335,8 @@ func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
 	}
 	arr := make([]keyWithVotes, 0, len(siMap))
 	for key, si := range siMap {
-		votes, err := state.NEP5BalanceStateFromBytes(si.Value)
-		if err != nil {
-			return nil, err
-		}
-		arr = append(arr, keyWithVotes{key, &votes.Balance})
+		votes := bigint.FromBytes(si.Value)
+		arr = append(arr, keyWithVotes{key, votes})
 	}
 	sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
 	return arr, nil
