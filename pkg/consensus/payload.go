@@ -319,7 +319,7 @@ func (t messageType) String() string {
 	}
 }
 
-// decode data of payload into it's message
+// decodeData decodes data of payload into it's message.
 func (p *Payload) decodeData() error {
 	m := new(message)
 	br := io.NewBinReaderFromBuf(p.data)
