@@ -459,7 +459,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	},
 	"getstorage": {
 		{
-			name: "positive",
+			name: "by hash, positive",
 			invoke: func(c *Client) (interface{}, error) {
 				hash, err := util.Uint160DecodeStringLE("03febccf81ac85e3d795bc5cbd4e84e907812aa3")
 				if err != nil {
@@ -469,7 +469,25 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetStorage(hash, key)
+				return c.GetStorageByHash(hash, key)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"4c696e"}`,
+			result: func(c *Client) interface{} {
+				value, err := hex.DecodeString("4c696e")
+				if err != nil {
+					panic(err)
+				}
+				return value
+			},
+		},
+		{
+			name: "by ID, positive",
+			invoke: func(c *Client) (interface{}, error) {
+				key, err := hex.DecodeString("5065746572")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetStorageByID(-1, key)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"4c696e"}`,
 			result: func(c *Client) interface{} {
@@ -685,7 +703,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getstorage_not_a_hex_response",
+			name: "getstoragebyhash_not_a_hex_response",
 			invoke: func(c *Client) (interface{}, error) {
 				hash, err := util.Uint160DecodeStringLE("03febccf81ac85e3d795bc5cbd4e84e907812aa3")
 				if err != nil {
@@ -695,7 +713,17 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetStorage(hash, key)
+				return c.GetStorageByHash(hash, key)
+			},
+		},
+		{
+			name: "getstoragebyid_not_a_hex_response",
+			invoke: func(c *Client) (interface{}, error) {
+				key, err := hex.DecodeString("5065746572")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetStorageByID(-1, key)
 			},
 		},
 	},
@@ -849,9 +877,15 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getstorage_invalid_params_error",
+			name: "getstoragebyhash_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetStorage(util.Uint160{}, []byte{})
+				return c.GetStorageByHash(util.Uint160{}, []byte{})
+			},
+		},
+		{
+			name: "getstoragebyid_invalid_params_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStorageByID(-1, []byte{})
 			},
 		},
 		{
@@ -1013,9 +1047,15 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 		{
-			name: "getstorage_unmarshalling_error",
+			name: "getstoragebyhash_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetStorage(util.Uint160{}, []byte{})
+				return c.GetStorageByHash(util.Uint160{}, []byte{})
+			},
+		},
+		{
+			name: "getstoragebyid_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStorageByID(-1, []byte{})
 			},
 		},
 		{
