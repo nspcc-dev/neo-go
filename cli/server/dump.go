@@ -81,7 +81,7 @@ func batchToMap(index uint32, batch *storage.MemBatch) blockDump {
 		ops = append(ops, storageOp{
 			State: op,
 			Key:   hex.EncodeToString(key),
-			Value: "00" + hex.EncodeToString(batch.Put[i].Value),
+			Value: hex.EncodeToString(batch.Put[i].Value),
 		})
 	}
 
