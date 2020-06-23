@@ -20,6 +20,8 @@ const (
 type (
 	ProtocolConfiguration struct {
 		AddressVersion byte `yaml:"AddressVersion"`
+		// EnableStateRoot specifies if exchange of state roots should be enabled.
+		EnableStateRoot bool `yaml:"EnableStateRoot"`
 		// FeePerExtraByte sets the expected per-byte fee for
 		// transactions exceeding the MaxFreeTransactionSize.
 		FeePerExtraByte float64 `yaml:"FeePerExtraByte"`

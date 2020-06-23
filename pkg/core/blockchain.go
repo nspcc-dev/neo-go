@@ -231,8 +231,10 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.dao.InitMPT(bHeight); err != nil {
-		return errors.Wrapf(err, "can't init MPT at height %d", bHeight)
+	if bc.config.EnableStateRoot {
+		if err = bc.dao.InitMPT(bHeight); err != nil {
+			return errors.Wrapf(err, "can't init MPT at height %d", bHeight)
+		}
 	}
 
 	hashes, err := bc.dao.GetHeaderHashes()
@@ -558,12 +560,18 @@ func (bc *Blockchain) getSystemFeeAmount(h util.Uint256) uint32 {
 
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (bc *Blockchain) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
+	if !bc.config.EnableStateRoot {
+		return nil, errors.New("state root feature is not enabled")
+	}
 	tr := mpt.NewTrie(mpt.NewHashNode(root), storage.NewMemCachedStore(bc.dao.Store))
 	return tr.GetProof(key)
 }
 
 // GetStateRoot returns state root for a given height.
 func (bc *Blockchain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	if !bc.config.EnableStateRoot {
+		return nil, errors.New("state root feature is not enabled")
+	}
 	return bc.dao.GetStateRoot(height)
 }
 
@@ -835,24 +843,26 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 	}
 
-	root := bc.dao.MPT.StateRoot()
-	var prevHash util.Uint256
-	if block.Index > 0 {
-		prev, err := bc.dao.GetStateRoot(block.Index - 1)
-		if err != nil {
-			return errors.WithMessagef(err, "can't get previous state root")
+	if bc.config.EnableStateRoot {
+		root := bc.dao.MPT.StateRoot()
+		var prevHash util.Uint256
+		if block.Index > 0 {
+			prev, err := bc.dao.GetStateRoot(block.Index - 1)
+			if err != nil {
+				return errors.WithMessagef(err, "can't get previous state root")
+			}
+			prevHash = hash.DoubleSha256(prev.GetSignedPart())
 		}
-		prevHash = hash.DoubleSha256(prev.GetSignedPart())
-	}
-	err := bc.AddStateRoot(&state.MPTRoot{
-		MPTRootBase: state.MPTRootBase{
-			Index:    block.Index,
-			PrevHash: prevHash,
-			Root:     root,
-		},
-	})
-	if err != nil {
-		return err
+		err := bc.AddStateRoot(&state.MPTRoot{
+			MPTRootBase: state.MPTRootBase{
+				Index:    block.Index,
+				PrevHash: prevHash,
+				Root:     root,
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	if bc.config.SaveStorageBatch {
@@ -860,12 +870,14 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	}
 
 	bc.lock.Lock()
-	_, err = cache.Persist()
+	_, err := cache.Persist()
 	if err != nil {
 		bc.lock.Unlock()
 		return err
 	}
-	bc.dao.MPT.Flush()
+	if bc.config.EnableStateRoot {
+		bc.dao.MPT.Flush()
+	}
 	// Every persist cycle we also compact our in-memory MPT.
 	persistedHeight := atomic.LoadUint32(&bc.persistedHeight)
 	if persistedHeight == block.Index-1 {
@@ -1784,6 +1796,10 @@ func (bc *Blockchain) StateHeight() uint32 {
 
 // AddStateRoot add new (possibly unverified) state root to the blockchain.
 func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
+	if !bc.config.EnableStateRoot {
+		bc.log.Warn("state root is being added but not enabled in config")
+		return nil
+	}
 	our, err := bc.GetStateRoot(r.Index)
 	if err == nil {
 		if our.Flag == state.Verified {

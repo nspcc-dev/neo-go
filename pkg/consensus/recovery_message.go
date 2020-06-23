@@ -3,6 +3,7 @@ package consensus
 import (
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pkg/errors"
@@ -16,6 +17,8 @@ type (
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
 		prepareRequest      *message
+
+		stateRootEnabled bool
 	}
 
 	changeViewCompact struct {
@@ -31,6 +34,8 @@ type (
 		Signature        [signatureSize]byte
 		StateSignature   [signatureSize]byte
 		InvocationScript []byte
+
+		stateRootEnabled bool
 	}
 
 	preparationCompact struct {
@@ -47,7 +52,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = new(message)
+		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
@@ -68,7 +73,16 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 	}
 
 	r.ReadArray(&m.preparationPayloads)
-	r.ReadArray(&m.commitPayloads)
+	lu := r.ReadVarUint()
+	if lu > state.MaxValidatorsVoted {
+		r.Err = errors.New("too many preparation payloads")
+		return
+	}
+	m.commitPayloads = make([]*commitCompact, lu)
+	for i := uint64(0); i < lu; i++ {
+		m.commitPayloads[i] = &commitCompact{stateRootEnabled: m.stateRootEnabled}
+		m.commitPayloads[i].DecodeBinary(r)
+	}
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -113,7 +127,9 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadU16LE()
 	r.ReadBytes(p.Signature[:])
-	r.ReadBytes(p.StateSignature[:])
+	if p.stateRootEnabled {
+		r.ReadBytes(p.StateSignature[:])
+	}
 	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
@@ -122,7 +138,9 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(p.ViewNumber)
 	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteBytes(p.Signature[:])
-	w.WriteBytes(p.StateSignature[:])
+	if p.stateRootEnabled {
+		w.WriteBytes(p.StateSignature[:])
+	}
 	w.WriteVarBytes(p.InvocationScript)
 }
 
@@ -146,6 +164,8 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 			Type:       prepareRequestType,
 			ViewNumber: p.ViewNumber(),
 			payload:    p.GetPrepareRequest().(*prepareRequest),
+
+			stateRootEnabled: m.stateRootEnabled,
 		}
 		h := p.Hash()
 		m.preparationHash = &h
@@ -172,6 +192,7 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		})
 	case payload.CommitType:
 		m.commitPayloads = append(m.commitPayloads, &commitCompact{
+			stateRootEnabled: m.stateRootEnabled,
 			ValidatorIndex:   p.ValidatorIndex(),
 			ViewNumber:       p.ViewNumber(),
 			Signature:        p.GetCommit().(*commit).signature,
@@ -254,7 +275,12 @@ func (m *recoveryMessage) GetCommits(p payload.ConsensusPayload, validators []cr
 	ps := make([]payload.ConsensusPayload, len(m.commitPayloads))
 
 	for i, c := range m.commitPayloads {
-		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature, stateSig: c.StateSignature})
+		cc := fromPayload(commitType, p.(*Payload), &commit{
+			signature: c.Signature,
+			stateSig:  c.StateSignature,
+
+			stateRootEnabled: m.stateRootEnabled,
+		})
 		cc.SetValidatorIndex(c.ValidatorIndex)
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
@@ -294,6 +320,8 @@ func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 			Type:       t,
 			ViewNumber: recovery.message.ViewNumber,
 			payload:    p,
+
+			stateRootEnabled: recovery.stateRootEnabled,
 		},
 		version:  recovery.Version(),
 		prevHash: recovery.PrevHash(),

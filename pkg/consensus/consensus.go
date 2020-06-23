@@ -216,35 +216,49 @@ func (s *service) eventLoop() {
 
 func (s *service) newPayload() payload.ConsensusPayload {
 	return &Payload{
-		message: new(message),
+		message: &message{
+			stateRootEnabled: s.stateRootEnabled(),
+		},
 	}
+}
+
+// stateRootEnabled checks if state root feature is enabled on current height.
+// It should be called only from dbft callbacks and is not protected by any mutex.
+func (s *service) stateRootEnabled() bool {
+	return s.Chain.GetConfig().EnableStateRoot
 }
 
 func (s *service) newPrepareRequest() payload.PrepareRequest {
-	sr, err := s.Chain.GetStateRoot(s.Chain.BlockHeight())
-	if err != nil {
+	if !s.stateRootEnabled() {
 		return new(prepareRequest)
 	}
-	return &prepareRequest{
-		proposalStateRoot: sr.MPTRootBase,
+	sr, err := s.Chain.GetStateRoot(s.Chain.BlockHeight())
+	if err == nil {
+		return &prepareRequest{
+			stateRootEnabled:  true,
+			proposalStateRoot: sr.MPTRootBase,
+		}
 	}
+	return &prepareRequest{stateRootEnabled: true}
 }
 
 func (s *service) newCommit() payload.Commit {
+	if !s.stateRootEnabled() {
+		return new(commit)
+	}
+	c := &commit{stateRootEnabled: true}
 	for _, p := range s.dbft.Context.PreparationPayloads {
 		if p != nil && p.ViewNumber() == s.dbft.ViewNumber && p.Type() == payload.PrepareRequestType {
 			pr := p.GetPrepareRequest().(*prepareRequest)
 			data := pr.proposalStateRoot.GetSignedPart()
 			sign, err := s.dbft.Priv.Sign(data)
 			if err == nil {
-				var c commit
 				copy(c.stateSig[:], sign)
-				return &c
 			}
 			break
 		}
 	}
-	return new(commit)
+	return c
 }
 
 func (s *service) validatePayload(p *Payload) bool {
@@ -299,8 +313,8 @@ func (s *service) OnPayload(cp *Payload) {
 
 	// decode payload data into message
 	if cp.message == nil {
-		if err := cp.decodeData(); err != nil {
-			log.Debug("can't decode payload data")
+		if err := cp.decodeData(s.stateRootEnabled()); err != nil {
+			log.Debug("can't decode payload data", zap.Error(err))
 			return
 		}
 	}
@@ -378,6 +392,9 @@ func (s *service) verifyBlock(b block.Block) bool {
 }
 
 func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	if !s.stateRootEnabled() {
+		return nil
+	}
 	r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
 	if err != nil {
 		return fmt.Errorf("can't get local state root: %v", err)

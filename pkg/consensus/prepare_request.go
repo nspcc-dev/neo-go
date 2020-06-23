@@ -16,6 +16,8 @@ type prepareRequest struct {
 	minerTx           transaction.Transaction
 	nextConsensus     util.Uint160
 	proposalStateRoot state.MPTRootBase
+
+	stateRootEnabled bool
 }
 
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
@@ -27,7 +29,9 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
 	p.minerTx.EncodeBinary(w)
-	p.proposalStateRoot.EncodeBinary(w)
+	if p.stateRootEnabled {
+		p.proposalStateRoot.EncodeBinary(w)
+	}
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -37,7 +41,9 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
 	p.minerTx.DecodeBinary(r)
-	p.proposalStateRoot.DecodeBinary(r)
+	if p.stateRootEnabled {
+		p.proposalStateRoot.DecodeBinary(r)
+	}
 }
 
 // Timestamp implements payload.PrepareRequest interface.
