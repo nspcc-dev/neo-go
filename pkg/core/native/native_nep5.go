@@ -148,6 +148,28 @@ func (c *nep5TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint1
 	ic.Notifications = append(ic.Notifications, ne)
 }
 
+func (c *nep5TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int) error {
+	key := makeAccountKey(acc)
+	si := ic.DAO.GetStorageItem(c.ContractID, key)
+	if si == nil {
+		if amount.Sign() <= 0 {
+			return errors.New("insufficient funds")
+		}
+		si = new(state.StorageItem)
+	}
+
+	err := c.incBalance(ic, acc, si, amount)
+	if err != nil {
+		return err
+	}
+	if si.Value == nil {
+		err = ic.DAO.DeleteStorageItem(c.ContractID, key)
+	} else {
+		err = ic.DAO.PutStorageItem(c.ContractID, key, si)
+	}
+	return err
+}
+
 func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
@@ -164,12 +186,6 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		return errors.New("invalid signature")
 	}
 
-	keyFrom := makeAccountKey(from)
-	siFrom := ic.DAO.GetStorageItem(c.ContractID, keyFrom)
-	if siFrom == nil {
-		return errors.New("insufficient funds")
-	}
-
 	isEmpty := from.Equals(to) || amount.Sign() == 0
 	inc := amount
 	if isEmpty {
@@ -177,33 +193,12 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 	} else {
 		inc = new(big.Int).Neg(inc)
 	}
-	if err := c.incBalance(ic, from, siFrom, inc); err != nil {
-		return err
-	}
-	if siFrom.Value == nil {
-		err = ic.DAO.DeleteStorageItem(c.ContractID, keyFrom)
-	} else {
-		err = ic.DAO.PutStorageItem(c.ContractID, keyFrom, siFrom)
-	}
-	if err != nil {
+	if err := c.updateAccBalance(ic, from, inc); err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		keyTo := makeAccountKey(to)
-		siTo := ic.DAO.GetStorageItem(c.ContractID, keyTo)
-		if siTo == nil {
-			siTo = new(state.StorageItem)
-		}
-		if err := c.incBalance(ic, to, siTo, amount); err != nil {
-			return err
-		}
-		if siTo.Value == nil {
-			err = ic.DAO.DeleteStorageItem(c.ContractID, keyTo)
-		} else {
-			err = ic.DAO.PutStorageItem(c.ContractID, keyTo, siTo)
-		}
-		if err != nil {
+		if err := c.updateAccBalance(ic, to, amount); err != nil {
 			return err
 		}
 	}
