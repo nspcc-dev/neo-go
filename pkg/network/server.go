@@ -602,7 +602,8 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 
 // handleGetRootsCmd processees `getroots` request.
 func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
-	if !s.chain.GetConfig().EnableStateRoot {
+	cfg := s.chain.GetConfig()
+	if !cfg.EnableStateRoot || gr.Start < cfg.StateRootEnableIndex {
 		return nil
 	}
 	count := gr.Count
@@ -628,6 +629,9 @@ func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
 		return nil
 	}
 	h := s.chain.StateHeight()
+	if h < s.chain.GetConfig().StateRootEnableIndex {
+		h = s.chain.GetConfig().StateRootEnableIndex
+	}
 	for i := range rs.Roots {
 		if rs.Roots[i].Index <= h {
 			continue
@@ -642,6 +646,13 @@ func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
 func (s *Server) requestStateRoot(p Peer) error {
 	stateHeight := s.chain.StateHeight()
 	hdrHeight := s.chain.BlockHeight()
+	enableIndex := s.chain.GetConfig().StateRootEnableIndex
+	if hdrHeight < enableIndex {
+		return nil
+	}
+	if stateHeight < enableIndex {
+		stateHeight = enableIndex - 1
+	}
 	count := uint32(payload.MaxStateRootsAllowed)
 	if diff := hdrHeight - stateHeight; diff < count {
 		count = diff

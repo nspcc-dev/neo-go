@@ -36,11 +36,13 @@ type (
 		MaxFreeTransactionsPerBlock int `yaml:"MaxFreeTransactionsPerBlock"`
 		MemPoolSize                 int `yaml:"MemPoolSize"`
 		// SaveStorageBatch enables storage batch saving before every persist.
-		SaveStorageBatch  bool      `yaml:"SaveStorageBatch"`
-		SecondsPerBlock   int       `yaml:"SecondsPerBlock"`
-		SeedList          []string  `yaml:"SeedList"`
-		StandbyValidators []string  `yaml:"StandbyValidators"`
-		SystemFee         SystemFee `yaml:"SystemFee"`
+		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
+		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`
+		SeedList          []string `yaml:"SeedList"`
+		StandbyValidators []string `yaml:"StandbyValidators"`
+		// StateRootEnableIndex specifies starting height for state root calculations and exchange.
+		StateRootEnableIndex uint32    `yaml:"StateRootEnableIndex"`
+		SystemFee            SystemFee `yaml:"SystemFee"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
