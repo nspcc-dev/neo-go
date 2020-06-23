@@ -6,6 +6,6 @@ import (
 
 // Feer is an interface that abstract the implementation of the fee calculation.
 type Feer interface {
-	FeePerByte() util.Fixed8
-	GetUtilityTokenBalance(util.Uint160) util.Fixed8
+	FeePerByte() int64
+	GetUtilityTokenBalance(util.Uint160) int64
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -67,7 +66,7 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 	if len(manifestBytes) > manifest.MaxManifestSize {
 		return nil, errors.New("manifest is too big")
 	}
-	if !v.AddGas(util.Fixed8(StoragePrice * (len(script) + len(manifestBytes)))) {
+	if !v.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
 		return nil, errGasLimitExceeded
 	}
 	var m manifest.Manifest

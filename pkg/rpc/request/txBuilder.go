@@ -17,7 +17,7 @@ import (
 
 // CreateDeploymentScript returns a script that deploys given smart contract
 // with its metadata and system fee require for this.
-func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, util.Fixed8, error) {
+func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, int64, error) {
 	script := io.NewBufBinWriter()
 	rawManifest, err := manif.MarshalJSON()
 	if err != nil {
@@ -26,7 +26,7 @@ func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, util.
 	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
 	emit.Syscall(script.BinWriter, "System.Contract.Create")
-	sysfee := util.Fixed8(core.StoragePrice * (len(avm) + len(rawManifest)))
+	sysfee := int64(core.StoragePrice * (len(avm) + len(rawManifest)))
 	return script.Bytes(), sysfee, nil
 }
 

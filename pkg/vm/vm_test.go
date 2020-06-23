@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -71,7 +70,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 		require.EqualValues(t, 0, v.GasConsumed())
 	})
 
-	v.SetPriceGetter(func(_ *VM, op opcode.Opcode, p []byte) util.Fixed8 {
+	v.SetPriceGetter(func(_ *VM, op opcode.Opcode, p []byte) int64 {
 		if op == opcode.PUSH4 {
 			return 1
 		} else if op == opcode.PUSHDATA1 && bytes.Equal(p, []byte{0xCA, 0xFE}) {

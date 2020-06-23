@@ -64,7 +64,7 @@ type VM struct {
 	getInterop []InteropGetterFunc
 
 	// callback to get interop price
-	getPrice func(*VM, opcode.Opcode, []byte) util.Fixed8
+	getPrice func(*VM, opcode.Opcode, []byte) int64
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
@@ -77,8 +77,8 @@ type VM struct {
 
 	refs *refCounter
 
-	gasConsumed util.Fixed8
-	GasLimit    util.Fixed8
+	gasConsumed int64
+	GasLimit    int64
 
 	trigger trigger.Type
 
@@ -125,17 +125,17 @@ func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
 // f accepts vm's Context, current instruction and instruction parameter.
-func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) util.Fixed8) {
+func (v *VM) SetPriceGetter(f func(*VM, opcode.Opcode, []byte) int64) {
 	v.getPrice = f
 }
 
 // GasConsumed returns the amount of GAS consumed during execution.
-func (v *VM) GasConsumed() util.Fixed8 {
+func (v *VM) GasConsumed() int64 {
 	return v.gasConsumed
 }
 
 // AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
-func (v *VM) AddGas(gas util.Fixed8) bool {
+func (v *VM) AddGas(gas int64) bool {
 	v.gasConsumed += gas
 	return v.GasLimit == 0 || v.gasConsumed <= v.GasLimit
 }

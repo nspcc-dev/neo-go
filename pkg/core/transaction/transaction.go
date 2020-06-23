@@ -36,10 +36,10 @@ type Transaction struct {
 	Sender util.Uint160
 
 	// Fee to be burned.
-	SystemFee util.Fixed8
+	SystemFee int64
 
 	// Fee to be distributed to consensus nodes.
-	NetworkFee util.Fixed8
+	NetworkFee int64
 
 	// Maximum blockchain height exceeding which
 	// transaction should fail verification.
@@ -86,7 +86,7 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 
 // New returns a new transaction to execute given script and pay given system
 // fee.
-func New(network netmode.Magic, script []byte, gas util.Fixed8) *Transaction {
+func New(network netmode.Magic, script []byte, gas int64) *Transaction {
 	return &Transaction{
 		Version:    0,
 		Nonce:      rand.Uint32(),
@@ -129,12 +129,12 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	}
 	t.Nonce = br.ReadU32LE()
 	t.Sender.DecodeBinary(br)
-	t.SystemFee.DecodeBinary(br)
+	t.SystemFee = int64(br.ReadU64LE())
 	if t.SystemFee < 0 {
 		br.Err = errors.New("negative system fee")
 		return
 	}
-	t.NetworkFee.DecodeBinary(br)
+	t.NetworkFee = int64(br.ReadU64LE())
 	if t.NetworkFee < 0 {
 		br.Err = errors.New("negative network fee")
 		return
@@ -195,8 +195,8 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
 	t.Sender.EncodeBinary(bw)
-	t.SystemFee.EncodeBinary(bw)
-	t.NetworkFee.EncodeBinary(bw)
+	bw.WriteU64LE(uint64(t.SystemFee))
+	bw.WriteU64LE(uint64(t.NetworkFee))
 	bw.WriteU32LE(t.ValidUntilBlock)
 
 	// Attributes
@@ -277,8 +277,8 @@ func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, err
 
 // FeePerByte returns NetworkFee of the transaction divided by
 // its size
-func (t *Transaction) FeePerByte() util.Fixed8 {
-	return util.Fixed8(int64(t.NetworkFee) / int64(io.GetVarSize(t)))
+func (t *Transaction) FeePerByte() int64 {
+	return t.NetworkFee / int64(io.GetVarSize(t))
 }
 
 // transactionJSON is a wrapper for Transaction and
@@ -289,8 +289,8 @@ type transactionJSON struct {
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`
 	Sender          string       `json:"sender"`
-	SystemFee       util.Fixed8  `json:"sys_fee"`
-	NetworkFee      util.Fixed8  `json:"net_fee"`
+	SystemFee       int64        `json:"sys_fee,string"`
+	NetworkFee      int64        `json:"net_fee,string"`
 	ValidUntilBlock uint32       `json:"valid_until_block"`
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`

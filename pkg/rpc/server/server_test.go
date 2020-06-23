@@ -259,7 +259,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				// take burned gas into account
 				u := testchain.PrivateKeyByID(0).GetScriptHash()
 				for i := 0; i <= int(e.chain.BlockHeight()); i++ {
-					var netFee util.Fixed8
+					var netFee int64
 					h := e.chain.GetHeaderHash(i)
 					b, err := e.chain.GetBlock(h)
 					require.NoError(t, err)
@@ -453,7 +453,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			result: func(e *executor) interface{} {
 				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 
-				var expectedBlockSysFee util.Fixed8
+				var expectedBlockSysFee int64
 				for _, tx := range block.Transactions {
 					expectedBlockSysFee += tx.SystemFee
 				}
@@ -862,7 +862,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			netFee, sizeDelta := core.CalculateNetworkFee(acc0.Contract.Script)
 			tx.NetworkFee += netFee
 			size += sizeDelta
-			tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(chain.FeePerByte())))
+			tx.NetworkFee += int64(size) * chain.FeePerByte()
 		}
 
 		newTx := func() *transaction.Transaction {

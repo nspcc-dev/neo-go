@@ -35,8 +35,8 @@ type items []*item
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
-	balance util.Fixed8
-	feeSum  util.Fixed8
+	balance int64
+	feeSum  int64
 }
 
 // Pool stores the unconfirms transactions.
@@ -47,7 +47,7 @@ type Pool struct {
 	fees         map[util.Uint160]utilityBalanceAndFees
 
 	capacity   int
-	feePerByte util.Fixed8
+	feePerByte int64
 }
 
 func (p items) Len() int           { return len(p) }
@@ -64,11 +64,11 @@ func (p *item) CompareTo(otherP *item) int {
 	}
 
 	// Fees sorted ascending.
-	if ret := p.txn.FeePerByte().CompareTo(otherP.txn.FeePerByte()); ret != 0 {
+	if ret := int(p.txn.FeePerByte() - otherP.txn.FeePerByte()); ret != 0 {
 		return ret
 	}
 
-	if ret := p.txn.NetworkFee.CompareTo(otherP.txn.NetworkFee); ret != 0 {
+	if ret := int(p.txn.NetworkFee - otherP.txn.NetworkFee); ret != 0 {
 		return ret
 	}
 
@@ -239,7 +239,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 // changed.
 func (mp *Pool) loadPolicy(feer Feer) bool {
 	newFeePerByte := feer.FeePerByte()
-	if newFeePerByte.GreaterThan(mp.feePerByte) {
+	if newFeePerByte > mp.feePerByte {
 		mp.feePerByte = newFeePerByte
 		return true
 	}

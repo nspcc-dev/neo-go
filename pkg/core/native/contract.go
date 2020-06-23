@@ -108,7 +108,7 @@ func getNativeInterop(ic *interop.Context, c interop.Contract) func(v *vm.VM) er
 		if !v.Context().GetCallFlags().Has(m.RequiredFlags) {
 			return errors.New("missing call flags")
 		}
-		if !v.AddGas(util.Fixed8(m.Price)) {
+		if !v.AddGas(m.Price) {
 			return errors.New("gas limit exceeded")
 		}
 		result := m.Func(ic, args)

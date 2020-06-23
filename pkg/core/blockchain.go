@@ -788,23 +788,23 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 }
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
-func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
+func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) int64 {
 	bs, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
 		return 0
 	}
-	return util.Fixed8(bs.Trackers[bc.contracts.GAS.Hash].Balance)
+	return bs.Trackers[bc.contracts.GAS.Hash].Balance
 }
 
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
 // of the last balance change for the account.
-func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
+func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (int64, uint32) {
 	bs, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
 		return 0, 0
 	}
 	neo := bs.Trackers[bc.contracts.NEO.Hash]
-	return util.Fixed8(neo.Balance), neo.LastUpdatedBlock
+	return neo.Balance, neo.LastUpdatedBlock
 }
 
 // LastBatch returns last persisted storage batch.
@@ -1092,8 +1092,8 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 }
 
 // FeePerByte returns transaction network fee per byte.
-func (bc *Blockchain) FeePerByte() util.Fixed8 {
-	return util.Fixed8(bc.contracts.Policy.GetFeePerByteInternal(bc.dao))
+func (bc *Blockchain) FeePerByte() int64 {
+	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
 }
 
 // GetMemPool returns the memory pool of the blockchain.
@@ -1147,16 +1147,16 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
-	need := t.SystemFee.Add(t.NetworkFee)
-	if balance.LessThan(need) {
+	need := t.SystemFee + t.NetworkFee
+	if balance < need {
 		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
 	}
 	size := io.GetVarSize(t)
 	if size > transaction.MaxTransactionSize {
 		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
 	}
-	needNetworkFee := util.Fixed8(int64(size) * int64(bc.FeePerByte()))
-	netFee := t.NetworkFee.Sub(needNetworkFee)
+	needNetworkFee := int64(size) * bc.FeePerByte()
+	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return errors.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
 	}

@@ -88,7 +88,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		return nil
 	}
 	for _, tx := range ic.Block.Transactions {
-		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
+		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
 		g.burn(ic, tx.Sender, absAmount)
 	}
 	validators, err := g.NEO.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
@@ -96,7 +96,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		return fmt.Errorf("cannot get block validators: %v", err)
 	}
 	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
-	var netFee util.Fixed8
+	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee
 	}

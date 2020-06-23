@@ -1,20 +1,19 @@
 package core
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
 // opcodePrice returns the deployment prices of specified opcodes
-func opcodePrice(opcodes ...opcode.Opcode) util.Fixed8 {
-	var result util.Fixed8
+func opcodePrice(opcodes ...opcode.Opcode) int64 {
+	var result int64
 	for _, op := range opcodes {
-		result += util.Fixed8(prices[op])
+		result += prices[op]
 	}
 	return result
 }
 
-var prices = map[opcode.Opcode]int{
+var prices = map[opcode.Opcode]int64{
 	opcode.PUSHINT8:   30,
 	opcode.PUSHINT32:  30,
 	opcode.PUSHINT64:  30,

@@ -21,7 +21,7 @@ type AppExecResult struct {
 	TxHash      util.Uint256
 	Trigger     trigger.Type
 	VMState     string
-	GasConsumed util.Fixed8
+	GasConsumed int64
 	Stack       []smartcontract.Parameter
 	Events      []NotificationEvent
 }
@@ -43,7 +43,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(aer.TxHash[:])
 	w.WriteB(byte(aer.Trigger))
 	w.WriteString(aer.VMState)
-	aer.GasConsumed.EncodeBinary(w)
+	w.WriteU64LE(uint64(aer.GasConsumed))
 	w.WriteArray(aer.Stack)
 	w.WriteArray(aer.Events)
 }
@@ -53,7 +53,7 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(aer.TxHash[:])
 	aer.Trigger = trigger.Type(r.ReadB())
 	aer.VMState = r.ReadString()
-	aer.GasConsumed.DecodeBinary(r)
+	aer.GasConsumed = int64(r.ReadU64LE())
 	r.ReadArray(&aer.Stack)
 	r.ReadArray(&aer.Events)
 }

@@ -35,7 +35,7 @@ func (chain testChain) CalculateClaimable(int64, uint32, uint32) util.Fixed8 {
 	panic("TODO")
 }
 
-func (chain testChain) FeePerByte() util.Fixed8 {
+func (chain testChain) FeePerByte() int64 {
 	panic("TODO")
 }
 
@@ -123,11 +123,11 @@ func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
-func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32) {
+func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (int64, uint32) {
 	panic("TODO")
 }
 
-func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) util.Fixed8 {
+func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) int64 {
 	panic("TODO")
 }
 

@@ -57,7 +57,7 @@ type Function struct {
 	ID    uint32
 	Name  string
 	Func  func(*Context, *vm.VM) error
-	Price int
+	Price int64
 	// AllowedTriggers is a set of triggers which are allowed to initiate invocation.
 	AllowedTriggers trigger.Type
 	// RequiredFlags is a set of flags which must be set during script invocations.
