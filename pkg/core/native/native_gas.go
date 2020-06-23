@@ -87,7 +87,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
 		g.burn(ic, tx.Sender, absAmount)
 	}
-	validators, err := g.NEO.GetValidatorsInternal(ic.Chain, ic.DAO)
+	validators, err := g.NEO.GetNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		return fmt.Errorf("cannot get block validators: %v", err)
 	}
