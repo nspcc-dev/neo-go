@@ -84,15 +84,17 @@ func TestDeleteContractState(t *testing.T) {
 	require.Nil(t, gotContractState)
 }
 
-func TestSimple_GetNextContractID(t *testing.T) {
+func TestSimple_GetAndUpdateNextContractID(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet)
-	id, err := dao.GetNextContractID()
+	id, err := dao.GetAndUpdateNextContractID()
 	require.NoError(t, err)
 	require.EqualValues(t, 0, id)
-	require.NoError(t, dao.PutNextContractID(10))
-	id, err = dao.GetNextContractID()
+	id, err = dao.GetAndUpdateNextContractID()
 	require.NoError(t, err)
-	require.EqualValues(t, 10, id)
+	require.EqualValues(t, 1, id)
+	id, err = dao.GetAndUpdateNextContractID()
+	require.NoError(t, err)
+	require.EqualValues(t, 2, id)
 }
 
 func TestPutGetAppExecResult(t *testing.T) {

@@ -91,14 +91,11 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	if contract != nil {
 		return errors.New("contract already exists")
 	}
-	id, err := ic.DAO.GetNextContractID()
+	id, err := ic.DAO.GetAndUpdateNextContractID()
 	if err != nil {
 		return err
 	}
 	newcontract.ID = id
-	if err := ic.DAO.PutNextContractID(id); err != nil {
-		return err
-	}
 	if err := ic.DAO.PutContractState(newcontract); err != nil {
 		return err
 	}
