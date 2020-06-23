@@ -159,6 +159,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		return err
 	}
 	if amount.Sign() == 0 {
+		si.Value = acc.Bytes()
 		return nil
 	}
 	if len(acc.Votes) > 0 {
