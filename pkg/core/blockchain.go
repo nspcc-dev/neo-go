@@ -117,6 +117,8 @@ type Blockchain struct {
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
 
+	sbValidators keys.PublicKeys
+
 	log *zap.Logger
 
 	lastBatch *storage.MemBatch
@@ -152,6 +154,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
+	validators, err := validatorsFromConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s, cfg.Magic),
@@ -161,6 +167,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		runToExitCh:   make(chan struct{}),
 		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
+		sbValidators:  validators,
 		log:           log,
 		events:        make(chan bcEvent),
 		subCh:         make(chan interface{}),
@@ -1235,8 +1242,10 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 }
 
 //GetStandByValidators returns validators from the configuration.
-func (bc *Blockchain) GetStandByValidators() (keys.PublicKeys, error) {
-	return getValidators(bc.config)
+func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
+	res := make(keys.PublicKeys, len(bc.sbValidators))
+	copy(res, bc.sbValidators)
+	return res
 }
 
 // GetValidators returns next block validators.

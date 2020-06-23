@@ -101,10 +101,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 }
 
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, []*keys.PublicKey, error) {
-	vs, err := ic.Chain.GetStandByValidators()
-	if err != nil {
-		return util.Uint160{}, nil, err
-	}
+	vs := ic.Chain.GetStandByValidators()
 	s, err := smartcontract.CreateMultiSigRedeemScript(len(vs)/2+1, vs)
 	if err != nil {
 		return util.Uint160{}, nil, err

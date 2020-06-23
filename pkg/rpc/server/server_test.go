@@ -577,8 +577,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 			check: func(t *testing.T, e *executor, validators interface{}) {
 				var expected []result.Validator
-				sBValidators, err := e.chain.GetStandByValidators()
-				require.NoError(t, err)
+				sBValidators := e.chain.GetStandByValidators()
 				for _, sbValidator := range sBValidators {
 					expected = append(expected, result.Validator{
 						PublicKey: *sbValidator,

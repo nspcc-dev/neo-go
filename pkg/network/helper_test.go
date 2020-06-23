@@ -85,7 +85,7 @@ func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {
 func (chain testChain) GetValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
-func (chain testChain) GetStandByValidators() (keys.PublicKeys, error) {
+func (chain testChain) GetStandByValidators() keys.PublicKeys {
 	panic("TODO")
 }
 func (chain testChain) GetEnrollments() ([]state.Validator, error) {

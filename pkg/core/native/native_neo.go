@@ -384,10 +384,7 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	standByValidators, err := bc.GetStandByValidators()
-	if err != nil {
-		return nil, err
-	}
+	standByValidators := bc.GetStandByValidators()
 	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
 	if si == nil {
 		return standByValidators, nil
