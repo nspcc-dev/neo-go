@@ -147,7 +147,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						},
 						{
 							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "924.01732700",
+							Amount:      "918.01738700",
 							LastUpdated: 6,
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -229,7 +229,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Timestamp:   blockSendNEO.Timestamp,
 							Asset:       e.chain.UtilityTokenHash(),
 							Address:     "", // Minted GAS.
-							Amount:      "23.99976000",
+							Amount:      "17.99982000",
 							Index:       4,
 							NotifyIndex: 0,
 							TxHash:      txSendNEOHash,
@@ -565,8 +565,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, resp interface{}) {
 				s, ok := resp.(*string)
 				require.True(t, ok)
-				// Incorrect, to be fixed later.
-				assert.Equal(t, "48000", *s)
+				assert.Equal(t, "36000", *s)
 			},
 		},
 	},

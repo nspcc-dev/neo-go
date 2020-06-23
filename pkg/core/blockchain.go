@@ -54,7 +54,7 @@ var (
 	ErrInvalidBlockIndex error = errors.New("invalid block index")
 )
 var (
-	genAmount         = []int{8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	genAmount         = []int{6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	decrementInterval = 2000000
 	persistInterval   = 1 * time.Second
 )
