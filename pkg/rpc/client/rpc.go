@@ -272,12 +272,18 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
-// GetStorage returns the stored value, according to the contract script hash and the stored key.
-func (c *Client) GetStorage(hash util.Uint160, key []byte) ([]byte, error) {
-	var (
-		params = request.NewRawParams(hash.StringLE(), hex.EncodeToString(key))
-		resp   string
-	)
+// GetStorageByID returns the stored value, according to the contract ID and the stored key.
+func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
+	return c.getStorage(request.NewRawParams(id, hex.EncodeToString(key)))
+}
+
+// GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
+func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
+	return c.getStorage(request.NewRawParams(hash.StringLE(), hex.EncodeToString(key)))
+}
+
+func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
+	var resp string
 	if err := c.performRequest("getstorage", params, &resp); err != nil {
 		return nil, err
 	}
