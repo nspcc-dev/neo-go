@@ -57,7 +57,7 @@ type rawParameter struct {
 }
 
 // MarshalJSON implements Marshaler interface.
-func (p *Parameter) MarshalJSON() ([]byte, error) {
+func (p Parameter) MarshalJSON() ([]byte, error) {
 	var (
 		resultRawValue json.RawMessage
 		resultErr      error
@@ -83,7 +83,11 @@ func (p *Parameter) MarshalJSON() ([]byte, error) {
 		}
 	case ArrayType:
 		var value = p.Value.([]Parameter)
-		resultRawValue, resultErr = json.Marshal(value)
+		if value == nil {
+			resultRawValue, resultErr = json.Marshal([]Parameter{})
+		} else {
+			resultRawValue, resultErr = json.Marshal(value)
+		}
 	case MapType:
 		ppair := p.Value.([]ParameterPair)
 		resultRawValue, resultErr = json.Marshal(ppair)

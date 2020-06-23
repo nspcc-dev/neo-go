@@ -1,9 +1,11 @@
 package native
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -50,4 +52,13 @@ func TestToStackItem(t *testing.T) {
 	expected = BlockedAccounts{}
 	actual = stackitem.NewArray([]stackitem.Item{})
 	require.Equal(t, expected.ToStackItem(), actual)
+}
+
+func TestMarshallJSON(t *testing.T) {
+	ba := &BlockedAccounts{}
+	p := smartcontract.ParameterFromStackItem(ba.ToStackItem(), make(map[stackitem.Item]bool))
+	actual, err := json.Marshal(p)
+	require.NoError(t, err)
+	expected := `{"type":"Array","value":[]}`
+	require.Equal(t, expected, string(actual))
 }

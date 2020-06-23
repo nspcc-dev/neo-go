@@ -131,6 +131,13 @@ var marshalJSONTestCases = []struct {
 		},
 		result: `{"type":"InteropInterface","value":null}`,
 	},
+	{
+		input: Parameter{
+			Type:  ArrayType,
+			Value: []Parameter{},
+		},
+		result: `{"type":"Array","value":[]}`,
+	},
 }
 
 var marshalJSONErrorCases = []Parameter{
@@ -146,7 +153,7 @@ var marshalJSONErrorCases = []Parameter{
 
 func TestParam_MarshalJSON(t *testing.T) {
 	for _, tc := range marshalJSONTestCases {
-		res, err := json.Marshal(&tc.input)
+		res, err := json.Marshal(tc.input)
 		assert.NoError(t, err)
 		var actual, expected Parameter
 		assert.NoError(t, json.Unmarshal(res, &actual))
