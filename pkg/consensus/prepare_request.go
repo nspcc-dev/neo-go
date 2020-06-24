@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -14,6 +15,9 @@ type prepareRequest struct {
 	transactionHashes []util.Uint256
 	minerTx           transaction.Transaction
 	nextConsensus     util.Uint160
+	proposalStateRoot state.MPTRootBase
+
+	stateRootEnabled bool
 }
 
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
@@ -25,6 +29,9 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.nextConsensus[:])
 	w.WriteArray(p.transactionHashes)
 	p.minerTx.EncodeBinary(w)
+	if p.stateRootEnabled {
+		p.proposalStateRoot.EncodeBinary(w)
+	}
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -34,6 +41,9 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(p.nextConsensus[:])
 	r.ReadArray(&p.transactionHashes)
 	p.minerTx.DecodeBinary(r)
+	if p.stateRootEnabled {
+		p.proposalStateRoot.DecodeBinary(r)
+	}
 }
 
 // Timestamp implements payload.PrepareRequest interface.

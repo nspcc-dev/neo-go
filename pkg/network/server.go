@@ -13,6 +13,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -28,6 +30,7 @@ const (
 	maxBlockBatch           = 200
 	maxAddrsToSend          = 200
 	minPoolCount            = 30
+	stateRootCacheSize      = 100
 )
 
 var (
@@ -66,6 +69,7 @@ type (
 
 		transactions chan *transaction.Transaction
 
+		stateCache       cache.HashCache
 		consensusStarted *atomic.Bool
 
 		log *zap.Logger
@@ -98,6 +102,7 @@ func NewServer(config ServerConfig, chain core.Blockchainer, log *zap.Logger) (*
 		unregister:       make(chan peerDrop),
 		peers:            make(map[Peer]bool),
 		consensusStarted: atomic.NewBool(false),
+		stateCache:       *cache.NewFIFOCache(stateRootCacheSize),
 		log:              log,
 		transactions:     make(chan *transaction.Transaction, 64),
 	}
@@ -469,6 +474,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			cp := s.consensus.GetPayload(h)
 			return cp != nil
 		},
+		payload.StateRootType: s.stateCache.Has,
 	}
 	if exists := typExists[inv.Type]; exists != nil {
 		for _, hash := range inv.Hashes {
@@ -506,6 +512,11 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			b, err := s.chain.GetBlock(hash)
 			if err == nil {
 				msg = s.MkMsg(CMDBlock, b)
+			}
+		case payload.StateRootType:
+			r := s.stateCache.Get(hash)
+			if r != nil {
+				msg = s.MkMsg(CMDStateRoot, r.(*state.MPTRoot))
 			}
 		case payload.ConsensusType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
@@ -587,6 +598,87 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 	}
 	msg := s.MkMsg(CMDHeaders, &resp)
 	return p.EnqueueP2PMessage(msg)
+}
+
+// handleGetRootsCmd processees `getroots` request.
+func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
+	cfg := s.chain.GetConfig()
+	if !cfg.EnableStateRoot || gr.Start < cfg.StateRootEnableIndex {
+		return nil
+	}
+	count := gr.Count
+	if count > payload.MaxStateRootsAllowed {
+		count = payload.MaxStateRootsAllowed
+	}
+	var rs payload.StateRoots
+	for height := gr.Start; height < gr.Start+gr.Count; height++ {
+		r, err := s.chain.GetStateRoot(height)
+		if err != nil {
+			return err
+		} else if r.Flag == state.Verified {
+			rs.Roots = append(rs.Roots, r.MPTRoot)
+		}
+	}
+	msg := s.MkMsg(CMDRoots, &rs)
+	return p.EnqueueP2PMessage(msg)
+}
+
+// handleStateRootsCmd processees `roots` request.
+func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
+	if !s.chain.GetConfig().EnableStateRoot {
+		return nil
+	}
+	h := s.chain.StateHeight()
+	if h < s.chain.GetConfig().StateRootEnableIndex {
+		h = s.chain.GetConfig().StateRootEnableIndex
+	}
+	for i := range rs.Roots {
+		if rs.Roots[i].Index <= h {
+			continue
+		}
+		_ = s.chain.AddStateRoot(&rs.Roots[i])
+	}
+	// request more state roots from peer if needed
+	return s.requestStateRoot(p)
+}
+
+// requestStateRoot sends `getroots` message to get verified state roots.
+func (s *Server) requestStateRoot(p Peer) error {
+	stateHeight := s.chain.StateHeight()
+	hdrHeight := s.chain.BlockHeight()
+	enableIndex := s.chain.GetConfig().StateRootEnableIndex
+	if hdrHeight < enableIndex {
+		return nil
+	}
+	if stateHeight < enableIndex {
+		stateHeight = enableIndex - 1
+	}
+	count := uint32(payload.MaxStateRootsAllowed)
+	if diff := hdrHeight - stateHeight; diff < count {
+		count = diff
+	}
+	if count == 0 {
+		return nil
+	}
+	gr := &payload.GetStateRoots{
+		Start: stateHeight + 1,
+		Count: count,
+	}
+	return p.EnqueueP2PMessage(s.MkMsg(CMDGetRoots, gr))
+}
+
+// handleStateRootCmd processees `stateroot` request.
+func (s *Server) handleStateRootCmd(r *state.MPTRoot) error {
+	if !s.chain.GetConfig().EnableStateRoot {
+		return nil
+	}
+	// we ignore error, because there is nothing wrong if we already have this state root
+	err := s.chain.AddStateRoot(r)
+	if err == nil && !s.stateCache.Has(r.Hash()) {
+		s.stateCache.Add(r)
+		s.broadcastMessage(s.MkMsg(CMDStateRoot, r))
+	}
+	return nil
 }
 
 // handleConsensusCmd processes received consensus payload.
@@ -697,6 +789,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetHeaders:
 			gh := msg.Payload.(*payload.GetBlocks)
 			return s.handleGetHeadersCmd(peer, gh)
+		case CMDGetRoots:
+			gr := msg.Payload.(*payload.GetStateRoots)
+			return s.handleGetRootsCmd(peer, gr)
 		case CMDHeaders:
 			headers := msg.Payload.(*payload.Headers)
 			go s.handleHeadersCmd(peer, headers)
@@ -718,6 +813,12 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDPong:
 			pong := msg.Payload.(*payload.Ping)
 			return s.handlePong(peer, pong)
+		case CMDRoots:
+			rs := msg.Payload.(*payload.StateRoots)
+			return s.handleRootsCmd(peer, rs)
+		case CMDStateRoot:
+			r := msg.Payload.(*state.MPTRoot)
+			return s.handleStateRootCmd(r)
 		case CMDVersion, CMDVerack:
 			return fmt.Errorf("received '%s' after the handshake", msg.CommandType())
 		}
@@ -741,11 +842,20 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	return nil
 }
 
-func (s *Server) handleNewPayload(p *consensus.Payload) {
-	msg := s.MkMsg(CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{p.Hash()}))
-	// It's high priority because it directly affects consensus process,
-	// even though it's just an inv.
-	s.broadcastHPMessage(msg)
+func (s *Server) handleNewPayload(item cache.Hashable) {
+	switch p := item.(type) {
+	case *consensus.Payload:
+		msg := s.MkMsg(CMDInv, payload.NewInventory(payload.ConsensusType, []util.Uint256{p.Hash()}))
+		// It's high priority because it directly affects consensus process,
+		// even though it's just an inv.
+		s.broadcastHPMessage(msg)
+	case *state.MPTRoot:
+		s.stateCache.Add(p)
+		msg := s.MkMsg(CMDStateRoot, p)
+		s.broadcastMessage(msg)
+	default:
+		s.log.Warn("unknown item type", zap.String("type", fmt.Sprintf("%T", p)))
+	}
 }
 
 func (s *Server) requestTx(hashes ...util.Uint256) {

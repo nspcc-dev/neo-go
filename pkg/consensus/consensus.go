@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sort"
 	"time"
@@ -13,7 +14,9 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -49,9 +52,9 @@ type service struct {
 
 	log *zap.Logger
 	// cache is a fifo cache which stores recent payloads.
-	cache *relayCache
+	cache *cache.HashCache
 	// txx is a fifo cache which stores miner transactions.
-	txx  *relayCache
+	txx  *cache.HashCache
 	dbft *dbft.DBFT
 	// messages and transactions are channels needed to process
 	// everything in single thread.
@@ -70,7 +73,7 @@ type Config struct {
 	Logger *zap.Logger
 	// Broadcast is a callback which is called to notify server
 	// about new consensus payload to sent.
-	Broadcast func(p *Payload)
+	Broadcast func(cache.Hashable)
 	// Chain is a core.Blockchainer instance.
 	Chain core.Blockchainer
 	// RequestTx is a callback to which will be called
@@ -96,8 +99,8 @@ func NewService(cfg Config) (Service, error) {
 		Config: cfg,
 
 		log:      cfg.Logger,
-		cache:    newFIFOCache(cacheMaxCapacity),
-		txx:      newFIFOCache(cacheMaxCapacity),
+		cache:    cache.NewFIFOCache(cacheMaxCapacity),
+		txx:      cache.NewFIFOCache(cacheMaxCapacity),
 		messages: make(chan Payload, 100),
 
 		transactions: make(chan *transaction.Transaction, 100),
@@ -120,7 +123,6 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
 		dbft.WithGetKeyPair(srv.getKeyPair),
-		dbft.WithTxPerBlock(10000),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithGetTx(srv.getTx),
 		dbft.WithGetVerified(srv.getVerifiedTx),
@@ -135,13 +137,14 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetValidators(srv.getValidators),
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
-		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
-		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
+		dbft.WithNewConsensusPayload(srv.newPayload),
+		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
-		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
+		dbft.WithNewCommit(srv.newCommit),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 	)
 
 	if srv.dbft == nil {
@@ -210,6 +213,53 @@ func (s *service) eventLoop() {
 	}
 }
 
+func (s *service) newPayload() payload.ConsensusPayload {
+	return &Payload{
+		message: &message{
+			stateRootEnabled: s.stateRootEnabled(),
+		},
+	}
+}
+
+// stateRootEnabled checks if state root feature is enabled on current height.
+// It should be called only from dbft callbacks and is not protected by any mutex.
+func (s *service) stateRootEnabled() bool {
+	return s.Chain.GetConfig().EnableStateRoot
+}
+
+func (s *service) newPrepareRequest() payload.PrepareRequest {
+	if !s.stateRootEnabled() {
+		return new(prepareRequest)
+	}
+	sr, err := s.Chain.GetStateRoot(s.Chain.BlockHeight())
+	if err == nil {
+		return &prepareRequest{
+			stateRootEnabled:  true,
+			proposalStateRoot: sr.MPTRootBase,
+		}
+	}
+	return &prepareRequest{stateRootEnabled: true}
+}
+
+func (s *service) newCommit() payload.Commit {
+	if !s.stateRootEnabled() {
+		return new(commit)
+	}
+	c := &commit{stateRootEnabled: true}
+	for _, p := range s.dbft.Context.PreparationPayloads {
+		if p != nil && p.ViewNumber() == s.dbft.ViewNumber && p.Type() == payload.PrepareRequestType {
+			pr := p.GetPrepareRequest().(*prepareRequest)
+			data := pr.proposalStateRoot.GetSignedPart()
+			sign, err := s.dbft.Priv.Sign(data)
+			if err == nil {
+				copy(c.stateSig[:], sign)
+			}
+			break
+		}
+	}
+	return c
+}
+
 func (s *service) validatePayload(p *Payload) bool {
 	validators := s.getValidators()
 	if int(p.validatorIndex) >= len(validators) {
@@ -262,8 +312,8 @@ func (s *service) OnPayload(cp *Payload) {
 
 	// decode payload data into message
 	if cp.message == nil {
-		if err := cp.decodeData(); err != nil {
-			log.Debug("can't decode payload data")
+		if err := cp.decodeData(s.stateRootEnabled()); err != nil {
+			log.Debug("can't decode payload data", zap.Error(err))
 			return
 		}
 	}
@@ -340,6 +390,21 @@ func (s *service) verifyBlock(b block.Block) bool {
 	return true
 }
 
+func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	if !s.stateRootEnabled() {
+		return nil
+	}
+	r, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
+	if err != nil {
+		return fmt.Errorf("can't get local state root: %v", err)
+	}
+	rb := &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
+	if !r.Equals(rb) {
+		return errors.New("state root mismatch")
+	}
+	return nil
+}
+
 func (s *service) processBlock(b block.Block) {
 	bb := &b.(*neoBlock).Block
 	bb.Script = *(s.getBlockWitness(bb))
@@ -351,16 +416,36 @@ func (s *service) processBlock(b block.Block) {
 			s.log.Warn("error on add block", zap.Error(err))
 		}
 	}
+
+	var rb *state.MPTRootBase
+	for _, p := range s.dbft.PreparationPayloads {
+		if p != nil && p.Type() == payload.PrepareRequestType {
+			rb = &p.GetPrepareRequest().(*prepareRequest).proposalStateRoot
+		}
+	}
+	w := s.getWitness(func(p payload.Commit) []byte { return p.(*commit).stateSig[:] })
+	r := &state.MPTRoot{
+		MPTRootBase: *rb,
+		Witness:     w,
+	}
+	if err := s.Chain.AddStateRoot(r); err != nil {
+		s.log.Warn("errors while adding state root", zap.Error(err))
+	}
+	s.Broadcast(r)
 }
 
-func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
+func (s *service) getBlockWitness(_ *coreb.Block) *transaction.Witness {
+	return s.getWitness(func(p payload.Commit) []byte { return p.Signature() })
+}
+
+func (s *service) getWitness(f func(p payload.Commit) []byte) *transaction.Witness {
 	dctx := s.dbft.Context
 	pubs := convertKeys(dctx.Validators)
 	sigs := make(map[*keys.PublicKey][]byte)
 
 	for i := range pubs {
 		if p := dctx.CommitPayloads[i]; p != nil && p.ViewNumber() == dctx.ViewNumber {
-			sigs[pubs[i]] = p.GetCommit().Signature()
+			sigs[pubs[i]] = f(p.GetCommit())
 		}
 	}
 
@@ -397,7 +482,7 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 	return &neoBlock{Block: *b}
 }
 
-func (s *service) getVerifiedTx(count int) []block.Transaction {
+func (s *service) getVerifiedTx() []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
 	var txx []mempool.TxWithFee

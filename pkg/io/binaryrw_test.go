@@ -143,6 +143,35 @@ func TestBufBinWriter_Len(t *testing.T) {
 	require.Equal(t, 1, bw.Len())
 }
 
+func TestBinReader_ReadVarBytes(t *testing.T) {
+	buf := make([]byte, 11)
+	for i := range buf {
+		buf[i] = byte(i)
+	}
+	w := NewBufBinWriter()
+	w.WriteVarBytes(buf)
+	require.NoError(t, w.Err)
+	data := w.Bytes()
+
+	t.Run("NoArguments", func(t *testing.T) {
+		r := NewBinReaderFromBuf(data)
+		actual := r.ReadVarBytes()
+		require.NoError(t, r.Err)
+		require.Equal(t, buf, actual)
+	})
+	t.Run("Good", func(t *testing.T) {
+		r := NewBinReaderFromBuf(data)
+		actual := r.ReadVarBytes(11)
+		require.NoError(t, r.Err)
+		require.Equal(t, buf, actual)
+	})
+	t.Run("Bad", func(t *testing.T) {
+		r := NewBinReaderFromBuf(data)
+		r.ReadVarBytes(10)
+		require.Error(t, r.Err)
+	})
+}
+
 func TestWriterErrHandling(t *testing.T) {
 	var badio = &badRW{}
 	bw := NewBinWriterFromIO(badio)

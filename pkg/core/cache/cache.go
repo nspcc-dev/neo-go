@@ -1,4 +1,4 @@
-package consensus
+package cache
 
 import (
 	"container/list"
@@ -7,9 +7,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// relayCache is a payload cache which is used to store
+// HashCache is a payload cache which is used to store
 // last consensus payloads.
-type relayCache struct {
+type HashCache struct {
 	*sync.RWMutex
 
 	maxCap int
@@ -17,13 +17,14 @@ type relayCache struct {
 	queue  *list.List
 }
 
-// hashable is a type of items which can be stored in the relayCache.
-type hashable interface {
+// Hashable is a type of items which can be stored in the HashCache.
+type Hashable interface {
 	Hash() util.Uint256
 }
 
-func newFIFOCache(capacity int) *relayCache {
-	return &relayCache{
+// NewFIFOCache returns new FIFO cache with the specified capacity.
+func NewFIFOCache(capacity int) *HashCache {
+	return &HashCache{
 		RWMutex: new(sync.RWMutex),
 
 		maxCap: capacity,
@@ -33,7 +34,7 @@ func newFIFOCache(capacity int) *relayCache {
 }
 
 // Add adds payload into a cache if it doesn't already exist.
-func (c *relayCache) Add(p hashable) {
+func (c *HashCache) Add(p Hashable) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -45,7 +46,7 @@ func (c *relayCache) Add(p hashable) {
 	if c.queue.Len() >= c.maxCap {
 		first := c.queue.Front()
 		c.queue.Remove(first)
-		delete(c.elems, first.Value.(hashable).Hash())
+		delete(c.elems, first.Value.(Hashable).Hash())
 	}
 
 	e := c.queue.PushBack(p)
@@ -53,7 +54,7 @@ func (c *relayCache) Add(p hashable) {
 }
 
 // Has checks if an item is already in cache.
-func (c *relayCache) Has(h util.Uint256) bool {
+func (c *HashCache) Has(h util.Uint256) bool {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -61,13 +62,13 @@ func (c *relayCache) Has(h util.Uint256) bool {
 }
 
 // Get returns payload with the specified hash from cache.
-func (c *relayCache) Get(h util.Uint256) hashable {
+func (c *HashCache) Get(h util.Uint256) Hashable {
 	c.RLock()
 	defer c.RUnlock()
 
 	e, ok := c.elems[h]
 	if !ok {
-		return hashable(nil)
+		return Hashable(nil)
 	}
-	return e.Value.(hashable)
+	return e.Value.(Hashable)
 }

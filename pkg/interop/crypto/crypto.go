@@ -1,5 +1,5 @@
 /*
-Package crypto provides an interface to VM cryptographic instructions.
+Package crypto provides an interface to VM cryptographic instructions and syscalls.
 */
 package crypto
 
@@ -29,4 +29,24 @@ func Hash256(b []byte) []byte {
 // (serialized public key). It uses `VERIFY` VM instruction.
 func VerifySignature(msg []byte, sig []byte, pub []byte) bool {
 	return false
+}
+
+// Secp256k1Recover recovers public key from the given signature (r, s) on the
+// given message hash using Secp256k1 elliptic curve. Flag isEven denotes Y's
+// least significant bit in decompression algorithm. The return value is byte
+// array representation of the public key which is either empty (if it's not
+// possible to recover key) or contains 32 bytes in BE for X point (in case of
+// success). This function uses Neo.Cryptography.Secp256k1Recover syscall.
+func Secp256k1Recover(r []byte, s []byte, messageHash []byte, isEven bool) []byte {
+	return nil
+}
+
+// Secp256r1Recover recovers public key from the given signature (r, s) on the
+// given message hash using Secp256r1 elliptic curve. Flag isEven denotes Y's
+// least significant bit in decompression algorithm.  The return value is byte
+// array representation of the public key which is either empty (if it's not
+// possible to recover key) or contains 32 bytes in BE for X point (in case of
+// success). This function uses Neo.Cryptography.Secp256r1Recover syscall.
+func Secp256r1Recover(r []byte, s []byte, messageHash []byte, isEven bool) []byte {
+	return nil
 }

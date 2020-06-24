@@ -52,6 +52,9 @@ func (ic *interopContext) SpawnVM() *vm.VM {
 	})
 	vm.RegisterInteropGetter(ic.getSystemInterop)
 	vm.RegisterInteropGetter(ic.getNeoInterop)
+	if ic.bc != nil && ic.bc.GetConfig().EnableStateRoot {
+		vm.RegisterInteropGetter(ic.getNeoxInterop)
+	}
 	return vm
 }
 
@@ -75,6 +78,12 @@ func (ic *interopContext) getSystemInterop(id uint32) *vm.InteropFuncPrice {
 // namespaces for a given id in the current context.
 func (ic *interopContext) getNeoInterop(id uint32) *vm.InteropFuncPrice {
 	return ic.getInteropFromSlice(id, neoInterops)
+}
+
+// getNeoxInterop returns matching interop function from the NeoX extension
+// for a given id in the current context.
+func (ic *interopContext) getNeoxInterop(id uint32) *vm.InteropFuncPrice {
+	return ic.getInteropFromSlice(id, neoxInterops)
 }
 
 // getInteropFromSlice returns matching interop function from the given slice of
@@ -276,6 +285,11 @@ var neoInterops = []interopedFunction{
 	{Name: "AntShares.Transaction.GetType", Func: (*interopContext).txGetType, Price: 1},
 }
 
+var neoxInterops = []interopedFunction{
+	{Name: "Neo.Cryptography.Secp256k1Recover", Func: (*interopContext).secp256k1Recover, Price: 100},
+	{Name: "Neo.Cryptography.Secp256r1Recover", Func: (*interopContext).secp256r1Recover, Price: 100},
+}
+
 // initIDinInteropsSlice initializes IDs from names in one given
 // interopedFunction slice and then sorts it.
 func initIDinInteropsSlice(iops []interopedFunction) {
@@ -291,4 +305,5 @@ func initIDinInteropsSlice(iops []interopedFunction) {
 func init() {
 	initIDinInteropsSlice(systemInterops)
 	initIDinInteropsSlice(neoInterops)
+	initIDinInteropsSlice(neoxInterops)
 }

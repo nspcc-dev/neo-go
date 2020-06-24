@@ -8,6 +8,9 @@ import (
 // commit represents dBFT Commit message.
 type commit struct {
 	signature [signatureSize]byte
+	stateSig  [signatureSize]byte
+
+	stateRootEnabled bool
 }
 
 // signatureSize is an rfc6989 signature size in bytes
@@ -19,11 +22,17 @@ var _ payload.Commit = (*commit)(nil)
 // EncodeBinary implements io.Serializable interface.
 func (c *commit) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(c.signature[:])
+	if c.stateRootEnabled {
+		w.WriteBytes(c.stateSig[:])
+	}
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (c *commit) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(c.signature[:])
+	if c.stateRootEnabled {
+		r.ReadBytes(c.stateSig[:])
+	}
 }
 
 // Signature implements payload.Commit interface.

@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/cache"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -25,7 +26,7 @@ func TestNewService(t *testing.T) {
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
 	var txx []block.Transaction
-	require.NotPanics(t, func() { txx = srv.getVerifiedTx(1) })
+	require.NotPanics(t, func() { txx = srv.getVerifiedTx() })
 	require.Len(t, txx, 2)
 	require.Equal(t, tx, txx[1])
 	srv.Chain.Close()
@@ -58,7 +59,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv.dbft.ViewNumber = 1
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
-		txx := srv.getVerifiedTx(10)
+		txx := srv.getVerifiedTx()
 		require.Equal(t, 2, len(txx), "there is only 1 tx in mempool")
 		require.Equal(t, txs[3], txx[1])
 	})
@@ -68,7 +69,7 @@ func TestService_GetVerified(t *testing.T) {
 			require.NoError(t, srv.Chain.PoolTx(tx))
 		}
 
-		txx := srv.getVerifiedTx(10)
+		txx := srv.getVerifiedTx()
 		require.Contains(t, txx, txs[0])
 		require.Contains(t, txx, txs[1])
 		require.NotContains(t, txx, txs[2])
@@ -182,7 +183,7 @@ func shouldNotReceive(t *testing.T, ch chan Payload) {
 func newTestService(t *testing.T) *service {
 	srv, err := NewService(Config{
 		Logger:    zaptest.NewLogger(t),
-		Broadcast: func(*Payload) {},
+		Broadcast: func(cache.Hashable) {},
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
 		Wallet: &wallet.Config{

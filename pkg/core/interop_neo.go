@@ -1,10 +1,13 @@
 package core
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -598,6 +601,33 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 	}
 	v.Estack().PushVal(vm.NewInteropItem(contract))
 	return ic.contractDestroy(v)
+}
+
+// secp256k1Recover recovers speck256k1 public key.
+func (ic *interopContext) secp256k1Recover(v *vm.VM) error {
+	return ic.eccRecover(btcec.S256(), v)
+}
+
+// secp256r1Recover recovers speck256r1 public key.
+func (ic *interopContext) secp256r1Recover(v *vm.VM) error {
+	return ic.eccRecover(elliptic.P256(), v)
+}
+
+// eccRecover recovers public key using ECCurve set
+func (ic *interopContext) eccRecover(curve elliptic.Curve, v *vm.VM) error {
+	rBytes := v.Estack().Pop().Bytes()
+	sBytes := v.Estack().Pop().Bytes()
+	r := new(big.Int).SetBytes(rBytes)
+	s := new(big.Int).SetBytes(sBytes)
+	isEven := v.Estack().Pop().Bool()
+	messageHash := v.Estack().Pop().Bytes()
+	pKey, err := keys.KeyRecover(curve, r, s, messageHash, isEven)
+	if err != nil {
+		v.Estack().PushVal([]byte{})
+		return nil
+	}
+	v.Estack().PushVal(pKey.UncompressedBytes()[1:])
+	return nil
 }
 
 // assetCreate creates an asset.

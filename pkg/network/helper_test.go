@@ -59,6 +59,9 @@ func (chain *testChain) AddBlock(block *block.Block) error {
 	}
 	return nil
 }
+func (chain *testChain) AddStateRoot(r *state.MPTRoot) error {
+	panic("TODO")
+}
 func (chain *testChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.blockheight)
 }
@@ -105,6 +108,12 @@ func (chain testChain) GetEnrollments() ([]*state.Validator, error) {
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
+func (chain testChain) GetStateProof(util.Uint256, []byte) ([][]byte, error) {
+	panic("TODO")
+}
+func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	panic("TODO")
+}
 func (chain testChain) GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem {
 	panic("TODO")
 }
@@ -145,7 +154,9 @@ func (chain testChain) IsLowPriority(util.Fixed8) bool {
 func (chain testChain) PoolTx(*transaction.Transaction) error {
 	panic("TODO")
 }
-
+func (chain testChain) StateHeight() uint32 {
+	panic("TODO")
+}
 func (chain testChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	panic("TODO")
 }

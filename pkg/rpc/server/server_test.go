@@ -16,6 +16,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -211,6 +213,54 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.Equal(t, assetHash, res.Sent[0].Asset)
 				require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 			},
+		},
+	},
+	"getproof": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid root",
+			params: `["0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid contract",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid key",
+			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notahex"]`,
+			fail:   true,
+		},
+	},
+	"getstateheight": {
+		{
+			name:   "positive",
+			params: `[]`,
+			result: func(_ *executor) interface{} { return new(result.StateHeight) },
+			check: func(t *testing.T, e *executor, res interface{}) {
+				sh, ok := res.(*result.StateHeight)
+				require.True(t, ok)
+
+				require.Equal(t, e.chain.BlockHeight(), sh.BlockHeight)
+				require.Equal(t, e.chain.StateHeight(), sh.StateHeight)
+			},
+		},
+	},
+	"getstateroot": {
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid hash",
+			params: `["0x1234567890"]`,
+			fail:   true,
 		},
 	},
 	"getstorage": {
@@ -927,6 +977,52 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			}
 		})
 	}
+
+	t.Run("getproof", func(t *testing.T) {
+		r, err := chain.GetStateRoot(205)
+		require.NoError(t, err)
+
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%x"]}`,
+			r.Root.StringLE(), testContractHash, []byte("testkey"))
+		fmt.Println(rpc)
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		fmt.Println(string(body))
+		rawRes := checkErrGetResult(t, body, false)
+		res := new(result.GetProof)
+		require.NoError(t, json.Unmarshal(rawRes, res))
+		require.True(t, res.Success)
+		h, _ := hex.DecodeString(testContractHash)
+		skey := append(h, []byte("testkey")...)
+		require.Equal(t, mpt.ToNeoStorageKey(skey), res.Result.Key)
+		require.True(t, len(res.Result.Proof) > 0)
+
+		rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
+			r.Root.StringLE(), res.Result.String())
+		body = doRPCCall(rpc, httpSrv.URL, t)
+		rawRes = checkErrGetResult(t, body, false)
+		vp := new(result.VerifyProof)
+		require.NoError(t, json.Unmarshal(rawRes, vp))
+		require.Equal(t, []byte("testvalue"), vp.Value)
+	})
+
+	t.Run("getstateroot", func(t *testing.T) {
+		testRoot := func(t *testing.T, p string) {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
+			fmt.Println(rpc)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false)
+
+			res := new(state.MPTRootState)
+			require.NoError(t, json.Unmarshal(rawRes, res))
+			require.NotEqual(t, util.Uint256{}, res.Root) // be sure this test uses valid height
+
+			expected, err := e.chain.GetStateRoot(205)
+			require.NoError(t, err)
+			require.Equal(t, expected, res)
+		}
+		t.Run("ByHeight", func(t *testing.T) { testRoot(t, strconv.FormatInt(205, 10)) })
+		t.Run("ByHash", func(t *testing.T) { testRoot(t, `"`+chain.GetHeaderHash(205).StringLE()+`"`) })
+	})
 
 	t.Run("getrawtransaction", func(t *testing.T) {
 		block, _ := chain.GetBlock(chain.GetHeaderHash(0))
