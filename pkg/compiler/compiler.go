@@ -118,7 +118,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if o.ABIInfo == "" {
 		return b, err
 	}
-	abi := di.convertToABI(b, o.ContractFeatures)
+	abi := di.convertToABI(o.ContractFeatures)
 	abiData, err := json.Marshal(abi)
 	if err != nil {
 		return b, err

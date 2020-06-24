@@ -1424,7 +1424,7 @@ func CodeGen(info *buildInfo) ([]byte, *DebugInfo, error) {
 	if err := c.writeJumps(buf); err != nil {
 		return nil, nil, err
 	}
-	return buf, c.emitDebugInfo(), nil
+	return buf, c.emitDebugInfo(buf), nil
 }
 
 func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {

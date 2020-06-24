@@ -16,6 +16,7 @@ import (
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
+	Hash       util.Uint160      `json:"hash"`
 	EntryPoint string            `json:"entrypoint"`
 	Documents  []string          `json:"documents"`
 	Methods    []MethodDebugInfo `json:"methods"`
@@ -131,8 +132,9 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 	})
 }
 
-func (c *codegen) emitDebugInfo() *DebugInfo {
+func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
+		Hash:       hash.Hash160(contract),
 		EntryPoint: mainIdent,
 		Events:     []EventDebugInfo{},
 	}
@@ -313,7 +315,7 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 
 // convertToABI converts contract to the ABI struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
-func (di *DebugInfo) convertToABI(contract []byte, fs smartcontract.PropertyState) ABI {
+func (di *DebugInfo) convertToABI(fs smartcontract.PropertyState) ABI {
 	methods := make([]Method, 0)
 	for _, method := range di.Methods {
 		if method.Name.Name == di.EntryPoint {
@@ -333,7 +335,7 @@ func (di *DebugInfo) convertToABI(contract []byte, fs smartcontract.PropertyStat
 		}
 	}
 	return ABI{
-		Hash: hash.Hash160(contract),
+		Hash: di.Hash,
 		Metadata: Metadata{
 			HasStorage: fs&smartcontract.HasStorage != 0,
 			IsPayable:  fs&smartcontract.IsPayable != 0,

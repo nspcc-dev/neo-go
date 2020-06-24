@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,8 +48,12 @@ func methodStruct() struct{} { return struct{}{} }
 	require.NoError(t, c.compile(info, pkg))
 
 	buf := c.prog.Bytes()
-	d := c.emitDebugInfo()
+	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
+
+	t.Run("hash", func(t *testing.T) {
+		require.True(t, hash.Hash160(buf).Equals(d.Hash))
+	})
 
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
@@ -117,7 +122,7 @@ func methodStruct() struct{} { return struct{}{} }
 	}
 
 	t.Run("convert to ABI", func(t *testing.T) {
-		actual := d.convertToABI(buf, smartcontract.HasStorage)
+		actual := d.convertToABI(smartcontract.HasStorage)
 		expected := ABI{
 			Hash: hash.Hash160(buf),
 			Metadata: Metadata{
@@ -160,7 +165,8 @@ func TestSequencePoints(t *testing.T) {
 	c := newCodegen(info, pkg)
 	require.NoError(t, c.compile(info, pkg))
 
-	d := c.emitDebugInfo()
+	buf := c.prog.Bytes()
+	d := c.emitDebugInfo(buf)
 	require.NotNil(t, d)
 
 	// Main func has 2 return on 4-th and 6-th lines.
@@ -172,6 +178,7 @@ func TestSequencePoints(t *testing.T) {
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
 	d := &DebugInfo{
+		Hash:       util.Uint160{10, 11, 12, 13},
 		EntryPoint: "main",
 		Documents:  []string{"/path/to/file"},
 		Methods: []MethodDebugInfo{
