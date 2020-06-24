@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -23,6 +24,8 @@ import (
 type NEO struct {
 	nep5TokenNative
 	GAS *GAS
+
+	validators atomic.Value
 }
 
 // keyWithVotes is a serialized key with votes balance. It's not deserialized
@@ -330,6 +333,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			return err
 		}
 	}
+	n.validators.Store(nil)
 	return nil
 }
 
@@ -382,9 +386,13 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+	if vals := n.validators.Load(); vals != nil {
+		return vals.(keys.PublicKeys), nil
+	}
 	standByValidators := bc.GetStandByValidators()
 	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
 	if si == nil {
+		n.validators.Store(standByValidators)
 		return standByValidators, nil
 	}
 	validatorsCount, err := ValidatorsCountFromBytes(si.Value)
@@ -428,6 +436,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 		}
 	}
 	sort.Sort(result)
+	n.validators.Store(result)
 	return result, nil
 }
 
