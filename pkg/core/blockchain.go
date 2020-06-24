@@ -152,10 +152,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
-	if cfg.MaxTransactionsPerBlock <= 0 {
-		cfg.MaxTransactionsPerBlock = 0
-		log.Info("MaxTransactionsPerBlock is not set or wrong, setting default value (unlimited)", zap.Int("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
-	}
 	bc := &Blockchain{
 		config:        cfg,
 		dao:           dao.NewSimple(s, cfg.Magic),
@@ -640,6 +636,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.lock.Unlock()
 		return err
 	}
+	bc.contracts.Policy.OnPersistEnd(bc.dao)
 	bc.topBlock.Store(block)
 	atomic.StoreUint32(&bc.blockHeight, block.Index)
 	bc.memPool.RemoveStale(bc.isTxStillRelevant, bc)
@@ -1088,9 +1085,8 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 }
 
 // FeePerByte returns transaction network fee per byte.
-// TODO: should be implemented as part of PolicyContract
 func (bc *Blockchain) FeePerByte() util.Fixed8 {
-	return util.Fixed8(1000)
+	return util.Fixed8(bc.contracts.Policy.GetFeePerByteInternal(bc.dao))
 }
 
 // GetMemPool returns the memory pool of the blockchain.
@@ -1101,8 +1097,9 @@ func (bc *Blockchain) GetMemPool() *mempool.Pool {
 // ApplyPolicyToTxSet applies configured policies to given transaction set. It
 // expects slice to be ordered by fee and returns a subslice of it.
 func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*transaction.Transaction {
-	if bc.config.MaxTransactionsPerBlock != 0 && len(txes) > bc.config.MaxTransactionsPerBlock {
-		txes = txes[:bc.config.MaxTransactionsPerBlock]
+	maxTx := bc.contracts.Policy.GetMaxTransactionsPerBlockInternal(bc.dao)
+	if maxTx != 0 && len(txes) > int(maxTx) {
+		txes = txes[:maxTx]
 	}
 	return txes
 }
@@ -1125,6 +1122,22 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	height := bc.BlockHeight()
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
+	}
+	hashes, err := bc.GetScriptHashesForVerifying(t)
+	if err != nil {
+		return err
+	}
+	blockedAccounts, err := bc.contracts.Policy.GetBlockedAccountsInternal(bc.dao)
+	if err != nil {
+		return err
+	}
+	for _, h := range hashes {
+		i := sort.Search(len(blockedAccounts), func(i int) bool {
+			return !blockedAccounts[i].Less(h)
+		})
+		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
+			return errors.Errorf("policy check failed")
+		}
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee.Add(t.NetworkFee)
@@ -1203,6 +1216,11 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
+	if ok, err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
+		return err
+	} else if !ok {
+		return ErrPolicy
+	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:

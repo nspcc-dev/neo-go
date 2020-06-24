@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -315,6 +316,54 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				_ = cs.ScriptHash()
 				return cs
+			},
+		},
+	},
+	"getFeePerByte": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetFeePerByte()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c0d676574466565506572427974650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"1000"}]}}`,
+			result: func(c *Client) interface{} {
+				return int64(1000)
+			},
+		},
+	},
+	"getMaxTransacctionsPerBlock": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetMaxTransactionsPerBlock()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c1a6765744d61785472616e73616374696f6e73506572426c6f636b0c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"512"}]}}`,
+			result: func(c *Client) interface{} {
+				return int64(512)
+			},
+		},
+	},
+	"getMaxBlockSize": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetMaxBlockSize()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c0f6765744d6178426c6f636b53697a650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"262144"}]}}`,
+			result: func(c *Client) interface{} {
+				return int64(262144)
+			},
+		},
+	},
+	"getBlockedAccounts": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetBlockedAccounts()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c12676574426c6f636b65644163636f756e74730c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Array","value":[]}]}}`,
+			result: func(c *Client) interface{} {
+				return native.BlockedAccounts{}
 			},
 		},
 	},

@@ -387,6 +387,17 @@ func addSender(txs ...*transaction.Transaction) error {
 	return nil
 }
 
+func addCosigners(txs ...*transaction.Transaction) {
+	for _, tx := range txs {
+		tx.Cosigners = []transaction.Cosigner{{
+			Account:          neoOwner,
+			Scopes:           transaction.CalledByEntry,
+			AllowedContracts: nil,
+			AllowedGroups:    nil,
+		}}
+	}
+}
+
 func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	validators, err := getValidators(bc.config)
 	if err != nil {

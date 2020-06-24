@@ -16,6 +16,7 @@ import (
 type Contracts struct {
 	NEO       *NEO
 	GAS       *GAS
+	Policy    *Policy
 	Contracts []interop.Contract
 	// persistScript is vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
@@ -41,7 +42,7 @@ func (cs *Contracts) ByID(id uint32) interop.Contract {
 	return nil
 }
 
-// NewContracts returns new set of native contracts with new GAS and NEO
+// NewContracts returns new set of native contracts with new GAS, NEO and Policy
 // contracts.
 func NewContracts() *Contracts {
 	cs := new(Contracts)
@@ -55,6 +56,10 @@ func NewContracts() *Contracts {
 	cs.Contracts = append(cs.Contracts, gas)
 	cs.NEO = neo
 	cs.Contracts = append(cs.Contracts, neo)
+
+	policy := newPolicy()
+	cs.Policy = policy
+	cs.Contracts = append(cs.Contracts, policy)
 	return cs
 }
 
