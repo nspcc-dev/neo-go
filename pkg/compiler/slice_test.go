@@ -222,6 +222,27 @@ var sliceTestCases = []testCase{
 		}`,
 		big.NewInt(42),
 	},
+	{
+		"nested slice omitted type (slice)",
+		`package foo
+		func Main() int {
+			a := [][]int{{1, 2}, {3, 4}}
+			a[1][0] = 42
+			return a[1][0]
+		}`,
+		big.NewInt(42),
+	},
+	{
+		"nested slice omitted type (struct)",
+		`package foo
+		type pair struct { a, b int }
+		func Main() int {
+			a := []pair{{a: 1, b: 2}, {a: 3, b: 4}}
+			a[1].a = 42
+			return a[1].a
+		}`,
+		big.NewInt(42),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {

@@ -594,15 +594,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CompositeLit:
-		typ := c.typeOf(n.Type).Underlying()
-		switch n.Type.(type) {
-		case *ast.Ident, *ast.SelectorExpr, *ast.MapType:
-			switch typ.(type) {
-			case *types.Struct:
-				c.convertStruct(n)
-			case *types.Map:
-				c.convertMap(n)
-			}
+		switch typ := c.typeOf(n).Underlying().(type) {
+		case *types.Struct:
+			c.convertStruct(n)
+		case *types.Map:
+			c.convertMap(n)
 		default:
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
