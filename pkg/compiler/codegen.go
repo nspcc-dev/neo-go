@@ -773,7 +773,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertBuiltin(n)
 		case name != "":
 			// Function was not found thus is can be only an invocation of func-typed variable or type conversion.
-			if isFunc {
+			// We care only about string conversions because all others are effectively no-op in NeoVM.
+			// E.g. one cannot write `bool(int(a))`, only `int32(int(a))`.
+			if isString(c.typeOf(n.Fun)) {
+				c.emitConvert(stackitem.ByteArrayT)
+			} else if isFunc {
 				c.emitLoadVar(name)
 				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 			}

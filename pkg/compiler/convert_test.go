@@ -86,3 +86,15 @@ func TestTypeConversion(t *testing.T) {
 
 	eval(t, src, big.NewInt(42))
 }
+
+func TestTypeConversionString(t *testing.T) {
+	src := `package foo
+	type mystr string
+	func Main() mystr {
+		b := []byte{'l', 'a', 'm', 'a', 'o'}
+		s := mystr(b)
+		b[0] = 'u'
+		return s
+	}`
+	eval(t, src, []byte("lamao"))
+}
