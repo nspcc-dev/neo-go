@@ -214,6 +214,11 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
+		if bc.config.EnableStateRoot {
+			if err := bc.dao.InitMPT(0); err != nil {
+				return err
+			}
+		}
 		return bc.storeBlock(genesisBlock)
 	}
 	if ver != version {
