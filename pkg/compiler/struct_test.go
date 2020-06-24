@@ -394,6 +394,17 @@ var structTestCases = []testCase{
 		}`,
 		big.NewInt(42),
 	},
+	{
+		"omit field names",
+		`package foo
+		type pair struct { a, b int }
+		func Main() int {
+			p := pair{1, 2}
+			x := p.a * 10
+			return x + p.b
+		}`,
+		big.NewInt(12),
+	},
 }
 
 func TestStructs(t *testing.T) {
