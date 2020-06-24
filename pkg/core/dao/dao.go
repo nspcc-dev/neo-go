@@ -81,7 +81,7 @@ type Simple struct {
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return &Simple{Store: st, MPT: mpt.NewTrie(nil, st)}
+	return &Simple{Store: st}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -492,10 +492,12 @@ func (dao *Simple) GetStorageItem(scripthash util.Uint160, key []byte) *state.St
 // key into the given store.
 func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error {
 	stKey := makeStorageItemKey(scripthash, key)
-	k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
 	v := mpt.ToNeoStorageValue(si)
-	if err := dao.MPT.Put(k, v); err != nil && err != mpt.ErrNotFound {
-		return err
+	if dao.MPT != nil {
+		k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
+		if err := dao.MPT.Put(k, v); err != nil && err != mpt.ErrNotFound {
+			return err
+		}
 	}
 	return dao.Store.Put(stKey, v[1:])
 }
@@ -504,9 +506,11 @@ func (dao *Simple) PutStorageItem(scripthash util.Uint160, key []byte, si *state
 // given key from the store.
 func (dao *Simple) DeleteStorageItem(scripthash util.Uint160, key []byte) error {
 	stKey := makeStorageItemKey(scripthash, key)
-	k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
-	if err := dao.MPT.Delete(k); err != nil && err != mpt.ErrNotFound {
-		return err
+	if dao.MPT != nil {
+		k := mpt.ToNeoStorageKey(stKey[1:]) // strip STStorage prefix
+		if err := dao.MPT.Delete(k); err != nil && err != mpt.ErrNotFound {
+			return err
+		}
 	}
 	return dao.Store.Delete(stKey)
 }
