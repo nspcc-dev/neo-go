@@ -178,9 +178,8 @@ func TestSequencePoints(t *testing.T) {
 
 func TestDebugInfo_MarshalJSON(t *testing.T) {
 	d := &DebugInfo{
-		Hash:       util.Uint160{10, 11, 12, 13},
-		EntryPoint: "main",
-		Documents:  []string{"/path/to/file"},
+		Hash:      util.Uint160{10, 11, 12, 13},
+		Documents: []string{"/path/to/file"},
 		Methods: []MethodDebugInfo{
 			{
 				ID: "id1",

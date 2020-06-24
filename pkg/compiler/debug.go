@@ -16,11 +16,10 @@ import (
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
-	Hash       util.Uint160      `json:"hash"`
-	EntryPoint string            `json:"entrypoint"`
-	Documents  []string          `json:"documents"`
-	Methods    []MethodDebugInfo `json:"methods"`
-	Events     []EventDebugInfo  `json:"events"`
+	Hash      util.Uint160      `json:"hash"`
+	Documents []string          `json:"documents"`
+	Methods   []MethodDebugInfo `json:"methods"`
+	Events    []EventDebugInfo  `json:"events"`
 }
 
 // MethodDebugInfo represents smart-contract's method debug information.
@@ -134,9 +133,8 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		Hash:       hash.Hash160(contract),
-		EntryPoint: mainIdent,
-		Events:     []EventDebugInfo{},
+		Hash:   hash.Hash160(contract),
+		Events: []EventDebugInfo{},
 	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
@@ -318,7 +316,7 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 func (di *DebugInfo) convertToABI(fs smartcontract.PropertyState) ABI {
 	methods := make([]Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name == di.EntryPoint {
+		if method.Name.Name == mainIdent {
 			methods = append(methods, Method{
 				Name:       method.Name.Name,
 				Parameters: method.Parameters,
@@ -340,7 +338,7 @@ func (di *DebugInfo) convertToABI(fs smartcontract.PropertyState) ABI {
 			HasStorage: fs&smartcontract.HasStorage != 0,
 			IsPayable:  fs&smartcontract.IsPayable != 0,
 		},
-		EntryPoint: di.EntryPoint,
+		EntryPoint: mainIdent,
 		Functions:  methods,
 		Events:     events,
 	}
