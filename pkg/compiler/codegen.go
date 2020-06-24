@@ -594,15 +594,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CompositeLit:
-		typ := c.typeOf(n.Type).Underlying()
-		switch n.Type.(type) {
-		case *ast.Ident, *ast.SelectorExpr, *ast.MapType:
-			switch typ.(type) {
-			case *types.Struct:
-				c.convertStruct(n)
-			case *types.Map:
-				c.convertMap(n)
-			}
+		switch typ := c.typeOf(n).Underlying().(type) {
+		case *types.Struct:
+			c.convertStruct(n)
+		case *types.Map:
+			c.convertMap(n)
 		default:
 			ln := len(n.Elts)
 			// ByteArrays needs a different approach than normal arrays.
@@ -1257,11 +1253,24 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
 	emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
 
+	keyedLit := len(lit.Elts) > 0
+	if keyedLit {
+		_, ok := lit.Elts[0].(*ast.KeyValueExpr)
+		keyedLit = keyedLit && ok
+	}
 	// We need to locally store all the fields, even if they are not initialized.
 	// We will initialize all fields to their "zero" value.
 	for i := 0; i < strct.NumFields(); i++ {
 		sField := strct.Field(i)
 		fieldAdded := false
+
+		if !keyedLit {
+			emit.Opcode(c.prog.BinWriter, opcode.DUP)
+			emit.Int(c.prog.BinWriter, int64(i))
+			ast.Walk(c, lit.Elts[i])
+			emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
+			continue
+		}
 
 		// Fields initialized by the program.
 		for _, field := range lit.Elts {
