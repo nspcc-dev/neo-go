@@ -123,7 +123,6 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
 		dbft.WithGetKeyPair(srv.getKeyPair),
-		dbft.WithTxPerBlock(10000),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithGetTx(srv.getTx),
 		dbft.WithGetVerified(srv.getVerifiedTx),
@@ -483,7 +482,7 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 	return &neoBlock{Block: *b}
 }
 
-func (s *service) getVerifiedTx(count int) []block.Transaction {
+func (s *service) getVerifiedTx() []block.Transaction {
 	pool := s.Config.Chain.GetMemPool()
 
 	var txx []mempool.TxWithFee
