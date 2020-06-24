@@ -22,6 +22,8 @@ type (
 		Type       messageType
 		ViewNumber byte
 
+		stateRootEnabled bool
+
 		payload io.Serializable
 	}
 
@@ -283,15 +285,21 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		m.payload = new(prepareRequest)
+		m.payload = &prepareRequest{
+			stateRootEnabled: m.stateRootEnabled,
+		}
 	case prepareResponseType:
 		m.payload = new(prepareResponse)
 	case commitType:
-		m.payload = new(commit)
+		m.payload = &commit{
+			stateRootEnabled: m.stateRootEnabled,
+		}
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		m.payload = new(recoveryMessage)
+		m.payload = &recoveryMessage{
+			stateRootEnabled: m.stateRootEnabled,
+		}
 	default:
 		r.Err = errors.Errorf("invalid type: 0x%02x", byte(m.Type))
 		return
@@ -319,9 +327,9 @@ func (t messageType) String() string {
 	}
 }
 
-// decode data of payload into it's message
-func (p *Payload) decodeData() error {
-	m := new(message)
+// decodeData decodes data of payload into it's message.
+func (p *Payload) decodeData(stateRootEnabled bool) error {
+	m := &message{stateRootEnabled: stateRootEnabled}
 	br := io.NewBinReaderFromBuf(p.data)
 	m.DecodeBinary(br)
 	if br.Err != nil {

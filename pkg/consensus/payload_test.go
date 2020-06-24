@@ -94,13 +94,13 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 		// message is nil after decoding as we didn't yet call decodeData
 		require.Nil(t, actual.message)
 		// message should now be decoded from actual.data byte array
-		assert.NoError(t, actual.decodeData())
+		assert.NoError(t, actual.decodeData(false))
 		require.Equal(t, p, actual)
 
 		data = p.MarshalUnsigned()
 		pu := new(Payload)
 		require.NoError(t, pu.UnmarshalUnsigned(data))
-		assert.NoError(t, pu.decodeData())
+		assert.NoError(t, pu.decodeData(false))
 
 		p.Witness = transaction.Witness{}
 		require.Equal(t, p, pu)
@@ -144,14 +144,14 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	p := new(Payload)
 	require.NoError(t, testserdes.DecodeBinary(buf, p))
 	// decode `data` into `message`
-	assert.NoError(t, p.decodeData())
+	assert.NoError(t, p.decodeData(false))
 	require.Equal(t, expected, p)
 
 	// invalid type
 	buf[typeIndex] = 0xFF
 	actual := new(Payload)
 	require.NoError(t, testserdes.DecodeBinary(buf, actual))
-	require.Error(t, actual.decodeData())
+	require.Error(t, actual.decodeData(false))
 
 	// invalid format
 	buf[delimeterIndex] = 0
@@ -165,9 +165,16 @@ func TestConsensusPayload_DecodeBinaryInvalid(t *testing.T) {
 	require.Error(t, testserdes.DecodeBinary(buf, new(Payload)))
 }
 
+func testEncodeDecode(srEnabled bool, mt messageType, actual io.Serializable) func(t *testing.T) {
+	return func(t *testing.T) {
+		expected := randomMessage(t, mt, srEnabled)
+		testserdes.EncodeDecodeBinary(t, expected, actual)
+	}
+}
+
 func TestCommit_Serializable(t *testing.T) {
-	c := randomMessage(t, commitType)
-	testserdes.EncodeDecodeBinary(t, c, new(commit))
+	t.Run("WithStateRoot", testEncodeDecode(true, commitType, &commit{stateRootEnabled: true}))
+	t.Run("NoStateRoot", testEncodeDecode(false, commitType, &commit{stateRootEnabled: false}))
 }
 
 func TestPrepareResponse_Serializable(t *testing.T) {
@@ -176,8 +183,8 @@ func TestPrepareResponse_Serializable(t *testing.T) {
 }
 
 func TestPrepareRequest_Serializable(t *testing.T) {
-	req := randomMessage(t, prepareRequestType)
-	testserdes.EncodeDecodeBinary(t, req, new(prepareRequest))
+	t.Run("WithStateRoot", testEncodeDecode(true, prepareRequestType, &prepareRequest{stateRootEnabled: true}))
+	t.Run("NoStateRoot", testEncodeDecode(false, prepareRequestType, &prepareRequest{stateRootEnabled: false}))
 }
 
 func TestRecoveryRequest_Serializable(t *testing.T) {
@@ -186,8 +193,8 @@ func TestRecoveryRequest_Serializable(t *testing.T) {
 }
 
 func TestRecoveryMessage_Serializable(t *testing.T) {
-	msg := randomMessage(t, recoveryMessageType)
-	testserdes.EncodeDecodeBinary(t, msg, new(recoveryMessage))
+	t.Run("WithStateRoot", testEncodeDecode(true, recoveryMessageType, &recoveryMessage{stateRootEnabled: true}))
+	t.Run("NoStateRoot", testEncodeDecode(false, recoveryMessageType, &recoveryMessage{stateRootEnabled: false}))
 }
 
 func randomPayload(t *testing.T, mt messageType) *Payload {
@@ -215,32 +222,35 @@ func randomPayload(t *testing.T, mt messageType) *Payload {
 	return p
 }
 
-func randomMessage(t *testing.T, mt messageType) io.Serializable {
+func randomMessage(t *testing.T, mt messageType, srEnabled ...bool) io.Serializable {
 	switch mt {
 	case changeViewType:
 		return &changeView{
 			timestamp: rand.Uint32(),
 		}
 	case prepareRequestType:
-		return randomPrepareRequest(t)
+		return randomPrepareRequest(t, srEnabled...)
 	case prepareResponseType:
 		return &prepareResponse{preparationHash: random.Uint256()}
 	case commitType:
 		var c commit
 		random.Fill(c.signature[:])
-		random.Fill(c.stateSig[:])
+		if len(srEnabled) > 0 && srEnabled[0] {
+			c.stateRootEnabled = true
+			random.Fill(c.stateSig[:])
+		}
 		return &c
 	case recoveryRequestType:
 		return &recoveryRequest{timestamp: rand.Uint32()}
 	case recoveryMessageType:
-		return randomRecoveryMessage(t)
+		return randomRecoveryMessage(t, srEnabled...)
 	default:
 		require.Fail(t, "invalid type")
 		return nil
 	}
 }
 
-func randomPrepareRequest(t *testing.T) *prepareRequest {
+func randomPrepareRequest(t *testing.T, srEnabled ...bool) *prepareRequest {
 	const txCount = 3
 
 	req := &prepareRequest{
@@ -256,15 +266,22 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	}
 	req.nextConsensus = random.Uint160()
 
+	if len(srEnabled) > 0 && srEnabled[0] {
+		req.stateRootEnabled = true
+		req.proposalStateRoot.Index = rand.Uint32()
+		req.proposalStateRoot.PrevHash = random.Uint256()
+		req.proposalStateRoot.Root = random.Uint256()
+	}
+
 	return req
 }
 
-func randomRecoveryMessage(t *testing.T) *recoveryMessage {
-	result := randomMessage(t, prepareRequestType)
+func randomRecoveryMessage(t *testing.T, srEnabled ...bool) *recoveryMessage {
+	result := randomMessage(t, prepareRequestType, srEnabled...)
 	require.IsType(t, (*prepareRequest)(nil), result)
 	prepReq := result.(*prepareRequest)
 
-	return &recoveryMessage{
+	rec := &recoveryMessage{
 		preparationPayloads: []*preparationCompact{
 			{
 				ValidatorIndex:   1,
@@ -276,14 +293,12 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 				ViewNumber:       0,
 				ValidatorIndex:   1,
 				Signature:        [64]byte{1, 2, 3},
-				StateSignature:   [64]byte{4, 5, 6},
 				InvocationScript: random.Bytes(20),
 			},
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   2,
 				Signature:        [64]byte{11, 3, 4, 98},
-				StateSignature:   [64]byte{4, 8, 15, 16, 23, 42},
 				InvocationScript: random.Bytes(10),
 			},
 		},
@@ -300,6 +315,15 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 			payload: prepReq,
 		},
 	}
+	if len(srEnabled) > 0 && srEnabled[0] {
+		rec.stateRootEnabled = true
+		rec.prepareRequest.stateRootEnabled = true
+		for _, c := range rec.commitPayloads {
+			c.stateRootEnabled = true
+			random.Fill(c.StateSignature[:])
+		}
+	}
+	return rec
 }
 
 func TestPayload_Sign(t *testing.T) {

@@ -251,7 +251,7 @@ func (p *TCPPeer) StartProtocol() {
 			if p.LastBlockIndex() > p.server.chain.BlockHeight() {
 				err = p.server.requestBlocks(p)
 			}
-			if err == nil {
+			if err == nil && p.server.chain.GetConfig().EnableStateRoot {
 				err = p.server.requestStateRoot(p)
 			}
 			if err == nil {

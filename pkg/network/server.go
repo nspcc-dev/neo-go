@@ -602,6 +602,10 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlocks) error {
 
 // handleGetRootsCmd processees `getroots` request.
 func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
+	cfg := s.chain.GetConfig()
+	if !cfg.EnableStateRoot || gr.Start < cfg.StateRootEnableIndex {
+		return nil
+	}
 	count := gr.Count
 	if count > payload.MaxStateRootsAllowed {
 		count = payload.MaxStateRootsAllowed
@@ -621,7 +625,13 @@ func (s *Server) handleGetRootsCmd(p Peer, gr *payload.GetStateRoots) error {
 
 // handleStateRootsCmd processees `roots` request.
 func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
+	if !s.chain.GetConfig().EnableStateRoot {
+		return nil
+	}
 	h := s.chain.StateHeight()
+	if h < s.chain.GetConfig().StateRootEnableIndex {
+		h = s.chain.GetConfig().StateRootEnableIndex
+	}
 	for i := range rs.Roots {
 		if rs.Roots[i].Index <= h {
 			continue
@@ -636,6 +646,13 @@ func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
 func (s *Server) requestStateRoot(p Peer) error {
 	stateHeight := s.chain.StateHeight()
 	hdrHeight := s.chain.BlockHeight()
+	enableIndex := s.chain.GetConfig().StateRootEnableIndex
+	if hdrHeight < enableIndex {
+		return nil
+	}
+	if stateHeight < enableIndex {
+		stateHeight = enableIndex - 1
+	}
 	count := uint32(payload.MaxStateRootsAllowed)
 	if diff := hdrHeight - stateHeight; diff < count {
 		count = diff
@@ -652,6 +669,9 @@ func (s *Server) requestStateRoot(p Peer) error {
 
 // handleStateRootCmd processees `stateroot` request.
 func (s *Server) handleStateRootCmd(r *state.MPTRoot) error {
+	if !s.chain.GetConfig().EnableStateRoot {
+		return nil
+	}
 	// we ignore error, because there is nothing wrong if we already have this state root
 	err := s.chain.AddStateRoot(r)
 	if err == nil && !s.stateCache.Has(r.Hash()) {

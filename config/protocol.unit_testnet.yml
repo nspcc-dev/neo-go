@@ -2,6 +2,7 @@ ProtocolConfiguration:
   Magic: 56753
   AddressVersion: 23
   SecondsPerBlock: 15
+  EnableStateRoot: true
   LowPriorityThreshold: 0.000
   MemPoolSize: 50000
   StandbyValidators:
