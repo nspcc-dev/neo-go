@@ -165,8 +165,8 @@ func readFile(path string) (*dump, error) {
 // File dump-block-$FILENO.json contains blocks from $FILENO-999, $FILENO
 // Example: file `BlockStorage_100000/dump-block-6000.json` contains blocks from 5001 to 6000.
 func getPath(prefix string, index uint32) (string, error) {
-	dirN := (index-1)/100000 + 1
-	dir := fmt.Sprintf("BlockStorage_%d00000", dirN)
+	dirN := ((index + 99999) / 100000) * 100000
+	dir := fmt.Sprintf("BlockStorage_%d", dirN)
 
 	path := filepath.Join(prefix, dir)
 	info, err := os.Stat(path)
@@ -179,7 +179,7 @@ func getPath(prefix string, index uint32) (string, error) {
 		return "", fmt.Errorf("file `%s` is not a directory", path)
 	}
 
-	fileN := (index-1)/1000 + 1
-	file := fmt.Sprintf("dump-block-%d000.json", fileN)
+	fileN := ((index + 999) / 1000) * 1000
+	file := fmt.Sprintf("dump-block-%d.json", fileN)
 	return filepath.Join(path, file), nil
 }

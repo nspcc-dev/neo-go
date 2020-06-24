@@ -292,16 +292,19 @@ func restoreDB(ctx *cli.Context) error {
 			genesis, err := chain.GetBlock(block.Hash())
 			if err == nil && genesis.Index == 0 {
 				log.Info("skipped genesis block", zap.String("hash", block.Hash().StringLE()))
-				continue
+			}
+		} else {
+			err = chain.AddBlock(block)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
 			}
 		}
-		err = chain.AddBlock(block)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
-		}
-
 		if dumpDir != "" {
 			batch := chain.LastBatch()
+			// The genesis block may already be persisted, so LastBatch() will return nil.
+			if batch == nil && block.Index == 0 {
+				continue
+			}
 			dump.add(block.Index, batch)
 			lastIndex = block.Index
 			if block.Index%1000 == 0 {
