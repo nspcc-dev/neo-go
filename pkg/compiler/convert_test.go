@@ -72,3 +72,17 @@ func TestTypeAssertion(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(1))
 }
+
+func TestTypeConversion(t *testing.T) {
+	src := `package foo
+	type myInt int
+	func Main() int32 {
+		var a int32 = 41
+		b := myInt(a)
+		incMy := func(x myInt) myInt { return x + 1 }
+		c := incMy(b)
+		return int32(c)
+	}`
+
+	eval(t, src, big.NewInt(42))
+}

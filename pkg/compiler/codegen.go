@@ -712,6 +712,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			name      string
 			numArgs   = len(n.Args)
 			isBuiltin bool
+			isFunc    bool
 		)
 
 		switch fun := n.Fun.(type) {
@@ -720,6 +721,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
+			}
+			// distinguish lambda invocations from type conversions
+			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
+				isFunc = true
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
@@ -767,9 +772,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
 		case name != "":
-			// Function was not found thus is can be only an invocation of func-typed variable.
-			c.emitLoadVar(name)
-			emit.Opcode(c.prog.BinWriter, opcode.CALLA)
+			// Function was not found thus is can be only an invocation of func-typed variable or type conversion.
+			if isFunc {
+				c.emitLoadVar(name)
+				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
+			}
 		case isSyscall(f):
 			c.convertSyscall(n, f.selector.Name, f.name)
 		default:
