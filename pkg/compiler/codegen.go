@@ -659,8 +659,26 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 
-			ast.Walk(c, n.X)
-			ast.Walk(c, n.Y)
+			var checkForNull bool
+
+			if isExprNil(n.X) {
+				checkForNull = true
+			} else {
+				ast.Walk(c, n.X)
+			}
+			if isExprNil(n.Y) {
+				checkForNull = true
+			} else {
+				ast.Walk(c, n.Y)
+			}
+			if checkForNull {
+				emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+				if n.Op == token.NEQ {
+					emit.Opcode(c.prog.BinWriter, opcode.NOT)
+				}
+
+				return nil
+			}
 
 			switch {
 			case n.Op == token.ADD:
