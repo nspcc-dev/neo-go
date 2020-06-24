@@ -16,10 +16,10 @@ import (
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
-	EntryPoint string            `json:"entrypoint"`
-	Documents  []string          `json:"documents"`
-	Methods    []MethodDebugInfo `json:"methods"`
-	Events     []EventDebugInfo  `json:"events"`
+	Hash      util.Uint160      `json:"hash"`
+	Documents []string          `json:"documents"`
+	Methods   []MethodDebugInfo `json:"methods"`
+	Events    []EventDebugInfo  `json:"events"`
 }
 
 // MethodDebugInfo represents smart-contract's method debug information.
@@ -131,10 +131,10 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 	})
 }
 
-func (c *codegen) emitDebugInfo() *DebugInfo {
+func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		EntryPoint: mainIdent,
-		Events:     []EventDebugInfo{},
+		Hash:   hash.Hash160(contract),
+		Events: []EventDebugInfo{},
 	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
@@ -313,10 +313,10 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 
 // convertToABI converts contract to the ABI struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
-func (di *DebugInfo) convertToABI(contract []byte, fs smartcontract.PropertyState) ABI {
+func (di *DebugInfo) convertToABI(fs smartcontract.PropertyState) ABI {
 	methods := make([]Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name == di.EntryPoint {
+		if method.Name.Name == mainIdent {
 			methods = append(methods, Method{
 				Name:       method.Name.Name,
 				Parameters: method.Parameters,
@@ -333,12 +333,12 @@ func (di *DebugInfo) convertToABI(contract []byte, fs smartcontract.PropertyStat
 		}
 	}
 	return ABI{
-		Hash: hash.Hash160(contract),
+		Hash: di.Hash,
 		Metadata: Metadata{
 			HasStorage: fs&smartcontract.HasStorage != 0,
 			IsPayable:  fs&smartcontract.IsPayable != 0,
 		},
-		EntryPoint: di.EntryPoint,
+		EntryPoint: mainIdent,
 		Functions:  methods,
 		Events:     events,
 	}
