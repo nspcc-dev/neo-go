@@ -991,6 +991,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
+		typ := toNeoType(c.typeOf(n.Type))
+		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
 		return nil
 	}
 	return c

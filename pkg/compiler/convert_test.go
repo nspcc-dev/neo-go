@@ -61,3 +61,14 @@ func TestConvert(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeAssertion(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a := []byte{1}
+		var u interface{}
+		u = a
+		return u.(int)
+	}`
+	eval(t, src, big.NewInt(1))
+}
