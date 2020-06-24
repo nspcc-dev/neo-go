@@ -34,7 +34,7 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
-	validators, err := getValidators(cfg.ProtocolConfiguration)
+	validators, err := validatorsFromConfig(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 
 	script, err := getNextConsensusAddress(validators)

@@ -236,7 +236,11 @@ type Token struct {
 
 func (t Token) AddToCirculation(amount int) bool {
 	ctx := storage.Context()
-	inCirc := storage.Get(ctx, "in_circ").(int)
+	var inCirc int
+	val := storage.Get(ctx, "in_circ")
+	if val != nil {
+		inCirc = val.(int)
+	}
 	inCirc += amount
 	storage.Put(ctx, "in_circ", inCirc)
 	return true

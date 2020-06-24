@@ -38,9 +38,9 @@ func GetReadOnlyContext() Context { return Context{} }
 func Put(ctx Context, key interface{}, value interface{}) {}
 
 // Get retrieves value stored for the given key using given Context. See Put
-// documentation on possible key and value types. This function uses
-// `System.Storage.Get` syscall.
-func Get(ctx Context, key interface{}) interface{} { return 0 }
+// documentation on possible key and value types. If the value is not present in
+// the database it returns nil. This function uses `System.Storage.Get` syscall.
+func Get(ctx Context, key interface{}) interface{} { return nil }
 
 // Delete removes key-value pair from storage by the given key using given
 // Context. See Put documentation on possible key types. This function uses

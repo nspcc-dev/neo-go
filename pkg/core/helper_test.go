@@ -48,7 +48,7 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 }
 
 func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
-	validators, _ := getValidators(cfg)
+	validators, _ := validatorsFromConfig(cfg)
 	vlen := len(validators)
 	valScript, _ := smartcontract.CreateMultiSigRedeemScript(
 		vlen-(vlen-1)/3,
@@ -210,7 +210,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveGas: %s", txMoveGas.Hash().StringLE())
 
-	require.Equal(t, util.Fixed8FromInt64(1000), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.True(t, util.Fixed8FromInt64(1000).CompareTo(bc.GetUtilityTokenBalance(priv0ScriptHash)) <= 0)
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
@@ -399,10 +399,7 @@ func addCosigners(txs ...*transaction.Transaction) {
 }
 
 func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
-	validators, err := getValidators(bc.config)
-	if err != nil {
-		return errors.Wrap(err, "fail to sign tx")
-	}
+	validators := bc.GetStandByValidators()
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
 	if err != nil {
 		return errors.Wrap(err, "fail to sign tx")

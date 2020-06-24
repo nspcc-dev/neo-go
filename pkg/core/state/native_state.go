@@ -104,28 +104,20 @@ func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
 	if r.Err != nil {
 		return
 	}
-	s.fromStackItem(si)
+	r.Err = s.fromStackItem(si)
 }
 
 func (s *NEOBalanceState) toStackItem() stackitem.Item {
 	result := s.NEP5BalanceState.toStackItem().(*stackitem.Struct)
 	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
-	votes := make([]stackitem.Item, len(s.Votes))
-	for i, v := range s.Votes {
-		votes[i] = stackitem.NewByteArray(v.Bytes())
-	}
-	result.Append(stackitem.NewArray(votes))
+	result.Append(stackitem.NewByteArray(s.Votes.Bytes()))
 	return result
 }
 
-func (s *NEOBalanceState) fromStackItem(item stackitem.Item) {
+func (s *NEOBalanceState) fromStackItem(item stackitem.Item) error {
 	structItem := item.Value().([]stackitem.Item)
 	s.Balance = *structItem[0].Value().(*big.Int)
 	s.BalanceHeight = uint32(structItem[1].Value().(*big.Int).Int64())
-	votes := structItem[2].Value().([]stackitem.Item)
-	s.Votes = make([]*keys.PublicKey, len(votes))
-	for i, v := range votes {
-		s.Votes[i] = new(keys.PublicKey)
-		s.Votes[i].DecodeBytes(v.Value().([]byte))
-	}
+	s.Votes = make(keys.PublicKeys, 0)
+	return s.Votes.DecodeBytes(structItem[2].Value().([]byte))
 }

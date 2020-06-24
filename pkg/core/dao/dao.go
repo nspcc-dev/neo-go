@@ -32,7 +32,7 @@ type DAO interface {
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
-	GetNextContractID() (int32, error)
+	GetAndUpdateNextContractID() (int32, error)
 	GetStorageItem(id int32, key []byte) *state.StorageItem
 	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
 	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error)
@@ -47,7 +47,6 @@ type DAO interface {
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
-	PutNextContractID(id int32) error
 	PutStorageItem(id int32, key []byte, si *state.StorageItem) error
 	PutVersion(v string) error
 	StoreAsBlock(block *block.Block) error
@@ -173,25 +172,19 @@ func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	return dao.Store.Delete(key)
 }
 
-// GetNextContractID returns id for the next contract and increases stored id.
-func (dao *Simple) GetNextContractID() (int32, error) {
+// GetAndUpdateNextContractID returns id for the next contract and increases stored ID.
+func (dao *Simple) GetAndUpdateNextContractID() (int32, error) {
+	var id int32
 	key := storage.SYSContractID.Bytes()
 	data, err := dao.Store.Get(key)
-	if err != nil {
-		if err == storage.ErrKeyNotFound {
-			err = nil
-		}
+	if err == nil {
+		id = int32(binary.LittleEndian.Uint32(data))
+	} else if err != storage.ErrKeyNotFound {
 		return 0, err
 	}
-	return int32(binary.LittleEndian.Uint32(data)), nil
-}
-
-// PutNextContractID sets next contract id to id.
-func (dao *Simple) PutNextContractID(id int32) error {
-	key := storage.SYSContractID.Bytes()
-	data := make([]byte, 4)
-	binary.LittleEndian.PutUint32(data, uint32(id))
-	return dao.Store.Put(key, data)
+	data = make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, uint32(id+1))
+	return id, dao.Store.Put(key, data)
 }
 
 // -- end contracts.

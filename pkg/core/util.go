@@ -34,7 +34,7 @@ var (
 
 // createGenesisBlock creates a genesis block based on the given configuration.
 func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
-	validators, err := getValidators(cfg)
+	validators, err := validatorsFromConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
 	return tx
 }
 
-func getValidators(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
+func validatorsFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
 	validators := make([]*keys.PublicKey, len(cfg.StandbyValidators))
 	for i, pubKeyStr := range cfg.StandbyValidators {
 		pubKey, err := keys.NewPublicKeyFromString(pubKeyStr)

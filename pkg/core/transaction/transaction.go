@@ -284,7 +284,7 @@ func (t *Transaction) FeePerByte() util.Fixed8 {
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
-	TxID            util.Uint256 `json:"txid"`
+	TxID            util.Uint256 `json:"hash"`
 	Size            int          `json:"size"`
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`

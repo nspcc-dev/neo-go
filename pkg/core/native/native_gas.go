@@ -58,7 +58,11 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 		return errors.New("insufficient funds")
 	}
 	acc.Balance.Add(&acc.Balance, amount)
-	si.Value = acc.Bytes()
+	if acc.Balance.Sign() != 0 {
+		si.Value = acc.Bytes()
+	} else {
+		si.Value = nil
+	}
 	return nil
 }
 
@@ -87,7 +91,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 		absAmount := big.NewInt(int64(tx.SystemFee + tx.NetworkFee))
 		g.burn(ic, tx.Sender, absAmount)
 	}
-	validators, err := g.NEO.GetValidatorsInternal(ic.Chain, ic.DAO)
+	validators, err := g.NEO.GetNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		return fmt.Errorf("cannot get block validators: %v", err)
 	}
@@ -101,10 +105,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 }
 
 func getStandbyValidatorsHash(ic *interop.Context) (util.Uint160, []*keys.PublicKey, error) {
-	vs, err := ic.Chain.GetStandByValidators()
-	if err != nil {
-		return util.Uint160{}, nil, err
-	}
+	vs := ic.Chain.GetStandByValidators()
 	s, err := smartcontract.CreateMultiSigRedeemScript(len(vs)/2+1, vs)
 	if err != nil {
 		return util.Uint160{}, nil, err

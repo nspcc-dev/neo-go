@@ -50,8 +50,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "e65ff7b3a02d207b584a5c27057d4e9862ef01da"
-const deploymentTxHash = "b0428600383ec7f7b06734978a24dbe81edc87b781f58c0614f122c735d8cf6a"
+const testContractHash = "10e262ef80c76bdecca287a2c047841fc02c3129"
+const deploymentTxHash = "ad8b149c799d4b2337162b0ad23e0ba8845cddb9cfca8a45587ee207015d2a7c"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -147,7 +147,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						},
 						{
 							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "923.96937740",
+							Amount:      "918.01738700",
 							LastUpdated: 6,
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
@@ -229,7 +229,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Timestamp:   blockSendNEO.Timestamp,
 							Asset:       e.chain.UtilityTokenHash(),
 							Address:     "", // Minted GAS.
-							Amount:      "23.99976000",
+							Amount:      "17.99982000",
 							Index:       4,
 							NotifyIndex: 0,
 							TxHash:      txSendNEOHash,
@@ -259,6 +259,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				// take burned gas into account
 				u := testchain.PrivateKeyByID(0).GetScriptHash()
 				for i := 0; i <= int(e.chain.BlockHeight()); i++ {
+					var netFee util.Fixed8
 					h := e.chain.GetHeaderHash(i)
 					b, err := e.chain.GetBlock(h)
 					require.NoError(t, err)
@@ -274,7 +275,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 								TxHash:    b.Hash(),
 							})
 						}
+						netFee += b.Transactions[j].NetworkFee
 					}
+					if i > 0 {
+						expected.Received = append(expected.Received, result.NEP5Transfer{
+							Timestamp: b.Timestamp,
+							Asset:     e.chain.UtilityTokenHash(),
+							Address:   "", // minted from network fees.
+							Amount:    amountToString(int64(netFee), 8),
+							Index:     b.Index,
+							TxHash:    b.Hash(),
+						})
+					}
+
 				}
 				require.Equal(t, expected.Address, res.Address)
 				require.ElementsMatch(t, expected.Sent, res.Sent)
@@ -552,8 +565,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, resp interface{}) {
 				s, ok := resp.(*string)
 				require.True(t, ok)
-				// Incorrect, to be fixed later.
-				assert.Equal(t, "48000", *s)
+				assert.Equal(t, "36000", *s)
 			},
 		},
 	},
@@ -565,8 +577,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 			check: func(t *testing.T, e *executor, validators interface{}) {
 				var expected []result.Validator
-				sBValidators, err := e.chain.GetStandByValidators()
-				require.NoError(t, err)
+				sBValidators := e.chain.GetStandByValidators()
 				for _, sbValidator := range sBValidators {
 					expected = append(expected, result.Validator{
 						PublicKey: *sbValidator,
