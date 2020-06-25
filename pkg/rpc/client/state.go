@@ -48,3 +48,14 @@ func (c *Client) GetProof(root util.Uint256, sc util.Uint160, key []byte) (*resu
 	}
 	return &resp, nil
 }
+
+// VerifyProof verifies keyed proof for the state with the specified root.
+func (c *Client) VerifyProof(root util.Uint256, proof *result.ProofWithKey) (*result.VerifyProof, error) {
+	resp := new(result.VerifyProof)
+	ps := request.NewRawParams(root, proof.String())
+	err := c.performRequest("verifyproof", ps, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
