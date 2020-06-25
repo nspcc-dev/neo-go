@@ -13,6 +13,7 @@ import (
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -478,6 +479,15 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	primaryIndex := uint32(ctx.PrimaryIndex)
 	block.Block.ConsensusData.PrimaryIndex = primaryIndex
 
-	block.Block.RebuildMerkleRoot()
+	hashes := make([]util.Uint256, len(ctx.TransactionHashes)+1)
+	hashes[0] = block.Block.ConsensusData.Hash()
+	copy(hashes[1:], ctx.TransactionHashes)
+	mt, err := hash.NewMerkleTree(hashes)
+	if err != nil {
+		s.log.Fatal("can't calculate merkle root for the new block")
+		return nil
+	}
+	block.Block.MerkleRoot = mt.Root()
+
 	return block
 }
