@@ -984,9 +984,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%x"]}`,
 			r.Root.StringLE(), testContractHash, []byte("testkey"))
-		fmt.Println(rpc)
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		fmt.Println(string(body))
 		rawRes := checkErrGetResult(t, body, false)
 		res := new(result.GetProof)
 		require.NoError(t, json.Unmarshal(rawRes, res))
@@ -1008,7 +1006,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("getstateroot", func(t *testing.T) {
 		testRoot := func(t *testing.T, p string) {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
-			fmt.Println(rpc)
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			rawRes := checkErrGetResult(t, body, false)
 

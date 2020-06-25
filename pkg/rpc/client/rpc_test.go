@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -619,6 +620,62 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getstateheight": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStateHeight()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"blockHeight":208,"stateHeight":200}}`,
+			result: func(c *Client) interface{} {
+				return &result.StateHeight{
+					BlockHeight: 208,
+					StateHeight: 200,
+				}
+			},
+		},
+	},
+	"getproof": {
+		{
+			name:           "positive",
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"proof":"256f20ccfbd5f01d5b9633387428b8bab95a9e78c2746573746b657900000000000000000009026d014a060f02000c0c0f0b0d050f00010d050b090603030308070402080b080b0a0b09050a090e07080c020704060507030704060b0605070900000000000000000000000000000000000000092068ae9a1a2c6b6b64216df47b4c44086141569d5d20dc9bd65fdfabed54d2c3250e030c00097465737476616c756500","success":true}}`,
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetProof(util.Uint256{}, util.Uint160{}, []byte{})
+			},
+			result: func(c *Client) interface{} {
+				var p result.ProofWithKey
+				err := p.FromString("256f20ccfbd5f01d5b9633387428b8bab95a9e78c2746573746b657900000000000000000009026d014a060f02000c0c0f0b0d050f00010d050b090603030308070402080b080b0a0b09050a090e07080c020704060507030704060b0605070900000000000000000000000000000000000000092068ae9a1a2c6b6b64216df47b4c44086141569d5d20dc9bd65fdfabed54d2c3250e030c00097465737476616c756500")
+				if err != nil {
+					panic(err)
+				}
+				return &result.GetProof{
+					Result:  p,
+					Success: true,
+				}
+			},
+		},
+	},
+	"getstateroot": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetStateRootByHeight(205)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"stateroot":{"version":0,"index":205,"prehash":"0x3959779e0a406789a96dd86277d444e66eafbaa609b3c60ce18bea202bc30eeb","stateroot":"0x2ae87960aa8e373826fd6d190cc150ceb516e7a48523b0edad58beb54210de7c"},"flag":"Unverified"}}`,
+			result: func(c *Client) interface{} {
+				return &state.MPTRootState{
+					MPTRoot: state.MPTRoot{
+						MPTRootBase: state.MPTRootBase{
+							Index:    205,
+							PrevHash: util.Uint256{0xeb, 0xe, 0xc3, 0x2b, 0x20, 0xea, 0x8b, 0xe1, 0xc, 0xc6, 0xb3, 0x9, 0xa6, 0xba, 0xaf, 0x6e, 0xe6, 0x44, 0xd4, 0x77, 0x62, 0xd8, 0x6d, 0xa9, 0x89, 0x67, 0x40, 0xa, 0x9e, 0x77, 0x59, 0x39},
+							Root:     util.Uint256{0x7c, 0xde, 0x10, 0x42, 0xb5, 0xbe, 0x58, 0xad, 0xed, 0xb0, 0x23, 0x85, 0xa4, 0xe7, 0x16, 0xb5, 0xce, 0x50, 0xc1, 0xc, 0x19, 0x6d, 0xfd, 0x26, 0x38, 0x37, 0x8e, 0xaa, 0x60, 0x79, 0xe8, 0x2a},
+						},
+					},
+					Flag: state.Unverified,
+				}
+			},
+		},
+	},
 	"getstorage": {
 		{
 			name: "positive",
@@ -853,6 +910,20 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				// no error expected
 				return nil
+			},
+		},
+	},
+	"verifyproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.VerifyProof(util.Uint256{}, new(result.ProofWithKey))
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"value":"7465737476616c7565"}}`,
+			result: func(c *Client) interface{} {
+				return &result.VerifyProof{
+					Value: []byte("testvalue"),
+				}
 			},
 		},
 	},
