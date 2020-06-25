@@ -68,7 +68,7 @@ var commands = []*ishell.Cmd{
 		Help: "Load an avm script into the VM",
 		LongHelp: `Usage: loadavm <file>
 <file> is mandatory parameter, example:
-> load /path/to/script.avm`,
+> loadavm /path/to/script.avm`,
 		Func: handleLoadAVM,
 	},
 	{
@@ -76,15 +76,15 @@ var commands = []*ishell.Cmd{
 		Help: "Load a hex-encoded script string into the VM",
 		LongHelp: `Usage: loadhex <string>
 <string> is mandatory parameter, example:
-> load 006166`,
+> loadhex 006166`,
 		Func: handleLoadHex,
 	},
 	{
 		Name: "loadgo",
 		Help: "Compile and load a Go file into the VM",
-		LongHelp: `Usage: loadhex <file>
+		LongHelp: `Usage: loadgo <file>
 <file> is mandatory parameter, example:
-> load /path/to/file.go`,
+> loadgo /path/to/file.go`,
 		Func: handleLoadGo,
 	},
 	{
