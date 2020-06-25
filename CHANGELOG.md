@@ -2,6 +2,57 @@
 
 This document outlines major changes between releases.
 
+## 0.76.0 "Cross-pollination" (25 June 2020)
+
+We wanted to make a 0.75.1-neox-preview1 release of neo-go compatible with
+version 2.10.3-neox-preview1 of C# node, but then suddenly decided to make
+something better than that and now release 0.76.0 instead which brings with
+it configurable cross-chain functionality support. So there is no need to use
+different node builds for different networks with NeoGo, one binary fits
+all. As usual some bugs were also fixed, this time mostly concentrating around
+consensus functionality.
+
+New features:
+ * cross-chain (aka neox) support, refer to docs/neox.md for details on what's
+   included and how to use it
+ * compiler built-in Remove function was added for slices/maps element
+   deletion (#1021)
+
+Behavior changes:
+ * the default testnet config now enables state root with StateRootEnableIndex
+   of 4380100, if you have a testnet node you need to either stay with the old
+   configuration or remove the DB and resynchronize blocks from genesis
+ * contracts using comparison with nil will fail to compile, this comparison
+   actually never functioned correctly (#952)
+
+Improvements:
+ * storage cache flushing was optimized, improving block import speed by ~10%
+   (#1014)
+ * consensus process now logs a bit more relevant messages (#1041)
+ * limits to invocation scripts were added to consensus messages (#1087)
+ * transaction request retries were added in case consensus process is missing
+   some transactions (#1095)
+
+Bugs fixed:
+ * dbft's failed nodes detection was tuned for the case of node lagging behind
+   the network (#1009)
+ * dbft was fixed to always process recovery messages for the current block
+   (#1009)
+ * compiler now initializes complex struct fields correctly (#952)
+ * NOTEQUAL opcode is now only being emitted for integers by the compiler (#952)
+ * typo in docker entrypoint script preventing proper bootstrap file passing
+   (#1089)
+ * MaxFreeTransactionsPerBlock limit wasn't really enforced (#1019)
+ * changeview payloads were not processed correctly by the consensus subsystem
+   (#1041)
+ * dbft library wasn't including messages from higher views for last seen
+   message checks (#1041)
+ * recovery request sent instead of recovery message in one case (#1095)
+ * some correctness checks were not done for proposed block in not all
+   transactions were present when the node received PrepareRequest (#1095)
+ * timeout wasn't properly calculated in some cases for Primary node leading
+   to early PrepareRequest send (#1095)
+
 ## 0.75.0 "Caramelization" (28 May 2020)
 
 A long-awaited Neo 2.0 update for neo-go that fixes a lot of subtle little
