@@ -243,6 +243,10 @@ func handleXStack(c *ishell.Context) {
 
 func handleLoadAVM(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
+		return
+	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
 		c.Err(err)
 	} else {
@@ -253,6 +257,10 @@ func handleLoadAVM(c *ishell.Context) {
 
 func handleLoadBase64(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
 	b, err := base64.StdEncoding.DecodeString(c.Args[0])
 	if err != nil {
 		c.Err(err)
@@ -265,6 +273,10 @@ func handleLoadBase64(c *ishell.Context) {
 
 func handleLoadHex(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
 	b, err := hex.DecodeString(c.Args[0])
 	if err != nil {
 		c.Err(err)
@@ -277,6 +289,10 @@ func handleLoadHex(c *ishell.Context) {
 
 func handleLoadGo(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
+		return
+	}
 	fb, err := ioutil.ReadFile(c.Args[0])
 	if err != nil {
 		c.Err(err)
