@@ -845,6 +845,20 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"verifyproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.VerifyProof(util.Uint256{}, new(result.ProofWithKey))
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"value":"7465737476616c7565"}}`,
+			result: func(c *Client) interface{} {
+				return &result.VerifyProof{
+					Value: []byte("testvalue"),
+				}
+			},
+		},
+	},
 }
 
 type rpcClientErrorCase struct {
