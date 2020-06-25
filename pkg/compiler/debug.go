@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -267,6 +268,59 @@ func (d *DebugParam) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ToManifestParameter converts DebugParam to manifest.Parameter
+func (d *DebugParam) ToManifestParameter() (manifest.Parameter, error) {
+	pType, err := smartcontract.ParseParamType(d.Type)
+	if err != nil {
+		return manifest.Parameter{}, err
+	}
+	return manifest.Parameter{
+		Name: d.Name,
+		Type: pType,
+	}, nil
+}
+
+// ToManifestMethod converts MethodDebugInfo to manifest.Method
+func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
+	var (
+		result manifest.Method
+		err    error
+	)
+	parameters := make([]manifest.Parameter, len(m.Parameters))
+	for i, p := range m.Parameters {
+		parameters[i], err = p.ToManifestParameter()
+		if err != nil {
+			return result, err
+		}
+	}
+	returnType, err := smartcontract.ParseParamType(m.ReturnType)
+	if err != nil {
+		return result, err
+	}
+	result.Name = m.Name.Name
+	result.Parameters = parameters
+	result.ReturnType = returnType
+	return result, nil
+}
+
+// ToManifestEvent converts EventDebugInfo to manifest.Event
+func (e *EventDebugInfo) ToManifestEvent() (manifest.Event, error) {
+	var (
+		result manifest.Event
+		err    error
+	)
+	parameters := make([]manifest.Parameter, len(e.Parameters))
+	for i, p := range e.Parameters {
+		parameters[i], err = p.ToManifestParameter()
+		if err != nil {
+			return result, err
+		}
+	}
+	result.Name = e.Name
+	result.Parameters = parameters
+	return result, nil
+}
+
 // MarshalJSON implements json.Marshaler interface.
 func (d *DebugMethodName) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + d.Namespace + `,` + d.Name + `"`), nil
@@ -311,35 +365,58 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-// convertToABI converts contract to the ABI struct for debugger.
+// convertToManifest converts contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
-func (di *DebugInfo) convertToABI(fs smartcontract.PropertyState) ABI {
-	methods := make([]Method, 0)
+func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
+	var (
+		entryPoint manifest.Method
+		err        error
+	)
 	for _, method := range di.Methods {
 		if method.Name.Name == mainIdent {
-			methods = append(methods, Method{
-				Name:       method.Name.Name,
-				Parameters: method.Parameters,
-				ReturnType: method.ReturnType,
-			})
+			entryPoint, err = method.ToManifestMethod()
+			if err != nil {
+				return nil, err
+			}
 			break
 		}
 	}
-	events := make([]Event, len(di.Events))
-	for i, event := range di.Events {
-		events[i] = Event{
-			Name:       event.Name,
-			Parameters: event.Parameters,
+	if entryPoint.Name == "" {
+		return nil, errors.New("no Main method was found")
+	}
+	methods := make([]manifest.Method, 0, len(di.Methods)-1)
+	for _, method := range di.Methods {
+		if method.Name.Name != mainIdent {
+			mMethod, err := method.ToManifestMethod()
+			if err != nil {
+				return nil, err
+			}
+			methods = append(methods, mMethod)
 		}
 	}
-	return ABI{
-		Hash: di.Hash,
-		Metadata: Metadata{
-			HasStorage: fs&smartcontract.HasStorage != 0,
-			IsPayable:  fs&smartcontract.IsPayable != 0,
-		},
-		EntryPoint: mainIdent,
-		Functions:  methods,
+	events := make([]manifest.Event, len(di.Events))
+	for i, event := range di.Events {
+		events[i], err = event.ToManifestEvent()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	result := manifest.NewManifest(di.Hash)
+	result.Features = fs
+	result.ABI = manifest.ABI{
+		Hash:       di.Hash,
+		EntryPoint: entryPoint,
+		Methods:    methods,
 		Events:     events,
 	}
+	result.Permissions = []manifest.Permission{
+		{
+			Contract: manifest.PermissionDesc{
+				Type: manifest.PermissionWildcard,
+			},
+			Methods: manifest.WildStrings{},
+		},
+	}
+	return result, nil
 }

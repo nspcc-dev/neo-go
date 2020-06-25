@@ -123,8 +123,8 @@ func NewCommands() []cli.Command {
 						Usage: "Emit debug info in a separate file",
 					},
 					cli.StringFlag{
-						Name:  "abi, a",
-						Usage: "Emit application binary interface (.abi.json) file into separate file using configuration input file (*.yml)",
+						Name:  "manifest, m",
+						Usage: "Emit contract manifest (*.manifest.json) file into separate file using configuration input file (*.yml)",
 					},
 					cli.StringFlag{
 						Name:  "config, c",
@@ -349,17 +349,17 @@ func contractCompile(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	abi := ctx.String("abi")
+	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
-	if len(abi) != 0 && len(confFile) == 0 {
+	if len(manifestFile) != 0 && len(confFile) == 0 {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo: ctx.String("debug"),
-		ABIInfo:   abi,
+		DebugInfo:    ctx.String("debug"),
+		ManifestFile: manifestFile,
 	}
 
 	if len(confFile) != 0 {

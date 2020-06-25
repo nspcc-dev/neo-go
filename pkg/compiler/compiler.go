@@ -29,8 +29,8 @@ type Options struct {
 	// The name of the output for debug info.
 	DebugInfo string
 
-	// The name of the output for application binary interface info.
-	ABIInfo string
+	// The name of the output for contract manifest file.
+	ManifestFile string
 
 	// Contract metadata.
 	ContractFeatures smartcontract.PropertyState
@@ -124,13 +124,16 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
 		return b, err
 	}
-	if o.ABIInfo == "" {
+	if o.ManifestFile == "" {
 		return b, err
 	}
-	abi := di.convertToABI(o.ContractFeatures)
-	abiData, err := json.Marshal(abi)
+	m, err := di.convertToManifest(o.ContractFeatures)
 	if err != nil {
 		return b, err
 	}
-	return b, ioutil.WriteFile(o.ABIInfo, abiData, os.ModePerm)
+	mData, err := json.Marshal(m)
+	if err != nil {
+		return b, err
+	}
+	return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
 }
