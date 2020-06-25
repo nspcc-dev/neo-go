@@ -145,7 +145,16 @@ func methodStruct() struct{} { return struct{}{} }
 			},
 			Events: []Event{},
 		}
-		assert.Equal(t, expected, actual)
+		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
+		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
+		require.Equal(t, expected.ABI.EntryPoint, actual.ABI.EntryPoint)
+		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
+		require.Equal(t, expected.Groups, actual.Groups)
+		require.Equal(t, expected.Features, actual.Features)
+		require.Equal(t, expected.Permissions, actual.Permissions)
+		require.Equal(t, expected.Trusts, actual.Trusts)
+		require.Equal(t, expected.SafeMethods, actual.SafeMethods)
+		require.Equal(t, expected.Extra, actual.Extra)
 	})
 }
 

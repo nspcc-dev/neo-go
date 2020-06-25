@@ -104,11 +104,11 @@ In case you don't want to provide details use `--skip-details, -skip`.
 ./bin/neo-go contract compile -i mycontract.go
 ```
 
-By default the output filename will be the name of your `.go` file with the `.avm` extension, the file will be located 
+By default the output filename will be the name of your `.go` file with the `.nef` extension, the file will be located 
 in the same directory where you called the command from. If you want another location for your compiled contract:
 
 ```
-./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.avm
+./bin/neo-go contract compile -i mycontract.go --out /Users/foo/bar/contract.nef
 ```
 
 ### Deploy
@@ -118,7 +118,7 @@ in the same directory where you called the command from. If you want another loc
 //Implemented in test mode. It means that it won't affect the blockchain
 
 ```
-./bin/neo-go contract testinvoke -i mycontract.avm
+./bin/neo-go contract testinvoke -i mycontract.nef
 ```
 
 ### Debug

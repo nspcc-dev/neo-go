@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,6 +21,8 @@ type compilerTestCase struct {
 }
 
 func TestCompiler(t *testing.T) {
+	// CompileAndSave use config.Version for proper .nef generation.
+	config.Version = "0.90.0-test"
 	testCases := []compilerTestCase{
 		{
 			name: "TestCompile",
@@ -44,7 +47,7 @@ func TestCompiler(t *testing.T) {
 				require.NoError(t, err)
 				err = os.MkdirAll(exampleSavePath, os.ModePerm)
 				require.NoError(t, err)
-				outfile := exampleSavePath + "/test.avm"
+				outfile := exampleSavePath + "/test.nef"
 				_, err = compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile})
 				require.NoError(t, err)
 				defer func() {
