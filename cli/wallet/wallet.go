@@ -191,7 +191,7 @@ func NewCommands() []cli.Command {
 }
 
 func claimGas(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -237,7 +237,7 @@ func claimGas(ctx *cli.Context) error {
 }
 
 func convertWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -281,7 +281,7 @@ func convertWallet(ctx *cli.Context) error {
 }
 
 func addAccount(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -296,7 +296,7 @@ func addAccount(ctx *cli.Context) error {
 }
 
 func exportKeys(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -354,7 +354,7 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -393,7 +393,7 @@ func importMultisig(ctx *cli.Context) error {
 }
 
 func importWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -422,7 +422,7 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func removeAccount(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -468,7 +468,7 @@ func askForConsent() bool {
 }
 
 func dumpWallet(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -490,7 +490,7 @@ func dumpWallet(ctx *cli.Context) error {
 }
 
 func createWallet(ctx *cli.Context) error {
-	path := ctx.String("path")
+	path := ctx.String("wallet")
 	if len(path) == 0 {
 		return cli.NewExitError(errNoPath, 1)
 	}

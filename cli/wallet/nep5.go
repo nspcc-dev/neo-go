@@ -115,7 +115,7 @@ func newNEP5Commands() []cli.Command {
 }
 
 func getNEP5Balance(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -214,7 +214,7 @@ func getMatchingTokenAux(get func(i int) *wallet.Token, n int, name string) (*wa
 }
 
 func importNEP5Token(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -262,7 +262,7 @@ func printTokenInfo(tok *wallet.Token) {
 }
 
 func printNEP5Info(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -287,7 +287,7 @@ func printNEP5Info(ctx *cli.Context) error {
 }
 
 func removeNEP5Token(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -315,7 +315,7 @@ func removeNEP5Token(ctx *cli.Context) error {
 }
 
 func transferNEP5(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
