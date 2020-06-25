@@ -155,7 +155,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 		if name != "" && !token.Hash.Equals(asset) {
 			continue
 		}
-		fmt.Printf("TokenHash: %s\n", asset)
+		fmt.Printf("TokenHash: %s\n", asset.StringLE())
 		fmt.Printf("\tAmount : %s\n", balances.Balances[i].Amount)
 		fmt.Printf("\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 	}
