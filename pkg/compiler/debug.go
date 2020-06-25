@@ -81,40 +81,6 @@ type DebugParam struct {
 	Type string `json:"type"`
 }
 
-// ABI represents ABI contract info in compatible with NEO Blockchain Toolkit format
-type ABI struct {
-	Hash       util.Uint160 `json:"hash"`
-	Metadata   Metadata     `json:"metadata"`
-	EntryPoint string       `json:"entrypoint"`
-	Functions  []Method     `json:"functions"`
-	Events     []Event      `json:"events"`
-}
-
-// Metadata represents ABI contract metadata
-type Metadata struct {
-	Author               string `json:"author"`
-	Email                string `json:"email"`
-	Version              string `json:"version"`
-	Title                string `json:"title"`
-	Description          string `json:"description"`
-	HasStorage           bool   `json:"has-storage"`
-	HasDynamicInvocation bool   `json:"has-dynamic-invoke"`
-	IsPayable            bool   `json:"is-payable"`
-}
-
-// Method represents ABI method's metadata.
-type Method struct {
-	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
-	ReturnType string       `json:"returntype"`
-}
-
-// Event represents ABI event's metadata.
-type Event struct {
-	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
-}
-
 func (c *codegen) saveSequencePoint(n ast.Node) {
 	if c.scope == nil {
 		// do not save globals for now
