@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -72,6 +73,14 @@ var commands = []*ishell.Cmd{
 <file> is mandatory parameter, example:
 > load /path/to/script.avm`,
 		Func: handleLoadAVM,
+	},
+	{
+		Name: "loadbase64",
+		Help: "Load a base64-encoded script string into the VM",
+		LongHelp: `Usage: loadbase64 <string>
+<string> is mandatory parameter, example:
+> loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
+		Func: handleLoadBase64,
 	},
 	{
 		Name: "loadhex",
@@ -239,6 +248,18 @@ func handleLoadAVM(c *ishell.Context) {
 	} else {
 		c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	}
+	changePrompt(c, v)
+}
+
+func handleLoadBase64(c *ishell.Context) {
+	v := getVMFromContext(c)
+	b, err := base64.StdEncoding.DecodeString(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	v.Load(b)
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c, v)
 }
 
