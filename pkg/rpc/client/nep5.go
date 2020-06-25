@@ -16,6 +16,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
+var (
+	// NeoContractHash is a hash of the NEO native contract.
+	NeoContractHash, _ = util.Uint160DecodeStringBE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
+	// GasContractHash is a hash of the GAS native contract.
+	GasContractHash, _ = util.Uint160DecodeStringBE("897720d8cd76f4f00abfa37c0edd889c208fde9b")
+)
+
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
 func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash.StringLE(), "decimals", []smartcontract.Parameter{}, nil)

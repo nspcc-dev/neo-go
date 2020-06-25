@@ -27,7 +27,7 @@ func newMultisigCommands() []cli.Command {
 		{
 			Name:      "sign",
 			Usage:     "sign a transaction",
-			UsageText: "multisig sign --path <path> --addr <addr> --in <file.in> --out <file.out>",
+			UsageText: "multisig sign --wallet <path> --addr <addr> --in <file.in> --out <file.out>",
 			Action:    signMultisig,
 			Flags:     signFlags,
 		},

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -14,6 +15,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
+)
+
+var (
+	neoToken = wallet.NewToken(client.NeoContractHash, "NEO", "neo", 0)
+	gasToken = wallet.NewToken(client.GasContractHash, "GAS", "gas", 8)
 )
 
 func newNEP5Commands() []cli.Command {
@@ -60,21 +66,21 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --path <path> --rpc-endpoint <node> --timeout <time> --addr <addr> [--token <hash-or-name>]",
+			UsageText: "balance --wallet <path> --rpc-endpoint <node> --timeout <time> --addr <addr> [--token <hash-or-name>]",
 			Action:    getNEP5Balance,
 			Flags:     balanceFlags,
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP5 token to a wallet",
-			UsageText: "import --path <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP5Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
 			Usage:     "print imported NEP5 token info",
-			UsageText: "print --path <path> [--token <hash-or-name>]",
+			UsageText: "print --wallet <path> [--token <hash-or-name>]",
 			Action:    printNEP5Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -87,7 +93,7 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "remove",
 			Usage:     "remove NEP5 token from the wallet",
-			UsageText: "remove --path <path> <hash-or-name>",
+			UsageText: "remove --wallet <path> <hash-or-name>",
 			Action:    removeNEP5Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -101,7 +107,7 @@ func newNEP5Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP5 tokens",
-			UsageText: "transfer --path <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string",
+			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash> --amount string",
 			Action:    transferNEP5,
 			Flags:     transferFlags,
 		},
@@ -155,7 +161,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 		if name != "" && !token.Hash.Equals(asset) {
 			continue
 		}
-		fmt.Printf("TokenHash: %s\n", asset)
+		fmt.Printf("TokenHash: %s\n", asset.StringLE())
 		fmt.Printf("\tAmount : %s\n", balances.Balances[i].Amount)
 		fmt.Printf("\tUpdated: %d\n", balances.Balances[i].LastUpdated)
 	}
@@ -163,6 +169,12 @@ func getNEP5Balance(ctx *cli.Context) error {
 }
 
 func getMatchingToken(w *wallet.Wallet, name string) (*wallet.Token, error) {
+	switch strings.ToLower(name) {
+	case "neo":
+		return neoToken, nil
+	case "gas":
+		return gasToken, nil
+	}
 	return getMatchingTokenAux(func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
 	}, len(w.Extra.Tokens), name)

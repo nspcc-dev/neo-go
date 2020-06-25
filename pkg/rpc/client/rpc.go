@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
@@ -517,14 +518,18 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account)
 		size += sizeDelta
 	}
 	for _, cosigner := range tx.Cosigners {
-		contract, err := c.GetContractState(cosigner.Account)
-		if err != nil {
-			return err
+		script := acc.Contract.Script
+		if !cosigner.Account.Equals(hash.Hash160(acc.Contract.Script)) {
+			contract, err := c.GetContractState(cosigner.Account)
+			if err != nil {
+				return err
+			}
+			if contract == nil {
+				continue
+			}
+			script = contract.Script
 		}
-		if contract == nil {
-			continue
-		}
-		netFee, sizeDelta := core.CalculateNetworkFee(contract.Script)
+		netFee, sizeDelta := core.CalculateNetworkFee(script)
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
