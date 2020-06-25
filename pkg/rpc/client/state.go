@@ -1,6 +1,8 @@
 package client
 
 import (
+	"encoding/hex"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -34,4 +36,15 @@ func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetProof returns proof that key belongs to a contract sc state rooted at root.
+func (c *Client) GetProof(root util.Uint256, sc util.Uint160, key []byte) (*result.GetProof, error) {
+	var resp result.GetProof
+	ps := request.NewRawParams(root, sc, hex.EncodeToString(key))
+	err := c.performRequest("getproof", ps, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
