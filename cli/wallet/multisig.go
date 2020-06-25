@@ -35,7 +35,7 @@ func newMultisigCommands() []cli.Command {
 }
 
 func signMultisig(ctx *cli.Context) error {
-	wall, err := openWallet(ctx.String("path"))
+	wall, err := openWallet(ctx.String("wallet"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
