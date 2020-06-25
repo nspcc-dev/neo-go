@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -14,6 +15,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
+)
+
+var (
+	neoToken = wallet.NewToken(client.NeoContractHash, "NEO", "neo", 0)
+	gasToken = wallet.NewToken(client.GasContractHash, "GAS", "gas", 8)
 )
 
 func newNEP5Commands() []cli.Command {
@@ -163,6 +169,12 @@ func getNEP5Balance(ctx *cli.Context) error {
 }
 
 func getMatchingToken(w *wallet.Wallet, name string) (*wallet.Token, error) {
+	switch strings.ToLower(name) {
+	case "neo":
+		return neoToken, nil
+	case "gas":
+		return gasToken, nil
+	}
 	return getMatchingTokenAux(func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
 	}, len(w.Extra.Tokens), name)
