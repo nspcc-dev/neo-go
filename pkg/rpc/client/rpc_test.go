@@ -548,6 +548,26 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getproof": {
+		{
+			name:           "positive",
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"proof":"256f20ccfbd5f01d5b9633387428b8bab95a9e78c2746573746b657900000000000000000009026d014a060f02000c0c0f0b0d050f00010d050b090603030308070402080b080b0a0b09050a090e07080c020704060507030704060b0605070900000000000000000000000000000000000000092068ae9a1a2c6b6b64216df47b4c44086141569d5d20dc9bd65fdfabed54d2c3250e030c00097465737476616c756500","success":true}}`,
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetProof(util.Uint256{}, util.Uint160{}, []byte{})
+			},
+			result: func(c *Client) interface{} {
+				var p result.ProofWithKey
+				err := p.FromString("256f20ccfbd5f01d5b9633387428b8bab95a9e78c2746573746b657900000000000000000009026d014a060f02000c0c0f0b0d050f00010d050b090603030308070402080b080b0a0b09050a090e07080c020704060507030704060b0605070900000000000000000000000000000000000000092068ae9a1a2c6b6b64216df47b4c44086141569d5d20dc9bd65fdfabed54d2c3250e030c00097465737476616c756500")
+				if err != nil {
+					panic(err)
+				}
+				return &result.GetProof{
+					Result:  p,
+					Success: true,
+				}
+			},
+		},
+	},
 	"getstateroot": {
 		{
 			name: "positive",
