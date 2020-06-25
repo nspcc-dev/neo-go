@@ -87,7 +87,7 @@ var commands = []*ishell.Cmd{
 		Help: "Load a hex-encoded script string into the VM",
 		LongHelp: `Usage: loadhex <string>
 <string> is mandatory parameter, example:
-> load 006166`,
+> load 0c0c48656c6c6f20776f726c6421`,
 		Func: handleLoadHex,
 	},
 	{
