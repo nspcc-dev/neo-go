@@ -1,6 +1,6 @@
 # NEO-GO-VM
 
-A cross platform virtual machine implementation for `avm` compatible programs. 
+A cross platform virtual machine implementation for `NEF` compatible programs. 
 
 # Installation
 
@@ -46,7 +46,7 @@ Commands:
   help         display help
   ip           Show current instruction
   istack       Show invocation stack contents
-  loadavm      Load an avm script into the VM
+  loadnef      Load an avm script in NEF format into the VM
   loadgo       Compile and load a Go file into the VM
   loadhex      Load a hex-encoded script string into the VM
   ops          Dump opcodes of the current loaded program
@@ -70,10 +70,10 @@ Usage: step [<n>]
 
 ## Loading in your script
 
-To load an avm script into the VM:
+To load an avm script in NEF format into the VM:
 
 ```
-NEO-GO-VM > loadavm ../contract.avm
+NEO-GO-VM > loadnef ../contract.nef
 READY: loaded 36 instructions
 ```
 
