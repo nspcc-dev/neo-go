@@ -3,6 +3,8 @@ package compiler
 import (
 	"go/ast"
 	"go/types"
+
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func (c *codegen) typeAndValueOf(e ast.Expr) types.TypeAndValue {
@@ -41,4 +43,35 @@ func isCompoundSlice(typ types.Type) bool {
 func isByteSlice(typ types.Type) bool {
 	t, ok := typ.Underlying().(*types.Slice)
 	return ok && isByte(t.Elem())
+}
+
+func toNeoType(typ types.Type) stackitem.Type {
+	if typ == nil {
+		return stackitem.AnyT
+	}
+	switch t := typ.Underlying().(type) {
+	case *types.Basic:
+		info := t.Info()
+		switch {
+		case info&types.IsInteger != 0:
+			return stackitem.IntegerT
+		case info&types.IsBoolean != 0:
+			return stackitem.BooleanT
+		case info&types.IsString != 0:
+			return stackitem.ByteArrayT
+		default:
+			return stackitem.AnyT
+		}
+	case *types.Map:
+		return stackitem.MapT
+	case *types.Struct:
+		return stackitem.StructT
+	case *types.Slice:
+		if isByte(t.Elem()) {
+			return stackitem.BufferT
+		}
+		return stackitem.ArrayT
+	default:
+		return stackitem.AnyT
+	}
 }

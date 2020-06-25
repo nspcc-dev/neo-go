@@ -61,3 +61,40 @@ func TestConvert(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeAssertion(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a := []byte{1}
+		var u interface{}
+		u = a
+		return u.(int)
+	}`
+	eval(t, src, big.NewInt(1))
+}
+
+func TestTypeConversion(t *testing.T) {
+	src := `package foo
+	type myInt int
+	func Main() int32 {
+		var a int32 = 41
+		b := myInt(a)
+		incMy := func(x myInt) myInt { return x + 1 }
+		c := incMy(b)
+		return int32(c)
+	}`
+
+	eval(t, src, big.NewInt(42))
+}
+
+func TestTypeConversionString(t *testing.T) {
+	src := `package foo
+	type mystr string
+	func Main() mystr {
+		b := []byte{'l', 'a', 'm', 'a', 'o'}
+		s := mystr(b)
+		b[0] = 'u'
+		return s
+	}`
+	eval(t, src, []byte("lamao"))
+}
