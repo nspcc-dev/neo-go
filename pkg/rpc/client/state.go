@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -23,4 +24,14 @@ func (c *Client) getStateRoot(p request.RawParams) (*state.MPTRootState, error) 
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// GetStateHeight returns current block and state height.
+func (c *Client) GetStateHeight() (*result.StateHeight, error) {
+	resp := new(result.StateHeight)
+	err := c.performRequest("getstateheight", request.NewRawParams(), resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
