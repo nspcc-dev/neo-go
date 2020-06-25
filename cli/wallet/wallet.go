@@ -20,13 +20,13 @@ import (
 )
 
 var (
-	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--path, -p) flags")
+	errNoPath         = errors.New("target path where the wallet should be stored is mandatory and should be passed using (--wallet, -w) flags")
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
 )
 
 var (
 	walletPathFlag = cli.StringFlag{
-		Name:  "path, p",
+		Name:  "wallet, w",
 		Usage: "Target location of the wallet file.",
 	}
 	wifFlag = cli.StringFlag{
@@ -123,7 +123,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "export",
 				Usage:     "export keys for address",
-				UsageText: "export --path <path> [--decrypt] [<address>]",
+				UsageText: "export --wallet <path> [--decrypt] [<address>]",
 				Action:    exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -150,7 +150,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --path <path> --wif <wif> --min <n>" +
+				UsageText: "import-multisig --wallet <path> --wif <wif> --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -169,7 +169,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --path <path> [--force] <addr>",
+				UsageText: "remove --wallet <path> [--force] <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
