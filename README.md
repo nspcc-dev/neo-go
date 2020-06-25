@@ -24,7 +24,8 @@ A complete toolkit for the NEO blockchain, including:
 - [NEO virtual machine](docs/vm.md)
 
 This branch (**master-2.x**) is a stable version of the project compatible
-with Neo 2, it only receives bug fixes and minor updates. For the Neo 3
+with Neo 2 (including [cross-chain neox support](docs/neox.md)), it only
+receives bug fixes and minor updates. For Neo 3
 development version please refer to the [**master**
 branch](https://github.com/nspcc-dev/neo-go/tree/master) and releases
 after 0.90.0. Releases before 0.80.0 (**0.7X.Y** track) are made from this
