@@ -1218,7 +1218,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
 		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
 		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
-		offset := v.getJumpOffset(ctx, parameter, 0)
+		offset := v.getJumpOffset(ctx, parameter)
 		cond := true
 		switch op {
 		case opcode.JMP, opcode.JMPL:
@@ -1240,7 +1240,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 
-		offset := v.getJumpOffset(newCtx, parameter, 0)
+		offset := v.getJumpOffset(newCtx, parameter)
 		v.jumpIf(newCtx, offset, true)
 
 	case opcode.CALLA:
@@ -1423,7 +1423,7 @@ func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 // to a which JMP should be performed.
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
-func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
 	var rOffset int32
 	switch l := len(parameter); l {
 	case 1:
@@ -1433,7 +1433,7 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 	default:
 		panic(fmt.Sprintf("invalid JMP* parameter length: %d", l))
 	}
-	offset := ctx.ip + int(rOffset) + mod
+	offset := ctx.ip + int(rOffset)
 	if offset < 0 || offset > len(ctx.prog) {
 		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
 	}
