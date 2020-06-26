@@ -212,6 +212,10 @@ func (v *VM) PrintOps() {
 			case opcode.PUSHA:
 				offset := int32(binary.LittleEndian.Uint32(parameter))
 				desc = fmt.Sprintf("%d (%x)", offset, parameter)
+			case opcode.INITSSLOT:
+				desc = fmt.Sprint(parameter[0])
+			case opcode.INITSLOT:
+				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
 				desc = fmt.Sprintf("%q", parameter)
 			default:
