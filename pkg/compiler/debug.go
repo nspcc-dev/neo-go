@@ -33,7 +33,7 @@ type MethodDebugInfo struct {
 	// Parameters is a list of method's parameters.
 	Parameters []DebugParam `json:"params"`
 	// ReturnType is method's return type.
-	ReturnType string   `json:"return-type"`
+	ReturnType string   `json:"return"`
 	Variables  []string `json:"variables"`
 	// SeqPoints is a map between source lines and byte-code instruction offsets.
 	SeqPoints []DebugSeqPoint `json:"sequence-points"`
@@ -50,7 +50,7 @@ type EventDebugInfo struct {
 	ID string `json:"id"`
 	// Name is a human-readable event name in a format "{namespace}-{name}".
 	Name       string       `json:"name"`
-	Parameters []DebugParam `json:"parameters"`
+	Parameters []DebugParam `json:"params"`
 }
 
 // DebugSeqPoint represents break-point for debugger.
