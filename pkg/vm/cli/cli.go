@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -74,11 +75,19 @@ var commands = []*ishell.Cmd{
 		Func: handleLoadAVM,
 	},
 	{
+		Name: "loadbase64",
+		Help: "Load a base64-encoded script string into the VM",
+		LongHelp: `Usage: loadbase64 <string>
+<string> is mandatory parameter, example:
+> loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
+		Func: handleLoadBase64,
+	},
+	{
 		Name: "loadhex",
 		Help: "Load a hex-encoded script string into the VM",
 		LongHelp: `Usage: loadhex <string>
 <string> is mandatory parameter, example:
-> load 006166`,
+> load 0c0c48656c6c6f20776f726c6421`,
 		Func: handleLoadHex,
 	},
 	{
@@ -234,6 +243,10 @@ func handleXStack(c *ishell.Context) {
 
 func handleLoadAVM(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
+		return
+	}
 	if err := v.LoadFile(c.Args[0]); err != nil {
 		c.Err(err)
 	} else {
@@ -242,8 +255,28 @@ func handleLoadAVM(c *ishell.Context) {
 	changePrompt(c, v)
 }
 
+func handleLoadBase64(c *ishell.Context) {
+	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
+	b, err := base64.StdEncoding.DecodeString(c.Args[0])
+	if err != nil {
+		c.Err(err)
+		return
+	}
+	v.Load(b)
+	c.Printf("READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c, v)
+}
+
 func handleLoadHex(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <string>"))
+		return
+	}
 	b, err := hex.DecodeString(c.Args[0])
 	if err != nil {
 		c.Err(err)
@@ -256,6 +289,10 @@ func handleLoadHex(c *ishell.Context) {
 
 func handleLoadGo(c *ishell.Context) {
 	v := getVMFromContext(c)
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing parameter <file>"))
+		return
+	}
 	fb, err := ioutil.ReadFile(c.Args[0])
 	if err != nil {
 		c.Err(err)
