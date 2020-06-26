@@ -243,6 +243,7 @@ func TestSubscriptions(t *testing.T) {
 	executionCh := make(chan *state.AppExecResult, chBufSize)
 
 	bc := newTestChain(t)
+	defer bc.Close()
 	bc.SubscribeForBlocks(blockCh)
 	bc.SubscribeForTransactions(txCh)
 	bc.SubscribeForNotifications(notificationCh)
