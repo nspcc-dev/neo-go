@@ -197,12 +197,25 @@ func (v *VM) PrintOps() {
 		var desc = ""
 		if parameter != nil {
 			switch instr {
-			case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL:
-				offset := int16(binary.LittleEndian.Uint16(parameter))
-				desc = fmt.Sprintf("%d (%d/%x)", ctx.ip+int(offset), offset, parameter)
+			case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.CALL,
+				opcode.JMPEQ, opcode.JMPNE,
+				opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT,
+				opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.CALLL,
+				opcode.JMPEQL, opcode.JMPNEL,
+				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL:
+				offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
+				if err != nil {
+					desc = fmt.Sprintf("ERROR: %v", err)
+				} else {
+					desc = fmt.Sprintf("%d (%d/%x)", offset, rOffset, parameter)
+				}
 			case opcode.PUSHA:
 				offset := int32(binary.LittleEndian.Uint32(parameter))
 				desc = fmt.Sprintf("%d (%x)", offset, parameter)
+			case opcode.INITSSLOT:
+				desc = fmt.Sprint(parameter[0])
+			case opcode.INITSLOT:
+				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
 				desc = fmt.Sprintf("%q", parameter)
 			default:
@@ -1218,7 +1231,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
 		opcode.JMPGT, opcode.JMPGTL, opcode.JMPGE, opcode.JMPGEL,
 		opcode.JMPLT, opcode.JMPLTL, opcode.JMPLE, opcode.JMPLEL:
-		offset := v.getJumpOffset(ctx, parameter, 0)
+		offset := v.getJumpOffset(ctx, parameter)
 		cond := true
 		switch op {
 		case opcode.JMP, opcode.JMPL:
@@ -1240,7 +1253,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 
-		offset := v.getJumpOffset(newCtx, parameter, 0)
+		offset := v.getJumpOffset(newCtx, parameter)
 		v.jumpIf(newCtx, offset, true)
 
 	case opcode.CALLA:
@@ -1423,7 +1436,15 @@ func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
 // to a which JMP should be performed.
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
-func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
+func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
+	offset, _, err := v.calcJumpOffset(ctx, parameter)
+	if err != nil {
+		panic(err)
+	}
+	return offset
+}
+
+func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	var rOffset int32
 	switch l := len(parameter); l {
 	case 1:
@@ -1431,14 +1452,14 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte, mod int) int {
 	case 4:
 		rOffset = int32(binary.LittleEndian.Uint32(parameter))
 	default:
-		panic(fmt.Sprintf("invalid JMP* parameter length: %d", l))
+		return 0, 0, fmt.Errorf("invalid JMP* parameter length: %d", l)
 	}
-	offset := ctx.ip + int(rOffset) + mod
+	offset := ctx.ip + int(rOffset)
 	if offset < 0 || offset > len(ctx.prog) {
-		panic(fmt.Sprintf("JMP: invalid offset %d ip at %d", offset, ctx.ip))
+		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, ctx.ip)
 	}
 
-	return offset
+	return offset, int(rOffset), nil
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
