@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
@@ -30,6 +31,7 @@ type (
 	Payload struct {
 		*message
 
+		network        netmode.Magic
 		data           []byte
 		version        uint32
 		validatorIndex uint16
@@ -108,7 +110,7 @@ func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
 // MarshalUnsigned implements payload.ConsensusPayload interface.
 func (p Payload) MarshalUnsigned() []byte {
 	w := io.NewBufBinWriter()
-	p.EncodeBinaryUnsigned(w.BinWriter)
+	p.encodeHashData(w.BinWriter)
 
 	return w.Bytes()
 }
@@ -116,6 +118,7 @@ func (p Payload) MarshalUnsigned() []byte {
 // UnmarshalUnsigned implements payload.ConsensusPayload interface.
 func (p *Payload) UnmarshalUnsigned(data []byte) error {
 	r := io.NewBinReaderFromBuf(data)
+	p.network = netmode.Magic(r.ReadU32LE())
 	p.DecodeBinaryUnsigned(r)
 
 	return r.Err
@@ -184,6 +187,11 @@ func (p *Payload) EncodeBinary(w *io.BinWriter) {
 	p.Witness.EncodeBinary(w)
 }
 
+func (p *Payload) encodeHashData(w *io.BinWriter) {
+	w.WriteU32LE(uint32(p.network))
+	p.EncodeBinaryUnsigned(w)
+}
+
 // Sign signs payload using the private key.
 // It also sets corresponding verification and invocation scripts.
 func (p *Payload) Sign(key *privateKey) error {
@@ -241,7 +249,7 @@ func (p *Payload) DecodeBinaryUnsigned(r *io.BinReader) {
 // Hash implements payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
 	w := io.NewBufBinWriter()
-	p.EncodeBinaryUnsigned(w.BinWriter)
+	p.encodeHashData(w.BinWriter)
 	if w.Err != nil {
 		panic("failed to hash payload")
 	}

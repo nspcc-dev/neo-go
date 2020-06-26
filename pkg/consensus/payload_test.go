@@ -1,10 +1,12 @@
 package consensus
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
@@ -73,18 +75,21 @@ func TestConsensusPayload_Setters(t *testing.T) {
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
-//TODO NEO3.0: Update binary
-/*
-func TestConsensusPayload_Hash(t *testing.T) {
-	dataHex := "00000000d8fb8d3b143b5f98468ef701909c976505a110a01e26c5e99be9a90cff979199b6fc33000400000000008d2000184dc95de24018f9ad71f4448a2b438eaca8b4b2ab6b4524b5a69a45d920c35103f3901444320656c390ff39c0062f5e8e138ce446a40c7e4ba1af1f8247ebbdf49295933715d3a67949714ff924f8a28cec5b954c71eca3bfaf0e9d4b1f87b4e21e9ba4ae18f97de71501b5c5d07edc200bd66a46b9b28b1a371f2195c10b0af90000e24018f900000000014140c9faaee59942f58da0e5268bc199632f2a3ad0fcbee68681a4437f140b49512e8d9efc6880eb44d3490782895a5794f35eeccee2923ce0c76fa7a1890f934eac232103c089d7122b840a4935234e82e26ae5efd0c2acb627239dc9f207311337b6f2c1ac"
+func TestConsensusPayload_Verify(t *testing.T) {
+	// signed payload from testnet
+	dataHex := "00000000a70b769e4af60878f6daa72be41770c62592c694bf9ead6b16b30ad90f28c4098cc704000400423000d5b4baae11191ac370a4d7860df01824fcea7f934d6461db6d4b7966ca3c135c8c262b7f23bbac13e73885223604141e062234d999068d9a74b77caeeb5271cf01420c4055ae8c7694c296e92da393f944b0dc1cd70d12de3ee944e9afc872d1db427fe87fcbe913709a8ec73e2f5acdfc0b7f0a96e9d63bad0a20e3226c882237f5c771290c2102a7834be9b32e2981d157cb5bbd3acb42cfd11ea5c3b10224d7a44e98c5910f1b0b410a906ad4"
 	data, err := hex.DecodeString(dataHex)
 	require.NoError(t, err)
 
-	var p Payload
-	require.NoError(t, testserdes.DecodeBinary(data, &p))
-	require.Equal(t, p.Hash().String(), "45859759c8491597804f1922773947e0d37bf54484af82f80cd642f7b063aa56")
+	h, err := util.Uint160DecodeStringBE("31b7e7aea5131f74721e002c6a56b6885813f79e")
+	require.NoError(t, err)
+
+	p := NewPayload(netmode.TestNet)
+	require.NoError(t, testserdes.DecodeBinary(data, p))
+	require.NoError(t, p.decodeData())
+	require.True(t, p.Verify(h))
 }
-*/
+
 func TestConsensusPayload_Serializable(t *testing.T) {
 	for _, mt := range messageTypes {
 		p := randomPayload(t, mt)
@@ -99,7 +104,7 @@ func TestConsensusPayload_Serializable(t *testing.T) {
 		require.Equal(t, p, actual)
 
 		data = p.MarshalUnsigned()
-		pu := new(Payload)
+		pu := NewPayload(netmode.Magic(rand.Uint32()))
 		require.NoError(t, pu.UnmarshalUnsigned(data))
 		assert.NoError(t, pu.decodeData())
 

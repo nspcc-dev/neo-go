@@ -136,7 +136,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithGetValidators(srv.getValidators),
 		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
 
-		dbft.WithNewConsensusPayload(func() payload.ConsensusPayload { p := new(Payload); p.message = &message{}; return p }),
+		dbft.WithNewConsensusPayload(srv.newPayload),
 		dbft.WithNewPrepareRequest(func() payload.PrepareRequest { return new(prepareRequest) }),
 		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
@@ -156,6 +156,17 @@ var (
 	_ block.Transaction = (*transaction.Transaction)(nil)
 	_ block.Block       = (*neoBlock)(nil)
 )
+
+// NewPayload creates new consensus payloa dfor the provided network.
+func NewPayload(m netmode.Magic) *Payload {
+	return &Payload{
+		network: m,
+	}
+}
+
+func (s *service) newPayload() payload.ConsensusPayload {
+	return NewPayload(s.network)
+}
 
 func (s *service) Start() {
 	s.dbft.Start()

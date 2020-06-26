@@ -144,7 +144,7 @@ func (m *Message) decodePayload() error {
 	case CMDBlock:
 		p = block.New(m.Network)
 	case CMDConsensus:
-		p = &consensus.Payload{}
+		p = consensus.NewPayload(m.Network)
 	case CMDGetBlocks:
 		fallthrough
 	case CMDGetHeaders:
