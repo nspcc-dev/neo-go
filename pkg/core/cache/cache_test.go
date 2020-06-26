@@ -1,11 +1,9 @@
 package cache
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +54,7 @@ func (h testHashable) Hash() util.Uint256 { return hash.Sha256(h) }
 func getDifferentItems(t *testing.T, n int) []testHashable {
 	items := make([]testHashable, n)
 	for i := range items {
-		items[i] = random.Bytes(rand.Int() % 10)
+		items[i] = []byte{byte(i)}
 	}
 	return items
 }
