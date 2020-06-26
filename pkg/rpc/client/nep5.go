@@ -18,9 +18,9 @@ import (
 
 var (
 	// NeoContractHash is a hash of the NEO native contract.
-	NeoContractHash, _ = util.Uint160DecodeStringBE("3b7d3711c6f0ccf9b1dca903d1bfa1d896f1238c")
+	NeoContractHash, _ = util.Uint160DecodeStringLE("9bde8f209c88dd0e7ca3bf0af0f476cdd8207789")
 	// GasContractHash is a hash of the GAS native contract.
-	GasContractHash, _ = util.Uint160DecodeStringBE("897720d8cd76f4f00abfa37c0edd889c208fde9b")
+	GasContractHash, _ = util.Uint160DecodeStringLE("8c23f196d8a1bfd103a9dcb1f9ccf0c611377d3b")
 )
 
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
