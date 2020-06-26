@@ -169,3 +169,50 @@ func TestFunctionWithMultipleArgumentNames(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(3))
 }
+
+func TestLocalsCount(t *testing.T) {
+	src := `package foo
+	func f(a, b, c int) int {
+		sum := a
+		for i := 0; i < c; i++ {
+			sum += b
+		}
+		return sum
+	}
+	func Main() int {
+		return f(1, 2, 3)
+	}`
+	eval(t, src, big.NewInt(7))
+}
+
+func TestVariadic(t *testing.T) {
+	src := `package foo
+	func someFunc(a int, b ...int) int {
+		sum := a
+		for i := range b {
+			sum = sum - b[i]
+		}
+		return sum
+	}
+	func Main() int {
+		return someFunc(10, 1, 2, 3)
+	}`
+	eval(t, src, big.NewInt(4))
+}
+
+func TestVariadicMethod(t *testing.T) {
+	src := `package foo
+	type myInt int
+	func (x myInt) someFunc(a int, b ...int) int {
+		sum := int(x) + a
+		for i := range b {
+			sum = sum - b[i] 
+		}
+		return sum
+	}
+	func Main() int {
+		x := myInt(38)
+		return x.someFunc(10, 1, 2, 3)
+	}`
+	eval(t, src, big.NewInt(42))
+}
