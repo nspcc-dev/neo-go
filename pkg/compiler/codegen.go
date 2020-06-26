@@ -758,6 +758,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
+			if typ, ok := c.typeOf(n.Fun).(*types.Signature); ok && typ.Variadic() {
+				// pack variadic args into an array
+				varSize := len(n.Args) - typ.Params().Len() + 1
+				c.emitReverse(varSize)
+				emit.Int(c.prog.BinWriter, int64(varSize))
+				emit.Opcode(c.prog.BinWriter, opcode.PACK)
+				numArgs -= varSize - 1
+			}
 			c.emitReverse(numArgs)
 		}
 
@@ -1115,12 +1123,6 @@ func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
 	if !ok {
 		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
 		return
-	}
-	switch name {
-	case "Notify":
-		numArgs := len(expr.Args)
-		emit.Int(c.prog.BinWriter, int64(numArgs))
-		emit.Opcode(c.prog.BinWriter, opcode.PACK)
 	}
 	emit.Syscall(c.prog.BinWriter, api)
 	switch name {
