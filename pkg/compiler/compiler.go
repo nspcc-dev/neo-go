@@ -109,8 +109,11 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	err = ioutil.WriteFile(out, bytes, os.ModePerm)
-	if o.DebugInfo == "" {
+	if err != nil {
 		return b, err
+	}
+	if o.DebugInfo == "" {
+		return b, nil
 	}
 	p, err := filepath.Abs(src)
 	if err != nil {
