@@ -1,7 +1,7 @@
-package wallet
+package config
 
-// Config is a wallet info.
-type Config struct {
+// Wallet is a wallet info.
+type Wallet struct {
 	Path     string `yaml:"Path"`
 	Password string `yaml:"Password"`
 }

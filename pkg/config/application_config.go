@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 // ApplicationConfiguration config specific to the node.
@@ -26,5 +25,5 @@ type ApplicationConfiguration struct {
 	ProtoTickInterval time.Duration           `yaml:"ProtoTickInterval"`
 	Relay             bool                    `yaml:"Relay"`
 	RPC               rpc.Config              `yaml:"RPC"`
-	UnlockWallet      wallet.Config           `yaml:"UnlockWallet"`
+	UnlockWallet      Wallet                  `yaml:"UnlockWallet"`
 }
