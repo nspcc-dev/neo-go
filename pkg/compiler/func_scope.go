@@ -139,16 +139,18 @@ func (c *funcScope) stackSize() int64 {
 
 // newVariable creates a new local variable or argument in the scope of the function.
 func (c *funcScope) newVariable(t varType, name string) int {
-	c.i++
+	var n int
 	switch t {
 	case varLocal:
-		c.locals[name] = c.i
+		n = len(c.locals)
+		c.locals[name] = n
 	case varArgument:
-		c.arguments[name] = c.i
+		n = len(c.arguments)
+		c.arguments[name] = n
 	default:
 		panic("invalid type")
 	}
-	return c.i
+	return n
 }
 
 // newLocal creates a new local variable into the scope of the function.
