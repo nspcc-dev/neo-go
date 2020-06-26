@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/dbft/block"
 	"github.com/nspcc-dev/dbft/payload"
@@ -39,6 +40,7 @@ func TestNewService(t *testing.T) {
 
 func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
+	srv.dbft.Start()
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
@@ -52,21 +54,29 @@ func TestService_GetVerified(t *testing.T) {
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
 
-	p := new(Payload)
-	p.message = &message{}
-	p.SetType(payload.PrepareRequestType)
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx.Nonce = 999
-	p.SetPayload(&prepareRequest{transactionHashes: hashes})
-	p.SetValidatorIndex(1)
+	// Everyone sends a message.
+	for i := 0; i < 4; i++ {
+		p := new(Payload)
+		p.message = &message{}
+		// One PrepareRequest and three ChangeViews.
+		if i == 1 {
+			p.SetType(payload.PrepareRequestType)
+			p.SetPayload(&prepareRequest{transactionHashes: hashes})
+		} else {
+			p.SetType(payload.ChangeViewType)
+			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint32(time.Now().Unix())})
+		}
+		p.SetHeight(1)
+		p.SetValidatorIndex(uint16(i))
 
-	priv, _ := getTestValidator(1)
-	require.NoError(t, p.Sign(priv))
+		priv, _ := getTestValidator(i)
+		require.NoError(t, p.Sign(priv))
 
-	srv.OnPayload(p)
+		// Skip srv.OnPayload, because the service is not really started.
+		srv.dbft.OnReceive(p)
+	}
+	require.Equal(t, uint8(1), srv.dbft.ViewNumber)
 	require.Equal(t, hashes, srv.lastProposal)
-
-	srv.dbft.ViewNumber = 1
 
 	t.Run("new transactions will be proposed in case of failure", func(t *testing.T) {
 		txx := srv.getVerifiedTx()
@@ -157,6 +167,10 @@ func TestService_getTx(t *testing.T) {
 
 func TestService_OnPayload(t *testing.T) {
 	srv := newTestService(t)
+	// This test directly reads things from srv.messages that normally
+	// is read by internal goroutine started with Start(). So let's
+	// pretend we really did start already.
+	srv.started.Store(true)
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)

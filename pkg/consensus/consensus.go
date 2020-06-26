@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -63,6 +64,9 @@ type service struct {
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 	network      netmode.Magic
+	// started is a flag set with Start method that runs an event handling
+	// goroutine.
+	started *atomic.Bool
 }
 
 // Config is a configuration for consensus services.
@@ -104,6 +108,7 @@ func NewService(cfg Config) (Service, error) {
 		transactions: make(chan *transaction.Transaction, 100),
 		blockEvents:  make(chan *coreb.Block, 1),
 		network:      cfg.Chain.GetConfig().Magic,
+		started:      atomic.NewBool(false),
 	}
 
 	if cfg.Wallet == nil {
@@ -143,6 +148,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
 		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 	)
 
 	if srv.dbft == nil {
@@ -169,9 +175,11 @@ func (s *service) newPayload() payload.ConsensusPayload {
 }
 
 func (s *service) Start() {
-	s.dbft.Start()
-	s.Chain.SubscribeForBlocks(s.blockEvents)
-	go s.eventLoop()
+	if s.started.CAS(false, true) {
+		s.dbft.Start()
+		s.Chain.SubscribeForBlocks(s.blockEvents)
+		go s.eventLoop()
+	}
 }
 
 func (s *service) eventLoop() {
@@ -267,8 +275,8 @@ func (s *service) OnPayload(cp *Payload) {
 	s.Config.Broadcast(cp)
 	s.cache.Add(cp)
 
-	if s.dbft == nil {
-		log.Debug("dbft is nil")
+	if s.dbft == nil || !s.started.Load() {
+		log.Debug("dbft is inactive or not started yet")
 		return
 	}
 
@@ -278,13 +286,6 @@ func (s *service) OnPayload(cp *Payload) {
 			log.Debug("can't decode payload data")
 			return
 		}
-	}
-
-	// we use switch here because other payloads could be possibly added in future
-	switch cp.Type() {
-	case payload.PrepareRequestType:
-		req := cp.GetPrepareRequest().(*prepareRequest)
-		s.lastProposal = req.transactionHashes
 	}
 
 	s.messages <- *cp
@@ -345,6 +346,14 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	return true
+}
+
+func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+	req := p.GetPrepareRequest().(*prepareRequest)
+	// Save lastProposal for getVerified().
+	s.lastProposal = req.transactionHashes
+
+	return nil
 }
 
 func (s *service) processBlock(b block.Block) {
