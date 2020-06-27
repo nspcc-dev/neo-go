@@ -186,7 +186,7 @@ func TestLocalsCount(t *testing.T) {
 }
 
 func TestVariadic(t *testing.T) {
-	src := `package foo
+	srcTmpl := `package foo
 	func someFunc(a int, b ...int) int {
 		sum := a
 		for i := range b {
@@ -195,9 +195,21 @@ func TestVariadic(t *testing.T) {
 		return sum
 	}
 	func Main() int {
-		return someFunc(10, 1, 2, 3)
+		%s
+		return someFunc(10, %s)
 	}`
-	eval(t, src, big.NewInt(4))
+	t.Run("Elements", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "1, 2, 3")
+		eval(t, src, big.NewInt(4))
+	})
+	t.Run("Slice", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "a := []int{1, 2, 3}", "a...")
+		eval(t, src, big.NewInt(4))
+	})
+	t.Run("Literal", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, "", "[]int{1, 2, 3}...")
+		eval(t, src, big.NewInt(4))
+	})
 }
 
 func TestVariadicMethod(t *testing.T) {

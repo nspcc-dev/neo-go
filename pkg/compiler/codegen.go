@@ -758,8 +758,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
-			if typ, ok := c.typeOf(n.Fun).(*types.Signature); ok && typ.Variadic() {
-				// pack variadic args into an array
+			typ, ok := c.typeOf(n.Fun).(*types.Signature)
+			if ok && typ.Variadic() && !n.Ellipsis.IsValid() {
+				// pack variadic args into an array only if last argument is not of form `...`
 				varSize := len(n.Args) - typ.Params().Len() + 1
 				c.emitReverse(varSize)
 				emit.Int(c.prog.BinWriter, int64(varSize))
