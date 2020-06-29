@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -180,7 +181,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
-	require.Equal(t, util.Fixed8FromInt64(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.Equal(t, int64(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
 	// Move some NEO to one simple account.
 	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
@@ -210,7 +211,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveGas: %s", txMoveGas.Hash().StringLE())
 
-	require.True(t, util.Fixed8FromInt64(1000).CompareTo(bc.GetUtilityTokenBalance(priv0ScriptHash)) <= 0)
+	require.True(t, bc.GetUtilityTokenBalance(priv0ScriptHash) >= 1000*native.GASFactor)
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()
@@ -241,8 +242,7 @@ func TestCreateBasicChain(t *testing.T) {
 	emit.Syscall(script.BinWriter, "System.Contract.Create")
 	txScript := script.Bytes()
 
-	invFee := util.Fixed8FromFloat(100)
-	txDeploy := transaction.New(testchain.Network(), txScript, invFee)
+	txDeploy := transaction.New(testchain.Network(), txScript, 100*native.GASFactor)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
 	txDeploy.Sender = priv0ScriptHash
@@ -407,9 +407,9 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
 		netFee, sizeDelta := CalculateNetworkFee(rawScript)
-		tx.NetworkFee = tx.NetworkFee.Add(netFee)
+		tx.NetworkFee += netFee
 		size += sizeDelta
-		tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(bc.FeePerByte())))
+		tx.NetworkFee += int64(size) * bc.FeePerByte()
 		data := tx.GetSignedPart()
 		tx.Scripts = []transaction.Witness{{
 			InvocationScript:   testchain.Sign(data),
@@ -432,6 +432,6 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 			size += sizeDelta
 		}
 	}
-	tx.NetworkFee += util.Fixed8(int64(size) * int64(bc.FeePerByte()))
+	tx.NetworkFee += int64(size) * bc.FeePerByte()
 	return nil
 }

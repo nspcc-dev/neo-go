@@ -741,7 +741,7 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 		return 0, response.NewRPCError(errBlock.Error(), "", nil)
 	}
 
-	var blockSysFee util.Fixed8
+	var blockSysFee int64
 	for _, tx := range block.Transactions {
 		blockSysFee += tx.SystemFee
 	}
@@ -786,8 +786,8 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	if neo == 0 {
 		return "0", nil
 	}
-	gas := s.chain.CalculateClaimable(int64(neo), neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
-	return strconv.FormatInt(int64(gas), 10), nil                                     // It's not represented as Fixed8 in C#.
+	gas := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
+	return strconv.FormatInt(gas, 10), nil
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.
@@ -862,12 +862,12 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 // result.
 func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *result.Invoke {
 	vm := s.chain.GetTestVM(tx)
-	vm.GasLimit = s.config.MaxGasInvoke
+	vm.GasLimit = int64(s.config.MaxGasInvoke)
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	_ = vm.Run()
 	result := &result.Invoke{
 		State:       vm.State(),
-		GasConsumed: vm.GasConsumed().String(),
+		GasConsumed: vm.GasConsumed(),
 		Script:      hex.EncodeToString(script),
 		Stack:       vm.Estack().ToContractParameters(),
 	}

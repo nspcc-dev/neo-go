@@ -17,6 +17,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
+// ecdsaVerifyInteropPrice returns the price of Neo.Crypto.ECDsaVerify
+// syscall to calculate NetworkFee for transaction
+const ecdsaVerifyInteropPrice = 100000
+
 var (
 	// governingTokenTX represents transaction that is used to create
 	// governing (NEO) token. It's a part of the genesis block.
@@ -26,10 +30,6 @@ var (
 	// utility (GAS) token. It's a part of the genesis block. It's mostly
 	// useful for its hash that represents GAS asset ID.
 	utilityTokenTX transaction.Transaction
-
-	// ecdsaVerifyInteropPrice returns the price of Neo.Crypto.ECDsaVerify
-	// syscall to calculate NetworkFee for transaction
-	ecdsaVerifyInteropPrice = util.Fixed8(100000)
 )
 
 // createGenesisBlock creates a genesis block based on the given configuration.
@@ -131,31 +131,31 @@ func headerSliceReverse(dest []*block.Header) {
 }
 
 // CalculateNetworkFee returns network fee for transaction
-func CalculateNetworkFee(script []byte) (util.Fixed8, int) {
+func CalculateNetworkFee(script []byte) (int64, int) {
 	var (
-		netFee util.Fixed8
+		netFee int64
 		size   int
 	)
 	if vm.IsSignatureContract(script) {
 		size += 67 + io.GetVarSize(script)
-		netFee = netFee.Add(opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL).Add(ecdsaVerifyInteropPrice))
+		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL) + ecdsaVerifyInteropPrice
 	} else if n, pubs, ok := vm.ParseMultiSigContract(script); ok {
 		m := len(pubs)
 		sizeInv := 66 * m
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
-		netFee = netFee.Add(calculateMultisigFee(m)).Add(calculateMultisigFee(n))
-		netFee = netFee.Add(opcodePrice(opcode.PUSHNULL)).Add(util.Fixed8(int64(ecdsaVerifyInteropPrice) * int64(n)))
+		netFee += calculateMultisigFee(m) + calculateMultisigFee(n)
+		netFee += opcodePrice(opcode.PUSHNULL) + ecdsaVerifyInteropPrice*int64(n)
 	} else {
 		// We can support more contract types in the future.
 	}
 	return netFee, size
 }
 
-func calculateMultisigFee(n int) util.Fixed8 {
-	result := util.Fixed8(int64(opcodePrice(opcode.PUSHDATA1)) * int64(n))
+func calculateMultisigFee(n int) int64 {
+	result := opcodePrice(opcode.PUSHDATA1) * int64(n)
 	bw := io.NewBufBinWriter()
 	emit.Int(bw.BinWriter, int64(n))
 	// it's a hack because prices of small PUSH* opcodes are equal
-	result = result.Add(opcodePrice(opcode.Opcode(bw.Bytes()[0])))
+	result += opcodePrice(opcode.Opcode(bw.Bytes()[0]))
 	return result
 }

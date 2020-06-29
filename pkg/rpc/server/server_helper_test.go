@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
@@ -85,10 +86,10 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *http
 
 type FeerStub struct{}
 
-func (fs *FeerStub) FeePerByte() util.Fixed8 {
+func (fs *FeerStub) FeePerByte() int64 {
 	return 0
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) util.Fixed8 {
-	return util.Fixed8FromInt64(1000000)
+func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) int64 {
+	return 1000000 * native.GASFactor
 }

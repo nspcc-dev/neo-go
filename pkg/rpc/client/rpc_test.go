@@ -41,13 +41,13 @@ const hexB1 = "000000008aaab19c43c4ca2870c3e616b123f1b689866f44b138ae4d6a5352e54
 
 const hexTxMoveNeo = "0002000000abec5362f11e75b6e02e407bb98d63675d14384100000000000000003e5f0d0000000000b00400000001abec5362f11e75b6e02e407bb98d63675d14384101590218ddf5050c14316e851039019d39dfc2c37d6c3fee19fd5809870c14abec5362f11e75b6e02e407bb98d63675d14384113c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801fd08010c40ae6fc04fe4b6c22218ca9617c98d607d9ec9b1faf8cfdc3391bec485ae76b11adc6cc6abeb31a50b536ea8073e674d62a5566fce5e0a0ceb0718cb971c1ae3d00c40603071b725a58d052cad7afd88e99b27baab931afd5bb50d16e224335aab450170aabe251d3c0c6ad3f31dd7e9b89b209baabe5a1e2fa588bd8118f9e2a6960f0c40d72afcf39e663dba2d70fb8c36a09d1a6a6ad0d2fd38c857a8e7dc71e2b98711324e0d2ec641fe6896ba63ba80d3ea341c1aad11e082fb188ee07e215b4031b10c409afb2808b60286a56343b7ffcef28bb2ab0c595603e7323b5e5b0b9c1c10edfa5c40754d921865cb6fd71668a206b37a1eb10c0029a9fcd3a856aed07742cd3f94130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
 
-const b1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"size":1681,"nextblockhash":"0x45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d","confirmations":6,"hash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","version":0,"previousblockhash":"0x56fd4244e552536a4dae38b1446f8689b6f123b116e6c37028cac4439cb1aa8a","merkleroot":"0xf9dce467385206ad220a8b85d238f77239766eaffffed19955e3e47d24071140","time":1592472500001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DEAPAetjcaE1Un3bIFoNrh9p0tMkg3zOEovq2QMwkYg/nOIebXWaQPaQdGWSsCHTl/CI47e0F/zvc80b/cKAB2lSDECE965dn1igmqVu6y8oJ0SlmoLRfjvg6xx/VObo33liDiYIGRusVygKg22y7Cp3bQfkPxa8dsR9NIsPzQnVbHwyDEArlbTjnsNRYqZAeV/yI+kt7JU5CgcutFf2pDIwUvgHMVF+DfAp5KRXIE93f1JhxqSojUbUw6vexjWm7tWA1sd/DEC5c1dFsd15WiWMMdjm+ofVz8Lps6SJDWENM7z4M7ZMWLDFzqF/OnEo8QZe0ZPmNpcVkPGT8ovdHu67vB/m587l","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"consensus_data":{"primary":0,"nonce":"0000000000000457"},"tx":[{"hash":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]},{"hash":"0xb661d5e4d9e41c3059b068f8abb6f1566a47ec800879e34c0ebd2799781a2760","size":579,"version":0,"nonce":3,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0088035","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"AwDodkgXAAAADBQxboUQOQGdOd/Cw31sP+4Z/VgJhwwUq+xTYvEedbbgLkB7uY1jZ10UOEETwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4","scripts":[{"invocation":"DECHEOe12Kxs2NCdb7Nb8tzOX1+zhZXdttBKVwvJJbwsVac83188taH+sKzE8myLvKbEPfO0qYuMPCyAnC8JbrJaDEDBhsECy/cjE/2U31B3/Fu+/NMiJ+0hWaR6RllId/o58zDYIjtFqiSv8AW+u1skJ6UMjE3oYY59ewDXPYNsRJQuDECiQ7W1Zb1LwvC7ES92JPazUUwSQTxalSMIGfrOP3YPA/y5axiPmAOKPyUWhrU6iNaXRPTkqYXmKXADqAzbFp6ADEBKlR5hrJnV7jGDHREXVK23EbSpBgqVJP44OpB3GEPNsJY4JnQCeofyoVqDvXfesrKrH+iz3m5UYpPvPfmxEp4o","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}]}}`
+const b1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"size":1681,"nextblockhash":"0x45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d","confirmations":6,"hash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","version":0,"previousblockhash":"0x56fd4244e552536a4dae38b1446f8689b6f123b116e6c37028cac4439cb1aa8a","merkleroot":"0xf9dce467385206ad220a8b85d238f77239766eaffffed19955e3e47d24071140","time":1592472500001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DEAPAetjcaE1Un3bIFoNrh9p0tMkg3zOEovq2QMwkYg/nOIebXWaQPaQdGWSsCHTl/CI47e0F/zvc80b/cKAB2lSDECE965dn1igmqVu6y8oJ0SlmoLRfjvg6xx/VObo33liDiYIGRusVygKg22y7Cp3bQfkPxa8dsR9NIsPzQnVbHwyDEArlbTjnsNRYqZAeV/yI+kt7JU5CgcutFf2pDIwUvgHMVF+DfAp5KRXIE93f1JhxqSojUbUw6vexjWm7tWA1sd/DEC5c1dFsd15WiWMMdjm+ofVz8Lps6SJDWENM7z4M7ZMWLDFzqF/OnEo8QZe0ZPmNpcVkPGT8ovdHu67vB/m587l","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"consensus_data":{"primary":0,"nonce":"0000000000000457"},"tx":[{"hash":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"876350","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]},{"hash":"0xb661d5e4d9e41c3059b068f8abb6f1566a47ec800879e34c0ebd2799781a2760","size":579,"version":0,"nonce":3,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"880350","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"AwDodkgXAAAADBQxboUQOQGdOd/Cw31sP+4Z/VgJhwwUq+xTYvEedbbgLkB7uY1jZ10UOEETwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4","scripts":[{"invocation":"DECHEOe12Kxs2NCdb7Nb8tzOX1+zhZXdttBKVwvJJbwsVac83188taH+sKzE8myLvKbEPfO0qYuMPCyAnC8JbrJaDEDBhsECy/cjE/2U31B3/Fu+/NMiJ+0hWaR6RllId/o58zDYIjtFqiSv8AW+u1skJ6UMjE3oYY59ewDXPYNsRJQuDECiQ7W1Zb1LwvC7ES92JPazUUwSQTxalSMIGfrOP3YPA/y5axiPmAOKPyUWhrU6iNaXRPTkqYXmKXADqAzbFp6ADEBKlR5hrJnV7jGDHREXVK23EbSpBgqVJP44OpB3GEPNsJY4JnQCeofyoVqDvXfesrKrH+iz3m5UYpPvPfmxEp4o","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}]}}`
 
 const hexHeader1 = "000000008aaab19c43c4ca2870c3e616b123f1b689866f44b138ae4d6a5352e54442fd56401107247de4e35599d1feffaf6e763972f738d2858b0a22ad06523867e4dcf921f7c1c67201000001000000abec5362f11e75b6e02e407bb98d63675d14384101fd08010c400f01eb6371a135527ddb205a0dae1f69d2d324837cce128bead9033091883f9ce21e6d759a40f690746592b021d397f088e3b7b417fcef73cd1bfdc2800769520c4084f7ae5d9f58a09aa56eeb2f282744a59a82d17e3be0eb1c7f54e6e8df79620e2608191bac57280a836db2ec2a776d07e43f16bc76c47d348b0fcd09d56c7c320c402b95b4e39ec35162a640795ff223e92dec95390a072eb457f6a4323052f80731517e0df029e4a457204f777f5261c6a4a88d46d4c3abdec635a6eed580d6c77f0c40b9735745b1dd795a258c31d8e6fa87d5cfc2e9b3a4890d610d33bcf833b64c58b0c5cea17f3a7128f1065ed193e636971590f193f28bdd1eeebbbc1fe6e7cee594130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb00"
 
 const header1Verbose = `{"id":5,"jsonrpc":"2.0","result":{"hash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","size":518,"version":0,"previousblockhash":"0x56fd4244e552536a4dae38b1446f8689b6f123b116e6c37028cac4439cb1aa8a","merkleroot":"0xf9dce467385206ad220a8b85d238f77239766eaffffed19955e3e47d24071140","time":1592472500001,"index":1,"nextconsensus":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","witnesses":[{"invocation":"DEAPAetjcaE1Un3bIFoNrh9p0tMkg3zOEovq2QMwkYg/nOIebXWaQPaQdGWSsCHTl/CI47e0F/zvc80b/cKAB2lSDECE965dn1igmqVu6y8oJ0SlmoLRfjvg6xx/VObo33liDiYIGRusVygKg22y7Cp3bQfkPxa8dsR9NIsPzQnVbHwyDEArlbTjnsNRYqZAeV/yI+kt7JU5CgcutFf2pDIwUvgHMVF+DfAp5KRXIE93f1JhxqSojUbUw6vexjWm7tWA1sd/DEC5c1dFsd15WiWMMdjm+ofVz8Lps6SJDWENM7z4M7ZMWLDFzqF/OnEo8QZe0ZPmNpcVkPGT8ovdHu67vB/m587l","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}],"confirmations":6,"nextblockhash":"0x45f62d72e37b074ecdc9f687222b0f91ec98d6d9af4429a2caa2e076a9196b0d"}}`
 
-const txMoveNeoVerbose = `{"id":5,"jsonrpc":"2.0","result":{"blockhash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","confirmations":6,"blocktime":1592472500001,"hash":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"0.0087635","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}}`
+const txMoveNeoVerbose = `{"id":5,"jsonrpc":"2.0","result":{"blockhash":"0x4f2c5539b0213ea444608cc217c5cb191255c1858ccd051ad9a36f08df26a288","confirmations":6,"blocktime":1592472500001,"hash":"0x7fb05b593cf4b1eb2d9a283c5488ca1bfe61191b5775bafa43b8647e7b20f22c","size":575,"version":0,"nonce":2,"sender":"Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2","sys_fee":"0","net_fee":"876350","valid_until_block":1200,"attributes":[],"cosigners":[{"account":"0x4138145d67638db97b402ee0b6751ef16253ecab","scopes":"CalledByEntry"}],"script":"Ahjd9QUMFDFuhRA5AZ0538LDfWw/7hn9WAmHDBSr7FNi8R51tuAuQHu5jWNnXRQ4QRPADAh0cmFuc2ZlcgwUiXcg2M129PAKv6N8Dt2InCCP3ptBYn1bUjg=","scripts":[{"invocation":"DECub8BP5LbCIhjKlhfJjWB9nsmx+vjP3DORvsSFrnaxGtxsxqvrMaULU26oBz5nTWKlVm/OXgoM6wcYy5ccGuPQDEBgMHG3JaWNBSytev2I6ZsnuquTGv1btQ0W4iQzWqtFAXCqviUdPAxq0/Md1+m4myCbqr5aHi+liL2BGPnippYPDEDXKvzznmY9ui1w+4w2oJ0aamrQ0v04yFeo59xx4rmHETJODS7GQf5olrpjuoDT6jQcGq0R4IL7GI7gfiFbQDGxDECa+ygItgKGpWNDt//O8ouyqwxZVgPnMjteWwucHBDt+lxAdU2SGGXLb9cWaKIGs3oesQwAKan806hWrtB3Qs0/","verification":"EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFAtBMHOzuw=="}]}}`
 
 // getResultBlock1 returns data for block number 1 which is used by several tests.
 func getResultBlock1() *result.Block {
@@ -114,7 +114,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					TxHash:      txHash,
 					Trigger:     "Application",
 					VMState:     "HALT",
-					GasConsumed: "1",
+					GasConsumed: 1,
 					Stack:       []smartcontract.Parameter{{Type: smartcontract.IntegerType, Value: int64(1)}},
 					Events:      []result.NotificationEvent{},
 				}
@@ -325,7 +325,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetFeePerByte()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c0d676574466565506572427974650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"1000"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c0d676574466565506572427974650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"1000"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(1000)
 			},
@@ -337,7 +337,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetMaxTransactionsPerBlock()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c1a6765744d61785472616e73616374696f6e73506572426c6f636b0c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"512"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c1a6765744d61785472616e73616374696f6e73506572426c6f636b0c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"512"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(512)
 			},
@@ -349,7 +349,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetMaxBlockSize()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c0f6765744d6178426c6f636b53697a650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"262144"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c0f6765744d6178426c6f636b53697a650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"262144"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(262144)
 			},
@@ -361,7 +361,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBlockedAccounts()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"0.0200739","script":"10c00c12676574426c6f636b65644163636f756e74730c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Array","value":[]}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c12676574426c6f636b65644163636f756e74730c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Array","value":[]}]}}`,
 			result: func(c *Client) interface{} {
 				return native.BlockedAccounts{}
 			},
@@ -625,7 +625,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Account: util.Uint160{1, 2, 3},
 				}})
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"HALT","gas_consumed":"0.311","stack":[{"type":"ByteArray","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"HALT","gas_consumed":"31100000","stack":[{"type":"ByteArray","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
 				bytes, err := hex.DecodeString("262bec084432")
 				if err != nil {
@@ -633,7 +633,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: "0.311",
+					GasConsumed: 31100000,
 					Script:      "1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf",
 					Stack: []smartcontract.Parameter{
 						{
@@ -653,7 +653,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Account: util.Uint160{1, 2, 3},
 				}})
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"00046e616d656724058e5e1b6008847cd662728549088a9ee82191","state":"HALT","gas_consumed":"0.161","stack":[{"type":"ByteArray","value":"TkVQNSBHQVM="}],"tx":"d1011b00046e616d656724058e5e1b6008847cd662728549088a9ee82191000000000000000000000000"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"00046e616d656724058e5e1b6008847cd662728549088a9ee82191","state":"HALT","gas_consumed":"16100000","stack":[{"type":"ByteArray","value":"TkVQNSBHQVM="}],"tx":"d1011b00046e616d656724058e5e1b6008847cd662728549088a9ee82191000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
 				bytes, err := hex.DecodeString("4e45503520474153")
 				if err != nil {
@@ -661,7 +661,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: "0.161",
+					GasConsumed: 16100000,
 					Script:      "00046e616d656724058e5e1b6008847cd662728549088a9ee82191",
 					Stack: []smartcontract.Parameter{
 						{

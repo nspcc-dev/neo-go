@@ -19,13 +19,13 @@ type Blockchainer interface {
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
 	BlockHeight() uint32
-	CalculateClaimable(value int64, startHeight, endHeight uint32) util.Fixed8
+	CalculateClaimable(value int64, startHeight, endHeight uint32) int64
 	Close()
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetEnrollments() ([]state.Validator, error)
-	GetGoverningTokenBalance(acc util.Uint160) (util.Fixed8, uint32)
+	GetGoverningTokenBalance(acc util.Uint160) (int64, uint32)
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256

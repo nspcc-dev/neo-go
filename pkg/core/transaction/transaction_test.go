@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +64,7 @@ func TestDecodeEncodeInvocationTX(t *testing.T) {
 func TestNew(t *testing.T) {
 	script := []byte{0x51}
 	tx := New(netmode.UnitTestNet, script, 1)
-	assert.Equal(t, util.Fixed8(1), tx.SystemFee)
+	assert.Equal(t, int64(1), tx.SystemFee)
 	assert.Equal(t, script, tx.Script)
 	// Update hash fields to match tx2 that is gonna autoupdate them on decode.
 	_ = tx.Hash()

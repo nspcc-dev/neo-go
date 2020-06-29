@@ -8,7 +8,7 @@ import (
 // that invoke functions, scripts and generic bytecode.
 type Invoke struct {
 	State       string                    `json:"state"`
-	GasConsumed string                    `json:"gas_consumed"`
+	GasConsumed int64                     `json:"gas_consumed,string"`
 	Script      string                    `json:"script"`
 	Stack       []smartcontract.Parameter `json:"stack"`
 }

@@ -346,7 +346,7 @@ func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, 
 	if len(value) > len(si.Value) {
 		sizeInc = len(value) - len(si.Value)
 	}
-	if !v.AddGas(util.Fixed8(sizeInc) * StoragePrice) {
+	if !v.AddGas(int64(sizeInc) * StoragePrice) {
 		return errGasLimitExceeded
 	}
 	si.Value = value

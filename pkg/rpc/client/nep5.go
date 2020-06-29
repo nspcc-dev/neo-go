@@ -104,7 +104,7 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // method of a given contract (token) to move specified amount of NEP5 assets
 // (in FixedN format using contract's number of decimals) to given account and
 // returns it. The returned transaction is not signed.
-func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas util.Fixed8) (*transaction.Transaction, error) {
+func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)
@@ -136,12 +136,8 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 	if err != nil {
 		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
 	}
-	gasConsumed, err := util.Fixed8FromString(result.GasConsumed)
-	if err != nil {
-		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
-	}
-	if gasConsumed > 0 {
-		tx.SystemFee = gasConsumed
+	if result.GasConsumed > 0 {
+		tx.SystemFee = result.GasConsumed
 	}
 
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
@@ -161,7 +157,7 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 // on a given token to move specified amount of NEP5 assets (in FixedN format
 // using contract's number of decimals) to given account and sends it to the
 // network returning just a hash of it.
-func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas util.Fixed8) (util.Uint256, error) {
+func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (util.Uint256, error) {
 	tx, err := c.CreateNEP5TransferTx(acc, to, token, amount, gas)
 	if err != nil {
 		return util.Uint256{}, err

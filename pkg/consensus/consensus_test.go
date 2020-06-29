@@ -250,7 +250,7 @@ func addSender(t *testing.T, txs ...*transaction.Transaction) {
 	}
 }
 
-func signTx(t *testing.T, feePerByte util.Fixed8, txs ...*transaction.Transaction) {
+func signTx(t *testing.T, feePerByte int64, txs ...*transaction.Transaction) {
 	validators := make([]*keys.PublicKey, 4)
 	privNetKeys := make([]*keys.PrivateKey, 4)
 	for i := 0; i < 4; i++ {
@@ -262,9 +262,9 @@ func signTx(t *testing.T, feePerByte util.Fixed8, txs ...*transaction.Transactio
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
 		netFee, sizeDelta := core.CalculateNetworkFee(rawScript)
-		tx.NetworkFee = tx.NetworkFee.Add(netFee)
+		tx.NetworkFee += +netFee
 		size += sizeDelta
-		tx.NetworkFee = tx.NetworkFee.Add(util.Fixed8(int64(size) * int64(feePerByte)))
+		tx.NetworkFee += int64(size) * feePerByte
 		data := tx.GetSignedPart()
 
 		buf := io.NewBufBinWriter()

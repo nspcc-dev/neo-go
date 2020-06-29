@@ -17,7 +17,7 @@ type InteropFunc func(vm *VM) error
 // InteropFuncPrice represents an interop function with a price.
 type InteropFuncPrice struct {
 	Func  InteropFunc
-	Price int
+	Price int64
 	// AllowedTriggers is a mask representing triggers which should be allowed by an interop.
 	// 0 is interpreted as All.
 	AllowedTriggers trigger.Type

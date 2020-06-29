@@ -13,15 +13,17 @@ import (
 )
 
 type FeerStub struct {
-	feePerByte util.Fixed8
+	feePerByte int64
 }
 
-func (fs *FeerStub) FeePerByte() util.Fixed8 {
+const balance = 10000000
+
+func (fs *FeerStub) FeePerByte() int64 {
 	return fs.feePerByte
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) util.Fixed8 {
-	return util.Fixed8FromInt64(10000)
+func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) int64 {
+	return balance
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
@@ -70,10 +72,10 @@ func TestOverCapacity(t *testing.T) {
 			Usage: transaction.Hash1,
 			Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
 		})
-		tx.NetworkFee = util.Fixed8FromFloat(0.0001)
+		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
 		txcnt++
-		// size is 84, networkFee is 0.0001 => feePerByte is 0.00000119
+		// size is 84, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -84,7 +86,7 @@ func TestOverCapacity(t *testing.T) {
 		Usage: transaction.Hash1,
 		Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
 	})
-	tx.NetworkFee = util.Fixed8FromFloat(0.000001)
+	tx.NetworkFee = 100
 	tx.Nonce = txcnt
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
@@ -94,10 +96,10 @@ func TestOverCapacity(t *testing.T) {
 	// Low net fee, but higher per-byte fee is still a better combination.
 	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
-	tx.NetworkFee = util.Fixed8FromFloat(0.00007)
+	tx.NetworkFee = 7000
 	txcnt++
-	// size is 51 (no attributes), networkFee is 0.00007 (<0.0001)
-	// => feePerByte is 0.00000137 (>0.00000119)
+	// size is 51 (no attributes), networkFee is 7000 (<10000)
+	// => feePerByte is 137 (>119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -105,7 +107,7 @@ func TestOverCapacity(t *testing.T) {
 	// High priority always wins over low priority.
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-		tx.NetworkFee = util.Fixed8FromFloat(0.00008)
+		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
@@ -115,7 +117,7 @@ func TestOverCapacity(t *testing.T) {
 	// Good luck with low priority now.
 	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
-	tx.NetworkFee = util.Fixed8FromFloat(0.00007)
+	tx.NetworkFee = 7000
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -182,50 +184,50 @@ func TestMemPoolFees(t *testing.T) {
 	mp := NewMemPool(10)
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx0.NetworkFee = util.Fixed8FromInt64(11000)
+	tx0.NetworkFee = balance + 1
 	tx0.Sender = sender0
 	// insufficient funds to add transaction, but balance should be stored
 	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
 	require.Error(t, mp.Add(tx0, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: util.Fixed8FromInt64(10000),
+		balance: balance,
 		feeSum:  0,
 	}, mp.fees[sender0])
 
 	// no problems with adding another transaction with lower fee
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx1.NetworkFee = util.Fixed8FromInt64(7000)
+	tx1.NetworkFee = balance * 0.7
 	tx1.Sender = sender0
 	require.NoError(t, mp.Add(tx1, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: util.Fixed8FromInt64(10000),
-		feeSum:  util.Fixed8FromInt64(7000),
+		balance: balance,
+		feeSum:  tx1.NetworkFee,
 	}, mp.fees[sender0])
 
 	// balance shouldn't change after adding one more transaction
 	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx2.NetworkFee = util.Fixed8FromFloat(3000)
+	tx2.NetworkFee = balance * 0.3
 	tx2.Sender = sender0
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 	require.Equal(t, 2, len(mp.verifiedTxes))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: util.Fixed8FromInt64(10000),
-		feeSum:  util.Fixed8FromInt64(10000),
+		balance: balance,
+		feeSum:  balance,
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
 	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx3.NetworkFee = util.Fixed8FromFloat(0.5)
+	tx3.NetworkFee = 1
 	tx3.Sender = sender0
 	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: util.Fixed8FromInt64(10000),
-		feeSum:  util.Fixed8FromInt64(10000),
+		balance: balance,
+		feeSum:  balance,
 	}, mp.fees[sender0])
 
 	// check whether sender's fee updates correctly
@@ -237,8 +239,8 @@ func TestMemPoolFees(t *testing.T) {
 	}, &FeerStub{})
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
-		balance: util.Fixed8FromInt64(10000),
-		feeSum:  util.Fixed8FromFloat(3000),
+		balance: balance,
+		feeSum:  tx2.NetworkFee,
 	}, mp.fees[sender0])
 
 	// there should be nothing left
