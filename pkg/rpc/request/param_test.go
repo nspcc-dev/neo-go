@@ -14,7 +14,7 @@ import (
 )
 
 func TestParam_UnmarshalJSON(t *testing.T) {
-	msg := `["str1", 123, ["str2", 3], [{"type": "String", "value": "jajaja"}],
+	msg := `["str1", 123, null, ["str2", 3], [{"type": "String", "value": "jajaja"}],
                  {"primary": 1},
                  {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
@@ -35,6 +35,9 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		{
 			Type:  NumberT,
 			Value: 123,
+		},
+		{
+			Type: defaultT,
 		},
 		{
 			Type: ArrayT,

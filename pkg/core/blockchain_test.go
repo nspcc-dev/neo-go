@@ -188,6 +188,7 @@ func TestGetTransaction(t *testing.T) {
 */
 func TestGetClaimable(t *testing.T) {
 	bc := newTestChain(t)
+	defer bc.Close()
 
 	bc.generationAmount = []int{4, 3, 2, 1}
 	bc.decrementInterval = 2

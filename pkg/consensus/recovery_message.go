@@ -96,7 +96,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadU16LE()
 	p.OriginalViewNumber = r.ReadB()
 	p.Timestamp = r.ReadU32LE()
-	p.InvocationScript = r.ReadVarBytes()
+	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -112,7 +112,7 @@ func (p *commitCompact) DecodeBinary(r *io.BinReader) {
 	p.ViewNumber = r.ReadB()
 	p.ValidatorIndex = r.ReadU16LE()
 	r.ReadBytes(p.Signature[:])
-	p.InvocationScript = r.ReadVarBytes()
+	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -126,7 +126,7 @@ func (p *commitCompact) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements io.Serializable interface.
 func (p *preparationCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadU16LE()
-	p.InvocationScript = r.ReadVarBytes()
+	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -234,6 +234,7 @@ func (m *recoveryMessage) GetChangeViews(p payload.ConsensusPayload, validators 
 			newViewNumber: cv.OriginalViewNumber + 1,
 			timestamp:     cv.Timestamp,
 		})
+		c.message.ViewNumber = cv.OriginalViewNumber
 		c.SetValidatorIndex(cv.ValidatorIndex)
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
