@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -54,4 +55,30 @@ func TestMultiDeclarationLocalCompound(t *testing.T) {
 		return a[0] + b[0] + c[0]
 	}`
 	eval(t, src, big.NewInt(6))
+}
+
+func TestShadow(t *testing.T) {
+	srcTmpl := `package foo
+	func Main() int {
+		x := 1
+		y := 10
+		%s
+			x += 1  // increase old local
+			x := 30 // introduce new local
+			y += x  // make sure is means something
+		}
+		return x+y
+	}`
+
+	runCase := func(b string) func(t *testing.T) {
+		return func(t *testing.T) {
+			src := fmt.Sprintf(srcTmpl, b)
+			eval(t, src, big.NewInt(42))
+		}
+	}
+
+	t.Run("If", runCase("if true {"))
+	t.Run("For", runCase("for i := 0; i < 1; i++ {"))
+	t.Run("Range", runCase("for range []int{1} {"))
+	t.Run("Switch", runCase("switch true {\ncase false: x += 2\ncase true:"))
 }

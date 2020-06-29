@@ -499,6 +499,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.IfStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		lIf := c.newLabel()
 		lElse := c.newLabel()
 		lElseEnd := c.newLabel()
@@ -553,6 +556,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 
+			c.scope.vars.newScope()
+
 			c.setLabel(lStart)
 			last := len(cc.Body) - 1
 			for j, stmt := range cc.Body {
@@ -564,6 +569,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			emit.Jmp(c.prog.BinWriter, opcode.JMPL, switchEnd)
 			c.setLabel(lEnd)
+
+			c.scope.vars.dropScope()
 		}
 
 		c.setLabel(switchEnd)
@@ -884,6 +891,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.ForStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		fstart, label := c.generateLabel(labelStart)
 		fend := c.newNamedLabel(labelEnd, label)
 		fpost := c.newNamedLabel(labelPost, label)
@@ -926,6 +936,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
