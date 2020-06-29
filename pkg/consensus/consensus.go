@@ -167,6 +167,7 @@ var (
 func NewPayload(m netmode.Magic) *Payload {
 	return &Payload{
 		network: m,
+		message: new(message),
 	}
 }
 
