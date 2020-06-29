@@ -1062,8 +1062,8 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 // amount of NEO between specified blocks. The amount of NEO being passed is in
 // its natural non-divisible form (1 NEO as 1, 2 NEO as 2, no multiplication by
 // 10⁸ is neeeded as for Fixed8).
-func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uint32) util.Fixed8 {
-	var amount util.Fixed8
+func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uint32) int64 {
+	var amount int64
 	di := uint32(bc.decrementInterval)
 
 	ustart := startHeight / di
@@ -1080,15 +1080,15 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 
 		istart := startHeight % di
 		for ustart < uend {
-			amount += util.Fixed8(di-istart) * util.Fixed8(bc.generationAmount[ustart])
+			amount += int64(di-istart) * int64(bc.generationAmount[ustart])
 			ustart++
 			istart = 0
 		}
 
-		amount += util.Fixed8(iend-istart) * util.Fixed8(bc.generationAmount[ustart])
+		amount += int64(iend-istart) * int64(bc.generationAmount[ustart])
 	}
 
-	return amount * util.Fixed8(value)
+	return amount * value
 }
 
 // FeePerByte returns transaction network fee per byte.

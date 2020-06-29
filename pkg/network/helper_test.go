@@ -31,7 +31,7 @@ func (chain testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transac
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
-func (chain testChain) CalculateClaimable(int64, uint32, uint32) util.Fixed8 {
+func (chain testChain) CalculateClaimable(int64, uint32, uint32) int64 {
 	panic("TODO")
 }
 
