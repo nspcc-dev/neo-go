@@ -82,8 +82,9 @@ func runtimeLog(vm *VM) error {
 
 // runtimeNotify handles the syscall "System.Runtime.Notify" for printing and logging stuff.
 func runtimeNotify(vm *VM) error {
+	name := vm.Estack().Pop().Bytes()
 	item := vm.Estack().Pop()
-	fmt.Printf("NEO-GO-VM (notify) > %s\n", item.Value())
+	fmt.Printf("NEO-GO-VM (notify) > [%s] %s\n", string(name), item.Value())
 	return nil
 }
 

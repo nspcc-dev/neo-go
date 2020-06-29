@@ -27,6 +27,8 @@ const (
 	// MaxTraceableBlocks is the maximum number of blocks before current chain
 	// height we're able to give information about.
 	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
+	// MaxEventNameLen is the maximum length of a name for event.
+	MaxEventNameLen = 32
 )
 
 // StorageContext contains storing id and read/write flag, it's used as
@@ -244,19 +246,26 @@ func runtimeGetTrigger(ic *interop.Context, v *vm.VM) error {
 // runtimeNotify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
 func runtimeNotify(ic *interop.Context, v *vm.VM) error {
-	// It can be just about anything.
-	e := v.Estack().Pop()
-	item := e.Item()
+	name := v.Estack().Pop().Bytes()
+	if len(name) > MaxEventNameLen {
+		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
+	}
+	elem := v.Estack().Pop()
+	args := elem.Array()
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
 	// outside of the interop subsystem anyway. I'd probably fail transactions
 	// that emit such broken notifications, but that might break compatibility
 	// with testnet/mainnet, so we're replacing these with error messages.
-	_, err := stackitem.SerializeItem(item)
+	_, err := stackitem.SerializeItem(elem.Item())
 	if err != nil {
-		item = stackitem.NewByteArray([]byte(fmt.Sprintf("bad notification: %v", err)))
+		args = []stackitem.Item{stackitem.NewByteArray([]byte(fmt.Sprintf("bad notification: %v", err)))}
 	}
-	ne := state.NotificationEvent{ScriptHash: v.GetCurrentScriptHash(), Item: item}
+	ne := state.NotificationEvent{
+		ScriptHash: v.GetCurrentScriptHash(),
+		Name:       string(name),
+		Item:       stackitem.NewArray(args),
+	}
 	ic.Notifications = append(ic.Notifications, ne)
 	return nil
 }

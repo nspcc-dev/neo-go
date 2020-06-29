@@ -28,7 +28,11 @@ type NotificationEvent struct {
 // result.NotificationEvent.
 func StateEventToResultNotification(event state.NotificationEvent) NotificationEvent {
 	seen := make(map[stackitem.Item]bool)
-	item := smartcontract.ParameterFromStackItem(event.Item, seen)
+	args := stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(event.Name),
+		event.Item,
+	})
+	item := smartcontract.ParameterFromStackItem(args, seen)
 	return NotificationEvent{
 		Contract: event.ScriptHash,
 		Item:     item,

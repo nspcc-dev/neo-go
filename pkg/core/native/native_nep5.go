@@ -138,8 +138,8 @@ func addrToStackItem(u *util.Uint160) stackitem.Item {
 func (c *nep5TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
 	ne := state.NotificationEvent{
 		ScriptHash: c.Hash,
+		Name:       "Transfer",
 		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.NewByteArray([]byte("Transfer")),
 			addrToStackItem(from),
 			addrToStackItem(to),
 			stackitem.NewBigInteger(amount),

@@ -17,12 +17,12 @@ func CheckWitness(hashOrKey []byte) bool {
 func Log(message string) {}
 
 // Notify sends a notification (collecting all arguments in an array) to the
-// executing environment. Unlike Log it can accept any data and resulting
-// notification is saved in application log. It's intended to be used as a
+// executing environment. Unlike Log it can accept any data along with the event name
+// and resulting notification is saved in application log. It's intended to be used as a
 // part of contract's API to external systems, these events can be monitored
 // from outside and act upon accordingly. This function uses
 // `System.Runtime.Notify` syscall.
-func Notify(arg ...interface{}) {}
+func Notify(name string, arg ...interface{}) {}
 
 // GetTime returns the timestamp of the most recent block. Note that when running
 // script in test mode this would be the last accepted (persisted) block in the
