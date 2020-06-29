@@ -55,6 +55,13 @@ func (keys PublicKeys) Contains(pKey *PublicKey) bool {
 	return false
 }
 
+// Copy returns copy of keys.
+func (keys PublicKeys) Copy() PublicKeys {
+	res := make(PublicKeys, len(keys))
+	copy(res, keys)
+	return res
+}
+
 // Unique returns set of public keys.
 func (keys PublicKeys) Unique() PublicKeys {
 	unique := PublicKeys{}

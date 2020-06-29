@@ -1243,9 +1243,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 
 //GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
-	res := make(keys.PublicKeys, len(bc.sbValidators))
-	copy(res, bc.sbValidators)
-	return res
+	return bc.sbValidators.Copy()
 }
 
 // GetValidators returns next block validators.

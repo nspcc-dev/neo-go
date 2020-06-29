@@ -70,8 +70,7 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	tx := getContractTx()
 	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 	privs, pubs := getPrivateKeys(t, 4)
-	pubsCopy := make(keys.PublicKeys, len(pubs))
-	copy(pubsCopy, pubs)
+	pubsCopy := keys.PublicKeys(pubs).Copy()
 	script, err := smartcontract.CreateMultiSigRedeemScript(3, pubsCopy)
 	require.NoError(t, err)
 
