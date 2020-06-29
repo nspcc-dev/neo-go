@@ -77,6 +77,7 @@ func NewNEO() *NEO {
 	nep5.ContractID = neoContractID
 
 	n.nep5TokenNative = *nep5
+	n.validators.Store(keys.PublicKeys(nil))
 
 	onp := n.Methods["onPersist"]
 	onp.Func = getOnPersistWrapper(n.onPersist)
@@ -333,7 +334,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 			return err
 		}
 	}
-	n.validators.Store(nil)
+	n.validators.Store(keys.PublicKeys(nil))
 	return nil
 }
 
@@ -386,8 +387,8 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 
 // GetValidatorsInternal returns a list of current validators.
 func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
-	if vals := n.validators.Load(); vals != nil {
-		return vals.(keys.PublicKeys), nil
+	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
+		return vals, nil
 	}
 	standByValidators := bc.GetStandByValidators()
 	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
