@@ -890,6 +890,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.BlockStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
+		for i := range n.List {
+			ast.Walk(c, n.List[i])
+		}
+
+		return nil
+
 	case *ast.ForStmt:
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()

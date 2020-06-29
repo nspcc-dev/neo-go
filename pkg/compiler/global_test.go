@@ -81,4 +81,5 @@ func TestShadow(t *testing.T) {
 	t.Run("For", runCase("for i := 0; i < 1; i++ {"))
 	t.Run("Range", runCase("for range []int{1} {"))
 	t.Run("Switch", runCase("switch true {\ncase false: x += 2\ncase true:"))
+	t.Run("Block", runCase("{"))
 }
