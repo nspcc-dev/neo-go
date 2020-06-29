@@ -256,11 +256,11 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 // OnPayload handles Payload receive.
 func (s *service) OnPayload(cp *Payload) {
 	log := s.log.With(zap.Stringer("hash", cp.Hash()))
-	if !s.validatePayload(cp) {
-		log.Debug("can't validate payload")
-		return
-	} else if s.cache.Has(cp.Hash()) {
+	if s.cache.Has(cp.Hash()) {
 		log.Debug("payload is already in cache")
+		return
+	} else if !s.validatePayload(cp) {
+		log.Debug("can't validate payload")
 		return
 	}
 
