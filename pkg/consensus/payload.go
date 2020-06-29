@@ -171,7 +171,7 @@ func (p *Payload) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteU32LE(p.height)
 	w.WriteU16LE(p.validatorIndex)
 
-	if p.message != nil {
+	if p.data == nil {
 		ww := io.NewBufBinWriter()
 		p.message.EncodeBinary(ww.BinWriter)
 		p.data = ww.Bytes()
