@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -216,7 +215,7 @@ func newTestService(t *testing.T) *service {
 		Broadcast: func(*Payload) {},
 		Chain:     newTestChain(t),
 		RequestTx: func(...util.Uint256) {},
-		Wallet: &wallet.Config{
+		Wallet: &config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
 		},

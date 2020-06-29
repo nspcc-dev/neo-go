@@ -16,12 +16,12 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -73,14 +73,14 @@ func NewCommands() []cli.Command {
 	testInvokeScriptFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:  "in, i",
-			Usage: "Input location of the avm file that needs to be invoked",
+			Usage: "Input location of the .nef file that needs to be invoked",
 		},
 	}
 	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
 	deployFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:  "in, i",
-			Usage: "Input file for the smart contract (*.avm)",
+			Usage: "Input file for the smart contract (*.nef)",
 		},
 		cli.StringFlag{
 			Name:  "config, c",
@@ -103,7 +103,7 @@ func NewCommands() []cli.Command {
 		Subcommands: []cli.Command{
 			{
 				Name:   "compile",
-				Usage:  "compile a smart contract to a .avm file",
+				Usage:  "compile a smart contract to a .nef file",
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -123,8 +123,8 @@ func NewCommands() []cli.Command {
 						Usage: "Emit debug info in a separate file",
 					},
 					cli.StringFlag{
-						Name:  "abi, a",
-						Usage: "Emit application binary interface (.abi.json) file into separate file using configuration input file (*.yml)",
+						Name:  "manifest, m",
+						Usage: "Emit contract manifest (*.manifest.json) file into separate file using configuration input file (*.yml)",
 					},
 					cli.StringFlag{
 						Name:  "config, c",
@@ -134,7 +134,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:  "deploy",
-				Usage: "deploy a smart contract (.avm with description)",
+				Usage: "deploy a smart contract (.nef with description)",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. It may also
    be required to add that to satisfy chain's policy regarding transaction size
@@ -254,9 +254,9 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "testinvokescript",
-				Usage:     "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
-				UsageText: "neo-go contract testinvokescript -r endpoint -i input.avm [cosigners...]",
-				Description: `Executes given compiled AVM instructions with the given set of
+				Usage:     "Invoke compiled AVM code in NEF format on the blockchain (test mode, not creating a transaction for it)",
+				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [cosigners...]",
+				Description: `Executes given compiled AVM instructions in NEF format with the given set of
    cosigners. See testinvokefunction documentation for the details about parameters.
 `,
 				Action: testInvokeScript,
@@ -288,7 +288,7 @@ func NewCommands() []cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "in, i",
-						Usage: "input file of the program",
+						Usage: "input file of the program (either .go or .nef)",
 					},
 				},
 			},
@@ -349,17 +349,17 @@ func contractCompile(ctx *cli.Context) error {
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	abi := ctx.String("abi")
+	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
-	if len(abi) != 0 && len(confFile) == 0 {
+	if len(manifestFile) != 0 && len(confFile) == 0 {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo: ctx.String("debug"),
-		ABIInfo:   abi,
+		DebugInfo:    ctx.String("debug"),
+		ManifestFile: manifestFile,
 	}
 
 	if len(confFile) != 0 {
@@ -492,6 +492,10 @@ func testInvokeScript(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	nefFile, err := nef.FileFromBytes(b)
+	if err != nil {
+		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+	}
 
 	args := ctx.Args()
 	var cosigners []transaction.Cosigner
@@ -513,7 +517,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return err
 	}
 
-	scriptHex := hex.EncodeToString(b)
+	scriptHex := hex.EncodeToString(nefFile.Script)
 	resp, err := c.InvokeScript(scriptHex, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -551,11 +555,10 @@ func (p *ProjectConfig) GetFeatures() smartcontract.PropertyState {
 }
 
 // ToManifest converts project config to the manifest.
-func (p *ProjectConfig) ToManifest(script []byte) *manifest.Manifest {
-	h := hash.Hash160(script)
-	m := manifest.NewManifest(h)
+func (p *ProjectConfig) ToManifest(file nef.File) *manifest.Manifest {
+	m := manifest.NewManifest(file.Header.ScriptHash)
 	m.Features = p.GetFeatures()
-	m.ABI.Hash = h
+	m.ABI.Hash = file.Header.ScriptHash
 	m.ABI.EntryPoint = p.EntryPoint
 	m.ABI.Methods = p.Methods
 	m.ABI.Events = p.Events
@@ -577,6 +580,12 @@ func inspect(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
 		}
+	} else {
+		nefFile, err := nef.FileFromBytes(b)
+		if err != nil {
+			return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+		}
+		b = nefFile.Script
 	}
 	v := vm.New()
 	v.LoadScript(b)
@@ -638,9 +647,13 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	avm, err := ioutil.ReadFile(in)
+	f, err := ioutil.ReadFile(in)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	nefFile, err := nef.FileFromBytes(f)
+	if err != nil {
+		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
 	}
 	conf, err := parseContractConfig(confFile)
 	if err != nil {
@@ -655,8 +668,8 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	m := conf.ToManifest(avm)
-	txScript, sysfee, err := request.CreateDeploymentScript(avm, m)
+	m := conf.ToManifest(nefFile)
+	txScript, sysfee, err := request.CreateDeploymentScript(nefFile.Script, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
@@ -665,7 +678,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
-	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), hash.Hash160(avm).StringLE())
+	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
 	return nil
 }
 

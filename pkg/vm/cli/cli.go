@@ -67,12 +67,12 @@ var commands = []*ishell.Cmd{
 		Func:     handleXStack,
 	},
 	{
-		Name: "loadavm",
-		Help: "Load an avm script into the VM",
-		LongHelp: `Usage: loadavm <file>
+		Name: "loadnef",
+		Help: "Load a NEF-consistent script into the VM",
+		LongHelp: `Usage: loadnef <file>
 <file> is mandatory parameter, example:
-> load /path/to/script.avm`,
-		Func: handleLoadAVM,
+> loadnef /path/to/script.nef`,
+		Func: handleLoadNEF,
 	},
 	{
 		Name: "loadbase64",
@@ -87,15 +87,15 @@ var commands = []*ishell.Cmd{
 		Help: "Load a hex-encoded script string into the VM",
 		LongHelp: `Usage: loadhex <string>
 <string> is mandatory parameter, example:
-> load 0c0c48656c6c6f20776f726c6421`,
+> loadhex 0c0c48656c6c6f20776f726c6421`,
 		Func: handleLoadHex,
 	},
 	{
 		Name: "loadgo",
 		Help: "Compile and load a Go file into the VM",
-		LongHelp: `Usage: loadhex <file>
+		LongHelp: `Usage: loadgo <file>
 <file> is mandatory parameter, example:
-> load /path/to/file.go`,
+> loadgo /path/to/file.go`,
 		Func: handleLoadGo,
 	},
 	{
@@ -241,7 +241,7 @@ func handleXStack(c *ishell.Context) {
 	c.Println(v.Stack(c.Cmd.Name))
 }
 
-func handleLoadAVM(c *ishell.Context) {
+func handleLoadNEF(c *ishell.Context) {
 	v := getVMFromContext(c)
 	if len(c.Args) < 1 {
 		c.Err(errors.New("missing parameter <file>"))

@@ -12,14 +12,15 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"golang.org/x/tools/go/loader"
 )
 
-const fileExt = "avm"
+const fileExt = "nef"
 
 // Options contains all the parameters that affect the behaviour of the compiler.
 type Options struct {
-	// The extension of the output file default set to .avm
+	// The extension of the output file default set to .nef
 	Ext string
 
 	// The name of the output file.
@@ -28,8 +29,8 @@ type Options struct {
 	// The name of the output for debug info.
 	DebugInfo string
 
-	// The name of the output for application binary interface info.
-	ABIInfo string
+	// The name of the output for contract manifest file.
+	ManifestFile string
 
 	// Contract metadata.
 	ContractFeatures smartcontract.PropertyState
@@ -78,7 +79,7 @@ func CompileWithDebugInfo(r io.Reader) ([]byte, *DebugInfo, error) {
 	return CodeGen(ctx)
 }
 
-// CompileAndSave will compile and save the file to disk.
+// CompileAndSave will compile and save the file to disk in the NEF format.
 func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if !strings.HasSuffix(src, ".go") {
 		return nil, fmt.Errorf("%s is not a Go file", src)
@@ -98,10 +99,21 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to compile smart contract file: %v", err)
 	}
+	f, err := nef.NewFile(b)
+	if err != nil {
+		return nil, fmt.Errorf("error while trying to create .nef file: %v", err)
+	}
+	bytes, err := f.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("error while serializing .nef file: %v", err)
+	}
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
-	err = ioutil.WriteFile(out, b, os.ModePerm)
-	if o.DebugInfo == "" {
+	err = ioutil.WriteFile(out, bytes, os.ModePerm)
+	if err != nil {
 		return b, err
+	}
+	if o.DebugInfo == "" {
+		return b, nil
 	}
 	p, err := filepath.Abs(src)
 	if err != nil {
@@ -115,13 +127,16 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
 		return b, err
 	}
-	if o.ABIInfo == "" {
+	if o.ManifestFile == "" {
 		return b, err
 	}
-	abi := di.convertToABI(o.ContractFeatures)
-	abiData, err := json.Marshal(abi)
+	m, err := di.convertToManifest(o.ContractFeatures)
 	if err != nil {
 		return b, err
 	}
-	return b, ioutil.WriteFile(o.ABIInfo, abiData, os.ModePerm)
+	mData, err := json.Marshal(m)
+	if err != nil {
+		return b, err
+	}
+	return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
 }

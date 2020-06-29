@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -121,31 +122,84 @@ func methodStruct() struct{} { return struct{}{} }
 		require.EqualValues(t, opcode.RET, buf[index])
 	}
 
-	t.Run("convert to ABI", func(t *testing.T) {
-		actual := d.convertToABI(smartcontract.HasStorage)
-		expected := ABI{
-			Hash: hash.Hash160(buf),
-			Metadata: Metadata{
-				HasStorage:           true,
-				HasDynamicInvocation: false,
-				IsPayable:            false,
-			},
-			EntryPoint: mainIdent,
-			Functions: []Method{
-				{
-					Name: mainIdent,
-					Parameters: []DebugParam{
+	t.Run("convert to Manifest", func(t *testing.T) {
+		actual, err := d.convertToManifest(smartcontract.HasStorage)
+		require.NoError(t, err)
+		expected := &manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: hash.Hash160(buf),
+				EntryPoint: manifest.Method{
+					Name: "Main",
+					Parameters: []manifest.Parameter{
 						{
 							Name: "op",
-							Type: "String",
+							Type: smartcontract.StringType,
 						},
 					},
-					ReturnType: "Boolean",
+					ReturnType: smartcontract.BoolType,
+				},
+				Methods: []manifest.Method{
+					{
+						Name: "methodInt",
+						Parameters: []manifest.Parameter{
+							{
+								Name: "a",
+								Type: smartcontract.StringType,
+							},
+						},
+						ReturnType: smartcontract.IntegerType,
+					},
+					{
+						Name:       "methodString",
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.StringType,
+					},
+					{
+						Name:       "methodByteArray",
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ByteArrayType,
+					},
+					{
+						Name:       "methodArray",
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ArrayType,
+					},
+					{
+						Name:       "methodStruct",
+						Parameters: []manifest.Parameter{},
+						ReturnType: smartcontract.ArrayType,
+					},
+				},
+				Events: []manifest.Event{},
+			},
+			Groups:   []manifest.Group{},
+			Features: smartcontract.HasStorage,
+			Permissions: []manifest.Permission{
+				{
+					Contract: manifest.PermissionDesc{
+						Type: manifest.PermissionWildcard,
+					},
+					Methods: manifest.WildStrings{},
 				},
 			},
-			Events: []Event{},
+			Trusts: manifest.WildUint160s{
+				Value: []util.Uint160{},
+			},
+			SafeMethods: manifest.WildStrings{
+				Value: []string{},
+			},
+			Extra: nil,
 		}
-		assert.Equal(t, expected, actual)
+		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
+		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
+		require.Equal(t, expected.ABI.EntryPoint, actual.ABI.EntryPoint)
+		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
+		require.Equal(t, expected.Groups, actual.Groups)
+		require.Equal(t, expected.Features, actual.Features)
+		require.Equal(t, expected.Permissions, actual.Permissions)
+		require.Equal(t, expected.Trusts, actual.Trusts)
+		require.Equal(t, expected.SafeMethods, actual.SafeMethods)
+		require.Equal(t, expected.Extra, actual.Extra)
 	})
 }
 

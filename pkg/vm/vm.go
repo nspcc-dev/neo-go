@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -86,7 +87,7 @@ type VM struct {
 	keys map[string]*keys.PublicKey
 }
 
-// New returns a new VM object ready to load .avm bytecode scripts.
+// New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
 	return NewWithTrigger(trigger.System)
 }
@@ -248,13 +249,17 @@ func (v *VM) AddBreakPointRel(n int) {
 	v.AddBreakPoint(ctx.ip + n)
 }
 
-// LoadFile loads a program from the given path, ready to execute it.
+// LoadFile loads a program in NEF format from the given path, ready to execute it.
 func (v *VM) LoadFile(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	v.Load(b)
+	f, err := nef.FileFromBytes(b)
+	if err != nil {
+		return err
+	}
+	v.Load(f.Script)
 	return nil
 }
 
