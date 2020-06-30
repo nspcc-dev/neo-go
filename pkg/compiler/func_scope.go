@@ -31,8 +31,7 @@ type funcScope struct {
 	variables []string
 
 	// Local variables
-	locals    map[string]int
-	arguments map[string]int
+	vars varScope
 
 	// voidCalls are basically functions that return their value
 	// into nothing. The stack has their return value but there
@@ -55,8 +54,7 @@ func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		name:      name,
 		decl:      decl,
 		label:     label,
-		locals:    map[string]int{},
-		arguments: map[string]int{},
+		vars:      newVarScope(),
 		voidCalls: map[*ast.CallExpr]bool{},
 		variables: []string{},
 		i:         -1,
@@ -139,18 +137,7 @@ func (c *funcScope) stackSize() int64 {
 
 // newVariable creates a new local variable or argument in the scope of the function.
 func (c *funcScope) newVariable(t varType, name string) int {
-	var n int
-	switch t {
-	case varLocal:
-		n = len(c.locals)
-		c.locals[name] = n
-	case varArgument:
-		n = len(c.arguments)
-		c.arguments[name] = n
-	default:
-		panic("invalid type")
-	}
-	return n
+	return c.vars.newVariable(t, name)
 }
 
 // newLocal creates a new local variable into the scope of the function.

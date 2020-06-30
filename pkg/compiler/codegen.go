@@ -166,10 +166,9 @@ func (c *codegen) emitStoreStructField(i int) {
 // according to current scope.
 func (c *codegen) getVarIndex(name string) (varType, int) {
 	if c.scope != nil {
-		if i, ok := c.scope.arguments[name]; ok {
-			return varArgument, i
-		} else if i, ok := c.scope.locals[name]; ok {
-			return varLocal, i
+		vt, val := c.scope.vars.getVarIndex(name)
+		if val >= 0 {
+			return vt, val
 		}
 	}
 	if i, ok := c.globals[name]; ok {
@@ -310,6 +309,9 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 	if sizeLoc != 0 || sizeArg != 0 {
 		emit.Instruction(c.prog.BinWriter, opcode.INITSLOT, []byte{byte(sizeLoc), byte(sizeArg)})
 	}
+
+	f.vars.newScope()
+	defer f.vars.dropScope()
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
 	// The method receiver will be passed in as first argument.
@@ -497,6 +499,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.IfStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		lIf := c.newLabel()
 		lElse := c.newLabel()
 		lElseEnd := c.newLabel()
@@ -551,6 +556,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				}
 			}
 
+			c.scope.vars.newScope()
+
 			c.setLabel(lStart)
 			last := len(cc.Body) - 1
 			for j, stmt := range cc.Body {
@@ -562,6 +569,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			emit.Jmp(c.prog.BinWriter, opcode.JMPL, switchEnd)
 			c.setLabel(lEnd)
+
+			c.scope.vars.dropScope()
 		}
 
 		c.setLabel(switchEnd)
@@ -881,7 +890,20 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
+	case *ast.BlockStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
+		for i := range n.List {
+			ast.Walk(c, n.List[i])
+		}
+
+		return nil
+
 	case *ast.ForStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		fstart, label := c.generateLabel(labelStart)
 		fend := c.newNamedLabel(labelEnd, label)
 		fpost := c.newNamedLabel(labelPost, label)
@@ -924,6 +946,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
+		c.scope.vars.newScope()
+		defer c.scope.vars.dropScope()
+
 		start, label := c.generateLabel(labelStart)
 		end := c.newNamedLabel(labelEnd, label)
 		post := c.newNamedLabel(labelPost, label)
