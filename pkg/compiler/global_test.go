@@ -83,3 +83,25 @@ func TestShadow(t *testing.T) {
 	t.Run("Switch", runCase("switch true {\ncase false: x += 2\ncase true:"))
 	t.Run("Block", runCase("{"))
 }
+
+func TestArgumentLocal(t *testing.T) {
+	srcTmpl := `package foo
+	func some(a int) int {
+	    if a > 42 {
+	        a := 24
+			_ = a
+	    }
+	    return a
+	}
+	func Main() int {
+		return some(%d)
+	}`
+	t.Run("Override", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 50)
+		eval(t, src, big.NewInt(50))
+	})
+	t.Run("NoOverride", func(t *testing.T) {
+		src := fmt.Sprintf(srcTmpl, 40)
+		eval(t, src, big.NewInt(40))
+	})
+}
