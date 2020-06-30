@@ -283,7 +283,7 @@ func (s *service) OnPayload(cp *Payload) {
 	}
 
 	// decode payload data into message
-	if cp.message == nil {
+	if cp.message.payload == nil {
 		if err := cp.decodeData(); err != nil {
 			log.Debug("can't decode payload data")
 			return
