@@ -13,6 +13,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/pkg/errors"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -112,31 +113,37 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if err != nil {
 		return b, err
 	}
-	if o.DebugInfo == "" {
+	if o.DebugInfo == "" && o.ManifestFile == "" {
 		return b, nil
 	}
+
 	p, err := filepath.Abs(src)
 	if err != nil {
 		return b, err
 	}
 	di.Documents = append(di.Documents, p)
-	data, err := json.Marshal(di)
-	if err != nil {
-		return b, err
+
+	if o.DebugInfo != "" {
+		data, err := json.Marshal(di)
+		if err != nil {
+			return b, err
+		}
+		if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
+			return b, err
+		}
 	}
-	if err := ioutil.WriteFile(o.DebugInfo, data, os.ModePerm); err != nil {
-		return b, err
+
+	if o.ManifestFile != "" {
+		m, err := di.convertToManifest(o.ContractFeatures)
+		if err != nil {
+			return b, errors.Wrap(err, "failed to convert debug info to manifest")
+		}
+		mData, err := json.Marshal(m)
+		if err != nil {
+			return b, errors.Wrap(err, "failed to marshal manifest")
+		}
+		return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
 	}
-	if o.ManifestFile == "" {
-		return b, err
-	}
-	m, err := di.convertToManifest(o.ContractFeatures)
-	if err != nil {
-		return b, err
-	}
-	mData, err := json.Marshal(m)
-	if err != nil {
-		return b, err
-	}
-	return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
+
+	return b, nil
 }

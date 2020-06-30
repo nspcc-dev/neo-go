@@ -351,14 +351,15 @@ func contractCompile(ctx *cli.Context) error {
 	}
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
-	if len(manifestFile) != 0 && len(confFile) == 0 {
+	debugFile := ctx.String("debug")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo:    ctx.String("debug"),
+		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
 	}
 
