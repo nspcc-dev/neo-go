@@ -349,16 +349,16 @@ func (c *Client) GetVersion() (*result.Version, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script string, cosigners []transaction.Cosigner) (*result.Invoke, error) {
-	var p = request.NewRawParams(script)
+func (c *Client) InvokeScript(script []byte, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+	var p = request.NewRawParams(hex.EncodeToString(script))
 	return c.invokeSomething("invokescript", p, cosigners)
 }
 
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter, cosigners []transaction.Cosigner) (*result.Invoke, error) {
-	var p = request.NewRawParams(script, operation, params)
+func (c *Client) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+	var p = request.NewRawParams(contract.StringLE(), operation, params)
 	return c.invokeSomething("invokefunction", p, cosigners)
 }
 

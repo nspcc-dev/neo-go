@@ -616,7 +616,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.InvokeFunction("af7c7328eee5a275a3bcaee2bf0cf662b5e739be", "balanceOf", []smartcontract.Parameter{
+				contr, err := util.Uint160DecodeStringLE("af7c7328eee5a275a3bcaee2bf0cf662b5e739be")
+				if err != nil {
+					panic(err)
+				}
+				return c.InvokeFunction(contr, "balanceOf", []smartcontract.Parameter{
 					{
 						Type:  smartcontract.Hash160Type,
 						Value: hash,
@@ -649,7 +653,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("00046e616d656724058e5e1b6008847cd662728549088a9ee82191", []transaction.Cosigner{{
+				script, err := hex.DecodeString("00046e616d656724058e5e1b6008847cd662728549088a9ee82191")
+				if err != nil {
+					panic(err)
+				}
+				return c.InvokeScript(script, []transaction.Cosigner{{
 					Account: util.Uint160{1, 2, 3},
 				}})
 			},
@@ -952,13 +960,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "invokefunction_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeFunction("", "", []smartcontract.Parameter{}, nil)
+				return c.InvokeFunction(util.Uint160{}, "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("", nil)
+				return c.InvokeScript([]byte{}, nil)
 			},
 		},
 		{
@@ -1134,13 +1142,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "invokefunction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeFunction("", "", []smartcontract.Parameter{}, nil)
+				return c.InvokeFunction(util.Uint160{}, "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.InvokeScript("", nil)
+				return c.InvokeScript([]byte{}, nil)
 			},
 		},
 		{
