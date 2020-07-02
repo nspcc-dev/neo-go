@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -16,18 +15,17 @@ import (
 )
 
 // CreateDeploymentScript returns a script that deploys given smart contract
-// with its metadata and system fee require for this.
-func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, int64, error) {
+// with its metadata.
+func CreateDeploymentScript(avm []byte, manif *manifest.Manifest) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	rawManifest, err := manif.MarshalJSON()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	emit.Bytes(script.BinWriter, rawManifest)
 	emit.Bytes(script.BinWriter, avm)
 	emit.Syscall(script.BinWriter, "System.Contract.Create")
-	sysfee := int64(core.StoragePrice * (len(avm) + len(rawManifest)))
-	return script.Bytes(), sysfee, nil
+	return script.Bytes(), nil
 }
 
 // expandArrayIntoScript pushes all FuncParam parameters from the given array
