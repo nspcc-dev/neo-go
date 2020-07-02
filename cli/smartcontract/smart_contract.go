@@ -33,6 +33,7 @@ import (
 var (
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
 	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoManifestFile      = errors.New("no manifest file was found, specify a manifest file with the '--manifest' flag")
 	errNoMethod            = errors.New("no method specified for function invocation command")
 	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
@@ -83,8 +84,8 @@ func NewCommands() []cli.Command {
 			Usage: "Input file for the smart contract (*.nef)",
 		},
 		cli.StringFlag{
-			Name:  "config, c",
-			Usage: "configuration input file (*.yml)",
+			Name:  "manifest",
+			Usage: "Manifest input file (*.manifest.json)",
 		},
 		walletFlag,
 		addressFlag,
@@ -316,16 +317,7 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	m := ProjectConfig{
-		EntryPoint: manifest.Method{
-			Name: "Main",
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("Method", smartcontract.StringType),
-				manifest.NewParameter("Arguments", smartcontract.ArrayType),
-			},
-			ReturnType: smartcontract.ByteArrayType,
-		},
-	}
+	m := ProjectConfig{}
 	b, err := yaml.Marshal(m)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -351,14 +343,15 @@ func contractCompile(ctx *cli.Context) error {
 	}
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
-	if len(manifestFile) != 0 && len(confFile) == 0 {
+	debugFile := ctx.String("debug")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
 	o := &compiler.Options{
 		Outfile: ctx.String("out"),
 
-		DebugInfo:    ctx.String("debug"),
+		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
 	}
 
@@ -537,8 +530,6 @@ func testInvokeScript(ctx *cli.Context) error {
 type ProjectConfig struct {
 	HasStorage bool
 	IsPayable  bool
-	EntryPoint manifest.Method
-	Methods    []manifest.Method
 	Events     []manifest.Event
 }
 
@@ -552,17 +543,6 @@ func (p *ProjectConfig) GetFeatures() smartcontract.PropertyState {
 		fs |= smartcontract.HasStorage
 	}
 	return fs
-}
-
-// ToManifest converts project config to the manifest.
-func (p *ProjectConfig) ToManifest(file nef.File) *manifest.Manifest {
-	m := manifest.NewManifest(file.Header.ScriptHash)
-	m.Features = p.GetFeatures()
-	m.ABI.Hash = file.Header.ScriptHash
-	m.ABI.EntryPoint = p.EntryPoint
-	m.ABI.Methods = p.Methods
-	m.ABI.Events = p.Events
-	return m
 }
 
 func inspect(ctx *cli.Context) error {
@@ -637,9 +617,9 @@ func contractDeploy(ctx *cli.Context) error {
 	if len(in) == 0 {
 		return cli.NewExitError(errNoInput, 1)
 	}
-	confFile := ctx.String("config")
-	if len(confFile) == 0 {
-		return cli.NewExitError(errNoConfFile, 1)
+	manifestFile := ctx.String("manifest")
+	if len(manifestFile) == 0 {
+		return cli.NewExitError(errNoManifestFile, 1)
 	}
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
@@ -655,9 +635,15 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
 	}
-	conf, err := parseContractConfig(confFile)
+
+	manifestBytes, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
-		return err
+		return cli.NewExitError(errors.Wrapf(err, "failed to read manifest file"), 1)
+	}
+	m := &manifest.Manifest{}
+	err = json.Unmarshal(manifestBytes, m)
+	if err != nil {
+		return cli.NewExitError(errors.Wrapf(err, "failed to restore manifest file"), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -668,7 +654,6 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	m := conf.ToManifest(nefFile)
 	txScript, sysfee, err := request.CreateDeploymentScript(nefFile.Script, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
