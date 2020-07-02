@@ -2,8 +2,6 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -84,37 +82,6 @@ type ContractParam struct {
 // ScriptHash returns the hash of contract's script.
 func (c Contract) ScriptHash() util.Uint160 {
 	return hash.Hash160(c.Script)
-}
-
-// MarshalJSON implements json.Marshaler interface.
-func (c Contract) MarshalJSON() ([]byte, error) {
-	var cc contract
-
-	cc.Script = hex.EncodeToString(c.Script)
-	cc.Parameters = c.Parameters
-	cc.Deployed = c.Deployed
-
-	return json.Marshal(cc)
-}
-
-// UnmarshalJSON implements json.Unmarshaler interface.
-func (c *Contract) UnmarshalJSON(data []byte) error {
-	var cc contract
-
-	if err := json.Unmarshal(data, &cc); err != nil {
-		return err
-	}
-
-	script, err := hex.DecodeString(cc.Script)
-	if err != nil {
-		return err
-	}
-
-	c.Script = script
-	c.Parameters = cc.Parameters
-	c.Deployed = cc.Deployed
-
-	return nil
 }
 
 // NewAccount creates a new Account with a random generated PrivateKey.
