@@ -350,35 +350,25 @@ func (c *Client) GetVersion() (*result.Version, error) {
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script string, cosigners []transaction.Cosigner) (*result.Invoke, error) {
-	var (
-		params request.RawParams
-		resp   = &result.Invoke{}
-	)
-	if cosigners != nil {
-		params = request.NewRawParams(script, cosigners)
-	} else {
-		params = request.NewRawParams(script)
-	}
-	if err := c.performRequest("invokescript", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	var p = request.NewRawParams(script)
+	return c.invokeSomething("invokescript", p, cosigners)
 }
 
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter, cosigners []transaction.Cosigner) (*result.Invoke, error) {
-	var (
-		p    request.RawParams
-		resp = &result.Invoke{}
-	)
+	var p = request.NewRawParams(script, operation, params)
+	return c.invokeSomething("invokefunction", p, cosigners)
+}
+
+// invokeSomething is an inner wrapper for Invoke* functions
+func (c *Client) invokeSomething(method string, p request.RawParams, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+	var resp = new(result.Invoke)
 	if cosigners != nil {
-		p = request.NewRawParams(script, operation, params, cosigners)
-	} else {
-		p = request.NewRawParams(script, operation, params)
+		p.Values = append(p.Values, cosigners)
 	}
-	if err := c.performRequest("invokefunction", p, resp); err != nil {
+	if err := c.performRequest(method, p, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
