@@ -369,6 +369,18 @@ func (c *Client) invokeSomething(method string, p request.RawParams, cosigners [
 		p.Values = append(p.Values, cosigners)
 	}
 	if err := c.performRequest(method, p, resp); err != nil {
+		// Retry with old-fashioned hashes (see neo/neo-modules#260).
+		if cosigners != nil {
+			var hashes = make([]util.Uint160, len(cosigners))
+			for i := range cosigners {
+				hashes[i] = cosigners[i].Account
+			}
+			p.Values[len(p.Values)-1] = hashes
+			err = c.performRequest(method, p, resp)
+			if err == nil {
+				return resp, nil
+			}
+		}
 		return nil, err
 	}
 	return resp, nil
