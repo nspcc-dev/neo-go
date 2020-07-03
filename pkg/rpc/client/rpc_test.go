@@ -498,7 +498,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetRawTransactionVerbose(hash)
+				out, err := c.GetRawTransactionVerbose(hash)
+				if err != nil {
+					return nil, err
+				}
+				out.Transaction.FeePerByte() // set fee per byte
+				return out, nil
 			},
 			serverResponse: txMoveNeoVerbose,
 			result: func(c *Client) interface{} {

@@ -275,6 +275,7 @@ func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, err
 	if r.Err != nil {
 		return nil, r.Err
 	}
+	tx.feePerByte = tx.NetworkFee / int64(len(b))
 	return tx, nil
 }
 
