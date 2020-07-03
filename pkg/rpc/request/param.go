@@ -154,6 +154,16 @@ func (p *Param) GetUint160FromAddress() (util.Uint160, error) {
 	return address.StringToUint160(s)
 }
 
+// GetUint160FromAddressOrHex returns Uint160 value of the parameter that was
+// supplied either as raw hex or as an address.
+func (p *Param) GetUint160FromAddressOrHex() (util.Uint160, error) {
+	u, err := p.GetUint160FromHex()
+	if err == nil {
+		return u, err
+	}
+	return p.GetUint160FromAddress()
+}
+
 // GetFuncParam returns current parameter as a function call parameter.
 func (p *Param) GetFuncParam() (FuncParam, error) {
 	if p == nil {
