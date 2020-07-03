@@ -29,7 +29,7 @@ func (c *Client) GetFeePerByte() (int64, error) {
 }
 
 func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
-	result, err := c.InvokeFunction(PolicyContractHash.StringLE(), operation, []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(PolicyContractHash, operation, []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -41,7 +41,7 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 
 // GetBlockedAccounts invokes `getBlockedAccounts` method on a native Policy contract.
 func (c *Client) GetBlockedAccounts() (native.BlockedAccounts, error) {
-	result, err := c.InvokeFunction(PolicyContractHash.StringLE(), "getBlockedAccounts", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(PolicyContractHash, "getBlockedAccounts", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return nil, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {

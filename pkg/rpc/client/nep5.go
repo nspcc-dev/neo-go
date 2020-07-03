@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -25,7 +24,7 @@ var (
 
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
 func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash.StringLE(), "decimals", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -37,7 +36,7 @@ func (c *Client) NEP5Decimals(tokenHash util.Uint160) (int64, error) {
 
 // NEP5Name invokes `name` NEP5 method on a specified contract.
 func (c *Client) NEP5Name(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash.StringLE(), "name", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(tokenHash, "name", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return "", err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -49,7 +48,7 @@ func (c *Client) NEP5Name(tokenHash util.Uint160) (string, error) {
 
 // NEP5Symbol invokes `symbol` NEP5 method on a specified contract.
 func (c *Client) NEP5Symbol(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash.StringLE(), "symbol", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return "", err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -61,7 +60,7 @@ func (c *Client) NEP5Symbol(tokenHash util.Uint160) (string, error) {
 
 // NEP5TotalSupply invokes `totalSupply` NEP5 method on a specified contract.
 func (c *Client) NEP5TotalSupply(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash.StringLE(), "totalSupply", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -73,7 +72,7 @@ func (c *Client) NEP5TotalSupply(tokenHash util.Uint160) (int64, error) {
 
 // NEP5BalanceOf invokes `balanceOf` NEP5 method on a specified contract.
 func (c *Client) NEP5BalanceOf(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash.StringLE(), "balanceOf", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeFunction(tokenHash, "balanceOf", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return 0, err
 	} else if result.State != "HALT" || len(result.Stack) == 0 {
@@ -127,7 +126,7 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 		},
 	}
 
-	result, err := c.InvokeScript(hex.EncodeToString(script), []transaction.Cosigner{
+	result, err := c.InvokeScript(script, []transaction.Cosigner{
 		{
 			Account: from,
 			Scopes:  transaction.Global,

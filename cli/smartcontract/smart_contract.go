@@ -399,8 +399,10 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if !args.Present() {
 		return cli.NewExitError(errNoScriptHash, 1)
 	}
-	script := args[0]
-
+	script, err := util.Uint160DecodeStringLE(args[0])
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("incorrect script hash: %v", err), 1)
+	}
 	if len(args) <= 1 {
 		return cli.NewExitError(errNoMethod, 1)
 	}
@@ -510,8 +512,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return err
 	}
 
-	scriptHex := hex.EncodeToString(nefFile.Script)
-	resp, err := c.InvokeScript(scriptHex, cosigners)
+	resp, err := c.InvokeScript(nefFile.Script, cosigners)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -654,12 +655,17 @@ func contractDeploy(ctx *cli.Context) error {
 		return err
 	}
 
-	txScript, sysfee, err := request.CreateDeploymentScript(nefFile.Script, m)
+	txScript, err := request.CreateDeploymentScript(nefFile.Script, m)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
+	// It doesn't require any cosigners.
+	invRes, err := c.InvokeScript(txScript, nil)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %v", err), 1)
+	}
 
-	txHash, err := c.SignAndPushInvocationTx(txScript, acc, sysfee, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
