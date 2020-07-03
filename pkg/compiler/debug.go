@@ -28,6 +28,8 @@ type MethodDebugInfo struct {
 	ID string `json:"id"`
 	// Name is the name of the method together with the namespace it belongs to.
 	Name DebugMethodName `json:"name"`
+	// IsExported defines whether method is exported.
+	IsExported bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
 	// Parameters is a list of method's parameters.
@@ -136,6 +138,7 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 	return &MethodDebugInfo{
 		ID:         name,
 		Name:       DebugMethodName{Name: name},
+		IsExported: scope.decl.Name.IsExported(),
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
@@ -350,9 +353,9 @@ func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifes
 	if entryPoint.Name == "" {
 		return nil, errors.New("no Main method was found")
 	}
-	methods := make([]manifest.Method, 0, len(di.Methods)-1)
+	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name != mainIdent {
+		if method.Name.Name != mainIdent && method.IsExported {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err
