@@ -14,10 +14,7 @@ func Main(operation string, args []interface{}) bool {
 
 	// Log owner upon Verification trigger
 	if trigger == runtime.Verification() {
-		if runtime.CheckWitness(owner) {
-			runtime.Log("Verified Owner")
-		}
-		return true
+		return CheckWitness()
 	}
 
 	// Discerns between log and notify for this test
@@ -30,15 +27,33 @@ func Main(operation string, args []interface{}) bool {
 
 func handleOperation(operation string, args []interface{}) bool {
 	if operation == "log" {
-		message := args[0].(string)
-		runtime.Log(message)
-		return true
+		return Log(args)
 	}
 
 	if operation == "notify" {
-		runtime.Notify(args[0])
-		return true
+		return Notify(args)
 	}
 
 	return false
+}
+
+// CheckWitness checks owner's witness
+func CheckWitness() bool {
+	if runtime.CheckWitness(owner) {
+		runtime.Log("Verified Owner")
+	}
+	return true
+}
+
+// Log logs given message
+func Log(args []interface{}) bool {
+	message := args[0].(string)
+	runtime.Log(message)
+	return true
+}
+
+// Notify notifies about given message
+func Notify(args []interface{}) bool {
+	runtime.Notify(args[0])
+	return true
 }

@@ -2,7 +2,6 @@ package tokencontract
 
 import (
 	"github.com/nspcc-dev/neo-go/examples/token/nep5"
-
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
@@ -14,8 +13,8 @@ const (
 
 var owner = util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
 
-// CreateToken initializes the Token Interface for the Smart Contract to operate with
-func CreateToken() nep5.Token {
+// createToken initializes the Token Interface for the Smart Contract to operate with
+func createToken() nep5.Token {
 	return nep5.Token{
 		Name:           "Awesome NEO Token",
 		Symbol:         "ANT",
@@ -28,47 +27,91 @@ func CreateToken() nep5.Token {
 
 // Main function = contract entry
 func Main(operation string, args []interface{}) interface{} {
-	token := CreateToken()
-
 	if operation == "name" {
-		return token.Name
+		return Name()
 	}
 	if operation == "symbol" {
-		return token.Symbol
+		return Symbol()
 	}
 	if operation == "decimals" {
-		return token.Decimals
+		return Decimals()
 	}
-
-	// The following operations need ctx
-	ctx := storage.GetContext()
 
 	if operation == "totalSupply" {
-		return token.GetSupply(ctx)
+		return TotalSupply()
 	}
+
 	if operation == "balanceOf" {
 		hodler := args[0].([]byte)
-		return token.BalanceOf(ctx, hodler)
+		return BalanceOf(hodler)
 	}
-	if operation == "transfer" && CheckArgs(args, 3) {
+
+	if operation == "transfer" && checkArgs(args, 3) {
 		from := args[0].([]byte)
 		to := args[1].([]byte)
 		amount := args[2].(int)
-		return token.Transfer(ctx, from, to, amount)
+		return Transfer(from, to, amount)
 	}
-	if operation == "mint" && CheckArgs(args, 1) {
+
+	if operation == "mint" && checkArgs(args, 1) {
 		addr := args[0].([]byte)
-		return token.Mint(ctx, addr)
+		return Mint(addr)
 	}
 
 	return true
 }
 
-// CheckArgs checks args array against a length indicator
-func CheckArgs(args []interface{}, length int) bool {
+// checkArgs checks args array against a length indicator
+func checkArgs(args []interface{}, length int) bool {
 	if len(args) == length {
 		return true
 	}
 
 	return false
+}
+
+// Name returns the token name
+func Name() string {
+	t := createToken()
+	return t.Name
+}
+
+// Symbol returns the token symbol
+func Symbol() string {
+	t := createToken()
+	return t.Symbol
+}
+
+// Decimals returns the token decimals
+func Decimals() int {
+	t := createToken()
+	return t.Decimals
+}
+
+// TotalSupply returns the token total supply value
+func TotalSupply() interface{} {
+	t := createToken()
+	ctx := storage.GetContext()
+	return t.GetSupply(ctx)
+}
+
+// BalanceOf returns the amount of token on the specified address
+func BalanceOf(holder []byte) interface{} {
+	t := createToken()
+	ctx := storage.GetContext()
+	return t.TBalanceOf(ctx, holder)
+}
+
+// Transfer token from one user to another
+func Transfer(from []byte, to []byte, amount int) bool {
+	t := createToken()
+	ctx := storage.GetContext()
+	return t.TTransfer(ctx, from, to, amount)
+}
+
+// Mint initial supply of tokens
+func Mint(to []byte) bool {
+	t := createToken()
+	ctx := storage.GetContext()
+	return t.TMint(ctx, to)
 }
