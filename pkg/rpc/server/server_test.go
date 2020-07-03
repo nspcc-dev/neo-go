@@ -129,33 +129,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.NEP5Balances)
-				require.True(t, ok)
-				rubles, err := util.Uint160DecodeStringLE(testContractHash)
-				require.NoError(t, err)
-				expected := result.NEP5Balances{
-					Balances: []result.NEP5Balance{
-						{
-							Asset:       rubles,
-							Amount:      "8.77",
-							LastUpdated: 6,
-						},
-						{
-							Asset:       e.chain.GoverningTokenHash(),
-							Amount:      "99998000",
-							LastUpdated: 4,
-						},
-						{
-							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "915.79002700",
-							LastUpdated: 6,
-						}},
-					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
-				}
-				require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
-				require.ElementsMatch(t, expected.Balances, res.Balances)
-			},
+			check:  checkNep5Balances,
+		},
+		{
+			name:   "positive_address",
+			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
+			check:  checkNep5Balances,
 		},
 	},
 	"getnep5transfers": {
@@ -1109,4 +1089,32 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
+}
+
+func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP5Balances)
+	require.True(t, ok)
+	rubles, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	expected := result.NEP5Balances{
+		Balances: []result.NEP5Balance{
+			{
+				Asset:       rubles,
+				Amount:      "8.77",
+				LastUpdated: 6,
+			},
+			{
+				Asset:       e.chain.GoverningTokenHash(),
+				Amount:      "99998000",
+				LastUpdated: 4,
+			},
+			{
+				Asset:       e.chain.UtilityTokenHash(),
+				Amount:      "915.79002700",
+				LastUpdated: 6,
+			}},
+		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+	}
+	require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
+	require.ElementsMatch(t, expected.Balances, res.Balances)
 }
