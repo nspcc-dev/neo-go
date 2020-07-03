@@ -169,15 +169,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.NEP5Balances)
-				require.True(t, ok)
-				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
-				require.Equal(t, 1, len(res.Balances))
-				require.Equal(t, "8.77", res.Balances[0].Amount)
-				require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
-				require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
-			},
+			check:  checkNep5Balances,
+		},
+		{
+			name:   "positive_address",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
+			check:  checkNep5Balances,
 		},
 	},
 	"getnep5transfers": {
@@ -195,24 +193,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.NEP5Transfers)
-				require.True(t, ok)
-				require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
-
-				assetHash, err := util.Uint160DecodeStringLE(testContractHash)
-				require.NoError(t, err)
-
-				require.Equal(t, 1, len(res.Received))
-				require.Equal(t, "10", res.Received[0].Amount)
-				require.Equal(t, assetHash, res.Received[0].Asset)
-				require.Equal(t, address.Uint160ToString(assetHash), res.Received[0].Address)
-
-				require.Equal(t, 1, len(res.Sent))
-				require.Equal(t, "1.23", res.Sent[0].Amount)
-				require.Equal(t, assetHash, res.Sent[0].Asset)
-				require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
-			},
+			check:  checkNep5Transfers,
+		},
+		{
+			name:   "positive_hash",
+			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
+			check:  checkNep5Transfers,
 		},
 	},
 	"getproof": {
@@ -1157,4 +1144,33 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
+}
+
+func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP5Balances)
+	require.True(t, ok)
+	require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
+	require.Equal(t, 1, len(res.Balances))
+	require.Equal(t, "8.77", res.Balances[0].Amount)
+	require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
+	require.Equal(t, uint32(208), res.Balances[0].LastUpdated)
+}
+
+func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP5Transfers)
+	require.True(t, ok)
+	require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
+
+	assetHash, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(res.Received))
+	require.Equal(t, "10", res.Received[0].Amount)
+	require.Equal(t, assetHash, res.Received[0].Asset)
+	require.Equal(t, address.Uint160ToString(assetHash), res.Received[0].Address)
+
+	require.Equal(t, 1, len(res.Sent))
+	require.Equal(t, "1.23", res.Sent[0].Amount)
+	require.Equal(t, assetHash, res.Sent[0].Asset)
+	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 }

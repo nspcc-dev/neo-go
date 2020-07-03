@@ -166,6 +166,25 @@ func TestParamGetUint160FromAddress(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestParam_GetUint160FromAddressOrHex(t *testing.T) {
+	in := "AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y"
+	inHex, _ := address.StringToUint160(in)
+
+	t.Run("Address", func(t *testing.T) {
+		p := Param{StringT, in}
+		u, err := p.GetUint160FromAddressOrHex()
+		require.NoError(t, err)
+		require.Equal(t, inHex, u)
+	})
+
+	t.Run("Hex", func(t *testing.T) {
+		p := Param{StringT, inHex.StringLE()}
+		u, err := p.GetUint160FromAddressOrHex()
+		require.NoError(t, err)
+		require.Equal(t, inHex, u)
+	})
+}
+
 func TestParamGetFuncParam(t *testing.T) {
 	fp := FuncParam{
 		Type: smartcontract.StringType,
