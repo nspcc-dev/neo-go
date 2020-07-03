@@ -11,7 +11,7 @@ const (
 	multiplier = 100000000
 )
 
-var owner = util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+var owner = util.FromAddress("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 
 // createToken initializes the Token Interface for the Smart Contract to operate with
 func createToken() nep5.Token {
