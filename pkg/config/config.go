@@ -31,6 +31,11 @@ func (c Config) GenerateUserAgent() string {
 // path for the given netMode.
 func Load(path string, netMode netmode.Magic) (Config, error) {
 	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
+	return LoadFile(configPath)
+}
+
+// LoadFile loads config from the provided path.
+func LoadFile(configPath string) (Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return Config{}, errors.Wrap(err, "Unable to load config")
 	}
