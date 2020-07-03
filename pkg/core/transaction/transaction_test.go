@@ -71,6 +71,26 @@ func TestNew(t *testing.T) {
 	testserdes.EncodeDecodeBinary(t, tx, &Transaction{Network: netmode.UnitTestNet})
 }
 
+func TestNewTransactionFromBytes(t *testing.T) {
+	script := []byte{0x51}
+	tx := New(netmode.UnitTestNet, script, 1)
+	tx.NetworkFee = 123
+	data, err := testserdes.EncodeBinary(tx)
+	require.NoError(t, err)
+
+	// set cached fields
+	tx.Hash()
+	tx.FeePerByte()
+
+	tx1, err := NewTransactionFromBytes(netmode.UnitTestNet, data)
+	require.NoError(t, err)
+	require.Equal(t, tx, tx1)
+
+	data = append(data, 42)
+	_, err = NewTransactionFromBytes(netmode.UnitTestNet, data)
+	require.Error(t, err)
+}
+
 func TestEncodingTXWithNoScript(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
 	require.Error(t, err)

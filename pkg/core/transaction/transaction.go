@@ -64,6 +64,9 @@ type Transaction struct {
 	// for correct signing/verification.
 	Network netmode.Magic
 
+	// feePerByte is the ratio of NetworkFee and tx size, used for calculating tx priority.
+	feePerByte int64
+
 	// Hash of the transaction (double SHA256).
 	hash util.Uint256
 
@@ -272,13 +275,22 @@ func NewTransactionFromBytes(network netmode.Magic, b []byte) (*Transaction, err
 	if r.Err != nil {
 		return nil, r.Err
 	}
+	_ = r.ReadB()
+	if r.Err == nil {
+		return nil, errors.New("additional data after the transaction")
+	}
+	tx.feePerByte = tx.NetworkFee / int64(len(b))
 	return tx, nil
 }
 
 // FeePerByte returns NetworkFee of the transaction divided by
 // its size
 func (t *Transaction) FeePerByte() int64 {
-	return t.NetworkFee / int64(io.GetVarSize(t))
+	if t.feePerByte != 0 {
+		return t.feePerByte
+	}
+	t.feePerByte = t.NetworkFee / int64(io.GetVarSize(t))
+	return t.feePerByte
 }
 
 // transactionJSON is a wrapper for Transaction and
