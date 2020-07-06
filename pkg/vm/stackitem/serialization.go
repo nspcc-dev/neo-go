@@ -2,6 +2,7 @@ package stackitem
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -96,7 +97,7 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 	}
 
 	switch t {
-	case ByteArrayT:
+	case ByteArrayT, BufferT:
 		data := r.ReadVarBytes()
 		return NewByteArray(data)
 	case BooleanT:
@@ -132,7 +133,7 @@ func DecodeBinaryStackItem(r *io.BinReader) Item {
 	case AnyT:
 		return Null{}
 	default:
-		r.Err = errors.New("unknown type")
+		r.Err = fmt.Errorf("unknown type: %v", t)
 		return nil
 	}
 }
