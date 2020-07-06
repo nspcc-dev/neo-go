@@ -597,6 +597,7 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 					return err
 				}
 			}
+			ic.dao.MigrateNEP5Balances(hash, contract.ScriptHash())
 		}
 	}
 	v.Estack().PushVal(vm.NewInteropItem(contract))
