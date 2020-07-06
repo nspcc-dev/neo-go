@@ -427,7 +427,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		for i, c := range args[cosignersStart:] {
 			cosigner, err := parseCosigner(c)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+cosignersStart+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+1, err), 1)
 			}
 			cosigners = append(cosigners, cosigner)
 		}
@@ -460,7 +460,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas, cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
@@ -665,7 +665,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %v", err), 1)
 	}
 
-	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
@@ -692,7 +692,7 @@ func parseCosigner(c string) (transaction.Cosigner, error) {
 		err error
 		res = transaction.Cosigner{}
 	)
-	data := strings.SplitN(strings.ToLower(c), ":", 2)
+	data := strings.SplitN(c, ":", 2)
 	s := data[0]
 	if len(s) == 2*util.Uint160Size+2 && s[0:2] == "0x" {
 		s = s[2:]

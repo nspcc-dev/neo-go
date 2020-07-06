@@ -115,36 +115,29 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	tx := transaction.New(c.opts.Network, script, gas)
-	tx.Sender = from
-	tx.Cosigners = []transaction.Cosigner{
-		{
-			Account:          from,
-			Scopes:           transaction.CalledByEntry,
-			AllowedContracts: nil,
-			AllowedGroups:    nil,
-		},
-	}
-
 	result, err := c.InvokeScript(script, []transaction.Cosigner{
 		{
 			Account: from,
-			Scopes:  transaction.Global,
+			Scopes:  transaction.CalledByEntry,
 		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
 	}
-	if result.GasConsumed > 0 {
-		tx.SystemFee = result.GasConsumed
+	tx := transaction.New(c.opts.Network, script, result.GasConsumed)
+	tx.Sender = from
+	tx.Cosigners = []transaction.Cosigner{
+		{
+			Account: from,
+			Scopes:  transaction.CalledByEntry,
+		},
 	}
-
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
 		return nil, fmt.Errorf("can't calculate validUntilBlock: %v", err)
 	}
 
-	err = c.AddNetworkFee(tx, acc)
+	err = c.AddNetworkFee(tx, gas, acc)
 	if err != nil {
 		return nil, fmt.Errorf("can't add network fee to transaction: %v", err)
 	}
