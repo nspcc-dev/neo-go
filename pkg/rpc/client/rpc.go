@@ -429,12 +429,13 @@ func (c *Client) SubmitBlock(b block.Block) error {
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8, cosigners []transaction.Cosigner) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
 	tx := transaction.New(c.opts.Network, script, sysfee)
 	tx.SystemFee = sysfee
+	tx.Cosigners = cosigners
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	if err != nil {

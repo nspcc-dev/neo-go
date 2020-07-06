@@ -460,7 +460,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas, cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}
@@ -665,7 +665,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %v", err), 1)
 	}
 
-	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas)
+	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 	}
