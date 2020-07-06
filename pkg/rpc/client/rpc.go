@@ -449,7 +449,7 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	}
 	tx.Sender = addr
 
-	err = c.AddNetworkFee(tx, acc)
+	err = c.AddNetworkFee(tx, int64(netfee), acc)
 	if err != nil {
 		return txHash, errors.Wrapf(err, "failed to add network fee")
 	}
@@ -512,8 +512,9 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	return blockCount + validatorsCount, nil
 }
 
-// AddNetworkFee adds network fee for each witness script to transaction.
-func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account) error {
+// AddNetworkFee adds network fee for each witness script and optional extra
+// network fee to transaction.
+func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, acc *wallet.Account) error {
 	size := io.GetVarSize(tx)
 	if acc.Contract != nil {
 		netFee, sizeDelta := core.CalculateNetworkFee(acc.Contract.Script)
@@ -540,6 +541,6 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, acc *wallet.Account)
 	if err != nil {
 		return err
 	}
-	tx.NetworkFee += int64(size) * fee
+	tx.NetworkFee += int64(size)*fee + extraFee
 	return nil
 }
