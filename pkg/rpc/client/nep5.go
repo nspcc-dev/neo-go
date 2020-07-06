@@ -118,7 +118,7 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 	result, err := c.InvokeScript(script, []transaction.Cosigner{
 		{
 			Account: from,
-			Scopes:  transaction.Global,
+			Scopes:  transaction.CalledByEntry,
 		},
 	})
 	if err != nil {
