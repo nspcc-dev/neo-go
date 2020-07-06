@@ -488,7 +488,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 
 	appExecResult, err := s.chain.GetAppExecResult(txHash)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction", "", nil)
+		return nil, response.NewRPCError("Unknown transaction", "", err)
 	}
 
 	return result.NewApplicationLog(appExecResult), nil
