@@ -39,8 +39,8 @@ func (t Token) GetSupply(ctx storage.Context) interface{} {
 }
 
 // BalanceOf gets the token balance of a specific address
-func (t Token) BalanceOf(ctx storage.Context, hodler []byte) interface{} {
-	return getIntFromDB(ctx, hodler)
+func (t Token) BalanceOf(ctx storage.Context, holder []byte) interface{} {
+	return getIntFromDB(ctx, holder)
 }
 
 // Transfer token from one user to another
