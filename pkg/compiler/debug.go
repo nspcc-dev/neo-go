@@ -269,7 +269,7 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 	if err != nil {
 		return result, err
 	}
-	result.Name = m.Name.Name
+	result.Name = strings.ToLower(string(m.Name.Name[0])) + m.Name.Name[1:]
 	result.Parameters = parameters
 	result.ReturnType = returnType
 	return result, nil

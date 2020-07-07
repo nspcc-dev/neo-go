@@ -133,7 +133,7 @@ func unexportedMethod() int { return 1 }
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(buf),
 				EntryPoint: manifest.Method{
-					Name: "Main",
+					Name: "main",
 					Parameters: []manifest.Parameter{
 						{
 							Name: "op",
@@ -144,7 +144,7 @@ func unexportedMethod() int { return 1 }
 				},
 				Methods: []manifest.Method{
 					{
-						Name: "MethodInt",
+						Name: "methodInt",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -154,27 +154,27 @@ func unexportedMethod() int { return 1 }
 						ReturnType: smartcontract.IntegerType,
 					},
 					{
-						Name:       "MethodString",
+						Name:       "methodString",
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 					},
 					{
-						Name:       "MethodByteArray",
+						Name:       "methodByteArray",
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
-						Name:       "MethodArray",
+						Name:       "methodArray",
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name:       "MethodStruct",
+						Name:       "methodStruct",
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name: "MethodConcat",
+						Name: "methodConcat",
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
