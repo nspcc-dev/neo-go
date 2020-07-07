@@ -18,27 +18,30 @@ func TestCodeGen_DebugInfo(t *testing.T) {
 func Main(op string) bool {
 	var s string
 	_ = s
-	res := methodInt(op)
-	_ = methodString()	
-	_ = methodByteArray()
-	_ = methodArray()
-	_ = methodStruct()
+	res := MethodInt(op)
+	_ = MethodString()
+	_ = MethodByteArray()
+	_ = MethodArray()
+	_ = MethodStruct()
+	_ = MethodConcat("a", "b", "c")
+	_ = unexportedMethod()
 	return res == 42
 }
 
-func methodInt(a string) int {
+func MethodInt(a string) int {
 	if a == "get42" {
 		return 42
 	}
 	return 3
 }
-func methodConcat(a, b string, c string) string{
+func MethodConcat(a, b string, c string) string{
 	return a + b + c
 }
-func methodString() string { return "" }
-func methodByteArray() []byte { return nil }
-func methodArray() []bool { return nil }
-func methodStruct() struct{} { return struct{}{} }
+func MethodString() string { return "" }
+func MethodByteArray() []byte { return nil }
+func MethodArray() []bool { return nil }
+func MethodStruct() struct{} { return struct{}{} }
+func unexportedMethod() int { return 1 }
 `
 
 	info, err := getBuildInfo(src)
@@ -58,11 +61,12 @@ func methodStruct() struct{} { return struct{}{} }
 
 	t.Run("return types", func(t *testing.T) {
 		returnTypes := map[string]string{
-			"methodInt":    "Integer",
-			"methodConcat": "String",
-			"methodString": "String", "methodByteArray": "ByteArray",
-			"methodArray": "Array", "methodStruct": "Struct",
-			"Main": "Boolean",
+			"MethodInt":    "Integer",
+			"MethodConcat": "String",
+			"MethodString": "String", "MethodByteArray": "ByteArray",
+			"MethodArray": "Array", "MethodStruct": "Struct",
+			"Main":             "Boolean",
+			"unexportedMethod": "Integer",
 		}
 		for i := range d.Methods {
 			name := d.Methods[i].Name.Name
@@ -84,11 +88,11 @@ func methodStruct() struct{} { return struct{}{} }
 
 	t.Run("param types", func(t *testing.T) {
 		paramTypes := map[string][]DebugParam{
-			"methodInt": {{
+			"MethodInt": {{
 				Name: "a",
 				Type: "String",
 			}},
-			"methodConcat": {
+			"MethodConcat": {
 				{
 					Name: "a",
 					Type: "String",
@@ -129,7 +133,7 @@ func methodStruct() struct{} { return struct{}{} }
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(buf),
 				EntryPoint: manifest.Method{
-					Name: "Main",
+					Name: "main",
 					Parameters: []manifest.Parameter{
 						{
 							Name: "op",
@@ -168,6 +172,24 @@ func methodStruct() struct{} { return struct{}{} }
 						Name:       "methodStruct",
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
+					},
+					{
+						Name: "methodConcat",
+						Parameters: []manifest.Parameter{
+							{
+								Name: "a",
+								Type: smartcontract.StringType,
+							},
+							{
+								Name: "b",
+								Type: smartcontract.StringType,
+							},
+							{
+								Name: "c",
+								Type: smartcontract.StringType,
+							},
+						},
+						ReturnType: smartcontract.StringType,
 					},
 				},
 				Events: []manifest.Event{},

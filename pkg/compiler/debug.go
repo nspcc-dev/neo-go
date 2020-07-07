@@ -28,6 +28,8 @@ type MethodDebugInfo struct {
 	ID string `json:"id"`
 	// Name is the name of the method together with the namespace it belongs to.
 	Name DebugMethodName `json:"name"`
+	// IsExported defines whether method is exported.
+	IsExported bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
 	// Parameters is a list of method's parameters.
@@ -134,8 +136,12 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 		}
 	}
 	return &MethodDebugInfo{
-		ID:         name,
-		Name:       DebugMethodName{Name: name},
+		ID: name,
+		Name: DebugMethodName{
+			Name:      name,
+			Namespace: scope.pkg.Name(),
+		},
+		IsExported: scope.decl.Name.IsExported(),
 		Range:      scope.rng,
 		Parameters: params,
 		ReturnType: c.scReturnTypeFromScope(scope),
@@ -263,7 +269,7 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 	if err != nil {
 		return result, err
 	}
-	result.Name = m.Name.Name
+	result.Name = strings.ToLower(string(m.Name.Name[0])) + m.Name.Name[1:]
 	result.Parameters = parameters
 	result.ReturnType = returnType
 	return result, nil
@@ -335,8 +341,9 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
 func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
 	var (
-		entryPoint manifest.Method
-		err        error
+		entryPoint    manifest.Method
+		mainNamespace string
+		err           error
 	)
 	for _, method := range di.Methods {
 		if method.Name.Name == mainIdent {
@@ -344,15 +351,16 @@ func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifes
 			if err != nil {
 				return nil, err
 			}
+			mainNamespace = method.Name.Namespace
 			break
 		}
 	}
 	if entryPoint.Name == "" {
 		return nil, errors.New("no Main method was found")
 	}
-	methods := make([]manifest.Method, 0, len(di.Methods)-1)
+	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name != mainIdent {
+		if method.Name.Name != mainIdent && method.IsExported && method.Name.Namespace == mainNamespace {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err
