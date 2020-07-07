@@ -1173,7 +1173,13 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 
 	switch name {
 	case "len":
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 1 + 2})
 		emit.Opcode(c.prog.BinWriter, opcode.SIZE)
+		emit.Instruction(c.prog.BinWriter, opcode.JMP, []byte{2 + 1 + 1})
+		emit.Opcode(c.prog.BinWriter, opcode.DROP)
+		emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
@@ -1515,7 +1521,8 @@ func (c *codegen) writeJumps(b []byte) error {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
-			panic("short jumps are not yet supported")
+			// Noop, assumed to be correct already. If you're fixing #905,
+			// make sure not to break "len" handling above.
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,

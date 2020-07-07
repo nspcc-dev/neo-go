@@ -187,3 +187,14 @@ func TestBuiltinPackage(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(1))
 }
+
+func TestLenForNil(t *testing.T) {
+	src := `
+	package foo
+	func Main() bool {
+		var a []int = nil
+		return len(a) == 0
+	}`
+
+	eval(t, src, true)
+}
