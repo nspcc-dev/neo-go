@@ -272,7 +272,7 @@ func (c *codegen) convertGlobals(f ast.Node) {
 	})
 }
 
-func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
+func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.Package) {
 	var (
 		f            *funcScope
 		ok, isLambda bool
@@ -290,6 +290,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
+		f.pkg = pkg
 	}
 
 	f.rng.Start = uint16(c.prog.Len())
@@ -348,7 +349,7 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl) {
 
 	if !isLambda {
 		for _, f := range c.lambda {
-			c.convertFuncDecl(file, f.decl)
+			c.convertFuncDecl(file, f.decl, pkg)
 		}
 		c.lambda = make(map[string]*funcScope)
 	}
@@ -1433,7 +1434,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	c.traverseGlobals(mainFile)
 
 	// convert the entry point first.
-	c.convertFuncDecl(mainFile, main)
+	c.convertFuncDecl(mainFile, main, pkg.Pkg)
 
 	// sort map keys to generate code deterministically.
 	keys := make([]*types.Package, 0, len(info.program.AllPackages))
@@ -1454,7 +1455,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 					// Don't convert the function if it's not used. This will save a lot
 					// of bytecode space.
 					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
-						c.convertFuncDecl(f, n)
+						c.convertFuncDecl(f, n, k)
 					}
 				}
 			}
