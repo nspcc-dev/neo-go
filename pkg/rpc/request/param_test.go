@@ -1,6 +1,7 @@
 package request
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -239,6 +240,24 @@ func TestParamGetBytesHex(t *testing.T) {
 
 	p = Param{StringT, "qq2c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"}
 	_, err = p.GetBytesHex()
+	require.NotNil(t, err)
+}
+
+func TestParamGetBytesBase64(t *testing.T) {
+	in := "Aj4A8DoW6HB84EXrQu6A05JFFUHuUQ3BjhyL77rFTXQm"
+	inb, err := base64.StdEncoding.DecodeString(in)
+	require.NoError(t, err)
+	p := Param{StringT, in}
+	bh, err := p.GetBytesBase64()
+	assert.Equal(t, inb, bh)
+	require.Nil(t, err)
+
+	p = Param{StringT, 42}
+	_, err = p.GetBytesBase64()
+	require.NotNil(t, err)
+
+	p = Param{StringT, "@j4A8DoW6HB84EXrQu6A05JFFUHuUQ3BjhyL77rFTXQm"}
+	_, err = p.GetBytesBase64()
 	require.NotNil(t, err)
 }
 

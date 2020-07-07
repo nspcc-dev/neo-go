@@ -2,6 +2,7 @@ package request
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -183,6 +184,17 @@ func (p *Param) GetBytesHex() ([]byte, error) {
 	}
 
 	return hex.DecodeString(s)
+}
+
+// GetBytesBase64 returns []byte value of the parameter if
+// it is a base64-encoded string.
+func (p *Param) GetBytesBase64() ([]byte, error) {
+	s, err := p.GetString()
+	if err != nil {
+		return nil, err
+	}
+
+	return base64.StdEncoding.DecodeString(s)
 }
 
 // GetCosigner returns transaction.Cosigner value of the parameter.

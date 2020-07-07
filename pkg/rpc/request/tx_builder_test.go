@@ -30,8 +30,8 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{}}},
 		script: "10c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
-		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ByteArrayType, Value: Param{Type: StringT, Value: "50befd26fdf6e4d957c11e078b24ebce6291456f"}}}}}},
-		script: "0c1450befd26fdf6e4d957c11e078b24ebce6291456f11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.ByteArrayType, Value: Param{Type: StringT, Value: "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}}}}}},
+		script: "0c2103012d47e76210aec73be39ab3d186e0a40fe8d86bfa3d4fabfda57ba13b88f96a11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
 	}, {
 		ps:     Params{{Type: StringT, Value: "a"}, {Type: ArrayT, Value: []Param{{Type: FuncParamT, Value: FuncParam{Type: smartcontract.SignatureType, Value: Param{Type: StringT, Value: "4edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f"}}}}}},
 		script: "0c404edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f11c00c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
