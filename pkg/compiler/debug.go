@@ -136,8 +136,11 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 		}
 	}
 	return &MethodDebugInfo{
-		ID:         name,
-		Name:       DebugMethodName{Name: name},
+		ID: name,
+		Name: DebugMethodName{
+			Name:      name,
+			Namespace: scope.pkg.Name(),
+		},
 		IsExported: scope.decl.Name.IsExported(),
 		Range:      scope.rng,
 		Parameters: params,
