@@ -341,8 +341,9 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
 func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
 	var (
-		entryPoint manifest.Method
-		err        error
+		entryPoint    manifest.Method
+		mainNamespace string
+		err           error
 	)
 	for _, method := range di.Methods {
 		if method.Name.Name == mainIdent {
@@ -350,6 +351,7 @@ func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifes
 			if err != nil {
 				return nil, err
 			}
+			mainNamespace = method.Name.Namespace
 			break
 		}
 	}
@@ -358,7 +360,7 @@ func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifes
 	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name != mainIdent && method.IsExported {
+		if method.Name.Name != mainIdent && method.IsExported && method.Name.Namespace == mainNamespace {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err
