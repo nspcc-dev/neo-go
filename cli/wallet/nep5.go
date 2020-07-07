@@ -17,6 +17,9 @@ import (
 	"github.com/urfave/cli"
 )
 
+// validUntilBlockIncrement is the number of extra blocks to add to an exported transaction
+const validUntilBlockIncrement = 50
+
 var (
 	neoToken = wallet.NewToken(client.NeoContractHash, "NEO", "neo", 0)
 	gasToken = wallet.NewToken(client.GasContractHash, "GAS", "gas", 8)
@@ -366,6 +369,8 @@ func transferNEP5(ctx *cli.Context) error {
 	}
 
 	if outFile := ctx.String("out"); outFile != "" {
+		// avoid fast transaction expiration
+		tx.ValidUntilBlock += validUntilBlockIncrement
 		priv := acc.PrivateKey()
 		pub := priv.PublicKey()
 		sign := priv.Sign(tx.GetSignedPart())
