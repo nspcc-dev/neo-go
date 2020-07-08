@@ -96,7 +96,7 @@ func (p *PrivateKey) WIF() string {
 // returns it as a string.
 func (p *PrivateKey) Address() string {
 	pk := p.PublicKey()
-	return pk.Address()
+	return pk.NEO3Address()
 }
 
 // GetScriptHash returns verification script hash for public key associated with

@@ -281,9 +281,14 @@ func (p *PublicKey) GetNEO2ScriptHash() util.Uint160 {
 	return hash.Hash160(emit.GetNEO2VerificationScript(p.Bytes()))
 }
 
-// Address returns a base58-encoded NEO-specific address based on the key hash.
-func (p *PublicKey) Address() string {
+// NEO3Address returns a base58-encoded NEO3-specific address based on the key hash.
+func (p *PublicKey) NEO3Address() string {
 	return address.Uint160ToString(p.GetNEO3ScriptHash())
+}
+
+// NEO2Address returns a base58-encoded NEO2-specific address based on the key hash.
+func (p *PublicKey) NEO2Address() string {
+	return address.Uint160ToString(p.GetNEO2ScriptHash())
 }
 
 // Verify returns true if the signature is valid and corresponds

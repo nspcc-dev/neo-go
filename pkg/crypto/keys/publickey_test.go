@@ -105,7 +105,7 @@ func TestDecodeFromStringUncompressed(t *testing.T) {
 func TestPubkeyToAddress(t *testing.T) {
 	pubKey, err := NewPublicKeyFromString("031ee4e73a17d8f76dc02532e2620bcb12425b33c0c9f9694cc2caa8226b68cad4")
 	require.NoError(t, err)
-	actual := pubKey.Address()
+	actual := pubKey.NEO3Address()
 	expected := "NNqoUeNb2tfhEExY7mrPbxf4EZZRKX5nHF"
 	require.Equal(t, expected, actual)
 }
