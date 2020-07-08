@@ -179,3 +179,14 @@ func InteropNameToID(name []byte) uint32 {
 	h := sha256.Sum256(name)
 	return binary.LittleEndian.Uint32(h[:4])
 }
+
+// GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
+// bytes given.
+func GetVerificationScript(b []byte) []byte {
+	buf := io.NewBufBinWriter()
+	Bytes(buf.BinWriter, b)
+	Opcode(buf.BinWriter, opcode.PUSHNULL)
+	Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
+
+	return buf.Bytes()
+}

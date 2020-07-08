@@ -5,6 +5,7 @@ import (
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 )
 
@@ -281,7 +282,7 @@ func getVerificationScript(i uint16, validators []crypto.PublicKey) []byte {
 		return nil
 	}
 
-	return pub.GetVerificationScript()
+	return emit.GetVerificationScript(pub.PublicKey.Bytes())
 }
 
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {

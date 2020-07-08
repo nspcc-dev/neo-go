@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
@@ -116,7 +117,7 @@ func (a *Account) getVerificationScript() []byte {
 	if a.Contract != nil {
 		return a.Contract.Script
 	}
-	return a.PrivateKey().PublicKey().GetVerificationScript()
+	return emit.GetVerificationScript(a.PrivateKey().PublicKey().Bytes())
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
@@ -216,7 +217,7 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 		Address:    pubAddr,
 		wif:        wif,
 		Contract: &Contract{
-			Script:     pubKey.GetVerificationScript(),
+			Script:     emit.GetVerificationScript(pubKey.Bytes()),
 			Parameters: getContractParams(1),
 		},
 	}

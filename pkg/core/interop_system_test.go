@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -162,7 +163,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, err)
 
 		pub := priv.PublicKey()
-		err = ic.DAO.PutContractState(&state.Contract{ID: 42, Script: pub.GetVerificationScript()})
+		err = ic.DAO.PutContractState(&state.Contract{ID: 42, Script: emit.GetVerificationScript(pub.Bytes())})
 		require.NoError(t, err)
 
 		v.Estack().PushVal(pub.GetScriptHash().BytesBE())

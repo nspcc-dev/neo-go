@@ -203,7 +203,7 @@ func (p *Payload) Sign(key *privateKey) error {
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	p.Witness.InvocationScript = buf.Bytes()
-	p.Witness.VerificationScript = key.PublicKey().GetVerificationScript()
+	p.Witness.VerificationScript = emit.GetVerificationScript(key.PublicKey().Bytes())
 
 	return nil
 }

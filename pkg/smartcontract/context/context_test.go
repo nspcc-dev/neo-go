@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	t.Run("invalid contract", func(t *testing.T) {
 		c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 		ctr := &wallet.Contract{
-			Script: pub.GetVerificationScript(),
+			Script: emit.GetVerificationScript(pub.Bytes()),
 			Parameters: []wallet.ContractParam{
 				newParam(smartcontract.SignatureType, "parameter0"),
 				newParam(smartcontract.SignatureType, "parameter1"),
@@ -48,7 +49,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 
 	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 	ctr := &wallet.Contract{
-		Script:     pub.GetVerificationScript(),
+		Script:     emit.GetVerificationScript(pub.Bytes()),
 		Parameters: []wallet.ContractParam{newParam(smartcontract.SignatureType, "parameter0")},
 	}
 	require.NoError(t, c.AddSignature(ctr, pub, sig))

@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/pkg/errors"
 )
 
@@ -272,21 +271,9 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.Bytes())
 }
 
-// GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
-// public key.
-func (p *PublicKey) GetVerificationScript() []byte {
-	b := p.Bytes()
-	buf := io.NewBufBinWriter()
-	emit.Bytes(buf.BinWriter, b)
-	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
-
-	return buf.Bytes()
-}
-
 // GetScriptHash returns a Hash160 of verification script for the key.
 func (p *PublicKey) GetScriptHash() util.Uint160 {
-	return hash.Hash160(p.GetVerificationScript())
+	return hash.Hash160(emit.GetVerificationScript(p.Bytes()))
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
