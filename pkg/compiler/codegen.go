@@ -1216,7 +1216,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "AppCall":
 		c.emitReverse(len(expr.Args))
 		buf := c.getByteArray(expr.Args[0])
-		if len(buf) != 20 {
+		if buf != nil && len(buf) != 20 {
 			c.prog.Err = errors.New("invalid script hash")
 		}
 		emit.Syscall(c.prog.BinWriter, "System.Contract.Call")
