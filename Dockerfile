@@ -18,7 +18,7 @@ RUN set -x \
     && export GOGC=off \
     && export GO111MODULE=on \
     && export CGO_ENABLED=0 \
-    && export LDFLAGS="-X ${REPO}/config.Version=${VERSION}" \
+    && export LDFLAGS="-X ${REPO}/pkg/config.Version=${VERSION}" \
     && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli
 
 # Executable image
