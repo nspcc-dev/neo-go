@@ -252,7 +252,7 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		key, err := keys.NEP2Decrypt(acc.EncryptedWIF, s.Config.Wallet.Password)
+		key, err := keys.NEP2DecryptNEO3(acc.EncryptedWIF, s.Config.Wallet.Password)
 		if err != nil {
 			continue
 		}

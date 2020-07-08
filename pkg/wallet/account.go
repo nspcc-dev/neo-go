@@ -128,7 +128,7 @@ func (a *Account) Decrypt(passphrase string) error {
 	if a.EncryptedWIF == "" {
 		return errors.New("no encrypted wif in the account")
 	}
-	a.privateKey, err = keys.NEP2Decrypt(a.EncryptedWIF, passphrase)
+	a.privateKey, err = keys.NEP2DecryptNEO3(a.EncryptedWIF, passphrase)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func NewAccountFromWIF(wif string) (*Account, error) {
 
 // NewAccountFromEncryptedWIF creates a new Account from the given encrypted WIF.
 func NewAccountFromEncryptedWIF(wif string, pass string) (*Account, error) {
-	priv, err := keys.NEP2Decrypt(wif, pass)
+	priv, err := keys.NEP2DecryptNEO3(wif, pass)
 	if err != nil {
 		return nil, err
 	}

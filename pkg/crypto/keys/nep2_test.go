@@ -27,7 +27,7 @@ func TestNEP2Encrypt(t *testing.T) {
 
 func TestNEP2Decrypt(t *testing.T) {
 	for _, testCase := range keytestcases.Arr {
-		privKey, err := NEP2Decrypt(testCase.EncryptedWif, testCase.Passphrase)
+		privKey, err := NEP2DecryptNEO3(testCase.EncryptedWif, testCase.Passphrase)
 		if testCase.Invalid {
 			assert.Error(t, err)
 			continue
@@ -49,12 +49,12 @@ func TestNEP2DecryptErrors(t *testing.T) {
 
 	// Not a base58-encoded value
 	s := "qazwsx"
-	_, err := NEP2Decrypt(s, p)
+	_, err := NEP2DecryptNEO3(s, p)
 	assert.Error(t, err)
 
 	// Valid base58, but not a NEP-2 format.
 	s = "KxhEDBQyyEFymvfJD96q8stMbJMbZUb6D1PmXqBWZDU2WvbvVs9o"
-	_, err = NEP2Decrypt(s, p)
+	_, err = NEP2DecryptNEO3(s, p)
 	assert.Error(t, err)
 }
 

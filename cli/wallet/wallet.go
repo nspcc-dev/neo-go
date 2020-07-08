@@ -339,7 +339,7 @@ loop:
 				return cli.NewExitError(err, 1)
 			}
 
-			pk, err := keys.NEP2Decrypt(wif, pass)
+			pk, err := keys.NEP2DecryptNEO3(wif, pass)
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
