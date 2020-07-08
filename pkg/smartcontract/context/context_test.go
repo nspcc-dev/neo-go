@@ -29,7 +29,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	t.Run("invalid contract", func(t *testing.T) {
 		c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 		ctr := &wallet.Contract{
-			Script: emit.GetVerificationScript(pub.Bytes()),
+			Script: emit.GetNEO3VerificationScript(pub.Bytes()),
 			Parameters: []wallet.ContractParam{
 				newParam(smartcontract.SignatureType, "parameter0"),
 				newParam(smartcontract.SignatureType, "parameter1"),
@@ -49,7 +49,7 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 
 	c := NewParameterContext("Neo.Core.ContractTransaction", tx)
 	ctr := &wallet.Contract{
-		Script:     emit.GetVerificationScript(pub.Bytes()),
+		Script:     emit.GetNEO3VerificationScript(pub.Bytes()),
 		Parameters: []wallet.ContractParam{newParam(smartcontract.SignatureType, "parameter0")},
 	}
 	require.NoError(t, c.AddSignature(ctr, pub, sig))

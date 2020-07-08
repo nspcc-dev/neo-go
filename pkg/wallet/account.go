@@ -117,7 +117,7 @@ func (a *Account) getVerificationScript() []byte {
 	if a.Contract != nil {
 		return a.Contract.Script
 	}
-	return emit.GetVerificationScript(a.PrivateKey().PublicKey().Bytes())
+	return emit.GetNEO3VerificationScript(a.PrivateKey().PublicKey().Bytes())
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
@@ -217,7 +217,7 @@ func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 		Address:    pubAddr,
 		wif:        wif,
 		Contract: &Contract{
-			Script:     emit.GetVerificationScript(pubKey.Bytes()),
+			Script:     emit.GetNEO3VerificationScript(pubKey.Bytes()),
 			Parameters: getContractParams(1),
 		},
 	}

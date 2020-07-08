@@ -180,13 +180,23 @@ func InteropNameToID(name []byte) uint32 {
 	return binary.LittleEndian.Uint32(h[:4])
 }
 
-// GetVerificationScript returns NEO VM bytecode with CHECKSIG command for the
+// GetNEO3VerificationScript returns NEO3 VM bytecode with CHECKSIG command for the
 // bytes given.
-func GetVerificationScript(b []byte) []byte {
+func GetNEO3VerificationScript(b []byte) []byte {
 	buf := io.NewBufBinWriter()
 	Bytes(buf.BinWriter, b)
 	Opcode(buf.BinWriter, opcode.PUSHNULL)
 	Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
 
+	return buf.Bytes()
+}
+
+// GetNEO2VerificationScript returns NEO2 VM bytecode with CHECKSIG command for the
+// bytes given.
+func GetNEO2VerificationScript(b []byte) []byte {
+	buf := io.NewBufBinWriter()
+	buf.WriteB(0x21) // PUSHBYTES33
+	buf.WriteBytes(b)
+	buf.WriteB(0xAC) // CHECKSIG
 	return buf.Bytes()
 }

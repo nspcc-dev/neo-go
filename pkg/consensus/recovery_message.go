@@ -282,7 +282,7 @@ func getVerificationScript(i uint16, validators []crypto.PublicKey) []byte {
 		return nil
 	}
 
-	return emit.GetVerificationScript(pub.PublicKey.Bytes())
+	return emit.GetNEO3VerificationScript(pub.PublicKey.Bytes())
 }
 
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {

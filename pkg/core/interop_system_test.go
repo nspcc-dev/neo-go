@@ -163,7 +163,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, err)
 
 		pub := priv.PublicKey()
-		err = ic.DAO.PutContractState(&state.Contract{ID: 42, Script: emit.GetVerificationScript(pub.Bytes())})
+		err = ic.DAO.PutContractState(&state.Contract{ID: 42, Script: emit.GetNEO3VerificationScript(pub.Bytes())})
 		require.NoError(t, err)
 
 		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
