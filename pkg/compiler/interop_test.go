@@ -127,6 +127,25 @@ func TestAppCall(t *testing.T) {
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
 	})
+
+	t.Run("convert from var", func(t *testing.T) {
+		src := `
+		package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		func Main() []byte {
+			x := []byte{1, 2}
+			y := []byte{3, 4}
+			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
+			result := engine.AppCall(addr, x, y)
+			return result.([]byte)
+		}
+		`
+
+		v := spawnVM(t, ic, src)
+		require.NoError(t, v.Run())
+
+		assertResult(t, v, []byte{1, 2, 3, 4})
+	})
 }
 
 func getAppCallScript(h string) string {
