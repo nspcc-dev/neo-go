@@ -92,11 +92,18 @@ func (p *PrivateKey) WIF() string {
 	return w
 }
 
-// Address derives the public NEO address that is coupled with the private key, and
+// NEO3Address derives the public NEO3 address that is coupled with the private key, and
 // returns it as a string.
-func (p *PrivateKey) Address() string {
+func (p *PrivateKey) NEO3Address() string {
 	pk := p.PublicKey()
 	return pk.NEO3Address()
+}
+
+// NEO2Address derives the public NEO2 address that is coupled with the private key, and
+// returns it as a string.
+func (p *PrivateKey) NEO2Address() string {
+	pk := p.PublicKey()
+	return pk.NEO2Address()
 }
 
 // GetScriptHash returns verification script hash for public key associated with

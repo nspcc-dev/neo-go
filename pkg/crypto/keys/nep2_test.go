@@ -39,7 +39,7 @@ func TestNEP2Decrypt(t *testing.T) {
 		wif := privKey.WIF()
 		assert.Equal(t, testCase.Wif, wif)
 
-		address := privKey.Address()
+		address := privKey.NEO3Address()
 		assert.Equal(t, testCase.Address, address)
 	}
 }

@@ -18,7 +18,7 @@ func TestPrivateKey(t *testing.T) {
 		}
 
 		assert.Nil(t, err)
-		address := privKey.Address()
+		address := privKey.NEO3Address()
 		assert.Equal(t, testCase.Address, address)
 
 		wif := privKey.WIF()

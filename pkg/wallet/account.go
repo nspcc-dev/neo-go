@@ -208,7 +208,7 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 // newAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func newAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
-	pubAddr := p.Address()
+	pubAddr := p.NEO3Address()
 	wif := p.WIF()
 
 	a := &Account{

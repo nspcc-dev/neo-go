@@ -152,7 +152,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						}},
 					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 				}
-				require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
+				require.Equal(t, testchain.PrivateKeyByID(0).NEO3Address(), res.Address)
 				require.ElementsMatch(t, expected.Balances, res.Balances)
 			},
 		},
@@ -170,7 +170,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "positive",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `"]`,
+			params: `["` + testchain.PrivateKeyByID(0).NEO3Address() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check: func(t *testing.T, e *executor, acc interface{}) {
 				res, ok := acc.(*result.NEP5Transfers)
@@ -199,7 +199,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						{
 							Timestamp:   blockSendRubles.Timestamp,
 							Asset:       rublesHash,
-							Address:     testchain.PrivateKeyByID(1).Address(),
+							Address:     testchain.PrivateKeyByID(1).NEO3Address(),
 							Amount:      "1.23",
 							Index:       6,
 							NotifyIndex: 0,
@@ -208,7 +208,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 						{
 							Timestamp:   blockSendNEO.Timestamp,
 							Asset:       e.chain.GoverningTokenHash(),
-							Address:     testchain.PrivateKeyByID(1).Address(),
+							Address:     testchain.PrivateKeyByID(1).NEO3Address(),
 							Amount:      "1000",
 							Index:       4,
 							NotifyIndex: 0,
@@ -253,7 +253,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							TxHash:      txReceiveNEOHash,
 						},
 					},
-					Address: testchain.PrivateKeyByID(0).Address(),
+					Address: testchain.PrivateKeyByID(0).NEO3Address(),
 				}
 
 				// take burned gas into account

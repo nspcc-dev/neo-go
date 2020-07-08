@@ -74,7 +74,7 @@ func getWif(t *testing.B) *keys.WIF {
 
 // getTX returns Invocation transaction with some random attributes in order to have different hashes.
 func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
-	fromAddress := wif.PrivateKey.Address()
+	fromAddress := wif.PrivateKey.NEO3Address()
 	fromAddressHash, err := address.StringToUint160(fromAddress)
 	require.NoError(t, err)
 
