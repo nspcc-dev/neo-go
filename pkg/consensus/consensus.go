@@ -239,14 +239,14 @@ func (s *service) validatePayload(p *Payload) bool {
 	}
 
 	pub := validators[p.validatorIndex]
-	h := pub.(*publicKey).GetScriptHash()
+	h := pub.(*publicKey).GetNEO3ScriptHash()
 
 	return p.Verify(h)
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
 	for i := range pubs {
-		sh := pubs[i].(*publicKey).GetScriptHash()
+		sh := pubs[i].(*publicKey).GetNEO3ScriptHash()
 		acc := s.wallet.GetAccount(sh)
 		if acc == nil {
 			continue

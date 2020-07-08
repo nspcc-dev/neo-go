@@ -271,14 +271,19 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.Bytes())
 }
 
-// GetScriptHash returns a Hash160 of verification script for the key.
-func (p *PublicKey) GetScriptHash() util.Uint160 {
+// GetNEO3ScriptHash returns a Hash160 of NEO3 verification script for the key.
+func (p *PublicKey) GetNEO3ScriptHash() util.Uint160 {
 	return hash.Hash160(emit.GetNEO3VerificationScript(p.Bytes()))
+}
+
+// GetNEO2ScriptHash returns a Hash160 of NEO2 verification script for the key.
+func (p *PublicKey) GetNEO2ScriptHash() util.Uint160 {
+	return hash.Hash160(emit.GetNEO2VerificationScript(p.Bytes()))
 }
 
 // Address returns a base58-encoded NEO-specific address based on the key hash.
 func (p *PublicKey) Address() string {
-	return address.Uint160ToString(p.GetScriptHash())
+	return address.Uint160ToString(p.GetNEO3ScriptHash())
 }
 
 // Verify returns true if the signature is valid and corresponds

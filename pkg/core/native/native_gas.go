@@ -95,7 +95,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot get block validators: %v", err)
 	}
-	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
+	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetNEO3ScriptHash()
 	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee

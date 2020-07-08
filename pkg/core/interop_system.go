@@ -487,6 +487,6 @@ func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(p.GetScriptHash().BytesBE())
+	v.Estack().PushVal(p.GetNEO3ScriptHash().BytesBE())
 	return nil
 }

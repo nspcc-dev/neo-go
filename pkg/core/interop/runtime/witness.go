@@ -78,7 +78,7 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, h
 // CheckKeyedWitness checks hash of signature check contract with a given public
 // key against current list of script hashes for verifying in the interop context.
 func CheckKeyedWitness(ic *interop.Context, v vm.ScriptHashGetter, key *keys.PublicKey) (bool, error) {
-	return CheckHashedWitness(ic, v, key.GetScriptHash())
+	return CheckHashedWitness(ic, v, key.GetNEO3ScriptHash())
 }
 
 // CheckWitness checks witnesses.

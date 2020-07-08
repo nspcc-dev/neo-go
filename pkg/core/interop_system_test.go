@@ -166,7 +166,7 @@ func TestContractIsStandard(t *testing.T) {
 		err = ic.DAO.PutContractState(&state.Contract{ID: 42, Script: emit.GetNEO3VerificationScript(pub.Bytes())})
 		require.NoError(t, err)
 
-		v.Estack().PushVal(pub.GetScriptHash().BytesBE())
+		v.Estack().PushVal(pub.GetNEO3ScriptHash().BytesBE())
 		require.NoError(t, contractIsStandard(ic, v))
 		require.True(t, v.Estack().Pop().Bool())
 	})
@@ -193,7 +193,7 @@ func TestContractCreateAccount(t *testing.T) {
 		value := v.Estack().Pop().Bytes()
 		u, err := util.Uint160DecodeBytesBE(value)
 		require.NoError(t, err)
-		require.Equal(t, pub.GetScriptHash(), u)
+		require.Equal(t, pub.GetNEO3ScriptHash(), u)
 	})
 	t.Run("InvalidKey", func(t *testing.T) {
 		v.Estack().PushVal([]byte{1, 2, 3})

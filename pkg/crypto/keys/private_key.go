@@ -103,7 +103,7 @@ func (p *PrivateKey) Address() string {
 // the private key.
 func (p *PrivateKey) GetScriptHash() util.Uint160 {
 	pk := p.PublicKey()
-	return pk.GetScriptHash()
+	return pk.GetNEO3ScriptHash()
 }
 
 // Sign signs arbitrary length data using the private key.
