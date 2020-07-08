@@ -2,6 +2,9 @@ package wallet
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -85,6 +88,30 @@ func (c Contract) ScriptHash() util.Uint160 {
 	return hash.Hash160(c.Script)
 }
 
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (c *Contract) UnmarshalJSON(data []byte) error {
+	var cc contract
+
+	if err := json.Unmarshal(data, &cc); err != nil {
+		return err
+	}
+
+	script, err := base64.StdEncoding.DecodeString(cc.Script)
+	if err != nil {
+		// for NEO2 compatibility
+		script, err = hex.DecodeString(cc.Script)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.Script = script
+	c.Parameters = cc.Parameters
+	c.Deployed = cc.Deployed
+
+	return nil
+}
+
 // NewAccount creates a new Account with a random generated PrivateKey.
 func NewAccount() (*Account, error) {
 	priv, err := keys.NewPrivateKey()
@@ -128,7 +155,11 @@ func (a *Account) Decrypt(passphrase string) error {
 	if a.EncryptedWIF == "" {
 		return errors.New("no encrypted wif in the account")
 	}
-	a.privateKey, err = keys.NEP2DecryptNEO3(a.EncryptedWIF, passphrase)
+	if address.Prefix == address.NEO2Prefix {
+		a.privateKey, err = keys.NEP2DecryptNEO2(a.EncryptedWIF, passphrase)
+	} else {
+		a.privateKey, err = keys.NEP2DecryptNEO3(a.EncryptedWIF, passphrase)
+	}
 	if err != nil {
 		return err
 	}
