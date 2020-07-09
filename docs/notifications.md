@@ -156,7 +156,7 @@ Example:
          "index" : 207,
          "time" : 1590006200,
          "nextconsensus" : "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
-         "consensus_data" : {
+         "consensusdata" : {
             "primary" : 0,
             "nonce" : "0000000000000457"
          },
