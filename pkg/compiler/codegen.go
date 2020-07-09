@@ -1176,25 +1176,29 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
-		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		c.emitReverse(len(expr.Args))
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
-		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 4})
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
 		if isByteSlice(typ) {
-			emit.Opcode(c.prog.BinWriter, opcode.NIP)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
 			emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
 			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
-			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
-			// Jump target.
-			emit.Opcode(c.prog.BinWriter, opcode.CAT)
 		} else {
-			emit.Opcode(c.prog.BinWriter, opcode.NIP)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
 			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
-			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 			emit.Opcode(c.prog.BinWriter, opcode.NOP)
-			// Jump target.
-			emit.Opcode(c.prog.BinWriter, opcode.OVER)
-			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
-			emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+		}
+		// Jump target.
+		for range expr.Args[1:] {
+			if isByteSlice(typ) {
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+				emit.Opcode(c.prog.BinWriter, opcode.CAT)
+			} else {
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+			}
 		}
 	case "panic":
 		arg := expr.Args[0]

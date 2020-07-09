@@ -152,6 +152,33 @@ var sliceTestCases = []testCase{
 		[]byte{1, 2},
 	},
 	{
+		"append multiple bytes to a slice",
+		`package foo
+		func Main() []byte {
+			var a []byte
+			a = append(a, 1, 2)
+			return a
+		}`,
+		[]byte{1, 2},
+	},
+	{
+		"append multiple ints to a slice",
+		`package foo
+		func Main() []int {
+			var a []int
+			a = append(a, 1, 2, 3)
+			a = append(a, 4, 5)
+			return a
+		}`,
+		[]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(big.NewInt(2)),
+			stackitem.NewBigInteger(big.NewInt(3)),
+			stackitem.NewBigInteger(big.NewInt(4)),
+			stackitem.NewBigInteger(big.NewInt(5)),
+		},
+	},
+	{
 		"declare compound slice",
 		`package foo
 		func Main() []string {
