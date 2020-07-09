@@ -176,7 +176,7 @@ func testFile(t *testing.T, filename string) {
 								require.Equal(t, op, opcode.Opcode(ctx.prog[ctx.nextip]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
-							compareSlots(t, s.StaticFields, vm.static)
+							compareSlots(t, s.StaticFields, ctx.static)
 						}
 					}
 

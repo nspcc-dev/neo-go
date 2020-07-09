@@ -35,6 +35,7 @@ type Context struct {
 	// Alt stack pointer.
 	astack *Stack
 
+	static    *Slot
 	local     *Slot
 	arguments *Slot
 
