@@ -231,13 +231,6 @@ func (c *codegen) emitDefault(t types.Type) {
 		default:
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		}
-	case *types.Slice:
-		if isCompoundSlice(t) {
-			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
-		} else {
-			emit.Int(c.prog.BinWriter, 0)
-			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
-		}
 	case *types.Struct:
 		num := t.NumFields()
 		emit.Int(c.prog.BinWriter, int64(num))
@@ -1183,9 +1176,22 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
+		emit.Opcode(c.prog.BinWriter, opcode.OVER)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 4})
 		if isByteSlice(typ) {
+			emit.Opcode(c.prog.BinWriter, opcode.NIP)
+			emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
+			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+			// Jump target.
 			emit.Opcode(c.prog.BinWriter, opcode.CAT)
 		} else {
+			emit.Opcode(c.prog.BinWriter, opcode.NIP)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+			emit.Opcode(c.prog.BinWriter, opcode.NOP)
+			// Jump target.
 			emit.Opcode(c.prog.BinWriter, opcode.OVER)
 			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
 			emit.Opcode(c.prog.BinWriter, opcode.APPEND)
@@ -1513,7 +1519,7 @@ func (c *codegen) writeJumps(b []byte) error {
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
 			// Noop, assumed to be correct already. If you're fixing #905,
-			// make sure not to break "len" handling above.
+			// make sure not to break "len" and "append" handling above.
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,

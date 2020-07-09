@@ -243,6 +243,43 @@ var sliceTestCases = []testCase{
 		}`,
 		big.NewInt(42),
 	},
+	{
+		"defaults to nil for byte slice",
+		`
+		package foo
+		func Main() int {
+			var a []byte
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"defaults to nil for int slice",
+		`
+		package foo
+		func Main() int {
+			var a []int
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"defaults to nil for struct slice",
+		`
+		package foo
+		type pair struct { a, b int }
+		func Main() int {
+			var a []pair
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
+	},
 }
 
 func TestSliceOperations(t *testing.T) {
