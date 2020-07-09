@@ -560,13 +560,16 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + testchain.MultisigAddress() + `"]`,
 			result: func(*executor) interface{} {
-				var s string
-				return &s
+				return &result.UnclaimedGas{}
 			},
 			check: func(t *testing.T, e *executor, resp interface{}) {
-				s, ok := resp.(*string)
+				actual, ok := resp.(*result.UnclaimedGas)
 				require.True(t, ok)
-				assert.Equal(t, "36000", *s)
+				expected := result.UnclaimedGas{
+					Address:   testchain.MultisigScriptHash(),
+					Unclaimed: *big.NewInt(36000),
+				}
+				assert.Equal(t, expected, *actual)
 			},
 		},
 	},

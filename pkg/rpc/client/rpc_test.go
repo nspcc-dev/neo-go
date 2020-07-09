@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -573,11 +575,18 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return c.GetUnclaimedGas("AGofsxAUDwt52KjaB664GYsqVAkULYvKNt")
+				return c.GetUnclaimedGas("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"897299680935"}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"address":"NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB","unclaimed":"897299680935"}}`,
 			result: func(c *Client) interface{} {
-				return util.Fixed8(897299680935)
+				addr, err := address.StringToUint160("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
+				if err != nil {
+					panic(errors.Wrap(err, "failed to parse UnclaimedGas address"))
+				}
+				return result.UnclaimedGas{
+					Address:   addr,
+					Unclaimed: *big.NewInt(897299680935),
+				}
 			},
 		},
 	},
