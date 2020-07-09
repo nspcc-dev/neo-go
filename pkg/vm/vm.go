@@ -71,9 +71,6 @@ type VM struct {
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
 
-	// Hash to verify in CHECKSIG/CHECKMULTISIG.
-	checkhash []byte
-
 	refs *refCounter
 
 	gasConsumed int64
@@ -491,12 +488,6 @@ func (v *VM) HasHalted() bool {
 // AtBreakpoint returns whether VM is at breakpoint.
 func (v *VM) AtBreakpoint() bool {
 	return v.state.HasFlag(breakState)
-}
-
-// SetCheckedHash sets checked hash for CHECKSIG and CHECKMULTISIG instructions.
-func (v *VM) SetCheckedHash(h []byte) {
-	v.checkhash = make([]byte, len(h))
-	copy(v.checkhash, h)
 }
 
 // GetInteropID converts instruction parameter to an interop ID.
