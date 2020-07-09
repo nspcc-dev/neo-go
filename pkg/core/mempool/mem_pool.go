@@ -107,24 +107,19 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 }
 
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
-// and returns false if sender has not enough GAS to pay
-func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer) bool {
-	if !mp.checkBalanceAndUpdate(tx, feer) {
-		return false
-	}
-	mp.addSendersFee(tx)
-	return true
-}
-
-// checkBalanceAndUpdate returns true in case when sender has enough GAS to pay for
-// the transaction and sets sender's balance value in mempool in case if it was not set
-func (mp *Pool) checkBalanceAndUpdate(tx *transaction.Transaction, feer Feer) bool {
+// and returns false if both balance check is required and sender has not enough GAS to pay
+func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
 	senderFee, ok := mp.fees[tx.Sender]
 	if !ok {
 		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender)
 		mp.fees[tx.Sender] = senderFee
 	}
-	return checkBalance(tx, senderFee)
+	if needCheck && !checkBalance(tx, senderFee) {
+		return false
+	}
+	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
+	mp.fees[tx.Sender] = senderFee
+	return true
 }
 
 // checkBalance returns true in case when sender has enough GAS to pay for the
@@ -132,13 +127,6 @@ func (mp *Pool) checkBalanceAndUpdate(tx *transaction.Transaction, feer Feer) bo
 func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) bool {
 	needFee := balance.feeSum + tx.SystemFee + tx.NetworkFee
 	return balance.balance.Cmp(big.NewInt(needFee)) >= 0
-}
-
-// addSendersFee adds system fee and network fee to the total sender`s fee in mempool
-func (mp *Pool) addSendersFee(tx *transaction.Transaction) {
-	senderFee := mp.fees[tx.Sender]
-	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
-	mp.fees[tx.Sender] = senderFee
 }
 
 // Add tries to add given transaction to the Pool.
@@ -186,7 +174,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer) error {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
 	}
-	mp.addSendersFee(pItem.txn)
+	// we already checked balance in checkTxConflicts, so don't need to check again
+	mp.tryAddSendersFee(pItem.txn, fee, false)
 
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -229,7 +218,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	newVerifiedTxes := mp.verifiedTxes[:0]
 	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
 	for _, itm := range mp.verifiedTxes {
-		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer) {
+		if isOK(itm.txn) && mp.checkPolicy(itm.txn, policyChanged) && mp.tryAddSendersFee(itm.txn, feer, true) {
 			newVerifiedTxes = append(newVerifiedTxes, itm)
 		} else {
 			delete(mp.verifiedMap, itm.txn.Hash())
@@ -295,7 +284,11 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 
 // checkTxConflicts is an internal unprotected version of Verify.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
-	return mp.checkBalanceAndUpdate(tx, fee)
+	senderFee, ok := mp.fees[tx.Sender]
+	if !ok {
+		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender)
+	}
+	return checkBalance(tx, senderFee)
 }
 
 // Verify checks if a Sender of tx is able to pay for it (and all the other
