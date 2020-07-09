@@ -37,11 +37,11 @@ type NEP5Transfers struct {
 type NEP5Transfer struct {
 	Timestamp   uint64       `json:"timestamp"`
 	Asset       util.Uint160 `json:"assethash"`
-	Address     string       `json:"transfer_address,omitempty"`
+	Address     string       `json:"transferaddress,omitempty"`
 	Amount      string       `json:"amount"`
-	Index       uint32       `json:"block_index"`
-	NotifyIndex uint32       `json:"transfer_notify_index"`
-	TxHash      util.Uint256 `json:"tx_hash"`
+	Index       uint32       `json:"blockindex"`
+	NotifyIndex uint32       `json:"transfernotifyindex"`
+	TxHash      util.Uint256 `json:"txhash"`
 }
 
 // MarshalJSON implements json.Marshaler interface.
