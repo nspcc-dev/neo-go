@@ -124,11 +124,14 @@ func (mp *Pool) checkBalanceAndUpdate(tx *transaction.Transaction, feer Feer) bo
 		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender)
 		mp.fees[tx.Sender] = senderFee
 	}
-	needFee := senderFee.feeSum + tx.SystemFee + tx.NetworkFee
-	if senderFee.balance.Cmp(big.NewInt(needFee)) < 0 {
-		return false
-	}
-	return true
+	return checkBalance(tx, senderFee)
+}
+
+// checkBalance returns true in case when sender has enough GAS to pay for the
+// transaction
+func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) bool {
+	needFee := balance.feeSum + tx.SystemFee + tx.NetworkFee
+	return balance.balance.Cmp(big.NewInt(needFee)) >= 0
 }
 
 // addSendersFee adds system fee and network fee to the total sender`s fee in mempool
