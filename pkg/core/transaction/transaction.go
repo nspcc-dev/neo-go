@@ -301,13 +301,13 @@ type transactionJSON struct {
 	Version         uint8        `json:"version"`
 	Nonce           uint32       `json:"nonce"`
 	Sender          string       `json:"sender"`
-	SystemFee       int64        `json:"sys_fee,string"`
-	NetworkFee      int64        `json:"net_fee,string"`
-	ValidUntilBlock uint32       `json:"valid_until_block"`
+	SystemFee       int64        `json:"sysfee,string"`
+	NetworkFee      int64        `json:"netfee,string"`
+	ValidUntilBlock uint32       `json:"validuntilblock"`
 	Attributes      []Attribute  `json:"attributes"`
 	Cosigners       []Cosigner   `json:"cosigners"`
 	Script          []byte       `json:"script"`
-	Scripts         []Witness    `json:"scripts"`
+	Scripts         []Witness    `json:"witnesses"`
 }
 
 // MarshalJSON implements json.Marshaler interface.

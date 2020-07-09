@@ -22,9 +22,9 @@
             "attributes": [],
             "vin": [],
             "vout": [],
-            "sys_fee": "0",
-            "net_fee": "0",
-            "scripts": [],
+            "sysfee": "0",
+            "netfee": "0",
+            "witnesses": [],
             "nonce": 950562742
         }
     ],
