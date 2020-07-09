@@ -341,7 +341,7 @@ Example:
          "executions" : [
             {
                "trigger" : "Application",
-               "gas_consumed" : "2.291",
+               "gasconsumed" : "2.291",
                "contract" : "0x0000000000000000000000000000000000000000",
                "stack" : [],
                "notifications" : [
