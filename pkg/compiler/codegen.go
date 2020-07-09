@@ -231,13 +231,6 @@ func (c *codegen) emitDefault(t types.Type) {
 		default:
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		}
-	case *types.Slice:
-		if isCompoundSlice(t) {
-			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
-		} else {
-			emit.Int(c.prog.BinWriter, 0)
-			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
-		}
 	case *types.Struct:
 		num := t.NumFields()
 		emit.Int(c.prog.BinWriter, int64(num))
@@ -1183,12 +1176,29 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 	case "append":
 		arg := expr.Args[0]
 		typ := c.typeInfo.Types[arg].Type
+		c.emitReverse(len(expr.Args))
+		emit.Opcode(c.prog.BinWriter, opcode.DUP)
+		emit.Opcode(c.prog.BinWriter, opcode.ISNULL)
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIFNOT, []byte{2 + 3})
 		if isByteSlice(typ) {
-			emit.Opcode(c.prog.BinWriter, opcode.CAT)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWBUFFER)
 		} else {
-			emit.Opcode(c.prog.BinWriter, opcode.OVER)
-			emit.Opcode(c.prog.BinWriter, opcode.SWAP)
-			emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+			emit.Opcode(c.prog.BinWriter, opcode.DROP)
+			emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+			emit.Opcode(c.prog.BinWriter, opcode.NOP)
+		}
+		// Jump target.
+		for range expr.Args[1:] {
+			if isByteSlice(typ) {
+				emit.Opcode(c.prog.BinWriter, opcode.SWAP)
+				emit.Opcode(c.prog.BinWriter, opcode.CAT)
+			} else {
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+			}
 		}
 	case "panic":
 		arg := expr.Args[0]
@@ -1310,41 +1320,32 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	// We will initialize all fields to their "zero" value.
 	for i := 0; i < strct.NumFields(); i++ {
 		sField := strct.Field(i)
-		fieldAdded := false
-
-		if !keyedLit {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, int64(i))
-			ast.Walk(c, lit.Elts[i])
-			emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-			continue
-		}
-
-		// Fields initialized by the program.
-		for _, field := range lit.Elts {
-			f := field.(*ast.KeyValueExpr)
-			fieldName := f.Key.(*ast.Ident).Name
-
-			if sField.Name() == fieldName {
-				emit.Opcode(c.prog.BinWriter, opcode.DUP)
-
-				pos := indexOfStruct(strct, fieldName)
-				emit.Int(c.prog.BinWriter, int64(pos))
-
-				ast.Walk(c, f.Value)
-
-				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-				fieldAdded = true
-				break
-			}
-		}
-		if fieldAdded {
-			continue
-		}
+		var initialized bool
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitDefault(sField.Type())
+
+		if !keyedLit {
+			if len(lit.Elts) > i {
+				ast.Walk(c, lit.Elts[i])
+				initialized = true
+			}
+		} else {
+			// Fields initialized by the program.
+			for _, field := range lit.Elts {
+				f := field.(*ast.KeyValueExpr)
+				fieldName := f.Key.(*ast.Ident).Name
+
+				if sField.Name() == fieldName {
+					ast.Walk(c, f.Value)
+					initialized = true
+					break
+				}
+			}
+		}
+		if !initialized {
+			c.emitDefault(sField.Type())
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }
@@ -1522,7 +1523,7 @@ func (c *codegen) writeJumps(b []byte) error {
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT:
 			// Noop, assumed to be correct already. If you're fixing #905,
-			// make sure not to break "len" handling above.
+			// make sure not to break "len" and "append" handling above.
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
 			opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,

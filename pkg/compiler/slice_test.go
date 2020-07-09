@@ -152,6 +152,33 @@ var sliceTestCases = []testCase{
 		[]byte{1, 2},
 	},
 	{
+		"append multiple bytes to a slice",
+		`package foo
+		func Main() []byte {
+			var a []byte
+			a = append(a, 1, 2)
+			return a
+		}`,
+		[]byte{1, 2},
+	},
+	{
+		"append multiple ints to a slice",
+		`package foo
+		func Main() []int {
+			var a []int
+			a = append(a, 1, 2, 3)
+			a = append(a, 4, 5)
+			return a
+		}`,
+		[]stackitem.Item{
+			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(big.NewInt(2)),
+			stackitem.NewBigInteger(big.NewInt(3)),
+			stackitem.NewBigInteger(big.NewInt(4)),
+			stackitem.NewBigInteger(big.NewInt(5)),
+		},
+	},
+	{
 		"declare compound slice",
 		`package foo
 		func Main() []string {
@@ -242,6 +269,43 @@ var sliceTestCases = []testCase{
 			return a[1].a
 		}`,
 		big.NewInt(42),
+	},
+	{
+		"defaults to nil for byte slice",
+		`
+		package foo
+		func Main() int {
+			var a []byte
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"defaults to nil for int slice",
+		`
+		package foo
+		func Main() int {
+			var a []int
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
+	},
+	{
+		"defaults to nil for struct slice",
+		`
+		package foo
+		type pair struct { a, b int }
+		func Main() int {
+			var a []pair
+			if a != nil { return 1}
+			return 2
+		}
+		`,
+		big.NewInt(2),
 	},
 }
 
