@@ -1310,41 +1310,32 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 	// We will initialize all fields to their "zero" value.
 	for i := 0; i < strct.NumFields(); i++ {
 		sField := strct.Field(i)
-		fieldAdded := false
-
-		if !keyedLit {
-			emit.Opcode(c.prog.BinWriter, opcode.DUP)
-			emit.Int(c.prog.BinWriter, int64(i))
-			ast.Walk(c, lit.Elts[i])
-			emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-			continue
-		}
-
-		// Fields initialized by the program.
-		for _, field := range lit.Elts {
-			f := field.(*ast.KeyValueExpr)
-			fieldName := f.Key.(*ast.Ident).Name
-
-			if sField.Name() == fieldName {
-				emit.Opcode(c.prog.BinWriter, opcode.DUP)
-
-				pos := indexOfStruct(strct, fieldName)
-				emit.Int(c.prog.BinWriter, int64(pos))
-
-				ast.Walk(c, f.Value)
-
-				emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
-				fieldAdded = true
-				break
-			}
-		}
-		if fieldAdded {
-			continue
-		}
+		var initialized bool
 
 		emit.Opcode(c.prog.BinWriter, opcode.DUP)
 		emit.Int(c.prog.BinWriter, int64(i))
-		c.emitDefault(sField.Type())
+
+		if !keyedLit {
+			if len(lit.Elts) > i {
+				ast.Walk(c, lit.Elts[i])
+				initialized = true
+			}
+		} else {
+			// Fields initialized by the program.
+			for _, field := range lit.Elts {
+				f := field.(*ast.KeyValueExpr)
+				fieldName := f.Key.(*ast.Ident).Name
+
+				if sField.Name() == fieldName {
+					ast.Walk(c, f.Value)
+					initialized = true
+					break
+				}
+			}
+		}
+		if !initialized {
+			c.emitDefault(sField.Type())
+		}
 		emit.Opcode(c.prog.BinWriter, opcode.SETITEM)
 	}
 }
