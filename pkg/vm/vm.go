@@ -71,8 +71,6 @@ type VM struct {
 	estack *Stack // execution stack.
 	astack *Stack // alt stack.
 
-	static *Slot
-
 	// Hash to verify in CHECKSIG/CHECKMULTISIG.
 	checkhash []byte
 
@@ -585,13 +583,13 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(result)
 
 	case opcode.INITSSLOT:
-		if v.static != nil {
+		if ctx.static != nil {
 			panic("already initialized")
 		}
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		v.static = v.newSlot(int(parameter[0]))
+		ctx.static = v.newSlot(int(parameter[0]))
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -612,20 +610,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
-		item := v.static.Get(int(op - opcode.LDSFLD0))
+		item := ctx.static.Get(int(op - opcode.LDSFLD0))
 		v.estack.PushVal(item)
 
 	case opcode.LDSFLD:
-		item := v.static.Get(int(parameter[0]))
+		item := ctx.static.Get(int(parameter[0]))
 		v.estack.PushVal(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.Pop().Item()
-		v.static.Set(int(op-opcode.STSFLD0), item)
+		ctx.static.Set(int(op-opcode.STSFLD0), item)
 
 	case opcode.STSFLD:
 		item := v.estack.Pop().Item()
-		v.static.Set(int(parameter[0]), item)
+		ctx.static.Set(int(parameter[0]), item)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
