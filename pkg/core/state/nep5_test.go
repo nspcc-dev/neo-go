@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/big"
 	"math/rand"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 
 func TestNEP5Tracker_EncodeBinary(t *testing.T) {
 	expected := &NEP5Tracker{
-		Balance:          int64(rand.Uint64()),
+		Balance:          *big.NewInt(int64(rand.Uint64())),
 		LastUpdatedBlock: rand.Uint32(),
 	}
 
@@ -52,7 +53,7 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 		Asset:     util.Uint160{1, 2, 3},
 		From:      util.Uint160{5, 6, 7},
 		To:        util.Uint160{8, 9, 10},
-		Amount:    42,
+		Amount:    *big.NewInt(42),
 		Block:     12345,
 		Timestamp: 54321,
 		Tx:        util.Uint256{8, 5, 3},
@@ -64,12 +65,18 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 func TestNEP5TransferSize(t *testing.T) {
 	tr := randomTransfer(rand.New(rand.NewSource(0)))
 	size := io.GetVarSize(tr)
-	require.EqualValues(t, NEP5TransferSize, size)
+	w := io.NewBufBinWriter()
+	tr.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+	r := io.NewBinReaderFromBuf(w.Bytes())
+	actualTr := &NEP5Transfer{}
+	actual := actualTr.DecodeBinaryReturnCount(r)
+	require.EqualValues(t, actual, size)
 }
 
 func randomTransfer(r *rand.Rand) *NEP5Transfer {
 	return &NEP5Transfer{
-		Amount: int64(r.Uint64()),
+		Amount: *big.NewInt(int64(r.Uint64())),
 		Block:  r.Uint32(),
 		Asset:  random.Uint160(),
 		From:   random.Uint160(),

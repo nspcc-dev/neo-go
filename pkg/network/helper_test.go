@@ -1,6 +1,7 @@
 package network
 
 import (
+	"math/big"
 	"math/rand"
 	"net"
 	"strconv"
@@ -31,7 +32,7 @@ func (chain testChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transac
 func (chain testChain) GetConfig() config.ProtocolConfiguration {
 	panic("TODO")
 }
-func (chain testChain) CalculateClaimable(int64, uint32, uint32) int64 {
+func (chain testChain) CalculateClaimable(*big.Int, uint32, uint32) *big.Int {
 	panic("TODO")
 }
 
@@ -123,11 +124,11 @@ func (chain testChain) GetMemPool() *mempool.Pool {
 	panic("TODO")
 }
 
-func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (int64, uint32) {
+func (chain testChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
 	panic("TODO")
 }
 
-func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) int64 {
+func (chain testChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	panic("TODO")
 }
 
