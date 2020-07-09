@@ -64,7 +64,13 @@ func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 func TestNEP5TransferSize(t *testing.T) {
 	tr := randomTransfer(rand.New(rand.NewSource(0)))
 	size := io.GetVarSize(tr)
-	require.EqualValues(t, NEP5TransferSize, size)
+	w := io.NewBufBinWriter()
+	tr.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+	r := io.NewBinReaderFromBuf(w.Bytes())
+	actualTr := &NEP5Transfer{}
+	actual := actualTr.DecodeBinaryReturnCount(r)
+	require.EqualValues(t, actual, size)
 }
 
 func randomTransfer(r *rand.Rand) *NEP5Transfer {

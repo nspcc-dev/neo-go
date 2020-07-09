@@ -17,10 +17,9 @@ type NEP5Tracker struct {
 // NEP5TransferLog is a log of NEP5 token transfers for the specific command.
 type NEP5TransferLog struct {
 	Raw []byte
+	// size is the number of NEP5Transfers written into Raw
+	size int
 }
-
-// NEP5TransferSize is a size of a marshaled NEP5Transfer struct in bytes.
-const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 8 + util.Uint256Size
 
 // NEP5Transfer represents a single NEP5 Transfer event.
 type NEP5Transfer struct {
@@ -89,6 +88,7 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 		return w.Err
 	}
 	lg.Raw = append(lg.Raw, w.Bytes()...)
+	lg.size++
 	return nil
 }
 
@@ -98,9 +98,10 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 		return nil
 	}
 	tr := new(NEP5Transfer)
-	for i := 0; i < len(lg.Raw); i += NEP5TransferSize {
-		r := io.NewBinReaderFromBuf(lg.Raw[i : i+NEP5TransferSize])
-		tr.DecodeBinary(r)
+	var bytesRead int
+	for i := 0; i < len(lg.Raw); i += bytesRead {
+		r := io.NewBinReaderFromBuf(lg.Raw[i:])
+		bytesRead = tr.DecodeBinaryReturnCount(r)
 		if r.Err != nil {
 			return r.Err
 		} else if err := f(tr); err != nil {
@@ -112,7 +113,7 @@ func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
 
 // Size returns an amount of transfer written in log.
 func (lg *NEP5TransferLog) Size() int {
-	return len(lg.Raw) / NEP5TransferSize
+	return lg.size
 }
 
 // EncodeBinary implements io.Serializable interface.
@@ -128,7 +129,6 @@ func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
 }
 
 // EncodeBinary implements io.Serializable interface.
-// Note: change NEP5TransferSize constant when changing this function.
 func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(t.Asset[:])
 	w.WriteBytes(t.Tx[:])
@@ -141,6 +141,11 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
+	_ = t.DecodeBinaryReturnCount(r)
+}
+
+// DecodeBinaryReturnCount decodes NEP5Transfer and returns the number of bytes read.
+func (t *NEP5Transfer) DecodeBinaryReturnCount(r *io.BinReader) int {
 	r.ReadBytes(t.Asset[:])
 	r.ReadBytes(t.Tx[:])
 	r.ReadBytes(t.From[:])
@@ -148,4 +153,5 @@ func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU64LE()
 	t.Amount = int64(r.ReadU64LE())
+	return util.Uint160Size*3 + 8 + 4 + 8 + util.Uint256Size
 }
