@@ -24,12 +24,12 @@ type Event struct {
 // Every SC in a group must provide signature of it's hash to prove
 // it belongs to a group.
 type Group struct {
-	PublicKey *keys.PublicKey `json:"pubKey"`
+	PublicKey *keys.PublicKey `json:"pubkey"`
 	Signature []byte          `json:"signature"`
 }
 
 type groupAux struct {
-	PublicKey string `json:"pubKey"`
+	PublicKey string `json:"pubkey"`
 	Signature []byte `json:"signature"`
 }
 
@@ -37,7 +37,7 @@ type groupAux struct {
 type Method struct {
 	Name       string                  `json:"name"`
 	Parameters []Parameter             `json:"parameters"`
-	ReturnType smartcontract.ParamType `json:"returnType"`
+	ReturnType smartcontract.ParamType `json:"returntype"`
 }
 
 // NewParameter returns new paramter with the specified name and type.
