@@ -187,14 +187,10 @@ func TestMemPoolFees(t *testing.T) {
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx0.NetworkFee = balance.Int64() + 1
 	tx0.Sender = sender0
-	// insufficient funds to add transaction, but balance should be stored
+	// insufficient funds to add transaction, and balance shouldn't be stored
 	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
 	require.Error(t, mp.Add(tx0, &FeerStub{}))
-	require.Equal(t, 1, len(mp.fees))
-	require.Equal(t, utilityBalanceAndFees{
-		balance: balance,
-		feeSum:  0,
-	}, mp.fees[sender0])
+	require.Equal(t, 0, len(mp.fees))
 
 	balancePart := new(big.Int).Div(balance, big.NewInt(4))
 	// no problems with adding another transaction with lower fee
