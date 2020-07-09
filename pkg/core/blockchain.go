@@ -694,7 +694,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 		}
 		amount = bigint.FromBytes(bs)
 	}
-	bc.processNEP5Transfer(d, h, b, note.ScriptHash, from, to, amount.Int64())
+	bc.processNEP5Transfer(d, h, b, note.ScriptHash, from, to, amount)
 }
 
 func parseUint160(addr []byte) util.Uint160 {
@@ -704,7 +704,7 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	transfer := &state.NEP5Transfer{
@@ -721,11 +721,10 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 			return
 		}
 		bs := balances.Trackers[sc]
-		bs.Balance -= amount
+		bs.Balance = *new(big.Int).Sub(&bs.Balance, amount)
 		bs.LastUpdatedBlock = b.Index
 		balances.Trackers[sc] = bs
-
-		transfer.Amount = -amount
+		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
 		isBig, err := cache.AppendNEP5Transfer(fromAddr, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
@@ -743,11 +742,11 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 			return
 		}
 		bs := balances.Trackers[sc]
-		bs.Balance += amount
+		bs.Balance = *new(big.Int).Add(&bs.Balance, amount)
 		bs.LastUpdatedBlock = b.Index
 		balances.Trackers[sc] = bs
 
-		transfer.Amount = amount
+		transfer.Amount = *amount
 		isBig, err := cache.AppendNEP5Transfer(toAddr, balances.NextTransferBatch, transfer)
 		if err != nil {
 			return
@@ -788,23 +787,24 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 }
 
 // GetUtilityTokenBalance returns utility token (GAS) balance for the acc.
-func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) int64 {
+func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 	bs, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
-		return 0
+		return big.NewInt(0)
 	}
-	return bs.Trackers[bc.contracts.GAS.Hash].Balance
+	balance := bs.Trackers[bc.contracts.GAS.Hash].Balance
+	return &balance
 }
 
 // GetGoverningTokenBalance returns governing token (NEO) balance and the height
 // of the last balance change for the account.
-func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (int64, uint32) {
+func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
 	bs, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
-		return 0, 0
+		return big.NewInt(0), 0
 	}
 	neo := bs.Trackers[bc.contracts.NEO.Hash]
-	return neo.Balance, neo.LastUpdatedBlock
+	return &neo.Balance, neo.LastUpdatedBlock
 }
 
 // LastBatch returns last persisted storage batch.
@@ -1062,7 +1062,7 @@ func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) 
 // amount of NEO between specified blocks. The amount of NEO being passed is in
 // its natural non-divisible form (1 NEO as 1, 2 NEO as 2, no multiplication by
 // 10⁸ is needed as for Fixed8).
-func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uint32) int64 {
+func (bc *Blockchain) CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int {
 	var amount int64
 	di := uint32(bc.decrementInterval)
 
@@ -1088,7 +1088,7 @@ func (bc *Blockchain) CalculateClaimable(value int64, startHeight, endHeight uin
 		amount += int64(iend-istart) * int64(bc.generationAmount[ustart])
 	}
 
-	return amount * value
+	return new(big.Int).Mul(big.NewInt(amount), value)
 }
 
 // FeePerByte returns transaction network fee per byte.
@@ -1148,7 +1148,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee + t.NetworkFee
-	if balance < need {
+	if balance.Cmp(big.NewInt(need)) < 0 {
 		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
 	}
 	size := io.GetVarSize(t)

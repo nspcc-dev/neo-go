@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"errors"
+	"math/big"
 	"sort"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ type items []*item
 // utilityBalanceAndFees stores sender's balance and overall fees of
 // sender's transactions which are currently in mempool
 type utilityBalanceAndFees struct {
-	balance int64
+	balance *big.Int
 	feeSum  int64
 }
 
@@ -124,7 +125,7 @@ func (mp *Pool) checkBalanceAndUpdate(tx *transaction.Transaction, feer Feer) bo
 		mp.fees[tx.Sender] = senderFee
 	}
 	needFee := senderFee.feeSum + tx.SystemFee + tx.NetworkFee
-	if senderFee.balance < needFee {
+	if senderFee.balance.Cmp(big.NewInt(needFee)) < 0 {
 		return false
 	}
 	return true

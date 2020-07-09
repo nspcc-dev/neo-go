@@ -1,6 +1,8 @@
 package blockchainer
 
 import (
+	"math/big"
+
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -19,13 +21,13 @@ type Blockchainer interface {
 	AddHeaders(...*block.Header) error
 	AddBlock(*block.Block) error
 	BlockHeight() uint32
-	CalculateClaimable(value int64, startHeight, endHeight uint32) int64
+	CalculateClaimable(value *big.Int, startHeight, endHeight uint32) *big.Int
 	Close()
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetEnrollments() ([]state.Validator, error)
-	GetGoverningTokenBalance(acc util.Uint160) (int64, uint32)
+	GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256

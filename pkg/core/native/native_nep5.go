@@ -214,7 +214,7 @@ func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) 
 		panic(err)
 	}
 	balance := bs.Trackers[c.Hash].Balance
-	return stackitem.NewBigInteger(big.NewInt(balance))
+	return stackitem.NewBigInteger(&balance)
 }
 
 func (c *nep5TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big.Int) {

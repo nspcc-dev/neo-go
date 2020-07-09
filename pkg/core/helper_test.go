@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -181,7 +182,7 @@ func TestCreateBasicChain(t *testing.T) {
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
 
-	require.Equal(t, int64(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
+	require.Equal(t, big.NewInt(0), bc.GetUtilityTokenBalance(priv0ScriptHash))
 	// Move some NEO to one simple account.
 	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
@@ -211,7 +212,7 @@ func TestCreateBasicChain(t *testing.T) {
 	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
 	t.Logf("txMoveGas: %s", txMoveGas.Hash().StringLE())
 
-	require.True(t, bc.GetUtilityTokenBalance(priv0ScriptHash) >= 1000*native.GASFactor)
+	require.True(t, bc.GetUtilityTokenBalance(priv0ScriptHash).Cmp(big.NewInt(1000*native.GASFactor)) >= 0)
 	// info for getblockheader rpc tests
 	t.Logf("header hash: %s", b.Hash().StringLE())
 	buf := io.NewBufBinWriter()

@@ -1,6 +1,9 @@
 package state
 
 import (
+	"math/big"
+
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -8,7 +11,7 @@ import (
 // NEP5Tracker contains info about a single account in a NEP5 contract.
 type NEP5Tracker struct {
 	// Balance is the current balance of the account.
-	Balance int64
+	Balance big.Int
 	// LastUpdatedBlock is a number of block when last `transfer` to or from the
 	// account occured.
 	LastUpdatedBlock uint32
@@ -31,7 +34,7 @@ type NEP5Transfer struct {
 	To util.Uint160
 	// Amount is the amount of tokens transferred.
 	// It is negative when tokens are sent and positive if they are received.
-	Amount int64
+	Amount big.Int
 	// Block is a number of block when the event occured.
 	Block uint32
 	// Timestamp is the timestamp of the block where transfer occured.
@@ -118,13 +121,13 @@ func (lg *NEP5TransferLog) Size() int {
 
 // EncodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) EncodeBinary(w *io.BinWriter) {
-	w.WriteU64LE(uint64(t.Balance))
+	w.WriteVarBytes(bigint.ToBytes(&t.Balance))
 	w.WriteU32LE(t.LastUpdatedBlock)
 }
 
 // DecodeBinary implements io.Serializable interface.
 func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
-	t.Balance = int64(r.ReadU64LE())
+	t.Balance = *bigint.FromBytes(r.ReadVarBytes())
 	t.LastUpdatedBlock = r.ReadU32LE()
 }
 
@@ -136,7 +139,9 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(t.To[:])
 	w.WriteU32LE(t.Block)
 	w.WriteU64LE(t.Timestamp)
-	w.WriteU64LE(uint64(t.Amount))
+	amountBytes := bigint.ToBytes(&t.Amount)
+	w.WriteU64LE(uint64(len(amountBytes)))
+	w.WriteBytes(amountBytes)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -152,6 +157,9 @@ func (t *NEP5Transfer) DecodeBinaryReturnCount(r *io.BinReader) int {
 	r.ReadBytes(t.To[:])
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU64LE()
-	t.Amount = int64(r.ReadU64LE())
-	return util.Uint160Size*3 + 8 + 4 + 8 + util.Uint256Size
+	amountLen := r.ReadU64LE()
+	amountBytes := make([]byte, amountLen)
+	r.ReadBytes(amountBytes)
+	t.Amount = *bigint.FromBytes(amountBytes)
+	return util.Uint160Size*3 + 8 + 4 + (8 + len(amountBytes)) + +util.Uint256Size
 }

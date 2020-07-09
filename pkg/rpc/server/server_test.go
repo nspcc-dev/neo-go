@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -270,7 +271,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 								Timestamp: b.Timestamp,
 								Asset:     e.chain.UtilityTokenHash(),
 								Address:   "", // burn has empty receiver
-								Amount:    amountToString(int64(amount), 8),
+								Amount:    amountToString(big.NewInt(amount), 8),
 								Index:     b.Index,
 								TxHash:    b.Hash(),
 							})
@@ -282,7 +283,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 							Timestamp: b.Timestamp,
 							Asset:     e.chain.UtilityTokenHash(),
 							Address:   "", // minted from network fees.
-							Amount:    amountToString(int64(netFee), 8),
+							Amount:    amountToString(big.NewInt(netFee), 8),
 							Index:     b.Index,
 							TxHash:    b.Hash(),
 						})

@@ -197,9 +197,9 @@ func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOB
 	if ic.Block == nil || ic.Block.Index == 0 {
 		return nil
 	}
-	gen := ic.Chain.CalculateClaimable(acc.Balance.Int64(), acc.BalanceHeight, ic.Block.Index)
+	gen := ic.Chain.CalculateClaimable(&acc.Balance, acc.BalanceHeight, ic.Block.Index)
 	acc.BalanceHeight = ic.Block.Index
-	n.GAS.mint(ic, h, big.NewInt(gen))
+	n.GAS.mint(ic, h, gen)
 	return nil
 }
 
@@ -212,8 +212,8 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	}
 	tr := bs.Trackers[n.Hash]
 
-	gen := ic.Chain.CalculateClaimable(tr.Balance, tr.LastUpdatedBlock, end)
-	return stackitem.NewBigInteger(big.NewInt(gen))
+	gen := ic.Chain.CalculateClaimable(&tr.Balance, tr.LastUpdatedBlock, end)
+	return stackitem.NewBigInteger(gen)
 }
 
 func (n *NEO) registerValidator(ic *interop.Context, args []stackitem.Item) stackitem.Item {

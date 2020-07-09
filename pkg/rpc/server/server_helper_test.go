@@ -1,6 +1,7 @@
 package server
 
 import (
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -90,6 +91,6 @@ func (fs *FeerStub) FeePerByte() int64 {
 	return 0
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) int64 {
-	return 1000000 * native.GASFactor
+func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
+	return big.NewInt(1000000 * native.GASFactor)
 }

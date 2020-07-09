@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"math/big"
 	"sort"
 	"testing"
 
@@ -16,13 +17,13 @@ type FeerStub struct {
 	feePerByte int64
 }
 
-const balance = 10000000
+var balance = big.NewInt(10000000)
 
 func (fs *FeerStub) FeePerByte() int64 {
 	return fs.feePerByte
 }
 
-func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) int64 {
+func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	return balance
 }
 
@@ -184,7 +185,7 @@ func TestMemPoolFees(t *testing.T) {
 	mp := NewMemPool(10)
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx0.NetworkFee = balance + 1
+	tx0.NetworkFee = balance.Int64() + 1
 	tx0.Sender = sender0
 	// insufficient funds to add transaction, but balance should be stored
 	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
@@ -195,9 +196,10 @@ func TestMemPoolFees(t *testing.T) {
 		feeSum:  0,
 	}, mp.fees[sender0])
 
+	balancePart := new(big.Int).Div(balance, big.NewInt(4))
 	// no problems with adding another transaction with lower fee
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx1.NetworkFee = balance * 0.7
+	tx1.NetworkFee = balancePart.Int64()
 	tx1.Sender = sender0
 	require.NoError(t, mp.Add(tx1, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))
@@ -208,14 +210,14 @@ func TestMemPoolFees(t *testing.T) {
 
 	// balance shouldn't change after adding one more transaction
 	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
-	tx2.NetworkFee = balance * 0.3
+	tx2.NetworkFee = new(big.Int).Sub(balance, balancePart).Int64()
 	tx2.Sender = sender0
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 	require.Equal(t, 2, len(mp.verifiedTxes))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  balance,
+		feeSum:  balance.Int64(),
 	}, mp.fees[sender0])
 
 	// can't add more transactions as we don't have enough GAS
@@ -227,7 +229,7 @@ func TestMemPoolFees(t *testing.T) {
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
 		balance: balance,
-		feeSum:  balance,
+		feeSum:  balance.Int64(),
 	}, mp.fees[sender0])
 
 	// check whether sender's fee updates correctly

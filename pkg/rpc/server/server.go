@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"strconv"
@@ -512,7 +513,7 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 			if err != nil {
 				continue
 			}
-			amount := amountToString(bal.Balance, dec)
+			amount := amountToString(&bal.Balance, dec)
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
 				Asset:       h,
 				Amount:      amount,
@@ -547,8 +548,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		if err != nil {
 			return nil
 		}
-		if tr.Amount > 0 { // token was received
-			transfer.Amount = amountToString(tr.Amount, d)
+		if tr.Amount.Sign() > 0 { // token was received
+			transfer.Amount = amountToString(&tr.Amount, d)
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
@@ -556,7 +557,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			return nil
 		}
 
-		transfer.Amount = amountToString(-tr.Amount, d)
+		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d)
 		if !tr.To.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
@@ -569,15 +570,14 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	return bs, nil
 }
 
-func amountToString(amount int64, decimals int64) string {
+func amountToString(amount *big.Int, decimals int64) string {
 	if decimals == 0 {
-		return strconv.FormatInt(amount, 10)
+		return amount.String()
 	}
 	pow := int64(math.Pow10(int(decimals)))
-	q := amount / pow
-	r := amount % pow
-	if r == 0 {
-		return strconv.FormatInt(q, 10)
+	q, r := new(big.Int).DivMod(amount, big.NewInt(pow), new(big.Int))
+	if r.Sign() == 0 {
+		return q.String()
 	}
 	fs := fmt.Sprintf("%%d.%%0%dd", decimals)
 	return fmt.Sprintf(fs, q, r)
@@ -783,11 +783,11 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	}
 
 	neo, neoHeight := s.chain.GetGoverningTokenBalance(u)
-	if neo == 0 {
+	if neo.Sign() == 0 {
 		return "0", nil
 	}
 	gas := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
-	return strconv.FormatInt(gas, 10), nil
+	return gas.String(), nil
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.
