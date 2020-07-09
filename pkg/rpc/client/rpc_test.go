@@ -325,7 +325,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetFeePerByte()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c0d676574466565506572427974650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"1000"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"10c00c0d676574466565506572427974650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"1000"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(1000)
 			},
@@ -337,7 +337,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetMaxTransactionsPerBlock()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c1a6765744d61785472616e73616374696f6e73506572426c6f636b0c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"512"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"10c00c1a6765744d61785472616e73616374696f6e73506572426c6f636b0c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"512"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(512)
 			},
@@ -349,7 +349,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetMaxBlockSize()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c0f6765744d6178426c6f636b53697a650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"262144"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"10c00c0f6765744d6178426c6f636b53697a650c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Integer","value":"262144"}]}}`,
 			result: func(c *Client) interface{} {
 				return int64(262144)
 			},
@@ -361,7 +361,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetBlockedAccounts()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gas_consumed":"2007390","script":"10c00c12676574426c6f636b65644163636f756e74730c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Array","value":[]}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"10c00c12676574426c6f636b65644163636f756e74730c149a61a46eec97b89306d7ce81f15b462091d0093241627d5b52","stack":[{"type":"Array","value":[]}]}}`,
 			result: func(c *Client) interface{} {
 				return native.BlockedAccounts{}
 			},
@@ -634,7 +634,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Account: util.Uint160{1, 2, 3},
 				}})
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"HALT","gas_consumed":"31100000","stack":[{"type":"ByteArray","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf","state":"HALT","gasconsumed":"31100000","stack":[{"type":"ByteArray","value":"JivsCEQy"}],"tx":"d101361426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
 				bytes, err := hex.DecodeString("262bec084432")
 				if err != nil {
@@ -666,7 +666,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Account: util.Uint160{1, 2, 3},
 				}})
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"00046e616d656724058e5e1b6008847cd662728549088a9ee82191","state":"HALT","gas_consumed":"16100000","stack":[{"type":"ByteArray","value":"TkVQNSBHQVM="}],"tx":"d1011b00046e616d656724058e5e1b6008847cd662728549088a9ee82191000000000000000000000000"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"00046e616d656724058e5e1b6008847cd662728549088a9ee82191","state":"HALT","gasconsumed":"16100000","stack":[{"type":"ByteArray","value":"TkVQNSBHQVM="}],"tx":"d1011b00046e616d656724058e5e1b6008847cd662728549088a9ee82191000000000000000000000000"}}`,
 			result: func(c *Client) interface{} {
 				bytes, err := hex.DecodeString("4e45503520474153")
 				if err != nil {
