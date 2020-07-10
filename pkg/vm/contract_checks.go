@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	verifyInteropID   = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))
+	verifyInteropID   = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
 	multisigInteropID = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig"))
 )
 

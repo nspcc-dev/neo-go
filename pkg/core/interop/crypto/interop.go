@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ecdsaVerifyID        = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaVerify"))
+	ecdsaSecp256r1VerifyID        = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
 	ecdsaCheckMultisigID = emit.InteropNameToID([]byte("Neo.Crypto.ECDsaCheckMultiSig"))
 	sha256ID             = emit.InteropNameToID([]byte("Neo.Crypto.SHA256"))
 )
@@ -16,10 +16,10 @@ var (
 func GetInterop(ic *interop.Context) func(uint32) *vm.InteropFuncPrice {
 	return func(id uint32) *vm.InteropFuncPrice {
 		switch id {
-		case ecdsaVerifyID:
+		case ecdsaSecp256r1VerifyID:
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
-					return ECDSAVerify(ic, v)
+					return ECDSASecp256r1Verify(ic, v)
 				},
 			}
 		case ecdsaCheckMultisigID:

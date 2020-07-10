@@ -159,7 +159,7 @@ func TestECDSAVerify(t *testing.T) {
 					err = fmt.Errorf("panic: %v", r)
 				}
 			}()
-			err = crypto.ECDSAVerify(ic, v)
+			err = crypto.ECDSASecp256r1Verify(ic, v)
 		}()
 
 		if isErr {

@@ -15,8 +15,8 @@ import (
 // ECDSAVerifyPrice is a gas price of a single verification.
 const ECDSAVerifyPrice = 1000000
 
-// ECDSAVerify checks ECDSA signature.
-func ECDSAVerify(ic *interop.Context, v *vm.VM) error {
+// ECDSASecp256r1Verify checks ECDSA signature using Secp256r1 elliptic curve.
+func ECDSASecp256r1Verify(ic *interop.Context, v *vm.VM) error {
 	msg := getMessage(ic, v.Estack().Pop().Item())
 	hashToCheck := hash.Sha256(msg).BytesBE()
 	keyb := v.Estack().Pop().Bytes()

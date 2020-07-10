@@ -283,7 +283,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 	}
 	emit.Bytes(buf.BinWriter, b)
 	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
+	emit.Syscall(buf.BinWriter, "Neo.Crypto.VerifyWithECDsaSecp256r1")
 
 	return buf.Bytes()
 }
