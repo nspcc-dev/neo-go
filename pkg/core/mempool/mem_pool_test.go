@@ -70,7 +70,7 @@ func TestOverCapacity(t *testing.T) {
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Attributes = append(tx.Attributes, transaction.Attribute{
-			Usage: transaction.Hash1,
+			Usage: transaction.DescriptionURL,
 			Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
 		})
 		tx.NetworkFee = 10000
@@ -84,7 +84,7 @@ func TestOverCapacity(t *testing.T) {
 	// Less prioritized txes are not allowed anymore.
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Attributes = append(tx.Attributes, transaction.Attribute{
-		Usage: transaction.Hash1,
+		Usage: transaction.DescriptionURL,
 		Data:  util.Uint256{1, 2, 3, 4}.BytesBE(),
 	})
 	tx.NetworkFee = 100
