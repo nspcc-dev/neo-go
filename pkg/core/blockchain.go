@@ -1166,12 +1166,6 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 		}
 	}
 
-	for _, a := range t.Attributes {
-		if a.Usage == transaction.ECDH02 || a.Usage == transaction.ECDH03 {
-			return errors.Errorf("invalid attribute's usage = %s ", a.Usage)
-		}
-	}
-
 	return bc.verifyTxWitnesses(t, block)
 }
 

@@ -285,7 +285,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 
 	bytes := make([]byte, 1)
 	attributes := append(tx.Attributes, transaction.Attribute{
-		Usage: transaction.Description,
+		Usage: transaction.DescriptionURL,
 		Data:  bytes,
 	})
 

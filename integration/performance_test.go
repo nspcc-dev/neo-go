@@ -83,7 +83,7 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 	tx.Sender = fromAddressHash
 	tx.Attributes = append(tx.Attributes,
 		transaction.Attribute{
-			Usage: transaction.Description,
+			Usage: transaction.DescriptionURL,
 			Data:  []byte(randString(10)),
 		})
 	return tx
