@@ -44,7 +44,7 @@ type Account struct {
 	Locked bool `json:"lock"`
 
 	// Indicates whether the account is the default change account.
-	Default bool `json:"isDefault"`
+	Default bool `json:"isdefault"`
 }
 
 // Contract represents a subset of the smartcontract to embed in the
