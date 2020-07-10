@@ -277,6 +277,12 @@ func (p *PublicKey) EncodeBinary(w *io.BinWriter) {
 func (p *PublicKey) GetVerificationScript() []byte {
 	b := p.Bytes()
 	buf := io.NewBufBinWriter()
+	if address.Prefix == address.NEO2Prefix {
+		buf.WriteB(0x21) // PUSHBYTES33
+		buf.WriteBytes(p.Bytes())
+		buf.WriteB(0xAC) // CHECKSIG
+		return buf.Bytes()
+	}
 	emit.Bytes(buf.BinWriter, b)
 	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
 	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
