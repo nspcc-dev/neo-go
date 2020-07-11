@@ -9,6 +9,6 @@ import (
 func TestRecoveryRequest_Setters(t *testing.T) {
 	var r recoveryRequest
 
-	r.SetTimestamp(123 * 1000000)
-	require.EqualValues(t, 123*1000000, r.Timestamp())
+	r.SetTimestamp(123 * nsInMs)
+	require.EqualValues(t, 123*nsInMs, r.Timestamp())
 }

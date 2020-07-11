@@ -33,10 +33,10 @@ func (c changeView) NewViewNumber() byte { return c.newViewNumber }
 func (c *changeView) SetNewViewNumber(view byte) { c.newViewNumber = view }
 
 // Timestamp implements payload.ChangeView interface.
-func (c changeView) Timestamp() uint64 { return c.timestamp * 1000000 }
+func (c changeView) Timestamp() uint64 { return c.timestamp * nsInMs }
 
 // SetTimestamp implements payload.ChangeView interface.
-func (c *changeView) SetTimestamp(ts uint64) { c.timestamp = ts / 1000000 }
+func (c *changeView) SetTimestamp(ts uint64) { c.timestamp = ts / nsInMs }
 
 // Reason implements payload.ChangeView interface.
 func (c changeView) Reason() payload.ChangeViewReason { return c.reason }

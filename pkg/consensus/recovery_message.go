@@ -164,7 +164,7 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		m.changeViewPayloads = append(m.changeViewPayloads, &changeViewCompact{
 			ValidatorIndex:     p.ValidatorIndex(),
 			OriginalViewNumber: p.ViewNumber(),
-			Timestamp:          p.GetChangeView().Timestamp() / 1000000,
+			Timestamp:          p.GetChangeView().Timestamp() / nsInMs,
 			InvocationScript:   p.(*Payload).Witness.InvocationScript,
 		})
 	case payload.CommitType:

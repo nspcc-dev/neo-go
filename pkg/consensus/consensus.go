@@ -32,6 +32,9 @@ const cacheMaxCapacity = 100
 // defaultTimePerBlock is a period between blocks which is used in NEO.
 const defaultTimePerBlock = 15 * time.Second
 
+// Number of nanoseconds in millisecond.
+const nsInMs = 1000000
+
 // Service represents consensus instance.
 type Service interface {
 	// Start initializes dBFT and starts event loop for consensus service.
@@ -488,7 +491,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	}
 
 	block.Block.Network = s.network
-	block.Block.Timestamp = ctx.Timestamp / 1000000
+	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Index = ctx.BlockIndex
 
 	validators, err := s.Chain.GetValidators()
