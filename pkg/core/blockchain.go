@@ -1240,9 +1240,14 @@ func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 	return bc.sbValidators.Copy()
 }
 
-// GetValidators returns next block validators.
+// GetValidators returns current validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
 	return bc.contracts.NEO.GetValidatorsInternal(bc, bc.dao)
+}
+
+// GetNextBlockValidators returns next block validators.
+func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
+	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
 }
 
 // GetEnrollments returns all registered validators.

@@ -77,6 +77,9 @@ func (chain testChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 	panic("TODO")
 }
+func (chain testChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
+	panic("TODO")
+}
 func (chain testChain) GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog {
 	panic("TODO")
 }

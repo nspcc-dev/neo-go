@@ -446,12 +446,16 @@ func (s *service) getVerifiedTx() []block.Transaction {
 	return res
 }
 
-func (s *service) getValidators(_ ...block.Transaction) []crypto.PublicKey {
+func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 	var (
 		pKeys []*keys.PublicKey
 		err   error
 	)
-	pKeys, err = s.Chain.GetValidators()
+	if txes == nil {
+		pKeys, err = s.Chain.GetNextBlockValidators()
+	} else {
+		pKeys, err = s.Chain.GetValidators()
+	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
 	}
