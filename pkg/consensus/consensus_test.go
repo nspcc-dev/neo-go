@@ -63,7 +63,7 @@ func TestService_GetVerified(t *testing.T) {
 			p.SetPayload(&prepareRequest{transactionHashes: hashes})
 		} else {
 			p.SetType(payload.ChangeViewType)
-			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint32(time.Now().Unix())})
+			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / 1000000)})
 		}
 		p.SetHeight(1)
 		p.SetValidatorIndex(uint16(i))
