@@ -142,7 +142,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 // OnPersist implements Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
-	pubs, err := n.getValidatorsInternal(ic.Chain, ic.DAO)
+	pubs, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		return err
 	}
@@ -385,8 +385,8 @@ func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Ite
 	return stackitem.NewArray(arr)
 }
 
-// getValidatorsInternal returns a list of current validators.
-func (n *NEO) getValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+// GetValidatorsInternal returns a list of current validators.
+func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals, nil
 	}
@@ -442,7 +442,7 @@ func (n *NEO) getValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 }
 
 func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	result, err := n.getValidatorsInternal(ic.Chain, ic.DAO)
+	result, err := n.GetValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
 		panic(err)
 	}
@@ -470,7 +470,7 @@ func (n *NEO) GetNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao
 func (n *NEO) getNextBlockValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
 	si := d.GetStorageItem(n.ContractID, nextValidatorsKey)
 	if si == nil {
-		return n.getValidatorsInternal(bc, d)
+		return n.GetValidatorsInternal(bc, d)
 	}
 	pubs := keys.PublicKeys{}
 	err := pubs.DecodeBytes(si.Value)

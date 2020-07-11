@@ -1242,7 +1242,7 @@ func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
 
 // GetValidators returns next block validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc, bc.dao)
+	return bc.contracts.NEO.GetValidatorsInternal(bc, bc.dao)
 }
 
 // GetEnrollments returns all registered validators.
