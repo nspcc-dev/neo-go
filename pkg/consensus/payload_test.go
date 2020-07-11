@@ -256,7 +256,6 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	for i := 0; i < txCount; i++ {
 		req.transactionHashes[i] = random.Uint256()
 	}
-	req.nextConsensus = random.Uint160()
 
 	return req
 }

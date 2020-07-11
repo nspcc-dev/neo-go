@@ -464,15 +464,8 @@ func (s *service) getValidators(_ ...block.Transaction) []crypto.PublicKey {
 	return pubs
 }
 
-func (s *service) getConsensusAddress(validators ...crypto.PublicKey) (h util.Uint160) {
-	pubs := convertKeys(validators)
-
-	script, err := smartcontract.CreateMultiSigRedeemScript(s.dbft.M(), pubs)
-	if err != nil {
-		return
-	}
-
-	return crypto.Hash160(script)
+func (s *service) getConsensusAddress(validators ...crypto.PublicKey) util.Uint160 {
+	return util.Uint160{}
 }
 
 func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
@@ -493,7 +486,16 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.Network = s.network
 	block.Block.Timestamp = ctx.Timestamp / 1000000
 	block.Block.Index = ctx.BlockIndex
-	block.Block.NextConsensus = ctx.NextConsensus
+
+	validators, err := s.Chain.GetValidators()
+	if err != nil {
+		return nil
+	}
+	script, err := smartcontract.CreateMultiSigRedeemScript(len(validators)-(len(validators)-1)/3, validators)
+	if err != nil {
+		return nil
+	}
+	block.Block.NextConsensus = crypto.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
 	block.Block.Version = ctx.Version
 	block.Block.ConsensusData.Nonce = ctx.Nonce
