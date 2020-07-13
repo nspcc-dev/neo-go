@@ -49,6 +49,8 @@ const (
 	commitType          messageType = 0x30
 	recoveryRequestType messageType = 0x40
 	recoveryMessageType messageType = 0x41
+
+	payloadGasLimit = 2000000 // 0.02 GAS
 )
 
 // ViewNumber implements payload.ConsensusPayload interface.
@@ -221,6 +223,7 @@ func (p *Payload) Verify(scriptHash util.Uint160) bool {
 	}
 
 	v := vm.New()
+	v.GasLimit = payloadGasLimit
 	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: p}))
 	v.LoadScript(verification)
 	v.LoadScript(p.Witness.InvocationScript)
