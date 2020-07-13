@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -100,12 +101,13 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPublicKeyFromBytes(b)
+	return NewPublicKeyFromBytes(b, elliptic.P256())
 }
 
-// NewPublicKeyFromBytes returns public key created from b.
-func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
+// NewPublicKeyFromBytes returns public key created from b using given EC.
+func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 	pubKey := new(PublicKey)
+	pubKey.Curve = curve
 	if err := pubKey.DecodeBytes(b); err != nil {
 		return nil, err
 	}
@@ -175,15 +177,25 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 }
 
 // decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
+// We use here a short-form Weierstrass curve (https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html)
+// y² = x³ + ax + b. Two types of elliptic curves are supported:
+// 1. Secp256k1 (Koblitz curve): y² = x³ + b,
+// 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
+// To decode compressed curve point we perform the following operation: y = sqrt(x³ + ax + b mod p)
+// where `p` denotes the order of the underlying curve field
 func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
-	c := curve
-	cp := c.Params()
-	three := big.NewInt(3)
-	/* y**2 = x**3 + a*x + b  % p */
-	xCubed := new(big.Int).Exp(x, three, cp.P)
-	threeX := new(big.Int).Mul(x, three)
-	threeX.Mod(threeX, cp.P)
-	ySquared := new(big.Int).Sub(xCubed, threeX)
+	var a *big.Int
+	switch curve.(type) {
+	case *btcec.KoblitzCurve:
+		a = big.NewInt(0)
+	default:
+		a = big.NewInt(3)
+	}
+	cp := curve.Params()
+	xCubed := new(big.Int).Exp(x, big.NewInt(3), cp.P)
+	aX := new(big.Int).Mul(x, a)
+	aX.Mod(aX, cp.P)
+	ySquared := new(big.Int).Sub(xCubed, aX)
 	ySquared.Add(ySquared, cp.B)
 	ySquared.Mod(ySquared, cp.P)
 	y := new(big.Int).ModSqrt(ySquared, cp.P)

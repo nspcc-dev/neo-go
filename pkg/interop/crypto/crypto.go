@@ -13,3 +13,9 @@ func SHA256(b []byte) []byte {
 func ECDsaSecp256r1Verify(msg []byte, pub []byte, sig []byte) bool {
 	return false
 }
+
+// ECDsaSecp256k1Verify checks that sig is correct msg's signature for a given pub
+// (serialized public key). It uses `Neo.Crypto.VerifyWithECDsaSecp256k1` syscall.
+func ECDsaSecp256k1Verify(msg []byte, pub []byte, sig []byte) bool {
+	return false
+}

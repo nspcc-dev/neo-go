@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
@@ -492,7 +493,7 @@ func contractIsStandard(ic *interop.Context, v *vm.VM) error {
 // contractCreateStandardAccount calculates contract scripthash for a given public key.
 func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
 	h := v.Estack().Pop().Bytes()
-	p, err := keys.NewPublicKeyFromBytes(h)
+	p, err := keys.NewPublicKeyFromBytes(h, elliptic.P256())
 	if err != nil {
 		return err
 	}

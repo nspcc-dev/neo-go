@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"crypto/elliptic"
 	"encoding/hex"
 	"encoding/json"
 	"math/rand"
@@ -59,7 +60,7 @@ func TestNewPublicKeyFromBytes(t *testing.T) {
 	require.NoError(t, err)
 
 	b := priv.PublicKey().Bytes()
-	pub, err := NewPublicKeyFromBytes(b)
+	pub, err := NewPublicKeyFromBytes(b, elliptic.P256())
 	require.NoError(t, err)
 	require.Equal(t, priv.PublicKey(), pub)
 }
