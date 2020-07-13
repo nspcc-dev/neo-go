@@ -568,6 +568,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	if block.Index > 0 {
 		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
 		v := SpawnVM(systemInterop)
+		v.GasLimit = -1
 		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
 		v.SetPriceGetter(getPrice)
 		if err := v.Run(); err != nil {
@@ -1358,7 +1359,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false, 0)
+		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false, t.NetworkFee)
 		if err != nil {
 			numStr := fmt.Sprintf("witness #%d", i)
 			return errors.Wrap(err, numStr)

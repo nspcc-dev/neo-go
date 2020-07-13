@@ -133,7 +133,7 @@ func (v *VM) GasConsumed() int64 {
 // AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
 func (v *VM) AddGas(gas int64) bool {
 	v.gasConsumed += gas
-	return v.GasLimit == 0 || v.gasConsumed <= v.GasLimit
+	return v.GasLimit < 0 || v.gasConsumed <= v.GasLimit
 }
 
 // Estack returns the evaluation stack so interop hooks can utilize this.
@@ -523,7 +523,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
 		v.gasConsumed += v.getPrice(v, op, parameter)
-		if v.GasLimit > 0 && v.gasConsumed > v.GasLimit {
+		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")
 		}
 	}

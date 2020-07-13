@@ -24,7 +24,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	srv := newTestService(t)
-	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 100000)
 	tx.ValidUntilBlock = 1
 	addSender(t, tx)
 	signTx(t, srv.Chain.FeePerByte(), tx)
@@ -42,7 +42,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv.dbft.Start()
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
-		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
+		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 100000)
 		tx.Nonce = 123 + uint32(i)
 		tx.ValidUntilBlock = 1
 		txs = append(txs, tx)
