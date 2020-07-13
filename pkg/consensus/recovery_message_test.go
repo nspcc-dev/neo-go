@@ -31,7 +31,6 @@ func TestRecoveryMessage_Setters(t *testing.T) {
 		timestamp:         87,
 		nonce:             321,
 		transactionHashes: []util.Uint256{{1}},
-		nextConsensus:     util.Uint160{1, 2},
 	}
 	p1 := new(Payload)
 	p1.message = &message{}

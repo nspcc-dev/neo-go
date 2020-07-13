@@ -65,7 +65,7 @@ func (n *neoBlock) PrevHash() util.Uint256 { return n.Block.PrevHash }
 func (n *neoBlock) MerkleRoot() util.Uint256 { return n.Block.MerkleRoot }
 
 // Timestamp implements block.Block interface.
-func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp * 1000000 }
+func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp * nsInMs }
 
 // Index implements block.Block interface.
 func (n *neoBlock) Index() uint32 { return n.Block.Index }

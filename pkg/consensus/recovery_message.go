@@ -21,7 +21,7 @@ type (
 	changeViewCompact struct {
 		ValidatorIndex     uint16
 		OriginalViewNumber byte
-		Timestamp          uint32
+		Timestamp          uint64
 		InvocationScript   []byte
 	}
 
@@ -95,7 +95,7 @@ func (m *recoveryMessage) EncodeBinary(w *io.BinWriter) {
 func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 	p.ValidatorIndex = r.ReadU16LE()
 	p.OriginalViewNumber = r.ReadB()
-	p.Timestamp = r.ReadU32LE()
+	p.Timestamp = r.ReadU64LE()
 	p.InvocationScript = r.ReadVarBytes(1024)
 }
 
@@ -103,7 +103,7 @@ func (p *changeViewCompact) DecodeBinary(r *io.BinReader) {
 func (p *changeViewCompact) EncodeBinary(w *io.BinWriter) {
 	w.WriteU16LE(p.ValidatorIndex)
 	w.WriteB(p.OriginalViewNumber)
-	w.WriteU32LE(p.Timestamp)
+	w.WriteU64LE(p.Timestamp)
 	w.WriteVarBytes(p.InvocationScript)
 }
 
@@ -164,7 +164,7 @@ func (m *recoveryMessage) AddPayload(p payload.ConsensusPayload) {
 		m.changeViewPayloads = append(m.changeViewPayloads, &changeViewCompact{
 			ValidatorIndex:     p.ValidatorIndex(),
 			OriginalViewNumber: p.ViewNumber(),
-			Timestamp:          p.GetChangeView().Timestamp(),
+			Timestamp:          p.GetChangeView().Timestamp() / nsInMs,
 			InvocationScript:   p.(*Payload).Witness.InvocationScript,
 		})
 	case payload.CommitType:

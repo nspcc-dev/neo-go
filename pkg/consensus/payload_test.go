@@ -224,7 +224,7 @@ func randomMessage(t *testing.T, mt messageType) io.Serializable {
 	switch mt {
 	case changeViewType:
 		return &changeView{
-			timestamp: rand.Uint32(),
+			timestamp: rand.Uint64(),
 		}
 	case prepareRequestType:
 		return randomPrepareRequest(t)
@@ -235,7 +235,7 @@ func randomMessage(t *testing.T, mt messageType) io.Serializable {
 		random.Fill(c.signature[:])
 		return &c
 	case recoveryRequestType:
-		return &recoveryRequest{timestamp: rand.Uint32()}
+		return &recoveryRequest{timestamp: rand.Uint64()}
 	case recoveryMessageType:
 		return randomRecoveryMessage(t)
 	default:
@@ -256,7 +256,6 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 	for i := 0; i < txCount; i++ {
 		req.transactionHashes[i] = random.Uint256()
 	}
-	req.nextConsensus = random.Uint160()
 
 	return req
 }
@@ -289,7 +288,7 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 		},
 		changeViewPayloads: []*changeViewCompact{
 			{
-				Timestamp:          rand.Uint32(),
+				Timestamp:          rand.Uint64(),
 				ValidatorIndex:     3,
 				OriginalViewNumber: 3,
 				InvocationScript:   random.Bytes(4),
