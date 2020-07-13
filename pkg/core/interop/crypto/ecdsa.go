@@ -30,8 +30,9 @@ func ECDSASecp256r1Verify(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// ECDSACheckMultisig checks multiple ECDSA signatures at once.
-func ECDSACheckMultisig(ic *interop.Context, v *vm.VM) error {
+// ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once using
+// Secp256r1 elliptic curve.
+func ECDSASecp256r1CheckMultisig(ic *interop.Context, v *vm.VM) error {
 	msg := getMessage(ic, v.Estack().Pop().Item())
 	hashToCheck := hash.Sha256(msg).BytesBE()
 	pkeys, err := v.Estack().PopSigElements()
