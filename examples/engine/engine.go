@@ -7,7 +7,7 @@ import (
 // Main is that famous Main() function, you know.
 func Main() bool {
 	tx := runtime.GetScriptContainer()
-	runtime.Notify(tx)
+	runtime.Notify(tx.Hash)
 
 	callingScriptHash := runtime.GetCallingScriptHash()
 	runtime.Notify(callingScriptHash)

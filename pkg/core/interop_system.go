@@ -179,10 +179,19 @@ func bcGetTransactionHeight(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// engineGetScriptContainer returns transaction that contains the script being
-// run.
+// engineGetScriptContainer returns transaction or block that contains the script
+// being run.
 func engineGetScriptContainer(ic *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(stackitem.NewInterop(ic.Container))
+	var item stackitem.Item
+	switch t := ic.Container.(type) {
+	case *transaction.Transaction:
+		item = transactionToStackItem(t)
+	case *block.Block:
+		item = blockToStackItem(t)
+	default:
+		return errors.New("unknown script container")
+	}
+	v.Estack().PushVal(item)
 	return nil
 }
 
