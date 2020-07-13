@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -16,10 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
-
-// ecdsaVerifyInteropPrice returns the price of Neo.Crypto.ECDsaVerify
-// syscall to calculate NetworkFee for transaction
-const ecdsaVerifyInteropPrice = 100000
 
 var (
 	// governingTokenTX represents transaction that is used to create
@@ -138,13 +135,13 @@ func CalculateNetworkFee(script []byte) (int64, int) {
 	)
 	if vm.IsSignatureContract(script) {
 		size += 67 + io.GetVarSize(script)
-		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL) + ecdsaVerifyInteropPrice
+		netFee += opcodePrice(opcode.PUSHDATA1, opcode.PUSHNULL) + crypto.ECDSAVerifyPrice
 	} else if n, pubs, ok := vm.ParseMultiSigContract(script); ok {
 		m := len(pubs)
 		sizeInv := 66 * m
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
 		netFee += calculateMultisigFee(m) + calculateMultisigFee(n)
-		netFee += opcodePrice(opcode.PUSHNULL) + ecdsaVerifyInteropPrice*int64(n)
+		netFee += opcodePrice(opcode.PUSHNULL) + crypto.ECDSAVerifyPrice*int64(n)
 	} else {
 		// We can support more contract types in the future.
 	}
