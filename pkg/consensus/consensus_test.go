@@ -257,6 +257,7 @@ func signTx(t *testing.T, feePerByte int64, txs ...*transaction.Transaction) {
 		privNetKeys[i] = testchain.PrivateKey(i)
 		validators[i] = privNetKeys[i].PublicKey()
 	}
+	privNetKeys = privNetKeys[:3]
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(3, validators)
 	require.NoError(t, err)
 	for _, tx := range txs {
