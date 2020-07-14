@@ -19,3 +19,15 @@ func ECDsaSecp256r1Verify(msg []byte, pub []byte, sig []byte) bool {
 func ECDsaSecp256k1Verify(msg []byte, pub []byte, sig []byte) bool {
 	return false
 }
+
+// ECDSASecp256r1CheckMultisig checks multiple ECDSA signatures at once. It uses
+// `Neo.Crypto.CheckMultisigWithECDsaSecp256r1` syscall.
+func ECDSASecp256r1CheckMultisig(msg []byte, pubs [][]byte, sigs [][]byte) bool {
+	return false
+}
+
+// ECDSASecp256k1CheckMultisig checks multiple ECDSA signatures at once. It uses
+// `Neo.Crypto.CheckMultisigWithECDsaSecp256k1` syscall.
+func ECDSASecp256k1CheckMultisig(msg []byte, pubs [][]byte, sigs [][]byte) bool {
+	return false
+}
