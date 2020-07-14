@@ -227,7 +227,7 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 		return nil, w.Err
 	}
 	script := w.Bytes()
-	tx := transaction.New(chain.GetConfig().Magic, script, 0)
+	tx := transaction.New(chain.GetConfig().Magic, script, 10000000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
 	err := addSender(tx)

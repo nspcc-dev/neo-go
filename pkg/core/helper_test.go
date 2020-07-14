@@ -257,7 +257,7 @@ func TestCreateBasicChain(t *testing.T) {
 	script = io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
 
-	txInv := transaction.New(testchain.Network(), script.Bytes(), 0)
+	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
 	txInv.Sender = priv0ScriptHash
@@ -288,7 +288,7 @@ func TestCreateBasicChain(t *testing.T) {
 	sh := hash.Hash160(avm)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
-	initTx := transaction.New(testchain.Network(), w.Bytes(), 0)
+	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
 	initTx.Sender = priv0ScriptHash
@@ -378,7 +378,7 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 	emit.Opcode(w.BinWriter, opcode.ASSERT)
 
 	script := w.Bytes()
-	return transaction.New(testchain.Network(), script, 0)
+	return transaction.New(testchain.Network(), script, 10000000)
 }
 
 func addSender(txs ...*transaction.Transaction) error {

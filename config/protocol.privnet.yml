@@ -44,6 +44,7 @@ ApplicationConfiguration:
   MinPeers: 3
   RPC:
     Enabled: true
+    MaxGasInvoke: 10
     EnableCORSWorkaround: false
     Port: 20331
     TLSConfig:

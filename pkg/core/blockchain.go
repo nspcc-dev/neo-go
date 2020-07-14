@@ -35,7 +35,8 @@ const (
 	headerBatchCount = 2000
 	version          = "0.1.0"
 
-	defaultMemPoolSize = 50000
+	defaultMemPoolSize   = 50000
+	verificationGasLimit = 100000000 // 1 GAS
 )
 
 var (
@@ -567,6 +568,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	if block.Index > 0 {
 		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
 		v := SpawnVM(systemInterop)
+		v.GasLimit = -1
 		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
 		v.SetPriceGetter(getPrice)
 		if err := v.Run(); err != nil {
@@ -1299,13 +1301,15 @@ func ScriptFromWitness(hash util.Uint160, witness *transaction.Witness) ([]byte,
 }
 
 // verifyHashAgainstScript verifies given hash against the given witness.
-func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool) error {
+func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, useKeys bool, gas int64) error {
 	verification, err := ScriptFromWitness(hash, witness)
 	if err != nil {
 		return err
 	}
 
 	vm := SpawnVM(interopCtx)
+	vm.SetPriceGetter(getPrice)
+	vm.GasLimit = gas
 	vm.LoadScriptWithFlags(verification, smartcontract.ReadOnly)
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
@@ -1360,7 +1364,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
 	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false)
+		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false, t.NetworkFee)
 		if err != nil {
 			numStr := fmt.Sprintf("witness #%d", i)
 			return errors.Wrap(err, numStr)
@@ -1380,7 +1384,7 @@ func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header
 	}
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	interopCtx.Container = currHeader
-	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true)
+	return bc.verifyHashAgainstScript(hash, &currHeader.Script, interopCtx, true, verificationGasLimit)
 }
 
 // GoverningTokenHash returns the governing token (NEO) native contract hash.

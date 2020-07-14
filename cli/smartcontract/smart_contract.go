@@ -460,7 +460,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
 		}
-		txHash, err := c.SignAndPushInvocationTx(script, acc, 0, gas, cosigners)
+		txHash, err := c.SignAndPushInvocationTx(script, acc, resp.GasConsumed, gas, cosigners)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
 		}

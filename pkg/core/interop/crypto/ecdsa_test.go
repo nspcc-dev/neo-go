@@ -60,6 +60,7 @@ func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
 	binary.LittleEndian.PutUint32(buf[1:], ecdsaCheckMultisigID)
 
 	v := vm.New()
+	v.GasLimit = -1
 	ic := &interop.Context{Trigger: trigger.Verification}
 	v.RegisterInteropGetter(GetInterop(ic))
 	v.LoadScript(buf)

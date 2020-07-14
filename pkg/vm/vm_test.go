@@ -35,7 +35,7 @@ func fooInteropGetter(id uint32) *InteropFuncPrice {
 }
 
 func TestInteropHook(t *testing.T) {
-	v := New()
+	v := newTestVM()
 	v.RegisterInteropGetter(fooInteropGetter)
 
 	buf := io.NewBufBinWriter()
@@ -48,14 +48,14 @@ func TestInteropHook(t *testing.T) {
 }
 
 func TestRegisterInteropGetter(t *testing.T) {
-	v := New()
+	v := newTestVM()
 	currRegistered := len(v.getInterop)
 	v.RegisterInteropGetter(fooInteropGetter)
 	assert.Equal(t, currRegistered+1, len(v.getInterop))
 }
 
 func TestVM_SetPriceGetter(t *testing.T) {
-	v := New()
+	v := newTestVM()
 	prog := []byte{
 		byte(opcode.PUSH4), byte(opcode.PUSH2),
 		byte(opcode.PUSHDATA1), 0x01, 0x01,
@@ -103,7 +103,7 @@ func TestVM_SetPriceGetter(t *testing.T) {
 }
 
 func TestAddGas(t *testing.T) {
-	v := New()
+	v := newTestVM()
 	v.GasLimit = 10
 	require.True(t, v.AddGas(5))
 	require.True(t, v.AddGas(5))
@@ -111,7 +111,7 @@ func TestAddGas(t *testing.T) {
 }
 
 func TestBytesToPublicKey(t *testing.T) {
-	v := New()
+	v := newTestVM()
 	cache := v.GetPublicKeys()
 	assert.Equal(t, 0, len(cache))
 	keyHex := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
@@ -819,7 +819,7 @@ func TestSerializeInterop(t *testing.T) {
 func getTestCallFlagsFunc(syscall []byte, flags smartcontract.CallFlag, result interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
 		script := append([]byte{byte(opcode.SYSCALL)}, syscall...)
-		v := New()
+		v := newTestVM()
 		v.RegisterInteropGetter(getTestingInterop)
 		v.LoadScriptWithFlags(script, flags)
 		if result == nil {
@@ -2518,7 +2518,7 @@ func makeProgram(opcodes ...opcode.Opcode) []byte {
 }
 
 func load(prog []byte) *VM {
-	vm := New()
+	vm := newTestVM()
 	if len(prog) != 0 {
 		vm.LoadScript(prog)
 	}
@@ -2532,4 +2532,10 @@ func randomBytes(n int) []byte {
 		b[i] = charset[rand.Intn(len(charset))]
 	}
 	return b
+}
+
+func newTestVM() *VM {
+	v := New()
+	v.GasLimit = -1
+	return v
 }
