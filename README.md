@@ -29,8 +29,8 @@ This branch (**master**) is under active development now (read: won't work
 out of the box) and aims to be compatible with Neo 3. For the current stable
 version compatible with Neo 2 please refer to the [**master-2.x**
 branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
-before 0.80.0 (**0.7X.Y** track). Releases starting from 0.90.0 will contain
-Neo 3 code.
+before 0.80.0 (**0.7X.Y** track). Releases starting from 0.90.0 contain
+Neo 3 code (0.90.0 being compatible with Neo 3 preview2).
 
 # Getting started
 
