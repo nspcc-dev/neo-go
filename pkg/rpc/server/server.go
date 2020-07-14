@@ -833,6 +833,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
+	tx.Script = script
 	return s.runScriptInVM(script, tx), nil
 }
 
@@ -855,6 +856,7 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		}
 		tx.Cosigners = cosigners
 	}
+	tx.Script = script
 	return s.runScriptInVM(script, tx), nil
 }
 
