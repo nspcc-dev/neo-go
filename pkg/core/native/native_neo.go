@@ -253,11 +253,7 @@ func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 
 // VoteInternal votes from account h for validarors specified in pubs.
 func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.PublicKeys) error {
-	ok, err := runtime.CheckHashedWitness(ic, nep5ScriptHash{
-		callingScriptHash: util.Uint160{},
-		entryScriptHash:   n.Hash,
-		currentScriptHash: n.Hash,
-	}, h)
+	ok, err := runtime.CheckHashedWitness(ic, h)
 	if err != nil {
 		return err
 	} else if !ok {
