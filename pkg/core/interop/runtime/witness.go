@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"crypto/elliptic"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -90,7 +92,7 @@ func CheckWitness(ic *interop.Context, v *vm.VM) error {
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		var key *keys.PublicKey
-		key, err = keys.NewPublicKeyFromBytes(hashOrKey)
+		key, err = keys.NewPublicKeyFromBytes(hashOrKey, elliptic.P256())
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}

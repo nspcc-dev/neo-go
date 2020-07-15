@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -76,11 +77,8 @@ func (keys PublicKeys) Unique() PublicKeys {
 }
 
 // PublicKey represents a public key and provides a high level
-// API around the X/Y point.
-type PublicKey struct {
-	X *big.Int
-	Y *big.Int
-}
+// API around ecdsa.PublicKey.
+type PublicKey ecdsa.PublicKey
 
 // Equal returns true in case public keys are equal.
 func (p *PublicKey) Equal(key *PublicKey) bool {
@@ -103,12 +101,13 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPublicKeyFromBytes(b)
+	return NewPublicKeyFromBytes(b, elliptic.P256())
 }
 
-// NewPublicKeyFromBytes returns public key created from b.
-func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
+// NewPublicKeyFromBytes returns public key created from b using given EC.
+func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 	pubKey := new(PublicKey)
+	pubKey.Curve = curve
 	if err := pubKey.DecodeBytes(b); err != nil {
 		return nil, err
 	}
@@ -173,23 +172,30 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	if !ok {
 		return nil, errors.New("given bytes aren't ECDSA public key")
 	}
-	key := PublicKey{
-		X: pk.X,
-		Y: pk.Y,
-	}
-	return &key, nil
+	result := PublicKey(*pk)
+	return &result, nil
 }
 
 // decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
-func decodeCompressedY(x *big.Int, ylsb uint) (*big.Int, error) {
-	c := elliptic.P256()
-	cp := c.Params()
-	three := big.NewInt(3)
-	/* y**2 = x**3 + a*x + b  % p */
-	xCubed := new(big.Int).Exp(x, three, cp.P)
-	threeX := new(big.Int).Mul(x, three)
-	threeX.Mod(threeX, cp.P)
-	ySquared := new(big.Int).Sub(xCubed, threeX)
+// We use here a short-form Weierstrass curve (https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html)
+// y² = x³ + ax + b. Two types of elliptic curves are supported:
+// 1. Secp256k1 (Koblitz curve): y² = x³ + b,
+// 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
+// To decode compressed curve point we perform the following operation: y = sqrt(x³ + ax + b mod p)
+// where `p` denotes the order of the underlying curve field
+func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
+	var a *big.Int
+	switch curve.(type) {
+	case *btcec.KoblitzCurve:
+		a = big.NewInt(0)
+	default:
+		a = big.NewInt(3)
+	}
+	cp := curve.Params()
+	xCubed := new(big.Int).Exp(x, big.NewInt(3), cp.P)
+	aX := new(big.Int).Mul(x, a)
+	aX.Mod(aX, cp.P)
+	ySquared := new(big.Int).Sub(xCubed, aX)
 	ySquared.Add(ySquared, cp.B)
 	ySquared.Mod(ySquared, cp.P)
 	y := new(big.Int).ModSqrt(ySquared, cp.P)
@@ -210,7 +216,8 @@ func (p *PublicKey) DecodeBytes(data []byte) error {
 	return b.Err
 }
 
-// DecodeBinary decodes a PublicKey from the given BinReader.
+// DecodeBinary decodes a PublicKey from the given BinReader using information
+// about the EC curve to decompress Y point. Secp256r1 is a default value for EC curve.
 func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 	var prefix uint8
 	var x, y *big.Int
@@ -221,8 +228,11 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		return
 	}
 
-	p256 := elliptic.P256()
-	p256Params := p256.Params()
+	if p.Curve == nil {
+		p.Curve = elliptic.P256()
+	}
+	curve := p.Curve
+	curveParams := p.Params()
 	// Infinity
 	switch prefix {
 	case 0x00:
@@ -237,7 +247,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		ylsb := uint(prefix & 0x1)
-		y, err = decodeCompressedY(x, ylsb)
+		y, err = decodeCompressedY(x, ylsb, curve)
 		if err != nil {
 			r.Err = err
 			return
@@ -252,7 +262,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		}
 		x = new(big.Int).SetBytes(xbytes)
 		y = new(big.Int).SetBytes(ybytes)
-		if !p256.IsOnCurve(x, y) {
+		if !curve.IsOnCurve(x, y) {
 			r.Err = errors.New("encoded point is not on the P256 curve")
 			return
 		}
@@ -260,7 +270,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 		r.Err = errors.Errorf("invalid prefix %d", prefix)
 		return
 	}
-	if x.Cmp(p256Params.P) >= 0 || y.Cmp(p256Params.P) >= 0 {
+	if x.Cmp(curveParams.P) >= 0 || y.Cmp(curveParams.P) >= 0 {
 		r.Err = errors.New("enccoded point is not correct (X or Y is bigger than P")
 		return
 	}
@@ -285,7 +295,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 	}
 	emit.Bytes(buf.BinWriter, b)
 	emit.Opcode(buf.BinWriter, opcode.PUSHNULL)
-	emit.Syscall(buf.BinWriter, "Neo.Crypto.ECDsaVerify")
+	emit.Syscall(buf.BinWriter, "Neo.Crypto.VerifyWithECDsaSecp256r1")
 
 	return buf.Bytes()
 }
@@ -303,17 +313,13 @@ func (p *PublicKey) Address() string {
 // Verify returns true if the signature is valid and corresponds
 // to the hash and public key.
 func (p *PublicKey) Verify(signature []byte, hash []byte) bool {
-
-	publicKey := &ecdsa.PublicKey{}
-	publicKey.Curve = elliptic.P256()
-	publicKey.X = p.X
-	publicKey.Y = p.Y
 	if p.X == nil || p.Y == nil {
 		return false
 	}
 	rBytes := new(big.Int).SetBytes(signature[0:32])
 	sBytes := new(big.Int).SetBytes(signature[32:64])
-	return ecdsa.Verify(publicKey, hash, rBytes, sBytes)
+	pk := ecdsa.PublicKey(*p)
+	return ecdsa.Verify(&pk, hash, rBytes, sBytes)
 }
 
 // IsInfinity checks if the key is infinite (null, basically).

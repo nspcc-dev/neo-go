@@ -6,7 +6,10 @@ var syscalls = map[string]map[string]string{
 		"Deserialize": "System.Binary.Deserialize",
 	},
 	"crypto": {
-		"ECDsaVerify": "Neo.Crypto.ECDsaVerify",
+		"ECDsaSecp256r1Verify":        "Neo.Crypto.VerifyWithECDsaSecp256r1",
+		"ECDsaSecp256k1Verify":        "Neo.Crypto.VerifyWithECDsaSecp256k1",
+		"ECDSASecp256r1CheckMultisig": "Neo.Crypto.CheckMultisigWithECDsaSecp256r1",
+		"ECDSASecp256k1CheckMultisig": "Neo.Crypto.CheckMultisigWithECDsaSecp256k1",
 	},
 	"enumerator": {
 		"Concat": "System.Enumerator.Concat",

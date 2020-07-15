@@ -1,6 +1,7 @@
 package native
 
 import (
+	"crypto/elliptic"
 	"math/big"
 	"sort"
 	"strings"
@@ -361,7 +362,7 @@ func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
 	}
 	arr := make([]state.Validator, len(kvs))
 	for i := range kvs {
-		arr[i].Key, err = keys.NewPublicKeyFromBytes([]byte(kvs[i].Key))
+		arr[i].Key, err = keys.NewPublicKeyFromBytes([]byte(kvs[i].Key), elliptic.P256())
 		if err != nil {
 			return nil, err
 		}

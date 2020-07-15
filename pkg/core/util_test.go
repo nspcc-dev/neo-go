@@ -21,14 +21,14 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	// have been changed. Consequently, hash of the genesis block has been changed.
 	// Update expected genesis block hash for better times.
 	// Old hash is "d42561e3d30e15be6400b6df2f328e02d2bf6354c41dce433bc57687c82144bf"
-	expect := "dba446947a90b2862ef050703b44828ad8b02d11978f8ef59bd3e1c97aabf6e5"
+	expect := "94e61af2441145cc251752707a58107850328a48bb095fd175ca2f8513ab5676"
 	assert.Equal(t, expect, block.Hash().StringLE())
 }
 
 func TestGetConsensusAddressMainNet(t *testing.T) {
 	var (
-		consensusAddr   = "NWNnqYniJyFh1qx5KyBeTV4uq5ewvNrAuD"
-		consensusScript = "72c3d9b3bbf776698694cd2c73fa597a10c31294"
+		consensusAddr   = "NiVihDFvZacZhujTWkBhRz32UDuNRp416f"
+		consensusScript = "f7b4d00143932f3b6243cfc06cb4a68f22c739e2"
 	)
 
 	cfg, err := config.Load("../../config", netmode.MainNet)

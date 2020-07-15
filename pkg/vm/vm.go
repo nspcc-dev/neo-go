@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -1457,9 +1458,9 @@ func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
-func CheckMultisigPar(v *VM, h []byte, pkeys [][]byte, sigs [][]byte) bool {
+func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
-		return checkMultisig1(v, h, pkeys, sigs[0])
+		return checkMultisig1(v, curve, h, pkeys, sigs[0])
 	}
 
 	k1, k2 := 0, len(pkeys)-1
@@ -1496,8 +1497,8 @@ func CheckMultisigPar(v *VM, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 		go worker(tasks, results)
 	}
 
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1]), signum: s1}
-	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2]), signum: s2}
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k1], curve), signum: s1}
+	tasks <- task{pub: v.bytesToPublicKey(pkeys[k2], curve), signum: s2}
 
 	sigok := true
 	taskCount := 2
@@ -1541,7 +1542,7 @@ loop:
 			nextKey = k2
 		}
 		taskCount++
-		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey]), signum: nextSig}
+		tasks <- task{pub: v.bytesToPublicKey(pkeys[nextKey], curve), signum: nextSig}
 	}
 
 	close(tasks)
@@ -1549,9 +1550,9 @@ loop:
 	return sigok
 }
 
-func checkMultisig1(v *VM, h []byte, pkeys [][]byte, sig []byte) bool {
+func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
 	for i := range pkeys {
-		pkey := v.bytesToPublicKey(pkeys[i])
+		pkey := v.bytesToPublicKey(pkeys[i], curve)
 		if pkey.Verify(sig, h) {
 			return true
 		}
@@ -1606,14 +1607,14 @@ func (v *VM) checkInvocationStackSize() {
 
 // bytesToPublicKey is a helper deserializing keys using cache and panicing on
 // error.
-func (v *VM) bytesToPublicKey(b []byte) *keys.PublicKey {
+func (v *VM) bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 	var pkey *keys.PublicKey
 	s := string(b)
 	if v.keys[s] != nil {
 		pkey = v.keys[s]
 	} else {
 		var err error
-		pkey, err = keys.NewPublicKeyFromBytes(b)
+		pkey, err = keys.NewPublicKeyFromBytes(b, curve)
 		if err != nil {
 			panic(err.Error())
 		}

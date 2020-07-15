@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -116,9 +117,9 @@ func TestBytesToPublicKey(t *testing.T) {
 	assert.Equal(t, 0, len(cache))
 	keyHex := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
 	keyBytes, _ := hex.DecodeString(keyHex)
-	key := v.bytesToPublicKey(keyBytes)
+	key := v.bytesToPublicKey(keyBytes, elliptic.P256())
 	assert.NotNil(t, key)
-	key2 := v.bytesToPublicKey(keyBytes)
+	key2 := v.bytesToPublicKey(keyBytes, elliptic.P256())
 	assert.Equal(t, key, key2)
 
 	cache = v.GetPublicKeys()
@@ -126,7 +127,7 @@ func TestBytesToPublicKey(t *testing.T) {
 	assert.NotNil(t, cache[string(keyBytes)])
 
 	keyBytes[0] = 0xff
-	require.Panics(t, func() { v.bytesToPublicKey(keyBytes) })
+	require.Panics(t, func() { v.bytesToPublicKey(keyBytes, elliptic.P256()) })
 }
 
 func TestPushBytes1to75(t *testing.T) {

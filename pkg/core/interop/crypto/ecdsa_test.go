@@ -57,7 +57,7 @@ func subSlice(arr []stackitem.Item, indices []int) []stackitem.Item {
 func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
 	buf := make([]byte, 5)
 	buf[0] = byte(opcode.SYSCALL)
-	binary.LittleEndian.PutUint32(buf[1:], ecdsaCheckMultisigID)
+	binary.LittleEndian.PutUint32(buf[1:], ecdsaSecp256r1CheckMultisigID)
 
 	v := vm.New()
 	v.GasLimit = -1
