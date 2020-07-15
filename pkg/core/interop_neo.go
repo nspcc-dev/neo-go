@@ -72,7 +72,7 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 	var m manifest.Manifest
 	err := m.UnmarshalJSON(manifestBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to retrieve manifest from stack: %v", err)
 	}
 	return &state.Contract{
 		Script:   script,
@@ -95,10 +95,17 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	newcontract.ID = id
+	if !newcontract.Manifest.IsValid(newcontract.ScriptHash()) {
+		return errors.New("failed to check contract script hash against manifest")
+	}
 	if err := ic.DAO.PutContractState(newcontract); err != nil {
 		return err
 	}
-	v.Estack().PushVal(stackitem.NewInterop(newcontract))
+	cs, err := contractToStackItem(newcontract)
+	if err != nil {
+		return fmt.Errorf("cannot convert contract to stack item: %v", err)
+	}
+	v.Estack().PushVal(cs)
 	return nil
 }
 

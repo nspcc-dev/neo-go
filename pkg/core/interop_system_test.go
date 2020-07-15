@@ -302,14 +302,8 @@ func TestBlockchainGetContractState(t *testing.T) {
 		v.Estack().PushVal(cs.ScriptHash().BytesBE())
 		require.NoError(t, bcGetContract(ic, v))
 
-		expectedManifest, err := cs.Manifest.MarshalJSON()
-		require.NoError(t, err)
-		actual := v.Estack().Pop().Array()
-		require.Equal(t, 4, len(actual))
-		require.Equal(t, cs.Script, actual[0].Value().([]byte))
-		require.Equal(t, expectedManifest, actual[1].Value().([]byte))
-		require.Equal(t, cs.HasStorage(), actual[2].Bool())
-		require.Equal(t, cs.IsPayable(), actual[3].Bool())
+		actual := v.Estack().Pop().Item()
+		compareContractStates(t, cs, actual)
 	})
 
 	t.Run("uncknown contract state", func(t *testing.T) {
@@ -319,4 +313,54 @@ func TestBlockchainGetContractState(t *testing.T) {
 		actual := v.Estack().Pop().Item()
 		require.Equal(t, stackitem.Null{}, actual)
 	})
+}
+
+func TestContractCreate(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	v.GasLimit = -1
+	defer bc.Close()
+
+	putArgsOnStack := func() {
+		manifest, err := cs.Manifest.MarshalJSON()
+		require.NoError(t, err)
+		v.Estack().PushVal(manifest)
+		v.Estack().PushVal(cs.Script)
+	}
+
+	t.Run("positive", func(t *testing.T) {
+		putArgsOnStack()
+
+		require.NoError(t, contractCreate(ic, v))
+		actual := v.Estack().Pop().Item()
+		compareContractStates(t, cs, actual)
+	})
+
+	t.Run("invalid scripthash", func(t *testing.T) {
+		cs.Script = append(cs.Script, 0x01)
+		putArgsOnStack()
+
+		require.Error(t, contractCreate(ic, v))
+	})
+
+	t.Run("contract already exists", func(t *testing.T) {
+		cs.Script = cs.Script[:len(cs.Script)-1]
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		putArgsOnStack()
+
+		require.Error(t, contractCreate(ic, v))
+	})
+}
+
+func compareContractStates(t *testing.T, expected *state.Contract, actual stackitem.Item) {
+	act, ok := actual.Value().([]stackitem.Item)
+	require.True(t, ok)
+
+	expectedManifest, err := expected.Manifest.MarshalJSON()
+	require.NoError(t, err)
+
+	require.Equal(t, 4, len(act))
+	require.Equal(t, expected.Script, act[0].Value().([]byte))
+	require.Equal(t, expectedManifest, act[1].Value().([]byte))
+	require.Equal(t, expected.HasStorage(), act[2].Bool())
+	require.Equal(t, expected.IsPayable(), act[3].Bool())
 }

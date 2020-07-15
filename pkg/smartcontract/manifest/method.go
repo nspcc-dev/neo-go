@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // Parameter represents smartcontract's parameter's definition.
@@ -58,6 +60,11 @@ func DefaultEntryPoint() *Method {
 		},
 		ReturnType: smartcontract.AnyType,
 	}
+}
+
+// IsValid checks whether group's signature corresponds to the given hash.
+func (g *Group) IsValid(h util.Uint160) bool {
+	return g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE())
 }
 
 // MarshalJSON implements json.Marshaler interface.

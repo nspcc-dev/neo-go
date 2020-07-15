@@ -3,6 +3,8 @@ Package blockchain provides functions to access various blockchain data.
 */
 package blockchain
 
+import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
+
 // Transaction represents a NEO transaction. It's similar to Transaction class
 // in Neo .net framework.
 type Transaction struct {
@@ -53,14 +55,6 @@ type Block struct {
 	TransactionsLength int
 }
 
-// Contract represents a Neo contract and is used in interop functions.
-type Contract struct {
-	Script     []byte
-	Manifest   []byte
-	HasStorage bool
-	IsPayable  bool
-}
-
 // GetHeight returns current block height (index of the last accepted block).
 // Note that when transaction is being run as a part of new block this block is
 // considered as not yet accepted (persisted) and thus you'll get an index of
@@ -103,6 +97,6 @@ func GetTransactionHeight(hash []byte) int {
 // format represented as a slice of 20 bytes). Refer to the `contract` package
 // for details on how to use the returned structure. This function uses
 // `System.Blockchain.GetContract` syscall.
-func GetContract(scriptHash []byte) Contract {
-	return Contract{}
+func GetContract(scriptHash []byte) contract.Contract {
+	return contract.Contract{}
 }

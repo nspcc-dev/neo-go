@@ -85,6 +85,20 @@ func (m *Manifest) CanCall(toCall *Manifest, method string) bool {
 	return false
 }
 
+// IsValid checks whether the given hash is the one specified in manifest and
+// verifies it against all the keys in manifest groups.
+func (m *Manifest) IsValid(hash util.Uint160) bool {
+	if m.ABI.Hash != hash {
+		return false
+	}
+	for _, g := range m.Groups {
+		if !g.IsValid(hash) {
+			return false
+		}
+	}
+	return true
+}
+
 // MarshalJSON implements json.Marshaler interface.
 func (m *Manifest) MarshalJSON() ([]byte, error) {
 	features := make(map[string]bool)

@@ -4,10 +4,15 @@ Package contract provides functions to work with contracts.
 package contract
 
 // Contract represents a Neo contract and is used in interop functions. It's
-// an opaque data structure that you can manipulate with using functions from
+// a data structure that you can manipulate with using functions from
 // this package. It's similar in function to the Contract class in the Neo .net
 // framework.
-type Contract struct{}
+type Contract struct {
+	Script     []byte
+	Manifest   []byte
+	HasStorage bool
+	IsPayable  bool
+}
 
 // Create creates a new contract using a set of input parameters:
 //     script      contract's bytecode (limited in length by 1M)

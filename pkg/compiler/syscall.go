@@ -21,7 +21,7 @@ var syscalls = map[string]map[string]Syscall{
 		"GetTransactionHeight":    {"System.Blockchain.GetTransactionHeight", false},
 	},
 	"contract": {
-		"Create":                {"System.Contract.Create", false},
+		"Create":                {"System.Contract.Create", true},
 		"CreateStandardAccount": {"System.Contract.CreateStandardAccount", false},
 		"Destroy":               {"System.Contract.Destroy", false},
 		"IsStandard":            {"System.Contract.IsStandard", false},
