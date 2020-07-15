@@ -2,6 +2,20 @@
 
 This document outlines major changes between releases.
 
+## 0.76.1 "Conduplication" (15 July 2020)
+
+Minor bug fixing for Neo 2 implementation. If you're affected by NEP5 balance
+tracking bug, please resynchronize your node to get correct results, other
+than that it's not required, the DB is fully compatible.
+
+Bugs fixed:
+ * block synchronization stalls on consensus node when it's not yet up to date
+   and there are a lot of blocks to fetch (#1116)
+ * getnep5balances and getnep5transfers RPC calls didn't support passing
+   addresses as parameters (#1146)
+ * NEP5 balance tracking was not aware of contract migrations leading to wrong
+   data being returned for getnep5balances RPC call (#1144)
+
 ## 0.76.0 "Cross-pollination" (25 June 2020)
 
 We wanted to make a 0.75.1-neox-preview1 release of neo-go compatible with
