@@ -155,12 +155,12 @@ func bcGetTransactionFromBlock(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
+	index := v.Estack().Pop().BigInt().Int64()
 	block, err := ic.DAO.GetBlock(hash)
 	if err != nil || !isTraceableBlock(ic, block.Index) {
 		v.Estack().PushVal(stackitem.Null{})
 		return nil
 	}
-	index := v.Estack().Pop().BigInt().Int64()
 	if index < 0 || index >= int64(len(block.Transactions)) {
 		return errors.New("wrong transaction index")
 	}
