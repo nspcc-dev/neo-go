@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sort"
@@ -191,4 +192,23 @@ func runtimeSerialize(_ *interop.Context, v *vm.VM) error {
 // runtimeDeserialize deserializes ByteArray from a stack into an item.
 func runtimeDeserialize(_ *interop.Context, v *vm.VM) error {
 	return vm.RuntimeDeserialize(v)
+}
+
+// runtimeEncode encodes top stack item into a base64 string.
+func runtimeEncode(_ *interop.Context, v *vm.VM) error {
+	src := v.Estack().Pop().Bytes()
+	result := base64.StdEncoding.EncodeToString(src)
+	v.Estack().PushVal([]byte(result))
+	return nil
+}
+
+// runtimeDecode decodes top stack item from base64 string to byte array.
+func runtimeDecode(_ *interop.Context, v *vm.VM) error {
+	src := string(v.Estack().Pop().Bytes())
+	result, err := base64.StdEncoding.DecodeString(src)
+	if err != nil {
+		return err
+	}
+	v.Estack().PushVal(result)
+	return nil
 }

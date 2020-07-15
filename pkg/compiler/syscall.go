@@ -9,8 +9,10 @@ type Syscall struct {
 // All lists are sorted, keep 'em this way, please.
 var syscalls = map[string]map[string]Syscall{
 	"binary": {
-		"Deserialize": {"System.Binary.Deserialize", false},
-		"Serialize":   {"System.Binary.Serialize", false},
+		"Base64Decode": {"System.Binary.Base64Decode", false},
+		"Base64Encode": {"System.Binary.Base64Encode", false},
+		"Deserialize":  {"System.Binary.Deserialize", false},
+		"Serialize":    {"System.Binary.Serialize", false},
 	},
 	"blockchain": {
 		"GetBlock":                {"System.Blockchain.GetBlock", true},
