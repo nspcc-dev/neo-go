@@ -42,7 +42,7 @@ type manifestAux struct {
 	Features    map[string]bool `json:"features"`
 	Permissions []Permission    `json:"permissions"`
 	Trusts      *WildUint160s   `json:"trusts"`
-	SafeMethods *WildStrings    `json:"safeMethods"`
+	SafeMethods *WildStrings    `json:"safemethods"`
 	Extra       interface{}     `json:"extra"`
 }
 

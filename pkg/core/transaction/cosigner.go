@@ -13,8 +13,8 @@ const maxSubitems = 16
 type Cosigner struct {
 	Account          util.Uint160      `json:"account"`
 	Scopes           WitnessScope      `json:"scopes"`
-	AllowedContracts []util.Uint160    `json:"allowedContracts,omitempty"`
-	AllowedGroups    []*keys.PublicKey `json:"allowedGroups,omitempty"`
+	AllowedContracts []util.Uint160    `json:"allowedcontracts,omitempty"`
+	AllowedGroups    []*keys.PublicKey `json:"allowedgroups,omitempty"`
 }
 
 // EncodeBinary implements Serializable interface.

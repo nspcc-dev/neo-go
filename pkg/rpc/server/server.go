@@ -784,10 +784,15 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 
 	neo, neoHeight := s.chain.GetGoverningTokenBalance(u)
 	if neo.Sign() == 0 {
-		return "0", nil
+		return result.UnclaimedGas{
+			Address: u,
+		}, nil
 	}
 	gas := s.chain.CalculateClaimable(neo, neoHeight, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
-	return gas.String(), nil
+	return result.UnclaimedGas{
+		Address:   u,
+		Unclaimed: *gas,
+	}, nil
 }
 
 // getValidators returns the current NEO consensus nodes information and voting status.

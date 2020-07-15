@@ -13,7 +13,7 @@ type ApplicationLog struct {
 	TxHash      util.Uint256              `json:"txid"`
 	Trigger     string                    `json:"trigger"`
 	VMState     string                    `json:"vmstate"`
-	GasConsumed int64                     `json:"gas_consumed,string"`
+	GasConsumed int64                     `json:"gasconsumed,string"`
 	Stack       []smartcontract.Parameter `json:"stack"`
 	Events      []NotificationEvent       `json:"notifications"`
 }

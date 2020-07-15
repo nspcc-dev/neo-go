@@ -18,7 +18,7 @@ type Block struct {
 	Base
 
 	// Primary index and nonce
-	ConsensusData ConsensusData `json:"consensus_data"`
+	ConsensusData ConsensusData `json:"consensusdata"`
 
 	// Transaction list.
 	Transactions []*transaction.Transaction
@@ -29,13 +29,13 @@ type Block struct {
 
 // auxBlockOut is used for JSON i/o.
 type auxBlockOut struct {
-	ConsensusData ConsensusData              `json:"consensus_data"`
+	ConsensusData ConsensusData              `json:"consensusdata"`
 	Transactions  []*transaction.Transaction `json:"tx"`
 }
 
 // auxBlockIn is used for JSON i/o.
 type auxBlockIn struct {
-	ConsensusData ConsensusData     `json:"consensus_data"`
+	ConsensusData ConsensusData     `json:"consensusdata"`
 	Transactions  []json.RawMessage `json:"tx"`
 }
 

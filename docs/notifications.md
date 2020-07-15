@@ -156,7 +156,7 @@ Example:
          "index" : 207,
          "time" : 1590006200,
          "nextconsensus" : "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
-         "consensus_data" : {
+         "consensusdata" : {
             "primary" : 0,
             "nonce" : "0000000000000457"
          },
@@ -172,7 +172,7 @@ Example:
          "tx" : [
             {
                "txid" : "0xf736cd91ab84062a21a09b424346b241987f6245ffe8c2b2db39d595c3c222f7",
-               "scripts" : [
+               "witnesses" : [
                   {
                      "verification" : "0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4",
                      "invocation" : "0c4016e7a112742409cdfaad89dcdbcb52c94c5c1a69dfe5d8b999649eaaa787e31ca496d1734d6ea606c749ad36e9a88892240ae59e0efa7f544e0692124898d512"
@@ -180,11 +180,11 @@ Example:
                ],
                "vout" : [],
                "cosigners" : [],
-               "valid_until_block" : 1200,
+               "validuntilblock" : 1200,
                "nonce" : 8,
-               "net_fee" : "0.0030421",
+               "netfee" : "0.0030421",
                "sender" : "ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG",
-               "sys_fee" : "0",
+               "sysfee" : "0",
                "type" : "InvocationTransaction",
                "attributes" : [],
                "version" : 1,
@@ -198,9 +198,9 @@ Example:
                "attributes" : [],
                "version" : 1,
                "vin" : [],
-               "net_fee" : "0.0037721",
+               "netfee" : "0.0037721",
                "sender" : "ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG",
-               "sys_fee" : "0",
+               "sysfee" : "0",
                "type" : "InvocationTransaction",
                "nonce" : 9,
                "cosigners" : [
@@ -209,8 +209,8 @@ Example:
                      "account" : "0x870958fd19ee3f6c7dc3c2df399d013910856e31"
                   }
                ],
-               "valid_until_block" : 1200,
-               "scripts" : [
+               "validuntilblock" : 1200,
+               "witnesses" : [
                   {
                      "invocation" : "0c4027727296b84853c5d9e07fb8a40e885246ae25641383b16eefbe92027ecb1635b794aacf6bbfc3e828c73829b14791c483d19eb758b57638e3191393dbf2d288",
                      "verification" : "0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"
@@ -243,19 +243,19 @@ Example:
    "method" : "transaction_added",
    "params" : [
       {
-         "valid_until_block" : 1200,
+         "validuntilblock" : 1200,
          "version" : 1,
          "txid" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
-         "scripts" : [
+         "witnesses" : [
             {
                "invocation" : "0c4027727296b84853c5d9e07fb8a40e885246ae25641383b16eefbe92027ecb1635b794aacf6bbfc3e828c73829b14791c483d19eb758b57638e3191393dbf2d288",
                "verification" : "0c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b410a906ad4"
             }
          ],
-         "sys_fee" : "0",
+         "sysfee" : "0",
          "sender" : "ALHF9wsXZVEuCGgmDA6ZNsCLtrb4A1g4yG",
          "vout" : [],
-         "net_fee" : "0.0037721",
+         "netfee" : "0.0037721",
          "size" : 277,
          "attributes" : [],
          "script" : "01e8030c14316e851039019d39dfc2c37d6c3fee19fd5809870c14769162241eedf97c2481652adf1ba0f5bf57431b13c00c087472616e736665720c14769162241eedf97c2481652adf1ba0f5bf57431b41627d5b5238",
@@ -341,7 +341,7 @@ Example:
          "executions" : [
             {
                "trigger" : "Application",
-               "gas_consumed" : "2.291",
+               "gasconsumed" : "2.291",
                "contract" : "0x0000000000000000000000000000000000000000",
                "stack" : [],
                "notifications" : [
