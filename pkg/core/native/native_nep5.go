@@ -175,13 +175,15 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		return errors.New("negative amount")
 	}
 
-	ok, err := runtime.CheckHashedWitness(ic, from)
-	if err != nil {
-		return err
-	} else if !ok {
-		return errors.New("invalid signature")
+	caller := ic.ScriptGetter.GetCallingScriptHash()
+	if caller.Equals(util.Uint160{}) || !from.Equals(caller) {
+		ok, err := runtime.CheckHashedWitness(ic, from)
+		if err != nil {
+			return err
+		} else if !ok {
+			return errors.New("invalid signature")
+		}
 	}
-
 	isEmpty := from.Equals(to) || amount.Sign() == 0
 	inc := amount
 	if isEmpty {
