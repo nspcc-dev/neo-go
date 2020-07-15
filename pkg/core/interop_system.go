@@ -422,6 +422,9 @@ func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	method := v.Estack().Pop().Item()
 	args := v.Estack().Pop().Item()
 	flags := smartcontract.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
+	if flags&^smartcontract.All != 0 {
+		return errors.New("call flags out of range")
+	}
 	return contractCallExInternal(ic, v, h, method, args, flags)
 }
 
