@@ -83,6 +83,20 @@ func bcGetBlock(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
+// contractToStackItem converts state.Contract to stackitem.Item
+func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
+	manifest, err := cs.Manifest.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(cs.Script),
+		stackitem.NewByteArray(manifest),
+		stackitem.NewBool(cs.HasStorage()),
+		stackitem.NewBool(cs.IsPayable()),
+	}), nil
+}
+
 // bcGetContract returns contract.
 func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	hashbytes := v.Estack().Pop().Bytes()
@@ -92,9 +106,13 @@ func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	}
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
-		v.Estack().PushVal([]byte{})
+		v.Estack().PushVal(stackitem.Null{})
 	} else {
-		v.Estack().PushVal(stackitem.NewInterop(cs))
+		item, err := contractToStackItem(cs)
+		if err != nil {
+			return err
+		}
+		v.Estack().PushVal(item)
 	}
 	return nil
 }

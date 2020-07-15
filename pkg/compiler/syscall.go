@@ -14,7 +14,7 @@ var syscalls = map[string]map[string]Syscall{
 	},
 	"blockchain": {
 		"GetBlock":                {"System.Blockchain.GetBlock", true},
-		"GetContract":             {"System.Blockchain.GetContract", false},
+		"GetContract":             {"System.Blockchain.GetContract", true},
 		"GetHeight":               {"System.Blockchain.GetHeight", false},
 		"GetTransaction":          {"System.Blockchain.GetTransaction", true},
 		"GetTransactionFromBlock": {"System.Blockchain.GetTransactionFromBlock", false},

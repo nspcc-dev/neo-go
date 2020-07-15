@@ -292,3 +292,31 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
 }
+
+func TestBlockchainGetContractState(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	t.Run("positive", func(t *testing.T) {
+		v.Estack().PushVal(cs.ScriptHash().BytesBE())
+		require.NoError(t, bcGetContract(ic, v))
+
+		expectedManifest, err := cs.Manifest.MarshalJSON()
+		require.NoError(t, err)
+		actual := v.Estack().Pop().Array()
+		require.Equal(t, 4, len(actual))
+		require.Equal(t, cs.Script, actual[0].Value().([]byte))
+		require.Equal(t, expectedManifest, actual[1].Value().([]byte))
+		require.Equal(t, cs.HasStorage(), actual[2].Bool())
+		require.Equal(t, cs.IsPayable(), actual[3].Bool())
+	})
+
+	t.Run("uncknown contract state", func(t *testing.T) {
+		v.Estack().PushVal(util.Uint160{1, 2, 3}.BytesBE())
+		require.NoError(t, bcGetContract(ic, v))
+
+		actual := v.Estack().Pop().Item()
+		require.Equal(t, stackitem.Null{}, actual)
+	})
+}
