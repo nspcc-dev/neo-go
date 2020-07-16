@@ -1139,14 +1139,13 @@ func (c *codegen) getByteArray(expr ast.Expr) []byte {
 }
 
 func (c *codegen) convertSyscall(expr *ast.CallExpr, api, name string) {
-	api, ok := syscalls[api][name]
+	syscall, ok := syscalls[api][name]
 	if !ok {
-		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s", name)
+		c.prog.Err = fmt.Errorf("unknown VM syscall api: %s.%s", api, name)
 		return
 	}
-	emit.Syscall(c.prog.BinWriter, api)
-	switch name {
-	case "GetTransaction", "GetBlock", "GetScriptContainer":
+	emit.Syscall(c.prog.BinWriter, syscall.API)
+	if syscall.ConvertResultToStruct {
 		c.emitConvert(stackitem.StructT)
 	}
 
