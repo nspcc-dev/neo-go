@@ -32,6 +32,7 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 	if ic.Chain != nil {
 		vm.RegisterInteropGetter(ic.Chain.(*Blockchain).contracts.GetNativeInterop(ic))
 	}
+	ic.ScriptGetter = vm
 	return vm
 }
 

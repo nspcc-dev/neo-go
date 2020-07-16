@@ -31,6 +31,7 @@ type Context struct {
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	Invocations   map[util.Uint160]int
+	ScriptGetter  vm.ScriptHashGetter
 }
 
 // NewContext returns new interop context.

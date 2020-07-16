@@ -14,9 +14,9 @@ import (
 
 // CheckHashedWitness checks given hash against current list of script hashes
 // for verifying in the interop context.
-func CheckHashedWitness(ic *interop.Context, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
+func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(ic.DAO, tx, v, hash)
+		return checkScope(ic.DAO, tx, ic.ScriptGetter, hash)
 	}
 
 	// only for non-Transaction types (Block, etc.)
@@ -79,8 +79,8 @@ func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, h
 
 // CheckKeyedWitness checks hash of signature check contract with a given public
 // key against current list of script hashes for verifying in the interop context.
-func CheckKeyedWitness(ic *interop.Context, v vm.ScriptHashGetter, key *keys.PublicKey) (bool, error) {
-	return CheckHashedWitness(ic, v, key.GetScriptHash())
+func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
+	return CheckHashedWitness(ic, key.GetScriptHash())
 }
 
 // CheckWitness checks witnesses.
@@ -96,9 +96,9 @@ func CheckWitness(ic *interop.Context, v *vm.VM) error {
 		if err != nil {
 			return errors.New("parameter given is neither a key nor a hash")
 		}
-		res, err = CheckKeyedWitness(ic, v, key)
+		res, err = CheckKeyedWitness(ic, key)
 	} else {
-		res, err = CheckHashedWitness(ic, v, hash)
+		res, err = CheckHashedWitness(ic, hash)
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to check")

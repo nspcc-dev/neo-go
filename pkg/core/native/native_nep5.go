@@ -175,17 +175,15 @@ func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, a
 		return errors.New("negative amount")
 	}
 
-	ok, err := runtime.CheckHashedWitness(ic, nep5ScriptHash{
-		callingScriptHash: c.Hash,
-		entryScriptHash:   c.Hash,
-		currentScriptHash: c.Hash,
-	}, from)
-	if err != nil {
-		return err
-	} else if !ok {
-		return errors.New("invalid signature")
+	caller := ic.ScriptGetter.GetCallingScriptHash()
+	if caller.Equals(util.Uint160{}) || !from.Equals(caller) {
+		ok, err := runtime.CheckHashedWitness(ic, from)
+		if err != nil {
+			return err
+		} else if !ok {
+			return errors.New("invalid signature")
+		}
 	}
-
 	isEmpty := from.Equals(to) || amount.Sign() == 0
 	inc := amount
 	if isEmpty {
@@ -299,29 +297,6 @@ func toUint160(s stackitem.Item) util.Uint160 {
 		panic(err)
 	}
 	return u
-}
-
-// scriptHash is an auxiliary structure which implements ScriptHashGetter
-// interface over NEP5 native contract and is used for runtime.CheckHashedWitness
-type nep5ScriptHash struct {
-	callingScriptHash util.Uint160
-	entryScriptHash   util.Uint160
-	currentScriptHash util.Uint160
-}
-
-// GetCallingScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetCallingScriptHash() util.Uint160 {
-	return s.callingScriptHash
-}
-
-// GetEntryScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetEntryScriptHash() util.Uint160 {
-	return s.entryScriptHash
-}
-
-// GetCurrentScriptHash implements ScriptHashGetter interface
-func (s nep5ScriptHash) GetCurrentScriptHash() util.Uint160 {
-	return s.currentScriptHash
 }
 
 func getOnPersistWrapper(f func(ic *interop.Context) error) interop.Method {

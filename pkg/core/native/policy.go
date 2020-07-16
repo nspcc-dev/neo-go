@@ -423,11 +423,7 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return runtime.CheckHashedWitness(ic, nep5ScriptHash{
-		callingScriptHash: p.Hash,
-		entryScriptHash:   p.Hash,
-		currentScriptHash: p.Hash,
-	}, prevBlock.NextConsensus)
+	return runtime.CheckHashedWitness(ic, prevBlock.NextConsensus)
 }
 
 // CheckPolicy checks whether transaction's script hashes for verifying are
