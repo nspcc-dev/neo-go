@@ -28,8 +28,8 @@ func Create(script []byte, manifest []byte) Contract {
 // Create. The old contract will be deleted by this call, if it has any storage
 // associated it will be migrated to the new contract. New contract is returned.
 // This function uses `System.Contract.Update` syscall.
-func Update(script []byte, manifest []byte) Contract {
-	return Contract{}
+func Update(script []byte, manifest []byte) {
+	return
 }
 
 // Destroy deletes calling contract (the one that calls Destroy) from the

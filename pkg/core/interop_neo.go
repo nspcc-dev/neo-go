@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -109,45 +110,77 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
-// contractUpdate migrates a contract.
+// contractUpdate migrates a contract. This method assumes that Manifest and Script
+// of the contract can be updated independently.
 func contractUpdate(ic *interop.Context, v *vm.VM) error {
-	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	contract, _ := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if contract == nil {
 		return errors.New("contract doesn't exist")
 	}
-	newcontract, err := createContractStateFromVM(ic, v)
-	if err != nil {
-		return err
+	script := v.Estack().Pop().Bytes()
+	if len(script) > MaxContractScriptSize {
+		return errors.New("the script is too big")
 	}
-	if newcontract.Script != nil {
-		if l := len(newcontract.Script); l == 0 || l > MaxContractScriptSize {
+	manifestBytes := v.Estack().Pop().Bytes()
+	if len(manifestBytes) > manifest.MaxManifestSize {
+		return errors.New("manifest is too big")
+	}
+	if !v.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
+		return errGasLimitExceeded
+	}
+	// if script was provided, update the old contract script and Manifest.ABI hash
+	if l := len(script); l > 0 {
+		if l > MaxContractScriptSize {
 			return errors.New("invalid script len")
 		}
-		h := newcontract.ScriptHash()
-		if h.Equals(contract.ScriptHash()) {
+		newHash := hash.Hash160(script)
+		if newHash.Equals(contract.ScriptHash()) {
 			return errors.New("the script is the same")
-		} else if _, err := ic.DAO.GetContractState(h); err == nil {
+		} else if _, err := ic.DAO.GetContractState(newHash); err == nil {
 			return errors.New("contract already exists")
 		}
-		newcontract.ID = contract.ID
-		if err := ic.DAO.PutContractState(newcontract); err != nil {
-			return err
+		oldHash := contract.ScriptHash()
+		// re-write existing contract variable, as we need it to be up-to-date during manifest update
+		contract = &state.Contract{
+			ID:       contract.ID,
+			Script:   script,
+			Manifest: contract.Manifest,
 		}
-		if err := ic.DAO.DeleteContractState(contract.ScriptHash()); err != nil {
-			return err
+		contract.Manifest.ABI.Hash = newHash
+		if err := ic.DAO.PutContractState(contract); err != nil {
+			return fmt.Errorf("failed to update script: %v", err)
+		}
+		if err := ic.DAO.DeleteContractState(oldHash); err != nil {
+			return fmt.Errorf("failed to update script: %v", err)
 		}
 	}
-	if !newcontract.HasStorage() {
-		siMap, err := ic.DAO.GetStorageItems(contract.ID)
+	// if manifest was provided, update the old contract manifest and check associated
+	// storage items if needed
+	if len(manifestBytes) > 0 {
+		var newManifest manifest.Manifest
+		err := newManifest.UnmarshalJSON(manifestBytes)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to retrieve manifest from stack: %v", err)
 		}
-		if len(siMap) != 0 {
-			return errors.New("old contract shouldn't have storage")
+		// we don't have to perform `GetContractState` one more time as it's already up-to-date
+		contract.Manifest = newManifest
+		if !contract.Manifest.IsValid(contract.ScriptHash()) {
+			return errors.New("failed to check contract script hash against new manifest")
+		}
+		if !contract.HasStorage() {
+			siMap, err := ic.DAO.GetStorageItems(contract.ID)
+			if err != nil {
+				return fmt.Errorf("failed to update manifest: %v", err)
+			}
+			if len(siMap) != 0 {
+				return errors.New("old contract shouldn't have storage")
+			}
+		}
+		if err := ic.DAO.PutContractState(contract); err != nil {
+			return fmt.Errorf("failed to update manifest: %v", err)
 		}
 	}
-	v.Estack().PushVal(stackitem.NewInterop(contract))
-	return contractDestroy(ic, v)
+	return nil
 }
 
 // runtimeSerialize serializes top stack item into a ByteArray.
