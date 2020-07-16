@@ -191,7 +191,7 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
-	for p := range s.peers {
+	for p := range s.Peers() {
 		p.Disconnect(errServerShutdown)
 	}
 	s.bQueue.discard()
