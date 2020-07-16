@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
-//go:generate stringer -type=CommandType
+//go:generate stringer -type=CommandType -output=message_string.go
 
 // CompressionMinSize is the lower bound to apply compression.
 const CompressionMinSize = 1024
@@ -68,7 +68,7 @@ const (
 	CMDInv          CommandType = 0x27
 	CMDGetData      CommandType = 0x28
 	CMDGetBlockData CommandType = 0x29
-	CMDUnknown      CommandType = 0x2a
+	CMDNotFound     CommandType = 0x2a
 	CMDTX                       = CommandType(payload.TXType)
 	CMDBlock                    = CommandType(payload.BlockType)
 	CMDConsensus                = CommandType(payload.ConsensusType)

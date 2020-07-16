@@ -538,6 +538,7 @@ func (s *Server) handleMempoolCmd(p Peer) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
+	var notFound []util.Uint256
 	for _, hash := range inv.Hashes {
 		var msg *Message
 
@@ -546,11 +547,15 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			tx, _, err := s.chain.GetTransaction(hash)
 			if err == nil {
 				msg = NewMessage(CMDTX, tx)
+			} else {
+				notFound = append(notFound, hash)
 			}
 		case payload.BlockType:
 			b, err := s.chain.GetBlock(hash)
 			if err == nil {
 				msg = NewMessage(CMDBlock, b)
+			} else {
+				notFound = append(notFound, hash)
 			}
 		case payload.ConsensusType:
 			if cp := s.consensus.GetPayload(hash); cp != nil {
@@ -570,6 +575,9 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 				return err
 			}
 		}
+	}
+	if len(notFound) != 0 {
+		return p.EnqueueP2PMessage(NewMessage(CMDNotFound, payload.NewInventory(inv.Type, notFound)))
 	}
 	return nil
 }
