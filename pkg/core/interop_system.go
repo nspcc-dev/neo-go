@@ -486,8 +486,17 @@ func contractIsStandard(ic *interop.Context, v *vm.VM) error {
 	}
 	var result bool
 	cs, _ := ic.DAO.GetContractState(u)
-	if cs == nil || vm.IsStandardContract(cs.Script) {
-		result = true
+	if cs != nil {
+		result = vm.IsStandardContract(cs.Script)
+	} else {
+		if tx, ok := ic.Container.(*transaction.Transaction); ok {
+			for _, witness := range tx.Scripts {
+				if witness.ScriptHash() == u {
+					result = vm.IsStandardContract(witness.VerificationScript)
+					break
+				}
+			}
+		}
 	}
 	v.Estack().PushVal(result)
 	return nil

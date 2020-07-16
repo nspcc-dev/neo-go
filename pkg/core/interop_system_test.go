@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -157,7 +159,35 @@ func TestContractIsStandard(t *testing.T) {
 	v, ic, chain := createVM(t)
 	defer chain.Close()
 
-	t.Run("True", func(t *testing.T) {
+	t.Run("contract not stored", func(t *testing.T) {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+
+		pub := priv.PublicKey()
+		tx := transaction.New(netmode.TestNet, []byte{1, 2, 3}, 1)
+		tx.Scripts = []transaction.Witness{
+			{
+				InvocationScript:   []byte{1, 2, 3},
+				VerificationScript: pub.GetVerificationScript(),
+			},
+		}
+		ic.Container = tx
+
+		t.Run("true", func(t *testing.T) {
+			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
+			require.NoError(t, contractIsStandard(ic, v))
+			require.True(t, v.Estack().Pop().Bool())
+		})
+
+		t.Run("false", func(t *testing.T) {
+			tx.Scripts[0].VerificationScript = []byte{9, 8, 7}
+			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
+			require.NoError(t, contractIsStandard(ic, v))
+			require.False(t, v.Estack().Pop().Bool())
+		})
+	})
+
+	t.Run("contract stored, true", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 
@@ -169,7 +199,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, contractIsStandard(ic, v))
 		require.True(t, v.Estack().Pop().Bool())
 	})
-	t.Run("False", func(t *testing.T) {
+	t.Run("contract stored, false", func(t *testing.T) {
 		script := []byte{byte(opcode.PUSHT)}
 		require.NoError(t, ic.DAO.PutContractState(&state.Contract{ID: 24, Script: script}))
 
