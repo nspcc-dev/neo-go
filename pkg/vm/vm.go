@@ -1391,8 +1391,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			newCtx.hasDynamicInvoke = hasDynamicInvoke
 		}
 		newCtx.rvcount = rvcount
-		newCtx.estack = NewStack("evaluation")
-		newCtx.astack = NewStack("alt")
+		newCtx.estack = v.newItemStack("evaluation")
+		newCtx.astack = v.newItemStack("alt")
 		// Going backwards to naturally push things onto the new stack.
 		for i := pcount; i > 0; i-- {
 			elem := v.estack.RemoveAt(i - 1)
