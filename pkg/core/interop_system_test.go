@@ -582,3 +582,12 @@ func TestContractUpdate(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestContractGetCallFlags(t *testing.T) {
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+
+	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
+	require.NoError(t, contractGetCallFlags(ic, v))
+	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
+}

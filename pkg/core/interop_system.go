@@ -530,3 +530,9 @@ func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
 	v.Estack().PushVal(p.GetScriptHash().BytesBE())
 	return nil
 }
+
+// contractGetCallFlags returns current context calling flags.
+func contractGetCallFlags(_ *interop.Context, v *vm.VM) error {
+	v.Estack().PushVal(v.Context().GetCallFlags())
+	return nil
+}

@@ -93,6 +93,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1000000,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Contract.IsStandard", Func: contractIsStandard, Price: 30000},
+	{Name: "System.Contract.GetCallFlags", Func: contractGetCallFlags, Price: 30000},
 	{Name: "System.Contract.Update", Func: contractUpdate, Price: 0,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Enumerator.Concat", Func: enumerator.Concat, Price: 400},

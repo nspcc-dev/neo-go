@@ -25,6 +25,7 @@ var syscalls = map[string]map[string]Syscall{
 		"CreateStandardAccount": {"System.Contract.CreateStandardAccount", false},
 		"Destroy":               {"System.Contract.Destroy", false},
 		"IsStandard":            {"System.Contract.IsStandard", false},
+		"GetCallFlags":          {"System.Contract.GetCallFlags", false},
 		"Update":                {"System.Contract.Update", false},
 	},
 	"crypto": {

@@ -49,3 +49,9 @@ func IsStandard(h []byte) bool {
 func CreateStandardAccount(pub []byte) []byte {
 	return nil
 }
+
+// GetCallFlags returns calling flags which execution context was created with.
+// This function uses `System.Contract.GetCallFlags` syscall.
+func GetCallFlags() int64 {
+	return 0
+}
