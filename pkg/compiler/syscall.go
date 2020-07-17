@@ -1,73 +1,81 @@
 package compiler
 
-var syscalls = map[string]map[string]string{
-	"binary": {
-		"Serialize":   "System.Binary.Serialize",
-		"Deserialize": "System.Binary.Deserialize",
-	},
-	"crypto": {
-		"ECDsaSecp256r1Verify":        "Neo.Crypto.VerifyWithECDsaSecp256r1",
-		"ECDsaSecp256k1Verify":        "Neo.Crypto.VerifyWithECDsaSecp256k1",
-		"ECDSASecp256r1CheckMultisig": "Neo.Crypto.CheckMultisigWithECDsaSecp256r1",
-		"ECDSASecp256k1CheckMultisig": "Neo.Crypto.CheckMultisigWithECDsaSecp256k1",
-	},
-	"enumerator": {
-		"Concat": "System.Enumerator.Concat",
-		"Create": "System.Enumerator.Create",
-		"Next":   "System.Enumerator.Next",
-		"Value":  "System.Enumerator.Value",
-	},
-	"json": {
-		"Serialize":   "System.Json.Serialize",
-		"Deserialize": "System.Json.Deserialize",
-	},
-	"storage": {
-		"ConvertContextToReadOnly": "System.Storage.AsReadOnly",
-		"Delete":                   "System.Storage.Delete",
-		"Find":                     "System.Storage.Find",
-		"Get":                      "System.Storage.Get",
-		"GetContext":               "System.Storage.GetContext",
-		"GetReadOnlyContext":       "System.Storage.GetReadOnlyContext",
-		"Put":                      "System.Storage.Put",
-	},
-	"runtime": {
-		"GetScriptContainer":     "System.Runtime.GetScriptContainer",
-		"GetCallingScriptHash":   "System.Runtime.GetCallingScriptHash",
-		"GetEntryScriptHash":     "System.Runtime.GetEntryScriptHash",
-		"GetExecutingScriptHash": "System.Runtime.GetExecutingScriptHash",
-		"GetNotifications":       "System.Runtime.GetNotifications",
-		"GetInvocationCounter":   "System.Runtime.GetInvocationCounter",
+// Syscall represents NEO or System syscall API with flag for proper AVM generation
+type Syscall struct {
+	API                   string
+	ConvertResultToStruct bool
+}
 
-		"GasLeft":      "System.Runtime.GasLeft",
-		"GetTrigger":   "System.Runtime.GetTrigger",
-		"CheckWitness": "System.Runtime.CheckWitness",
-		"Notify":       "System.Runtime.Notify",
-		"Log":          "System.Runtime.Log",
-		"GetTime":      "System.Runtime.GetTime",
+// All lists are sorted, keep 'em this way, please.
+var syscalls = map[string]map[string]Syscall{
+	"binary": {
+		"Base64Decode": {"System.Binary.Base64Decode", false},
+		"Base64Encode": {"System.Binary.Base64Encode", false},
+		"Deserialize":  {"System.Binary.Deserialize", false},
+		"Serialize":    {"System.Binary.Serialize", false},
 	},
 	"blockchain": {
-		"GetBlock":                "System.Blockchain.GetBlock",
-		"GetContract":             "System.Blockchain.GetContract",
-		"GetHeight":               "System.Blockchain.GetHeight",
-		"GetTransaction":          "System.Blockchain.GetTransaction",
-		"GetTransactionFromBlock": "System.Blockchain.GetTransactionFromBlock",
-		"GetTransactionHeight":    "System.Blockchain.GetTransactionHeight",
+		"GetBlock":                {"System.Blockchain.GetBlock", true},
+		"GetContract":             {"System.Blockchain.GetContract", true},
+		"GetHeight":               {"System.Blockchain.GetHeight", false},
+		"GetTransaction":          {"System.Blockchain.GetTransaction", true},
+		"GetTransactionFromBlock": {"System.Blockchain.GetTransactionFromBlock", false},
+		"GetTransactionHeight":    {"System.Blockchain.GetTransactionHeight", false},
 	},
 	"contract": {
-		"Create":  "System.Contract.Create",
-		"Destroy": "System.Contract.Destroy",
-		"Update":  "System.Contract.Update",
-
-		"IsStandard":            "System.Contract.IsStandard",
-		"CreateStandardAccount": "System.Contract.CreateStandardAccount",
+		"Create":                {"System.Contract.Create", true},
+		"CreateStandardAccount": {"System.Contract.CreateStandardAccount", false},
+		"Destroy":               {"System.Contract.Destroy", false},
+		"IsStandard":            {"System.Contract.IsStandard", false},
+		"GetCallFlags":          {"System.Contract.GetCallFlags", false},
+		"Update":                {"System.Contract.Update", false},
+	},
+	"crypto": {
+		"ECDsaSecp256k1Verify":        {"Neo.Crypto.VerifyWithECDsaSecp256k1", false},
+		"ECDSASecp256k1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256k1", false},
+		"ECDsaSecp256r1Verify":        {"Neo.Crypto.VerifyWithECDsaSecp256r1", false},
+		"ECDSASecp256r1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256r1", false},
+	},
+	"enumerator": {
+		"Concat": {"System.Enumerator.Concat", false},
+		"Create": {"System.Enumerator.Create", false},
+		"Next":   {"System.Enumerator.Next", false},
+		"Value":  {"System.Enumerator.Value", false},
 	},
 	"iterator": {
-		"Concat": "System.Iterator.Concat",
-		"Create": "System.Iterator.Create",
-		"Key":    "System.Iterator.Key",
-		"Keys":   "System.Iterator.Keys",
-		"Next":   "System.Enumerator.Next",
-		"Value":  "System.Enumerator.Value",
-		"Values": "System.Iterator.Values",
+		"Concat": {"System.Iterator.Concat", false},
+		"Create": {"System.Iterator.Create", false},
+		"Key":    {"System.Iterator.Key", false},
+		"Keys":   {"System.Iterator.Keys", false},
+		"Next":   {"System.Enumerator.Next", false},
+		"Value":  {"System.Enumerator.Value", false},
+		"Values": {"System.Iterator.Values", false},
+	},
+	"json": {
+		"Deserialize": {"System.Json.Deserialize", false},
+		"Serialize":   {"System.Json.Serialize", false},
+	},
+	"runtime": {
+		"GasLeft":                {"System.Runtime.GasLeft", false},
+		"GetInvocationCounter":   {"System.Runtime.GetInvocationCounter", false},
+		"GetCallingScriptHash":   {"System.Runtime.GetCallingScriptHash", false},
+		"GetEntryScriptHash":     {"System.Runtime.GetEntryScriptHash", false},
+		"GetExecutingScriptHash": {"System.Runtime.GetExecutingScriptHash", false},
+		"GetNotifications":       {"System.Runtime.GetNotifications", false},
+		"GetScriptContainer":     {"System.Runtime.GetScriptContainer", true},
+		"GetTime":                {"System.Runtime.GetTime", false},
+		"GetTrigger":             {"System.Runtime.GetTrigger", false},
+		"CheckWitness":           {"System.Runtime.CheckWitness", false},
+		"Log":                    {"System.Runtime.Log", false},
+		"Notify":                 {"System.Runtime.Notify", false},
+	},
+	"storage": {
+		"ConvertContextToReadOnly": {"System.Storage.AsReadOnly", false},
+		"Delete":                   {"System.Storage.Delete", false},
+		"Find":                     {"System.Storage.Find", false},
+		"Get":                      {"System.Storage.Get", false},
+		"GetContext":               {"System.Storage.GetContext", false},
+		"GetReadOnlyContext":       {"System.Storage.GetReadOnlyContext", false},
+		"Put":                      {"System.Storage.Put", false},
 	},
 }

@@ -4,10 +4,15 @@ Package contract provides functions to work with contracts.
 package contract
 
 // Contract represents a Neo contract and is used in interop functions. It's
-// an opaque data structure that you can manipulate with using functions from
+// a data structure that you can manipulate with using functions from
 // this package. It's similar in function to the Contract class in the Neo .net
 // framework.
-type Contract struct{}
+type Contract struct {
+	Script     []byte
+	Manifest   []byte
+	HasStorage bool
+	IsPayable  bool
+}
 
 // Create creates a new contract using a set of input parameters:
 //     script      contract's bytecode (limited in length by 1M)
@@ -23,8 +28,8 @@ func Create(script []byte, manifest []byte) Contract {
 // Create. The old contract will be deleted by this call, if it has any storage
 // associated it will be migrated to the new contract. New contract is returned.
 // This function uses `System.Contract.Update` syscall.
-func Update(script []byte, manifest []byte) Contract {
-	return Contract{}
+func Update(script []byte, manifest []byte) {
+	return
 }
 
 // Destroy deletes calling contract (the one that calls Destroy) from the
@@ -43,4 +48,10 @@ func IsStandard(h []byte) bool {
 // This function uses `System.Contract.CreateStandardAccount` syscall.
 func CreateStandardAccount(pub []byte) []byte {
 	return nil
+}
+
+// GetCallFlags returns calling flags which execution context was created with.
+// This function uses `System.Contract.GetCallFlags` syscall.
+func GetCallFlags() int64 {
+	return 0
 }

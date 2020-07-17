@@ -5,10 +5,14 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/dbft/crypto"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -157,7 +161,35 @@ func TestContractIsStandard(t *testing.T) {
 	v, ic, chain := createVM(t)
 	defer chain.Close()
 
-	t.Run("True", func(t *testing.T) {
+	t.Run("contract not stored", func(t *testing.T) {
+		priv, err := keys.NewPrivateKey()
+		require.NoError(t, err)
+
+		pub := priv.PublicKey()
+		tx := transaction.New(netmode.TestNet, []byte{1, 2, 3}, 1)
+		tx.Scripts = []transaction.Witness{
+			{
+				InvocationScript:   []byte{1, 2, 3},
+				VerificationScript: pub.GetVerificationScript(),
+			},
+		}
+		ic.Container = tx
+
+		t.Run("true", func(t *testing.T) {
+			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
+			require.NoError(t, contractIsStandard(ic, v))
+			require.True(t, v.Estack().Pop().Bool())
+		})
+
+		t.Run("false", func(t *testing.T) {
+			tx.Scripts[0].VerificationScript = []byte{9, 8, 7}
+			v.Estack().PushVal(pub.GetScriptHash().BytesBE())
+			require.NoError(t, contractIsStandard(ic, v))
+			require.False(t, v.Estack().Pop().Bool())
+		})
+	})
+
+	t.Run("contract stored, true", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 
@@ -169,7 +201,7 @@ func TestContractIsStandard(t *testing.T) {
 		require.NoError(t, contractIsStandard(ic, v))
 		require.True(t, v.Estack().Pop().Bool())
 	})
-	t.Run("False", func(t *testing.T) {
+	t.Run("contract stored, false", func(t *testing.T) {
 		script := []byte{byte(opcode.PUSHT)}
 		require.NoError(t, ic.DAO.PutContractState(&state.Contract{ID: 24, Script: script}))
 
@@ -261,4 +293,301 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 		require.NoError(t, runtime.GetInvocationCounter(ic, v))
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
+}
+
+func TestBlockchainGetContractState(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	t.Run("positive", func(t *testing.T) {
+		v.Estack().PushVal(cs.ScriptHash().BytesBE())
+		require.NoError(t, bcGetContract(ic, v))
+
+		actual := v.Estack().Pop().Item()
+		compareContractStates(t, cs, actual)
+	})
+
+	t.Run("uncknown contract state", func(t *testing.T) {
+		v.Estack().PushVal(util.Uint160{1, 2, 3}.BytesBE())
+		require.NoError(t, bcGetContract(ic, v))
+
+		actual := v.Estack().Pop().Item()
+		require.Equal(t, stackitem.Null{}, actual)
+	})
+}
+
+func TestContractCreate(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	v.GasLimit = -1
+	defer bc.Close()
+
+	putArgsOnStack := func() {
+		manifest, err := cs.Manifest.MarshalJSON()
+		require.NoError(t, err)
+		v.Estack().PushVal(manifest)
+		v.Estack().PushVal(cs.Script)
+	}
+
+	t.Run("positive", func(t *testing.T) {
+		putArgsOnStack()
+
+		require.NoError(t, contractCreate(ic, v))
+		actual := v.Estack().Pop().Item()
+		compareContractStates(t, cs, actual)
+	})
+
+	t.Run("invalid scripthash", func(t *testing.T) {
+		cs.Script = append(cs.Script, 0x01)
+		putArgsOnStack()
+
+		require.Error(t, contractCreate(ic, v))
+	})
+
+	t.Run("contract already exists", func(t *testing.T) {
+		cs.Script = cs.Script[:len(cs.Script)-1]
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		putArgsOnStack()
+
+		require.Error(t, contractCreate(ic, v))
+	})
+}
+
+func compareContractStates(t *testing.T, expected *state.Contract, actual stackitem.Item) {
+	act, ok := actual.Value().([]stackitem.Item)
+	require.True(t, ok)
+
+	expectedManifest, err := expected.Manifest.MarshalJSON()
+	require.NoError(t, err)
+
+	require.Equal(t, 4, len(act))
+	require.Equal(t, expected.Script, act[0].Value().([]byte))
+	require.Equal(t, expectedManifest, act[1].Value().([]byte))
+	require.Equal(t, expected.HasStorage(), act[2].Bool())
+	require.Equal(t, expected.IsPayable(), act[3].Bool())
+}
+
+func TestContractUpdate(t *testing.T) {
+	v, cs, ic, bc := createVMAndContractState(t)
+	defer bc.Close()
+	v.GasLimit = -1
+
+	putArgsOnStack := func(script, manifest []byte) {
+		v.Estack().PushVal(manifest)
+		v.Estack().PushVal(script)
+	}
+
+	t.Run("no args", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(nil, nil)
+		require.NoError(t, contractUpdate(ic, v))
+	})
+
+	t.Run("no contract", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{8, 9, 7}, smartcontract.All)
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("too large script", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(make([]byte, MaxContractScriptSize+1), nil)
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("too large manifest", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(nil, make([]byte, manifest.MaxManifestSize+1))
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("gas limit exceeded", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.GasLimit = 0
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack([]byte{1}, []byte{2})
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update script, the same script", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.GasLimit = -1
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(cs.Script, nil)
+
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update script, already exists", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		duplicateScript := []byte{byte(opcode.PUSHDATA4)}
+		require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+			ID:     95,
+			Script: duplicateScript,
+			Manifest: manifest.Manifest{
+				ABI: manifest.ABI{
+					Hash: hash.Hash160(duplicateScript),
+				},
+			},
+		}))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(duplicateScript, nil)
+
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update script, positive", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		newScript := []byte{9, 8, 7, 6, 5}
+		putArgsOnStack(newScript, nil)
+
+		require.NoError(t, contractUpdate(ic, v))
+
+		// updated contract should have new scripthash
+		actual, err := ic.DAO.GetContractState(hash.Hash160(newScript))
+		require.NoError(t, err)
+		expected := &state.Contract{
+			ID:       cs.ID,
+			Script:   newScript,
+			Manifest: cs.Manifest,
+		}
+		expected.Manifest.ABI.Hash = hash.Hash160(newScript)
+		_ = expected.ScriptHash()
+		require.Equal(t, expected, actual)
+
+		// old contract should be deleted
+		_, err = ic.DAO.GetContractState(cs.ScriptHash())
+		require.Error(t, err)
+	})
+
+	t.Run("update manifest, bad manifest", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		putArgsOnStack(nil, []byte{1, 2, 3})
+
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update manifest, bad contract hash", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		manifest := &manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: util.Uint160{4, 5, 6},
+			},
+		}
+		manifestBytes, err := manifest.MarshalJSON()
+		require.NoError(t, err)
+		putArgsOnStack(nil, manifestBytes)
+
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update manifest, old contract shouldn't have storage", func(t *testing.T) {
+		cs.Manifest.Features |= smartcontract.HasStorage
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		require.NoError(t, ic.DAO.PutStorageItem(cs.ID, []byte("my_item"), &state.StorageItem{
+			Value:   []byte{1, 2, 3},
+			IsConst: false,
+		}))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		manifest := &manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: cs.ScriptHash(),
+			},
+		}
+		manifestBytes, err := manifest.MarshalJSON()
+		require.NoError(t, err)
+		putArgsOnStack(nil, manifestBytes)
+
+		require.Error(t, contractUpdate(ic, v))
+	})
+
+	t.Run("update manifest, positive", func(t *testing.T) {
+		cs.Manifest.Features = smartcontract.NoProperties
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		manifest := &manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: cs.ScriptHash(),
+				EntryPoint: manifest.Method{
+					Name: "Main",
+					Parameters: []manifest.Parameter{
+						manifest.NewParameter("NewParameter", smartcontract.IntegerType),
+					},
+					ReturnType: smartcontract.StringType,
+				},
+			},
+			Features: smartcontract.HasStorage,
+		}
+		manifestBytes, err := manifest.MarshalJSON()
+		require.NoError(t, err)
+		putArgsOnStack(nil, manifestBytes)
+
+		require.NoError(t, contractUpdate(ic, v))
+
+		// updated contract should have new scripthash
+		actual, err := ic.DAO.GetContractState(cs.ScriptHash())
+		expected := &state.Contract{
+			ID:       cs.ID,
+			Script:   cs.Script,
+			Manifest: *manifest,
+		}
+		_ = expected.ScriptHash()
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("update both script and manifest", func(t *testing.T) {
+		require.NoError(t, ic.DAO.PutContractState(cs))
+		v.LoadScriptWithHash([]byte{byte(opcode.RET)}, cs.ScriptHash(), smartcontract.All)
+		newScript := []byte{12, 13, 14}
+		newManifest := manifest.Manifest{
+			ABI: manifest.ABI{
+				Hash: hash.Hash160(newScript),
+				EntryPoint: manifest.Method{
+					Name: "Main",
+					Parameters: []manifest.Parameter{
+						manifest.NewParameter("VeryNewParameter", smartcontract.IntegerType),
+					},
+					ReturnType: smartcontract.StringType,
+				},
+			},
+			Features: smartcontract.HasStorage,
+		}
+		newManifestBytes, err := newManifest.MarshalJSON()
+		require.NoError(t, err)
+
+		putArgsOnStack(newScript, newManifestBytes)
+
+		require.NoError(t, contractUpdate(ic, v))
+
+		// updated contract should have new script and manifest
+		actual, err := ic.DAO.GetContractState(hash.Hash160(newScript))
+		require.NoError(t, err)
+		expected := &state.Contract{
+			ID:       cs.ID,
+			Script:   newScript,
+			Manifest: newManifest,
+		}
+		expected.Manifest.ABI.Hash = hash.Hash160(newScript)
+		_ = expected.ScriptHash()
+		require.Equal(t, expected, actual)
+
+		// old contract should be deleted
+		_, err = ic.DAO.GetContractState(cs.ScriptHash())
+		require.Error(t, err)
+	})
+}
+
+func TestContractGetCallFlags(t *testing.T) {
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+
+	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
+	require.NoError(t, contractGetCallFlags(ic, v))
+	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
 }

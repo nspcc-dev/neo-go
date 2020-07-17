@@ -70,6 +70,8 @@ func getInteropFromSlice(ic *interop.Context, slice []interop.Function) func(uin
 
 // All lists are sorted, keep 'em this way, please.
 var systemInterops = []interop.Function{
+	{Name: "System.Binary.Base64Decode", Func: runtimeDecode, Price: 100000},
+	{Name: "System.Binary.Base64Encode", Func: runtimeEncode, Price: 100000},
 	{Name: "System.Binary.Deserialize", Func: runtimeDeserialize, Price: 500000},
 	{Name: "System.Binary.Serialize", Func: runtimeSerialize, Price: 100000},
 	{Name: "System.Blockchain.GetBlock", Func: bcGetBlock, Price: 2500000,
@@ -94,6 +96,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Contract.Destroy", Func: contractDestroy, Price: 1000000,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Contract.IsStandard", Func: contractIsStandard, Price: 30000},
+	{Name: "System.Contract.GetCallFlags", Func: contractGetCallFlags, Price: 30000},
 	{Name: "System.Contract.Update", Func: contractUpdate, Price: 0,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 	{Name: "System.Enumerator.Concat", Func: enumerator.Concat, Price: 400},

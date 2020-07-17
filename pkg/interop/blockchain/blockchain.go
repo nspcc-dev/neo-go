@@ -3,9 +3,7 @@ Package blockchain provides functions to access various blockchain data.
 */
 package blockchain
 
-import (
-	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-)
+import "github.com/nspcc-dev/neo-go/pkg/interop/contract"
 
 // Transaction represents a NEO transaction. It's similar to Transaction class
 // in Neo .net framework.

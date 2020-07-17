@@ -83,6 +83,20 @@ func bcGetBlock(ic *interop.Context, v *vm.VM) error {
 	return nil
 }
 
+// contractToStackItem converts state.Contract to stackitem.Item
+func contractToStackItem(cs *state.Contract) (stackitem.Item, error) {
+	manifest, err := cs.Manifest.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(cs.Script),
+		stackitem.NewByteArray(manifest),
+		stackitem.NewBool(cs.HasStorage()),
+		stackitem.NewBool(cs.IsPayable()),
+	}), nil
+}
+
 // bcGetContract returns contract.
 func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	hashbytes := v.Estack().Pop().Bytes()
@@ -92,9 +106,13 @@ func bcGetContract(ic *interop.Context, v *vm.VM) error {
 	}
 	cs, err := ic.DAO.GetContractState(hash)
 	if err != nil {
-		v.Estack().PushVal([]byte{})
+		v.Estack().PushVal(stackitem.Null{})
 	} else {
-		v.Estack().PushVal(stackitem.NewInterop(cs))
+		item, err := contractToStackItem(cs)
+		if err != nil {
+			return err
+		}
+		v.Estack().PushVal(item)
 	}
 	return nil
 }
@@ -155,12 +173,12 @@ func bcGetTransactionFromBlock(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return err
 	}
+	index := v.Estack().Pop().BigInt().Int64()
 	block, err := ic.DAO.GetBlock(hash)
 	if err != nil || !isTraceableBlock(ic, block.Index) {
 		v.Estack().PushVal(stackitem.Null{})
 		return nil
 	}
-	index := v.Estack().Pop().BigInt().Int64()
 	if index < 0 || index >= int64(len(block.Transactions)) {
 		return errors.New("wrong transaction index")
 	}
@@ -422,6 +440,9 @@ func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	method := v.Estack().Pop().Item()
 	args := v.Estack().Pop().Item()
 	flags := smartcontract.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
+	if flags&^smartcontract.All != 0 {
+		return errors.New("call flags out of range")
+	}
 	return contractCallExInternal(ic, v, h, method, args, flags)
 }
 
@@ -483,8 +504,17 @@ func contractIsStandard(ic *interop.Context, v *vm.VM) error {
 	}
 	var result bool
 	cs, _ := ic.DAO.GetContractState(u)
-	if cs == nil || vm.IsStandardContract(cs.Script) {
-		result = true
+	if cs != nil {
+		result = vm.IsStandardContract(cs.Script)
+	} else {
+		if tx, ok := ic.Container.(*transaction.Transaction); ok {
+			for _, witness := range tx.Scripts {
+				if witness.ScriptHash() == u {
+					result = vm.IsStandardContract(witness.VerificationScript)
+					break
+				}
+			}
+		}
 	}
 	v.Estack().PushVal(result)
 	return nil
@@ -498,5 +528,11 @@ func contractCreateStandardAccount(ic *interop.Context, v *vm.VM) error {
 		return err
 	}
 	v.Estack().PushVal(p.GetScriptHash().BytesBE())
+	return nil
+}
+
+// contractGetCallFlags returns current context calling flags.
+func contractGetCallFlags(_ *interop.Context, v *vm.VM) error {
+	v.Estack().PushVal(v.Context().GetCallFlags())
 	return nil
 }

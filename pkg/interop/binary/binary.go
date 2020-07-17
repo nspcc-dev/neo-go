@@ -16,3 +16,15 @@ func Serialize(item interface{}) []byte {
 func Deserialize(b []byte) interface{} {
 	return nil
 }
+
+// Base64Encode encodes given byte slice into a base64 string and returns byte
+// representation of this string. It uses `System.Binary.Base64Encode` interop.
+func Base64Encode(b []byte) []byte {
+	return nil
+}
+
+// Base64Decode decodes given base64 string represented as a byte slice into
+// byte slice. It uses `System.Binary.Base64Decode` interop.
+func Base64Decode(b []byte) []byte {
+	return nil
+}

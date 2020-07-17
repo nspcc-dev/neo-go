@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -211,6 +212,39 @@ func TestECDSAVerify(t *testing.T) {
 		pub := priv.PublicKey().Bytes()
 		pub = pub[10:]
 		runCase(t, true, false, sign, pub, msg)
+	})
+}
+
+func TestRuntimeEncode(t *testing.T) {
+	str := []byte("my pretty string")
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+
+	v.Estack().PushVal(str)
+	require.NoError(t, runtimeEncode(ic, v))
+
+	expected := []byte(base64.StdEncoding.EncodeToString(str))
+	actual := v.Estack().Pop().Bytes()
+	require.Equal(t, expected, actual)
+}
+
+func TestRuntimeDecode(t *testing.T) {
+	expected := []byte("my pretty string")
+	str := base64.StdEncoding.EncodeToString(expected)
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+
+	t.Run("positive", func(t *testing.T) {
+		v.Estack().PushVal(str)
+		require.NoError(t, runtimeDecode(ic, v))
+
+		actual := v.Estack().Pop().Bytes()
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		v.Estack().PushVal(str + "%")
+		require.Error(t, runtimeDecode(ic, v))
 	})
 }
 

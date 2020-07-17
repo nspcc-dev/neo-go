@@ -119,3 +119,50 @@ func TestPermission_IsAllowed(t *testing.T) {
 		require.False(t, perm.IsAllowed(manifest, "AAA"))
 	})
 }
+
+func TestIsValid(t *testing.T) {
+	contractHash := util.Uint160{1, 2, 3}
+	m := NewManifest(contractHash)
+
+	t.Run("valid, no groups", func(t *testing.T) {
+		require.True(t, m.IsValid(contractHash))
+	})
+
+	t.Run("invalid, no groups", func(t *testing.T) {
+		require.False(t, m.IsValid(util.Uint160{9, 8, 7}))
+	})
+
+	t.Run("with groups", func(t *testing.T) {
+		m.Groups = make([]Group, 3)
+		pks := make([]*keys.PrivateKey, 3)
+		for i := range pks {
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			pks[i] = pk
+			m.Groups[i] = Group{
+				PublicKey: pk.PublicKey(),
+				Signature: pk.Sign(contractHash.BytesBE()),
+			}
+		}
+
+		t.Run("valid", func(t *testing.T) {
+			require.True(t, m.IsValid(contractHash))
+		})
+
+		t.Run("invalid, wrong contract hash", func(t *testing.T) {
+			require.False(t, m.IsValid(util.Uint160{4, 5, 6}))
+		})
+
+		t.Run("invalid, wrong group signature", func(t *testing.T) {
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			m.Groups = append(m.Groups, Group{
+				PublicKey: pk.PublicKey(),
+				// actually, there shouldn't be such situation, as Signature is always the signature
+				// of the contract hash.
+				Signature: pk.Sign([]byte{1, 2, 3}),
+			})
+			require.False(t, m.IsValid(contractHash))
+		})
+	})
+}
