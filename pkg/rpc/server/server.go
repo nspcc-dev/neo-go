@@ -496,7 +496,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 }
 
 func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Error) {
-	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromHex()
+	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
@@ -525,7 +525,7 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 }
 
 func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
-	u, err := ps.ValueWithType(0, request.StringT).GetUint160FromAddress()
+	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}

@@ -129,33 +129,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.NEP5Balances)
-				require.True(t, ok)
-				rubles, err := util.Uint160DecodeStringLE(testContractHash)
-				require.NoError(t, err)
-				expected := result.NEP5Balances{
-					Balances: []result.NEP5Balance{
-						{
-							Asset:       rubles,
-							Amount:      "8.77",
-							LastUpdated: 6,
-						},
-						{
-							Asset:       e.chain.GoverningTokenHash(),
-							Amount:      "99998000",
-							LastUpdated: 4,
-						},
-						{
-							Asset:       e.chain.UtilityTokenHash(),
-							Amount:      "915.79002700",
-							LastUpdated: 6,
-						}},
-					Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
-				}
-				require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
-				require.ElementsMatch(t, expected.Balances, res.Balances)
-			},
+			check:  checkNep5Balances,
+		},
+		{
+			name:   "positive_address",
+			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Balances{} },
+			check:  checkNep5Balances,
 		},
 	},
 	"getnep5transfers": {
@@ -173,127 +153,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `"]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
-				res, ok := acc.(*result.NEP5Transfers)
-				require.True(t, ok)
-				rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
-				require.NoError(t, err)
-				blockSendRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(6))
-				require.NoError(t, err)
-				require.Equal(t, 1, len(blockSendRubles.Transactions))
-				txSendRublesHash := blockSendRubles.Transactions[0].Hash()
-				blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
-				require.NoError(t, err)
-				require.Equal(t, 2, len(blockReceiveRubles.Transactions))
-				txReceiveRublesHash := blockReceiveRubles.Transactions[1].Hash()
-				blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
-				require.NoError(t, err)
-				require.Equal(t, 2, len(blockReceiveGAS.Transactions))
-				txReceiveNEOHash := blockReceiveGAS.Transactions[0].Hash()
-				txReceiveGASHash := blockReceiveGAS.Transactions[1].Hash()
-				blockSendNEO, err := e.chain.GetBlock(e.chain.GetHeaderHash(4))
-				require.NoError(t, err)
-				require.Equal(t, 1, len(blockSendNEO.Transactions))
-				txSendNEOHash := blockSendNEO.Transactions[0].Hash()
-				expected := result.NEP5Transfers{
-					Sent: []result.NEP5Transfer{
-						{
-							Timestamp:   blockSendRubles.Timestamp,
-							Asset:       rublesHash,
-							Address:     testchain.PrivateKeyByID(1).Address(),
-							Amount:      "1.23",
-							Index:       6,
-							NotifyIndex: 0,
-							TxHash:      txSendRublesHash,
-						},
-						{
-							Timestamp:   blockSendNEO.Timestamp,
-							Asset:       e.chain.GoverningTokenHash(),
-							Address:     testchain.PrivateKeyByID(1).Address(),
-							Amount:      "1000",
-							Index:       4,
-							NotifyIndex: 0,
-							TxHash:      txSendNEOHash,
-						},
-					},
-					Received: []result.NEP5Transfer{
-						{
-							Timestamp:   blockReceiveRubles.Timestamp,
-							Asset:       rublesHash,
-							Address:     address.Uint160ToString(rublesHash),
-							Amount:      "10",
-							Index:       5,
-							NotifyIndex: 0,
-							TxHash:      txReceiveRublesHash,
-						},
-						{
-							Timestamp:   blockSendNEO.Timestamp,
-							Asset:       e.chain.UtilityTokenHash(),
-							Address:     "", // Minted GAS.
-							Amount:      "17.99982000",
-							Index:       4,
-							NotifyIndex: 0,
-							TxHash:      txSendNEOHash,
-						},
-						{
-							Timestamp:   blockReceiveGAS.Timestamp,
-							Asset:       e.chain.UtilityTokenHash(),
-							Address:     testchain.MultisigAddress(),
-							Amount:      "1000",
-							Index:       1,
-							NotifyIndex: 0,
-							TxHash:      txReceiveGASHash,
-						},
-						{
-							Timestamp:   blockReceiveGAS.Timestamp,
-							Asset:       e.chain.GoverningTokenHash(),
-							Address:     testchain.MultisigAddress(),
-							Amount:      "99999000",
-							Index:       1,
-							NotifyIndex: 0,
-							TxHash:      txReceiveNEOHash,
-						},
-					},
-					Address: testchain.PrivateKeyByID(0).Address(),
-				}
-
-				// take burned gas into account
-				u := testchain.PrivateKeyByID(0).GetScriptHash()
-				for i := 0; i <= int(e.chain.BlockHeight()); i++ {
-					var netFee int64
-					h := e.chain.GetHeaderHash(i)
-					b, err := e.chain.GetBlock(h)
-					require.NoError(t, err)
-					for j := range b.Transactions {
-						if u.Equals(b.Transactions[j].Sender) {
-							amount := b.Transactions[j].SystemFee + b.Transactions[j].NetworkFee
-							expected.Sent = append(expected.Sent, result.NEP5Transfer{
-								Timestamp: b.Timestamp,
-								Asset:     e.chain.UtilityTokenHash(),
-								Address:   "", // burn has empty receiver
-								Amount:    amountToString(big.NewInt(amount), 8),
-								Index:     b.Index,
-								TxHash:    b.Hash(),
-							})
-						}
-						netFee += b.Transactions[j].NetworkFee
-					}
-					if i > 0 {
-						expected.Received = append(expected.Received, result.NEP5Transfer{
-							Timestamp: b.Timestamp,
-							Asset:     e.chain.UtilityTokenHash(),
-							Address:   "", // minted from network fees.
-							Amount:    amountToString(big.NewInt(netFee), 8),
-							Index:     b.Index,
-							TxHash:    b.Hash(),
-						})
-					}
-
-				}
-				require.Equal(t, expected.Address, res.Address)
-				require.ElementsMatch(t, expected.Sent, res.Sent)
-				require.ElementsMatch(t, expected.Received, res.Received)
-			},
+			check:  checkNep5Transfers,
+		},
+		{
+			name:   "positive_hash",
+			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
+			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
+			check:  checkNep5Transfers,
 		},
 	},
 	"getstorage": {
@@ -1109,4 +975,154 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
+}
+
+func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP5Balances)
+	require.True(t, ok)
+	rubles, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	expected := result.NEP5Balances{
+		Balances: []result.NEP5Balance{
+			{
+				Asset:       rubles,
+				Amount:      "8.77",
+				LastUpdated: 6,
+			},
+			{
+				Asset:       e.chain.GoverningTokenHash(),
+				Amount:      "99998000",
+				LastUpdated: 4,
+			},
+			{
+				Asset:       e.chain.UtilityTokenHash(),
+				Amount:      "915.79002700",
+				LastUpdated: 6,
+			}},
+		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
+	}
+	require.Equal(t, testchain.PrivateKeyByID(0).Address(), res.Address)
+	require.ElementsMatch(t, expected.Balances, res.Balances)
+}
+
+func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
+	res, ok := acc.(*result.NEP5Transfers)
+	require.True(t, ok)
+	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	blockSendRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(6))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockSendRubles.Transactions))
+	txSendRublesHash := blockSendRubles.Transactions[0].Hash()
+	blockReceiveRubles, err := e.chain.GetBlock(e.chain.GetHeaderHash(5))
+	require.NoError(t, err)
+	require.Equal(t, 2, len(blockReceiveRubles.Transactions))
+	txReceiveRublesHash := blockReceiveRubles.Transactions[1].Hash()
+	blockReceiveGAS, err := e.chain.GetBlock(e.chain.GetHeaderHash(1))
+	require.NoError(t, err)
+	require.Equal(t, 2, len(blockReceiveGAS.Transactions))
+	txReceiveNEOHash := blockReceiveGAS.Transactions[0].Hash()
+	txReceiveGASHash := blockReceiveGAS.Transactions[1].Hash()
+	blockSendNEO, err := e.chain.GetBlock(e.chain.GetHeaderHash(4))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockSendNEO.Transactions))
+	txSendNEOHash := blockSendNEO.Transactions[0].Hash()
+	expected := result.NEP5Transfers{
+		Sent: []result.NEP5Transfer{
+			{
+				Timestamp:   blockSendRubles.Timestamp,
+				Asset:       rublesHash,
+				Address:     testchain.PrivateKeyByID(1).Address(),
+				Amount:      "1.23",
+				Index:       6,
+				NotifyIndex: 0,
+				TxHash:      txSendRublesHash,
+			},
+			{
+				Timestamp:   blockSendNEO.Timestamp,
+				Asset:       e.chain.GoverningTokenHash(),
+				Address:     testchain.PrivateKeyByID(1).Address(),
+				Amount:      "1000",
+				Index:       4,
+				NotifyIndex: 0,
+				TxHash:      txSendNEOHash,
+			},
+		},
+		Received: []result.NEP5Transfer{
+			{
+				Timestamp:   blockReceiveRubles.Timestamp,
+				Asset:       rublesHash,
+				Address:     address.Uint160ToString(rublesHash),
+				Amount:      "10",
+				Index:       5,
+				NotifyIndex: 0,
+				TxHash:      txReceiveRublesHash,
+			},
+			{
+				Timestamp:   blockSendNEO.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     "", // Minted GAS.
+				Amount:      "17.99982000",
+				Index:       4,
+				NotifyIndex: 0,
+				TxHash:      txSendNEOHash,
+			},
+			{
+				Timestamp:   blockReceiveGAS.Timestamp,
+				Asset:       e.chain.UtilityTokenHash(),
+				Address:     testchain.MultisigAddress(),
+				Amount:      "1000",
+				Index:       1,
+				NotifyIndex: 0,
+				TxHash:      txReceiveGASHash,
+			},
+			{
+				Timestamp:   blockReceiveGAS.Timestamp,
+				Asset:       e.chain.GoverningTokenHash(),
+				Address:     testchain.MultisigAddress(),
+				Amount:      "99999000",
+				Index:       1,
+				NotifyIndex: 0,
+				TxHash:      txReceiveNEOHash,
+			},
+		},
+		Address: testchain.PrivateKeyByID(0).Address(),
+	}
+
+	// take burned gas into account
+	u := testchain.PrivateKeyByID(0).GetScriptHash()
+	for i := 0; i <= int(e.chain.BlockHeight()); i++ {
+		var netFee int64
+		h := e.chain.GetHeaderHash(i)
+		b, err := e.chain.GetBlock(h)
+		require.NoError(t, err)
+		for j := range b.Transactions {
+			if u.Equals(b.Transactions[j].Sender) {
+				amount := b.Transactions[j].SystemFee + b.Transactions[j].NetworkFee
+				expected.Sent = append(expected.Sent, result.NEP5Transfer{
+					Timestamp: b.Timestamp,
+					Asset:     e.chain.UtilityTokenHash(),
+					Address:   "", // burn has empty receiver
+					Amount:    amountToString(big.NewInt(amount), 8),
+					Index:     b.Index,
+					TxHash:    b.Hash(),
+				})
+			}
+			netFee += b.Transactions[j].NetworkFee
+		}
+		if i > 0 {
+			expected.Received = append(expected.Received, result.NEP5Transfer{
+				Timestamp: b.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // minted from network fees.
+				Amount:    amountToString(big.NewInt(netFee), 8),
+				Index:     b.Index,
+				TxHash:    b.Hash(),
+			})
+		}
+
+	}
+	require.Equal(t, expected.Address, res.Address)
+	require.ElementsMatch(t, expected.Sent, res.Sent)
+	require.ElementsMatch(t, expected.Received, res.Received)
 }
