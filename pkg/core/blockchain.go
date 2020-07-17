@@ -550,10 +550,9 @@ func (bc *Blockchain) processHeader(h *block.Header, batch storage.Batch, header
 	return nil
 }
 
-// TODO: storeBlock needs some more love, its implemented as in the original
-// project. This for the sake of development speed and understanding of what
-// is happening here, quite allot as you can see :). If things are wired together
-// and all tests are in place, we can make a more optimized and cleaner implementation.
+// storeBlock performs chain update using the block given, it executes all
+// transactions with all appropriate side-effects and updates Blockchain state.
+// This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block) error {
 	cache := dao.NewCached(bc.dao)
 	appExecResults := make([]*state.AppExecResult, 0, 1+len(block.Transactions))
