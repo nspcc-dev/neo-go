@@ -258,8 +258,9 @@ func (v *VM) Load(prog []byte) {
 func (v *VM) LoadScript(b []byte) {
 	ctx := NewContext(b)
 	ctx.estack = v.estack
-	ctx.astack = v.astack
+	ctx.astack = v.newItemStack("alt")
 	v.istack.PushVal(ctx)
+	v.astack = ctx.astack
 }
 
 // loadScriptWithHash if similar to the LoadScript method, but it also loads
@@ -1138,6 +1139,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		newCtx := ctx.Copy()
 		newCtx.rvcount = -1
+		newCtx.astack = v.newItemStack("alt")
+		v.astack = newCtx.astack
 		v.istack.PushVal(newCtx)
 
 		offset := v.getJumpOffset(newCtx, parameter, 0)
@@ -1202,8 +1205,15 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				newEstack.Push(elem)
 			}
 			v.estack = newEstack
-			v.astack = v.Context().astack
 		}
+		newAstack := v.Context().astack
+		if rvcount == -1 && newAstack != oldCtx.astack {
+			for i := oldCtx.astack.Len(); i > 0; i-- {
+				elem := oldCtx.astack.RemoveAt(i - 1)
+				newAstack.Push(elem)
+			}
+		}
+		v.astack = newAstack
 
 	case opcode.CHECKSIG, opcode.VERIFY:
 		var hashToCheck []byte
@@ -1381,8 +1391,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			newCtx.hasDynamicInvoke = hasDynamicInvoke
 		}
 		newCtx.rvcount = rvcount
-		newCtx.estack = NewStack("evaluation")
-		newCtx.astack = NewStack("alt")
+		newCtx.estack = v.newItemStack("evaluation")
+		newCtx.astack = v.newItemStack("alt")
 		// Going backwards to naturally push things onto the new stack.
 		for i := pcount; i > 0; i-- {
 			elem := v.estack.RemoveAt(i - 1)
