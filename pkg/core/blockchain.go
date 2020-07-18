@@ -1844,9 +1844,9 @@ func (bc *Blockchain) updateStateHeight(newHeight uint32) error {
 	h, err := bc.dao.GetCurrentStateRootHeight()
 	if err != nil {
 		return errors.WithMessage(err, "can't get current state root height")
-	} else if newHeight == h+1 {
+	} else if (h < bc.config.StateRootEnableIndex && newHeight == bc.config.StateRootEnableIndex) || newHeight == h+1 {
 		updateStateHeightMetric(newHeight)
-		return bc.dao.PutCurrentStateRootHeight(h + 1)
+		return bc.dao.PutCurrentStateRootHeight(newHeight)
 	}
 	return nil
 }

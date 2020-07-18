@@ -630,7 +630,7 @@ func (s *Server) handleRootsCmd(p Peer, rs *payload.StateRoots) error {
 	}
 	h := s.chain.StateHeight()
 	if h < s.chain.GetConfig().StateRootEnableIndex {
-		h = s.chain.GetConfig().StateRootEnableIndex
+		h = s.chain.GetConfig().StateRootEnableIndex - 1
 	}
 	for i := range rs.Roots {
 		if rs.Roots[i].Index <= h {
