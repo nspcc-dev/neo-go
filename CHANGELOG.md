@@ -2,6 +2,19 @@
 
 This document outlines major changes between releases.
 
+## 0.76.2 "Calibration" (19 July 2020)
+
+Minor update for Neo 2. If you're running testnet node, we recommend to
+resynchronize it to fix state mismatch at block 4516236, mainnet is not known
+to have any similar problem so you can keep the old DB.
+
+Bugs fixed:
+ * rare panic on node shutdown (#1185)
+ * VM not clearing alt stack when doing CALLs (#1158)
+ * incorrect resource accounting for isolated calls (#1186)
+ * state height wasn't updated properly for networks with StateRootEnableIndex
+   higher than zero (like testnet, #1213)
+
 ## 0.76.1 "Conduplication" (15 July 2020)
 
 Minor bug fixing for Neo 2 implementation. If you're affected by NEP5 balance
