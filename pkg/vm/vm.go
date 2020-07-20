@@ -1221,7 +1221,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			cond = getJumpCondition(op, a, b)
 		}
 
-		v.jumpIf(ctx, offset, cond)
+		if cond {
+			v.jump(ctx, offset)
+		}
 
 	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
@@ -1231,7 +1233,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.istack.PushVal(newCtx)
 
 		offset := v.getJumpOffset(newCtx, parameter)
-		v.jumpIf(newCtx, offset, true)
+		v.jump(newCtx, offset)
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1243,7 +1245,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.local = nil
 		newCtx.arguments = nil
 		v.istack.PushVal(newCtx)
-		v.jumpIf(newCtx, ptr.Position(), true)
+		v.jump(newCtx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1391,11 +1393,9 @@ func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	}
 }
 
-// jumpIf performs jump to offset if cond is true.
-func (v *VM) jumpIf(ctx *Context, offset int, cond bool) {
-	if cond {
-		ctx.nextip = offset
-	}
+// jump performs jump to the offset.
+func (v *VM) jump(ctx *Context, offset int) {
+	ctx.nextip = offset
 }
 
 // getJumpOffset returns instruction number in a current context
