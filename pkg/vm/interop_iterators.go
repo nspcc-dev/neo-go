@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"math/big"
+
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -13,6 +15,11 @@ type (
 	arrayWrapper struct {
 		index int
 		value []stackitem.Item
+	}
+
+	byteArrayWrapper struct {
+		index int
+		value []byte
 	}
 
 	concatEnum struct {
@@ -60,6 +67,23 @@ func (a *arrayWrapper) Value() stackitem.Item {
 }
 
 func (a *arrayWrapper) Key() stackitem.Item {
+	return stackitem.Make(a.index)
+}
+
+func (a *byteArrayWrapper) Next() bool {
+	if next := a.index + 1; next < len(a.value) {
+		a.index = next
+		return true
+	}
+
+	return false
+}
+
+func (a *byteArrayWrapper) Value() stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(a.value[a.index])))
+}
+
+func (a *byteArrayWrapper) Key() stackitem.Item {
 	return stackitem.Make(a.index)
 }
 

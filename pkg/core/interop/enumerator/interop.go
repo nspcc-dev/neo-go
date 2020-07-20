@@ -10,7 +10,7 @@ func Concat(_ *interop.Context, v *vm.VM) error {
 	return vm.EnumeratorConcat(v)
 }
 
-// Create creates an enumerator from an array-like stack item.
+// Create creates an enumerator from an array-like or bytearray-like stack item.
 func Create(_ *interop.Context, v *vm.VM) error {
 	return vm.EnumeratorCreate(v)
 }
