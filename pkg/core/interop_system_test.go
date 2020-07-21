@@ -247,9 +247,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 	defer chain.Close()
 
 	ic.Notifications = []state.NotificationEvent{
-		{ScriptHash: util.Uint160{1}, Item: stackitem.NewByteArray([]byte{11})},
-		{ScriptHash: util.Uint160{2}, Item: stackitem.NewByteArray([]byte{22})},
-		{ScriptHash: util.Uint160{1}, Item: stackitem.NewByteArray([]byte{33})},
+		{ScriptHash: util.Uint160{1}, Name: "Event1", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{11})})},
+		{ScriptHash: util.Uint160{2}, Name: "Event2", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{22})})},
+		{ScriptHash: util.Uint160{1}, Name: "Event1", Item: stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte{33})})},
 	}
 
 	t.Run("NoFilter", func(t *testing.T) {
@@ -261,7 +261,10 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		for i := range arr {
 			elem := arr[i].Value().([]stackitem.Item)
 			require.Equal(t, ic.Notifications[i].ScriptHash.BytesBE(), elem[0].Value())
-			require.Equal(t, ic.Notifications[i].Item, elem[1])
+			name, err := elem[1].TryBytes()
+			require.NoError(t, err)
+			require.Equal(t, ic.Notifications[i].Name, string(name))
+			require.Equal(t, ic.Notifications[i].Item, elem[2])
 		}
 	})
 
@@ -274,7 +277,10 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		require.Equal(t, 1, len(arr))
 		elem := arr[0].Value().([]stackitem.Item)
 		require.Equal(t, h, elem[0].Value())
-		require.Equal(t, ic.Notifications[1].Item, elem[1])
+		name, err := elem[1].TryBytes()
+		require.NoError(t, err)
+		require.Equal(t, ic.Notifications[1].Name, string(name))
+		require.Equal(t, ic.Notifications[1].Item, elem[2])
 	})
 }
 

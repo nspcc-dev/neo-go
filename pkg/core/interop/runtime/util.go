@@ -42,6 +42,7 @@ func GetNotifications(ic *interop.Context, v *vm.VM) error {
 	for i := range notifications {
 		ev := stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(notifications[i].ScriptHash.BytesBE()),
+			stackitem.Make(notifications[i].Name),
 			notifications[i].Item,
 		})
 		arr.Append(ev)

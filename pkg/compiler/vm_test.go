@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -74,7 +75,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 type storagePlugin struct {
 	mem      map[string][]byte
 	interops map[uint32]vm.InteropFunc
-	events   []stackitem.Item
+	events   []state.NotificationEvent
 }
 
 func newStoragePlugin() *storagePlugin {
@@ -99,7 +100,12 @@ func (s *storagePlugin) getInterop(id uint32) *vm.InteropFuncPrice {
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {
-	s.events = append(s.events, v.Estack().Pop().Item())
+	name := string(v.Estack().Pop().Bytes())
+	item := stackitem.NewArray(v.Estack().Pop().Array())
+	s.events = append(s.events, state.NotificationEvent{
+		Name: name,
+		Item: item,
+	})
 	return nil
 }
 

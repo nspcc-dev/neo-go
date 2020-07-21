@@ -54,6 +54,6 @@ func Log(args []interface{}) bool {
 
 // Notify notifies about given message
 func Notify(args []interface{}) bool {
-	runtime.Notify(args[0])
+	runtime.Notify("Event", args[0])
 	return true
 }

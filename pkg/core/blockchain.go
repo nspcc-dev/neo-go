@@ -661,16 +661,15 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Cached, b *block.Block, h util.Uint256) {
-	arr, ok := note.Item.Value().([]stackitem.Item)
-	if !ok || len(arr) != 4 {
+	if note.Name != "transfer" && note.Name != "Transfer" {
 		return
 	}
-	op, ok := arr[0].Value().([]byte)
-	if !ok || (string(op) != "transfer" && string(op) != "Transfer") {
+	arr, ok := note.Item.Value().([]stackitem.Item)
+	if !ok || len(arr) != 3 {
 		return
 	}
 	var from []byte
-	fromValue := arr[1].Value()
+	fromValue := arr[0].Value()
 	// we don't have `from` set when we are minting tokens
 	if fromValue != nil {
 		from, ok = fromValue.([]byte)
@@ -679,7 +678,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 		}
 	}
 	var to []byte
-	toValue := arr[2].Value()
+	toValue := arr[1].Value()
 	// we don't have `to` set when we are burning tokens
 	if toValue != nil {
 		to, ok = toValue.([]byte)
@@ -687,9 +686,9 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.C
 			return
 		}
 	}
-	amount, ok := arr[3].Value().(*big.Int)
+	amount, ok := arr[2].Value().(*big.Int)
 	if !ok {
-		bs, ok := arr[3].Value().([]byte)
+		bs, ok := arr[2].Value().([]byte)
 		if !ok {
 			return
 		}

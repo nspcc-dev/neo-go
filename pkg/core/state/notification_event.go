@@ -1,6 +1,8 @@
 package state
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -12,7 +14,8 @@ import (
 // notification and that item itself.
 type NotificationEvent struct {
 	ScriptHash util.Uint160
-	Item       stackitem.Item
+	Name       string
+	Item       *stackitem.Array
 }
 
 // AppExecResult represent the result of the script execution, gathering together
@@ -29,13 +32,24 @@ type AppExecResult struct {
 // EncodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
 	ne.ScriptHash.EncodeBinary(w)
+	w.WriteString(ne.Name)
 	stackitem.EncodeBinaryStackItem(ne.Item, w)
 }
 
 // DecodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 	ne.ScriptHash.DecodeBinary(r)
-	ne.Item = stackitem.DecodeBinaryStackItem(r)
+	ne.Name = r.ReadString()
+	item := stackitem.DecodeBinaryStackItem(r)
+	if r.Err != nil {
+		return
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		r.Err = errors.New("Array or Struct expected")
+		return
+	}
+	ne.Item = stackitem.NewArray(arr)
 }
 
 // EncodeBinary implements the Serializable interface.

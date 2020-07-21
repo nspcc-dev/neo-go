@@ -12,7 +12,8 @@ import (
 func TestEncodeDecodeNotificationEvent(t *testing.T) {
 	event := &NotificationEvent{
 		ScriptHash: random.Uint160(),
-		Item:       stackitem.NewBool(true),
+		Name:       "Event",
+		Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewBool(true)}),
 	}
 
 	testserdes.EncodeDecodeBinary(t, event, new(NotificationEvent))
