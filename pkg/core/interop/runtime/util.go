@@ -11,7 +11,11 @@ import (
 
 // GasLeft returns remaining amount of GAS.
 func GasLeft(_ *interop.Context, v *vm.VM) error {
-	v.Estack().PushVal(v.GasLimit - v.GasConsumed())
+	if v.GasLimit == -1 {
+		v.Estack().PushVal(v.GasLimit)
+	} else {
+		v.Estack().PushVal(v.GasLimit - v.GasConsumed())
+	}
 	return nil
 }
 
