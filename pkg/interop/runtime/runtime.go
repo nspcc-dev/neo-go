@@ -80,3 +80,9 @@ func GetNotifications(h []byte) [][]interface{} {
 func GetInvocationCounter() int {
 	return 0
 }
+
+// Platform returns the platform name, which is set to be `NEO`. This function uses
+// `System.Runtime.Platform` syscall.
+func Platform() []byte {
+	return nil
+}

@@ -68,6 +68,7 @@ var syscalls = map[string]map[string]Syscall{
 		"CheckWitness":           {"System.Runtime.CheckWitness", false},
 		"Log":                    {"System.Runtime.Log", false},
 		"Notify":                 {"System.Runtime.Notify", false},
+		"Platform":               {"System.Runtime.Platform", false},
 	},
 	"storage": {
 		"ConvertContextToReadOnly": {"System.Storage.AsReadOnly", false},
