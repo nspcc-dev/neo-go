@@ -198,7 +198,14 @@ func IteratorCreate(v *VM) error {
 	case *stackitem.Map:
 		item = NewMapIterator(t)
 	default:
-		return errors.New("non-iterable type")
+		data, err := t.TryBytes()
+		if err != nil {
+			return fmt.Errorf("non-iterable type %s", t.Type())
+		}
+		item = stackitem.NewInterop(&byteArrayWrapper{
+			index: -1,
+			value: data,
+		})
 	}
 
 	v.Estack().Push(&Element{value: item})
