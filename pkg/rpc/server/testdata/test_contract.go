@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/engine"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
@@ -75,6 +76,16 @@ func Main(operation string, args []interface{}) interface{} {
 		amount := totalSupply
 		storage.Put(ctx, h, amount)
 		runtime.Notify("transfer", []byte{}, h, amount)
+		return true
+	case "migrate":
+		script := args[0].([]byte)
+		params := []byte{0x07, 0x10} // string + array
+		description := args[1].(string)
+		email := args[2].(string)
+		author := args[3].(string)
+		version := args[4].(string)
+		name := args[5].(string)
+		contract.Migrate(script, params, 0x05, 0x01, name, version, author, email, description)
 		return true
 	default:
 		panic("invalid operation")

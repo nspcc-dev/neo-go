@@ -658,6 +658,11 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	if d, ok := cache[h]; ok {
 		return d, nil
 	}
+	m, err := s.chain.GetNEP5Metadata(h)
+	if err == nil {
+		cache[h] = m.Decimals
+		return m.Decimals, nil
+	}
 	script, err := request.CreateFunctionInvocationScript(h, request.Params{
 		{
 			Type:  request.StringT,

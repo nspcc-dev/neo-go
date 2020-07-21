@@ -290,22 +290,30 @@ func TestCreateBasicChain(t *testing.T) {
 	// Push some contract into the chain.
 	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
 	require.NoError(t, err)
-	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
+
+	// Same contract but with different hash.
+	avmOld := append(avm, byte(opcode.RET))
+	t.Logf("contractHash (old): %s", hash.Hash160(avmOld).StringLE())
 
 	var props smartcontract.PropertyState
 	script := io.NewBufBinWriter()
-	emit.Bytes(script.BinWriter, []byte("Da contract dat hallos u"))
-	emit.Bytes(script.BinWriter, []byte("joe@example.com"))
-	emit.Bytes(script.BinWriter, []byte("Random Guy"))
-	emit.Bytes(script.BinWriter, []byte("0.99"))
-	emit.Bytes(script.BinWriter, []byte("Helloer"))
+	contractDesc := []string{
+		"Da contract dat hallos u", // desc
+		"joe@example.com",          // email
+		"Random Guy",               // author
+		"0.99",                     // version
+		"Helloer",                  // name
+	}
+	for i := range contractDesc {
+		emit.String(script.BinWriter, contractDesc[i])
+	}
 	props |= smartcontract.HasStorage
 	emit.Int(script.BinWriter, int64(props))
 	emit.Int(script.BinWriter, int64(5))
 	params := make([]byte, 1)
 	params[0] = byte(7)
 	emit.Bytes(script.BinWriter, params)
-	emit.Bytes(script.BinWriter, avm)
+	emit.Bytes(script.BinWriter, avmOld)
 	emit.Syscall(script.BinWriter, "Neo.Contract.Create")
 	txScript := script.Bytes()
 
@@ -329,7 +337,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	// Now invoke this contract.
 	script = io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
+	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avmOld), "Put", "testkey", "testvalue")
 
 	txInv := transaction.NewInvocationTX(script.Bytes(), 0)
 	b = bc.newBlock(newMinerTX(), txInv)
@@ -359,7 +367,7 @@ func TestCreateBasicChain(t *testing.T) {
 	b = bc.newBlock(newMinerTX(), txNeo0to1)
 	require.NoError(t, bc.AddBlock(b))
 
-	sh := hash.Hash160(avm)
+	sh := hash.Hash160(avmOld)
 	w := io.NewBufBinWriter()
 	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "init")
 	initTx := transaction.NewInvocationTX(w.Bytes(), 0)
@@ -369,6 +377,39 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, bc.AddBlock(b))
 
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
+	b = bc.newBlock(newMinerTX(), transferTx)
+	require.NoError(t, bc.AddBlock(b))
+	t.Logf("txTransfer: %s", transferTx.Hash().StringLE())
+
+	w = io.NewBufBinWriter()
+	args := []interface{}{avm}
+	for i := range contractDesc {
+		args = append(args, contractDesc[i])
+	}
+	emit.AppCallWithOperationAndArgs(w.BinWriter, sh, "migrate", args...)
+	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	invFee = util.Fixed8FromInt64(100)
+	migrateTx := transaction.NewInvocationTX(w.Bytes(), invFee)
+	migrateTx.AddInput(&transaction.Input{
+		PrevHash:  txDeploy.Hash(),
+		PrevIndex: 0,
+	})
+	migrateTx.AddOutput(&transaction.Output{
+		AssetID:    UtilityTokenID(),
+		Amount:     gasOwned - invFee,
+		ScriptHash: priv0.GetScriptHash(),
+		Position:   0,
+	})
+	require.NoError(t, acc0.SignTx(migrateTx))
+	gasOwned -= invFee
+	t.Logf("txMigrate: %s", migrateTx.Hash().StringLE())
+	b = bc.newBlock(newMinerTX(), migrateTx)
+	require.NoError(t, bc.AddBlock(b))
+
+	sh = hash.Hash160(avm)
+	t.Logf("contractHash (new): %s", sh.StringLE())
+
+	transferTx = newNEP5Transfer(sh, priv1.GetScriptHash(), priv0.GetScriptHash(), 3)
 	b = bc.newBlock(newMinerTX(), transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
