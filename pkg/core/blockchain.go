@@ -994,6 +994,12 @@ func (bc *Blockchain) GetNEP5Balances(acc util.Uint160) *state.NEP5Balances {
 	return bs
 }
 
+// GetNEP5Metadata returns NEP5 metadata for the contract h.
+// Note: it is currently saved only for migrated contracts.
+func (bc *Blockchain) GetNEP5Metadata(h util.Uint160) (*state.NEP5Metadata, error) {
+	return bc.dao.GetNEP5Metadata(h)
+}
+
 // LastBatch returns last persisted storage batch.
 func (bc *Blockchain) LastBatch() *storage.MemBatch {
 	return bc.lastBatch

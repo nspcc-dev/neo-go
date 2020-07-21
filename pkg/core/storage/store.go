@@ -17,6 +17,7 @@ const (
 	STAsset           KeyPrefix = 0x4c
 	STNotification    KeyPrefix = 0x4d
 	STContract        KeyPrefix = 0x50
+	STMigration       KeyPrefix = 0x51
 	STStorage         KeyPrefix = 0x70
 	STNEP5Transfers   KeyPrefix = 0x72
 	STNEP5Balances    KeyPrefix = 0x73

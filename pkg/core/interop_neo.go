@@ -12,10 +12,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	gherr "github.com/pkg/errors"
 )
 
@@ -583,8 +585,8 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 		if err != nil {
 			return err
 		}
+		hash := getContextScriptHash(v, 0)
 		if contract.HasStorage() {
-			hash := getContextScriptHash(v, 0)
 			siMap, err := ic.dao.GetStorageItems(hash, nil)
 			if err != nil {
 				return err
@@ -598,6 +600,26 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 				}
 			}
 			ic.dao.MigrateNEP5Balances(hash, contract.ScriptHash())
+
+			// save NEP5 metadata if any
+			v := ic.bc.GetTestVM()
+			w := io.NewBufBinWriter()
+			emit.AppCallWithOperationAndArgs(w.BinWriter, hash, "decimals")
+			v.SetGasLimit(ic.bc.GetConfig().FreeGasLimit)
+			v.Load(w.Bytes())
+			if err := v.Run(); err == nil && v.Estack().Len() == 1 {
+				res := v.Estack().Pop().Item().ToContractParameter(map[vm.StackItem]bool{})
+				d := int64(-1)
+				switch res.Type {
+				case smartcontract.IntegerType:
+					d = res.Value.(int64)
+				case smartcontract.ByteArrayType:
+					d = emit.BytesToInt(res.Value.([]byte)).Int64()
+				}
+				if d >= 0 {
+					ic.dao.PutNEP5Metadata(hash, &state.NEP5Metadata{Decimals: d})
+				}
+			}
 		}
 	}
 	v.Estack().PushVal(vm.NewInteropItem(contract))
