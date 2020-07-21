@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -385,18 +386,15 @@ func (c *Client) invokeSomething(method string, p request.RawParams, cosigners [
 // The given hex string needs to be signed with a keypair.
 // When the result of the response object is true, the TX has successfully
 // been broadcasted to the network.
-func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) error {
+func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint256, error) {
 	var (
 		params = request.NewRawParams(hex.EncodeToString(rawTX.Bytes()))
-		resp   bool
+		resp   = new(result.RelayResult)
 	)
-	if err := c.performRequest("sendrawtransaction", params, &resp); err != nil {
-		return err
+	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
+		return util.Uint256{}, err
 	}
-	if !resp {
-		return errors.New("sendrawtransaction returned false")
-	}
-	return nil
+	return resp.Hash, nil
 }
 
 // SubmitBlock broadcasts a raw block over the NEO network.
@@ -453,10 +451,12 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 		return txHash, errors.Wrap(err, "failed to sign tx")
 	}
 	txHash = tx.Hash()
-	err = c.SendRawTransaction(tx)
-
+	actualHash, err := c.SendRawTransaction(tx)
 	if err != nil {
 		return txHash, errors.Wrap(err, "failed sendning tx")
+	}
+	if !actualHash.Equals(txHash) {
+		return actualHash, fmt.Errorf("sent and actual tx hashes mismatch:\n\tsent: %v\n\tactual: %v", txHash.StringLE(), actualHash.StringLE())
 	}
 	return txHash, nil
 }

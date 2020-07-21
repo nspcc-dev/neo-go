@@ -384,9 +384,12 @@ func transferNEP5(ctx *cli.Context) error {
 		}
 	} else {
 		_ = acc.SignTx(tx)
-		if err := c.SendRawTransaction(tx); err != nil {
+		res, err := c.SendRawTransaction(tx)
+		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		fmt.Println(res.StringLE())
+		return nil
 	}
 
 	fmt.Println(tx.Hash().StringLE())
