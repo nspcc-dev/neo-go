@@ -119,7 +119,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Runtime.GetInvocationCounter", Func: runtime.GetInvocationCounter, Price: 400},
 	{Name: "System.Runtime.GetScriptContainer", Func: engineGetScriptContainer, Price: 250},
 	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 250,
-		AllowedTriggers: trigger.Application},
+		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Runtime.GetTrigger", Func: runtimeGetTrigger, Price: 250},
 	{Name: "System.Runtime.Log", Func: runtimeLog, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
 	{Name: "System.Runtime.Notify", Func: runtimeNotify, Price: 1000000, RequiredFlags: smartcontract.AllowNotify},
