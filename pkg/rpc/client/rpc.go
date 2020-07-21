@@ -398,25 +398,22 @@ func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint25
 }
 
 // SubmitBlock broadcasts a raw block over the NEO network.
-func (c *Client) SubmitBlock(b block.Block) error {
+func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	var (
 		params request.RawParams
-		resp   bool
+		resp   = new(result.RelayResult)
 	)
 	buf := io.NewBufBinWriter()
 	b.EncodeBinary(buf.BinWriter)
 	if err := buf.Err; err != nil {
-		return err
+		return util.Uint256{}, err
 	}
 	params = request.NewRawParams(hex.EncodeToString(buf.Bytes()))
 
-	if err := c.performRequest("submitblock", params, &resp); err != nil {
-		return err
+	if err := c.performRequest("submitblock", params, resp); err != nil {
+		return util.Uint256{}, err
 	}
-	if !resp {
-		return errors.New("submitblock returned false")
-	}
-	return nil
+	return resp.Hash, nil
 }
 
 // SignAndPushInvocationTx signs and pushes given script as an invocation

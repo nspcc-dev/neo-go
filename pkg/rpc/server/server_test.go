@@ -760,9 +760,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			b := newBlock(t, chain, 1, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
-			var res bool
-			require.NoError(t, json.Unmarshal(data, &res))
-			require.True(t, res)
+			var res = new(result.RelayResult)
+			require.NoError(t, json.Unmarshal(data, res))
+			require.Equal(t, b.Hash(), res.Hash)
 		})
 	})
 
