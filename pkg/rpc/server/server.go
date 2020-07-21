@@ -628,7 +628,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		}
 
 		transfer.Amount = amountToString(-tr.Amount, d)
-		if !tr.From.Equals(util.Uint160{}) {
+		if !tr.To.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
 		bs.Sent = append(bs.Sent, transfer)
