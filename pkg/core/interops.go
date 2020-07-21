@@ -117,6 +117,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Runtime.GetEntryScriptHash", Func: engineGetEntryScriptHash, Price: 400},
 	{Name: "System.Runtime.GetExecutingScriptHash", Func: engineGetExecutingScriptHash, Price: 400},
 	{Name: "System.Runtime.GetInvocationCounter", Func: runtime.GetInvocationCounter, Price: 400},
+	{Name: "System.Runtime.GetNotifications", Func: runtime.GetNotifications, Price: 10000},
 	{Name: "System.Runtime.GetScriptContainer", Func: engineGetScriptContainer, Price: 250},
 	{Name: "System.Runtime.GetTime", Func: runtimeGetTime, Price: 250,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowStates},
