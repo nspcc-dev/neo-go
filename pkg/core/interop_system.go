@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -29,6 +30,8 @@ const (
 	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
 	// MaxEventNameLen is the maximum length of a name for event.
 	MaxEventNameLen = 32
+	// MaxNotificationSize is the maximum length of a runtime log message.
+	MaxNotificationSize = 1024
 )
 
 // StorageContext contains storing id and read/write flag, it's used as
@@ -272,7 +275,14 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 
 // runtimeLog logs the message passed.
 func runtimeLog(ic *interop.Context, v *vm.VM) error {
-	msg := fmt.Sprintf("%q", v.Estack().Pop().Bytes())
+	state := v.Estack().Pop().Bytes()
+	if len(state) > MaxNotificationSize {
+		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
+	}
+	if !utf8.Valid(state) {
+		return errors.New("log message should be UTF8-encoded")
+	}
+	msg := fmt.Sprintf("%q", state)
 	ic.Log.Info("runtime log",
 		zap.Stringer("script", v.GetCurrentScriptHash()),
 		zap.String("logs", msg))
