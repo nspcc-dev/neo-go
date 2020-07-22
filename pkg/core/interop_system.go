@@ -253,6 +253,9 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
+	if !utf8.Valid(name) {
+		return errors.New("event name should be UTF8-encoded")
+	}
 	elem := v.Estack().Pop()
 	args := elem.Array()
 	// But it has to be serializable, otherwise we either have some broken
