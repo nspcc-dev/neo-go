@@ -1233,7 +1233,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx := ctx.Copy()
 		newCtx.local = nil
 		newCtx.arguments = nil
-		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 
 		offset := v.getJumpOffset(newCtx, parameter)
@@ -1248,7 +1247,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx := ctx.Copy()
 		newCtx.local = nil
 		newCtx.arguments = nil
-		newCtx.rvcount = -1
 		v.istack.PushVal(newCtx)
 		v.jumpIf(newCtx, ptr.Position(), true)
 
@@ -1270,13 +1268,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.RET:
-		oldCtx := v.istack.Pop().Value().(*Context)
-		rvcount := oldCtx.rvcount
+		v.istack.Pop()
 		oldEstack := v.estack
 
-		if rvcount > 0 && oldEstack.Len() < rvcount {
-			panic("missing some return elements")
-		}
 		if v.istack.Len() == 0 {
 			v.state = haltState
 			break
@@ -1284,9 +1278,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		newEstack := v.Context().estack
 		if oldEstack != newEstack {
-			if rvcount < 0 {
-				rvcount = oldEstack.Len()
-			}
+			rvcount := oldEstack.Len()
 			for i := rvcount; i > 0; i-- {
 				elem := oldEstack.RemoveAt(i - 1)
 				newEstack.Push(elem)
