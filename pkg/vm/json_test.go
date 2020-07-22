@@ -18,7 +18,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -127,8 +126,7 @@ func getTestingInterop(id uint32) *InteropFuncPrice {
 		}
 	case binary.LittleEndian.Uint32([]byte{0x55, 0x55, 0x55, 0x55}):
 		return &InteropFuncPrice{
-			Func:            f,
-			AllowedTriggers: trigger.Application,
+			Func: f,
 		}
 	}
 	return nil
