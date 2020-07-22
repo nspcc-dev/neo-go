@@ -1142,6 +1142,46 @@ func getTestFuncForVM(prog []byte, result interface{}, args ...interface{}) func
 	return getCustomTestFuncForVM(prog, f, args...)
 }
 
+func makeRETProgram(t *testing.T, argCount, localCount int) []byte {
+	require.True(t, argCount+localCount <= 255)
+
+	fProg := []opcode.Opcode{opcode.INITSLOT, opcode.Opcode(localCount), opcode.Opcode(argCount)}
+	for i := 0; i < localCount; i++ {
+		fProg = append(fProg, opcode.PUSH8, opcode.STLOC, opcode.Opcode(i))
+	}
+	fProg = append(fProg, opcode.RET)
+
+	offset := uint32(len(fProg) + 5)
+	param := make([]byte, 4)
+	binary.LittleEndian.PutUint32(param, offset)
+
+	ops := []opcode.Opcode{
+		opcode.INITSSLOT, 0x01,
+		opcode.PUSHA, 11, 0, 0, 0,
+		opcode.STSFLD0,
+		opcode.JMPL, opcode.Opcode(param[0]), opcode.Opcode(param[1]), opcode.Opcode(param[2]), opcode.Opcode(param[3]),
+	}
+	ops = append(ops, fProg...)
+
+	// execute func multiple times to ensure total reference count is less than max
+	callCount := MaxStackSize/(argCount+localCount) + 1
+	args := make([]opcode.Opcode, argCount)
+	for i := range args {
+		args[i] = opcode.PUSH7
+	}
+	for i := 0; i < callCount; i++ {
+		ops = append(ops, args...)
+		ops = append(ops, opcode.LDSFLD0, opcode.CALLA)
+	}
+	return makeProgram(ops...)
+}
+
+func TestRETReferenceClear(t *testing.T) {
+	// 42 is a canary
+	t.Run("Argument", getTestFuncForVM(makeRETProgram(t, 100, 0), 42, 42))
+	t.Run("Local", getTestFuncForVM(makeRETProgram(t, 0, 100), 42, 42))
+}
+
 func TestNOTEQUALByteArray(t *testing.T) {
 	prog := makeProgram(opcode.NOTEQUAL)
 	t.Run("True", getTestFuncForVM(prog, true, []byte{1, 2}, []byte{0, 1, 2}))

@@ -45,3 +45,10 @@ func (s *Slot) Get(i int) stackitem.Item {
 
 // Size returns slot size.
 func (s *Slot) Size() int { return len(s.storage) }
+
+// Clear removes all slot variables from reference counter.
+func (s *Slot) Clear() {
+	for _, item := range s.storage {
+		s.refs.Remove(item)
+	}
+}

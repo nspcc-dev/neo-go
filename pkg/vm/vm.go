@@ -1262,9 +1262,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.RET:
-		v.istack.Pop()
+		oldCtx := v.istack.Pop().Value().(*Context)
 		oldEstack := v.estack
 
+		v.unloadContext(oldCtx)
 		if v.istack.Len() == 0 {
 			v.state = haltState
 			break
@@ -1370,6 +1371,19 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
 	}
 	return
+}
+
+func (v *VM) unloadContext(ctx *Context) {
+	if ctx.local != nil {
+		ctx.local.Clear()
+	}
+	if ctx.arguments != nil {
+		ctx.arguments.Clear()
+	}
+	currCtx := v.Context()
+	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
+		ctx.static.Clear()
+	}
 }
 
 // getJumpCondition performs opcode specific comparison of a and b
