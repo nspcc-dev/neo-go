@@ -32,9 +32,6 @@ type Context struct {
 	// Evaluation stack pointer.
 	estack *Stack
 
-	// Alt stack pointer.
-	astack *Stack
-
 	static    *Slot
 	local     *Slot
 	arguments *Slot

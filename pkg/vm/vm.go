@@ -70,7 +70,6 @@ type VM struct {
 
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
-	astack *Stack // alt stack.
 
 	refs *refCounter
 
@@ -100,7 +99,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
-	vm.astack = vm.newItemStack("alt")
 
 	vm.RegisterInteropGetter(getDefaultVMInterop)
 	return vm
@@ -140,11 +138,6 @@ func (v *VM) AddGas(gas int64) bool {
 // Estack returns the evaluation stack so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
-}
-
-// Astack returns the alt stack so interop hooks can utilize this.
-func (v *VM) Astack() *Stack {
-	return v.astack
 }
 
 // Istack returns the invocation stack so interop hooks can utilize this.
@@ -264,7 +257,6 @@ func (v *VM) Load(prog []byte) {
 	// Clear all stacks and state, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
-	v.astack.Clear()
 	v.state = noneState
 	v.gasConsumed = 0
 	v.LoadScript(prog)
@@ -281,7 +273,6 @@ func (v *VM) LoadScript(b []byte) {
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
 	ctx.estack = v.estack
-	ctx.astack = v.astack
 	ctx.callFlag = f
 	v.istack.PushVal(ctx)
 }
@@ -319,9 +310,6 @@ func (v *VM) PopResult() interface{} {
 // Stack returns json formatted representation of the given stack.
 func (v *VM) Stack(n string) string {
 	var s *Stack
-	if n == "astack" {
-		s = v.astack
-	}
 	if n == "istack" {
 		s = v.istack
 	}
@@ -1304,7 +1292,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				newEstack.Push(elem)
 			}
 			v.estack = newEstack
-			v.astack = v.Context().astack
 		}
 
 	case opcode.NEWMAP:
