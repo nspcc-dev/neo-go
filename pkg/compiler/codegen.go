@@ -1220,8 +1220,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
-	case "SHA256":
-		emit.Syscall(c.prog.BinWriter, "Neo.Crypto.SHA256")
 	case "AppCall":
 		c.emitReverse(len(expr.Args))
 		buf := c.getByteArray(expr.Args[0])
