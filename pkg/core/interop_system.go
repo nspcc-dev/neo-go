@@ -333,6 +333,17 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 
 // storageGetContext returns storage context (scripthash).
 func storageGetContext(ic *interop.Context, v *vm.VM) error {
+	return storageGetContextInternal(ic, v, false)
+}
+
+// storageGetReadOnlyContext returns read-only context (scripthash).
+func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
+	return storageGetContextInternal(ic, v, true)
+}
+
+// storageGetContextInternal is internal version of storageGetContext and
+// storageGetReadOnlyContext which allows to specify ReadOnly context flag.
+func storageGetContextInternal(ic *interop.Context, v *vm.VM, isReadOnly bool) error {
 	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if err != nil {
 		return err
@@ -342,24 +353,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 	}
 	sc := &StorageContext{
 		ID:       contract.ID,
-		ReadOnly: false,
-	}
-	v.Estack().PushVal(stackitem.NewInterop(sc))
-	return nil
-}
-
-// storageGetReadOnlyContext returns read-only context (scripthash).
-func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
-	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
-	if err != nil {
-		return err
-	}
-	if !contract.HasStorage() {
-		return err
-	}
-	sc := &StorageContext{
-		ID:       contract.ID,
-		ReadOnly: true,
+		ReadOnly: isReadOnly,
 	}
 	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
