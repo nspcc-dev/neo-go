@@ -52,7 +52,7 @@ type rpcTestCase struct {
 }
 
 const testContractHash = "36c3b0c85d98607db00b711885ec3e411d9b1672"
-const deploymentTxHash = "dcf4fe429ec84947361c86c2192b14641be7f0c6e2bdf8d150fad731160ed386"
+const deploymentTxHash = "ef4209bc06e1d8412995c645a8497d3e2c9a05ca52236de94297c6db9c3e94d0"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {

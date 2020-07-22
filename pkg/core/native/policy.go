@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	policySyscallName = "Neo.Native.Policy"
-	policyContractID  = -3
+	policyName       = "Policy"
+	policyContractID = -3
 
 	defaultMaxBlockSize            = 1024 * 256
 	defaultMaxTransactionsPerBlock = 512
@@ -59,7 +59,7 @@ var _ interop.Contract = (*Policy)(nil)
 
 // newPolicy returns Policy native contract.
 func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(policySyscallName)}
+	p := &Policy{ContractMD: *interop.NewContractMD(policyName)}
 
 	p.ContractID = policyContractID
 	p.Manifest.Features |= smartcontract.HasStorage

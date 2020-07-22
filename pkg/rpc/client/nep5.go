@@ -23,9 +23,9 @@ type AddrAndAmount struct {
 
 var (
 	// NeoContractHash is a hash of the NEO native contract.
-	NeoContractHash, _ = util.Uint160DecodeStringLE("9bde8f209c88dd0e7ca3bf0af0f476cdd8207789")
+	NeoContractHash, _ = util.Uint160DecodeStringBE("25059ecb4878d3a875f91c51ceded330d4575fde")
 	// GasContractHash is a hash of the GAS native contract.
-	GasContractHash, _ = util.Uint160DecodeStringLE("8c23f196d8a1bfd103a9dcb1f9ccf0c611377d3b")
+	GasContractHash, _ = util.Uint160DecodeStringBE("bcaf41d684c7d4ad6ee0d99da9707b9d1f0c8e66")
 )
 
 // NEP5Decimals invokes `decimals` NEP5 method on a specified contract.
