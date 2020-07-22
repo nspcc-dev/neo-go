@@ -1241,6 +1241,79 @@ func TestNEWBUFFER(t *testing.T) {
 	t.Run("TooBig", getTestFuncForVM(prog, nil, stackitem.MaxSize+1))
 }
 
+func getTRYProgram(tryBlock, catchBlock, finallyBlock []byte) []byte {
+	hasCatch := catchBlock != nil
+	hasFinally := finallyBlock != nil
+	tryOffset := len(tryBlock) + 3 + 2 // try args + endtry args
+
+	var (
+		catchLen, finallyLen       int
+		catchOffset, finallyOffset int
+	)
+	if hasCatch {
+		catchLen = len(catchBlock) + 2 // endtry args
+		catchOffset = tryOffset
+	}
+	if hasFinally {
+		finallyLen = len(finallyBlock) + 1 // endfinally
+		finallyOffset = tryOffset + catchLen
+	}
+	prog := []byte{byte(opcode.TRY), byte(catchOffset), byte(finallyOffset)}
+	prog = append(prog, tryBlock...)
+	prog = append(prog, byte(opcode.ENDTRY), byte(catchLen+finallyLen+2))
+	if hasCatch {
+		prog = append(prog, catchBlock...)
+		prog = append(prog, byte(opcode.ENDTRY), byte(finallyLen+2))
+	}
+	if hasFinally {
+		prog = append(prog, finallyBlock...)
+		prog = append(prog, byte(opcode.ENDFINALLY))
+	}
+	prog = append(prog, byte(opcode.RET))
+	return prog
+}
+
+func getTRYTestFunc(result interface{}, tryBlock, catchBlock, finallyBlock []byte) func(t *testing.T) {
+	return func(t *testing.T) {
+		prog := getTRYProgram(tryBlock, catchBlock, finallyBlock)
+		runWithArgs(t, prog, result)
+	}
+}
+
+func TestTRY(t *testing.T) {
+	throw := []byte{byte(opcode.PUSH13), byte(opcode.THROW)}
+	push1 := []byte{byte(opcode.PUSH1)}
+	add5 := []byte{byte(opcode.PUSH5), byte(opcode.ADD)}
+	add9 := []byte{byte(opcode.PUSH9), byte(opcode.ADD)}
+	t.Run("NoCatch", func(t *testing.T) {
+		t.Run("NoFinally", getTRYTestFunc(nil, push1, nil, nil))
+		t.Run("WithFinally", getTRYTestFunc(10, push1, nil, add9))
+		t.Run("Throw", getTRYTestFunc(nil, throw, nil, add9))
+	})
+	t.Run("WithCatch", func(t *testing.T) {
+		t.Run("NoFinally", func(t *testing.T) {
+			t.Run("Simple", getTRYTestFunc(1, push1, add5, nil))
+			t.Run("Throw", getTRYTestFunc(18, throw, add5, nil))
+			t.Run("Abort", getTRYTestFunc(nil, []byte{byte(opcode.ABORT)}, push1, nil))
+			t.Run("ThrowInCatch", getTRYTestFunc(nil, throw, throw, nil))
+		})
+		t.Run("WithFinally", func(t *testing.T) {
+			t.Run("Simple", getTRYTestFunc(10, push1, add5, add9))
+			t.Run("Throw", getTRYTestFunc(27, throw, add5, add9))
+		})
+	})
+	t.Run("Nested", func(t *testing.T) {
+		t.Run("ReThrowInTry", func(t *testing.T) {
+			inner := getTRYProgram(throw, []byte{byte(opcode.THROW)}, nil)
+			getTRYTestFunc(27, inner, add5, add9)(t)
+		})
+		t.Run("ThrowInFinally", func(t *testing.T) {
+			inner := getTRYProgram(throw, add5, []byte{byte(opcode.THROW)})
+			getTRYTestFunc(32, inner, add5, add9)(t)
+		})
+	})
+}
+
 func TestMEMCPY(t *testing.T) {
 	prog := makeProgram(opcode.MEMCPY)
 	t.Run("Good", func(t *testing.T) {

@@ -71,6 +71,8 @@ type VM struct {
 	istack *Stack // invocation stack.
 	estack *Stack // execution stack.
 
+	uncaughtException stackitem.Item // exception being handled
+
 	refs *refCounter
 
 	gasConsumed int64
@@ -193,13 +195,12 @@ func (v *VM) PrintOps() {
 				opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.CALLL,
 				opcode.JMPEQL, opcode.JMPNEL,
 				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
-				opcode.PUSHA:
-				offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
-				if err != nil {
-					desc = fmt.Sprintf("ERROR: %v", err)
-				} else {
-					desc = fmt.Sprintf("%d (%d/%x)", offset, rOffset, parameter)
-				}
+				opcode.PUSHA, opcode.ENDTRY, opcode.ENDTRYL:
+				desc = v.getOffsetDesc(ctx, parameter)
+			case opcode.TRY, opcode.TRYL:
+				catchP, finallyP := getTryParams(instr, parameter)
+				desc = fmt.Sprintf("catch %s, finally %s",
+					v.getOffsetDesc(ctx, catchP), v.getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
 				desc = fmt.Sprint(parameter[0])
 			case opcode.INITSLOT:
@@ -221,6 +222,14 @@ func (v *VM) PrintOps() {
 		}
 	}
 	w.Flush()
+}
+
+func (v *VM) getOffsetDesc(ctx *Context, parameter []byte) string {
+	offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
+	if err != nil {
+		return fmt.Sprintf("ERROR: %v", err)
+	}
+	return fmt.Sprintf("%d (%d/%x)", offset, rOffset, parameter)
 }
 
 // AddBreakPoint adds a breakpoint to the current context.
@@ -271,6 +280,7 @@ func (v *VM) LoadScript(b []byte) {
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
 	ctx.estack = v.estack
+	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f
 	v.istack.PushVal(ctx)
 }
@@ -1357,7 +1367,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		// unlucky ^^
 
 	case opcode.THROW:
-		panic("THROW")
+		v.throw(v.estack.Pop().Item())
 
 	case opcode.ABORT:
 		panic("ABORT")
@@ -1366,6 +1376,43 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if !v.estack.Pop().Bool() {
 			panic("ASSERT failed")
 		}
+
+	case opcode.TRY, opcode.TRYL:
+		catchP, finallyP := getTryParams(op, parameter)
+		cOffset := v.getJumpOffset(ctx, catchP)
+		fOffset := v.getJumpOffset(ctx, finallyP)
+		if cOffset == 0 && fOffset == 0 {
+			panic("invalid offset for TRY*")
+		} else if cOffset == ctx.ip {
+			cOffset = -1
+		} else if fOffset == ctx.ip {
+			fOffset = -1
+		}
+		eCtx := newExceptionHandlingContext(cOffset, fOffset)
+		ctx.tryStack.PushVal(eCtx)
+
+	case opcode.ENDTRY, opcode.ENDTRYL:
+		eCtx := ctx.tryStack.Peek(0).Value().(*exceptionHandlingContext)
+		if eCtx.State == eFinally {
+			panic("invalid exception handling state during ENDTRY*")
+		}
+		eOffset := v.getJumpOffset(ctx, parameter)
+		if eCtx.HasFinally() {
+			eCtx.State = eFinally
+			eCtx.EndOffset = eOffset
+			eOffset = eCtx.FinallyOffset
+		} else {
+			ctx.tryStack.Pop()
+		}
+		v.jump(ctx, eOffset)
+
+	case opcode.ENDFINALLY:
+		if v.uncaughtException != nil {
+			v.handleException()
+			return
+		}
+		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
+		v.jump(ctx, eCtx.EndOffset)
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
@@ -1384,6 +1431,15 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
 		ctx.static.Clear()
 	}
+}
+
+// getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
+func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
+	i := 1
+	if op == opcode.TRYL {
+		i = 4
+	}
+	return p[:i], p[i:]
 }
 
 // getJumpCondition performs opcode specific comparison of a and b
@@ -1407,6 +1463,11 @@ func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
 	}
 }
 
+func (v *VM) throw(item stackitem.Item) {
+	v.uncaughtException = item
+	v.handleException()
+}
+
 // jump performs jump to the offset.
 func (v *VM) jump(ctx *Context, offset int) {
 	ctx.nextip = offset
@@ -1424,6 +1485,8 @@ func (v *VM) getJumpOffset(ctx *Context, parameter []byte) int {
 	return offset
 }
 
+// calcJumpOffset returns absolute and relative offset of JMP/CALL/TRY instructions
+// either in short (1-byte) or long (4-byte) form.
 func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	var rOffset int32
 	switch l := len(parameter); l {
@@ -1432,7 +1495,8 @@ func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	case 4:
 		rOffset = int32(binary.LittleEndian.Uint32(parameter))
 	default:
-		return 0, 0, fmt.Errorf("invalid JMP* parameter length: %d", l)
+		_, curr := ctx.CurrInstr()
+		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
 	}
 	offset := ctx.ip + int(rOffset)
 	if offset < 0 || offset > len(ctx.prog) {
@@ -1440,6 +1504,38 @@ func (v *VM) calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	}
 
 	return offset, int(rOffset), nil
+}
+
+func (v *VM) handleException() {
+	pop := 0
+	ictx := v.istack.Peek(0).Value().(*Context)
+	for ictx != nil {
+		e := ictx.tryStack.Peek(pop)
+		for e != nil {
+			ectx := e.Value().(*exceptionHandlingContext)
+			if ectx.State == eFinally || (ectx.State == eCatch && !ectx.HasFinally()) {
+				ictx.tryStack.Pop()
+				e = ictx.tryStack.Peek(0)
+				continue
+			}
+			for i := 0; i < pop; i++ {
+				ctx := v.istack.Pop().Value().(*Context)
+				v.unloadContext(ctx)
+			}
+			if ectx.State == eTry && ectx.HasCatch() {
+				ectx.State = eCatch
+				v.estack.PushVal(v.uncaughtException)
+				v.uncaughtException = nil
+				v.jump(ictx, ectx.CatchOffset)
+			} else {
+				ectx.State = eFinally
+				v.jump(ictx, ectx.FinallyOffset)
+			}
+			return
+		}
+		pop++
+		ictx = v.istack.Peek(pop).Value().(*Context)
+	}
 }
 
 // CheckMultisigPar checks if sigs contains sufficient valid signatures.
