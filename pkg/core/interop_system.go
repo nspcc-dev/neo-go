@@ -23,7 +23,10 @@ import (
 
 const (
 	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 1024
+	MaxStorageKeyLen = 64
+	// MaxStorageValueLen is the maximum length of a value for storage items.
+	// It is set to be the maximum value for uint16.
+	MaxStorageValueLen = 65535
 	// MaxTraceableBlocks is the maximum number of blocks before current chain
 	// height we're able to give information about.
 	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
@@ -362,6 +365,9 @@ func storageGetContextInternal(ic *interop.Context, v *vm.VM, isReadOnly bool) e
 func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, key []byte, value []byte, isConst bool) error {
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
+	}
+	if len(value) > MaxStorageValueLen {
+		return errors.New("value is too big")
 	}
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
