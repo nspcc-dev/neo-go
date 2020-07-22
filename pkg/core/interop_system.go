@@ -41,6 +41,17 @@ type StorageContext struct {
 	ReadOnly bool
 }
 
+// StorageFlag represents storage flag which denotes whether the stored value is
+// a constant.
+type StorageFlag byte
+
+const (
+	// None is a storage flag for non-constant items.
+	None StorageFlag = 0
+	// Constant is a storage flag for constant items.
+	Constant StorageFlag = 0x01
+)
+
 // getBlockHashFromElement converts given vm.Element to block hash using given
 // Blockchainer if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed.
@@ -404,7 +415,7 @@ func storagePutInternal(ic *interop.Context, v *vm.VM, getFlag bool) error {
 	if getFlag {
 		flag = int(v.Estack().Pop().BigInt().Int64())
 	}
-	return putWithContextAndFlags(ic, v, stc, key, value, flag == 1)
+	return putWithContextAndFlags(ic, v, stc, key, value, int(Constant)&flag != 0)
 }
 
 // storagePut puts key-value pair into the storage.

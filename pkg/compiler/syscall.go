@@ -77,5 +77,6 @@ var syscalls = map[string]map[string]Syscall{
 		"GetContext":               {"System.Storage.GetContext", false},
 		"GetReadOnlyContext":       {"System.Storage.GetReadOnlyContext", false},
 		"Put":                      {"System.Storage.Put", false},
+		"PutEx":                    {"System.Storage.PutEx", false},
 	},
 }
