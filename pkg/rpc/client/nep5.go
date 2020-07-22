@@ -159,11 +159,7 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.U
 		return util.Uint256{}, fmt.Errorf("can't sign tx: %v", err)
 	}
 
-	if err := c.SendRawTransaction(tx); err != nil {
-		return util.Uint256{}, err
-	}
-
-	return tx.Hash(), nil
+	return c.SendRawTransaction(tx)
 }
 
 func topIntFromStack(st []smartcontract.Parameter) (int64, error) {

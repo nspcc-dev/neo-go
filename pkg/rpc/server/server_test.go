@@ -590,9 +590,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["000a000000aa8acf859d4fe402b34e673f2156821796a488eb80969800000000009269130000000000b00400000001aa8acf859d4fe402b34e673f2156821796a488eb015d0300e87648170000000c1478ba4c24009fe510e136c9995a2e05215e1be4dc0c14aa8acf859d4fe402b34e673f2156821796a488eb13c00c087472616e736665720c14897720d8cd76f4f00abfa37c0edd889c208fde9b41627d5b523801420c4040719393aa590d962cb5a48e16360ac75a6c358c9699e9f1a853afede4d601b6783e28f5ec74542aaf59519e76830ba9d267656db324461fdb08d1d51521e103290c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20b4195440d78"]`,
-			result: func(e *executor) interface{} {
-				v := true
-				return &v
+			result: func(e *executor) interface{} { return &result.RelayResult{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.RelayResult)
+				require.True(t, ok)
+				expectedHash, err := util.Uint256DecodeStringLE("72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875")
+				require.NoError(t, err)
+				assert.Equal(t, expectedHash, res.Hash)
 			},
 		},
 		{
@@ -756,9 +760,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			b := newBlock(t, chain, 1, 0, newTx())
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
-			var res bool
-			require.NoError(t, json.Unmarshal(data, &res))
-			require.True(t, res)
+			var res = new(result.RelayResult)
+			require.NoError(t, json.Unmarshal(data, res))
+			require.Equal(t, b.Hash(), res.Hash)
 		})
 	})
 

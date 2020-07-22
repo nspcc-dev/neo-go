@@ -902,7 +902,9 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 			return nil, response.ErrValidationFailed
 		}
 	}
-	return true, nil
+	return &result.RelayResult{
+		Hash: b.Hash(),
+	}, nil
 }
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
@@ -921,7 +923,9 @@ func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *res
 		relayReason := s.coreServer.RelayTxn(tx)
 		switch relayReason {
 		case network.RelaySucceed:
-			results = true
+			results = result.RelayResult{
+				Hash: tx.Hash(),
+			}
 		case network.RelayAlreadyExists:
 			resultsErr = response.ErrAlreadyExists
 		case network.RelayOutOfMemory:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -699,12 +700,15 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":true}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"hash":"0x72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875"}}`,
 			result: func(c *Client) interface{} {
-				// no error expected
-				return nil
+				h, err := util.Uint256DecodeStringLE("72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875")
+				if err != nil {
+					panic(fmt.Errorf("can't decode `sendrawtransaction` result hash: %v", err))
+				}
+				return h
 			},
 		},
 	},
@@ -712,16 +716,19 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		{
 			name: "positive",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SubmitBlock(block.Block{
+				return c.SubmitBlock(block.Block{
 					Base:         block.Base{},
 					Transactions: nil,
 					Trimmed:      false,
 				})
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":true}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"hash":"0x1bdea8f80eb5bd97fade38d5e7fb93b02c9d3e01394e9f4324218132293f7ea6"}}`,
 			result: func(c *Client) interface{} {
-				// no error expected
-				return nil
+				h, err := util.Uint256DecodeStringLE("1bdea8f80eb5bd97fade38d5e7fb93b02c9d3e01394e9f4324218132293f7ea6")
+				if err != nil {
+					panic(fmt.Errorf("can't decode `submitblock` result hash: %v", err))
+				}
+				return h
 			},
 		},
 	},
@@ -830,13 +837,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
 			name: "submitblock_bad_server_answer",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SubmitBlock(block.Block{
+				return c.SubmitBlock(block.Block{
 					Base:         block.Base{},
 					Transactions: nil,
 					Trimmed:      false,
@@ -986,13 +993,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(&transaction.Transaction{})
+				return c.SendRawTransaction(&transaction.Transaction{})
 			},
 		},
 		{
 			name: "submitblock_invalid_params_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SubmitBlock(block.Block{})
+				return c.SubmitBlock(block.Block{})
 			},
 		},
 		{
@@ -1168,13 +1175,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "sendrawtransaction_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
+				return c.SendRawTransaction(transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
 			name: "submitblock_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
-				return nil, c.SubmitBlock(block.Block{
+				return c.SubmitBlock(block.Block{
 					Base:         block.Base{},
 					Transactions: nil,
 					Trimmed:      false,
