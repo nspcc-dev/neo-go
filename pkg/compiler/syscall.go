@@ -35,6 +35,7 @@ var syscalls = map[string]map[string]Syscall{
 		"ECDSASecp256k1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256k1", false},
 		"ECDsaSecp256r1Verify":        {"Neo.Crypto.VerifyWithECDsaSecp256r1", false},
 		"ECDSASecp256r1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256r1", false},
+		"RIPEMD160":                   {"Neo.Crypto.RIPEMD160", false},
 	},
 	"enumerator": {
 		"Concat": {"System.Enumerator.Concat", false},

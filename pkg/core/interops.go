@@ -147,6 +147,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Crypto.CheckMultisigWithECDsaSecp256r1", Func: crypto.ECDSASecp256r1CheckMultisig, Price: 0},
 	{Name: "Neo.Crypto.CheckMultisigWithECDsaSecp256k1", Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0},
 	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1000000},
+	{Name: "Neo.Crypto.RIPEMD160", Func: crypto.RipeMD160, Price: 1000000},
 	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 0,
 		AllowedTriggers: trigger.Application, RequiredFlags: smartcontract.AllowModifyStates},
 }

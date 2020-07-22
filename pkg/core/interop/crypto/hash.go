@@ -13,3 +13,11 @@ func Sha256(ic *interop.Context, v *vm.VM) error {
 	v.Estack().PushVal(h)
 	return nil
 }
+
+// RipeMD160 returns RipeMD160 hash of the data.
+func RipeMD160(ic *interop.Context, v *vm.VM) error {
+	msg := getMessage(ic, v.Estack().Pop().Item())
+	h := hash.RipeMD160(msg).BytesBE()
+	v.Estack().PushVal(h)
+	return nil
+}
