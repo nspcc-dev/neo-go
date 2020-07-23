@@ -288,12 +288,6 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 	v := vm.New()
 	script := []byte("testscript")
 	m := manifest.NewManifest(hash.Hash160(script))
-	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
-		manifest.NewParameter("Name", smartcontract.StringType),
-		manifest.NewParameter("Amount", smartcontract.IntegerType),
-		manifest.NewParameter("Hash", smartcontract.Hash160Type),
-	}
-	m.ABI.EntryPoint.ReturnType = smartcontract.ArrayType
 	m.Features = smartcontract.HasStorage
 	contractState := &state.Contract{
 		Script:   script,

@@ -132,17 +132,14 @@ func unexportedMethod() int { return 1 }
 		expected := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(buf),
-				EntryPoint: manifest.Method{
-					Name: "main",
-					Parameters: []manifest.Parameter{
-						{
-							Name: "op",
-							Type: smartcontract.StringType,
-						},
-					},
-					ReturnType: smartcontract.BoolType,
-				},
 				Methods: []manifest.Method{
+					{
+						Name: "main",
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("op", smartcontract.StringType),
+						},
+						ReturnType: smartcontract.BoolType,
+					},
 					{
 						Name: "methodInt",
 						Parameters: []manifest.Parameter{
@@ -214,7 +211,6 @@ func unexportedMethod() int { return 1 }
 		}
 		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
-		require.Equal(t, expected.ABI.EntryPoint, actual.ABI.EntryPoint)
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
 		require.Equal(t, expected.Features, actual.Features)

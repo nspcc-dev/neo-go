@@ -13,10 +13,9 @@ const MaxManifestSize = 2048
 
 // ABI represents a contract application binary interface.
 type ABI struct {
-	Hash       util.Uint160 `json:"hash"`
-	EntryPoint Method       `json:"entryPoint"`
-	Methods    []Method     `json:"methods"`
-	Events     []Event      `json:"events"`
+	Hash    util.Uint160 `json:"hash"`
+	Methods []Method     `json:"methods"`
+	Events  []Event      `json:"events"`
 }
 
 // Manifest represens contract metadata.
@@ -65,7 +64,6 @@ func NewManifest(h util.Uint160) *Manifest {
 // DefaultManifest returns default contract manifest.
 func DefaultManifest(h util.Uint160) *Manifest {
 	m := NewManifest(h)
-	m.ABI.EntryPoint = *DefaultEntryPoint()
 	m.Permissions = []Permission{*NewPermission(PermissionWildcard)}
 	return m
 }

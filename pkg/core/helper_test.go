@@ -229,12 +229,6 @@ func TestCreateBasicChain(t *testing.T) {
 
 	script := io.NewBufBinWriter()
 	m := manifest.NewManifest(hash.Hash160(avm))
-	m.ABI.EntryPoint.Name = "Main"
-	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
-		manifest.NewParameter("method", smartcontract.StringType),
-		manifest.NewParameter("params", smartcontract.ArrayType),
-	}
-	m.ABI.EntryPoint.ReturnType = smartcontract.BoolType
 	m.Features = smartcontract.HasStorage
 	bs, err := m.MarshalJSON()
 	require.NoError(t, err)

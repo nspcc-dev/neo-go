@@ -50,18 +50,6 @@ func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	}
 }
 
-// DefaultEntryPoint represents default entrypoint to a contract.
-func DefaultEntryPoint() *Method {
-	return &Method{
-		Name: "Main",
-		Parameters: []Parameter{
-			NewParameter("operation", smartcontract.StringType),
-			NewParameter("args", smartcontract.ArrayType),
-		},
-		ReturnType: smartcontract.AnyType,
-	}
-}
-
 // IsValid checks whether group's signature corresponds to the given hash.
 func (g *Group) IsValid(h util.Uint160) bool {
 	return g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE())

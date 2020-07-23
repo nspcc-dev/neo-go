@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
@@ -18,12 +17,6 @@ func Deploy(ic *interop.Context, _ *vm.VM) error {
 
 	for _, native := range ic.Natives {
 		md := native.Metadata()
-
-		ps := md.Manifest.ABI.EntryPoint.Parameters
-		params := make([]smartcontract.ParamType, len(ps))
-		for i := range ps {
-			params[i] = ps[i].Type
-		}
 
 		cs := &state.Contract{
 			ID:       md.ContractID,

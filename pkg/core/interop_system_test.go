@@ -520,13 +520,6 @@ func TestContractUpdate(t *testing.T) {
 		manifest := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: cs.ScriptHash(),
-				EntryPoint: manifest.Method{
-					Name: "Main",
-					Parameters: []manifest.Parameter{
-						manifest.NewParameter("NewParameter", smartcontract.IntegerType),
-					},
-					ReturnType: smartcontract.StringType,
-				},
 			},
 			Features: smartcontract.HasStorage,
 		}
@@ -554,13 +547,6 @@ func TestContractUpdate(t *testing.T) {
 		newManifest := manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(newScript),
-				EntryPoint: manifest.Method{
-					Name: "Main",
-					Parameters: []manifest.Parameter{
-						manifest.NewParameter("VeryNewParameter", smartcontract.IntegerType),
-					},
-					ReturnType: smartcontract.StringType,
-				},
 			},
 			Features: smartcontract.HasStorage,
 		}
