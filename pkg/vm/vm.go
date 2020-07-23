@@ -1253,9 +1253,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
 		ifunc := v.GetInteropByID(interopID)
-		if ifunc.AllowedTriggers != 0 && ifunc.AllowedTriggers&v.trigger == 0 {
-			panic(fmt.Sprintf("trigger not allowed: %s", v.trigger))
-		}
 		if !v.Context().callFlag.Has(ifunc.RequiredFlags) {
 			panic(fmt.Sprintf("missing call flags: %05b vs %05b", v.Context().callFlag, ifunc.RequiredFlags))
 		}
