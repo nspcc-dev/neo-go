@@ -51,8 +51,8 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const testContractHash = "402da558b87b5e54b59dc242c788bb4dd4cd906c"
-const deploymentTxHash = "2afd69cc80ebe900a060450e8628b57063f3ec93ca5fc7f94582be4a4f3a041f"
+const testContractHash = "6e2d823c81589871590653a100c7e9bdf9c94344"
+const deploymentTxHash = "3b434127495a6dd0e786a2e0f04696009cd6e6e5f9b930f0e79356638532096c"
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {

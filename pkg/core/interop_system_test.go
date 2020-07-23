@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -320,6 +321,109 @@ func TestBlockchainGetContractState(t *testing.T) {
 
 		actual := v.Estack().Pop().Item()
 		require.Equal(t, stackitem.Null{}, actual)
+	})
+}
+
+func getTestContractState() *state.Contract {
+	script := []byte{
+		byte(opcode.ABORT), // abort if no offset was provided
+		byte(opcode.ADD), byte(opcode.RET),
+		byte(opcode.PUSH7), byte(opcode.RET),
+	}
+	h := hash.Hash160(script)
+	m := manifest.NewManifest(h)
+	m.ABI.Methods = []manifest.Method{
+		{
+			Name:   "add",
+			Offset: 1,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("addend1", smartcontract.IntegerType),
+				manifest.NewParameter("addend2", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       "ret7",
+			Offset:     3,
+			Parameters: []manifest.Parameter{},
+			ReturnType: smartcontract.IntegerType,
+		},
+	}
+	return &state.Contract{
+		Script:   script,
+		Manifest: *m,
+		ID:       42,
+	}
+}
+
+func TestContractCall(t *testing.T) {
+	v, ic, bc := createVM(t)
+	defer bc.Close()
+
+	cs := getTestContractState()
+	require.NoError(t, ic.DAO.PutContractState(cs))
+
+	currScript := []byte{byte(opcode.NOP)}
+	initVM := func(v *vm.VM) {
+		v.Istack().Clear()
+		v.Estack().Clear()
+		v.Load(currScript)
+		v.Estack().PushVal(42) // canary
+	}
+
+	h := cs.Manifest.ABI.Hash
+	m := manifest.NewManifest(hash.Hash160(currScript))
+	perm := manifest.NewPermission(manifest.PermissionHash, h)
+	perm.Methods.Add("add")
+	m.Permissions = append(m.Permissions, *perm)
+
+	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+		Script:   currScript,
+		Manifest: *m,
+		ID:       123,
+	}))
+
+	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
+	t.Run("Good", func(t *testing.T) {
+		initVM(v)
+		v.Estack().PushVal(addArgs)
+		v.Estack().PushVal("add")
+		v.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic, v))
+		require.NoError(t, v.Run())
+		require.Equal(t, 2, v.Estack().Len())
+		require.Equal(t, big.NewInt(3), v.Estack().Pop().Value())
+		require.Equal(t, big.NewInt(42), v.Estack().Pop().Value())
+	})
+
+	t.Run("CallExInvalidFlag", func(t *testing.T) {
+		initVM(v)
+		v.Estack().PushVal(byte(0xFF))
+		v.Estack().PushVal(addArgs)
+		v.Estack().PushVal("add")
+		v.Estack().PushVal(h.BytesBE())
+		require.Error(t, contractCallEx(ic, v))
+	})
+
+	runInvalid := func(args ...interface{}) func(t *testing.T) {
+		return func(t *testing.T) {
+			initVM(v)
+			for i := range args {
+				v.Estack().PushVal(args[i])
+			}
+			require.Error(t, contractCall(ic, v))
+		}
+	}
+
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("Hash", runInvalid(addArgs, "add", h.BytesBE()[1:]))
+		t.Run("MissingHash", runInvalid(addArgs, "add", util.Uint160{}.BytesBE()))
+		t.Run("Method", runInvalid(addArgs, stackitem.NewInterop("add"), h.BytesBE()))
+		t.Run("MissingMethod", runInvalid(addArgs, "sub", h.BytesBE()))
+		t.Run("DisallowedMethod", runInvalid(stackitem.NewArray(nil), "ret7", h.BytesBE()))
+		t.Run("Arguments", runInvalid(1, "add", h.BytesBE()))
+		t.Run("NotEnoughArguments", runInvalid(
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(1)}), "add", h.BytesBE()))
 	})
 }
 

@@ -13,6 +13,6 @@ package engine
 // dynamic calls in Neo (contracts should have a special property declared
 // and paid for to be able to use dynamic calls). This function uses
 // `System.Contract.Call` syscall.
-func AppCall(scriptHash []byte, args ...interface{}) interface{} {
+func AppCall(scriptHash []byte, method string, args ...interface{}) interface{} {
 	return nil
 }

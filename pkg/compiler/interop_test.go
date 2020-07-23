@@ -74,17 +74,25 @@ func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
 	func Main(a []byte, b []byte) []byte {
+		panic("Main was called")
+	}
+	func Append(a []byte, b []byte) []byte {
 		return append(a, b...)
 	}
 	`
 
-	inner, err := compiler.Compile(strings.NewReader(srcInner))
+	inner, di, err := compiler.CompileWithDebugInfo(strings.NewReader(srcInner))
+	require.NoError(t, err)
+	m, err := di.ConvertToManifest(smartcontract.NoProperties)
 	require.NoError(t, err)
 
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil, nil, zaptest.NewLogger(t))
-	require.NoError(t, ic.DAO.PutContractState(&state.Contract{Script: inner}))
-
 	ih := hash.Hash160(inner)
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil, nil, zaptest.NewLogger(t))
+	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+		Script:   inner,
+		Manifest: *m,
+	}))
+
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))
 		v := spawnVM(t, ic, src)
@@ -102,13 +110,6 @@ func TestAppCall(t *testing.T) {
 		require.Error(t, v.Run())
 	})
 
-	t.Run("invalid script address", func(t *testing.T) {
-		src := getAppCallScript("[]byte{1, 2, 3}")
-
-		_, err := compiler.Compile(strings.NewReader(src))
-		require.Error(t, err)
-	})
-
 	t.Run("convert from string constant", func(t *testing.T) {
 		src := `
 		package foo
@@ -117,7 +118,7 @@ func TestAppCall(t *testing.T) {
 		func Main() []byte {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
-			result := engine.AppCall([]byte(scriptHash), x, y)
+			result := engine.AppCall([]byte(scriptHash), "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -136,7 +137,7 @@ func TestAppCall(t *testing.T) {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := engine.AppCall(addr, x, y)
+			result := engine.AppCall(addr, "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -155,7 +156,7 @@ func getAppCallScript(h string) string {
 	func Main() []byte {
 		x := []byte{1, 2}
 		y := []byte{3, 4}
-		result := engine.AppCall(` + h + `, x, y)
+		result := engine.AppCall(` + h + `, "append",  x, y)
 		return result.([]byte)
 	}
 	`

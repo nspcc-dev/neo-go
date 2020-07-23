@@ -252,7 +252,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 	// Now invoke this contract.
 	script = io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "Put", "testkey", "testvalue")
+	emit.AppCallWithOperationAndArgs(script.BinWriter, hash.Hash160(avm), "putValue", "testkey", "testvalue")
 
 	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()

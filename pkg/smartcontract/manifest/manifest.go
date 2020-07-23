@@ -68,6 +68,16 @@ func DefaultManifest(h util.Uint160) *Manifest {
 	return m
 }
 
+// GetMethod returns methods with the specified name.
+func (a *ABI) GetMethod(name string) *Method {
+	for i := range a.Methods {
+		if a.Methods[i].Name == name {
+			return &a.Methods[i]
+		}
+	}
+	return nil
+}
+
 // CanCall returns true is current contract is allowed to call
 // method of another contract.
 func (m *Manifest) CanCall(toCall *Manifest, method string) bool {

@@ -1232,7 +1232,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		if cond {
-			v.jump(ctx, offset)
+			v.Jump(ctx, offset)
 		}
 
 	case opcode.CALL, opcode.CALLL:
@@ -1243,7 +1243,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.istack.PushVal(newCtx)
 
 		offset := v.getJumpOffset(newCtx, parameter)
-		v.jump(newCtx, offset)
+		v.Jump(newCtx, offset)
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1255,7 +1255,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		newCtx.local = nil
 		newCtx.arguments = nil
 		v.istack.PushVal(newCtx)
-		v.jump(newCtx, ptr.Position())
+		v.Jump(newCtx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1404,7 +1404,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		} else {
 			ctx.tryStack.Pop()
 		}
-		v.jump(ctx, eOffset)
+		v.Jump(ctx, eOffset)
 
 	case opcode.ENDFINALLY:
 		if v.uncaughtException != nil {
@@ -1412,7 +1412,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			return
 		}
 		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
-		v.jump(ctx, eCtx.EndOffset)
+		v.Jump(ctx, eCtx.EndOffset)
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
@@ -1468,8 +1468,8 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// jump performs jump to the offset.
-func (v *VM) jump(ctx *Context, offset int) {
+// Jump performs jump to the offset.
+func (v *VM) Jump(ctx *Context, offset int) {
 	ctx.nextip = offset
 }
 
@@ -1526,10 +1526,10 @@ func (v *VM) handleException() {
 				ectx.State = eCatch
 				v.estack.PushVal(v.uncaughtException)
 				v.uncaughtException = nil
-				v.jump(ictx, ectx.CatchOffset)
+				v.Jump(ictx, ectx.CatchOffset)
 			} else {
 				ectx.State = eFinally
-				v.jump(ictx, ectx.FinallyOffset)
+				v.Jump(ictx, ectx.FinallyOffset)
 			}
 			return
 		}

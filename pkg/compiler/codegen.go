@@ -1220,13 +1220,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
-	case "AppCall":
-		c.emitReverse(len(expr.Args))
-		buf := c.getByteArray(expr.Args[0])
-		if buf != nil && len(buf) != 20 {
-			c.prog.Err = errors.New("invalid script hash")
-		}
-		emit.Syscall(c.prog.BinWriter, "System.Contract.Call")
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
