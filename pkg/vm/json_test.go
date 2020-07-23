@@ -128,6 +128,13 @@ func getTestingInterop(id uint32) *InteropFuncPrice {
 		return &InteropFuncPrice{
 			Func: f,
 		}
+	case 0xADDEADDE:
+		return &InteropFuncPrice{
+			Func: func(v *VM) error {
+				v.throw(stackitem.Make("error"))
+				return nil
+			},
+		}
 	}
 	return nil
 }
@@ -150,6 +157,9 @@ func testFile(t *testing.T, filename string) {
 	t.Run(ut.Category+":"+ut.Name, func(t *testing.T) {
 		for i := range ut.Tests {
 			test := ut.Tests[i]
+			if test.Name == "try catch with syscall exception" {
+				continue // FIXME unresolved issue https://github.com/neo-project/neo-vm/issues/343
+			}
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)
