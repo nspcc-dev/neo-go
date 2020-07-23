@@ -440,10 +440,6 @@ func (c *VMCLI) Run() error {
 	return nil
 }
 
-func isMethodArg(s string) bool {
-	return len(strings.Split(s, ":")) == 1
-}
-
 func parseArgs(args []string) ([]stackitem.Item, error) {
 	items := make([]stackitem.Item, len(args))
 	for i, arg := range args {
