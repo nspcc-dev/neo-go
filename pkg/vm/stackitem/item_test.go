@@ -211,7 +211,7 @@ var equalsTestCases = map[string][]struct {
 		{
 			item1:  NewBool(true),
 			item2:  NewBigInteger(big.NewInt(1)),
-			result: true,
+			result: false,
 		},
 		{
 			item1:  NewBool(true),
@@ -238,7 +238,7 @@ var equalsTestCases = map[string][]struct {
 		{
 			item1:  NewByteArray([]byte{1}),
 			item2:  NewBigInteger(big.NewInt(1)),
-			result: true,
+			result: false,
 		},
 		{
 			item1:  NewByteArray([]byte{1, 2, 3}),
