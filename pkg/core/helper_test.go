@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -20,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -223,13 +224,15 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, err)
 
 	// Push some contract into the chain.
-	avm, err := ioutil.ReadFile(prefix + "test_contract.avm")
+	c, err := ioutil.ReadFile(prefix + "test_contract.go")
+	require.NoError(t, err)
+	avm, di, err := compiler.CompileWithDebugInfo(bytes.NewReader(c))
 	require.NoError(t, err)
 	t.Logf("contractHash: %s", hash.Hash160(avm).StringLE())
 
 	script := io.NewBufBinWriter()
-	m := manifest.NewManifest(hash.Hash160(avm))
-	m.Features = smartcontract.HasStorage
+	m, err := di.ConvertToManifest(smartcontract.HasStorage)
+	require.NoError(t, err)
 	bs, err := m.MarshalJSON()
 	require.NoError(t, err)
 	emit.Bytes(script.BinWriter, bs)
