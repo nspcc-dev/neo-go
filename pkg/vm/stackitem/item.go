@@ -356,11 +356,7 @@ func (i *BigInteger) Equals(s Item) bool {
 		return false
 	}
 	val, ok := s.(*BigInteger)
-	if ok {
-		return i.value.Cmp(val.value) == 0
-	}
-	bs, err := s.TryBytes()
-	return err == nil && bytes.Equal(i.Bytes(), bs)
+	return ok && i.value.Cmp(val.value) == 0
 }
 
 // Value implements Item interface.
@@ -454,11 +450,7 @@ func (i *Bool) Equals(s Item) bool {
 		return false
 	}
 	val, ok := s.(*Bool)
-	if ok {
-		return i.value == val.value
-	}
-	bs, err := s.TryBytes()
-	return err == nil && bytes.Equal(i.Bytes(), bs)
+	return ok && i.value == val.value
 }
 
 // Type implements Item interface.
@@ -530,8 +522,8 @@ func (i *ByteArray) Equals(s Item) bool {
 	} else if s == nil {
 		return false
 	}
-	bs, err := s.TryBytes()
-	return err == nil && bytes.Equal(i.value, bs)
+	val, ok := s.(*ByteArray)
+	return ok && bytes.Equal(i.value, val.value)
 }
 
 // Dup implements Item interface.
