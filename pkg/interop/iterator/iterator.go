@@ -11,10 +11,11 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/enumerator"
 // structure is similar in function to Neo .net framework's Iterator.
 type Iterator struct{}
 
-// Create creates an iterator from the given items (array, struct or map). A new
-// iterator is set to point at element -1, so to access its first element you
-// need to call Next first. This function uses `System.Iterator.Create` syscall.
-func Create(items []interface{}) Iterator {
+// Create creates an iterator from the given items (array, struct, map, byte
+// array or integer and boolean converted to byte array). A new iterator is set
+// to point at element -1, so to access its first element you need to call Next
+// first. This function uses `System.Iterator.Create` syscall.
+func Create(items interface{}) Iterator {
 	return Iterator{}
 }
 

@@ -19,17 +19,7 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 		return checkScope(ic.DAO, tx, ic.ScriptGetter, hash)
 	}
 
-	// only for non-Transaction types (Block, etc.)
-	hashes, err := ic.Chain.GetScriptHashesForVerifying(ic.Tx)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get script hashes")
-	}
-	for _, v := range hashes {
-		if hash.Equals(v) {
-			return true, nil
-		}
-	}
-	return false, nil
+	return false, errors.New("script container is not a transaction")
 }
 
 func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {

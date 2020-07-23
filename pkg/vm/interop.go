@@ -126,12 +126,25 @@ func init() {
 
 // EnumeratorCreate handles syscall System.Enumerator.Create.
 func EnumeratorCreate(v *VM) error {
-	data := v.Estack().Pop().Array()
-	v.Estack().Push(&Element{
-		value: stackitem.NewInterop(&arrayWrapper{
+	var interop interface{}
+	switch t := v.Estack().Pop().value.(type) {
+	case *stackitem.Array, *stackitem.Struct:
+		interop = &arrayWrapper{
+			index: -1,
+			value: t.Value().([]stackitem.Item),
+		}
+	default:
+		data, err := t.TryBytes()
+		if err != nil {
+			return fmt.Errorf("can not create enumerator from type %s: %v", t.Type(), err)
+		}
+		interop = &byteArrayWrapper{
 			index: -1,
 			value: data,
-		}),
+		}
+	}
+	v.Estack().Push(&Element{
+		value: stackitem.NewInterop(interop),
 	})
 
 	return nil
@@ -185,7 +198,14 @@ func IteratorCreate(v *VM) error {
 	case *stackitem.Map:
 		item = NewMapIterator(t)
 	default:
-		return errors.New("non-iterable type")
+		data, err := t.TryBytes()
+		if err != nil {
+			return fmt.Errorf("non-iterable type %s", t.Type())
+		}
+		item = stackitem.NewInterop(&byteArrayWrapper{
+			index: -1,
+			value: data,
+		})
 	}
 
 	v.Estack().Push(&Element{value: item})

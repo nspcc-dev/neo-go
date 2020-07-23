@@ -9,11 +9,11 @@ package enumerator
 // or structures that have values with no explicit keys.
 type Enumerator struct{}
 
-// Create creates a new enumerator from the given items (slice or structure).
-// New enumerator points at index -1 of its items, so the user of it has to
-// advance it first with Next. This function uses `System.Enumerator.Create`
-// syscall.
-func Create(items []interface{}) Enumerator {
+// Create creates a new enumerator from the given items (slice, structure, byte
+// array and integer or boolean converted to byte array). New enumerator points
+// at index -1 of its items, so the user of it has to advance it first with Next.
+// This function uses `System.Enumerator.Create` syscall.
+func Create(items interface{}) Enumerator {
 	return Enumerator{}
 }
 
