@@ -3,7 +3,6 @@ package vm
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -117,14 +116,14 @@ func getTestingInterop(id uint32) *InteropFuncPrice {
 		return nil
 	}
 	switch id {
-	case binary.LittleEndian.Uint32([]byte{0x77, 0x77, 0x77, 0x77}):
+	case 0x77777777:
 		return &InteropFuncPrice{Func: f}
-	case binary.LittleEndian.Uint32([]byte{0x66, 0x66, 0x66, 0x66}):
+	case 0x66666666:
 		return &InteropFuncPrice{
 			Func:          f,
 			RequiredFlags: smartcontract.ReadOnly,
 		}
-	case binary.LittleEndian.Uint32([]byte{0x55, 0x55, 0x55, 0x55}):
+	case 0x55555555:
 		return &InteropFuncPrice{
 			Func: f,
 		}
