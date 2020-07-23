@@ -1426,7 +1426,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 		return c.prog.Err
 	}
 
-	funUsage := analyzeFuncUsage(info.program.AllPackages)
+	funUsage := analyzeFuncUsage(pkg, info.program.AllPackages)
 
 	// Bring all imported functions into scope.
 	for _, pkg := range info.program.AllPackages {

@@ -113,10 +113,11 @@ func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
 	return false
 }
 
-func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
+func analyzeFuncUsage(mainPkg *loader.PackageInfo, pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 	usage := funcUsage{}
 
 	for _, pkg := range pkgs {
+		isMain := pkg == mainPkg
 		for _, f := range pkg.Files {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -126,6 +127,11 @@ func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 						usage[t.Name] = true
 					case *ast.SelectorExpr:
 						usage[t.Sel.Name] = true
+					}
+				case *ast.FuncDecl:
+					// exported functions are always assumed to be used
+					if isMain && n.Name.IsExported() {
+						usage[n.Name.Name] = true
 					}
 				}
 				return true
