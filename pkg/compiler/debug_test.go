@@ -127,7 +127,7 @@ func unexportedMethod() int { return 1 }
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.convertToManifest(smartcontract.HasStorage)
+		actual, err := d.ConvertToManifest(smartcontract.HasStorage)
 		require.NoError(t, err)
 		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{

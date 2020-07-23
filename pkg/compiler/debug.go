@@ -338,9 +338,9 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-// convertToManifest converts contract to the manifest.Manifest struct for debugger.
+// ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
-func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
+func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
 	var (
 		mainNamespace string
 		err           error
