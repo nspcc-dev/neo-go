@@ -980,8 +980,8 @@ func TestPUSHA(t *testing.T) {
 	t.Run("Negative", getTestFuncForVM(makeProgram(opcode.PUSHA, 0xFF, 0xFF, 0xFF, 0xFF), nil))
 	t.Run("TooBig", getTestFuncForVM(makeProgram(opcode.PUSHA, 10, 0, 0, 0), nil))
 	t.Run("Good", func(t *testing.T) {
-		prog := makeProgram(opcode.PUSHA, 2, 0, 0, 0)
-		runWithArgs(t, prog, stackitem.NewPointer(2, prog))
+		prog := makeProgram(opcode.NOP, opcode.PUSHA, 2, 0, 0, 0)
+		runWithArgs(t, prog, stackitem.NewPointer(3, prog))
 	})
 }
 
