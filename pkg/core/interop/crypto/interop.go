@@ -10,6 +10,7 @@ var (
 	ecdsaSecp256r1VerifyID        = emit.InteropNameToID([]byte("Neo.Crypto.VerifyWithECDsaSecp256r1"))
 	ecdsaSecp256r1CheckMultisigID = emit.InteropNameToID([]byte("Neo.Crypto.CheckMultisigWithECDsaSecp256r1"))
 	sha256ID                      = emit.InteropNameToID([]byte("Neo.Crypto.SHA256"))
+	ripemd160ID                   = emit.InteropNameToID([]byte("Neo.Crypto.RIPEMD160"))
 )
 
 // GetInterop returns interop getter for crypto-related stuff.
@@ -32,6 +33,12 @@ func GetInterop(ic *interop.Context) func(uint32) *vm.InteropFuncPrice {
 			return &vm.InteropFuncPrice{
 				Func: func(v *vm.VM) error {
 					return Sha256(ic, v)
+				},
+			}
+		case ripemd160ID:
+			return &vm.InteropFuncPrice{
+				Func: func(v *vm.VM) error {
+					return RipeMD160(ic, v)
 				},
 			}
 		default:

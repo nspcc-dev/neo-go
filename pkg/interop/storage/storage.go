@@ -37,6 +37,13 @@ func GetReadOnlyContext() Context { return Context{} }
 // runtime.Serialize. This function uses `System.Storage.Put` syscall.
 func Put(ctx Context, key interface{}, value interface{}) {}
 
+// PutEx is an advanced version of Put which saves given value with given key
+// and given ReadOnly flag in the storage using given Context. `flag` argument
+// can either be odd for constant storage items or even for variable storage items.
+// Refer to Put function description for details on how to pass the remaining
+// arguments. This function uses `System.Storage.PutEx` syscall.
+func PutEx(ctx Context, key interface{}, value interface{}, flag int64) {}
+
 // Get retrieves value stored for the given key using given Context. See Put
 // documentation on possible key and value types. If the value is not present in
 // the database it returns nil. This function uses `System.Storage.Get` syscall.

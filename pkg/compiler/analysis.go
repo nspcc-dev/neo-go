@@ -16,7 +16,7 @@ var (
 	goBuiltins = []string{"len", "append", "panic"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
-		"SHA256", "AppCall",
+		"AppCall",
 		"FromAddress", "Equals",
 		"ToBool", "ToByteArray", "ToInteger",
 	}

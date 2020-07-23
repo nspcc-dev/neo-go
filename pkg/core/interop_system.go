@@ -24,7 +24,10 @@ import (
 
 const (
 	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 1024
+	MaxStorageKeyLen = 64
+	// MaxStorageValueLen is the maximum length of a value for storage items.
+	// It is set to be the maximum value for uint16.
+	MaxStorageValueLen = 65535
 	// MaxTraceableBlocks is the maximum number of blocks before current chain
 	// height we're able to give information about.
 	MaxTraceableBlocks = transaction.MaxValidUntilBlockIncrement
@@ -40,6 +43,17 @@ type StorageContext struct {
 	ID       int32
 	ReadOnly bool
 }
+
+// StorageFlag represents storage flag which denotes whether the stored value is
+// a constant.
+type StorageFlag byte
+
+const (
+	// None is a storage flag for non-constant items.
+	None StorageFlag = 0
+	// Constant is a storage flag for constant items.
+	Constant StorageFlag = 0x01
+)
 
 // getBlockHashFromElement converts given vm.Element to block hash using given
 // Blockchainer if needed. Interop functions accept both block numbers and
@@ -346,6 +360,17 @@ func storageGet(ic *interop.Context, v *vm.VM) error {
 
 // storageGetContext returns storage context (scripthash).
 func storageGetContext(ic *interop.Context, v *vm.VM) error {
+	return storageGetContextInternal(ic, v, false)
+}
+
+// storageGetReadOnlyContext returns read-only context (scripthash).
+func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
+	return storageGetContextInternal(ic, v, true)
+}
+
+// storageGetContextInternal is internal version of storageGetContext and
+// storageGetReadOnlyContext which allows to specify ReadOnly context flag.
+func storageGetContextInternal(ic *interop.Context, v *vm.VM, isReadOnly bool) error {
 	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if err != nil {
 		return err
@@ -355,24 +380,7 @@ func storageGetContext(ic *interop.Context, v *vm.VM) error {
 	}
 	sc := &StorageContext{
 		ID:       contract.ID,
-		ReadOnly: false,
-	}
-	v.Estack().PushVal(stackitem.NewInterop(sc))
-	return nil
-}
-
-// storageGetReadOnlyContext returns read-only context (scripthash).
-func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
-	contract, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
-	if err != nil {
-		return err
-	}
-	if !contract.HasStorage() {
-		return err
-	}
-	sc := &StorageContext{
-		ID:       contract.ID,
-		ReadOnly: true,
+		ReadOnly: isReadOnly,
 	}
 	v.Estack().PushVal(stackitem.NewInterop(sc))
 	return nil
@@ -381,6 +389,9 @@ func storageGetReadOnlyContext(ic *interop.Context, v *vm.VM) error {
 func putWithContextAndFlags(ic *interop.Context, v *vm.VM, stc *StorageContext, key []byte, value []byte, isConst bool) error {
 	if len(key) > MaxStorageKeyLen {
 		return errors.New("key is too big")
+	}
+	if len(value) > MaxStorageValueLen {
+		return errors.New("value is too big")
 	}
 	if stc.ReadOnly {
 		return errors.New("StorageContext is read only")
@@ -417,7 +428,7 @@ func storagePutInternal(ic *interop.Context, v *vm.VM, getFlag bool) error {
 	if getFlag {
 		flag = int(v.Estack().Pop().BigInt().Int64())
 	}
-	return putWithContextAndFlags(ic, v, stc, key, value, flag == 1)
+	return putWithContextAndFlags(ic, v, stc, key, value, int(Constant)&flag != 0)
 }
 
 // storagePut puts key-value pair into the storage.

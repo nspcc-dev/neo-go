@@ -35,6 +35,8 @@ var syscalls = map[string]map[string]Syscall{
 		"ECDSASecp256k1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256k1", false},
 		"ECDsaSecp256r1Verify":        {"Neo.Crypto.VerifyWithECDsaSecp256r1", false},
 		"ECDSASecp256r1CheckMultisig": {"Neo.Crypto.CheckMultisigWithECDsaSecp256r1", false},
+		"RIPEMD160":                   {"Neo.Crypto.RIPEMD160", false},
+		"SHA256":                      {"Neo.Crypto.SHA256", false},
 	},
 	"enumerator": {
 		"Concat": {"System.Enumerator.Concat", false},
@@ -78,5 +80,6 @@ var syscalls = map[string]map[string]Syscall{
 		"GetContext":               {"System.Storage.GetContext", false},
 		"GetReadOnlyContext":       {"System.Storage.GetReadOnlyContext", false},
 		"Put":                      {"System.Storage.Put", false},
+		"PutEx":                    {"System.Storage.PutEx", false},
 	},
 }

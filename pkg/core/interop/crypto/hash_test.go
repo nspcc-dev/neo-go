@@ -28,3 +28,19 @@ func TestSHA256(t *testing.T) {
 	assert.Equal(t, 1, v.Estack().Len())
 	assert.Equal(t, res, hex.EncodeToString(v.Estack().Pop().Bytes()))
 }
+
+func TestRIPEMD160(t *testing.T) {
+	// 0x0100 hashes to 213492c0c6fc5d61497cf17249dd31cd9964b8a3
+	res := "213492c0c6fc5d61497cf17249dd31cd9964b8a3"
+	buf := io.NewBufBinWriter()
+	emit.Bytes(buf.BinWriter, []byte{1, 0})
+	emit.Syscall(buf.BinWriter, "Neo.Crypto.RIPEMD160")
+	prog := buf.Bytes()
+	v := vm.New()
+	ic := &interop.Context{Trigger: trigger.Verification}
+	v.RegisterInteropGetter(GetInterop(ic))
+	v.Load(prog)
+	require.NoError(t, v.Run())
+	assert.Equal(t, 1, v.Estack().Len())
+	assert.Equal(t, res, hex.EncodeToString(v.Estack().Pop().Bytes()))
+}
