@@ -149,7 +149,6 @@ func TestPushBytes1to75(t *testing.T) {
 		errExec := vm.execute(nil, opcode.RET, nil)
 		require.NoError(t, errExec)
 
-		assert.Equal(t, 0, vm.astack.Len())
 		assert.Equal(t, 0, vm.istack.Len())
 		buf.Reset()
 	}

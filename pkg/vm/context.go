@@ -26,14 +26,8 @@ type Context struct {
 	// Breakpoints.
 	breakPoints []int
 
-	// Return value count, -1 is unspecified.
-	rvcount int
-
 	// Evaluation stack pointer.
 	estack *Stack
-
-	// Alt stack pointer.
-	astack *Stack
 
 	static    *Slot
 	local     *Slot
@@ -56,7 +50,6 @@ func NewContext(b []byte) *Context {
 	return &Context{
 		prog:        b,
 		breakPoints: []int{},
-		rvcount:     -1,
 	}
 }
 
