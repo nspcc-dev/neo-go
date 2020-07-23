@@ -78,7 +78,7 @@ func newNEP5Native(name string) *nep5TokenNative {
 	md = newMethodAndPrice(n.Transfer, 8000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
-	desc = newDescriptor("onPersist", smartcontract.BoolType)
+	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(n.OnPersist), 0, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 

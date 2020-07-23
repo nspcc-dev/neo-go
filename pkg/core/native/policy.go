@@ -105,7 +105,7 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.NoneFlag)
 	p.AddMethod(md, desc, false)
 
-	desc = newDescriptor("onPersist", smartcontract.BoolType)
+	desc = newDescriptor("onPersist", smartcontract.VoidType)
 	md = newMethodAndPrice(getOnPersistWrapper(p.OnPersist), 0, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 	return p
