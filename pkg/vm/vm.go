@@ -192,16 +192,14 @@ func (v *VM) PrintOps() {
 				opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT,
 				opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.CALLL,
 				opcode.JMPEQL, opcode.JMPNEL,
-				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL:
+				opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLEL, opcode.JMPLTL,
+				opcode.PUSHA:
 				offset, rOffset, err := v.calcJumpOffset(ctx, parameter)
 				if err != nil {
 					desc = fmt.Sprintf("ERROR: %v", err)
 				} else {
 					desc = fmt.Sprintf("%d (%d/%x)", offset, rOffset, parameter)
 				}
-			case opcode.PUSHA:
-				offset := int32(binary.LittleEndian.Uint32(parameter))
-				desc = fmt.Sprintf("%d (%x)", offset, parameter)
 			case opcode.INITSSLOT:
 				desc = fmt.Sprint(parameter[0])
 			case opcode.INITSLOT:
@@ -535,11 +533,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(parameter)
 
 	case opcode.PUSHA:
-		n := int32(binary.LittleEndian.Uint32(parameter))
-		if n < 0 || int(n) > len(ctx.prog) {
-			panic(fmt.Sprintf("invalid pointer offset (%d)", n))
-		}
-		ptr := stackitem.NewPointer(int(n), ctx.prog)
+		n := v.getJumpOffset(ctx, parameter)
+		ptr := stackitem.NewPointer(n, ctx.prog)
 		v.estack.PushVal(ptr)
 
 	case opcode.PUSHNULL:

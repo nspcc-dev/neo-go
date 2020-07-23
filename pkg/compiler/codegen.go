@@ -1533,12 +1533,7 @@ func (c *codegen) writeJumps(b []byte) error {
 			if int(index) > len(c.l) {
 				return fmt.Errorf("unexpected label number: %d (max %d)", index, len(c.l))
 			}
-			var offset int
-			if op == opcode.PUSHA {
-				offset = c.l[index]
-			} else {
-				offset = c.l[index] - nextIP + 5
-			}
+			offset := c.l[index] - nextIP + 5
 			if offset > math.MaxInt32 || offset < math.MinInt32 {
 				return fmt.Errorf("label offset is too big at the instruction %d: %d (max %d, min %d)",
 					nextIP-5, offset, math.MaxInt32, math.MinInt32)
