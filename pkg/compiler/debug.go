@@ -270,6 +270,7 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 		return result, err
 	}
 	result.Name = strings.ToLower(string(m.Name.Name[0])) + m.Name.Name[1:]
+	result.Offset = int(m.Range.Start)
 	result.Parameters = parameters
 	result.ReturnType = returnType
 	return result, nil

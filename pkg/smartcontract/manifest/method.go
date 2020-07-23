@@ -38,6 +38,7 @@ type groupAux struct {
 // Method represents method's metadata.
 type Method struct {
 	Name       string                  `json:"name"`
+	Offset     int                     `json:"offset"`
 	Parameters []Parameter             `json:"parameters"`
 	ReturnType smartcontract.ParamType `json:"returntype"`
 }

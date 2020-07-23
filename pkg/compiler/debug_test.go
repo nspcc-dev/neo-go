@@ -129,19 +129,22 @@ func unexportedMethod() int { return 1 }
 	t.Run("convert to Manifest", func(t *testing.T) {
 		actual, err := d.convertToManifest(smartcontract.HasStorage)
 		require.NoError(t, err)
+		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(buf),
 				Methods: []manifest.Method{
 					{
-						Name: "main",
+						Name:   "main",
+						Offset: 0,
 						Parameters: []manifest.Parameter{
 							manifest.NewParameter("op", smartcontract.StringType),
 						},
 						ReturnType: smartcontract.BoolType,
 					},
 					{
-						Name: "methodInt",
+						Name:   "methodInt",
+						Offset: 66,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -152,26 +155,31 @@ func unexportedMethod() int { return 1 }
 					},
 					{
 						Name:       "methodString",
+						Offset:     97,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 					},
 					{
 						Name:       "methodByteArray",
+						Offset:     103,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
+						Offset:     108,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
+						Offset:     113,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name: "methodConcat",
+						Name:   "methodConcat",
+						Offset: 88,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
