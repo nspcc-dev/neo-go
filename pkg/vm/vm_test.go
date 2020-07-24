@@ -2596,6 +2596,14 @@ func TestSLOTOpcodes(t *testing.T) {
 		t.Run("Local", getTestFuncForVM(makeProgram(opcode.INITSLOT, 8, 0, opcode.STLOC, 7, opcode.LDLOC, 7), 42, 42))
 		t.Run("Argument", getTestFuncForVM(makeProgram(opcode.INITSLOT, 0, 2, opcode.STARG, 1, opcode.LDARG, 1), 42, 42, 1, 2))
 	})
+
+	t.Run("InitStaticSlotInMethod", func(t *testing.T) {
+		prog := makeProgram(
+			opcode.CALL, 4, opcode.LDSFLD0, opcode.RET,
+			opcode.INITSSLOT, 1, opcode.PUSH12, opcode.STSFLD0, opcode.RET,
+		)
+		runWithArgs(t, prog, 12)
+	})
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {

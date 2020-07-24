@@ -282,6 +282,7 @@ func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx.estack = v.estack
 	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f
+	ctx.static = newSlot(v.refs)
 	v.istack.PushVal(ctx)
 }
 
@@ -568,13 +569,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(result)
 
 	case opcode.INITSSLOT:
-		if ctx.static != nil {
-			panic("already initialized")
-		}
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		ctx.static = v.newSlot(int(parameter[0]))
+		ctx.static.init(int(parameter[0]))
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
