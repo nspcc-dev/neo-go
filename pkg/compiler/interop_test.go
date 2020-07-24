@@ -63,9 +63,10 @@ func TestFromAddress(t *testing.T) {
 }
 
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
-	b, err := compiler.Compile(strings.NewReader(src))
+	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
 	require.NoError(t, err)
 	v := core.SpawnVM(ic)
+	invokeMethod(t, testMainIdent, b, v, di)
 	v.LoadScriptWithFlags(b, smartcontract.All)
 	return v
 }
@@ -73,11 +74,15 @@ func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
+	var a int = 3
 	func Main(a []byte, b []byte) []byte {
 		panic("Main was called")
 	}
 	func Append(a []byte, b []byte) []byte {
 		return append(a, b...)
+	}
+	func Add3(n int) int {
+		return a + n
 	}
 	`
 
@@ -146,6 +151,21 @@ func TestAppCall(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
+	})
+
+	t.Run("InitializedGlobals", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		func Main() int {
+			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
+			result := engine.AppCall(addr, "add3", 39)
+			return result.(int)
+		}`
+
+		v := spawnVM(t, ic, src)
+		require.NoError(t, v.Run())
+
+		assertResult(t, v, big.NewInt(42))
 	})
 }
 

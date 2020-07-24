@@ -11,6 +11,9 @@ import (
 // MaxManifestSize is a max length for a valid contract manifest.
 const MaxManifestSize = 2048
 
+// MethodInit is a name for default initialization method.
+const MethodInit = "_initialize"
+
 // ABI represents a contract application binary interface.
 type ABI struct {
 	Hash    util.Uint160 `json:"hash"`

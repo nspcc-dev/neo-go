@@ -27,16 +27,23 @@ func (c *codegen) newGlobal(name string) {
 }
 
 // traverseGlobals visits and initializes global variables.
-func (c *codegen) traverseGlobals(f ast.Node) {
-	n := countGlobals(f)
+// and returns number of variables initialized.
+func (c *codegen) traverseGlobals(fs ...*ast.File) int {
+	var n int
+	for _, f := range fs {
+		n += countGlobals(f)
+	}
 	if n != 0 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return
+			return 0
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		for _, f := range fs {
+			c.convertGlobals(f)
+		}
 	}
-	c.convertGlobals(f)
+	return n
 }
 
 // countGlobals counts the global variables in the program to add

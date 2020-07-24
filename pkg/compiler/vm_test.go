@@ -7,6 +7,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -19,6 +21,9 @@ type testCase struct {
 	src    string
 	result interface{}
 }
+
+// testMainIdent is a method invoked in tests by default.
+const testMainIdent = "Main"
 
 func runTestCases(t *testing.T, tcases []testCase) {
 	for _, tcase := range tcases {
@@ -65,10 +70,29 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	storePlugin := newStoragePlugin()
 	vm.RegisterInteropGetter(storePlugin.getInterop)
 
-	b, err := compiler.Compile(strings.NewReader(src))
+	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
 	require.NoError(t, err)
-	vm.Load(b)
+	invokeMethod(t, testMainIdent, b, vm, di)
 	return vm, storePlugin
+}
+
+func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *compiler.DebugInfo) {
+	mainOffset := -1
+	initOffset := -1
+	for i := range di.Methods {
+		switch di.Methods[i].ID {
+		case method:
+			mainOffset = int(di.Methods[i].Range.Start)
+		case manifest.MethodInit:
+			initOffset = int(di.Methods[i].Range.Start)
+		}
+	}
+	require.True(t, mainOffset >= 0)
+	v.LoadScriptWithFlags(script, smartcontract.All)
+	v.Jump(v.Context(), mainOffset)
+	if initOffset >= 0 {
+		v.Call(v.Context(), initOffset)
+	}
 }
 
 type storagePlugin struct {

@@ -17,6 +17,7 @@ import (
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
+	MainPkg   string            `json:"-"`
 	Hash      util.Uint160      `json:"hash"`
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
@@ -102,8 +103,24 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		Hash:   hash.Hash160(contract),
-		Events: []EventDebugInfo{},
+		MainPkg: c.mainPkg.Pkg.Name(),
+		Hash:    hash.Hash160(contract),
+		Events:  []EventDebugInfo{},
+	}
+	if c.initEndOffset > 0 {
+		d.Methods = append(d.Methods, MethodDebugInfo{
+			ID: manifest.MethodInit,
+			Name: DebugMethodName{
+				Name:      manifest.MethodInit,
+				Namespace: c.mainPkg.Pkg.Name(),
+			},
+			IsExported: true,
+			Range: DebugRange{
+				Start: 0,
+				End:   uint16(c.initEndOffset),
+			},
+			ReturnType: "Void",
+		})
 	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
@@ -341,22 +358,13 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 // ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
 func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
-	var (
-		mainNamespace string
-		err           error
-	)
-	for _, method := range di.Methods {
-		if method.Name.Name == mainIdent {
-			mainNamespace = method.Name.Namespace
-			break
-		}
-	}
-	if mainNamespace == "" {
+	var err error
+	if di.MainPkg == "" {
 		return nil, errors.New("no Main method was found")
 	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.IsExported && method.Name.Namespace == mainNamespace {
+		if method.IsExported && method.Name.Namespace == di.MainPkg {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err

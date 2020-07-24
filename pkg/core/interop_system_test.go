@@ -330,6 +330,8 @@ func getTestContractState() *state.Contract {
 		byte(opcode.ADD), byte(opcode.RET),
 		byte(opcode.PUSH7), byte(opcode.RET),
 		byte(opcode.DROP), byte(opcode.RET),
+		byte(opcode.INITSSLOT), 1, byte(opcode.PUSH3), byte(opcode.STSFLD0), byte(opcode.RET),
+		byte(opcode.LDSFLD0), byte(opcode.ADD), byte(opcode.RET),
 	}
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
@@ -353,6 +355,19 @@ func getTestContractState() *state.Contract {
 			Name:       "drop",
 			Offset:     5,
 			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:       manifest.MethodInit,
+			Offset:     7,
+			ReturnType: smartcontract.VoidType,
+		},
+		{
+			Name:   "add3",
+			Offset: 12,
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("addend", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.IntegerType,
 		},
 	}
 	return &state.Contract{
@@ -382,6 +397,7 @@ func TestContractCall(t *testing.T) {
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
 	perm.Methods.Add("drop")
+	perm.Methods.Add("add3")
 	m.Permissions = append(m.Permissions, *perm)
 
 	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
@@ -440,6 +456,20 @@ func TestContractCall(t *testing.T) {
 		v.Estack().PushVal(h.BytesBE())
 		require.NoError(t, contractCall(ic, v))
 		require.Error(t, v.Run())
+	})
+
+	t.Run("CallInitialize", func(t *testing.T) {
+		t.Run("Directly", runInvalid(stackitem.NewArray([]stackitem.Item{}), "_initialize", h.BytesBE()))
+
+		initVM(v)
+		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
+		v.Estack().PushVal("add3")
+		v.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic, v))
+		require.NoError(t, v.Run())
+		require.Equal(t, 2, v.Estack().Len())
+		require.Equal(t, big.NewInt(8), v.Estack().Pop().Value())
+		require.Equal(t, big.NewInt(42), v.Estack().Pop().Value())
 	})
 }
 

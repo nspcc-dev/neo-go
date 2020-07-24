@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -534,6 +535,11 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 		}
 		// use Jump not Call here because context was loaded in LoadScript above.
 		v.Jump(v.Context(), md.Offset)
+	}
+
+	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+	if md != nil {
+		v.Call(v.Context(), md.Offset)
 	}
 
 	return nil
