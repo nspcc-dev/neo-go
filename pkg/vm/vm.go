@@ -1235,13 +1235,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		v.istack.PushVal(newCtx)
-
-		offset := v.getJumpOffset(newCtx, parameter)
-		v.Jump(newCtx, offset)
+		// Note: jump offset must be calculated regarding to new context,
+		// but it is cloned and thus has the same script and instruction pointer.
+		v.Call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1249,11 +1245,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid script in pointer")
 		}
 
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		v.istack.PushVal(newCtx)
-		v.Jump(newCtx, ptr.Position())
+		v.Call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1469,6 +1461,16 @@ func (v *VM) throw(item stackitem.Item) {
 // Jump performs jump to the offset.
 func (v *VM) Jump(ctx *Context, offset int) {
 	ctx.nextip = offset
+}
+
+// Call calls method by offset. It is similar to Jump but also
+// pushes new context to the invocation state
+func (v *VM) Call(ctx *Context, offset int) {
+	newCtx := ctx.Copy()
+	newCtx.local = nil
+	newCtx.arguments = nil
+	v.istack.PushVal(newCtx)
+	v.Jump(newCtx, offset)
 }
 
 // getJumpOffset returns instruction number in a current context
