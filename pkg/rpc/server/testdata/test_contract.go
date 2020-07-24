@@ -10,10 +10,6 @@ const (
 	decimals    = 2
 )
 
-func Main(operation string, args []interface{}) interface{} {
-	panic("invoking via Main is no longer supported") // catch possible bugs
-}
-
 func Init() bool {
 	ctx := storage.GetContext()
 	h := runtime.GetExecutingScriptHash()
