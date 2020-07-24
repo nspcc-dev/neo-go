@@ -15,6 +15,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
+// AddrAndAmount represents target address and token amount for transfer.
+type AddrAndAmount struct {
+	Address util.Uint160
+	Amount  int64
+}
+
 var (
 	// NeoContractHash is a hash of the NEO native contract.
 	NeoContractHash, _ = util.Uint160DecodeStringLE("9bde8f209c88dd0e7ca3bf0af0f476cdd8207789")
@@ -104,15 +110,25 @@ func (c *Client) NEP5TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // (in FixedN format using contract's number of decimals) to given account and
 // returns it. The returned transaction is not signed.
 func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (*transaction.Transaction, error) {
+	return c.CreateNEP5MultiTransferTx(acc, token, gas, AddrAndAmount{
+		Address: to,
+		Amount:  amount,
+	})
+}
+
+// CreateNEP5MultiTransferTx creates an invocation transaction for performing NEP5 transfers
+// from a single sender to multiple recepients.
+func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, token util.Uint160, gas int64, recepients ...AddrAndAmount) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %v", err)
 	}
-	// Note: we don't use invoke function here because it requires
-	// 2 round trips instead of one.
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, token, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	for i := range recepients {
+		emit.AppCallWithOperationAndArgs(w.BinWriter, token, "transfer", from,
+			recepients[i].Address, recepients[i].Amount)
+		emit.Opcode(w.BinWriter, opcode.ASSERT)
+	}
 
 	script := w.Bytes()
 	result, err := c.InvokeScript(script, []transaction.Cosigner{
@@ -151,6 +167,20 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 // network returning just a hash of it.
 func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.Uint160, amount int64, gas int64) (util.Uint256, error) {
 	tx, err := c.CreateNEP5TransferTx(acc, to, token, amount, gas)
+	if err != nil {
+		return util.Uint256{}, err
+	}
+
+	if err := acc.SignTx(tx); err != nil {
+		return util.Uint256{}, fmt.Errorf("can't sign tx: %v", err)
+	}
+
+	return c.SendRawTransaction(tx)
+}
+
+// MultiTransferNEP5 is similar to TransferNEP5, buf allows to have multiple recepients.
+func (c *Client) MultiTransferNEP5(acc *wallet.Account, token util.Uint160, gas int64, recepients ...AddrAndAmount) (util.Uint256, error) {
+	tx, err := c.CreateNEP5MultiTransferTx(acc, token, gas, recepients...)
 	if err != nil {
 		return util.Uint256{}, err
 	}
