@@ -191,6 +191,9 @@ func (v *VM) PrintOps() {
 					v.getOffsetDesc(ctx, catchP), v.getOffsetDesc(ctx, finallyP))
 			case opcode.INITSSLOT:
 				desc = fmt.Sprint(parameter[0])
+			case opcode.CONVERT, opcode.ISTYPE:
+				typ := stackitem.Type(parameter[0])
+				desc = fmt.Sprintf("%s (%x)", typ, parameter[0])
 			case opcode.INITSLOT:
 				desc = fmt.Sprintf("%d local, %d arg", parameter[0], parameter[1])
 			case opcode.SYSCALL:
