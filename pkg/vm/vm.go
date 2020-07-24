@@ -279,6 +279,7 @@ func (v *VM) LoadScript(b []byte) {
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
+	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
 	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f

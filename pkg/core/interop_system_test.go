@@ -329,6 +329,7 @@ func getTestContractState() *state.Contract {
 		byte(opcode.ABORT), // abort if no offset was provided
 		byte(opcode.ADD), byte(opcode.RET),
 		byte(opcode.PUSH7), byte(opcode.RET),
+		byte(opcode.DROP), byte(opcode.RET),
 	}
 	h := hash.Hash160(script)
 	m := manifest.NewManifest(h)
@@ -347,6 +348,11 @@ func getTestContractState() *state.Contract {
 			Offset:     3,
 			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.IntegerType,
+		},
+		{
+			Name:       "drop",
+			Offset:     5,
+			ReturnType: smartcontract.VoidType,
 		},
 	}
 	return &state.Contract{
@@ -375,6 +381,7 @@ func TestContractCall(t *testing.T) {
 	m := manifest.NewManifest(hash.Hash160(currScript))
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
+	perm.Methods.Add("drop")
 	m.Permissions = append(m.Permissions, *perm)
 
 	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
@@ -424,6 +431,15 @@ func TestContractCall(t *testing.T) {
 		t.Run("Arguments", runInvalid(1, "add", h.BytesBE()))
 		t.Run("NotEnoughArguments", runInvalid(
 			stackitem.NewArray([]stackitem.Item{stackitem.Make(1)}), "add", h.BytesBE()))
+	})
+
+	t.Run("IsolatedStack", func(t *testing.T) {
+		initVM(v)
+		v.Estack().PushVal(stackitem.NewArray(nil))
+		v.Estack().PushVal("drop")
+		v.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contractCall(ic, v))
+		require.Error(t, v.Run())
 	})
 }
 
