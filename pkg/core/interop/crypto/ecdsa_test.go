@@ -97,16 +97,26 @@ func TestCHECKMULTISIGGood(t *testing.T) {
 	t.Run("12_9", func(t *testing.T) { testCHECKMULTISIGGood(t, 12, []int{0, 1, 4, 5, 6, 7, 8, 9}) })
 }
 
-func testCHECKMULTISIGBad(t *testing.T, n int, ik, is []int) {
+func testCHECKMULTISIGBad(t *testing.T, isErr bool, n int, ik, is []int) {
 	v := initCHECKMULTISIGVM(t, n, ik, is)
 
+	if isErr {
+		require.Error(t, v.Run())
+		return
+	}
 	require.NoError(t, v.Run())
 	assert.Equal(t, 1, v.Estack().Len())
 	assert.False(t, v.Estack().Pop().Bool())
 }
 
 func TestCHECKMULTISIGBad(t *testing.T) {
-	t.Run("1_1 wrong signature", func(t *testing.T) { testCHECKMULTISIGBad(t, 2, []int{0}, []int{1}) })
-	t.Run("3_2 wrong order", func(t *testing.T) { testCHECKMULTISIGBad(t, 3, []int{0, 2}, []int{2, 0}) })
-	t.Run("3_2 duplicate sig", func(t *testing.T) { testCHECKMULTISIGBad(t, 3, nil, []int{0, 0}) })
+	t.Run("1_1 wrong signature", func(t *testing.T) { testCHECKMULTISIGBad(t, false, 2, []int{0}, []int{1}) })
+	t.Run("3_2 wrong order", func(t *testing.T) { testCHECKMULTISIGBad(t, false, 3, []int{0, 2}, []int{2, 0}) })
+	t.Run("3_2 duplicate sig", func(t *testing.T) { testCHECKMULTISIGBad(t, false, 3, nil, []int{0, 0}) })
+	t.Run("1_2 too many signatures", func(t *testing.T) { testCHECKMULTISIGBad(t, true, 2, []int{0}, []int{0, 1}) })
+	t.Run("gas limit exceeded", func(t *testing.T) {
+		v := initCHECKMULTISIGVM(t, 1, []int{0}, []int{0})
+		v.GasLimit = ECDSAVerifyPrice - 1
+		require.Error(t, v.Run())
+	})
 }

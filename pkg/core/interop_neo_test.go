@@ -213,6 +213,12 @@ func TestECDSAVerify(t *testing.T) {
 		pub[0] = 0xFF // invalid prefix
 		runCase(t, true, false, sign, pub, msg)
 	})
+
+	t.Run("invalid message", func(t *testing.T) {
+		sign := priv.Sign(msg)
+		runCase(t, false, false, sign, priv.PublicKey().Bytes(),
+			stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(msg)}))
+	})
 }
 
 func TestRuntimeEncode(t *testing.T) {
