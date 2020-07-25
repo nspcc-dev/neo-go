@@ -202,6 +202,8 @@ func (v *VM) PrintOps() {
 				opcode.PUSHINT64, opcode.PUSHINT128, opcode.PUSHINT256:
 				val := bigint.FromBytes(parameter)
 				desc = fmt.Sprintf("%d (%x)", val, parameter)
+			case opcode.LDLOC, opcode.STLOC, opcode.LDARG, opcode.STARG, opcode.LDSFLD, opcode.STSFLD:
+				desc = fmt.Sprintf("%d (%x)", parameter[0], parameter)
 			default:
 				if utf8.Valid(parameter) {
 					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
