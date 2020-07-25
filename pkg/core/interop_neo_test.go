@@ -210,7 +210,7 @@ func TestECDSAVerify(t *testing.T) {
 	t.Run("invalid public key", func(t *testing.T) {
 		sign := priv.Sign(msg)
 		pub := priv.PublicKey().Bytes()
-		pub = pub[10:]
+		pub[0] = 0xFF // invalid prefix
 		runCase(t, true, false, sign, pub, msg)
 	})
 }
