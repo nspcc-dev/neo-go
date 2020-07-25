@@ -25,6 +25,7 @@ const (
 	defaultMaxBlockSize            = 1024 * 256
 	defaultMaxTransactionsPerBlock = 512
 	defaultFeePerByte              = 1000
+	defaultMaxVerificationGas      = 50000000
 )
 
 var (
@@ -51,6 +52,7 @@ type Policy struct {
 	maxTransactionsPerBlock uint32
 	maxBlockSize            uint32
 	feePerByte              int64
+	maxVerificationGas      int64
 }
 
 var _ interop.Contract = (*Policy)(nil)
@@ -149,6 +151,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
 	p.feePerByte = defaultFeePerByte
+	p.maxVerificationGas = defaultMaxVerificationGas
 
 	return nil
 }
@@ -219,6 +222,11 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 		return p.feePerByte
 	}
 	return p.getInt64WithKey(dao, feePerByteKey)
+}
+
+// GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
+func (p *Policy) GetMaxVerificationGas(_ dao.DAO) int64 {
+	return p.maxVerificationGas
 }
 
 // getBlockedAccounts is Policy contract method and returns list of blocked
