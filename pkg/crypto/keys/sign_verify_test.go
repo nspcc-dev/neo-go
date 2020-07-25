@@ -2,6 +2,7 @@ package keys
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -9,6 +10,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestIssue1223(t *testing.T) {
+	var d, x, y big.Int
+	d.SetString("75066030006596498716801752450216843918658392116070031536027203512060270094427", 10)
+	x.SetString("56810139335762307690884151098712528235297095596167964448512639328424930082240", 10)
+	y.SetString("108055740278314806025442297642651169427004858252141003070998851291610422839293", 10)
+
+	privateKey := &btcec.PrivateKey{
+		PublicKey: ecdsa.PublicKey{
+			Curve: btcec.S256(),
+			X:     &x,
+			Y:     &y,
+		},
+		D: &d,
+	}
+	pubKey := PublicKey(ecdsa.PublicKey{
+		Curve: btcec.S256(),
+		X:     privateKey.X,
+		Y:     privateKey.Y,
+	})
+
+	hashedData := hash.Sha256([]byte("sample"))
+	signature, err := privateKey.Sign(hashedData.BytesBE())
+	require.NoError(t, err)
+
+	signedData := getSignatureSlice(privateKey.Curve, signature.R, signature.S)
+	require.True(t, pubKey.Verify(signedData, hashedData.BytesBE()))
+}
 
 func TestPubKeyVerify(t *testing.T) {
 	var data = []byte("sample")
@@ -32,7 +61,7 @@ func TestPubKeyVerify(t *testing.T) {
 		assert.Nil(t, err)
 		signature, err := privateKey.Sign(hashedData.BytesBE())
 		require.NoError(t, err)
-		signedData := append(signature.R.Bytes(), signature.S.Bytes()...)
+		signedData := getSignatureSlice(privateKey.Curve, signature.R, signature.S)
 		pubKey := PublicKey(ecdsa.PublicKey{
 			Curve: btcec.S256(),
 			X:     privateKey.X,
@@ -66,7 +95,7 @@ func TestWrongPubKey(t *testing.T) {
 		assert.Nil(t, err)
 		signature, err := privateKey.Sign(hashedData.BytesBE())
 		assert.Nil(t, err)
-		signedData := append(signature.R.Bytes(), signature.S.Bytes()...)
+		signedData := getSignatureSlice(privateKey.Curve, signature.R, signature.S)
 
 		secondPrivKey, err := btcec.NewPrivateKey(btcec.S256())
 		assert.Nil(t, err)
