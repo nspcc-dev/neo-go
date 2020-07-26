@@ -1305,6 +1305,11 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		return err
 	}
 
+	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
+	if gas > gasPolicy {
+		gas = gasPolicy
+	}
+
 	vm := SpawnVM(interopCtx)
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
