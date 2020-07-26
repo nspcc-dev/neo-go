@@ -68,9 +68,14 @@ const (
 	CALLA     Opcode = 0x36
 
 	// Exceptions
-	ABORT  Opcode = 0x37
-	ASSERT Opcode = 0x38
-	THROW  Opcode = 0x3A
+	ABORT      Opcode = 0x37
+	ASSERT     Opcode = 0x38
+	THROW      Opcode = 0x3A
+	TRY        Opcode = 0x3B
+	TRYL       Opcode = 0x3C // TRY_L
+	ENDTRY     Opcode = 0x3D
+	ENDTRYL    Opcode = 0x3E // ENDTRY_L
+	ENDFINALLY Opcode = 0x3F
 
 	RET     Opcode = 0x40
 	SYSCALL Opcode = 0x41

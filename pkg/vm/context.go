@@ -33,6 +33,9 @@ type Context struct {
 	local     *Slot
 	arguments *Slot
 
+	// Exception context stack pointer.
+	tryStack *Stack
+
 	// Script hash of the prog.
 	scriptHash util.Uint160
 
@@ -103,14 +106,18 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	case opcode.JMP, opcode.JMPIF, opcode.JMPIFNOT, opcode.JMPEQ, opcode.JMPNE,
 		opcode.JMPGT, opcode.JMPGE, opcode.JMPLT, opcode.JMPLE,
 		opcode.CALL, opcode.ISTYPE, opcode.CONVERT, opcode.NEWARRAYT,
+		opcode.ENDTRY,
 		opcode.INITSSLOT, opcode.LDSFLD, opcode.STSFLD, opcode.LDARG, opcode.STARG, opcode.LDLOC, opcode.STLOC:
 		numtoread = 1
-	case opcode.INITSLOT:
+	case opcode.INITSLOT, opcode.TRY:
 		numtoread = 2
 	case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL, opcode.JMPEQL, opcode.JMPNEL,
 		opcode.JMPGTL, opcode.JMPGEL, opcode.JMPLTL, opcode.JMPLEL,
+		opcode.ENDTRYL,
 		opcode.CALLL, opcode.SYSCALL, opcode.PUSHA:
 		numtoread = 4
+	case opcode.TRYL:
+		numtoread = 8
 	default:
 		if instr <= opcode.PUSHINT256 {
 			numtoread = 1 << instr
