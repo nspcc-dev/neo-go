@@ -136,8 +136,11 @@ func (p *PrivateKey) Sign(data []byte) []byte {
 	)
 
 	r, s := rfc6979.SignECDSA(privateKey, digest[:], sha256.New)
+	return getSignatureSlice(privateKey.Curve, r, s)
+}
 
-	params := privateKey.Curve.Params()
+func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {
+	params := curve.Params()
 	curveOrderByteSize := params.P.BitLen() / 8
 	rBytes, sBytes := r.Bytes(), s.Bytes()
 	signature := make([]byte, curveOrderByteSize*2)
