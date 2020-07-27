@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
@@ -316,7 +317,7 @@ func TestSubscriptions(t *testing.T) {
 
 	exec := <-executionCh
 	require.Equal(t, b.Hash(), exec.TxHash)
-	require.Equal(t, exec.VMState, "HALT")
+	require.Equal(t, exec.VMState, vm.HaltState)
 
 	// 3 burn events for every tx and 1 mint for primary node
 	require.True(t, len(notificationCh) >= 4)
@@ -331,7 +332,7 @@ func TestSubscriptions(t *testing.T) {
 		require.Equal(t, txExpected, tx)
 		exec := <-executionCh
 		require.Equal(t, tx.Hash(), exec.TxHash)
-		if exec.VMState == "HALT" {
+		if exec.VMState == vm.HaltState {
 			notif := <-notificationCh
 			require.Equal(t, hash.Hash160(tx.Script), notif.ScriptHash)
 		}

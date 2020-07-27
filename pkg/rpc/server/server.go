@@ -880,7 +880,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	_ = vm.Run()
 	result := &result.Invoke{
-		State:       vm.State(),
+		State:       vm.State().String(),
 		GasConsumed: vm.GasConsumed(),
 		Script:      hex.EncodeToString(script),
 		Stack:       vm.Estack().ToContractParameters(),

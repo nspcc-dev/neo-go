@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -23,7 +24,7 @@ type NotificationEvent struct {
 type AppExecResult struct {
 	TxHash      util.Uint256
 	Trigger     trigger.Type
-	VMState     string
+	VMState     vm.State
 	GasConsumed int64
 	Stack       []smartcontract.Parameter
 	Events      []NotificationEvent
@@ -56,7 +57,7 @@ func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(aer.TxHash[:])
 	w.WriteB(byte(aer.Trigger))
-	w.WriteString(aer.VMState)
+	w.WriteB(byte(aer.VMState))
 	w.WriteU64LE(uint64(aer.GasConsumed))
 	w.WriteArray(aer.Stack)
 	w.WriteArray(aer.Events)
@@ -66,7 +67,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(aer.TxHash[:])
 	aer.Trigger = trigger.Type(r.ReadB())
-	aer.VMState = r.ReadString()
+	aer.VMState = vm.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
 	r.ReadArray(&aer.Stack)
 	r.ReadArray(&aer.Events)

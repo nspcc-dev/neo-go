@@ -15,42 +15,42 @@ func TestStateFromString(t *testing.T) {
 
 	s, err = StateFromString("HALT")
 	assert.NoError(t, err)
-	assert.Equal(t, haltState, s)
+	assert.Equal(t, HaltState, s)
 
 	s, err = StateFromString("BREAK")
 	assert.NoError(t, err)
-	assert.Equal(t, breakState, s)
+	assert.Equal(t, BreakState, s)
 
 	s, err = StateFromString("FAULT")
 	assert.NoError(t, err)
-	assert.Equal(t, faultState, s)
+	assert.Equal(t, FaultState, s)
 
 	s, err = StateFromString("NONE")
 	assert.NoError(t, err)
-	assert.Equal(t, noneState, s)
+	assert.Equal(t, NoneState, s)
 
 	s, err = StateFromString("HALT, BREAK")
 	assert.NoError(t, err)
-	assert.Equal(t, haltState|breakState, s)
+	assert.Equal(t, HaltState|BreakState, s)
 
 	s, err = StateFromString("FAULT, BREAK")
 	assert.NoError(t, err)
-	assert.Equal(t, faultState|breakState, s)
+	assert.Equal(t, FaultState|BreakState, s)
 
 	_, err = StateFromString("HALT, KEK")
 	assert.Error(t, err)
 }
 
 func TestState_HasFlag(t *testing.T) {
-	assert.True(t, haltState.HasFlag(haltState))
-	assert.True(t, breakState.HasFlag(breakState))
-	assert.True(t, faultState.HasFlag(faultState))
-	assert.True(t, (haltState | breakState).HasFlag(haltState))
-	assert.True(t, (haltState | breakState).HasFlag(breakState))
+	assert.True(t, HaltState.HasFlag(HaltState))
+	assert.True(t, BreakState.HasFlag(BreakState))
+	assert.True(t, FaultState.HasFlag(FaultState))
+	assert.True(t, (HaltState | BreakState).HasFlag(HaltState))
+	assert.True(t, (HaltState | BreakState).HasFlag(BreakState))
 
-	assert.False(t, haltState.HasFlag(breakState))
-	assert.False(t, noneState.HasFlag(haltState))
-	assert.False(t, (faultState | breakState).HasFlag(haltState))
+	assert.False(t, HaltState.HasFlag(BreakState))
+	assert.False(t, NoneState.HasFlag(HaltState))
+	assert.False(t, (FaultState | BreakState).HasFlag(HaltState))
 }
 
 func TestState_MarshalJSON(t *testing.T) {
@@ -59,11 +59,11 @@ func TestState_MarshalJSON(t *testing.T) {
 		err  error
 	)
 
-	data, err = json.Marshal(haltState | breakState)
+	data, err = json.Marshal(HaltState | BreakState)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte(`"HALT, BREAK"`))
 
-	data, err = json.Marshal(faultState)
+	data, err = json.Marshal(FaultState)
 	assert.NoError(t, err)
 	assert.Equal(t, data, []byte(`"FAULT"`))
 }
@@ -76,13 +76,13 @@ func TestState_UnmarshalJSON(t *testing.T) {
 
 	err = json.Unmarshal([]byte(`"HALT, BREAK"`), &s)
 	assert.NoError(t, err)
-	assert.Equal(t, haltState|breakState, s)
+	assert.Equal(t, HaltState|BreakState, s)
 
 	err = json.Unmarshal([]byte(`"FAULT, BREAK"`), &s)
 	assert.NoError(t, err)
-	assert.Equal(t, faultState|breakState, s)
+	assert.Equal(t, FaultState|BreakState, s)
 
 	err = json.Unmarshal([]byte(`"NONE"`), &s)
 	assert.NoError(t, err)
-	assert.Equal(t, noneState, s)
+	assert.Equal(t, NoneState, s)
 }
