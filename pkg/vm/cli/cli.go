@@ -11,8 +11,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"gopkg.in/abiosoft/ishell.v2"
@@ -97,6 +101,15 @@ var commands = []*ishell.Cmd{
 <file> is mandatory parameter, example:
 > loadgo /path/to/file.go`,
 		Func: handleLoadGo,
+	},
+	{
+		Name: "parse",
+		Help: "Parse provided argument and convert it into other possible formats",
+		LongHelp: `Usage: parse <arg>
+
+<arg> is an argument which is tried to be interpreted as an item of different types
+        and converted to other formats. Strings are escaped and output in quotes.`,
+		Func: handleParse,
 	},
 	{
 		Name: "run",
@@ -440,8 +453,54 @@ func (c *VMCLI) Run() error {
 	return nil
 }
 
-func isMethodArg(s string) bool {
-	return len(strings.Split(s, ":")) == 1
+func handleParse(c *ishell.Context) {
+	if len(c.Args) < 1 {
+		c.Err(errors.New("missing argument"))
+		return
+	}
+	arg := c.Args[0]
+	buf := bytes.NewBuffer(nil)
+	if val, err := strconv.ParseInt(arg, 10, 64); err == nil {
+		bs := bigint.ToBytes(big.NewInt(val))
+		buf.WriteString(fmt.Sprintf("Integer to Hex\t%s\n", hex.EncodeToString(bs)))
+		buf.WriteString(fmt.Sprintf("Integer to Base64\t%s\n", base64.StdEncoding.EncodeToString(bs)))
+	}
+	noX := strings.TrimPrefix(arg, "0x")
+	if rawStr, err := hex.DecodeString(noX); err == nil {
+		if val, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
+			buf.WriteString(fmt.Sprintf("BE ScriptHash to Address\t%s\n", address.Uint160ToString(val)))
+			buf.WriteString(fmt.Sprintf("LE ScriptHash to Address\t%s\n", address.Uint160ToString(val.Reverse())))
+		}
+		buf.WriteString(fmt.Sprintf("Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
+		buf.WriteString(fmt.Sprintf("Hex to Integer\t%s\n", bigint.FromBytes(rawStr)))
+		buf.WriteString(fmt.Sprintf("Swap Endianness\t%s\n", hex.EncodeToString(util.ArrayReverse(rawStr))))
+	}
+	if addr, err := address.StringToUint160(arg); err == nil {
+		buf.WriteString(fmt.Sprintf("Address to BE ScriptHash\t%s\n", addr))
+		buf.WriteString(fmt.Sprintf("Address to LE ScriptHash\t%s\n", addr.Reverse()))
+		buf.WriteString(fmt.Sprintf("Address to Base64 (BE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesBE())))
+		buf.WriteString(fmt.Sprintf("Address to Base64 (LE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesLE())))
+	}
+	if rawStr, err := base64.StdEncoding.DecodeString(arg); err == nil {
+		buf.WriteString(fmt.Sprintf("Base64 to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
+		buf.WriteString(fmt.Sprintf("Base64 to BigInteger\t%s\n", bigint.FromBytes(rawStr)))
+	}
+
+	buf.WriteString(fmt.Sprintf("String to Hex\t%s\n", hex.EncodeToString([]byte(arg))))
+	buf.WriteString(fmt.Sprintf("String to Base64\t%s\n", base64.StdEncoding.EncodeToString([]byte(arg))))
+
+	out := buf.Bytes()
+	buf = bytes.NewBuffer(nil)
+	w := tabwriter.NewWriter(buf, 0, 0, 4, ' ', 0)
+	if _, err := w.Write(out); err != nil {
+		c.Err(err)
+		return
+	}
+	if err := w.Flush(); err != nil {
+		c.Err(err)
+		return
+	}
+	c.Print(string(buf.Bytes()))
 }
 
 func parseArgs(args []string) ([]stackitem.Item, error) {
