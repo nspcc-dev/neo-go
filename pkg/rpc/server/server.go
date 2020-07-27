@@ -463,13 +463,20 @@ func (s *Server) getPeers(_ request.Params) (interface{}, *response.Error) {
 	return peers, nil
 }
 
-func (s *Server) getRawMempool(_ request.Params) (interface{}, *response.Error) {
+func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response.Error) {
+	verbose := reqParams.Value(0).GetBoolean()
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
 		hashList = append(hashList, item.Hash())
 	}
-	return hashList, nil
+	if !verbose {
+		return hashList, nil
+	}
+	return result.RawMempool{
+		Height:   s.chain.BlockHeight(),
+		Verified: hashList,
+	}, nil
 }
 
 func (s *Server) validateAddress(reqParams request.Params) (interface{}, *response.Error) {
