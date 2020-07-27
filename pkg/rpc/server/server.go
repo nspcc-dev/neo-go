@@ -692,10 +692,13 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			resultsErr = response.NewInvalidParamsError(err.Error(), err)
-		} else {
-			results = result.NewTransactionOutputRaw(tx, header, s.chain)
+			return nil, response.NewInvalidParamsError(err.Error(), err)
 		}
+		st, err := s.chain.GetAppExecResult(txHash)
+		if err != nil {
+			return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
+		}
+		results = result.NewTransactionOutputRaw(tx, header, st, s.chain)
 	} else {
 		results = hex.EncodeToString(tx.Bytes())
 	}
