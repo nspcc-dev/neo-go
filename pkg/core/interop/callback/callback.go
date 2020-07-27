@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -17,12 +18,18 @@ type Callback interface {
 }
 
 // Invoke invokes provided callback.
-func Invoke(_ *interop.Context, v *vm.VM) error {
+func Invoke(ic *interop.Context, v *vm.VM) error {
 	cb := v.Estack().Pop().Interop().Value().(Callback)
 	args := v.Estack().Pop().Array()
 	if cb.ArgCount() != len(args) {
 		return errors.New("invalid argument count")
 	}
 	cb.LoadContext(v, args)
-	return nil
+	switch cb.(type) {
+	case *MethodCallback:
+		id := emit.InteropNameToID([]byte("System.Contract.Call"))
+		return ic.SyscallHandler(v, id)
+	default:
+		return nil
+	}
 }

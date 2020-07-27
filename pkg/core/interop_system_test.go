@@ -378,7 +378,7 @@ func getTestContractState() (*state.Contract, *state.Contract) {
 		ID:       42,
 	}
 
-	currScript := []byte{byte(opcode.NOP)}
+	currScript := []byte{byte(opcode.RET)}
 	m = manifest.NewManifest(hash.Hash160(currScript))
 	perm := manifest.NewPermission(manifest.PermissionHash, h)
 	perm.Methods.Add("add")
@@ -775,4 +775,65 @@ func TestPointerCallback(t *testing.T) {
 		})
 	})
 
+}
+
+func TestMethodCallback(t *testing.T) {
+	_, ic, bc := createVM(t)
+	defer bc.Close()
+
+	cs, currCs := getTestContractState()
+	require.NoError(t, ic.DAO.PutContractState(cs))
+	require.NoError(t, ic.DAO.PutContractState(currCs))
+
+	ic.Functions = append(ic.Functions, systemInterops)
+	rawHash := cs.Manifest.ABI.Hash.BytesBE()
+
+	t.Run("Invalid", func(t *testing.T) {
+		runInvalid := func(args ...interface{}) func(t *testing.T) {
+			return func(t *testing.T) {
+				v := loadScript(currCs.Script, 42)
+				for i := range args {
+					v.Estack().PushVal(args[i])
+				}
+				require.Error(t, callback.CreateFromMethod(ic, v))
+			}
+		}
+		t.Run("Hash", runInvalid("add", rawHash[1:]))
+		t.Run("MissingHash", runInvalid("add", util.Uint160{}.BytesBE()))
+		t.Run("MissingMethod", runInvalid("sub", rawHash))
+		t.Run("DisallowedMethod", runInvalid("ret7", rawHash))
+		t.Run("Initialize", runInvalid("_initialize", rawHash))
+		t.Run("NotEnoughArguments", func(t *testing.T) {
+			v := loadScript(currCs.Script, 42, "add", rawHash)
+			require.NoError(t, callback.CreateFromMethod(ic, v))
+
+			v.Estack().InsertAt(vm.NewElement(stackitem.NewArray([]stackitem.Item{stackitem.Make(1)})), 1)
+			require.Error(t, callback.Invoke(ic, v))
+		})
+		t.Run("CallIsNotAllowed", func(t *testing.T) {
+			v := vm.New()
+			v.Load(currCs.Script)
+			v.Estack().PushVal("add")
+			v.Estack().PushVal(rawHash)
+			require.NoError(t, callback.CreateFromMethod(ic, v))
+
+			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
+			v.Estack().InsertAt(vm.NewElement(args), 1)
+			require.Error(t, callback.Invoke(ic, v))
+		})
+	})
+
+	t.Run("Good", func(t *testing.T) {
+		v := loadScript(currCs.Script, 42, "add", rawHash)
+		require.NoError(t, callback.CreateFromMethod(ic, v))
+
+		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(5)})
+		v.Estack().InsertAt(vm.NewElement(args), 1)
+
+		require.NoError(t, callback.Invoke(ic, v))
+		require.NoError(t, v.Run())
+		require.Equal(t, 2, v.Estack().Len())
+		require.Equal(t, big.NewInt(6), v.Estack().Pop().Item().Value())
+		require.Equal(t, big.NewInt(42), v.Estack().Pop().Item().Value())
+	})
 }

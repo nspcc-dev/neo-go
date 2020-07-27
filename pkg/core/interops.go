@@ -42,6 +42,7 @@ var systemInterops = []interop.Function{
 	{Name: "System.Blockchain.GetTransactionFromBlock", Func: bcGetTransactionFromBlock, Price: 1000000, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Blockchain.GetTransactionHeight", Func: bcGetTransactionHeight, Price: 1000000, RequiredFlags: smartcontract.AllowStates},
 	{Name: "System.Callback.Create", Func: callback.Create, Price: 400},
+	{Name: "System.Callback.CreateFromMethod", Func: callback.CreateFromMethod, Price: 1000000},
 	{Name: "System.Callback.Invoke", Func: callback.Invoke, Price: 1000000},
 	{Name: "System.Contract.Call", Func: contractCall, Price: 1000000, RequiredFlags: smartcontract.AllowCall},
 	{Name: "System.Contract.CallEx", Func: contractCallEx, Price: 1000000, RequiredFlags: smartcontract.AllowCall},
