@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -732,4 +733,39 @@ func TestContractGetCallFlags(t *testing.T) {
 	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, smartcontract.All)
 	require.NoError(t, contractGetCallFlags(ic, v))
 	require.Equal(t, int64(smartcontract.All), v.Estack().Pop().Value().(*big.Int).Int64())
+}
+
+func TestPointerCallback(t *testing.T) {
+	_, ic, bc := createVM(t)
+	defer bc.Close()
+
+	script := []byte{
+		byte(opcode.NOP), byte(opcode.INC), byte(opcode.RET),
+		byte(opcode.DIV), byte(opcode.RET),
+	}
+	t.Run("Good", func(t *testing.T) {
+		v := loadScript(script, 2, stackitem.NewPointer(3, script))
+		v.Estack().PushVal(v.Context())
+		require.NoError(t, callback.Create(ic, v))
+
+		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3), stackitem.Make(12)})
+		v.Estack().InsertAt(vm.NewElement(args), 1)
+		require.NoError(t, callback.Invoke(ic, v))
+
+		require.NoError(t, v.Run())
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, big.NewInt(5), v.Estack().Pop().Item().Value())
+	})
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("NotEnoughParameters", func(t *testing.T) {
+			v := loadScript(script, 2, stackitem.NewPointer(3, script))
+			v.Estack().PushVal(v.Context())
+			require.NoError(t, callback.Create(ic, v))
+
+			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(3)})
+			v.Estack().InsertAt(vm.NewElement(args), 1)
+			require.Error(t, callback.Invoke(ic, v))
+		})
+	})
+
 }
