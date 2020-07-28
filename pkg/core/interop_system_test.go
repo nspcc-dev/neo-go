@@ -325,7 +325,8 @@ func TestBlockchainGetContractState(t *testing.T) {
 	})
 }
 
-func getTestContractState() *state.Contract {
+// getTestContractState returns 2 contracts second of which is allowed to call the first.
+func getTestContractState() (*state.Contract, *state.Contract) {
 	script := []byte{
 		byte(opcode.ABORT), // abort if no offset was provided
 		byte(opcode.ADD), byte(opcode.RET),
@@ -371,10 +372,24 @@ func getTestContractState() *state.Contract {
 			ReturnType: smartcontract.IntegerType,
 		},
 	}
-	return &state.Contract{
+	cs := &state.Contract{
 		Script:   script,
 		Manifest: *m,
 		ID:       42,
+	}
+
+	currScript := []byte{byte(opcode.NOP)}
+	m = manifest.NewManifest(hash.Hash160(currScript))
+	perm := manifest.NewPermission(manifest.PermissionHash, h)
+	perm.Methods.Add("add")
+	perm.Methods.Add("drop")
+	perm.Methods.Add("add3")
+	m.Permissions = append(m.Permissions, *perm)
+
+	return cs, &state.Contract{
+		Script:   currScript,
+		Manifest: *m,
+		ID:       123,
 	}
 }
 
@@ -392,24 +407,12 @@ func TestContractCall(t *testing.T) {
 	_, ic, bc := createVM(t)
 	defer bc.Close()
 
-	cs := getTestContractState()
+	cs, currCs := getTestContractState()
 	require.NoError(t, ic.DAO.PutContractState(cs))
+	require.NoError(t, ic.DAO.PutContractState(currCs))
 
-	currScript := []byte{byte(opcode.NOP)}
-
+	currScript := currCs.Script
 	h := cs.Manifest.ABI.Hash
-	m := manifest.NewManifest(hash.Hash160(currScript))
-	perm := manifest.NewPermission(manifest.PermissionHash, h)
-	perm.Methods.Add("add")
-	perm.Methods.Add("drop")
-	perm.Methods.Add("add3")
-	m.Permissions = append(m.Permissions, *perm)
-
-	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
-		Script:   currScript,
-		Manifest: *m,
-		ID:       123,
-	}))
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
