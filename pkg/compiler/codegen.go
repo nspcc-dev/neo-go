@@ -65,6 +65,9 @@ type codegen struct {
 	// importMap contains mapping from package aliases to full package names for the current file.
 	importMap map[string]string
 
+	// constMap contains constants from foreign packages.
+	constMap map[string]types.TypeAndValue
+
 	// mainPkg is a main package metadata.
 	mainPkg *loader.PackageInfo
 
@@ -263,11 +266,7 @@ func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
 		case *ast.FuncDecl:
 			return false
 		case *ast.GenDecl:
-			// constants are loaded directly so there is no need
-			// to store them as a local variables
-			if n.Tok != token.CONST {
-				ast.Walk(c, n)
-			}
+			ast.Walk(c, n)
 		}
 		return true
 	})
@@ -367,6 +366,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		if n.Tok == token.CONST {
+			for _, spec := range n.Specs {
+				vs := spec.(*ast.ValueSpec)
+				for i := range vs.Names {
+					c.constMap[c.getIdentName("", vs.Names[i].Name)] = c.typeAndValueOf(vs.Values[i])
+				}
+			}
+			return nil
+		}
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
@@ -816,8 +824,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		if typ == nil {
 			// This is a global variable from a package.
 			pkgAlias := n.X.(*ast.Ident).Name
-			pkgPath := c.importMap[pkgAlias]
-			c.emitLoadVar(pkgPath, n.Sel.Name)
+			name := c.getIdentName(pkgAlias, n.Sel.Name)
+			if tv, ok := c.constMap[name]; ok {
+				c.emitLoadConst(tv)
+			} else {
+				c.emitLoadVar(pkgAlias, n.Sel.Name)
+			}
 			return nil
 		}
 		strct, ok := typ.Underlying().(*types.Struct)
@@ -1480,6 +1492,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		globals:   map[string]int{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
+		constMap:  map[string]types.TypeAndValue{},
 
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}

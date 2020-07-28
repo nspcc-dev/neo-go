@@ -187,3 +187,12 @@ func TestExportedVariable(t *testing.T) {
 		eval(t, src, big.NewInt(46))
 	})
 }
+
+func TestExportedConst(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+	func Main() int {
+		return multi.SomeConst
+	}`
+	eval(t, src, big.NewInt(42))
+}
