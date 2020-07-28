@@ -136,3 +136,54 @@ func TestMultipleFiles(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(42))
 }
+
+func TestExportedVariable(t *testing.T) {
+	t.Run("Use", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		func Main() int {
+			return multi.SomeVar12
+		}`
+		eval(t, src, big.NewInt(12))
+	})
+	t.Run("ChangeAndUse", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		func Main() int {
+			multi.SomeVar12 = 10
+			return multi.Sum()
+		}`
+		eval(t, src, big.NewInt(40))
+	})
+	t.Run("PackageAlias", func(t *testing.T) {
+		src := `package foo
+		import kek "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		func Main() int {
+			kek.SomeVar12 = 10
+			return kek.Sum()
+		}`
+		eval(t, src, big.NewInt(40))
+	})
+	t.Run("DifferentName", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/strange"
+		func Main() int {
+			normal.NormalVar = 42
+			return normal.NormalVar
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("MultipleEqualNames", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		var SomeVar12 = 1
+		func Main() int {
+			SomeVar30 := 3
+			sum := SomeVar12 + multi.SomeVar30
+			sum += SomeVar30
+			sum += multi.SomeVar12
+			return sum
+		}`
+		eval(t, src, big.NewInt(46))
+	})
+}

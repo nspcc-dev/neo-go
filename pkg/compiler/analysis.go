@@ -21,8 +21,17 @@ var (
 )
 
 // newGlobal creates new global variable.
-func (c *codegen) newGlobal(name string) {
+func (c *codegen) newGlobal(pkg string, name string) {
+	name = c.getIdentName(pkg, name)
 	c.globals[name] = len(c.globals)
+}
+
+// getIdentName returns fully-qualified name for a variable.
+func (c *codegen) getIdentName(pkg string, name string) string {
+	if fullName, ok := c.importMap[pkg]; ok {
+		pkg = fullName
+	}
+	return pkg + "." + name
 }
 
 // traverseGlobals visits and initializes global variables.

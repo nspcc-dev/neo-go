@@ -62,6 +62,9 @@ type codegen struct {
 	// initEndOffset specifies the end of the initialization method.
 	initEndOffset int
 
+	// importMap contains mapping from package aliases to full package names for the current file.
+	importMap map[string]string
+
 	// mainPkg is a main package metadata.
 	mainPkg *loader.PackageInfo
 
@@ -167,14 +170,16 @@ func (c *codegen) emitStoreStructField(i int) {
 
 // getVarIndex returns variable type and position in corresponding slot,
 // according to current scope.
-func (c *codegen) getVarIndex(name string) (varType, int) {
-	if c.scope != nil {
-		vt, val := c.scope.vars.getVarIndex(name)
-		if val >= 0 {
-			return vt, val
+func (c *codegen) getVarIndex(pkg string, name string) (varType, int) {
+	if pkg == "" {
+		if c.scope != nil {
+			vt, val := c.scope.vars.getVarIndex(name)
+			if val >= 0 {
+				return vt, val
+			}
 		}
 	}
-	if i, ok := c.globals[name]; ok {
+	if i, ok := c.globals[c.getIdentName(pkg, name)]; ok {
 		return varGlobal, i
 	}
 
@@ -195,8 +200,8 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 }
 
 // emitLoadVar loads specified variable to the evaluation stack.
-func (c *codegen) emitLoadVar(name string) {
-	t, i := c.getVarIndex(name)
+func (c *codegen) emitLoadVar(pkg string, name string) {
+	t, i := c.getVarIndex(pkg, name)
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -206,12 +211,12 @@ func (c *codegen) emitLoadVar(name string) {
 }
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
-func (c *codegen) emitStoreVar(name string) {
+func (c *codegen) emitStoreVar(pkg string, name string) {
 	if name == "_" {
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		return
 	}
-	t, i := c.getVarIndex(name)
+	t, i := c.getVarIndex(pkg, name)
 	_, base := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -368,7 +373,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for _, id := range t.Names {
 					if c.scope == nil {
 						// it is a global declaration
-						c.newGlobal(id.Name)
+						c.newGlobal("", id.Name)
 					} else {
 						c.scope.newLocal(id.Name)
 					}
@@ -380,7 +385,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					} else {
 						c.emitDefault(c.typeOf(t.Type))
 					}
-					c.emitStoreVar(t.Names[i].Name)
+					c.emitStoreVar("", t.Names[i].Name)
 				}
 			}
 		}
@@ -411,13 +416,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				if !isAssignOp && (i == 0 || !multiRet) {
 					ast.Walk(c, n.Rhs[i])
 				}
-				c.emitStoreVar(t.Name)
+				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
 				if !isAssignOp {
 					ast.Walk(c, n.Rhs[i])
 				}
-				strct, ok := c.typeOf(t.X).Underlying().(*types.Struct)
+				typ := c.typeOf(t.X)
+				if typ == nil {
+					// Store to other package global variable.
+					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
+					return nil
+				}
+				strct, ok := typ.Underlying().(*types.Struct)
 				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
@@ -442,7 +453,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SliceExpr:
 		name := n.X.(*ast.Ident).Name
-		c.emitLoadVar(name)
+		c.emitLoadVar("", name)
 
 		if n.Low != nil {
 			ast.Walk(c, n.Low)
@@ -480,7 +491,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := len(results.List) - 1; i >= 0; i-- {
 					names := results.List[i].Names
 					for j := len(names) - 1; j >= 0; j-- {
-						c.emitLoadVar(names[j].Name)
+						c.emitLoadVar("", names[j].Name)
 					}
 				}
 			}
@@ -595,7 +606,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		} else if n.Name == "nil" {
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		} else {
-			c.emitLoadVar(n.Name)
+			c.emitLoadVar("", n.Name)
 		}
 		return nil
 
@@ -789,7 +800,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if isString(c.typeOf(n.Fun)) {
 				c.emitConvert(stackitem.ByteArrayT)
 			} else if isFunc {
-				c.emitLoadVar(name)
+				c.emitLoadVar("", name)
 				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 			}
 		case isSyscall(f):
@@ -801,7 +812,15 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
-		strct, ok := c.typeOf(n.X).Underlying().(*types.Struct)
+		typ := c.typeOf(n.X)
+		if typ == nil {
+			// This is a global variable from a package.
+			pkgAlias := n.X.(*ast.Ident).Name
+			pkgPath := c.importMap[pkgAlias]
+			c.emitLoadVar(pkgPath, n.Sel.Name)
+			return nil
+		}
+		strct, ok := typ.Underlying().(*types.Struct)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
@@ -840,7 +859,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// for i := 0; i < 10; i++ {}
 		// Where the post stmt is ( i++ )
 		if ident, ok := n.X.(*ast.Ident); ok {
-			c.emitStoreVar(ident.Name)
+			c.emitStoreVar("", ident.Name)
 		}
 		return nil
 
@@ -992,7 +1011,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				emit.Opcode(c.prog.BinWriter, opcode.DUP)
 			}
-			c.emitStoreVar(n.Key.(*ast.Ident).Name)
+			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
 		}
 		if needValue {
 			if !isMap || !keyLoaded {
@@ -1005,7 +1024,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emit.Opcode(c.prog.BinWriter, opcode.SWAP) // key should be on top
 				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
 			}
-			c.emitStoreVar(n.Value.(*ast.Ident).Name)
+			c.emitStoreVar("", n.Value.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
