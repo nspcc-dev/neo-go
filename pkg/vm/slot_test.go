@@ -9,8 +9,11 @@ import (
 )
 
 func TestSlot_Get(t *testing.T) {
-	s := newSlot(3, newRefCounter())
+	s := newSlot(newRefCounter())
 	require.NotNil(t, s)
+	require.Panics(t, func() { s.Size() })
+
+	s.init(3)
 	require.Equal(t, 3, s.Size())
 
 	// Null is the default

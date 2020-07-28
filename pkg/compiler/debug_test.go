@@ -127,24 +127,24 @@ func unexportedMethod() int { return 1 }
 	}
 
 	t.Run("convert to Manifest", func(t *testing.T) {
-		actual, err := d.convertToManifest(smartcontract.HasStorage)
+		actual, err := d.ConvertToManifest(smartcontract.HasStorage)
 		require.NoError(t, err)
+		// note: offsets are hard to predict, so we just take them from the output
 		expected := &manifest.Manifest{
 			ABI: manifest.ABI{
 				Hash: hash.Hash160(buf),
-				EntryPoint: manifest.Method{
-					Name: "main",
-					Parameters: []manifest.Parameter{
-						{
-							Name: "op",
-							Type: smartcontract.StringType,
-						},
-					},
-					ReturnType: smartcontract.BoolType,
-				},
 				Methods: []manifest.Method{
 					{
-						Name: "methodInt",
+						Name:   "main",
+						Offset: 0,
+						Parameters: []manifest.Parameter{
+							manifest.NewParameter("op", smartcontract.StringType),
+						},
+						ReturnType: smartcontract.BoolType,
+					},
+					{
+						Name:   "methodInt",
+						Offset: 66,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -155,26 +155,31 @@ func unexportedMethod() int { return 1 }
 					},
 					{
 						Name:       "methodString",
+						Offset:     97,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.StringType,
 					},
 					{
 						Name:       "methodByteArray",
+						Offset:     103,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ByteArrayType,
 					},
 					{
 						Name:       "methodArray",
+						Offset:     108,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
 						Name:       "methodStruct",
+						Offset:     113,
 						Parameters: []manifest.Parameter{},
 						ReturnType: smartcontract.ArrayType,
 					},
 					{
-						Name: "methodConcat",
+						Name:   "methodConcat",
+						Offset: 88,
 						Parameters: []manifest.Parameter{
 							{
 								Name: "a",
@@ -214,7 +219,6 @@ func unexportedMethod() int { return 1 }
 		}
 		require.True(t, expected.ABI.Hash.Equals(actual.ABI.Hash))
 		require.ElementsMatch(t, expected.ABI.Methods, actual.ABI.Methods)
-		require.Equal(t, expected.ABI.EntryPoint, actual.ABI.EntryPoint)
 		require.Equal(t, expected.ABI.Events, actual.ABI.Events)
 		require.Equal(t, expected.Groups, actual.Groups)
 		require.Equal(t, expected.Features, actual.Features)

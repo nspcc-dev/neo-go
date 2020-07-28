@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,12 +61,6 @@ func TestCachedDaoContracts(t *testing.T) {
 	require.NotNil(t, err)
 
 	m := manifest.NewManifest(hash.Hash160(script))
-	m.ABI.EntryPoint.Name = "somename"
-	m.ABI.EntryPoint.Parameters = []manifest.Parameter{
-		manifest.NewParameter("first", smartcontract.IntegerType),
-		manifest.NewParameter("second", smartcontract.StringType),
-	}
-	m.ABI.EntryPoint.ReturnType = smartcontract.BoolType
 
 	cs := &state.Contract{
 		ID:       123,

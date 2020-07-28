@@ -134,7 +134,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.convertToManifest(o.ContractFeatures)
+		m, err := di.ConvertToManifest(o.ContractFeatures)
 		if err != nil {
 			return b, errors.Wrap(err, "failed to convert debug info to manifest")
 		}

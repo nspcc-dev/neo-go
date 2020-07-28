@@ -95,7 +95,10 @@ func TestNativeContract_Invoke(t *testing.T) {
 	tn := newTestNative()
 	chain.registerNative(tn)
 
-	err := chain.dao.PutContractState(&state.Contract{Script: tn.meta.Script})
+	err := chain.dao.PutContractState(&state.Contract{
+		Script:   tn.meta.Script,
+		Manifest: tn.meta.Manifest,
+	})
 	require.NoError(t, err)
 
 	w := io.NewBufBinWriter()

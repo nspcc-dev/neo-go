@@ -17,6 +17,7 @@ import (
 
 // DebugInfo represents smart-contract debug information.
 type DebugInfo struct {
+	MainPkg   string            `json:"-"`
 	Hash      util.Uint160      `json:"hash"`
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
@@ -102,8 +103,24 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 
 func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	d := &DebugInfo{
-		Hash:   hash.Hash160(contract),
-		Events: []EventDebugInfo{},
+		MainPkg: c.mainPkg.Pkg.Name(),
+		Hash:    hash.Hash160(contract),
+		Events:  []EventDebugInfo{},
+	}
+	if c.initEndOffset > 0 {
+		d.Methods = append(d.Methods, MethodDebugInfo{
+			ID: manifest.MethodInit,
+			Name: DebugMethodName{
+				Name:      manifest.MethodInit,
+				Namespace: c.mainPkg.Pkg.Name(),
+			},
+			IsExported: true,
+			Range: DebugRange{
+				Start: 0,
+				End:   uint16(c.initEndOffset),
+			},
+			ReturnType: "Void",
+		})
 	}
 	for name, scope := range c.funcs {
 		m := c.methodInfoFromScope(name, scope)
@@ -270,6 +287,7 @@ func (m *MethodDebugInfo) ToManifestMethod() (manifest.Method, error) {
 		return result, err
 	}
 	result.Name = strings.ToLower(string(m.Name.Name[0])) + m.Name.Name[1:]
+	result.Offset = int(m.Range.Start)
 	result.Parameters = parameters
 	result.ReturnType = returnType
 	return result, nil
@@ -337,30 +355,16 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-// convertToManifest converts contract to the manifest.Manifest struct for debugger.
+// ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
-func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
-	var (
-		entryPoint    manifest.Method
-		mainNamespace string
-		err           error
-	)
-	for _, method := range di.Methods {
-		if method.Name.Name == mainIdent {
-			entryPoint, err = method.ToManifestMethod()
-			if err != nil {
-				return nil, err
-			}
-			mainNamespace = method.Name.Namespace
-			break
-		}
-	}
-	if entryPoint.Name == "" {
+func (di *DebugInfo) ConvertToManifest(fs smartcontract.PropertyState) (*manifest.Manifest, error) {
+	var err error
+	if di.MainPkg == "" {
 		return nil, errors.New("no Main method was found")
 	}
 	methods := make([]manifest.Method, 0)
 	for _, method := range di.Methods {
-		if method.Name.Name != mainIdent && method.IsExported && method.Name.Namespace == mainNamespace {
+		if method.IsExported && method.Name.Namespace == di.MainPkg {
 			mMethod, err := method.ToManifestMethod()
 			if err != nil {
 				return nil, err
@@ -379,10 +383,9 @@ func (di *DebugInfo) convertToManifest(fs smartcontract.PropertyState) (*manifes
 	result := manifest.NewManifest(di.Hash)
 	result.Features = fs
 	result.ABI = manifest.ABI{
-		Hash:       di.Hash,
-		EntryPoint: entryPoint,
-		Methods:    methods,
-		Events:     events,
+		Hash:    di.Hash,
+		Methods: methods,
+		Events:  events,
 	}
 	result.Permissions = []manifest.Permission{
 		{

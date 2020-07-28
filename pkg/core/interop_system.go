@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -16,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -492,16 +494,54 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	if err != nil {
 		return err
 	}
+	name := string(bs)
+	if strings.HasPrefix(name, "_") {
+		return errors.New("invalid method name (starts with '_')")
+	}
+	md := cs.Manifest.ABI.GetMethod(name)
+	if md == nil {
+		return fmt.Errorf("method '%s' not found", name)
+	}
 	curr, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if err == nil {
 		if !curr.Manifest.CanCall(&cs.Manifest, string(bs)) {
 			return errors.New("disallowed method call")
 		}
 	}
+
+	arr, ok := args.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("second argument must be an array")
+	}
+	if len(arr) != len(md.Parameters) {
+		return fmt.Errorf("invalid argument count: %d (expected %d)", len(arr), len(md.Parameters))
+	}
+
 	ic.Invocations[u]++
 	v.LoadScriptWithHash(cs.Script, u, v.Context().GetCallFlags()&f)
-	v.Estack().PushVal(args)
-	v.Estack().PushVal(method)
+	var isNative bool
+	for i := range ic.Natives {
+		if ic.Natives[i].Metadata().Hash.Equals(u) {
+			isNative = true
+			break
+		}
+	}
+	if isNative {
+		v.Estack().PushVal(args)
+		v.Estack().PushVal(method)
+	} else {
+		for i := len(arr) - 1; i >= 0; i-- {
+			v.Estack().PushVal(arr[i])
+		}
+		// use Jump not Call here because context was loaded in LoadScript above.
+		v.Jump(v.Context(), md.Offset)
+	}
+
+	md = cs.Manifest.ABI.GetMethod(manifest.MethodInit)
+	if md != nil {
+		v.Call(v.Context(), md.Offset)
+	}
+
 	return nil
 }
 

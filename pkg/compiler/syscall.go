@@ -44,6 +44,9 @@ var syscalls = map[string]map[string]Syscall{
 		"Next":   {"System.Enumerator.Next", false},
 		"Value":  {"System.Enumerator.Value", false},
 	},
+	"engine": {
+		"AppCall": {"System.Contract.Call", false},
+	},
 	"iterator": {
 		"Concat": {"System.Iterator.Concat", false},
 		"Create": {"System.Iterator.Create", false},

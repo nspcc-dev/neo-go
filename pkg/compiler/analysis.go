@@ -16,7 +16,6 @@ var (
 	goBuiltins = []string{"len", "append", "panic"}
 	// Custom builtin utility functions.
 	customBuiltins = []string{
-		"AppCall",
 		"FromAddress", "Equals",
 		"ToBool", "ToByteArray", "ToInteger",
 	}
@@ -28,16 +27,23 @@ func (c *codegen) newGlobal(name string) {
 }
 
 // traverseGlobals visits and initializes global variables.
-func (c *codegen) traverseGlobals(f ast.Node) {
-	n := countGlobals(f)
+// and returns number of variables initialized.
+func (c *codegen) traverseGlobals(fs ...*ast.File) int {
+	var n int
+	for _, f := range fs {
+		n += countGlobals(f)
+	}
 	if n != 0 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return
+			return 0
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		for _, f := range fs {
+			c.convertGlobals(f)
+		}
 	}
-	c.convertGlobals(f)
+	return n
 }
 
 // countGlobals counts the global variables in the program to add
@@ -113,10 +119,11 @@ func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
 	return false
 }
 
-func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
+func analyzeFuncUsage(mainPkg *loader.PackageInfo, pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 	usage := funcUsage{}
 
 	for _, pkg := range pkgs {
+		isMain := pkg == mainPkg
 		for _, f := range pkg.Files {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -126,6 +133,11 @@ func analyzeFuncUsage(pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
 						usage[t.Name] = true
 					case *ast.SelectorExpr:
 						usage[t.Sel.Name] = true
+					}
+				case *ast.FuncDecl:
+					// exported functions are always assumed to be used
+					if isMain && n.Name.IsExported() {
+						usage[n.Name.Name] = true
 					}
 				}
 				return true

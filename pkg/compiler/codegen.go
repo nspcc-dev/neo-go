@@ -21,9 +21,6 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-// The identifier of the entry function. Default set to Main.
-const mainIdent = "Main"
-
 type codegen struct {
 	// Information about the program with all its dependencies.
 	buildInfo *buildInfo
@@ -61,6 +58,12 @@ type codegen struct {
 	// containing info about mapping from opcode's offset
 	// to a text span in the source file.
 	sequencePoints map[string][]DebugSeqPoint
+
+	// initEndOffset specifies the end of the initialization method.
+	initEndOffset int
+
+	// mainPkg is a main package metadata.
+	mainPkg *loader.PackageInfo
 
 	// Label table for recording jump destinations.
 	l []int
@@ -1220,13 +1223,6 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 			typ = stackitem.BooleanT
 		}
 		c.emitConvert(typ)
-	case "AppCall":
-		c.emitReverse(len(expr.Args))
-		buf := c.getByteArray(expr.Args[0])
-		if buf != nil && len(buf) != 20 {
-			c.prog.Err = errors.New("invalid script hash")
-		}
-		emit.Syscall(c.prog.BinWriter, "System.Contract.Call")
 	case "Equals":
 		emit.Opcode(c.prog.BinWriter, opcode.EQUAL)
 	case "FromAddress":
@@ -1419,14 +1415,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
-	// Resolve the entrypoint of the program.
-	main, mainFile := resolveEntryPoint(mainIdent, pkg)
-	if main == nil {
-		c.prog.Err = fmt.Errorf("could not find func main. Did you forget to declare it? ")
-		return c.prog.Err
-	}
-
-	funUsage := analyzeFuncUsage(info.program.AllPackages)
+	funUsage := analyzeFuncUsage(pkg, info.program.AllPackages)
 
 	// Bring all imported functions into scope.
 	for _, pkg := range info.program.AllPackages {
@@ -1435,10 +1424,12 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 		}
 	}
 
-	c.traverseGlobals(mainFile)
-
-	// convert the entry point first.
-	c.convertFuncDecl(mainFile, main, pkg.Pkg)
+	c.mainPkg = pkg
+	n := c.traverseGlobals(pkg.Files...)
+	if n > 0 {
+		emit.Opcode(c.prog.BinWriter, opcode.RET)
+		c.initEndOffset = c.prog.Len()
+	}
 
 	// sort map keys to generate code deterministically.
 	keys := make([]*types.Package, 0, len(info.program.AllPackages))
@@ -1458,7 +1449,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 				case *ast.FuncDecl:
 					// Don't convert the function if it's not used. This will save a lot
 					// of bytecode space.
-					if n.Name.Name != mainIdent && funUsage.funcUsed(n.Name.Name) {
+					if funUsage.funcUsed(n.Name.Name) {
 						c.convertFuncDecl(f, n, k)
 					}
 				}
@@ -1504,10 +1495,8 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 	for _, decl := range f.Decls {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
-			if n.Name.Name != mainIdent {
-				c.newFunc(n)
-				c.funcs[n.Name.Name].pkg = pkg
-			}
+			c.newFunc(n)
+			c.funcs[n.Name.Name].pkg = pkg
 		}
 	}
 }

@@ -279,9 +279,11 @@ func (v *VM) LoadScript(b []byte) {
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f smartcontract.CallFlag) {
 	ctx := NewContext(b)
+	v.estack = v.newItemStack("estack")
 	ctx.estack = v.estack
 	ctx.tryStack = NewStack("exception")
 	ctx.callFlag = f
+	ctx.static = newSlot(v.refs)
 	v.istack.PushVal(ctx)
 }
 
@@ -568,13 +570,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushVal(result)
 
 	case opcode.INITSSLOT:
-		if ctx.static != nil {
-			panic("already initialized")
-		}
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		ctx.static = v.newSlot(int(parameter[0]))
+		ctx.static.init(int(parameter[0]))
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -1232,18 +1231,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		if cond {
-			v.jump(ctx, offset)
+			v.Jump(ctx, offset)
 		}
 
 	case opcode.CALL, opcode.CALLL:
 		v.checkInvocationStackSize()
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		v.istack.PushVal(newCtx)
-
-		offset := v.getJumpOffset(newCtx, parameter)
-		v.jump(newCtx, offset)
+		// Note: jump offset must be calculated regarding to new context,
+		// but it is cloned and thus has the same script and instruction pointer.
+		v.Call(ctx, v.getJumpOffset(ctx, parameter))
 
 	case opcode.CALLA:
 		ptr := v.estack.Pop().Item().(*stackitem.Pointer)
@@ -1251,11 +1246,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid script in pointer")
 		}
 
-		newCtx := ctx.Copy()
-		newCtx.local = nil
-		newCtx.arguments = nil
-		v.istack.PushVal(newCtx)
-		v.jump(newCtx, ptr.Position())
+		v.Call(ctx, ptr.Position())
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
@@ -1404,7 +1395,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		} else {
 			ctx.tryStack.Pop()
 		}
-		v.jump(ctx, eOffset)
+		v.Jump(ctx, eOffset)
 
 	case opcode.ENDFINALLY:
 		if v.uncaughtException != nil {
@@ -1412,7 +1403,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			return
 		}
 		eCtx := ctx.tryStack.Pop().Value().(*exceptionHandlingContext)
-		v.jump(ctx, eCtx.EndOffset)
+		v.Jump(ctx, eCtx.EndOffset)
 
 	default:
 		panic(fmt.Sprintf("unknown opcode %s", op.String()))
@@ -1468,9 +1459,19 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// jump performs jump to the offset.
-func (v *VM) jump(ctx *Context, offset int) {
+// Jump performs jump to the offset.
+func (v *VM) Jump(ctx *Context, offset int) {
 	ctx.nextip = offset
+}
+
+// Call calls method by offset. It is similar to Jump but also
+// pushes new context to the invocation state
+func (v *VM) Call(ctx *Context, offset int) {
+	newCtx := ctx.Copy()
+	newCtx.local = nil
+	newCtx.arguments = nil
+	v.istack.PushVal(newCtx)
+	v.Jump(newCtx, offset)
 }
 
 // getJumpOffset returns instruction number in a current context
@@ -1526,10 +1527,10 @@ func (v *VM) handleException() {
 				ectx.State = eCatch
 				v.estack.PushVal(v.uncaughtException)
 				v.uncaughtException = nil
-				v.jump(ictx, ectx.CatchOffset)
+				v.Jump(ictx, ectx.CatchOffset)
 			} else {
 				ectx.State = eFinally
-				v.jump(ictx, ectx.FinallyOffset)
+				v.Jump(ictx, ectx.FinallyOffset)
 			}
 			return
 		}

@@ -38,6 +38,7 @@ type groupAux struct {
 // Method represents method's metadata.
 type Method struct {
 	Name       string                  `json:"name"`
+	Offset     int                     `json:"offset"`
 	Parameters []Parameter             `json:"parameters"`
 	ReturnType smartcontract.ParamType `json:"returntype"`
 }
@@ -47,18 +48,6 @@ func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	return Parameter{
 		Name: name,
 		Type: typ,
-	}
-}
-
-// DefaultEntryPoint represents default entrypoint to a contract.
-func DefaultEntryPoint() *Method {
-	return &Method{
-		Name: "Main",
-		Parameters: []Parameter{
-			NewParameter("operation", smartcontract.StringType),
-			NewParameter("args", smartcontract.ArrayType),
-		},
-		ReturnType: smartcontract.AnyType,
 	}
 }
 

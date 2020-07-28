@@ -3,7 +3,12 @@ package compiler_test
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/stretchr/testify/require"
 )
 
 func TestChangeGlobal(t *testing.T) {
@@ -104,4 +109,21 @@ func TestArgumentLocal(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, 40)
 		eval(t, src, big.NewInt(40))
 	})
+}
+
+func TestContractWithNoMain(t *testing.T) {
+	src := `package foo
+	var someGlobal int = 1
+	func Add3(a int) int {
+		someLocal := 2
+		return someGlobal + someLocal + a
+	}`
+	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
+	require.NoError(t, err)
+	v := vm.New()
+	invokeMethod(t, "Add3", b, v, di)
+	v.Estack().PushVal(39)
+	require.NoError(t, v.Run())
+	require.Equal(t, 1, v.Estack().Len())
+	require.Equal(t, big.NewInt(42), v.PopResult())
 }

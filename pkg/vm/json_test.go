@@ -228,7 +228,7 @@ func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
 }
 
 func compareSlots(t *testing.T, expected []vmUTStackItem, actual *Slot) {
-	if actual == nil && len(expected) == 0 {
+	if actual.storage == nil && len(expected) == 0 {
 		return
 	}
 	require.NotNil(t, actual)

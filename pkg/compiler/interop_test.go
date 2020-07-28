@@ -63,9 +63,10 @@ func TestFromAddress(t *testing.T) {
 }
 
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
-	b, err := compiler.Compile(strings.NewReader(src))
+	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
 	require.NoError(t, err)
 	v := core.SpawnVM(ic)
+	invokeMethod(t, testMainIdent, b, v, di)
 	v.LoadScriptWithFlags(b, smartcontract.All)
 	return v
 }
@@ -73,18 +74,30 @@ func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 func TestAppCall(t *testing.T) {
 	srcInner := `
 	package foo
+	var a int = 3
 	func Main(a []byte, b []byte) []byte {
+		panic("Main was called")
+	}
+	func Append(a []byte, b []byte) []byte {
 		return append(a, b...)
+	}
+	func Add3(n int) int {
+		return a + n
 	}
 	`
 
-	inner, err := compiler.Compile(strings.NewReader(srcInner))
+	inner, di, err := compiler.CompileWithDebugInfo(strings.NewReader(srcInner))
+	require.NoError(t, err)
+	m, err := di.ConvertToManifest(smartcontract.NoProperties)
 	require.NoError(t, err)
 
-	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil, nil, zaptest.NewLogger(t))
-	require.NoError(t, ic.DAO.PutContractState(&state.Contract{Script: inner}))
-
 	ih := hash.Hash160(inner)
+	ic := interop.NewContext(trigger.Application, nil, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil, nil, zaptest.NewLogger(t))
+	require.NoError(t, ic.DAO.PutContractState(&state.Contract{
+		Script:   inner,
+		Manifest: *m,
+	}))
+
 	t.Run("valid script", func(t *testing.T) {
 		src := getAppCallScript(fmt.Sprintf("%#v", ih.BytesBE()))
 		v := spawnVM(t, ic, src)
@@ -102,13 +115,6 @@ func TestAppCall(t *testing.T) {
 		require.Error(t, v.Run())
 	})
 
-	t.Run("invalid script address", func(t *testing.T) {
-		src := getAppCallScript("[]byte{1, 2, 3}")
-
-		_, err := compiler.Compile(strings.NewReader(src))
-		require.Error(t, err)
-	})
-
 	t.Run("convert from string constant", func(t *testing.T) {
 		src := `
 		package foo
@@ -117,7 +123,7 @@ func TestAppCall(t *testing.T) {
 		func Main() []byte {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
-			result := engine.AppCall([]byte(scriptHash), x, y)
+			result := engine.AppCall([]byte(scriptHash), "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -136,7 +142,7 @@ func TestAppCall(t *testing.T) {
 			x := []byte{1, 2}
 			y := []byte{3, 4}
 			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
-			result := engine.AppCall(addr, x, y)
+			result := engine.AppCall(addr, "append", x, y)
 			return result.([]byte)
 		}
 		`
@@ -145,6 +151,21 @@ func TestAppCall(t *testing.T) {
 		require.NoError(t, v.Run())
 
 		assertResult(t, v, []byte{1, 2, 3, 4})
+	})
+
+	t.Run("InitializedGlobals", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop/engine"
+		func Main() int {
+			var addr = []byte(` + fmt.Sprintf("%#v", string(ih.BytesBE())) + `)
+			result := engine.AppCall(addr, "add3", 39)
+			return result.(int)
+		}`
+
+		v := spawnVM(t, ic, src)
+		require.NoError(t, v.Run())
+
+		assertResult(t, v, big.NewInt(42))
 	})
 }
 
@@ -155,7 +176,7 @@ func getAppCallScript(h string) string {
 	func Main() []byte {
 		x := []byte{1, 2}
 		y := []byte{3, 4}
-		result := engine.AppCall(` + h + `, x, y)
+		result := engine.AppCall(` + h + `, "append",  x, y)
 		return result.([]byte)
 	}
 	`
