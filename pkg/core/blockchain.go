@@ -982,6 +982,11 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	return contract
 }
 
+// GetContractScriptHash returns contract script hash by its ID.
+func (bc *Blockchain) GetContractScriptHash(id int32) (util.Uint160, error) {
+	return bc.dao.GetContractScriptHash(id)
+}
+
 // GetAccountState returns the account state from its script hash.
 func (bc *Blockchain) GetAccountState(scriptHash util.Uint160) *state.Account {
 	as, err := bc.dao.GetAccountState(scriptHash)

@@ -12,6 +12,7 @@ const (
 	STAccount        KeyPrefix = 0x40
 	STNotification   KeyPrefix = 0x4d
 	STContract       KeyPrefix = 0x50
+	STContractID     KeyPrefix = 0x51
 	STStorage        KeyPrefix = 0x70
 	STNEP5Transfers  KeyPrefix = 0x72
 	STNEP5Balances   KeyPrefix = 0x73
