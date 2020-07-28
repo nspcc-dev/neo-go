@@ -853,6 +853,11 @@ func TestSyscallCallback(t *testing.T) {
 			},
 			ParamCount: 2,
 		},
+		{
+			ID:               0x53,
+			Func:             func(_ *interop.Context, _ *vm.VM) error { return nil },
+			DisallowCallback: true,
+		},
 	})
 
 	t.Run("Good", func(t *testing.T) {
@@ -873,6 +878,10 @@ func TestSyscallCallback(t *testing.T) {
 		})
 		t.Run("MissingSyscall", func(t *testing.T) {
 			v := loadScript([]byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x43)
+			require.Error(t, callback.CreateFromSyscall(ic, v))
+		})
+		t.Run("Disallowed", func(t *testing.T) {
+			v := loadScript([]byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x53)
 			require.Error(t, callback.CreateFromSyscall(ic, v))
 		})
 	})

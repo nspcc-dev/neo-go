@@ -34,6 +34,9 @@ func CreateFromSyscall(ic *interop.Context, v *vm.VM) error {
 	if f == nil {
 		return errors.New("syscall not found")
 	}
+	if f.DisallowCallback {
+		return errors.New("syscall is not allowed to be used in a callback")
+	}
 	v.Estack().PushVal(stackitem.NewInterop(&SyscallCallback{f}))
 	return nil
 }
