@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/callback"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -835,5 +836,44 @@ func TestMethodCallback(t *testing.T) {
 		require.Equal(t, 2, v.Estack().Len())
 		require.Equal(t, big.NewInt(6), v.Estack().Pop().Item().Value())
 		require.Equal(t, big.NewInt(42), v.Estack().Pop().Item().Value())
+	})
+}
+func TestSyscallCallback(t *testing.T) {
+	_, ic, bc := createVM(t)
+	defer bc.Close()
+
+	ic.Functions = append(ic.Functions, []interop.Function{
+		{
+			ID: 0x42,
+			Func: func(_ *interop.Context, v *vm.VM) error {
+				a := v.Estack().Pop().BigInt()
+				b := v.Estack().Pop().BigInt()
+				v.Estack().PushVal(new(big.Int).Add(a, b))
+				return nil
+			},
+			ParamCount: 2,
+		},
+	})
+
+	t.Run("Good", func(t *testing.T) {
+		args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12), stackitem.Make(30)})
+		v := loadScript([]byte{byte(opcode.RET)}, args, 0x42)
+		require.NoError(t, callback.CreateFromSyscall(ic, v))
+		require.NoError(t, callback.Invoke(ic, v))
+		require.Equal(t, 1, v.Estack().Len())
+		require.Equal(t, big.NewInt(42), v.Estack().Pop().Item().Value())
+	})
+
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("InvalidParameterCount", func(t *testing.T) {
+			args := stackitem.NewArray([]stackitem.Item{stackitem.Make(12)})
+			v := loadScript([]byte{byte(opcode.RET)}, args, 0x42)
+			require.NoError(t, callback.CreateFromSyscall(ic, v))
+			require.Error(t, callback.Invoke(ic, v))
+		})
+		t.Run("MissingSyscall", func(t *testing.T) {
+			v := loadScript([]byte{byte(opcode.RET)}, stackitem.NewArray(nil), 0x43)
+			require.Error(t, callback.CreateFromSyscall(ic, v))
+		})
 	})
 }

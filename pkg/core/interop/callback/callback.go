@@ -25,10 +25,12 @@ func Invoke(ic *interop.Context, v *vm.VM) error {
 		return errors.New("invalid argument count")
 	}
 	cb.LoadContext(v, args)
-	switch cb.(type) {
+	switch t := cb.(type) {
 	case *MethodCallback:
 		id := emit.InteropNameToID([]byte("System.Contract.Call"))
 		return ic.SyscallHandler(v, id)
+	case *SyscallCallback:
+		return ic.SyscallHandler(v, t.desc.ID)
 	default:
 		return nil
 	}

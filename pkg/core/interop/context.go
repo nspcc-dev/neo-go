@@ -62,10 +62,12 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 // it's supposed to be inited once for all interopContexts, so it doesn't use
 // vm.InteropFuncPrice directly.
 type Function struct {
-	ID    uint32
-	Name  string
-	Func  func(*Context, *vm.VM) error
-	Price int64
+	ID   uint32
+	Name string
+	Func func(*Context, *vm.VM) error
+	// ParamCount is a number of function parameters.
+	ParamCount int
+	Price      int64
 	// RequiredFlags is a set of flags which must be set during script invocations.
 	// Default value is NoneFlag i.e. no flags are required.
 	RequiredFlags smartcontract.CallFlag
