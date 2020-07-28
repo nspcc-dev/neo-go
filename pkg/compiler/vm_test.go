@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -68,7 +69,8 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
-	vm.RegisterInteropGetter(storePlugin.getInterop)
+	vm.GasLimit = -1
+	vm.SyscallHandler = storePlugin.syscallHandler
 
 	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
 	require.NoError(t, err)
@@ -97,14 +99,14 @@ func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *comp
 
 type storagePlugin struct {
 	mem      map[string][]byte
-	interops map[uint32]vm.InteropFunc
+	interops map[uint32]func(v *vm.VM) error
 	events   []state.NotificationEvent
 }
 
 func newStoragePlugin() *storagePlugin {
 	s := &storagePlugin{
 		mem:      make(map[string][]byte),
-		interops: make(map[uint32]vm.InteropFunc),
+		interops: make(map[uint32]func(v *vm.VM) error),
 	}
 	s.interops[emit.InteropNameToID([]byte("System.Storage.Get"))] = s.Get
 	s.interops[emit.InteropNameToID([]byte("System.Storage.Put"))] = s.Put
@@ -114,12 +116,15 @@ func newStoragePlugin() *storagePlugin {
 
 }
 
-func (s *storagePlugin) getInterop(id uint32) *vm.InteropFuncPrice {
+func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 	f := s.interops[id]
 	if f != nil {
-		return &vm.InteropFuncPrice{Func: f, Price: 1}
+		if !v.AddGas(1) {
+			return errors.New("insufficient amount of gas")
+		}
+		return f(v)
 	}
-	return nil
+	return errors.New("syscall not found")
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {

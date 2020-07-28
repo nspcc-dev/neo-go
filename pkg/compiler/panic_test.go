@@ -1,6 +1,7 @@
 package compiler_test
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -20,7 +21,7 @@ func TestPanic(t *testing.T) {
 		var logs []string
 		src := getPanicSource(true, `"execution fault"`)
 		v := vmAndCompile(t, src)
-		v.RegisterInteropGetter(logGetter(&logs))
+		v.SyscallHandler = getLogHandler(&logs)
 
 		require.Error(t, v.Run())
 		require.True(t, v.HasFailed())
@@ -32,7 +33,7 @@ func TestPanic(t *testing.T) {
 		var logs []string
 		src := getPanicSource(true, `nil`)
 		v := vmAndCompile(t, src)
-		v.RegisterInteropGetter(logGetter(&logs))
+		v.SyscallHandler = getLogHandler(&logs)
 
 		require.Error(t, v.Run())
 		require.True(t, v.HasFailed())
@@ -54,19 +55,15 @@ func getPanicSource(need bool, message string) string {
 	`, need, message)
 }
 
-func logGetter(logs *[]string) vm.InteropGetterFunc {
+func getLogHandler(logs *[]string) vm.SyscallHandler {
 	logID := emit.InteropNameToID([]byte("System.Runtime.Log"))
-	return func(id uint32) *vm.InteropFuncPrice {
+	return func(v *vm.VM, id uint32) error {
 		if id != logID {
-			return nil
+			return errors.New("syscall not found")
 		}
 
-		return &vm.InteropFuncPrice{
-			Func: func(v *vm.VM) error {
-				msg := string(v.Estack().Pop().Bytes())
-				*logs = append(*logs, msg)
-				return nil
-			},
-		}
+		msg := string(v.Estack().Pop().Bytes())
+		*logs = append(*logs, msg)
+		return nil
 	}
 }

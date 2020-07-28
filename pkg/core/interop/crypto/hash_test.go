@@ -7,7 +7,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,9 +19,9 @@ func TestSHA256(t *testing.T) {
 	emit.Bytes(buf.BinWriter, []byte{1, 0})
 	emit.Syscall(buf.BinWriter, "Neo.Crypto.SHA256")
 	prog := buf.Bytes()
-	v := vm.New()
 	ic := &interop.Context{Trigger: trigger.Verification}
-	v.RegisterInteropGetter(GetInterop(ic))
+	Register(ic)
+	v := ic.SpawnVM()
 	v.Load(prog)
 	require.NoError(t, v.Run())
 	assert.Equal(t, 1, v.Estack().Len())
@@ -36,9 +35,9 @@ func TestRIPEMD160(t *testing.T) {
 	emit.Bytes(buf.BinWriter, []byte{1, 0})
 	emit.Syscall(buf.BinWriter, "Neo.Crypto.RIPEMD160")
 	prog := buf.Bytes()
-	v := vm.New()
 	ic := &interop.Context{Trigger: trigger.Verification}
-	v.RegisterInteropGetter(GetInterop(ic))
+	Register(ic)
+	v := ic.SpawnVM()
 	v.Load(prog)
 	require.NoError(t, v.Run())
 	assert.Equal(t, 1, v.Estack().Len())
