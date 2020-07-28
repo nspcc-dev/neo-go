@@ -707,14 +707,6 @@ func parseUint160(addr []byte) util.Uint160 {
 func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *block.Block, sc util.Uint160, from, to []byte, amount *big.Int) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
-	transfer := &state.NEP5Transfer{
-		Asset:     sc,
-		From:      fromAddr,
-		To:        toAddr,
-		Block:     b.Index,
-		Timestamp: b.Timestamp,
-		Tx:        h,
-	}
 	var id int32
 	nativeContract := bc.contracts.ByHash(sc)
 	if nativeContract != nil {
@@ -725,6 +717,14 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 			return
 		}
 		id = assetContract.ID
+	}
+	transfer := &state.NEP5Transfer{
+		Asset:     id,
+		From:      fromAddr,
+		To:        toAddr,
+		Block:     b.Index,
+		Timestamp: b.Timestamp,
+		Tx:        h,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
 		balances, err := cache.GetNEP5Balances(fromAddr)

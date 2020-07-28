@@ -50,7 +50,7 @@ func TestNEP5Tracker_EncodeBinary(t *testing.T) {
 
 func TestNEP5Transfer_DecodeBinary(t *testing.T) {
 	expected := &NEP5Transfer{
-		Asset:     util.Uint160{1, 2, 3},
+		Asset:     123,
 		From:      util.Uint160{5, 6, 7},
 		To:        util.Uint160{8, 9, 10},
 		Amount:    *big.NewInt(42),
@@ -78,7 +78,7 @@ func randomTransfer(r *rand.Rand) *NEP5Transfer {
 	return &NEP5Transfer{
 		Amount: *big.NewInt(int64(r.Uint64())),
 		Block:  r.Uint32(),
-		Asset:  random.Uint160(),
+		Asset:  int32(random.Int(10, 10000000)),
 		From:   random.Uint160(),
 		To:     random.Uint160(),
 		Tx:     random.Uint256(),

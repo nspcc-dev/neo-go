@@ -549,13 +549,17 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	lg := s.chain.GetNEP5TransferLog(u)
 	cache := make(map[util.Uint160]int64)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
+		h, err := s.chain.GetContractScriptHash(tr.Asset)
+		if err != nil {
+			return nil
+		}
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
-			Asset:     tr.Asset,
+			Asset:     h,
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
 		}
-		d, err := s.getDecimals(tr.Asset, cache)
+		d, err := s.getDecimals(h, cache)
 		if err != nil {
 			return nil
 		}
