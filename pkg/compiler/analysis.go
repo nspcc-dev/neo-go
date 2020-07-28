@@ -68,28 +68,6 @@ func isExprNil(e ast.Expr) bool {
 	return ok && v.Name == "nil"
 }
 
-// resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.
-func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *ast.File) {
-	var (
-		main *ast.FuncDecl
-		file *ast.File
-	)
-	for _, f := range pkg.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			switch t := n.(type) {
-			case *ast.FuncDecl:
-				if t.Name.Name == entry {
-					main = t
-					file = f
-					return false
-				}
-			}
-			return true
-		})
-	}
-	return main, file
-}
-
 // indexOfStruct returns the index of the given field inside that struct.
 // If the struct does not contain that field it will return -1.
 func indexOfStruct(strct *types.Struct, fldName string) int {
