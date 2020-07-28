@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"io"
 	"io/ioutil"
@@ -40,6 +41,16 @@ type Options struct {
 type buildInfo struct {
 	initialPackage string
 	program        *loader.Program
+}
+
+// ForEachFile executes fn on each file used in current program.
+func (c *codegen) ForEachFile(fn func(*ast.File)) {
+	for _, pkg := range c.buildInfo.program.AllPackages {
+		c.typeInfo = &pkg.Info
+		for _, f := range pkg.Files {
+			fn(f)
+		}
+	}
 }
 
 func getBuildInfo(src interface{}) (*buildInfo, error) {

@@ -252,7 +252,7 @@ func (c *codegen) emitDefault(t types.Type) {
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f ast.Node) {
+func (c *codegen) convertGlobals(f *ast.File) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
@@ -1425,7 +1425,7 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	}
 
 	c.mainPkg = pkg
-	n := c.traverseGlobals(pkg.Files...)
+	n := c.traverseGlobals()
 	if n > 0 {
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		c.initEndOffset = c.prog.Len()

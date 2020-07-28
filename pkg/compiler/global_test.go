@@ -127,3 +127,12 @@ func TestContractWithNoMain(t *testing.T) {
 	require.Equal(t, 1, v.Estack().Len())
 	require.Equal(t, big.NewInt(42), v.PopResult())
 }
+
+func TestMultipleFiles(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+	func Main() int {
+		return multi.Sum()
+	}`
+	eval(t, src, big.NewInt(42))
+}
