@@ -378,20 +378,24 @@ func getTestContractState() *state.Contract {
 	}
 }
 
+func loadScript(script []byte, args ...interface{}) *vm.VM {
+	v := vm.New()
+	v.LoadScriptWithFlags(script, smartcontract.AllowCall)
+	for i := range args {
+		v.Estack().PushVal(args[i])
+	}
+	v.GasLimit = -1
+	return v
+}
+
 func TestContractCall(t *testing.T) {
-	v, ic, bc := createVM(t)
+	_, ic, bc := createVM(t)
 	defer bc.Close()
 
 	cs := getTestContractState()
 	require.NoError(t, ic.DAO.PutContractState(cs))
 
 	currScript := []byte{byte(opcode.NOP)}
-	initVM := func(v *vm.VM) {
-		v.Istack().Clear()
-		v.Estack().Clear()
-		v.Load(currScript)
-		v.Estack().PushVal(42) // canary
-	}
 
 	h := cs.Manifest.ABI.Hash
 	m := manifest.NewManifest(hash.Hash160(currScript))
@@ -409,7 +413,7 @@ func TestContractCall(t *testing.T) {
 
 	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
-		initVM(v)
+		v := loadScript(currScript, 42)
 		v.Estack().PushVal(addArgs)
 		v.Estack().PushVal("add")
 		v.Estack().PushVal(h.BytesBE())
@@ -421,7 +425,7 @@ func TestContractCall(t *testing.T) {
 	})
 
 	t.Run("CallExInvalidFlag", func(t *testing.T) {
-		initVM(v)
+		v := loadScript(currScript, 42)
 		v.Estack().PushVal(byte(0xFF))
 		v.Estack().PushVal(addArgs)
 		v.Estack().PushVal("add")
@@ -431,7 +435,7 @@ func TestContractCall(t *testing.T) {
 
 	runInvalid := func(args ...interface{}) func(t *testing.T) {
 		return func(t *testing.T) {
-			initVM(v)
+			v := loadScript(currScript, 42)
 			for i := range args {
 				v.Estack().PushVal(args[i])
 			}
@@ -451,7 +455,7 @@ func TestContractCall(t *testing.T) {
 	})
 
 	t.Run("IsolatedStack", func(t *testing.T) {
-		initVM(v)
+		v := loadScript(currScript, 42)
 		v.Estack().PushVal(stackitem.NewArray(nil))
 		v.Estack().PushVal("drop")
 		v.Estack().PushVal(h.BytesBE())
@@ -462,7 +466,7 @@ func TestContractCall(t *testing.T) {
 	t.Run("CallInitialize", func(t *testing.T) {
 		t.Run("Directly", runInvalid(stackitem.NewArray([]stackitem.Item{}), "_initialize", h.BytesBE()))
 
-		initVM(v)
+		v := loadScript(currScript, 42)
 		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
 		v.Estack().PushVal("add3")
 		v.Estack().PushVal(h.BytesBE())
