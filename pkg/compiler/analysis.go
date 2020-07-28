@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"golang.org/x/tools/go/loader"
 )
 
 var (
@@ -30,7 +29,7 @@ func (c *codegen) newGlobal(name string) {
 // and returns number of variables initialized.
 func (c *codegen) traverseGlobals() int {
 	var n int
-	c.ForEachFile(func(f *ast.File) {
+	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
 	})
 	if n != 0 {
@@ -95,31 +94,29 @@ func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
 	return false
 }
 
-func analyzeFuncUsage(mainPkg *loader.PackageInfo, pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
+func (c *codegen) analyzeFuncUsage() funcUsage {
 	usage := funcUsage{}
 
-	for _, pkg := range pkgs {
-		isMain := pkg == mainPkg
-		for _, f := range pkg.Files {
-			ast.Inspect(f, func(node ast.Node) bool {
-				switch n := node.(type) {
-				case *ast.CallExpr:
-					switch t := n.Fun.(type) {
-					case *ast.Ident:
-						usage[t.Name] = true
-					case *ast.SelectorExpr:
-						usage[t.Sel.Name] = true
-					}
-				case *ast.FuncDecl:
-					// exported functions are always assumed to be used
-					if isMain && n.Name.IsExported() {
-						usage[n.Name.Name] = true
-					}
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		isMain := pkg == c.mainPkg.Pkg
+		ast.Inspect(f, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.CallExpr:
+				switch t := n.Fun.(type) {
+				case *ast.Ident:
+					usage[t.Name] = true
+				case *ast.SelectorExpr:
+					usage[t.Sel.Name] = true
 				}
-				return true
-			})
-		}
-	}
+			case *ast.FuncDecl:
+				// exported functions are always assumed to be used
+				if isMain && n.Name.IsExported() {
+					usage[n.Name.Name] = true
+				}
+			}
+			return true
+		})
+	})
 	return usage
 }
 

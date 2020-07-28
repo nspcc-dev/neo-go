@@ -252,7 +252,7 @@ func (c *codegen) emitDefault(t types.Type) {
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f *ast.File) {
+func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
@@ -1415,16 +1415,12 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
-	funUsage := analyzeFuncUsage(pkg, info.program.AllPackages)
+	c.mainPkg = pkg
+	funUsage := c.analyzeFuncUsage()
 
 	// Bring all imported functions into scope.
-	for _, pkg := range info.program.AllPackages {
-		for _, f := range pkg.Files {
-			c.resolveFuncDecls(f, pkg.Pkg)
-		}
-	}
+	c.ForEachFile(c.resolveFuncDecls)
 
-	c.mainPkg = pkg
 	n := c.traverseGlobals()
 	if n > 0 {
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
@@ -1439,23 +1435,18 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
 
 	// Generate the code for the program.
-	for _, k := range keys {
-		pkg := info.program.AllPackages[k]
-		c.typeInfo = &pkg.Info
-
-		for _, f := range pkg.Files {
-			for _, decl := range f.Decls {
-				switch n := decl.(type) {
-				case *ast.FuncDecl:
-					// Don't convert the function if it's not used. This will save a lot
-					// of bytecode space.
-					if funUsage.funcUsed(n.Name.Name) {
-						c.convertFuncDecl(f, n, k)
-					}
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		for _, decl := range f.Decls {
+			switch n := decl.(type) {
+			case *ast.FuncDecl:
+				// Don't convert the function if it's not used. This will save a lot
+				// of bytecode space.
+				if funUsage.funcUsed(n.Name.Name) {
+					c.convertFuncDecl(f, n, pkg)
 				}
 			}
 		}
-	}
+	})
 
 	return c.prog.Err
 }

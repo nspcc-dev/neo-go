@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
@@ -44,11 +45,11 @@ type buildInfo struct {
 }
 
 // ForEachFile executes fn on each file used in current program.
-func (c *codegen) ForEachFile(fn func(*ast.File)) {
+func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
 	for _, pkg := range c.buildInfo.program.AllPackages {
 		c.typeInfo = &pkg.Info
 		for _, f := range pkg.Files {
-			fn(f)
+			fn(f, pkg.Pkg)
 		}
 	}
 }
