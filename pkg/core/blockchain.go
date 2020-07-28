@@ -715,15 +715,26 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		Timestamp: b.Timestamp,
 		Tx:        h,
 	}
+	var id int32
+	nativeContract := bc.contracts.ByHash(sc)
+	if nativeContract != nil {
+		id = nativeContract.Metadata().ContractID
+	} else {
+		assetContract := bc.GetContractState(sc)
+		if assetContract == nil {
+			return
+		}
+		id = assetContract.ID
+	}
 	if !fromAddr.Equals(util.Uint160{}) {
 		balances, err := cache.GetNEP5Balances(fromAddr)
 		if err != nil {
 			return
 		}
-		bs := balances.Trackers[sc]
+		bs := balances.Trackers[id]
 		bs.Balance = *new(big.Int).Sub(&bs.Balance, amount)
 		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[sc] = bs
+		balances.Trackers[id] = bs
 		transfer.Amount = *new(big.Int).Sub(&transfer.Amount, amount)
 		isBig, err := cache.AppendNEP5Transfer(fromAddr, balances.NextTransferBatch, transfer)
 		if err != nil {
@@ -741,10 +752,10 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, h util.Uint256, b *
 		if err != nil {
 			return
 		}
-		bs := balances.Trackers[sc]
+		bs := balances.Trackers[id]
 		bs.Balance = *new(big.Int).Add(&bs.Balance, amount)
 		bs.LastUpdatedBlock = b.Index
-		balances.Trackers[sc] = bs
+		balances.Trackers[id] = bs
 
 		transfer.Amount = *amount
 		isBig, err := cache.AppendNEP5Transfer(toAddr, balances.NextTransferBatch, transfer)
@@ -792,7 +803,7 @@ func (bc *Blockchain) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 	if err != nil {
 		return big.NewInt(0)
 	}
-	balance := bs.Trackers[bc.contracts.GAS.Hash].Balance
+	balance := bs.Trackers[bc.contracts.GAS.ContractID].Balance
 	return &balance
 }
 
@@ -803,7 +814,7 @@ func (bc *Blockchain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint
 	if err != nil {
 		return big.NewInt(0), 0
 	}
-	neo := bs.Trackers[bc.contracts.NEO.Hash]
+	neo := bs.Trackers[bc.contracts.NEO.ContractID]
 	return &neo.Balance, neo.LastUpdatedBlock
 }
 

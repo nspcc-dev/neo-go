@@ -210,7 +210,7 @@ func (c *nep5TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) 
 	if err != nil {
 		panic(err)
 	}
-	balance := bs.Trackers[c.Hash].Balance
+	balance := bs.Trackers[c.ContractID].Balance
 	return stackitem.NewBigInteger(&balance)
 }
 

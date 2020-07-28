@@ -43,10 +43,10 @@ type NEP5Transfer struct {
 	Tx util.Uint256
 }
 
-// NEP5Balances is a map of the NEP5 contract hashes
+// NEP5Balances is a map of the NEP5 contract IDs
 // to the corresponding structures.
 type NEP5Balances struct {
-	Trackers map[util.Uint160]NEP5Tracker
+	Trackers map[int32]NEP5Tracker
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
 }
@@ -54,7 +54,7 @@ type NEP5Balances struct {
 // NewNEP5Balances returns new NEP5Balances.
 func NewNEP5Balances() *NEP5Balances {
 	return &NEP5Balances{
-		Trackers: make(map[util.Uint160]NEP5Tracker),
+		Trackers: make(map[int32]NEP5Tracker),
 	}
 }
 
@@ -62,11 +62,10 @@ func NewNEP5Balances() *NEP5Balances {
 func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	lenBalances := r.ReadVarUint()
-	m := make(map[util.Uint160]NEP5Tracker, lenBalances)
+	m := make(map[int32]NEP5Tracker, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
-		var key util.Uint160
+		key := int32(r.ReadU32LE())
 		var tr NEP5Tracker
-		r.ReadBytes(key[:])
 		tr.DecodeBinary(r)
 		m[key] = tr
 	}
@@ -78,7 +77,7 @@ func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteVarUint(uint64(len(bs.Trackers)))
 	for k, v := range bs.Trackers {
-		w.WriteBytes(k[:])
+		w.WriteU32LE(uint32(k))
 		v.EncodeBinary(w)
 	}
 }

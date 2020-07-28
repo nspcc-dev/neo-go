@@ -1,11 +1,9 @@
 package dao
 
 import (
-	"bytes"
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -123,65 +121,6 @@ func (cd *Cached) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.N
 		return false, err
 	}
 	return lg.Size() >= nep5TransferBatchSize, cd.PutNEP5TransferLog(acc, index, lg)
-}
-
-// MigrateNEP5Balances migrates NEP5 balances from old contract to the new one.
-func (cd *Cached) MigrateNEP5Balances(from, to util.Uint160) error {
-	var (
-		simpleDAO *Simple
-		cachedDAO = cd
-		ok        bool
-		w         = io.NewBufBinWriter()
-	)
-	for simpleDAO == nil {
-		simpleDAO, ok = cachedDAO.DAO.(*Simple)
-		if !ok {
-			cachedDAO, ok = cachedDAO.DAO.(*Cached)
-			if !ok {
-				panic("uknown DAO")
-			}
-		}
-	}
-	for acc, bs := range cd.balances {
-		err := simpleDAO.putNEP5Balances(acc, bs, w)
-		if err != nil {
-			return err
-		}
-		w.Reset()
-	}
-	cd.dropNEP5Cache = true
-	var store = simpleDAO.Store
-	// Create another layer of cache because we can't change original storage
-	// while seeking.
-	var upStore = storage.NewMemCachedStore(store)
-	store.Seek([]byte{byte(storage.STNEP5Balances)}, func(k, v []byte) {
-		if !bytes.Contains(v, from[:]) {
-			return
-		}
-		bs := state.NewNEP5Balances()
-		reader := io.NewBinReaderFromBuf(v)
-		bs.DecodeBinary(reader)
-		if reader.Err != nil {
-			panic("bad nep5 balances")
-		}
-		tr, ok := bs.Trackers[from]
-		if !ok {
-			return
-		}
-		delete(bs.Trackers, from)
-		bs.Trackers[to] = tr
-		w.Reset()
-		bs.EncodeBinary(w.BinWriter)
-		if w.Err != nil {
-			panic("error on nep5 balance encoding")
-		}
-		err := upStore.Put(k, w.Bytes())
-		if err != nil {
-			panic("can't put value in the DB")
-		}
-	})
-	_, err := upStore.Persist()
-	return err
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent

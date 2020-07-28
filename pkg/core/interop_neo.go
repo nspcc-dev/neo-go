@@ -154,7 +154,6 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 		if err := ic.DAO.DeleteContractState(oldHash); err != nil {
 			return fmt.Errorf("failed to update script: %v", err)
 		}
-		ic.DAO.MigrateNEP5Balances(oldHash, newHash)
 	}
 	// if manifest was provided, update the old contract manifest and check associated
 	// storage items if needed

@@ -515,7 +515,11 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	}
 	if as != nil {
 		cache := make(map[util.Uint160]int64)
-		for h, bal := range as.Trackers {
+		for id, bal := range as.Trackers {
+			h, err := s.chain.GetContractScriptHash(id)
+			if err != nil {
+				continue
+			}
 			dec, err := s.getDecimals(h, cache)
 			if err != nil {
 				continue
