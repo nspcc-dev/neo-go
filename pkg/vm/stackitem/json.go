@@ -200,3 +200,67 @@ func (d *decoder) decodeMap() (*Map, error) {
 		m.Add(NewByteArray([]byte(k)), val)
 	}
 }
+
+// ToJSONWithTypes serializes any stackitem to JSON in a lossless way.
+func ToJSONWithTypes(item Item) ([]byte, error) {
+	result, err := toJSONWithTypes(item, make(map[Item]bool))
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(result)
+}
+
+func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
+	typ := item.Type()
+	result := map[string]interface{}{
+		"type": typ.String(),
+	}
+	var value interface{}
+	switch it := item.(type) {
+	case *Array, *Struct:
+		if seen[item] {
+			return "", errors.New("recursive structures can't be serialized to json")
+		}
+		seen[item] = true
+		arr := []interface{}{}
+		for _, elem := range it.Value().([]Item) {
+			s, err := toJSONWithTypes(elem, seen)
+			if err != nil {
+				return "", err
+			}
+			arr = append(arr, s)
+		}
+		value = arr
+	case *Bool:
+		value = it.value
+	case *Buffer, *ByteArray:
+		value = base64.StdEncoding.EncodeToString(it.Value().([]byte))
+	case *BigInteger:
+		value = it.value.String()
+	case *Map:
+		if seen[item] {
+			return "", errors.New("recursive structures can't be serialized to json")
+		}
+		seen[item] = true
+		arr := []interface{}{}
+		for i := range it.value {
+			// map keys are primitive types and can always be converted to json
+			key, _ := toJSONWithTypes(it.value[i].Key, seen)
+			val, err := toJSONWithTypes(it.value[i].Value, seen)
+			if err != nil {
+				return "", err
+			}
+			arr = append(arr, map[string]interface{}{
+				"key":   key,
+				"value": val,
+			})
+		}
+		value = arr
+	case *Pointer:
+		value = it.pos
+	}
+	if value != nil {
+		result["value"] = value
+	}
+	return result, nil
+}
