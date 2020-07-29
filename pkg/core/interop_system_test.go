@@ -443,7 +443,14 @@ func TestContractCall(t *testing.T) {
 			for i := range args {
 				v.Estack().PushVal(args[i])
 			}
-			require.Error(t, contractCall(ic, v))
+			// interops can both return error and panic,
+			// we don't care which kind of error has occured
+			require.Panics(t, func() {
+				err := contractCall(ic, v)
+				if err != nil {
+					panic(err)
+				}
+			})
 		}
 	}
 

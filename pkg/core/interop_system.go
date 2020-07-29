@@ -457,16 +457,16 @@ func storageContextAsReadOnly(ic *interop.Context, v *vm.VM) error {
 // contractCall calls a contract.
 func contractCall(ic *interop.Context, v *vm.VM) error {
 	h := v.Estack().Pop().Bytes()
-	method := v.Estack().Pop().Item()
-	args := v.Estack().Pop().Item()
+	method := v.Estack().Pop().String()
+	args := v.Estack().Pop().Array()
 	return contractCallExInternal(ic, v, h, method, args, smartcontract.All)
 }
 
 // contractCallEx calls a contract with flags.
 func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	h := v.Estack().Pop().Bytes()
-	method := v.Estack().Pop().Item()
-	args := v.Estack().Pop().Item()
+	method := v.Estack().Pop().String()
+	args := v.Estack().Pop().Array()
 	flags := smartcontract.CallFlag(int32(v.Estack().Pop().BigInt().Int64()))
 	if flags&^smartcontract.All != 0 {
 		return errors.New("call flags out of range")
@@ -474,7 +474,7 @@ func contractCallEx(ic *interop.Context, v *vm.VM) error {
 	return contractCallExInternal(ic, v, h, method, args, flags)
 }
 
-func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stackitem.Item, args stackitem.Item, f smartcontract.CallFlag) error {
+func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, name string, args []stackitem.Item, f smartcontract.CallFlag) error {
 	u, err := util.Uint160DecodeBytesBE(h)
 	if err != nil {
 		return errors.New("invalid contract hash")
@@ -482,10 +482,6 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	cs, err := ic.DAO.GetContractState(u)
 	if err != nil {
 		return errors.New("contract not found")
-	}
-	name, err := stackitem.ToString(method)
-	if err != nil {
-		return err
 	}
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
@@ -501,12 +497,8 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 		}
 	}
 
-	arr, ok := args.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("second argument must be an array")
-	}
-	if len(arr) != len(md.Parameters) {
-		return fmt.Errorf("invalid argument count: %d (expected %d)", len(arr), len(md.Parameters))
+	if len(args) != len(md.Parameters) {
+		return fmt.Errorf("invalid argument count: %d (expected %d)", len(args), len(md.Parameters))
 	}
 
 	ic.Invocations[u]++
@@ -520,10 +512,10 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	}
 	if isNative {
 		v.Estack().PushVal(args)
-		v.Estack().PushVal(method)
+		v.Estack().PushVal(name)
 	} else {
-		for i := len(arr) - 1; i >= 0; i-- {
-			v.Estack().PushVal(arr[i])
+		for i := len(args) - 1; i >= 0; i-- {
+			v.Estack().PushVal(args[i])
 		}
 		// use Jump not Call here because context was loaded in LoadScript above.
 		v.Jump(v.Context(), md.Offset)
