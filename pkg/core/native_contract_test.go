@@ -1,15 +1,21 @@
 package core
 
 import (
+	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -139,4 +145,45 @@ func TestNativeContract_Invoke(t *testing.T) {
 	default:
 		require.Fail(t, "onPersist wasn't called")
 	}
+}
+
+func TestNativeContract_InvokeInternal(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	tn := newTestNative()
+	chain.registerNative(tn)
+
+	err := chain.dao.PutContractState(&state.Contract{
+		Script:   tn.meta.Script,
+		Manifest: tn.meta.Manifest,
+	})
+	require.NoError(t, err)
+
+	v := vm.New()
+	v.GasLimit = -1
+	ic := chain.newInteropContext(trigger.Application,
+		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+
+	t.Run("fail, bad current script hash", func(t *testing.T) {
+		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, smartcontract.All)
+		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
+		v.Estack().PushVal("sum")
+		v.Estack().PushVal(tn.Metadata().Name)
+
+		// it's prohibited to call natives directly
+		require.Error(t, native.Call(ic, v))
+	})
+
+	t.Run("success", func(t *testing.T) {
+		v.LoadScriptWithHash([]byte{1}, tn.Metadata().Hash, smartcontract.All)
+		v.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.NewBigInteger(big.NewInt(14)), stackitem.NewBigInteger(big.NewInt(28))}))
+		v.Estack().PushVal("sum")
+		v.Estack().PushVal(tn.Metadata().Name)
+
+		require.NoError(t, native.Call(ic, v))
+
+		value := v.Estack().Pop().BigInt()
+		require.Equal(t, int64(42), value.Int64())
+	})
 }

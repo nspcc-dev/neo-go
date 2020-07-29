@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PolicyContractHash represents BE hash of native Policy contract.
-var PolicyContractHash = util.Uint160{154, 97, 164, 110, 236, 151, 184, 147, 6, 215, 206, 129, 241, 91, 70, 32, 145, 208, 9, 50}
+// PolicyContractHash represents a hash of native Policy contract.
+var PolicyContractHash, _ = util.Uint160DecodeStringBE("e9ff4ca7cc252e1dfddb26315869cd79505906ce")
 
 // GetMaxTransactionsPerBlock invokes `getMaxTransactionsPerBlock` method on a
 // native Policy contract.

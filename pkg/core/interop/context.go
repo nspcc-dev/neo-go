@@ -82,25 +82,25 @@ type Contract interface {
 
 // ContractMD represents native contract instance.
 type ContractMD struct {
-	Manifest    manifest.Manifest
-	ServiceName string
-	ServiceID   uint32
-	ContractID  int32
-	Script      []byte
-	Hash        util.Uint160
-	Methods     map[string]MethodAndPrice
+	Manifest   manifest.Manifest
+	Name       string
+	ContractID int32
+	Script     []byte
+	Hash       util.Uint160
+	Methods    map[string]MethodAndPrice
 }
 
 // NewContractMD returns Contract with the specified list of methods.
 func NewContractMD(name string) *ContractMD {
 	c := &ContractMD{
-		ServiceName: name,
-		ServiceID:   emit.InteropNameToID([]byte(name)),
-		Methods:     make(map[string]MethodAndPrice),
+		Name:    name,
+		Methods: make(map[string]MethodAndPrice),
 	}
 
 	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, c.ServiceName)
+	emit.String(w.BinWriter, c.Name)
+	emit.Syscall(w.BinWriter, "Neo.Native.Call")
+
 	c.Script = w.Bytes()
 	c.Hash = hash.Hash160(c.Script)
 	c.Manifest = *manifest.DefaultManifest(c.Hash)

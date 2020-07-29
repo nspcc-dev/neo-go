@@ -28,9 +28,6 @@ func SpawnVM(ic *interop.Context) *vm.VM {
 	vm := vm.NewWithTrigger(ic.Trigger)
 	vm.RegisterInteropGetter(getSystemInterop(ic))
 	vm.RegisterInteropGetter(getNeoInterop(ic))
-	if ic.Chain != nil {
-		vm.RegisterInteropGetter(ic.Chain.(*Blockchain).contracts.GetNativeInterop(ic))
-	}
 	ic.ScriptGetter = vm
 	return vm
 }
@@ -129,6 +126,7 @@ var neoInterops = []interop.Function{
 	{Name: "Neo.Crypto.CheckMultisigWithECDsaSecp256k1", Func: crypto.ECDSASecp256k1CheckMultisig, Price: 0},
 	{Name: "Neo.Crypto.SHA256", Func: crypto.Sha256, Price: 1000000},
 	{Name: "Neo.Crypto.RIPEMD160", Func: crypto.RipeMD160, Price: 1000000},
+	{Name: "Neo.Native.Call", Func: native.Call, Price: 0},
 	{Name: "Neo.Native.Deploy", Func: native.Deploy, Price: 0, RequiredFlags: smartcontract.AllowModifyStates},
 }
 

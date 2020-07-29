@@ -177,8 +177,10 @@ func TestCreateBasicChain(t *testing.T) {
 
 	gasHash := bc.contracts.GAS.Hash
 	neoHash := bc.contracts.NEO.Hash
+	policyHash := bc.contracts.Policy.Hash
 	t.Logf("native GAS hash: %v", gasHash)
 	t.Logf("native NEO hash: %v", neoHash)
+	t.Logf("native Policy hash: %v", policyHash)
 
 	priv0 := testchain.PrivateKeyByID(0)
 	priv0ScriptHash := priv0.GetScriptHash()
