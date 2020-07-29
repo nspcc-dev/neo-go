@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -33,6 +35,14 @@ func (c *Cosigner) EncodeBinary(bw *io.BinWriter) {
 func (c *Cosigner) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(c.Account[:])
 	c.Scopes = WitnessScope(br.ReadB())
+	if c.Scopes & ^(Global|CalledByEntry|CustomContracts|CustomGroups) != 0 {
+		br.Err = errors.New("unknown witness scope")
+		return
+	}
+	if c.Scopes&Global != 0 && c.Scopes != Global {
+		br.Err = errors.New("global scope can not be combined with other scopes")
+		return
+	}
 	if c.Scopes&CustomContracts != 0 {
 		br.ReadArray(&c.AllowedContracts, maxSubitems)
 	}
