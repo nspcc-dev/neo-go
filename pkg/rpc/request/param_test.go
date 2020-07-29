@@ -96,7 +96,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			Type: Cosigner,
 			Value: transaction.Cosigner{
 				Account: accountHash,
-				Scopes:  transaction.Global,
+				Scopes:  transaction.FeeOnly,
 			},
 		},
 		{

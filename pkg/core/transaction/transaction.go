@@ -152,6 +152,10 @@ func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 
 	br.ReadArray(&t.Cosigners, MaxCosigners)
 	for i := 0; i < len(t.Cosigners); i++ {
+		if t.Cosigners[i].Scopes == FeeOnly {
+			br.Err = errors.New("FeeOnly scope can be used only for sender")
+			return
+		}
 		for j := i + 1; j < len(t.Cosigners); j++ {
 			if t.Cosigners[i].Account.Equals(t.Cosigners[j].Account) {
 				br.Err = errors.New("transaction cosigners should be unique")

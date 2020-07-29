@@ -690,7 +690,9 @@ func parseContractConfig(confFile string) (ProjectConfig, error) {
 func parseCosigner(c string) (transaction.Cosigner, error) {
 	var (
 		err error
-		res = transaction.Cosigner{}
+		res = transaction.Cosigner{
+			Scopes: transaction.Global,
+		}
 	)
 	data := strings.SplitN(c, ":", 2)
 	s := data[0]
