@@ -590,7 +590,7 @@ func amountToString(amount *big.Int, decimals int64) string {
 	return fmt.Sprintf(fs, q, r)
 }
 
-func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, *response.Error) {
+func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, error) {
 	if d, ok := cache[h]; ok {
 		return d, nil
 	}
@@ -605,11 +605,11 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 		},
 	})
 	if err != nil {
-		return 0, response.NewInternalServerError("Can't create script", err)
+		return 0, fmt.Errorf("can't create script: %v", err)
 	}
 	res := s.runScriptInVM(script, nil)
 	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
-		return 0, response.NewInternalServerError("execution error", errors.New("no result"))
+		return 0, errors.New("execution error : no result")
 	}
 
 	var d int64
@@ -619,10 +619,10 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 	case smartcontract.ByteArrayType:
 		d = bigint.FromBytes(item.Value.([]byte)).Int64()
 	default:
-		return 0, response.NewInternalServerError("invalid result", errors.New("not an integer"))
+		return 0, errors.New("invalid result: not an integer")
 	}
 	if d < 0 {
-		return 0, response.NewInternalServerError("incorrect result", errors.New("negative result"))
+		return 0, errors.New("incorrect result: negative result")
 	}
 	cache[h] = d
 	return d, nil
