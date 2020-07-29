@@ -112,7 +112,7 @@ var stringerTestCases = []struct {
 	},
 	{
 		input:  NewByteArray([]byte{}),
-		result: "ByteArray",
+		result: "ByteString",
 	},
 	{
 		input:  NewArray([]Item{}),

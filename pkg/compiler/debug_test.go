@@ -63,7 +63,7 @@ func unexportedMethod() int { return 1 }
 		returnTypes := map[string]string{
 			"MethodInt":    "Integer",
 			"MethodConcat": "String",
-			"MethodString": "String", "MethodByteArray": "ByteArray",
+			"MethodString": "String", "MethodByteArray": "ByteString",
 			"MethodArray": "Array", "MethodStruct": "Struct",
 			"Main":             "Boolean",
 			"unexportedMethod": "Integer",
@@ -272,7 +272,7 @@ func TestDebugInfo_MarshalJSON(t *testing.T) {
 					{"param1", "Integer"},
 					{"ok", "Boolean"},
 				},
-				ReturnType: "ByteArray",
+				ReturnType: "ByteString",
 				Variables:  []string{},
 				SeqPoints: []DebugSeqPoint{
 					{

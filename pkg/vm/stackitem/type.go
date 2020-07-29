@@ -29,7 +29,7 @@ func (t Type) String() string {
 	case IntegerT:
 		return "Integer"
 	case ByteArrayT:
-		return "ByteArray"
+		return "ByteString"
 	case BufferT:
 		return "Buffer"
 	case ArrayT:
