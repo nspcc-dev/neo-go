@@ -48,6 +48,7 @@ type buildInfo struct {
 func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
 	for _, pkg := range c.buildInfo.program.AllPackages {
 		c.typeInfo = &pkg.Info
+		c.currPkg = pkg.Pkg
 		for _, f := range pkg.Files {
 			c.fillImportMap(f, pkg.Pkg)
 			fn(f, pkg.Pkg)

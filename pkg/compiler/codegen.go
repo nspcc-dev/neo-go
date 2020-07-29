@@ -68,6 +68,9 @@ type codegen struct {
 	// constMap contains constants from foreign packages.
 	constMap map[string]types.TypeAndValue
 
+	// currPkg is current package being processed.
+	currPkg *types.Package
+
 	// mainPkg is a main package metadata.
 	mainPkg *loader.PackageInfo
 
@@ -278,19 +281,18 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		ok, isLambda bool
 	)
 
-	f, ok = c.funcs[decl.Name.Name]
+	f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
 	if ok {
 		// If this function is a syscall or builtin we will not convert it to bytecode.
 		if isSyscall(f) || isCustomBuiltin(f) {
 			return
 		}
 		c.setLabel(f.label)
-	} else if f, ok = c.lambda[decl.Name.Name]; ok {
+	} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
 		isLambda = ok
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
-		f.pkg = pkg
 	}
 
 	f.rng.Start = uint16(c.prog.Len())
@@ -738,7 +740,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok = c.funcs[fun.Name]
+			f, ok = c.funcs[c.getIdentName("", fun.Name)]
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -751,13 +753,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// If this is a method call we need to walk the AST to load the struct locally.
 			// Otherwise this is a function call from a imported package and we can call it
 			// directly.
-			if c.typeInfo.Selections[fun] != nil {
+			name, isMethod := c.getFuncNameFromSelector(fun)
+			if isMethod {
 				ast.Walk(c, fun.X)
 				// Dont forget to add 1 extra argument when its a method.
 				numArgs++
 			}
 
-			f, ok = c.funcs[fun.Sel.Name]
+			f, ok = c.funcs[name]
 			// @FIXME this could cause runtime errors.
 			f.selector = fun.X.(*ast.Ident)
 			if !ok {
@@ -1431,18 +1434,30 @@ func (c *codegen) convertToken(tok token.Token) {
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
-	f := newFuncScope(decl, c.newLabel())
-	c.funcs[f.name] = f
+	f := c.newFuncScope(decl, c.newLabel())
+	c.funcs[c.getFuncNameFromDecl("", decl)] = f
 	return f
+}
+
+// getFuncNameFromSelector returns fully-qualified function name from the selector expression.
+// Second return value is true iff this was a method call, not foreign package call.
+func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
+	ident := e.X.(*ast.Ident)
+	if c.typeInfo.Selections[e] != nil {
+		typ := c.typeInfo.Types[ident].Type.String()
+		return c.getIdentName(typ, e.Sel.Name), true
+	}
+	return c.getIdentName(ident.Name, e.Sel.Name), false
 }
 
 func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 	name := fmt.Sprintf("lambda@%d", u)
-	c.lambda[name] = newFuncScope(&ast.FuncDecl{
+	f := c.newFuncScope(&ast.FuncDecl{
 		Name: ast.NewIdent(name),
 		Type: lit.Type,
 		Body: lit.Body,
 	}, u)
+	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
@@ -1472,7 +1487,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 			case *ast.FuncDecl:
 				// Don't convert the function if it's not used. This will save a lot
 				// of bytecode space.
-				if funUsage.funcUsed(n.Name.Name) {
+				name := c.getFuncNameFromDecl(pkg.Path(), n)
+				if funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
@@ -1519,7 +1535,6 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
 			c.newFunc(n)
-			c.funcs[n.Name.Name].pkg = pkg
 		}
 	}
 }

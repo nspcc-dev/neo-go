@@ -113,14 +113,15 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 			case *ast.CallExpr:
 				switch t := n.Fun.(type) {
 				case *ast.Ident:
-					usage[t.Name] = true
+					usage[c.getIdentName("", t.Name)] = true
 				case *ast.SelectorExpr:
-					usage[t.Sel.Name] = true
+					name, _ := c.getFuncNameFromSelector(t)
+					usage[name] = true
 				}
 			case *ast.FuncDecl:
 				// exported functions are always assumed to be used
 				if isMain && n.Name.IsExported() {
-					usage[n.Name.Name] = true
+					usage[c.getFuncNameFromDecl(pkg.Path(), n)] = true
 				}
 			}
 			return true

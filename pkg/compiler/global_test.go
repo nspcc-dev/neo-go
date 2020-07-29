@@ -196,3 +196,33 @@ func TestExportedConst(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(42))
 }
+
+func TestMultipleFuncSameName(t *testing.T) {
+	t.Run("Simple", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/multi"
+		func Main() int {
+			return multi.Sum() + Sum()
+		}
+		func Sum() int {
+			return 11
+		}`
+		eval(t, src, big.NewInt(53))
+	})
+	t.Run("WithMethod", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/foo"
+		type Foo struct{}
+		func (f Foo) Bar() int { return 11 }
+		func Bar() int { return 22 }
+		func Main() int {
+			var a Foo
+			var b foo.Foo
+			return a.Bar() + // 11
+				foo.Bar() +  // 1
+				b.Bar() +    // 8
+				Bar()        // 22
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+}

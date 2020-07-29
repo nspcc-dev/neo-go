@@ -152,6 +152,8 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 			})
 		}
 	}
+	ss := strings.Split(name, ".")
+	name = ss[len(ss)-1]
 	return &MethodDebugInfo{
 		ID: name,
 		Name: DebugMethodName{

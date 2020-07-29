@@ -74,6 +74,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 
 	b, di, err := compiler.CompileWithDebugInfo(strings.NewReader(src))
 	require.NoError(t, err)
+
 	invokeMethod(t, testMainIdent, b, vm, di)
 	return vm, storePlugin
 }
