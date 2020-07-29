@@ -1,28 +1,32 @@
 package network
 
 import (
+	"encoding/binary"
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/pierrec/lz4"
 )
 
 // compress compresses bytes using lz4.
 func compress(source []byte) ([]byte, error) {
-	dest := make([]byte, lz4.CompressBlockBound(len(source)))
-	size, err := lz4.CompressBlock(source, dest, nil)
+	dest := make([]byte, 4+lz4.CompressBlockBound(len(source)))
+	size, err := lz4.CompressBlock(source, dest[4:], nil)
 	if err != nil {
 		return nil, err
 	}
-	return dest[:size], nil
+	binary.LittleEndian.PutUint32(dest[:4], uint32(len(source)))
+	return dest[:size+4], nil
 }
 
 // decompress decompresses bytes using lz4.
 func decompress(source []byte) ([]byte, error) {
-	maxSize := len(source) * 255
-	if maxSize > payload.MaxSize {
-		maxSize = payload.MaxSize
+	length := binary.LittleEndian.Uint32(source[:4])
+	if length > payload.MaxSize {
+		return nil, errors.New("invalid uncompressed payload length")
 	}
-	dest := make([]byte, maxSize)
-	size, err := lz4.UncompressBlock(source, dest)
+	dest := make([]byte, length)
+	size, err := lz4.UncompressBlock(source[4:], dest)
 	if err != nil {
 		return nil, err
 	}
