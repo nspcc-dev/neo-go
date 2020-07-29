@@ -463,13 +463,20 @@ func (s *Server) getPeers(_ request.Params) (interface{}, *response.Error) {
 	return peers, nil
 }
 
-func (s *Server) getRawMempool(_ request.Params) (interface{}, *response.Error) {
+func (s *Server) getRawMempool(reqParams request.Params) (interface{}, *response.Error) {
+	verbose := reqParams.Value(0).GetBoolean()
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
 	for _, item := range mp.GetVerifiedTransactions() {
 		hashList = append(hashList, item.Hash())
 	}
-	return hashList, nil
+	if !verbose {
+		return hashList, nil
+	}
+	return result.RawMempool{
+		Height:   s.chain.BlockHeight(),
+		Verified: hashList,
+	}, nil
 }
 
 func (s *Server) validateAddress(reqParams request.Params) (interface{}, *response.Error) {
@@ -685,10 +692,13 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			resultsErr = response.NewInvalidParamsError(err.Error(), err)
-		} else {
-			results = result.NewTransactionOutputRaw(tx, header, s.chain)
+			return nil, response.NewInvalidParamsError(err.Error(), err)
 		}
+		st, err := s.chain.GetAppExecResult(txHash)
+		if err != nil {
+			return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
+		}
+		results = result.NewTransactionOutputRaw(tx, header, st, s.chain)
 	} else {
 		results = hex.EncodeToString(tx.Bytes())
 	}
@@ -873,7 +883,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 	vm.LoadScriptWithFlags(script, smartcontract.All)
 	_ = vm.Run()
 	result := &result.Invoke{
-		State:       vm.State(),
+		State:       vm.State().String(),
 		GasConsumed: vm.GasConsumed(),
 		Script:      hex.EncodeToString(script),
 		Stack:       vm.Estack().ToContractParameters(),

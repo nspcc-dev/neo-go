@@ -49,7 +49,7 @@ func NewApplicationLog(appExecRes *state.AppExecResult) ApplicationLog {
 	return ApplicationLog{
 		TxHash:      appExecRes.TxHash,
 		Trigger:     appExecRes.Trigger.String(),
-		VMState:     appExecRes.VMState,
+		VMState:     appExecRes.VMState.String(),
 		GasConsumed: appExecRes.GasConsumed,
 		Stack:       appExecRes.Stack,
 		Events:      events,

@@ -162,14 +162,14 @@ func testFile(t *testing.T, filename string) {
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)
-				vm.state = breakState
+				vm.state = BreakState
 				vm.RegisterInteropGetter(getTestingInterop)
 
 				for i := range test.Steps {
 					execStep(t, vm, test.Steps[i])
 					result := test.Steps[i].Result
 					require.Equal(t, result.State, vm.state)
-					if result.State == faultState { // do not compare stacks on fault
+					if result.State == FaultState { // do not compare stacks on fault
 						continue
 					}
 

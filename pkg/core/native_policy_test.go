@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 )
@@ -253,7 +254,7 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 }
 
 func checkResult(t *testing.T, result *state.AppExecResult, expected smartcontract.Parameter) {
-	require.Equal(t, "HALT", result.VMState)
+	require.Equal(t, vm.HaltState, result.VMState)
 	require.Equal(t, 1, len(result.Stack))
 	require.Equal(t, expected.Type, result.Stack[0].Type)
 	require.EqualValues(t, expected.Value, result.Stack[0].Value)

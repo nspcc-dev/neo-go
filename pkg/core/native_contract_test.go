@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -122,14 +123,14 @@ func TestNativeContract_Invoke(t *testing.T) {
 
 	res, err := chain.GetAppExecResult(tx.Hash())
 	require.NoError(t, err)
-	require.Equal(t, "HALT", res.VMState)
+	require.Equal(t, vm.HaltState, res.VMState)
 	require.Equal(t, 1, len(res.Stack))
 	require.Equal(t, smartcontract.IntegerType, res.Stack[0].Type)
 	require.EqualValues(t, 42, res.Stack[0].Value)
 
 	res, err = chain.GetAppExecResult(tx2.Hash())
 	require.NoError(t, err)
-	require.Equal(t, "FAULT", res.VMState)
+	require.Equal(t, vm.FaultState, res.VMState)
 
 	require.NoError(t, chain.persist())
 	select {

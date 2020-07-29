@@ -378,7 +378,7 @@ func (bc *Blockchain) notificationDispatcher() {
 					for ch := range executionFeed {
 						ch <- aer
 					}
-					if aer.VMState == "HALT" {
+					if aer.VMState == vm.HaltState {
 						for i := range aer.Events {
 							for ch := range notificationFeed {
 								ch <- &aer.Events[i]

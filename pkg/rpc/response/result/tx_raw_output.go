@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -22,10 +23,11 @@ type TransactionMetadata struct {
 	Blockhash     util.Uint256 `json:"blockhash,omitempty"`
 	Confirmations int          `json:"confirmations,omitempty"`
 	Timestamp     uint64       `json:"blocktime,omitempty"`
+	VMState       string       `json:"vmstate"`
 }
 
 // NewTransactionOutputRaw returns a new ransactionOutputRaw object.
-func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, chain blockchainer.Blockchainer) TransactionOutputRaw {
+func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, appExecResult *state.AppExecResult, chain blockchainer.Blockchainer) TransactionOutputRaw {
 	// confirmations formula
 	confirmations := int(chain.BlockHeight() - header.Base.Index + 1)
 	return TransactionOutputRaw{
@@ -34,6 +36,7 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 			Blockhash:     header.Hash(),
 			Confirmations: confirmations,
 			Timestamp:     header.Timestamp,
+			VMState:       appExecResult.VMState.String(),
 		},
 	}
 }
@@ -44,6 +47,7 @@ func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 		Blockhash:     t.Blockhash,
 		Confirmations: t.Confirmations,
 		Timestamp:     t.Timestamp,
+		VMState:       t.VMState,
 	})
 	if err != nil {
 		return nil, err
@@ -75,6 +79,7 @@ func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	t.Blockhash = output.Blockhash
 	t.Confirmations = output.Confirmations
 	t.Timestamp = output.Timestamp
+	t.VMState = output.VMState
 
 	return json.Unmarshal(data, &t.Transaction)
 }
