@@ -62,7 +62,7 @@ func getLogHandler(logs *[]string) vm.SyscallHandler {
 			return errors.New("syscall not found")
 		}
 
-		msg := string(v.Estack().Pop().Bytes())
+		msg := v.Estack().Pop().String()
 		*logs = append(*logs, msg)
 		return nil
 	}

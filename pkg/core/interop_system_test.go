@@ -264,9 +264,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		for i := range arr {
 			elem := arr[i].Value().([]stackitem.Item)
 			require.Equal(t, ic.Notifications[i].ScriptHash.BytesBE(), elem[0].Value())
-			name, err := elem[1].TryBytes()
+			name, err := stackitem.ToString(elem[1])
 			require.NoError(t, err)
-			require.Equal(t, ic.Notifications[i].Name, string(name))
+			require.Equal(t, ic.Notifications[i].Name, name)
 			require.Equal(t, ic.Notifications[i].Item, elem[2])
 		}
 	})
@@ -280,9 +280,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		require.Equal(t, 1, len(arr))
 		elem := arr[0].Value().([]stackitem.Item)
 		require.Equal(t, h, elem[0].Value())
-		name, err := elem[1].TryBytes()
+		name, err := stackitem.ToString(elem[1])
 		require.NoError(t, err)
-		require.Equal(t, ic.Notifications[1].Name, string(name))
+		require.Equal(t, ic.Notifications[1].Name, name)
 		require.Equal(t, ic.Notifications[1].Item, elem[2])
 	})
 }

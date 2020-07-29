@@ -67,16 +67,16 @@ func defaultSyscallHandler(v *VM, id uint32) error {
 
 // runtimeLog handles the syscall "System.Runtime.Log" for printing and logging stuff.
 func runtimeLog(vm *VM) error {
-	item := vm.Estack().Pop()
-	fmt.Printf("NEO-GO-VM (log) > %s\n", item.Value())
+	msg := vm.Estack().Pop().String()
+	fmt.Printf("NEO-GO-VM (log) > %s\n", msg)
 	return nil
 }
 
 // runtimeNotify handles the syscall "System.Runtime.Notify" for printing and logging stuff.
 func runtimeNotify(vm *VM) error {
-	name := vm.Estack().Pop().Bytes()
+	name := vm.Estack().Pop().String()
 	item := vm.Estack().Pop()
-	fmt.Printf("NEO-GO-VM (notify) > [%s] %s\n", string(name), item.Value())
+	fmt.Printf("NEO-GO-VM (notify) > [%s] %s\n", name, item.Value())
 	return nil
 }
 

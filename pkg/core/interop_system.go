@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
@@ -265,12 +264,9 @@ func runtimeGetTrigger(ic *interop.Context, v *vm.VM) error {
 // runtimeNotify should pass stack item to the notify plugin to handle it, but
 // in neo-go the only meaningful thing to do here is to log.
 func runtimeNotify(ic *interop.Context, v *vm.VM) error {
-	name := v.Estack().Pop().Bytes()
+	name := v.Estack().Pop().String()
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
-	}
-	if !utf8.Valid(name) {
-		return errors.New("event name should be UTF8-encoded")
 	}
 	elem := v.Estack().Pop()
 	args := elem.Array()
@@ -285,7 +281,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	}
 	ne := state.NotificationEvent{
 		ScriptHash: v.GetCurrentScriptHash(),
-		Name:       string(name),
+		Name:       name,
 		Item:       stackitem.NewArray(args),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
@@ -294,12 +290,9 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 
 // runtimeLog logs the message passed.
 func runtimeLog(ic *interop.Context, v *vm.VM) error {
-	state := v.Estack().Pop().Bytes()
+	state := v.Estack().Pop().String()
 	if len(state) > MaxNotificationSize {
 		return fmt.Errorf("message length shouldn't exceed %v", MaxNotificationSize)
-	}
-	if !utf8.Valid(state) {
-		return errors.New("log message should be UTF8-encoded")
 	}
 	msg := fmt.Sprintf("%q", state)
 	ic.Log.Info("runtime log",
@@ -490,11 +483,10 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	if err != nil {
 		return errors.New("contract not found")
 	}
-	bs, err := method.TryBytes()
+	name, err := stackitem.ToString(method)
 	if err != nil {
 		return err
 	}
-	name := string(bs)
 	if strings.HasPrefix(name, "_") {
 		return errors.New("invalid method name (starts with '_')")
 	}
@@ -504,7 +496,7 @@ func contractCallExInternal(ic *interop.Context, v *vm.VM, h []byte, method stac
 	}
 	curr, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
 	if err == nil {
-		if !curr.Manifest.CanCall(&cs.Manifest, string(bs)) {
+		if !curr.Manifest.CanCall(&cs.Manifest, name) {
 			return errors.New("disallowed method call")
 		}
 	}
