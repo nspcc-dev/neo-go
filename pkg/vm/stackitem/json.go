@@ -64,9 +64,17 @@ func toJSON(buf *io.BufBinWriter, item Item) {
 	case *Map:
 		w.WriteB('{')
 		for i := range it.value {
-			bs, _ := it.value[i].Key.TryBytes() // map key can always be converted to []byte
+			// map key can always be converted to []byte
+			// but are not always a valid UTF-8.
+			key, err := ToString(it.value[i].Key)
+			if err != nil {
+				if buf.Err == nil {
+					buf.Err = err
+				}
+				return
+			}
 			w.WriteB('"')
-			w.WriteBytes(bs)
+			w.WriteBytes([]byte(key))
 			w.WriteBytes([]byte(`":`))
 			toJSON(buf, it.value[i].Value)
 			if i < len(it.value)-1 {
