@@ -255,12 +255,12 @@ func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 }
 
 // SubscribeForNewTransactions adds subscription for new transaction events to
-// this instance of client. It can be filtered by sender and/or cosigner, nil
+// this instance of client. It can be filtered by sender and/or signer, nil
 // value is treated as missing filter.
-func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, cosigner *util.Uint160) (string, error) {
+func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
 	params := request.NewRawParams("transaction_added")
-	if sender != nil || cosigner != nil {
-		params.Values = append(params.Values, request.TxFilter{Sender: sender, Cosigner: cosigner})
+	if sender != nil || signer != nil {
+		params.Values = append(params.Values, request.TxFilter{Sender: sender, Signer: signer})
 	}
 	return c.performSubscription(params)
 }

@@ -109,16 +109,16 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 // tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
 // and returns false if both balance check is required and sender has not enough GAS to pay
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
-	senderFee, ok := mp.fees[tx.Sender]
+	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
-		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender)
-		mp.fees[tx.Sender] = senderFee
+		senderFee.balance = feer.GetUtilityTokenBalance(tx.Sender())
+		mp.fees[tx.Sender()] = senderFee
 	}
 	if needCheck && !checkBalance(tx, senderFee) {
 		return false
 	}
 	senderFee.feeSum += tx.SystemFee + tx.NetworkFee
-	mp.fees[tx.Sender] = senderFee
+	mp.fees[tx.Sender()] = senderFee
 	return true
 }
 
@@ -199,9 +199,9 @@ func (mp *Pool) Remove(hash util.Uint256) {
 		} else if num == len(mp.verifiedTxes)-1 {
 			mp.verifiedTxes = mp.verifiedTxes[:num]
 		}
-		senderFee := mp.fees[it.txn.Sender]
+		senderFee := mp.fees[it.txn.Sender()]
 		senderFee.feeSum -= it.txn.SystemFee + it.txn.NetworkFee
-		mp.fees[it.txn.Sender] = senderFee
+		mp.fees[it.txn.Sender()] = senderFee
 	}
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
@@ -284,9 +284,9 @@ func (mp *Pool) GetVerifiedTransactions() []*transaction.Transaction {
 
 // checkTxConflicts is an internal unprotected version of Verify.
 func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) bool {
-	senderFee, ok := mp.fees[tx.Sender]
+	senderFee, ok := mp.fees[tx.Sender()]
 	if !ok {
-		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender)
+		senderFee.balance = fee.GetUtilityTokenBalance(tx.Sender())
 	}
 	return checkBalance(tx, senderFee)
 }

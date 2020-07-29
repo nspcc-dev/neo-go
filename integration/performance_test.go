@@ -80,7 +80,12 @@ func getTX(t *testing.B, wif *keys.WIF) *transaction.Transaction {
 
 	tx := transaction.New(netmode.UnitTestNet, []byte{0x51}, 1)
 	tx.Version = 0
-	tx.Sender = fromAddressHash
+	tx.Signers = []transaction.Signer{
+		{
+			Account: fromAddressHash,
+			Scopes:  transaction.FeeOnly,
+		},
+	}
 	tx.Attributes = append(tx.Attributes,
 		transaction.Attribute{
 			Usage: transaction.DescriptionURL,

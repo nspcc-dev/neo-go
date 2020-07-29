@@ -345,31 +345,31 @@ func (c *Client) GetVersion() (*result.Version, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script []byte, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
 	var p = request.NewRawParams(hex.EncodeToString(script))
-	return c.invokeSomething("invokescript", p, cosigners)
+	return c.invokeSomething("invokescript", p, signers)
 }
 
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+func (c *Client) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
 	var p = request.NewRawParams(contract.StringLE(), operation, params)
-	return c.invokeSomething("invokefunction", p, cosigners)
+	return c.invokeSomething("invokefunction", p, signers)
 }
 
 // invokeSomething is an inner wrapper for Invoke* functions
-func (c *Client) invokeSomething(method string, p request.RawParams, cosigners []transaction.Cosigner) (*result.Invoke, error) {
+func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer) (*result.Invoke, error) {
 	var resp = new(result.Invoke)
-	if cosigners != nil {
-		p.Values = append(p.Values, cosigners)
+	if signers != nil {
+		p.Values = append(p.Values, signers)
 	}
 	if err := c.performRequest(method, p, resp); err != nil {
 		// Retry with old-fashioned hashes (see neo/neo-modules#260).
-		if cosigners != nil {
-			var hashes = make([]util.Uint160, len(cosigners))
-			for i := range cosigners {
-				hashes[i] = cosigners[i].Account
+		if signers != nil {
+			var hashes = make([]util.Uint160, len(signers))
+			for i := range signers {
+				hashes[i] = signers[i].Account
 			}
 			p.Values[len(p.Values)-1] = hashes
 			err = c.performRequest(method, p, resp)
@@ -419,25 +419,24 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 // SignAndPushInvocationTx signs and pushes given script as an invocation
 // transaction  using given wif to sign it and spending the amount of gas
 // specified. It returns a hash of the invocation transaction and an error.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8, cosigners []transaction.Cosigner) (util.Uint256, error) {
+func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee util.Fixed8, cosigners []transaction.Signer) (util.Uint256, error) {
 	var txHash util.Uint256
 	var err error
 
 	tx := transaction.New(c.opts.Network, script, sysfee)
 	tx.SystemFee = sysfee
-	tx.Cosigners = cosigners
+
+	addr, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return txHash, errors.Wrap(err, "failed to get address")
+	}
+	tx.Signers = getSigners(addr, cosigners)
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	if err != nil {
 		return txHash, errors.Wrap(err, "failed to add validUntilBlock to transaction")
 	}
 	tx.ValidUntilBlock = validUntilBlock
-
-	addr, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return txHash, errors.Wrap(err, "failed to get address")
-	}
-	tx.Sender = addr
 
 	err = c.AddNetworkFee(tx, int64(netfee), acc)
 	if err != nil {
@@ -456,6 +455,27 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 		return actualHash, fmt.Errorf("sent and actual tx hashes mismatch:\n\tsent: %v\n\tactual: %v", txHash.StringLE(), actualHash.StringLE())
 	}
 	return txHash, nil
+}
+
+// getSigners returns an array of transaction signers from given sender and cosigners.
+// If cosigners list already contains sender, the sender will be placed at the start of
+// the list.
+func getSigners(sender util.Uint160, cosigners []transaction.Signer) []transaction.Signer {
+	s := transaction.Signer{
+		Account: sender,
+		Scopes:  transaction.FeeOnly,
+	}
+	for i, c := range cosigners {
+		if c.Account == sender {
+			if i == 0 {
+				return cosigners
+			}
+			s.Scopes = c.Scopes
+			cosigners = append(cosigners[:i], cosigners[i+1:]...)
+			break
+		}
+	}
+	return append([]transaction.Signer{s}, cosigners...)
 }
 
 // ValidateAddress verifies that the address is a correct NEO address.
@@ -513,7 +533,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, acc 
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
-	for _, cosigner := range tx.Cosigners {
+	for _, cosigner := range tx.Signers {
 		script := acc.Contract.Script
 		if !cosigner.Account.Equals(hash.Hash160(acc.Contract.Script)) {
 			contract, err := c.GetContractState(cosigner.Account)

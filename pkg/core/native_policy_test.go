@@ -225,12 +225,8 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 	tx := transaction.New(chain.GetConfig().Magic, script, 10000000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
-	err := addSender(tx)
-	if err != nil {
-		return nil, err
-	}
-	addCosigners(tx)
-	err = signTx(chain, tx)
+	addSigners(tx)
+	err := signTx(chain, tx)
 	if err != nil {
 		return nil, err
 	}

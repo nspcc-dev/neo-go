@@ -115,13 +115,13 @@ func TestNativeContract_Invoke(t *testing.T) {
 	tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2+10000)
 	validUntil := chain.blockHeight + 1
 	tx.ValidUntilBlock = validUntil
-	require.NoError(t, addSender(tx))
+	addSigners(tx)
 	require.NoError(t, signTx(chain, tx))
 
 	// Enough for Call and other opcodes, but not enough for "sum" call.
 	tx2 := transaction.New(chain.GetConfig().Magic, script, testSumPrice*2)
 	tx2.ValidUntilBlock = chain.blockHeight + 1
-	require.NoError(t, addSender(tx2))
+	addSigners(tx2)
 	require.NoError(t, signTx(chain, tx2))
 
 	b := chain.newBlock(tx, tx2)

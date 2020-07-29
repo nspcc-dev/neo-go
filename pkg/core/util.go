@@ -78,7 +78,12 @@ func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
 	script := buf.Bytes()
 	tx := transaction.New(magic, script, 0)
 	tx.Nonce = 0
-	tx.Sender = hash.Hash160([]byte{byte(opcode.PUSH1)})
+	tx.Signers = []transaction.Signer{
+		{
+			Account: hash.Hash160([]byte{byte(opcode.PUSH1)}),
+			Scopes:  transaction.FeeOnly,
+		},
+	}
 	tx.Scripts = []transaction.Witness{
 		{
 			InvocationScript:   []byte{},

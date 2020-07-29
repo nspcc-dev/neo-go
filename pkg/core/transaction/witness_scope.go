@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// WitnessScope represents set of witness flags for Transaction cosigner.
+// WitnessScope represents set of witness flags for Transaction signer.
 type WitnessScope byte
 
 const (

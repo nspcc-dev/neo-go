@@ -190,8 +190,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txMoveNeo := newNEP5Transfer(neoHash, neoOwner, priv0ScriptHash, neoAmount)
 	txMoveNeo.ValidUntilBlock = validUntilBlock
 	txMoveNeo.Nonce = getNextNonce()
-	txMoveNeo.Sender = neoOwner
-	txMoveNeo.Cosigners = []transaction.Cosigner{{
+	txMoveNeo.Signers = []transaction.Signer{{
 		Account:          neoOwner,
 		Scopes:           transaction.CalledByEntry,
 		AllowedContracts: nil,
@@ -202,8 +201,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txMoveGas := newNEP5Transfer(gasHash, neoOwner, priv0ScriptHash, int64(util.Fixed8FromInt64(1000)))
 	txMoveGas.ValidUntilBlock = validUntilBlock
 	txMoveGas.Nonce = getNextNonce()
-	txMoveGas.Sender = neoOwner
-	txMoveGas.Cosigners = []transaction.Cosigner{{
+	txMoveGas.Signers = []transaction.Signer{{
 		Account:          neoOwner,
 		Scopes:           transaction.CalledByEntry,
 		AllowedContracts: nil,
@@ -212,8 +210,14 @@ func TestCreateBasicChain(t *testing.T) {
 	require.NoError(t, signTx(bc, txMoveGas))
 	b := bc.newBlock(txMoveNeo, txMoveGas)
 	require.NoError(t, bc.AddBlock(b))
-	t.Logf("txMoveNeo: %s", txMoveNeo.Hash().StringLE())
-	t.Logf("txMoveGas: %s", txMoveGas.Hash().StringLE())
+	t.Logf("Block1 hash: %s", b.Hash().StringLE())
+	bw := io.NewBufBinWriter()
+	b.EncodeBinary(bw.BinWriter)
+	require.NoError(t, bw.Err)
+	t.Logf("Block1 hex: %s", bw.Bytes())
+	t.Logf("txMoveNeo hash: %s", txMoveNeo.Hash().StringLE())
+	t.Logf("txMoveNeo hex: %s", hex.EncodeToString(txMoveNeo.Bytes()))
+	t.Logf("txMoveGas hash: %s", txMoveGas.Hash().StringLE())
 
 	require.True(t, bc.GetUtilityTokenBalance(priv0ScriptHash).Cmp(big.NewInt(1000*native.GASFactor)) >= 0)
 	// info for getblockheader rpc tests
@@ -245,12 +249,13 @@ func TestCreateBasicChain(t *testing.T) {
 	txDeploy := transaction.New(testchain.Network(), txScript, 100*native.GASFactor)
 	txDeploy.Nonce = getNextNonce()
 	txDeploy.ValidUntilBlock = validUntilBlock
-	txDeploy.Sender = priv0ScriptHash
+	txDeploy.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txDeploy, acc0))
 	require.NoError(t, acc0.SignTx(txDeploy))
 	b = bc.newBlock(txDeploy)
 	require.NoError(t, bc.AddBlock(b))
 	t.Logf("txDeploy: %s", txDeploy.Hash().StringLE())
+	t.Logf("Block2 hash: %s", b.Hash().StringLE())
 
 	// Now invoke this contract.
 	script = io.NewBufBinWriter()
@@ -259,7 +264,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txInv := transaction.New(testchain.Network(), script.Bytes(), 1*native.GASFactor)
 	txInv.Nonce = getNextNonce()
 	txInv.ValidUntilBlock = validUntilBlock
-	txInv.Sender = priv0ScriptHash
+	txInv.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, txInv, acc0))
 	require.NoError(t, acc0.SignTx(txInv))
 	b = bc.newBlock(txInv)
@@ -270,8 +275,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txNeo0to1 := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), 1000)
 	txNeo0to1.Nonce = getNextNonce()
 	txNeo0to1.ValidUntilBlock = validUntilBlock
-	txNeo0to1.Sender = priv0ScriptHash
-	txNeo0to1.Cosigners = []transaction.Cosigner{
+	txNeo0to1.Signers = []transaction.Signer{
 		{
 			Account:          priv0ScriptHash,
 			Scopes:           transaction.CalledByEntry,
@@ -290,14 +294,13 @@ func TestCreateBasicChain(t *testing.T) {
 	initTx := transaction.New(testchain.Network(), w.Bytes(), 1*native.GASFactor)
 	initTx.Nonce = getNextNonce()
 	initTx.ValidUntilBlock = validUntilBlock
-	initTx.Sender = priv0ScriptHash
+	initTx.Signers = []transaction.Signer{{Account: priv0ScriptHash}}
 	require.NoError(t, addNetworkFee(bc, initTx, acc0))
 	require.NoError(t, acc0.SignTx(initTx))
 	transferTx := newNEP5Transfer(sh, sh, priv0.GetScriptHash(), 1000)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
-	transferTx.Sender = priv0ScriptHash
-	transferTx.Cosigners = []transaction.Cosigner{
+	transferTx.Signers = []transaction.Signer{
 		{
 			Account:          priv0ScriptHash,
 			Scopes:           transaction.CalledByEntry,
@@ -315,8 +318,7 @@ func TestCreateBasicChain(t *testing.T) {
 	transferTx = newNEP5Transfer(sh, priv0.GetScriptHash(), priv1.GetScriptHash(), 123)
 	transferTx.Nonce = getNextNonce()
 	transferTx.ValidUntilBlock = validUntilBlock
-	transferTx.Sender = priv0ScriptHash
-	transferTx.Cosigners = []transaction.Cosigner{
+	transferTx.Signers = []transaction.Signer{
 		{
 			Account:          priv0ScriptHash,
 			Scopes:           transaction.CalledByEntry,
@@ -357,8 +359,7 @@ func TestCreateBasicChain(t *testing.T) {
 	txSendRaw := newNEP5Transfer(neoHash, priv0ScriptHash, priv1.GetScriptHash(), int64(util.Fixed8FromInt64(1000)))
 	txSendRaw.ValidUntilBlock = validUntilBlock
 	txSendRaw.Nonce = getNextNonce()
-	txSendRaw.Sender = priv0ScriptHash
-	txSendRaw.Cosigners = []transaction.Cosigner{{
+	txSendRaw.Signers = []transaction.Signer{{
 		Account:          priv0ScriptHash,
 		Scopes:           transaction.CalledByEntry,
 		AllowedContracts: nil,
@@ -366,7 +367,7 @@ func TestCreateBasicChain(t *testing.T) {
 	}}
 	require.NoError(t, addNetworkFee(bc, txSendRaw, acc0))
 	require.NoError(t, acc0.SignTx(txSendRaw))
-	bw := io.NewBufBinWriter()
+	bw = io.NewBufBinWriter()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: %s", hex.EncodeToString(bw.Bytes()))
 }
@@ -380,16 +381,9 @@ func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Trans
 	return transaction.New(testchain.Network(), script, 10000000)
 }
 
-func addSender(txs ...*transaction.Transaction) error {
+func addSigners(txs ...*transaction.Transaction) {
 	for _, tx := range txs {
-		tx.Sender = neoOwner
-	}
-	return nil
-}
-
-func addCosigners(txs ...*transaction.Transaction) {
-	for _, tx := range txs {
-		tx.Cosigners = []transaction.Cosigner{{
+		tx.Signers = []transaction.Signer{{
 			Account:          neoOwner,
 			Scopes:           transaction.CalledByEntry,
 			AllowedContracts: nil,
@@ -424,7 +418,7 @@ func addNetworkFee(bc *Blockchain, tx *transaction.Transaction, sender *wallet.A
 	netFee, sizeDelta := CalculateNetworkFee(sender.Contract.Script)
 	tx.NetworkFee += netFee
 	size += sizeDelta
-	for _, cosigner := range tx.Cosigners {
+	for _, cosigner := range tx.Signers {
 		contract := bc.GetContractState(cosigner.Account)
 		if contract != nil {
 			netFee, sizeDelta = CalculateNetworkFee(contract.Script)

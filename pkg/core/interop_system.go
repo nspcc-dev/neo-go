@@ -167,7 +167,7 @@ func transactionToStackItem(t *transaction.Transaction) stackitem.Item {
 		stackitem.NewByteArray(t.Hash().BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
 		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
-		stackitem.NewByteArray(t.Sender.BytesBE()),
+		stackitem.NewByteArray(t.Sender().BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
 		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
 		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),

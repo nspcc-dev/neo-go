@@ -843,12 +843,15 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	tx := &transaction.Transaction{}
 	checkWitnessHashesIndex := len(reqParams)
 	if checkWitnessHashesIndex > 3 {
-		cosigners, err := reqParams[3].GetCosigners()
+		signers, err := reqParams[3].GetSigners()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
-		tx.Cosigners = cosigners
+		tx.Signers = signers
 		checkWitnessHashesIndex--
+	}
+	if len(tx.Signers) == 0 {
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
 	}
 	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:checkWitnessHashesIndex])
 	if err != nil {
@@ -871,11 +874,14 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 
 	tx := &transaction.Transaction{}
 	if len(reqParams) > 1 {
-		cosigners, err := reqParams[1].GetCosigners()
+		signers, err := reqParams[1].GetSigners()
 		if err != nil {
 			return nil, response.ErrInvalidParams
 		}
-		tx.Cosigners = cosigners
+		tx.Signers = signers
+	}
+	if len(tx.Signers) == 0 {
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.FeeOnly}}
 	}
 	tx.Script = script
 	return s.runScriptInVM(script, tx), nil

@@ -23,7 +23,7 @@ func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 }
 
 func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
-	for _, c := range tx.Cosigners {
+	for _, c := range tx.Signers {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
 				return true, nil
