@@ -396,6 +396,15 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 	return elems, nil
 }
 
+// ToArray converts stack to an array of stackitems with top item being the last.
+func (s *Stack) ToArray() []stackitem.Item {
+	items := make([]stackitem.Item, 0, s.len)
+	s.IterBack(func(e *Element) {
+		items = append(items, e.Item())
+	})
+	return items
+}
+
 // ToContractParameters converts Stack to slice of smartcontract.Parameter.
 func (s *Stack) ToContractParameters() []smartcontract.Parameter {
 	items := make([]smartcontract.Parameter, 0, s.Len())
