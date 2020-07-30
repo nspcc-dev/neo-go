@@ -123,50 +123,15 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 // transaction, which are all fields except the scripts.
 func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.Version = uint8(br.ReadB())
-	if t.Version > 0 {
-		br.Err = errors.New("only version 0 is supported")
-		return
-	}
 	t.Nonce = br.ReadU32LE()
 	t.SystemFee = int64(br.ReadU64LE())
-	if t.SystemFee < 0 {
-		br.Err = errors.New("negative system fee")
-		return
-	}
 	t.NetworkFee = int64(br.ReadU64LE())
-	if t.NetworkFee < 0 {
-		br.Err = errors.New("negative network fee")
-		return
-	}
-	if t.NetworkFee+t.SystemFee < t.SystemFee {
-		br.Err = errors.New("too big fees: int 64 overflow")
-		return
-	}
 	t.ValidUntilBlock = br.ReadU32LE()
-
 	br.ReadArray(&t.Signers, MaxAttributes)
-	if len(t.Signers) == 0 {
-		br.Err = errors.New("signers array should contain sender")
-		return
-	}
-	for i := 0; i < len(t.Signers); i++ {
-		if i > 0 && t.Signers[i].Scopes == FeeOnly {
-			br.Err = errors.New("FeeOnly scope can be used only for sender")
-			return
-		}
-		for j := i + 1; j < len(t.Signers); j++ {
-			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
-				br.Err = errors.New("transaction signers should be unique")
-				return
-			}
-		}
-	}
-
 	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
 	t.Script = br.ReadVarBytes()
-	if br.Err == nil && len(t.Script) == 0 {
-		br.Err = errors.New("no script")
-		return
+	if br.Err == nil {
+		br.Err = t.isValid()
 	}
 }
 
@@ -354,5 +319,38 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 		return errors.New("txid doesn't match transaction hash")
 	}
 
+	return t.isValid()
+}
+
+// isValid checks whether decoded/unmarshalled transaction has all fields valid.
+func (t *Transaction) isValid() error {
+	if t.Version > 0 {
+		return errors.New("only version 0 is supported")
+	}
+	if t.SystemFee < 0 {
+		return errors.New("negative system fee")
+	}
+	if t.NetworkFee < 0 {
+		return errors.New("negative network fee")
+	}
+	if t.NetworkFee+t.SystemFee < t.SystemFee {
+		return errors.New("too big fees: int64 overflow")
+	}
+	if len(t.Signers) == 0 {
+		return errors.New("signers array should contain sender")
+	}
+	for i := 0; i < len(t.Signers); i++ {
+		if i > 0 && t.Signers[i].Scopes == FeeOnly {
+			return errors.New("FeeOnly scope can be used only for sender")
+		}
+		for j := i + 1; j < len(t.Signers); j++ {
+			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
+				return errors.New("transaction signers should be unique")
+			}
+		}
+	}
+	if len(t.Script) == 0 {
+		return errors.New("no script")
+	}
 	return nil
 }
