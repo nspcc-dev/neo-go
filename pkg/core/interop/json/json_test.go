@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -16,19 +16,13 @@ var (
 	deserializeID = emit.InteropNameToID([]byte("System.Json.Deserialize"))
 )
 
-func getInterop(id uint32) *vm.InteropFuncPrice {
-	switch id {
-	case serializeID:
-		return &vm.InteropFuncPrice{
-			Func: func(v *vm.VM) error { return Serialize(nil, v) },
-		}
-	case deserializeID:
-		return &vm.InteropFuncPrice{
-			Func: func(v *vm.VM) error { return Deserialize(nil, v) },
-		}
-	default:
-		return nil
-	}
+var jsonInterops = []interop.Function{
+	{ID: serializeID, Func: Serialize},
+	{ID: deserializeID, Func: Deserialize},
+}
+
+func init() {
+	interop.Sort(jsonInterops)
 }
 
 func getTestFunc(id uint32, arg interface{}, result interface{}) func(t *testing.T) {
@@ -37,8 +31,9 @@ func getTestFunc(id uint32, arg interface{}, result interface{}) func(t *testing
 	binary.LittleEndian.PutUint32(prog[1:], id)
 
 	return func(t *testing.T) {
-		v := vm.New()
-		v.RegisterInteropGetter(getInterop)
+		ic := &interop.Context{}
+		ic.Functions = append(ic.Functions, jsonInterops)
+		v := ic.SpawnVM()
 		v.LoadScript(prog)
 		v.Estack().PushVal(arg)
 		if result == nil {

@@ -566,8 +566,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 
 	if block.Index > 0 {
 		systemInterop := bc.newInteropContext(trigger.System, cache, block, nil)
-		v := SpawnVM(systemInterop)
-		v.GasLimit = -1
+		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
 		v.SetPriceGetter(getPrice)
 		if err := v.Run(); err != nil {
@@ -599,7 +598,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		}
 
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-		v := SpawnVM(systemInterop)
+		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, smartcontract.All)
 		v.SetPriceGetter(getPrice)
 		v.GasLimit = tx.SystemFee
@@ -1277,7 +1276,7 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
-	vm := SpawnVM(systemInterop)
+	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	return vm
 }
@@ -1310,7 +1309,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 		gas = gasPolicy
 	}
 
-	vm := SpawnVM(interopCtx)
+	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
 	vm.LoadScriptWithFlags(verification, smartcontract.ReadOnly)
@@ -1413,6 +1412,7 @@ func (bc *Blockchain) secondsPerBlock() int {
 
 func (bc *Blockchain) newInteropContext(trigger trigger.Type, d dao.DAO, block *block.Block, tx *transaction.Transaction) *interop.Context {
 	ic := interop.NewContext(trigger, bc, d, bc.contracts.Contracts, block, tx, bc.log)
+	ic.Functions = [][]interop.Function{systemInterops, neoInterops}
 	switch {
 	case tx != nil:
 		ic.Container = tx

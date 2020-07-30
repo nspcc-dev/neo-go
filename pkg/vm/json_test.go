@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -110,30 +111,21 @@ func TestUT(t *testing.T) {
 	require.Equal(t, true, testsRan, "neo-vm tests should be available (check submodules)")
 }
 
-func getTestingInterop(id uint32) *InteropFuncPrice {
-	f := func(v *VM) error {
-		v.estack.PushVal(stackitem.NewInterop(new(int)))
-		return nil
-	}
+func testSyscallHandler(v *VM, id uint32) error {
 	switch id {
 	case 0x77777777:
-		return &InteropFuncPrice{Func: f}
+		v.Estack().PushVal(stackitem.NewInterop(new(int)))
 	case 0x66666666:
-		return &InteropFuncPrice{
-			Func:          f,
-			RequiredFlags: smartcontract.ReadOnly,
+		if !v.Context().callFlag.Has(smartcontract.ReadOnly) {
+			return errors.New("invalid call flags")
 		}
+		v.Estack().PushVal(stackitem.NewInterop(new(int)))
 	case 0x55555555:
-		return &InteropFuncPrice{
-			Func: f,
-		}
+		v.Estack().PushVal(stackitem.NewInterop(new(int)))
 	case 0xADDEADDE:
-		return &InteropFuncPrice{
-			Func: func(v *VM) error {
-				v.throw(stackitem.Make("error"))
-				return nil
-			},
-		}
+		v.throw(stackitem.Make("error"))
+	default:
+		return errors.New("syscall not found")
 	}
 	return nil
 }
@@ -163,7 +155,7 @@ func testFile(t *testing.T, filename string) {
 				prog := []byte(test.Script)
 				vm := load(prog)
 				vm.state = BreakState
-				vm.RegisterInteropGetter(getTestingInterop)
+				vm.SyscallHandler = testSyscallHandler
 
 				for i := range test.Steps {
 					execStep(t, vm, test.Steps[i])

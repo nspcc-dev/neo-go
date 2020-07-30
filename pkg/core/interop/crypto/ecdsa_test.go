@@ -59,10 +59,9 @@ func initCHECKMULTISIGVM(t *testing.T, n int, ik, is []int) *vm.VM {
 	buf[0] = byte(opcode.SYSCALL)
 	binary.LittleEndian.PutUint32(buf[1:], ecdsaSecp256r1CheckMultisigID)
 
-	v := vm.New()
-	v.GasLimit = -1
 	ic := &interop.Context{Trigger: trigger.Verification}
-	v.RegisterInteropGetter(GetInterop(ic))
+	Register(ic)
+	v := ic.SpawnVM()
 	v.LoadScript(buf)
 	msg := []byte("NEO - An Open Network For Smart Economy")
 

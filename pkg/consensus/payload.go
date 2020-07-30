@@ -11,8 +11,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 )
@@ -222,9 +222,10 @@ func (p *Payload) Verify(scriptHash util.Uint160) bool {
 		return false
 	}
 
-	v := vm.New()
+	ic := &interop.Context{Trigger: trigger.Verification, Container: p}
+	crypto.Register(ic)
+	v := ic.SpawnVM()
 	v.GasLimit = payloadGasLimit
-	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: p}))
 	v.LoadScript(verification)
 	v.LoadScript(p.Witness.InvocationScript)
 

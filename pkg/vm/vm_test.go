@@ -17,26 +17,25 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func fooInteropGetter(id uint32) *InteropFuncPrice {
+func fooInteropHandler(v *VM, id uint32) error {
 	if id == emit.InteropNameToID([]byte("foo")) {
-		return &InteropFuncPrice{
-			Func: func(evm *VM) error {
-				evm.Estack().PushVal(1)
-				return nil
-			},
-			Price: 1,
+		if !v.AddGas(1) {
+			return errors.New("invalid gas amount")
 		}
+		v.Estack().PushVal(1)
+		return nil
 	}
-	return nil
+	return errors.New("syscall not found")
 }
 
 func TestInteropHook(t *testing.T) {
 	v := newTestVM()
-	v.RegisterInteropGetter(fooInteropGetter)
+	v.SyscallHandler = fooInteropHandler
 
 	buf := io.NewBufBinWriter()
 	emit.Syscall(buf.BinWriter, "foo")
@@ -45,13 +44,6 @@ func TestInteropHook(t *testing.T) {
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
 	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
-}
-
-func TestRegisterInteropGetter(t *testing.T) {
-	v := newTestVM()
-	currRegistered := len(v.getInterop)
-	v.RegisterInteropGetter(fooInteropGetter)
-	assert.Equal(t, currRegistered+1, len(v.getInterop))
 }
 
 func TestVM_SetPriceGetter(t *testing.T) {
@@ -819,7 +811,7 @@ func getTestCallFlagsFunc(syscall []byte, flags smartcontract.CallFlag, result i
 	return func(t *testing.T) {
 		script := append([]byte{byte(opcode.SYSCALL)}, syscall...)
 		v := newTestVM()
-		v.RegisterInteropGetter(getTestingInterop)
+		v.SyscallHandler = testSyscallHandler
 		v.LoadScriptWithFlags(script, flags)
 		if result == nil {
 			checkVMFailed(t, v)

@@ -1,6 +1,10 @@
 package interop
 
 import (
+	"errors"
+	"fmt"
+	"sort"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -32,6 +36,7 @@ type Context struct {
 	Log           *zap.Logger
 	Invocations   map[util.Uint160]int
 	ScriptGetter  vm.ScriptHashGetter
+	Functions     [][]Function
 }
 
 // NewContext returns new interop context.
@@ -48,6 +53,8 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 		Notifications: nes,
 		Log:           log,
 		Invocations:   make(map[util.Uint160]int),
+		// Functions is a slice of slices of interops sorted by ID.
+		Functions: [][]Function{},
 	}
 }
 
@@ -55,10 +62,14 @@ func NewContext(trigger trigger.Type, bc blockchainer.Blockchainer, d dao.DAO, n
 // it's supposed to be inited once for all interopContexts, so it doesn't use
 // vm.InteropFuncPrice directly.
 type Function struct {
-	ID    uint32
-	Name  string
-	Func  func(*Context, *vm.VM) error
-	Price int64
+	ID   uint32
+	Name string
+	Func func(*Context, *vm.VM) error
+	// DisallowCallback is true iff syscall can't be used in a callback.
+	DisallowCallback bool
+	// ParamCount is a number of function parameters.
+	ParamCount int
+	Price      int64
 	// RequiredFlags is a set of flags which must be set during script invocations.
 	// Default value is NoneFlag i.e. no flags are required.
 	RequiredFlags smartcontract.CallFlag
@@ -123,4 +134,47 @@ func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 		Name:       name,
 		Parameters: ps,
 	})
+}
+
+// Sort sorts interop functions by id.
+func Sort(fs []Function) {
+	sort.Slice(fs, func(i, j int) bool { return fs[i].ID < fs[j].ID })
+}
+
+// GetFunction returns metadata for interop with the specified id.
+func (ic *Context) GetFunction(id uint32) *Function {
+	for _, slice := range ic.Functions {
+		n := sort.Search(len(slice), func(i int) bool {
+			return slice[i].ID >= id
+		})
+		if n < len(slice) && slice[n].ID == id {
+			return &slice[n]
+		}
+	}
+	return nil
+}
+
+// SyscallHandler handles syscall with id.
+func (ic *Context) SyscallHandler(v *vm.VM, id uint32) error {
+	f := ic.GetFunction(id)
+	if f == nil {
+		return errors.New("syscall not found")
+	}
+	cf := v.Context().GetCallFlags()
+	if !cf.Has(f.RequiredFlags) {
+		return fmt.Errorf("missing call flags: %05b vs %05b", cf, f.RequiredFlags)
+	}
+	if !v.AddGas(f.Price) {
+		return errors.New("insufficient amount of gas")
+	}
+	return f.Func(ic, v)
+}
+
+// SpawnVM spawns new VM with the specified gas limit.
+func (ic *Context) SpawnVM() *vm.VM {
+	v := vm.NewWithTrigger(ic.Trigger)
+	v.GasLimit = -1
+	v.SyscallHandler = ic.SyscallHandler
+	ic.ScriptGetter = v
+	return v
 }

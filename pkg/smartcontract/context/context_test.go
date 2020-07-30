@@ -110,9 +110,9 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 }
 
 func newTestVM(w *transaction.Witness, tx *transaction.Transaction) *vm.VM {
-	v := vm.New()
-	v.GasLimit = -1
-	v.RegisterInteropGetter(crypto.GetInterop(&interop.Context{Container: tx}))
+	ic := &interop.Context{Container: tx}
+	crypto.Register(ic)
+	v := ic.SpawnVM()
 	v.LoadScript(w.VerificationScript)
 	v.LoadScript(w.InvocationScript)
 	return v

@@ -58,12 +58,12 @@ const (
 	maxSHLArg = stackitem.MaxBigIntegerSizeBits
 )
 
+// SyscallHandler is a type for syscall handler.
+type SyscallHandler = func(*VM, uint32) error
+
 // VM represents the virtual machine.
 type VM struct {
 	state State
-
-	// callbacks to get interops.
-	getInterop []InteropGetterFunc
 
 	// callback to get interop price
 	getPrice func(*VM, opcode.Opcode, []byte) int64
@@ -77,6 +77,9 @@ type VM struct {
 
 	gasConsumed int64
 	GasLimit    int64
+
+	// SyscallHandler handles SYSCALL opcode.
+	SyscallHandler func(v *VM, id uint32) error
 
 	trigger trigger.Type
 
@@ -92,17 +95,16 @@ func New() *VM {
 // NewWithTrigger returns a new VM for executions triggered by t.
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
-		getInterop: make([]InteropGetterFunc, 0, 3), // 3 functions is typical for our default usage.
-		state:      HaltState,
-		istack:     NewStack("invocation"),
-		refs:       newRefCounter(),
-		keys:       make(map[string]*keys.PublicKey),
-		trigger:    t,
+		state:   HaltState,
+		istack:  NewStack("invocation"),
+		refs:    newRefCounter(),
+		keys:    make(map[string]*keys.PublicKey),
+		trigger: t,
+
+		SyscallHandler: defaultSyscallHandler,
 	}
 
 	vm.estack = vm.newItemStack("evaluation")
-
-	vm.RegisterInteropGetter(getDefaultVMInterop)
 	return vm
 }
 
@@ -111,13 +113,6 @@ func (v *VM) newItemStack(n string) *Stack {
 	s.refs = v.refs
 
 	return s
-}
-
-// RegisterInteropGetter registers the given InteropGetterFunc into VM. There
-// can be many interop getters and they're probed in LIFO order wrt their
-// registration time.
-func (v *VM) RegisterInteropGetter(f InteropGetterFunc) {
-	v.getInterop = append(v.getInterop, f)
 }
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
@@ -492,18 +487,6 @@ func (v *VM) AtBreakpoint() bool {
 // GetInteropID converts instruction parameter to an interop ID.
 func GetInteropID(parameter []byte) uint32 {
 	return binary.LittleEndian.Uint32(parameter)
-}
-
-// GetInteropByID returns interop function together with price.
-// Registered callbacks are checked in LIFO order.
-func (v *VM) GetInteropByID(id uint32) *InteropFuncPrice {
-	for i := len(v.getInterop) - 1; i >= 0; i-- {
-		if ifunc := v.getInterop[i](id); ifunc != nil {
-			return ifunc
-		}
-	}
-
-	return nil
 }
 
 // execute performs an instruction cycle in the VM. Acting on the instruction (opcode).
@@ -1250,15 +1233,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
-		ifunc := v.GetInteropByID(interopID)
-		if !v.Context().callFlag.Has(ifunc.RequiredFlags) {
-			panic(fmt.Sprintf("missing call flags: %05b vs %05b", v.Context().callFlag, ifunc.RequiredFlags))
-		}
-
-		if ifunc == nil {
-			panic(fmt.Sprintf("interop hook (%q/0x%x) not registered", parameter, interopID))
-		}
-		if err := ifunc.Func(v); err != nil {
+		err := v.SyscallHandler(v, interopID)
+		if err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall: %s", err))
 		}
 
