@@ -155,12 +155,19 @@ func TestToJSONWithTypes(t *testing.T) {
 		{"BoolFalse", NewBool(false), `{"type":"Boolean","value":false}`},
 		{"Struct", NewStruct([]Item{Make(11)}),
 			`{"type":"Struct","value":[{"type":"Integer","value":"11"}]}`},
+		{"Map", NewMapWithValue([]MapElement{{Key: NewBigInteger(big.NewInt(42)), Value: NewBool(false)}}),
+			`{"type":"Map","value":[{"key":{"type":"Integer","value":"42"},` +
+				`"value":{"type":"Boolean","value":false}}]}`},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			s, err := ToJSONWithTypes(tc.item)
 			require.NoError(t, err)
 			require.Equal(t, tc.result, string(s))
+
+			item, err := FromJSONWithTypes(s)
+			require.NoError(t, err)
+			require.Equal(t, tc.item, item)
 		})
 	}
 
@@ -180,5 +187,54 @@ func TestToJSONWithTypes(t *testing.T) {
 			_, err := ToJSONWithTypes(m)
 			require.Error(t, err)
 		})
+	})
+}
+
+func TestFromJSONWithTypes(t *testing.T) {
+	testCases := []struct {
+		name string
+		json string
+		item Item
+	}{
+		{"Pointer", `{"type":"Pointer","value":3}`, NewPointer(3, nil)},
+		{"Interop", `{"type":"Interop"}`, NewInterop(nil)},
+		{"Null", `{"type":"Any"}`, Null{}},
+		{"Array", `{"type":"Array","value":[{"type":"Any"}]}`, NewArray([]Item{Null{}})},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			item, err := FromJSONWithTypes([]byte(tc.json))
+			require.NoError(t, err)
+			require.Equal(t, tc.item, item)
+		})
+	}
+
+	t.Run("Invalid", func(t *testing.T) {
+		errCases := []struct {
+			name string
+			json string
+		}{
+			{"InvalidType", `{"type":int,"value":"4"`},
+			{"UnexpectedType", `{"type":"int","value":"4"}`},
+			{"IntegerValue1", `{"type":"Integer","value": 4}`},
+			{"IntegerValue2", `{"type":"Integer","value": "a"}`},
+			{"BoolValue", `{"type":"Boolean","value": "str"}`},
+			{"PointerValue", `{"type":"Pointer","value": "str"}`},
+			{"BufferValue1", `{"type":"Buffer","value":"not a base 64"}`},
+			{"BufferValue2", `{"type":"Buffer","value":123}`},
+			{"ArrayValue", `{"type":"Array","value":3}`},
+			{"ArrayElement", `{"type":"Array","value":[3]}`},
+			{"MapValue", `{"type":"Map","value":3}`},
+			{"MapElement", `{"type":"Map","value":[{"key":"value"}]}`},
+			{"MapElementKeyNotPrimitive", `{"type":"Map","value":[{"key":{"type":"Any"}}]}`},
+			{"MapElementValue", `{"type":"Map","value":[` +
+				`{"key":{"type":"Integer","value":"3"},"value":3}]}`},
+		}
+		for _, tc := range errCases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := FromJSONWithTypes([]byte(tc.json))
+				require.Error(t, err)
+			})
+		}
 	})
 }

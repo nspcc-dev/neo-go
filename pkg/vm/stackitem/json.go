@@ -264,3 +264,107 @@ func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
 	}
 	return result, nil
 }
+
+type (
+	rawItem struct {
+		Type  string          `json:"type"`
+		Value json.RawMessage `json:"value,omitempty"`
+	}
+
+	rawMapElement struct {
+		Key   json.RawMessage `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
+)
+
+// FromJSONWithTypes deserializes an item from typed-json representation.
+func FromJSONWithTypes(data []byte) (Item, error) {
+	raw := new(rawItem)
+	if err := json.Unmarshal(data, raw); err != nil {
+		return nil, err
+	}
+	typ, err := FromString(raw.Type)
+	if err != nil {
+		return nil, errors.New("invalid type")
+	}
+	switch typ {
+	case AnyT:
+		return Null{}, nil
+	case PointerT:
+		var pos int
+		if err := json.Unmarshal(raw.Value, &pos); err != nil {
+			return nil, err
+		}
+		return NewPointer(pos, nil), nil
+	case BooleanT:
+		var b bool
+		if err := json.Unmarshal(raw.Value, &b); err != nil {
+			return nil, err
+		}
+		return NewBool(b), nil
+	case IntegerT:
+		var s string
+		if err := json.Unmarshal(raw.Value, &s); err != nil {
+			return nil, err
+		}
+		val, ok := new(big.Int).SetString(s, 10)
+		if !ok {
+			return nil, errors.New("invalid integer")
+		}
+		return NewBigInteger(val), nil
+	case ByteArrayT, BufferT:
+		var s string
+		if err := json.Unmarshal(raw.Value, &s); err != nil {
+			return nil, err
+		}
+		val, err := base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			return nil, err
+		}
+		if typ == ByteArrayT {
+			return NewByteArray(val), nil
+		}
+		return NewBuffer(val), nil
+	case ArrayT, StructT:
+		var arr []json.RawMessage
+		if err := json.Unmarshal(raw.Value, &arr); err != nil {
+			return nil, err
+		}
+		items := make([]Item, len(arr))
+		for i := range arr {
+			it, err := FromJSONWithTypes(arr[i])
+			if err != nil {
+				return nil, err
+			}
+			items[i] = it
+		}
+		if typ == ArrayT {
+			return NewArray(items), nil
+		}
+		return NewStruct(items), nil
+	case MapT:
+		var arr []rawMapElement
+		if err := json.Unmarshal(raw.Value, &arr); err != nil {
+			return nil, err
+		}
+		m := NewMap()
+		for i := range arr {
+			key, err := FromJSONWithTypes(arr[i].Key)
+			if err != nil {
+				return nil, err
+			} else if !IsValidMapKey(key) {
+				return nil, fmt.Errorf("invalid map key of type %s", key.Type())
+			}
+			value, err := FromJSONWithTypes(arr[i].Value)
+			if err != nil {
+				return nil, err
+			}
+			m.Add(key, value)
+		}
+		return m, nil
+	case InteropT:
+		return NewInterop(nil), nil
+	default:
+		return nil, errors.New("unexpected type")
+	}
+}
