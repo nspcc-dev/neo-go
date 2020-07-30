@@ -21,6 +21,7 @@ type ApplicationLog struct {
 //NotificationEvent response wrapper
 type NotificationEvent struct {
 	Contract util.Uint160            `json:"contract"`
+	Name     string                  `json:"eventname"`
 	Item     smartcontract.Parameter `json:"state"`
 }
 
@@ -28,13 +29,10 @@ type NotificationEvent struct {
 // result.NotificationEvent.
 func StateEventToResultNotification(event state.NotificationEvent) NotificationEvent {
 	seen := make(map[stackitem.Item]bool)
-	args := stackitem.NewArray([]stackitem.Item{
-		stackitem.Make(event.Name),
-		event.Item,
-	})
-	item := smartcontract.ParameterFromStackItem(args, seen)
+	item := smartcontract.ParameterFromStackItem(event.Item, seen)
 	return NotificationEvent{
 		Contract: event.ScriptHash,
+		Name:     event.Name,
 		Item:     item,
 	}
 }
