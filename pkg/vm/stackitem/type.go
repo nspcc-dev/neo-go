@@ -1,5 +1,7 @@
 package stackitem
 
+import "errors"
+
 // Type represents type of the stack item.
 type Type byte
 
@@ -52,5 +54,33 @@ func (t Type) IsValid() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// FromString returns stackitem type from string.
+func FromString(s string) (Type, error) {
+	switch s {
+	case "Any":
+		return AnyT, nil
+	case "Pointer":
+		return PointerT, nil
+	case "Boolean":
+		return BooleanT, nil
+	case "Integer":
+		return IntegerT, nil
+	case "ByteString":
+		return ByteArrayT, nil
+	case "Buffer":
+		return BufferT, nil
+	case "Array":
+		return ArrayT, nil
+	case "Struct":
+		return StructT, nil
+	case "Map":
+		return MapT, nil
+	case "Interop":
+		return InteropT, nil
+	default:
+		return 0xFF, errors.New("invalid type")
 	}
 }
