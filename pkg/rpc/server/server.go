@@ -514,15 +514,15 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 		Balances: []result.NEP5Balance{},
 	}
 	if as != nil {
-		cache := make(map[util.Uint160]int64)
-		for h, bal := range as.Trackers {
-			dec, err := s.getDecimals(h, cache)
+		cache := make(map[int32]decimals)
+		for id, bal := range as.Trackers {
+			dec, err := s.getDecimals(id, cache)
 			if err != nil {
 				continue
 			}
-			amount := amountToString(&bal.Balance, dec)
+			amount := amountToString(&bal.Balance, dec.Value)
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
-				Asset:       h,
+				Asset:       dec.Hash,
 				Amount:      amount,
 				LastUpdated: bal.LastUpdatedBlock,
 			})
@@ -543,20 +543,20 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	lg := s.chain.GetNEP5TransferLog(u)
-	cache := make(map[util.Uint160]int64)
+	cache := make(map[int32]decimals)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
-		transfer := result.NEP5Transfer{
-			Timestamp: tr.Timestamp,
-			Asset:     tr.Asset,
-			Index:     tr.Block,
-			TxHash:    tr.Tx,
-		}
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
 			return nil
 		}
+		transfer := result.NEP5Transfer{
+			Timestamp: tr.Timestamp,
+			Asset:     d.Hash,
+			Index:     tr.Block,
+			TxHash:    tr.Tx,
+		}
 		if tr.Amount.Sign() > 0 { // token was received
-			transfer.Amount = amountToString(&tr.Amount, d)
+			transfer.Amount = amountToString(&tr.Amount, d.Value)
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
@@ -564,7 +564,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			return nil
 		}
 
-		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d)
+		transfer.Amount = amountToString(new(big.Int).Neg(&tr.Amount), d.Value)
 		if !tr.To.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
@@ -590,9 +590,19 @@ func amountToString(amount *big.Int, decimals int64) string {
 	return fmt.Sprintf(fs, q, r)
 }
 
-func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, *response.Error) {
-	if d, ok := cache[h]; ok {
+// decimals represents decimals value for the contract with the specified scripthash.
+type decimals struct {
+	Hash  util.Uint160
+	Value int64
+}
+
+func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decimals, error) {
+	if d, ok := cache[contractID]; ok {
 		return d, nil
+	}
+	h, err := s.chain.GetContractScriptHash(contractID)
+	if err != nil {
+		return decimals{}, err
 	}
 	script, err := request.CreateFunctionInvocationScript(h, request.Params{
 		{
@@ -605,26 +615,26 @@ func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int6
 		},
 	})
 	if err != nil {
-		return 0, response.NewInternalServerError("Can't create script", err)
+		return decimals{}, fmt.Errorf("can't create script: %v", err)
 	}
 	res := s.runScriptInVM(script, nil)
 	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
-		return 0, response.NewInternalServerError("execution error", errors.New("no result"))
+		return decimals{}, errors.New("execution error : no result")
 	}
 
-	var d int64
+	d := decimals{Hash: h}
 	switch item := res.Stack[len(res.Stack)-1]; item.Type {
 	case smartcontract.IntegerType:
-		d = item.Value.(int64)
+		d.Value = item.Value.(int64)
 	case smartcontract.ByteArrayType:
-		d = bigint.FromBytes(item.Value.([]byte)).Int64()
+		d.Value = bigint.FromBytes(item.Value.([]byte)).Int64()
 	default:
-		return 0, response.NewInternalServerError("invalid result", errors.New("not an integer"))
+		return d, errors.New("invalid result: not an integer")
 	}
-	if d < 0 {
-		return 0, response.NewInternalServerError("incorrect result", errors.New("negative result"))
+	if d.Value < 0 {
+		return d, errors.New("incorrect result: negative result")
 	}
-	cache[h] = d
+	cache[contractID] = d
 	return d, nil
 }
 

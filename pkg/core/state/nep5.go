@@ -26,8 +26,8 @@ type NEP5TransferLog struct {
 
 // NEP5Transfer represents a single NEP5 Transfer event.
 type NEP5Transfer struct {
-	// Asset is a NEP5 contract hash.
-	Asset util.Uint160
+	// Asset is a NEP5 contract ID.
+	Asset int32
 	// Address is the address of the sender.
 	From util.Uint160
 	// To is the address of the receiver.
@@ -43,10 +43,10 @@ type NEP5Transfer struct {
 	Tx util.Uint256
 }
 
-// NEP5Balances is a map of the NEP5 contract hashes
+// NEP5Balances is a map of the NEP5 contract IDs
 // to the corresponding structures.
 type NEP5Balances struct {
-	Trackers map[util.Uint160]NEP5Tracker
+	Trackers map[int32]NEP5Tracker
 	// NextTransferBatch stores an index of the next transfer batch.
 	NextTransferBatch uint32
 }
@@ -54,7 +54,7 @@ type NEP5Balances struct {
 // NewNEP5Balances returns new NEP5Balances.
 func NewNEP5Balances() *NEP5Balances {
 	return &NEP5Balances{
-		Trackers: make(map[util.Uint160]NEP5Tracker),
+		Trackers: make(map[int32]NEP5Tracker),
 	}
 }
 
@@ -62,11 +62,10 @@ func NewNEP5Balances() *NEP5Balances {
 func (bs *NEP5Balances) DecodeBinary(r *io.BinReader) {
 	bs.NextTransferBatch = r.ReadU32LE()
 	lenBalances := r.ReadVarUint()
-	m := make(map[util.Uint160]NEP5Tracker, lenBalances)
+	m := make(map[int32]NEP5Tracker, lenBalances)
 	for i := 0; i < int(lenBalances); i++ {
-		var key util.Uint160
+		key := int32(r.ReadU32LE())
 		var tr NEP5Tracker
-		r.ReadBytes(key[:])
 		tr.DecodeBinary(r)
 		m[key] = tr
 	}
@@ -78,7 +77,7 @@ func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextTransferBatch)
 	w.WriteVarUint(uint64(len(bs.Trackers)))
 	for k, v := range bs.Trackers {
-		w.WriteBytes(k[:])
+		w.WriteU32LE(uint32(k))
 		v.EncodeBinary(w)
 	}
 }
@@ -133,7 +132,7 @@ func (t *NEP5Tracker) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements io.Serializable interface.
 func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
-	w.WriteBytes(t.Asset[:])
+	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
 	w.WriteBytes(t.From[:])
 	w.WriteBytes(t.To[:])
@@ -151,7 +150,7 @@ func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
 
 // DecodeBinaryReturnCount decodes NEP5Transfer and returns the number of bytes read.
 func (t *NEP5Transfer) DecodeBinaryReturnCount(r *io.BinReader) int {
-	r.ReadBytes(t.Asset[:])
+	t.Asset = int32(r.ReadU32LE())
 	r.ReadBytes(t.Tx[:])
 	r.ReadBytes(t.From[:])
 	r.ReadBytes(t.To[:])
@@ -161,5 +160,5 @@ func (t *NEP5Transfer) DecodeBinaryReturnCount(r *io.BinReader) int {
 	amountBytes := make([]byte, amountLen)
 	r.ReadBytes(amountBytes)
 	t.Amount = *bigint.FromBytes(amountBytes)
-	return util.Uint160Size*3 + 8 + 4 + (8 + len(amountBytes)) + +util.Uint256Size
+	return 4 + util.Uint160Size*2 + 8 + 4 + (8 + len(amountBytes)) + +util.Uint256Size
 }

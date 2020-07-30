@@ -210,7 +210,7 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	if err != nil {
 		panic(err)
 	}
-	tr := bs.Trackers[n.Hash]
+	tr := bs.Trackers[n.ContractID]
 
 	gen := ic.Chain.CalculateClaimable(&tr.Balance, tr.LastUpdatedBlock, end)
 	return stackitem.NewBigInteger(gen)
