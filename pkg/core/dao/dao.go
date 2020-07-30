@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -29,10 +30,13 @@ type DAO interface {
 	GetContractState(hash util.Uint160) (*state.Contract, error)
 	GetCurrentBlockHeight() (uint32, error)
 	GetCurrentHeaderHeight() (i uint32, h util.Uint256, err error)
+	GetCurrentStateRootHeight() (uint32, error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetAndUpdateNextContractID() (int32, error)
+	GetStateRoot(height uint32) (*state.MPTRootState, error)
+	PutStateRoot(root *state.MPTRootState) error
 	GetStorageItem(id int32, key []byte) *state.StorageItem
 	GetStorageItems(id int32) (map[string]*state.StorageItem, error)
 	GetStorageItemsWithPrefix(id int32, prefix []byte) (map[string]*state.StorageItem, error)
@@ -58,13 +62,15 @@ type DAO interface {
 
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
+	MPT     *mpt.Trie
 	Store   *storage.MemCachedStore
 	network netmode.Magic
 }
 
 // NewSimple creates new simple dao using provided backend store.
 func NewSimple(backend storage.Store, network netmode.Magic) *Simple {
-	return &Simple{Store: storage.NewMemCachedStore(backend), network: network}
+	st := storage.NewMemCachedStore(backend)
+	return &Simple{Store: st, network: network, MPT: mpt.NewTrie(nil, st)}
 }
 
 // GetBatch returns currently accumulated DB changeset.
@@ -75,7 +81,9 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() DAO {
-	return NewSimple(dao.Store, dao.network)
+	d := NewSimple(dao.Store, dao.network)
+	d.MPT = dao.MPT
+	return d
 }
 
 // GetAndDecode performs get operation and decoding with serializable structures.
@@ -288,6 +296,63 @@ func (dao *Simple) PutAppExecResult(aer *state.AppExecResult) error {
 
 // -- start storage item.
 
+func makeStateRootKey(height uint32) []byte {
+	key := make([]byte, 5)
+	key[0] = byte(storage.DataMPT)
+	binary.LittleEndian.PutUint32(key[1:], height)
+	return key
+}
+
+// InitMPT initializes MPT at the given height.
+func (dao *Simple) InitMPT(height uint32) error {
+	if height == 0 {
+		dao.MPT = mpt.NewTrie(nil, dao.Store)
+		return nil
+	}
+	r, err := dao.GetStateRoot(height)
+	if err != nil {
+		return err
+	}
+	dao.MPT = mpt.NewTrie(mpt.NewHashNode(r.Root), dao.Store)
+	return nil
+}
+
+// GetCurrentStateRootHeight returns current state root height.
+func (dao *Simple) GetCurrentStateRootHeight() (uint32, error) {
+	key := []byte{byte(storage.DataMPT)}
+	val, err := dao.Store.Get(key)
+	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			err = nil
+		}
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(val), nil
+}
+
+// PutCurrentStateRootHeight updates current state root height.
+func (dao *Simple) PutCurrentStateRootHeight(height uint32) error {
+	key := []byte{byte(storage.DataMPT)}
+	val := make([]byte, 4)
+	binary.LittleEndian.PutUint32(val, height)
+	return dao.Store.Put(key, val)
+}
+
+// GetStateRoot returns state root of a given height.
+func (dao *Simple) GetStateRoot(height uint32) (*state.MPTRootState, error) {
+	r := new(state.MPTRootState)
+	err := dao.GetAndDecode(r, makeStateRootKey(height))
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// PutStateRoot puts state root of a given height into the store.
+func (dao *Simple) PutStateRoot(r *state.MPTRootState) error {
+	return dao.Put(r, makeStateRootKey(r.Index))
+}
+
 // GetStorageItem returns StorageItem if it exists in the given store.
 func (dao *Simple) GetStorageItem(id int32, key []byte) *state.StorageItem {
 	b, err := dao.Store.Get(makeStorageItemKey(id, key))
@@ -308,13 +373,27 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) *state.StorageItem {
 // PutStorageItem puts given StorageItem for given id with given
 // key into the given store.
 func (dao *Simple) PutStorageItem(id int32, key []byte, si *state.StorageItem) error {
-	return dao.Put(si, makeStorageItemKey(id, key))
+	stKey := makeStorageItemKey(id, key)
+	buf := io.NewBufBinWriter()
+	si.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return buf.Err
+	}
+	v := buf.Bytes()
+	if err := dao.MPT.Put(stKey[1:], v); err != nil && err != mpt.ErrNotFound {
+		return err
+	}
+	return dao.Store.Put(stKey, v)
 }
 
 // DeleteStorageItem drops storage item for the given id with the
 // given key from the store.
 func (dao *Simple) DeleteStorageItem(id int32, key []byte) error {
-	return dao.Store.Delete(makeStorageItemKey(id, key))
+	stKey := makeStorageItemKey(id, key)
+	if err := dao.MPT.Delete(stKey[1:]); err != nil && err != mpt.ErrNotFound {
+		return err
+	}
+	return dao.Store.Delete(stKey)
 }
 
 // GetStorageItems returns all storage items for a given id.
