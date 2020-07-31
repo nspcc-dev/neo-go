@@ -616,12 +616,18 @@ func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) 
 		count = payload.MaxHashesCount
 	}
 	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(count); i++ {
-		b, err := s.chain.GetBlock(s.chain.GetHeaderHash(int(i)))
+		hash := s.chain.GetHeaderHash(int(i))
+		if hash.Equals(util.Uint256{}) {
+			break
+		}
+		b, err := s.chain.GetBlock(hash)
 		if err != nil {
-			return err
+			break
 		}
 		msg := NewMessage(CMDBlock, b)
-		return p.EnqueueP2PMessage(msg)
+		if err = p.EnqueueP2PMessage(msg); err != nil {
+			return err
+		}
 	}
 	return nil
 }
