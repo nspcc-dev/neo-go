@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -405,18 +404,15 @@ func (s *Stack) ToArray() []stackitem.Item {
 	return items
 }
 
-// ToContractParameters converts Stack to slice of smartcontract.Parameter.
-func (s *Stack) ToContractParameters() []smartcontract.Parameter {
-	items := make([]smartcontract.Parameter, 0, s.Len())
-	s.IterBack(func(e *Element) {
-		// Each item is independent.
-		seen := make(map[stackitem.Item]bool)
-		items = append(items, smartcontract.ParameterFromStackItem(e.value, seen))
-	})
-	return items
-}
-
 // MarshalJSON implements JSON marshalling interface.
 func (s *Stack) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.ToContractParameters())
+	items := s.ToArray()
+	arr := make([]json.RawMessage, len(items))
+	for i := range items {
+		data, err := stackitem.ToJSONWithTypes(items[i])
+		if err == nil {
+			arr[i] = data
+		}
+	}
+	return json.Marshal(arr)
 }
