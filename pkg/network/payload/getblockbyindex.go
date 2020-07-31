@@ -6,9 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// maximum number of blocks to query about
-const maxBlockCount = 500
-
 // GetBlockByIndex payload
 type GetBlockByIndex struct {
 	IndexStart uint32
@@ -27,7 +24,7 @@ func NewGetBlockByIndex(indexStart uint32, count uint16) *GetBlockByIndex {
 func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 	d.IndexStart = br.ReadU32LE()
 	d.Count = br.ReadU16LE()
-	if d.Count == 0 || d.Count > maxBlockCount {
+	if d.Count == 0 || d.Count > MaxHeadersAllowed {
 		br.Err = errors.New("invalid block count")
 	}
 }
