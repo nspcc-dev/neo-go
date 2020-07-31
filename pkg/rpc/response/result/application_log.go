@@ -43,13 +43,17 @@ func NewApplicationLog(appExecRes *state.AppExecResult) ApplicationLog {
 	for _, e := range appExecRes.Events {
 		events = append(events, StateEventToResultNotification(e))
 	}
-
+	st := make([]smartcontract.Parameter, len(appExecRes.Stack))
+	seen := make(map[stackitem.Item]bool)
+	for i := range appExecRes.Stack {
+		st[i] = smartcontract.ParameterFromStackItem(appExecRes.Stack[i], seen)
+	}
 	return ApplicationLog{
 		TxHash:      appExecRes.TxHash,
 		Trigger:     appExecRes.Trigger.String(),
 		VMState:     appExecRes.VMState.String(),
 		GasConsumed: appExecRes.GasConsumed,
-		Stack:       appExecRes.Stack,
+		Stack:       st,
 		Events:      events,
 	}
 }

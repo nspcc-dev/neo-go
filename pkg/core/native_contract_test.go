@@ -131,8 +131,7 @@ func TestNativeContract_Invoke(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, vm.HaltState, res.VMState)
 	require.Equal(t, 1, len(res.Stack))
-	require.Equal(t, smartcontract.IntegerType, res.Stack[0].Type)
-	require.EqualValues(t, 42, res.Stack[0].Value)
+	require.Equal(t, big.NewInt(42), res.Stack[0].Value())
 
 	res, err = chain.GetAppExecResult(tx2.Hash())
 	require.NoError(t, err)

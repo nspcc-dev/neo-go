@@ -591,7 +591,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			Trigger:     trigger.System,
 			VMState:     v.State(),
 			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToContractParameters(),
+			Stack:       v.Estack().ToArray(),
 			Events:      systemInterop.Notifications,
 		}
 		appExecResults = append(appExecResults, aer)
@@ -632,7 +632,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			Trigger:     trigger.Application,
 			VMState:     v.State(),
 			GasConsumed: v.GasConsumed(),
-			Stack:       v.Estack().ToContractParameters(),
+			Stack:       v.Estack().ToArray(),
 			Events:      systemInterop.Notifications,
 		}
 		appExecResults = append(appExecResults, aer)

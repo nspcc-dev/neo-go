@@ -11,8 +11,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,7 +103,7 @@ func TestPutGetAppExecResult(t *testing.T) {
 	appExecResult := &state.AppExecResult{
 		TxHash: hash,
 		Events: []state.NotificationEvent{},
-		Stack:  []smartcontract.Parameter{},
+		Stack:  []stackitem.Item{},
 	}
 	err := dao.PutAppExecResult(appExecResult)
 	require.NoError(t, err)
