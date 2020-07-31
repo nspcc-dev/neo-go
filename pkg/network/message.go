@@ -146,9 +146,9 @@ func (m *Message) decodePayload() error {
 	case CMDConsensus:
 		p = consensus.NewPayload(m.Network)
 	case CMDGetBlocks:
-		fallthrough
-	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
+	case CMDGetHeaders:
+		fallthrough
 	case CMDGetBlockByIndex:
 		p = &payload.GetBlockByIndex{}
 	case CMDHeaders:

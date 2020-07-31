@@ -149,7 +149,7 @@ func TestRequestHeaders(t *testing.T) {
 		p = newLocalPeer(t, s)
 	)
 	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.IsType(t, &payload.GetBlocks{}, msg.Payload)
+		assert.IsType(t, &payload.GetBlockByIndex{}, msg.Payload)
 		assert.Equal(t, CMDGetHeaders, msg.Command)
 	}
 	s.requestHeaders(p)
