@@ -62,6 +62,15 @@ type codegen struct {
 	// initEndOffset specifies the end of the initialization method.
 	initEndOffset int
 
+	// importMap contains mapping from package aliases to full package names for the current file.
+	importMap map[string]string
+
+	// constMap contains constants from foreign packages.
+	constMap map[string]types.TypeAndValue
+
+	// currPkg is current package being processed.
+	currPkg *types.Package
+
 	// mainPkg is a main package metadata.
 	mainPkg *loader.PackageInfo
 
@@ -167,14 +176,16 @@ func (c *codegen) emitStoreStructField(i int) {
 
 // getVarIndex returns variable type and position in corresponding slot,
 // according to current scope.
-func (c *codegen) getVarIndex(name string) (varType, int) {
-	if c.scope != nil {
-		vt, val := c.scope.vars.getVarIndex(name)
-		if val >= 0 {
-			return vt, val
+func (c *codegen) getVarIndex(pkg string, name string) (varType, int) {
+	if pkg == "" {
+		if c.scope != nil {
+			vt, val := c.scope.vars.getVarIndex(name)
+			if val >= 0 {
+				return vt, val
+			}
 		}
 	}
-	if i, ok := c.globals[name]; ok {
+	if i, ok := c.globals[c.getIdentName(pkg, name)]; ok {
 		return varGlobal, i
 	}
 
@@ -195,8 +206,8 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 }
 
 // emitLoadVar loads specified variable to the evaluation stack.
-func (c *codegen) emitLoadVar(name string) {
-	t, i := c.getVarIndex(name)
+func (c *codegen) emitLoadVar(pkg string, name string) {
+	t, i := c.getVarIndex(pkg, name)
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -206,12 +217,12 @@ func (c *codegen) emitLoadVar(name string) {
 }
 
 // emitStoreVar stores top value from the evaluation stack in the specified variable.
-func (c *codegen) emitStoreVar(name string) {
+func (c *codegen) emitStoreVar(pkg string, name string) {
 	if name == "_" {
 		emit.Opcode(c.prog.BinWriter, opcode.DROP)
 		return
 	}
-	t, i := c.getVarIndex(name)
+	t, i := c.getVarIndex(pkg, name)
 	_, base := getBaseOpcode(t)
 	if i < 7 {
 		emit.Opcode(c.prog.BinWriter, base+opcode.Opcode(i))
@@ -252,17 +263,13 @@ func (c *codegen) emitDefault(t types.Type) {
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl then it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f ast.Node) {
+func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
 			return false
 		case *ast.GenDecl:
-			// constants are loaded directly so there is no need
-			// to store them as a local variables
-			if n.Tok != token.CONST {
-				ast.Walk(c, n)
-			}
+			ast.Walk(c, n)
 		}
 		return true
 	})
@@ -274,19 +281,18 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		ok, isLambda bool
 	)
 
-	f, ok = c.funcs[decl.Name.Name]
+	f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
 	if ok {
 		// If this function is a syscall or builtin we will not convert it to bytecode.
 		if isSyscall(f) || isCustomBuiltin(f) {
 			return
 		}
 		c.setLabel(f.label)
-	} else if f, ok = c.lambda[decl.Name.Name]; ok {
+	} else if f, ok = c.lambda[c.getIdentName("", decl.Name.Name)]; ok {
 		isLambda = ok
 		c.setLabel(f.label)
 	} else {
 		f = c.newFunc(decl)
-		f.pkg = pkg
 	}
 
 	f.rng.Start = uint16(c.prog.Len())
@@ -362,13 +368,22 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		if n.Tok == token.CONST {
+			for _, spec := range n.Specs {
+				vs := spec.(*ast.ValueSpec)
+				for i := range vs.Names {
+					c.constMap[c.getIdentName("", vs.Names[i].Name)] = c.typeAndValueOf(vs.Values[i])
+				}
+			}
+			return nil
+		}
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
 				for _, id := range t.Names {
 					if c.scope == nil {
 						// it is a global declaration
-						c.newGlobal(id.Name)
+						c.newGlobal("", id.Name)
 					} else {
 						c.scope.newLocal(id.Name)
 					}
@@ -380,7 +395,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					} else {
 						c.emitDefault(c.typeOf(t.Type))
 					}
-					c.emitStoreVar(t.Names[i].Name)
+					c.emitStoreVar("", t.Names[i].Name)
 				}
 			}
 		}
@@ -411,13 +426,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				if !isAssignOp && (i == 0 || !multiRet) {
 					ast.Walk(c, n.Rhs[i])
 				}
-				c.emitStoreVar(t.Name)
+				c.emitStoreVar("", t.Name)
 
 			case *ast.SelectorExpr:
 				if !isAssignOp {
 					ast.Walk(c, n.Rhs[i])
 				}
-				strct, ok := c.typeOf(t.X).Underlying().(*types.Struct)
+				typ := c.typeOf(t.X)
+				if typ == nil {
+					// Store to other package global variable.
+					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
+					return nil
+				}
+				strct, ok := typ.Underlying().(*types.Struct)
 				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
@@ -442,7 +463,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SliceExpr:
 		name := n.X.(*ast.Ident).Name
-		c.emitLoadVar(name)
+		c.emitLoadVar("", name)
 
 		if n.Low != nil {
 			ast.Walk(c, n.Low)
@@ -480,7 +501,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := len(results.List) - 1; i >= 0; i-- {
 					names := results.List[i].Names
 					for j := len(names) - 1; j >= 0; j-- {
-						c.emitLoadVar(names[j].Name)
+						c.emitLoadVar("", names[j].Name)
 					}
 				}
 			}
@@ -595,7 +616,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		} else if n.Name == "nil" {
 			emit.Opcode(c.prog.BinWriter, opcode.PUSHNULL)
 		} else {
-			c.emitLoadVar(n.Name)
+			c.emitLoadVar("", n.Name)
 		}
 		return nil
 
@@ -719,7 +740,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		switch fun := n.Fun.(type) {
 		case *ast.Ident:
-			f, ok = c.funcs[fun.Name]
+			f, ok = c.funcs[c.getIdentName("", fun.Name)]
 			isBuiltin = isGoBuiltin(fun.Name)
 			if !ok && !isBuiltin {
 				name = fun.Name
@@ -732,13 +753,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// If this is a method call we need to walk the AST to load the struct locally.
 			// Otherwise this is a function call from a imported package and we can call it
 			// directly.
-			if c.typeInfo.Selections[fun] != nil {
+			name, isMethod := c.getFuncNameFromSelector(fun)
+			if isMethod {
 				ast.Walk(c, fun.X)
 				// Dont forget to add 1 extra argument when its a method.
 				numArgs++
 			}
 
-			f, ok = c.funcs[fun.Sel.Name]
+			f, ok = c.funcs[name]
 			// @FIXME this could cause runtime errors.
 			f.selector = fun.X.(*ast.Ident)
 			if !ok {
@@ -789,7 +811,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if isString(c.typeOf(n.Fun)) {
 				c.emitConvert(stackitem.ByteArrayT)
 			} else if isFunc {
-				c.emitLoadVar(name)
+				c.emitLoadVar("", name)
 				emit.Opcode(c.prog.BinWriter, opcode.CALLA)
 			}
 		case isSyscall(f):
@@ -801,7 +823,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SelectorExpr:
-		strct, ok := c.typeOf(n.X).Underlying().(*types.Struct)
+		typ := c.typeOf(n.X)
+		if typ == nil {
+			// This is a global variable from a package.
+			pkgAlias := n.X.(*ast.Ident).Name
+			name := c.getIdentName(pkgAlias, n.Sel.Name)
+			if tv, ok := c.constMap[name]; ok {
+				c.emitLoadConst(tv)
+			} else {
+				c.emitLoadVar(pkgAlias, n.Sel.Name)
+			}
+			return nil
+		}
+		strct, ok := typ.Underlying().(*types.Struct)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
@@ -840,7 +874,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// for i := 0; i < 10; i++ {}
 		// Where the post stmt is ( i++ )
 		if ident, ok := n.X.(*ast.Ident); ok {
-			c.emitStoreVar(ident.Name)
+			c.emitStoreVar("", ident.Name)
 		}
 		return nil
 
@@ -992,7 +1026,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				emit.Opcode(c.prog.BinWriter, opcode.DUP)
 			}
-			c.emitStoreVar(n.Key.(*ast.Ident).Name)
+			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
 		}
 		if needValue {
 			if !isMap || !keyLoaded {
@@ -1005,7 +1039,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				emit.Opcode(c.prog.BinWriter, opcode.SWAP) // key should be on top
 				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
 			}
-			c.emitStoreVar(n.Value.(*ast.Ident).Name)
+			c.emitStoreVar("", n.Value.(*ast.Ident).Name)
 		}
 
 		ast.Walk(c, n.Body)
@@ -1400,32 +1434,40 @@ func (c *codegen) convertToken(tok token.Token) {
 }
 
 func (c *codegen) newFunc(decl *ast.FuncDecl) *funcScope {
-	f := newFuncScope(decl, c.newLabel())
-	c.funcs[f.name] = f
+	f := c.newFuncScope(decl, c.newLabel())
+	c.funcs[c.getFuncNameFromDecl("", decl)] = f
 	return f
+}
+
+// getFuncNameFromSelector returns fully-qualified function name from the selector expression.
+// Second return value is true iff this was a method call, not foreign package call.
+func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
+	ident := e.X.(*ast.Ident)
+	if c.typeInfo.Selections[e] != nil {
+		typ := c.typeInfo.Types[ident].Type.String()
+		return c.getIdentName(typ, e.Sel.Name), true
+	}
+	return c.getIdentName(ident.Name, e.Sel.Name), false
 }
 
 func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 	name := fmt.Sprintf("lambda@%d", u)
-	c.lambda[name] = newFuncScope(&ast.FuncDecl{
+	f := c.newFuncScope(&ast.FuncDecl{
 		Name: ast.NewIdent(name),
 		Type: lit.Type,
 		Body: lit.Body,
 	}, u)
+	c.lambda[c.getFuncNameFromDecl("", f.decl)] = f
 }
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
-	funUsage := analyzeFuncUsage(pkg, info.program.AllPackages)
+	c.mainPkg = pkg
+	funUsage := c.analyzeFuncUsage()
 
 	// Bring all imported functions into scope.
-	for _, pkg := range info.program.AllPackages {
-		for _, f := range pkg.Files {
-			c.resolveFuncDecls(f, pkg.Pkg)
-		}
-	}
+	c.ForEachFile(c.resolveFuncDecls)
 
-	c.mainPkg = pkg
-	n := c.traverseGlobals(pkg.Files...)
+	n := c.traverseGlobals()
 	if n > 0 {
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		c.initEndOffset = c.prog.Len()
@@ -1439,23 +1481,19 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
 
 	// Generate the code for the program.
-	for _, k := range keys {
-		pkg := info.program.AllPackages[k]
-		c.typeInfo = &pkg.Info
-
-		for _, f := range pkg.Files {
-			for _, decl := range f.Decls {
-				switch n := decl.(type) {
-				case *ast.FuncDecl:
-					// Don't convert the function if it's not used. This will save a lot
-					// of bytecode space.
-					if funUsage.funcUsed(n.Name.Name) {
-						c.convertFuncDecl(f, n, k)
-					}
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		for _, decl := range f.Decls {
+			switch n := decl.(type) {
+			case *ast.FuncDecl:
+				// Don't convert the function if it's not used. This will save a lot
+				// of bytecode space.
+				name := c.getFuncNameFromDecl(pkg.Path(), n)
+				if funUsage.funcUsed(name) && !isInteropPath(pkg.Path()) {
+					c.convertFuncDecl(f, n, pkg)
 				}
 			}
 		}
-	}
+	})
 
 	return c.prog.Err
 }
@@ -1470,6 +1508,7 @@ func newCodegen(info *buildInfo, pkg *loader.PackageInfo) *codegen {
 		globals:   map[string]int{},
 		labels:    map[labelWithType]uint16{},
 		typeInfo:  &pkg.Info,
+		constMap:  map[string]types.TypeAndValue{},
 
 		sequencePoints: make(map[string][]DebugSeqPoint),
 	}
@@ -1496,7 +1535,6 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 		switch n := decl.(type) {
 		case *ast.FuncDecl:
 			c.newFunc(n)
-			c.funcs[n.Name.Name].pkg = pkg
 		}
 	}
 }

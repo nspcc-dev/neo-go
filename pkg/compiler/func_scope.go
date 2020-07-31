@@ -45,7 +45,7 @@ type funcScope struct {
 	i int
 }
 
-func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
+func (c *codegen) newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 	var name string
 	if decl.Name != nil {
 		name = decl.Name.Name
@@ -54,11 +54,20 @@ func newFuncScope(decl *ast.FuncDecl, label uint16) *funcScope {
 		name:      name,
 		decl:      decl,
 		label:     label,
+		pkg:       c.currPkg,
 		vars:      newVarScope(),
 		voidCalls: map[*ast.CallExpr]bool{},
 		variables: []string{},
 		i:         -1,
 	}
+}
+
+func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string {
+	name := decl.Name.Name
+	if decl.Recv != nil {
+		name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+	}
+	return c.getIdentName(pkgPath, name)
 }
 
 // analyzeVoidCalls checks for functions that are not assigned

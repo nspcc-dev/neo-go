@@ -99,19 +99,19 @@ func TotalSupply() interface{} {
 func BalanceOf(holder []byte) interface{} {
 	t := createToken()
 	ctx := storage.GetContext()
-	return t.TBalanceOf(ctx, holder)
+	return t.BalanceOf(ctx, holder)
 }
 
 // Transfer token from one user to another
 func Transfer(from []byte, to []byte, amount int) bool {
 	t := createToken()
 	ctx := storage.GetContext()
-	return t.TTransfer(ctx, from, to, amount)
+	return t.Transfer(ctx, from, to, amount)
 }
 
 // Mint initial supply of tokens
 func Mint(to []byte) bool {
 	t := createToken()
 	ctx := storage.GetContext()
-	return t.TMint(ctx, to)
+	return t.Mint(ctx, to)
 }

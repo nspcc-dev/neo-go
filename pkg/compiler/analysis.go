@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"golang.org/x/tools/go/loader"
 )
 
 var (
@@ -22,26 +21,33 @@ var (
 )
 
 // newGlobal creates new global variable.
-func (c *codegen) newGlobal(name string) {
+func (c *codegen) newGlobal(pkg string, name string) {
+	name = c.getIdentName(pkg, name)
 	c.globals[name] = len(c.globals)
+}
+
+// getIdentName returns fully-qualified name for a variable.
+func (c *codegen) getIdentName(pkg string, name string) string {
+	if fullName, ok := c.importMap[pkg]; ok {
+		pkg = fullName
+	}
+	return pkg + "." + name
 }
 
 // traverseGlobals visits and initializes global variables.
 // and returns number of variables initialized.
-func (c *codegen) traverseGlobals(fs ...*ast.File) int {
+func (c *codegen) traverseGlobals() int {
 	var n int
-	for _, f := range fs {
+	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
-	}
+	})
 	if n != 0 {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
 			return 0
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
-		for _, f := range fs {
-			c.convertGlobals(f)
-		}
+		c.ForEachFile(c.convertGlobals)
 	}
 	return n
 }
@@ -68,28 +74,6 @@ func countGlobals(f ast.Node) (i int) {
 func isExprNil(e ast.Expr) bool {
 	v, ok := e.(*ast.Ident)
 	return ok && v.Name == "nil"
-}
-
-// resolveEntryPoint returns the function declaration of the entrypoint and the corresponding file.
-func resolveEntryPoint(entry string, pkg *loader.PackageInfo) (*ast.FuncDecl, *ast.File) {
-	var (
-		main *ast.FuncDecl
-		file *ast.File
-	)
-	for _, f := range pkg.Files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			switch t := n.(type) {
-			case *ast.FuncDecl:
-				if t.Name.Name == entry {
-					main = t
-					file = f
-					return false
-				}
-			}
-			return true
-		})
-	}
-	return main, file
 }
 
 // indexOfStruct returns the index of the given field inside that struct.
@@ -119,31 +103,30 @@ func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
 	return false
 }
 
-func analyzeFuncUsage(mainPkg *loader.PackageInfo, pkgs map[*types.Package]*loader.PackageInfo) funcUsage {
+func (c *codegen) analyzeFuncUsage() funcUsage {
 	usage := funcUsage{}
 
-	for _, pkg := range pkgs {
-		isMain := pkg == mainPkg
-		for _, f := range pkg.Files {
-			ast.Inspect(f, func(node ast.Node) bool {
-				switch n := node.(type) {
-				case *ast.CallExpr:
-					switch t := n.Fun.(type) {
-					case *ast.Ident:
-						usage[t.Name] = true
-					case *ast.SelectorExpr:
-						usage[t.Sel.Name] = true
-					}
-				case *ast.FuncDecl:
-					// exported functions are always assumed to be used
-					if isMain && n.Name.IsExported() {
-						usage[n.Name.Name] = true
-					}
+	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
+		isMain := pkg == c.mainPkg.Pkg
+		ast.Inspect(f, func(node ast.Node) bool {
+			switch n := node.(type) {
+			case *ast.CallExpr:
+				switch t := n.Fun.(type) {
+				case *ast.Ident:
+					usage[c.getIdentName("", t.Name)] = true
+				case *ast.SelectorExpr:
+					name, _ := c.getFuncNameFromSelector(t)
+					usage[name] = true
 				}
-				return true
-			})
-		}
-	}
+			case *ast.FuncDecl:
+				// exported functions are always assumed to be used
+				if isMain && n.Name.IsExported() {
+					usage[c.getFuncNameFromDecl(pkg.Path(), n)] = true
+				}
+			}
+			return true
+		})
+	})
 	return usage
 }
 

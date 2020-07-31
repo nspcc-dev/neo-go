@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/parser"
+	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
@@ -40,6 +42,35 @@ type Options struct {
 type buildInfo struct {
 	initialPackage string
 	program        *loader.Program
+}
+
+// ForEachFile executes fn on each file used in current program.
+func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
+	for _, pkg := range c.buildInfo.program.AllPackages {
+		c.typeInfo = &pkg.Info
+		c.currPkg = pkg.Pkg
+		for _, f := range pkg.Files {
+			c.fillImportMap(f, pkg.Pkg)
+			fn(f, pkg.Pkg)
+		}
+	}
+}
+
+// fillImportMap fills import map for f.
+func (c *codegen) fillImportMap(f *ast.File, pkg *types.Package) {
+	c.importMap = map[string]string{"": pkg.Path()}
+	for _, imp := range f.Imports {
+		// We need to load find package metadata because
+		// name specified in `package ...` decl, can be in
+		// conflict with package path.
+		pkgPath := strings.Trim(imp.Path.Value, `"`)
+		realPkg := c.buildInfo.program.Package(pkgPath)
+		name := realPkg.Pkg.Name()
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		c.importMap[name] = realPkg.Pkg.Path()
+	}
 }
 
 func getBuildInfo(src interface{}) (*buildInfo, error) {

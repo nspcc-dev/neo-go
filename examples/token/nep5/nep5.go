@@ -38,14 +38,13 @@ func (t Token) GetSupply(ctx storage.Context) interface{} {
 	return getIntFromDB(ctx, []byte(t.CirculationKey))
 }
 
-// TBalanceOf gets the token balance of a specific address
-// TODO: https://github.com/nspcc-dev/neo-go/issues/1150
-func (t Token) TBalanceOf(ctx storage.Context, holder []byte) interface{} {
+// BalanceOf gets the token balance of a specific address
+func (t Token) BalanceOf(ctx storage.Context, holder []byte) interface{} {
 	return getIntFromDB(ctx, holder)
 }
 
-// TTransfer token from one user to another
-func (t Token) TTransfer(ctx storage.Context, from []byte, to []byte, amount int) bool {
+// Transfer token from one user to another
+func (t Token) Transfer(ctx storage.Context, from []byte, to []byte, amount int) bool {
 	amountFrom := t.CanTransfer(ctx, from, to, amount)
 	if amountFrom == -1 {
 		return false
@@ -105,8 +104,8 @@ func IsUsableAddress(addr []byte) bool {
 	return false
 }
 
-// TMint initial supply of tokens.
-func (t Token) TMint(ctx storage.Context, to []byte) bool {
+// Mint initial supply of tokens.
+func (t Token) Mint(ctx storage.Context, to []byte) bool {
 	if !IsUsableAddress(t.Owner) {
 		return false
 	}
