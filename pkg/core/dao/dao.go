@@ -35,6 +35,7 @@ type DAO interface {
 	GetCurrentStateRootHeight() (uint32, error)
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
+	GetNEP5Metadata(h util.Uint160) (*state.NEP5Metadata, error)
 	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	PutStateRoot(root *state.MPTRootState) error
@@ -58,6 +59,7 @@ type DAO interface {
 	PutContractState(cs *state.Contract) error
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
+	PutNEP5Metadata(h util.Uint160, meta *state.NEP5Metadata) error
 	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
@@ -213,6 +215,22 @@ func (dao *Simple) PutContractState(cs *state.Contract) error {
 func (dao *Simple) DeleteContractState(hash util.Uint160) error {
 	key := storage.AppendPrefix(storage.STContract, hash.BytesBE())
 	return dao.Store.Delete(key)
+}
+
+// GetNEP5Metadata returns saved NEP5 metadata for the contract h.
+func (dao *Simple) GetNEP5Metadata(h util.Uint160) (*state.NEP5Metadata, error) {
+	key := storage.AppendPrefix(storage.STMigration, h.BytesBE())
+	m := new(state.NEP5Metadata)
+	if err := dao.GetAndDecode(m, key); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// PutNEP5Metadata saves NEP5 metadata for the contract h.
+func (dao *Simple) PutNEP5Metadata(h util.Uint160, m *state.NEP5Metadata) error {
+	key := storage.AppendPrefix(storage.STMigration, h.BytesBE())
+	return dao.Put(m, key)
 }
 
 // -- end contracts.

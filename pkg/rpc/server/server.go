@@ -628,7 +628,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		}
 
 		transfer.Amount = amountToString(-tr.Amount, d)
-		if !tr.From.Equals(util.Uint160{}) {
+		if !tr.To.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
 		bs.Sent = append(bs.Sent, transfer)
@@ -657,6 +657,11 @@ func amountToString(amount int64, decimals int64) string {
 func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, *response.Error) {
 	if d, ok := cache[h]; ok {
 		return d, nil
+	}
+	m, err := s.chain.GetNEP5Metadata(h)
+	if err == nil {
+		cache[h] = m.Decimals
+		return m.Decimals, nil
 	}
 	script, err := request.CreateFunctionInvocationScript(h, request.Params{
 		{

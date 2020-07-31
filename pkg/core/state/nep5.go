@@ -49,6 +49,11 @@ type NEP5Balances struct {
 	NextTransferBatch uint32
 }
 
+// NEP5Metadata is a metadata for NEP5 contracts.
+type NEP5Metadata struct {
+	Decimals int64
+}
+
 // NewNEP5Balances returns new NEP5Balances.
 func NewNEP5Balances() *NEP5Balances {
 	return &NEP5Balances{
@@ -79,6 +84,16 @@ func (bs *NEP5Balances) EncodeBinary(w *io.BinWriter) {
 		w.WriteBytes(k[:])
 		v.EncodeBinary(w)
 	}
+}
+
+// DecodeBinary implements io.Serializable interface.
+func (bs *NEP5Metadata) DecodeBinary(r *io.BinReader) {
+	bs.Decimals = int64(r.ReadU64LE())
+}
+
+// EncodeBinary implements io.Serializable interface.
+func (bs *NEP5Metadata) EncodeBinary(w *io.BinWriter) {
+	w.WriteU64LE(uint64(bs.Decimals))
 }
 
 // Append appends single transfer to a log.
