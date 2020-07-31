@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -648,12 +649,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					State:       "HALT",
 					GasConsumed: 31100000,
 					Script:      "1426ae7c6c9861ec418468c1f0fdc4a7f2963eb89151c10962616c616e63654f6667be39e7b562f60cbfe2aebca375a2e5ee28737caf",
-					Stack: []smartcontract.Parameter{
-						{
-							Type:  smartcontract.ByteArrayType,
-							Value: bytes,
-						},
-					},
+					Stack:       []stackitem.Item{stackitem.NewByteArray(bytes)},
 				}
 			},
 		},
@@ -680,12 +676,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					State:       "HALT",
 					GasConsumed: 16100000,
 					Script:      "00046e616d656724058e5e1b6008847cd662728549088a9ee82191",
-					Stack: []smartcontract.Parameter{
-						{
-							Type:  smartcontract.ByteArrayType,
-							Value: bytes,
-						},
-					},
+					Stack:       []stackitem.Item{stackitem.NewByteArray(bytes)},
 				}
 			},
 		},

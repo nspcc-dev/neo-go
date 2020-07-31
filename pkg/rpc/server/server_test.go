@@ -531,7 +531,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
 				require.Equal(t, 1, len(res.Stack))
-				require.Equal(t, int64(3), res.Stack[0].Value)
+				require.Equal(t, big.NewInt(3), res.Stack[0].Value())
 			},
 		},
 		{
@@ -543,7 +543,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
 				require.Equal(t, 1, len(res.Stack))
-				require.Equal(t, int64(2), res.Stack[0].Value)
+				require.Equal(t, big.NewInt(2), res.Stack[0].Value())
 			},
 		},
 		{
@@ -555,7 +555,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
 				require.Equal(t, 1, len(res.Stack))
-				require.Equal(t, int64(1), res.Stack[0].Value)
+				require.Equal(t, big.NewInt(1), res.Stack[0].Value())
 			},
 		},
 		{
@@ -567,7 +567,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
 				assert.Equal(t, 1, len(res.Stack))
-				assert.Equal(t, int64(1), res.Stack[0].Value)
+				assert.Equal(t, big.NewInt(1), res.Stack[0].Value())
 			},
 		},
 		{
