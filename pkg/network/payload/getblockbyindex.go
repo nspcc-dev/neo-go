@@ -9,22 +9,22 @@ import (
 // maximum number of blocks to query about
 const maxBlockCount = 500
 
-// GetBlockData payload
-type GetBlockData struct {
+// GetBlockByIndex payload
+type GetBlockByIndex struct {
 	IndexStart uint32
 	Count      uint16
 }
 
-// NewGetBlockData returns GetBlockData payload with specified start index and count
-func NewGetBlockData(indexStart uint32, count uint16) *GetBlockData {
-	return &GetBlockData{
+// NewGetBlockByIndex returns GetBlockByIndex payload with specified start index and count
+func NewGetBlockByIndex(indexStart uint32, count uint16) *GetBlockByIndex {
+	return &GetBlockByIndex{
 		IndexStart: indexStart,
 		Count:      count,
 	}
 }
 
 // DecodeBinary implements Serializable interface.
-func (d *GetBlockData) DecodeBinary(br *io.BinReader) {
+func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 	d.IndexStart = br.ReadU32LE()
 	d.Count = br.ReadU16LE()
 	if d.Count == 0 || d.Count > maxBlockCount {
@@ -33,7 +33,7 @@ func (d *GetBlockData) DecodeBinary(br *io.BinReader) {
 }
 
 // EncodeBinary implements Serializable interface.
-func (d *GetBlockData) EncodeBinary(bw *io.BinWriter) {
+func (d *GetBlockByIndex) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU32LE(d.IndexStart)
 	bw.WriteU16LE(d.Count)
 }

@@ -8,18 +8,18 @@ import (
 )
 
 func TestGetBlockDataEncodeDecode(t *testing.T) {
-	d := NewGetBlockData(123, 100)
-	testserdes.EncodeDecodeBinary(t, d, new(GetBlockData))
+	d := NewGetBlockByIndex(123, 100)
+	testserdes.EncodeDecodeBinary(t, d, new(GetBlockByIndex))
 
 	// invalid block count
-	d = NewGetBlockData(5, 0)
+	d = NewGetBlockByIndex(5, 0)
 	data, err := testserdes.EncodeBinary(d)
 	require.NoError(t, err)
-	require.Error(t, testserdes.DecodeBinary(data, new(GetBlockData)))
+	require.Error(t, testserdes.DecodeBinary(data, new(GetBlockByIndex)))
 
 	// invalid block count
-	d = NewGetBlockData(5, maxBlockCount+1)
+	d = NewGetBlockByIndex(5, maxBlockCount+1)
 	data, err = testserdes.EncodeBinary(d)
 	require.NoError(t, err)
-	require.Error(t, testserdes.DecodeBinary(data, new(GetBlockData)))
+	require.Error(t, testserdes.DecodeBinary(data, new(GetBlockByIndex)))
 }

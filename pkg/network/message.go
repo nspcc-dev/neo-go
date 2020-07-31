@@ -61,18 +61,18 @@ const (
 	CMDPong    CommandType = 0x19
 
 	// synchronization
-	CMDGetHeaders   CommandType = 0x20
-	CMDHeaders      CommandType = 0x21
-	CMDGetBlocks    CommandType = 0x24
-	CMDMempool      CommandType = 0x25
-	CMDInv          CommandType = 0x27
-	CMDGetData      CommandType = 0x28
-	CMDGetBlockData CommandType = 0x29
-	CMDNotFound     CommandType = 0x2a
-	CMDTX                       = CommandType(payload.TXType)
-	CMDBlock                    = CommandType(payload.BlockType)
-	CMDConsensus                = CommandType(payload.ConsensusType)
-	CMDReject       CommandType = 0x2f
+	CMDGetHeaders      CommandType = 0x20
+	CMDHeaders         CommandType = 0x21
+	CMDGetBlocks       CommandType = 0x24
+	CMDMempool         CommandType = 0x25
+	CMDInv             CommandType = 0x27
+	CMDGetData         CommandType = 0x28
+	CMDGetBlockByIndex CommandType = 0x29
+	CMDNotFound        CommandType = 0x2a
+	CMDTX                          = CommandType(payload.TXType)
+	CMDBlock                       = CommandType(payload.BlockType)
+	CMDConsensus                   = CommandType(payload.ConsensusType)
+	CMDReject          CommandType = 0x2f
 
 	// SPV protocol
 	CMDFilterLoad  CommandType = 0x30
@@ -149,8 +149,8 @@ func (m *Message) decodePayload() error {
 		fallthrough
 	case CMDGetHeaders:
 		p = &payload.GetBlocks{}
-	case CMDGetBlockData:
-		p = &payload.GetBlockData{}
+	case CMDGetBlockByIndex:
+		p = &payload.GetBlockByIndex{}
 	case CMDHeaders:
 		p = &payload.Headers{Network: m.Network}
 	case CMDTX:

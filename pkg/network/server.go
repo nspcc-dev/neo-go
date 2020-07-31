@@ -609,8 +609,8 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 	return p.EnqueueP2PMessage(msg)
 }
 
-// handleGetBlockDataCmd processes the getblockdata request.
-func (s *Server) handleGetBlockDataCmd(p Peer, gbd *payload.GetBlockData) error {
+// handleGetBlockByIndexCmd processes the getblockbyindex request.
+func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) error {
 	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(gbd.Count); i++ {
 		b, err := s.chain.GetBlock(s.chain.GetHeaderHash(int(i)))
 		if err != nil {
@@ -750,9 +750,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetBlocks:
 			gb := msg.Payload.(*payload.GetBlocks)
 			return s.handleGetBlocksCmd(peer, gb)
-		case CMDGetBlockData:
-			gbd := msg.Payload.(*payload.GetBlockData)
-			return s.handleGetBlockDataCmd(peer, gbd)
+		case CMDGetBlockByIndex:
+			gbd := msg.Payload.(*payload.GetBlockByIndex)
+			return s.handleGetBlockByIndexCmd(peer, gbd)
 		case CMDGetData:
 			inv := msg.Payload.(*payload.Inventory)
 			return s.handleGetDataCmd(peer, inv)
