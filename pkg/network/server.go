@@ -611,7 +611,11 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 
 // handleGetBlockByIndexCmd processes the getblockbyindex request.
 func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) error {
-	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(gbd.Count); i++ {
+	count := gbd.Count
+	if gbd.Count < 0 || gbd.Count > payload.MaxHashesCount {
+		count = payload.MaxHashesCount
+	}
+	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(count); i++ {
 		b, err := s.chain.GetBlock(s.chain.GetHeaderHash(int(i)))
 		if err != nil {
 			return err
