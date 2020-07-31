@@ -446,23 +446,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	return p.SendVersionAck(NewMessage(CMDVerack, nil))
 }
 
-// handleHeadersCmd processes the headers received from its peer.
-// If the headerHeight of the blockchain still smaller then the peer
-// the server will request more headers.
-// This method could best be called in a separate routine.
-func (s *Server) handleHeadersCmd(p Peer, headers *payload.Headers) {
-	if err := s.chain.AddHeaders(headers.Hdrs...); err != nil {
-		s.log.Warn("failed processing headers", zap.Error(err))
-		return
-	}
-	// The peer will respond with a maximum of 2000 headers in one batch.
-	// We will ask one more batch here if needed. Eventually we will get synced
-	// due to the startProtocol routine that will ask headers every protoTick.
-	if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		s.requestHeaders(p)
-	}
-}
-
 // handleBlockCmd processes the received block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	return s.bQueue.putBlock(block)
@@ -479,8 +462,8 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 	if err != nil {
 		return err
 	}
-	if s.chain.HeaderHeight() < pong.LastBlockIndex {
-		return s.requestHeaders(p)
+	if s.chain.BlockHeight() < pong.LastBlockIndex {
+		return s.requestBlocks(p)
 	}
 	return nil
 }
@@ -707,34 +690,12 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 	return p.EnqueueP2PMessage(NewMessage(CMDAddr, alist))
 }
 
-// requestHeaders sends a getheaders message to the peer.
-// The peer will respond with headers op to a count of 2000.
-func (s *Server) requestHeaders(p Peer) error {
-	payload := payload.NewGetBlockByIndex(s.chain.HeaderHeight(), -1)
-	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, payload))
-}
-
-// requestBlocks sends a getdata message to the peer
+// requestBlocks sends a CMDGetBlockByIndex message to the peer
 // to sync up in blocks. A maximum of maxBlockBatch will
 // send at once.
 func (s *Server) requestBlocks(p Peer) error {
-	var (
-		hashes       []util.Uint256
-		hashStart    = s.chain.BlockHeight() + 1
-		headerHeight = s.chain.HeaderHeight()
-	)
-	for hashStart <= headerHeight && len(hashes) < maxBlockBatch {
-		hash := s.chain.GetHeaderHash(int(hashStart))
-		hashes = append(hashes, hash)
-		hashStart++
-	}
-	if len(hashes) > 0 {
-		payload := payload.NewInventory(payload.BlockType, hashes)
-		return p.EnqueueP2PMessage(NewMessage(CMDGetData, payload))
-	} else if s.chain.HeaderHeight() < p.LastBlockIndex() {
-		return s.requestHeaders(p)
-	}
-	return nil
+	payload := payload.NewGetBlockByIndex(s.chain.BlockHeight(), -1)
+	return p.EnqueueP2PMessage(NewMessage(CMDGetBlockByIndex, payload))
 }
 
 // handleMessage processes the given message.
@@ -768,9 +729,6 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		case CMDGetHeaders:
 			gh := msg.Payload.(*payload.GetBlockByIndex)
 			return s.handleGetHeadersCmd(peer, gh)
-		case CMDHeaders:
-			headers := msg.Payload.(*payload.Headers)
-			go s.handleHeadersCmd(peer, headers)
 		case CMDInv:
 			inventory := msg.Payload.(*payload.Inventory)
 			return s.handleInvCmd(peer, inventory)
