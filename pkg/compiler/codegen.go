@@ -610,6 +610,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.emitLoadConst(c.typeAndValueOf(n))
 		return nil
 
+	case *ast.StarExpr:
+		_, ok := c.getStruct(c.typeOf(n.X))
+		if !ok {
+			c.prog.Err = errors.New("dereferencing is only supported on structs")
+			return nil
+		}
+		ast.Walk(c, n.X)
+		c.emitConvert(stackitem.StructT)
+		return nil
+
 	case *ast.Ident:
 		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
