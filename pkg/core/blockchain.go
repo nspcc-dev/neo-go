@@ -1147,6 +1147,16 @@ func (bc *Blockchain) FeePerByte() int64 {
 	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
 }
 
+// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSize() uint32 {
+	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
+}
+
+// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
+	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+}
+
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool

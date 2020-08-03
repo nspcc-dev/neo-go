@@ -50,6 +50,8 @@ type Blockchainer interface {
 	GetTestVM(tx *transaction.Transaction) *vm.VM
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
+	GetMaxBlockSize() uint32
+	GetMaxBlockSystemFee() int64
 	PoolTx(*transaction.Transaction) error
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
