@@ -65,44 +65,44 @@ func newPolicy() *Policy {
 	p.Manifest.Features |= smartcontract.HasStorage
 
 	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
-	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, smartcontract.NoneFlag)
+	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getMaxBlockSize", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxBlockSize, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getMaxBlockSize, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getFeePerByte", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getFeePerByte, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getFeePerByte, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getBlockedAccounts", smartcontract.ArrayType)
-	md = newMethodAndPrice(p.getBlockedAccounts, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getBlockedAccounts, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("setMaxBlockSize", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("setMaxTransactionsPerBlock", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("setFeePerByte", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setFeePerByte, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setFeePerByte, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.blockAccount, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.blockAccount, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("unblockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
