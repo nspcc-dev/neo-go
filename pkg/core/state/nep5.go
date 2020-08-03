@@ -20,7 +20,7 @@ type NEP5TransferLog struct {
 }
 
 // NEP5TransferSize is a size of a marshaled NEP5Transfer struct in bytes.
-const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 4 + util.Uint256Size
+const NEP5TransferSize = util.Uint160Size*3 + 8 + 4 + 4 + util.Uint256Size + 4
 
 // NEP5Transfer represents a single NEP5 Transfer event.
 type NEP5Transfer struct {
@@ -39,6 +39,8 @@ type NEP5Transfer struct {
 	Timestamp uint32
 	// Tx is a hash the transaction.
 	Tx util.Uint256
+	// Index is the index of this transfer in the corresponding tx.
+	Index uint32
 }
 
 // NEP5Balances is a map of the NEP5 contract hashes
@@ -152,6 +154,7 @@ func (t *NEP5Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(t.Block)
 	w.WriteU32LE(t.Timestamp)
 	w.WriteU64LE(uint64(t.Amount))
+	w.WriteU32LE(t.Index)
 }
 
 // DecodeBinary implements io.Serializable interface.
@@ -163,4 +166,5 @@ func (t *NEP5Transfer) DecodeBinary(r *io.BinReader) {
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU32LE()
 	t.Amount = int64(r.ReadU64LE())
+	t.Index = r.ReadU32LE()
 }

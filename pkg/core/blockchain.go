@@ -799,6 +799,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				if err != nil {
 					return errors.Wrap(err, "failed to persist invocation results")
 				}
+				var index uint32
 				for _, note := range systemInterop.notifications {
 					arr, ok := note.Item.Value().([]vm.StackItem)
 					if !ok || len(arr) != 4 {
@@ -824,7 +825,8 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 						}
 						amount = emit.BytesToInt(bs)
 					}
-					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64())
+					bc.processNEP5Transfer(cache, tx, block, note.ScriptHash, from, to, amount.Int64(), index)
+					index++
 				}
 			} else {
 				bc.log.Warn("contract invocation failed",
@@ -911,7 +913,7 @@ func parseUint160(addr []byte) util.Uint160 {
 	return util.Uint160{}
 }
 
-func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64) {
+func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Transaction, b *block.Block, sc util.Uint160, from, to []byte, amount int64, index uint32) {
 	toAddr := parseUint160(to)
 	fromAddr := parseUint160(from)
 	transfer := &state.NEP5Transfer{
@@ -921,6 +923,7 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Tra
 		Block:     b.Index,
 		Timestamp: b.Timestamp,
 		Tx:        tx.Hash(),
+		Index:     index,
 	}
 	if !fromAddr.Equals(util.Uint160{}) {
 		balances, err := cache.GetNEP5Balances(fromAddr)

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -27,9 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -577,13 +574,8 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 		Balances: []result.NEP5Balance{},
 	}
 	if as != nil {
-		cache := make(map[util.Uint160]int64)
 		for h, bal := range as.Trackers {
-			dec, err := s.getDecimals(h, cache)
-			if err != nil {
-				continue
-			}
-			amount := amountToString(bal.Balance, dec)
+			amount := strconv.FormatInt(bal.Balance, 10)
 			bs.Balances = append(bs.Balances, result.NEP5Balance{
 				Asset:       h,
 				Amount:      amount,
@@ -606,20 +598,17 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Sent:     []result.NEP5Transfer{},
 	}
 	lg := s.chain.GetNEP5TransferLog(u)
-	cache := make(map[util.Uint160]int64)
 	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     tr.Asset,
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
-		}
-		d, err := s.getDecimals(tr.Asset, cache)
-		if err != nil {
-			return nil
+
+			NotifyIndex: tr.Index,
 		}
 		if tr.Amount > 0 { // token was received
-			transfer.Amount = amountToString(tr.Amount, d)
+			transfer.Amount = strconv.FormatInt(tr.Amount, 10)
 			if !tr.From.Equals(util.Uint160{}) {
 				transfer.Address = address.Uint160ToString(tr.From)
 			}
@@ -627,7 +616,7 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			return nil
 		}
 
-		transfer.Amount = amountToString(-tr.Amount, d)
+		transfer.Amount = strconv.FormatInt(-tr.Amount, 10)
 		if !tr.To.Equals(util.Uint160{}) {
 			transfer.Address = address.Uint160ToString(tr.To)
 		}
@@ -638,63 +627,6 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.NewInternalServerError("invalid NEP5 transfer log", err)
 	}
 	return bs, nil
-}
-
-func amountToString(amount int64, decimals int64) string {
-	if decimals == 0 {
-		return strconv.FormatInt(amount, 10)
-	}
-	pow := int64(math.Pow10(int(decimals)))
-	q := amount / pow
-	r := amount % pow
-	if r == 0 {
-		return strconv.FormatInt(q, 10)
-	}
-	fs := fmt.Sprintf("%%d.%%0%dd", decimals)
-	return fmt.Sprintf(fs, q, r)
-}
-
-func (s *Server) getDecimals(h util.Uint160, cache map[util.Uint160]int64) (int64, *response.Error) {
-	if d, ok := cache[h]; ok {
-		return d, nil
-	}
-	m, err := s.chain.GetNEP5Metadata(h)
-	if err == nil {
-		cache[h] = m.Decimals
-		return m.Decimals, nil
-	}
-	script, err := request.CreateFunctionInvocationScript(h, request.Params{
-		{
-			Type:  request.StringT,
-			Value: "decimals",
-		},
-		{
-			Type:  request.ArrayT,
-			Value: []request.Param{},
-		},
-	})
-	if err != nil {
-		return 0, response.NewInternalServerError("Can't create script", err)
-	}
-	res := s.runScriptInVM(script)
-	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
-		return 0, response.NewInternalServerError("execution error", errors.New("no result"))
-	}
-
-	var d int64
-	switch item := res.Stack[len(res.Stack)-1]; item.Type {
-	case smartcontract.IntegerType:
-		d = item.Value.(int64)
-	case smartcontract.ByteArrayType:
-		d = emit.BytesToInt(item.Value.([]byte)).Int64()
-	default:
-		return 0, response.NewInternalServerError("invalid result", errors.New("not an integer"))
-	}
-	if d < 0 {
-		return 0, response.NewInternalServerError("incorrect result", errors.New("negative result"))
-	}
-	cache[h] = d
-	return d, nil
 }
 
 func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {

@@ -409,7 +409,7 @@ func TestCreateBasicChain(t *testing.T) {
 	sh = hash.Hash160(avm)
 	t.Logf("contractHash (new): %s", sh.StringLE())
 
-	transferTx = newNEP5Transfer(sh, priv1.GetScriptHash(), priv0.GetScriptHash(), 3)
+	transferTx = newNEP5Transfer(sh, priv1.GetScriptHash(), priv0.GetScriptHash(), 2, 1)
 	b = bc.newBlock(newMinerTX(), transferTx)
 	require.NoError(t, bc.AddBlock(b))
 
@@ -446,10 +446,12 @@ func TestCreateBasicChain(t *testing.T) {
 	}
 }
 
-func newNEP5Transfer(sc, from, to util.Uint160, amount int64) *transaction.Transaction {
+func newNEP5Transfer(sc, from, to util.Uint160, amounts ...int64) *transaction.Transaction {
 	w := io.NewBufBinWriter()
-	emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amount)
-	emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	for i := range amounts {
+		emit.AppCallWithOperationAndArgs(w.BinWriter, sc, "transfer", from, to, amounts[i])
+		emit.Opcode(w.BinWriter, opcode.THROWIFNOT)
+	}
 
 	script := w.Bytes()
 	return transaction.NewInvocationTX(script, 0)
