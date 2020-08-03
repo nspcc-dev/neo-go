@@ -14,6 +14,7 @@ type (
 		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`
 		SeedList          []string `yaml:"SeedList"`
 		StandbyValidators []string `yaml:"StandbyValidators"`
+		ValidatorsCount   int      `yaml:"ValidatorsCount"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.
