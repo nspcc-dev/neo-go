@@ -613,6 +613,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 			Asset:     tr.Asset,
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
+
+			NotifyIndex: tr.Index,
 		}
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
