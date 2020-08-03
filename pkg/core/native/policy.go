@@ -203,6 +203,8 @@ func (p *Policy) OnPersistEnd(dao dao.DAO) {
 	maxBlockSystemFee := p.getInt64WithKey(dao, maxBlockSystemFeeKey)
 	p.maxBlockSystemFee = maxBlockSystemFee
 
+	p.maxVerificationGas = defaultMaxVerificationGas
+
 	p.isValid = true
 }
 
@@ -256,7 +258,10 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
 func (p *Policy) GetMaxVerificationGas(_ dao.DAO) int64 {
-	return p.maxVerificationGas
+	if p.isValid {
+		return p.maxVerificationGas
+	}
+	return defaultMaxVerificationGas
 }
 
 // getMaxBlockSystemFee is Policy contract method and returns the maximum overall
