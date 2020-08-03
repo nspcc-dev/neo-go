@@ -205,7 +205,7 @@ func runtimeEncode(_ *interop.Context, v *vm.VM) error {
 
 // runtimeDecode decodes top stack item from base64 string to byte array.
 func runtimeDecode(_ *interop.Context, v *vm.VM) error {
-	src := string(v.Estack().Pop().Bytes())
+	src := v.Estack().Pop().String()
 	result, err := base64.StdEncoding.DecodeString(src)
 	if err != nil {
 		return err

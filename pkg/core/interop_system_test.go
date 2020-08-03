@@ -264,9 +264,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		for i := range arr {
 			elem := arr[i].Value().([]stackitem.Item)
 			require.Equal(t, ic.Notifications[i].ScriptHash.BytesBE(), elem[0].Value())
-			name, err := elem[1].TryBytes()
+			name, err := stackitem.ToString(elem[1])
 			require.NoError(t, err)
-			require.Equal(t, ic.Notifications[i].Name, string(name))
+			require.Equal(t, ic.Notifications[i].Name, name)
 			require.Equal(t, ic.Notifications[i].Item, elem[2])
 		}
 	})
@@ -280,9 +280,9 @@ func TestRuntimeGetNotifications(t *testing.T) {
 		require.Equal(t, 1, len(arr))
 		elem := arr[0].Value().([]stackitem.Item)
 		require.Equal(t, h, elem[0].Value())
-		name, err := elem[1].TryBytes()
+		name, err := stackitem.ToString(elem[1])
 		require.NoError(t, err)
-		require.Equal(t, ic.Notifications[1].Name, string(name))
+		require.Equal(t, ic.Notifications[1].Name, name)
 		require.Equal(t, ic.Notifications[1].Item, elem[2])
 	})
 }
@@ -443,7 +443,14 @@ func TestContractCall(t *testing.T) {
 			for i := range args {
 				v.Estack().PushVal(args[i])
 			}
-			require.Error(t, contractCall(ic, v))
+			// interops can both return error and panic,
+			// we don't care which kind of error has occured
+			require.Panics(t, func() {
+				err := contractCall(ic, v)
+				if err != nil {
+					panic(err)
+				}
+			})
 		}
 	}
 

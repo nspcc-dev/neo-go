@@ -96,6 +96,16 @@ func (e *Element) Bytes() []byte {
 	return bs
 }
 
+// String attempts to get string from the element value.
+// It is assumed to be use in interops and panics if string is not a valid UTF-8 byte sequence.
+func (e *Element) String() string {
+	s, err := stackitem.ToString(e.value)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
 // Array attempts to get the underlying value of the element as an array of
 // other items. Will panic if the item type is different which will be caught
 // by the VM.

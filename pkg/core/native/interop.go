@@ -35,7 +35,7 @@ func Deploy(ic *interop.Context, _ *vm.VM) error {
 
 // Call calls specified native contract method.
 func Call(ic *interop.Context, v *vm.VM) error {
-	name := string(v.Estack().Pop().Bytes())
+	name := v.Estack().Pop().String()
 	var c interop.Contract
 	for _, ctr := range ic.Natives {
 		if ctr.Metadata().Name == name {
@@ -50,7 +50,7 @@ func Call(ic *interop.Context, v *vm.VM) error {
 	if !h.Equals(c.Metadata().Hash) {
 		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
 	}
-	operation := string(v.Estack().Pop().Bytes())
+	operation := v.Estack().Pop().String()
 	args := v.Estack().Pop().Array()
 	m, ok := c.Metadata().Methods[operation]
 	if !ok {

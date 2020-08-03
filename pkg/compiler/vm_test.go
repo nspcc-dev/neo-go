@@ -129,7 +129,7 @@ func (s *storagePlugin) syscallHandler(v *vm.VM, id uint32) error {
 }
 
 func (s *storagePlugin) Notify(v *vm.VM) error {
-	name := string(v.Estack().Pop().Bytes())
+	name := v.Estack().Pop().String()
 	item := stackitem.NewArray(v.Estack().Pop().Array())
 	s.events = append(s.events, state.NotificationEvent{
 		Name: name,
