@@ -25,7 +25,7 @@ import (
 // | Version    | 16 bytes  | Compiler version (Major, Minor, Build, Version)            |
 // | ScriptHash | 20 bytes  | ScriptHash for the script (BE)                             |
 // +------------+-----------+------------------------------------------------------------+
-// | Checksum   | 4 bytes   | Sha256 of the header (CRC)                                 |
+// | Checksum   | 4 bytes   | First four bytes of double SHA256 hash of the header       |
 // +------------+-----------+------------------------------------------------------------+
 // | Script     | Var bytes | Var bytes for the payload                                  |
 // +------------+-----------+------------------------------------------------------------+
@@ -177,14 +177,14 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 	h.ScriptHash.DecodeBinary(r)
 }
 
-// CalculateChecksum returns first 4 bytes of SHA256(Header) converted to uint32.
+// CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
 func (h *Header) CalculateChecksum() uint32 {
 	buf := io.NewBufBinWriter()
 	h.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		panic(buf.Err)
 	}
-	return binary.LittleEndian.Uint32(hash.Sha256(buf.Bytes()).BytesBE())
+	return binary.LittleEndian.Uint32(hash.Checksum(buf.Bytes()))
 }
 
 // EncodeBinary implements io.Serializable interface.
