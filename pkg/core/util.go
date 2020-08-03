@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -94,9 +95,12 @@ func deployNativeContracts(magic netmode.Magic) *transaction.Transaction {
 }
 
 func validatorsFromConfig(cfg config.ProtocolConfiguration) ([]*keys.PublicKey, error) {
-	validators := make([]*keys.PublicKey, len(cfg.StandbyValidators))
-	for i, pubKeyStr := range cfg.StandbyValidators {
-		pubKey, err := keys.NewPublicKeyFromString(pubKeyStr)
+	if len(cfg.StandbyCommittee) < cfg.ValidatorsCount {
+		return nil, errors.New("validators count can be less than the size of StandbyCommittee")
+	}
+	validators := make([]*keys.PublicKey, cfg.ValidatorsCount)
+	for i := range validators {
+		pubKey, err := keys.NewPublicKeyFromString(cfg.StandbyCommittee[i])
 		if err != nil {
 			return nil, err
 		}
