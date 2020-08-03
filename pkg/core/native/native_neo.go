@@ -143,7 +143,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	for i := range vs {
-		if err := n.registerCandidateInternal(ic, vs[i]); err != nil {
+		if err := n.RegisterCandidateInternal(ic, vs[i]); err != nil {
 			return err
 		}
 	}
@@ -218,11 +218,12 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	err := n.registerCandidateInternal(ic, toPublicKey(args[0]))
+	err := n.RegisterCandidateInternal(ic, toPublicKey(args[0]))
 	return stackitem.NewBool(err == nil)
 }
 
-func (n *NEO) registerCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
+// RegisterCandidateInternal registers pub as a new candidate.
+func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ContractID, key)
 	if si == nil {

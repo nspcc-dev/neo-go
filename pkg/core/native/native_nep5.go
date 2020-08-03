@@ -125,7 +125,7 @@ func (c *nep5TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) s
 	from := toUint160(args[0])
 	to := toUint160(args[1])
 	amount := toBigInt(args[2])
-	err := c.transfer(ic, from, to, amount)
+	err := c.TransferInternal(ic, from, to, amount)
 	return stackitem.NewBool(err == nil)
 }
 
@@ -171,7 +171,8 @@ func (c *nep5TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160
 	return err
 }
 
-func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
+// TransferInternal transfers NEO between accounts.
+func (c *nep5TokenNative) TransferInternal(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
 	}
