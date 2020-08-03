@@ -1408,7 +1408,7 @@ func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 
 // GetEnrollments returns all registered validators.
 func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
-	return bc.contracts.NEO.GetRegisteredValidators(bc.dao)
+	return bc.contracts.NEO.GetCandidates(bc.dao)
 }
 
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use

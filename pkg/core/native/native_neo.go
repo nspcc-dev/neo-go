@@ -42,8 +42,8 @@ const (
 	neoContractID = -1
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
-	// prefixValidator is a prefix used to store validator's data.
-	prefixValidator = 33
+	// prefixCandidate is a prefix used to store validator's data.
+	prefixCandidate = 33
 )
 
 var (
@@ -61,7 +61,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 	// Don't create a new buffer.
 	b = append(b, 0)
 	copy(b[1:], b[0:])
-	b[0] = prefixValidator
+	b[0] = prefixCandidate
 	return b
 }
 
@@ -89,9 +89,9 @@ func NewNEO() *NEO {
 	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
-	desc = newDescriptor("registerValidator", smartcontract.BoolType,
+	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerValidator, 5000000, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(n.registerCandidate, 5000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
@@ -100,8 +100,8 @@ func NewNEO() *NEO {
 	md = newMethodAndPrice(n.vote, 500000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
-	desc = newDescriptor("getRegisteredValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getRegisteredValidatorsCall, 100000000, smartcontract.AllowStates)
+	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
+	md = newMethodAndPrice(n.getCandidatesCall, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getValidators", smartcontract.ArrayType)
@@ -132,7 +132,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
 	for i := range vs {
-		if err := n.registerValidatorInternal(ic, vs[i]); err != nil {
+		if err := n.registerCandidateInternal(ic, vs[i]); err != nil {
 			return err
 		}
 	}
@@ -216,12 +216,12 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	return stackitem.NewBigInteger(gen)
 }
 
-func (n *NEO) registerValidator(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	err := n.registerValidatorInternal(ic, toPublicKey(args[0]))
+func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	err := n.registerCandidateInternal(ic, toPublicKey(args[0]))
 	return stackitem.NewBool(err == nil)
 }
 
-func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey) error {
+func (n *NEO) registerCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ContractID, key)
 	if si != nil {
@@ -334,8 +334,8 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *b
 	return nil
 }
 
-func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixValidator})
+func (n *NEO) getCandidates(d dao.DAO) ([]keyWithVotes, error) {
+	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixCandidate})
 	if err != nil {
 		return nil, err
 	}
@@ -348,10 +348,10 @@ func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
 	return arr, nil
 }
 
-// GetRegisteredValidators returns current registered validators list with keys
+// GetCandidates returns current registered validators list with keys
 // and votes.
-func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
-	kvs, err := n.getRegisteredValidators(d)
+func (n *NEO) GetCandidates(d dao.DAO) ([]state.Validator, error) {
+	kvs, err := n.getCandidates(d)
 	if err != nil {
 		return nil, err
 	}
@@ -366,8 +366,8 @@ func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
 	return arr, nil
 }
 
-func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	validators, err := n.getRegisteredValidators(ic.DAO)
+func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	validators, err := n.getCandidates(ic.DAO)
 	if err != nil {
 		panic(err)
 	}
@@ -396,7 +396,7 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	if err != nil {
 		return nil, err
 	}
-	validators, err := n.GetRegisteredValidators(d)
+	validators, err := n.GetCandidates(d)
 	if err != nil {
 		return nil, err
 	}
