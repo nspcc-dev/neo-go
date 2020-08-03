@@ -1159,6 +1159,15 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
 	}
+	maxBlockSysFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+	var sysFee int64
+	for i, tx := range txes {
+		sysFee += tx.SystemFee
+		if sysFee > maxBlockSysFee {
+			txes = txes[:i]
+			break
+		}
+	}
 	return txes
 }
 
@@ -1194,8 +1203,12 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 			return !blockedAccounts[i].Less(h)
 		})
 		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
-			return errors.Errorf("policy check failed")
+			return errors.Errorf("policy check failed: account %s is blocked", h.StringLE())
 		}
+	}
+	maxBlockSystemFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+	if maxBlockSystemFee < t.SystemFee {
+		return errors.Errorf("policy check failed: transaction's fee shouldn't exceed maximum block system fee %d", maxBlockSystemFee)
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee + t.NetworkFee
