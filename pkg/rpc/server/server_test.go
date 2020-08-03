@@ -1153,7 +1153,7 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 	require.True(t, ok)
 	require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
 	require.Equal(t, 1, len(res.Balances))
-	require.Equal(t, "8.80", res.Balances[0].Amount)
+	require.Equal(t, "880", res.Balances[0].Amount)
 	require.Equal(t, testContractHash, res.Balances[0].Asset.StringLE())
 	require.Equal(t, uint32(210), res.Balances[0].LastUpdated)
 }
@@ -1170,22 +1170,22 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 	require.NoError(t, err)
 
 	require.Equal(t, 3, len(res.Received))
-	require.Equal(t, "10", res.Received[0].Amount)
+	require.Equal(t, "1000", res.Received[0].Amount)
 	require.Equal(t, assetHashOld, res.Received[0].Asset)
 	require.Equal(t, address.Uint160ToString(assetHashOld), res.Received[0].Address)
 
-	require.Equal(t, "0.02", res.Received[1].Amount)
+	require.Equal(t, "2", res.Received[1].Amount)
 	require.Equal(t, assetHash, res.Received[1].Asset)
 	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[1].Address)
 	require.Equal(t, uint32(0), res.Received[1].NotifyIndex)
 
-	require.Equal(t, "0.01", res.Received[2].Amount)
+	require.Equal(t, "1", res.Received[2].Amount)
 	require.Equal(t, assetHash, res.Received[2].Asset)
 	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[2].Address)
 	require.Equal(t, uint32(1), res.Received[2].NotifyIndex)
 
 	require.Equal(t, 1, len(res.Sent))
-	require.Equal(t, "1.23", res.Sent[0].Amount)
+	require.Equal(t, "123", res.Sent[0].Amount)
 	require.Equal(t, assetHashOld, res.Sent[0].Asset)
 	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 	require.Equal(t, uint32(0), res.Sent[0].NotifyIndex)
