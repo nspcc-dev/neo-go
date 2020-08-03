@@ -1159,11 +1159,17 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
 	}
+	maxBlockSize := bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
 	maxBlockSysFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-	var sysFee int64
+	var (
+		blockSize uint32
+		sysFee    int64
+	)
+	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
 	for i, tx := range txes {
+		blockSize += uint32(io.GetVarSize(tx))
 		sysFee += tx.SystemFee
-		if sysFee > maxBlockSysFee {
+		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
 			txes = txes[:i]
 			break
 		}

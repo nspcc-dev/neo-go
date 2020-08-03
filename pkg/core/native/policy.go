@@ -225,12 +225,17 @@ func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
 func (p *Policy) getMaxBlockSize(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxBlockSizeInternal(ic.DAO))))
+}
+
+// GetMaxBlockSizeInternal returns maximum block size.
+func (p *Policy) GetMaxBlockSizeInternal(dao dao.DAO) uint32 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
-		return stackitem.NewBigInteger(big.NewInt(int64(p.maxBlockSize)))
+		return p.maxBlockSize
 	}
-	return stackitem.NewBigInteger(big.NewInt(int64(p.getUint32WithKey(ic.DAO, maxBlockSizeKey))))
+	return p.getUint32WithKey(dao, maxBlockSizeKey)
 }
 
 // getFeePerByte is Policy contract method and returns required transaction's fee

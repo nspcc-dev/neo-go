@@ -53,7 +53,12 @@ func TestMaxBlockSize(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
 
-	t.Run("get", func(t *testing.T) {
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetMaxBlockSizeInternal(chain.dao)
+		require.Equal(t, 1024*256, int(n))
+	})
+
+	t.Run("get, contract method", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getMaxBlockSize")
 		require.NoError(t, err)
 		checkResult(t, res, smartcontract.Parameter{
