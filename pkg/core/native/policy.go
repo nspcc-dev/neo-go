@@ -38,7 +38,7 @@ var (
 	// blockedAccountsKey is a key used to store the list of blocked accounts.
 	blockedAccountsKey = []byte{15}
 	// maxBlockSizeKey is a key used to store the maximum block size value.
-	maxBlockSizeKey = []byte{16}
+	maxBlockSizeKey = []byte{12}
 )
 
 // Policy represents Policy native contract.
