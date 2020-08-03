@@ -121,7 +121,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	if n.nep5TokenNative.getTotalSupply(ic).Sign() != 0 {
+	if n.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
 
