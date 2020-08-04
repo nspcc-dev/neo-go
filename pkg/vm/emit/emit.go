@@ -79,8 +79,11 @@ func Array(w *io.BinWriter, es ...interface{}) {
 		case bool:
 			Bool(w, e)
 		default:
-			w.Err = errors.New("unsupported type")
-			return
+			if es[i] != nil {
+				w.Err = errors.New("unsupported type")
+				return
+			}
+			Opcode(w, opcode.PUSHNULL)
 		}
 	}
 	Int(w, int64(len(es)))
