@@ -1067,6 +1067,25 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Tra
 	}
 }
 
+// ForEachTransfer executes f for each transfer in log.
+func (bc *Blockchain) ForEachTransfer(acc util.Uint160, tr *state.Transfer, f func() error) error {
+	nb, err := bc.dao.GetNextTransferBatch(acc)
+	if err != nil {
+		return nil
+	}
+	for i := uint32(0); i <= nb; i++ {
+		lg, err := bc.dao.GetTransferLog(acc, i)
+		if err != nil {
+			return nil
+		}
+		err = lg.ForEach(state.TransferSize, tr, f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetNEP5TransferLog returns NEP5 transfer log for the acc.
 func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.TransferLog {
 	balances, err := bc.dao.GetNEP5Balances(acc)

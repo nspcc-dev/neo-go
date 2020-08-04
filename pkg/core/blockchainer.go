@@ -26,6 +26,7 @@ type Blockchainer interface {
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetEnrollments() ([]*state.Validator, error)
+	ForEachTransfer(util.Uint160, *state.Transfer, func() error) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256

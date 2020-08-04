@@ -108,6 +108,9 @@ func (chain testChain) GetValidators(...*transaction.Transaction) ([]*keys.Publi
 func (chain testChain) GetEnrollments() ([]*state.Validator, error) {
 	panic("TODO")
 }
+func (chain testChain) ForEachTransfer(util.Uint160, *state.Transfer, func() error) error {
+	panic("TODO")
+}
 func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
 	panic("TODO")
 }
