@@ -1104,6 +1104,35 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		assert.ElementsMatch(t, expected, actual)
 	})
+
+	t.Run("getutxotransfers", func(t *testing.T) {
+		testGetUTXO := func(t *testing.T, asset string, start, stop int) {
+			ps := []string{`"AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"`}
+			if asset != "" {
+				ps = append(ps, fmt.Sprintf("%q", asset))
+			}
+			if start != 0 {
+				b, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+				require.NoError(t, err)
+				ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+				if stop != 0 {
+					b, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+					require.NoError(t, err)
+					ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+				}
+			}
+			p := strings.Join(ps, ", ")
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false)
+			actual := new(result.GetUTXO)
+			require.NoError(t, json.Unmarshal(res, actual))
+			checkTransfers(t, e, actual, asset, start, stop)
+		}
+		t.Run("RestrictByAsset", func(t *testing.T) { testGetUTXO(t, "neo", 0, 0) })
+		t.Run("TooBigStart", func(t *testing.T) { testGetUTXO(t, "", 300, 0) })
+		t.Run("RestrictAll", func(t *testing.T) { testGetUTXO(t, "", 202, 203) })
+	})
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
@@ -1189,4 +1218,11 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 	require.Equal(t, assetHashOld, res.Sent[0].Asset)
 	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 	require.Equal(t, uint32(0), res.Sent[0].NotifyIndex)
+}
+
+func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, start, stop int) {
+	// first, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+	// require.NoError(t, err)
+	// last, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+	// require.NoError(t, err)
 }
