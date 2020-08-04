@@ -500,7 +500,7 @@ func Parse(args []string) (string, error) {
 
 	out := buf.Bytes()
 	buf = bytes.NewBuffer(nil)
-	w := tabwriter.NewWriter(buf, 0, 0, 4, ' ', 0)
+	w := tabwriter.NewWriter(buf, 0, 4, 4, '\t', 0)
 	if _, err := w.Write(out); err != nil {
 		return "", err
 	}
