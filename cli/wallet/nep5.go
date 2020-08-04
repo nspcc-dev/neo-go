@@ -71,7 +71,6 @@ func newNEP5Commands() []cli.Command {
 		walletPathFlag,
 		outFlag,
 		fromAddrFlag,
-		tokenFlag,
 		gasFlag,
 	}
 	multiTransferFlags = append(multiTransferFlags, options.RPC...)
@@ -128,7 +127,7 @@ func newNEP5Commands() []cli.Command {
 			Name:  "multitransfer",
 			Usage: "transfer NEP5 tokens to multiple recepients",
 			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
-				` --token <hash> <addr1>:<amount1> [<addr2>:<amount2> [...]]`,
+				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]]`,
 			Action: multiTransferNEP5,
 			Flags:  multiTransferFlags,
 		},
@@ -357,40 +356,45 @@ func multiTransferNEP5(ctx *cli.Context) error {
 		return err
 	}
 
-	token, err := getMatchingToken(wall, ctx.String("token"))
-	if err != nil {
-		fmt.Println("Can't find matching token in the wallet. Querying RPC-node for balances.")
-		token, err = getMatchingTokenRPC(c, from, ctx.String("token"))
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-	}
-
 	if ctx.NArg() == 0 {
 		return cli.NewExitError("empty recepients list", 1)
 	}
-	var recepients []client.AddrAndAmount
+	var recepients []client.TransferTarget
+	cache := make(map[string]*wallet.Token)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
-		ss := strings.SplitN(arg, ":", 2)
-		if len(ss) != 2 {
-			return cli.NewExitError("invalid recepient format", 1)
+		ss := strings.SplitN(arg, ":", 3)
+		if len(ss) != 3 {
+			return cli.NewExitError("send format must be '<token>:<addr>:<amount>", 1)
 		}
-		addr, err := address.StringToUint160(ss[0])
+		token, ok := cache[ss[0]]
+		if !ok {
+			token, err = getMatchingToken(wall, ss[0])
+			if err != nil {
+				fmt.Println("Can't find matching token in the wallet. Querying RPC-node for balances.")
+				token, err = getMatchingTokenRPC(c, from, ctx.String("token"))
+				if err != nil {
+					return cli.NewExitError(err, 1)
+				}
+			}
+		}
+		cache[ss[0]] = token
+		addr, err := address.StringToUint160(ss[1])
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: '%s'", ss[0]), 1)
+			return cli.NewExitError(fmt.Errorf("invalid address: '%s'", ss[1]), 1)
 		}
-		amount, err := util.FixedNFromString(ss[1], int(token.Decimals))
+		amount, err := util.FixedNFromString(ss[2], int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
 		}
-		recepients = append(recepients, client.AddrAndAmount{
+		recepients = append(recepients, client.TransferTarget{
+			Token:   token.Hash,
 			Address: addr,
 			Amount:  amount,
 		})
 	}
 
-	return signAndSendTransfer(ctx, c, acc, token, recepients)
+	return signAndSendTransfer(ctx, c, acc, recepients)
 }
 
 func transferNEP5(ctx *cli.Context) error {
@@ -431,14 +435,14 @@ func transferNEP5(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
 	}
 
-	return signAndSendTransfer(ctx, c, acc, token, []client.AddrAndAmount{{
+	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
+		Token:   token.Hash,
 		Address: to,
 		Amount:  amount,
 	}})
 }
 
-func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token *wallet.Token,
-	recepients []client.AddrAndAmount) error {
+func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recepients []client.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 
 	if pass, err := readPassword("Password > "); err != nil {
@@ -447,7 +451,7 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 		return cli.NewExitError(err, 1)
 	}
 
-	tx, err := c.CreateNEP5MultiTransferTx(acc, token.Hash, int64(gas), recepients...)
+	tx, err := c.CreateNEP5MultiTransferTx(acc, int64(gas), recepients...)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
