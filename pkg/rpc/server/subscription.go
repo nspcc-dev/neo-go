@@ -73,7 +73,9 @@ func (f *feed) Matches(r *response.Notification) bool {
 	case response.NotificationEventID:
 		filt := f.filter.(request.NotificationFilter)
 		notification := r.Payload[0].(result.NotificationEvent)
-		return notification.Contract.Equals(filt.Contract)
+		hashOk := filt.Contract == nil || notification.Contract.Equals(*filt.Contract)
+		nameOk := filt.Name == nil || notification.Name == *filt.Name
+		return hashOk && nameOk
 	case response.ExecutionEventID:
 		filt := f.filter.(request.ExecutionFilter)
 		applog := r.Payload[0].(result.ApplicationLog)

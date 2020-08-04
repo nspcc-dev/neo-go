@@ -269,10 +269,10 @@ func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, cosigner *u
 // generated during transaction execution to this instance of client. It can be
 // filtered by contract's hash (that emits notifications), nil value puts no such
 // restrictions.
-func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160) (string, error) {
+func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
 	params := request.NewRawParams("notification_from_execution")
-	if contract != nil {
-		params.Values = append(params.Values, request.NotificationFilter{Contract: *contract})
+	if contract != nil || name != nil {
+		params.Values = append(params.Values, request.NotificationFilter{Contract: contract, Name: name})
 	}
 	return c.performSubscription(params)
 }

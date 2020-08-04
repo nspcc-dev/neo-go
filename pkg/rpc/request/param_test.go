@@ -21,11 +21,14 @@ func TestParam_UnmarshalJSON(t *testing.T) {
                  {"cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"name": "my_pretty_notification"},
+                 {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "name":"my_pretty_notification"},
                  {"state": "HALT"},
                  {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
                  [{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}]]`
 	contr, err := util.Uint160DecodeStringLE("f84d6a337fbc3d3a201d41da99e86b479e7a2554")
 	require.NoError(t, err)
+	name := "my_pretty_notification"
 	accountHash, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
 	require.NoError(t, err)
 	expected := Params{
@@ -86,7 +89,15 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		},
 		{
 			Type:  NotificationFilterT,
-			Value: NotificationFilter{Contract: contr},
+			Value: NotificationFilter{Contract: &contr},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Name: &name},
+		},
+		{
+			Type:  NotificationFilterT,
+			Value: NotificationFilter{Contract: &contr, Name: &name},
 		},
 		{
 			Type:  ExecutionFilterT,

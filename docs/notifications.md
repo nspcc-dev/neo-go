@@ -61,7 +61,8 @@ Recognized stream names:
    format for one of transaction's `Cosigners`.
  * `notification_from_execution`
    Filter: `contract` field containing string with hex-encoded Uint160 (LE
-   representation).
+   representation) and/or `name` field containing string with execution 
+   notification name.   
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively.
@@ -276,10 +277,10 @@ Example:
 
 ### `notification_from_execution` notification
 
-Contains three parameters: container hash (hex-encoded LE Uint256 in a
-string), contract script hash (hex-encoded LE Uint160 in a string) and stack
-item (encoded the same way as `state` field contents for notifications from
-`getapplicationlog` response).
+Contains three parameters: contract script hash (hex-encoded LE Uint160 
+in a string), notification name and stack item (encoded the same way as
+`state` field contents for notifications from `getapplicationlog`
+response).
 
 Example:
 
@@ -319,7 +320,8 @@ Example:
             ],
             "type" : "Array"
          },
-         "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"
+         "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176",
+         "name" : "transfer",
       }
    ]
 }
