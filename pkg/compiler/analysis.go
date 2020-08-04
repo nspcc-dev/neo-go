@@ -48,6 +48,7 @@ func (c *codegen) traverseGlobals() int {
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
 		c.ForEachFile(c.convertGlobals)
+		c.ForEachFile(c.convertInitFuncs)
 	}
 	return n
 }
