@@ -16,12 +16,12 @@ import (
 // objects in the storeBlock().
 type Cached struct {
 	DAO
-	accounts  map[util.Uint160]*state.Account
-	contracts map[util.Uint160]*state.Contract
-	unspents  map[util.Uint256]*state.UnspentCoin
-	balances  map[util.Uint160]*state.NEP5Balances
-	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
-	storage   *itemCache
+	accounts      map[util.Uint160]*state.Account
+	contracts     map[util.Uint160]*state.Contract
+	unspents      map[util.Uint256]*state.UnspentCoin
+	balances      map[util.Uint160]*state.NEP5Balances
+	nep5transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
+	storage       *itemCache
 
 	dropNEP5Cache bool
 }
@@ -32,7 +32,7 @@ func NewCached(d DAO) *Cached {
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
-	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
+	nep5transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
 	st := newItemCache()
 	dao := d.GetWrapped()
 	if cd, ok := dao.(*Cached); ok {
@@ -42,7 +42,7 @@ func NewCached(d DAO) *Cached {
 			}
 		}
 	}
-	return &Cached{dao, accs, ctrs, unspents, balances, transfers, st, false}
+	return &Cached{dao, accs, ctrs, unspents, balances, nep5transfers, st, false}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying store
@@ -122,7 +122,7 @@ func (cd *Cached) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) erro
 
 // GetNEP5TransferLog retrieves NEP5TransferLog for the acc.
 func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
-	ts := cd.transfers[acc]
+	ts := cd.nep5transfers[acc]
 	if ts != nil && ts[index] != nil {
 		return ts[index], nil
 	}
@@ -131,10 +131,10 @@ func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP
 
 // PutNEP5TransferLog saves NEP5TransferLog for the acc.
 func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.NEP5TransferLog) error {
-	ts := cd.transfers[acc]
+	ts := cd.nep5transfers[acc]
 	if ts == nil {
 		ts = make(map[uint32]*state.NEP5TransferLog, 2)
-		cd.transfers[acc] = ts
+		cd.nep5transfers[acc] = ts
 	}
 	ts[index] = bs
 	return nil
@@ -265,7 +265,7 @@ func (cd *Cached) Persist() (int, error) {
 		}
 		buf.Reset()
 	}
-	for acc, ts := range cd.transfers {
+	for acc, ts := range cd.nep5transfers {
 		for ind, lg := range ts {
 			err := cd.DAO.PutNEP5TransferLog(acc, ind, lg)
 			if err != nil {
@@ -283,7 +283,7 @@ func (cd *Cached) GetWrapped() DAO {
 		cd.contracts,
 		cd.unspents,
 		cd.balances,
-		cd.transfers,
+		cd.nep5transfers,
 		cd.storage,
 		false,
 	}
