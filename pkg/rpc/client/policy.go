@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/pkg/errors"
 )
 
@@ -51,27 +52,26 @@ func (c *Client) GetBlockedAccounts() (native.BlockedAccounts, error) {
 	return topBlockedAccountsFromStack(result.Stack)
 }
 
-func topBlockedAccountsFromStack(st []smartcontract.Parameter) (native.BlockedAccounts, error) {
+func topBlockedAccountsFromStack(st []stackitem.Item) (native.BlockedAccounts, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	var (
 		ba  native.BlockedAccounts
 		err error
 	)
-	switch typ := st[index].Type; typ {
-	case smartcontract.ArrayType:
-		data, ok := st[index].Value.([]smartcontract.Parameter)
+	items, ok := st[index].Value().([]stackitem.Item)
+	if !ok {
+		return nil, fmt.Errorf("invalid stack item type: %s", st[index].Type())
+	}
+	ba = make(native.BlockedAccounts, len(items))
+	for i, account := range items {
+		val, ok := account.Value().([]byte)
 		if !ok {
-			return nil, errors.New("invalid Array item")
+			return nil, fmt.Errorf("invalid array element: %s", account.Type())
 		}
-		ba = make(native.BlockedAccounts, len(data))
-		for i, account := range data {
-			ba[i], err = util.Uint160DecodeBytesLE(account.Value.([]byte))
-			if err != nil {
-				return nil, err
-			}
+		ba[i], err = util.Uint160DecodeBytesLE(val)
+		if err != nil {
+			return nil, err
 		}
-	default:
-		return nil, fmt.Errorf("invalid stack item type: %s", typ)
 	}
 	return ba, nil
 }

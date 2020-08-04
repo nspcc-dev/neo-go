@@ -293,21 +293,21 @@ Example:
             "value" : [
                {
                   "value" : "636f6e74726163742063616c6c",
-                  "type" : "ByteArray"
+                  "type" : "ByteString"
                },
                {
                   "value" : "7472616e73666572",
-                  "type" : "ByteArray"
+                  "type" : "ByteString"
                },
                {
                   "value" : [
                      {
                         "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
-                        "type" : "ByteArray"
+                        "type" : "ByteString"
                      },
                      {
                         "value" : "316e851039019d39dfc2c37d6c3fee19fd580987",
-                        "type" : "ByteArray"
+                        "type" : "ByteString"
                      },
                      {
                         "value" : "1000",
@@ -351,20 +351,20 @@ Example:
                         "value" : [
                            {
                               "value" : "636f6e74726163742063616c6c",
-                              "type" : "ByteArray"
+                              "type" : "ByteString"
                            },
                            {
-                              "type" : "ByteArray",
+                              "type" : "ByteString",
                               "value" : "7472616e73666572"
                            },
                            {
                               "value" : [
                                  {
                                     "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
-                                    "type" : "ByteArray"
+                                    "type" : "ByteString"
                                  },
                                  {
-                                    "type" : "ByteArray",
+                                    "type" : "ByteString",
                                     "value" : "316e851039019d39dfc2c37d6c3fee19fd580987"
                                  },
                                  {
@@ -384,15 +384,15 @@ Example:
                         "value" : [
                            {
                               "value" : "7472616e73666572",
-                              "type" : "ByteArray"
+                              "type" : "ByteString"
                            },
                            {
                               "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
-                              "type" : "ByteArray"
+                              "type" : "ByteString"
                            },
                            {
                               "value" : "316e851039019d39dfc2c37d6c3fee19fd580987",
-                              "type" : "ByteArray"
+                              "type" : "ByteString"
                            },
                            {
                               "value" : "1000",

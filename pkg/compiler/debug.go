@@ -206,7 +206,7 @@ func (c *codegen) scTypeFromExpr(typ ast.Expr) string {
 		return "Struct"
 	case *types.Slice:
 		if isByte(t.Elem()) {
-			return "ByteArray"
+			return "ByteString"
 		}
 		return "Array"
 	default:

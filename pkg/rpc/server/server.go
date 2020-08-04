@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
@@ -623,14 +622,11 @@ func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decima
 	}
 
 	d := decimals{Hash: h}
-	switch item := res.Stack[len(res.Stack)-1]; item.Type {
-	case smartcontract.IntegerType:
-		d.Value = item.Value.(int64)
-	case smartcontract.ByteArrayType:
-		d.Value = bigint.FromBytes(item.Value.([]byte)).Int64()
-	default:
-		return d, errors.New("invalid result: not an integer")
+	bi, err := res.Stack[len(res.Stack)-1].TryInteger()
+	if err != nil {
+		return decimals{}, err
 	}
+	d.Value = bi.Int64()
 	if d.Value < 0 {
 		return d, errors.New("incorrect result: negative result")
 	}
@@ -896,7 +892,7 @@ func (s *Server) runScriptInVM(script []byte, tx *transaction.Transaction) *resu
 		State:       vm.State().String(),
 		GasConsumed: vm.GasConsumed(),
 		Script:      hex.EncodeToString(script),
-		Stack:       vm.Estack().ToContractParameters(),
+		Stack:       vm.Estack().ToArray(),
 	}
 	return result
 }

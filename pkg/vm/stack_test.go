@@ -237,6 +237,22 @@ func TestPushVal(t *testing.T) {
 	assert.IsType(t, elem.value, &stackitem.Array{})
 }
 
+func TestStack_ToArray(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		s := NewStack("test")
+		items := s.ToArray()
+		require.Equal(t, 0, len(items))
+	})
+	t.Run("NonEmpty", func(t *testing.T) {
+		s := NewStack("test")
+		expected := []stackitem.Item{stackitem.Make(1), stackitem.Make(true)}
+		for i := range expected {
+			s.PushVal(expected[i])
+		}
+		require.Equal(t, expected, s.ToArray())
+	})
+}
+
 func TestSwapElemValues(t *testing.T) {
 	s := NewStack("test")
 

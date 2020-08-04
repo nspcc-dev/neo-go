@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/internal/testserdes"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -26,7 +25,7 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 		Trigger:     1,
 		VMState:     vm.HaltState,
 		GasConsumed: 10,
-		Stack:       []smartcontract.Parameter{},
+		Stack:       []stackitem.Item{},
 		Events:      []NotificationEvent{},
 	}
 

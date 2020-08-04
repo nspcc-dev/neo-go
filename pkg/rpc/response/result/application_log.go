@@ -21,6 +21,7 @@ type ApplicationLog struct {
 //NotificationEvent response wrapper
 type NotificationEvent struct {
 	Contract util.Uint160            `json:"contract"`
+	Name     string                  `json:"eventname"`
 	Item     smartcontract.Parameter `json:"state"`
 }
 
@@ -28,13 +29,10 @@ type NotificationEvent struct {
 // result.NotificationEvent.
 func StateEventToResultNotification(event state.NotificationEvent) NotificationEvent {
 	seen := make(map[stackitem.Item]bool)
-	args := stackitem.NewArray([]stackitem.Item{
-		stackitem.Make(event.Name),
-		event.Item,
-	})
-	item := smartcontract.ParameterFromStackItem(args, seen)
+	item := smartcontract.ParameterFromStackItem(event.Item, seen)
 	return NotificationEvent{
 		Contract: event.ScriptHash,
+		Name:     event.Name,
 		Item:     item,
 	}
 }
@@ -45,13 +43,17 @@ func NewApplicationLog(appExecRes *state.AppExecResult) ApplicationLog {
 	for _, e := range appExecRes.Events {
 		events = append(events, StateEventToResultNotification(e))
 	}
-
+	st := make([]smartcontract.Parameter, len(appExecRes.Stack))
+	seen := make(map[stackitem.Item]bool)
+	for i := range appExecRes.Stack {
+		st[i] = smartcontract.ParameterFromStackItem(appExecRes.Stack[i], seen)
+	}
 	return ApplicationLog{
 		TxHash:      appExecRes.TxHash,
 		Trigger:     appExecRes.Trigger.String(),
 		VMState:     appExecRes.VMState.String(),
 		GasConsumed: appExecRes.GasConsumed,
-		Stack:       appExecRes.Stack,
+		Stack:       st,
 		Events:      events,
 	}
 }

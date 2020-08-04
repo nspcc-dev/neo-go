@@ -215,7 +215,7 @@ func (i *Struct) Bool() bool { return true }
 
 // TryBytes implements Item interface.
 func (i *Struct) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Struct to ByteArray")
+	return nil, errors.New("can't convert Struct to ByteString")
 }
 
 // TryInteger implements Item interface.
@@ -301,7 +301,7 @@ func (i Null) Bool() bool { return false }
 
 // TryBytes implements Item interface.
 func (i Null) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Null to ByteArray")
+	return nil, errors.New("can't convert Null to ByteString")
 }
 
 // TryInteger implements Item interface.
@@ -497,7 +497,7 @@ func (i *ByteArray) MarshalJSON() ([]byte, error) {
 }
 
 func (i *ByteArray) String() string {
-	return "ByteArray"
+	return "ByteString"
 }
 
 // Bool implements Item interface.
@@ -606,7 +606,7 @@ func (i *Array) Bool() bool { return true }
 
 // TryBytes implements Item interface.
 func (i *Array) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Array to ByteArray")
+	return nil, errors.New("can't convert Array to ByteString")
 }
 
 // TryInteger implements Item interface.
@@ -696,7 +696,7 @@ func (i *Map) Bool() bool { return true }
 
 // TryBytes implements Item interface.
 func (i *Map) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Map to ByteArray")
+	return nil, errors.New("can't convert Map to ByteString")
 }
 
 // TryInteger implements Item interface.
@@ -812,7 +812,7 @@ func (i *Interop) Bool() bool { return true }
 
 // TryBytes implements Item interface.
 func (i *Interop) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Interop to ByteArray")
+	return nil, errors.New("can't convert Interop to ByteString")
 }
 
 // TryInteger implements Item interface.
@@ -893,7 +893,7 @@ func (p *Pointer) Bool() bool {
 
 // TryBytes implements Item interface.
 func (p *Pointer) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Pointer to ByteArray")
+	return nil, errors.New("can't convert Pointer to ByteString")
 }
 
 // TryInteger implements Item interface.

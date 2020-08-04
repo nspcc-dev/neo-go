@@ -208,3 +208,171 @@ func (d *decoder) decodeMap() (*Map, error) {
 		m.Add(NewByteArray([]byte(k)), val)
 	}
 }
+
+// ToJSONWithTypes serializes any stackitem to JSON in a lossless way.
+func ToJSONWithTypes(item Item) ([]byte, error) {
+	result, err := toJSONWithTypes(item, make(map[Item]bool))
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(result)
+}
+
+func toJSONWithTypes(item Item, seen map[Item]bool) (interface{}, error) {
+	typ := item.Type()
+	result := map[string]interface{}{
+		"type": typ.String(),
+	}
+	var value interface{}
+	switch it := item.(type) {
+	case *Array, *Struct:
+		if seen[item] {
+			return "", errors.New("recursive structures can't be serialized to json")
+		}
+		seen[item] = true
+		arr := []interface{}{}
+		for _, elem := range it.Value().([]Item) {
+			s, err := toJSONWithTypes(elem, seen)
+			if err != nil {
+				return "", err
+			}
+			arr = append(arr, s)
+		}
+		value = arr
+	case *Bool:
+		value = it.value
+	case *Buffer, *ByteArray:
+		value = base64.StdEncoding.EncodeToString(it.Value().([]byte))
+	case *BigInteger:
+		value = it.value.String()
+	case *Map:
+		if seen[item] {
+			return "", errors.New("recursive structures can't be serialized to json")
+		}
+		seen[item] = true
+		arr := []interface{}{}
+		for i := range it.value {
+			// map keys are primitive types and can always be converted to json
+			key, _ := toJSONWithTypes(it.value[i].Key, seen)
+			val, err := toJSONWithTypes(it.value[i].Value, seen)
+			if err != nil {
+				return "", err
+			}
+			arr = append(arr, map[string]interface{}{
+				"key":   key,
+				"value": val,
+			})
+		}
+		value = arr
+	case *Pointer:
+		value = it.pos
+	}
+	if value != nil {
+		result["value"] = value
+	}
+	return result, nil
+}
+
+type (
+	rawItem struct {
+		Type  string          `json:"type"`
+		Value json.RawMessage `json:"value,omitempty"`
+	}
+
+	rawMapElement struct {
+		Key   json.RawMessage `json:"key"`
+		Value json.RawMessage `json:"value"`
+	}
+)
+
+// FromJSONWithTypes deserializes an item from typed-json representation.
+func FromJSONWithTypes(data []byte) (Item, error) {
+	raw := new(rawItem)
+	if err := json.Unmarshal(data, raw); err != nil {
+		return nil, err
+	}
+	typ, err := FromString(raw.Type)
+	if err != nil {
+		return nil, errors.New("invalid type")
+	}
+	switch typ {
+	case AnyT:
+		return Null{}, nil
+	case PointerT:
+		var pos int
+		if err := json.Unmarshal(raw.Value, &pos); err != nil {
+			return nil, err
+		}
+		return NewPointer(pos, nil), nil
+	case BooleanT:
+		var b bool
+		if err := json.Unmarshal(raw.Value, &b); err != nil {
+			return nil, err
+		}
+		return NewBool(b), nil
+	case IntegerT:
+		var s string
+		if err := json.Unmarshal(raw.Value, &s); err != nil {
+			return nil, err
+		}
+		val, ok := new(big.Int).SetString(s, 10)
+		if !ok {
+			return nil, errors.New("invalid integer")
+		}
+		return NewBigInteger(val), nil
+	case ByteArrayT, BufferT:
+		var s string
+		if err := json.Unmarshal(raw.Value, &s); err != nil {
+			return nil, err
+		}
+		val, err := base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			return nil, err
+		}
+		if typ == ByteArrayT {
+			return NewByteArray(val), nil
+		}
+		return NewBuffer(val), nil
+	case ArrayT, StructT:
+		var arr []json.RawMessage
+		if err := json.Unmarshal(raw.Value, &arr); err != nil {
+			return nil, err
+		}
+		items := make([]Item, len(arr))
+		for i := range arr {
+			it, err := FromJSONWithTypes(arr[i])
+			if err != nil {
+				return nil, err
+			}
+			items[i] = it
+		}
+		if typ == ArrayT {
+			return NewArray(items), nil
+		}
+		return NewStruct(items), nil
+	case MapT:
+		var arr []rawMapElement
+		if err := json.Unmarshal(raw.Value, &arr); err != nil {
+			return nil, err
+		}
+		m := NewMap()
+		for i := range arr {
+			key, err := FromJSONWithTypes(arr[i].Key)
+			if err != nil {
+				return nil, err
+			} else if !IsValidMapKey(key) {
+				return nil, fmt.Errorf("invalid map key of type %s", key.Type())
+			}
+			value, err := FromJSONWithTypes(arr[i].Value)
+			if err != nil {
+				return nil, err
+			}
+			m.Add(key, value)
+		}
+		return m, nil
+	case InteropT:
+		return NewInterop(nil), nil
+	default:
+		return nil, errors.New("unexpected type")
+	}
+}

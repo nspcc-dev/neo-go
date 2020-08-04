@@ -10,10 +10,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,20 +29,14 @@ func TestMaxTransactionsPerBlock(t *testing.T) {
 	t.Run("get, contract method", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getMaxTransactionsPerBlock")
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.IntegerType,
-			Value: 512,
-		})
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(512)))
 		require.NoError(t, chain.persist())
 	})
 
 	t.Run("set", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "setMaxTransactionsPerBlock", bigint.ToBytes(big.NewInt(1024)))
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 		n := chain.contracts.Policy.GetMaxTransactionsPerBlockInternal(chain.dao)
 		require.Equal(t, 1024, int(n))
@@ -56,27 +50,18 @@ func TestMaxBlockSize(t *testing.T) {
 	t.Run("get", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getMaxBlockSize")
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.IntegerType,
-			Value: 1024 * 256,
-		})
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(1024*256)))
 		require.NoError(t, chain.persist())
 	})
 
 	t.Run("set", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "setMaxBlockSize", bigint.ToBytes(big.NewInt(102400)))
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 		res, err = invokeNativePolicyMethod(chain, "getMaxBlockSize")
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.IntegerType,
-			Value: 102400,
-		})
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(102400)))
 		require.NoError(t, chain.persist())
 	})
 }
@@ -93,20 +78,14 @@ func TestFeePerByte(t *testing.T) {
 	t.Run("get, contract method", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getFeePerByte")
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.IntegerType,
-			Value: 1000,
-		})
+		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(1000)))
 		require.NoError(t, chain.persist())
 	})
 
 	t.Run("set", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "setFeePerByte", bigint.ToBytes(big.NewInt(1024)))
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
 		require.Equal(t, 1024, int(n))
@@ -127,20 +106,14 @@ func TestBlockedAccounts(t *testing.T) {
 	t.Run("get, contract method", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getBlockedAccounts")
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.ArrayType,
-			Value: []smartcontract.Parameter{},
-		})
+		checkResult(t, res, stackitem.NewArray([]stackitem.Item{}))
 		require.NoError(t, chain.persist())
 	})
 
 	t.Run("block-unblock account", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "blockAccount", account.BytesBE())
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 
 		accounts, err := chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
 		require.NoError(t, err)
@@ -148,10 +121,7 @@ func TestBlockedAccounts(t *testing.T) {
 		require.NoError(t, chain.persist())
 
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 
 		accounts, err = chain.contracts.Policy.GetBlockedAccountsInternal(chain.dao)
 		require.NoError(t, err)
@@ -163,35 +133,23 @@ func TestBlockedAccounts(t *testing.T) {
 		// block
 		res, err := invokeNativePolicyMethod(chain, "blockAccount", account.BytesBE())
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 
 		// double-block should fail
 		res, err = invokeNativePolicyMethod(chain, "blockAccount", account.BytesBE())
 		require.NoError(t, err)
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: false,
-		})
+		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
 
 		// unblock
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: true,
-		})
+		checkResult(t, res, stackitem.NewBool(true))
 		require.NoError(t, chain.persist())
 
 		// unblock the same account should fail as we don't have it blocked
 		res, err = invokeNativePolicyMethod(chain, "unblockAccount", account.BytesBE())
-		checkResult(t, res, smartcontract.Parameter{
-			Type:  smartcontract.BoolType,
-			Value: false,
-		})
+		checkResult(t, res, stackitem.NewBool(false))
 		require.NoError(t, chain.persist())
 	})
 
@@ -205,10 +163,7 @@ func TestBlockedAccounts(t *testing.T) {
 		for _, acc := range accounts {
 			res, err := invokeNativePolicyMethod(chain, "blockAccount", acc.BytesBE())
 			require.NoError(t, err)
-			checkResult(t, res, smartcontract.Parameter{
-				Type:  smartcontract.BoolType,
-				Value: true,
-			})
+			checkResult(t, res, stackitem.NewBool(true))
 			require.NoError(t, chain.persist())
 		}
 
@@ -253,9 +208,8 @@ func invokeNativePolicyMethod(chain *Blockchain, method string, args ...interfac
 	return res, nil
 }
 
-func checkResult(t *testing.T, result *state.AppExecResult, expected smartcontract.Parameter) {
+func checkResult(t *testing.T, result *state.AppExecResult, expected stackitem.Item) {
 	require.Equal(t, vm.HaltState, result.VMState)
 	require.Equal(t, 1, len(result.Stack))
-	require.Equal(t, expected.Type, result.Stack[0].Type)
-	require.EqualValues(t, expected.Value, result.Stack[0].Value)
+	require.Equal(t, expected, result.Stack[0])
 }

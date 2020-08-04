@@ -6,12 +6,12 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -192,46 +192,20 @@ func (c *Client) MultiTransferNEP5(acc *wallet.Account, token util.Uint160, gas 
 	return c.SendRawTransaction(tx)
 }
 
-func topIntFromStack(st []smartcontract.Parameter) (int64, error) {
+func topIntFromStack(st []stackitem.Item) (int64, error) {
 	index := len(st) - 1 // top stack element is last in the array
-	var decimals int64
-	switch typ := st[index].Type; typ {
-	case smartcontract.IntegerType:
-		var ok bool
-		decimals, ok = st[index].Value.(int64)
-		if !ok {
-			return 0, errors.New("invalid Integer item")
-		}
-	case smartcontract.ByteArrayType:
-		data, ok := st[index].Value.([]byte)
-		if !ok {
-			return 0, errors.New("invalid ByteArray item")
-		}
-		decimals = bigint.FromBytes(data).Int64()
-	default:
-		return 0, fmt.Errorf("invalid stack item type: %s", typ)
+	bi, err := st[index].TryInteger()
+	if err != nil {
+		return 0, err
 	}
-	return decimals, nil
+	return bi.Int64(), nil
 }
 
-func topStringFromStack(st []smartcontract.Parameter) (string, error) {
+func topStringFromStack(st []stackitem.Item) (string, error) {
 	index := len(st) - 1 // top stack element is last in the array
-	var s string
-	switch typ := st[index].Type; typ {
-	case smartcontract.StringType:
-		var ok bool
-		s, ok = st[index].Value.(string)
-		if !ok {
-			return "", errors.New("invalid String item")
-		}
-	case smartcontract.ByteArrayType:
-		data, ok := st[index].Value.([]byte)
-		if !ok {
-			return "", errors.New("invalid ByteArray item")
-		}
-		s = string(data)
-	default:
-		return "", fmt.Errorf("invalid stack item type: %s", typ)
+	bs, err := st[index].TryBytes()
+	if err != nil {
+		return "", err
 	}
-	return s, nil
+	return string(bs), nil
 }

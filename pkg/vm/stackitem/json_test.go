@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,5 +102,139 @@ func TestFromToJSON(t *testing.T) {
 				require.Error(t, err)
 			})
 		})
+	})
+}
+
+// This test is taken from the C# code
+// https://github.com/neo-project/neo/blob/master/tests/neo.UnitTests/VM/UT_Helper.cs#L30
+func TestToJSONWithTypeCompat(t *testing.T) {
+	items := []Item{
+		Make(5), Make("hello world"),
+		Make([]byte{1, 2, 3}), Make(true),
+	}
+
+	// Note: we use `Equal` and not `JSONEq` because there are no spaces and maps so the order is well-defined.
+	s, err := ToJSONWithTypes(items[0])
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"Integer","value":"5"}`, string(s))
+
+	s, err = ToJSONWithTypes(items[1])
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"ByteString","value":"aGVsbG8gd29ybGQ="}`, string(s))
+
+	s, err = ToJSONWithTypes(items[2])
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"ByteString","value":"AQID"}`, string(s))
+
+	s, err = ToJSONWithTypes(items[3])
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"Boolean","value":true}`, string(s))
+
+	s, err = ToJSONWithTypes(NewArray(items))
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"Array","value":[{"type":"Integer","value":"5"},{"type":"ByteString","value":"aGVsbG8gd29ybGQ="},{"type":"ByteString","value":"AQID"},{"type":"Boolean","value":true}]}`, string(s))
+
+	item := NewMap()
+	item.Add(Make(1), NewPointer(0, []byte{0}))
+	s, err = ToJSONWithTypes(item)
+	assert.NoError(t, err)
+	assert.Equal(t, `{"type":"Map","value":[{"key":{"type":"Integer","value":"1"},"value":{"type":"Pointer","value":0}}]}`, string(s))
+}
+
+func TestToJSONWithTypes(t *testing.T) {
+	testCases := []struct {
+		name   string
+		item   Item
+		result string
+	}{
+		{"Null", Null{}, `{"type":"Any"}`},
+		{"Integer", NewBigInteger(big.NewInt(42)), `{"type":"Integer","value":"42"}`},
+		{"ByteString", NewByteArray([]byte{1, 2, 3}), `{"type":"ByteString","value":"AQID"}`},
+		{"Buffer", NewBuffer([]byte{1, 2, 3}), `{"type":"Buffer","value":"AQID"}`},
+		{"BoolTrue", NewBool(true), `{"type":"Boolean","value":true}`},
+		{"BoolFalse", NewBool(false), `{"type":"Boolean","value":false}`},
+		{"Struct", NewStruct([]Item{Make(11)}),
+			`{"type":"Struct","value":[{"type":"Integer","value":"11"}]}`},
+		{"Map", NewMapWithValue([]MapElement{{Key: NewBigInteger(big.NewInt(42)), Value: NewBool(false)}}),
+			`{"type":"Map","value":[{"key":{"type":"Integer","value":"42"},` +
+				`"value":{"type":"Boolean","value":false}}]}`},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := ToJSONWithTypes(tc.item)
+			require.NoError(t, err)
+			require.Equal(t, tc.result, string(s))
+
+			item, err := FromJSONWithTypes(s)
+			require.NoError(t, err)
+			require.Equal(t, tc.item, item)
+		})
+	}
+
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("RecursiveArray", func(t *testing.T) {
+			arr := NewArray(nil)
+			arr.value = []Item{Make(5), arr, Make(true)}
+
+			_, err := ToJSONWithTypes(arr)
+			require.Error(t, err)
+		})
+		t.Run("RecursiveMap", func(t *testing.T) {
+			m := NewMap()
+			m.Add(Make(3), Make(true))
+			m.Add(Make(5), m)
+
+			_, err := ToJSONWithTypes(m)
+			require.Error(t, err)
+		})
+	})
+}
+
+func TestFromJSONWithTypes(t *testing.T) {
+	testCases := []struct {
+		name string
+		json string
+		item Item
+	}{
+		{"Pointer", `{"type":"Pointer","value":3}`, NewPointer(3, nil)},
+		{"Interop", `{"type":"Interop"}`, NewInterop(nil)},
+		{"Null", `{"type":"Any"}`, Null{}},
+		{"Array", `{"type":"Array","value":[{"type":"Any"}]}`, NewArray([]Item{Null{}})},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			item, err := FromJSONWithTypes([]byte(tc.json))
+			require.NoError(t, err)
+			require.Equal(t, tc.item, item)
+		})
+	}
+
+	t.Run("Invalid", func(t *testing.T) {
+		errCases := []struct {
+			name string
+			json string
+		}{
+			{"InvalidType", `{"type":int,"value":"4"`},
+			{"UnexpectedType", `{"type":"int","value":"4"}`},
+			{"IntegerValue1", `{"type":"Integer","value": 4}`},
+			{"IntegerValue2", `{"type":"Integer","value": "a"}`},
+			{"BoolValue", `{"type":"Boolean","value": "str"}`},
+			{"PointerValue", `{"type":"Pointer","value": "str"}`},
+			{"BufferValue1", `{"type":"Buffer","value":"not a base 64"}`},
+			{"BufferValue2", `{"type":"Buffer","value":123}`},
+			{"ArrayValue", `{"type":"Array","value":3}`},
+			{"ArrayElement", `{"type":"Array","value":[3]}`},
+			{"MapValue", `{"type":"Map","value":3}`},
+			{"MapElement", `{"type":"Map","value":[{"key":"value"}]}`},
+			{"MapElementKeyNotPrimitive", `{"type":"Map","value":[{"key":{"type":"Any"}}]}`},
+			{"MapElementValue", `{"type":"Map","value":[` +
+				`{"key":{"type":"Integer","value":"3"},"value":3}]}`},
+		}
+		for _, tc := range errCases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := FromJSONWithTypes([]byte(tc.json))
+				require.Error(t, err)
+			})
+		}
 	})
 }

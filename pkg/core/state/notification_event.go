@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -26,7 +25,7 @@ type AppExecResult struct {
 	Trigger     trigger.Type
 	VMState     vm.State
 	GasConsumed int64
-	Stack       []smartcontract.Parameter
+	Stack       []stackitem.Item
 	Events      []NotificationEvent
 }
 
@@ -59,7 +58,7 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(aer.Trigger))
 	w.WriteB(byte(aer.VMState))
 	w.WriteU64LE(uint64(aer.GasConsumed))
-	w.WriteArray(aer.Stack)
+	stackitem.EncodeBinaryStackItem(stackitem.NewArray(aer.Stack), w)
 	w.WriteArray(aer.Events)
 }
 
@@ -69,6 +68,14 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Trigger = trigger.Type(r.ReadB())
 	aer.VMState = vm.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
-	r.ReadArray(&aer.Stack)
+	item := stackitem.DecodeBinaryStackItem(r)
+	if r.Err == nil {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			r.Err = errors.New("array expected")
+			return
+		}
+		aer.Stack = arr
+	}
 	r.ReadArray(&aer.Events)
 }

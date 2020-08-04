@@ -321,7 +321,7 @@ func (v *VM) Stack(n string) string {
 	if n == "estack" {
 		s = v.estack
 	}
-	b, _ := json.MarshalIndent(s.ToContractParameters(), "", "    ")
+	b, _ := json.MarshalIndent(s, "", "    ")
 	return string(b)
 }
 
