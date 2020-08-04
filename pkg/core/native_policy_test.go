@@ -47,7 +47,12 @@ func TestMaxBlockSize(t *testing.T) {
 	chain := newTestChain(t)
 	defer chain.Close()
 
-	t.Run("get", func(t *testing.T) {
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetMaxBlockSizeInternal(chain.dao)
+		require.Equal(t, 1024*256, int(n))
+	})
+
+	t.Run("get, contract method", func(t *testing.T) {
 		res, err := invokeNativePolicyMethod(chain, "getMaxBlockSize")
 		require.NoError(t, err)
 		checkResult(t, res, stackitem.NewBigInteger(big.NewInt(1024*256)))
@@ -89,6 +94,52 @@ func TestFeePerByte(t *testing.T) {
 		require.NoError(t, chain.persist())
 		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
 		require.Equal(t, 1024, int(n))
+	})
+}
+
+func TestBlockSystemFee(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	t.Run("get, internal method", func(t *testing.T) {
+		n := chain.contracts.Policy.GetMaxBlockSystemFeeInternal(chain.dao)
+		require.Equal(t, 9000*native.GASFactor, int(n))
+	})
+
+	t.Run("get", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "getMaxBlockSystemFee")
+		require.NoError(t, err)
+		checkResult(t, res, smartcontract.Parameter{
+			Type:  smartcontract.IntegerType,
+			Value: 9000 * native.GASFactor,
+		})
+		require.NoError(t, chain.persist())
+	})
+
+	t.Run("set, too low fee", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(4007600)))
+		require.NoError(t, err)
+		checkResult(t, res, smartcontract.Parameter{
+			Type:  smartcontract.BoolType,
+			Value: false,
+		})
+	})
+
+	t.Run("set, success", func(t *testing.T) {
+		res, err := invokeNativePolicyMethod(chain, "setMaxBlockSystemFee", bigint.ToBytes(big.NewInt(100000000)))
+		require.NoError(t, err)
+		checkResult(t, res, smartcontract.Parameter{
+			Type:  smartcontract.BoolType,
+			Value: true,
+		})
+		require.NoError(t, chain.persist())
+		res, err = invokeNativePolicyMethod(chain, "getMaxBlockSystemFee")
+		require.NoError(t, err)
+		checkResult(t, res, smartcontract.Parameter{
+			Type:  smartcontract.IntegerType,
+			Value: 100000000,
+		})
+		require.NoError(t, chain.persist())
 	})
 }
 

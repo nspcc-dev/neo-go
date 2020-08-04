@@ -341,13 +341,33 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 
 func (s *service) verifyBlock(b block.Block) bool {
 	coreb := &b.(*neoBlock).Block
+
+	maxBlockSize := int(s.Chain.GetMaxBlockSize())
+	size := io.GetVarSize(coreb)
+	if size > maxBlockSize {
+		s.log.Warn("proposed block size exceeds policy max block size",
+			zap.Int("max size allowed", maxBlockSize),
+			zap.Int("block size", size))
+		return false
+	}
+
+	var fee int64
 	for _, tx := range coreb.Transactions {
+		fee += tx.SystemFee
 		if err := s.Chain.VerifyTx(tx, coreb); err != nil {
 			s.log.Warn("invalid transaction in proposed block",
 				zap.Stringer("hash", tx.Hash()),
 				zap.Error(err))
 			return false
 		}
+	}
+
+	maxBlockSysFee := s.Chain.GetMaxBlockSystemFee()
+	if fee > maxBlockSysFee {
+		s.log.Warn("proposed block system fee exceeds policy max block system fee",
+			zap.Int("max system fee allowed", int(maxBlockSysFee)),
+			zap.Int("block system fee", int(fee)))
+		return false
 	}
 
 	return true

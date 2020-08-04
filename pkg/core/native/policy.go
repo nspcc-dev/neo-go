@@ -26,6 +26,9 @@ const (
 	defaultMaxTransactionsPerBlock = 512
 	defaultFeePerByte              = 1000
 	defaultMaxVerificationGas      = 50000000
+	defaultMaxBlockSystemFee       = 9000 * GASFactor
+	// minBlockSystemFee is the minimum allowed system fee per block.
+	minBlockSystemFee = 4007600
 )
 
 var (
@@ -38,7 +41,9 @@ var (
 	// blockedAccountsKey is a key used to store the list of blocked accounts.
 	blockedAccountsKey = []byte{15}
 	// maxBlockSizeKey is a key used to store the maximum block size value.
-	maxBlockSizeKey = []byte{16}
+	maxBlockSizeKey = []byte{12}
+	// maxBlockSystemFeeKey is a key used to store the maximum block system fee value.
+	maxBlockSystemFeeKey = []byte{17}
 )
 
 // Policy represents Policy native contract.
@@ -52,6 +57,7 @@ type Policy struct {
 	maxTransactionsPerBlock uint32
 	maxBlockSize            uint32
 	feePerByte              int64
+	maxBlockSystemFee       int64
 	maxVerificationGas      int64
 }
 
@@ -65,44 +71,53 @@ func newPolicy() *Policy {
 	p.Manifest.Features |= smartcontract.HasStorage
 
 	desc := newDescriptor("getMaxTransactionsPerBlock", smartcontract.IntegerType)
-	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, smartcontract.NoneFlag)
+	md := newMethodAndPrice(p.getMaxTransactionsPerBlock, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getMaxBlockSize", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getMaxBlockSize, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getMaxBlockSize, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getFeePerByte", smartcontract.IntegerType)
-	md = newMethodAndPrice(p.getFeePerByte, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getFeePerByte, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getBlockedAccounts", smartcontract.ArrayType)
-	md = newMethodAndPrice(p.getBlockedAccounts, 1000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.getBlockedAccounts, 1000000, smartcontract.AllowStates)
+	p.AddMethod(md, desc, true)
+
+	desc = newDescriptor("getMaxBlockSystemFee", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMaxBlockSystemFee, 1000000, smartcontract.AllowStates)
 	p.AddMethod(md, desc, true)
 
 	desc = newDescriptor("setMaxBlockSize", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setMaxBlockSize, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("setMaxTransactionsPerBlock", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setMaxTransactionsPerBlock, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("setFeePerByte", smartcontract.BoolType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setFeePerByte, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.setFeePerByte, 3000000, smartcontract.AllowModifyStates)
+	p.AddMethod(md, desc, false)
+
+	desc = newDescriptor("setMaxBlockSystemFee", smartcontract.BoolType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMaxBlockSystemFee, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("blockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.blockAccount, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.blockAccount, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("unblockAccount", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type))
-	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.NoneFlag)
+	md = newMethodAndPrice(p.unblockAccount, 3000000, smartcontract.AllowModifyStates)
 	p.AddMethod(md, desc, false)
 
 	desc = newDescriptor("onPersist", smartcontract.VoidType)
@@ -140,6 +155,12 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 		return err
 	}
 
+	binary.LittleEndian.PutUint64(si.Value, defaultMaxBlockSystemFee)
+	err = ic.DAO.PutStorageItem(p.ContractID, maxBlockSystemFeeKey, si)
+	if err != nil {
+		return err
+	}
+
 	ba := new(BlockedAccounts)
 	si.Value = ba.Bytes()
 	err = ic.DAO.PutStorageItem(p.ContractID, blockedAccountsKey, si)
@@ -151,6 +172,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	p.maxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 	p.maxBlockSize = defaultMaxBlockSize
 	p.feePerByte = defaultFeePerByte
+	p.maxBlockSystemFee = defaultMaxBlockSystemFee
 	p.maxVerificationGas = defaultMaxVerificationGas
 
 	return nil
@@ -178,6 +200,9 @@ func (p *Policy) OnPersistEnd(dao dao.DAO) {
 	feePerByte := p.getInt64WithKey(dao, feePerByteKey)
 	p.feePerByte = feePerByte
 
+	maxBlockSystemFee := p.getInt64WithKey(dao, maxBlockSystemFeeKey)
+	p.maxBlockSystemFee = maxBlockSystemFee
+
 	p.isValid = true
 }
 
@@ -200,12 +225,17 @@ func (p *Policy) GetMaxTransactionsPerBlockInternal(dao dao.DAO) uint32 {
 
 // getMaxBlockSize is Policy contract method and returns maximum block size.
 func (p *Policy) getMaxBlockSize(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxBlockSizeInternal(ic.DAO))))
+}
+
+// GetMaxBlockSizeInternal returns maximum block size.
+func (p *Policy) GetMaxBlockSizeInternal(dao dao.DAO) uint32 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.isValid {
-		return stackitem.NewBigInteger(big.NewInt(int64(p.maxBlockSize)))
+		return p.maxBlockSize
 	}
-	return stackitem.NewBigInteger(big.NewInt(int64(p.getUint32WithKey(ic.DAO, maxBlockSizeKey))))
+	return p.getUint32WithKey(dao, maxBlockSizeKey)
 }
 
 // getFeePerByte is Policy contract method and returns required transaction's fee
@@ -227,6 +257,22 @@ func (p *Policy) GetFeePerByteInternal(dao dao.DAO) int64 {
 // GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
 func (p *Policy) GetMaxVerificationGas(_ dao.DAO) int64 {
 	return p.maxVerificationGas
+}
+
+// getMaxBlockSystemFee is Policy contract method and returns the maximum overall
+// system fee per block.
+func (p *Policy) getMaxBlockSystemFee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(p.GetMaxBlockSystemFeeInternal(ic.DAO)))
+}
+
+// GetMaxBlockSystemFeeInternal the maximum overall system fee per block.
+func (p *Policy) GetMaxBlockSystemFeeInternal(dao dao.DAO) int64 {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	if p.isValid {
+		return p.maxBlockSystemFee
+	}
+	return p.getInt64WithKey(dao, maxBlockSystemFeeKey)
 }
 
 // getBlockedAccounts is Policy contract method and returns list of blocked
@@ -309,6 +355,29 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	err = p.setInt64WithKey(ic.DAO, feePerByteKey, value)
+	if err != nil {
+		panic(err)
+	}
+	p.isValid = false
+	return stackitem.NewBool(true)
+}
+
+// setMaxBlockSystemFee is Policy contract method and sets the maximum system fee per block.
+func (p *Policy) setMaxBlockSystemFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	ok, err := p.checkValidators(ic)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		return stackitem.NewBool(false)
+	}
+	value := toBigInt(args[0]).Int64()
+	if value <= minBlockSystemFee {
+		return stackitem.NewBool(false)
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	err = p.setInt64WithKey(ic.DAO, maxBlockSystemFeeKey, value)
 	if err != nil {
 		panic(err)
 	}

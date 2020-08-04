@@ -40,6 +40,14 @@ func (chain testChain) FeePerByte() int64 {
 	panic("TODO")
 }
 
+func (chain testChain) GetMaxBlockSystemFee() int64 {
+	panic("TODO")
+}
+
+func (chain testChain) GetMaxBlockSize() uint32 {
+	panic("TODO")
+}
+
 func (chain testChain) AddHeaders(...*block.Header) error {
 	panic("TODO")
 }

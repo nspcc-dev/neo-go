@@ -1147,6 +1147,16 @@ func (bc *Blockchain) FeePerByte() int64 {
 	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
 }
 
+// GetMaxBlockSize returns maximum allowed block size from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSize() uint32 {
+	return bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
+}
+
+// GetMaxBlockSystemFee returns maximum block system fee from native Policy contract.
+func (bc *Blockchain) GetMaxBlockSystemFee() int64 {
+	return bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+}
+
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return &bc.memPool
@@ -1158,6 +1168,21 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 	maxTx := bc.contracts.Policy.GetMaxTransactionsPerBlockInternal(bc.dao)
 	if maxTx != 0 && len(txes) > int(maxTx) {
 		txes = txes[:maxTx]
+	}
+	maxBlockSize := bc.contracts.Policy.GetMaxBlockSizeInternal(bc.dao)
+	maxBlockSysFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+	var (
+		blockSize uint32
+		sysFee    int64
+	)
+	blockSize = uint32(io.GetVarSize(new(block.Block)) + io.GetVarSize(len(txes)+1))
+	for i, tx := range txes {
+		blockSize += uint32(io.GetVarSize(tx))
+		sysFee += tx.SystemFee
+		if blockSize > maxBlockSize || sysFee > maxBlockSysFee {
+			txes = txes[:i]
+			break
+		}
 	}
 	return txes
 }
@@ -1194,8 +1219,12 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 			return !blockedAccounts[i].Less(h)
 		})
 		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
-			return errors.Errorf("policy check failed")
+			return errors.Errorf("policy check failed: account %s is blocked", h.StringLE())
 		}
+	}
+	maxBlockSystemFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
+	if maxBlockSystemFee < t.SystemFee {
+		return errors.Errorf("policy check failed: transaction's fee shouldn't exceed maximum block system fee %d", maxBlockSystemFee)
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender)
 	need := t.SystemFee + t.NetworkFee
