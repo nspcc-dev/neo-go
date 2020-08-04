@@ -35,8 +35,11 @@ type Options struct {
 	// The name of the output for contract manifest file.
 	ManifestFile string
 
-	// Contract metadata.
+	// Contract features.
 	ContractFeatures smartcontract.PropertyState
+
+	// The list of standards supported by the contract.
+	ContractSupportedStandards []string
 }
 
 type buildInfo struct {
@@ -165,7 +168,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 
 	if o.ManifestFile != "" {
-		m, err := di.ConvertToManifest(o.ContractFeatures)
+		m, err := di.ConvertToManifest(o.ContractFeatures, o.ContractSupportedStandards...)
 		if err != nil {
 			return b, errors.Wrap(err, "failed to convert debug info to manifest")
 		}

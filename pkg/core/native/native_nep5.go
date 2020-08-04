@@ -47,6 +47,7 @@ var _ interop.Contract = (*nep5TokenNative)(nil)
 
 func newNEP5Native(name string) *nep5TokenNative {
 	n := &nep5TokenNative{ContractMD: *interop.NewContractMD(name)}
+	n.Manifest.SupportedStandards = []string{manifest.NEP5StandardName}
 
 	desc := newDescriptor("name", smartcontract.StringType)
 	md := newMethodAndPrice(n.Name, 0, smartcontract.NoneFlag)

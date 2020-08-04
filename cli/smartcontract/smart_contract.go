@@ -317,7 +317,9 @@ func initSmartContract(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	m := ProjectConfig{}
+	m := ProjectConfig{
+		SupportedStandards: []string{},
+	}
 	b, err := yaml.Marshal(m)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -361,6 +363,7 @@ func contractCompile(ctx *cli.Context) error {
 			return err
 		}
 		o.ContractFeatures = conf.GetFeatures()
+		o.ContractSupportedStandards = conf.SupportedStandards
 	}
 
 	result, err := compiler.CompileAndSave(src, o)
@@ -529,9 +532,10 @@ func testInvokeScript(ctx *cli.Context) error {
 
 // ProjectConfig contains project metadata.
 type ProjectConfig struct {
-	HasStorage bool
-	IsPayable  bool
-	Events     []manifest.Event
+	HasStorage         bool
+	IsPayable          bool
+	SupportedStandards []string
+	Events             []manifest.Event
 }
 
 // GetFeatures returns smartcontract features from the config.
