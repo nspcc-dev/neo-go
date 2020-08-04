@@ -968,8 +968,8 @@ func (bc *Blockchain) processTransfer(cache *dao.Cached, from util.Uint160, tx *
 					return err
 				}
 			}
-			totals[tx.Outputs[i].AssetID] -= tx.Outputs[i].Amount
 		}
+		totals[tx.Outputs[i].AssetID] -= tx.Outputs[i].Amount
 	}
 	for asset, amount := range totals {
 		if amount.CompareTo(0) > 0 {
@@ -1055,6 +1055,23 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Tra
 			return
 		}
 	}
+}
+
+// GetTransferLog returns UTXO transfer log for the acc.
+func (bc *Blockchain) GetTransferLog(acc util.Uint160) *state.TransferLog {
+	nb, err := bc.dao.GetNextTransferBatch(acc)
+	if err != nil {
+		return nil
+	}
+	result := new(state.TransferLog)
+	for i := uint32(0); i <= nb; i++ {
+		lg, err := bc.dao.GetTransferLog(acc, i)
+		if err != nil {
+			return nil
+		}
+		result.Raw = append(result.Raw, lg.Raw...)
+	}
+	return result
 }
 
 // GetNEP5TransferLog returns NEP5 transfer log for the acc.

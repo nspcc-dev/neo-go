@@ -6,7 +6,7 @@ import (
 )
 
 // TransferSize is a size of a marshaled Transfer struct in bytes.
-const TransferSize = util.Uint160Size*2 + 8 + 4 + 4 + util.Uint256Size
+const TransferSize = util.Uint160Size*2 + 8 + 4 + 4 + util.Uint256Size*2
 
 // Transfer represents a single  Transfer event.
 type Transfer struct {
@@ -30,6 +30,7 @@ type Transfer struct {
 // EncodeBinary implements io.Serializable interface.
 // Note: change TransferSize constant when changing this function.
 func (t *Transfer) EncodeBinary(w *io.BinWriter) {
+	w.WriteBytes(t.AssetID[:])
 	w.WriteBytes(t.Tx[:])
 	w.WriteBytes(t.From[:])
 	w.WriteBytes(t.To[:])
@@ -40,6 +41,7 @@ func (t *Transfer) EncodeBinary(w *io.BinWriter) {
 
 // DecodeBinary implements io.Serializable interface.
 func (t *Transfer) DecodeBinary(r *io.BinReader) {
+	r.ReadBytes(t.AssetID[:])
 	r.ReadBytes(t.Tx[:])
 	r.ReadBytes(t.From[:])
 	r.ReadBytes(t.To[:])
