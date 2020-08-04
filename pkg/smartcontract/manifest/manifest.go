@@ -8,11 +8,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MaxManifestSize is a max length for a valid contract manifest.
-const MaxManifestSize = 2048
+const (
+	// MaxManifestSize is a max length for a valid contract manifest.
+	MaxManifestSize = 2048
 
-// MethodInit is a name for default initialization method.
-const MethodInit = "_initialize"
+	// MethodInit is a name for default initialization method.
+	MethodInit = "_initialize"
+
+	// NEP5StandardName represents the name of NEP5 smartcontract standard.
+	NEP5StandardName = "NEP-5"
+	// NEP10StandardName represents the name of NEP10 smartcontract standard.
+	NEP10StandardName = "NEP-10"
+)
 
 // ABI represents a contract application binary interface.
 type ABI struct {
@@ -30,6 +37,8 @@ type Manifest struct {
 	// Features is a set of contract's features.
 	Features    smartcontract.PropertyState
 	Permissions []Permission
+	// SupportedStandards is a list of standards supported by the contract.
+	SupportedStandards []string
 	// Trusts is a set of hashes to a which contract trusts.
 	Trusts WildUint160s
 	// SafeMethods is a set of names of safe methods.
@@ -39,13 +48,14 @@ type Manifest struct {
 }
 
 type manifestAux struct {
-	ABI         *ABI            `json:"abi"`
-	Groups      []Group         `json:"groups"`
-	Features    map[string]bool `json:"features"`
-	Permissions []Permission    `json:"permissions"`
-	Trusts      *WildUint160s   `json:"trusts"`
-	SafeMethods *WildStrings    `json:"safemethods"`
-	Extra       interface{}     `json:"extra"`
+	ABI                *ABI            `json:"abi"`
+	Groups             []Group         `json:"groups"`
+	Features           map[string]bool `json:"features"`
+	Permissions        []Permission    `json:"permissions"`
+	SupportedStandards []string        `json:"supportedstandards"`
+	Trusts             *WildUint160s   `json:"trusts"`
+	SafeMethods        *WildStrings    `json:"safemethods"`
+	Extra              interface{}     `json:"extra"`
 }
 
 // NewManifest returns new manifest with necessary fields initialized.
@@ -56,8 +66,9 @@ func NewManifest(h util.Uint160) *Manifest {
 			Methods: []Method{},
 			Events:  []Event{},
 		},
-		Groups:   []Group{},
-		Features: smartcontract.NoProperties,
+		Groups:             []Group{},
+		Features:           smartcontract.NoProperties,
+		SupportedStandards: []string{},
 	}
 	m.Trusts.Restrict()
 	m.SafeMethods.Restrict()
@@ -116,13 +127,14 @@ func (m *Manifest) MarshalJSON() ([]byte, error) {
 	features["storage"] = m.Features&smartcontract.HasStorage != 0
 	features["payable"] = m.Features&smartcontract.IsPayable != 0
 	aux := &manifestAux{
-		ABI:         &m.ABI,
-		Groups:      m.Groups,
-		Features:    features,
-		Permissions: m.Permissions,
-		Trusts:      &m.Trusts,
-		SafeMethods: &m.SafeMethods,
-		Extra:       m.Extra,
+		ABI:                &m.ABI,
+		Groups:             m.Groups,
+		Features:           features,
+		Permissions:        m.Permissions,
+		SupportedStandards: m.SupportedStandards,
+		Trusts:             &m.Trusts,
+		SafeMethods:        &m.SafeMethods,
+		Extra:              m.Extra,
 	}
 	return json.Marshal(aux)
 }
@@ -148,6 +160,7 @@ func (m *Manifest) UnmarshalJSON(data []byte) error {
 
 	m.Groups = aux.Groups
 	m.Permissions = aux.Permissions
+	m.SupportedStandards = aux.SupportedStandards
 	m.Extra = aux.Extra
 
 	return nil
