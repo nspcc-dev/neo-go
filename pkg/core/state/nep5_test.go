@@ -78,3 +78,7 @@ func randomTransfer(r *rand.Rand) *NEP5Transfer {
 		Tx:     random.Uint256(),
 	}
 }
+
+func TestTransfer_Size(t *testing.T) {
+	require.Equal(t, TransferSize, io.GetVarSize(new(Transfer)))
+}

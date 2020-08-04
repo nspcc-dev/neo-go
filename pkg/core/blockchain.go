@@ -613,6 +613,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return err
 		}
 
+		var pseudoSender util.Uint160
+		totals := make(map[util.Uint256]util.Fixed8)
+
 		// Process TX inputs that are grouped by previous hash.
 		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
 			prevHash := inputs[0].PrevHash
@@ -620,7 +623,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return err
 			}
-			for _, input := range inputs {
+			for i, input := range inputs {
 				if len(unspent.States) <= int(input.PrevIndex) {
 					return fmt.Errorf("bad input: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
 				}
@@ -630,6 +633,12 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				unspent.States[input.PrevIndex].State |= state.CoinSpent
 				unspent.States[input.PrevIndex].SpendHeight = block.Index
 				prevTXOutput := &unspent.States[input.PrevIndex].Output
+				if i == 0 {
+					pseudoSender = prevTXOutput.ScriptHash
+				}
+				if prevTXOutput.AssetID.Equals(GoverningTokenID()) || prevTXOutput.AssetID.Equals(UtilityTokenID()) {
+					totals[prevTXOutput.AssetID] += prevTXOutput.Amount
+				}
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
@@ -677,6 +686,10 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
 				return err
 			}
+		}
+
+		if err := bc.processTransfer(cache, pseudoSender, tx, block, totals); err != nil {
+			return err
 		}
 
 		// Process the underlying type of the TX.
@@ -904,6 +917,79 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func (bc *Blockchain) processTransfer(cache *dao.Cached, from util.Uint160, tx *transaction.Transaction, b *block.Block,
+	totals map[util.Uint256]util.Fixed8) error {
+
+	fromIndex, err := cache.GetNextTransferBatch(from)
+	if err != nil {
+		return err
+	}
+	for i := range tx.Outputs {
+		if !tx.Outputs[i].AssetID.Equals(GoverningTokenID()) && !tx.Outputs[i].AssetID.Equals(UtilityTokenID()) {
+			continue
+		}
+		if !from.Equals(tx.Outputs[i].ScriptHash) {
+			isBig, err := cache.AppendTransfer(from, fromIndex, &state.Transfer{
+				AssetID:   tx.Outputs[i].AssetID,
+				From:      from,
+				To:        tx.Outputs[i].ScriptHash,
+				Amount:    int64(tx.Outputs[i].Amount),
+				Block:     b.Index,
+				Timestamp: b.Timestamp,
+				Tx:        tx.Hash(),
+			})
+			if err != nil {
+				return err
+			}
+			if isBig {
+				fromIndex++
+			}
+
+			index, err := cache.GetNextTransferBatch(tx.Outputs[i].ScriptHash)
+			if err != nil {
+				return err
+			}
+			isBig, err = cache.AppendTransfer(tx.Outputs[i].ScriptHash, 0, &state.Transfer{
+				AssetID:   tx.Outputs[i].AssetID,
+				From:      tx.Outputs[i].ScriptHash,
+				To:        from,
+				Amount:    int64(tx.Outputs[i].Amount),
+				Block:     b.Index,
+				Timestamp: b.Timestamp,
+				Tx:        tx.Hash(),
+			})
+			if err != nil {
+				return err
+			}
+			if isBig {
+				if err := cache.PutNextTransferBatch(tx.Outputs[i].ScriptHash, index); err != nil {
+					return err
+				}
+			}
+			totals[tx.Outputs[i].AssetID] -= tx.Outputs[i].Amount
+		}
+	}
+	for asset, amount := range totals {
+		if amount.CompareTo(0) > 0 {
+			isBig, err := cache.AppendTransfer(from, fromIndex, &state.Transfer{
+				AssetID:   asset,
+				From:      from,
+				Amount:    int64(amount),
+				Block:     b.Index,
+				Timestamp: b.Timestamp,
+				Tx:        tx.Hash(),
+			})
+			if err != nil {
+				return err
+			}
+			if isBig {
+				fromIndex++
+			}
+		}
+	}
+	return cache.PutNextTransferBatch(from, fromIndex)
 }
 
 func parseUint160(addr []byte) util.Uint160 {
