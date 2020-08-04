@@ -30,5 +30,8 @@ func decompress(source []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dest[:size], nil
+	if uint32(size) != length {
+		return nil, errors.New("decompressed payload size doesn't match header")
+	}
+	return dest, nil
 }
