@@ -58,18 +58,18 @@ func (f *feed) Matches(r *response.Notification) bool {
 	case response.TransactionEventID:
 		filt := f.filter.(request.TxFilter)
 		tx := r.Payload[0].(*transaction.Transaction)
-		senderOK := filt.Sender == nil || tx.Sender.Equals(*filt.Sender)
-		cosignerOK := true
-		if filt.Cosigner != nil {
-			cosignerOK = false
-			for i := range tx.Cosigners {
-				if tx.Cosigners[i].Account.Equals(*filt.Cosigner) {
-					cosignerOK = true
+		senderOK := filt.Sender == nil || tx.Sender().Equals(*filt.Sender)
+		signerOK := true
+		if filt.Signer != nil {
+			signerOK = false
+			for i := range tx.Signers {
+				if tx.Signers[i].Account.Equals(*filt.Signer) {
+					signerOK = true
 					break
 				}
 			}
 		}
-		return senderOK && cosignerOK
+		return senderOK && signerOK
 	case response.NotificationEventID:
 		filt := f.filter.(request.NotificationFilter)
 		notification := r.Payload[0].(result.NotificationEvent)

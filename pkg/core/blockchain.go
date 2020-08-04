@@ -1226,7 +1226,7 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if maxBlockSystemFee < t.SystemFee {
 		return errors.Errorf("policy check failed: transaction's fee shouldn't exceed maximum block system fee %d", maxBlockSystemFee)
 	}
-	balance := bc.GetUtilityTokenBalance(t.Sender)
+	balance := bc.GetUtilityTokenBalance(t.Sender())
 	need := t.SystemFee + t.NetworkFee
 	if balance.Cmp(big.NewInt(need)) < 0 {
 		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
@@ -1415,15 +1415,9 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // to verify whether the transaction is bonafide or not.
 // Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
 func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	hashes := make(map[util.Uint160]bool)
-	hashes[t.Sender] = true
-	for _, c := range t.Cosigners {
-		hashes[c.Account] = true
-	}
-	// convert hashes to []util.Uint160
-	hashesResult := make([]util.Uint160, 0, len(hashes))
-	for h := range hashes {
-		hashesResult = append(hashesResult, h)
+	hashesResult := make([]util.Uint160, len(t.Signers))
+	for i, s := range t.Signers {
+		hashesResult[i] = s.Account
 	}
 
 	return hashesResult, nil

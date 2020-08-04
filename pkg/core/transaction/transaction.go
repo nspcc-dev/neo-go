@@ -19,9 +19,9 @@ const (
 	// MaxValidUntilBlockIncrement is the upper increment size of blockhain height in blocs after
 	// exceeding that a transaction should fail validation. It is set to be 2102400.
 	MaxValidUntilBlockIncrement = 2102400
-	// MaxCosigners is maximum number of cosigners that can be contained within a transaction.
-	// It is set to be 16.
-	MaxCosigners = 16
+	// MaxAttributes is maximum number of attributes including signers that can be contained
+	// within a transaction. It is set to be 16.
+	MaxAttributes = 16
 )
 
 // Transaction is a process recorded in the NEO blockchain.
@@ -31,9 +31,6 @@ type Transaction struct {
 
 	// Random number to avoid hash collision.
 	Nonce uint32
-
-	// Address signed the transaction.
-	Sender util.Uint160
 
 	// Fee to be burned.
 	SystemFee int64
@@ -51,8 +48,8 @@ type Transaction struct {
 	// Transaction attributes.
 	Attributes []Attribute
 
-	// Transaction cosigners (not include Sender).
-	Cosigners []Cosigner
+	// Transaction signers list (starts with Sender).
+	Signers []Signer
 
 	// The scripts that comes with this transaction.
 	// Scripts exist out of the verification script
@@ -96,7 +93,7 @@ func New(network netmode.Magic, script []byte, gas int64) *Transaction {
 		Script:     script,
 		SystemFee:  gas,
 		Attributes: []Attribute{},
-		Cosigners:  []Cosigner{},
+		Signers:    []Signer{},
 		Scripts:    []Witness{},
 		Network:    network,
 	}
@@ -126,44 +123,15 @@ func (t *Transaction) VerificationHash() util.Uint256 {
 // transaction, which are all fields except the scripts.
 func (t *Transaction) decodeHashableFields(br *io.BinReader) {
 	t.Version = uint8(br.ReadB())
-	if t.Version > 0 {
-		br.Err = errors.New("only version 0 is supported")
-		return
-	}
 	t.Nonce = br.ReadU32LE()
-	t.Sender.DecodeBinary(br)
 	t.SystemFee = int64(br.ReadU64LE())
-	if t.SystemFee < 0 {
-		br.Err = errors.New("negative system fee")
-		return
-	}
 	t.NetworkFee = int64(br.ReadU64LE())
-	if t.NetworkFee < 0 {
-		br.Err = errors.New("negative network fee")
-		return
-	}
-	if t.NetworkFee+t.SystemFee < t.SystemFee {
-		br.Err = errors.New("too big fees: int 64 overflow")
-		return
-	}
 	t.ValidUntilBlock = br.ReadU32LE()
-
-	br.ReadArray(&t.Attributes)
-
-	br.ReadArray(&t.Cosigners, MaxCosigners)
-	for i := 0; i < len(t.Cosigners); i++ {
-		for j := i + 1; j < len(t.Cosigners); j++ {
-			if t.Cosigners[i].Account.Equals(t.Cosigners[j].Account) {
-				br.Err = errors.New("transaction cosigners should be unique")
-				return
-			}
-		}
-	}
-
+	br.ReadArray(&t.Signers, MaxAttributes)
+	br.ReadArray(&t.Attributes, MaxAttributes-len(t.Signers))
 	t.Script = br.ReadVarBytes()
-	if br.Err == nil && len(t.Script) == 0 {
-		br.Err = errors.New("no script")
-		return
+	if br.Err == nil {
+		br.Err = t.isValid()
 	}
 }
 
@@ -197,17 +165,11 @@ func (t *Transaction) encodeHashableFields(bw *io.BinWriter) {
 	}
 	bw.WriteB(byte(t.Version))
 	bw.WriteU32LE(t.Nonce)
-	t.Sender.EncodeBinary(bw)
 	bw.WriteU64LE(uint64(t.SystemFee))
 	bw.WriteU64LE(uint64(t.NetworkFee))
 	bw.WriteU32LE(t.ValidUntilBlock)
-
-	// Attributes
+	bw.WriteArray(t.Signers)
 	bw.WriteArray(t.Attributes)
-
-	// Cosigners
-	bw.WriteArray(t.Cosigners)
-
 	bw.WriteVarBytes(t.Script)
 }
 
@@ -293,6 +255,15 @@ func (t *Transaction) FeePerByte() int64 {
 	return t.feePerByte
 }
 
+// Sender returns the sender of the transaction which is always on the first place
+// in the transaction's signers list.
+func (t *Transaction) Sender() util.Uint160 {
+	if len(t.Signers) == 0 {
+		panic("transaction does not have signers")
+	}
+	return t.Signers[0].Account
+}
+
 // transactionJSON is a wrapper for Transaction and
 // used for correct marhalling of transaction.Data
 type transactionJSON struct {
@@ -305,7 +276,7 @@ type transactionJSON struct {
 	NetworkFee      int64        `json:"netfee,string"`
 	ValidUntilBlock uint32       `json:"validuntilblock"`
 	Attributes      []Attribute  `json:"attributes"`
-	Cosigners       []Cosigner   `json:"cosigners"`
+	Signers         []Signer     `json:"signers"`
 	Script          []byte       `json:"script"`
 	Scripts         []Witness    `json:"witnesses"`
 }
@@ -317,10 +288,10 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Size:            io.GetVarSize(t),
 		Version:         t.Version,
 		Nonce:           t.Nonce,
-		Sender:          address.Uint160ToString(t.Sender),
+		Sender:          address.Uint160ToString(t.Sender()),
 		ValidUntilBlock: t.ValidUntilBlock,
 		Attributes:      t.Attributes,
-		Cosigners:       t.Cosigners,
+		Signers:         t.Signers,
 		Script:          t.Script,
 		Scripts:         t.Scripts,
 		SystemFee:       t.SystemFee,
@@ -339,19 +310,47 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.Nonce = tx.Nonce
 	t.ValidUntilBlock = tx.ValidUntilBlock
 	t.Attributes = tx.Attributes
-	t.Cosigners = tx.Cosigners
+	t.Signers = tx.Signers
 	t.Scripts = tx.Scripts
 	t.SystemFee = tx.SystemFee
 	t.NetworkFee = tx.NetworkFee
-	sender, err := address.StringToUint160(tx.Sender)
-	if err != nil {
-		return errors.New("cannot unmarshal tx: bad sender")
-	}
-	t.Sender = sender
 	t.Script = tx.Script
 	if t.Hash() != tx.TxID {
 		return errors.New("txid doesn't match transaction hash")
 	}
 
+	return t.isValid()
+}
+
+// isValid checks whether decoded/unmarshalled transaction has all fields valid.
+func (t *Transaction) isValid() error {
+	if t.Version > 0 {
+		return errors.New("only version 0 is supported")
+	}
+	if t.SystemFee < 0 {
+		return errors.New("negative system fee")
+	}
+	if t.NetworkFee < 0 {
+		return errors.New("negative network fee")
+	}
+	if t.NetworkFee+t.SystemFee < t.SystemFee {
+		return errors.New("too big fees: int64 overflow")
+	}
+	if len(t.Signers) == 0 {
+		return errors.New("signers array should contain sender")
+	}
+	for i := 0; i < len(t.Signers); i++ {
+		if i > 0 && t.Signers[i].Scopes == FeeOnly {
+			return errors.New("FeeOnly scope can be used only for sender")
+		}
+		for j := i + 1; j < len(t.Signers); j++ {
+			if t.Signers[i].Account.Equals(t.Signers[j].Account) {
+				return errors.New("transaction signers should be unique")
+			}
+		}
+	}
+	if len(t.Script) == 0 {
+		return errors.New("no script")
+	}
 	return nil
 }

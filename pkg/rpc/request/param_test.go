@@ -18,8 +18,8 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	msg := `["str1", 123, null, ["str2", 3], [{"type": "String", "value": "jajaja"}],
                  {"primary": 1},
                  {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
-                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "cosigner": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
+                 {"sender": "f84d6a337fbc3d3a201d41da99e86b479e7a2554", "signer": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"contract": "f84d6a337fbc3d3a201d41da99e86b479e7a2554"},
                  {"state": "HALT"},
                  {"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"},
@@ -78,11 +78,11 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 		},
 		{
 			Type:  TxFilterT,
-			Value: TxFilter{Cosigner: &contr},
+			Value: TxFilter{Signer: &contr},
 		},
 		{
 			Type:  TxFilterT,
-			Value: TxFilter{Sender: &contr, Cosigner: &contr},
+			Value: TxFilter{Sender: &contr, Signer: &contr},
 		},
 		{
 			Type:  NotificationFilterT,
@@ -93,18 +93,18 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 			Value: ExecutionFilter{State: "HALT"},
 		},
 		{
-			Type: Cosigner,
-			Value: transaction.Cosigner{
+			Type: Signer,
+			Value: transaction.Signer{
 				Account: accountHash,
-				Scopes:  transaction.Global,
+				Scopes:  transaction.FeeOnly,
 			},
 		},
 		{
 			Type: ArrayT,
 			Value: []Param{
 				{
-					Type: Cosigner,
-					Value: transaction.Cosigner{
+					Type: Signer,
+					Value: transaction.Signer{
 						Account: accountHash,
 						Scopes:  transaction.Global,
 					},
@@ -280,22 +280,22 @@ func TestParamGetBytesBase64(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestParamGetCosigner(t *testing.T) {
-	c := transaction.Cosigner{
+func TestParamGetSigner(t *testing.T) {
+	c := transaction.Signer{
 		Account: util.Uint160{1, 2, 3, 4},
 		Scopes:  transaction.Global,
 	}
-	p := Param{Type: Cosigner, Value: c}
-	actual, err := p.GetCosigner()
+	p := Param{Type: Signer, Value: c}
+	actual, err := p.GetSigner()
 	require.NoError(t, err)
 	require.Equal(t, c, actual)
 
-	p = Param{Type: Cosigner, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
-	_, err = p.GetCosigner()
+	p = Param{Type: Signer, Value: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`}
+	_, err = p.GetSigner()
 	require.Error(t, err)
 }
 
-func TestParamGetCosigners(t *testing.T) {
+func TestParamGetSigners(t *testing.T) {
 	u1 := util.Uint160{1, 2, 3, 4}
 	u2 := util.Uint160{5, 6, 7, 8}
 	t.Run("from hashes", func(t *testing.T) {
@@ -303,19 +303,19 @@ func TestParamGetCosigners(t *testing.T) {
 			{Type: StringT, Value: u1.StringLE()},
 			{Type: StringT, Value: u2.StringLE()},
 		}}
-		actual, err := p.GetCosigners()
+		actual, err := p.GetSigners()
 		require.NoError(t, err)
 		require.Equal(t, 2, len(actual))
 		require.True(t, u1.Equals(actual[0].Account))
 		require.True(t, u2.Equals(actual[1].Account))
 	})
 
-	t.Run("from cosigners", func(t *testing.T) {
-		c1 := transaction.Cosigner{
+	t.Run("from signers", func(t *testing.T) {
+		c1 := transaction.Signer{
 			Account: u1,
 			Scopes:  transaction.Global,
 		}
-		c2 := transaction.Cosigner{
+		c2 := transaction.Signer{
 			Account: u2,
 			Scopes:  transaction.CustomContracts,
 			AllowedContracts: []util.Uint160{
@@ -324,10 +324,10 @@ func TestParamGetCosigners(t *testing.T) {
 			},
 		}
 		p := Param{ArrayT, []Param{
-			{Type: Cosigner, Value: c1},
-			{Type: Cosigner, Value: c2},
+			{Type: Signer, Value: c1},
+			{Type: Signer, Value: c2},
 		}}
-		actual, err := p.GetCosigners()
+		actual, err := p.GetSigners()
 		require.NoError(t, err)
 		require.Equal(t, 2, len(actual))
 		require.Equal(t, c1, actual[0])
@@ -339,7 +339,7 @@ func TestParamGetCosigners(t *testing.T) {
 			{Type: StringT, Value: u1.StringLE()},
 			{Type: StringT, Value: "bla"},
 		}}
-		_, err := p.GetCosigners()
+		_, err := p.GetSigners()
 		require.Error(t, err)
 	})
 }

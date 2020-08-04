@@ -13,7 +13,7 @@ Currently supported events:
    Filters: primary ID.
  * new transaction in the block
    Contents: transaction.
-   Filters: sender and cosigner.
+   Filters: sender and signer.
  * notification generated during execution
    Contents: container hash, contract script hash, stack item.
    Filters: contract script hash.
@@ -57,8 +57,8 @@ Recognized stream names:
    ConsensusData.
  * `transaction_added`
    Filter: `sender` field containing string with hex-encoded Uint160 (LE
-   representation) for transaction's `Sender` and/or `cosigner` in the same
-   format for one of transaction's `Cosigners`.
+   representation) for transaction's `Sender` and/or `signer` in the same
+   format for one of transaction's `Signers`.
  * `notification_from_execution`
    Filter: `contract` field containing string with hex-encoded Uint160 (LE
    representation).
@@ -203,7 +203,7 @@ Example:
                "sysfee" : "0",
                "type" : "InvocationTransaction",
                "nonce" : 9,
-               "cosigners" : [
+               "signers" : [
                   {
                      "scopes" : 1,
                      "account" : "0x870958fd19ee3f6c7dc3c2df399d013910856e31"
@@ -262,7 +262,7 @@ Example:
          "nonce" : 9,
          "vin" : [],
          "type" : "InvocationTransaction",
-         "cosigners" : [
+         "signers" : [
             {
                "account" : "0x870958fd19ee3f6c7dc3c2df399d013910856e31",
                "scopes" : 1

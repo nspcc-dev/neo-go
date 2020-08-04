@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -9,8 +11,8 @@ import (
 // The maximum number of AllowedContracts or AllowedGroups
 const maxSubitems = 16
 
-// Cosigner implements a Transaction cosigner.
-type Cosigner struct {
+// Signer implements a Transaction signer.
+type Signer struct {
 	Account          util.Uint160      `json:"account"`
 	Scopes           WitnessScope      `json:"scopes"`
 	AllowedContracts []util.Uint160    `json:"allowedcontracts,omitempty"`
@@ -18,7 +20,7 @@ type Cosigner struct {
 }
 
 // EncodeBinary implements Serializable interface.
-func (c *Cosigner) EncodeBinary(bw *io.BinWriter) {
+func (c *Signer) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(c.Account[:])
 	bw.WriteB(byte(c.Scopes))
 	if c.Scopes&CustomContracts != 0 {
@@ -30,9 +32,17 @@ func (c *Cosigner) EncodeBinary(bw *io.BinWriter) {
 }
 
 // DecodeBinary implements Serializable interface.
-func (c *Cosigner) DecodeBinary(br *io.BinReader) {
+func (c *Signer) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(c.Account[:])
 	c.Scopes = WitnessScope(br.ReadB())
+	if c.Scopes & ^(Global|CalledByEntry|CustomContracts|CustomGroups|FeeOnly) != 0 {
+		br.Err = errors.New("unknown witness scope")
+		return
+	}
+	if c.Scopes&Global != 0 && c.Scopes != Global {
+		br.Err = errors.New("global scope can not be combined with other scopes")
+		return
+	}
 	if c.Scopes&CustomContracts != 0 {
 		br.ReadArray(&c.AllowedContracts, maxSubitems)
 	}

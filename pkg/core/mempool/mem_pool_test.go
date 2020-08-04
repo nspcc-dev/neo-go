@@ -31,6 +31,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := NewMemPool(10)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	_, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	require.NoError(t, mp.Add(tx, fs))
@@ -60,6 +61,7 @@ func TestOverCapacity(t *testing.T) {
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		require.NoError(t, mp.Add(tx, fs))
 	}
 	txcnt := uint32(mempoolSize)
@@ -75,6 +77,7 @@ func TestOverCapacity(t *testing.T) {
 		})
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		txcnt++
 		// size is 84, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
@@ -89,6 +92,7 @@ func TestOverCapacity(t *testing.T) {
 	})
 	tx.NetworkFee = 100
 	tx.Nonce = txcnt
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
@@ -98,6 +102,7 @@ func TestOverCapacity(t *testing.T) {
 	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	txcnt++
 	// size is 51 (no attributes), networkFee is 7000 (<10000)
 	// => feePerByte is 137 (>119)
@@ -110,6 +115,7 @@ func TestOverCapacity(t *testing.T) {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
@@ -119,6 +125,7 @@ func TestOverCapacity(t *testing.T) {
 	tx = transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -133,6 +140,7 @@ func TestGetVerified(t *testing.T) {
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		txes = append(txes, tx)
 		require.NoError(t, mp.Add(tx, fs))
 	}
@@ -157,6 +165,7 @@ func TestRemoveStale(t *testing.T) {
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
+		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 		if i%2 == 0 {
 			txes1 = append(txes1, tx)
 		} else {
@@ -186,7 +195,7 @@ func TestMemPoolFees(t *testing.T) {
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx0.NetworkFee = balance.Int64() + 1
-	tx0.Sender = sender0
+	tx0.Signers = []transaction.Signer{{Account: sender0}}
 	// insufficient funds to add transaction, and balance shouldn't be stored
 	require.Equal(t, false, mp.Verify(tx0, &FeerStub{}))
 	require.Error(t, mp.Add(tx0, &FeerStub{}))
@@ -196,7 +205,7 @@ func TestMemPoolFees(t *testing.T) {
 	// no problems with adding another transaction with lower fee
 	tx1 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx1.NetworkFee = balancePart.Int64()
-	tx1.Sender = sender0
+	tx1.Signers = []transaction.Signer{{Account: sender0}}
 	require.NoError(t, mp.Add(tx1, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))
 	require.Equal(t, utilityBalanceAndFees{
@@ -207,7 +216,7 @@ func TestMemPoolFees(t *testing.T) {
 	// balance shouldn't change after adding one more transaction
 	tx2 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx2.NetworkFee = new(big.Int).Sub(balance, balancePart).Int64()
-	tx2.Sender = sender0
+	tx2.Signers = []transaction.Signer{{Account: sender0}}
 	require.NoError(t, mp.Add(tx2, &FeerStub{}))
 	require.Equal(t, 2, len(mp.verifiedTxes))
 	require.Equal(t, 1, len(mp.fees))
@@ -219,7 +228,7 @@ func TestMemPoolFees(t *testing.T) {
 	// can't add more transactions as we don't have enough GAS
 	tx3 := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx3.NetworkFee = 1
-	tx3.Sender = sender0
+	tx3.Signers = []transaction.Signer{{Account: sender0}}
 	require.Equal(t, false, mp.Verify(tx3, &FeerStub{}))
 	require.Error(t, mp.Add(tx3, &FeerStub{}))
 	require.Equal(t, 1, len(mp.fees))

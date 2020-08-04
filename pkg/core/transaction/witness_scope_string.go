@@ -8,20 +8,22 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[Global-0]
+	_ = x[FeeOnly-0]
 	_ = x[CalledByEntry-1]
 	_ = x[CustomContracts-16]
 	_ = x[CustomGroups-32]
+	_ = x[Global-128]
 }
 
 const (
-	_WitnessScope_name_0 = "GlobalCalledByEntry"
+	_WitnessScope_name_0 = "FeeOnlyCalledByEntry"
 	_WitnessScope_name_1 = "CustomContracts"
 	_WitnessScope_name_2 = "CustomGroups"
+	_WitnessScope_name_3 = "Global"
 )
 
 var (
-	_WitnessScope_index_0 = [...]uint8{0, 6, 19}
+	_WitnessScope_index_0 = [...]uint8{0, 7, 20}
 )
 
 func (i WitnessScope) String() string {
@@ -32,6 +34,8 @@ func (i WitnessScope) String() string {
 		return _WitnessScope_name_1
 	case i == 32:
 		return _WitnessScope_name_2
+	case i == 128:
+		return _WitnessScope_name_3
 	default:
 		return "WitnessScope(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

@@ -39,7 +39,7 @@ func TestBCGetTransaction(t *testing.T) {
 		require.Equal(t, tx.Hash().BytesBE(), actual[0].Value().([]byte))
 		require.Equal(t, int64(tx.Version), actual[1].Value().(*big.Int).Int64())
 		require.Equal(t, int64(tx.Nonce), actual[2].Value().(*big.Int).Int64())
-		require.Equal(t, tx.Sender.BytesBE(), actual[3].Value().([]byte))
+		require.Equal(t, tx.Sender().BytesBE(), actual[3].Value().([]byte))
 		require.Equal(t, int64(tx.SystemFee), actual[4].Value().(*big.Int).Int64())
 		require.Equal(t, int64(tx.NetworkFee), actual[5].Value().(*big.Int).Int64())
 		require.Equal(t, int64(tx.ValidUntilBlock), actual[6].Value().(*big.Int).Int64())

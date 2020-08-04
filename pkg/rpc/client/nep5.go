@@ -131,7 +131,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, token util.Uint1
 	}
 
 	script := w.Bytes()
-	result, err := c.InvokeScript(script, []transaction.Cosigner{
+	result, err := c.InvokeScript(script, []transaction.Signer{
 		{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,
@@ -141,8 +141,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, token util.Uint1
 		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
 	}
 	tx := transaction.New(c.opts.Network, script, result.GasConsumed)
-	tx.Sender = from
-	tx.Cosigners = []transaction.Cosigner{
+	tx.Signers = []transaction.Signer{
 		{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,

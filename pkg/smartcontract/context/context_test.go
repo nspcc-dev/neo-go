@@ -169,6 +169,7 @@ func getContractTx() *transaction.Transaction {
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.Attributes = make([]transaction.Attribute, 0)
 	tx.Scripts = make([]transaction.Witness, 0)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 	tx.Hash()
 	return tx
 }

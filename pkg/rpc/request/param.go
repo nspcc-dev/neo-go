@@ -37,10 +37,10 @@ type (
 		Primary int `json:"primary"`
 	}
 	// TxFilter is a wrapper structure for transaction event filter. It
-	// allows to filter transactions by senders and cosigners.
+	// allows to filter transactions by senders and signers.
 	TxFilter struct {
-		Sender   *util.Uint160 `json:"sender,omitempty"`
-		Cosigner *util.Uint160 `json:"cosigner,omitempty"`
+		Sender *util.Uint160 `json:"sender,omitempty"`
+		Signer *util.Uint160 `json:"signer,omitempty"`
 	}
 	// NotificationFilter is a wrapper structure representing filter used for
 	// notifications generated during transaction execution. Notifications can
@@ -67,7 +67,7 @@ const (
 	TxFilterT
 	NotificationFilterT
 	ExecutionFilterT
-	Cosigner
+	Signer
 )
 
 var errMissingParameter = errors.New("parameter is missing")
@@ -207,24 +207,24 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// GetCosigner returns transaction.Cosigner value of the parameter.
-func (p Param) GetCosigner() (transaction.Cosigner, error) {
-	c, ok := p.Value.(transaction.Cosigner)
+// GetSigner returns transaction.Signer value of the parameter.
+func (p Param) GetSigner() (transaction.Signer, error) {
+	c, ok := p.Value.(transaction.Signer)
 	if !ok {
-		return transaction.Cosigner{}, errors.New("not a cosigner")
+		return transaction.Signer{}, errors.New("not a signer")
 	}
 	return c, nil
 }
 
-// GetCosigners returns a slice of transaction.Cosigner with global scope from
-// array of Uint160 or array of serialized transaction.Cosigner stored in the
+// GetSigners returns a slice of transaction.Signer with global scope from
+// array of Uint160 or array of serialized transaction.Signer stored in the
 // parameter.
-func (p Param) GetCosigners() ([]transaction.Cosigner, error) {
+func (p Param) GetSigners() ([]transaction.Signer, error) {
 	hashes, err := p.GetArray()
 	if err != nil {
 		return nil, err
 	}
-	cosigners := make([]transaction.Cosigner, len(hashes))
+	signers := make([]transaction.Signer, len(hashes))
 	// try to extract hashes first
 	for i, h := range hashes {
 		var u util.Uint160
@@ -232,20 +232,20 @@ func (p Param) GetCosigners() ([]transaction.Cosigner, error) {
 		if err != nil {
 			break
 		}
-		cosigners[i] = transaction.Cosigner{
+		signers[i] = transaction.Signer{
 			Account: u,
 			Scopes:  transaction.Global,
 		}
 	}
 	if err != nil {
 		for i, h := range hashes {
-			cosigners[i], err = h.GetCosigner()
+			signers[i], err = h.GetSigner()
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	return cosigners, nil
+	return signers, nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface.
@@ -261,7 +261,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 		{TxFilterT, &TxFilter{}},
 		{NotificationFilterT, &NotificationFilter{}},
 		{ExecutionFilterT, &ExecutionFilter{}},
-		{Cosigner, &transaction.Cosigner{}},
+		{Signer, &transaction.Signer{}},
 		{ArrayT, &[]Param{}},
 	}
 
@@ -296,7 +296,7 @@ func (p *Param) UnmarshalJSON(data []byte) error {
 				} else {
 					continue
 				}
-			case *transaction.Cosigner:
+			case *transaction.Signer:
 				p.Value = *val
 			case *[]Param:
 				p.Value = *val

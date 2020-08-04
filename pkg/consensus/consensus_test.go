@@ -246,7 +246,11 @@ var neoOwner = testchain.MultisigScriptHash()
 
 func addSender(t *testing.T, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
-		tx.Sender = neoOwner
+		tx.Signers = []transaction.Signer{
+			{
+				Account: neoOwner,
+			},
+		}
 	}
 }
 

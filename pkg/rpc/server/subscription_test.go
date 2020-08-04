@@ -147,28 +147,28 @@ func TestFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
 			},
 		},
-		"tx matching cosigner": {
-			params: `["transaction_added", {"cosigner":"` + goodSender.StringLE() + `"}]`,
+		"tx matching signer": {
+			params: `["transaction_added", {"signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *response.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
 				require.Equal(t, response.TransactionEventID, resp.Event)
-				cosigners := rmap["cosigners"].([]interface{})
-				cosigner0 := cosigners[0].(map[string]interface{})
-				cosigner0acc := cosigner0["account"].(string)
-				require.Equal(t, "0x"+goodSender.StringLE(), cosigner0acc)
+				signers := rmap["signers"].([]interface{})
+				signer0 := signers[0].(map[string]interface{})
+				signer0acc := signer0["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
 		},
-		"tx matching sender and cosigner": {
-			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "cosigner":"` + goodSender.StringLE() + `"}]`,
+		"tx matching sender and signer": {
+			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *response.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
 				require.Equal(t, response.TransactionEventID, resp.Event)
 				sender := rmap["sender"].(string)
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
-				cosigners := rmap["cosigners"].([]interface{})
-				cosigner0 := cosigners[0].(map[string]interface{})
-				cosigner0acc := cosigner0["account"].(string)
-				require.Equal(t, "0x"+goodSender.StringLE(), cosigner0acc)
+				signers := rmap["signers"].([]interface{})
+				signer0 := signers[0].(map[string]interface{})
+				signer0acc := signer0["account"].(string)
+				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
 		},
 		"notification matching": {

@@ -148,11 +148,13 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [cosigners...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
-   arguments and cosigners. See testinvokefunction documentation for the details
-   about parameters. It differs from testinvokefunction in that this command
-   sends an invocation transaction to the network.
+   arguments and signers. Sender is included in the list of signers by default
+   with FeeOnly witness scope. If you'd like to change default sender's scope, 
+   specify it via signers parameter. See testinvokefunction documentation for 
+   the details about parameters. It differs from testinvokefunction in that this
+   command sends an invocation transaction to the network.
 `,
 				Action: invokeFunction,
 				Flags:  invokeFunctionFlags,
@@ -160,14 +162,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -r endpoint scripthash [method] [arguments...] [--] [cosigners...]",
+				UsageText: "neo-go contract testinvokefunction -r endpoint scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
-   arguments and cosigners. If no method is given "" is passed to the script, if
-   no arguments are given, an empty array is passed, if no cosigners are given,
-   no array will be passed. All of the given arguments are encapsulated into 
-   array before invoking the script. The script thus should follow the regular
-   convention of smart contract arguments (method string and an array of other 
-   arguments).
+   arguments and signers (sender is not included by default). If no method is given
+   "" is passed to the script, if no arguments are given, an empty array is 
+   passed, if no signers are given no array is passed. If signers are specified,
+   the first one of them is treated as a sender. All of the given arguments are 
+   encapsulated into array before invoking the script. The script thus should 
+   follow the regular convention of smart contract arguments (method string and 
+   an array of other arguments).
 
    Arguments always do have regular Neo smart contract parameter types, either
    specified explicitly or being inferred from the value. To specify the type
@@ -224,12 +227,15 @@ func NewCommands() []cli.Command {
     * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
       key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
 
-   Cosigners represent a set of Uint160 hashes with witness scopes and are used
-   to verify hashes in System.Runtime.CheckWitness syscall. To specify cosigners
-   use cosigner[:scope] syntax where
-    * 'cosigner' is hex-encoded 160 bit (20 byte) LE value of cosigner's address,
+   Signers represent a set of Uint160 hashes with witness scopes and are used
+   to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
+   as a sender. To specify signers use signer[:scope] syntax where
+    * 'signer' is hex-encoded 160 bit (20 byte) LE value of signer's address,
                  which could have '0x' prefix.
     * 'scope' is a comma-separated set of cosigner's scopes, which could be:
+        - 'FeeOnly' - marks transaction's sender and can be used only for the
+                      sender. Signer with this scope can't be used during the
+                      script execution and only pays fees for the transaction.
         - 'Global' - allows this witness in all contexts. This cannot be combined
                      with other flags.
         - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 
@@ -240,8 +246,8 @@ func NewCommands() []cli.Command {
         - 'CustomContracts' - define valid custom contract hashes for witness check.
         - 'CustomGroups' - define custom pubkey for group members.
 
-   If no scopes were specified, 'Global' used as default. If no cosigners were
-   specified, no array will be passed. Note that scopes are properly handled by 
+   If no scopes were specified, 'Global' used as default. If no signers were
+   specified, no array is passed. Note that scopes are properly handled by 
    neo-go RPC server only. C# implementation does not support scopes capability.
 
    Examples:
@@ -256,9 +262,10 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvokescript",
 				Usage:     "Invoke compiled AVM code in NEF format on the blockchain (test mode, not creating a transaction for it)",
-				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [cosigners...]",
+				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [signers...]",
 				Description: `Executes given compiled AVM instructions in NEF format with the given set of
-   cosigners. See testinvokefunction documentation for the details about parameters.
+   signers not included sender by default. See testinvokefunction documentation 
+   for the details about parameters.
 `,
 				Action: testInvokeScript,
 				Flags:  testInvokeScriptFlags,
@@ -389,7 +396,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		operation      string
 		params         = make([]smartcontract.Parameter, 0)
 		paramsStart    = 1
-		cosigners      []transaction.Cosigner
+		cosigners      []transaction.Signer
 		cosignersStart = 0
 		resp           *result.Invoke
 		acc            *wallet.Account
@@ -493,14 +500,14 @@ func testInvokeScript(ctx *cli.Context) error {
 	}
 
 	args := ctx.Args()
-	var cosigners []transaction.Cosigner
+	var signers []transaction.Signer
 	if args.Present() {
 		for i, c := range args[:] {
 			cosigner, err := parseCosigner(c)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %v", i+1, err), 1)
 			}
-			cosigners = append(cosigners, cosigner)
+			signers = append(signers, cosigner)
 		}
 	}
 
@@ -512,7 +519,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		return err
 	}
 
-	resp, err := c.InvokeScript(nefFile.Script, cosigners)
+	resp, err := c.InvokeScript(nefFile.Script, signers)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -659,7 +666,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
 	}
-	// It doesn't require any cosigners.
+	// It doesn't require any signers.
 	invRes, err := c.InvokeScript(txScript, nil)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %v", err), 1)
@@ -687,10 +694,12 @@ func parseContractConfig(confFile string) (ProjectConfig, error) {
 	return conf, nil
 }
 
-func parseCosigner(c string) (transaction.Cosigner, error) {
+func parseCosigner(c string) (transaction.Signer, error) {
 	var (
 		err error
-		res = transaction.Cosigner{}
+		res = transaction.Signer{
+			Scopes: transaction.Global,
+		}
 	)
 	data := strings.SplitN(c, ":", 2)
 	s := data[0]
@@ -704,7 +713,7 @@ func parseCosigner(c string) (transaction.Cosigner, error) {
 	if len(data) > 1 {
 		res.Scopes, err = transaction.ScopesFromString(data[1])
 		if err != nil {
-			return transaction.Cosigner{}, err
+			return transaction.Signer{}, err
 		}
 	}
 	return res, nil

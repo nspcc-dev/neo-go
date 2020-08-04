@@ -324,6 +324,7 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 	})
 
 	tx.Attributes = attributes
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, tx)
 	return v, tx, context, chain

@@ -88,7 +88,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	}
 	for _, tx := range ic.Block.Transactions {
 		absAmount := big.NewInt(tx.SystemFee + tx.NetworkFee)
-		g.burn(ic, tx.Sender, absAmount)
+		g.burn(ic, tx.Sender(), absAmount)
 	}
 	validators, err := g.NEO.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {

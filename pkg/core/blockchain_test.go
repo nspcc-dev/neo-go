@@ -107,7 +107,7 @@ func TestGetHeader(t *testing.T) {
 	bc := newTestChain(t)
 	tx := transaction.New(netmode.UnitTestNet, []byte{byte(opcode.PUSH1)}, 0)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
-	assert.Nil(t, addSender(tx))
+	addSigners(tx)
 	assert.Nil(t, signTx(bc, tx))
 	block := bc.newBlock(tx)
 	err := bc.AddBlock(block)
@@ -276,7 +276,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
 	txGood1 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
-	txGood1.Sender = neoOwner
+	txGood1.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood1.Nonce = 1
 	txGood1.ValidUntilBlock = 100500
 	require.NoError(t, signTx(bc, txGood1))
@@ -288,7 +288,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Opcode(script.BinWriter, opcode.THROW)
 	require.NoError(t, script.Err)
 	txBad := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
-	txBad.Sender = neoOwner
+	txBad.Signers = []transaction.Signer{{Account: neoOwner}}
 	txBad.Nonce = 2
 	txBad.ValidUntilBlock = 100500
 	require.NoError(t, signTx(bc, txBad))
@@ -298,7 +298,7 @@ func TestSubscriptions(t *testing.T) {
 	emit.Syscall(script.BinWriter, "System.Runtime.Notify")
 	require.NoError(t, script.Err)
 	txGood2 := transaction.New(netmode.UnitTestNet, script.Bytes(), 0)
-	txGood2.Sender = neoOwner
+	txGood2.Signers = []transaction.Signer{{Account: neoOwner}}
 	txGood2.Nonce = 3
 	txGood2.ValidUntilBlock = 100500
 	require.NoError(t, signTx(bc, txGood2))
