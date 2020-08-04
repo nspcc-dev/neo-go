@@ -613,6 +613,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			return err
 		}
 
+		var pseudoSender util.Uint160
+		var gasTotal, neoTotal util.Fixed8
+
 		// Process TX inputs that are grouped by previous hash.
 		for _, inputs := range transaction.GroupInputsByPrevHash(tx.Inputs) {
 			prevHash := inputs[0].PrevHash
@@ -620,7 +623,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err != nil {
 				return err
 			}
-			for _, input := range inputs {
+			for i, input := range inputs {
 				if len(unspent.States) <= int(input.PrevIndex) {
 					return fmt.Errorf("bad input: %s/%d", input.PrevHash.StringLE(), input.PrevIndex)
 				}
@@ -630,6 +633,14 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 				unspent.States[input.PrevIndex].State |= state.CoinSpent
 				unspent.States[input.PrevIndex].SpendHeight = block.Index
 				prevTXOutput := &unspent.States[input.PrevIndex].Output
+				if i == 0 {
+					pseudoSender = prevTXOutput.ScriptHash
+				}
+				if prevTXOutput.AssetID.Equals(GoverningTokenID()) {
+					neoTotal += prevTXOutput.Amount
+				} else if prevTXOutput.AssetID.Equals(UtilityTokenID()) {
+					gasTotal += prevTXOutput.Amount
+				}
 				account, err := cache.GetAccountStateOrNew(prevTXOutput.ScriptHash)
 				if err != nil {
 					return err
@@ -677,6 +688,10 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 			if err = cache.PutUnspentCoinState(prevHash, unspent); err != nil {
 				return err
 			}
+		}
+
+		if err := bc.processTransfer(cache, pseudoSender, tx, block, neoTotal, gasTotal); err != nil {
+			return err
 		}
 
 		// Process the underlying type of the TX.
@@ -904,6 +919,87 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		bc.events <- bcEvent{block, appExecResults}
 	}
 	return nil
+}
+
+func appendSingleTransfer(cache *dao.Cached, acc util.Uint160, tr *state.Transfer) error {
+	index, err := cache.GetNextTransferBatch(acc)
+	if err != nil {
+		return err
+	}
+	isBig, err := cache.AppendTransfer(acc, index, tr)
+	if err != nil {
+		return err
+	}
+	if isBig {
+		if err := cache.PutNextTransferBatch(acc, index+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// processTransfer processes single UTXO transfer. Totals is a slice of neo (0) and gas (1) total transfer amount.
+func (bc *Blockchain) processTransfer(cache *dao.Cached, from util.Uint160, tx *transaction.Transaction, b *block.Block,
+	neoTotal, gasTotal util.Fixed8) error {
+
+	fromIndex, err := cache.GetNextTransferBatch(from)
+	if err != nil {
+		return err
+	}
+	for i := range tx.Outputs {
+		isGoverning := tx.Outputs[i].AssetID.Equals(GoverningTokenID())
+		if !isGoverning && !tx.Outputs[i].AssetID.Equals(UtilityTokenID()) {
+			continue
+		}
+		if !from.Equals(tx.Outputs[i].ScriptHash) {
+			tr := &state.Transfer{
+				IsGoverning: isGoverning,
+				From:        from,
+				To:          tx.Outputs[i].ScriptHash,
+				Amount:      int64(tx.Outputs[i].Amount),
+				Block:       b.Index,
+				Timestamp:   b.Timestamp,
+				Tx:          tx.Hash(),
+			}
+			isBig, err := cache.AppendTransfer(from, fromIndex, tr)
+			if err != nil {
+				return err
+			} else if isBig {
+				fromIndex++
+			}
+			if err := appendSingleTransfer(cache, tx.Outputs[i].ScriptHash, tr); err != nil {
+				return err
+			}
+		}
+		if isGoverning {
+			neoTotal -= tx.Outputs[i].Amount
+		} else {
+			gasTotal -= tx.Outputs[i].Amount
+		}
+
+	}
+	for i, amount := range []util.Fixed8{neoTotal, gasTotal} {
+		if amount > 0 {
+			tr := &state.Transfer{
+				IsGoverning: i == 0,
+				From:        from,
+				Amount:      int64(amount),
+				Block:       b.Index,
+				Timestamp:   b.Timestamp,
+				Tx:          tx.Hash(),
+			}
+			isBig, err := cache.AppendTransfer(from, fromIndex, tr)
+			if err != nil {
+				return err
+			} else if isBig {
+				fromIndex++
+			}
+			if err := appendSingleTransfer(cache, util.Uint160{}, tr); err != nil {
+				return err
+			}
+		}
+	}
+	return cache.PutNextTransferBatch(from, fromIndex)
 }
 
 func parseUint160(addr []byte) util.Uint160 {
