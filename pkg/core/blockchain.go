@@ -972,12 +972,12 @@ func (bc *Blockchain) processNEP5Transfer(cache *dao.Cached, tx *transaction.Tra
 }
 
 // GetNEP5TransferLog returns NEP5 transfer log for the acc.
-func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.NEP5TransferLog {
+func (bc *Blockchain) GetNEP5TransferLog(acc util.Uint160) *state.TransferLog {
 	balances, err := bc.dao.GetNEP5Balances(acc)
 	if err != nil {
 		return nil
 	}
-	result := new(state.NEP5TransferLog)
+	result := new(state.TransferLog)
 	for i := uint32(0); i <= balances.NextTransferBatch; i++ {
 		lg, err := bc.dao.GetNEP5TransferLog(acc, i)
 		if err != nil {

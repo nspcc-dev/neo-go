@@ -20,7 +20,7 @@ type Cached struct {
 	contracts     map[util.Uint160]*state.Contract
 	unspents      map[util.Uint256]*state.UnspentCoin
 	balances      map[util.Uint160]*state.NEP5Balances
-	nep5transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
+	nep5transfers map[util.Uint160]map[uint32]*state.TransferLog
 	storage       *itemCache
 
 	dropNEP5Cache bool
@@ -32,7 +32,7 @@ func NewCached(d DAO) *Cached {
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
-	nep5transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
+	nep5transfers := make(map[util.Uint160]map[uint32]*state.TransferLog)
 	st := newItemCache()
 	dao := d.GetWrapped()
 	if cd, ok := dao.(*Cached); ok {
@@ -120,8 +120,8 @@ func (cd *Cached) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) erro
 	return nil
 }
 
-// GetNEP5TransferLog retrieves NEP5TransferLog for the acc.
-func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+// GetNEP5TransferLog retrieves TransferLog for the acc.
+func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error) {
 	ts := cd.nep5transfers[acc]
 	if ts != nil && ts[index] != nil {
 		return ts[index], nil
@@ -129,11 +129,11 @@ func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP
 	return cd.DAO.GetNEP5TransferLog(acc, index)
 }
 
-// PutNEP5TransferLog saves NEP5TransferLog for the acc.
-func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.NEP5TransferLog) error {
+// PutNEP5TransferLog saves TransferLog for the acc.
+func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.TransferLog) error {
 	ts := cd.nep5transfers[acc]
 	if ts == nil {
-		ts = make(map[uint32]*state.NEP5TransferLog, 2)
+		ts = make(map[uint32]*state.TransferLog, 2)
 		cd.nep5transfers[acc] = ts
 	}
 	ts[index] = bs

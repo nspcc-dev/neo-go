@@ -96,7 +96,7 @@ func (chain testChain) GetAccountState(util.Uint160) *state.Account {
 func (chain testChain) GetNEP5Metadata(util.Uint160) (*state.NEP5Metadata, error) {
 	panic("TODO")
 }
-func (chain testChain) GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog {
+func (chain testChain) GetNEP5TransferLog(util.Uint160) *state.TransferLog {
 	panic("TODO")
 }
 func (chain testChain) GetNEP5Balances(util.Uint160) *state.NEP5Balances {

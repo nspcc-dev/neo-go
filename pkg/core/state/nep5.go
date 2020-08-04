@@ -14,8 +14,8 @@ type NEP5Tracker struct {
 	LastUpdatedBlock uint32
 }
 
-// NEP5TransferLog is a log of NEP5 token transfers for the specific command.
-type NEP5TransferLog struct {
+// TransferLog is a log of NEP5 token transfers for the specific command.
+type TransferLog struct {
 	Raw []byte
 }
 
@@ -99,7 +99,7 @@ func (bs *NEP5Metadata) EncodeBinary(w *io.BinWriter) {
 }
 
 // Append appends single transfer to a log.
-func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
+func (lg *TransferLog) Append(tr io.Serializable) error {
 	w := io.NewBufBinWriter()
 	tr.EncodeBinary(w.BinWriter)
 	if w.Err != nil {
@@ -110,26 +110,25 @@ func (lg *NEP5TransferLog) Append(tr *NEP5Transfer) error {
 }
 
 // ForEach iterates over transfer log returning on first error.
-func (lg *NEP5TransferLog) ForEach(f func(*NEP5Transfer) error) error {
+func (lg *TransferLog) ForEach(size int, tr io.Serializable, f func() error) error {
 	if lg == nil {
 		return nil
 	}
-	tr := new(NEP5Transfer)
-	for i := 0; i < len(lg.Raw); i += NEP5TransferSize {
-		r := io.NewBinReaderFromBuf(lg.Raw[i : i+NEP5TransferSize])
+	for i := 0; i < len(lg.Raw); i += size {
+		r := io.NewBinReaderFromBuf(lg.Raw[i : i+size])
 		tr.DecodeBinary(r)
 		if r.Err != nil {
 			return r.Err
-		} else if err := f(tr); err != nil {
+		} else if err := f(); err != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-// Size returns an amount of transfer written in log.
-func (lg *NEP5TransferLog) Size() int {
-	return len(lg.Raw) / NEP5TransferSize
+// Size returns an amount of transfer written in log provided size of a single transfer.
+func (lg *TransferLog) Size() int {
+	return len(lg.Raw)
 }
 
 // EncodeBinary implements io.Serializable interface.
