@@ -131,8 +131,15 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recep
 			recepients[i].Address, recepients[i].Amount)
 		emit.Opcode(w.BinWriter, opcode.ASSERT)
 	}
+	return c.CreateTxFromScript(w.Bytes(), acc, gas)
+}
 
-	script := w.Bytes()
+// CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
+func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, gas int64) (*transaction.Transaction, error) {
+	from, err := address.StringToUint160(acc.Address)
+	if err != nil {
+		return nil, fmt.Errorf("bad account address: %v", err)
+	}
 	result, err := c.InvokeScript(script, []transaction.Signer{
 		{
 			Account: from,
