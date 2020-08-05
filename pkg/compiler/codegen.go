@@ -74,6 +74,9 @@ type codegen struct {
 	// mainPkg is a main package metadata.
 	mainPkg *loader.PackageInfo
 
+	// packages contains packages in the order they were loaded.
+	packages []string
+
 	// Label table for recording jump destinations.
 	l []int
 }
@@ -1486,6 +1489,7 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 
 func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	c.mainPkg = pkg
+	c.analyzePkgOrder()
 	funUsage := c.analyzeFuncUsage()
 
 	// Bring all imported functions into scope.

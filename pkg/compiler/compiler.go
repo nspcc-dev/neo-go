@@ -49,7 +49,8 @@ type buildInfo struct {
 
 // ForEachFile executes fn on each file used in current program.
 func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
-	for _, pkg := range c.buildInfo.program.AllPackages {
+	for i := range c.packages {
+		pkg := c.buildInfo.program.Package(c.packages[i])
 		c.typeInfo = &pkg.Info
 		c.currPkg = pkg.Pkg
 		for _, f := range pkg.Files {

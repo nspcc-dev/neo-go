@@ -60,3 +60,24 @@ func TestInit(t *testing.T) {
 		eval(t, src, big.NewInt(0))
 	})
 }
+
+func TestImportOrder(t *testing.T) {
+	t.Run("1,2", func(t *testing.T) {
+		src := `package foo
+		import _ "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg1"
+		import _ "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg2"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg3"
+		func Main() int { return pkg3.A }`
+		v := vmAndCompile(t, src)
+		v.PrintOps()
+		eval(t, src, big.NewInt(2))
+	})
+	t.Run("2,1", func(t *testing.T) {
+		src := `package foo
+		import _ "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg2"
+		import _ "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg1"
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg3"
+		func Main() int { return pkg3.A }`
+		eval(t, src, big.NewInt(1))
+	})
+}
