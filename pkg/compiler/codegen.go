@@ -793,6 +793,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Handle the arguments
 		for _, arg := range args {
 			ast.Walk(c, arg)
+			typ := c.typeOf(arg)
+			_, ok := typ.Underlying().(*types.Struct)
+			if ok && !isInteropPath(typ.String()) {
+				// To clone struct fields we create a new array and append struct to it.
+				// This way even non-pointer struct fields will be copied.
+				emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+				emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+			}
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
