@@ -11,8 +11,8 @@ import (
 
 // StateHeight is a result of getstateheight RPC.
 type StateHeight struct {
-	BlockHeight uint32 `json:"blockHeight"`
-	StateHeight uint32 `json:"stateHeight"`
+	BlockHeight uint32 `json:"blockheight"`
+	StateHeight uint32 `json:"stateheight"`
 }
 
 // ProofWithKey represens key-proof pair.
