@@ -1463,7 +1463,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	vm.GasLimit = gas
-	vm.LoadScriptWithFlags(verification, smartcontract.ReadOnly)
+	vm.LoadScriptWithFlags(verification, smartcontract.NoneFlag)
 	vm.LoadScript(witness.InvocationScript)
 	if useKeys {
 		bc.keyCacheLock.RLock()
