@@ -1495,8 +1495,8 @@ func (c *codegen) compile(info *buildInfo, pkg *loader.PackageInfo) error {
 	// Bring all imported functions into scope.
 	c.ForEachFile(c.resolveFuncDecls)
 
-	n := c.traverseGlobals()
-	if n > 0 {
+	n, hasInit := c.traverseGlobals()
+	if n > 0 || hasInit {
 		emit.Opcode(c.prog.BinWriter, opcode.RET)
 		c.initEndOffset = c.prog.Len()
 	}

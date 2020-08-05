@@ -3,6 +3,8 @@ package compiler_test
 import (
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestInit(t *testing.T) {
@@ -87,4 +89,19 @@ func TestImportOrder(t *testing.T) {
 		func Main() int { return A }`
 		eval(t, src, big.NewInt(3))
 	})
+}
+
+func TestInitWithNoGlobals(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+	func init() {
+		runtime.Notify("called in '_initialize'")
+	}
+	func Main() int {
+		return 42
+	}`
+	v, s := vmAndCompileInterop(t, src)
+	require.NoError(t, v.Run())
+	assertResult(t, v, big.NewInt(42))
+	require.True(t, len(s.events) == 1)
 }

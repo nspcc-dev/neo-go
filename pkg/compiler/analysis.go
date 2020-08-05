@@ -36,26 +36,46 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 }
 
 // traverseGlobals visits and initializes global variables.
-// and returns number of variables initialized.
-func (c *codegen) traverseGlobals() int {
+// and returns number of variables initialized and
+// true if any init functions were encountered.
+func (c *codegen) traverseGlobals() (int, bool) {
 	var n int
+	var hasInit bool
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
+		if !hasInit {
+			ast.Inspect(f, func(node ast.Node) bool {
+				n, ok := node.(*ast.FuncDecl)
+				if ok {
+					if isInitFunc(n) {
+						hasInit = true
+					}
+					return false
+				}
+				return true
+			})
+		}
 	})
-	if n != 0 {
+	if n != 0 || hasInit {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return 0
+			return 0, hasInit
 		}
-		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		if n != 0 {
+			emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		}
 		c.ForEachPackage(func(pkg *loader.PackageInfo) {
-			for _, f := range pkg.Files {
-				c.fillImportMap(f, pkg.Pkg)
-				c.convertGlobals(f, pkg.Pkg)
+			if n > 0 {
+				for _, f := range pkg.Files {
+					c.fillImportMap(f, pkg.Pkg)
+					c.convertGlobals(f, pkg.Pkg)
+				}
 			}
-			for _, f := range pkg.Files {
-				c.fillImportMap(f, pkg.Pkg)
-				c.convertInitFuncs(f, pkg.Pkg)
+			if hasInit {
+				for _, f := range pkg.Files {
+					c.fillImportMap(f, pkg.Pkg)
+					c.convertInitFuncs(f, pkg.Pkg)
+				}
 			}
 			// because we reuse `convertFuncDecl` for init funcs,
 			// we need to cleare scope, so that global variables
@@ -63,7 +83,7 @@ func (c *codegen) traverseGlobals() int {
 			c.scope = nil
 		})
 	}
-	return n
+	return n, hasInit
 }
 
 // countGlobals counts the global variables in the program to add
