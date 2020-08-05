@@ -282,7 +282,7 @@ func runtimeNotify(ic *interop.Context, v *vm.VM) error {
 	ne := state.NotificationEvent{
 		ScriptHash: v.GetCurrentScriptHash(),
 		Name:       name,
-		Item:       stackitem.NewArray(args),
+		Item:       stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array),
 	}
 	ic.Notifications = append(ic.Notifications, ne)
 	return nil

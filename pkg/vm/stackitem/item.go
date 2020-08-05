@@ -1019,3 +1019,66 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 func (i *Buffer) Len() int {
 	return len(i.value)
 }
+
+// DeepCopy returns new deep copy of the provided item.
+// Values of Interop items are not deeply copied.
+// It does preserve duplicates only for non-primitive types.
+func DeepCopy(item Item) Item {
+	seen := make(map[Item]Item)
+	return deepCopy(item, seen)
+}
+
+func deepCopy(item Item, seen map[Item]Item) Item {
+	if it := seen[item]; it != nil {
+		return it
+	}
+	switch it := item.(type) {
+	case Null:
+		return Null{}
+	case *Array:
+		arr := NewArray(make([]Item, len(it.value)))
+		seen[item] = arr
+		for i := range it.value {
+			arr.value[i] = deepCopy(it.value[i], seen)
+		}
+		return arr
+	case *Struct:
+		arr := NewStruct(make([]Item, len(it.value)))
+		seen[item] = arr
+		for i := range it.value {
+			arr.value[i] = deepCopy(it.value[i], seen)
+		}
+		return arr
+	case *Map:
+		m := NewMap()
+		seen[item] = m
+		for i := range it.value {
+			key := deepCopy(it.value[i].Key, seen)
+			value := deepCopy(it.value[i].Value, seen)
+			m.Add(key, value)
+		}
+		return m
+	case *BigInteger:
+		bi := new(big.Int).SetBytes(it.value.Bytes())
+		if it.value.Sign() == -1 {
+			bi.Neg(bi)
+		}
+		return NewBigInteger(bi)
+	case *ByteArray:
+		val := make([]byte, len(it.value))
+		copy(val, it.value)
+		return NewByteArray(val)
+	case *Buffer:
+		val := make([]byte, len(it.value))
+		copy(val, it.value)
+		return NewBuffer(val)
+	case *Bool:
+		return NewBool(it.value)
+	case *Pointer:
+		return NewPointer(it.pos, it.script)
+	case *Interop:
+		return NewInterop(it.value)
+	default:
+		return nil
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var makeStackItemTestCases = []struct {
@@ -411,4 +412,62 @@ func TestMarshalJSON(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, testCase.result, actual)
 	}
+}
+
+func TestDeepCopy(t *testing.T) {
+	testCases := []struct {
+		name string
+		item Item
+	}{
+		{"Integer", NewBigInteger(big.NewInt(1))},
+		{"ByteArray", NewByteArray([]byte{1, 2, 3})},
+		{"Buffer", NewBuffer([]byte{1, 2, 3})},
+		{"Bool", NewBool(true)},
+		{"Pointer", NewPointer(1, []byte{1, 2, 3})},
+		{"Interop", NewInterop(&[]byte{1, 2})},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := DeepCopy(tc.item)
+			require.Equal(t, tc.item, actual)
+			require.False(t, actual == tc.item)
+		})
+	}
+
+	t.Run("Null", func(t *testing.T) {
+		require.Equal(t, Null{}, DeepCopy(Null{}))
+	})
+
+	t.Run("Array", func(t *testing.T) {
+		arr := NewArray(make([]Item, 2))
+		arr.value[0] = NewBool(true)
+		arr.value[1] = arr
+
+		actual := DeepCopy(arr)
+		require.Equal(t, arr, actual)
+		require.False(t, arr == actual)
+		require.True(t, actual == actual.(*Array).value[1])
+	})
+
+	t.Run("Struct", func(t *testing.T) {
+		arr := NewStruct(make([]Item, 2))
+		arr.value[0] = NewBool(true)
+		arr.value[1] = arr
+
+		actual := DeepCopy(arr)
+		require.Equal(t, arr, actual)
+		require.False(t, arr == actual)
+		require.True(t, actual == actual.(*Struct).value[1])
+	})
+
+	t.Run("Map", func(t *testing.T) {
+		m := NewMapWithValue(make([]MapElement, 2))
+		m.value[0] = MapElement{Key: NewBool(true), Value: m}
+		m.value[1] = MapElement{Key: NewBigInteger(big.NewInt(1)), Value: NewByteArray([]byte{1, 2, 3})}
+
+		actual := DeepCopy(m)
+		require.Equal(t, m, actual)
+		require.False(t, m == actual)
+		require.True(t, actual == actual.(*Map).value[0].Value)
+	})
 }
