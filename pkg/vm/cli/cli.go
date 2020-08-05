@@ -454,11 +454,20 @@ func (c *VMCLI) Run() error {
 }
 
 func handleParse(c *ishell.Context) {
-	if len(c.Args) < 1 {
-		c.Err(errors.New("missing argument"))
+	res, err := Parse(c.Args)
+	if err != nil {
+		c.Err(err)
 		return
 	}
-	arg := c.Args[0]
+	c.Print(res)
+}
+
+// Parse converts it's argument to other formats.
+func Parse(args []string) (string, error) {
+	if len(args) < 1 {
+		return "", errors.New("missing argument")
+	}
+	arg := args[0]
 	buf := bytes.NewBuffer(nil)
 	if val, err := strconv.ParseInt(arg, 10, 64); err == nil {
 		bs := bigint.ToBytes(big.NewInt(val))
@@ -491,16 +500,14 @@ func handleParse(c *ishell.Context) {
 
 	out := buf.Bytes()
 	buf = bytes.NewBuffer(nil)
-	w := tabwriter.NewWriter(buf, 0, 0, 4, ' ', 0)
+	w := tabwriter.NewWriter(buf, 0, 4, 4, '\t', 0)
 	if _, err := w.Write(out); err != nil {
-		c.Err(err)
-		return
+		return "", err
 	}
 	if err := w.Flush(); err != nil {
-		c.Err(err)
-		return
+		return "", err
 	}
-	c.Print(string(buf.Bytes()))
+	return string(buf.Bytes()), nil
 }
 
 func parseArgs(args []string) ([]stackitem.Item, error) {
