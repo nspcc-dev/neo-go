@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"golang.org/x/tools/go/loader"
 )
 
 var (
@@ -35,21 +36,54 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 }
 
 // traverseGlobals visits and initializes global variables.
-// and returns number of variables initialized.
-func (c *codegen) traverseGlobals() int {
+// and returns number of variables initialized and
+// true if any init functions were encountered.
+func (c *codegen) traverseGlobals() (int, bool) {
 	var n int
+	var hasInit bool
 	c.ForEachFile(func(f *ast.File, _ *types.Package) {
 		n += countGlobals(f)
+		if !hasInit {
+			ast.Inspect(f, func(node ast.Node) bool {
+				n, ok := node.(*ast.FuncDecl)
+				if ok {
+					if isInitFunc(n) {
+						hasInit = true
+					}
+					return false
+				}
+				return true
+			})
+		}
 	})
-	if n != 0 {
+	if n != 0 || hasInit {
 		if n > 255 {
 			c.prog.BinWriter.Err = errors.New("too many global variables")
-			return 0
+			return 0, hasInit
 		}
-		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
-		c.ForEachFile(c.convertGlobals)
+		if n != 0 {
+			emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
+		}
+		c.ForEachPackage(func(pkg *loader.PackageInfo) {
+			if n > 0 {
+				for _, f := range pkg.Files {
+					c.fillImportMap(f, pkg.Pkg)
+					c.convertGlobals(f, pkg.Pkg)
+				}
+			}
+			if hasInit {
+				for _, f := range pkg.Files {
+					c.fillImportMap(f, pkg.Pkg)
+					c.convertInitFuncs(f, pkg.Pkg)
+				}
+			}
+			// because we reuse `convertFuncDecl` for init funcs,
+			// we need to cleare scope, so that global variables
+			// encountered after will be recognized as globals.
+			c.scope = nil
+		})
 	}
-	return n
+	return n, hasInit
 }
 
 // countGlobals counts the global variables in the program to add
@@ -101,6 +135,32 @@ func lastStmtIsReturn(decl *ast.FuncDecl) (b bool) {
 		return ok
 	}
 	return false
+}
+
+// analyzePkgOrder sets the order in which packages should be processed.
+// From Go spec:
+//   A package with no imports is initialized by assigning initial values to all its package-level variables
+//   followed by calling all init functions in the order they appear in the source, possibly in multiple files,
+//   as presented to the compiler. If a package has imports, the imported packages are initialized before
+//   initializing the package itself. If multiple packages import a package, the imported package
+//   will be initialized only once. The importing of packages, by construction, guarantees
+//   that there can be no cyclic initialization dependencies.
+func (c *codegen) analyzePkgOrder() {
+	seen := make(map[string]bool)
+	info := c.buildInfo.program.Package(c.buildInfo.initialPackage)
+	c.visitPkg(info.Pkg, seen)
+}
+
+func (c *codegen) visitPkg(pkg *types.Package, seen map[string]bool) {
+	pkgPath := pkg.Path()
+	if seen[pkgPath] {
+		return
+	}
+	for _, imp := range pkg.Imports() {
+		c.visitPkg(imp, seen)
+	}
+	seen[pkgPath] = true
+	c.packages = append(c.packages, pkgPath)
 }
 
 func (c *codegen) analyzeFuncUsage() funcUsage {
