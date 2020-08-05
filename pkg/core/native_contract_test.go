@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -18,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -76,6 +78,35 @@ func newTestNative() *testNative {
 	}
 	tn.meta.AddMethod(md, desc, true)
 
+	desc = &manifest.Method{
+		Name: "callOtherContractWithoutArgs",
+		Parameters: []manifest.Parameter{
+			manifest.NewParameter("contractHash", smartcontract.Hash160Type),
+			manifest.NewParameter("method", smartcontract.StringType),
+		},
+		ReturnType: smartcontract.AnyType,
+	}
+	md = &interop.MethodAndPrice{
+		Func:          tn.callOtherContractWithoutArgs,
+		Price:         testSumPrice,
+		RequiredFlags: smartcontract.NoneFlag}
+	tn.meta.AddMethod(md, desc, true)
+
+	desc = &manifest.Method{
+		Name: "callOtherContractWithArg",
+		Parameters: []manifest.Parameter{
+			manifest.NewParameter("contractHash", smartcontract.Hash160Type),
+			manifest.NewParameter("method", smartcontract.StringType),
+			manifest.NewParameter("arg", smartcontract.ArrayType),
+		},
+		ReturnType: smartcontract.AnyType,
+	}
+	md = &interop.MethodAndPrice{
+		Func:          tn.callOtherContractWithArg,
+		Price:         testSumPrice,
+		RequiredFlags: smartcontract.NoneFlag}
+	tn.meta.AddMethod(md, desc, true)
+
 	desc = &manifest.Method{Name: "onPersist", ReturnType: smartcontract.BoolType}
 	md = &interop.MethodAndPrice{Func: tn.OnPersist, RequiredFlags: smartcontract.AllowModifyStates}
 	tn.meta.AddMethod(md, desc, false)
@@ -93,6 +124,38 @@ func (tn *testNative) sum(_ *interop.Context, args []stackitem.Item) stackitem.I
 		panic(err)
 	}
 	return stackitem.NewBigInteger(s1.Add(s1, s2))
+}
+
+func (tn *testNative) callOtherContractWithoutArgs(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	vm := ic.VM
+	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{})) // no args
+	vm.Estack().PushVal(args[1])                                // method
+	vm.Estack().PushVal(args[0])                                // contract hash
+	err := contractCall(ic)
+	if err != nil {
+		return stackitem.NewBigInteger(big.NewInt(-1))
+	}
+	_ = vm.Run()
+	if vm.HasFailed() {
+		return stackitem.NewBigInteger(big.NewInt(-2))
+	}
+	return vm.Estack().Pop().Item()
+}
+
+func (tn *testNative) callOtherContractWithArg(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	vm := ic.VM
+	vm.Estack().PushVal(stackitem.NewArray([]stackitem.Item{args[2]})) // arg
+	vm.Estack().PushVal(args[1])                                       // method
+	vm.Estack().PushVal(args[0])                                       // contract hash
+	err := contractCall(ic)
+	if err != nil {
+		return stackitem.NewBigInteger(big.NewInt(-1))
+	}
+	_ = vm.Run()
+	if vm.HasFailed() {
+		return stackitem.NewBigInteger(big.NewInt(-2))
+	}
+	return vm.Estack().Pop().Item()
 }
 
 func TestNativeContract_Invoke(t *testing.T) {
@@ -183,5 +246,113 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 
 		value := v.Estack().Pop().BigInt()
 		require.Equal(t, int64(42), value.Int64())
+	})
+}
+
+func TestNativeContract_InvokeOtherContract(t *testing.T) {
+	chain := newTestChain(t)
+	defer chain.Close()
+
+	tn := newTestNative()
+	chain.registerNative(tn)
+
+	err := chain.dao.PutContractState(&state.Contract{
+		Script:   tn.meta.Script,
+		Manifest: tn.meta.Manifest,
+	})
+	require.NoError(t, err)
+
+	t.Run("native Policy, getFeePerByte", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "callOtherContractWithoutArgs", chain.contracts.Policy.Hash, "getFeePerByte")
+		require.NoError(t, w.Err)
+		script := w.Bytes()
+		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*4+10000)
+		validUntil := chain.blockHeight + 1
+		tx.ValidUntilBlock = validUntil
+		addSigners(tx)
+		require.NoError(t, signTx(chain, tx))
+
+		b := chain.newBlock(tx)
+		require.NoError(t, chain.AddBlock(b))
+
+		res, err := chain.GetAppExecResult(tx.Hash())
+		require.NoError(t, err)
+		// we expect it to be FeePerByte from Policy contract
+		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, big.NewInt(1000), res.Stack[0].Value())
+	})
+
+	t.Run("native Policy, setFeePerByte", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "callOtherContractWithArg", chain.contracts.Policy.Hash, "setFeePerByte", int64(500))
+		require.NoError(t, w.Err)
+		script := w.Bytes()
+		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*5+10000)
+		validUntil := chain.blockHeight + 1
+		tx.ValidUntilBlock = validUntil
+		addSigners(tx)
+		// to pass policy.checkValidators
+		tx.Signers[0].Scopes = transaction.Global
+		require.NoError(t, signTx(chain, tx))
+
+		b := chain.newBlock(tx)
+		require.NoError(t, chain.AddBlock(b))
+
+		require.NoError(t, chain.persist())
+
+		res, err := chain.GetAppExecResult(tx.Hash())
+		require.NoError(t, err)
+		// we expect it to be `true` which means that native policy value was successfully updated
+		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, true, res.Stack[0].Value())
+
+		require.NoError(t, chain.persist())
+
+		// check that feePerByte was updated
+		n := chain.contracts.Policy.GetFeePerByteInternal(chain.dao)
+		require.Equal(t, 500, int(n))
+	})
+
+	t.Run("non-native contract", func(t *testing.T) {
+		// put some other contract into chain (this contract just pushes `5` on stack)
+		avm := []byte{byte(opcode.PUSH5), byte(opcode.RET)}
+		contractHash := hash.Hash160(avm)
+		m := manifest.NewManifest(contractHash)
+		m.ABI.Methods = []manifest.Method{
+			{
+				Name:       "five",
+				Offset:     0,
+				Parameters: []manifest.Parameter{},
+				ReturnType: smartcontract.IntegerType,
+			},
+		}
+
+		err = chain.dao.PutContractState(&state.Contract{
+			Script:   avm,
+			Manifest: *m,
+		})
+		require.NoError(t, err)
+
+		w := io.NewBufBinWriter()
+		emit.AppCallWithOperationAndArgs(w.BinWriter, tn.Metadata().Hash, "callOtherContractWithoutArgs", contractHash, "five")
+		require.NoError(t, w.Err)
+		script := w.Bytes()
+		tx := transaction.New(chain.GetConfig().Magic, script, testSumPrice*4+10000)
+		validUntil := chain.blockHeight + 1
+		tx.ValidUntilBlock = validUntil
+		addSigners(tx)
+		require.NoError(t, signTx(chain, tx))
+
+		b := chain.newBlock(tx)
+		require.NoError(t, chain.AddBlock(b))
+
+		res, err := chain.GetAppExecResult(tx.Hash())
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState, res.VMState)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, int64(5), res.Stack[0].Value().(*big.Int).Int64())
 	})
 }
