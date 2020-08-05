@@ -148,7 +148,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
 		dbft.WithNewCommit(srv.newCommit),
 		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
-		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage { return new(recoveryMessage) }),
+		dbft.WithNewRecoveryMessage(srv.newRecoveryMessage),
 		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
 	)
 
@@ -265,6 +265,10 @@ func (s *service) newCommit() payload.Commit {
 		}
 	}
 	return c
+}
+
+func (s *service) newRecoveryMessage() payload.RecoveryMessage {
+	return &recoveryMessage{stateRootEnabled: s.stateRootEnabled()}
 }
 
 func (s *service) validatePayload(p *Payload) bool {
