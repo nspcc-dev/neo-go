@@ -142,15 +142,3 @@ func TestServerNotSendsVerack(t *testing.T) {
 	assert.NotNil(t, err)
 	require.Equal(t, errAlreadyConnected, err)
 }
-
-func TestRequestHeaders(t *testing.T) {
-	var (
-		s = newTestServer(t, ServerConfig{})
-		p = newLocalPeer(t, s)
-	)
-	p.messageHandler = func(t *testing.T, msg *Message) {
-		assert.IsType(t, &payload.GetBlocks{}, msg.Payload)
-		assert.Equal(t, CMDGetHeaders, msg.Command)
-	}
-	s.requestHeaders(p)
-}
