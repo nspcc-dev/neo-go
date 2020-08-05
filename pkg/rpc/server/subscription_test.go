@@ -171,13 +171,33 @@ func TestFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
 		},
-		"notification matching": {
+		"notification matching contract hash": {
 			params: `["notification_from_execution", {"contract":"` + testContractHash + `"}]`,
 			check: func(t *testing.T, resp *response.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
 				require.Equal(t, response.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHash, c)
+			},
+		},
+		"notification matching name": {
+			params: `["notification_from_execution", {"name":"my_pretty_notification"}]`,
+			check: func(t *testing.T, resp *response.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, response.NotificationEventID, resp.Event)
+				n := rmap["name"].(string)
+				require.Equal(t, "my_pretty_notification", n)
+			},
+		},
+		"notification matching contract hash and name": {
+			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "name":"my_pretty_notification"}]`,
+			check: func(t *testing.T, resp *response.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, response.NotificationEventID, resp.Event)
+				c := rmap["contract"].(string)
+				require.Equal(t, "0x"+testContractHash, c)
+				n := rmap["name"].(string)
+				require.Equal(t, "my_pretty_notification", n)
 			},
 		},
 		"execution matching": {
@@ -327,7 +347,8 @@ func TestBadSubUnsub(t *testing.T) {
 		"block invalid filter":   `{"jsonrpc": "2.0", "method": "subscribe", "params": ["block_added", 1], "id": 1}`,
 		"tx filter 1":            `{"jsonrpc": "2.0", "method": "subscribe", "params": ["transaction_added", 1], "id": 1}`,
 		"tx filter 2":            `{"jsonrpc": "2.0", "method": "subscribe", "params": ["transaction_added", {"state": "HALT"}], "id": 1}`,
-		"notification filter":    `{"jsonrpc": "2.0", "method": "subscribe", "params": ["notification_from_execution", "contract"], "id": 1}`,
+		"notification filter 1":  `{"jsonrpc": "2.0", "method": "subscribe", "params": ["notification_from_execution", "contract"], "id": 1}`,
+		"notification filter 2":  `{"jsonrpc": "2.0", "method": "subscribe", "params": ["notification_from_execution", "name"], "id": 1}`,
 		"execution filter 1":     `{"jsonrpc": "2.0", "method": "subscribe", "params": ["transaction_executed", "FAULT"], "id": 1}`,
 		"execution filter 2":     `{"jsonrpc": "2.0", "method": "subscribe", "params": ["transaction_executed", {"state": "STOP"}], "id": 1}`,
 	}

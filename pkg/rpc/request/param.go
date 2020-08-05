@@ -44,9 +44,10 @@ type (
 	}
 	// NotificationFilter is a wrapper structure representing filter used for
 	// notifications generated during transaction execution. Notifications can
-	// only be filtered by contract hash.
+	// be filtered by contract hash and by name.
 	NotificationFilter struct {
-		Contract util.Uint160 `json:"contract"`
+		Contract *util.Uint160 `json:"contract,omitempty"`
+		Name     *string       `json:"name,omitempty"`
 	}
 	// ExecutionFilter is a wrapper structure used for transaction execution
 	// events. It allows to choose failing or successful transactions based

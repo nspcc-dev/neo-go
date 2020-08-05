@@ -32,7 +32,7 @@ func TestWSClientSubscription(t *testing.T) {
 			return wsc.SubscribeForNewTransactions(nil, nil)
 		},
 		"notifications": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForExecutionNotifications(nil)
+			return wsc.SubscribeForExecutionNotifications(nil, nil)
 		},
 		"executions": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForTransactionExecutions(nil)
@@ -240,10 +240,10 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
 			},
 		},
-		{"notifications",
+		{"notifications contract hash",
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
-				_, err := wsc.SubscribeForExecutionNotifications(&contract)
+				_, err := wsc.SubscribeForExecutionNotifications(&contract, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *request.Params) {
@@ -252,7 +252,41 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, request.NotificationFilterT, param.Type)
 				filt, ok := param.Value.(request.NotificationFilter)
 				require.Equal(t, true, ok)
-				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, filt.Contract)
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
+				require.Nil(t, filt.Name)
+			},
+		},
+		{"notifications name",
+			func(t *testing.T, wsc *WSClient) {
+				name := "my_pretty_notification"
+				_, err := wsc.SubscribeForExecutionNotifications(nil, &name)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *request.Params) {
+				param := p.Value(1)
+				require.NotNil(t, param)
+				require.Equal(t, request.NotificationFilterT, param.Type)
+				filt, ok := param.Value.(request.NotificationFilter)
+				require.Equal(t, true, ok)
+				require.Equal(t, "my_pretty_notification", *filt.Name)
+				require.Nil(t, filt.Contract)
+			},
+		},
+		{"notifications contract hash and name",
+			func(t *testing.T, wsc *WSClient) {
+				contract := util.Uint160{1, 2, 3, 4, 5}
+				name := "my_pretty_notification"
+				_, err := wsc.SubscribeForExecutionNotifications(&contract, &name)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *request.Params) {
+				param := p.Value(1)
+				require.NotNil(t, param)
+				require.Equal(t, request.NotificationFilterT, param.Type)
+				filt, ok := param.Value.(request.NotificationFilter)
+				require.Equal(t, true, ok)
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
+				require.Equal(t, "my_pretty_notification", *filt.Name)
 			},
 		},
 		{"executions",
