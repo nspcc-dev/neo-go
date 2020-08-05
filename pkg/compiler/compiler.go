@@ -47,17 +47,25 @@ type buildInfo struct {
 	program        *loader.Program
 }
 
-// ForEachFile executes fn on each file used in current program.
-func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
+// ForEachPackage executes fn on each package used in the current program
+// in the order they should be initialized.
+func (c *codegen) ForEachPackage(fn func(*loader.PackageInfo)) {
 	for i := range c.packages {
 		pkg := c.buildInfo.program.Package(c.packages[i])
 		c.typeInfo = &pkg.Info
 		c.currPkg = pkg.Pkg
+		fn(pkg)
+	}
+}
+
+// ForEachFile executes fn on each file used in current program.
+func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
+	c.ForEachPackage(func(pkg *loader.PackageInfo) {
 		for _, f := range pkg.Files {
 			c.fillImportMap(f, pkg.Pkg)
 			fn(f, pkg.Pkg)
 		}
-	}
+	})
 }
 
 // fillImportMap fills import map for f.

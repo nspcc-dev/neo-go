@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"golang.org/x/tools/go/loader"
 )
 
 var (
@@ -47,8 +48,20 @@ func (c *codegen) traverseGlobals() int {
 			return 0
 		}
 		emit.Instruction(c.prog.BinWriter, opcode.INITSSLOT, []byte{byte(n)})
-		c.ForEachFile(c.convertGlobals)
-		c.ForEachFile(c.convertInitFuncs)
+		c.ForEachPackage(func(pkg *loader.PackageInfo) {
+			for _, f := range pkg.Files {
+				c.fillImportMap(f, pkg.Pkg)
+				c.convertGlobals(f, pkg.Pkg)
+			}
+			for _, f := range pkg.Files {
+				c.fillImportMap(f, pkg.Pkg)
+				c.convertInitFuncs(f, pkg.Pkg)
+			}
+			// because we reuse `convertFuncDecl` for init funcs,
+			// we need to cleare scope, so that global variables
+			// encountered after will be recognized as globals.
+			c.scope = nil
+		})
 	}
 	return n
 }

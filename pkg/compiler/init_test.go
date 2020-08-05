@@ -80,4 +80,11 @@ func TestImportOrder(t *testing.T) {
 		func Main() int { return pkg3.A }`
 		eval(t, src, big.NewInt(1))
 	})
+	t.Run("InitializeOnce", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/pkg3"
+		var A = pkg3.A
+		func Main() int { return A }`
+		eval(t, src, big.NewInt(3))
+	})
 }
