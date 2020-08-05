@@ -7,6 +7,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+// NewCommands returns util commands for neo-go CLI.
 func NewCommands() []cli.Command {
 	return []cli.Command{
 		{
