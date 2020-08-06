@@ -1381,7 +1381,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		switch err {
 		case mempool.ErrOOM:
 			return ErrOOM
-		case mempool.ErrConflict:
+		case mempool.ErrDup:
 			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
 		default:
 			return err
