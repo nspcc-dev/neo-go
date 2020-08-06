@@ -394,39 +394,34 @@ func (c *Client) GetVersion() (*result.Version, error) {
 
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
-func (c *Client) InvokeScript(script string) (*result.Invoke, error) {
-	var (
-		params = request.NewRawParams(script)
-		resp   = &result.Invoke{}
-	)
-	if err := c.performRequest("invokescript", params, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (c *Client) InvokeScript(script string, hashesForVerifying []util.Uint160) (*result.Invoke, error) {
+	params := request.NewRawParams(script)
+	return c.invokeSomething("invokescript", params, hashesForVerifying)
 }
 
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
-func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter) (*result.Invoke, error) {
-	var (
-		p    = request.NewRawParams(script, operation, params)
-		resp = &result.Invoke{}
-	)
-	if err := c.performRequest("invokefunction", p, resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+func (c *Client) InvokeFunction(script, operation string, params []smartcontract.Parameter, hashesForVerifying []util.Uint160) (*result.Invoke, error) {
+	p := request.NewRawParams(script, operation, params)
+	return c.invokeSomething("invokefunction", p, hashesForVerifying)
 }
 
 // Invoke returns the results after calling the smart contract scripthash
 // with the given parameters.
-func (c *Client) Invoke(script string, params []smartcontract.Parameter) (*result.Invoke, error) {
-	var (
-		p    = request.NewRawParams(script, params)
-		resp = &result.Invoke{}
-	)
-	if err := c.performRequest("invoke", p, resp); err != nil {
+// NOTE: this is test invoke and will not affect the blockchain.
+func (c *Client) Invoke(script string, params []smartcontract.Parameter, hashesForVerifying []util.Uint160) (*result.Invoke, error) {
+	p := request.NewRawParams(script, params)
+	return c.invokeSomething("invoke", p, hashesForVerifying)
+}
+
+// invokeSomething is an inner wrapper for Invoke* functions
+func (c *Client) invokeSomething(method string, p request.RawParams, hashesForVerifying []util.Uint160) (*result.Invoke, error) {
+	var resp = new(result.Invoke)
+	if hashesForVerifying != nil {
+		p.Values = append(p.Values, hashesForVerifying)
+	}
+	if err := c.performRequest(method, p, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
