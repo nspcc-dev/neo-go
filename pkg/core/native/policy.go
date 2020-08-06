@@ -511,8 +511,8 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 
 // CheckPolicy checks whether transaction's script hashes for verifying are
 // included into blocked accounts list.
-func (p *Policy) CheckPolicy(ic *interop.Context, tx *transaction.Transaction) error {
-	ba, err := p.GetBlockedAccountsInternal(ic.DAO)
+func (p *Policy) CheckPolicy(d dao.DAO, tx *transaction.Transaction) error {
+	ba, err := p.GetBlockedAccountsInternal(d)
 	if err != nil {
 		return fmt.Errorf("unable to get blocked accounts list: %w", err)
 	}

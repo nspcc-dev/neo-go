@@ -1369,7 +1369,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 		return err
 	}
 	// Policying.
-	if err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
+	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
