@@ -62,14 +62,14 @@ func ecdsaCheckMultisig(ic *interop.Context, v *vm.VM, curve elliptic.Curve) err
 	hashToCheck := hash.Sha256(msg).BytesBE()
 	pkeys, err := v.Estack().PopSigElements()
 	if err != nil {
-		return fmt.Errorf("wrong parameters: %s", err.Error())
+		return fmt.Errorf("wrong parameters: %w", err)
 	}
 	if !v.AddGas(ECDSAVerifyPrice * int64(len(pkeys))) {
 		return errors.New("gas limit exceeded")
 	}
 	sigs, err := v.Estack().PopSigElements()
 	if err != nil {
-		return fmt.Errorf("wrong parameters: %s", err.Error())
+		return fmt.Errorf("wrong parameters: %w", err)
 	}
 	// It's ok to have more keys than there are signatures (it would
 	// just mean that some keys didn't sign), but not the other way around.

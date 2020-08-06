@@ -92,7 +92,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	}
 	validators, err := g.NEO.getNextBlockValidatorsInternal(ic.Chain, ic.DAO)
 	if err != nil {
-		return fmt.Errorf("cannot get block validators: %v", err)
+		return fmt.Errorf("can't get block validators: %w", err)
 	}
 	primary := validators[ic.Block.ConsensusData.PrimaryIndex].GetScriptHash()
 	var netFee int64

@@ -262,7 +262,7 @@ func convertWallet(ctx *cli.Context) error {
 		address.Prefix = address.NEO3Prefix
 		newAcc, err := wallet.NewAccountFromWIF(acc.PrivateKey().WIF())
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't convert account: %v", err), -1)
+			return cli.NewExitError(fmt.Errorf("can't convert account: %w", err), -1)
 		}
 		newAcc.Address = address.Uint160ToString(acc.Contract.ScriptHash())
 		newAcc.Contract = acc.Contract
@@ -270,7 +270,7 @@ func convertWallet(ctx *cli.Context) error {
 		newAcc.Label = acc.Label
 		newAcc.Locked = acc.Locked
 		if err := newAcc.Encrypt(pass); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't encrypt converted account: %v", err), -1)
+			return cli.NewExitError(fmt.Errorf("can't encrypt converted account: %w", err), -1)
 		}
 		newWallet.AddAccount(newAcc)
 	}
@@ -311,7 +311,7 @@ func exportKeys(ctx *cli.Context) error {
 		addr = ctx.Args().First()
 		_, err := address.StringToUint160(addr)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't parse address: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't parse address: %w", err), 1)
 		}
 	}
 
@@ -372,7 +372,7 @@ func importMultisig(ctx *cli.Context) error {
 	for i := range args {
 		pubs[i], err = keys.NewPublicKeyFromString(args[i])
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %v", i, err), 1)
+			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %w", i, err), 1)
 		}
 	}
 
@@ -446,9 +446,9 @@ func removeAccount(ctx *cli.Context) error {
 	}
 
 	if err := wall.RemoveAccount(acc.Address); err != nil {
-		return cli.NewExitError(fmt.Errorf("error on remove: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("error on remove: %w", err), 1)
 	} else if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }

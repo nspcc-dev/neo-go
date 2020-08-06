@@ -123,7 +123,7 @@ func (c *Client) CreateNEP5TransferTx(acc *wallet.Account, to util.Uint160, toke
 func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recepients ...TransferTarget) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
-		return nil, fmt.Errorf("bad account address: %v", err)
+		return nil, fmt.Errorf("bad account address: %w", err)
 	}
 	w := io.NewBufBinWriter()
 	for i := range recepients {
@@ -140,7 +140,7 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recep
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("can't add system fee to transaction: %v", err)
+		return nil, fmt.Errorf("can't add system fee to transaction: %w", err)
 	}
 	tx := transaction.New(c.opts.Network, script, result.GasConsumed)
 	tx.Signers = []transaction.Signer{
@@ -151,12 +151,12 @@ func (c *Client) CreateNEP5MultiTransferTx(acc *wallet.Account, gas int64, recep
 	}
 	tx.ValidUntilBlock, err = c.CalculateValidUntilBlock()
 	if err != nil {
-		return nil, fmt.Errorf("can't calculate validUntilBlock: %v", err)
+		return nil, fmt.Errorf("can't calculate validUntilBlock: %w", err)
 	}
 
 	err = c.AddNetworkFee(tx, gas, acc)
 	if err != nil {
-		return nil, fmt.Errorf("can't add network fee to transaction: %v", err)
+		return nil, fmt.Errorf("can't add network fee to transaction: %w", err)
 	}
 
 	return tx, nil
@@ -173,7 +173,7 @@ func (c *Client) TransferNEP5(acc *wallet.Account, to util.Uint160, token util.U
 	}
 
 	if err := acc.SignTx(tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign tx: %v", err)
+		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
 	}
 
 	return c.SendRawTransaction(tx)
@@ -187,7 +187,7 @@ func (c *Client) MultiTransferNEP5(acc *wallet.Account, gas int64, recepients ..
 	}
 
 	if err := acc.SignTx(tx); err != nil {
-		return util.Uint256{}, fmt.Errorf("can't sign tx: %v", err)
+		return util.Uint256{}, fmt.Errorf("can't sign tx: %w", err)
 	}
 
 	return c.SendRawTransaction(tx)

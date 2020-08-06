@@ -263,7 +263,7 @@ func (bc *Blockchain) init() error {
 		for hash != targetHash {
 			header, err := bc.GetHeader(hash)
 			if err != nil {
-				return fmt.Errorf("could not get header %s: %s", hash, err)
+				return fmt.Errorf("could not get header %s: %w", hash, err)
 			}
 			headers = append(headers, header)
 			hash = header.PrevHash
@@ -433,13 +433,13 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	if bc.config.VerifyBlocks {
 		err := block.Verify()
 		if err != nil {
-			return fmt.Errorf("block %s is invalid: %s", block.Hash().StringLE(), err)
+			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
 		}
 		if bc.config.VerifyTransactions {
 			for _, tx := range block.Transactions {
 				err := bc.VerifyTx(tx, block)
 				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().StringLE(), err)
+					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 				}
 			}
 		}
@@ -478,7 +478,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 		// Verify that the chain of the headers is consistent.
 		var lastHeader *block.Header
 		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
-			return fmt.Errorf("previous header was not found: %v", err)
+			return fmt.Errorf("previous header was not found: %w", err)
 		}
 		for _, h := range headers {
 			if err = bc.verifyHeader(h, lastHeader); err != nil {
@@ -1473,7 +1473,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	err = vm.Run()
 	if vm.HasFailed() {
-		return fmt.Errorf("vm failed to execute the script with error: %s", err)
+		return fmt.Errorf("vm execution has failed: %w", err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {

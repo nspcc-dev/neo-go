@@ -144,7 +144,7 @@ func getNEP5Balance(ctx *cli.Context) error {
 	addr := ctx.String("addr")
 	addrHash, err := address.StringToUint160(addr)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid address: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
 	}
 	acc := wall.GetAccount(addrHash)
 	if acc == nil {
@@ -242,7 +242,7 @@ func importNEP5Token(ctx *cli.Context) error {
 
 	tokenHash, err := util.Uint160DecodeStringLE(ctx.String("token"))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid token contract hash: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid token contract hash: %w", err), 1)
 	}
 
 	for _, t := range wall.Extra.Tokens {
@@ -262,7 +262,7 @@ func importNEP5Token(ctx *cli.Context) error {
 
 	tok, err := c.NEP5TokenInfo(tokenHash)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't receive token info: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
 
 	wall.AddToken(tok)
@@ -327,9 +327,9 @@ func removeNEP5Token(ctx *cli.Context) error {
 		}
 	}
 	if err := wall.RemoveToken(token.Hash); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't remove token: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("can't remove token: %w", err), 1)
 	} else if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -385,7 +385,7 @@ func multiTransferNEP5(ctx *cli.Context) error {
 		}
 		amount, err := util.FixedNFromString(ss[2], int(token.Decimals))
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
 		recepients = append(recepients, client.TransferTarget{
 			Token:   token.Hash,
@@ -432,7 +432,7 @@ func transferNEP5(ctx *cli.Context) error {
 
 	amount, err := util.FixedNFromString(ctx.String("amount"), int(token.Decimals))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid amount: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 
 	return signAndSendTransfer(ctx, c, acc, []client.TransferTarget{{
@@ -464,11 +464,11 @@ func signAndSendTransfer(ctx *cli.Context, c *client.Client, acc *wallet.Account
 		sign := priv.Sign(tx.GetSignedPart())
 		scCtx := context.NewParameterContext("Neo.Core.ContractTransaction", tx)
 		if err := scCtx.AddSignature(acc.Contract, pub, sign); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 		} else if data, err := json.Marshal(scCtx); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't marshal tx to JSON: %w", err), 1)
 		} else if err := ioutil.WriteFile(outFile, data, 0644); err != nil {
-			return cli.NewExitError(fmt.Errorf("can't write tx to file: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("can't write tx to file: %w", err), 1)
 		}
 	} else {
 		_ = acc.SignTx(tx)

@@ -74,7 +74,7 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 	var m manifest.Manifest
 	err := m.UnmarshalJSON(manifestBytes)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve manifest from stack: %v", err)
+		return nil, fmt.Errorf("unable to retrieve manifest from stack: %w", err)
 	}
 	return &state.Contract{
 		Script:   script,
@@ -105,7 +105,7 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	}
 	cs, err := contractToStackItem(newcontract)
 	if err != nil {
-		return fmt.Errorf("cannot convert contract to stack item: %v", err)
+		return fmt.Errorf("cannot convert contract to stack item: %w", err)
 	}
 	v.Estack().PushVal(cs)
 	return nil
@@ -149,10 +149,10 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 		}
 		contract.Manifest.ABI.Hash = newHash
 		if err := ic.DAO.PutContractState(contract); err != nil {
-			return fmt.Errorf("failed to update script: %v", err)
+			return fmt.Errorf("failed to update script: %w", err)
 		}
 		if err := ic.DAO.DeleteContractState(oldHash); err != nil {
-			return fmt.Errorf("failed to update script: %v", err)
+			return fmt.Errorf("failed to update script: %w", err)
 		}
 	}
 	// if manifest was provided, update the old contract manifest and check associated
@@ -161,7 +161,7 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 		var newManifest manifest.Manifest
 		err := newManifest.UnmarshalJSON(manifestBytes)
 		if err != nil {
-			return fmt.Errorf("unable to retrieve manifest from stack: %v", err)
+			return fmt.Errorf("unable to retrieve manifest from stack: %w", err)
 		}
 		// we don't have to perform `GetContractState` one more time as it's already up-to-date
 		contract.Manifest = newManifest
@@ -171,14 +171,14 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 		if !contract.HasStorage() {
 			siMap, err := ic.DAO.GetStorageItems(contract.ID)
 			if err != nil {
-				return fmt.Errorf("failed to update manifest: %v", err)
+				return fmt.Errorf("failed to update manifest: %w", err)
 			}
 			if len(siMap) != 0 {
 				return errors.New("old contract shouldn't have storage")
 			}
 		}
 		if err := ic.DAO.PutContractState(contract); err != nil {
-			return fmt.Errorf("failed to update manifest: %v", err)
+			return fmt.Errorf("failed to update manifest: %w", err)
 		}
 	}
 

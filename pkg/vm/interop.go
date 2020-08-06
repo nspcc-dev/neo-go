@@ -128,7 +128,7 @@ func EnumeratorCreate(v *VM) error {
 	default:
 		data, err := t.TryBytes()
 		if err != nil {
-			return fmt.Errorf("can not create enumerator from type %s: %v", t.Type(), err)
+			return fmt.Errorf("can not create enumerator from type %s: %w", t.Type(), err)
 		}
 		interop = &byteArrayWrapper{
 			index: -1,

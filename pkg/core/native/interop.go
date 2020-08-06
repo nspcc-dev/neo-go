@@ -27,7 +27,7 @@ func Deploy(ic *interop.Context, _ *vm.VM) error {
 			return err
 		}
 		if err := native.Initialize(ic); err != nil {
-			return fmt.Errorf("initializing %s native contract: %v", md.Name, err)
+			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
 		}
 	}
 	return nil

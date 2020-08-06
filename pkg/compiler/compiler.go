@@ -140,15 +140,15 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 	b, di, err := CompileWithDebugInfo(bytes.NewReader(b))
 	if err != nil {
-		return nil, fmt.Errorf("error while trying to compile smart contract file: %v", err)
+		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
 	}
 	f, err := nef.NewFile(b)
 	if err != nil {
-		return nil, fmt.Errorf("error while trying to create .nef file: %v", err)
+		return nil, fmt.Errorf("error while trying to create .nef file: %w", err)
 	}
 	bytes, err := f.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("error while serializing .nef file: %v", err)
+		return nil, fmt.Errorf("error while serializing .nef file: %w", err)
 	}
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	err = ioutil.WriteFile(out, bytes, os.ModePerm)

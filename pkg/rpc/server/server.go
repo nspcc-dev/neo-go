@@ -614,7 +614,7 @@ func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decima
 		},
 	})
 	if err != nil {
-		return decimals{}, fmt.Errorf("can't create script: %v", err)
+		return decimals{}, fmt.Errorf("can't create script: %w", err)
 	}
 	res := s.runScriptInVM(script, nil)
 	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {

@@ -437,7 +437,7 @@ func (v *vmUTStackItem) UnmarshalJSON(data []byte) error {
 
 			var it vmUTStackItem
 			if err := d.Decode(&it); err != nil {
-				return fmt.Errorf("can't decode map value: %v", err)
+				return fmt.Errorf("can't decode map value: %w", err)
 			}
 
 			item := jsonStringToInteger(key)

@@ -59,7 +59,7 @@ func (r *In) DecodeData(data io.ReadCloser) error {
 
 	err := json.NewDecoder(data).Decode(r)
 	if err != nil {
-		return fmt.Errorf("error parsing JSON payload: %s", err)
+		return fmt.Errorf("error parsing JSON payload: %w", err)
 	}
 
 	if r.JSONRPC != JSONRPCVersion {
@@ -76,7 +76,7 @@ func (r *In) Params() (*Params, error) {
 
 	err := json.Unmarshal(r.RawParams, &params)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing params field in payload: %s", err)
+		return nil, fmt.Errorf("error parsing params: %w", err)
 	}
 
 	return &params, nil
