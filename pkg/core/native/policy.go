@@ -509,19 +509,27 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 	return runtime.CheckHashedWitness(ic, prevBlock.NextConsensus)
 }
 
-// CheckPolicy checks whether transaction's script hashes for verifying are
-// included into blocked accounts list.
+// CheckPolicy checks whether transaction conforms to current policy restrictions
+// like not being signed by blocked account or not exceeding block-level system
+// fee limit.
 func (p *Policy) CheckPolicy(d dao.DAO, tx *transaction.Transaction) error {
 	ba, err := p.GetBlockedAccountsInternal(d)
 	if err != nil {
 		return fmt.Errorf("unable to get blocked accounts list: %w", err)
 	}
-	for _, acc := range ba {
+	if len(ba) > 0 {
 		for _, signer := range tx.Signers {
-			if acc.Equals(signer.Account) {
-				return fmt.Errorf("account %s is blocked", acc.StringLE())
+			i := sort.Search(len(ba), func(i int) bool {
+				return !ba[i].Less(signer.Account)
+			})
+			if i != len(ba) && ba[i].Equals(signer.Account) {
+				return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
 			}
 		}
+	}
+	maxBlockSystemFee := p.GetMaxBlockSystemFeeInternal(d)
+	if maxBlockSystemFee < tx.SystemFee {
+		return fmt.Errorf("transaction's fee can't exceed maximum block system fee %d", maxBlockSystemFee)
 	}
 	return nil
 }

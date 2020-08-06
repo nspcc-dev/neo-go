@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1206,21 +1205,10 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return fmt.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
-	blockedAccounts, err := bc.contracts.Policy.GetBlockedAccountsInternal(bc.dao)
-	if err != nil {
-		return err
-	}
-	for _, signer := range t.Signers {
-		i := sort.Search(len(blockedAccounts), func(i int) bool {
-			return !blockedAccounts[i].Less(signer.Account)
-		})
-		if i != len(blockedAccounts) && blockedAccounts[i].Equals(signer.Account) {
-			return fmt.Errorf("policy check failed: account %s is blocked", signer.Account.StringLE())
-		}
-	}
-	maxBlockSystemFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-	if maxBlockSystemFee < t.SystemFee {
-		return fmt.Errorf("policy check failed: transaction's fee shouldn't exceed maximum block system fee %d", maxBlockSystemFee)
+	// Policying.
+	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
+		// Only one %w can be used.
+		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender())
 	need := t.SystemFee + t.NetworkFee
@@ -1367,11 +1355,6 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	}
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
-	}
-	// Policying.
-	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
-		// Only one %w can be used.
-		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch {
