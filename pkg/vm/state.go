@@ -1,9 +1,8 @@
 package vm
 
 import (
+	"errors"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // State of the VM.

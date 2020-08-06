@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-yaml/yaml"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/pkg/errors"
 )
 
 const userAgentFormat = "/NEO-GO:%s/"
@@ -37,12 +36,12 @@ func Load(path string, netMode netmode.Magic) (Config, error) {
 // LoadFile loads config from the provided path.
 func LoadFile(configPath string) (Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return Config{}, errors.Wrap(err, "Unable to load config")
+		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
 	}
 
 	configData, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "Unable to read config")
+		return Config{}, fmt.Errorf("unable to read config: %w", err)
 	}
 
 	config := Config{
@@ -54,7 +53,7 @@ func LoadFile(configPath string) (Config, error) {
 
 	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "Problem unmarshaling config json data")
+		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
 
 	return config, nil

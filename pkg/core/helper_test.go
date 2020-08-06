@@ -26,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -396,7 +395,7 @@ func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	validators := bc.GetStandByValidators()
 	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
 	if err != nil {
-		return errors.Wrap(err, "fail to sign tx")
+		return fmt.Errorf("failed to sign tx: %w", err)
 	}
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)

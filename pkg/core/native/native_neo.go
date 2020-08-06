@@ -2,6 +2,7 @@ package native
 
 import (
 	"crypto/elliptic"
+	"errors"
 	"math/big"
 	"sort"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 )
 
 // NEO represents NEO native contract.

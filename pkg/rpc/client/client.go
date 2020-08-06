@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -123,7 +123,7 @@ func (c *Client) SetWIF(wif string) error {
 	defer c.wifMu.Unlock()
 	decodedWif, err := keys.WIFDecode(wif, 0x00)
 	if err != nil {
-		return errors.Wrap(err, "Failed to decode WIF; failed to add WIF to client ")
+		return fmt.Errorf("failed to decode WIF: %w", err)
 	}
 	c.wif = decodedWif
 	return nil
@@ -176,7 +176,7 @@ func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
 		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("HTTP %d/%s", resp.StatusCode, http.StatusText(resp.StatusCode))
 		} else {
-			err = errors.Wrap(err, "JSON decoding")
+			err = fmt.Errorf("JSON decoding: %w", err)
 		}
 	}
 	if err != nil {

@@ -28,7 +28,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -577,7 +576,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				addr, err := address.StringToUint160("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 				if err != nil {
-					panic(errors.Wrap(err, "failed to parse UnclaimedGas address"))
+					panic(fmt.Errorf("failed to parse UnclaimedGas address: %w", err))
 				}
 				return result.UnclaimedGas{
 					Address:   addr,

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -499,7 +499,7 @@ func testInvokeScript(ctx *cli.Context) error {
 	}
 	nefFile, err := nef.FileFromBytes(b)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
 	args := ctx.Args()
@@ -570,12 +570,12 @@ func inspect(ctx *cli.Context) error {
 	if compile {
 		b, err = compiler.Compile(bytes.NewReader(b))
 		if err != nil {
-			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
+			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}
 	} else {
 		nefFile, err := nef.FileFromBytes(b)
 		if err != nil {
-			return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+			return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 		}
 		b = nefFile.Script
 	}
@@ -645,17 +645,17 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	nefFile, err := nef.FileFromBytes(f)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
 	manifestBytes, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to read manifest file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(manifestBytes, m)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore manifest file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)

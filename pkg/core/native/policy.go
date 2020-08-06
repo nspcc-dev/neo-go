@@ -2,6 +2,7 @@ package native
 
 import (
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"sort"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 )
 
 const (

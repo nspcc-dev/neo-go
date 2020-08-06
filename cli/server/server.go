@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -367,13 +366,13 @@ Main:
 	for {
 		select {
 		case err := <-errChan:
-			shutdownErr = errors.Wrap(err, "Error encountered by server")
+			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
 
 		case <-grace.Done():
 			serv.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
-				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
+				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
 			}
 			prometheus.ShutDown()
 			pprof.ShutDown()

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
-	"github.com/pkg/errors"
 )
 
 // coordLen is the number of bytes in serialized X or Y coordinate.
@@ -267,7 +267,7 @@ func (p *PublicKey) DecodeBinary(r *io.BinReader) {
 			return
 		}
 	default:
-		r.Err = errors.Errorf("invalid prefix %d", prefix)
+		r.Err = fmt.Errorf("invalid prefix %d", prefix)
 		return
 	}
 	if x.Cmp(curveParams.P) >= 0 || y.Cmp(curveParams.P) >= 0 {

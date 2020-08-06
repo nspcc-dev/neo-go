@@ -2,8 +2,7 @@ package response
 
 import (
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type (

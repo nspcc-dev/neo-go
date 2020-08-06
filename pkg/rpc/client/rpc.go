@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -16,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 )
 
 // GetApplicationLog returns the contract log based on the specified txid.
@@ -428,28 +428,28 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 
 	addr, err := address.StringToUint160(acc.Address)
 	if err != nil {
-		return txHash, errors.Wrap(err, "failed to get address")
+		return txHash, fmt.Errorf("failed to get address: %w", err)
 	}
 	tx.Signers = getSigners(addr, cosigners)
 
 	validUntilBlock, err := c.CalculateValidUntilBlock()
 	if err != nil {
-		return txHash, errors.Wrap(err, "failed to add validUntilBlock to transaction")
+		return txHash, fmt.Errorf("failed to add validUntilBlock to transaction: %w", err)
 	}
 	tx.ValidUntilBlock = validUntilBlock
 
 	err = c.AddNetworkFee(tx, int64(netfee), acc)
 	if err != nil {
-		return txHash, errors.Wrapf(err, "failed to add network fee")
+		return txHash, fmt.Errorf("failed to add network fee: %w", err)
 	}
 
 	if err = acc.SignTx(tx); err != nil {
-		return txHash, errors.Wrap(err, "failed to sign tx")
+		return txHash, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	txHash = tx.Hash()
 	actualHash, err := c.SendRawTransaction(tx)
 	if err != nil {
-		return txHash, errors.Wrap(err, "failed sendning tx")
+		return txHash, fmt.Errorf("failed to send tx: %w", err)
 	}
 	if !actualHash.Equals(txHash) {
 		return actualHash, fmt.Errorf("sent and actual tx hashes mismatch:\n\tsent: %v\n\tactual: %v", txHash.StringLE(), actualHash.StringLE())
@@ -505,7 +505,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	)
 	blockCount, err := c.GetBlockCount()
 	if err != nil {
-		return result, errors.Wrapf(err, "cannot get block count")
+		return result, fmt.Errorf("can't get block count: %w", err)
 	}
 
 	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
@@ -513,7 +513,7 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	} else {
 		validators, err := c.GetValidators()
 		if err != nil {
-			return result, errors.Wrapf(err, "cannot get validators")
+			return result, fmt.Errorf("can't get validators: %w", err)
 		}
 		validatorsCount = uint32(len(validators))
 		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{

@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/dbft/payload"
@@ -14,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -306,7 +306,7 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryMessageType:
 		m.payload = new(recoveryMessage)
 	default:
-		r.Err = errors.Errorf("invalid type: 0x%02x", byte(m.Type))
+		r.Err = fmt.Errorf("invalid type: 0x%02x", byte(m.Type))
 		return
 	}
 	m.payload.DecodeBinary(r)
@@ -338,7 +338,7 @@ func (p *Payload) decodeData() error {
 	br := io.NewBinReaderFromBuf(p.data)
 	m.DecodeBinary(br)
 	if br.Err != nil {
-		return errors.Wrap(br.Err, "cannot decode data into message")
+		return fmt.Errorf("can't decode message: %w", br.Err)
 	}
 	p.message = m
 	return nil

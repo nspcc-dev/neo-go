@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -30,7 +31,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -692,7 +692,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 	if txHash, err := reqParams.Value(0).GetUint256(); err != nil {
 		resultsErr = response.ErrInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
-		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
+		err = fmt.Errorf("invalid transaction %s: %w", txHash, err)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
 	} else if reqParams.Value(1).GetBoolean() {
 		_header := s.chain.GetHeaderHash(int(height))
