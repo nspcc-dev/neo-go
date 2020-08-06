@@ -516,14 +516,10 @@ func (p *Policy) CheckPolicy(ic *interop.Context, tx *transaction.Transaction) e
 	if err != nil {
 		return fmt.Errorf("unable to get blocked accounts list: %w", err)
 	}
-	scriptHashes, err := ic.Chain.GetScriptHashesForVerifying(tx)
-	if err != nil {
-		return fmt.Errorf("unable to get tx script hashes: %w", err)
-	}
 	for _, acc := range ba {
-		for _, hash := range scriptHashes {
-			if acc.Equals(hash) {
-				return fmt.Errorf("account %s is blocked", hash.StringLE())
+		for _, signer := range tx.Signers {
+			if acc.Equals(signer.Account) {
+				return fmt.Errorf("account %s is blocked", acc.StringLE())
 			}
 		}
 	}

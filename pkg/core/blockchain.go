@@ -1206,20 +1206,16 @@ func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) e
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
 		return fmt.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
-	hashes, err := bc.GetScriptHashesForVerifying(t)
-	if err != nil {
-		return err
-	}
 	blockedAccounts, err := bc.contracts.Policy.GetBlockedAccountsInternal(bc.dao)
 	if err != nil {
 		return err
 	}
-	for _, h := range hashes {
+	for _, signer := range t.Signers {
 		i := sort.Search(len(blockedAccounts), func(i int) bool {
-			return !blockedAccounts[i].Less(h)
+			return !blockedAccounts[i].Less(signer.Account)
 		})
-		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
-			return fmt.Errorf("policy check failed: account %s is blocked", h.StringLE())
+		if i != len(blockedAccounts) && blockedAccounts[i].Equals(signer.Account) {
+			return fmt.Errorf("policy check failed: account %s is blocked", signer.Account.StringLE())
 		}
 	}
 	maxBlockSystemFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
@@ -1410,19 +1406,6 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 	return bc.contracts.NEO.GetRegisteredValidators(bc.dao)
 }
 
-// GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
-// to verify whether the transaction is bonafide or not.
-// Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
-func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	hashesResult := make([]util.Uint160, len(t.Signers))
-	for i, s := range t.Signers {
-		hashesResult[i] = s.Account
-	}
-
-	return hashesResult, nil
-
-}
-
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
 func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
 	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
@@ -1503,20 +1486,12 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
-	hashes, err := bc.GetScriptHashesForVerifying(t)
-	if err != nil {
-		return err
+	if len(t.Signers) != len(t.Scripts) {
+		return fmt.Errorf("number of signers doesn't match witnesses (%d vs %d)", len(t.Signers), len(t.Scripts))
 	}
-
-	witnesses := t.Scripts
-	if len(hashes) != len(witnesses) {
-		return fmt.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
-	}
-	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
-	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false, t.NetworkFee)
+	for i := range t.Signers {
+		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, false, t.NetworkFee)
 		if err != nil {
 			return fmt.Errorf("witness #%d: %w", i, err)
 		}
