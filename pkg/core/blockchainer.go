@@ -26,6 +26,8 @@ type Blockchainer interface {
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetContractState(hash util.Uint160) *state.Contract
 	GetEnrollments() ([]*state.Validator, error)
+	ForEachNEP5Transfer(util.Uint160, *state.NEP5Transfer, func() error) error
+	ForEachTransfer(util.Uint160, *state.Transfer, func() error) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	CurrentHeaderHash() util.Uint256
@@ -36,7 +38,6 @@ type Blockchainer interface {
 	GetAccountState(util.Uint160) *state.Account
 	GetAppExecResult(util.Uint256) (*state.AppExecResult, error)
 	GetNEP5Metadata(util.Uint160) (*state.NEP5Metadata, error)
-	GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
 	GetValidators(txes ...*transaction.Transaction) ([]*keys.PublicKey, error)
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,6 +104,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getunspents":          (*Server).getUnspents,
 	"getvalidators":        (*Server).getValidators,
 	"getversion":           (*Server).getVersion,
+	"getutxotransfers":     (*Server).getUTXOTransfers,
 	"invoke":               (*Server).invoke,
 	"invokefunction":       (*Server).invokeFunction,
 	"invokescript":         (*Server).invokescript,
@@ -447,6 +449,133 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	}, nil
 }
 
+func getTimestamps(p1, p2 *request.Param) (uint32, uint32, error) {
+	var start, end uint32
+	if p1 != nil {
+		val, err := p1.GetInt()
+		if err != nil {
+			return 0, 0, err
+		}
+		start = uint32(val)
+	}
+	if p2 != nil {
+		val, err := p2.GetInt()
+		if err != nil {
+			return 0, 0, err
+		}
+		end = uint32(val)
+	}
+	return start, end, nil
+}
+
+func getAssetMaps(name string) (map[util.Uint256]*result.AssetUTXO, map[util.Uint256]*result.AssetUTXO, error) {
+	sent := make(map[util.Uint256]*result.AssetUTXO)
+	recv := make(map[util.Uint256]*result.AssetUTXO)
+	name = strings.ToLower(name)
+	switch name {
+	case "neo", "gas", "":
+	default:
+		return nil, nil, errors.New("invalid asset")
+	}
+	if name == "neo" || name == "" {
+		sent[core.GoverningTokenID()] = &result.AssetUTXO{
+			AssetHash:    core.GoverningTokenID(),
+			AssetName:    "NEO",
+			Transactions: []result.UTXO{},
+		}
+		recv[core.GoverningTokenID()] = &result.AssetUTXO{
+			AssetHash:    core.GoverningTokenID(),
+			AssetName:    "NEO",
+			Transactions: []result.UTXO{},
+		}
+	}
+	if name == "gas" || name == "" {
+		sent[core.UtilityTokenID()] = &result.AssetUTXO{
+			AssetHash:    core.UtilityTokenID(),
+			AssetName:    "GAS",
+			Transactions: []result.UTXO{},
+		}
+		recv[core.UtilityTokenID()] = &result.AssetUTXO{
+			AssetHash:    core.UtilityTokenID(),
+			AssetName:    "GAS",
+			Transactions: []result.UTXO{},
+		}
+	}
+	return sent, recv, nil
+}
+
+func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Error) {
+	addr, err := ps.Value(0).GetUint160FromAddressOrHex()
+	if err != nil {
+		return nil, response.NewInvalidParamsError("", err)
+	}
+
+	index := 1
+	assetName, err := ps.Value(index).GetString()
+	if err == nil {
+		index++
+	}
+
+	start, end, err := getTimestamps(ps.Value(index), ps.Value(index+1))
+	if err != nil {
+		return nil, response.NewInvalidParamsError("", err)
+	}
+
+	sent, recv, err := getAssetMaps(assetName)
+	if err != nil {
+		return nil, response.NewInvalidParamsError("", err)
+	}
+	tr := new(state.Transfer)
+	err = s.chain.ForEachTransfer(addr, tr, func() error {
+		if tr.Timestamp < start || end != 0 && tr.Timestamp > end {
+			return nil
+		}
+		assetID := core.GoverningTokenID()
+		if !tr.IsGoverning {
+			assetID = core.UtilityTokenID()
+		}
+		a, ok := sent[assetID]
+		if ok && tr.From.Equals(addr) && !tr.To.Equals(addr) {
+			a.Transactions = append(a.Transactions, result.UTXO{
+				Index:     tr.Block,
+				Timestamp: tr.Timestamp,
+				TxHash:    tr.Tx,
+				Address:   tr.To,
+				Amount:    tr.Amount,
+			})
+			a.TotalAmount += tr.Amount
+		}
+		a, ok = recv[assetID]
+		if ok && tr.To.Equals(addr) && !tr.From.Equals(addr) {
+			a.Transactions = append(a.Transactions, result.UTXO{
+				Index:     tr.Block,
+				Timestamp: tr.Timestamp,
+				TxHash:    tr.Tx,
+				Address:   tr.From,
+				Amount:    tr.Amount,
+			})
+			a.TotalAmount += tr.Amount
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, response.NewInternalServerError("", err)
+	}
+
+	res := &result.GetUTXO{
+		Address:  address.Uint160ToString(addr),
+		Sent:     []result.AssetUTXO{},
+		Received: []result.AssetUTXO{},
+	}
+	for _, a := range sent {
+		res.Sent = append(res.Sent, *a)
+	}
+	for _, a := range recv {
+		res.Received = append(res.Received, *a)
+	}
+	return res, nil
+}
+
 func (s *Server) getPeers(_ request.Params) (interface{}, *response.Error) {
 	peers := result.NewGetPeers()
 	peers.AddUnconnected(s.coreServer.UnconnectedPeers())
@@ -597,8 +726,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Received: []result.NEP5Transfer{},
 		Sent:     []result.NEP5Transfer{},
 	}
-	lg := s.chain.GetNEP5TransferLog(u)
-	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
+	tr := new(state.NEP5Transfer)
+	err = s.chain.ForEachNEP5Transfer(u, tr, func() error {
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     tr.Asset,

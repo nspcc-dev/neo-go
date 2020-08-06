@@ -16,12 +16,14 @@ import (
 // objects in the storeBlock().
 type Cached struct {
 	DAO
-	accounts  map[util.Uint160]*state.Account
-	contracts map[util.Uint160]*state.Contract
-	unspents  map[util.Uint256]*state.UnspentCoin
-	balances  map[util.Uint160]*state.NEP5Balances
-	transfers map[util.Uint160]map[uint32]*state.NEP5TransferLog
-	storage   *itemCache
+	accounts      map[util.Uint160]*state.Account
+	contracts     map[util.Uint160]*state.Contract
+	unspents      map[util.Uint256]*state.UnspentCoin
+	balances      map[util.Uint160]*state.NEP5Balances
+	nep5transfers map[util.Uint160]map[uint32]*state.TransferLog
+	transfers     map[util.Uint160]map[uint32]*state.TransferLog
+	nextBatch     map[util.Uint160]uint32
+	storage       *itemCache
 
 	dropNEP5Cache bool
 }
@@ -32,7 +34,9 @@ func NewCached(d DAO) *Cached {
 	ctrs := make(map[util.Uint160]*state.Contract)
 	unspents := make(map[util.Uint256]*state.UnspentCoin)
 	balances := make(map[util.Uint160]*state.NEP5Balances)
-	transfers := make(map[util.Uint160]map[uint32]*state.NEP5TransferLog)
+	nep5transfers := make(map[util.Uint160]map[uint32]*state.TransferLog)
+	transfers := make(map[util.Uint160]map[uint32]*state.TransferLog)
+	nextBatch := make(map[util.Uint160]uint32)
 	st := newItemCache()
 	dao := d.GetWrapped()
 	if cd, ok := dao.(*Cached); ok {
@@ -42,7 +46,18 @@ func NewCached(d DAO) *Cached {
 			}
 		}
 	}
-	return &Cached{dao, accs, ctrs, unspents, balances, transfers, st, false}
+	return &Cached{
+		DAO:           dao,
+		accounts:      accs,
+		contracts:     ctrs,
+		unspents:      unspents,
+		balances:      balances,
+		nep5transfers: nep5transfers,
+		transfers:     transfers,
+		nextBatch:     nextBatch,
+		storage:       st,
+		dropNEP5Cache: false,
+	}
 }
 
 // GetAccountStateOrNew retrieves Account from cache or underlying store
@@ -106,6 +121,52 @@ func (cd *Cached) PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin)
 	return nil
 }
 
+// GetNextTransferBatch returns index for the transfer batch to write to.
+func (cd *Cached) GetNextTransferBatch(acc util.Uint160) (uint32, error) {
+	if n, ok := cd.nextBatch[acc]; ok {
+		return n, nil
+	}
+	return cd.DAO.GetNextTransferBatch(acc)
+}
+
+// PutNextTransferBatch sets index of the transfer batch to write to.
+func (cd *Cached) PutNextTransferBatch(acc util.Uint160, num uint32) error {
+	cd.nextBatch[acc] = num
+	return nil
+}
+
+// GetTransferLog retrieves TransferLog for the acc.
+func (cd *Cached) GetTransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error) {
+	ts := cd.transfers[acc]
+	if ts != nil && ts[index] != nil {
+		return ts[index], nil
+	}
+	return cd.DAO.GetTransferLog(acc, index)
+}
+
+// PutTransferLog saves TransferLog for the acc.
+func (cd *Cached) PutTransferLog(acc util.Uint160, index uint32, bs *state.TransferLog) error {
+	ts := cd.transfers[acc]
+	if ts == nil {
+		ts = make(map[uint32]*state.TransferLog, 2)
+		cd.transfers[acc] = ts
+	}
+	ts[index] = bs
+	return nil
+}
+
+// AppendTransfer appends new transfer to a transfer event log.
+func (cd *Cached) AppendTransfer(acc util.Uint160, index uint32, tr *state.Transfer) (bool, error) {
+	lg, err := cd.GetTransferLog(acc, index)
+	if err != nil {
+		return false, err
+	}
+	if err := lg.Append(tr); err != nil {
+		return false, err
+	}
+	return lg.Size() >= transferBatchSize, cd.PutTransferLog(acc, index, lg)
+}
+
 // GetNEP5Balances retrieves NEP5Balances for the acc.
 func (cd *Cached) GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error) {
 	if bs := cd.balances[acc]; bs != nil {
@@ -120,21 +181,21 @@ func (cd *Cached) PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) erro
 	return nil
 }
 
-// GetNEP5TransferLog retrieves NEP5TransferLog for the acc.
-func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
-	ts := cd.transfers[acc]
+// GetNEP5TransferLog retrieves TransferLog for the acc.
+func (cd *Cached) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error) {
+	ts := cd.nep5transfers[acc]
 	if ts != nil && ts[index] != nil {
 		return ts[index], nil
 	}
 	return cd.DAO.GetNEP5TransferLog(acc, index)
 }
 
-// PutNEP5TransferLog saves NEP5TransferLog for the acc.
-func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.NEP5TransferLog) error {
-	ts := cd.transfers[acc]
+// PutNEP5TransferLog saves TransferLog for the acc.
+func (cd *Cached) PutNEP5TransferLog(acc util.Uint160, index uint32, bs *state.TransferLog) error {
+	ts := cd.nep5transfers[acc]
 	if ts == nil {
-		ts = make(map[uint32]*state.NEP5TransferLog, 2)
-		cd.transfers[acc] = ts
+		ts = make(map[uint32]*state.TransferLog, 2)
+		cd.nep5transfers[acc] = ts
 	}
 	ts[index] = bs
 	return nil
@@ -265,12 +326,26 @@ func (cd *Cached) Persist() (int, error) {
 		}
 		buf.Reset()
 	}
-	for acc, ts := range cd.transfers {
+	for acc, ts := range cd.nep5transfers {
 		for ind, lg := range ts {
 			err := cd.DAO.PutNEP5TransferLog(acc, ind, lg)
 			if err != nil {
 				return 0, err
 			}
+		}
+	}
+	for acc, ts := range cd.transfers {
+		for ind, lg := range ts {
+			err := cd.DAO.PutTransferLog(acc, ind, lg)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+	for acc, nb := range cd.nextBatch {
+		err := cd.DAO.PutNextTransferBatch(acc, nb)
+		if err != nil {
+			return 0, err
 		}
 	}
 	return cd.DAO.Persist()
@@ -283,7 +358,9 @@ func (cd *Cached) GetWrapped() DAO {
 		cd.contracts,
 		cd.unspents,
 		cd.balances,
+		cd.nep5transfers,
 		cd.transfers,
+		cd.nextBatch,
 		cd.storage,
 		false,
 	}

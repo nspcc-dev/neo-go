@@ -290,6 +290,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"getutxotransfers": {
+		{
+			name:   "invalid address",
+			params: `["notanaddress"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid asset",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", "notanasset"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid start timestamp",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", "neo", "notanumber"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid end timestamp",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", "neo", 123, "notanumber"]`,
+			fail:   true,
+		},
+	},
 	"getassetstate": {
 		{
 			name:   "positive",
@@ -1104,6 +1126,39 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		assert.ElementsMatch(t, expected, actual)
 	})
+
+	t.Run("getutxotransfers", func(t *testing.T) {
+		testGetUTXO := func(t *testing.T, asset string, start, stop int) {
+			ps := []string{`"AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"`}
+			if asset != "" {
+				ps = append(ps, fmt.Sprintf("%q", asset))
+			}
+			if start != 0 {
+				if start > int(e.chain.HeaderHeight()) {
+					ps = append(ps, strconv.Itoa(int(time.Now().Unix())))
+				} else {
+					b, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+					require.NoError(t, err)
+					ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+				}
+				if stop != 0 {
+					b, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+					require.NoError(t, err)
+					ps = append(ps, strconv.Itoa(int(b.Timestamp)))
+				}
+			}
+			p := strings.Join(ps, ", ")
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getutxotransfers", "params": [%s]}`, p)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false)
+			actual := new(result.GetUTXO)
+			require.NoError(t, json.Unmarshal(res, actual))
+			checkTransfers(t, e, actual, asset, start, stop)
+		}
+		t.Run("RestrictByAsset", func(t *testing.T) { testGetUTXO(t, "neo", 0, 0) })
+		t.Run("TooBigStart", func(t *testing.T) { testGetUTXO(t, "", 300, 0) })
+		t.Run("RestrictAll", func(t *testing.T) { testGetUTXO(t, "", 202, 203) })
+	})
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
@@ -1189,4 +1244,46 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 	require.Equal(t, assetHashOld, res.Sent[0].Asset)
 	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Sent[0].Address)
 	require.Equal(t, uint32(0), res.Sent[0].NotifyIndex)
+}
+
+func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, start, stop int) {
+	res := acc.(*result.GetUTXO)
+	require.Equal(t, res.Address, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs")
+
+	// transfer from multisig address to us
+	u := getUTXOForBlock(res, false, asset, 1)
+	if start <= 1 && (stop == 0 || stop >= 1) && (asset == "neo" || asset == "") {
+		require.NotNil(t, u)
+		require.Equal(t, "be48d3a3f5d10013ab9ffee489706078714f1ea2", u.Address.StringBE())
+		require.EqualValues(t, int64(util.Fixed8FromInt64(99999000)), u.Amount)
+	} else {
+		require.Nil(t, u)
+	}
+
+	// transfer from us to another validator
+	u = getUTXOForBlock(res, true, asset, 206)
+	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
+		require.NotNil(t, u)
+		require.Equal(t, "9fbf833320ef6bc52ddee1fe6f5793b42e9b307e", u.Address.StringBE())
+		require.EqualValues(t, int64(util.Fixed8FromInt64(1000)), u.Amount)
+	} else {
+		require.Nil(t, u)
+	}
+}
+
+func getUTXOForBlock(res *result.GetUTXO, sent bool, asset string, b uint32) *result.UTXO {
+	arr := res.Received
+	if sent {
+		arr = res.Sent
+	}
+	for i := range arr {
+		if arr[i].AssetName == strings.ToUpper(asset) {
+			for j := range arr[i].Transactions {
+				if b == arr[i].Transactions[j].Index {
+					return &arr[i].Transactions[j]
+				}
+			}
+		}
+	}
+	return nil
 }

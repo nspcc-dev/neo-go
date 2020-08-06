@@ -19,6 +19,7 @@ import (
 // DAO is a data access object.
 type DAO interface {
 	AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.NEP5Transfer) (bool, error)
+	AppendTransfer(acc util.Uint160, index uint32, tr *state.Transfer) (bool, error)
 	DeleteContractState(hash util.Uint160) error
 	DeleteStorageItem(scripthash util.Uint160, key []byte) error
 	DeleteValidatorState(vs *state.Validator) error
@@ -36,12 +37,14 @@ type DAO interface {
 	GetHeaderHashes() ([]util.Uint256, error)
 	GetNEP5Balances(acc util.Uint160) (*state.NEP5Balances, error)
 	GetNEP5Metadata(h util.Uint160) (*state.NEP5Metadata, error)
-	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error)
+	GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error)
+	GetNextTransferBatch(acc util.Uint160) (uint32, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
 	PutStateRoot(root *state.MPTRootState) error
 	GetStorageItem(scripthash util.Uint160, key []byte) *state.StorageItem
 	GetStorageItems(hash util.Uint160, prefix []byte) ([]StorageItemWithKey, error)
 	GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error)
+	GetTransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error)
 	GetUnspentCoinState(hash util.Uint256) (*state.UnspentCoin, error)
 	GetValidatorState(publicKey *keys.PublicKey) (*state.Validator, error)
 	GetValidatorStateOrNew(publicKey *keys.PublicKey) (*state.Validator, error)
@@ -60,8 +63,10 @@ type DAO interface {
 	PutCurrentHeader(hashAndIndex []byte) error
 	PutNEP5Balances(acc util.Uint160, bs *state.NEP5Balances) error
 	PutNEP5Metadata(h util.Uint160, meta *state.NEP5Metadata) error
-	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error
+	PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.TransferLog) error
+	PutNextTransferBatch(acc util.Uint160, num uint32) error
 	PutStorageItem(scripthash util.Uint160, key []byte, si *state.StorageItem) error
+	PutTransferLog(acc util.Uint160, index uint32, lg *state.TransferLog) error
 	PutUnspentCoinState(hash util.Uint256, ucs *state.UnspentCoin) error
 	PutValidatorState(vs *state.Validator) error
 	PutValidatorsCount(vc *state.ValidatorsCount) error
@@ -262,7 +267,16 @@ func (dao *Simple) putNEP5Balances(acc util.Uint160, bs *state.NEP5Balances, buf
 
 // -- start transfer log.
 
-const nep5TransferBatchSize = 128
+const nep5TransferBatchSize = 128 * state.NEP5TransferSize
+const transferBatchSize = 128 * state.TransferSize
+
+func getTransferLogKey(acc util.Uint160, index uint32) []byte {
+	key := make([]byte, 1+util.Uint160Size+4)
+	key[0] = byte(storage.STTransfers)
+	copy(key[1:], acc.BytesBE())
+	binary.LittleEndian.PutUint32(key[util.Uint160Size:], index)
+	return key
+}
 
 func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
 	key := make([]byte, 1+util.Uint160Size+4)
@@ -272,21 +286,77 @@ func getNEP5TransferLogKey(acc util.Uint160, index uint32) []byte {
 	return key
 }
 
+// GetNextTransferBatch returns index for the transfer batch to write to.
+func (dao *Simple) GetNextTransferBatch(acc util.Uint160) (uint32, error) {
+	key := storage.AppendPrefix(storage.STTransfers, acc.BytesBE())
+	val, err := dao.Store.Get(key)
+	if err != nil {
+		if err != storage.ErrKeyNotFound {
+			return 0, err
+		}
+		return 0, nil
+	}
+	return binary.LittleEndian.Uint32(val), nil
+}
+
+// PutNextTransferBatch sets index of the transfer batch to write to.
+func (dao *Simple) PutNextTransferBatch(acc util.Uint160, num uint32) error {
+	key := storage.AppendPrefix(storage.STTransfers, acc.BytesBE())
+	val := make([]byte, 4)
+	binary.LittleEndian.PutUint32(val, num)
+	return dao.Store.Put(key, val)
+}
+
+// GetTransferLog retrieves transfer log from the cache.
+func (dao *Simple) GetTransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error) {
+	key := getTransferLogKey(acc, index)
+	value, err := dao.Store.Get(key)
+	if err != nil {
+		if err == storage.ErrKeyNotFound {
+			return new(state.TransferLog), nil
+		}
+		return nil, err
+	}
+	return &state.TransferLog{Raw: value}, nil
+}
+
+// PutTransferLog saves given transfer log in the cache.
+func (dao *Simple) PutTransferLog(acc util.Uint160, index uint32, lg *state.TransferLog) error {
+	key := getTransferLogKey(acc, index)
+	return dao.Store.Put(key, lg.Raw)
+}
+
+// AppendTransfer appends a single transfer to a log.
+// First return value signalizes that log size has exceeded batch size.
+func (dao *Simple) AppendTransfer(acc util.Uint160, index uint32, tr *state.Transfer) (bool, error) {
+	lg, err := dao.GetTransferLog(acc, index)
+	if err != nil {
+		if err != storage.ErrKeyNotFound {
+			return false, err
+		}
+		lg = new(state.TransferLog)
+	}
+	if err := lg.Append(tr); err != nil {
+		return false, err
+	}
+	return lg.Size() >= transferBatchSize, dao.PutTransferLog(acc, index, lg)
+}
+
 // GetNEP5TransferLog retrieves transfer log from the cache.
-func (dao *Simple) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.NEP5TransferLog, error) {
+func (dao *Simple) GetNEP5TransferLog(acc util.Uint160, index uint32) (*state.TransferLog, error) {
 	key := getNEP5TransferLogKey(acc, index)
 	value, err := dao.Store.Get(key)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
-			return new(state.NEP5TransferLog), nil
+			return new(state.TransferLog), nil
 		}
 		return nil, err
 	}
-	return &state.NEP5TransferLog{Raw: value}, nil
+	return &state.TransferLog{Raw: value}, nil
 }
 
 // PutNEP5TransferLog saves given transfer log in the cache.
-func (dao *Simple) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.NEP5TransferLog) error {
+func (dao *Simple) PutNEP5TransferLog(acc util.Uint160, index uint32, lg *state.TransferLog) error {
 	key := getNEP5TransferLogKey(acc, index)
 	return dao.Store.Put(key, lg.Raw)
 }
@@ -299,7 +369,7 @@ func (dao *Simple) AppendNEP5Transfer(acc util.Uint160, index uint32, tr *state.
 		if err != storage.ErrKeyNotFound {
 			return false, err
 		}
-		lg = new(state.NEP5TransferLog)
+		lg = new(state.TransferLog)
 	}
 	if err := lg.Append(tr); err != nil {
 		return false, err

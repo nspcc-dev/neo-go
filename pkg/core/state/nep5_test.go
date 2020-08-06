@@ -21,15 +21,16 @@ func TestNEP5TransferLog_Append(t *testing.T) {
 		randomTransfer(r),
 	}
 
-	lg := new(NEP5TransferLog)
+	lg := new(TransferLog)
 	for _, tr := range expected {
 		require.NoError(t, lg.Append(tr))
 	}
 
-	require.Equal(t, len(expected), lg.Size())
+	require.Equal(t, len(expected), lg.Size()/NEP5TransferSize)
 
 	i := 0
-	err := lg.ForEach(func(tr *NEP5Transfer) error {
+	tr := new(NEP5Transfer)
+	err := lg.ForEach(NEP5TransferSize, tr, func() error {
 		require.Equal(t, expected[i], tr)
 		i++
 		return nil
@@ -76,4 +77,8 @@ func randomTransfer(r *rand.Rand) *NEP5Transfer {
 		To:     random.Uint160(),
 		Tx:     random.Uint256(),
 	}
+}
+
+func TestTransfer_Size(t *testing.T) {
+	require.Equal(t, TransferSize, io.GetVarSize(new(Transfer)))
 }
