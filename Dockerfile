@@ -19,7 +19,7 @@ RUN set -x \
     && export GO111MODULE=on \
     && export CGO_ENABLED=0 \
     && export LDFLAGS="-X ${REPO}/pkg/config.Version=${VERSION}" \
-    && go build -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli
+    && go build -trimpath -v -mod=vendor -ldflags "${LDFLAGS}" -o /go/bin/neo-go ./cli
 
 # Executable image
 FROM alpine
