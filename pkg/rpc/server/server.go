@@ -1086,7 +1086,7 @@ func (s *Server) invoke(reqParams request.Params) (interface{}, *response.Error)
 	return s.runScriptInVM(script, hashesForVerifying), nil
 }
 
-// invokescript implements the `invokescript` RPC call.
+// invokeFunction implements the `invokefunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
 	scriptHash, err := reqParams.ValueWithType(0, request.StringT).GetUint160FromHex()
 	if err != nil {
