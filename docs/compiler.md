@@ -9,6 +9,8 @@ there are some important deviations that you need to be aware of that make it
 a dialect of Go rather than a complete port of the language:
  * `make()` ane `new()` are not supported, most of the time you can substitute
    them with composite literals
+ * pointers are supported only for struct literals, one can't take an address
+   of an arbitrary variable
  * there is no real distinction between different integer types, all of them
    work as big.Int in Go with a limit of 256 bit in width, so you can use
    `int` for just about anything. This is the way integers work in Neo VM and
