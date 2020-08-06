@@ -541,9 +541,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Received: []result.NEP5Transfer{},
 		Sent:     []result.NEP5Transfer{},
 	}
-	lg := s.chain.GetNEP5TransferLog(u)
 	cache := make(map[int32]decimals)
-	err = lg.ForEach(func(tr *state.NEP5Transfer) error {
+	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
 			return nil
