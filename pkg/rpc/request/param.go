@@ -164,6 +164,27 @@ func (p *Param) GetUint160FromAddressOrHex() (util.Uint160, error) {
 	return p.GetUint160FromAddress()
 }
 
+// GetArrayUint160FromHex returns array of Uint160 values of the parameter that
+// was supply as array of raw hex.
+func (p *Param) GetArrayUint160FromHex() ([]util.Uint160, error) {
+	if p == nil {
+		return nil, nil
+	}
+	arr, err := p.GetArray()
+	if err != nil {
+		return nil, err
+	}
+	var result = make([]util.Uint160, len(arr))
+	for i, parameter := range arr {
+		hash, err := parameter.GetUint160FromHex()
+		if err != nil {
+			return nil, err
+		}
+		result[i] = hash
+	}
+	return result, nil
+}
+
 // GetFuncParam returns current parameter as a function call parameter.
 func (p *Param) GetFuncParam() (FuncParam, error) {
 	if p == nil {

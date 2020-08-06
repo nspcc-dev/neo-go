@@ -1075,11 +1075,15 @@ func (s *Server) invoke(reqParams request.Params) (interface{}, *response.Error)
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
+	hashesForVerifying, err := reqParams.ValueWithType(2, request.ArrayT).GetArrayUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
 	script, err := request.CreateInvocationScript(scriptHash, slice)
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
-	return s.runScriptInVM(script), nil
+	return s.runScriptInVM(script, hashesForVerifying), nil
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1088,11 +1092,20 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if err != nil {
 		return nil, response.ErrInvalidParams
 	}
-	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:])
+	var hashesForVerifying []util.Uint160
+	hashesForVerifyingIndex := len(reqParams)
+	if hashesForVerifyingIndex > 3 {
+		hashesForVerifying, err = reqParams.ValueWithType(3, request.ArrayT).GetArrayUint160FromHex()
+		if err != nil {
+			return nil, response.ErrInvalidParams
+		}
+		hashesForVerifyingIndex--
+	}
+	script, err := request.CreateFunctionInvocationScript(scriptHash, reqParams[1:hashesForVerifyingIndex])
 	if err != nil {
 		return nil, response.NewInternalServerError("can't create invocation script", err)
 	}
-	return s.runScriptInVM(script), nil
+	return s.runScriptInVM(script, hashesForVerifying), nil
 }
 
 // invokescript implements the `invokescript` RPC call.
@@ -1106,13 +1119,27 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 		return nil, response.ErrInvalidParams
 	}
 
-	return s.runScriptInVM(script), nil
+	hashesForVerifying, err := reqParams.ValueWithType(1, request.ArrayT).GetArrayUint160FromHex()
+	if err != nil {
+		return nil, response.ErrInvalidParams
+	}
+
+	return s.runScriptInVM(script, hashesForVerifying), nil
 }
 
 // runScriptInVM runs given script in a new test VM and returns the invocation
 // result.
-func (s *Server) runScriptInVM(script []byte) *result.Invoke {
-	vm := s.chain.GetTestVM()
+func (s *Server) runScriptInVM(script []byte, scriptHashesForVerifying []util.Uint160) *result.Invoke {
+	var tx *transaction.Transaction
+	if count := len(scriptHashesForVerifying); count != 0 {
+		tx := new(transaction.Transaction)
+		tx.Attributes = make([]transaction.Attribute, count)
+		for i, a := range tx.Attributes {
+			a.Data = scriptHashesForVerifying[i].BytesBE()
+			a.Usage = transaction.Script
+		}
+	}
+	vm := s.chain.GetTestVM(tx)
 	vm.SetGasLimit(s.config.MaxGasInvoke)
 	vm.LoadScript(script)
 	_ = vm.Run()

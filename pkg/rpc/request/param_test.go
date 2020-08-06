@@ -185,6 +185,24 @@ func TestParam_GetUint160FromAddressOrHex(t *testing.T) {
 	})
 }
 
+func TestParam_GetArrayUint160FromHex(t *testing.T) {
+	in1 := util.Uint160{1, 2, 3}
+	in2 := util.Uint160{4, 5, 6}
+	p := Param{Type: ArrayT, Value: []Param{
+		{
+			Type:  StringT,
+			Value: in1.StringLE(),
+		},
+		{
+			Type:  StringT,
+			Value: in2.StringLE(),
+		},
+	}}
+	arr, err := p.GetArrayUint160FromHex()
+	require.NoError(t, err)
+	require.Equal(t, []util.Uint160{in1, in2}, arr)
+}
+
 func TestParamGetFuncParam(t *testing.T) {
 	fp := FuncParam{
 		Type: smartcontract.StringType,

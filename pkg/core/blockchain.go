@@ -2450,8 +2450,8 @@ func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([
 }
 
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
-func (bc *Blockchain) GetTestVM() *vm.VM {
-	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, nil)
+func (bc *Blockchain) GetTestVM(tx *transaction.Transaction) *vm.VM {
+	systemInterop := bc.newInteropContext(trigger.Application, bc.dao, nil, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(getPrice)
 	return vm
