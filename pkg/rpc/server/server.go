@@ -726,9 +726,8 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		Received: []result.NEP5Transfer{},
 		Sent:     []result.NEP5Transfer{},
 	}
-	lg := s.chain.GetNEP5TransferLog(u)
 	tr := new(state.NEP5Transfer)
-	err = lg.ForEach(state.NEP5TransferSize, tr, func() error {
+	err = s.chain.ForEachNEP5Transfer(u, tr, func() error {
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     tr.Asset,
