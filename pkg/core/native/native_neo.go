@@ -96,6 +96,11 @@ func NewNEO() *NEO {
 	md = newMethodAndPrice(n.registerCandidate, 5000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
+	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
+		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
+	md = newMethodAndPrice(n.unregisterCandidate, 5000000, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
@@ -234,6 +239,28 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c.Registered = true
 		si.Value = c.Bytes()
 	}
+	return ic.DAO.PutStorageItem(n.ContractID, key, si)
+}
+
+func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	err := n.UnregisterCandidateInternal(ic, toPublicKey(args[0]))
+	return stackitem.NewBool(err == nil)
+}
+
+// UnregisterCandidateInternal unregisters pub as a candidate.
+func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
+	key := makeValidatorKey(pub)
+	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	if si == nil {
+		return nil
+	}
+	n.validators.Store(keys.PublicKeys(nil))
+	c := new(candidate).FromBytes(si.Value)
+	if c.Votes.Sign() == 0 {
+		return ic.DAO.DeleteStorageItem(n.ContractID, key)
+	}
+	c.Registered = false
+	si.Value = c.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 

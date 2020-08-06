@@ -92,4 +92,13 @@ func TestNEO_Vote(t *testing.T) {
 	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
 	require.NoError(t, err)
 	require.Equal(t, candidates, pubs)
+
+	require.NoError(t, neo.UnregisterCandidateInternal(ic, candidates[0]))
+	require.Error(t, neo.VoteInternal(ic, h, candidates[0]))
+
+	pubs, err = neo.GetValidatorsInternal(bc, ic.DAO)
+	require.NoError(t, err)
+	for i := range pubs {
+		require.NotEqual(t, candidates[0], pubs[i])
+	}
 }
