@@ -223,7 +223,14 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	err := n.RegisterCandidateInternal(ic, toPublicKey(args[0]))
+	pub := toPublicKey(args[0])
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return stackitem.NewBool(false)
+	}
+	err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)
 }
 
@@ -243,7 +250,14 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	err := n.UnregisterCandidateInternal(ic, toPublicKey(args[0]))
+	pub := toPublicKey(args[0])
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return stackitem.NewBool(false)
+	}
+	err = n.UnregisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)
 }
 
