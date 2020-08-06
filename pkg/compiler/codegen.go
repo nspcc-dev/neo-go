@@ -465,7 +465,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					c.emitStoreVar(t.X.(*ast.Ident).Name, t.Sel.Name)
 					return nil
 				}
-				strct, ok := typ.Underlying().(*types.Struct)
+				strct, ok := c.getStruct(typ)
 				if !ok {
 					c.prog.Err = fmt.Errorf("nested selector assigns not supported yet")
 					return nil
@@ -637,6 +637,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.emitLoadConst(c.typeAndValueOf(n))
 		return nil
 
+	case *ast.StarExpr:
+		_, ok := c.getStruct(c.typeOf(n.X))
+		if !ok {
+			c.prog.Err = errors.New("dereferencing is only supported on structs")
+			return nil
+		}
+		ast.Walk(c, n.X)
+		c.emitConvert(stackitem.StructT)
+		return nil
+
 	case *ast.Ident:
 		if tv := c.typeAndValueOf(n); tv.Value != nil {
 			c.emitLoadConst(tv)
@@ -650,7 +660,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	case *ast.CompositeLit:
 		switch typ := c.typeOf(n).Underlying().(type) {
 		case *types.Struct:
-			c.convertStruct(n)
+			c.convertStruct(n, false)
 		case *types.Map:
 			c.convertMap(n)
 		default:
@@ -810,6 +820,18 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		// Handle the arguments
 		for _, arg := range args {
 			ast.Walk(c, arg)
+			typ := c.typeOf(arg)
+			_, ok := typ.Underlying().(*types.Struct)
+			if ok && !isInteropPath(typ.String()) {
+				// To clone struct fields we create a new array and append struct to it.
+				// This way even non-pointer struct fields will be copied.
+				emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY0)
+				emit.Opcode(c.prog.BinWriter, opcode.DUP)
+				emit.Opcode(c.prog.BinWriter, opcode.ROT)
+				emit.Opcode(c.prog.BinWriter, opcode.APPEND)
+				emit.Opcode(c.prog.BinWriter, opcode.PUSH0)
+				emit.Opcode(c.prog.BinWriter, opcode.PICKITEM)
+			}
 		}
 		// Do not swap for builtin functions.
 		if !isBuiltin {
@@ -862,7 +884,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 			return nil
 		}
-		strct, ok := typ.Underlying().(*types.Struct)
+		strct, ok := c.getStruct(typ)
 		if !ok {
 			c.prog.Err = fmt.Errorf("selectors are supported only on structs")
 			return nil
@@ -873,6 +895,19 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.UnaryExpr:
+		if n.Op == token.AND {
+			// We support only taking address from struct literals.
+			// For identifiers we can't support "taking address" in a general way
+			// because both struct and array are reference types.
+			lit, ok := n.X.(*ast.CompositeLit)
+			if ok {
+				c.convertStruct(lit, true)
+				return nil
+			}
+			c.prog.Err = fmt.Errorf("'&' can be used only with struct literals")
+			return nil
+		}
+
 		ast.Walk(c, n.X)
 		// From https://golang.org/ref/spec#Operators
 		// there can be only following unary operators
@@ -1352,7 +1387,19 @@ func (c *codegen) convertMap(lit *ast.CompositeLit) {
 	}
 }
 
-func (c *codegen) convertStruct(lit *ast.CompositeLit) {
+func (c *codegen) getStruct(typ types.Type) (*types.Struct, bool) {
+	switch t := typ.Underlying().(type) {
+	case *types.Struct:
+		return t, true
+	case *types.Pointer:
+		strct, ok := t.Elem().Underlying().(*types.Struct)
+		return strct, ok
+	default:
+		return nil, false
+	}
+}
+
+func (c *codegen) convertStruct(lit *ast.CompositeLit, ptr bool) {
 	// Create a new structScope to initialize and store
 	// the positions of its variables.
 	strct, ok := c.typeOf(lit).Underlying().(*types.Struct)
@@ -1363,7 +1410,11 @@ func (c *codegen) convertStruct(lit *ast.CompositeLit) {
 
 	emit.Opcode(c.prog.BinWriter, opcode.NOP)
 	emit.Int(c.prog.BinWriter, int64(strct.NumFields()))
-	emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	if ptr {
+		emit.Opcode(c.prog.BinWriter, opcode.NEWARRAY)
+	} else {
+		emit.Opcode(c.prog.BinWriter, opcode.NEWSTRUCT)
+	}
 
 	keyedLit := len(lit.Elts) > 0
 	if keyedLit {
