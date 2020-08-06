@@ -917,8 +917,8 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	}
 	err = s.chain.AddBlock(b)
 	if err != nil {
-		switch err {
-		case core.ErrInvalidBlockIndex, core.ErrAlreadyExists:
+		switch {
+		case errors.Is(err, core.ErrInvalidBlockIndex) || errors.Is(err, core.ErrAlreadyExists):
 			return nil, response.ErrAlreadyExists
 		default:
 			return nil, response.ErrValidationFailed

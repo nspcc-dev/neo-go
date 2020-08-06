@@ -3,6 +3,7 @@ package native
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -510,21 +511,21 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 
 // CheckPolicy checks whether transaction's script hashes for verifying are
 // included into blocked accounts list.
-func (p *Policy) CheckPolicy(ic *interop.Context, tx *transaction.Transaction) (bool, error) {
+func (p *Policy) CheckPolicy(ic *interop.Context, tx *transaction.Transaction) error {
 	ba, err := p.GetBlockedAccountsInternal(ic.DAO)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("unable to get blocked accounts list: %w", err)
 	}
 	scriptHashes, err := ic.Chain.GetScriptHashesForVerifying(tx)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("unable to get tx script hashes: %w", err)
 	}
 	for _, acc := range ba {
 		for _, hash := range scriptHashes {
 			if acc.Equals(hash) {
-				return false, nil
+				return fmt.Errorf("account %s is blocked", hash.StringLE())
 			}
 		}
 	}
-	return true, nil
+	return nil
 }

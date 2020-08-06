@@ -420,7 +420,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
-		return ErrInvalidBlockIndex
+		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
 	}
 
 	headerLen := bc.headerListLen()
@@ -1367,23 +1367,22 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	defer bc.lock.RUnlock()
 
 	if bc.HasTransaction(t.Hash()) {
-		return ErrAlreadyExists
+		return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
 	}
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
 	}
 	// Policying.
-	if ok, err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
-		return err
-	} else if !ok {
-		return ErrPolicy
+	if err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
+		// Only one %w can be used.
+		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
 	if err := bc.memPool.Add(t, bc); err != nil {
 		switch err {
 		case mempool.ErrOOM:
 			return ErrOOM
 		case mempool.ErrConflict:
-			return ErrAlreadyExists
+			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
 		default:
 			return err
 		}
