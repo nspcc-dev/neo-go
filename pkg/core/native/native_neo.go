@@ -227,10 +227,13 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ContractID, key)
 	if si == nil {
-		si = new(state.StorageItem)
+		c := &candidate{Registered: true}
+		si = &state.StorageItem{Value: c.Bytes()}
+	} else {
+		c := new(candidate).FromBytes(si.Value)
+		c.Registered = true
+		si.Value = c.Bytes()
 	}
-	c := &candidate{Registered: true}
-	si.Value = c.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
