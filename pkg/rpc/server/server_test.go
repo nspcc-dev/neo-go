@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -150,14 +151,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 		{
+			name:   "invalid timestamp",
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
+			fail:   true,
+		},
+		{
 			name:   "positive",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `"]`,
+			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check:  checkNep5Transfers,
 		},
 		{
 			name:   "positive_hash",
-			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
+			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `", 0]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check:  checkNep5Transfers,
 		},
@@ -887,6 +893,24 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		assert.ElementsMatch(t, expected, actual)
 	})
+
+	t.Run("getnep5transfers", func(t *testing.T) {
+		ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
+		h, err := e.chain.GetHeader(e.chain.GetHeaderHash(4))
+		require.NoError(t, err)
+		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
+		h, err = e.chain.GetHeader(e.chain.GetHeaderHash(5))
+		require.NoError(t, err)
+		ps = append(ps, strconv.FormatUint(h.Timestamp, 10))
+
+		p := strings.Join(ps, ", ")
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		res := checkErrGetResult(t, body, false)
+		actual := new(result.NEP5Transfers)
+		require.NoError(t, json.Unmarshal(res, actual))
+		checkNep5TransfersAux(t, e, actual, 4, 5)
+	})
 }
 
 func (e *executor) getHeader(s string) *block.Header {
@@ -1011,6 +1035,10 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
+	checkNep5TransfersAux(t, e, acc, 0, e.chain.HeaderHeight())
+}
+
+func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, start, end uint32) {
 	res, ok := acc.(*result.NEP5Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
@@ -1035,15 +1063,6 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 	expected := result.NEP5Transfers{
 		Sent: []result.NEP5Transfer{
 			{
-				Timestamp:   blockSendRubles.Timestamp,
-				Asset:       rublesHash,
-				Address:     testchain.PrivateKeyByID(1).Address(),
-				Amount:      "1.23",
-				Index:       6,
-				NotifyIndex: 0,
-				TxHash:      txSendRublesHash,
-			},
-			{
 				Timestamp:   blockSendNEO.Timestamp,
 				Asset:       e.chain.GoverningTokenHash(),
 				Address:     testchain.PrivateKeyByID(1).Address(),
@@ -1051,6 +1070,15 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 				Index:       4,
 				NotifyIndex: 0,
 				TxHash:      txSendNEOHash,
+			},
+			{
+				Timestamp:   blockSendRubles.Timestamp,
+				Asset:       rublesHash,
+				Address:     testchain.PrivateKeyByID(1).Address(),
+				Amount:      "1.23",
+				Index:       6,
+				NotifyIndex: 0,
+				TxHash:      txSendRublesHash,
 			},
 		},
 		Received: []result.NEP5Transfer{
@@ -1127,6 +1155,20 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 		}
 	}
 	require.Equal(t, expected.Address, res.Address)
-	require.ElementsMatch(t, expected.Sent, res.Sent)
-	require.ElementsMatch(t, expected.Received, res.Received)
+
+	arr := make([]result.NEP5Transfer, 0, len(expected.Sent))
+	for i := range expected.Sent {
+		if expected.Sent[i].Index >= start && expected.Sent[i].Index <= end {
+			arr = append(arr, expected.Sent[i])
+		}
+	}
+	require.ElementsMatch(t, arr, res.Sent)
+
+	arr = arr[:0]
+	for i := range expected.Received {
+		if expected.Received[i].Index >= start && expected.Received[i].Index <= end {
+			arr = append(arr, expected.Received[i])
+		}
+	}
+	require.ElementsMatch(t, arr, res.Received)
 }

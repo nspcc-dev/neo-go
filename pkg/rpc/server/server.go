@@ -530,10 +530,41 @@ func (s *Server) getNEP5Balances(ps request.Params) (interface{}, *response.Erro
 	return bs, nil
 }
 
+func getTimestamps(p1, p2 *request.Param) (uint64, uint64, error) {
+	var start, end uint64
+	if p1 != nil {
+		val, err := p1.GetInt()
+		if err != nil {
+			return 0, 0, err
+		}
+		start = uint64(val)
+	}
+	if p2 != nil {
+		val, err := p2.GetInt()
+		if err != nil {
+			return 0, 0, err
+		}
+		end = uint64(val)
+	}
+	return start, end, nil
+}
+
 func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, response.ErrInvalidParams
+	}
+
+	p1, p2 := ps.Value(1), ps.Value(2)
+	start, end, err := getTimestamps(p1, p2)
+	if err != nil {
+		return nil, response.NewInvalidParamsError(err.Error(), err)
+	}
+	if p2 == nil {
+		end = uint64(time.Now().Unix() * 1000)
+		if p1 == nil {
+			start = uint64(time.Now().Add(-time.Hour*24*7).Unix() * 1000)
+		}
 	}
 
 	bs := &result.NEP5Transfers{
@@ -543,6 +574,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	}
 	cache := make(map[int32]decimals)
 	err = s.chain.ForEachNEP5Transfer(u, func(tr *state.NEP5Transfer) error {
+		if tr.Timestamp < start || tr.Timestamp > end {
+			return nil
+		}
 		d, err := s.getDecimals(tr.Asset, cache)
 		if err != nil {
 			return nil
