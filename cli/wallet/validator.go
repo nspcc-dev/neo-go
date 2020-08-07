@@ -16,6 +16,34 @@ import (
 func newValidatorCommands() []cli.Command {
 	return []cli.Command{
 		{
+			Name:      "register",
+			Usage:     "register as a new candidate",
+			UsageText: "register -w <path> -r <rpc> -a <addr>",
+			Action:    handleRegister,
+			Flags: append([]cli.Flag{
+				walletPathFlag,
+				gasFlag,
+				flags.AddressFlag{
+					Name:  "address, a",
+					Usage: "Address to register",
+				},
+			}, options.RPC...),
+		},
+		{
+			Name:      "unregister",
+			Usage:     "unregister self as a candidate",
+			UsageText: "unregister -w <path> -r <rpc> -a <addr>",
+			Action:    handleUnregister,
+			Flags: append([]cli.Flag{
+				walletPathFlag,
+				gasFlag,
+				flags.AddressFlag{
+					Name:  "address, a",
+					Usage: "Address to unregister",
+				},
+			}, options.RPC...),
+		},
+		{
 			Name:      "vote",
 			Usage:     "vote for a validator",
 			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] -a <addr> -c <public key>",
@@ -34,6 +62,60 @@ func newValidatorCommands() []cli.Command {
 			}, options.RPC...),
 		},
 	}
+}
+
+func handleRegister(ctx *cli.Context) error {
+	return handleCandidate(ctx, "registerCandidate")
+}
+
+func handleUnregister(ctx *cli.Context) error {
+	return handleCandidate(ctx, "unregisterCandidate")
+}
+
+func handleCandidate(ctx *cli.Context, method string) error {
+	wall, err := openWallet(ctx.String("wallet"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	addr := addrFlag.Uint160()
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addrFlag), 1)
+	}
+
+	if pass, err := readPassword("Password > "); err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err := acc.Decrypt(pass); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	gctx, cancel := options.GetTimeoutContext(ctx)
+	defer cancel()
+
+	c, err := options.GetRPCClient(gctx, ctx)
+	if err != nil {
+		return err
+	}
+
+	gas := flags.Fixed8FromContext(ctx, "gas")
+	w := io.NewBufBinWriter()
+	emit.AppCallWithOperationAndArgs(w.BinWriter, client.NeoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
+	emit.Opcode(w.BinWriter, opcode.ASSERT)
+	tx, err := c.CreateTxFromScript(w.Bytes(), acc, int64(gas))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	} else if err = acc.SignTx(tx); err != nil {
+		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
+	}
+
+	res, err := c.SendRawTransaction(tx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(res.StringLE())
+	return nil
 }
 
 func handleVote(ctx *cli.Context) error {
