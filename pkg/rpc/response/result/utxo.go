@@ -7,7 +7,6 @@ type UTXO struct {
 	Index     uint32       `json:"block_index"`
 	Timestamp uint32       `json:"timestamp"`
 	TxHash    util.Uint256 `json:"txid"`
-	Address   util.Uint160 `json:"transfer_address"`
 	Amount    int64        `json:"amount,string"`
 }
 

@@ -1285,21 +1285,36 @@ func checkTransfers(t *testing.T, e *executor, acc interface{}, asset string, st
 	require.Equal(t, res.Address, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs")
 
 	// transfer from multisig address to us
-	u := getUTXOForBlock(res, false, asset, 1)
+	u := getUTXOForBlock(res, false, "neo", 1)
 	if start <= 1 && (stop == 0 || stop >= 1) && (asset == "neo" || asset == "") {
 		require.NotNil(t, u)
-		require.Equal(t, "be48d3a3f5d10013ab9ffee489706078714f1ea2", u.Address.StringBE())
 		require.EqualValues(t, int64(util.Fixed8FromInt64(99999000)), u.Amount)
 	} else {
 		require.Nil(t, u)
 	}
 
+	// gas claim
+	u = getUTXOForBlock(res, false, "gas", 203)
+	if start <= 203 && (stop == 0 || stop >= 203) && (asset == "gas" || asset == "") {
+		require.NotNil(t, u)
+		require.EqualValues(t, int64(160798392000), u.Amount)
+	} else {
+		require.Nil(t, u)
+	}
+
 	// transfer from us to another validator
-	u = getUTXOForBlock(res, true, asset, 206)
+	u = getUTXOForBlock(res, true, "neo", 206)
 	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
 		require.NotNil(t, u)
-		require.Equal(t, "9fbf833320ef6bc52ddee1fe6f5793b42e9b307e", u.Address.StringBE())
-		require.EqualValues(t, int64(util.Fixed8FromInt64(1000)), u.Amount)
+		require.EqualValues(t, int64(util.Fixed8FromInt64(99999000)), u.Amount)
+	} else {
+		require.Nil(t, u)
+	}
+
+	u = getUTXOForBlock(res, false, "neo", 206)
+	if start <= 206 && (stop == 0 || stop >= 206) && (asset == "neo" || asset == "") {
+		require.NotNil(t, u)
+		require.EqualValues(t, int64(util.Fixed8FromInt64(99998000)), u.Amount)
 	} else {
 		require.Nil(t, u)
 	}
