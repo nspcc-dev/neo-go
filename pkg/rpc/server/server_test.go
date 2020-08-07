@@ -1138,7 +1138,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			if asset != "" {
 				ps = append(ps, fmt.Sprintf("%q", asset))
 			}
-			if start != 0 {
+			if start >= 0 {
 				if start > int(e.chain.HeaderHeight()) {
 					ps = append(ps, strconv.Itoa(int(time.Now().Unix())))
 				} else {
