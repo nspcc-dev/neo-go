@@ -192,14 +192,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 		{
+			name:   "invalid timestamp",
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", "notanumber"]`,
+			fail:   true,
+		},
+		{
 			name:   "positive",
-			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"]`,
+			params: `["AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", 0]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check:  checkNep5Transfers,
 		},
 		{
 			name:   "positive_hash",
-			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b"]`,
+			params: `["a90f00d94349a320376b7cb86c884b53ad76aa2b", 0]`,
 			result: func(e *executor) interface{} { return &result.NEP5Transfers{} },
 			check:  checkNep5Transfers,
 		},
@@ -1133,7 +1138,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			if asset != "" {
 				ps = append(ps, fmt.Sprintf("%q", asset))
 			}
-			if start != 0 {
+			if start >= 0 {
 				if start > int(e.chain.HeaderHeight()) {
 					ps = append(ps, strconv.Itoa(int(time.Now().Unix())))
 				} else {
@@ -1158,6 +1163,24 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("RestrictByAsset", func(t *testing.T) { testGetUTXO(t, "neo", 0, 0) })
 		t.Run("TooBigStart", func(t *testing.T) { testGetUTXO(t, "", 300, 0) })
 		t.Run("RestrictAll", func(t *testing.T) { testGetUTXO(t, "", 202, 203) })
+	})
+
+	t.Run("getnep5transfers", func(t *testing.T) {
+		ps := []string{`"AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs"`}
+		h, err := e.chain.GetHeader(e.chain.GetHeaderHash(207))
+		require.NoError(t, err)
+		ps = append(ps, strconv.Itoa(int(h.Timestamp)))
+		h, err = e.chain.GetHeader(e.chain.GetHeaderHash(208))
+		require.NoError(t, err)
+		ps = append(ps, strconv.Itoa(int(h.Timestamp)))
+
+		p := strings.Join(ps, ", ")
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep5transfers", "params": [%s]}`, p)
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		res := checkErrGetResult(t, body, false)
+		actual := new(result.NEP5Transfers)
+		require.NoError(t, json.Unmarshal(res, actual))
+		checkNep5TransfersAux(t, e, actual, true)
 	})
 }
 
@@ -1214,6 +1237,10 @@ func checkNep5Balances(t *testing.T, e *executor, acc interface{}) {
 }
 
 func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
+	checkNep5TransfersAux(t, e, acc, false)
+}
+
+func checkNep5TransfersAux(t *testing.T, e *executor, acc interface{}, onlyFirst bool) {
 	res, ok := acc.(*result.NEP5Transfers)
 	require.True(t, ok)
 	require.Equal(t, "AKkkumHbBipZ46UMZJoFynJMXzSRnBvKcs", res.Address)
@@ -1224,20 +1251,27 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 	assetHashOld, err := util.Uint160DecodeStringLE(testContractHashOld)
 	require.NoError(t, err)
 
-	require.Equal(t, 3, len(res.Received))
+	if onlyFirst {
+		require.Equal(t, 1, len(res.Received))
+	} else {
+		require.Equal(t, 3, len(res.Received))
+	}
+
 	require.Equal(t, "1000", res.Received[0].Amount)
 	require.Equal(t, assetHashOld, res.Received[0].Asset)
 	require.Equal(t, address.Uint160ToString(assetHashOld), res.Received[0].Address)
 
-	require.Equal(t, "2", res.Received[1].Amount)
-	require.Equal(t, assetHash, res.Received[1].Asset)
-	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[1].Address)
-	require.Equal(t, uint32(0), res.Received[1].NotifyIndex)
+	if !onlyFirst {
+		require.Equal(t, "2", res.Received[1].Amount)
+		require.Equal(t, assetHash, res.Received[1].Asset)
+		require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[1].Address)
+		require.Equal(t, uint32(0), res.Received[1].NotifyIndex)
 
-	require.Equal(t, "1", res.Received[2].Amount)
-	require.Equal(t, assetHash, res.Received[2].Asset)
-	require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[2].Address)
-	require.Equal(t, uint32(1), res.Received[2].NotifyIndex)
+		require.Equal(t, "1", res.Received[2].Amount)
+		require.Equal(t, assetHash, res.Received[2].Asset)
+		require.Equal(t, "AWLYWXB8C9Lt1nHdDZJnC5cpYJjgRDLk17", res.Received[2].Address)
+		require.Equal(t, uint32(1), res.Received[2].NotifyIndex)
+	}
 
 	require.Equal(t, 1, len(res.Sent))
 	require.Equal(t, "123", res.Sent[0].Amount)

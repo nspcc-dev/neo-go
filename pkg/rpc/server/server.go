@@ -516,9 +516,16 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		index++
 	}
 
-	start, end, err := getTimestamps(ps.Value(index), ps.Value(index+1))
+	p1, p2 := ps.Value(index), ps.Value(index+1)
+	start, end, err := getTimestamps(p1, p2)
 	if err != nil {
 		return nil, response.NewInvalidParamsError("", err)
+	}
+	if p2 == nil {
+		end = uint32(time.Now().Unix())
+		if p1 == nil {
+			start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
+		}
 	}
 
 	sent, recv, err := getAssetMaps(assetName)
@@ -721,6 +728,18 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 		return nil, response.ErrInvalidParams
 	}
 
+	p1, p2 := ps.Value(1), ps.Value(2)
+	start, end, err := getTimestamps(p1, p2)
+	if err != nil {
+		return nil, response.NewInvalidParamsError("", err)
+	}
+	if p2 == nil {
+		end = uint32(time.Now().Unix())
+		if p1 == nil {
+			start = uint32(time.Now().Add(-time.Hour * 24 * 7).Unix())
+		}
+	}
+
 	bs := &result.NEP5Transfers{
 		Address:  address.Uint160ToString(u),
 		Received: []result.NEP5Transfer{},
@@ -728,6 +747,9 @@ func (s *Server) getNEP5Transfers(ps request.Params) (interface{}, *response.Err
 	}
 	tr := new(state.NEP5Transfer)
 	err = s.chain.ForEachNEP5Transfer(u, tr, func() error {
+		if tr.Timestamp < start || tr.Timestamp > end {
+			return nil
+		}
 		transfer := result.NEP5Transfer{
 			Timestamp: tr.Timestamp,
 			Asset:     tr.Asset,
