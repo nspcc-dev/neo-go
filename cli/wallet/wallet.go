@@ -207,15 +207,8 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError("address was not provided", 1)
 	}
 	scriptHash := addrFlag.Uint160()
-	acc := wall.GetAccount(scriptHash)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", addrFlag), 1)
-	}
-
-	pass, err := readPassword("Enter password > ")
+	acc, err := getDecryptedAccount(wall, scriptHash)
 	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 

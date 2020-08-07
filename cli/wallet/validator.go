@@ -6,10 +6,13 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
 
@@ -80,14 +83,8 @@ func handleCandidate(ctx *cli.Context, method string) error {
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc := wall.GetAccount(addr)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addrFlag), 1)
-	}
-
-	if pass, err := readPassword("Password > "); err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
+	acc, err := getDecryptedAccount(wall, addr)
+	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -126,9 +123,9 @@ func handleVote(ctx *cli.Context) error {
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	addr := addrFlag.Uint160()
-	acc := wall.GetAccount(addr)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addrFlag), 1)
+	acc, err := getDecryptedAccount(wall, addr)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	var pub *keys.PublicKey
@@ -163,12 +160,6 @@ func handleVote(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	if pass, err := readPassword("Password > "); err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	if err = acc.SignTx(tx); err != nil {
 		return cli.NewExitError(fmt.Errorf("can't sign tx: %v", err), 1)
 	}
@@ -179,4 +170,18 @@ func handleVote(ctx *cli.Context) error {
 	}
 	fmt.Println(res.StringLE())
 	return nil
+}
+
+func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
+	}
+
+	if pass, err := readPassword("Password > "); err != nil {
+		return nil, err
+	} else if err := acc.Decrypt(pass); err != nil {
+		return nil, err
+	}
+	return acc, nil
 }

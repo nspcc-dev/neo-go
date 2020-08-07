@@ -50,9 +50,9 @@ func signMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
 	}
-	acc := wall.GetAccount(sh)
-	if acc == nil {
-		return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", addr), 1)
+	acc, err := getDecryptedAccount(wall, sh)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	tx, ok := c.Verifiable.(*transaction.Transaction)
@@ -60,13 +60,6 @@ func signMultisig(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 	printTxInfo(tx)
-	fmt.Println("Enter password to unlock wallet and sign the transaction")
-	pass, err := readPassword("Password > ")
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't unlock an account: %w", err), 1)
-	}
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
