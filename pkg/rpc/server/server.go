@@ -541,24 +541,16 @@ func (s *Server) getUTXOTransfers(ps request.Params) (interface{}, *response.Err
 		if !tr.IsGoverning {
 			assetID = core.UtilityTokenID()
 		}
-		a, ok := sent[assetID]
-		if ok && tr.From.Equals(addr) && !tr.To.Equals(addr) {
-			a.Transactions = append(a.Transactions, result.UTXO{
-				Index:     tr.Block,
-				Timestamp: tr.Timestamp,
-				TxHash:    tr.Tx,
-				Address:   tr.To,
-				Amount:    tr.Amount,
-			})
-			a.TotalAmount += tr.Amount
+		m := recv
+		if tr.IsSent {
+			m = sent
 		}
-		a, ok = recv[assetID]
-		if ok && tr.To.Equals(addr) && !tr.From.Equals(addr) {
+		a, ok := m[assetID]
+		if ok {
 			a.Transactions = append(a.Transactions, result.UTXO{
 				Index:     tr.Block,
 				Timestamp: tr.Timestamp,
 				TxHash:    tr.Tx,
-				Address:   tr.From,
 				Amount:    tr.Amount,
 			})
 			a.TotalAmount += tr.Amount
