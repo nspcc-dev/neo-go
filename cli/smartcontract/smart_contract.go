@@ -68,6 +68,9 @@ import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 func Main(op string, args []interface{}) {
     runtime.Notify("Hello world!")
 }`
+
+	// hashesForVerifyingSeparator delimits `invoke*` parameters from hashes for verifying
+	hashesForVerifyingSeparator = "--"
 )
 
 // NewCommands returns 'contract' command.
@@ -169,8 +172,9 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvoke",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvoke -e endpoint scripthash [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given arguments.
+				UsageText: "neo-go contract testinvoke -e endpoint scripthash [arguments...] [-- hashesForVerifying...]",
+				Description: `Executes given (as a script hash) deployed script with the given arguments
+   and hashes to verify using runtime.CheckWitness syscall.
    It's very similar to the tesinvokefunction command, but differs in the way
    arguments are being passed. This invoker does not accept method parameter
    and it passes all given parameters as plain values to the contract, not
@@ -189,13 +193,14 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...]",
-				Description: `Executes given (as a script hash) deployed script with the given method and
-   arguments. If no method is given "" is passed to the script, if no arguments
-   are given, an empty array is passed. All of the given arguments are
-   encapsulated into array before invoking the script. The script thus should
-   follow the regular convention of smart contract arguments (method string and
-   an array of other arguments).
+				UsageText: "neo-go contract testinvokefunction -e endpoint scripthash [method] [arguments...] [-- hashesForVerifying...]",
+				Description: `Executes given (as a script hash) deployed script with the given method,
+   arguments and hashes to verify using System.Runtime.CheckWitness syscall.
+   If no method is given "" is passed to the script, if no arguments
+   are given, an empty array is passed, if no hashes are given, no array is
+   passed. All of the given arguments are encapsulated into array before 
+   invoking the script. The script thus should follow the regular convention 
+   of smart contract arguments (method string and an array of other arguments).
 
    Arguments always do have regular Neo smart contract parameter types, either
    specified explicitly or being inferred from the value. To specify the type
@@ -251,6 +256,15 @@ func NewCommands() []cli.Command {
     * 'string\:string' is a string with a value of 'string:string'
     * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
       key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+
+   HashesForVerifying represent a set of Uint160 hashes which are used to verify 
+   hashes in System.Runtime.CheckWitness syscall. To specify hash use its 
+   hex-encoded 160 bit (20 byte) LE representation with optional '0x' prefix. 
+   If no hashes were specified, no array is passed.
+
+   Examples:
+    * '0000000009070e030d0f0e020d0c06050e030c02'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02'
 `,
 				Action: testInvokeFunction,
 				Flags: []cli.Flag{
@@ -258,9 +272,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "testinvokescript",
-				Usage:  "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
-				Action: testInvokeScript,
+				Name:      "testinvokescript",
+				Usage:     "Invoke compiled AVM code on the blockchain (test mode, not creating a transaction for it)",
+				UsageText: "neo-go contract testinvokescript -e endpoint -i testcontract.avm [-- hashesForVerifying...]",
+				Action:    testInvokeScript,
 				Flags: []cli.Flag{
 					endpointFlag,
 					cli.StringFlag{
@@ -407,13 +422,15 @@ func invokeFunction(ctx *cli.Context) error {
 
 func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	var (
-		err         error
-		gas         util.Fixed8
-		operation   string
-		params      = make([]smartcontract.Parameter, 0)
-		paramsStart = 1
-		resp        *result.Invoke
-		acc         *wallet.Account
+		err                     error
+		gas                     util.Fixed8
+		operation               string
+		params                  = make([]smartcontract.Parameter, 0)
+		paramsStart             = 1
+		hashesForVerifying      []util.Uint160
+		hashesForVerifyingStart = 0
+		resp                    *result.Invoke
+		acc                     *wallet.Account
 	)
 
 	endpoint := ctx.String("endpoint")
@@ -435,11 +452,28 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	}
 	if len(args) > paramsStart {
 		for k, s := range args[paramsStart:] {
+			if s == hashesForVerifyingSeparator {
+				if signAndPush {
+					return cli.NewExitError("adding hashes for verifying available for test invokes only", 1)
+				}
+				hashesForVerifyingStart = paramsStart + k + 1
+				break
+			}
 			param, err := smartcontract.NewParameterFromString(s)
 			if err != nil {
 				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+paramsStart+1, err), 1)
 			}
 			params = append(params, *param)
+		}
+	}
+
+	if len(args) >= hashesForVerifyingStart && hashesForVerifyingStart > 0 {
+		for i, c := range args[hashesForVerifyingStart:] {
+			h, err := parseUint160(c)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse hash for verifying #%d: %v", i+1, err), 1)
+			}
+			hashesForVerifying = append(hashesForVerifying, h)
 		}
 	}
 
@@ -456,9 +490,9 @@ func invokeInternal(ctx *cli.Context, withMethod bool, signAndPush bool) error {
 	}
 
 	if withMethod {
-		resp, err = c.InvokeFunction(script, operation, params)
+		resp, err = c.InvokeFunction(script, operation, params, hashesForVerifying)
 	} else {
-		resp, err = c.Invoke(script, params)
+		resp, err = c.Invoke(script, params, hashesForVerifying)
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -503,13 +537,25 @@ func testInvokeScript(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	args := ctx.Args()
+	var hashesForVerifying []util.Uint160
+	if args.Present() {
+		for i, c := range args[:] {
+			h, err := parseUint160(c)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to parse hash for verifying #%d: %v", i+1, err), 1)
+			}
+			hashesForVerifying = append(hashesForVerifying, h)
+		}
+	}
+
 	c, err := client.New(context.TODO(), endpoint, client.Options{})
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	scriptHex := hex.EncodeToString(b)
-	resp, err := c.InvokeScript(scriptHex)
+	resp, err := c.InvokeScript(scriptHex, hashesForVerifying)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -522,6 +568,13 @@ func testInvokeScript(ctx *cli.Context) error {
 	fmt.Println(string(b))
 
 	return nil
+}
+
+func parseUint160(s string) (util.Uint160, error) {
+	if len(s) == 2*util.Uint160Size+2 && s[0] == '0' && s[1] == 'x' {
+		s = s[2:]
+	}
+	return util.Uint160DecodeStringLE(s)
 }
 
 // ProjectConfig contains project metadata.

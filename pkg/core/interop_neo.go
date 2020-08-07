@@ -602,7 +602,7 @@ func (ic *interopContext) contractMigrate(v *vm.VM) error {
 			ic.dao.MigrateNEP5Balances(hash, contract.ScriptHash())
 
 			// save NEP5 metadata if any
-			v := ic.bc.GetTestVM()
+			v := ic.bc.GetTestVM(nil)
 			w := io.NewBufBinWriter()
 			emit.AppCallWithOperationAndArgs(w.BinWriter, hash, "decimals")
 			v.SetGasLimit(ic.bc.GetConfig().FreeGasLimit)
