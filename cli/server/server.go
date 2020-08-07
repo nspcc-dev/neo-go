@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -198,7 +197,7 @@ func dumpDB(ctx *cli.Context) error {
 		bh := chain.GetHeaderHash(int(i))
 		b, err := chain.GetBlock(bh)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to get block %d: %s", i, err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to get block %d: %w", i, err), 1)
 		}
 		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
@@ -296,7 +295,7 @@ func restoreDB(ctx *cli.Context) error {
 		} else {
 			err = chain.AddBlock(block)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to add block %d: %s", i, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to add block %d: %w", i, err), 1)
 			}
 		}
 		if dumpDir != "" {
@@ -309,7 +308,7 @@ func restoreDB(ctx *cli.Context) error {
 			lastIndex = block.Index
 			if block.Index%1000 == 0 {
 				if err := dump.tryPersist(dumpDir, block.Index); err != nil {
-					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %v", err), 1)
+					return cli.NewExitError(fmt.Errorf("can't dump storage to file: %w", err), 1)
 				}
 			}
 		}
@@ -350,7 +349,7 @@ func startServer(ctx *cli.Context) error {
 
 	serv, err := network.NewServer(serverConfig, chain, log)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create network server: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
 	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, log)
 	errChan := make(chan error)
@@ -367,13 +366,13 @@ Main:
 	for {
 		select {
 		case err := <-errChan:
-			shutdownErr = errors.Wrap(err, "Error encountered by server")
+			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
 
 		case <-grace.Done():
 			serv.Shutdown()
 			if serverErr := rpcServer.Shutdown(); serverErr != nil {
-				shutdownErr = errors.Wrap(serverErr, "Error encountered whilst shutting down server")
+				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
 			}
 			prometheus.ShutDown()
 			pprof.ShutDown()
@@ -411,12 +410,12 @@ func configureAddresses(cfg config.ApplicationConfiguration) {
 func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %s", err), 1)
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
 	}
 
 	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %s", err), 1)
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}
 	return chain, nil
 }

@@ -55,11 +55,11 @@ func (d dump) normalize() {
 func compare(a, b string) error {
 	dumpA, err := readFile(a)
 	if err != nil {
-		return fmt.Errorf("reading file %s: %v", a, err)
+		return fmt.Errorf("reading file %s: %w", a, err)
 	}
 	dumpB, err := readFile(b)
 	if err != nil {
-		return fmt.Errorf("reading file %s: %v", b, err)
+		return fmt.Errorf("reading file %s: %w", b, err)
 	}
 	dumpA.normalize()
 	dumpB.normalize()
@@ -143,7 +143,7 @@ func cliMain(c *cli.Context) error {
 				bname := filepath.Join(b, fname)
 				err := compare(aname, bname)
 				if err != nil {
-					return fmt.Errorf("file %s: %v", fname, err)
+					return fmt.Errorf("file %s: %w", fname, err)
 				}
 			}
 		}

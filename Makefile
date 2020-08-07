@@ -26,7 +26,7 @@ build: deps
 	@set -x \
 		&& export GOGC=off \
 		&& export CGO_ENABLED=0 \
-		&& go build -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
+		&& go build -trimpath -v -mod=vendor -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
 
 neo-go.service: neo-go.service.template
 	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@

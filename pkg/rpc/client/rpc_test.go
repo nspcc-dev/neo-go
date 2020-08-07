@@ -28,7 +28,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -577,7 +576,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				addr, err := address.StringToUint160("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 				if err != nil {
-					panic(errors.Wrap(err, "failed to parse UnclaimedGas address"))
+					panic(fmt.Errorf("failed to parse UnclaimedGas address: %w", err))
 				}
 				return result.UnclaimedGas{
 					Address:   addr,
@@ -691,7 +690,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				h, err := util.Uint256DecodeStringLE("72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875")
 				if err != nil {
-					panic(fmt.Errorf("can't decode `sendrawtransaction` result hash: %v", err))
+					panic(fmt.Errorf("can't decode `sendrawtransaction` result hash: %w", err))
 				}
 				return h
 			},
@@ -711,7 +710,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				h, err := util.Uint256DecodeStringLE("1bdea8f80eb5bd97fade38d5e7fb93b02c9d3e01394e9f4324218132293f7ea6")
 				if err != nil {
-					panic(fmt.Errorf("can't decode `submitblock` result hash: %v", err))
+					panic(fmt.Errorf("can't decode `submitblock` result hash: %w", err))
 				}
 				return h
 			},

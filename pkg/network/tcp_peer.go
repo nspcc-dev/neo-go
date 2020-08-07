@@ -161,7 +161,7 @@ func (p *TCPPeer) handleConn() {
 			}
 			if err = p.server.handleMessage(p, msg); err != nil {
 				if p.Handshaked() {
-					err = fmt.Errorf("handling %s message: %v", msg.Command.String(), err)
+					err = fmt.Errorf("handling %s message: %w", msg.Command.String(), err)
 				}
 				break
 			}

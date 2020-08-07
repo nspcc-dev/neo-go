@@ -2,9 +2,8 @@ package request
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -60,11 +59,11 @@ func (r *In) DecodeData(data io.ReadCloser) error {
 
 	err := json.NewDecoder(data).Decode(r)
 	if err != nil {
-		return errors.Errorf("error parsing JSON payload: %s", err)
+		return fmt.Errorf("error parsing JSON payload: %w", err)
 	}
 
 	if r.JSONRPC != JSONRPCVersion {
-		return errors.Errorf("invalid version, expected 2.0 got: '%s'", r.JSONRPC)
+		return fmt.Errorf("invalid version, expected 2.0 got: '%s'", r.JSONRPC)
 	}
 
 	return nil
@@ -77,7 +76,7 @@ func (r *In) Params() (*Params, error) {
 
 	err := json.Unmarshal(r.RawParams, &params)
 	if err != nil {
-		return nil, errors.Errorf("error parsing params field in payload: %s", err)
+		return nil, fmt.Errorf("error parsing params: %w", err)
 	}
 
 	return &params, nil

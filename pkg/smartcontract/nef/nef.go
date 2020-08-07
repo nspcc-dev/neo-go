@@ -95,13 +95,13 @@ func GetVersion(version string) (Version, error) {
 	}
 	major, err := strconv.ParseInt(versions[0], 10, 32)
 	if err != nil {
-		return result, fmt.Errorf("failed to parse major version: %v", err)
+		return result, fmt.Errorf("failed to parse major version: %w", err)
 	}
 	result.Major = int32(major)
 
 	minor, err := strconv.ParseInt(versions[1], 10, 32)
 	if err != nil {
-		return result, fmt.Errorf("failed to parse minor version: %v", err)
+		return result, fmt.Errorf("failed to parse minor version: %w", err)
 
 	}
 	result.Minor = int32(minor)
@@ -112,7 +112,7 @@ func GetVersion(version string) (Version, error) {
 	}
 	build, err := strconv.ParseInt(b, 10, 32)
 	if err != nil {
-		return result, fmt.Errorf("failed to parse build version: %v", err)
+		return result, fmt.Errorf("failed to parse build version: %w", err)
 	}
 	result.Build = int32(build)
 
@@ -120,7 +120,7 @@ func GetVersion(version string) (Version, error) {
 		r := strings.SplitN(versions[3], "-", 2)[0]
 		revision, err := strconv.ParseInt(r, 10, 32)
 		if err != nil {
-			return result, fmt.Errorf("failed to parse revision version: %v", err)
+			return result, fmt.Errorf("failed to parse revision version: %w", err)
 		}
 		result.Revision = int32(revision)
 	}

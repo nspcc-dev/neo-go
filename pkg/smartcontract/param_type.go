@@ -3,6 +3,8 @@ package smartcontract
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 )
 
 // ParamType represents the Type of the smart contract parameter.
@@ -160,7 +161,7 @@ func ParseParamType(typ string) (ParamType, error) {
 	case "any":
 		return AnyType, nil
 	default:
-		return UnknownType, errors.Errorf("Unknown contract parameter type: %s", typ)
+		return UnknownType, fmt.Errorf("bad parameter type: %s", typ)
 	}
 }
 

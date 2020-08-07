@@ -1,9 +1,9 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -223,7 +222,7 @@ func (bc *Blockchain) init() error {
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
 	if err = bc.dao.InitMPT(bHeight); err != nil {
-		return errors.Wrapf(err, "can't init MPT at height %d", bHeight)
+		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
 	hashes, err := bc.dao.GetHeaderHashes()
@@ -263,7 +262,7 @@ func (bc *Blockchain) init() error {
 		for hash != targetHash {
 			header, err := bc.GetHeader(hash)
 			if err != nil {
-				return fmt.Errorf("could not get header %s: %s", hash, err)
+				return fmt.Errorf("could not get header %s: %w", hash, err)
 			}
 			headers = append(headers, header)
 			hash = header.PrevHash
@@ -420,7 +419,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
-		return ErrInvalidBlockIndex
+		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
 	}
 
 	headerLen := bc.headerListLen()
@@ -433,13 +432,13 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	if bc.config.VerifyBlocks {
 		err := block.Verify()
 		if err != nil {
-			return fmt.Errorf("block %s is invalid: %s", block.Hash().StringLE(), err)
+			return fmt.Errorf("block %s is invalid: %w", block.Hash().StringLE(), err)
 		}
 		if bc.config.VerifyTransactions {
 			for _, tx := range block.Transactions {
 				err := bc.VerifyTx(tx, block)
 				if err != nil {
-					return fmt.Errorf("transaction %s failed to verify: %s", tx.Hash().StringLE(), err)
+					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
 				}
 			}
 		}
@@ -478,7 +477,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) (err err
 		// Verify that the chain of the headers is consistent.
 		var lastHeader *block.Header
 		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
-			return fmt.Errorf("previous header was not found: %v", err)
+			return fmt.Errorf("previous header was not found: %w", err)
 		}
 		for _, h := range headers {
 			if err = bc.verifyHeader(h, lastHeader); err != nil {
@@ -579,9 +578,9 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		v.LoadScriptWithFlags(bc.contracts.GetPersistScript(), smartcontract.AllowModifyStates|smartcontract.AllowCall)
 		v.SetPriceGetter(getPrice)
 		if err := v.Run(); err != nil {
-			return errors.Wrap(err, "can't persist native contracts")
+			return fmt.Errorf("onPersist run failed: %w", err)
 		} else if _, err := systemInterop.DAO.Persist(); err != nil {
-			return errors.Wrap(err, "can't persist `onPersist` changes")
+			return fmt.Errorf("can't save onPersist changes: %w", err)
 		}
 		for i := range systemInterop.Notifications {
 			bc.handleNotification(&systemInterop.Notifications[i], cache, block, block.Hash())
@@ -597,7 +596,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		appExecResults = append(appExecResults, aer)
 		err := cache.PutAppExecResult(aer)
 		if err != nil {
-			return errors.Wrap(err, "failed to Store notifications")
+			return fmt.Errorf("failed to store onPersist exec result: %w", err)
 		}
 	}
 
@@ -616,7 +615,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		if !v.HasFailed() {
 			_, err := systemInterop.DAO.Persist()
 			if err != nil {
-				return errors.Wrap(err, "failed to persist invocation results")
+				return fmt.Errorf("failed to persist invocation results: %w", err)
 			}
 			for i := range systemInterop.Notifications {
 				bc.handleNotification(&systemInterop.Notifications[i], cache, block, tx.Hash())
@@ -638,7 +637,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 		appExecResults = append(appExecResults, aer)
 		err = cache.PutAppExecResult(aer)
 		if err != nil {
-			return errors.Wrap(err, "failed to Store notifications")
+			return fmt.Errorf("failed to store tx exec result: %w", err)
 		}
 	}
 
@@ -647,7 +646,7 @@ func (bc *Blockchain) storeBlock(block *block.Block) error {
 	if block.Index > 0 {
 		prev, err := bc.dao.GetStateRoot(block.Index - 1)
 		if err != nil {
-			return errors.WithMessagef(err, "can't get previous state root")
+			return fmt.Errorf("can't get previous state root: %w", err)
 		}
 		prevHash = hash.DoubleSha256(prev.GetSignedPart())
 	}
@@ -1204,41 +1203,26 @@ func (bc *Blockchain) verifyHeader(currHeader, prevHeader *block.Header) error {
 func (bc *Blockchain) verifyTx(t *transaction.Transaction, block *block.Block) error {
 	height := bc.BlockHeight()
 	if t.ValidUntilBlock <= height || t.ValidUntilBlock > height+transaction.MaxValidUntilBlockIncrement {
-		return errors.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
+		return fmt.Errorf("transaction has expired. ValidUntilBlock = %d, current height = %d", t.ValidUntilBlock, height)
 	}
-	hashes, err := bc.GetScriptHashesForVerifying(t)
-	if err != nil {
-		return err
-	}
-	blockedAccounts, err := bc.contracts.Policy.GetBlockedAccountsInternal(bc.dao)
-	if err != nil {
-		return err
-	}
-	for _, h := range hashes {
-		i := sort.Search(len(blockedAccounts), func(i int) bool {
-			return !blockedAccounts[i].Less(h)
-		})
-		if i != len(blockedAccounts) && blockedAccounts[i].Equals(h) {
-			return errors.Errorf("policy check failed: account %s is blocked", h.StringLE())
-		}
-	}
-	maxBlockSystemFee := bc.contracts.Policy.GetMaxBlockSystemFeeInternal(bc.dao)
-	if maxBlockSystemFee < t.SystemFee {
-		return errors.Errorf("policy check failed: transaction's fee shouldn't exceed maximum block system fee %d", maxBlockSystemFee)
+	// Policying.
+	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
+		// Only one %w can be used.
+		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
 	balance := bc.GetUtilityTokenBalance(t.Sender())
 	need := t.SystemFee + t.NetworkFee
 	if balance.Cmp(big.NewInt(need)) < 0 {
-		return errors.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
+		return fmt.Errorf("insufficient funds: balance is %v, need: %v", balance, need)
 	}
 	size := io.GetVarSize(t)
 	if size > transaction.MaxTransactionSize {
-		return errors.Errorf("invalid transaction size = %d. It shoud be less then MaxTransactionSize = %d", io.GetVarSize(t), transaction.MaxTransactionSize)
+		return fmt.Errorf("too big transaction (%d > MaxTransactionSize %d)", size, transaction.MaxTransactionSize)
 	}
 	needNetworkFee := int64(size) * bc.FeePerByte()
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
-		return errors.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
+		return fmt.Errorf("insufficient funds: net fee is %v, need %v", t.NetworkFee, needNetworkFee)
 	}
 	if block == nil {
 		if ok := bc.memPool.Verify(t, bc); !ok {
@@ -1286,7 +1270,7 @@ func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 		}
 	}
 	if err := bc.verifyStateRoot(r); err != nil {
-		return errors.WithMessage(err, "invalid state root")
+		return fmt.Errorf("invalid state root: %w", err)
 	}
 	if r.Index > bc.BlockHeight() { // just put it into the store for future checks
 		return bc.dao.PutStateRoot(&state.MPTRootState{
@@ -1298,7 +1282,7 @@ func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 	flag := state.Unverified
 	if r.Witness != nil {
 		if err := bc.verifyStateRootWitness(r); err != nil {
-			return errors.WithMessage(err, "can't verify signature")
+			return fmt.Errorf("can't verify signature: %w", err)
 		}
 		flag = state.Verified
 	}
@@ -1315,7 +1299,7 @@ func (bc *Blockchain) AddStateRoot(r *state.MPTRoot) error {
 func (bc *Blockchain) updateStateHeight(newHeight uint32) error {
 	h, err := bc.dao.GetCurrentStateRootHeight()
 	if err != nil {
-		return errors.WithMessage(err, "can't get current state root height")
+		return fmt.Errorf("can't get current state root height: %w", err)
 	} else if newHeight == h+1 {
 		updateStateHeightMetric(newHeight)
 		return bc.dao.PutCurrentStateRootHeight(h + 1)
@@ -1367,23 +1351,17 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 	defer bc.lock.RUnlock()
 
 	if bc.HasTransaction(t.Hash()) {
-		return ErrAlreadyExists
+		return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
 	}
 	if err := bc.verifyTx(t, nil); err != nil {
 		return err
 	}
-	// Policying.
-	if ok, err := bc.contracts.Policy.CheckPolicy(bc.newInteropContext(trigger.Application, bc.dao, nil, t), t); err != nil {
-		return err
-	} else if !ok {
-		return ErrPolicy
-	}
 	if err := bc.memPool.Add(t, bc); err != nil {
-		switch err {
-		case mempool.ErrOOM:
+		switch {
+		case errors.Is(err, mempool.ErrOOM):
 			return ErrOOM
-		case mempool.ErrConflict:
-			return ErrAlreadyExists
+		case errors.Is(err, mempool.ErrDup):
+			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
 		default:
 			return err
 		}
@@ -1414,19 +1392,6 @@ func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 // GetEnrollments returns all registered validators.
 func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 	return bc.contracts.NEO.GetCandidates(bc.dao)
-}
-
-// GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use
-// to verify whether the transaction is bonafide or not.
-// Golang implementation of GetScriptHashesForVerifying method in C# (https://github.com/neo-project/neo/blob/master/neo/Network/P2P/Payloads/Transaction.cs#L190)
-func (bc *Blockchain) GetScriptHashesForVerifying(t *transaction.Transaction) ([]util.Uint160, error) {
-	hashesResult := make([]util.Uint160, len(t.Signers))
-	for i, s := range t.Signers {
-		hashesResult[i] = s.Account
-	}
-
-	return hashesResult, nil
-
 }
 
 // GetTestVM returns a VM and a Store setup for a test run of some sort of code.
@@ -1479,12 +1444,12 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	err = vm.Run()
 	if vm.HasFailed() {
-		return errors.Errorf("vm failed to execute the script with error: %s", err)
+		return fmt.Errorf("vm execution has failed: %w", err)
 	}
 	resEl := vm.Estack().Pop()
 	if resEl != nil {
 		if !resEl.Bool() {
-			return errors.Errorf("signature check failed")
+			return fmt.Errorf("signature check failed")
 		}
 		if useKeys {
 			bc.keyCacheLock.RLock()
@@ -1497,7 +1462,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 			}
 		}
 	} else {
-		return errors.Errorf("no result returned from the script")
+		return fmt.Errorf("no result returned from the script")
 	}
 	return nil
 }
@@ -1509,23 +1474,14 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // not yet added into any block.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
 func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block) error {
-	hashes, err := bc.GetScriptHashesForVerifying(t)
-	if err != nil {
-		return err
+	if len(t.Signers) != len(t.Scripts) {
+		return fmt.Errorf("number of signers doesn't match witnesses (%d vs %d)", len(t.Signers), len(t.Scripts))
 	}
-
-	witnesses := t.Scripts
-	if len(hashes) != len(witnesses) {
-		return errors.Errorf("expected len(hashes) == len(witnesses). got: %d != %d", len(hashes), len(witnesses))
-	}
-	sort.Slice(hashes, func(i, j int) bool { return hashes[i].Less(hashes[j]) })
-	sort.Slice(witnesses, func(i, j int) bool { return witnesses[i].ScriptHash().Less(witnesses[j].ScriptHash()) })
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	for i := 0; i < len(hashes); i++ {
-		err := bc.verifyHashAgainstScript(hashes[i], &witnesses[i], interopCtx, false, t.NetworkFee)
+	for i := range t.Signers {
+		err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, false, t.NetworkFee)
 		if err != nil {
-			numStr := fmt.Sprintf("witness #%d", i)
-			return errors.Wrap(err, numStr)
+			return fmt.Errorf("witness #%d: %w", i, err)
 		}
 	}
 

@@ -241,7 +241,7 @@ func handleBreak(c *ishell.Context) {
 	}
 	n, err := strconv.Atoi(c.Args[0])
 	if err != nil {
-		c.Err(fmt.Errorf("argument conversion error: %s", err))
+		c.Err(fmt.Errorf("argument conversion error: %w", err))
 		return
 	}
 
@@ -388,7 +388,7 @@ func handleStep(c *ishell.Context) {
 	if len(c.Args) > 0 {
 		n, err = strconv.Atoi(c.Args[0])
 		if err != nil {
-			c.Err(fmt.Errorf("argument conversion error: %s", err))
+			c.Err(fmt.Errorf("argument conversion error: %w", err))
 			return
 		}
 	}

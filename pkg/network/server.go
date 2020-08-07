@@ -843,12 +843,12 @@ func (s *Server) relayBlocksLoop() {
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
 func (s *Server) verifyAndPoolTX(t *transaction.Transaction) RelayReason {
 	if err := s.chain.PoolTx(t); err != nil {
-		switch err {
-		case core.ErrAlreadyExists:
+		switch {
+		case errors.Is(err, core.ErrAlreadyExists):
 			return RelayAlreadyExists
-		case core.ErrOOM:
+		case errors.Is(err, core.ErrOOM):
 			return RelayOutOfMemory
-		case core.ErrPolicy:
+		case errors.Is(err, core.ErrPolicy):
 			return RelayPolicyFail
 		default:
 			return RelayInvalid

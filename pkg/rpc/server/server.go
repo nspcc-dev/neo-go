@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -30,7 +31,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -614,7 +614,7 @@ func (s *Server) getDecimals(contractID int32, cache map[int32]decimals) (decima
 		},
 	})
 	if err != nil {
-		return decimals{}, fmt.Errorf("can't create script: %v", err)
+		return decimals{}, fmt.Errorf("can't create script: %w", err)
 	}
 	res := s.runScriptInVM(script, nil)
 	if res == nil || res.State != "HALT" || len(res.Stack) == 0 {
@@ -692,7 +692,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 	if txHash, err := reqParams.Value(0).GetUint256(); err != nil {
 		resultsErr = response.ErrInvalidParams
 	} else if tx, height, err := s.chain.GetTransaction(txHash); err != nil {
-		err = errors.Wrapf(err, "Invalid transaction hash: %s", txHash)
+		err = fmt.Errorf("invalid transaction %s: %w", txHash, err)
 		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
 	} else if reqParams.Value(1).GetBoolean() {
 		_header := s.chain.GetHeaderHash(int(height))
@@ -917,8 +917,8 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 	}
 	err = s.chain.AddBlock(b)
 	if err != nil {
-		switch err {
-		case core.ErrInvalidBlockIndex, core.ErrAlreadyExists:
+		switch {
+		case errors.Is(err, core.ErrInvalidBlockIndex) || errors.Is(err, core.ErrAlreadyExists):
 			return nil, response.ErrAlreadyExists
 		default:
 			return nil, response.ErrValidationFailed

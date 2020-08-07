@@ -15,7 +15,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
-	"github.com/pkg/errors"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -141,15 +140,15 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	}
 	b, di, err := CompileWithDebugInfo(bytes.NewReader(b))
 	if err != nil {
-		return nil, fmt.Errorf("error while trying to compile smart contract file: %v", err)
+		return nil, fmt.Errorf("error while trying to compile smart contract file: %w", err)
 	}
 	f, err := nef.NewFile(b)
 	if err != nil {
-		return nil, fmt.Errorf("error while trying to create .nef file: %v", err)
+		return nil, fmt.Errorf("error while trying to create .nef file: %w", err)
 	}
 	bytes, err := f.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("error while serializing .nef file: %v", err)
+		return nil, fmt.Errorf("error while serializing .nef file: %w", err)
 	}
 	out := fmt.Sprintf("%s.%s", o.Outfile, o.Ext)
 	err = ioutil.WriteFile(out, bytes, os.ModePerm)
@@ -179,11 +178,11 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	if o.ManifestFile != "" {
 		m, err := di.ConvertToManifest(o.ContractFeatures, o.ContractSupportedStandards...)
 		if err != nil {
-			return b, errors.Wrap(err, "failed to convert debug info to manifest")
+			return b, fmt.Errorf("failed to convert debug info to manifest: %w", err)
 		}
 		mData, err := json.Marshal(m)
 		if err != nil {
-			return b, errors.Wrap(err, "failed to marshal manifest")
+			return b, fmt.Errorf("failed to marshal manifest to JSON: %w", err)
 		}
 		return b, ioutil.WriteFile(o.ManifestFile, mData, os.ModePerm)
 	}

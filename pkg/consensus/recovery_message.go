@@ -1,11 +1,12 @@
 package consensus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/dbft/crypto"
 	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/pkg/errors"
 )
 
 type (

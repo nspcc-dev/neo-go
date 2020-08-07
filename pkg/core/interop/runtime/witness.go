@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"crypto/elliptic"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -9,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/pkg/errors"
 )
 
 // CheckHashedWitness checks given hash against current list of script hashes
@@ -91,7 +92,7 @@ func CheckWitness(ic *interop.Context, v *vm.VM) error {
 		res, err = CheckHashedWitness(ic, hash)
 	}
 	if err != nil {
-		return errors.Wrap(err, "failed to check")
+		return fmt.Errorf("failed to check witness: %w", err)
 	}
 	v.Estack().PushVal(res)
 	return nil

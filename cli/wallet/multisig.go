@@ -48,7 +48,7 @@ func signMultisig(ctx *cli.Context) error {
 	addr := ctx.String("addr")
 	sh, err := address.StringToUint160(addr)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid address: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid address: %w", err), 1)
 	}
 	acc := wall.GetAccount(sh)
 	if acc == nil {
@@ -65,13 +65,13 @@ func signMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	} else if err := acc.Decrypt(pass); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't unlock an account: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("can't unlock an account: %w", err), 1)
 	}
 
 	priv := acc.PrivateKey()
 	sign := priv.Sign(tx.GetSignedPart())
 	if err := c.AddSignature(acc.Contract, priv.PublicKey(), sign); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't add signature: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 	} else if err := writeParameterContext(c, ctx.String("out")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -104,21 +104,21 @@ func signMultisig(ctx *cli.Context) error {
 func readParameterContext(filename string) (*context.ParameterContext, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("can't read input file: %v", err)
+		return nil, fmt.Errorf("can't read input file: %w", err)
 	}
 
 	c := new(context.ParameterContext)
 	if err := json.Unmarshal(data, c); err != nil {
-		return nil, fmt.Errorf("can't parse transaction: %v", err)
+		return nil, fmt.Errorf("can't parse transaction: %w", err)
 	}
 	return c, nil
 }
 
 func writeParameterContext(c *context.ParameterContext, filename string) error {
 	if data, err := json.Marshal(c); err != nil {
-		return fmt.Errorf("can't marshal transaction: %v", err)
+		return fmt.Errorf("can't marshal transaction: %w", err)
 	} else if err := ioutil.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("can't write transaction to file: %v", err)
+		return fmt.Errorf("can't write transaction to file: %w", err)
 	}
 	return nil
 }

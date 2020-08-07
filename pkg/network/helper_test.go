@@ -112,9 +112,6 @@ func (chain testChain) GetStandByValidators() keys.PublicKeys {
 func (chain testChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
 }
-func (chain testChain) GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error) {
-	panic("TODO")
-}
 func (chain testChain) GetStateRoot(height uint32) (*state.MPTRootState, error) {
 	panic("TODO")
 }

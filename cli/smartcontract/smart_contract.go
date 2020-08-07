@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -411,7 +411,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	}
 	script, err := util.Uint160DecodeStringLE(args[0])
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("incorrect script hash: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("incorrect script hash: %w", err), 1)
 	}
 	if len(args) <= 1 {
 		return cli.NewExitError(errNoMethod, 1)
@@ -427,7 +427,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 			}
 			param, err := smartcontract.NewParameterFromString(s)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %v", k+paramsStart+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse argument #%d: %w", k+paramsStart+1, err), 1)
 			}
 			params = append(params, *param)
 		}
@@ -437,7 +437,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		for i, c := range args[cosignersStart:] {
 			cosigner, err := parseCosigner(c)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %v", i+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse cosigner #%d: %w", i+1, err), 1)
 			}
 			cosigners = append(cosigners, cosigner)
 		}
@@ -468,11 +468,11 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		}
 		script, err := hex.DecodeString(resp.Script)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("bad script returned from the RPC node: %w", err), 1)
 		}
 		txHash, err := c.SignAndPushInvocationTx(script, acc, resp.GasConsumed, gas, cosigners)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 		}
 		fmt.Printf("Sent invocation transaction %s\n", txHash.StringLE())
 	} else {
@@ -499,7 +499,7 @@ func testInvokeScript(ctx *cli.Context) error {
 	}
 	nefFile, err := nef.FileFromBytes(b)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
 	args := ctx.Args()
@@ -508,7 +508,7 @@ func testInvokeScript(ctx *cli.Context) error {
 		for i, c := range args[:] {
 			cosigner, err := parseCosigner(c)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %v", i+1, err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %w", i+1, err), 1)
 			}
 			signers = append(signers, cosigner)
 		}
@@ -570,12 +570,12 @@ func inspect(ctx *cli.Context) error {
 	if compile {
 		b, err = compiler.Compile(bytes.NewReader(b))
 		if err != nil {
-			return cli.NewExitError(errors.Wrap(err, "failed to compile"), 1)
+			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
 		}
 	} else {
 		nefFile, err := nef.FileFromBytes(b)
 		if err != nil {
-			return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+			return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 		}
 		b = nefFile.Script
 	}
@@ -645,17 +645,17 @@ func contractDeploy(ctx *cli.Context) error {
 	}
 	nefFile, err := nef.FileFromBytes(f)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore .nef file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
 	manifestBytes, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to read manifest file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(manifestBytes, m)
 	if err != nil {
-		return cli.NewExitError(errors.Wrapf(err, "failed to restore manifest file"), 1)
+		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -668,17 +668,17 @@ func contractDeploy(ctx *cli.Context) error {
 
 	txScript, err := request.CreateDeploymentScript(nefFile.Script, m)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to create deployment script: %w", err), 1)
 	}
 	// It doesn't require any signers.
 	invRes, err := c.InvokeScript(txScript, nil)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to test-invoke deployment script: %w", err), 1)
 	}
 
 	txHash, err := c.SignAndPushInvocationTx(txScript, acc, invRes.GasConsumed, gas, nil)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %v", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 	}
 	fmt.Printf("Sent deployment transaction %s for contract %s\n", txHash.StringLE(), nefFile.Header.ScriptHash.StringLE())
 	return nil
@@ -693,7 +693,7 @@ func parseContractConfig(confFile string) (ProjectConfig, error) {
 
 	err = yaml.Unmarshal(confBytes, &conf)
 	if err != nil {
-		return conf, cli.NewExitError(fmt.Errorf("bad config: %v", err), 1)
+		return conf, cli.NewExitError(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
 }

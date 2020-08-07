@@ -2,6 +2,8 @@ package native
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -15,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -508,23 +509,27 @@ func (p *Policy) checkValidators(ic *interop.Context) (bool, error) {
 	return runtime.CheckHashedWitness(ic, prevBlock.NextConsensus)
 }
 
-// CheckPolicy checks whether transaction's script hashes for verifying are
-// included into blocked accounts list.
-func (p *Policy) CheckPolicy(ic *interop.Context, tx *transaction.Transaction) (bool, error) {
-	ba, err := p.GetBlockedAccountsInternal(ic.DAO)
+// CheckPolicy checks whether transaction conforms to current policy restrictions
+// like not being signed by blocked account or not exceeding block-level system
+// fee limit.
+func (p *Policy) CheckPolicy(d dao.DAO, tx *transaction.Transaction) error {
+	ba, err := p.GetBlockedAccountsInternal(d)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("unable to get blocked accounts list: %w", err)
 	}
-	scriptHashes, err := ic.Chain.GetScriptHashesForVerifying(tx)
-	if err != nil {
-		return false, err
-	}
-	for _, acc := range ba {
-		for _, hash := range scriptHashes {
-			if acc.Equals(hash) {
-				return false, nil
+	if len(ba) > 0 {
+		for _, signer := range tx.Signers {
+			i := sort.Search(len(ba), func(i int) bool {
+				return !ba[i].Less(signer.Account)
+			})
+			if i != len(ba) && ba[i].Equals(signer.Account) {
+				return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
 			}
 		}
 	}
-	return true, nil
+	maxBlockSystemFee := p.GetMaxBlockSystemFeeInternal(d)
+	if maxBlockSystemFee < tx.SystemFee {
+		return fmt.Errorf("transaction's fee can't exceed maximum block system fee %d", maxBlockSystemFee)
+	}
+	return nil
 }
