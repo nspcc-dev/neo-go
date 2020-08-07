@@ -35,7 +35,6 @@ type Context struct {
 	Notifications []state.NotificationEvent
 	Log           *zap.Logger
 	Invocations   map[util.Uint160]int
-	ScriptGetter  vm.ScriptHashGetter
 	VM            *vm.VM
 	Functions     [][]Function
 }
@@ -176,7 +175,6 @@ func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
-	ic.ScriptGetter = v
 	ic.VM = v
 	return v
 }

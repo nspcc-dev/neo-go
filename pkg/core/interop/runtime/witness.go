@@ -16,13 +16,13 @@ import (
 // for verifying in the interop context.
 func CheckHashedWitness(ic *interop.Context, hash util.Uint160) (bool, error) {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		return checkScope(ic.DAO, tx, ic.ScriptGetter, hash)
+		return checkScope(ic.DAO, tx, ic.VM, hash)
 	}
 
 	return false, errors.New("script container is not a transaction")
 }
 
-func checkScope(d dao.DAO, tx *transaction.Transaction, v vm.ScriptHashGetter, hash util.Uint160) (bool, error) {
+func checkScope(d dao.DAO, tx *transaction.Transaction, v *vm.VM, hash util.Uint160) (bool, error) {
 	for _, c := range tx.Signers {
 		if c.Account == hash {
 			if c.Scopes == transaction.Global {
