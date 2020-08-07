@@ -35,7 +35,7 @@ branch and only contain Neo 2 code.
 
 ## Installation
 
-Go: 1.12+
+Go: 1.13+
 
 Install dependencies.
 
