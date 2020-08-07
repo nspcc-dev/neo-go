@@ -29,11 +29,11 @@ func (p *PointerCallback) LoadContext(v *vm.VM, args []stackitem.Item) {
 }
 
 // Create creates callback using pointer and parameters count.
-func Create(_ *interop.Context, v *vm.VM) error {
-	ctx := v.Estack().Pop().Item().(*vm.Context)
-	offset := v.Estack().Pop().Item().(*stackitem.Pointer).Position()
-	count := v.Estack().Pop().BigInt().Int64()
-	v.Estack().PushVal(stackitem.NewInterop(&PointerCallback{
+func Create(ic *interop.Context) error {
+	ctx := ic.VM.Estack().Pop().Item().(*vm.Context)
+	offset := ic.VM.Estack().Pop().Item().(*stackitem.Pointer).Position()
+	count := ic.VM.Estack().Pop().BigInt().Int64()
+	ic.VM.Estack().PushVal(stackitem.NewInterop(&PointerCallback{
 		paramCount: int(count),
 		offset:     offset,
 		context:    ctx,

@@ -29,13 +29,13 @@ const (
 var errGasLimitExceeded = errors.New("gas limit exceeded")
 
 // storageFind finds stored key-value pair.
-func storageFind(ic *interop.Context, v *vm.VM) error {
-	stcInterface := v.Estack().Pop().Value()
+func storageFind(ic *interop.Context) error {
+	stcInterface := ic.VM.Estack().Pop().Value()
 	stc, ok := stcInterface.(*StorageContext)
 	if !ok {
 		return fmt.Errorf("%T is not a StorageContext", stcInterface)
 	}
-	prefix := v.Estack().Pop().Bytes()
+	prefix := ic.VM.Estack().Pop().Bytes()
 	siMap, err := ic.DAO.GetStorageItemsWithPrefix(stc.ID, prefix)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 	})
 
 	item := vm.NewMapIterator(filteredMap)
-	v.Estack().PushVal(item)
+	ic.VM.Estack().PushVal(item)
 
 	return nil
 }
@@ -59,16 +59,16 @@ func storageFind(ic *interop.Context, v *vm.VM) error {
 // createContractStateFromVM pops all contract state elements from the VM
 // evaluation stack, does a lot of checks and returns Contract if it
 // succeeds.
-func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, error) {
-	script := v.Estack().Pop().Bytes()
+func createContractStateFromVM(ic *interop.Context) (*state.Contract, error) {
+	script := ic.VM.Estack().Pop().Bytes()
 	if len(script) > MaxContractScriptSize {
 		return nil, errors.New("the script is too big")
 	}
-	manifestBytes := v.Estack().Pop().Bytes()
+	manifestBytes := ic.VM.Estack().Pop().Bytes()
 	if len(manifestBytes) > manifest.MaxManifestSize {
 		return nil, errors.New("manifest is too big")
 	}
-	if !v.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
+	if !ic.VM.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
 		return nil, errGasLimitExceeded
 	}
 	var m manifest.Manifest
@@ -83,8 +83,8 @@ func createContractStateFromVM(ic *interop.Context, v *vm.VM) (*state.Contract, 
 }
 
 // contractCreate creates a contract.
-func contractCreate(ic *interop.Context, v *vm.VM) error {
-	newcontract, err := createContractStateFromVM(ic, v)
+func contractCreate(ic *interop.Context) error {
+	newcontract, err := createContractStateFromVM(ic)
 	if err != nil {
 		return err
 	}
@@ -107,26 +107,26 @@ func contractCreate(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return fmt.Errorf("cannot convert contract to stack item: %v", err)
 	}
-	v.Estack().PushVal(cs)
+	ic.VM.Estack().PushVal(cs)
 	return nil
 }
 
 // contractUpdate migrates a contract. This method assumes that Manifest and Script
 // of the contract can be updated independently.
-func contractUpdate(ic *interop.Context, v *vm.VM) error {
-	contract, _ := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+func contractUpdate(ic *interop.Context) error {
+	contract, _ := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 	if contract == nil {
 		return errors.New("contract doesn't exist")
 	}
-	script := v.Estack().Pop().Bytes()
+	script := ic.VM.Estack().Pop().Bytes()
 	if len(script) > MaxContractScriptSize {
 		return errors.New("the script is too big")
 	}
-	manifestBytes := v.Estack().Pop().Bytes()
+	manifestBytes := ic.VM.Estack().Pop().Bytes()
 	if len(manifestBytes) > manifest.MaxManifestSize {
 		return errors.New("manifest is too big")
 	}
-	if !v.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
+	if !ic.VM.AddGas(int64(StoragePrice * (len(script) + len(manifestBytes)))) {
 		return errGasLimitExceeded
 	}
 	// if script was provided, update the old contract script and Manifest.ABI hash
@@ -186,30 +186,30 @@ func contractUpdate(ic *interop.Context, v *vm.VM) error {
 }
 
 // runtimeSerialize serializes top stack item into a ByteArray.
-func runtimeSerialize(_ *interop.Context, v *vm.VM) error {
-	return vm.RuntimeSerialize(v)
+func runtimeSerialize(ic *interop.Context) error {
+	return vm.RuntimeSerialize(ic.VM)
 }
 
 // runtimeDeserialize deserializes ByteArray from a stack into an item.
-func runtimeDeserialize(_ *interop.Context, v *vm.VM) error {
-	return vm.RuntimeDeserialize(v)
+func runtimeDeserialize(ic *interop.Context) error {
+	return vm.RuntimeDeserialize(ic.VM)
 }
 
 // runtimeEncode encodes top stack item into a base64 string.
-func runtimeEncode(_ *interop.Context, v *vm.VM) error {
-	src := v.Estack().Pop().Bytes()
+func runtimeEncode(ic *interop.Context) error {
+	src := ic.VM.Estack().Pop().Bytes()
 	result := base64.StdEncoding.EncodeToString(src)
-	v.Estack().PushVal([]byte(result))
+	ic.VM.Estack().PushVal([]byte(result))
 	return nil
 }
 
 // runtimeDecode decodes top stack item from base64 string to byte array.
-func runtimeDecode(_ *interop.Context, v *vm.VM) error {
-	src := v.Estack().Pop().String()
+func runtimeDecode(ic *interop.Context) error {
+	src := ic.VM.Estack().Pop().String()
 	result, err := base64.StdEncoding.DecodeString(src)
 	if err != nil {
 		return err
 	}
-	v.Estack().PushVal(result)
+	ic.VM.Estack().PushVal(result)
 	return nil
 }

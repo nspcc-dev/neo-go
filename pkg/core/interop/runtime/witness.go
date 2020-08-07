@@ -74,11 +74,11 @@ func CheckKeyedWitness(ic *interop.Context, key *keys.PublicKey) (bool, error) {
 }
 
 // CheckWitness checks witnesses.
-func CheckWitness(ic *interop.Context, v *vm.VM) error {
+func CheckWitness(ic *interop.Context) error {
 	var res bool
 	var err error
 
-	hashOrKey := v.Estack().Pop().Bytes()
+	hashOrKey := ic.VM.Estack().Pop().Bytes()
 	hash, err := util.Uint160DecodeBytesBE(hashOrKey)
 	if err != nil {
 		var key *keys.PublicKey
@@ -93,6 +93,6 @@ func CheckWitness(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to check")
 	}
-	v.Estack().PushVal(res)
+	ic.VM.Estack().PushVal(res)
 	return nil
 }

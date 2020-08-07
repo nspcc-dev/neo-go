@@ -159,10 +159,9 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	v := vm.New()
-	v.GasLimit = -1
 	ic := chain.newInteropContext(trigger.Application,
 		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	v := ic.SpawnVM()
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {
 		v.LoadScriptWithHash([]byte{1}, util.Uint160{1, 2, 3}, smartcontract.All)
@@ -171,7 +170,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Estack().PushVal(tn.Metadata().Name)
 
 		// it's prohibited to call natives directly
-		require.Error(t, native.Call(ic, v))
+		require.Error(t, native.Call(ic))
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -180,7 +179,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Estack().PushVal("sum")
 		v.Estack().PushVal(tn.Metadata().Name)
 
-		require.NoError(t, native.Call(ic, v))
+		require.NoError(t, native.Call(ic))
 
 		value := v.Estack().Pop().BigInt()
 		require.Equal(t, int64(42), value.Int64())

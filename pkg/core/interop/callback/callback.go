@@ -18,19 +18,19 @@ type Callback interface {
 }
 
 // Invoke invokes provided callback.
-func Invoke(ic *interop.Context, v *vm.VM) error {
-	cb := v.Estack().Pop().Interop().Value().(Callback)
-	args := v.Estack().Pop().Array()
+func Invoke(ic *interop.Context) error {
+	cb := ic.VM.Estack().Pop().Interop().Value().(Callback)
+	args := ic.VM.Estack().Pop().Array()
 	if cb.ArgCount() != len(args) {
 		return errors.New("invalid argument count")
 	}
-	cb.LoadContext(v, args)
+	cb.LoadContext(ic.VM, args)
 	switch t := cb.(type) {
 	case *MethodCallback:
 		id := emit.InteropNameToID([]byte("System.Contract.Call"))
-		return ic.SyscallHandler(v, id)
+		return ic.SyscallHandler(ic.VM, id)
 	case *SyscallCallback:
-		return ic.SyscallHandler(v, t.desc.ID)
+		return ic.SyscallHandler(ic.VM, t.desc.ID)
 	default:
 		return nil
 	}

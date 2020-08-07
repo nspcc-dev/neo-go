@@ -33,8 +33,8 @@ func (s *MethodCallback) LoadContext(v *vm.VM, args []stackitem.Item) {
 }
 
 // CreateFromMethod creates callback for a contract method.
-func CreateFromMethod(ic *interop.Context, v *vm.VM) error {
-	rawHash := v.Estack().Pop().Bytes()
+func CreateFromMethod(ic *interop.Context) error {
+	rawHash := ic.VM.Estack().Pop().Bytes()
 	h, err := util.Uint160DecodeBytesBE(rawHash)
 	if err != nil {
 		return err
@@ -43,16 +43,16 @@ func CreateFromMethod(ic *interop.Context, v *vm.VM) error {
 	if err != nil {
 		return errors.New("contract not found")
 	}
-	method := string(v.Estack().Pop().Bytes())
+	method := string(ic.VM.Estack().Pop().Bytes())
 	if strings.HasPrefix(method, "_") {
 		return errors.New("invalid method name")
 	}
-	currCs, err := ic.DAO.GetContractState(v.GetCurrentScriptHash())
+	currCs, err := ic.DAO.GetContractState(ic.VM.GetCurrentScriptHash())
 	if err == nil && !currCs.Manifest.CanCall(&cs.Manifest, method) {
 		return errors.New("method call is not allowed")
 	}
 	md := cs.Manifest.ABI.GetMethod(method)
-	v.Estack().PushVal(stackitem.NewInterop(&MethodCallback{
+	ic.VM.Estack().PushVal(stackitem.NewInterop(&MethodCallback{
 		contract: cs,
 		method:   md,
 	}))

@@ -6,11 +6,10 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 )
 
 // Deploy deploys native contract.
-func Deploy(ic *interop.Context, _ *vm.VM) error {
+func Deploy(ic *interop.Context) error {
 	if ic.Block == nil || ic.Block.Index != 0 {
 		return errors.New("native contracts can be deployed only at 0 block")
 	}
@@ -34,8 +33,8 @@ func Deploy(ic *interop.Context, _ *vm.VM) error {
 }
 
 // Call calls specified native contract method.
-func Call(ic *interop.Context, v *vm.VM) error {
-	name := v.Estack().Pop().String()
+func Call(ic *interop.Context) error {
+	name := ic.VM.Estack().Pop().String()
 	var c interop.Contract
 	for _, ctr := range ic.Natives {
 		if ctr.Metadata().Name == name {
@@ -46,23 +45,23 @@ func Call(ic *interop.Context, v *vm.VM) error {
 	if c == nil {
 		return fmt.Errorf("native contract %s not found", name)
 	}
-	h := v.GetCurrentScriptHash()
+	h := ic.VM.GetCurrentScriptHash()
 	if !h.Equals(c.Metadata().Hash) {
 		return errors.New("it is not allowed to use Neo.Native.Call directly to call native contracts. System.Contract.Call should be used")
 	}
-	operation := v.Estack().Pop().String()
-	args := v.Estack().Pop().Array()
+	operation := ic.VM.Estack().Pop().String()
+	args := ic.VM.Estack().Pop().Array()
 	m, ok := c.Metadata().Methods[operation]
 	if !ok {
 		return fmt.Errorf("method %s not found", operation)
 	}
-	if !v.Context().GetCallFlags().Has(m.RequiredFlags) {
+	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
 		return errors.New("missing call flags")
 	}
-	if !v.AddGas(m.Price) {
+	if !ic.VM.AddGas(m.Price) {
 		return errors.New("gas limit exceeded")
 	}
 	result := m.Func(ic, args)
-	v.Estack().PushVal(result)
+	ic.VM.Estack().PushVal(result)
 	return nil
 }

@@ -40,9 +40,9 @@ import (
  */
 
 func TestGetTrigger(t *testing.T) {
-	v, _, context, chain := createVMAndPushBlock(t)
+	_, _, context, chain := createVMAndPushBlock(t)
 	defer chain.Close()
-	require.NoError(t, runtimeGetTrigger(context, v))
+	require.NoError(t, runtimeGetTrigger(context))
 }
 
 func TestStorageFind(t *testing.T) {
@@ -75,37 +75,37 @@ func TestStorageFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
-		err := storageFind(context, v)
+		err := storageFind(context)
 		require.NoError(t, err)
 
 		var iter *stackitem.Interop
 		require.NotPanics(t, func() { iter = v.Estack().Top().Interop() })
 
-		require.NoError(t, enumerator.Next(context, v))
+		require.NoError(t, enumerator.Next(context))
 		require.True(t, v.Estack().Pop().Bool())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, iterator.Key(context, v))
+		require.NoError(t, iterator.Key(context))
 		require.Equal(t, []byte{0x01, 0x01}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Value(context, v))
+		require.NoError(t, enumerator.Value(context))
 		require.Equal(t, []byte{0x03, 0x04, 0x05, 0x06}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Next(context, v))
+		require.NoError(t, enumerator.Next(context))
 		require.True(t, v.Estack().Pop().Bool())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, iterator.Key(context, v))
+		require.NoError(t, iterator.Key(context))
 		require.Equal(t, []byte{0x01, 0x02}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Value(context, v))
+		require.NoError(t, enumerator.Value(context))
 		require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, v.Estack().Pop().Bytes())
 
 		v.Estack().PushVal(iter)
-		require.NoError(t, enumerator.Next(context, v))
+		require.NoError(t, enumerator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 
@@ -113,10 +113,10 @@ func TestStorageFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x03})
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
 
-		err := storageFind(context, v)
+		err := storageFind(context)
 		require.NoError(t, err)
 
-		require.NoError(t, enumerator.Next(context, v))
+		require.NoError(t, enumerator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 
@@ -124,7 +124,7 @@ func TestStorageFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(nil))
 
-		require.Error(t, storageFind(context, v))
+		require.Error(t, storageFind(context))
 	})
 
 	t.Run("invalid id", func(t *testing.T) {
@@ -133,8 +133,8 @@ func TestStorageFind(t *testing.T) {
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: invalidID}))
 
-		require.NoError(t, storageFind(context, v))
-		require.NoError(t, enumerator.Next(context, v))
+		require.NoError(t, storageFind(context))
+		require.NoError(t, enumerator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
 }
@@ -149,6 +149,7 @@ func TestECDSAVerify(t *testing.T) {
 	ic := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
 	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
 		v := vm.New()
+		ic.VM = v
 		for i := range args {
 			v.Estack().PushVal(args[i])
 		}
@@ -160,7 +161,7 @@ func TestECDSAVerify(t *testing.T) {
 					err = fmt.Errorf("panic: %v", r)
 				}
 			}()
-			err = crypto.ECDSASecp256r1Verify(ic, v)
+			err = crypto.ECDSASecp256r1Verify(ic)
 		}()
 
 		if isErr {
@@ -227,7 +228,7 @@ func TestRuntimeEncode(t *testing.T) {
 	defer bc.Close()
 
 	v.Estack().PushVal(str)
-	require.NoError(t, runtimeEncode(ic, v))
+	require.NoError(t, runtimeEncode(ic))
 
 	expected := []byte(base64.StdEncoding.EncodeToString(str))
 	actual := v.Estack().Pop().Bytes()
@@ -242,7 +243,7 @@ func TestRuntimeDecode(t *testing.T) {
 
 	t.Run("positive", func(t *testing.T) {
 		v.Estack().PushVal(str)
-		require.NoError(t, runtimeDecode(ic, v))
+		require.NoError(t, runtimeDecode(ic))
 
 		actual := v.Estack().Pop().Bytes()
 		require.Equal(t, expected, actual)
@@ -250,17 +251,17 @@ func TestRuntimeDecode(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		v.Estack().PushVal(str + "%")
-		require.Error(t, runtimeDecode(ic, v))
+		require.Error(t, runtimeDecode(ic))
 	})
 }
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
 func createVM(t *testing.T) (*vm.VM, *interop.Context, *Blockchain) {
-	v := vm.New()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application,
 		dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	v := context.SpawnVM()
 	return v, context, chain
 }
 
@@ -271,10 +272,10 @@ func createVMAndPushBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context,
 }
 
 func createVMAndBlock(t *testing.T) (*vm.VM, *block.Block, *interop.Context, *Blockchain) {
-	v := vm.New()
 	block := newDumbBlock()
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), block, nil)
+	v := context.SpawnVM()
 	return v, block, context, chain
 }
 
@@ -285,7 +286,6 @@ func createVMAndPushTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop
 }
 
 func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
-	v := vm.New()
 	script := []byte("testscript")
 	m := manifest.NewManifest(hash.Hash160(script))
 	m.Features = smartcontract.HasStorage
@@ -297,11 +297,11 @@ func createVMAndContractState(t *testing.T) (*vm.VM, *state.Contract, *interop.C
 
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	v := context.SpawnVM()
 	return v, contractState, context, chain
 }
 
 func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context, *Blockchain) {
-	v := vm.New()
 	rawHash := "4d3b96ae1bcc5a585e075e3b81920210dec16302"
 	hash, err := util.Uint160DecodeStringBE(rawHash)
 	accountState := state.NewAccount(hash)
@@ -309,11 +309,11 @@ func createVMAndAccState(t *testing.T) (*vm.VM, *state.Account, *interop.Context
 	require.NoError(t, err)
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
+	v := context.SpawnVM()
 	return v, accountState, context, chain
 }
 
 func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Context, *Blockchain) {
-	v := vm.New()
 	script := []byte{byte(opcode.PUSH1), byte(opcode.RET)}
 	tx := transaction.New(netmode.UnitTestNet, script, 0)
 
@@ -327,5 +327,6 @@ func createVMAndTX(t *testing.T) (*vm.VM, *transaction.Transaction, *interop.Con
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3, 4}}}
 	chain := newTestChain(t)
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, tx)
+	v := context.SpawnVM()
 	return v, tx, context, chain
 }

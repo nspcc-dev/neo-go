@@ -10,18 +10,18 @@ import (
 )
 
 // GasLeft returns remaining amount of GAS.
-func GasLeft(_ *interop.Context, v *vm.VM) error {
-	if v.GasLimit == -1 {
-		v.Estack().PushVal(v.GasLimit)
+func GasLeft(ic *interop.Context) error {
+	if ic.VM.GasLimit == -1 {
+		ic.VM.Estack().PushVal(ic.VM.GasLimit)
 	} else {
-		v.Estack().PushVal(v.GasLimit - v.GasConsumed())
+		ic.VM.Estack().PushVal(ic.VM.GasLimit - ic.VM.GasConsumed())
 	}
 	return nil
 }
 
 // GetNotifications returns notifications emitted by current contract execution.
-func GetNotifications(ic *interop.Context, v *vm.VM) error {
-	item := v.Estack().Pop().Item()
+func GetNotifications(ic *interop.Context) error {
+	item := ic.VM.Estack().Pop().Item()
 	notifications := ic.Notifications
 	if _, ok := item.(stackitem.Null); !ok {
 		b, err := item.TryBytes()
@@ -51,16 +51,16 @@ func GetNotifications(ic *interop.Context, v *vm.VM) error {
 		})
 		arr.Append(ev)
 	}
-	v.Estack().PushVal(arr)
+	ic.VM.Estack().PushVal(arr)
 	return nil
 }
 
 // GetInvocationCounter returns how many times current contract was invoked during current tx execution.
-func GetInvocationCounter(ic *interop.Context, v *vm.VM) error {
-	count, ok := ic.Invocations[v.GetCurrentScriptHash()]
+func GetInvocationCounter(ic *interop.Context) error {
+	count, ok := ic.Invocations[ic.VM.GetCurrentScriptHash()]
 	if !ok {
 		return errors.New("current contract wasn't invoked from others")
 	}
-	v.Estack().PushVal(count)
+	ic.VM.Estack().PushVal(count)
 	return nil
 }

@@ -14,13 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context, *vm.VM) error) {
+func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) error) {
 	v := vm.New()
 	v.Estack().PushVal(value)
 	chain := newTestChain(t)
 	defer chain.Close()
 	context := chain.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), netmode.UnitTestNet), nil, nil)
-	require.Error(t, f(context, v))
+	context.VM = v
+	require.Error(t, f(context))
 }
 
 func TestUnexpectedNonInterops(t *testing.T) {
@@ -32,7 +33,7 @@ func TestUnexpectedNonInterops(t *testing.T) {
 	}
 
 	// All of these functions expect an interop item on the stack.
-	funcs := []func(*interop.Context, *vm.VM) error{
+	funcs := []func(*interop.Context) error{
 		storageContextAsReadOnly,
 		storageDelete,
 		storageFind,
