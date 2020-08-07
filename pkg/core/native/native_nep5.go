@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -104,27 +105,27 @@ func (c *nep5TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stack
 }
 
 func (c *nep5TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(c.getTotalSupply(ic))
+	return stackitem.NewBigInteger(c.getTotalSupply(ic.DAO))
 }
 
-func (c *nep5TokenNative) getTotalSupply(ic *interop.Context) *big.Int {
-	si := ic.DAO.GetStorageItem(c.ContractID, totalSupplyKey)
+func (c *nep5TokenNative) getTotalSupply(d dao.DAO) *big.Int {
+	si := d.GetStorageItem(c.ContractID, totalSupplyKey)
 	if si == nil {
 		return big.NewInt(0)
 	}
 	return bigint.FromBytes(si.Value)
 }
 
-func (c *nep5TokenNative) saveTotalSupply(ic *interop.Context, supply *big.Int) error {
+func (c *nep5TokenNative) saveTotalSupply(d dao.DAO, supply *big.Int) error {
 	si := &state.StorageItem{Value: bigint.ToBytes(supply)}
-	return ic.DAO.PutStorageItem(c.ContractID, totalSupplyKey, si)
+	return d.PutStorageItem(c.ContractID, totalSupplyKey, si)
 }
 
 func (c *nep5TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	from := toUint160(args[0])
 	to := toUint160(args[1])
 	amount := toBigInt(args[2])
-	err := c.transfer(ic, from, to, amount)
+	err := c.TransferInternal(ic, from, to, amount)
 	return stackitem.NewBool(err == nil)
 }
 
@@ -170,7 +171,8 @@ func (c *nep5TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160
 	return err
 }
 
-func (c *nep5TokenNative) transfer(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
+// TransferInternal transfers NEO between accounts.
+func (c *nep5TokenNative) TransferInternal(ic *interop.Context, from, to util.Uint160, amount *big.Int) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
 	}
@@ -248,9 +250,9 @@ func (c *nep5TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount 
 		panic(err)
 	}
 
-	supply := c.getTotalSupply(ic)
+	supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
-	err := c.saveTotalSupply(ic, supply)
+	err := c.saveTotalSupply(ic.DAO, supply)
 	if err != nil {
 		panic(err)
 	}

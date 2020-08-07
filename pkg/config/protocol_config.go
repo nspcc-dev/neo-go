@@ -10,10 +10,11 @@ type (
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
 		// SaveStorageBatch enables storage batch saving before every persist.
-		SaveStorageBatch  bool     `yaml:"SaveStorageBatch"`
-		SecondsPerBlock   int      `yaml:"SecondsPerBlock"`
-		SeedList          []string `yaml:"SeedList"`
-		StandbyValidators []string `yaml:"StandbyValidators"`
+		SaveStorageBatch bool     `yaml:"SaveStorageBatch"`
+		SecondsPerBlock  int      `yaml:"SecondsPerBlock"`
+		SeedList         []string `yaml:"SeedList"`
+		StandbyCommittee []string `yaml:"StandbyCommittee"`
+		ValidatorsCount  int      `yaml:"ValidatorsCount"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in received blocks.

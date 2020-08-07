@@ -394,7 +394,7 @@ func addSigners(txs ...*transaction.Transaction) {
 
 func signTx(bc *Blockchain, txs ...*transaction.Transaction) error {
 	validators := bc.GetStandByValidators()
-	rawScript, err := smartcontract.CreateMultiSigRedeemScript(len(bc.config.StandbyValidators)/2+1, validators)
+	rawScript, err := smartcontract.CreateMultiSigRedeemScript(bc.config.ValidatorsCount/2+1, validators)
 	if err != nil {
 		return errors.Wrap(err, "fail to sign tx")
 	}

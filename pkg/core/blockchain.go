@@ -119,7 +119,7 @@ type Blockchain struct {
 	// cache for block verification keys.
 	keyCache map[util.Uint160]map[string]*keys.PublicKey
 
-	sbValidators keys.PublicKeys
+	sbCommittee keys.PublicKeys
 
 	log *zap.Logger
 
@@ -156,7 +156,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
 	}
-	validators, err := validatorsFromConfig(cfg)
+	committee, err := committeeFromConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		runToExitCh:   make(chan struct{}),
 		memPool:       mempool.NewMemPool(cfg.MemPoolSize),
 		keyCache:      make(map[util.Uint160]map[string]*keys.PublicKey),
-		sbValidators:  validators,
+		sbCommittee:   committee,
 		log:           log,
 		events:        make(chan bcEvent),
 		subCh:         make(chan interface{}),
@@ -1393,7 +1393,12 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction) error {
 
 //GetStandByValidators returns validators from the configuration.
 func (bc *Blockchain) GetStandByValidators() keys.PublicKeys {
-	return bc.sbValidators.Copy()
+	return bc.sbCommittee[:bc.config.ValidatorsCount].Copy()
+}
+
+// GetStandByCommittee returns standby commitee from the configuration.
+func (bc *Blockchain) GetStandByCommittee() keys.PublicKeys {
+	return bc.sbCommittee.Copy()
 }
 
 // GetValidators returns current validators.
@@ -1408,7 +1413,7 @@ func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 
 // GetEnrollments returns all registered validators.
 func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
-	return bc.contracts.NEO.GetRegisteredValidators(bc.dao)
+	return bc.contracts.NEO.GetCandidates(bc.dao)
 }
 
 // GetScriptHashesForVerifying returns all the ScriptHashes of a transaction which will be use

@@ -42,14 +42,16 @@ const (
 	neoContractID = -1
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
-	// prefixValidator is a prefix used to store validator's data.
-	prefixValidator = 33
+	// prefixCandidate is a prefix used to store validator's data.
+	prefixCandidate = 33
+	// prefixVotersCount is a prefix for storing total amount of NEO of voters.
+	prefixVotersCount = 1
+	// effectiveVoterTurnout represents minimal ratio of total supply to total amount voted value
+	// which is require to use non-standby validators.
+	effectiveVoterTurnout = 5
 )
 
 var (
-	// validatorsCountKey is a key used to store validators count
-	// used to determine the real number of validators.
-	validatorsCountKey = []byte{15}
 	// nextValidatorsKey is a key used to store validators for the
 	// next block.
 	nextValidatorsKey = []byte{14}
@@ -61,7 +63,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 	// Don't create a new buffer.
 	b = append(b, 0)
 	copy(b[1:], b[0:])
-	b[0] = prefixValidator
+	b[0] = prefixCandidate
 	return b
 }
 
@@ -89,19 +91,28 @@ func NewNEO() *NEO {
 	md := newMethodAndPrice(n.unclaimedGas, 3000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
-	desc = newDescriptor("registerValidator", smartcontract.BoolType,
+	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerValidator, 5000000, smartcontract.AllowModifyStates)
+	md = newMethodAndPrice(n.registerCandidate, 5000000, smartcontract.AllowModifyStates)
+	n.AddMethod(md, desc, false)
+
+	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
+		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
+	md = newMethodAndPrice(n.unregisterCandidate, 5000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
-		manifest.NewParameter("pubkeys", smartcontract.ArrayType))
+		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
 	md = newMethodAndPrice(n.vote, 500000000, smartcontract.AllowModifyStates)
 	n.AddMethod(md, desc, false)
 
-	desc = newDescriptor("getRegisteredValidators", smartcontract.ArrayType)
-	md = newMethodAndPrice(n.getRegisteredValidatorsCall, 100000000, smartcontract.AllowStates)
+	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
+	md = newMethodAndPrice(n.getCandidatesCall, 100000000, smartcontract.AllowStates)
+	n.AddMethod(md, desc, true)
+
+	desc = newDescriptor("getСommittee", smartcontract.ArrayType)
+	md = newMethodAndPrice(n.getCommittee, 100000000, smartcontract.AllowStates)
 	n.AddMethod(md, desc, true)
 
 	desc = newDescriptor("getValidators", smartcontract.ArrayType)
@@ -121,7 +132,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	if n.nep5TokenNative.getTotalSupply(ic).Sign() != 0 {
+	if n.nep5TokenNative.getTotalSupply(ic.DAO).Sign() != 0 {
 		return errors.New("already initialized")
 	}
 
@@ -131,8 +142,13 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 	n.mint(ic, h, big.NewInt(NEOTotalSupply))
 
+	err = ic.DAO.PutStorageItem(n.ContractID, []byte{prefixVotersCount}, &state.StorageItem{Value: []byte{0}})
+	if err != nil {
+		return err
+	}
+
 	for i := range vs {
-		if err := n.registerValidatorInternal(ic, vs[i]); err != nil {
+		if err := n.RegisterCandidateInternal(ic, vs[i]); err != nil {
 			return err
 		}
 	}
@@ -166,21 +182,11 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		si.Value = acc.Bytes()
 		return nil
 	}
-	if len(acc.Votes) > 0 {
-		if err := n.ModifyAccountVotes(acc, ic.DAO, amount); err != nil {
-			return err
-		}
-		siVC := ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
-		if siVC == nil {
-			return errors.New("validators count uninitialized")
-		}
-		vc, err := ValidatorsCountFromBytes(siVC.Value)
-		if err != nil {
-			return err
-		}
-		vc[len(acc.Votes)-1].Add(&vc[len(acc.Votes)-1], amount)
-		siVC.Value = vc.Bytes()
-		if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, siVC); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, modifyVoteTransfer); err != nil {
+		return err
+	}
+	if acc.VoteTo != nil {
+		if err := n.modifyVoterTurnout(ic.DAO, amount); err != nil {
 			return err
 		}
 	}
@@ -216,43 +222,74 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	return stackitem.NewBigInteger(gen)
 }
 
-func (n *NEO) registerValidator(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	err := n.registerValidatorInternal(ic, toPublicKey(args[0]))
+func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	pub := toPublicKey(args[0])
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return stackitem.NewBool(false)
+	}
+	err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)
 }
 
-func (n *NEO) registerValidatorInternal(ic *interop.Context, pub *keys.PublicKey) error {
+// RegisterCandidateInternal registers pub as a new candidate.
+func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ContractID, key)
-	if si != nil {
-		return errors.New("already registered")
+	if si == nil {
+		c := &candidate{Registered: true}
+		si = &state.StorageItem{Value: c.Bytes()}
+	} else {
+		c := new(candidate).FromBytes(si.Value)
+		c.Registered = true
+		si.Value = c.Bytes()
 	}
-	si = new(state.StorageItem)
-	// Zero value.
-	si.Value = []byte{}
+	return ic.DAO.PutStorageItem(n.ContractID, key, si)
+}
+
+func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	pub := toPublicKey(args[0])
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return stackitem.NewBool(false)
+	}
+	err = n.UnregisterCandidateInternal(ic, pub)
+	return stackitem.NewBool(err == nil)
+}
+
+// UnregisterCandidateInternal unregisters pub as a candidate.
+func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
+	key := makeValidatorKey(pub)
+	si := ic.DAO.GetStorageItem(n.ContractID, key)
+	if si == nil {
+		return nil
+	}
+	n.validators.Store(keys.PublicKeys(nil))
+	c := new(candidate).FromBytes(si.Value)
+	if c.Votes.Sign() == 0 {
+		return ic.DAO.DeleteStorageItem(n.ContractID, key)
+	}
+	c.Registered = false
+	si.Value = c.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	acc := toUint160(args[0])
-	arr := args[1].Value().([]stackitem.Item)
-	var pubs keys.PublicKeys
-	for i := range arr {
-		pub := new(keys.PublicKey)
-		bs, err := arr[i].TryBytes()
-		if err != nil {
-			panic(err)
-		} else if err := pub.DecodeBytes(bs); err != nil {
-			panic(err)
-		}
-		pubs = append(pubs, pub)
+	var pub *keys.PublicKey
+	if _, ok := args[1].(stackitem.Null); !ok {
+		pub = toPublicKey(args[1])
 	}
-	err := n.VoteInternal(ic, acc, pubs)
+	err := n.VoteInternal(ic, acc, pub)
 	return stackitem.NewBool(err == nil)
 }
 
 // VoteInternal votes from account h for validarors specified in pubs.
-func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.PublicKeys) error {
+func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.PublicKey) error {
 	ok, err := runtime.CheckHashedWitness(ic, h)
 	if err != nil {
 		return err
@@ -268,90 +305,80 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pubs keys.Public
 	if err != nil {
 		return err
 	}
-	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance)); err != nil {
-		return err
-	}
-	pubs = pubs.Unique()
-	// Check validators registration.
-	var newPubs keys.PublicKeys
-	for _, pub := range pubs {
-		if ic.DAO.GetStorageItem(n.ContractID, makeValidatorKey(pub)) == nil {
-			continue
+	if (acc.VoteTo == nil) != (pub == nil) {
+		val := &acc.Balance
+		if pub == nil {
+			val = new(big.Int).Neg(val)
 		}
-		newPubs = append(newPubs, pub)
-	}
-	if lp, lv := len(newPubs), len(acc.Votes); lp != lv {
-		var si *state.StorageItem
-		var vc *ValidatorsCount
-		var err error
-
-		si = ic.DAO.GetStorageItem(n.ContractID, validatorsCountKey)
-		if si == nil {
-			// The first voter.
-			si = new(state.StorageItem)
-			vc = new(ValidatorsCount)
-		} else {
-			vc, err = ValidatorsCountFromBytes(si.Value)
-			if err != nil {
-				return err
-			}
-		}
-		if lv > 0 {
-			vc[lv-1].Sub(&vc[lv-1], &acc.Balance)
-		}
-		if len(newPubs) > 0 {
-			vc[lp-1].Add(&vc[lp-1], &acc.Balance)
-		}
-		si.Value = vc.Bytes()
-		if err := ic.DAO.PutStorageItem(n.ContractID, validatorsCountKey, si); err != nil {
+		if err := n.modifyVoterTurnout(ic.DAO, val); err != nil {
 			return err
 		}
 	}
-	acc.Votes = newPubs
-	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance); err != nil {
+	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), modifyVoteOld); err != nil {
+		return err
+	}
+	acc.VoteTo = pub
+	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, modifyVoteNew); err != nil {
 		return err
 	}
 	si.Value = acc.Bytes()
 	return ic.DAO.PutStorageItem(n.ContractID, key, si)
 }
 
+const (
+	modifyVoteTransfer = iota
+	modifyVoteOld
+	modifyVoteNew
+)
+
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
-func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int) error {
-	for _, vote := range acc.Votes {
-		key := makeValidatorKey(vote)
+// typ specifies if this modify is occuring during transfer or vote (with old or new validator).
+func (n *NEO) ModifyAccountVotes(acc *state.NEOBalanceState, d dao.DAO, value *big.Int, typ int) error {
+	if acc.VoteTo != nil {
+		key := makeValidatorKey(acc.VoteTo)
 		si := d.GetStorageItem(n.ContractID, key)
 		if si == nil {
 			return errors.New("invalid validator")
 		}
-		votes := bigint.FromBytes(si.Value)
-		votes.Add(votes, value)
-		si.Value = bigint.ToPreallocatedBytes(votes, si.Value[:0])
-		if err := d.PutStorageItem(n.ContractID, key, si); err != nil {
-			return err
+		cd := new(candidate).FromBytes(si.Value)
+		cd.Votes.Add(&cd.Votes, value)
+		switch typ {
+		case modifyVoteOld:
+			if !cd.Registered && cd.Votes.Sign() == 0 {
+				return d.DeleteStorageItem(n.ContractID, key)
+			}
+		case modifyVoteNew:
+			if !cd.Registered {
+				return errors.New("validator must be registered")
+			}
 		}
+		n.validators.Store(keys.PublicKeys(nil))
+		si.Value = cd.Bytes()
+		return d.PutStorageItem(n.ContractID, key, si)
 	}
-	n.validators.Store(keys.PublicKeys(nil))
 	return nil
 }
 
-func (n *NEO) getRegisteredValidators(d dao.DAO) ([]keyWithVotes, error) {
-	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixValidator})
+func (n *NEO) getCandidates(d dao.DAO) ([]keyWithVotes, error) {
+	siMap, err := d.GetStorageItemsWithPrefix(n.ContractID, []byte{prefixCandidate})
 	if err != nil {
 		return nil, err
 	}
 	arr := make([]keyWithVotes, 0, len(siMap))
 	for key, si := range siMap {
-		votes := bigint.FromBytes(si.Value)
-		arr = append(arr, keyWithVotes{key, votes})
+		c := new(candidate).FromBytes(si.Value)
+		if c.Registered {
+			arr = append(arr, keyWithVotes{key, &c.Votes})
+		}
 	}
 	sort.Slice(arr, func(i, j int) bool { return strings.Compare(arr[i].Key, arr[j].Key) == -1 })
 	return arr, nil
 }
 
-// GetRegisteredValidators returns current registered validators list with keys
+// GetCandidates returns current registered validators list with keys
 // and votes.
-func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
-	kvs, err := n.getRegisteredValidators(d)
+func (n *NEO) GetCandidates(d dao.DAO) ([]state.Validator, error) {
+	kvs, err := n.getCandidates(d)
 	if err != nil {
 		return nil, err
 	}
@@ -366,8 +393,8 @@ func (n *NEO) GetRegisteredValidators(d dao.DAO) ([]state.Validator, error) {
 	return arr, nil
 }
 
-func (n *NEO) getRegisteredValidatorsCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	validators, err := n.getRegisteredValidators(ic.DAO)
+func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	validators, err := n.getCandidates(ic.DAO)
 	if err != nil {
 		panic(err)
 	}
@@ -386,53 +413,15 @@ func (n *NEO) GetValidatorsInternal(bc blockchainer.Blockchainer, d dao.DAO) (ke
 	if vals := n.validators.Load().(keys.PublicKeys); vals != nil {
 		return vals.Copy(), nil
 	}
-	standByValidators := bc.GetStandByValidators()
-	si := d.GetStorageItem(n.ContractID, validatorsCountKey)
-	if si == nil {
-		n.validators.Store(standByValidators)
-		return standByValidators.Copy(), nil
-	}
-	validatorsCount, err := ValidatorsCountFromBytes(si.Value)
+	result, err := n.getCommitteeMembers(bc, d)
 	if err != nil {
 		return nil, err
 	}
-	validators, err := n.GetRegisteredValidators(d)
-	if err != nil {
-		return nil, err
+	count := bc.GetConfig().ValidatorsCount
+	if len(result) < count {
+		count = len(result)
 	}
-	sort.Slice(validators, func(i, j int) bool {
-		// The most-voted validators should end up in the front of the list.
-		cmp := validators[i].Votes.Cmp(validators[j].Votes)
-		if cmp != 0 {
-			return cmp > 0
-		}
-		// Ties are broken with public keys.
-		return validators[i].Key.Cmp(validators[j].Key) == -1
-	})
-
-	count := validatorsCount.GetWeightedAverage()
-	if count < len(standByValidators) {
-		count = len(standByValidators)
-	}
-
-	uniqueSBValidators := standByValidators.Unique()
-	result := keys.PublicKeys{}
-	for _, validator := range validators {
-		if validator.Votes.Sign() > 0 || uniqueSBValidators.Contains(validator.Key) {
-			result = append(result, validator.Key)
-		}
-	}
-
-	if result.Len() >= count {
-		result = result[:count]
-	} else {
-		for i := 0; i < uniqueSBValidators.Len() && result.Len() < count; i++ {
-			if !result.Contains(uniqueSBValidators[i]) {
-				result = append(result, uniqueSBValidators[i])
-			}
-		}
-	}
-	sort.Sort(result)
+	result = result[:count]
 	n.validators.Store(result)
 	return result, nil
 }
@@ -443,6 +432,68 @@ func (n *NEO) getValidators(ic *interop.Context, _ []stackitem.Item) stackitem.I
 		panic(err)
 	}
 	return pubsToArray(result)
+}
+
+func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	pubs, err := n.getCommitteeMembers(ic.Chain, ic.DAO)
+	if err != nil {
+		panic(err)
+	}
+	sort.Sort(pubs)
+	return pubsToArray(pubs)
+}
+
+func (n *NEO) modifyVoterTurnout(d dao.DAO, amount *big.Int) error {
+	key := []byte{prefixVotersCount}
+	si := d.GetStorageItem(n.ContractID, key)
+	if si == nil {
+		return errors.New("voters count not found")
+	}
+	votersCount := bigint.FromBytes(si.Value)
+	votersCount.Add(votersCount, amount)
+	si.Value = bigint.ToBytes(votersCount)
+	return d.PutStorageItem(n.ContractID, key, si)
+}
+
+func (n *NEO) getCommitteeMembers(bc blockchainer.Blockchainer, d dao.DAO) (keys.PublicKeys, error) {
+	key := []byte{prefixVotersCount}
+	si := d.GetStorageItem(n.ContractID, key)
+	if si == nil {
+		return nil, errors.New("voters count not found")
+	}
+	votersCount := bigint.FromBytes(si.Value)
+	// votersCount / totalSupply must be >= 0.2
+	votersCount.Mul(votersCount, big.NewInt(effectiveVoterTurnout))
+	voterTurnout := votersCount.Div(votersCount, n.getTotalSupply(d))
+	if voterTurnout.Sign() != 1 {
+		return bc.GetStandByValidators(), nil
+	}
+	cs, err := n.getCandidates(d)
+	if err != nil {
+		return nil, err
+	}
+	sbVals := bc.GetStandByValidators()
+	count := len(sbVals)
+	if len(cs) < count {
+		return sbVals, nil
+	}
+	sort.Slice(cs, func(i, j int) bool {
+		// The most-voted validators should end up in the front of the list.
+		cmp := cs[i].Votes.Cmp(cs[j].Votes)
+		if cmp != 0 {
+			return cmp > 0
+		}
+		// Ties are broken with public keys.
+		return strings.Compare(cs[i].Key, cs[j].Key) == -1
+	})
+	pubs := make(keys.PublicKeys, count)
+	for i := range pubs {
+		pubs[i], err = keys.NewPublicKeyFromBytes([]byte(cs[i].Key), elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pubs, nil
 }
 
 func (n *NEO) getNextBlockValidators(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

@@ -1125,7 +1125,6 @@ func checkNep5Transfers(t *testing.T, e *executor, acc interface{}) {
 				TxHash:    b.Hash(),
 			})
 		}
-
 	}
 	require.Equal(t, expected.Address, res.Address)
 	require.ElementsMatch(t, expected.Sent, res.Sent)

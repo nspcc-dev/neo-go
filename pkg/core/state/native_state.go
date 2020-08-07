@@ -1,6 +1,7 @@
 package state
 
 import (
+	"crypto/elliptic"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -17,7 +18,7 @@ type NEP5BalanceState struct {
 type NEOBalanceState struct {
 	NEP5BalanceState
 	BalanceHeight uint32
-	Votes         keys.PublicKeys
+	VoteTo        *keys.PublicKey
 }
 
 // NEP5BalanceStateFromBytes converts serialized NEP5BalanceState to structure.
@@ -110,7 +111,11 @@ func (s *NEOBalanceState) DecodeBinary(r *io.BinReader) {
 func (s *NEOBalanceState) toStackItem() stackitem.Item {
 	result := s.NEP5BalanceState.toStackItem().(*stackitem.Struct)
 	result.Append(stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))))
-	result.Append(stackitem.NewByteArray(s.Votes.Bytes()))
+	if s.VoteTo != nil {
+		result.Append(stackitem.NewByteArray(s.VoteTo.Bytes()))
+	} else {
+		result.Append(stackitem.Null{})
+	}
 	return result
 }
 
@@ -118,6 +123,18 @@ func (s *NEOBalanceState) fromStackItem(item stackitem.Item) error {
 	structItem := item.Value().([]stackitem.Item)
 	s.Balance = *structItem[0].Value().(*big.Int)
 	s.BalanceHeight = uint32(structItem[1].Value().(*big.Int).Int64())
-	s.Votes = make(keys.PublicKeys, 0)
-	return s.Votes.DecodeBytes(structItem[2].Value().([]byte))
+	if _, ok := structItem[2].(stackitem.Null); ok {
+		s.VoteTo = nil
+		return nil
+	}
+	bs, err := structItem[2].TryBytes()
+	if err != nil {
+		return err
+	}
+	pub, err := keys.NewPublicKeyFromBytes(bs, elliptic.P256())
+	if err != nil {
+		return err
+	}
+	s.VoteTo = pub
+	return nil
 }

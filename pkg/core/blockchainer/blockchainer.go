@@ -42,6 +42,7 @@ type Blockchainer interface {
 	GetNEP5TransferLog(util.Uint160) *state.NEP5TransferLog
 	GetNEP5Balances(util.Uint160) *state.NEP5Balances
 	GetValidators() ([]*keys.PublicKey, error)
+	GetStandByCommittee() keys.PublicKeys
 	GetStandByValidators() keys.PublicKeys
 	GetScriptHashesForVerifying(*transaction.Transaction) ([]util.Uint160, error)
 	GetStateRoot(height uint32) (*state.MPTRootState, error)
