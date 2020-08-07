@@ -626,7 +626,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetStateHeight()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"blockHeight":208,"stateHeight":200}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"blockheight":208,"stateheight":200}}`,
 			result: func(c *Client) interface{} {
 				return &result.StateHeight{
 					BlockHeight: 208,
